@@ -144,6 +144,11 @@ def test_parallelism_under_50pct_of_sequential(monkeypatch, tmp_path):
     """Acceptance: drafter+redteam wall-clock <50% of sequential sum."""
     monkeypatch.setattr(DR, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(DR, "DEBATE_STATE_FILE_REL", "debates.jsonl")
+    # This gate measures the two SDK sides, not cold audit imports or external
+    # ledger I/O. Those effects made a genuinely parallel 300 ms pair fail at
+    # 480-617 ms under suite load.
+    monkeypatch.setattr(DR, "_audit", lambda *args, **kwargs: None)
+    monkeypatch.setattr(DR, "_persist", lambda record: None)
     from swarm import kanban_adapter
     monkeypatch.setattr(kanban_adapter, "emit_debate_card", lambda **kwargs: None)
     _install_fake_kill(monkeypatch, _FakeKillSwitch(on=False))

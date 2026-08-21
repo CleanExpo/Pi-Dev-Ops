@@ -28,6 +28,7 @@ import json
 import logging
 import os
 import signal
+import sys
 from dataclasses import dataclass
 
 log = logging.getLogger("pi-ceo.workspace_verify")
@@ -108,7 +109,7 @@ def detect_check(workspace: str) -> tuple[list[str], str]:
         for f in ("pytest.ini", "pyproject.toml", "setup.cfg", "tox.ini")
     )
     if has_tests_dir and has_py_cfg:
-        return ["python3", "-m", "pytest", "-q", "tests/"], "pytest"
+        return [sys.executable, "-m", "pytest", "-q", "tests/"], "pytest"
 
     return [], "no declared test script and no pytest layout"
 
@@ -142,17 +143,50 @@ async def run_workspace_checks(
     except (OSError, ValueError) as exc:
         return VerifyResult(NOT_RUN, label, f"could not start: {exc}", "")
 
-    try:
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
-    except asyncio.TimeoutError:
-        # Kill the group, not just the child — see start_new_session above.
+    async def kill_and_drain() -> None:
+        """Stop the isolated process group and finish pipe cleanup."""
         try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except (ProcessLookupError, PermissionError, OSError):
+            # start_new_session=True makes the child's PID the process-group
+            # ID. Use that stable ID directly: the leader may already have
+            # exited while a descendant still owns stdout.
+            os.killpg(proc.pid, signal.SIGKILL)
+        except OSError:
             try:
                 proc.kill()
             except ProcessLookupError:
                 pass
+
+        # Reap the process and drain its pipes before the caller's event loop
+        # closes. The bound prevents an escaped descendant from holding the
+        # verifier open indefinitely.
+        try:
+            await asyncio.wait_for(proc.communicate(), timeout=5)
+        except (asyncio.TimeoutError, OSError):
+            pass
+
+    timed_out = False
+    stdout = b""
+    try:
+        try:
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
+        except asyncio.TimeoutError:
+            timed_out = True
+            await kill_and_drain()
+        except asyncio.CancelledError:
+            # Session aborts and hard stops must not orphan the repo's test
+            # process tree. Clean it up, then preserve cancellation semantics.
+            await kill_and_drain()
+            raise
+    finally:
+        # `communicate()` waits for exit, but on very short-lived children
+        # CPython can retain an open subprocess transport until garbage
+        # collection. Close it while its loop is alive. asyncio's Process has
+        # no public close method on the supported Python versions.
+        transport = getattr(proc, "_transport", None)
+        if transport is not None:
+            transport.close()
+
+    if timed_out:
         return VerifyResult(TIMED_OUT, label, "", f"exceeded {timeout_s}s")
 
     tail = (stdout or b"").decode("utf-8", errors="replace")[-2000:]

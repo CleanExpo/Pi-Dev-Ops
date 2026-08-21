@@ -9,7 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import sys
+import time
 from pathlib import Path
+
+import pytest
 
 from app.server import workspace_verify as wv
 
@@ -26,6 +31,18 @@ def _py_repo(tmp_path: Path, test_body: str) -> Path:
     return tmp_path
 
 
+def _assert_process_group_gone(pgid: int, timeout_s: float = 2) -> None:
+    """Poll boundedly because a killed descendant may be briefly unreaped."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(0.02)
+    pytest.fail(f"process group {pgid} survived cleanup for {timeout_s:.1f}s")
+
+
 def test_a_passing_suite_is_reported_as_passed(tmp_path: Path) -> None:
     """Positive control: without this, the failure test below proves nothing."""
     repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
@@ -35,6 +52,16 @@ def test_a_passing_suite_is_reported_as_passed(tmp_path: Path) -> None:
     assert result.status == wv.PASSED
     assert result.ran is True
     assert "pytest" in result.command
+
+
+def test_pytest_check_uses_the_running_interpreter_not_path(tmp_path: Path) -> None:
+    """A restricted PATH must not silently select a Python without pytest."""
+    repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
+
+    argv, label = wv.detect_check(str(repo))
+
+    assert label == "pytest"
+    assert argv == [sys.executable, "-m", "pytest", "-q", "tests/"]
 
 
 def test_a_failing_suite_is_reported_as_failed(tmp_path: Path) -> None:
@@ -87,6 +114,94 @@ def test_timeout_is_not_a_pass(tmp_path: Path) -> None:
     assert result.status != wv.PASSED
 
 
+def test_timeout_kills_descendant_after_process_group_leader_exits(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """A vanished leader must not leave a pipe-owning descendant alive.
+
+    The direct child exits immediately after spawning a sleeper. The sleeper
+    inherits the process group and stdout pipe, so ``communicate()`` cannot
+    finish until the whole known group is killed.
+    """
+    repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
+    leader = (
+        "import subprocess,sys; "
+        "subprocess.Popen([sys.executable, '-c', "
+        "'import time; time.sleep(30)'], stdout=sys.stdout, stderr=sys.stderr)"
+    )
+    monkeypatch.setattr(
+        wv,
+        "detect_check",
+        lambda ws: ([sys.executable, "-c", leader], "descendant timeout probe"),
+    )
+    original_create = asyncio.create_subprocess_exec
+    observed: dict[str, asyncio.subprocess.Process] = {}
+
+    async def tracked_create(*args, **kwargs):
+        proc = await original_create(*args, **kwargs)
+        observed["proc"] = proc
+        return proc
+
+    monkeypatch.setattr(wv.asyncio, "create_subprocess_exec", tracked_create)
+
+    started = time.monotonic()
+    result = _run(wv.run_workspace_checks(str(repo), timeout_s=0.25))
+    elapsed = time.monotonic() - started
+
+    assert result.status == wv.TIMED_OUT
+    assert elapsed < 2, f"descendant kept the timeout path open for {elapsed:.2f}s"
+    _assert_process_group_gone(observed["proc"].pid)
+
+
+def test_cancellation_kills_and_reaps_process_group(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """Cancelling the verifier must not orphan its subprocess tree."""
+    repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
+    leader = (
+        "import subprocess,sys,time; "
+        "subprocess.Popen([sys.executable, '-c', "
+        "'import time; time.sleep(30)'], stdout=sys.stdout, stderr=sys.stderr); "
+        "time.sleep(30)"
+    )
+    monkeypatch.setattr(
+        wv,
+        "detect_check",
+        lambda ws: ([sys.executable, "-c", leader], "cancellation probe"),
+    )
+    original_create = asyncio.create_subprocess_exec
+    observed: dict[str, asyncio.subprocess.Process] = {}
+
+    async def tracked_create(*args, **kwargs):
+        proc = await original_create(*args, **kwargs)
+        observed["proc"] = proc
+        return proc
+
+    monkeypatch.setattr(wv.asyncio, "create_subprocess_exec", tracked_create)
+
+    async def scenario() -> None:
+        task = asyncio.create_task(wv.run_workspace_checks(str(repo), timeout_s=30))
+        deadline = asyncio.get_running_loop().time() + 2
+        while "proc" not in observed and not task.done():
+            if asyncio.get_running_loop().time() >= deadline:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+                pytest.fail("subprocess creation did not finish within 2 seconds")
+            await asyncio.sleep(0.001)
+        if task.done():
+            await task
+        await asyncio.sleep(0.1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    _run(scenario())
+
+    proc = observed["proc"]
+    assert proc.returncode is not None
+    _assert_process_group_gone(proc.pid)
+
+
 def test_absent_runner_is_not_reported_as_a_test_failure(tmp_path: Path, monkeypatch) -> None:
     """A cloned repo need not have pytest installed.
 
@@ -106,6 +221,50 @@ def test_absent_runner_is_not_reported_as_a_test_failure(tmp_path: Path, monkeyp
     assert result.status == wv.NOT_RUN
     assert result.status != wv.FAILED
     assert "not installed" in result.reason
+
+
+def test_short_lived_runner_transport_is_closed_before_loop_shutdown(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The verifier itself must close a completed child's transport.
+
+    A real asyncio subprocess may close its transport automatically, which lets a
+    deletion of the explicit finally-path close survive this regression. The
+    controlled process below has no implicit cleanup: the assertion can only pass
+    when ``run_workspace_checks`` performs the close it owns.
+    """
+    repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
+    monkeypatch.setattr(
+        wv,
+        "detect_check",
+        lambda ws: (["python3", "-c", "raise SystemExit('No module named pytest')"], "pytest"),
+    )
+
+    class ControlledTransport:
+        close_calls = 0
+
+        def close(self) -> None:
+            self.close_calls += 1
+
+    class ControlledProcess:
+        returncode = 1
+        pid = 999_999_999
+        _transport = ControlledTransport()
+
+        async def communicate(self):
+            return b"No module named pytest", None
+
+    process = ControlledProcess()
+
+    async def create_controlled(*_args, **_kwargs):
+        return process
+
+    monkeypatch.setattr(wv.asyncio, "create_subprocess_exec", create_controlled)
+
+    result = _run(wv.run_workspace_checks(str(repo), timeout_s=30))
+
+    assert result.status == wv.NOT_RUN
+    assert process._transport.close_calls == 1
 
 
 def test_secrets_do_not_reach_the_cloned_repos_test_command(monkeypatch) -> None:

@@ -16,11 +16,37 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from swarm import portfolio_pulse  # noqa: E402
-from app.server import config_loader
+from app.server import config_loader  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def provider_free_foundation(monkeypatch):
+    """Keep foundation coverage hermetic even when provider credentials exist."""
+    calls: list[tuple[str, str, Path]] = []
+
+    def provider_for(section_name: str):
+        def provider(project_id: str, repo_root: Path):
+            calls.append((section_name, project_id, repo_root))
+            return f"fixture {section_name}", None
+
+        return provider
+
+    monkeypatch.setattr(portfolio_pulse, "_SIBLINGS_LOADED", True)
+    monkeypatch.setattr(
+        portfolio_pulse,
+        "_SECTION_PROVIDERS",
+        {
+            name: provider_for(name)
+            for name in portfolio_pulse._SECTION_ORDER
+        },
+    )
+    return calls
 
 
 def test_build_pulse_writes_markdown(tmp_path):
@@ -45,15 +71,31 @@ def test_build_pulse_writes_markdown(tmp_path):
         assert heading in body, f"missing section heading {heading!r}"
 
 
-def test_run_all_projects_iterates_defaults(tmp_path):
+def test_run_all_projects_iterates_defaults(tmp_path, provider_free_foundation):
     """run_all_projects covers all 7 default projects without raising."""
-    results = portfolio_pulse.run_all_projects(repo_root=tmp_path)
+    # This is the foundation-iteration contract, not the separately tested
+    # cross-portfolio LLM synthesis. Leaving the default enabled launches a
+    # real Agent SDK subprocess from the unit suite and can outlive the test's
+    # event loop when credentials/providers are present.
+    results = portfolio_pulse.run_all_projects(
+        repo_root=tmp_path,
+        include_synthesis=False,
+    )
     assert len(results) == len(portfolio_pulse.DEFAULT_PROJECTS)
     for r in results:
         assert r.project_id in portfolio_pulse.DEFAULT_PROJECTS
         assert r.error is None
         assert r.output_path is not None
         assert r.output_path.exists()
+    assert {
+        (section, project)
+        for section, project, root in provider_free_foundation
+        if root == tmp_path
+    } == {
+        (section, project)
+        for section in portfolio_pulse._SECTION_ORDER
+        for project in portfolio_pulse.DEFAULT_PROJECTS
+    }
 
 
 def test_set_section_provider_replaces_default(tmp_path):

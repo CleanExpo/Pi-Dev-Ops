@@ -93,34 +93,49 @@ def test_run_claude_uses_sdk_when_flag_on():
     from app.server import pipeline, config
 
     with patch.object(config, "USE_AGENT_SDK", True):
-        with patch.object(pipeline, "_run_claude_via_sdk_async") as mock_async:
-            # asyncio.run will call the coroutine synchronously
-            async def fake_sdk(*args, **kwargs):
-                return (True, "# Plan: Implementation plan content")
-            mock_async.return_value = fake_sdk()
-
-            with patch("asyncio.run", return_value=(True, "# Plan: Implementation plan content")):
+        fake_awaitable = object()
+        mock_async = MagicMock(return_value=fake_awaitable)
+        with patch.object(pipeline, "_run_claude_via_sdk_async", new=mock_async):
+            with patch(
+                "asyncio.run",
+                return_value=(True, "# Plan: Implementation plan content"),
+            ) as mock_run:
                 result = pipeline._run_claude("write a plan", model="sonnet", phase="plan")
                 assert "# Plan:" in result
+                mock_run.assert_called_once_with(fake_awaitable)
 
 
 def test_run_claude_raises_on_empty_sdk_output():
     """_run_claude() raises RuntimeError when SDK returns empty output (RA-1094B)."""
     from app.server import pipeline
 
-    # SDK returns success=True but empty output — SDK-only mandate means this fails loudly
-    with patch("asyncio.run", return_value=(True, "")):
-        with pytest.raises(RuntimeError, match="empty output"):
-            pipeline._run_claude("write spec", model="sonnet", phase="spec")
+    # SDK returns success=True but empty output — SDK-only mandate means this fails loudly.
+    # Keep the test fully synchronous: patching asyncio.run while constructing a real
+    # coroutine leaked that coroutine until interpreter shutdown.
+    fake_awaitable = object()
+    with patch.object(
+        pipeline,
+        "_run_claude_via_sdk_async",
+        new=MagicMock(return_value=fake_awaitable),
+    ):
+        with patch("asyncio.run", return_value=(True, "")):
+            with pytest.raises(RuntimeError, match="empty output"):
+                pipeline._run_claude("write spec", model="sonnet", phase="spec")
 
 
 def test_run_claude_raises_on_sdk_failure():
     """_run_claude() raises RuntimeError when SDK reports failure (RA-1094B)."""
     from app.server import pipeline
 
-    with patch("asyncio.run", return_value=(False, "error output")):
-        with pytest.raises(RuntimeError, match="failure"):
-            pipeline._run_claude("write spec", model="sonnet", phase="spec")
+    fake_awaitable = object()
+    with patch.object(
+        pipeline,
+        "_run_claude_via_sdk_async",
+        new=MagicMock(return_value=fake_awaitable),
+    ):
+        with patch("asyncio.run", return_value=(False, "error output")):
+            with pytest.raises(RuntimeError, match="failure"):
+                pipeline._run_claude("write spec", model="sonnet", phase="spec")
 
 
 @pytest.mark.asyncio
