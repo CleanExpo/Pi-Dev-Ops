@@ -375,6 +375,49 @@ async def test_push_rechecks_complete_workspace_identity_before_git_side_effect(
 
 
 @pytest.mark.asyncio
+async def test_push_uses_admitted_url_explicit_refspec_and_disables_hooks(
+    admitted, tmp_path, monkeypatch,
+):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    session = session_model.BuildSession(
+        id="abcdef123456",
+        repo_url="https://github.com/unite-group/pi-dev-ops.git",
+        workspace=str(tmp_path),
+        senior_harness_reservation=admitted["reservation"],
+    )
+    async def fake_run(_cwd, *args, **_kwargs):
+        if "status" in args:
+            return 0, " M app.py\n", ""
+        if "log" in args:
+            return 0, "abc123 feat: admitted change\n", ""
+        return 0, "", ""
+
+    run = AsyncMock(side_effect=fake_run)
+    with patch.object(session_phases, "run_cmd", new=run), patch.object(
+        session_phases,
+        "verify_workspace_identity",
+        new=AsyncMock(side_effect=[True, True]),
+    ) as verify, patch.object(session_phases, "require_active_for_run"):
+        files, pushed = await session_phases._phase_push(session, 7)
+
+    assert pushed is True
+    assert files == []
+    assert verify.await_count == 2
+    commands = [call.args[1:] for call in run.await_args_list]
+    commit = next(args for args in commands if "commit" in args)
+    checkout = next(args for args in commands if "checkout" in args)
+    push = next(args for args in commands if "push" in args)
+    assert f"core.hooksPath={__import__('os').devnull}" in commit
+    assert f"core.hooksPath={__import__('os').devnull}" in checkout
+    assert push == (
+        "git",
+        "push",
+        "https://github.com/unite-group/pi-dev-ops.git",
+        "HEAD:refs/heads/pidev/auto-abcdef12",
+    )
+
+
+@pytest.mark.asyncio
 async def test_workspace_identity_checks_every_push_url_and_allows_base_descendant(
     admitted, tmp_path,
 ):

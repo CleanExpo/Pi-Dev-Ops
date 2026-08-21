@@ -1676,9 +1676,13 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
     """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
     phase_start = time.monotonic()
-    from .senior_harness_admission import deployment_mode  # noqa: PLC0415
+    from .senior_harness_admission import (  # noqa: PLC0415
+        deployment_mode,
+        normalize_repository,
+    )
 
-    if deployment_mode() == "enforce":
+    enforce_mode = deployment_mode() == "enforce"
+    if enforce_mode:
         reservation = getattr(session, "senior_harness_reservation", None) or {}
         if not await verify_workspace_identity(
             session.workspace,
@@ -1697,32 +1701,62 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
         rc, out, _ = await run_cmd(session.workspace, "git", "status", "--porcelain")
         if out.strip():
             await run_cmd(session.workspace, "git", "add", "-A")
-            await run_cmd(session.workspace, "git", "commit", "-m", "feat: Pi CEO build")
+            await run_cmd(
+                session.workspace,
+                "git",
+                "-c",
+                f"core.hooksPath={os.devnull}",
+                "commit",
+                "-m",
+                "feat: Pi CEO build",
+            )
         _, out, _ = await run_cmd(session.workspace, "git", "log", "--oneline", "-10")
         commits = [ln.strip() for ln in out.strip().split("\n") if ln.strip()]
         push_ok = False
         if commits:
             for c in commits:
                 em(session, "system", f"  {c}")
-            # ── Embed GITHUB_TOKEN in remote URL for authenticated push ──
             github_token = os.environ.get("GITHUB_TOKEN", "")
-            if github_token:
-                try:
-                    _, ru, _ = await run_cmd(session.workspace, "git", "remote", "get-url", "origin", timeout=5)
-                    ru = ru.strip()
-                    if "github.com" in ru and "@" not in ru:
-                        authed = ru.replace("https://github.com/", f"https://x-access-token:{github_token}@github.com/")
-                        await run_cmd(session.workspace, "git", "remote", "set-url", "origin", authed.strip(), timeout=5)
-                        em(session, "system", "  Remote: authenticated via GITHUB_TOKEN")
-                except Exception as _auth_err:
-                    em(session, "system", f"  Remote auth setup warning: {_auth_err}")
+            push_target = normalize_repository(session.repo_url) + ".git"
+            push_env = _git_clone_env(push_target)
             # ── Push to a feature branch (not main) ──
             sid_short = getattr(session, "id", "auto")[:8]
             branch_name = f"pidev/auto-{sid_short}"
-            await run_cmd(session.workspace, "git", "checkout", "-b", branch_name, timeout=10)
+            await run_cmd(
+                session.workspace,
+                "git",
+                "-c",
+                f"core.hooksPath={os.devnull}",
+                "checkout",
+                "-b",
+                branch_name,
+                timeout=10,
+            )
+            if enforce_mode and not await verify_workspace_identity(
+                session.workspace,
+                (getattr(session, "senior_harness_reservation", None) or {}).get(
+                    "base_sha", ""
+                ),
+                session.repo_url,
+                allow_descendant=True,
+            ):
+                _fail_phase(
+                    session,
+                    "Senior Harness workspace identity drifted during pre-push Git operations",
+                )
+                return af, False
             em(session, "system", f"  Pushing {len(commits)} commits on branch {branch_name}...")
             for push_attempt in range(3):
-                rc, _, err = await run_cmd(session.workspace, "git", "push", "origin", branch_name, timeout=30)
+                require_active_for_run(session.id)
+                rc, _, err = await run_cmd(
+                    session.workspace,
+                    "git",
+                    "push",
+                    push_target,
+                    f"HEAD:refs/heads/{branch_name}",
+                    timeout=30,
+                    env=push_env,
+                )
                 if rc == 0:
                     push_ok = True
                     em(session, "success", f"  Pushed to GitHub! Branch: {branch_name}")
@@ -1742,8 +1776,8 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
             # RA-1183 — auto-open a PR from pidev/auto-<sid> → main.
             # Only when push succeeded AND the branch has a real diff vs main
             # (avoids empty PRs from sessions that correctly decided nothing
-            # needed fixing). Uses GitHub REST API with x-access-token auth
-            # from the embedded remote URL.
+            # needed fixing). Uses GitHub REST API with process-scoped token
+            # auth; credentials are never written to the repository config.
             if push_ok and github_token:
                 try:
                     # Check there's actually a diff to PR
@@ -1751,14 +1785,9 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
                         session.workspace, "git", "diff", "--name-only", "origin/main", branch_name, timeout=10,
                     )
                     if rc_diff == 0 and diff_out.strip():
-                        # Derive owner/repo from remote URL
-                        _, ru, _ = await run_cmd(session.workspace, "git", "remote", "get-url", "origin", timeout=5)
-                        ru = ru.strip().rstrip("/")
-                        # Strip token auth + .git suffix
-                        ru = ru.replace(f"https://x-access-token:{github_token}@", "https://")
-                        if ru.endswith(".git"):
-                            ru = ru[:-4]
-                        owner_repo = ru.replace("https://github.com/", "")
+                        owner_repo = normalize_repository(session.repo_url).replace(
+                            "https://github.com/", ""
+                        )
                         # Latest commit message for PR title
                         _, last_msg, _ = await run_cmd(
                             session.workspace, "git", "log", "-1", "--pretty=%s", branch_name, timeout=5,
