@@ -806,7 +806,14 @@ def _safe_test_argument(token: str, payload: dict[str, Any]) -> bool:
     raw_input = payload.get("tool_input")
     if not isinstance(raw_input, dict):
         raw_input = payload.get("input") if isinstance(payload.get("input"), dict) else {}
-    raw_cwd = raw_input.get("cwd") or payload.get("cwd") or "."
+    raw_cwd = payload.get("cwd") or "."
+    requested_workdir = raw_input.get("workdir")
+    if requested_workdir is not None:
+        try:
+            if Path(str(requested_workdir)).expanduser().resolve() != Path(str(raw_cwd)).expanduser().resolve():
+                return False
+        except OSError:
+            return False
     try:
         checkout = Path(str(raw_cwd)).expanduser().resolve()
         candidate = (checkout / token.split("::", 1)[0]).resolve()
@@ -830,6 +837,16 @@ def _is_parallel_verification_tool(payload: dict[str, Any]) -> bool:
     command = tool_input.get("cmd") or tool_input.get("command")
     if not isinstance(command, str) or not command.strip() or re.search(r"[\n;&|<>`]|\$\(", command):
         return False
+    requested_workdir = tool_input.get("workdir")
+    if requested_workdir is not None:
+        bound_cwd = payload.get("cwd")
+        if not isinstance(bound_cwd, str) or not bound_cwd:
+            return False
+        try:
+            if Path(str(requested_workdir)).expanduser().resolve() != Path(bound_cwd).expanduser().resolve():
+                return False
+        except OSError:
+            return False
     try:
         argv = shlex.split(command)
     except ValueError:

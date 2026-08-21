@@ -490,6 +490,17 @@ def test_parallel_root_denies_mutating_or_unbounded_verifier_commands(
     assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
+def test_parallel_verifier_binds_actual_execution_workdir(tmp_path: Path) -> None:
+    payload = {
+        "tool_name": "exec_command",
+        "cwd": str(REPO_ROOT),
+        "tool_input": {"cmd": "pytest tests/evil.py", "workdir": str(tmp_path)},
+    }
+    assert setup_driver_module._is_parallel_verification_tool(payload) is False
+    payload["tool_input"]["cmd"] = "pytest -q"
+    assert setup_driver_module._is_parallel_verification_tool(payload) is False
+
+
 def test_grill_hook_never_orders_dispatch_before_shared_understanding(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
