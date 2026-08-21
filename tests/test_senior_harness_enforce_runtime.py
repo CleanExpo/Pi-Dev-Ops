@@ -367,9 +367,47 @@ async def test_push_rechecks_complete_workspace_identity_before_git_side_effect(
         session.workspace,
         admitted["reservation"]["base_sha"],
         session.repo_url,
+        allow_descendant=True,
     )
     run.assert_not_awaited()
     fail.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_workspace_identity_checks_every_push_url_and_allows_base_descendant(
+    admitted, tmp_path,
+):
+    expected_repo = "https://github.com/unite-group/pi-dev-ops.git"
+    other_repo = "https://github.com/other-owner/other-repo.git"
+    multiple_push = AsyncMock(
+        side_effect=[
+            (0, "a" * 40 + "\n", ""),
+            (0, expected_repo + "\n", ""),
+            (0, expected_repo + "\n" + other_repo + "\n", ""),
+        ]
+    )
+    with patch.object(session_phases, "run_cmd", new=multiple_push):
+        assert not await session_phases.verify_workspace_identity(
+            str(tmp_path),
+            "a" * 40,
+            expected_repo,
+        )
+
+    descendant = AsyncMock(
+        side_effect=[
+            (0, "b" * 40 + "\n", ""),
+            (0, "", ""),
+            (0, expected_repo + "\n", ""),
+            (0, expected_repo + "\n", ""),
+        ]
+    )
+    with patch.object(session_phases, "run_cmd", new=descendant):
+        assert await session_phases.verify_workspace_identity(
+            str(tmp_path),
+            "a" * 40,
+            expected_repo,
+            allow_descendant=True,
+        )
 
 
 @pytest.mark.asyncio

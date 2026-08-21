@@ -778,6 +778,8 @@ async def verify_workspace_identity(
     workspace: str,
     expected_base_sha: str,
     expected_repo_url: str,
+    *,
+    allow_descendant: bool = False,
 ) -> bool:
     """Read-only exact-HEAD and origin preflight for an admitted workspace."""
     if (
@@ -790,15 +792,36 @@ async def verify_workspace_identity(
     rc, actual, _error = await run_cmd(
         workspace, "git", "rev-parse", "HEAD", timeout=10,
     )
-    if rc != 0 or actual.strip() != expected_base_sha:
+    if rc != 0:
         return False
+    if actual.strip() != expected_base_sha:
+        if not allow_descendant:
+            return False
+        ancestor_rc, _ancestor_out, _ancestor_error = await run_cmd(
+            workspace,
+            "git",
+            "merge-base",
+            "--is-ancestor",
+            expected_base_sha,
+            "HEAD",
+            timeout=10,
+        )
+        if ancestor_rc != 0:
+            return False
     origin_rc, origin, _origin_error = await run_cmd(
         workspace, "git", "remote", "get-url", "origin", timeout=10,
     )
     if origin_rc != 0:
         return False
     push_rc, push_origin, _push_error = await run_cmd(
-        workspace, "git", "remote", "get-url", "--push", "origin", timeout=10,
+        workspace,
+        "git",
+        "remote",
+        "get-url",
+        "--push",
+        "--all",
+        "origin",
+        timeout=10,
     )
     if push_rc != 0:
         return False
@@ -806,9 +829,11 @@ async def verify_workspace_identity(
 
     try:
         expected = normalize_repository(expected_repo_url)
+        push_destinations = [line.strip() for line in push_origin.splitlines() if line.strip()]
         return (
             normalize_repository(origin.strip()) == expected
-            and normalize_repository(push_origin.strip()) == expected
+            and bool(push_destinations)
+            and all(normalize_repository(url) == expected for url in push_destinations)
         )
     except Exception:
         return False
@@ -1641,6 +1666,7 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
             session.workspace,
             reservation.get("base_sha", ""),
             session.repo_url,
+            allow_descendant=True,
         ):
             _fail_phase(
                 session,
