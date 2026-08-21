@@ -1,17 +1,13 @@
 # tests — Wiki
 
-_Last updated: 2026-08-20T09:32:16Z (commits df379e0..3d8707f)_
+_Last updated: 2026-08-21T14:02:19Z (commits a8096a3..aea13a1)_
 
 ## Recent changes
-- 3d8707f — fix(models): retire Gemma 4, move cheap tier to GLM 4.7 Flash + Qwen 3.5 (#649)
+- aea13a1 — fix: harden Unite-Group cron health diagnostics (#657)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/_sprinkle_helpers.py — touched in recent commits
-- tests/test_budget_tracker.py — touched in recent commits
-- tests/test_discovery.py — touched in recent commits
-- tests/test_enhancement_scout_card_rename.py — touched in recent commits
-- tests/test_intent_router_triage_timeout.py — touched in recent commits
-- tests/test_provider_ollama.py — touched in recent commits
+- tests/test_cron_error_sweep.py — touched in recent commits
+- tests/test_unite_group_health_check.py — touched in recent commits

@@ -1,14 +1,13 @@
 # scripts — Wiki
 
-_Last updated: 2026-08-20T09:32:16Z (commits df379e0..3d8707f)_
+_Last updated: 2026-08-21T14:02:19Z (commits a8096a3..aea13a1)_
 
 ## Recent changes
-- 3d8707f — fix(models): retire Gemma 4, move cheap tier to GLM 4.7 Flash + Qwen 3.5 (#649)
+- aea13a1 — fix: harden Unite-Group cron health diagnostics (#657)
 
 ## Architecture (current)
 Auto-stub: `scripts/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- scripts/analyse_lessons.py — touched in recent commits
-- scripts/dspy_pov.py — touched in recent commits
-- scripts/eval_feedback_loop.py — touched in recent commits
+- scripts/cron_error_sweep.py — touched in recent commits
+- scripts/unite_group_health_check.py — touched in recent commits
