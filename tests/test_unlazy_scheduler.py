@@ -499,21 +499,24 @@ def test_persisted_receipt_rejects_wrong_key_and_metadata_tampering(
 
 def test_scheduler_rejects_receipt_that_allowlists_signing_key(verified_case):
     raw, receipt = case_copy(verified_case)
-    receipt["environment_keys"] = sorted(
-        [*receipt["environment_keys"], "UNLAZY_RECEIPT_HMAC_KEY"],
-    )
-    environment_payload = "\0".join(
-        f"{key}={os.environ.get(key, '<unset>')}"
-        for key in receipt["environment_keys"]
-    )
-    receipt["environment_digest"] = (
-        "sha256:" + hashlib.sha256(environment_payload.encode()).hexdigest()
-    )
-    with pytest.raises(PlanValidationError, match="sensitive environment"):
-        record_result(
-            raw, "1.1", passed=True, changed_paths=[],
-            verification_receipt=receipt,
+    for name in (
+        "UNLAZY_RECEIPT_HMAC_KEY", "APIKEY", "ACCESSTOKEN", "CLIENTSECRET",
+        "DBPASSWORD", "SERVICECREDENTIALS",
+    ):
+        candidate = copy.deepcopy(receipt)
+        candidate["environment_keys"] = sorted([*candidate["environment_keys"], name])
+        environment_payload = "\0".join(
+            f"{key}={os.environ.get(key, '<unset>')}"
+            for key in candidate["environment_keys"]
         )
+        candidate["environment_digest"] = (
+            "sha256:" + hashlib.sha256(environment_payload.encode()).hexdigest()
+        )
+        with pytest.raises(PlanValidationError, match="sensitive environment"):
+            record_result(
+                raw, "1.1", passed=True, changed_paths=[],
+                verification_receipt=candidate,
+            )
 
 
 def test_terminal_receipt_requires_execution_controls_and_usage(verified_case):

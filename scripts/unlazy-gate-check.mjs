@@ -10,7 +10,7 @@ const MAX_JOBS = 8;
 const MAX_OUTPUT = 64 * 1024;
 const RUNNER_VERSION = "nexus-unlazy-gate-v3";
 const DEFAULT_ENV_KEYS = ["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL", "TERM", "CI"];
-const SENSITIVE_ENV_KEY = /(?:^|_)(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIALS?)(?:_|$)/i;
+const SENSITIVE_ENV_KEY = /KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL/i;
 const SECRET = /(sk-[A-Za-z0-9_-]{8,}|Bearer\s+\S+|(?:api[_-]?key|token|secret|password)\s*[=:]\s*\S+)/gi;
 
 function usage() {

@@ -135,18 +135,48 @@ def test_sensitive_environment_key_cannot_be_allowlisted(tmp_path):
 """,
     )
     environment = os.environ.copy()
-    environment["UNLAZY_RECEIPT_HMAC_KEY"] = "never-emit-this-test-signing-key-material"
+    for name in (
+        "UNLAZY_RECEIPT_HMAC_KEY", "APIKEY", "ACCESSTOKEN", "CLIENTSECRET",
+        "DBPASSWORD", "SERVICECREDENTIALS",
+    ):
+        environment[name] = "never-emit-this-test-signing-value"
+        result = subprocess.run(
+            [
+                "node", str(CHECKER), "--json", "--plan-id", "plan-1",
+                "--node-id", "1.1", "--worker-id", "worker-a",
+                "--verifier-id", "verifier-1", "--relevant-input", gate.name,
+                "--env", name, gate.name,
+            ],
+            cwd=root, env=environment, text=True, capture_output=True,
+        )
+        assert result.returncode == 2
+        assert "sensitive environment" in result.stderr
+        assert environment[name] not in result.stdout + result.stderr
+
+
+def test_non_sensitive_environment_key_can_be_allowlisted(tmp_path):
+    root = repo_fixture(tmp_path)
+    gate = write_gate(
+        root,
+        """- [ ] G1: ordinary build context is available
+  CHECK: node -e \"console.log(process.env.BUILD_MODE)\"
+  EXIT: 0
+  EXPECT: release-review
+  EVIDENCE: pending
+""",
+    )
+    environment = os.environ.copy()
+    environment["BUILD_MODE"] = "release-review"
     result = subprocess.run(
         [
             "node", str(CHECKER), "--json", "--plan-id", "plan-1", "--node-id", "1.1",
             "--worker-id", "worker-a", "--verifier-id", "verifier-1",
-            "--relevant-input", gate.name, "--env", "UNLAZY_RECEIPT_HMAC_KEY", gate.name,
+            "--relevant-input", gate.name, "--env", "BUILD_MODE", gate.name,
         ],
         cwd=root, env=environment, text=True, capture_output=True,
     )
-    assert result.returncode == 2
-    assert "sensitive environment" in result.stderr
-    assert environment["UNLAZY_RECEIPT_HMAC_KEY"] not in result.stdout + result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "BUILD_MODE" in json.loads(result.stdout)["environment_keys"]
 
 
 def test_relevant_input_content_is_bound_to_receipt_digest(tmp_path):

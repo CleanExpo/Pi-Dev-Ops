@@ -28,7 +28,7 @@ WILDCARDS = re.compile(r"[*?\[\]{}]")
 GIT_SHA = re.compile(r"[0-9a-f]{40}")
 SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 SENSITIVE_ENV_KEY = re.compile(
-    r"(?:^|_)(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIALS?)(?:_|$)", re.IGNORECASE,
+    r"KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL", re.IGNORECASE,
 )
 TRUSTED_GATE_RUNNER_VERSION = "nexus-unlazy-gate-v3"
 TRUSTED_GATE_RUNNER = Path(__file__).resolve().parents[1] / "scripts" / "unlazy-gate-check.mjs"
