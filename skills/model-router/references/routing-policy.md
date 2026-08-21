@@ -43,6 +43,10 @@ and fan-out work. Use `null` only for an intentionally unbounded or unreported o
 repository policy permits it. Missing cancellation degrades otherwise-valid timed fan-out to one
 worker; it never leaves multiple workers running beyond the declared boundary.
 
+Non-finite numeric limits (`NaN` or infinities) are invalid input, never an unbounded cap. Work at
+the `top` quality floor is never inline because its independent verifier must remain a separate
+execution boundary.
+
 Gathering work is non-mutating `worker/cheap` unless another constraint raises its floor or changes
 its location. Do not treat high volume as high stakes by itself.
 

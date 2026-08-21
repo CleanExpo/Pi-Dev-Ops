@@ -59,6 +59,9 @@ For every return:
 4. record actual execution controls, usage knowns/unknowns, and terminal result;
 5. unlock dependants only after `passed`.
 
+Only a leaf already in `verifying` may receive a terminal result, and the result flag must be a JSON
+boolean. Never coerce strings or skip the `running -> verifying` boundary.
+
 A worker summary is not evidence. A failed leaf may retry once with the exact unmet gates. The
 second comparable failure escalates capability or blocks; it does not loop.
 

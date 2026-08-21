@@ -127,6 +127,22 @@ def test_model_router_cli_rejects_string_boolean_before_policy_evaluation():
     assert "must be a boolean" in error["error"]
 
 
+def test_model_router_cli_rejects_non_finite_budget_before_serializing():
+    raw = routing_request()
+    raw["limits"]["max_cost_usd"] = float("nan")
+    result = subprocess.run(
+        [sys.executable, "-m", "app.server.task_routing"],
+        cwd=REPO_ROOT,
+        input=json.dumps(raw),
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 2
+    error = json.loads(result.stderr)
+    assert error["status"] == "invalid_request"
+    assert "must be finite" in error["error"]
+
+
 def test_documented_unlazy_plan_commands_work_without_pythonpath(tmp_path):
     help_result = subprocess.run(
         [sys.executable, "scripts/unlazy_plan.py", "--help"],

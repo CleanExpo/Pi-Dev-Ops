@@ -6,6 +6,7 @@ provider/model resolution remains owned by :mod:`app.server.provider_router`.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
@@ -124,6 +125,8 @@ class RoutingLimits:
                 parsed = float(value)
             except (TypeError, ValueError) as exc:
                 raise RoutingValidationError(f"limits.{name} must be numeric or null") from exc
+            if not math.isfinite(parsed):
+                raise RoutingValidationError(f"limits.{name} must be finite")
             if parsed < 0:
                 raise RoutingValidationError(f"limits.{name} must be non-negative")
             return parsed

@@ -308,6 +308,10 @@ def record_result(
     node = plan.by_id[node_id]
     if node.type != "leaf":
         raise PlanValidationError([f"node {node_id} is not a leaf"])
+    if node.state != "verifying":
+        raise PlanValidationError([f"node {node_id} must be verifying before a terminal result"])
+    if type(passed) is not bool:
+        raise PlanValidationError(["passed must be a boolean"])
     path_errors: list[str] = []
     canonical_changed: list[str] = []
     for raw_path in changed_paths:

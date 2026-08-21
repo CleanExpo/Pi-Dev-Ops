@@ -105,11 +105,13 @@ say `billed_cost_usd=0` only when observed; quota consumption remains a separate
 
 ## Validation invariants
 
-1. `confidence` is between 0 and 1; numeric caps and timeouts are non-negative.
+1. `confidence` is between 0 and 1; numeric caps and timeouts are finite and non-negative.
 2. Confidential high-stakes work is `local_only + top` for worker/verifier or `bailout`.
 3. Verifier floor is never below worker floor; high-stakes verification is independent.
 4. Fan-out requires `max_parallel_workers >= 2` and disjoint owned paths.
 5. Fallback is monotonic and ends in `bailout` when no safe target exists.
 6. A savings claim requires equal root-gate outcome, actual usage, and timestamped baseline prices.
+7. The policy digest and route ID bind the complete declared policy semantics, not only a version
+   label.
 
 The contract is complete when schema validation and all invariants pass.

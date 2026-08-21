@@ -75,6 +75,12 @@ def valid_plan():
     }
 
 
+def verifying_plan():
+    raw = valid_plan()
+    raw["nodes"][1]["state"] = "verifying"
+    return raw
+
+
 def test_lint_accepts_acyclic_disjoint_plan():
     plan = validate_plan(valid_plan())
     assert plan.effective_depth == 3
@@ -86,12 +92,12 @@ def test_rolling_ready_fills_cap_with_disjoint_leaves():
 
 
 def test_out_of_order_return_unlocks_new_leaf_immediately():
-    updated = record_result(valid_plan(), "1.1", passed=True, changed_paths=["src/a.py"])
+    updated = record_result(verifying_plan(), "1.1", passed=True, changed_paths=["src/a.py"])
     assert [node.id for node in ready_nodes(updated, active_ids=["1.2"])] == ["1.3"]
 
 
 def test_blocked_dependency_does_not_unlock_dependant():
-    updated = record_result(valid_plan(), "1.1", passed=False, changed_paths=["src/a.py"])
+    updated = record_result(verifying_plan(), "1.1", passed=False, changed_paths=["src/a.py"])
     assert "1.3" not in [node.id for node in ready_nodes(updated)]
 
 
@@ -133,7 +139,19 @@ def test_unsafe_or_wildcard_ownership_is_rejected():
 
 def test_out_of_contract_return_trips_boundary():
     with pytest.raises(PlanValidationError, match="outside ownership"):
-        record_result(valid_plan(), "1.1", passed=True, changed_paths=["src/b.py"])
+        record_result(verifying_plan(), "1.1", passed=True, changed_paths=["src/b.py"])
+
+
+def test_terminal_result_requires_verifying_state_and_strict_boolean():
+    with pytest.raises(PlanValidationError, match="must be verifying"):
+        record_result(valid_plan(), "1.1", passed=True, changed_paths=["src/a.py"])
+    with pytest.raises(PlanValidationError, match="passed must be a boolean"):
+        record_result(
+            verifying_plan(),
+            "1.1",
+            passed="false",  # type: ignore[arg-type]
+            changed_paths=["src/a.py"],
+        )
 
 
 def test_ownership_paths_are_canonical_for_result_boundary():
@@ -141,6 +159,7 @@ def test_ownership_paths_are_canonical_for_result_boundary():
     raw["nodes"][1]["owns"] = ["./src/a.py"]
     plan = validate_plan(raw)
     assert plan.by_id["1.1"].owns == ("src/a.py",)
+    raw["nodes"][1]["state"] = "verifying"
     updated = record_result(raw, "1.1", passed=True, changed_paths=["src/a.py"])
     assert updated["nodes"][1]["state"] == "passed"
 
@@ -148,6 +167,7 @@ def test_ownership_paths_are_canonical_for_result_boundary():
 def test_directory_ownership_accepts_children_but_not_parent_or_sibling():
     raw = valid_plan()
     raw["nodes"][1]["owns"] = ["src/features"]
+    raw["nodes"][1]["state"] = "verifying"
     updated = record_result(
         raw,
         "1.1",

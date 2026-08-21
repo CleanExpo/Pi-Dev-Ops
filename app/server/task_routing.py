@@ -12,15 +12,23 @@ from typing import Any
 from app.server.routing_schema import RouteDecision, RoutingRequest, RoutingValidationError
 
 
-POLICY_VERSION = "nexus-task-routing-v1"
+POLICY_VERSION = "nexus-task-routing-v2"
 HIGH_STAKES = {"auth", "payment", "privacy", "security", "legal", "release", "migration"}
 QUALITY_ORDER = ("cheap", "mid", "top")
 EFFORT_ORDER = ("low", "medium", "high", "xhigh")
+POLICY_RULES = (
+    "strict-json-booleans",
+    "finite-nonnegative-limits",
+    "top-floor-never-inline",
+    "delegation-hard-zero-limits",
+    "timed-fanout-requires-cancellation",
+    "monotonic-quality-effort-escalation",
+)
 
 
 def _stable_route_id(request: RoutingRequest) -> str:
     payload = {
-        "policy": POLICY_VERSION,
+        "policy": _policy_digest(),
         "request_id": request.request_id,
         "task": request.task,
         "harness": request.harness,
@@ -33,7 +41,14 @@ def _stable_route_id(request: RoutingRequest) -> str:
 
 
 def _policy_digest() -> str:
-    text = f"{POLICY_VERSION}|{sorted(HIGH_STAKES)}|{QUALITY_ORDER}"
+    payload = {
+        "version": POLICY_VERSION,
+        "high_stakes": sorted(HIGH_STAKES),
+        "quality_order": QUALITY_ORDER,
+        "effort_order": EFFORT_ORDER,
+        "rules": POLICY_RULES,
+    }
+    text = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return "sha256:" + hashlib.sha256(text.encode()).hexdigest()
 
 
@@ -104,6 +119,7 @@ def decide_route(raw: RoutingRequest | dict[str, Any]) -> RouteDecision:
             and signals.volume == 1
             and not stake_set
             and signals.ambiguity == "low"
+            and floor != "top"
         )
         parallel_work = (
             request.limits.max_parallel_workers > 1

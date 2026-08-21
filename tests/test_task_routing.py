@@ -5,6 +5,7 @@ import json
 import pytest
 
 from app.server.routing_schema import RoutingValidationError
+from app.server import task_routing
 from app.server.task_routing import decide_route
 
 
@@ -99,6 +100,20 @@ def test_trivial_deterministic_work_stays_inline():
     assert decision.quality_floor == "cheap"
 
 
+def test_deep_top_floor_work_never_routes_inline():
+    decision = decide_route(
+        request(
+            ambiguity="low",
+            scope="inline",
+            reasoning_depth="deep",
+            expected_minutes=5,
+        )
+    )
+    assert decision.quality_floor == "top"
+    assert decision.verifier["independent"] is True
+    assert decision.action == "delegate"
+
+
 def test_disjoint_multi_file_work_fans_out_to_cap():
     decision = decide_route(
         request(scope="multi-file", volume=4, dependency_count=2, ownership_disjoint=True)
@@ -177,6 +192,15 @@ def test_invalid_bool_integer_is_rejected():
         decide_route(raw)
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("field", ["max_cost_usd", "max_quota_units"])
+def test_non_finite_budget_limits_are_rejected(field, value):
+    raw = request()
+    raw["limits"][field] = value
+    with pytest.raises(RoutingValidationError, match="must be finite"):
+        decide_route(raw)
+
+
 @pytest.mark.parametrize("invalid", ["false", 0, None, [], {}])
 @pytest.mark.parametrize(
     ("section", "field"),
@@ -198,3 +222,15 @@ def test_decision_json_round_trips():
     payload = json.loads(decide_route(request()).to_json())
     assert payload["schema_version"] == "1.0"
     assert payload["policy_version"].startswith("sha256:")
+
+
+def test_policy_semantics_bind_digest_and_route_id(monkeypatch):
+    before = decide_route(request())
+    monkeypatch.setattr(
+        task_routing,
+        "POLICY_RULES",
+        (*task_routing.POLICY_RULES, "mutation-control-rule"),
+    )
+    after = decide_route(request())
+    assert after.policy_version != before.policy_version
+    assert after.route_id != before.route_id
