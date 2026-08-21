@@ -56,7 +56,9 @@ For every return:
 1. bind base/candidate SHA and enumerate the diff;
 2. reject paths outside `owns`, moving base, missing candidate, or contract-digest mismatch;
 3. rerun approved leaf gates once in the scheduler-controlled verifier context;
-4. record actual execution controls, usage knowns/unknowns, and terminal result;
+4. require and record actual execution controls (`dispatch_executed`, `result_received`, and the
+   frozen `worker_context_id`) plus usage as either known finite non-negative metrics or an explicit
+   unknown reason;
 5. unlock dependants only after `passed`.
 
 Only a leaf already in `verifying` may receive a terminal result, and the result flag must be a JSON
@@ -66,8 +68,10 @@ counts. Recompute those bindings from the live plan worktree before accepting it
 hash strings are not authority. At the explicit terminal transition, replay the node gates exactly
 once with the trusted runner and require deterministic execution evidence to reproduce before
 unlocking dependencies. Store only that scheduler-issued receipt, including validated timing, on
-the terminal node. Lint, validation, and ready queries remain side-effect-free and never execute a
-gate. The automated replay context is not a claim of separate human or agent authorship. Never
+the terminal node. Authenticate the complete receipt, execution controls, and usage using
+HMAC-SHA256 with `UNLAZY_RECEIPT_HMAC_KEY`; pure lint/validation/ready queries verify the MAC and
+fail closed without the key, while never executing a gate. The automated replay context is not a
+claim of separate human or agent authorship. Never
 coerce strings or skip the `running -> verifying` boundary.
 
 A worker summary is not evidence. A failed leaf may retry once with the exact unmet gates. The

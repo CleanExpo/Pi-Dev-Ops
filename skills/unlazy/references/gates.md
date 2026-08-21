@@ -51,7 +51,9 @@ input mutation invalidates reuse even when the candidate SHA and command text ar
 Before the scheduler unlocks dependencies, it independently replays the declared node gates with
 the trusted runner exactly once and requires deterministic execution evidence to reproduce. It
 validates timestamp ordering and elapsed-time bounds, discards caller timing, and stores only the
-scheduler-issued replay receipt. Caller-supplied receipt fields are never authority.
+scheduler-issued replay receipt. The scheduler authenticates the complete stored receipt, including
+execution controls and usage known/unknown, with HMAC-SHA256. Pure reads verify that MAC; a public
+authority label alone is insufficient. Caller-supplied receipt fields are never authority.
 
 Full output belongs in a protected bounded artifact. Redact secrets, tokens, customer data, and raw
 upstream response bodies from user-facing evidence.
@@ -61,7 +63,9 @@ but is never verification. On timeout, terminate the command's entire process gr
 descendants cannot continue writing delayed artifacts.
 
 Plan linting, structural validation, and rolling-ready queries are pure reads. They never replay or
-execute gate commands; trusted replay occurs only at the explicit terminal transition.
+execute gate commands; trusted replay occurs only at the explicit terminal transition. Terminal
+reads require `UNLAZY_RECEIPT_HMAC_KEY` (minimum 32 bytes) and fail closed when it is missing or the
+receipt is changed. Keep the key in a runtime secret manager and never pass it to gate subprocesses.
 
 ## Scope and de-duplication
 

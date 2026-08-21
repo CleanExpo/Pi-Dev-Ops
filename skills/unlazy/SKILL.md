@@ -41,6 +41,11 @@ node scripts/unlazy-gate-check.mjs --status --json --cwd "$PWD" \
 Plan/gate commands pass only on exit `0`; preserve JSON receipts and treat exit `1` as unmet strict
 gates and exit `2` as a runner/usage error.
 
+Before accepting or reading terminal receipts, load `UNLAZY_RECEIPT_HMAC_KEY` from the runtime secret
+manager. It must contain at least 32 bytes and must never be committed, logged, added to gate
+environment allow-lists, or embedded in a plan. Missing or rotated key material fails terminal
+receipt validation closed.
+
 ## 1. Intake
 
 Preserve the task verbatim. Parse `tree N` as a requested maximum depth; when absent, infer the

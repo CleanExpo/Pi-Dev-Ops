@@ -8,7 +8,9 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import hmac
 import json
+import math
 import os
 import re
 import subprocess
@@ -196,9 +198,89 @@ def _verification_receipt_errors(
             errors.append("passed requires strict gate counts at zero")
         if not passed and non_passing == 0:
             errors.append("blocked requires a non-passing gate count")
+    gates = receipt.get("gates")
+    if isinstance(gates, list) and gates:
+        actual_summary = {
+            "passed": 0, "failed": 0, "pending": 0, "abandoned": 0, "runner_errors": 0,
+        }
+        for gate in gates:
+            state = gate.get("state") if isinstance(gate, dict) else None
+            if state == "runner_error":
+                actual_summary["runner_errors"] += 1
+            elif state in actual_summary:
+                actual_summary[state] += 1
+            else:
+                errors.append("verification receipt contains an invalid gate state")
+        if receipt.get("summary") != actual_summary:
+            errors.append("verification receipt summary does not match gate results")
+    else:
+        errors.append("verification receipt gates are required")
     errors.extend(_receipt_timing_errors(receipt))
+    if stored:
+        errors.extend(
+            _execution_metadata_errors(
+                node, receipt.get("execution_controls"), receipt.get("usage"),
+            )
+        )
+        errors.extend(_stored_receipt_authenticity_errors(receipt))
     if runtime:
         errors.extend(_runtime_receipt_errors(plan_worktree, node, receipt))
+    return errors
+
+
+def _receipt_hmac_key() -> bytes | None:
+    value = os.environ.get("UNLAZY_RECEIPT_HMAC_KEY", "")
+    encoded = value.encode()
+    return encoded if len(encoded) >= 32 else None
+
+
+def _receipt_mac(receipt: dict[str, Any], key: bytes) -> str:
+    payload = {name: value for name, value in receipt.items() if name != "authority_mac"}
+    canonical = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+    ).encode()
+    return "hmac-sha256:" + hmac.new(key, canonical, hashlib.sha256).hexdigest()
+
+
+def _stored_receipt_authenticity_errors(receipt: dict[str, Any]) -> list[str]:
+    key = _receipt_hmac_key()
+    if key is None:
+        return ["UNLAZY_RECEIPT_HMAC_KEY must contain at least 32 bytes"]
+    supplied = receipt.get("authority_mac")
+    if not isinstance(supplied, str) or not hmac.compare_digest(supplied, _receipt_mac(receipt, key)):
+        return ["verification receipt authenticity check failed"]
+    return []
+
+
+def _execution_metadata_errors(
+    node: PlanNode,
+    execution_controls: dict[str, Any] | None,
+    usage: dict[str, Any] | None,
+) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(execution_controls, dict):
+        errors.append("execution controls are required")
+    else:
+        if execution_controls.get("dispatch_executed") is not True:
+            errors.append("execution controls must confirm dispatch_executed")
+        if execution_controls.get("result_received") is not True:
+            errors.append("execution controls must confirm result_received")
+        if execution_controls.get("worker_context_id") != node.worker_id:
+            errors.append("execution controls worker_context_id does not match node worker")
+    if not isinstance(usage, dict) or usage.get("status") not in {"known", "unknown"}:
+        errors.append("usage status must be known or unknown")
+    elif usage["status"] == "unknown":
+        if not isinstance(usage.get("reason"), str) or not usage["reason"].strip():
+            errors.append("unknown usage requires a reason")
+    else:
+        metrics = [usage.get(name) for name in ("input_tokens", "output_tokens", "cost_usd")]
+        reported = [value for value in metrics if value is not None]
+        if not reported or any(
+            isinstance(value, bool) or not isinstance(value, (int, float))
+            or not math.isfinite(value) or value < 0
+            for value in reported
+        ):
+            errors.append("known usage requires finite non-negative reported metrics")
     return errors
 
 
@@ -422,21 +504,6 @@ def _runtime_receipt_errors(
         if receipt.get("environment_digest") != actual_environment:
             errors.append("verification receipt environment_digest does not match runtime environment")
 
-    gates = receipt.get("gates")
-    if isinstance(gates, list):
-        actual_summary = {"passed": 0, "failed": 0, "pending": 0, "abandoned": 0, "runner_errors": 0}
-        for gate in gates:
-            state = gate.get("state") if isinstance(gate, dict) else None
-            if state == "runner_error":
-                actual_summary["runner_errors"] += 1
-            elif state in actual_summary:
-                actual_summary[state] += 1
-            else:
-                errors.append("verification receipt contains an invalid gate state")
-        if receipt.get("summary") != actual_summary:
-            errors.append("verification receipt summary does not match gate results")
-    else:
-        errors.append("verification receipt gates are required")
     return errors
 
 
@@ -654,6 +721,8 @@ def record_result(
     passed: bool,
     changed_paths: Iterable[str],
     verification_receipt: dict[str, Any] | None = None,
+    execution_controls: dict[str, Any] | None = None,
+    usage: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return a copied plan with one terminal leaf result, rejecting contract drift."""
     plan = validate_plan(raw)
@@ -677,11 +746,20 @@ def record_result(
     )
     if receipt_errors:
         raise PlanValidationError(receipt_errors)
+    metadata_errors = _execution_metadata_errors(node, execution_controls, usage)
+    if metadata_errors:
+        raise PlanValidationError(metadata_errors)
     replay_errors, trusted_receipt = _trusted_replay(
         Path(plan.worktree).resolve(), node, verification_receipt, passed=passed,
     )
     if replay_errors or trusted_receipt is None:
         raise PlanValidationError(replay_errors or ["trusted gate replay did not issue a receipt"])
+    key = _receipt_hmac_key()
+    if key is None:
+        raise PlanValidationError(["UNLAZY_RECEIPT_HMAC_KEY must contain at least 32 bytes"])
+    trusted_receipt["execution_controls"] = copy.deepcopy(execution_controls)
+    trusted_receipt["usage"] = copy.deepcopy(usage)
+    trusted_receipt["authority_mac"] = _receipt_mac(trusted_receipt, key)
     path_errors: list[str] = []
     canonical_changed: list[str] = []
     for raw_path in changed_paths:

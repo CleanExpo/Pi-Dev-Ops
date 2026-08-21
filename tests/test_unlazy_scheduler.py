@@ -11,12 +11,30 @@ from swarm.unlazy_scheduler import (
     PlanValidationError,
     plan_template,
     ready_nodes,
-    record_result,
+    record_result as scheduler_record_result,
     validate_plan,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CHECKER = REPO_ROOT / "scripts" / "unlazy-gate-check.mjs"
+TEST_RECEIPT_KEY = "test-only-unlazy-receipt-key-32-bytes-minimum"
+EXECUTION_CONTROLS = {
+    "dispatch_executed": True,
+    "result_received": True,
+    "worker_context_id": "worker-a",
+}
+USAGE_UNKNOWN = {"status": "unknown", "reason": "fixture provider reports no usage"}
+
+
+@pytest.fixture(autouse=True)
+def trusted_receipt_key(monkeypatch):
+    monkeypatch.setenv("UNLAZY_RECEIPT_HMAC_KEY", TEST_RECEIPT_KEY)
+
+
+def record_result(*args, **kwargs):
+    kwargs.setdefault("execution_controls", copy.deepcopy(EXECUTION_CONTROLS))
+    kwargs.setdefault("usage", copy.deepcopy(USAGE_UNKNOWN))
+    return scheduler_record_result(*args, **kwargs)
 
 
 def valid_plan():
@@ -372,13 +390,14 @@ def test_validate_ready_and_lint_do_not_execute_terminal_gate(tmp_path):
         tmp_path / "pure-validation", passing=True, check=command,
     )
     marker.unlink()
-    raw["nodes"][1]["state"] = "passed"
-    receipt["verification_authority"] = "scheduler-controlled-replay-v1"
-    raw["nodes"][1]["verification_receipt"] = receipt
-    validate_plan(raw)
-    ready_nodes(raw)
+    authenticated = record_result(
+        raw, "1.1", passed=True, changed_paths=[], verification_receipt=receipt,
+    )
+    marker.unlink()
+    validate_plan(authenticated)
+    ready_nodes(authenticated)
     plan_path = tmp_path / "terminal-plan.json"
-    plan_path.write_text(json.dumps(raw))
+    plan_path.write_text(json.dumps(authenticated))
     for action in ("lint", "ready"):
         result = subprocess.run(
             ["python", str(REPO_ROOT / "scripts" / "unlazy_plan.py"), action, str(plan_path)],
@@ -405,6 +424,11 @@ def test_terminal_transition_replays_gate_exactly_once(tmp_path):
     stored = updated["nodes"][1]["verification_receipt"]
     assert stored["verifier_id"] == "unlazy-scheduler-trusted-replay-v1"
     assert stored["verification_authority"] == "scheduler-controlled-replay-v1"
+    assert stored["execution_controls"] == EXECUTION_CONTROLS
+    assert stored["usage"] == USAGE_UNKNOWN
+    assert stored["authority_mac"].startswith("hmac-sha256:")
+    assert "UNLAZY_RECEIPT_HMAC_KEY" not in stored["environment_keys"]
+    assert TEST_RECEIPT_KEY not in json.dumps(stored)
 
 
 def test_forged_timing_evidence_is_rejected(verified_case):
@@ -430,6 +454,53 @@ def test_same_actor_verifier_alias_is_rejected(tmp_path):
         record_result(
             raw, "1.1", passed=True, changed_paths=[],
             verification_receipt=json.loads(result.stdout),
+        )
+
+
+def test_forged_persisted_authority_cannot_unlock_dependants(verified_case):
+    raw, receipt = case_copy(verified_case)
+    updated = record_result(
+        raw, "1.1", passed=True, changed_paths=[], verification_receipt=receipt,
+    )
+    stored = updated["nodes"][1]["verification_receipt"]
+    stored["candidate_sha"] = "c" * 40
+    stored["gate_files"][0]["digest"] = "sha256:" + "d" * 64
+    with pytest.raises(PlanValidationError, match="authenticity"):
+        ready_nodes(updated, active_ids=["1.2"])
+
+
+def test_persisted_receipt_fails_closed_without_hmac_key(verified_case, monkeypatch):
+    raw, receipt = case_copy(verified_case)
+    updated = record_result(
+        raw, "1.1", passed=True, changed_paths=[], verification_receipt=receipt,
+    )
+    monkeypatch.delenv("UNLAZY_RECEIPT_HMAC_KEY")
+    with pytest.raises(PlanValidationError, match="HMAC_KEY|HMAC key"):
+        validate_plan(updated)
+
+
+def test_persisted_receipt_rejects_wrong_key_and_metadata_tampering(
+    verified_case, monkeypatch,
+):
+    raw, receipt = case_copy(verified_case)
+    updated = record_result(
+        raw, "1.1", passed=True, changed_paths=[], verification_receipt=receipt,
+    )
+    tampered = copy.deepcopy(updated)
+    tampered["nodes"][1]["verification_receipt"]["usage"]["reason"] = "forged"
+    with pytest.raises(PlanValidationError, match="authenticity"):
+        validate_plan(tampered)
+    monkeypatch.setenv("UNLAZY_RECEIPT_HMAC_KEY", "different-valid-test-key-material-32-bytes")
+    with pytest.raises(PlanValidationError, match="authenticity"):
+        validate_plan(updated)
+
+
+def test_terminal_receipt_requires_execution_controls_and_usage(verified_case):
+    raw, receipt = case_copy(verified_case)
+    with pytest.raises(PlanValidationError, match="execution controls|usage"):
+        scheduler_record_result(
+            raw, "1.1", passed=True, changed_paths=[], verification_receipt=receipt,
+            execution_controls=None, usage=None,
         )
 
 

@@ -97,10 +97,12 @@ contract digest. These may live in a signed sidecar/receipt until the executable
 adds them.
 
 The current CLI does **not** validate leaf childlessness, shared-interface semantics, root outcomes,
-cost reservations, or contract digests. Terminal leaf states do require a stored gate receipt bound
-to the plan/node, base/candidate SHA, independent verifier, node gate, relevant inputs, clean
-worktree, and strict counts. The driver/verifier must still enforce the remaining sidecar contract
-and must not present a successful `lint` as full completion evidence.
+cost reservations, or contract digests. Terminal leaf states do require an HMAC-authenticated,
+scheduler-issued gate receipt bound to the plan/node, base/candidate SHA, fixed automated verifier
+context, node gate, relevant inputs, clean worktree, execution controls, usage status, and strict
+counts. Terminal lint/ready therefore require the same runtime HMAC key but remain non-executing.
+The driver/verifier must still enforce the remaining sidecar contract and must not present a
+successful `lint` as full completion evidence.
 
 ## Ownership and amendment rules
 
