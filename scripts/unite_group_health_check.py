@@ -314,7 +314,10 @@ def should_resurface(tier1_failing: list[str]) -> tuple[bool, str]:
         return True, "failing set changed"
     try:
         last = _dt.datetime.fromisoformat(state["last_alert_at"])
-    except (KeyError, ValueError):
+    except (KeyError, ValueError, TypeError):
+        # TypeError, not just ValueError: fromisoformat raises TypeError on a non-str,
+        # so a numeric or null last_alert_at escaped this handler. Fourth time in this
+        # file that a guard covered the container and not the value.
         return True, "unreadable last_alert_at"
     hours = (_dt.datetime.now(_dt.timezone.utc) - last).total_seconds() / 3600
     if hours >= REALERT_HOURS:
@@ -376,7 +379,9 @@ def check_unite_health_api(url: str) -> dict[str, Any]:
         try:
             status, _, _ = http_get(url, method="GET", timeout=15, follow_redirects=False)
         except Exception:
-            return mk("unite api/health", 1, "FAIL", "unreachable")
+            # code=0 for shape consistency with every other return here; no consumer
+            # reads it, so this is tidiness rather than a fix.
+            return mk("unite api/health", 1, "FAIL", "unreachable", code=0)
     # 2xx only. A 3xx here is a redirect away from the endpoint or an auth wall, not a
     # health report — the preview deployment answering 302 behind Vercel protection is
     # precisely the read that must not count as healthy.
@@ -1056,7 +1061,15 @@ def main() -> int:
         c["name"] for c in checks if c["tier"] == 1 and c["status"] == "FAIL"
     )
     tier1_fail_now = bool(tier1_failing)
-    resurface, why = should_resurface(tier1_failing)
+    # Outside run_all, so `guarded` does not cover this. A failure here lands after
+    # write_outputs and before stdout_report — the JSON record is written and the alert
+    # is never delivered, which is the silent-monitor failure this file keeps finding.
+    # Fail toward alerting: not knowing whether to alert is a reason to alert.
+    try:
+        resurface, why = should_resurface(tier1_failing)
+    except Exception as e:  # noqa: BLE001 — nothing may stop the alert from going out
+        log(f"should_resurface failed ({type(e).__name__}: {e}) — alerting anyway")
+        resurface, why = bool(tier1_failing), "alert-state unusable"
     alert = bool(prior) and (bool(regressions) or resurface)
 
     stdout_report(checks, regressions, json_path, alert)

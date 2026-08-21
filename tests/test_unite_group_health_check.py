@@ -515,3 +515,42 @@ def test_an_unreadable_config_no_longer_aborts_the_run(monkeypatch, tmp_path):
 
     assert out[0]["status"] == "FAIL"
     assert "UnicodeDecodeError" in out[0]["detail"]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"signature": ["unite api/health"], "last_alert_at": 1755734400}',
+        '{"signature": ["unite api/health"], "last_alert_at": null}',
+        '{"signature": ["unite api/health"], "last_alert_at": ["2026-08-21"]}',
+    ],
+)
+def test_a_non_string_last_alert_at_alerts_instead_of_crashing(monkeypatch, tmp_path, payload):
+    """fromisoformat raises TypeError on a non-str, and the handler caught only
+    KeyError/ValueError. should_resurface runs OUTSIDE guarded(), so this aborted
+    main() after write_outputs and before stdout_report — record written, alert never
+    delivered."""
+    state = tmp_path / "alert-state.json"
+    state.write_text(payload)
+    monkeypatch.setattr(health, "ALERT_STATE", state)
+
+    resurface, why = health.should_resurface(["unite api/health"])
+
+    assert resurface is True
+    assert why
+
+
+def test_main_alerts_even_if_should_resurface_itself_explodes(monkeypatch, tmp_path):
+    """Defence in depth for the path guarded() cannot reach. Not knowing whether to
+    alert is a reason to alert, never a reason to go quiet."""
+    def explode(_failing):
+        raise RuntimeError("alert-state store is on fire")
+
+    monkeypatch.setattr(health, "should_resurface", explode)
+    code, delivered = _drive_main(
+        monkeypatch, tmp_path,
+        '{"checks": [{"name": "unite api/health", "tier": 1, "status": "FAIL"}]}',
+    )
+
+    assert code == 1
+    assert delivered, "a broken alert-state store must not silence a live failure"
