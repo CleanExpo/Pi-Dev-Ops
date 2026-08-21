@@ -246,7 +246,7 @@ async def test_resume_consumes_fresh_child_before_status_save_and_schedule(admit
     with patch("app.server.routes.sessions.persistence.save_session", side_effect=lambda _s: order.append("save")), \
          patch("app.server.routes.sessions.asyncio.create_task") as create_task, \
          patch(
-             "app.server.session_phases.verify_workspace_base",
+             "app.server.session_phases.verify_workspace_identity",
              new=AsyncMock(side_effect=lambda *_args: order.append("preflight") or True),
          ):
         create_task.side_effect = lambda coro: (order.append("schedule"), coro.close())[-1]
@@ -277,7 +277,7 @@ async def test_resume_rejects_workspace_drift_before_consumption_or_side_effect(
     )
 
     with patch(
-        "app.server.session_phases.verify_workspace_base",
+        "app.server.session_phases.verify_workspace_identity",
         new=AsyncMock(return_value=False),
     ), patch("app.server.routes.sessions.persistence.save_session") as save, patch(
         "app.server.routes.sessions.asyncio.create_task"
@@ -289,6 +289,62 @@ async def test_resume_rejects_workspace_drift_before_consumption_or_side_effect(
     assert admitted["transport"].consume_calls == []
     save.assert_not_called()
     create_task.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_resume_workspace_identity_rejects_wrong_origin(admitted, tmp_path):
+    run = AsyncMock(
+        side_effect=[
+            (0, "a" * 40 + "\n", ""),
+            (0, "https://github.com/other-owner/other-repo.git\n", ""),
+        ]
+    )
+    with patch.object(session_phases, "run_cmd", new=run):
+        assert not await session_phases.verify_workspace_identity(
+            str(tmp_path),
+            "a" * 40,
+            "https://github.com/unite-group/pi-dev-ops.git",
+        )
+
+
+@pytest.mark.asyncio
+async def test_plan_discovery_authority_denial_escapes_before_workspace_write(
+    admitted, tmp_path, monkeypatch,
+):
+    session = session_model.BuildSession(
+        id="abcdef123456",
+        repo_url="https://github.com/unite-group/pi-dev-ops.git",
+        workspace=str(tmp_path),
+        plan_discovery=True,
+    )
+    denied = AdmissionVerificationError("revoked during discovery")
+    assertions = iter([None, denied])
+
+    def assert_active(_sid):
+        result = next(assertions)
+        if isinstance(result, Exception):
+            raise result
+
+    monkeypatch.setattr(session_phases, "require_active_for_run", assert_active)
+    with patch.object(
+        session_phases, "_phase_clone", new=AsyncMock(return_value=True)
+    ), patch.object(session_phases, "_phase_analyze"), patch.object(
+        session_phases, "_phase_claude_check", new=AsyncMock(return_value=True)
+    ), patch.object(
+        session_phases, "_phase_sandbox", new=AsyncMock(return_value=True)
+    ), patch.object(
+        session_phases, "retrieve_similar_episodes", new=AsyncMock(return_value=[])
+    ), patch(
+        "app.server.agents.plan_discovery.discover_best_plan",
+        new=AsyncMock(),
+    ) as discover, patch.object(
+        session_phases, "_write_task_memory", new=AsyncMock()
+    ) as write_memory:
+        with pytest.raises(AdmissionVerificationError, match="revoked"):
+            await session_phases.run_build(session, brief=admitted["brief"])
+
+    discover.assert_not_awaited()
+    write_memory.assert_not_awaited()
 
 
 @pytest.mark.asyncio

@@ -41,6 +41,7 @@ from .session_recorder import record_episode, retrieve_similar_episodes, format_
 from .session_model import em
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
 from .senior_harness_consumer import require_active_for_run
+from .senior_harness_admission import SeniorHarnessAdmissionUnavailable
 from .session_evaluator import (
     _parse_evaluator_dimensions,
     _extract_eval_confidence,
@@ -773,8 +774,12 @@ async def _ensure_enforced_base(session, *, allow_checkout: bool) -> bool:
     return False
 
 
-async def verify_workspace_base(workspace: str, expected_base_sha: str) -> bool:
-    """Read-only exact-HEAD preflight for a resumable admitted workspace."""
+async def verify_workspace_identity(
+    workspace: str,
+    expected_base_sha: str,
+    expected_repo_url: str,
+) -> bool:
+    """Read-only exact-HEAD and origin preflight for an admitted workspace."""
     if (
         not workspace
         or not os.path.isdir(workspace)
@@ -785,7 +790,21 @@ async def verify_workspace_base(workspace: str, expected_base_sha: str) -> bool:
     rc, actual, _error = await run_cmd(
         workspace, "git", "rev-parse", "HEAD", timeout=10,
     )
-    return rc == 0 and actual.strip() == expected_base_sha
+    if rc != 0 or actual.strip() != expected_base_sha:
+        return False
+    origin_rc, origin, _origin_error = await run_cmd(
+        workspace, "git", "remote", "get-url", "origin", timeout=10,
+    )
+    if origin_rc != 0:
+        return False
+    from .senior_harness_admission import normalize_repository  # noqa: PLC0415
+
+    try:
+        return normalize_repository(origin.strip()) == normalize_repository(
+            expected_repo_url
+        )
+    except Exception:
+        return False
 
 
 def _phase_analyze(session, resume_from: str) -> None:
@@ -1906,6 +1925,8 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
                 em(session, "system",
                    f"  Plan Discovery: variant {meta['winner']} won "
                    f"({meta['winner_score']:.1f}/10) in {meta['duration_s']}s")
+        except SeniorHarnessAdmissionUnavailable:
+            raise
         except Exception as _disc_exc:
             _log.warning("plan_discovery hook failed (non-fatal): %s", _disc_exc)
 

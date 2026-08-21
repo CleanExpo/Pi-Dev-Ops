@@ -323,14 +323,15 @@ async def resume_session(sid: str, body: ResumeRequest | None = None):
             # Resume is the one ingress where a signed child targets an
             # existing workspace. Prove its HEAD before consuming that
             # single-use child or emitting any durable/scheduling side effect.
-            from ..session_phases import verify_workspace_base  # noqa: PLC0415
+            from ..session_phases import verify_workspace_identity  # noqa: PLC0415
 
-            if not await verify_workspace_base(
+            if not await verify_workspace_identity(
                 session.workspace,
                 preview.reservation["base_sha"],
+                session.repo_url,
             ):
                 raise AdmissionVerificationError(
-                    "interrupted workspace does not match the fresh admission base SHA"
+                    "interrupted workspace origin or HEAD does not match the fresh admission"
                 )
             consumed = consume_for_build(
                 body.senior_harness_admission_envelope,
