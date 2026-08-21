@@ -581,7 +581,28 @@ def check_integration_sync(env: dict[str, str]) -> list[dict[str, Any]]:
             )
             for name in INTEGRATION_CADENCES_SEC
         ]
-    by_name = {r.get("integration"): r for r in rows}
+    by_name = {
+        r["integration"]: r
+        for r in rows
+        if isinstance(r, dict) and isinstance(r.get("integration"), str) and r["integration"]
+    }
+    if rows and not by_name:
+        # Rows arrived and not one of them can be keyed. That is a read that failed, not
+        # an empty table. Keying on None made every lookup miss, so all eighteen checks
+        # reported "no sync_state row yet (cron not fired)" — byte-identical to the
+        # genuine pre-first-fire state, and a Tier-1 WARN reaches no alert path. Same
+        # class as the unparseable-body fix one layer down, found by review round 18.
+        # An EMPTY list is deliberately not covered: that is the real steady state until
+        # the 4am cron fires, and failing it would page hourly for nothing.
+        return [
+            mk(
+                f"integration sync — {name}",
+                1,
+                "FAIL",
+                "REST returned rows with no usable 'integration' key",
+            )
+            for name in INTEGRATION_CADENCES_SEC
+        ]
     now = _dt.datetime.now(_dt.timezone.utc)
     results: list[dict[str, Any]] = []
 

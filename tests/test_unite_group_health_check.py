@@ -794,3 +794,76 @@ def test_a_valid_rest_body_still_parses(monkeypatch):
 
     assert status == 200
     assert rows == [{"integration": "github", "last_sync_status": "ok"}]
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [{"last_sync_status": "ok", "last_sync_completed_at": "2999-01-01T00:00:00+00:00"}],
+        [{"integration": None, "last_sync_status": "ok"}],
+        [{"integration": "", "last_sync_status": "ok"}],
+        ["not a row at all"],
+    ],
+    ids=["missing-key", "null-name", "empty-name", "non-dict-row"],
+)
+def test_rows_we_cannot_key_are_a_failed_read_not_an_unfired_cron(monkeypatch, rows):
+    """The same defect as 32b7e642, one layer up. supabase_rest_rows now rejects a body
+    that is not a list, but a list whose rows carry no usable `integration` key still
+    went down the benign path: by_name keyed on None, every lookup missed, and all
+    eighteen checks reported "no sync_state row yet (cron not fired)" — byte-identical
+    to the genuine pre-first-fire state, and WARN reaches no alert path. Rows that
+    arrived and cannot be used are a read that failed."""
+    monkeypatch.setattr(
+        health, "http_get",
+        lambda url, headers=None, method="GET", timeout=None, follow_redirects=True:
+            (200, {}, json.dumps(rows).encode()),
+    )
+    env = {"SUPABASE_UNITE_GROUP_URL": "https://x.supabase.co",
+           "SUPABASE_UNITE_GROUP_SERVICE_KEY": "k"}
+
+    verdicts = {r["status"] for r in health.check_integration_sync(env)}
+
+    assert verdicts == {"FAIL"}, (
+        f"rows we cannot key must not read as an unfired cron: {verdicts}"
+    )
+
+
+def test_a_genuinely_empty_sync_table_still_warns(monkeypatch):
+    """Negative control, and the cost this fix must not pay. An empty list IS the real
+    pre-first-fire state — the sync table is empty until the 4am cron fires. If the
+    guard above widened to cover it, a benign steady state would page hourly."""
+    monkeypatch.setattr(
+        health, "http_get",
+        lambda url, headers=None, method="GET", timeout=None, follow_redirects=True:
+            (200, {}, b"[]"),
+    )
+    env = {"SUPABASE_UNITE_GROUP_URL": "https://x.supabase.co",
+           "SUPABASE_UNITE_GROUP_SERVICE_KEY": "k"}
+
+    verdicts = {r["status"] for r in health.check_integration_sync(env)}
+
+    assert verdicts == {"WARN"}, f"an empty table is not a failed read: {verdicts}"
+
+
+def test_one_unkeyable_row_among_good_ones_does_not_mask_the_others(monkeypatch):
+    """Negative control the other way: the guard fires only when NOTHING is usable. A
+    single junk row alongside real ones must not convert every integration to FAIL and
+    bury the one that is genuinely reporting."""
+    monkeypatch.setattr(
+        health, "http_get",
+        lambda url, headers=None, method="GET", timeout=None, follow_redirects=True:
+            (200, {}, json.dumps([
+                {"integration": None, "last_sync_status": "ok"},
+                {"integration": "github", "last_sync_status": "ok",
+                 "last_sync_completed_at": "2999-01-01T00:00:00+00:00"},
+            ]).encode()),
+    )
+    env = {"SUPABASE_UNITE_GROUP_URL": "https://x.supabase.co",
+           "SUPABASE_UNITE_GROUP_SERVICE_KEY": "k"}
+
+    results = health.check_integration_sync(env)
+    github = [r for r in results if r["name"] == "integration sync — github"]
+
+    assert github and github[0]["status"] == "PASS", (
+        f"a usable row must still be read: {github}"
+    )
