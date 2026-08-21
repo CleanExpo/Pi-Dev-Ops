@@ -303,12 +303,11 @@ def test_fanout_guard_releases_root_after_all_leaves_are_terminal():
     assert admitted["active"] == []
 
 
-def test_delegate_route_does_not_apply_fanout_guard():
+def test_parallel_first_delegate_route_applies_root_guard_before_fanout_proof():
     route = fanout_request()
     route["signals"]["ownership_disjoint"] = False
-    admitted = guard_root_continuation(valid_plan(), route, "delivery")
-    assert admitted["route_action"] == "delegate"
-    assert admitted["fanout_in_flight"] is False
+    with pytest.raises(PlanValidationError, match="fanout-required"):
+        guard_root_continuation(valid_plan(), route, "delivery")
 
 
 def test_forged_active_state_cannot_satisfy_fanout_guard():

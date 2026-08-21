@@ -151,7 +151,29 @@ def decide_route(raw: RoutingRequest | dict[str, Any]) -> RouteDecision:
 
     verifier_floor = "top" if is_high_stakes or floor == "top" else "mid"
     verifier_effort = "xhigh" if verifier_floor == "top" else "high"
-    max_workers = request.limits.max_parallel_workers if action == "fanout" else 1
+    # A fresh lifecycle session deliberately starts with ownership_disjoint=false:
+    # Unlazy must prove the leaf graph before any mutation is admitted.  That
+    # proof must not nevertheless inherit the serial delegate cap, or the
+    # post-admission fanout can never become parallel. Reserve the host's
+    # parallel capacity now; the scheduler still rejects overlapping leaf
+    # ownership and the root hook still denies mutation until that graph exists.
+    parallel_first_capacity = (
+        request.limits.max_parallel_workers
+        if request.capabilities.supports_parallel
+        and request.capabilities.supports_cancellation
+        and signals.volume >= 2
+        and signals.scope in {"multi-file", "subsystem", "project"}
+        else 1
+    )
+    max_workers = (
+        request.limits.max_parallel_workers
+        if action == "fanout"
+        else parallel_first_capacity
+        if action == "delegate"
+        else 1
+    )
+    if action == "delegate" and max_workers > 1 and not signals.ownership_disjoint:
+        reasons.append("parallel-first-capacity-pending-disjoint-proof")
     fallback = tuple(QUALITY_ORDER[QUALITY_ORDER.index(floor) :]) + ("bailout",)
     confidence = 0.99 if action == "bailout" or is_high_stakes else 0.9
 

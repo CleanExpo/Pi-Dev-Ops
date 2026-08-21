@@ -388,6 +388,8 @@ def test_fresh_hook_session_routes_substantive_work_to_parallel_fanout(
     assert contract["routing_request"]["capabilities"]["supports_cancellation"] is True
     assert contract["routing_request"]["signals"]["ownership_disjoint"] is False
     assert contract["route_decision"]["action"] == "delegate"
+    assert contract["route_decision"]["execution"]["max_parallel_workers"] == 4
+    assert "parallel-first-capacity-pending-disjoint-proof" in contract["route_decision"]["reasons"]
     assert contract["orchestration_policy"]["parallel_required"] is True
     assert contract["orchestration_policy"]["requires_disjoint_ownership_proof"] is True
     assert contract["orchestration_policy"]["root_mutation_authority"] is False

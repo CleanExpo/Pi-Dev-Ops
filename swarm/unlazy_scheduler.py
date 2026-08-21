@@ -842,7 +842,11 @@ def guard_root_continuation(
         for node in plan.nodes
         if node.type == "leaf" and node.state in {"pending", "ready", "running", "verifying"}
     )
-    fanout_in_flight = route_decision.action == "fanout" and bool(unresolved)
+    # A startup delegate may carry reserved parallel capacity while Unlazy is
+    # still proving disjoint ownership. Once a leaf is active, that capacity
+    # must receive the same dispatch/wait/verify/cancel-only root boundary as a
+    # normal fanout route.
+    fanout_in_flight = route_cap > 1 and bool(unresolved)
     normalized_operation = str(operation or "").strip().lower()
     if fanout_in_flight and normalized_operation not in FANOUT_CONTROL_OPERATIONS:
         ready_ids = [node.id for node in ready]

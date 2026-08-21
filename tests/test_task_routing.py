@@ -123,6 +123,15 @@ def test_disjoint_multi_file_work_fans_out_to_cap():
     assert decision.execution["max_parallel_workers"] == 3
 
 
+def test_parallel_first_reserves_capacity_before_unlazy_proves_ownership():
+    decision = decide_route(
+        request(scope="project", volume=3, dependency_count=2, ownership_disjoint=False)
+    )
+    assert decision.action == "delegate"
+    assert decision.execution["max_parallel_workers"] == 3
+    assert "parallel-first-capacity-pending-disjoint-proof" in decision.reasons
+
+
 def test_harness_without_parallelism_degrades_to_delegate():
     raw = request(scope="multi-file", volume=4, ownership_disjoint=True)
     raw["capabilities"]["supports_parallel"] = False
