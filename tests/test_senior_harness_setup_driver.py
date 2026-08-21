@@ -466,6 +466,9 @@ def test_parallel_required_root_cannot_implement_but_can_dispatch_and_coordinate
         "pytest --junitxml=app.py",
         "pytest --basetemp=app",
         "pytest /tmp/attacker_owned_test.py",
+        "pytest tests/../../tmp/attacker_owned_test.py",
+        "pytest tests/{../app.py,test_ok.py}",
+        "./attacker/pytest -q",
         "pnpm test -- --update",
     ],
 )

@@ -741,7 +741,9 @@ def _is_parallel_dispatch_tool(payload: dict[str, Any]) -> bool:
     return str(raw_name).lower().replace("_", "-") == "senior-harness.dispatch"
 
 
-def _has_signed_dispatch_admission(payload: dict[str, Any], project_root: Path) -> bool:
+def _has_signed_dispatch_admission(
+    payload: dict[str, Any], project_root: Path, current_receipt: dict[str, Any]
+) -> bool:
     """Ask the signed Unlazy control plane to admit this exact dispatch.
 
     The hook never trusts a model-supplied ``admitted: true`` field.  The
@@ -759,6 +761,23 @@ def _has_signed_dispatch_admission(payload: dict[str, Any], project_root: Path) 
         from control_plane import authorize_event  # imported lazily to avoid module-load cycles
 
         receipt = _read_json(tool_input["receipt_path"])
+        current_contract = current_receipt.get("setup_contract", {})
+        supplied_contract = receipt.get("setup_contract", {})
+        if not isinstance(current_contract, dict) or not isinstance(supplied_contract, dict):
+            return False
+        # A valid receipt for another objective in this checkout cannot be
+        # replayed into the current session. Bind the proof before asking the
+        # control plane to reserve any leaf.
+        if any(
+            supplied_contract.get(field) != current_contract.get(field)
+            for field in ("literal_objective", "task_id", "setup_contract_digest")
+        ) or receipt.get("receipt_seal") != current_receipt.get("receipt_seal"):
+            return False
+        supplied_worktree = Path(
+            str(supplied_contract.get("repository", {}).get("worktree", ""))
+        ).expanduser().resolve()
+        if supplied_worktree != project_root.resolve():
+            return False
         plan = _read_json(tool_input["plan_path"])
         route = _read_json(tool_input["routing_request_path"])
         result = authorize_event(
@@ -768,16 +787,33 @@ def _has_signed_dispatch_admission(payload: dict[str, Any], project_root: Path) 
             {"tool_name": "senior-harness.dispatch", "tool_input": tool_input},
             state_path=tool_input["state_path"],
         )
-        return result.get("status") == "admitted" and Path(str(project_root)).resolve() == Path(
-            str(receipt.get("setup_contract", {}).get("repository", {}).get("worktree", ""))
-        ).resolve()
+        return result.get("status") == "admitted"
     except (OSError, ValueError, KeyError, TypeError, SetupError):
         return False
 
 
 def _safe_repo_argument(token: str) -> bool:
     """Accept only simple repository-relative verification paths."""
-    return bool(token) and not token.startswith("-") and not token.startswith("/") and token != ".." and not token.startswith("../")
+    if not token or token.startswith(("-", "/")) or any(char in token for char in "{}[]*?"):
+        return False
+    return ".." not in Path(token).parts
+
+
+def _safe_test_argument(token: str, payload: dict[str, Any]) -> bool:
+    """Resolve a test selector and keep it under the real checkout tests tree."""
+    if not _safe_repo_argument(token):
+        return False
+    raw_input = payload.get("tool_input")
+    if not isinstance(raw_input, dict):
+        raw_input = payload.get("input") if isinstance(payload.get("input"), dict) else {}
+    raw_cwd = raw_input.get("cwd") or payload.get("cwd") or "."
+    try:
+        checkout = Path(str(raw_cwd)).expanduser().resolve()
+        candidate = (checkout / token.split("::", 1)[0]).resolve()
+        candidate.relative_to((checkout / "tests").resolve())
+    except (OSError, ValueError):
+        return False
+    return True
 
 
 def _is_parallel_verification_tool(payload: dict[str, Any]) -> bool:
@@ -801,6 +837,8 @@ def _is_parallel_verification_tool(payload: dict[str, Any]) -> bool:
     if not argv:
         return False
     executable = Path(argv[0]).name
+    if argv[0] != executable:
+        return False
     if executable == "pytest":
         # Pytest is admitted only for the repository's own tests.  In
         # particular, reject arbitrary paths, plugins, output files, basetemp,
@@ -810,7 +848,7 @@ def _is_parallel_verification_tool(payload: dict[str, Any]) -> bool:
             if token.startswith("-"):
                 if token not in allowed_options:
                     return False
-            elif not (_safe_repo_argument(token) and (token == "tests" or token.startswith("tests/"))):
+            elif not _safe_test_argument(token, payload):
                 return False
         return True
     if executable == "ruff":
@@ -1086,7 +1124,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         )
     policy = receipt["setup_contract"].get("orchestration_policy", {})
     dispatch_admitted = _is_parallel_dispatch_tool(payload) and _has_signed_dispatch_admission(
-        payload, project_root
+        payload, project_root, receipt
     )
     if (
         isinstance(policy, dict)
