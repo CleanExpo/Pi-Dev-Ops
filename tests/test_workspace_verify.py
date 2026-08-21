@@ -31,6 +31,18 @@ def _py_repo(tmp_path: Path, test_body: str) -> Path:
     return tmp_path
 
 
+def _assert_process_group_gone(pgid: int, timeout_s: float = 2) -> None:
+    """Poll boundedly because a killed descendant may be briefly unreaped."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(0.02)
+    pytest.fail(f"process group {pgid} survived cleanup for {timeout_s:.1f}s")
+
+
 def test_a_passing_suite_is_reported_as_passed(tmp_path: Path) -> None:
     """Positive control: without this, the failure test below proves nothing."""
     repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
@@ -112,6 +124,15 @@ def test_timeout_kills_descendant_after_process_group_leader_exits(
         "detect_check",
         lambda ws: ([sys.executable, "-c", leader], "descendant timeout probe"),
     )
+    original_create = asyncio.create_subprocess_exec
+    observed: dict[str, asyncio.subprocess.Process] = {}
+
+    async def tracked_create(*args, **kwargs):
+        proc = await original_create(*args, **kwargs)
+        observed["proc"] = proc
+        return proc
+
+    monkeypatch.setattr(wv.asyncio, "create_subprocess_exec", tracked_create)
 
     started = time.monotonic()
     result = _run(wv.run_workspace_checks(str(repo), timeout_s=0.25))
@@ -119,6 +140,7 @@ def test_timeout_kills_descendant_after_process_group_leader_exits(
 
     assert result.status == wv.TIMED_OUT
     assert elapsed < 2, f"descendant kept the timeout path open for {elapsed:.2f}s"
+    _assert_process_group_gone(observed["proc"].pid)
 
 
 def test_cancellation_kills_and_reaps_process_group(
@@ -149,8 +171,15 @@ def test_cancellation_kills_and_reaps_process_group(
 
     async def scenario() -> None:
         task = asyncio.create_task(wv.run_workspace_checks(str(repo), timeout_s=30))
-        while "proc" not in observed:
-            await asyncio.sleep(0)
+        deadline = asyncio.get_running_loop().time() + 2
+        while "proc" not in observed and not task.done():
+            if asyncio.get_running_loop().time() >= deadline:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+                pytest.fail("subprocess creation did not finish within 2 seconds")
+            await asyncio.sleep(0.001)
+        if task.done():
+            await task
         await asyncio.sleep(0.1)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -160,8 +189,7 @@ def test_cancellation_kills_and_reaps_process_group(
 
     proc = observed["proc"]
     assert proc.returncode is not None
-    with pytest.raises(ProcessLookupError):
-        os.killpg(proc.pid, 0)
+    _assert_process_group_gone(proc.pid)
 
 
 def test_absent_runner_is_not_reported_as_a_test_failure(tmp_path: Path, monkeypatch) -> None:
