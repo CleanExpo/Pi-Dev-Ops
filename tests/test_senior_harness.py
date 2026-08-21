@@ -18,7 +18,19 @@ FIXTURE = REPO_ROOT / "tests" / "fixtures" / "senior_harness_self_host.json"
 
 
 def contract() -> dict:
-    return json.loads(FIXTURE.read_text(encoding="utf-8"))
+    payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    # The committed contract is deliberately bound to the self-hosting
+    # worktree that produced it. Rebind only the runtime identity fields so
+    # this validator suite remains meaningful in clean CI clones/worktrees.
+    payload["repository"]["worktree"] = str(REPO_ROOT)
+    payload["repository"]["base_sha"] = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO_ROOT,
+        check=True,
+        text=True,
+        capture_output=True,
+    ).stdout.strip()
+    return payload
 
 
 def error_text(payload: dict) -> str:
@@ -434,9 +446,16 @@ def test_provisional_and_durable_promotion_require_receipts() -> None:
     assert "schema v1 accepts candidate packs only" in error_text(durable)
 
 
-def test_documented_cli_lints_the_self_hosting_contract() -> None:
+def test_documented_cli_lints_the_self_hosting_contract(tmp_path: Path) -> None:
+    bound_fixture = tmp_path / "senior_harness_self_host.json"
+    bound_fixture.write_text(json.dumps(contract()), encoding="utf-8")
     result = subprocess.run(
-        [sys.executable, "skills/senior-harness/scripts/senior_harness.py", "lint", str(FIXTURE)],
+        [
+            sys.executable,
+            "skills/senior-harness/scripts/senior_harness.py",
+            "lint",
+            str(bound_fixture),
+        ],
         cwd=REPO_ROOT,
         text=True,
         capture_output=True,
