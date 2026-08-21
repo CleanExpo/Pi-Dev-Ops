@@ -108,6 +108,17 @@ def test_evidence_fact_is_not_asked_as_human_decision_and_only_one_question_is_p
     }
 
 
+def test_evidence_digest_rejects_non_hex_characters(sketch: Path) -> None:
+    session = start_session("Resolve routing", sketch, _tree(), materialization_path=_target(sketch))
+
+    with pytest.raises(GrillSessionError, match="must be a sha256 digest"):
+        answer_pending_evidence(
+            session,
+            "qwen is configured",
+            [{"source_id": "config", "source_digest": "sha256:" + "z" * 64}],
+        )
+
+
 def test_answers_are_verbatim_and_terminal_labels_are_exact(sketch: Path) -> None:
     session = start_session("Resolve routing", sketch, _tree(), materialization_path=_target(sketch))
     session = answer_pending_evidence(

@@ -372,7 +372,11 @@ def answer_pending_evidence(
             raise GrillSessionError(f"evidence[{index}] must be an object")
         source_id = _nonempty_text(raw.get("source_id"), f"evidence[{index}].source_id")
         source_digest = _nonempty_text(raw.get("source_digest"), f"evidence[{index}].source_digest")
-        if not source_digest.startswith("sha256:") or len(source_digest) != 71:
+        if (
+            not source_digest.startswith("sha256:")
+            or len(source_digest) != 71
+            or any(character not in "0123456789abcdef" for character in source_digest[7:])
+        ):
             raise GrillSessionError(f"evidence[{index}].source_digest must be a sha256 digest")
         normalised_evidence.append({"source_id": source_id, "source_digest": source_digest})
     pending = updated["pending_evidence"]

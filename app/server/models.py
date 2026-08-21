@@ -60,10 +60,11 @@ class ResumeRequest(BaseModel):
     @field_validator("brief", "senior_harness_admission_ref")
     @classmethod
     def non_empty_text(cls, v: str) -> str:
-        value = v.strip()
-        if not value:
+        if not v.strip():
             raise ValueError("field cannot be empty")
-        return value
+        # These raw values are part of the signed admission contract. Validate
+        # emptiness without normalising the bytes that the consumer must bind.
+        return v
 
 
 class TriggerRequest(BaseModel):

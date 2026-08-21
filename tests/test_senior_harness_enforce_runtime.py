@@ -259,6 +259,22 @@ async def test_resume_consumes_fresh_child_before_status_save_and_schedule(admit
     assert order == ["preflight", "consume", "save", "schedule"]
 
 
+def test_resume_request_preserves_exact_signed_text_fields(admitted):
+    brief = "  exact objective\r\n  "
+    admission_ref = "  child-runtime  "
+
+    body = ResumeRequest(
+        brief=brief,
+        scope=admitted["scope"],
+        senior_harness_admission_ref=admission_ref,
+        senior_harness_reservation=admitted["reservation"],
+        senior_harness_admission_envelope=admitted["envelope"],
+    )
+
+    assert body.brief == brief
+    assert body.senior_harness_admission_ref == admission_ref
+
+
 @pytest.mark.asyncio
 async def test_resume_rejects_workspace_drift_before_consumption_or_side_effect(admitted):
     existing = session_model.BuildSession(
