@@ -54,6 +54,16 @@ def test_a_passing_suite_is_reported_as_passed(tmp_path: Path) -> None:
     assert "pytest" in result.command
 
 
+def test_pytest_check_uses_the_running_interpreter_not_path(tmp_path: Path) -> None:
+    """A restricted PATH must not silently select a Python without pytest."""
+    repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
+
+    argv, label = wv.detect_check(str(repo))
+
+    assert label == "pytest"
+    assert argv == [sys.executable, "-m", "pytest", "-q", "tests/"]
+
+
 def test_a_failing_suite_is_reported_as_failed(tmp_path: Path) -> None:
     repo = _py_repo(tmp_path, "def test_broken():\n    assert 1 == 2\n")
 

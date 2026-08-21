@@ -28,6 +28,7 @@ import json
 import logging
 import os
 import signal
+import sys
 from dataclasses import dataclass
 
 log = logging.getLogger("pi-ceo.workspace_verify")
@@ -108,7 +109,7 @@ def detect_check(workspace: str) -> tuple[list[str], str]:
         for f in ("pytest.ini", "pyproject.toml", "setup.cfg", "tox.ini")
     )
     if has_tests_dir and has_py_cfg:
-        return ["python3", "-m", "pytest", "-q", "tests/"], "pytest"
+        return [sys.executable, "-m", "pytest", "-q", "tests/"], "pytest"
 
     return [], "no declared test script and no pytest layout"
 
