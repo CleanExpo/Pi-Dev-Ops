@@ -56,9 +56,45 @@ bypass them. Never claim universal interception; use the explicit driver and dow
 gate on those surfaces.
 
 The hooks mechanically require a valid startup receipt before the first mediated local tool and keep
-injecting the frozen objective afterward. They do not infer whether an arbitrary Bash, edit, or MCP
-call is authorised. Existing host/repository policy controls generic mutations; `guard-dispatch`
-separately rejects mutating delivery moves until a trusted authority adapter exists.
+injecting the frozen objective afterward. In a `/grill-me` or `/grill-with-docs` interaction they
+fail closed: only evidence discovery and the Grill state driver may run; edits, pushes, deploys, sends,
+and worker dispatch are denied. Outside a Grill, existing host/repository policy still controls generic
+mutations. `guard-dispatch` rejects every Grill delivery move until a confirmed shared-understanding
+session is supplied and continues rejecting mutating moves until a trusted authority adapter exists.
+
+Recovery is deliberately asymmetric. A missing or invalid session receipt may still admit exact,
+read-only discovery tools such as `Read`, `Grep`, `Glob`, `ToolSearch`, web search, and the named
+read-only Exa tools, with an explicit zero-authority warning. Mutation, provider, worker, browser
+computer-use, send, and deploy tools remain denied. Installed Harness control digests are strict at
+startup and the first tool. After a normal delivery session has admitted its first tool, later
+Harness-code drift is surfaced as stale-control evidence rather than denying the whole session;
+normal host and repository policy still decides generic tools, and a fresh session is required to
+produce new control-code evidence. Grill interactions continue revalidating project and control
+bytes on every tool, with recovery reads as the only carve-out.
+
+### Governed Grill-Me entry
+
+First create or select a fat-marker sketch in the real Obsidian vault's `Sketches/` directory. Then
+freeze the Grill interaction explicitly:
+
+```bash
+python ~/.codex/skills/senior-harness/scripts/setup_driver.py start \
+  "/grill-me <literal project objective>" --project "<git-root>" --surface codex \
+  --interaction grill-me
+```
+
+Use `grill-with-docs` for an existing codebase. Build a dependency-ordered decision-tree JSON, then
+start the session with `grill_session.py start`. Keep its state below
+`$SENIOR_HARNESS_STATE_DIR` or `~/.local/state/senior-harness/`; never store control state in the
+project. The machine exposes an evidence query or exactly one human question. Human questions must
+carry a recommendation and rationale. Record the user's words verbatim as `DECIDED`, `RABBIT_HOLE`,
+or `NO_GO`. Confirmation requires the exact phrase printed by the driver and cannot succeed while a
+leaf is unresolved. Only then may `materialize` write the bound transcript under the vault's sibling
+`Grills/` directory.
+
+Load [`references/grill-contract.md`](references/grill-contract.md) for the state schema and authority
+boundary. A shared-understanding receipt proves the interview resolved; it grants no mutation,
+business, financial, privacy, deployment, or irreversible authority.
 
 ## 1. Ground
 
@@ -96,6 +132,12 @@ or the human grants the specific authority.
 **Complete when:** every execution move names the authority it would require, remains a proposal until
 an external trusted runtime authenticates that authority, and no Horizon move connects directly to
 execution. Schema v1 deliberately cannot approve mutations from request text alone.
+
+When Pi-CEO is the consumer, load
+[`references/admission-enforcement.md`](references/admission-enforcement.md) before configuring,
+issuing, consuming, resuming, restoring, or promoting an enforce-mode admission. Production stays
+`off` or `observe` until the external signer, function-only database roles, dedicated consumer token,
+public key ring, revocation route, and live accept/replay evidence all exist.
 
 ## 4. Route
 

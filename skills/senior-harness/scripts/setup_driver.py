@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -26,11 +27,18 @@ for import_root in (SCRIPT_DIR, CANONICAL_REPO_ROOT):
 
 from app.server.task_routing import decide_route  # noqa: E402
 from app.server.routing_schema import RoutingValidationError  # noqa: E402
+from grill_session import (  # noqa: E402
+    GrillSessionError,
+    file_digest as grill_file_digest,
+    validate_receipt as validate_grill_receipt,
+    validate_session as validate_grill_session,
+)
 from senior_harness import ContractError, MUTATING_KINDS, digest, ready_moves, validate_contract  # noqa: E402
 
 
 SETUP_SCHEMA_VERSION = "1.0"
 REQUIRED_SKILLS = ("senior-harness", "model-router", "unlazy")
+GRILL_INTERACTIONS = ("grill-me", "grill-with-docs")
 STARTUP_AUTHORITY = {
     "startup_admission": "pending",
     "mutation_authority": False,
@@ -49,6 +57,8 @@ READ_ONLY_GIT = {
     ("rev-parse", "--show-toplevel"),
     ("rev-parse", "HEAD"),
     ("status", "--porcelain=v1", "--untracked-files=all"),
+    ("diff", "--binary", "--no-ext-diff", "HEAD", "--"),
+    ("ls-files", "--others", "--exclude-standard", "-z"),
 }
 
 
@@ -162,11 +172,24 @@ def _repository_snapshot(project: Path, *, strict_clean: bool) -> dict[str, Any]
     status = _git(root, "status", "--porcelain=v1", "--untracked-files=all")
     if strict_clean and status:
         raise SetupError(["strict startup requires a clean Git checkout"])
+    dirty_hasher = hashlib.sha256()
+    dirty_hasher.update(status.encode("utf-8"))
+    dirty_hasher.update(_git(root, "diff", "--binary", "--no-ext-diff", "HEAD", "--").encode("utf-8"))
+    untracked = _git(root, "ls-files", "--others", "--exclude-standard", "-z").split("\0")
+    for relative in sorted(item for item in untracked if item):
+        path = root / relative
+        dirty_hasher.update(relative.encode("utf-8"))
+        dirty_hasher.update(b"\0")
+        if path.is_symlink():
+            dirty_hasher.update(os.readlink(path).encode("utf-8"))
+        elif path.is_file():
+            dirty_hasher.update(path.read_bytes())
+        dirty_hasher.update(b"\0")
     return {
         "worktree": str(root),
         "head_sha": head,
         "dirty": bool(status),
-        "worktree_state_digest": "sha256:" + hashlib.sha256(status.encode("utf-8")).hexdigest(),
+        "worktree_state_digest": "sha256:" + dirty_hasher.hexdigest(),
     }
 
 
@@ -175,6 +198,7 @@ def build_setup_contract(
     project: str | Path,
     *,
     surface: str,
+    interaction: str = "delivery",
     strict_clean: bool = False,
     skill_search_roots: Iterable[str | Path] | None = None,
     host_capabilities: dict[str, Any] | None = None,
@@ -184,12 +208,15 @@ def build_setup_contract(
         raise SetupError(["literal objective must be non-empty"])
     if surface not in {"codex", "claude", "vscode-openrouter"}:
         raise SetupError([f"unsupported surface: {surface}"])
+    if interaction not in {"delivery", *GRILL_INTERACTIONS}:
+        raise SetupError([f"unsupported interaction: {interaction}"])
     project_root = Path(project).resolve()
     search_roots = [Path(item).resolve() for item in skill_search_roots or ()]
     repository = _repository_snapshot(project_root, strict_clean=strict_clean)
+    required_skill_names = REQUIRED_SKILLS + (("grill-me",) if interaction in GRILL_INTERACTIONS else ())
     skills = {
         name: _resolve_skill(name, project_root, search_roots)
-        for name in REQUIRED_SKILLS
+        for name in required_skill_names
     }
     capabilities = host_capabilities or {
         "lifecycle_hooks": "unknown",
@@ -220,8 +247,8 @@ def build_setup_contract(
             "volume": 3,
             "expected_minutes": 180,
             "context_tokens_estimate": 12000,
-            "modalities": ["text", "code"],
-            "required_tools": ["read", "edit", "test"],
+            "modalities": ["text"] if interaction in GRILL_INTERACTIONS else ["text", "code"],
+            "required_tools": ["read", "research"] if interaction in GRILL_INTERACTIONS else ["read", "edit", "test"],
             "sensitivity": "internal",
             "prior_failures": 0,
             "ownership_disjoint": False,
@@ -247,6 +274,7 @@ def build_setup_contract(
         "task_id": digest({"task": literal_objective})[7:23],
         "objective_digest": digest({"task": literal_objective}),
         "surface": surface,
+        "interaction": interaction,
         "repository": repository,
         "required_skills": skills,
         "host_capabilities": capabilities,
@@ -295,12 +323,39 @@ def admit_startup(contract: dict[str, Any]) -> dict[str, Any]:
     return receipt
 
 
+def _control_binding_errors(receipt: dict[str, Any]) -> list[str]:
+    """Return installed control-code drift without deciding tool authority."""
+    errors: list[str] = []
+    contract = receipt.get("setup_contract")
+    if not isinstance(contract, dict):
+        return ["startup receipt is missing its setup contract"]
+    skills = contract.get("required_skills")
+    if not isinstance(skills, dict):
+        return ["startup receipt has no required-skill evidence"]
+    interaction = contract.get("interaction", "delivery")
+    required_skill_names = REQUIRED_SKILLS + (("grill-me",) if interaction in GRILL_INTERACTIONS else ())
+    for name in required_skill_names:
+        item = skills.get(name)
+        if not isinstance(item, dict):
+            errors.append(f"startup receipt is missing skill {name}")
+            continue
+        path = Path(str(item.get("path", "")))
+        if not path.is_dir() or _frontmatter_name(path / "SKILL.md") != name:
+            errors.append(f"bound skill is unavailable or invalid: {name}")
+        elif item.get("folder_digest") != _folder_digest(path):
+            errors.append(f"bound skill changed after startup admission: {name}")
+    if receipt.get("driver_digest") != _file_digest(Path(__file__).resolve()):
+        errors.append("setup driver changed after startup admission")
+    return errors
+
+
 def validate_startup_receipt(
     receipt: dict[str, Any],
     *,
     literal_objective: str | None = None,
     project: str | Path | None = None,
     verify_repository: bool = True,
+    verify_control_bindings: bool = True,
 ) -> dict[str, Any]:
     """Re-probe all bound local evidence and reject stale or altered receipts."""
     errors: list[str] = []
@@ -334,6 +389,9 @@ def validate_startup_receipt(
             errors.append("embedded setup contract objective digest is invalid")
     if contract.get("secondary_objectives") != []:
         errors.append("embedded setup contract cannot pre-authorize secondary objectives")
+    interaction = contract.get("interaction", "delivery")
+    if interaction not in {"delivery", *GRILL_INTERACTIONS}:
+        errors.append("embedded setup contract interaction is invalid")
     if contract.get("authority") != STARTUP_AUTHORITY:
         errors.append("setup contract cannot grant mutation, business, or irreversible authority")
     routing_request = contract.get("routing_request")
@@ -361,22 +419,8 @@ def validate_startup_receipt(
         for field in ("worktree", "head_sha", "dirty", "worktree_state_digest"):
             if repository.get(field) != current.get(field):
                 errors.append(f"repository {field} changed after startup admission")
-    skills = contract.get("required_skills")
-    if not isinstance(skills, dict):
-        errors.append("startup receipt has no required-skill evidence")
-        skills = {}
-    for name in REQUIRED_SKILLS:
-        item = skills.get(name)
-        if not isinstance(item, dict):
-            errors.append(f"startup receipt is missing skill {name}")
-            continue
-        path = Path(str(item.get("path", "")))
-        if not path.is_dir() or _frontmatter_name(path / "SKILL.md") != name:
-            errors.append(f"bound skill is unavailable or invalid: {name}")
-        elif item.get("folder_digest") != _folder_digest(path):
-            errors.append(f"bound skill changed after startup admission: {name}")
-    if receipt.get("driver_digest") != _file_digest(Path(__file__).resolve()):
-        errors.append("setup driver changed after startup admission")
+    if verify_control_bindings:
+        errors.extend(_control_binding_errors(receipt))
     if errors:
         raise SetupError(errors)
     return {
@@ -408,12 +452,13 @@ def _hook_output(event: str, context: str, *, deny: bool = False) -> dict[str, A
 
 
 def _state_path(project_root: Path, session_id: str) -> Path:
-    safe_session = re.sub(r"[^A-Za-z0-9_.-]", "_", session_id)[:160]
-    if not safe_session:
+    if not session_id:
         raise SetupError(["hook payload has no usable session id"])
     override = os.environ.get("SENIOR_HARNESS_STATE_DIR")
-    root = Path(override).resolve() if override else project_root / ".harness" / "senior-harness"
-    return root / f"{safe_session}.json"
+    root = Path(override).resolve() if override else Path.home() / ".local" / "state" / "senior-harness" / "sessions"
+    project_key = hashlib.sha256(str(project_root).encode("utf-8")).hexdigest()[:20]
+    session_key = hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+    return root / project_key / f"{session_key}.json"
 
 
 def _write_state(path: Path, state: dict[str, Any]) -> None:
@@ -421,6 +466,83 @@ def _write_state(path: Path, state: dict[str, Any]) -> None:
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     temporary.replace(path)
+
+
+def _tool_is_recovery_safe(payload: dict[str, Any]) -> bool:
+    """Recognise exact read-only discovery tools; never infer safety from a substring."""
+    raw_name = payload.get("tool_name") or payload.get("tool") or ""
+    if isinstance(raw_name, dict):
+        raw_name = raw_name.get("name", "")
+    tool_name = str(raw_name).lower().replace("-", "_")
+    safe_names = {
+        "read",
+        "grep",
+        "glob",
+        "webfetch",
+        "websearch",
+        "toolsearch",
+        "web__run",
+        "view_image",
+        "list_mcp_resources",
+        "list_mcp_resource_templates",
+        "read_mcp_resource",
+        "request_user_input",
+    }
+    if tool_name in safe_names:
+        return True
+    read_only_exa_tools = {
+        "mcp__exa__web_search_exa",
+        "mcp__exa__get_code_context_exa",
+        "mcp__exa__research_paper",
+        "mcp__exa__company_research_exa",
+        "mcp__exa__people_search_exa",
+        "mcp__exa__crawling_exa",
+        "mcp__plugin_exa_exa__web_search_exa",
+        "mcp__plugin_exa_exa__get_code_context_exa",
+        "mcp__plugin_exa_exa__research_paper",
+        "mcp__plugin_exa_exa__company_research_exa",
+        "mcp__plugin_exa_exa__people_search_exa",
+        "mcp__plugin_exa_exa__crawling_exa",
+    }
+    if tool_name in read_only_exa_tools:
+        return True
+    if not any(marker in tool_name for marker in ("bash", "exec", "command", "shell")):
+        return False
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        tool_input = payload.get("input") if isinstance(payload.get("input"), dict) else {}
+    command = tool_input.get("cmd") or tool_input.get("command")
+    if not isinstance(command, str) or not command.strip():
+        return False
+    if re.search(r"[\n;&|<>`]|\$\(", command):
+        return False
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        return False
+    if not argv or any(token in {"&&", "||", ";", "|", ">", ">>", "<"} for token in argv):
+        return False
+    executable = Path(argv[0]).name
+    if executable in {"python", "python3"}:
+        if len(argv) < 2:
+            return False
+        script = Path(os.path.expandvars(argv[1])).expanduser().resolve()
+        return script == (SCRIPT_DIR / "grill_session.py").resolve()
+    if executable == "git":
+        args = argv[1:]
+        while len(args) >= 2 and args[0] == "-C":
+            args = args[2:]
+        unsafe_git = ("--config", "--exec", "--ext-diff", "--output", "--paginate", "--textconv")
+        return (
+            bool(args)
+            and args[0] in {"diff", "grep", "log", "ls-files", "rev-parse", "show", "status"}
+            and not any(any(arg == token or arg.startswith(token + "=") for token in unsafe_git) for arg in args)
+        )
+    if executable == "find" and any(arg in {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint"} for arg in argv):
+        return False
+    if executable == "rg" and any(arg == "--pre" or arg.startswith("--pre=") for arg in argv[1:]):
+        return False
+    return executable in {"file", "find", "head", "ls", "pwd", "rg", "stat", "tail", "wc"}
 
 
 def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[str, Any]:
@@ -462,16 +584,32 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         if state_path.is_file():
             state = json.loads(state_path.read_text(encoding="utf-8"))
             receipt = state.get("receipt", {})
-            validate_startup_receipt(receipt, project=project_root, verify_repository=False)
+            validate_startup_receipt(
+                receipt,
+                project=project_root,
+                verify_repository=False,
+                verify_control_bindings=False,
+            )
             primary = receipt["setup_contract"]["literal_objective"]
+            control_drift = _control_binding_errors(receipt)
+            drift_context = (
+                " Control-code drift is present and must be revalidated in a fresh session: "
+                + "; ".join(control_drift)
+                + "."
+                if control_drift
+                else ""
+            )
             return _hook_output(
                 event,
-                f"Senior Harness primary objective remains frozen byte-for-byte: {primary!r}. Treat this prompt as a subordinate instruction unless the user starts a new task.",
+                f"Senior Harness primary objective remains frozen byte-for-byte: {primary!r}. Treat this prompt as a subordinate instruction unless the user starts a new task.{drift_context}",
             )
+        prompt_match = re.match(r"^\s*[/\$](grill-me|grill-with-docs)\b", prompt, flags=re.IGNORECASE)
+        interaction = prompt_match.group(1).lower() if prompt_match else "delivery"
         contract = build_setup_contract(
             prompt,
             project_root,
             surface=surface,
+            interaction=interaction,
             host_capabilities={
                 "lifecycle_hooks": "configured",
                 "pre_tool_use": "configured",
@@ -484,27 +622,65 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         )
         receipt = admit_startup(contract)
         _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
+        grill_context = (
+            " Grill interaction is active: use the governed Grill session controller; project mutation and worker dispatch remain denied until its shared-understanding receipt validates."
+            if interaction in GRILL_INTERACTIONS
+            else ""
+        )
         return _hook_output(
             event,
-            f"Senior Harness froze the primary objective: {prompt!r}. Load model-router and unlazy before substantive delivery. Startup admission grants no mutation, business, or irreversible authority.",
+            f"Senior Harness froze the primary objective: {prompt!r}. Load model-router and unlazy before substantive delivery. Startup admission grants no mutation, business, or irreversible authority.{grill_context}",
         )
 
+    recovery_safe = _tool_is_recovery_safe(payload)
     if not state_path.is_file():
+        if recovery_safe:
+            return _hook_output(
+                event,
+                "Senior Harness recovery-only read: no startup receipt exists for this session. This permits evidence discovery only and grants no mutation, provider, worker, business, or irreversible authority.",
+            )
         return _hook_output(event, "Senior Harness denied the tool: no startup receipt exists for this session.", deny=True)
     try:
         state = json.loads(state_path.read_text(encoding="utf-8"))
         receipt = state.get("receipt", {})
         first_tool = not bool(state.get("first_tool_admitted"))
-        validate_startup_receipt(receipt, project=project_root, verify_repository=first_tool)
+        interaction = receipt.get("setup_contract", {}).get("interaction", "delivery")
+        verify_control_bindings = first_tool or interaction in GRILL_INTERACTIONS
+        validate_startup_receipt(
+            receipt,
+            project=project_root,
+            verify_repository=first_tool or interaction in GRILL_INTERACTIONS,
+            verify_control_bindings=verify_control_bindings,
+        )
+        control_drift = [] if verify_control_bindings else _control_binding_errors(receipt)
         if first_tool:
             state["first_tool_admitted"] = True
             _write_state(state_path, state)
         primary = receipt["setup_contract"]["literal_objective"]
+        interaction = receipt["setup_contract"].get("interaction", "delivery")
     except (OSError, json.JSONDecodeError, KeyError, SetupError) as exc:
+        if recovery_safe:
+            return _hook_output(
+                event,
+                f"Senior Harness recovery-only read: startup state is invalid ({exc}). This permits evidence discovery only and grants no mutation, provider, worker, business, or irreversible authority.",
+            )
         return _hook_output(event, f"Senior Harness denied the tool: invalid startup state ({exc}).", deny=True)
+    if interaction in GRILL_INTERACTIONS and not recovery_safe:
+        return _hook_output(
+            event,
+            "Senior Harness denied the tool: Grill-Me permits evidence discovery and its control-state driver only until shared understanding is explicitly confirmed.",
+            deny=True,
+        )
+    drift_context = ""
+    if control_drift:
+        drift_context = (
+            " Senior Harness control-code drift detected after the first admitted tool: "
+            + "; ".join(control_drift)
+            + ". Delivery may continue under normal host and repository policy, but this startup receipt cannot be reused as fresh control-code evidence."
+        )
     return _hook_output(
         event,
-        f"Senior Harness objective lock: {primary!r}. Startup admission does not authorize this tool; normal host and repository policy still decide it. This hook covers mediated local tools only; hosted or specialized bypasses are not claimed.",
+        f"Senior Harness objective lock: {primary!r}. Startup admission does not authorize this tool; normal host and repository policy still decide it. This hook covers mediated local tools only; hosted or specialized bypasses are not claimed.{drift_context}",
     )
 
 
@@ -514,6 +690,7 @@ def guard_dispatch(
     move_id: str,
     *,
     problem_id: str | None = None,
+    grill_session: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Admit one nonmutating move after startup and anti-spin checks."""
     setup = receipt.get("setup_contract", {})
@@ -522,6 +699,22 @@ def guard_dispatch(
         literal_objective=delivery_contract.get("literal_request"),
         project=setup.get("repository", {}).get("worktree"),
     )
+    if setup.get("interaction") in GRILL_INTERACTIONS:
+        if not isinstance(grill_session, dict):
+            raise SetupError(["Grill delivery remains stopped until a shared-understanding session is supplied"])
+        if grill_session.get("state") != "confirmed":
+            raise SetupError(["Grill delivery remains stopped until shared understanding is confirmed"])
+        try:
+            validate_grill_session(grill_session)
+            validate_grill_receipt(grill_session.get("receipt", {}))
+        except GrillSessionError as exc:
+            raise SetupError([f"invalid Grill shared-understanding session: {exc}"]) from exc
+        if grill_session.get("objective") != setup.get("literal_objective"):
+            raise SetupError(["Grill objective differs from the frozen startup objective"])
+        sketch = grill_session.get("sketch", {})
+        sketch_path = Path(str(sketch.get("path", "")))
+        if not sketch_path.is_file() or sketch.get("sha256") != grill_file_digest(sketch_path):
+            raise SetupError(["Grill sketch changed after shared understanding was confirmed"])
     validate_contract(delivery_contract)
     if delivery_contract.get("task_id") != setup.get("task_id"):
         raise SetupError(["delivery task id differs from the frozen startup task"])
@@ -567,6 +760,7 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("objective")
     start.add_argument("--project", required=True)
     start.add_argument("--surface", choices=("codex", "claude", "vscode-openrouter"), required=True)
+    start.add_argument("--interaction", choices=("delivery", *GRILL_INTERACTIONS), default="delivery")
     start.add_argument("--strict-clean", action="store_true")
     start.add_argument("--skill-root", action="append", default=[])
     verify = sub.add_parser("verify")
@@ -578,9 +772,11 @@ def build_parser() -> argparse.ArgumentParser:
     guard.add_argument("receipt")
     guard.add_argument("--move-id", required=True)
     guard.add_argument("--problem-id")
+    guard.add_argument("--grill-session")
     hook = sub.add_parser("hook")
     hook.add_argument("--surface", choices=("codex", "claude"), required=True)
     hook.add_argument("--event", choices=("SessionStart", "UserPromptSubmit", "PreToolUse"), required=True)
+    hook.add_argument("--allow-non-git", action="store_true")
     return parser
 
 
@@ -592,6 +788,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.objective,
                 args.project,
                 surface=args.surface,
+                interaction=args.interaction,
                 strict_clean=args.strict_clean,
                 skill_search_roots=args.skill_root,
             )
@@ -606,6 +803,7 @@ def main(argv: list[str] | None = None) -> int:
                 _read_json(args.receipt),
                 args.move_id,
                 problem_id=args.problem_id,
+                grill_session=_read_json(args.grill_session) if args.grill_session else None,
             )
         else:
             try:
@@ -616,7 +814,20 @@ def main(argv: list[str] | None = None) -> int:
                 try:
                     result = handle_hook(payload, surface=args.surface, event=args.event)
                 except SetupError as exc:
-                    result = _hook_output(args.event, f"Senior Harness rejected hook input: {'; '.join(exc.errors)}", deny=True)
+                    outside_git = args.allow_non_git and any(
+                        error.startswith("git probe failed for") for error in exc.errors
+                    )
+                    if outside_git:
+                        result = _hook_output(
+                            args.event,
+                            "Senior Harness global hook is inactive because this task is outside a Git project. No admission or authority claim was made.",
+                        )
+                    else:
+                        result = _hook_output(
+                            args.event,
+                            f"Senior Harness rejected hook input: {'; '.join(exc.errors)}",
+                            deny=True,
+                        )
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     except (SetupError, ContractError) as exc:

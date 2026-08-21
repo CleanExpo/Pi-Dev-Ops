@@ -40,6 +40,7 @@ from .supabase_log import log_gate_check
 from .session_recorder import record_episode, retrieve_similar_episodes, format_episodes_as_context
 from .session_model import em
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
+from .senior_harness_consumer import require_active_for_run
 from .session_evaluator import (
     _parse_evaluator_dimensions,
     _extract_eval_confidence,
@@ -571,6 +572,8 @@ async def _phase_clone(session, resume_from: str) -> bool:
         em(session, "system", "  [SKIP] Clone (already completed)")
         if not session.workspace:
             session.workspace = os.path.join(config.WORKSPACE_ROOT, session.id)
+        if not await _ensure_enforced_base(session, allow_checkout=False):
+            return False
         return True
 
     # RA-1029: use git worktree if this is a worker session with a shared parent workspace
@@ -616,6 +619,13 @@ async def _phase_clone(session, resume_from: str) -> bool:
                 env=_git_clone_env(session.repo_url),
             )
             if rc == 0:
+                # A signed base SHA is an execution boundary, not decoration. A
+                # depth-one clone follows moving default HEAD, so enforce mode
+                # must fetch and detach at the exact admitted commit before any
+                # workspace file or model phase can touch the repository.
+                if not await _ensure_enforced_base(session, allow_checkout=True):
+                    _emit_phase_metric(session, "clone", phase_start)
+                    return False
                 # RA-1173 — verify the cloned repo's origin matches session.repo_url.
                 # When WORKSPACE_ROOT sits inside a parent git repo, the commands
                 # further down the pipeline (commit, push) were using the PARENT
@@ -711,6 +721,52 @@ async def _phase_clone(session, resume_from: str) -> bool:
                 os.makedirs(session.workspace, exist_ok=True)
     _fail_phase(session, f"Clone failed after 3 attempts: {last_stderr or 'no stderr captured'}")
     _emit_phase_metric(session, "clone", phase_start)
+    return False
+
+
+async def _ensure_enforced_base(session, *, allow_checkout: bool) -> bool:
+    """Verify or establish the exact signed base before any model can run."""
+    from .senior_harness_admission import deployment_mode  # noqa: PLC0415
+
+    if deployment_mode() != "enforce":
+        return True
+    reservation = getattr(session, "senior_harness_reservation", None) or {}
+    expected = reservation.get("base_sha", "")
+    rc, actual, error = await run_cmd(
+        session.workspace, "git", "rev-parse", "HEAD", timeout=10,
+    )
+    if rc == 0 and actual.strip() == expected:
+        return True
+    if not allow_checkout:
+        _fail_phase(
+            session,
+            "Senior Harness base SHA no longer matches the interrupted workspace; "
+            "a fresh admission bound to the current exact HEAD is required",
+        )
+        return False
+    rc, _, fetch_error = await run_cmd(
+        session.workspace, "git", "fetch", "--depth", "1", "origin", expected, timeout=60,
+    )
+    if rc == 0:
+        rc, _, checkout_error = await run_cmd(
+            session.workspace, "git", "checkout", "--detach", expected, timeout=15,
+        )
+        if rc == 0:
+            verify_rc, verified, verify_error = await run_cmd(
+                session.workspace, "git", "rev-parse", "HEAD", timeout=10,
+            )
+            if verify_rc == 0 and verified.strip() == expected:
+                return True
+            error = verify_error
+        else:
+            error = checkout_error
+    else:
+        error = fetch_error
+    _fail_phase(
+        session,
+        "Senior Harness could not establish signed base SHA "
+        f"{expected}: {(error or 'verification failed')[:200]}",
+    )
     return False
 
 
@@ -1745,6 +1801,10 @@ def _log_ship_gate_check(session, push_ok: bool, push_ts: float) -> None:
 
 
 async def run_build(session, brief="", model="sonnet", intent="", resume_from=""):
+    # Literal first operation: no log, persistence, provider, clone, or Linear
+    # side effect may occur before durable authority is asserted. This is a
+    # no-op in off/observe modes and fails closed in enforce mode.
+    require_active_for_run(session.id)
     em(session, "phase", "  Pi CEO Solo DevOps Tool")
     em(session, "system", f"  Session: {session.id}")
     em(session, "system", f"  Repo:    {session.repo_url}")
@@ -1831,6 +1891,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     em(session, "system", f"  Task memory: .pi-ceo/{session.id}/PLAN.md written")
 
     # RA-1026 — structured planning phase (haiku) before generator
+    require_active_for_run(session.id)
     await _phase_plan(session, spec, resume_from)
     if session.plan:
         plan_header = (
@@ -1841,12 +1902,15 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         )
         spec = plan_header + spec
 
+    require_active_for_run(session.id)
     if not await _phase_generate(session, spec, model, resume_from):
         _sync_linear_on_completion(session)
         return
+    require_active_for_run(session.id)
     total_phases = await _phase_evaluate(session, brief, model, spec, resolved_intent)
 
     # RA-1743 — opus-adversary pre-push gate. BLOCK halts push.
+    require_active_for_run(session.id)
     adversary_ok, _adv_verdict = await _phase_adversary(session, total_phases)
     if not adversary_ok:
         session.last_completed_phase = "adversary_block"
@@ -1856,6 +1920,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         _sync_linear_on_completion(session)
         return
 
+    require_active_for_run(session.id)
     push_ts = time.time()
     af, push_ok = await _phase_push(session, total_phases)
 

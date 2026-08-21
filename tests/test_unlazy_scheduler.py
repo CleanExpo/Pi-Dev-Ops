@@ -11,9 +11,12 @@ import pytest
 
 from swarm.unlazy_scheduler import (
     PlanValidationError,
+    begin_verification,
+    guard_root_continuation,
     plan_template,
     ready_nodes,
     record_result as scheduler_record_result,
+    reserve_dispatch,
     validate_plan,
 )
 
@@ -103,6 +106,43 @@ def valid_plan():
                 "attempt": 0,
             },
         ],
+    }
+
+
+def fanout_request():
+    return {
+        "schema_version": "1.0",
+        "request_id": "unlazy-fanout-control",
+        "task": "Build independent components then integrate",
+        "harness": "codex",
+        "signals": {
+            "determinism": "medium",
+            "ambiguity": "medium",
+            "scope": "multi-file",
+            "dependency_count": 2,
+            "reasoning_depth": "normal",
+            "stakes": ["none"],
+            "volume": 3,
+            "expected_minutes": 60,
+            "context_tokens_estimate": 8000,
+            "modalities": ["text", "code"],
+            "required_tools": ["read", "edit", "test"],
+            "sensitivity": "internal",
+            "prior_failures": 0,
+            "ownership_disjoint": True,
+        },
+        "limits": {
+            "max_cost_usd": None,
+            "max_quota_units": None,
+            "deadline_seconds": 1800,
+            "max_parallel_workers": 2,
+        },
+        "capabilities": {
+            "local_quality_floors": [],
+            "supports_parallel": True,
+            "supports_model_override": True,
+            "supports_cancellation": True,
+        },
     }
 
 
@@ -207,6 +247,105 @@ def test_lint_accepts_acyclic_disjoint_plan():
 
 def test_rolling_ready_fills_cap_with_disjoint_leaves():
     assert [node.id for node in ready_nodes(valid_plan())] == ["1.1", "1.2"]
+
+
+def test_fanout_guard_blocks_root_delivery_while_ready_capacity_exists():
+    with pytest.raises(PlanValidationError, match="fanout-required"):
+        guard_root_continuation(valid_plan(), fanout_request(), "delivery")
+
+    admitted = guard_root_continuation(valid_plan(), fanout_request(), "dispatch")
+    assert admitted == {
+        "status": "admitted",
+        "operation": "dispatch",
+        "route_id": admitted["route_id"],
+        "route_action": "fanout",
+        "fanout_in_flight": True,
+        "ready": ["1.1", "1.2"],
+        "active": [],
+        "capacity": 2,
+    }
+
+
+def test_fanout_guard_uses_authenticated_reservations_at_full_capacity():
+    raw = reserve_dispatch(
+        valid_plan(), fanout_request(), "1.1", worker_context_id="agent-context-a",
+    )
+    raw = reserve_dispatch(
+        raw, fanout_request(), "1.2", worker_context_id="agent-context-b",
+    )
+
+    admitted = guard_root_continuation(raw, fanout_request(), "wait")
+    assert admitted["ready"] == []
+    assert admitted["active"] == ["1.1", "1.2"]
+    assert admitted["capacity"] == 0
+    with pytest.raises(PlanValidationError, match="fanout-required"):
+        guard_root_continuation(raw, fanout_request(), "analysis")
+
+
+def test_authenticated_dispatch_can_enter_verification():
+    raw = reserve_dispatch(
+        valid_plan(), fanout_request(), "1.1", worker_context_id="agent-context-a",
+    )
+    raw = begin_verification(raw, fanout_request(), "1.1")
+    admitted = guard_root_continuation(raw, fanout_request(), "verify")
+    assert admitted["active"] == ["1.1"]
+    assert next(node for node in raw["nodes"] if node["id"] == "1.1")["state"] == "verifying"
+
+
+def test_fanout_guard_releases_root_after_all_leaves_are_terminal():
+    raw = valid_plan()
+    for node in raw["nodes"]:
+        if node["type"] == "leaf":
+            node["state"] = "cancelled"
+    admitted = guard_root_continuation(raw, fanout_request(), "delivery")
+    assert admitted["fanout_in_flight"] is False
+    assert admitted["ready"] == []
+    assert admitted["active"] == []
+
+
+def test_delegate_route_does_not_apply_fanout_guard():
+    route = fanout_request()
+    route["signals"]["ownership_disjoint"] = False
+    admitted = guard_root_continuation(valid_plan(), route, "delivery")
+    assert admitted["route_action"] == "delegate"
+    assert admitted["fanout_in_flight"] is False
+
+
+def test_forged_active_state_cannot_satisfy_fanout_guard():
+    raw = valid_plan()
+    raw["nodes"][1]["state"] = "running"
+    with pytest.raises(PlanValidationError, match="lacks a scheduler dispatch receipt"):
+        guard_root_continuation(raw, fanout_request(), "wait")
+
+
+def test_tampered_dispatch_receipt_cannot_satisfy_fanout_guard():
+    raw = reserve_dispatch(
+        valid_plan(), fanout_request(), "1.1", worker_context_id="agent-context-a",
+    )
+    raw["nodes"][1]["dispatch_receipt"]["worker_context_id"] = "forged-context"
+    with pytest.raises(PlanValidationError, match="authority_mac is invalid"):
+        guard_root_continuation(raw, fanout_request(), "wait")
+
+
+def test_route_request_swap_invalidates_active_dispatch_receipt():
+    raw = reserve_dispatch(
+        valid_plan(), fanout_request(), "1.1", worker_context_id="agent-context-a",
+    )
+    swapped = fanout_request()
+    swapped["signals"]["ownership_disjoint"] = False
+    with pytest.raises(PlanValidationError, match="dispatch receipt route_id is invalid"):
+        guard_root_continuation(raw, swapped, "wait")
+
+
+def test_route_request_must_bind_the_exact_plan_task():
+    mismatched = fanout_request()
+    mismatched["task"] = "A different task"
+    with pytest.raises(PlanValidationError, match="does not match the Unlazy plan task"):
+        guard_root_continuation(valid_plan(), mismatched, "dispatch")
+    with pytest.raises(PlanValidationError, match="does not match the Unlazy plan task"):
+        reserve_dispatch(
+            valid_plan(), mismatched, "1.1", worker_context_id="agent-context-a",
+        )
 
 
 def test_out_of_order_return_unlocks_new_leaf_immediately(verified_case):

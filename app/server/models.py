@@ -13,6 +13,12 @@ class BuildRequest(BaseModel):
     scope: dict | None = None           # RA-676: session scope contract
     plan_discovery: bool = False        # RA-679: run plan variation discovery before generate
     complexity_tier: str = ""           # RA-681: override tier (basic/detailed/advanced)
+    # Non-authorizing correlation only. Deployment mode is never caller-controlled.
+    senior_harness_admission_ref: str | None = None
+    senior_harness_reservation: dict | None = None
+    # Transient enforce-mode authority. Routes pass it directly to the consumer;
+    # it must never enter a BuildSession, persistence, logs, or an API response.
+    senior_harness_admission_envelope: dict | None = Field(default=None, exclude=True)
 
     @field_validator("repo_url")
     @classmethod
@@ -40,6 +46,24 @@ class ParallelBuildRequest(BuildRequest):
     def valid_workers(cls, v: int) -> int:
         # Clamp defensively in case the Field constraint is bypassed.
         return min(max(v, 1), 10)
+
+
+class ResumeRequest(BaseModel):
+    """Fresh authority and exact objective inputs for an interrupted session."""
+
+    brief: str
+    scope: dict
+    senior_harness_admission_ref: str
+    senior_harness_reservation: dict
+    senior_harness_admission_envelope: dict = Field(exclude=True)
+
+    @field_validator("brief", "senior_harness_admission_ref")
+    @classmethod
+    def non_empty_text(cls, v: str) -> str:
+        value = v.strip()
+        if not value:
+            raise ValueError("field cannot be empty")
+        return value
 
 
 class TriggerRequest(BaseModel):

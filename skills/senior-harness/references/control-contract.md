@@ -37,6 +37,22 @@ classify generic shell, edit, or MCP mutation authority. Those calls remain unde
 repository controls. The deterministic `guard-dispatch` boundary is narrower: it admits only a
 ready, nonmutating delivery move and rejects stopped uncertainty paths.
 
+An invalid or missing hook receipt does not strand diagnosis. Exact read-only recovery tools may
+continue with a zero-authority warning; mutation, provider, worker, browser computer-use, and
+outbound tools remain denied. Control-code digests are enforced at startup and the first mediated
+tool. After that first tool in a normal delivery session, later Harness-code drift is reported as
+stale evidence instead of becoming a blanket tool denial. This is not re-admission: the old receipt
+cannot serve as fresh control-code evidence, and Grill interactions continue byte revalidation on
+every tool.
+
+For `grill-me` and `grill-with-docs`, the adapter narrows further. Until the Grill session reaches
+explicit shared understanding, it admits only read-only evidence discovery and the dedicated Grill
+state driver. The driver binds a real sketch and decision-tree, separates evidence facts from human
+choices, exposes at most one question, retains answers verbatim, and buffers transcript/domain changes.
+The confirmed receipt still grants zero authority. `guard-dispatch` may use it to admit a ready
+nonmutating delivery move only; the existing mutation-authority stop remains in force. The complete
+state contract is [`grill-contract.md`](grill-contract.md).
+
 ## TaskContract
 
 Required top-level fields:

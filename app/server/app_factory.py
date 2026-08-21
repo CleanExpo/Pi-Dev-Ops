@@ -130,6 +130,12 @@ async def on_startup():
     from .config_loader import validate_startup  # noqa: PLC0415
     validate_startup()
 
+    # Enforce mode needs a dedicated consumer-only credential. Bootstrap it
+    # before restore or any background task so the secret is removed from the
+    # inherited process environment before an Agent SDK subprocess can exist.
+    from .senior_harness_consumer import bootstrap_from_env  # noqa: PLC0415
+    bootstrap_from_env()
+
     # Install the lesson seed before anything can read or write the store. Several modules
     # open `.harness/lessons.jsonl` directly instead of going through lessons.py; doing this
     # once at startup means those direct readers see the 49 curated lessons rather than an

@@ -21,6 +21,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
+from app.server.task_routing import decide_route
+
 
 NODE_TYPES = {"root", "branch", "leaf"}
 NODE_STATES = {"pending", "ready", "running", "verifying", "passed", "blocked", "cancelled"}
@@ -34,6 +36,8 @@ TRUSTED_GATE_RUNNER_VERSION = "nexus-unlazy-gate-v3"
 TRUSTED_GATE_RUNNER = Path(__file__).resolve().parents[1] / "scripts" / "unlazy-gate-check.mjs"
 TRUSTED_VERIFIER_ID = "unlazy-scheduler-trusted-replay-v1"
 TRUSTED_VERIFICATION_AUTHORITY = "scheduler-controlled-replay-v1"
+TRUSTED_DISPATCH_AUTHORITY = "scheduler-controlled-dispatch-v1"
+FANOUT_CONTROL_OPERATIONS = frozenset({"dispatch", "wait", "verify", "cancel"})
 
 
 class PlanValidationError(ValueError):
@@ -57,6 +61,7 @@ class PlanNode:
     gates: str
     state: str
     attempt: int
+    dispatch_receipt: dict[str, Any] | None
     verification_receipt: dict[str, Any] | None
 
     @classmethod
@@ -98,6 +103,9 @@ class PlanNode:
             gates=str(raw.get("gates") or "").strip(),
             state=state,
             attempt=attempt,
+            dispatch_receipt=copy.deepcopy(raw.get("dispatch_receipt"))
+            if isinstance(raw.get("dispatch_receipt"), dict)
+            else None,
             verification_receipt=copy.deepcopy(raw.get("verification_receipt"))
             if isinstance(raw.get("verification_receipt"), dict)
             else None,
@@ -700,6 +708,232 @@ def _node_collides(node: PlanNode, others: Iterable[PlanNode]) -> bool:
         for other in others
         for owned in other.owns
     )
+
+
+def _node_dispatch_contract_digest(plan: UnlazyPlan, node: PlanNode) -> str:
+    """Bind dispatch authority to immutable plan and leaf contract fields."""
+    payload = {
+        "plan_id": plan.plan_id,
+        "task": plan.task,
+        "base_sha": plan.base_sha,
+        "worktree": plan.worktree,
+        "node": {
+            "id": node.id,
+            "type": node.type,
+            "purpose": node.purpose,
+            "owns": list(node.owns),
+            "needs": list(node.needs),
+            "exports": list(node.exports),
+            "route_ref": node.route_ref,
+            "worker_id": node.worker_id,
+            "gates": node.gates,
+        },
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _dispatch_receipt_errors(
+    plan: UnlazyPlan,
+    node: PlanNode,
+    receipt: dict[str, Any] | None,
+    route_decision: Any,
+) -> list[str]:
+    if not isinstance(receipt, dict):
+        return [f"active node {node.id} lacks a scheduler dispatch receipt"]
+    errors: list[str] = []
+    expected = {
+        "schema_version": "1.0",
+        "authority": TRUSTED_DISPATCH_AUTHORITY,
+        "plan_id": plan.plan_id,
+        "node_id": node.id,
+        "worker_id": node.worker_id,
+        "route_id": route_decision.route_id,
+        "policy_version": route_decision.policy_version,
+        "base_sha": plan.base_sha,
+        "worktree": plan.worktree,
+        "node_contract_digest": _node_dispatch_contract_digest(plan, node),
+    }
+    for name, value in expected.items():
+        if receipt.get(name) != value:
+            errors.append(f"active node {node.id} dispatch receipt {name} is invalid")
+    worker_context_id = receipt.get("worker_context_id")
+    if not isinstance(worker_context_id, str) or not worker_context_id.strip():
+        errors.append(f"active node {node.id} dispatch receipt worker_context_id is invalid")
+    if receipt.get("reserved") is not True:
+        errors.append(f"active node {node.id} dispatch receipt is not reserved")
+    key = _receipt_hmac_key()
+    if key is None:
+        errors.append("UNLAZY_RECEIPT_HMAC_KEY must contain at least 32 bytes")
+    else:
+        supplied = receipt.get("authority_mac")
+        if not isinstance(supplied, str) or not hmac.compare_digest(
+            supplied, _receipt_mac(receipt, key),
+        ):
+            errors.append(f"active node {node.id} dispatch receipt authority_mac is invalid")
+    return errors
+
+
+def _trusted_active_nodes(
+    plan: UnlazyPlan,
+    route_decision: Any,
+) -> tuple[PlanNode, ...]:
+    active = tuple(node for node in plan.nodes if node.state in {"running", "verifying"})
+    errors = [
+        error
+        for node in active
+        for error in _dispatch_receipt_errors(plan, node, node.dispatch_receipt, route_decision)
+    ]
+    if errors:
+        raise PlanValidationError(errors)
+    return active
+
+
+def _bound_route_decision(plan: UnlazyPlan, routing_request: dict[str, Any]) -> Any:
+    """Recompute routing only after binding the request to the exact plan task."""
+    if not isinstance(routing_request, dict) or routing_request.get("task") != plan.task:
+        raise PlanValidationError(["routing request task does not match the Unlazy plan task"])
+    return decide_route(routing_request)
+
+
+def _ready_for_trusted_dispatch(
+    plan: UnlazyPlan,
+    active: Iterable[PlanNode],
+    *,
+    cap: int,
+) -> tuple[PlanNode, ...]:
+    by_id = plan.by_id
+    trusted_active = tuple(active)
+    slots = max(0, cap - len(trusted_active))
+    selected: list[PlanNode] = []
+    for node in sorted(plan.nodes, key=lambda item: item.id):
+        if slots == 0:
+            break
+        if node.type != "leaf" or node.state not in {"pending", "ready"}:
+            continue
+        if not all(by_id[dependency].state == "passed" for dependency in node.needs):
+            continue
+        if _node_collides(node, (*trusted_active, *selected)):
+            continue
+        selected.append(node)
+        slots -= 1
+    return tuple(selected)
+
+
+def guard_root_continuation(
+    raw: dict[str, Any] | UnlazyPlan,
+    routing_request: dict[str, Any],
+    operation: str,
+) -> dict[str, Any]:
+    """Fail closed when a fanout route still requires root orchestration.
+
+    Active work is derived only from authenticated scheduler reservations stored on
+    running/verifying nodes.  There is deliberately no caller-supplied ``active_ids``
+    escape hatch.
+    """
+    plan = raw if isinstance(raw, UnlazyPlan) else validate_plan(raw)
+    route_decision = _bound_route_decision(plan, routing_request)
+    active = _trusted_active_nodes(plan, route_decision)
+    route_cap = int(route_decision.execution.get("max_parallel_workers", 1))
+    cap = min(plan.max_parallel_workers, route_cap)
+    ready = _ready_for_trusted_dispatch(plan, active, cap=cap)
+    unresolved = tuple(
+        node.id
+        for node in plan.nodes
+        if node.type == "leaf" and node.state in {"pending", "ready", "running", "verifying"}
+    )
+    fanout_in_flight = route_decision.action == "fanout" and bool(unresolved)
+    normalized_operation = str(operation or "").strip().lower()
+    if fanout_in_flight and normalized_operation not in FANOUT_CONTROL_OPERATIONS:
+        ready_ids = [node.id for node in ready]
+        active_ids = [node.id for node in active]
+        raise PlanValidationError([
+            "fanout-required: root continuation is limited to dispatch/wait/verify/cancel "
+            f"while leaf work remains; ready={ready_ids}, active={active_ids}, cap={cap}"
+        ])
+    return {
+        "status": "admitted",
+        "operation": normalized_operation,
+        "route_id": route_decision.route_id,
+        "route_action": route_decision.action,
+        "fanout_in_flight": fanout_in_flight,
+        "ready": [node.id for node in ready],
+        "active": [node.id for node in active],
+        "capacity": max(0, cap - len(active)),
+    }
+
+
+def reserve_dispatch(
+    raw: dict[str, Any],
+    routing_request: dict[str, Any],
+    node_id: str,
+    *,
+    worker_context_id: str,
+) -> dict[str, Any]:
+    """Atomically reserve one ready leaf and issue scheduler-authenticated authority."""
+    plan = validate_plan(raw)
+    route_decision = _bound_route_decision(plan, routing_request)
+    if route_decision.action not in {"delegate", "fanout"}:
+        raise PlanValidationError([
+            f"route action {route_decision.action} does not authorize worker dispatch"
+        ])
+    active = _trusted_active_nodes(plan, route_decision)
+    route_cap = int(route_decision.execution.get("max_parallel_workers", 1))
+    cap = min(plan.max_parallel_workers, route_cap)
+    ready = _ready_for_trusted_dispatch(plan, active, cap=cap)
+    selected = next((node for node in ready if node.id == node_id), None)
+    if selected is None:
+        raise PlanValidationError([f"node {node_id} is not available for trusted dispatch"])
+    context = str(worker_context_id or "").strip()
+    if not context:
+        raise PlanValidationError(["worker_context_id is required"])
+    key = _receipt_hmac_key()
+    if key is None:
+        raise PlanValidationError(["UNLAZY_RECEIPT_HMAC_KEY must contain at least 32 bytes"])
+    receipt: dict[str, Any] = {
+        "schema_version": "1.0",
+        "authority": TRUSTED_DISPATCH_AUTHORITY,
+        "plan_id": plan.plan_id,
+        "node_id": selected.id,
+        "worker_id": selected.worker_id,
+        "worker_context_id": context,
+        "route_id": route_decision.route_id,
+        "policy_version": route_decision.policy_version,
+        "base_sha": plan.base_sha,
+        "worktree": plan.worktree,
+        "node_contract_digest": _node_dispatch_contract_digest(plan, selected),
+        "reserved": True,
+    }
+    receipt["authority_mac"] = _receipt_mac(receipt, key)
+    updated = copy.deepcopy(raw)
+    for entry in updated["nodes"]:
+        if entry.get("id") == node_id:
+            entry["state"] = "running"
+            entry["dispatch_receipt"] = receipt
+            break
+    validate_plan(updated)
+    return updated
+
+
+def begin_verification(
+    raw: dict[str, Any],
+    routing_request: dict[str, Any],
+    node_id: str,
+) -> dict[str, Any]:
+    """Move one authenticated running leaf into scheduler-controlled verification."""
+    plan = validate_plan(raw)
+    route_decision = _bound_route_decision(plan, routing_request)
+    active = _trusted_active_nodes(plan, route_decision)
+    node = next((candidate for candidate in active if candidate.id == node_id), None)
+    if node is None or node.state != "running":
+        raise PlanValidationError([f"node {node_id} must be an authenticated running leaf"])
+    updated = copy.deepcopy(raw)
+    for entry in updated["nodes"]:
+        if entry.get("id") == node_id:
+            entry["state"] = "verifying"
+            break
+    validate_plan(updated)
+    return updated
 
 
 def ready_nodes(raw: dict[str, Any] | UnlazyPlan, active_ids: Iterable[str] = ()) -> tuple[PlanNode, ...]:

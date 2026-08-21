@@ -11,12 +11,15 @@ on crash or mid-write power loss.
 Session IDs are sanitised (alphanumeric only) before any file path use to
 prevent path traversal attacks.
 """
+import copy
 import json
 import os
 import re
 import tempfile
 import time
+
 from . import config
+from .senior_harness_admission import api_projection
 
 
 def _sessions_dir() -> str:
@@ -36,6 +39,7 @@ def _path(sid: str) -> str:
 
 def save_session(session) -> None:
     """Atomically persist session metadata to disk. Excludes process and output_lines."""
+    senior_harness = api_projection(session)
     data = {
         "id": session.id,
         "repo_url": session.repo_url,
@@ -51,6 +55,9 @@ def save_session(session) -> None:
         "last_completed_phase": getattr(session, "last_completed_phase", ""),
         "retry_count": getattr(session, "retry_count", 0),
         "linear_issue_id": getattr(session, "linear_issue_id", None),
+        "senior_harness_observation_status": senior_harness["status"],
+        "senior_harness_admission_ref": senior_harness["admission_ref"],
+        "senior_harness_reservation": copy.deepcopy(senior_harness["reservation"]),
         "saved_at": time.time(),
     }
     target = _path(session.id)

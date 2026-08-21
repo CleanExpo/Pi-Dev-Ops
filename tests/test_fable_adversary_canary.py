@@ -124,6 +124,10 @@ async def test_fable_refusal_falls_back_to_opus_no_silent_success(monkeypatch):
     from app.server import config, session_sdk
 
     monkeypatch.setattr(config, "FABLE_ALLOWED_ROLES", {"adversary"})
+    monkeypatch.setenv(
+        "SENIOR_HARNESS_ADMISSION_CONSUMER_TOKEN",
+        "consumer-secret-must-not-reach-sdk",
+    )
 
     seen_models: list[str] = []
     seen_opts: list = []
@@ -167,3 +171,7 @@ async def test_fable_refusal_falls_back_to_opus_no_silent_success(monkeypatch):
         assert not hasattr(fable_opts, banned)
     assert fable_opts.thinking.type == "adaptive"
     assert not hasattr(fable_opts.thinking, "budget_tokens")
+    assert all(
+        opts.env["SENIOR_HARNESS_ADMISSION_CONSUMER_TOKEN"] == ""
+        for opts in seen_opts
+    )

@@ -24,6 +24,7 @@ from . import config
 from .sessions import create_session, em, run_cmd, BuildSession, _sessions, _run_claude_via_sdk
 from .brief import classify_intent
 from .model_policy import select_model  # RA-1099: hardwired model routing policy
+from .senior_harness_admission import require_runtime_available
 # Note: _select_model (legacy harness-only selector in sessions.py) was replaced
 # by select_model from model_policy throughout this file (RA-1099 enforcement).
 
@@ -253,6 +254,7 @@ async def fan_out(
             "status": "launched" | "failed"
         }
     """
+    require_runtime_available()
     n_workers = max(1, min(n_workers, config.MAX_CONCURRENT_SESSIONS))
     resolved_intent = intent or classify_intent(brief)
 

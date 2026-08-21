@@ -12,7 +12,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_DIR = REPO_ROOT / "skills" / "senior-harness" / "scripts"
 sys.path.insert(0, str(SCRIPT_DIR))
 
+from grill_session import (  # noqa: E402
+    SHARED_UNDERSTANDING_PHRASE,
+    answer_pending_question,
+    confirm_shared_understanding,
+    start_session,
+)
 from senior_harness import digest  # noqa: E402
+import setup_driver as setup_driver_module  # noqa: E402
 from setup_driver import (  # noqa: E402
     SetupError,
     admit_startup,
@@ -141,6 +148,8 @@ def test_skill_change_invalidates_receipt(tmp_path: Path) -> None:
     (skill_root / "unlazy" / "SKILL.md").write_text("---\nname: unlazy\n---\nchanged\n", encoding="utf-8")
     with pytest.raises(SetupError, match="skill changed"):
         validate_startup_receipt(receipt)
+    assert validate_startup_receipt(receipt, verify_control_bindings=False)["status"] == "valid"
+    assert any("skill changed" in error for error in setup_driver_module._control_binding_errors(receipt))
 
 
 def test_missing_or_misnamed_skill_fails_closed(tmp_path: Path) -> None:
@@ -160,6 +169,31 @@ def test_repository_state_change_invalidates_receipt(tmp_path: Path) -> None:
     altered["setup_contract"]["repository"]["head_sha"] = "0" * 40
     with pytest.raises(SetupError, match="integrity"):
         validate_startup_receipt(altered)
+
+
+def test_dirty_file_byte_change_invalidates_receipt_even_when_status_shape_is_unchanged(tmp_path: Path) -> None:
+    project = tmp_path / "dirty-project"
+    project.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=project, check=True)
+    tracked = project / "tracked.txt"
+    tracked.write_text("base\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=project, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=project, check=True)
+    tracked.write_text("first dirty value\n", encoding="utf-8")
+    receipt = admit_startup(
+        build_setup_contract(
+            "inspect dirty project",
+            project,
+            surface="codex",
+            skill_search_roots=[REPO_ROOT / "skills"],
+        )
+    )
+
+    tracked.write_text("second dirty value\n", encoding="utf-8")
+    with pytest.raises(SetupError, match="worktree_state_digest changed"):
+        validate_startup_receipt(receipt, project=project)
 
 
 def test_guard_accepts_only_ready_nonmutating_move() -> None:
@@ -271,6 +305,129 @@ def test_hook_lifecycle_freezes_first_prompt_and_denies_missing_receipt(tmp_path
     assert denied_after_clear["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
+def test_hook_allows_only_exact_recovery_safe_reads_without_startup_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    base = {"session_id": "recovery-no-state", "cwd": str(REPO_ROOT), "hook_event_name": "PreToolUse"}
+
+    for tool_name in (
+        "Read",
+        "ToolSearch",
+        "mcp__exa__web_search_exa",
+        "mcp__plugin_exa_exa__get_code_context_exa",
+    ):
+        result = handle_hook({**base, "tool_name": tool_name, "tool_input": {}}, surface="claude", event="PreToolUse")
+        output = result["hookSpecificOutput"]
+        assert "permissionDecision" not in output
+        assert "recovery-only read" in output["additionalContext"]
+        assert "grants no mutation" in output["additionalContext"]
+
+    for tool_name, tool_input in (
+        ("Write", {"file_path": "x"}),
+        ("Bash", {"command": "touch x"}),
+        ("mcp__computer-use__computer", {"action": "click"}),
+        ("ReadAndWrite", {}),
+        ("ToolSearchMutate", {}),
+        ("mcp__exa__web_search_exa_then_write", {}),
+        ("mcp__attacker__read", {}),
+    ):
+        denied = handle_hook(
+            {**base, "tool_name": tool_name, "tool_input": tool_input},
+            surface="claude",
+            event="PreToolUse",
+        )
+        assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_invalid_startup_state_allows_recovery_read_but_denies_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_root = tmp_path / "state"
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(state_root))
+    base = {"session_id": "recovery-invalid", "cwd": str(REPO_ROOT)}
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Inspect the invalid state"},
+        surface="claude",
+        event="UserPromptSubmit",
+    )
+    state_path = next(state_root.rglob("*.json"))
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["receipt"]["stage"] = "tampered"
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    read_result = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
+        surface="claude",
+        event="PreToolUse",
+    )
+    assert "permissionDecision" not in read_result["hookSpecificOutput"]
+    assert "startup state is invalid" in read_result["hookSpecificOutput"]["additionalContext"]
+
+    write_result = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {}},
+        surface="claude",
+        event="PreToolUse",
+    )
+    assert write_result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_control_drift_is_strict_on_first_tool_then_warns_after_delivery_begins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_root = tmp_path / "state"
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(state_root))
+    base = {"session_id": "control-drift", "cwd": str(REPO_ROOT)}
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Develop the Senior Harness"},
+        surface="claude",
+        event="UserPromptSubmit",
+    )
+
+    original = setup_driver_module._control_binding_errors
+    monkeypatch.setattr(
+        setup_driver_module,
+        "_control_binding_errors",
+        lambda receipt: ["bound skill changed after startup admission: senior-harness"],
+    )
+    first_write = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {}},
+        surface="claude",
+        event="PreToolUse",
+    )
+    assert first_write["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+    monkeypatch.setattr(setup_driver_module, "_control_binding_errors", original)
+    first_read = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
+        surface="claude",
+        event="PreToolUse",
+    )
+    assert "permissionDecision" not in first_read["hookSpecificOutput"]
+
+    monkeypatch.setattr(
+        setup_driver_module,
+        "_control_binding_errors",
+        lambda receipt: ["bound skill changed after startup admission: senior-harness"],
+    )
+    later_write = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {}},
+        surface="claude",
+        event="PreToolUse",
+    )
+    later_output = later_write["hookSpecificOutput"]
+    assert "permissionDecision" not in later_output
+    assert "control-code drift detected" in later_output["additionalContext"]
+    assert "cannot be reused as fresh control-code evidence" in later_output["additionalContext"]
+
+    followup = handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Continue the same objective"},
+        surface="claude",
+        event="UserPromptSubmit",
+    )
+    assert "Control-code drift is present" in followup["hookSpecificOutput"]["additionalContext"]
+
+
 def test_hook_rejects_malformed_or_mismatched_input() -> None:
     with pytest.raises(SetupError, match="missing session_id"):
         handle_hook({}, surface="claude", event="PreToolUse")
@@ -318,3 +475,221 @@ def test_hook_cli_malformed_pretool_input_returns_a_deny_decision() -> None:
     output = json.loads(result.stdout)["hookSpecificOutput"]
     assert output["permissionDecision"] == "deny"
     assert "malformed hook input" in output["permissionDecisionReason"]
+
+
+def test_global_hook_can_skip_non_git_tasks_without_making_an_admission_claim(tmp_path: Path) -> None:
+    payload = json.dumps({
+        "session_id": "outside-git",
+        "cwd": str(tmp_path),
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Read",
+    })
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "setup_driver.py"),
+            "hook",
+            "--surface",
+            "codex",
+            "--event",
+            "PreToolUse",
+            "--allow-non-git",
+        ],
+        input=payload,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert "permissionDecision" not in output
+    assert "outside a Git project" in output["additionalContext"]
+
+
+def test_grill_interaction_binds_skill_and_routes_as_research() -> None:
+    contract = build_setup_contract(
+        "/grill-me shape the recovery workflow",
+        REPO_ROOT,
+        surface="codex",
+        interaction="grill-me",
+    )
+
+    assert contract["interaction"] == "grill-me"
+    assert contract["required_skills"]["grill-me"]["name"] == "grill-me"
+    assert contract["routing_request"]["signals"]["modalities"] == ["text"]
+    assert contract["routing_request"]["signals"]["required_tools"] == ["read", "research"]
+
+
+def test_grill_hook_denies_project_action_but_allows_evidence_discovery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    base = {"session_id": "grill-1", "cwd": str(REPO_ROOT)}
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "/grill-me shape recovery"},
+        surface="codex",
+        event="UserPromptSubmit",
+    )
+
+    read_result = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {"file_path": "CONTEXT.md"}},
+        surface="codex",
+        event="PreToolUse",
+    )
+    assert "permissionDecision" not in read_result["hookSpecificOutput"]
+
+    search_result = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "exec_command", "tool_input": {"cmd": "rg -n recovery CONTEXT.md"}},
+        surface="codex",
+        event="PreToolUse",
+    )
+    assert "permissionDecision" not in search_result["hookSpecificOutput"]
+
+    for tool_name, tool_input in (
+        ("Edit", {"file_path": "CONTEXT.md"}),
+        ("exec_command", {"cmd": "git push origin main"}),
+        ("exec_command", {"cmd": "rg recovery $(touch escaped)"}),
+        ("exec_command", {"cmd": "sed -i backup CONTEXT.md"}),
+        ("exec_command", {"cmd": "sed -n 'w /tmp/grill-sed-write' CONTEXT.md"}),
+        ("exec_command", {"cmd": "git diff --output=escaped.diff"}),
+        ("exec_command", {"cmd": "python3 /tmp/grill_session.py show --state /tmp/state.json"}),
+        ("mcp__attacker__read", {"action": "mutate"}),
+        ("spawn_agent", {"task": "change the project"}),
+    ):
+        denied = handle_hook(
+            {**base, "hook_event_name": "PreToolUse", "tool_name": tool_name, "tool_input": tool_input},
+            surface="codex",
+            event="PreToolUse",
+        )
+        assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_grill_blocks_dispatch_until_exact_shared_understanding_and_sketch_remains_bound(tmp_path: Path) -> None:
+    objective = "/grill-me shape recovery"
+    receipt = admit_startup(
+        build_setup_contract(objective, REPO_ROOT, surface="codex", interaction="grill-me")
+    )
+    payload = _delivery(objective)
+    for move in payload["move_graph"][:6]:
+        move["status"] = "passed"
+    payload["move_graph"][6]["status"] = "ready"
+    sketch = tmp_path / "vault" / "Sketches" / "01-recovery.md"
+    sketch.parent.mkdir(parents=True)
+    sketch.write_text("# Recovery\n", encoding="utf-8")
+    target = sketch.parent.parent / "Grills" / "01-recovery.md"
+    grill = start_session(
+        objective,
+        sketch,
+        [{
+            "leaf_id": "market",
+            "kind": "human-decision",
+            "depends_on": [],
+            "question": "Which market ships first?",
+            "recommendation": "Start with the internal proving ground.",
+            "rationale": "It produces evidence before external commitments.",
+        }],
+        materialization_path=target,
+    )
+
+    with pytest.raises(SetupError, match="shared-understanding session"):
+        guard_dispatch(payload, receipt, "M07")
+    with pytest.raises(SetupError, match="shared understanding is confirmed"):
+        guard_dispatch(payload, receipt, "M07", grill_session=grill)
+
+    grill = answer_pending_question(grill, "Internal proving ground first.", "DECIDED")
+    grill = confirm_shared_understanding(grill, SHARED_UNDERSTANDING_PHRASE)
+    assert guard_dispatch(payload, receipt, "M07", grill_session=grill)["status"] == "admitted"
+    with pytest.raises(SetupError, match="cannot authorize mutating"):
+        guard_dispatch(payload, receipt, "M12", grill_session=grill)
+
+    sketch.write_text("# Drifted recovery\n", encoding="utf-8")
+    with pytest.raises(SetupError, match="sketch changed"):
+        guard_dispatch(payload, receipt, "M07", grill_session=grill)
+
+
+def test_explicit_grill_setup_admits_a_fresh_external_project(tmp_path: Path) -> None:
+    project = tmp_path / "fresh-project"
+    project.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=project, check=True)
+    (project / "README.md").write_text("# Fresh project\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=project, check=True)
+    subprocess.run(["git", "commit", "-qm", "initial"], cwd=project, check=True)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "setup_driver.py"),
+            "start",
+            "/grill-me shape the fresh project",
+            "--project",
+            str(project),
+            "--surface",
+            "codex",
+            "--interaction",
+            "grill-me",
+            "--strict-clean",
+            "--skill-root",
+            str(REPO_ROOT / "skills"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    setup = json.loads(result.stdout)["setup_contract"]
+    assert setup["repository"]["worktree"] == str(project.resolve())
+    assert setup["repository"]["dirty"] is False
+    assert setup["interaction"] == "grill-me"
+    assert set(setup["required_skills"]) == {"senior-harness", "model-router", "unlazy", "grill-me"}
+
+
+def test_grill_hook_rechecks_project_bytes_after_first_tool_and_session_ids_do_not_collide(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = tmp_path / "hook-project"
+    project.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=project, check=True)
+    tracked = project / "README.md"
+    tracked.write_text("# Base\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=project, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=project, check=True)
+    state_root = tmp_path / "state"
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(state_root))
+
+    for session_id in ("a/b", "a_b"):
+        base = {"session_id": session_id, "cwd": str(project)}
+        handle_hook(
+            {**base, "hook_event_name": "UserPromptSubmit", "prompt": "/grill-me shape hook project"},
+            surface="codex",
+            event="UserPromptSubmit",
+        )
+    assert len(list(state_root.rglob("*.json"))) == 2
+
+    base = {"session_id": "a/b", "cwd": str(project)}
+    first = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
+        surface="codex",
+        event="PreToolUse",
+    )
+    assert "permissionDecision" not in first["hookSpecificOutput"]
+    tracked.write_text("# Drifted\n", encoding="utf-8")
+    second = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
+        surface="codex",
+        event="PreToolUse",
+    )
+    assert "permissionDecision" not in second["hookSpecificOutput"]
+    assert "recovery-only read" in second["hookSpecificOutput"]["additionalContext"]
+    assert "worktree_state_digest changed" in second["hookSpecificOutput"]["additionalContext"]
+
+    denied_write = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {}},
+        surface="codex",
+        event="PreToolUse",
+    )
+    assert denied_write["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "worktree_state_digest changed" in denied_write["hookSpecificOutput"]["permissionDecisionReason"]

@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.24.4",
-    "generated_at": "2026-08-21T04:41:50.911541+00:00",
+    "version": "1.24.5",
+    "generated_at": "2026-08-21T05:50:38.803817+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -1142,7 +1142,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/grill-me/SKILL.md",
-      "sha256": "0031f73cb4494aba4d1a07f1e04353308a4068da3a7578c1fc4e291607075f19",
+      "sha256": "1ee43681b42bc3ae45dffe00c97f0172bd17ef78f6b42bbbf46dc7dc6d4479ab",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2487,7 +2487,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/senior-harness/SKILL.md",
-      "sha256": "e722534272e37d5b9c4218d3635fd5b3aa96613392f9e0e50604e4dcc46516f2",
+      "sha256": "90af2aafc0717215cdea7b42a82caf1fde1678351f84108e7d2f28043b932c4d",
       "dependencies": {
         "tools": [],
         "skills": [

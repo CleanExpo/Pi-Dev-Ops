@@ -14,6 +14,7 @@ Tables written:
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import logging
@@ -473,6 +474,9 @@ def save_session_checkpoint(session) -> bool:
     if session is None or not getattr(session, "id", ""):
         return False
     try:
+        from .senior_harness_admission import api_projection  # noqa: PLC0415
+
+        senior_harness = api_projection(session)
         repo_url = getattr(session, "repo_url", "") or ""
         status = (getattr(session, "status", "") or "running").lower()
         terminal_states = {
@@ -498,6 +502,9 @@ def save_session_checkpoint(session) -> bool:
                 "workspace":         getattr(session, "workspace", "") or "",
                 "error":             getattr(session, "error", "") or "",
                 "output_line_count": len(getattr(session, "output_lines", []) or []),
+                "senior_harness_observation_status": senior_harness["status"],
+                "senior_harness_admission_ref": senior_harness["admission_ref"],
+                "senior_harness_reservation": copy.deepcopy(senior_harness["reservation"]),
             },
         }
         if status in terminal_states:

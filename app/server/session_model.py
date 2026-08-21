@@ -27,6 +27,12 @@ from typing import Optional
 
 from . import config
 from . import persistence
+from .senior_harness_admission import (
+    api_projection,
+    deployment_mode,
+    require_runtime_available,
+    restore_projection,
+)
 
 _log = logging.getLogger("pi-ceo.session_model")
 
@@ -71,6 +77,9 @@ class BuildSession:
     evaluator_findings: list = field(default_factory=list)  # RA-1027: structured JSON findings from persona review
     shared_workspace: str = ""                      # RA-1029: path to parent's cloned workspace (worktree source)
     phase_metrics: dict = field(default_factory=dict)  # RA-1032: per-phase {duration_s, cost_usd}
+    senior_harness_observation_status: str = "off"
+    senior_harness_admission_ref: Optional[str] = None
+    senior_harness_reservation: Optional[dict] = None
 
 
 # ── In-memory session store ────────────────────────────────────────────────────
@@ -107,6 +116,7 @@ def list_sessions() -> list[dict]:
             "files_modified": len(s.modified_files),
             "complexity_tier": s.complexity_tier,
             "phase_metrics": s.phase_metrics,
+            "senior_harness": api_projection(s),
         }
         for s in _sessions.values()
     ]
@@ -118,11 +128,17 @@ def restore_sessions() -> None:
     Sessions that were mid-flight (cloning/building) are marked 'interrupted'
     so the client knows to retry rather than wait for a result that will never come.
     """
+    mode = deployment_mode()
     count = 0
     for data in persistence.load_all_sessions():
         sid = data.get("id", "")
         if not sid or sid in _sessions:
             continue
+        observation_status, admission_ref, reservation = restore_projection(
+            data.get("senior_harness_observation_status", "off"),
+            data.get("senior_harness_admission_ref"),
+            data.get("senior_harness_reservation"),
+        )
         session = BuildSession(
             id=sid,
             repo_url=data.get("repo_url", ""),
@@ -133,9 +149,14 @@ def restore_sessions() -> None:
             last_completed_phase=data.get("last_completed_phase", ""),
             retry_count=data.get("retry_count", 0),
             linear_issue_id=data.get("linear_issue_id"),
+            senior_harness_observation_status=observation_status,
+            senior_harness_admission_ref=admission_ref,
+            senior_harness_reservation=reservation,
         )
-        # Mark anything that was in-flight as interrupted
-        if session.status in ("created", "cloning", "building"):
+        # Enforce-mode authority is process-local and never persisted. Every
+        # restored session is therefore inert until a fresh child is consumed
+        # by the explicit resume route.
+        if mode == "enforce" or session.status in ("created", "cloning", "building"):
             session.status = "interrupted"
             persistence.save_session(session)
         _sessions[sid] = session
@@ -166,6 +187,13 @@ def recover_interrupted_sessions_from_supabase(max_concurrent: int = 0) -> int:
     is the fallback when Supabase is unavailable.
     """
     global _recovered_from_supabase
+    if deployment_mode() == "enforce":
+        _log.info(
+            "Senior Harness enforce mode: automatic Supabase recovery is disabled; "
+            "a fresh child admission is required"
+        )
+        return 0
+    require_runtime_available()
     try:
         from . import config, persistence, supabase_log  # noqa: PLC0415
         from .session_phases import run_build  # noqa: PLC0415
@@ -202,6 +230,11 @@ def recover_interrupted_sessions_from_supabase(max_concurrent: int = 0) -> int:
             )
             continue
         try:
+            observation_status, admission_ref, reservation = restore_projection(
+                checkpoint.get("senior_harness_observation_status", "off"),
+                checkpoint.get("senior_harness_admission_ref"),
+                checkpoint.get("senior_harness_reservation"),
+            )
             session = BuildSession(
                 id=sid,
                 repo_url=row.get("repo_url", ""),
@@ -216,6 +249,9 @@ def recover_interrupted_sessions_from_supabase(max_concurrent: int = 0) -> int:
                 evaluator_model=checkpoint.get("evaluator_model", ""),
                 evaluator_consensus=checkpoint.get("evaluator_consensus", ""),
                 linear_issue_id=checkpoint.get("linear_issue_id"),
+                senior_harness_observation_status=observation_status,
+                senior_harness_admission_ref=admission_ref,
+                senior_harness_reservation=reservation,
             )
             _sessions[sid] = session
             persistence.save_session(session)

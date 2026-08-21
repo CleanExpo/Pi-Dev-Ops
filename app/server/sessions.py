@@ -27,6 +27,12 @@ from typing import Optional
 
 from . import config
 from . import persistence
+from .senior_harness_admission import (
+    AdmissionVerificationError,
+    deployment_mode,
+    observe,
+)
+from .senior_harness_consumer import consume_for_build, verify_for_build
 
 # ── RA-890: Re-export data model ──────────────────────────────────────────────
 # NOTE: kill_session is NOT re-exported — sessions.py owns the async version.
@@ -149,6 +155,9 @@ async def create_session(
     complexity_tier: str = "",
     autonomy_triggered: bool = False,
     shared_workspace: str = "",  # RA-1029: path to parent's cloned workspace for worktree reuse
+    senior_harness_admission_ref: Optional[str] = None,
+    senior_harness_reservation: Optional[dict] = None,
+    senior_harness_admission_envelope: Optional[dict] = None,
 ):
     """Create and start a new build session.
 
@@ -163,7 +172,15 @@ async def create_session(
     RA-681: complexity_tier overrides automatic brief complexity detection.
     Values: 'basic' | 'detailed' | 'advanced'. Empty string = auto-detect.
     """
-    _reconcile_stale_terminal_sessions()
+    mode = deployment_mode()
+    if mode != "enforce":
+        observation_status, safe_admission_ref, safe_reservation = observe(
+            senior_harness_admission_ref,
+            senior_harness_reservation,
+        )
+        # The envelope has no meaning outside enforce mode and is deliberately
+        # discarded without inspection or persistence.
+        _reconcile_stale_terminal_sessions()
     _running = sum(
         1 for s in _sessions.values()
         if (isinstance(s, BuildSession) and s.status in _ACTIVE_STATUSES)
@@ -171,6 +188,29 @@ async def create_session(
     )
     if _running >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
+    if mode == "enforce":
+        if not isinstance(brief, str) or not brief.strip():
+            raise AdmissionVerificationError(
+                "enforce mode requires the exact non-empty admitted brief"
+            )
+        if not isinstance(scope, dict):
+            raise AdmissionVerificationError(
+                "enforce mode requires the exact admitted scope object"
+            )
+        preview = verify_for_build(
+            senior_harness_admission_envelope,
+            repo_url=repo_url,
+            brief=brief,
+            scope=scope,
+            reservation=senior_harness_reservation,
+        )
+        if preview.admission_ref != senior_harness_admission_ref:
+            raise AdmissionVerificationError("admission reference does not match signed claim")
+        if preview.session_id in _sessions:
+            raise AdmissionVerificationError("signed session ID is already present")
+        observation_status = "enforced"
+        safe_admission_ref = preview.admission_ref
+        safe_reservation = preview.reservation
     resolved_model = _select_model("generator", model)
     # RA-677 — apply AUTONOMY_BUDGET if specified
     bp: Optional[dict] = None
@@ -179,7 +219,21 @@ async def create_session(
         bp = budget_to_params(budget_minutes)
         resolved_model = bp["model"]
         _log.info("AUTONOMY_BUDGET applied: %s", describe_budget(bp))
+    if mode == "enforce":
+        consumed = consume_for_build(
+            senior_harness_admission_envelope,
+            repo_url=repo_url,
+            brief=brief,
+            scope=scope,
+            reservation=senior_harness_reservation,
+        )
+        if consumed != preview:
+            raise AdmissionVerificationError("admission binding changed during consumption")
+        session_id = consumed.session_id
+    else:
+        session_id = None
     session = BuildSession(
+        **({"id": session_id} if session_id is not None else {}),
         repo_url=repo_url,
         started_at=time.time(),
         evaluator_enabled=evaluator_enabled,
@@ -191,6 +245,9 @@ async def create_session(
         complexity_tier=complexity_tier,
         autonomy_triggered=autonomy_triggered,
         shared_workspace=shared_workspace,  # RA-1029: worktree source path for worker sessions
+        senior_harness_observation_status=observation_status,
+        senior_harness_admission_ref=safe_admission_ref,
+        senior_harness_reservation=safe_reservation,
     )
     if scope:
         _log.info(

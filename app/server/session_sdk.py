@@ -344,6 +344,11 @@ async def _run_claude_via_sdk(
                 betas=_sdk_betas,  # type: ignore[arg-type]
                 permission_mode="default" if _gate_on else "bypassPermissions",
                 can_use_tool=_make_can_use_tool() if _gate_on else None,
+                # The dedicated admission consumer credential is consumed and
+                # removed from os.environ at server startup. Keep an explicit
+                # empty override as defence in depth because the Agent SDK
+                # subprocess otherwise inherits the parent process environment.
+                env={"SENIOR_HARNESS_ADMISSION_CONSUMER_TOKEN": ""},
             )
             if _gate_on:
                 # Pin setting_sources to [] so no filesystem allow-rule (e.g. a

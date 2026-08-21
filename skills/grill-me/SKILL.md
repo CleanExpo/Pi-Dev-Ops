@@ -7,9 +7,9 @@ description: Run a relentless one-question-at-a-time interview on a sketch or pl
 
 ## When to invoke
 
-- User just produced (or asked you to produce) a fat-marker sketch in `2nd-brain/Sketches/`.
+- User just produced (or asked you to produce) a fat-marker sketch in the active Obsidian vault's `Sketches/`.
 - User says "grill me", "interview me", "stress-test this plan", "find the rabbit holes".
-- You are about to write code AND there is no corresponding grill transcript in `2nd-brain/Grills/`. Stop and grill first.
+- You are about to write code AND there is no corresponding grill transcript in the active vault's sibling `Grills/`. Stop and grill first.
 
 **Routing rule (Pocock, 2026-07):** if the work targets an EXISTING codebase with established
 domain language, route to `grill-with-docs` instead — same interview, plus the ubiquitous-language
@@ -23,7 +23,7 @@ one component per session.
 
 ## Core procedure (DO NOT DEVIATE)
 
-1. **Read the sketch.** Locate the relevant file in `2nd-brain/Sketches/`. If none exists, refuse to grill and produce a sketch first. The sketch is the input — you cannot grill an idea that hasn't been sketched.
+1. **Read the sketch.** Locate the relevant file in the real vault's `Sketches/` directory; do not assume the repository contains a `2nd-brain/` folder. If none exists, refuse to grill and produce a sketch first. The sketch is the input — you cannot grill an idea that hasn't been sketched.
 2. **Identify the decision tree.** Every place in the sketch that says "TBD", every connection line without a defined protocol, every affordance without a defined trigger, every rabbit hole — these are the leaves to resolve.
 3. **Walk the tree dependency-first.** A decision that gates other decisions is asked first. Never ask a leaf question before its parent is resolved.
 4. **Ask one question at a time.** Never bundle. Never list 5 things and ask the user to address them. One question per turn.
@@ -35,7 +35,15 @@ one component per session.
 7. **If a question can be answered by exploring the codebase, explore the codebase instead.** Don't ask the user something `grep` could answer. (This rule is Matt's, and it's load-bearing.)
 8. **Stop when the tree is fully resolved.** Every leaf is DECIDED, RABBIT HOLE, or NO-GO. Then write the transcript.
 
-## Output format — write to `2nd-brain/Grills/NN-<slug>.md`
+## Governed session boundary
+
+When `senior-harness` is available, use its `grill_session.py` controller. Bind the real sketch path
+and digest, model the dependency-ordered leaves, answer repository/source facts with evidence rather
+than asking Phill, and record each human answer verbatim. Keep transcript and glossary/ADR updates
+buffered until the exact shared-understanding confirmation succeeds. The controller's receipt grants
+no implementation authority; start delivery as a separate governed phase.
+
+## Output format — write to `<vault-root>/Grills/NN-<slug>.md`
 
 ```markdown
 ---

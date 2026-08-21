@@ -18,9 +18,16 @@ from fastapi.responses import StreamingResponse
 from ..auth import require_auth, require_rate_limit
 from ..sessions import create_session, get_session, list_sessions, kill_session, _sessions, run_build
 from ..orchestrator import fan_out
-from ..models import BuildRequest, ParallelBuildRequest
+from ..models import BuildRequest, ParallelBuildRequest, ResumeRequest
 from .. import config, persistence
 from ..persistence import _safe_sid
+from ..senior_harness_admission import (
+    AdmissionVerificationError,
+    SeniorHarnessAdmissionUnavailable,
+    api_projection,
+    deployment_mode,
+)
+from ..senior_harness_consumer import consume_for_build, verify_for_build
 
 router = APIRouter()
 
@@ -39,10 +46,19 @@ async def build(body: BuildRequest):
             scope=body.scope,                       # RA-676: session scope contract
             plan_discovery=body.plan_discovery,     # RA-679: plan variation discovery
             complexity_tier=body.complexity_tier,   # RA-681: brief tier override
+            senior_harness_admission_ref=body.senior_harness_admission_ref,
+            senior_harness_reservation=body.senior_harness_reservation,
+            senior_harness_admission_envelope=body.senior_harness_admission_envelope,
         )
+    except SeniorHarnessAdmissionUnavailable as e:
+        raise HTTPException(503, str(e)) from e
     except RuntimeError as e:
-        raise HTTPException(429, str(e))
-    return {"session_id": session.id, "status": session.status}
+        raise HTTPException(429, str(e)) from e
+    return {
+        "session_id": session.id,
+        "status": session.status,
+        "senior_harness": api_projection(session),
+    }
 
 
 @router.post("/api/build/parallel", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
@@ -50,14 +66,26 @@ async def build_parallel(body: ParallelBuildRequest):
     """Fan-out a complex brief across N parallel worker sessions (RA-464)."""
     if not body.brief:
         raise HTTPException(400, "brief required for parallel builds")
+    if (
+        body.senior_harness_admission_ref is not None
+        or body.senior_harness_reservation is not None
+        or body.senior_harness_admission_envelope is not None
+    ):
+        raise HTTPException(
+            400,
+            "reservation-bearing parallel builds are unsupported; reserve and submit each leaf independently",
+        )
     evaluator_enabled = body.evaluator_enabled if body.evaluator_enabled is not None else config.EVALUATOR_ENABLED
     # RA-1021: enforce server-side cap regardless of model validation path.
     n_workers = min(body.n_workers, 10)
-    result = await fan_out(
-        body.repo_url, body.brief,
-        n_workers=n_workers, model=body.model,
-        intent=body.intent, evaluator_enabled=evaluator_enabled,
-    )
+    try:
+        result = await fan_out(
+            body.repo_url, body.brief,
+            n_workers=n_workers, model=body.model,
+            intent=body.intent, evaluator_enabled=evaluator_enabled,
+        )
+    except SeniorHarnessAdmissionUnavailable as e:
+        raise HTTPException(503, str(e)) from e
     return result
 
 
@@ -262,7 +290,7 @@ async def stream_session_logs_v2(sid: str, after: int = 0):
 
 
 @router.post("/api/sessions/{sid}/resume", dependencies=[Depends(require_auth)])
-async def resume_session(sid: str):
+async def resume_session(sid: str, body: ResumeRequest | None = None):
     """Resume an interrupted session from its last completed phase (GROUP E)."""
     session = get_session(sid)
     if not session:
@@ -272,7 +300,46 @@ async def resume_session(sid: str):
     last_phase = getattr(session, "last_completed_phase", "")
     if not last_phase:
         raise HTTPException(400, "No phase checkpoint — cannot resume")
+    resume_brief = ""
+    if deployment_mode() == "enforce":
+        if body is None:
+            raise HTTPException(
+                503,
+                "enforce mode requires a fresh signed child plus exact brief and scope",
+            )
+        try:
+            preview = verify_for_build(
+                body.senior_harness_admission_envelope,
+                repo_url=session.repo_url,
+                brief=body.brief,
+                scope=body.scope,
+                reservation=body.senior_harness_reservation,
+                expected_session_id=sid,
+            )
+            if preview.admission_ref != body.senior_harness_admission_ref:
+                raise AdmissionVerificationError(
+                    "admission reference does not match signed claim"
+                )
+            consumed = consume_for_build(
+                body.senior_harness_admission_envelope,
+                repo_url=session.repo_url,
+                brief=body.brief,
+                scope=body.scope,
+                reservation=body.senior_harness_reservation,
+                expected_session_id=sid,
+            )
+            if consumed != preview:
+                raise AdmissionVerificationError(
+                    "admission binding changed during consumption"
+                )
+        except SeniorHarnessAdmissionUnavailable as exc:
+            raise HTTPException(503, str(exc)) from exc
+        session.senior_harness_observation_status = "enforced"
+        session.senior_harness_admission_ref = consumed.admission_ref
+        session.senior_harness_reservation = consumed.reservation
+        session.scope = body.scope
+        resume_brief = body.brief
     session.status = "building"
     persistence.save_session(session)
-    asyncio.create_task(run_build(session, resume_from=last_phase))
+    asyncio.create_task(run_build(session, brief=resume_brief, resume_from=last_phase))
     return {"session_id": session.id, "resumed_from": last_phase}
