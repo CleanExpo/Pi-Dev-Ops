@@ -119,15 +119,15 @@ def gate_receipt(*, passed: bool = True):
     }
 
 
-def _build_verified_case(root: Path, *, passing: bool):
+def _build_verified_case(root: Path, *, passing: bool, check: str | None = None):
     (root / "gates").mkdir(parents=True)
     (root / "gates" / "a.md").write_text(
         """- [ ] G1: leaf gate
-  CHECK: node -e \"console.log('READY'); process.exit(%d)\"
+  CHECK: %s
   EXIT: 0
   EXPECT: READY
   EVIDENCE: pending
-""" % (0 if passing else 7)
+""" % (check or f"node -e \"console.log('READY'); process.exit({0 if passing else 7})\"")
     )
     subprocess.run(["git", "init", "-q", str(root)], check=True)
     subprocess.run(["git", "add", "--all"], cwd=root, check=True)
@@ -149,7 +149,7 @@ def _build_verified_case(root: Path, *, passing: bool):
         [
             "node", str(CHECKER), "--json",
             "--plan-id", "plan-1", "--node-id", "1.1",
-            "--worker-id", "worker-a", "--verifier-id", "verifier-1",
+            "--worker-id", "worker-a", "--verifier-id", "unlazy-scheduler-trusted-replay-v1",
             "--relevant-input", "gates/a.md", "gates/a.md",
         ],
         cwd=root,
@@ -359,6 +359,77 @@ def test_receipt_is_rejected_when_relevant_input_changes_after_issuance(tmp_path
     with pytest.raises(PlanValidationError, match="actually clean|runtime content"):
         record_result(
             raw, "1.1", passed=True, changed_paths=[], verification_receipt=receipt,
+        )
+
+
+def test_validate_ready_and_lint_do_not_execute_terminal_gate(tmp_path):
+    marker = tmp_path / "validation-marker"
+    command = (
+        f"node -e \"require('node:fs').appendFileSync('{marker}', 'x'); "
+        "console.log('READY')\""
+    )
+    raw, receipt = _build_verified_case(
+        tmp_path / "pure-validation", passing=True, check=command,
+    )
+    marker.unlink()
+    raw["nodes"][1]["state"] = "passed"
+    receipt["verification_authority"] = "scheduler-controlled-replay-v1"
+    raw["nodes"][1]["verification_receipt"] = receipt
+    validate_plan(raw)
+    ready_nodes(raw)
+    plan_path = tmp_path / "terminal-plan.json"
+    plan_path.write_text(json.dumps(raw))
+    for action in ("lint", "ready"):
+        result = subprocess.run(
+            ["python", str(REPO_ROOT / "scripts" / "unlazy_plan.py"), action, str(plan_path)],
+            text=True, capture_output=True,
+        )
+        assert result.returncode == 0, result.stderr
+    assert not marker.exists()
+
+
+def test_terminal_transition_replays_gate_exactly_once(tmp_path):
+    marker = tmp_path / "transition-marker"
+    command = (
+        f"node -e \"require('node:fs').appendFileSync('{marker}', 'x'); "
+        "console.log('READY')\""
+    )
+    raw, receipt = _build_verified_case(
+        tmp_path / "single-replay", passing=True, check=command,
+    )
+    marker.unlink()
+    updated = record_result(
+        raw, "1.1", passed=True, changed_paths=[], verification_receipt=receipt,
+    )
+    assert marker.read_text() == "x"
+    stored = updated["nodes"][1]["verification_receipt"]
+    assert stored["verifier_id"] == "unlazy-scheduler-trusted-replay-v1"
+    assert stored["verification_authority"] == "scheduler-controlled-replay-v1"
+
+
+def test_forged_timing_evidence_is_rejected(verified_case):
+    raw, receipt = case_copy(verified_case)
+    receipt["started_at"] = "2099-01-01T00:00:00.000Z"
+    receipt["finished_at"] = "2099-01-01T00:00:01.000Z"
+    receipt["gates"][0]["elapsedMs"] = 999_999_999
+    with pytest.raises(PlanValidationError, match="timing|future|elapsed"):
+        record_result(raw, "1.1", passed=True, changed_paths=[], verification_receipt=receipt)
+
+
+def test_same_actor_verifier_alias_is_rejected(tmp_path):
+    raw, _ = _build_verified_case(tmp_path / "alias-verifier", passing=True)
+    result = subprocess.run(
+        [
+            "node", str(CHECKER), "--json", "--plan-id", "plan-1", "--node-id", "1.1",
+            "--worker-id", "worker-a", "--verifier-id", "same-actor-alias",
+            "--relevant-input", "gates/a.md", "gates/a.md",
+        ],
+        cwd=raw["worktree"], text=True, capture_output=True, check=True,
+    )
+    with pytest.raises(PlanValidationError, match="trusted scheduler verifier"):
+        record_result(
+            raw, "1.1", passed=True, changed_paths=[],
+            verification_receipt=json.loads(result.stdout),
         )
 
 

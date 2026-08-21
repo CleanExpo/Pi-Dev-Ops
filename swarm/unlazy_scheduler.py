@@ -15,6 +15,7 @@ import subprocess
 import sys
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable
 
@@ -26,6 +27,8 @@ GIT_SHA = re.compile(r"[0-9a-f]{40}")
 SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 TRUSTED_GATE_RUNNER_VERSION = "nexus-unlazy-gate-v3"
 TRUSTED_GATE_RUNNER = Path(__file__).resolve().parents[1] / "scripts" / "unlazy-gate-check.mjs"
+TRUSTED_VERIFIER_ID = "unlazy-scheduler-trusted-replay-v1"
+TRUSTED_VERIFICATION_AUTHORITY = "scheduler-controlled-replay-v1"
 
 
 class PlanValidationError(ValueError):
@@ -122,6 +125,8 @@ def _verification_receipt_errors(
     receipt: dict[str, Any] | None,
     *,
     passed: bool,
+    runtime: bool = False,
+    stored: bool = False,
 ) -> list[str]:
     if not isinstance(receipt, dict):
         return ["verification receipt is required"]
@@ -139,6 +144,10 @@ def _verification_receipt_errors(
         errors.append("verification receipt verifier_id is required")
     if verifier_id == node.worker_id or receipt.get("independent_verifier") is not True:
         errors.append("verification receipt must attest an independent verifier")
+    if verifier_id != TRUSTED_VERIFIER_ID:
+        errors.append("verification receipt must use the trusted scheduler verifier")
+    if stored and receipt.get("verification_authority") != TRUSTED_VERIFICATION_AUTHORITY:
+        errors.append("verification receipt must have scheduler-controlled replay authority")
     if receipt.get("mode") != "run" or receipt.get("verified") is not True:
         errors.append("verification receipt must be a verified run")
     if receipt.get("worktree_clean_before_run") is not True:
@@ -187,7 +196,42 @@ def _verification_receipt_errors(
             errors.append("passed requires strict gate counts at zero")
         if not passed and non_passing == 0:
             errors.append("blocked requires a non-passing gate count")
-    errors.extend(_runtime_receipt_errors(plan_worktree, node, receipt, passed=passed))
+    errors.extend(_receipt_timing_errors(receipt))
+    if runtime:
+        errors.extend(_runtime_receipt_errors(plan_worktree, node, receipt))
+    return errors
+
+
+def _receipt_timing_errors(receipt: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    parsed: list[datetime] = []
+    for field in ("started_at", "finished_at"):
+        value = receipt.get(field)
+        try:
+            timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except (AttributeError, TypeError, ValueError):
+            errors.append(f"verification receipt {field} must be an ISO timestamp")
+            continue
+        if timestamp.tzinfo is None:
+            errors.append(f"verification receipt {field} must include a timezone")
+            continue
+        parsed.append(timestamp.astimezone(timezone.utc))
+    if len(parsed) != 2:
+        return errors
+    started_at, finished_at = parsed
+    if finished_at < started_at:
+        errors.append("verification receipt timing is reversed")
+    if finished_at > datetime.now(timezone.utc) + timedelta(minutes=5):
+        errors.append("verification receipt timing is in the future")
+    window_ms = max(0.0, (finished_at - started_at).total_seconds() * 1000)
+    gates = receipt.get("gates")
+    if isinstance(gates, list):
+        for gate in gates:
+            elapsed = gate.get("elapsedMs") if isinstance(gate, dict) else None
+            if isinstance(elapsed, bool) or not isinstance(elapsed, (int, float)) or elapsed < 0:
+                errors.append("verification receipt gate elapsedMs must be non-negative")
+            elif elapsed > window_ms + 1000:
+                errors.append("verification receipt gate elapsedMs exceeds receipt timing window")
     return errors
 
 
@@ -241,13 +285,13 @@ def _replay_evidence(receipt: dict[str, Any]) -> dict[str, Any]:
     return evidence
 
 
-def _trusted_replay_errors(
+def _trusted_replay(
     worktree: Path,
     node: PlanNode,
     receipt: dict[str, Any],
     *,
     passed: bool,
-) -> list[str]:
+) -> tuple[list[str], dict[str, Any] | None]:
     relevant_entries = receipt.get("relevant_inputs")
     environment_keys = receipt.get("environment_keys")
     verifier_id = receipt.get("verifier_id")
@@ -257,20 +301,20 @@ def _trusted_replay_errors(
         or not isinstance(environment_keys, list)
         or not isinstance(verifier_id, str)
     ):
-        return ["verification receipt cannot be replayed by the trusted gate runner"]
+        return ["verification receipt cannot be replayed by the trusted gate runner"], None
 
     command = [
         "node", str(TRUSTED_GATE_RUNNER), "--json", "--cwd", str(worktree),
         "--plan-id", str(receipt.get("plan_id", "")),
         "--node-id", node.id,
         "--worker-id", node.worker_id,
-        "--verifier-id", verifier_id,
+        "--verifier-id", TRUSTED_VERIFIER_ID,
     ]
     for key in environment_keys:
         command.extend(("--env", key))
     for item in relevant_entries:
         if not isinstance(item, dict) or not isinstance(item.get("path"), str):
-            return ["verification receipt cannot be replayed by the trusted gate runner"]
+            return ["verification receipt cannot be replayed by the trusted gate runner"], None
         command.extend(("--relevant-input", item["path"]))
     command.append(node.gates)
 
@@ -291,26 +335,25 @@ def _trusted_replay_errors(
             timeout=replay_timeout,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return ["verification receipt trusted gate replay failed"]
+        return ["verification receipt trusted gate replay failed"], None
 
     expected_returncode = 0 if passed else 1
     if replay.returncode != expected_returncode:
-        return ["verification receipt does not reproduce under trusted gate runner"]
+        return ["verification receipt does not reproduce under trusted gate runner"], None
     try:
         reproduced = json.loads(replay.stdout)
     except json.JSONDecodeError:
-        return ["verification receipt trusted gate replay returned invalid JSON"]
+        return ["verification receipt trusted gate replay returned invalid JSON"], None
     if not isinstance(reproduced, dict) or _replay_evidence(receipt) != _replay_evidence(reproduced):
-        return ["verification receipt does not reproduce under trusted gate runner"]
-    return []
+        return ["verification receipt does not reproduce under trusted gate runner"], None
+    reproduced["verification_authority"] = TRUSTED_VERIFICATION_AUTHORITY
+    return [], reproduced
 
 
 def _runtime_receipt_errors(
     plan_worktree: str,
     node: PlanNode,
     receipt: dict[str, Any],
-    *,
-    passed: bool,
 ) -> list[str]:
     errors: list[str] = []
     cwd_value = receipt.get("cwd")
@@ -394,8 +437,6 @@ def _runtime_receipt_errors(
             errors.append("verification receipt summary does not match gate results")
     else:
         errors.append("verification receipt gates are required")
-    if not errors:
-        errors.extend(_trusted_replay_errors(worktree, node, receipt, passed=passed))
     return errors
 
 
@@ -528,6 +569,7 @@ def validate_plan(raw: dict[str, Any]) -> UnlazyPlan:
                     node,
                     node.verification_receipt,
                     passed=node.state == "passed",
+                    stored=True,
                 )
             )
     if by_id and _has_cycle(by_id):
@@ -631,9 +673,15 @@ def record_result(
         node,
         verification_receipt,
         passed=passed,
+        runtime=True,
     )
     if receipt_errors:
         raise PlanValidationError(receipt_errors)
+    replay_errors, trusted_receipt = _trusted_replay(
+        Path(plan.worktree).resolve(), node, verification_receipt, passed=passed,
+    )
+    if replay_errors or trusted_receipt is None:
+        raise PlanValidationError(replay_errors or ["trusted gate replay did not issue a receipt"])
     path_errors: list[str] = []
     canonical_changed: list[str] = []
     for raw_path in changed_paths:
@@ -654,7 +702,7 @@ def record_result(
         if entry.get("id") == node_id:
             entry["state"] = "passed" if passed else "blocked"
             entry["attempt"] = int(entry.get("attempt", 0)) + 1
-            entry["verification_receipt"] = copy.deepcopy(verification_receipt)
+            entry["verification_receipt"] = copy.deepcopy(trusted_receipt)
             break
     validate_plan(updated)
     return updated

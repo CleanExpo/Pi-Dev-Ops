@@ -35,20 +35,23 @@ fails. Status display is read-only and never counts as rerun proof.
 
 Capture:
 
-- gate/node/plan IDs, independent verifier ID, and runner version;
+- gate/node/plan IDs, worker ID, verifier execution context, and runner version;
 - repository, worktree, cwd, base/candidate SHA;
 - command and environment allow-list digests;
 - timestamp, duration, exit/signal/timeout status;
 - bounded stdout/stderr digests and safe summary;
 - expectation result and relevant-input digest.
 
-A verified run requires explicit plan, node, worker, verifier, and relevant-input arguments; worker
-and verifier IDs must differ. The runner recomputes relevant-input content before every command and
+A verified run requires explicit plan, node, worker, verifier, and relevant-input arguments. For a
+terminal transition, the scheduler—not a caller-selected alias—supplies the fixed trusted replay
+context `unlazy-scheduler-trusted-replay-v1`. This is automated control-plane verification, not a
+claim that a different human or agent authored the result. The runner recomputes relevant-input content before every command and
 includes that digest plus the runner version in the receipt and command cache key, so a same-process
 input mutation invalidates reuse even when the candidate SHA and command text are unchanged.
 Before the scheduler unlocks dependencies, it independently replays the declared node gates with
-the trusted runner and requires deterministic execution evidence to reproduce. Caller-supplied
-receipt fields are never authority.
+the trusted runner exactly once and requires deterministic execution evidence to reproduce. It
+validates timestamp ordering and elapsed-time bounds, discards caller timing, and stores only the
+scheduler-issued replay receipt. Caller-supplied receipt fields are never authority.
 
 Full output belongs in a protected bounded artifact. Redact secrets, tokens, customer data, and raw
 upstream response bodies from user-facing evidence.
@@ -56,6 +59,9 @@ upstream response bodies from user-facing evidence.
 A dirty worktree fails before any gate command executes; a read-only status view may report dirtiness
 but is never verification. On timeout, terminate the command's entire process group and confirm its
 descendants cannot continue writing delayed artifacts.
+
+Plan linting, structural validation, and rolling-ready queries are pure reads. They never replay or
+execute gate commands; trusted replay occurs only at the explicit terminal transition.
 
 ## Scope and de-duplication
 

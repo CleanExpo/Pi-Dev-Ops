@@ -55,17 +55,20 @@ For every return:
 
 1. bind base/candidate SHA and enumerate the diff;
 2. reject paths outside `owns`, moving base, missing candidate, or contract-digest mismatch;
-3. rerun approved leaf gates in an independent verifier context;
+3. rerun approved leaf gates once in the scheduler-controlled verifier context;
 4. record actual execution controls, usage knowns/unknowns, and terminal result;
 5. unlock dependants only after `passed`.
 
 Only a leaf already in `verifying` may receive a terminal result, and the result flag must be a JSON
-boolean. Its gate receipt must bind the plan ID, node ID, distinct worker/verifier IDs, base/candidate
+boolean. Its gate receipt must bind the plan ID, node ID, worker and fixed scheduler-verifier contexts, base/candidate
 SHA, node gate digest, relevant-input digest, runner version, clean worktree, and strict terminal
 counts. Recompute those bindings from the live plan worktree before accepting it; caller-supplied
-hash strings are not authority. Independently replay the node gates with the trusted runner and
-require deterministic execution evidence to reproduce before unlocking dependencies. Store that
-receipt on the terminal node; never coerce strings or skip the `running -> verifying` boundary.
+hash strings are not authority. At the explicit terminal transition, replay the node gates exactly
+once with the trusted runner and require deterministic execution evidence to reproduce before
+unlocking dependencies. Store only that scheduler-issued receipt, including validated timing, on
+the terminal node. Lint, validation, and ready queries remain side-effect-free and never execute a
+gate. The automated replay context is not a claim of separate human or agent authorship. Never
+coerce strings or skip the `running -> verifying` boundary.
 
 A worker summary is not evidence. A failed leaf may retry once with the exact unmet gates. The
 second comparable failure escalates capability or blocks; it does not loop.

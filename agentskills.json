@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.23.2",
-    "generated_at": "2026-08-21T01:12:52.094229+00:00",
+    "version": "1.23.3",
+    "generated_at": "2026-08-21T01:36:38.690684+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -3051,7 +3051,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/unlazy/SKILL.md",
-      "sha256": "c9a22b4b7c2b1c6bf9c437ec8f9b58dd513f5335db948ba617d6f41f1cfead37",
+      "sha256": "80e365d9303f02143a6b14865e0f732fe2a2ec82012a29ae2fdf5f48e97a2387",
       "dependencies": {
         "tools": [],
         "skills": []
