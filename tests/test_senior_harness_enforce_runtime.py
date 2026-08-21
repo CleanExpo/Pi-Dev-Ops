@@ -451,10 +451,11 @@ async def test_plan_discovery_authority_denial_escapes_before_workspace_write(
 
 
 @pytest.mark.asyncio
-async def test_enforce_establishes_or_verifies_the_signed_base(admitted):
+async def test_enforce_establishes_or_verifies_the_signed_base(admitted, tmp_path):
     session = session_model.BuildSession(
         id="abcdef123456",
-        workspace="/tmp/admitted",
+        repo_url="https://github.com/unite-group/pi-dev-ops.git",
+        workspace=str(tmp_path),
         senior_harness_reservation=admitted["reservation"],
     )
     run = AsyncMock(side_effect=[
@@ -462,10 +463,13 @@ async def test_enforce_establishes_or_verifies_the_signed_base(admitted):
         (0, "", ""),
         (0, "", ""),
         (0, "a" * 40 + "\n", ""),
+        (0, "a" * 40 + "\n", ""),
+        (0, "https://github.com/unite-group/pi-dev-ops.git\n", ""),
+        (0, "https://github.com/unite-group/pi-dev-ops.git\n", ""),
     ])
     with patch.object(session_phases, "run_cmd", new=run):
         assert await session_phases._ensure_enforced_base(session, allow_checkout=True)
-    assert run.await_count == 4
+    assert run.await_count == 7
 
     with patch.object(
         session_phases,

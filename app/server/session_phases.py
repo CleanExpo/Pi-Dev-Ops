@@ -736,11 +736,25 @@ async def _ensure_enforced_base(session, *, allow_checkout: bool) -> bool:
         return True
     reservation = getattr(session, "senior_harness_reservation", None) or {}
     expected = reservation.get("base_sha", "")
+
+    async def verify_complete_identity() -> bool:
+        if await verify_workspace_identity(
+            session.workspace,
+            expected,
+            session.repo_url,
+        ):
+            return True
+        _fail_phase(
+            session,
+            "Senior Harness workspace origin, push destination, or base SHA does not match admission",
+        )
+        return False
+
     rc, actual, error = await run_cmd(
         session.workspace, "git", "rev-parse", "HEAD", timeout=10,
     )
     if rc == 0 and actual.strip() == expected:
-        return True
+        return await verify_complete_identity()
     if not allow_checkout:
         _fail_phase(
             session,
@@ -760,7 +774,7 @@ async def _ensure_enforced_base(session, *, allow_checkout: bool) -> bool:
                 session.workspace, "git", "rev-parse", "HEAD", timeout=10,
             )
             if verify_rc == 0 and verified.strip() == expected:
-                return True
+                return await verify_complete_identity()
             error = verify_error
         else:
             error = checkout_error
