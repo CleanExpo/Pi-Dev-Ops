@@ -30,7 +30,7 @@
   },
   "required_skills": ["model-router", "unlazy", "judge", "storm", "wayfinder"],
   "repository": {
-    "base_sha": "d0700d3ad23e10ea0d8dc50449be7650109e10aa",
+    "base_sha": "9bb18d689bc908d68c928dd88c86dd07ea402808",
     "candidate_sha": null,
     "worktree": "/Volumes/Storage Unit/Application-Data/Codex/worktrees/pi-dev-ops-senior-harness-20260821"
   },
