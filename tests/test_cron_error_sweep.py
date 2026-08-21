@@ -85,3 +85,16 @@ def test_a_job_with_a_numeric_timestamp_is_still_reported(tmp_path):
     assert [f["id"] for f in found] == ["bad01"]
     assert found[0]["age"] is None
     assert "never run" in sweep.render(found)
+
+
+def test_a_non_utf8_store_is_a_finding_not_a_crash(tmp_path):
+    """UnicodeDecodeError is a ValueError, not an OSError or a JSONDecodeError, so a
+    store in the wrong encoding walked past a handler that named only its sibling."""
+    (tmp_path / "cron").mkdir(parents=True)
+    (tmp_path / "cron" / "jobs.json").write_bytes(b'\xff\xfe{"jobs": []}')
+
+    found = sweep.failing_jobs(sweep.discover_stores(tmp_path))
+
+    assert len(found) == 1
+    assert found[0]["kind"] == "UNREADABLE"
+    assert "UnicodeDecodeError" in found[0]["error"]

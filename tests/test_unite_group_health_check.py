@@ -644,3 +644,22 @@ def test_a_broken_step_alerts_even_when_the_resurface_throttle_is_active(
 
     assert delivered, f"{victim} failing went silent while the throttle was active"
     assert code == 1
+
+
+def test_an_empty_prior_record_does_not_read_as_no_prior_run(monkeypatch, tmp_path):
+    """`{}` passes every shape guard and is still falsy, and main() reads bool(prior)
+    to tell a first run from a later one. The fifth door into the same silencing bug."""
+    (tmp_path / "unite-group-2026-08-21T000000.json").write_text("{}")
+    monkeypatch.setattr(health, "LOG_DIR", tmp_path)
+
+    prior = health.prior_run()
+
+    assert prior, "an empty record exists; it must not read as absent"
+    assert prior["unreadable"] is True
+
+
+def test_an_empty_prior_record_does_not_silence_a_live_failure(monkeypatch, tmp_path):
+    code, delivered = _drive_main(monkeypatch, tmp_path, "{}")
+
+    assert code == 1
+    assert "unite api/health" in delivered

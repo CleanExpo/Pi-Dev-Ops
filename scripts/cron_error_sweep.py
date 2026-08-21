@@ -63,7 +63,11 @@ def failing_jobs(stores: list[tuple[str, Path]]) -> list[dict]:
     for label, path in stores:
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError) as exc:
+            # ValueError, not json.JSONDecodeError: UnicodeDecodeError is a ValueError
+            # too, and a store written in the wrong encoding walked straight past a
+            # handler that named only its sibling. json.JSONDecodeError is itself a
+            # ValueError, so this is strictly wider with nothing lost.
             # An unreadable store is itself a finding — never a silent pass.
             found.append({
                 "store": label, "id": "-", "name": f"UNREADABLE STORE {path}",

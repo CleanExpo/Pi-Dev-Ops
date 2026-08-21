@@ -265,7 +265,12 @@ def prior_run() -> dict[str, Any] | None:
     if isinstance(record, dict):
         checks = record.get("checks", [])
         if isinstance(checks, list) and all(isinstance(c, dict) for c in checks):
-            return record
+            # `record or ...` because an empty dict passes every check above and is
+            # still FALSY, and main() reads `bool(prior)` to tell a first run from a
+            # later one. `{}` is a record that exists, so it must not read as absent —
+            # the fifth door into the same silencing bug, this one through truthiness
+            # rather than a type.
+            return record or unreadable_prior()
     # A record exists but cannot be read. Returning None here said "there was no prior
     # run", which sends main() down the baseline path: alert is `bool(prior) and ...`,
     # so a live Tier-1 failure went out SILENT at exit 0. Two reviewers caught it, and
