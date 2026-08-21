@@ -49,6 +49,44 @@ def _delivery(objective: str = "Create the setup driver") -> dict:
     return payload
 
 
+def _rehash_receipt(receipt: dict) -> None:
+    contract = receipt.get("setup_contract")
+    if isinstance(contract, dict):
+        unsigned_contract = dict(contract)
+        unsigned_contract.pop("setup_contract_digest", None)
+        contract["setup_contract_digest"] = digest(unsigned_contract)
+    unsigned_receipt = dict(receipt)
+    unsigned_receipt.pop("receipt_integrity_digest", None)
+    receipt["receipt_integrity_digest"] = digest(unsigned_receipt)
+
+
+def _start_hook_session(
+    state_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    session_id: str,
+    prompt: str = "Develop the Senior Harness",
+) -> tuple[dict[str, str], Path]:
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(state_root))
+    base = {"session_id": session_id, "cwd": str(REPO_ROOT)}
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": prompt},
+        surface="claude",
+        event="UserPromptSubmit",
+    )
+    state_path = setup_driver_module._state_path(REPO_ROOT.resolve(), session_id)
+    assert state_path.is_file()
+    return base, state_path
+
+
+def _pretool(base: dict[str, str], tool_name: str) -> dict:
+    return handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": tool_name, "tool_input": {}},
+        surface="claude",
+        event="PreToolUse",
+    )
+
+
 def test_setup_freezes_literal_objective_and_issues_no_authority() -> None:
     objective = "  Create the setup driver — exactly.  "
     receipt = _receipt(objective)
@@ -372,49 +410,72 @@ def test_invalid_startup_state_allows_recovery_read_but_denies_mutation(
     assert write_result["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
-def test_control_drift_is_strict_on_first_tool_then_warns_after_delivery_begins(
+def test_first_tool_control_drift_uses_recovery_read_without_admitting_the_session(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     state_root = tmp_path / "state"
-    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(state_root))
-    base = {"session_id": "control-drift", "cwd": str(REPO_ROOT)}
-    handle_hook(
-        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Develop the Senior Harness"},
-        surface="claude",
-        event="UserPromptSubmit",
+    base, state_path = _start_hook_session(
+        state_root, monkeypatch, session_id="first-tool-drift-read"
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    receipt = state["receipt"]
+    receipt["setup_contract"]["required_skills"]["senior-harness"]["folder_digest"] = (
+        "sha256:" + "0" * 64
+    )
+    _rehash_receipt(receipt)
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    binding_result = setup_driver_module._check_control_bindings(receipt)
+    assert binding_result.integrity_failures == ()
+    assert binding_result.drift == (
+        "bound skill changed after startup admission: senior-harness",
     )
 
-    original = setup_driver_module._control_binding_errors
-    monkeypatch.setattr(
-        setup_driver_module,
-        "_control_binding_errors",
-        lambda receipt: ["bound skill changed after startup admission: senior-harness"],
-    )
-    first_write = handle_hook(
-        {**base, "hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {}},
-        surface="claude",
-        event="PreToolUse",
-    )
-    assert first_write["hookSpecificOutput"]["permissionDecision"] == "deny"
-
-    monkeypatch.setattr(setup_driver_module, "_control_binding_errors", original)
-    first_read = handle_hook(
-        {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
-        surface="claude",
-        event="PreToolUse",
-    )
+    first_read = _pretool(base, "Read")
     assert "permissionDecision" not in first_read["hookSpecificOutput"]
+    assert "recovery-only read" in first_read["hookSpecificOutput"]["additionalContext"]
+    assert "bound skill changed after startup admission" in first_read["hookSpecificOutput"]["additionalContext"]
 
-    monkeypatch.setattr(
-        setup_driver_module,
-        "_control_binding_errors",
-        lambda receipt: ["bound skill changed after startup admission: senior-harness"],
+    persisted = json.loads(state_path.read_text(encoding="utf-8"))
+    assert persisted["first_tool_admitted"] is False
+
+    first_write = _pretool(base, "Write")
+    assert first_write["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "bound skill changed after startup admission" in first_write["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+def test_first_tool_control_drift_denies_mutation_in_a_fresh_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base, state_path = _start_hook_session(
+        tmp_path / "state", monkeypatch, session_id="first-tool-drift-write"
     )
-    later_write = handle_hook(
-        {**base, "hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {}},
-        surface="claude",
-        event="PreToolUse",
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["receipt"]["driver_digest"] = "sha256:" + "0" * 64
+    _rehash_receipt(state["receipt"])
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    denied = _pretool(base, "Write")
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "setup driver changed after startup admission" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+def test_delivery_control_drift_after_clean_first_tool_warns_without_denying_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base, state_path = _start_hook_session(
+        tmp_path / "state", monkeypatch, session_id="later-delivery-drift"
     )
+    clean_first_tool = _pretool(base, "Read")
+    assert "permissionDecision" not in clean_first_tool["hookSpecificOutput"]
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["first_tool_admitted"] is True
+
+    state["receipt"]["driver_digest"] = "sha256:" + "0" * 64
+    _rehash_receipt(state["receipt"])
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    later_write = _pretool(base, "Write")
     later_output = later_write["hookSpecificOutput"]
     assert "permissionDecision" not in later_output
     assert "control-code drift detected" in later_output["additionalContext"]
@@ -426,6 +487,225 @@ def test_control_drift_is_strict_on_first_tool_then_warns_after_delivery_begins(
         event="UserPromptSubmit",
     )
     assert "Control-code drift is present" in followup["hookSpecificOutput"]["additionalContext"]
+
+
+def test_integrity_failure_overrides_mixed_post_admission_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base, state_path = _start_hook_session(
+        tmp_path / "state", monkeypatch, session_id="mixed-binding-failure"
+    )
+    assert "permissionDecision" not in _pretool(base, "Read")["hookSpecificOutput"]
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    receipt = state["receipt"]
+    receipt["setup_contract"]["required_skills"]["senior-harness"]["folder_digest"] = (
+        "sha256:" + "0" * 64
+    )
+    receipt.pop("driver_digest")
+    _rehash_receipt(receipt)
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    binding_result = setup_driver_module._check_control_bindings(receipt)
+    assert "setup driver digest is missing or malformed" in binding_result.integrity_failures
+    assert "bound skill changed after startup admission: senior-harness" in binding_result.drift
+
+    denied = _pretool(base, "Write")
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "setup driver digest is missing or malformed" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+
+    recovery_read = _pretool(base, "Read")
+    assert "permissionDecision" not in recovery_read["hookSpecificOutput"]
+    assert "recovery-only read" in recovery_read["hookSpecificOutput"]["additionalContext"]
+    assert "setup driver digest is missing or malformed" in recovery_read["hookSpecificOutput"]["additionalContext"]
+
+
+def test_grill_drift_remains_strict_after_a_prior_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base, state_path = _start_hook_session(
+        tmp_path / "state",
+        monkeypatch,
+        session_id="grill-binding-drift",
+        prompt="/grill-me shape recovery",
+    )
+    assert "permissionDecision" not in _pretool(base, "Read")["hookSpecificOutput"]
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["receipt"]["driver_digest"] = "sha256:" + "0" * 64
+    _rehash_receipt(state["receipt"])
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    recovery_read = _pretool(base, "Read")
+    read_output = recovery_read["hookSpecificOutput"]
+    assert "permissionDecision" not in read_output
+    assert "recovery-only read" in read_output["additionalContext"]
+    assert "Delivery may continue" not in read_output["additionalContext"]
+
+    denied = _pretool(base, "Write")
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "setup driver changed after startup admission" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize(
+    ("objective", "interaction"),
+    [
+        ("/grill-me shape recovery", "grill-me"),
+        ("  $grill-me shape recovery", "grill-me"),
+        ("/grill-with-docs shape recovery", "grill-with-docs"),
+        ("\t$grill-with-docs shape recovery", "grill-with-docs"),
+        ("/grill-me: shape recovery", "grill-me"),
+        ("Discuss /grill-me without invoking it", "delivery"),
+    ],
+)
+def test_interaction_is_derived_from_the_exact_objective_prefix(
+    objective: str, interaction: str
+) -> None:
+    receipt = admit_startup(
+        build_setup_contract(objective, REPO_ROOT, surface="codex", interaction=interaction)
+    )
+    assert validate_startup_receipt(receipt)["status"] == "valid"
+
+
+def test_recomputed_public_digests_cannot_rewrite_grill_interaction_to_delivery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base, state_path = _start_hook_session(
+        tmp_path / "state",
+        monkeypatch,
+        session_id="rewritten-grill-interaction",
+        prompt="$grill-with-docs shape recovery",
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["receipt"]["setup_contract"]["interaction"] = "delivery"
+    _rehash_receipt(state["receipt"])
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    denied = _pretool(base, "Write")
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "interaction does not match the frozen literal objective" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize("shape", [[], "scalar"], ids=["list", "scalar"])
+@pytest.mark.parametrize("layer", ["state", "receipt", "setup-contract"])
+def test_non_object_startup_layers_enter_the_deterministic_invalid_state_branch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    layer: str,
+    shape: object,
+) -> None:
+    base, state_path = _start_hook_session(
+        tmp_path / "state", monkeypatch, session_id=f"shape-{layer}-{type(shape).__name__}"
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    if layer == "state":
+        stored: object = shape
+    elif layer == "receipt":
+        state["receipt"] = shape
+        stored = state
+    else:
+        state["receipt"]["setup_contract"] = shape
+        unsigned_receipt = dict(state["receipt"])
+        unsigned_receipt.pop("receipt_integrity_digest")
+        state["receipt"]["receipt_integrity_digest"] = digest(unsigned_receipt)
+        stored = state
+    state_path.write_text(json.dumps(stored), encoding="utf-8")
+
+    recovery_read = _pretool(base, "Read")
+    assert "permissionDecision" not in recovery_read["hookSpecificOutput"]
+    assert "recovery-only read" in recovery_read["hookSpecificOutput"]["additionalContext"]
+    denied = _pretool(base, "Write")
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "invalid startup state" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize("target", ["folder", "driver"])
+@pytest.mark.parametrize(
+    ("case", "malformed"),
+    [
+        ("missing", None),
+        ("object", {"digest": "sha256:" + "0" * 64}),
+        ("upper-case", "sha256:" + "A" * 64),
+        ("short", "sha256:abc"),
+        ("wrong-prefix", "sha512:" + "0" * 64),
+    ],
+)
+def test_malformed_binding_digests_deny_mutation_after_public_rehash(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    target: str,
+    case: str,
+    malformed: object,
+) -> None:
+    base, state_path = _start_hook_session(
+        tmp_path / "state", monkeypatch, session_id=f"malformed-{target}-{case}"
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    receipt = state["receipt"]
+    if target == "folder":
+        binding = receipt["setup_contract"]["required_skills"]["senior-harness"]
+        key = "folder_digest"
+    else:
+        binding = receipt
+        key = "driver_digest"
+    if case == "missing":
+        binding.pop(key)
+    else:
+        binding[key] = malformed
+    _rehash_receipt(receipt)
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    denied = _pretool(base, "Write")
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "digest is missing or malformed" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_error"),
+    [
+        ("skills-list", "no required-skill evidence"),
+        ("skill-list", "missing skill senior-harness"),
+        ("missing-path", "path is missing or invalid"),
+        ("object-path", "path is missing or invalid"),
+        ("relative-path", "path is missing or invalid"),
+        ("unavailable-path", "skill is unavailable or invalid"),
+        ("wrong-name", "skill name is missing or invalid"),
+    ],
+)
+def test_malformed_or_unavailable_skill_bindings_deny_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+    expected_error: str,
+) -> None:
+    base, state_path = _start_hook_session(
+        tmp_path / "state", monkeypatch, session_id=f"binding-{case}"
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    receipt = state["receipt"]
+    skills = receipt["setup_contract"]["required_skills"]
+    if case == "skills-list":
+        receipt["setup_contract"]["required_skills"] = []
+    elif case == "skill-list":
+        skills["senior-harness"] = []
+    elif case == "missing-path":
+        skills["senior-harness"].pop("path")
+    elif case == "object-path":
+        skills["senior-harness"]["path"] = {"path": str(REPO_ROOT)}
+    elif case == "relative-path":
+        skills["senior-harness"]["path"] = "skills/senior-harness"
+    elif case == "unavailable-path":
+        skills["senior-harness"]["path"] = str(tmp_path / "missing-skill")
+    else:
+        skills["senior-harness"]["name"] = "delivery"
+    _rehash_receipt(receipt)
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    denied = _pretool(base, "Write")
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert expected_error in denied["hookSpecificOutput"]["permissionDecisionReason"]
+
+    recovery_read = _pretool(base, "Read")
+    assert "permissionDecision" not in recovery_read["hookSpecificOutput"]
+    assert "recovery-only read" in recovery_read["hookSpecificOutput"]["additionalContext"]
 
 
 def test_hook_rejects_malformed_or_mismatched_input() -> None:

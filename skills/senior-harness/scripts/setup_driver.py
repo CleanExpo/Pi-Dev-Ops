@@ -16,6 +16,7 @@ import re
 import shlex
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -39,6 +40,8 @@ from senior_harness import ContractError, MUTATING_KINDS, digest, ready_moves, v
 SETUP_SCHEMA_VERSION = "1.0"
 REQUIRED_SKILLS = ("senior-harness", "model-router", "unlazy")
 GRILL_INTERACTIONS = ("grill-me", "grill-with-docs")
+SHA256_DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
+GIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 STARTUP_AUTHORITY = {
     "startup_admission": "pending",
     "mutation_authority": False,
@@ -70,8 +73,31 @@ class SetupError(ValueError):
         self.errors = errors
 
 
+@dataclass(frozen=True)
+class ControlBindingResult:
+    """Classify binding evidence without deriving policy from message text."""
+
+    drift: tuple[str, ...] = ()
+    integrity_failures: tuple[str, ...] = ()
+
+
 def _canonical_json(value: Any) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
+def _is_sha256_digest(value: Any) -> bool:
+    return isinstance(value, str) and SHA256_DIGEST_PATTERN.fullmatch(value) is not None
+
+
+def _interaction_for_objective(literal_objective: Any) -> str | None:
+    if not isinstance(literal_objective, str) or not literal_objective.strip():
+        return None
+    match = re.match(
+        r"^\s*[/\$](grill-with-docs|grill-me)",
+        literal_objective,
+        flags=re.IGNORECASE,
+    )
+    return match.group(1).lower() if match else "delivery"
 
 
 def _file_digest(path: Path) -> str:
@@ -210,6 +236,14 @@ def build_setup_contract(
         raise SetupError([f"unsupported surface: {surface}"])
     if interaction not in {"delivery", *GRILL_INTERACTIONS}:
         raise SetupError([f"unsupported interaction: {interaction}"])
+    expected_interaction = _interaction_for_objective(literal_objective)
+    if interaction != expected_interaction:
+        raise SetupError(
+            [
+                "setup interaction does not match the frozen literal objective: "
+                f"expected={expected_interaction}, observed={interaction}"
+            ]
+        )
     project_root = Path(project).resolve()
     search_roots = [Path(item).resolve() for item in skill_search_roots or ()]
     repository = _repository_snapshot(project_root, strict_clean=strict_clean)
@@ -310,6 +344,9 @@ def admit_startup(contract: dict[str, Any]) -> dict[str, Any]:
         raise SetupError(["setup contract task id is not bound to its literal objective"])
     if contract.get("objective_digest") != digest({"task": objective}):
         raise SetupError(["setup contract objective digest is invalid"])
+    expected_interaction = _interaction_for_objective(objective)
+    if contract.get("interaction") != expected_interaction:
+        raise SetupError(["setup contract interaction does not match its frozen literal objective"])
     if contract.get("secondary_objectives") != []:
         raise SetupError(["setup contract cannot pre-authorize secondary objectives"])
     receipt: dict[str, Any] = {
@@ -323,30 +360,81 @@ def admit_startup(contract: dict[str, Any]) -> dict[str, Any]:
     return receipt
 
 
-def _control_binding_errors(receipt: dict[str, Any]) -> list[str]:
-    """Return installed control-code drift without deciding tool authority."""
-    errors: list[str] = []
+def _check_control_bindings(
+    receipt: Any,
+    *,
+    verify_current: bool = True,
+) -> ControlBindingResult:
+    """Validate binding evidence and structurally separate drift from integrity failure."""
+    drift: list[str] = []
+    integrity_failures: list[str] = []
+    if not isinstance(receipt, dict):
+        return ControlBindingResult(integrity_failures=("startup receipt must be a JSON object",))
     contract = receipt.get("setup_contract")
     if not isinstance(contract, dict):
-        return ["startup receipt is missing its setup contract"]
+        return ControlBindingResult(integrity_failures=("startup receipt is missing its setup contract",))
     skills = contract.get("required_skills")
     if not isinstance(skills, dict):
-        return ["startup receipt has no required-skill evidence"]
-    interaction = contract.get("interaction", "delivery")
-    required_skill_names = REQUIRED_SKILLS + (("grill-me",) if interaction in GRILL_INTERACTIONS else ())
+        return ControlBindingResult(integrity_failures=("startup receipt has no required-skill evidence",))
+    expected_interaction = _interaction_for_objective(contract.get("literal_objective"))
+    required_skill_names = REQUIRED_SKILLS + (
+        ("grill-me",) if expected_interaction in GRILL_INTERACTIONS else ()
+    )
     for name in required_skill_names:
         item = skills.get(name)
         if not isinstance(item, dict):
-            errors.append(f"startup receipt is missing skill {name}")
+            integrity_failures.append(f"startup receipt is missing skill {name}")
             continue
-        path = Path(str(item.get("path", "")))
-        if not path.is_dir() or _frontmatter_name(path / "SKILL.md") != name:
-            errors.append(f"bound skill is unavailable or invalid: {name}")
-        elif item.get("folder_digest") != _folder_digest(path):
-            errors.append(f"bound skill changed after startup admission: {name}")
-    if receipt.get("driver_digest") != _file_digest(Path(__file__).resolve()):
-        errors.append("setup driver changed after startup admission")
-    return errors
+        if item.get("name") != name:
+            integrity_failures.append(f"bound skill name is missing or invalid: {name}")
+        path_value = item.get("path")
+        path: Path | None = None
+        if not isinstance(path_value, str) or not path_value or not Path(path_value).is_absolute():
+            integrity_failures.append(f"bound skill path is missing or invalid: {name}")
+        else:
+            path = Path(path_value)
+        stored_digest = item.get("folder_digest")
+        digest_valid = _is_sha256_digest(stored_digest)
+        if not digest_valid:
+            integrity_failures.append(f"bound skill folder digest is missing or malformed: {name}")
+        if not verify_current or path is None:
+            continue
+        try:
+            skill_valid = path.is_dir() and _frontmatter_name(path / "SKILL.md") == name
+        except OSError:
+            skill_valid = False
+        if not skill_valid:
+            integrity_failures.append(f"bound skill is unavailable or invalid: {name}")
+            continue
+        if digest_valid:
+            try:
+                current_digest = _folder_digest(path)
+            except OSError:
+                integrity_failures.append(f"bound skill is unavailable or invalid: {name}")
+            else:
+                if stored_digest != current_digest:
+                    drift.append(f"bound skill changed after startup admission: {name}")
+    stored_driver_digest = receipt.get("driver_digest")
+    if not _is_sha256_digest(stored_driver_digest):
+        integrity_failures.append("setup driver digest is missing or malformed")
+    elif verify_current:
+        try:
+            current_driver_digest = _file_digest(Path(__file__).resolve())
+        except OSError:
+            integrity_failures.append("setup driver is unavailable or invalid")
+        else:
+            if stored_driver_digest != current_driver_digest:
+                drift.append("setup driver changed after startup admission")
+    return ControlBindingResult(
+        drift=tuple(drift),
+        integrity_failures=tuple(integrity_failures),
+    )
+
+
+def _control_binding_errors(receipt: dict[str, Any]) -> list[str]:
+    """Return all installed control-binding failures for compatibility and reporting."""
+    result = _check_control_bindings(receipt)
+    return [*result.integrity_failures, *result.drift]
 
 
 def validate_startup_receipt(
@@ -358,10 +446,14 @@ def validate_startup_receipt(
     verify_control_bindings: bool = True,
 ) -> dict[str, Any]:
     """Re-probe all bound local evidence and reject stale or altered receipts."""
+    if not isinstance(receipt, dict):
+        raise SetupError(["startup receipt must be a JSON object"])
     errors: list[str] = []
     candidate = dict(receipt)
     observed_digest = candidate.pop("receipt_integrity_digest", None)
-    if observed_digest != digest(candidate):
+    if not _is_sha256_digest(observed_digest):
+        errors.append("startup receipt integrity digest is missing or malformed")
+    elif observed_digest != digest(candidate):
         errors.append("startup receipt integrity digest is invalid")
     if receipt.get("stage") != "startup-admitted":
         errors.append("startup receipt stage is invalid")
@@ -373,7 +465,9 @@ def validate_startup_receipt(
         contract = {}
     embedded = dict(contract)
     embedded_digest = embedded.pop("setup_contract_digest", None)
-    if embedded_digest != digest(embedded):
+    if not _is_sha256_digest(embedded_digest):
+        errors.append("embedded setup contract digest is missing or malformed")
+    elif embedded_digest != digest(embedded):
         errors.append("embedded setup contract digest is invalid")
     if literal_objective is not None and contract.get("literal_objective") != literal_objective:
         errors.append("literal objective differs from the frozen startup objective")
@@ -389,9 +483,12 @@ def validate_startup_receipt(
             errors.append("embedded setup contract objective digest is invalid")
     if contract.get("secondary_objectives") != []:
         errors.append("embedded setup contract cannot pre-authorize secondary objectives")
-    interaction = contract.get("interaction", "delivery")
+    interaction = contract.get("interaction")
     if interaction not in {"delivery", *GRILL_INTERACTIONS}:
         errors.append("embedded setup contract interaction is invalid")
+    expected_interaction = _interaction_for_objective(objective)
+    if expected_interaction is not None and interaction != expected_interaction:
+        errors.append("embedded setup contract interaction does not match the frozen literal objective")
     if contract.get("authority") != STARTUP_AUTHORITY:
         errors.append("setup contract cannot grant mutation, business, or irreversible authority")
     routing_request = contract.get("routing_request")
@@ -408,19 +505,38 @@ def validate_startup_receipt(
     controller = contract.get("delivery_controller")
     if not isinstance(controller, dict) or controller.get("skill_id") != "unlazy" or controller.get("required") is not True:
         errors.append("startup receipt does not require Unlazy delivery control")
-    repository = contract.get("repository") if isinstance(contract.get("repository"), dict) else {}
+    repository_value = contract.get("repository")
+    if not isinstance(repository_value, dict):
+        errors.append("embedded setup contract repository is invalid")
+        repository: dict[str, Any] = {}
+    else:
+        repository = repository_value
+    worktree = repository.get("worktree")
+    worktree_valid = isinstance(worktree, str) and bool(worktree) and Path(worktree).is_absolute()
+    if not worktree_valid:
+        errors.append("repository worktree path is missing or invalid")
+    if not isinstance(repository.get("head_sha"), str) or GIT_SHA_PATTERN.fullmatch(repository["head_sha"]) is None:
+        errors.append("repository head SHA is missing or malformed")
+    if not isinstance(repository.get("dirty"), bool):
+        errors.append("repository dirty flag is invalid")
+    if not _is_sha256_digest(repository.get("worktree_state_digest")):
+        errors.append("repository state digest is missing or malformed")
     if verify_repository:
-        bound_project = Path(project or repository.get("worktree", "")).resolve()
-        try:
-            current = _repository_snapshot(bound_project, strict_clean=False)
-        except SetupError as exc:
-            errors.extend(exc.errors)
-            current = {}
-        for field in ("worktree", "head_sha", "dirty", "worktree_state_digest"):
-            if repository.get(field) != current.get(field):
-                errors.append(f"repository {field} changed after startup admission")
+        bound_project_value = project if project is not None else worktree
+        if bound_project_value is not None and (project is not None or worktree_valid):
+            try:
+                bound_project = Path(bound_project_value).resolve()
+                current = _repository_snapshot(bound_project, strict_clean=False)
+            except (OSError, TypeError, SetupError) as exc:
+                errors.extend(exc.errors if isinstance(exc, SetupError) else [f"repository path is invalid: {exc}"])
+                current = {}
+            for field in ("worktree", "head_sha", "dirty", "worktree_state_digest"):
+                if repository.get(field) != current.get(field):
+                    errors.append(f"repository {field} changed after startup admission")
+    binding_result = _check_control_bindings(receipt, verify_current=verify_control_bindings)
+    errors.extend(binding_result.integrity_failures)
     if verify_control_bindings:
-        errors.extend(_control_binding_errors(receipt))
+        errors.extend(binding_result.drift)
     if errors:
         raise SetupError(errors)
     return {
@@ -583,6 +699,8 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
             raise SetupError(["UserPromptSubmit payload is missing the literal prompt"])
         if state_path.is_file():
             state = json.loads(state_path.read_text(encoding="utf-8"))
+            if not isinstance(state, dict):
+                raise SetupError(["startup state must be a JSON object"])
             receipt = state.get("receipt", {})
             validate_startup_receipt(
                 receipt,
@@ -591,7 +709,10 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
                 verify_control_bindings=False,
             )
             primary = receipt["setup_contract"]["literal_objective"]
-            control_drift = _control_binding_errors(receipt)
+            binding_result = _check_control_bindings(receipt)
+            if binding_result.integrity_failures:
+                raise SetupError([*binding_result.integrity_failures, *binding_result.drift])
+            control_drift = binding_result.drift
             drift_context = (
                 " Control-code drift is present and must be revalidated in a fresh session: "
                 + "; ".join(control_drift)
@@ -603,8 +724,9 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
                 event,
                 f"Senior Harness primary objective remains frozen byte-for-byte: {primary!r}. Treat this prompt as a subordinate instruction unless the user starts a new task.{drift_context}",
             )
-        prompt_match = re.match(r"^\s*[/\$](grill-me|grill-with-docs)\b", prompt, flags=re.IGNORECASE)
-        interaction = prompt_match.group(1).lower() if prompt_match else "delivery"
+        interaction = _interaction_for_objective(prompt)
+        if interaction is None:
+            raise SetupError(["UserPromptSubmit payload is missing the literal prompt"])
         contract = build_setup_contract(
             prompt,
             project_root,
@@ -642,22 +764,36 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         return _hook_output(event, "Senior Harness denied the tool: no startup receipt exists for this session.", deny=True)
     try:
         state = json.loads(state_path.read_text(encoding="utf-8"))
+        if not isinstance(state, dict):
+            raise SetupError(["startup state must be a JSON object"])
         receipt = state.get("receipt", {})
-        first_tool = not bool(state.get("first_tool_admitted"))
-        interaction = receipt.get("setup_contract", {}).get("interaction", "delivery")
-        verify_control_bindings = first_tool or interaction in GRILL_INTERACTIONS
+        if not isinstance(receipt, dict):
+            raise SetupError(["startup state receipt must be a JSON object"])
+        first_tool_admitted = state.get("first_tool_admitted")
+        if not isinstance(first_tool_admitted, bool):
+            raise SetupError(["startup state first_tool_admitted flag is invalid"])
+        first_tool = not first_tool_admitted
+        contract = receipt.get("setup_contract")
+        if not isinstance(contract, dict):
+            raise SetupError(["startup receipt is missing its setup contract"])
+        interaction = contract.get("interaction")
+        strict_bindings = interaction in GRILL_INTERACTIONS
         validate_startup_receipt(
             receipt,
             project=project_root,
             verify_repository=first_tool or interaction in GRILL_INTERACTIONS,
-            verify_control_bindings=verify_control_bindings,
+            verify_control_bindings=False,
         )
-        control_drift = [] if verify_control_bindings else _control_binding_errors(receipt)
+        binding_result = _check_control_bindings(receipt)
+        if binding_result.integrity_failures:
+            raise SetupError([*binding_result.integrity_failures, *binding_result.drift])
+        control_drift = binding_result.drift
+        if control_drift and (first_tool or strict_bindings):
+            raise SetupError(list(control_drift))
         if first_tool:
             state["first_tool_admitted"] = True
             _write_state(state_path, state)
         primary = receipt["setup_contract"]["literal_objective"]
-        interaction = receipt["setup_contract"].get("interaction", "delivery")
     except (OSError, json.JSONDecodeError, KeyError, SetupError) as exc:
         if recovery_safe:
             return _hook_output(
@@ -674,7 +810,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
     drift_context = ""
     if control_drift:
         drift_context = (
-            " Senior Harness control-code drift detected after the first admitted tool: "
+            " Senior Harness control-code drift detected: "
             + "; ".join(control_drift)
             + ". Delivery may continue under normal host and repository policy, but this startup receipt cannot be reused as fresh control-code evidence."
         )
