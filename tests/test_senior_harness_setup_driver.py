@@ -427,13 +427,64 @@ def test_parallel_required_root_cannot_implement_but_can_dispatch_and_coordinate
     )
     assert "permissionDecision" not in proof["hookSpecificOutput"]
 
-    for tool_name in ("spawn_agent", "followup_task", "wait_agent", "list_agents"):
+    for tool_name in ("spawn_agent", "followup_task", "agent", "task"):
+        denied = handle_hook(
+            {**base, "hook_event_name": "PreToolUse", "tool_name": tool_name, "tool_input": {}},
+            surface="codex",
+            event="PreToolUse",
+        )
+        assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert "denied root implementation" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+
+    for tool_name in ("wait_agent", "list_agents", "interrupt_agent", "send_message"):
         allowed = handle_hook(
             {**base, "hook_event_name": "PreToolUse", "tool_name": tool_name, "tool_input": {}},
             surface="codex",
             event="PreToolUse",
         )
         assert "permissionDecision" not in allowed["hookSpecificOutput"]
+
+    dispatch = handle_hook(
+        {
+            **base,
+            "hook_event_name": "PreToolUse",
+            "tool_name": "senior-harness.dispatch",
+            "tool_input": {"node_id": "1.1"},
+        },
+        surface="codex",
+        event="PreToolUse",
+    )
+    assert dispatch["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "signed" in dispatch["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "ruff check --fix app.py",
+        "ruff format app.py",
+        "pytest --junitxml=app.py",
+        "pytest --basetemp=app",
+        "pytest /tmp/attacker_owned_test.py",
+        "pnpm test -- --update",
+    ],
+)
+def test_parallel_root_denies_mutating_or_unbounded_verifier_commands(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
+) -> None:
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    base = {"session_id": f"unsafe-verifier-{abs(hash(command))}", "cwd": str(REPO_ROOT)}
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Repair and verify the harness"},
+        surface="codex",
+        event="UserPromptSubmit",
+    )
+    denied = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "exec_command", "tool_input": {"cmd": command}},
+        surface="codex",
+        event="PreToolUse",
+    )
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
 def test_grill_hook_never_orders_dispatch_before_shared_understanding(

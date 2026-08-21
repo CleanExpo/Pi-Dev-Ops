@@ -718,21 +718,70 @@ def _is_parallel_control_tool(payload: dict[str, Any]) -> bool:
         raw_name = raw_name.get("name", "")
     name = str(raw_name).lower().replace("-", "_")
     return name in {
-        "spawn_agent",
-        "agent",
-        "task",
-        "followup_task",
-        "send_message",
         "wait_agent",
         "list_agents",
         "interrupt_agent",
+        "send_message",
         "update_plan",
         "get_goal",
     }
 
 
+def _is_parallel_dispatch_tool(payload: dict[str, Any]) -> bool:
+    """Identify dispatch controls that require an independently signed admission.
+
+    Generic host labels such as ``spawn_agent`` are intentionally not treated as
+    proof of Unlazy admission.  The signed control-plane wrapper owns dispatch;
+    this hook only recognises its exact event name so an unwrapped root cannot
+    turn a tool label into mutation authority.
+    """
+    raw_name = payload.get("tool_name") or payload.get("tool") or ""
+    if isinstance(raw_name, dict):
+        raw_name = raw_name.get("name", "")
+    return str(raw_name).lower().replace("_", "-") == "senior-harness.dispatch"
+
+
+def _has_signed_dispatch_admission(payload: dict[str, Any], project_root: Path) -> bool:
+    """Ask the signed Unlazy control plane to admit this exact dispatch.
+
+    The hook never trusts a model-supplied ``admitted: true`` field.  The
+    wrapper must provide the bound receipt/plan/route/state files, and the
+    control plane revalidates their exact SHA/HMAC and atomically reserves the
+    leaf before this hook permits the host event.
+    """
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return False
+    required = ("receipt_path", "plan_path", "routing_request_path", "state_path", "node_id", "worker_context_id")
+    if any(not isinstance(tool_input.get(key), str) or not tool_input[key] for key in required):
+        return False
+    try:
+        from control_plane import authorize_event  # imported lazily to avoid module-load cycles
+
+        receipt = _read_json(tool_input["receipt_path"])
+        plan = _read_json(tool_input["plan_path"])
+        route = _read_json(tool_input["routing_request_path"])
+        result = authorize_event(
+            receipt,
+            plan,
+            route,
+            {"tool_name": "senior-harness.dispatch", "tool_input": tool_input},
+            state_path=tool_input["state_path"],
+        )
+        return result.get("status") == "admitted" and Path(str(project_root)).resolve() == Path(
+            str(receipt.get("setup_contract", {}).get("repository", {}).get("worktree", ""))
+        ).resolve()
+    except (OSError, ValueError, KeyError, TypeError, SetupError):
+        return False
+
+
+def _safe_repo_argument(token: str) -> bool:
+    """Accept only simple repository-relative verification paths."""
+    return bool(token) and not token.startswith("-") and not token.startswith("/") and token != ".." and not token.startswith("../")
+
+
 def _is_parallel_verification_tool(payload: dict[str, Any]) -> bool:
-    """Permit bounded proof commands while keeping product mutation denied."""
+    """Permit narrowly bounded, read-only proof commands while denying writes."""
     raw_name = payload.get("tool_name") or payload.get("tool") or ""
     if isinstance(raw_name, dict):
         raw_name = raw_name.get("name", "")
@@ -752,9 +801,30 @@ def _is_parallel_verification_tool(payload: dict[str, Any]) -> bool:
     if not argv:
         return False
     executable = Path(argv[0]).name
-    if executable in {"pytest", "ruff", "mypy", "pyright"}:
+    if executable == "pytest":
+        # Pytest is admitted only for the repository's own tests.  In
+        # particular, reject arbitrary paths, plugins, output files, basetemp,
+        # pdb/trace hooks, and every option that can redirect or write output.
+        allowed_options = {"-q", "-x", "-v", "-vv", "--disable-warnings", "--tb=short", "--tb=long"}
+        for token in argv[1:]:
+            if token.startswith("-"):
+                if token not in allowed_options:
+                    return False
+            elif not (_safe_repo_argument(token) and (token == "tests" or token.startswith("tests/"))):
+                return False
         return True
-    return executable in {"npm", "pnpm", "yarn"} and len(argv) > 1 and argv[1] in {"test", "check", "lint"}
+    if executable == "ruff":
+        # Only the non-mutating checker is allowed.  ``format`` and every fix,
+        # output, or config-redirection flag stay behind the root deny.
+        if len(argv) < 2 or argv[1] != "check":
+            return False
+        for token in argv[2:]:
+            if token.startswith("-") or not _safe_repo_argument(token):
+                return False
+        return True
+    if executable in {"mypy", "pyright"}:
+        return all(_safe_repo_argument(token) for token in argv[1:])
+    return False
 
 
 def _state_path(project_root: Path, session_id: str) -> Path:
@@ -1015,16 +1085,26 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
             deny=True,
         )
     policy = receipt["setup_contract"].get("orchestration_policy", {})
+    dispatch_admitted = _is_parallel_dispatch_tool(payload) and _has_signed_dispatch_admission(
+        payload, project_root
+    )
     if (
         isinstance(policy, dict)
         and policy.get("parallel_required") is True
         and not recovery_safe
         and not _is_parallel_control_tool(payload)
+        and not dispatch_admitted
         and not _is_parallel_verification_tool(payload)
     ):
+        reason = (
+            "Senior Harness denied dispatch: generic agent spawning is not Unlazy admission; use the signed "
+            "senior-harness.dispatch control wrapper with a bound receipt, plan, route, and state path."
+            if _is_parallel_dispatch_tool(payload)
+            else "Senior Harness denied root implementation: this parallel-required root may coordinate, read, dispatch, wait, and verify, but every mutation must be owned by a bounded leaf or integration worker."
+        )
         return _hook_output(
             event,
-            "Senior Harness denied root implementation: this parallel-required root may coordinate, read, dispatch, wait, and verify, but every mutation must be owned by a bounded leaf or integration worker.",
+            reason,
             deny=True,
         )
     drift_context = ""
