@@ -884,7 +884,11 @@ def never_fatal(label: str, fn: Any, fallback: Any) -> Any:
 
 
 def run_all() -> list[dict[str, Any]]:
-    env = load_env()
+    # The first line of the run was the one unguarded step left. An unreadable
+    # ~/.hermes/.env raised out of here before a single check executed, so the run
+    # ended at exit 2 with nothing said about anything. An empty env is honest: the
+    # credentialed checks then fail on their own and say why.
+    env = never_fatal("load_env", load_env, {})
     checks: list[dict[str, Any]] = []
 
     # Tier 1
@@ -1095,7 +1099,13 @@ def main() -> int:
     else:
         log("no prior run found — this is the baseline")
 
-    checks = run_all()
+    # Belt and braces for the first link, matching the last: if the whole check run
+    # fails for any reason at all, that is itself the most important thing to report.
+    checks = never_fatal(
+        "run_all",
+        run_all,
+        [mk("health check run", 1, "FAIL", "the check run itself failed", crashed=True)],
+    )
     finished = _dt.datetime.now(_dt.timezone.utc)
     # Every never_fatal fallback must point TOWARD alerting. This one did not: `[]`
     # reads as "no regression", and with the resurface throttle active that produced

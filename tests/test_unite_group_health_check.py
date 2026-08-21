@@ -698,3 +698,40 @@ def test_the_fallback_alert_stays_quiet_on_a_healthy_run(monkeypatch, tmp_path):
 
     assert code == 0
     assert delivered == ""
+
+
+def test_an_unreadable_env_file_does_not_abort_the_run(monkeypatch):
+    """load_env is the first line of run_all, and run_all is called directly from
+    main() rather than through guarded(). An unreadable ~/.hermes/.env raised before a
+    single check executed — the first link, left unguarded while the last was fixed."""
+    def boom():
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(health, "load_env", boom)
+    monkeypatch.setattr(health, "check_http", lambda *a, **k: health.mk("x", 1, "PASS", "d"))
+    monkeypatch.setattr(health, "check_unite_health_api", lambda *a: health.mk("y", 1, "PASS", "d"))
+
+    checks = health.run_all()
+
+    assert checks, "an unreadable env file must not stop every check from running"
+
+
+def test_a_total_check_run_failure_still_alerts(monkeypatch, tmp_path):
+    """If run_all fails outright, that is itself the most important thing to report."""
+    def boom():
+        raise RuntimeError("everything is on fire")
+
+    monkeypatch.setattr(health, "run_all", boom)
+    monkeypatch.setattr(health, "LOG_DIR", tmp_path)
+    monkeypatch.setattr(health, "LATEST_MD", tmp_path / "l.md")
+    monkeypatch.setattr(health, "ALERT_STATE", tmp_path / "a.json")
+    (tmp_path / "unite-group-2026-08-21T000000.json").write_text(
+        '{"checks": [{"name": "health check run", "tier": 1, "status": "PASS"}]}'
+    )
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        code = health.main()
+
+    assert code == 1
+    assert "health check run" in buf.getvalue()
