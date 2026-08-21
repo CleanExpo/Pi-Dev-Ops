@@ -35,15 +35,120 @@ one component per session.
 7. **If a question can be answered by exploring the codebase, explore the codebase instead.** Don't ask the user something `grep` could answer. (This rule is Matt's, and it's load-bearing.)
 8. **Stop when the tree is fully resolved.** Every leaf is DECIDED, RABBIT HOLE, or NO-GO. Then write the transcript.
 
-## Governed session boundary
+## Governed session boundary — run it through the controller
 
-When `senior-harness` is available, use its `grill_session.py` controller. Bind the real sketch path
-and digest, model the dependency-ordered leaves, answer repository/source facts with evidence rather
-than asking Phill, and record each human answer verbatim. Keep transcript and glossary/ADR updates
-buffered until the exact shared-understanding confirmation succeeds. The controller's receipt grants
-no implementation authority; start delivery as a separate governed phase.
+When `senior-harness` is available, run the grill through its controller so the sketch is
+digest-bound and the confirmation is verbatim. The controller's receipt grants **no**
+implementation authority; delivery is a separate governed phase.
 
-## Output format — write to `<vault-root>/Grills/NN-<slug>.md`
+- Controller: `skills/senior-harness/scripts/grill_session.py`
+- Contract: `skills/senior-harness/references/grill-contract.md`
+
+Every command takes `--state <session.json>`. `S` below is that path.
+
+**Preflight — the refusals `start` can raise. Each returns `status: invalid`:**
+
+1. `--objective` must be non-empty.
+2. `--sketch` must name a **real, existing file** *and* sit under a `Sketches/` root.
+3. `--transcript` must be a `.md` file under the **sibling `Grills/` root** — that is
+   `<parent-of-Sketches>/Grills/`, not any directory named `Grills`. Any Markdown filename below
+   that root is accepted; `NN-<slug>.md` is our convention, not a controller rule.
+4. `--state` must live below `$SENIOR_HARNESS_STATE_DIR` when that is set, otherwise below
+   `~/.local/state/senior-harness/`, **and must end in `.json`** (use `grills/<slug>.json`). The
+   controller keeps session state external to the checkout.
+5. `start` **refuses to replace an existing state file** — choose a fresh path, or remove the old
+   one deliberately.
+6. `--decision-tree` must be a JSON **object** wrapping the leaves, not a bare array, and the
+   tree must be non-empty and acyclic:
+
+```json
+{"decision_tree": [
+  {"leaf_id": "store", "kind": "human-decision", "question": "Which store?",
+   "recommendation": "Postgres", "rationale": "already operated here", "depends_on": []},
+  {"leaf_id": "schema", "kind": "evidence-fact", "question": "Does a sessions table exist?",
+   "depends_on": ["store"]}
+]}
+```
+
+Leaf rules: `kind` is `human-decision` or `evidence-fact`. A `human-decision` leaf **requires**
+`recommendation` and `rationale` (hard rule 4, mechanised). An `evidence-fact` leaf **must not**
+carry either — those are answered from sources, not opinion. `depends_on` holds leaf ids and
+drives the dependency-first ordering in step 3.
+
+| Step | Command |
+| --- | --- |
+| Open the session | `start --state S --objective "<goal>" --sketch <sketch.md> --decision-tree <tree.json> --transcript <out.md>` |
+| Inspect current leaf | `show --state S` |
+| Check integrity | `validate --state S` |
+| Answer from repo evidence | `evidence --state S --answer "<finding>" --sources <evidence.json>` |
+| Record a human answer | `answer --state S --answer "<verbatim>" --resolution DECIDED\|RABBIT_HOLE\|NO_GO` |
+| Lock shared understanding | `confirm --state S --phrase "I confirm this is our shared understanding."` |
+| Write buffered outputs | `materialize --state S` |
+
+`--sources` takes **one JSON object file**, not a list of paths. Every item needs a non-empty
+`source_id` and a `source_digest` of exactly `sha256:` plus 64 lower-case hex characters:
+
+```json
+{"evidence": [
+  {"source_id": "app/server/sessions.py", "source_digest": "sha256:<64-lowercase-hex>"}
+]}
+```
+
+An `evidence` response is accepted **only while the session is in `awaiting-evidence`**.
+
+What the controller enforces so you do not have to:
+
+1. The sketch path and its digest are recorded at `start` and written into the receipt. **The CLI
+   does not re-hash the sketch on later transitions** — editing it mid-session is not detected, so
+   treat sketch stability as your discipline, not a guarantee the controller provides.
+2. `evidence` is the mechanised form of hard rule 7 below: repository facts are answered from
+   named, digest-bound sources, never asked of the founder.
+3. Resolutions are exactly `DECIDED`, `RABBIT_HOLE`, `NO_GO`. Nothing else is accepted.
+4. The transcript and any glossary/ADR updates stay **buffered** until `confirm` succeeds with
+   the phrase verbatim (`I confirm this is our shared understanding.`). A near-miss does not confirm.
+5. `materialize` is the only command that writes the **transcript** — `start`, `evidence`,
+   `answer` and `confirm` each persist control state under the external state root. `materialize`
+   refuses before confirmation, refuses if the content digest differs from the confirmed receipt,
+   and creates the transcript exclusively, so it will not overwrite an existing target.
+
+## Output format
+
+Two different things share this name — do not confuse them.
+
+**What `materialize` emits** (the receipt-bound transcript, generated by the controller). It is
+written to the explicit `--transcript` target under the sibling `Grills/` root, and its shape is
+fixed:
+
+```markdown
+---
+type: grill
+session_id: <digest>
+sketch: <absolute resolved path>
+sketch_sha256: sha256:<64-hex>
+status: resolved
+---
+
+# Grill transcript
+
+**Objective:** <objective>
+
+## Q1: <question>
+**My recommendation:** <rec>        # human-decision leaves only
+**Rationale:** <rationale>          # human-decision leaves only
+**Evidence sources:** <source ids>  # evidence-fact leaves only
+**Answer (verbatim):** <answer>
+**Resolution:** DECIDED | RABBIT_HOLE | NO_GO
+
+## Domain updates
+...
+```
+
+Note what it does **not** carry: no `component`, no `created`, no in-progress status, no
+final-state buckets, no appetite, and no pitch next-step. `status` is always `resolved` — the
+transcript only exists after confirmation.
+
+**The hand-authored convention below** is our own upstream sketch/vault format, used when running
+a grill without the controller. It is a template for humans, not the controller's output contract:
 
 ```markdown
 ---
