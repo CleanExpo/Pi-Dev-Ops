@@ -28,6 +28,7 @@ import os
 import random
 import shutil
 import subprocess
+import tempfile
 import time
 import urllib.request
 from pathlib import Path
@@ -441,6 +442,95 @@ def _git_clone_env(repo_url: str) -> dict[str, str] | None:
         "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
         "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {basic}",
     }
+
+
+async def _push_from_isolated_git_view(
+    workspace: str,
+    push_target: str,
+    destination_ref: str,
+    *,
+    timeout: int = 30,
+) -> tuple[int, str, str]:
+    """Push one exact commit without trusting the candidate repository's Git config."""
+    head_rc, head_out, head_err = await run_cmd(
+        workspace, "git", "rev-parse", "HEAD", timeout=10,
+    )
+    common_rc, common_out, common_err = await run_cmd(
+        workspace, "git", "rev-parse", "--git-common-dir", timeout=10,
+    )
+    if head_rc != 0 or common_rc != 0:
+        return 1, "", head_err or common_err or "could not resolve isolated push source"
+
+    common_dir = Path(common_out.strip())
+    if not common_dir.is_absolute():
+        common_dir = Path(workspace) / common_dir
+    object_dir = common_dir.resolve() / "objects"
+    if not object_dir.is_dir():
+        return 1, "", "candidate Git object directory is unavailable"
+
+    auth_env = _git_clone_env(push_target) or {}
+    push_env = os.environ.copy()
+    for key in list(push_env):
+        if key in {
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            "GIT_COMMON_DIR",
+            "GIT_NAMESPACE",
+            "GIT_PREFIX",
+            "GIT_QUARANTINE_PATH",
+            "GIT_CONFIG",
+            "GIT_CONFIG_GLOBAL",
+            "GIT_CONFIG_SYSTEM",
+            "GIT_CONFIG_PARAMETERS",
+        } or key.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")):
+            push_env.pop(key, None)
+    push_env.pop("GIT_CONFIG_COUNT", None)
+    for key in ("GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0"):
+        if key in auth_env:
+            push_env[key] = auth_env[key]
+    push_env["GIT_CONFIG_NOSYSTEM"] = "1"
+    push_env["GIT_CONFIG_GLOBAL"] = os.devnull
+    push_env["GIT_TERMINAL_PROMPT"] = "0"
+    push_env["GIT_ALTERNATE_OBJECT_DIRECTORIES"] = str(object_dir)
+
+    with tempfile.TemporaryDirectory(prefix="senior-harness-push-") as push_repo:
+        init_rc, init_out, init_err = await run_cmd(
+            push_repo,
+            "git",
+            "init",
+            "--bare",
+            ".",
+            timeout=10,
+            env=push_env,
+        )
+        if init_rc != 0:
+            return init_rc, init_out, init_err
+        ref_rc, ref_out, ref_err = await run_cmd(
+            push_repo,
+            "git",
+            "update-ref",
+            "refs/heads/candidate",
+            head_out.strip(),
+            timeout=10,
+            env=push_env,
+        )
+        if ref_rc != 0:
+            return ref_rc, ref_out, ref_err
+        return await run_cmd(
+            push_repo,
+            "git",
+            "-c",
+            f"core.hooksPath={os.devnull}",
+            "push",
+            push_target,
+            f"refs/heads/candidate:{destination_ref}",
+            timeout=timeout,
+            env=push_env,
+        )
+
 
 def parse_event(line, session):
     try:
@@ -1718,7 +1808,6 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
                 em(session, "system", f"  {c}")
             github_token = os.environ.get("GITHUB_TOKEN", "")
             push_target = normalize_repository(session.repo_url) + ".git"
-            push_env = _git_clone_env(push_target)
             # ── Push to a feature branch (not main) ──
             sid_short = getattr(session, "id", "auto")[:8]
             branch_name = f"pidev/auto-{sid_short}"
@@ -1748,16 +1837,11 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
             em(session, "system", f"  Pushing {len(commits)} commits on branch {branch_name}...")
             for push_attempt in range(3):
                 require_active_for_run(session.id)
-                rc, _, err = await run_cmd(
+                rc, _, err = await _push_from_isolated_git_view(
                     session.workspace,
-                    "git",
-                    "-c",
-                    f"core.hooksPath={os.devnull}",
-                    "push",
                     push_target,
-                    f"HEAD:refs/heads/{branch_name}",
+                    f"refs/heads/{branch_name}",
                     timeout=30,
-                    env=push_env,
                 )
                 if rc == 0:
                     push_ok = True

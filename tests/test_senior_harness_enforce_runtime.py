@@ -379,6 +379,7 @@ async def test_push_uses_admitted_url_explicit_refspec_and_disables_hooks(
     admitted, tmp_path, monkeypatch,
 ):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    (tmp_path / ".git" / "objects").mkdir(parents=True)
     session = session_model.BuildSession(
         id="abcdef123456",
         repo_url="https://github.com/unite-group/pi-dev-ops.git",
@@ -390,6 +391,10 @@ async def test_push_uses_admitted_url_explicit_refspec_and_disables_hooks(
             return 0, " M app.py\n", ""
         if "log" in args:
             return 0, "abc123 feat: admitted change\n", ""
+        if "--git-common-dir" in args:
+            return 0, ".git\n", ""
+        if "rev-parse" in args and "HEAD" in args:
+            return 0, "d" * 40 + "\n", ""
         return 0, "", ""
 
     run = AsyncMock(side_effect=fake_run)
@@ -406,7 +411,8 @@ async def test_push_uses_admitted_url_explicit_refspec_and_disables_hooks(
     commands = [call.args[1:] for call in run.await_args_list]
     commit = next(args for args in commands if "commit" in args)
     checkout = next(args for args in commands if "checkout" in args)
-    push = next(args for args in commands if "push" in args)
+    push_call = next(call for call in run.await_args_list if "push" in call.args[1:])
+    push = push_call.args[1:]
     assert f"core.hooksPath={__import__('os').devnull}" in commit
     assert f"core.hooksPath={__import__('os').devnull}" in checkout
     assert push == (
@@ -415,8 +421,74 @@ async def test_push_uses_admitted_url_explicit_refspec_and_disables_hooks(
         f"core.hooksPath={__import__('os').devnull}",
         "push",
         "https://github.com/unite-group/pi-dev-ops.git",
-        "HEAD:refs/heads/pidev/auto-abcdef12",
+        "refs/heads/candidate:refs/heads/pidev/auto-abcdef12",
     )
+    assert Path(push_call.args[0]) != tmp_path
+    push_env = push_call.kwargs["env"]
+    assert push_env["GIT_CONFIG_NOSYSTEM"] == "1"
+    assert push_env["GIT_CONFIG_GLOBAL"] == __import__("os").devnull
+    assert push_env["GIT_ALTERNATE_OBJECT_DIRECTORIES"] == str(
+        (tmp_path / ".git" / "objects").resolve()
+    )
+
+
+@pytest.mark.asyncio
+async def test_isolated_push_ignores_candidate_url_rewrites(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    admitted = tmp_path / "admitted.git"
+    unadmitted = tmp_path / "unadmitted.git"
+    source.mkdir()
+
+    def git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    assert git(tmp_path, "init", "-q", "--bare", str(admitted)).returncode == 0
+    assert git(tmp_path, "init", "-q", "--bare", str(unadmitted)).returncode == 0
+    assert git(source, "init", "-q").returncode == 0
+    assert git(source, "config", "user.name", "Senior Harness Test").returncode == 0
+    assert git(source, "config", "user.email", "senior-harness@example.invalid").returncode == 0
+    (source / "candidate.txt").write_text("candidate\n", encoding="utf-8")
+    assert git(source, "add", "candidate.txt").returncode == 0
+    assert git(source, "commit", "-q", "-m", "candidate").returncode == 0
+
+    admitted_url = admitted.resolve().as_uri()
+    unadmitted_url = unadmitted.resolve().as_uri()
+    assert git(
+        source,
+        "config",
+        f"url.{unadmitted_url}.insteadOf",
+        admitted_url,
+    ).returncode == 0
+    assert git(
+        source,
+        "-c",
+        f"core.hooksPath={__import__('os').devnull}",
+        "push",
+        admitted_url,
+        "HEAD:refs/heads/control",
+    ).returncode == 0
+    assert git(
+        unadmitted,
+        "show-ref",
+        "--verify",
+        "refs/heads/control",
+    ).returncode == 0
+
+    rc, _out, error = await session_phases._push_from_isolated_git_view(
+        str(source),
+        admitted_url,
+        "refs/heads/isolated",
+    )
+
+    assert rc == 0, error
+    assert git(admitted, "show-ref", "--verify", "refs/heads/isolated").returncode == 0
+    assert git(unadmitted, "show-ref", "--verify", "refs/heads/isolated").returncode != 0
 
 
 @pytest.mark.asyncio
