@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
+import time
 from pathlib import Path
 
 from app.server import workspace_verify as wv
@@ -85,6 +87,35 @@ def test_timeout_is_not_a_pass(tmp_path: Path) -> None:
 
     assert result.status == wv.TIMED_OUT
     assert result.status != wv.PASSED
+
+
+def test_timeout_kills_descendant_after_process_group_leader_exits(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """A vanished leader must not leave a pipe-owning descendant alive.
+
+    The direct child exits immediately after spawning a sleeper. The sleeper
+    inherits the process group and stdout pipe, so ``communicate()`` cannot
+    finish until the whole known group is killed.
+    """
+    repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
+    leader = (
+        "import subprocess,sys; "
+        "subprocess.Popen([sys.executable, '-c', "
+        "'import time; time.sleep(30)'], stdout=sys.stdout, stderr=sys.stderr)"
+    )
+    monkeypatch.setattr(
+        wv,
+        "detect_check",
+        lambda ws: ([sys.executable, "-c", leader], "descendant timeout probe"),
+    )
+
+    started = time.monotonic()
+    result = _run(wv.run_workspace_checks(str(repo), timeout_s=0.25))
+    elapsed = time.monotonic() - started
+
+    assert result.status == wv.TIMED_OUT
+    assert elapsed < 2, f"descendant kept the timeout path open for {elapsed:.2f}s"
 
 
 def test_absent_runner_is_not_reported_as_a_test_failure(tmp_path: Path, monkeypatch) -> None:

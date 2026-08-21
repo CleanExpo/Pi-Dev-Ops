@@ -149,7 +149,11 @@ async def run_workspace_checks(
         timed_out = True
         # Kill the group, not just the child — see start_new_session above.
         try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            # start_new_session=True makes the child's PID the process-group
+            # ID. Use that stable ID directly: the leader may already have
+            # exited while a descendant still owns stdout, in which case
+            # getpgid(proc.pid) fails and the descendant survives.
+            os.killpg(proc.pid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError, OSError):
             try:
                 proc.kill()
@@ -160,8 +164,8 @@ async def run_workspace_checks(
         # closes. Returning immediately here leaves BaseSubprocessTransport alive; its
         # later destructor then tries to schedule pipe cleanup on the closed loop.
         try:
-            stdout, _ = await proc.communicate()
-        except (ProcessLookupError, OSError):
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
+        except (asyncio.TimeoutError, ProcessLookupError, OSError):
             stdout = b""
 
     # `communicate()` waits for exit, but on very short-lived children CPython can retain
