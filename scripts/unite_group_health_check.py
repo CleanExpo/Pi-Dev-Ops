@@ -586,11 +586,12 @@ def check_integration_sync(env: dict[str, str]) -> list[dict[str, Any]]:
         for r in rows
         if isinstance(r, dict) and isinstance(r.get("integration"), str) and r["integration"]
     }
-    if rows and not by_name:
-        # Rows arrived and not one of them can be keyed. That is a read that failed, not
-        # an empty table. Keying on None made every lookup miss, so all eighteen checks
-        # reported "no sync_state row yet (cron not fired)" — byte-identical to the
-        # genuine pre-first-fire state, and a Tier-1 WARN reaches no alert path. Same
+    if rows and not (by_name.keys() & set(INTEGRATION_CADENCES_SEC)):
+        # Rows arrived but none names an integration this monitor knows. That is a read
+        # that failed, not an empty table. Unknown or unusable names make every lookup miss,
+        # so all eighteen checks reported "no sync_state row yet (cron not fired)" —
+        # byte-identical to the genuine pre-first-fire state. A Tier-1 WARN reaches no
+        # alert path. Same
         # class as the unparseable-body fix one layer down, found by review round 18.
         # An EMPTY list is deliberately not covered: that is the real steady state until
         # the 4am cron fires, and failing it would page hourly for nothing.
@@ -599,7 +600,7 @@ def check_integration_sync(env: dict[str, str]) -> list[dict[str, Any]]:
                 f"integration sync — {name}",
                 1,
                 "FAIL",
-                "REST returned rows with no usable 'integration' key",
+                "REST returned rows, none naming a known integration",
             )
             for name in INTEGRATION_CADENCES_SEC
         ]

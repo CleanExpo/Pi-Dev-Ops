@@ -867,3 +867,37 @@ def test_one_unkeyable_row_among_good_ones_does_not_mask_the_others(monkeypatch)
     assert github and github[0]["status"] == "PASS", (
         f"a usable row must still be read: {github}"
     )
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [{"integration": "unknown_thing", "last_sync_status": "ok"}],
+        [
+            {"integration": "github_v2", "last_sync_status": "ok"},
+            {"integration": "linear_v2", "last_sync_status": "ok"},
+        ],
+    ],
+    ids=["one-unknown-name", "all-names-renamed"],
+)
+def test_rows_naming_no_known_integration_are_a_failed_read(monkeypatch, rows):
+    """Rows with only unknown integration names are unusable, not an empty table."""
+    monkeypatch.setattr(
+        health,
+        "http_get",
+        lambda url, headers=None, method="GET", timeout=None, follow_redirects=True: (
+            200,
+            {},
+            json.dumps(rows).encode(),
+        ),
+    )
+    env = {
+        "SUPABASE_UNITE_GROUP_URL": "https://x.supabase.co",
+        "SUPABASE_UNITE_GROUP_SERVICE_KEY": "k",
+    }
+
+    verdicts = {r["status"] for r in health.check_integration_sync(env)}
+
+    assert verdicts == {"FAIL"}, (
+        f"rows naming nothing we asked about must not read as an unfired cron: {verdicts}"
+    )
