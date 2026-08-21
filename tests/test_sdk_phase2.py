@@ -4,7 +4,7 @@ test_sdk_phase2.py — Unit tests for Phase 2 SDK migration.
 Tests:
   - _run_claude_via_sdk returns (0, text, cost) on successful SDK response
   - _run_claude_via_sdk returns (1, "", 0.0) on SDK exception
-  - _run_claude_via_sdk returns (1, "", 0.0) when SDK not importable
+  - _run_claude_via_sdk fails loudly when SDK is configured but not importable
   - _run_claude_via_sdk respects timeout
   - _phase_generate falls back to subprocess on SDK failure
   - SDK flag controls SDK path activation
@@ -62,20 +62,13 @@ async def test_run_claude_via_sdk_exception():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="claude_agent_sdk mock incompatibility — pre-existing, claude_agent_sdk not fully testable in CI")
 async def test_run_claude_via_sdk_import_error():
-    """SDK not importable, returns (1, "", 0.0)."""
-    from app.server.sessions import _run_claude_via_sdk
+    """Configured SDK missing at runtime fails loudly without launching a process."""
+    from app.server.session_sdk import _run_claude_via_sdk
 
-    # Patch the import to raise ImportError inside the function
     with patch.dict(sys.modules, {"claude_agent_sdk": None}):
-        # The function should catch ImportError and return fallback values
-        rc, text, cost = await _run_claude_via_sdk("test", "sonnet", "/tmp")
-        # When SDK is not available, it should still work (using subprocess fallback logic)
-        # For now, just verify the function doesn't crash
-        assert isinstance(rc, int)
-        assert isinstance(text, str)
-        assert isinstance(cost, float)
+        with pytest.raises(RuntimeError, match="claude_agent_sdk not installed"):
+            await _run_claude_via_sdk("test", "sonnet", "/tmp")
 
 
 @pytest.mark.asyncio
@@ -101,10 +94,9 @@ async def test_run_claude_via_sdk_timeout():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="claude_agent_sdk mock incompatibility — pre-existing, claude_agent_sdk not fully testable in CI")
 async def test_phase_generate_sdk_succeeds():
     """_phase_generate uses SDK when flag on and SDK succeeds."""
-    from app.server import sessions, config
+    from app.server import config, session_phases, sessions
     from app.server.sessions import BuildSession
     import tempfile
 
@@ -115,16 +107,16 @@ async def test_phase_generate_sdk_succeeds():
         )
 
         # Mock the SDK success
-        with patch.object(sessions, "_run_claude_via_sdk") as mock_sdk:
-            mock_sdk.return_value = (0, "// Generated code\n", 0.001)
+        mock_sdk = AsyncMock(return_value=(0, "// Generated code\n", 0.001))
+        with patch.object(session_phases, "_run_claude_via_sdk", new=mock_sdk):
             with patch.object(config, "USE_AGENT_SDK", True):
-                with patch("app.server.sessions.parse_event"):
-                    with patch("app.server.sessions.em"):
-                        with patch("app.server.sessions.persistence"):
+                with patch.object(session_phases, "parse_event"):
+                    with patch.object(session_phases, "em"):
+                        with patch.object(session_phases, "persistence"):
                             result = await sessions._phase_generate(session, "test spec", "sonnet", "")
                             # Should succeed via SDK
                             assert result is True
-                            assert mock_sdk.called
+                            mock_sdk.assert_awaited_once()
 
 
 # RA-1094B — test_phase_generate_sdk_fallback removed. SDK-only mandate:
