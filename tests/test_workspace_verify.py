@@ -216,11 +216,12 @@ def test_absent_runner_is_not_reported_as_a_test_failure(tmp_path: Path, monkeyp
 def test_short_lived_runner_transport_is_closed_before_loop_shutdown(
     tmp_path: Path, monkeypatch
 ) -> None:
-    """A completed child must not defer transport cleanup past ``asyncio.run``.
+    """The verifier itself must close a completed child's transport.
 
-    Very short-lived children exposed this only during full-suite garbage collection as
-    ``BaseSubprocessTransport.__del__: RuntimeError: Event loop is closed``. Observe the
-    real subprocess transport so the regression test covers the lifecycle boundary.
+    A real asyncio subprocess may close its transport automatically, which lets a
+    deletion of the explicit finally-path close survive this regression. The
+    controlled process below has no implicit cleanup: the assertion can only pass
+    when ``run_workspace_checks`` performs the close it owns.
     """
     repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
     monkeypatch.setattr(
@@ -228,26 +229,32 @@ def test_short_lived_runner_transport_is_closed_before_loop_shutdown(
         "detect_check",
         lambda ws: (["python3", "-c", "raise SystemExit('No module named pytest')"], "pytest"),
     )
-    create = wv.asyncio.create_subprocess_exec
-    observed: dict[str, bool] = {"closed": False}
 
-    async def create_observed(*args, **kwargs):
-        proc = await create(*args, **kwargs)
-        close = proc._transport.close
+    class ControlledTransport:
+        close_calls = 0
 
-        def close_observed() -> None:
-            observed["closed"] = True
-            close()
+        def close(self) -> None:
+            self.close_calls += 1
 
-        proc._transport.close = close_observed
-        return proc
+    class ControlledProcess:
+        returncode = 1
+        pid = 999_999_999
+        _transport = ControlledTransport()
 
-    monkeypatch.setattr(wv.asyncio, "create_subprocess_exec", create_observed)
+        async def communicate(self):
+            return b"No module named pytest", None
+
+    process = ControlledProcess()
+
+    async def create_controlled(*_args, **_kwargs):
+        return process
+
+    monkeypatch.setattr(wv.asyncio, "create_subprocess_exec", create_controlled)
 
     result = _run(wv.run_workspace_checks(str(repo), timeout_s=30))
 
     assert result.status == wv.NOT_RUN
-    assert observed["closed"] is True
+    assert process._transport.close_calls == 1
 
 
 def test_secrets_do_not_reach_the_cloned_repos_test_command(monkeypatch) -> None:
