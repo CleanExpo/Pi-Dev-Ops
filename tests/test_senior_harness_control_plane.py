@@ -103,6 +103,37 @@ def test_dispatch_verify_wait_use_scheduler_and_persist_signed_state(tmp_path: P
     assert oct(state.stat().st_mode & 0o777) == "0o600"
 
 
+def test_startup_parallel_first_route_can_reserve_multiple_leaves(tmp_path: Path) -> None:
+    receipt = admit_startup(build_setup_contract(
+        "Build independent components then integrate",
+        REPO_ROOT,
+        surface="codex",
+        host_capabilities={
+            "supports_parallel": True,
+            "supports_cancellation": True,
+            "local_quality_floors": [],
+        },
+    ))
+    route = receipt["setup_contract"]["routing_request"]
+    state = Path(os.environ["SENIOR_HARNESS_STATE_DIR"]) / f"{tmp_path.name}-parallel-state.json"
+    initial = _plan(receipt)
+    first = authorize_event(
+        receipt,
+        initial,
+        route,
+        {"tool_name": "senior-harness.dispatch", "tool_input": {"node_id": "1.1", "worker_context_id": "host-a"}},
+        state_path=state,
+    )
+    second = authorize_event(
+        receipt,
+        first["plan"],
+        route,
+        {"tool_name": "senior-harness.dispatch", "tool_input": {"node_id": "1.2", "worker_context_id": "host-b"}},
+        state_path=state,
+    )
+    assert {node["state"] for node in second["plan"]["nodes"] if node["type"] == "leaf"} == {"running"}
+
+
 def test_route_plan_and_state_forgery_fail_closed(tmp_path: Path) -> None:
     receipt = _route(_startup())
     route = receipt["setup_contract"]["routing_request"]
