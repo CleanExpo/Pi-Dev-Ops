@@ -100,6 +100,21 @@ def test_missing_reference_detection(tmp_path: Path) -> None:
     assert record.missing_references == ["references/missing.md"]
 
 
+def test_parse_approved_rows_supports_source_path_with_spaces(tmp_path: Path) -> None:
+    source = _skill(tmp_path / "Source With Spaces", "approved-skill")
+    source_hash = skill_sync.folder_hash(source)
+    report = tmp_path / "report.md"
+    report.write_text(
+        f"- [x] APPROVE_PROMOTE name=approved-skill source={source} "
+        f"folder_sha256={source_hash}\n",
+        encoding="utf-8",
+    )
+
+    assert skill_sync.parse_approved_rows(report) == [
+        {"name": "approved-skill", "source": str(source), "folder": source_hash}
+    ]
+
+
 def test_apply_never_overwrites_existing_canonical_without_resolution(tmp_path: Path) -> None:
     repo_root = tmp_path / "Pi-Dev-Ops"
     _skill(repo_root / "skills", "course-skill", body="Canonical body\n")
