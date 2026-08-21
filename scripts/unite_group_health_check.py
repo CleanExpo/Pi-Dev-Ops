@@ -1154,11 +1154,11 @@ def main() -> int:
         log("baseline run; stdout silent, exit 0")
         return 0
     if regressions:
-        note_alert(tier1_failing)
+        never_fatal("note_alert", lambda: note_alert(tier1_failing), None)
         log(f"REGRESSION detected: {regressions} — stdout active, exit 1")
         return 1
     if resurface:
-        note_alert(tier1_failing)
+        never_fatal("note_alert", lambda: note_alert(tier1_failing), None)
         log(f"PERSISTENT Tier-1 failure resurfaced ({why}): {tier1_failing} "
             "— stdout active, exit 1")
         return 1

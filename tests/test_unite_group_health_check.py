@@ -735,3 +735,21 @@ def test_a_total_check_run_failure_still_alerts(monkeypatch, tmp_path):
 
     assert code == 1
     assert "health check run" in buf.getvalue()
+
+
+def test_a_failed_alert_state_write_does_not_kill_the_run(monkeypatch, tmp_path):
+    """note_alert runs AFTER stdout_report, so this never silenced anything — the
+    alert is already delivered. It exits 2 instead of 1 and skips the throttle record,
+    which is louder in both directions, not quieter. Bookkeeping should not decide the
+    exit code of a run that did its job."""
+    def boom(_failing):
+        raise RuntimeError("alert-state volume gone")
+
+    monkeypatch.setattr(health, "note_alert", boom)
+    code, delivered = _drive_main(
+        monkeypatch, tmp_path,
+        '{"checks": [{"name": "unite api/health", "tier": 1, "status": "PASS"}]}',
+    )
+
+    assert code == 1, "a delivered alert must not report itself as a crashed run"
+    assert "unite api/health" in delivered
