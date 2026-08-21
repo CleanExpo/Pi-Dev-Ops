@@ -61,10 +61,7 @@ def _route(receipt: dict) -> dict:
     unsigned = dict(contract)
     unsigned.pop("setup_contract_digest")
     contract["setup_contract_digest"] = digest(unsigned)
-    rebuilt = {"schema_version": "1.0", "stage": "startup-admitted", "setup_contract": contract,
-               "driver_digest": receipt["driver_digest"], "admission": receipt["admission"]}
-    rebuilt["receipt_integrity_digest"] = digest(rebuilt)
-    return rebuilt
+    return admit_startup(contract)
 
 
 def test_derives_only_closed_actual_host_operations() -> None:

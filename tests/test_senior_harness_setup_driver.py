@@ -57,7 +57,11 @@ def _rehash_receipt(receipt: dict) -> None:
         contract["setup_contract_digest"] = digest(unsigned_contract)
     unsigned_receipt = dict(receipt)
     unsigned_receipt.pop("receipt_integrity_digest", None)
+    unsigned_receipt.pop("receipt_seal", None)
     receipt["receipt_integrity_digest"] = digest(unsigned_receipt)
+    # Tests that intentionally model legitimate control-code drift need a
+    # receipt issued by the Harness, not an attacker recomputing public hashes.
+    receipt["receipt_seal"] = setup_driver_module._receipt_seal(receipt)
 
 
 def _start_hook_session(
@@ -136,9 +140,10 @@ def test_recomputed_public_digests_cannot_forge_embedded_mutation_authority() ->
     contract["setup_contract_digest"] = digest(unsigned_contract)
     unsigned_receipt = dict(forged)
     unsigned_receipt.pop("receipt_integrity_digest")
+    unsigned_receipt.pop("receipt_seal")
     forged["receipt_integrity_digest"] = digest(unsigned_receipt)
 
-    with pytest.raises(SetupError, match="cannot grant mutation"):
+    with pytest.raises(SetupError, match="receipt seal does not match"):
         validate_startup_receipt(forged)
 
 
@@ -147,9 +152,10 @@ def test_recomputed_public_digests_cannot_forge_outer_business_authority() -> No
     forged["admission"]["business_authority"] = True
     unsigned_receipt = dict(forged)
     unsigned_receipt.pop("receipt_integrity_digest")
+    unsigned_receipt.pop("receipt_seal")
     forged["receipt_integrity_digest"] = digest(unsigned_receipt)
 
-    with pytest.raises(SetupError, match="cannot grant mutation, business"):
+    with pytest.raises(SetupError, match="receipt seal does not match"):
         validate_startup_receipt(forged)
 
 
@@ -269,7 +275,8 @@ def test_open_uncertainty_case_keeps_original_problem_stopped() -> None:
         guard_dispatch(payload, receipt, "M07", problem_id="P-setup")
 
 
-def test_cli_start_is_machine_readable_and_read_only() -> None:
+@pytest.mark.parametrize("surface", ["codex", "claude", "vscode-openrouter"])
+def test_cli_start_is_machine_readable_read_only_and_conservative(surface: str) -> None:
     before = subprocess.run(
         ["git", "status", "--porcelain=v1", "--untracked-files=all"],
         cwd=REPO_ROOT,
@@ -286,7 +293,7 @@ def test_cli_start_is_machine_readable_and_read_only() -> None:
             "--project",
             str(REPO_ROOT),
             "--surface",
-            "codex",
+            surface,
         ],
         cwd=REPO_ROOT,
         check=True,
@@ -301,7 +308,14 @@ def test_cli_start_is_machine_readable_and_read_only() -> None:
         text=True,
     ).stdout
 
-    assert json.loads(result.stdout)["stage"] == "startup-admitted"
+    receipt = json.loads(result.stdout)
+    assert receipt["stage"] == "startup-admitted"
+    setup = receipt["setup_contract"]
+    assert setup["surface"] == surface
+    assert setup["routing_request"]["capabilities"]["supports_parallel"] is False
+    assert setup["routing_request"]["capabilities"]["supports_cancellation"] is False
+    assert setup["route_decision"]["action"] == "delegate"
+    assert setup["orchestration_policy"]["parallel_required"] is False
     assert before == after
 
 
@@ -319,9 +333,14 @@ def test_hook_lifecycle_freezes_first_prompt_and_denies_missing_receipt(tmp_path
     )
     assert "Primary objective" in submitted["hookSpecificOutput"]["additionalContext"]
 
-    allowed = handle_hook({**base, "hook_event_name": "PreToolUse"}, surface="codex", event="PreToolUse")
+    allowed = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
+        surface="codex",
+        event="PreToolUse",
+    )
     assert "permissionDecision" not in allowed["hookSpecificOutput"]
     assert "Primary objective" in allowed["hookSpecificOutput"]["additionalContext"]
+    assert "dispatch independent workers immediately" in allowed["hookSpecificOutput"]["additionalContext"]
 
     followup = handle_hook(
         {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Push an unrelated release"},
@@ -330,6 +349,7 @@ def test_hook_lifecycle_freezes_first_prompt_and_denies_missing_receipt(tmp_path
     )
     assert "remains frozen" in followup["hookSpecificOutput"]["additionalContext"]
     assert "Primary objective" in followup["hookSpecificOutput"]["additionalContext"]
+    assert "dispatch independent workers immediately" in followup["hookSpecificOutput"]["additionalContext"]
 
     cleared = handle_hook(
         {**base, "hook_event_name": "SessionStart", "source": "clear"},
@@ -341,6 +361,97 @@ def test_hook_lifecycle_freezes_first_prompt_and_denies_missing_receipt(tmp_path
         {**base, "hook_event_name": "PreToolUse"}, surface="codex", event="PreToolUse"
     )
     assert denied_after_clear["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+@pytest.mark.parametrize("surface", ["codex", "claude"])
+def test_fresh_hook_session_routes_substantive_work_to_parallel_fanout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, surface: str
+) -> None:
+    """A new window must not silently advertise a serial-only host."""
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    base = {"session_id": "fresh-parallel-window", "cwd": str(REPO_ROOT)}
+
+    submitted = handle_hook(
+        {
+            **base,
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": "Repair the harness, test the runtime, and independently review the result",
+        },
+        surface=surface,
+        event="UserPromptSubmit",
+    )
+
+    state_path = setup_driver_module._state_path(REPO_ROOT.resolve(), base["session_id"])
+    receipt = json.loads(state_path.read_text(encoding="utf-8"))["receipt"]
+    contract = receipt["setup_contract"]
+    assert contract["routing_request"]["capabilities"]["supports_parallel"] is True
+    assert contract["routing_request"]["capabilities"]["supports_cancellation"] is True
+    assert contract["routing_request"]["signals"]["ownership_disjoint"] is False
+    assert contract["route_decision"]["action"] == "delegate"
+    assert contract["orchestration_policy"]["parallel_required"] is True
+    assert contract["orchestration_policy"]["requires_disjoint_ownership_proof"] is True
+    assert contract["orchestration_policy"]["root_mutation_authority"] is False
+    context = submitted["hookSpecificOutput"]["additionalContext"]
+    assert "dispatch independent workers immediately" in context
+    assert "Do not begin root implementation first" in context
+
+
+def test_parallel_required_root_cannot_implement_but_can_dispatch_and_coordinate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    base = {"session_id": "parallel-root-boundary", "cwd": str(REPO_ROOT)}
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Repair and verify the harness"},
+        surface="codex",
+        event="UserPromptSubmit",
+    )
+
+    for tool_name, tool_input in (
+        ("Write", {"file_path": "app.py"}),
+        ("Edit", {"file_path": "app.py"}),
+        ("apply_patch", {"patch": "*** Begin Patch"}),
+    ):
+        denied = handle_hook(
+            {**base, "hook_event_name": "PreToolUse", "tool_name": tool_name, "tool_input": tool_input},
+            surface="codex",
+            event="PreToolUse",
+        )
+        assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+        assert "denied root implementation" in denied["hookSpecificOutput"]["permissionDecisionReason"]
+
+    proof = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "exec_command", "tool_input": {"cmd": "pytest -q"}},
+        surface="codex",
+        event="PreToolUse",
+    )
+    assert "permissionDecision" not in proof["hookSpecificOutput"]
+
+    for tool_name in ("spawn_agent", "followup_task", "wait_agent", "list_agents"):
+        allowed = handle_hook(
+            {**base, "hook_event_name": "PreToolUse", "tool_name": tool_name, "tool_input": {}},
+            surface="codex",
+            event="PreToolUse",
+        )
+        assert "permissionDecision" not in allowed["hookSpecificOutput"]
+
+
+def test_grill_hook_never_orders_dispatch_before_shared_understanding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    base = {"session_id": "grill-no-early-fanout", "cwd": str(REPO_ROOT)}
+    submitted = handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "/grill-me shape recovery"},
+        surface="claude",
+        event="UserPromptSubmit",
+    )
+    state_path = setup_driver_module._state_path(REPO_ROOT.resolve(), base["session_id"])
+    contract = json.loads(state_path.read_text(encoding="utf-8"))["receipt"]["setup_contract"]
+    assert contract["orchestration_policy"]["parallel_required"] is False
+    context = submitted["hookSpecificOutput"]["additionalContext"]
+    assert "dispatch independent workers immediately" not in context
+    assert "worker dispatch remain denied" in context
 
 
 def test_hook_allows_only_exact_recovery_safe_reads_without_startup_state(
@@ -477,9 +588,8 @@ def test_delivery_control_drift_after_clean_first_tool_warns_without_denying_mut
 
     later_write = _pretool(base, "Write")
     later_output = later_write["hookSpecificOutput"]
-    assert "permissionDecision" not in later_output
-    assert "control-code drift detected" in later_output["additionalContext"]
-    assert "cannot be reused as fresh control-code evidence" in later_output["additionalContext"]
+    assert later_output["permissionDecision"] == "deny"
+    assert "denied root implementation" in later_output["permissionDecisionReason"]
 
     followup = handle_hook(
         {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Continue the same objective"},
@@ -565,7 +675,7 @@ def test_interaction_is_derived_from_the_exact_objective_prefix(
     assert validate_startup_receipt(receipt)["status"] == "valid"
 
 
-def test_recomputed_public_digests_cannot_rewrite_grill_interaction_to_delivery(
+def test_trusted_reissued_receipt_still_cannot_mismatch_grill_interaction(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     base, state_path = _start_hook_session(

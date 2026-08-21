@@ -18,6 +18,23 @@ digest, this driver, and the installed `senior-harness`, `model-router`, and `un
 It also executes the provider-neutral router and binds its `RoutingRequest` and `RouteDecision`, then
 requires Unlazy as the downstream decomposition, gate, integration, and receipt controller.
 
+For normal Codex and Claude delivery sessions, startup also binds a parallel-first orchestration
+policy. Before the root performs implementation, load Unlazy, prove disjoint leaf ownership, admit
+the delivery contract, and dispatch the independent leaves up to the four-worker cap. The root owns
+coordination and final proof; bounded leaf and integration workers own every mutation. The lifecycle
+hook denies root mutation tools throughout a parallel-required session. Grill interactions remain
+locked and never receive an early dispatch instruction.
+
+Install the same control stack into all three skill discovery roots with:
+
+```bash
+bash scripts/install_senior_harness.sh
+```
+
+This aligns `senior-harness`, `model-router`, and `unlazy` under `~/.codex/skills`,
+`~/.claude/skills`, and `~/.agents/skills`. Codex and Claude have lifecycle-hook adapters; the
+Agents root is discovery-only unless its host separately proves a lifecycle adapter.
+
 Run the same driver explicitly from any Git project when hooks are unavailable or untrusted:
 
 ```bash

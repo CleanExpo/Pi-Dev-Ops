@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -63,6 +64,28 @@ READ_ONLY_GIT = {
     ("diff", "--binary", "--no-ext-diff", "HEAD", "--"),
     ("ls-files", "--others", "--exclude-standard", "-z"),
 }
+
+
+def _surface_capabilities(surface: str, *, hooks_configured: bool) -> dict[str, Any]:
+    """Declare only lifecycle capabilities backed by a configured host adapter."""
+    if surface not in {"codex", "claude", "vscode-openrouter"}:
+        raise SetupError([f"unsupported surface: {surface}"])
+    lifecycle_state = "configured" if hooks_configured else "explicit-driver"
+    adapter_evidence = {
+        "codex": "codex-collaboration-spawn-and-interrupt",
+        "claude": "claude-agent-dispatch-and-cancel",
+        "vscode-openrouter": "no-probed-lifecycle-adapter",
+    }
+    lifecycle_parallel = hooks_configured and surface in {"codex", "claude"}
+    return {
+        "lifecycle_hooks": lifecycle_state,
+        "pre_tool_use": lifecycle_state if hooks_configured else "explicit-driver",
+        "specialized_tool_interception": "unknown",
+        "supports_parallel": lifecycle_parallel,
+        "supports_model_override": False,
+        "supports_cancellation": lifecycle_parallel,
+        "evidence": adapter_evidence[surface],
+    }
 
 
 class SetupError(ValueError):
@@ -155,6 +178,7 @@ def _candidate_skill_dirs(name: str, project_root: Path, search_roots: Iterable[
                 project_root / "skills",
                 Path.home() / ".codex" / "skills",
                 Path.home() / ".claude" / "skills",
+                Path.home() / ".agents" / "skills",
             ]
         )
     candidates: list[Path] = []
@@ -285,6 +309,9 @@ def build_setup_contract(
             "required_tools": ["read", "research"] if interaction in GRILL_INTERACTIONS else ["read", "edit", "test"],
             "sensitivity": "internal",
             "prior_failures": 0,
+            # Startup has not run Unlazy yet, so disjoint ownership is not a
+            # fact the router may assume. The orchestration policy below makes
+            # decomposition-before-root-implementation mandatory.
             "ownership_disjoint": False,
         },
         "limits": {
@@ -320,11 +347,98 @@ def build_setup_contract(
             "owns": ["decomposition", "leaf-gates", "integration-gates", "exact-candidate-receipts"],
             "dispatch_after": "valid-delivery-contract-and-guard-dispatch",
         },
+        "orchestration_policy": {
+            "parallel_required": (
+                interaction == "delivery"
+                and capabilities.get("supports_parallel") is True
+                and capabilities.get("supports_cancellation") is True
+            ),
+            "max_parallel_workers": 4,
+            "requires_disjoint_ownership_proof": True,
+            "root_mutation_authority": False,
+        },
         "secondary_objectives": [],
         "authority": dict(STARTUP_AUTHORITY),
     }
     contract["setup_contract_digest"] = digest(contract)
     return contract
+
+
+SEAL_PREFIX = "hmac-sha256:"
+SEAL_KEY_ENV = "SENIOR_HARNESS_SEAL_KEY_FILE"
+
+
+def _seal_key_path() -> Path:
+    """Where the seal key lives — deliberately NOT under the state root.
+
+    The state root is the surface an attacker in this threat model already
+    controls. A key stored beside the state file would be readable by exactly
+    whoever we are defending against, so the key lives under a separate config
+    root instead.
+    """
+    override = os.environ.get(SEAL_KEY_ENV)
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".config" / "senior-harness" / "receipt-seal.key"
+
+
+def _seal_key() -> bytes:
+    """Read the machine-local seal key, creating it 0600 on first use."""
+    path = _seal_key_path()
+    try:
+        existing = path.read_bytes()
+    except FileNotFoundError:
+        existing = None
+    except OSError as exc:
+        raise SetupError([f"startup receipt seal key cannot be read: {exc}"]) from exc
+    if existing is not None:
+        if len(existing) < 32:
+            raise SetupError([f"startup receipt seal key is too short: {path}"])
+        return existing
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.parent.chmod(0o700)
+    except OSError:
+        pass
+    key = os.urandom(32)
+    try:
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        # Another process won the create race; its key is authoritative.
+        try:
+            existing = path.read_bytes()
+        except OSError as exc:
+            raise SetupError([f"startup receipt seal key cannot be read after creation race: {exc}"]) from exc
+        if len(existing) < 32:
+            raise SetupError([f"startup receipt seal key is too short: {path}"])
+        return existing
+    try:
+        os.write(descriptor, key)
+    finally:
+        os.close(descriptor)
+    return key
+
+
+def _receipt_seal(receipt: Any) -> str:
+    """HMAC the receipt with a key the state-file holder cannot recompute.
+
+    Every other digest on the receipt is derived FROM the receipt by a public
+    function, so a holder of the state file can rewrite any field and recompute
+    all of them. Review round 1 confirmed that by execution: re-deriving every
+    objective-driven field converted a grill session to delivery and admitted
+    Write. The seal is the one value that cannot be regenerated from the file
+    alone.
+
+    Bounded claim, stated precisely: this does not make the receipt
+    unforgeable by any local process — a process that reads the key file can
+    still forge one. It removes forgery-by-recomputation, which is the confirmed
+    attack, and forces an attacker to reach a second, separately-located secret.
+    """
+    unsealed = {key: value for key, value in dict(receipt).items() if key != "receipt_seal"}
+    payload = json.dumps(
+        unsealed, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    return SEAL_PREFIX + hmac.new(_seal_key(), payload, hashlib.sha256).hexdigest()
 
 
 def admit_startup(contract: dict[str, Any]) -> dict[str, Any]:
@@ -357,6 +471,7 @@ def admit_startup(contract: dict[str, Any]) -> dict[str, Any]:
         "admission": dict(STARTUP_ADMISSION),
     }
     receipt["receipt_integrity_digest"] = digest(receipt)
+    receipt["receipt_seal"] = _receipt_seal(receipt)
     return receipt
 
 
@@ -449,7 +564,24 @@ def validate_startup_receipt(
     if not isinstance(receipt, dict):
         raise SetupError(["startup receipt must be a JSON object"])
     errors: list[str] = []
-    candidate = dict(receipt)
+    # The seal is checked first and with hmac.compare_digest, because it is the
+    # only field on the receipt that a holder of the state file cannot recompute.
+    # Every check below it compares a public digest against a public function and
+    # therefore survives a consistent re-forge on its own.
+    #
+    # PAIRING, load-bearing: a receipt issued by an older driver has no seal and
+    # can never gain one, so this check alone would strand every in-flight session
+    # on the machine — observed for real on 2026-08-22. What makes it survivable is
+    # the re-admission path in handle_hook's UserPromptSubmit branch, which
+    # replaces an unverifiable prior receipt from the next prompt instead of
+    # propagating the failure. Never add a receipt requirement here without that
+    # path; `test_a_receipt_from_an_older_driver_heals_on_the_next_prompt` pins it.
+    observed_seal = receipt.get("receipt_seal")
+    if not isinstance(observed_seal, str) or not observed_seal.startswith(SEAL_PREFIX):
+        errors.append("startup receipt seal is missing or malformed")
+    elif not hmac.compare_digest(observed_seal, _receipt_seal(receipt)):
+        errors.append("startup receipt seal does not match this machine's harness key")
+    candidate = {key: value for key, value in receipt.items() if key != "receipt_seal"}
     observed_digest = candidate.pop("receipt_integrity_digest", None)
     if not _is_sha256_digest(observed_digest):
         errors.append("startup receipt integrity digest is missing or malformed")
@@ -565,6 +697,64 @@ def _hook_output(event: str, context: str, *, deny: bool = False) -> dict[str, A
             }
         }
     return {"continue": not deny, "stopReason": context if deny else None, "systemMessage": context}
+
+
+def _parallel_dispatch_context(contract: dict[str, Any]) -> str:
+    policy = contract.get("orchestration_policy", {})
+    if not isinstance(policy, dict) or policy.get("parallel_required") is not True:
+        return ""
+    return (
+        " Parallel fanout is mandatory. First load Unlazy and produce a valid delivery contract "
+        "with disjoint ownership; once its dispatch guard admits the leaves, dispatch independent "
+        "workers immediately up to the admitted capacity. Do not begin root implementation first; "
+        "root owns coordination and final proof; leaf and integration workers own every mutation."
+    )
+
+
+def _is_parallel_control_tool(payload: dict[str, Any]) -> bool:
+    """Allow only exact host orchestration controls on a parallel-required root."""
+    raw_name = payload.get("tool_name") or payload.get("tool") or ""
+    if isinstance(raw_name, dict):
+        raw_name = raw_name.get("name", "")
+    name = str(raw_name).lower().replace("-", "_")
+    return name in {
+        "spawn_agent",
+        "agent",
+        "task",
+        "followup_task",
+        "send_message",
+        "wait_agent",
+        "list_agents",
+        "interrupt_agent",
+        "update_plan",
+        "get_goal",
+    }
+
+
+def _is_parallel_verification_tool(payload: dict[str, Any]) -> bool:
+    """Permit bounded proof commands while keeping product mutation denied."""
+    raw_name = payload.get("tool_name") or payload.get("tool") or ""
+    if isinstance(raw_name, dict):
+        raw_name = raw_name.get("name", "")
+    name = str(raw_name).lower().replace("-", "_")
+    if not any(marker in name for marker in ("bash", "exec", "command", "shell")):
+        return False
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        tool_input = payload.get("input") if isinstance(payload.get("input"), dict) else {}
+    command = tool_input.get("cmd") or tool_input.get("command")
+    if not isinstance(command, str) or not command.strip() or re.search(r"[\n;&|<>`]|\$\(", command):
+        return False
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        return False
+    if not argv:
+        return False
+    executable = Path(argv[0]).name
+    if executable in {"pytest", "ruff", "mypy", "pyright"}:
+        return True
+    return executable in {"npm", "pnpm", "yarn"} and len(argv) > 1 and argv[1] in {"test", "check", "lint"}
 
 
 def _state_path(project_root: Path, session_id: str) -> Path:
@@ -698,32 +888,56 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         if not isinstance(prompt, str) or not prompt.strip():
             raise SetupError(["UserPromptSubmit payload is missing the literal prompt"])
         if state_path.is_file():
-            state = json.loads(state_path.read_text(encoding="utf-8"))
-            if not isinstance(state, dict):
-                raise SetupError(["startup state must be a JSON object"])
-            receipt = state.get("receipt", {})
-            validate_startup_receipt(
-                receipt,
-                project=project_root,
-                verify_repository=False,
-                verify_control_bindings=False,
-            )
-            primary = receipt["setup_contract"]["literal_objective"]
-            binding_result = _check_control_bindings(receipt)
-            if binding_result.integrity_failures:
-                raise SetupError([*binding_result.integrity_failures, *binding_result.drift])
-            control_drift = binding_result.drift
-            drift_context = (
-                " Control-code drift is present and must be revalidated in a fresh session: "
-                + "; ".join(control_drift)
-                + "."
-                if control_drift
-                else ""
-            )
-            return _hook_output(
-                event,
-                f"Senior Harness primary objective remains frozen byte-for-byte: {primary!r}. Treat this prompt as a subordinate instruction unless the user starts a new task.{drift_context}",
-            )
+            # A prior receipt that cannot be verified must NOT strand the session.
+            # A prompt is the one moment a fresh admission can legitimately be
+            # issued, so an unverifiable receipt falls through to re-admission
+            # below instead of propagating and denying every subsequent tool.
+            #
+            # This is the recovery path for a receipt issued by an OLDER driver —
+            # e.g. one predating the receipt seal, which has no seal field and can
+            # never satisfy the check no matter how many prompts arrive. Without
+            # this, shipping any new receipt requirement instantly denies every
+            # in-flight session on the machine with no way back. That failure was
+            # observed for real on 2026-08-22 and is what this branch prevents.
+            #
+            # Re-admission grants nothing: the new receipt is bound to the current
+            # prompt, the current checkout and the current control digests, and
+            # carries the same zero-authority admission block as any other. The
+            # cost is that a party who can corrupt the state file can force the
+            # objective lock to be re-taken from the next prompt — strictly less
+            # power than the tool denial it replaces, and they must already be able
+            # to write the state root to try it.
+            try:
+                state = json.loads(state_path.read_text(encoding="utf-8"))
+                if not isinstance(state, dict):
+                    raise SetupError(["startup state must be a JSON object"])
+                receipt = state.get("receipt", {})
+                validate_startup_receipt(
+                    receipt,
+                    project=project_root,
+                    verify_repository=False,
+                    verify_control_bindings=False,
+                )
+                primary = receipt["setup_contract"]["literal_objective"]
+                parallel_context = _parallel_dispatch_context(receipt["setup_contract"])
+                binding_result = _check_control_bindings(receipt)
+                if binding_result.integrity_failures:
+                    raise SetupError([*binding_result.integrity_failures, *binding_result.drift])
+                control_drift = binding_result.drift
+            except (OSError, json.JSONDecodeError, KeyError, TypeError, SetupError):
+                control_drift = None  # signal: re-admit from this prompt
+            if control_drift is not None:
+                drift_context = (
+                    " Control-code drift is present and must be revalidated in a fresh session: "
+                    + "; ".join(control_drift)
+                    + "."
+                    if control_drift
+                    else ""
+                )
+                return _hook_output(
+                    event,
+                    f"Senior Harness primary objective remains frozen byte-for-byte: {primary!r}. Treat this prompt as a subordinate instruction unless the user starts a new task.{parallel_context}{drift_context}",
+                )
         interaction = _interaction_for_objective(prompt)
         if interaction is None:
             raise SetupError(["UserPromptSubmit payload is missing the literal prompt"])
@@ -732,15 +946,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
             project_root,
             surface=surface,
             interaction=interaction,
-            host_capabilities={
-                "lifecycle_hooks": "configured",
-                "pre_tool_use": "configured",
-                "specialized_tool_interception": "unknown",
-                "supports_parallel": False,
-                "supports_model_override": False,
-                "supports_cancellation": False,
-                "evidence": f"project-{surface}-hook",
-            },
+            host_capabilities=_surface_capabilities(surface, hooks_configured=True),
         )
         receipt = admit_startup(contract)
         _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
@@ -751,7 +957,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         )
         return _hook_output(
             event,
-            f"Senior Harness froze the primary objective: {prompt!r}. Load model-router and unlazy before substantive delivery. Startup admission grants no mutation, business, or irreversible authority.{grill_context}",
+            f"Senior Harness froze the primary objective: {prompt!r}. Load model-router and unlazy before substantive delivery.{_parallel_dispatch_context(contract)} Startup admission grants no mutation, business, or irreversible authority.{grill_context}",
         )
 
     recovery_safe = _tool_is_recovery_safe(payload)
@@ -794,6 +1000,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
             state["first_tool_admitted"] = True
             _write_state(state_path, state)
         primary = receipt["setup_contract"]["literal_objective"]
+        parallel_context = _parallel_dispatch_context(receipt["setup_contract"])
     except (OSError, json.JSONDecodeError, KeyError, SetupError) as exc:
         if recovery_safe:
             return _hook_output(
@@ -807,6 +1014,19 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
             "Senior Harness denied the tool: Grill-Me permits evidence discovery and its control-state driver only until shared understanding is explicitly confirmed.",
             deny=True,
         )
+    policy = receipt["setup_contract"].get("orchestration_policy", {})
+    if (
+        isinstance(policy, dict)
+        and policy.get("parallel_required") is True
+        and not recovery_safe
+        and not _is_parallel_control_tool(payload)
+        and not _is_parallel_verification_tool(payload)
+    ):
+        return _hook_output(
+            event,
+            "Senior Harness denied root implementation: this parallel-required root may coordinate, read, dispatch, wait, and verify, but every mutation must be owned by a bounded leaf or integration worker.",
+            deny=True,
+        )
     drift_context = ""
     if control_drift:
         drift_context = (
@@ -816,7 +1036,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         )
     return _hook_output(
         event,
-        f"Senior Harness objective lock: {primary!r}. Startup admission does not authorize this tool; normal host and repository policy still decide it. This hook covers mediated local tools only; hosted or specialized bypasses are not claimed.{drift_context}",
+        f"Senior Harness objective lock: {primary!r}.{parallel_context} Startup admission does not authorize this tool; normal host and repository policy still decide it. This hook covers mediated local tools only; hosted or specialized bypasses are not claimed.{drift_context}",
     )
 
 
