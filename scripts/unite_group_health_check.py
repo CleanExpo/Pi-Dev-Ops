@@ -185,9 +185,23 @@ def supabase_rest_rows(
         url, headers={"apikey": key, "Authorization": f"Bearer {key}"}
     )
     try:
-        return status, json.loads(body.decode("utf-8") or "[]")
+        rows = json.loads(body.decode("utf-8") or "[]")
     except Exception:
-        return status, []
+        # Returning `status` here handed the caller a 200 with zero rows, and
+        # check_integration_sync reads that as "no sync_state row yet (cron not
+        # fired)" — a benign WARN, which reaches no alert path. So a Supabase
+        # endpoint answering 200 with an HTML gateway error rendered as eighteen
+        # harmless WARNs and told nobody. A body we cannot parse is a read that
+        # failed; 0 is this file's existing convention for that, and the caller
+        # already turns any non-200 into a Tier-1 FAIL.
+        return 0, []
+    if not isinstance(rows, list):
+        # Valid JSON, wrong shape — `{"error": "..."}` or a bare scalar. Equally a
+        # read that failed, and returning (200, []) sent it down the same benign-WARN
+        # path. My first pass at this fix caught the unparseable case and missed this
+        # one; the test caught me.
+        return 0, []
+    return status, rows
 
 
 def supabase_mgmt(env: dict[str, str], path: str) -> tuple[int, Any]:

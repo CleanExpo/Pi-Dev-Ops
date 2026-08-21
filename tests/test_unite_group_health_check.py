@@ -753,3 +753,44 @@ def test_a_failed_alert_state_write_does_not_kill_the_run(monkeypatch, tmp_path)
 
     assert code == 1, "a delivered alert must not report itself as a crashed run"
     assert "unite api/health" in delivered
+
+
+@pytest.mark.parametrize(
+    "body",
+    [b"<html>gateway error</html>", b"not json at all", b'{"error": "boom"}', b"5"],
+)
+def test_an_unparseable_rest_body_is_a_failed_read_not_an_empty_result(monkeypatch, body):
+    """A 200 with a body we cannot parse used to return (200, []), and
+    check_integration_sync reads that as "no sync_state row yet (cron not fired)" — a
+    benign WARN that reaches no alert path. A Supabase outage serving HTML would have
+    rendered as eighteen harmless WARNs."""
+    monkeypatch.setattr(
+        health, "http_get",
+        lambda url, headers=None, method="GET", timeout=None, follow_redirects=True: (200, {}, body),
+    )
+    env = {"SUPABASE_UNITE_GROUP_URL": "https://x.supabase.co",
+           "SUPABASE_UNITE_GROUP_SERVICE_KEY": "k"}
+
+    status, rows = health.supabase_rest_rows(env, "t", "select=*")
+
+    assert status == 0
+    assert rows == []
+
+    verdicts = {r["status"] for r in health.check_integration_sync(env)}
+    assert verdicts == {"FAIL"}, f"an unreadable database must not read as benign: {verdicts}"
+
+
+def test_a_valid_rest_body_still_parses(monkeypatch):
+    """Negative control: the normal path must be untouched."""
+    monkeypatch.setattr(
+        health, "http_get",
+        lambda url, headers=None, method="GET", timeout=None, follow_redirects=True:
+            (200, {}, b'[{"integration": "github", "last_sync_status": "ok"}]'),
+    )
+    env = {"SUPABASE_UNITE_GROUP_URL": "https://x.supabase.co",
+           "SUPABASE_UNITE_GROUP_SERVICE_KEY": "k"}
+
+    status, rows = health.supabase_rest_rows(env, "t", "select=*")
+
+    assert status == 200
+    assert rows == [{"integration": "github", "last_sync_status": "ok"}]
