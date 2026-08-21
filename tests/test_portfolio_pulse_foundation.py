@@ -47,7 +47,14 @@ def test_build_pulse_writes_markdown(tmp_path):
 
 def test_run_all_projects_iterates_defaults(tmp_path):
     """run_all_projects covers all 7 default projects without raising."""
-    results = portfolio_pulse.run_all_projects(repo_root=tmp_path)
+    # This is the foundation-iteration contract, not the separately tested
+    # cross-portfolio LLM synthesis. Leaving the default enabled launches a
+    # real Agent SDK subprocess from the unit suite and can outlive the test's
+    # event loop when credentials/providers are present.
+    results = portfolio_pulse.run_all_projects(
+        repo_root=tmp_path,
+        include_synthesis=False,
+    )
     assert len(results) == len(portfolio_pulse.DEFAULT_PROJECTS)
     for r in results:
         assert r.project_id in portfolio_pulse.DEFAULT_PROJECTS
