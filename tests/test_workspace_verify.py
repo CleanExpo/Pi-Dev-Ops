@@ -108,6 +108,43 @@ def test_absent_runner_is_not_reported_as_a_test_failure(tmp_path: Path, monkeyp
     assert "not installed" in result.reason
 
 
+def test_short_lived_runner_transport_is_closed_before_loop_shutdown(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A completed child must not defer transport cleanup past ``asyncio.run``.
+
+    Very short-lived children exposed this only during full-suite garbage collection as
+    ``BaseSubprocessTransport.__del__: RuntimeError: Event loop is closed``. Observe the
+    real subprocess transport so the regression test covers the lifecycle boundary.
+    """
+    repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
+    monkeypatch.setattr(
+        wv,
+        "detect_check",
+        lambda ws: (["python3", "-c", "raise SystemExit('No module named pytest')"], "pytest"),
+    )
+    create = wv.asyncio.create_subprocess_exec
+    observed: dict[str, bool] = {"closed": False}
+
+    async def create_observed(*args, **kwargs):
+        proc = await create(*args, **kwargs)
+        close = proc._transport.close
+
+        def close_observed() -> None:
+            observed["closed"] = True
+            close()
+
+        proc._transport.close = close_observed
+        return proc
+
+    monkeypatch.setattr(wv.asyncio, "create_subprocess_exec", create_observed)
+
+    result = _run(wv.run_workspace_checks(str(repo), timeout_s=30))
+
+    assert result.status == wv.NOT_RUN
+    assert observed["closed"] is True
+
+
 def test_secrets_do_not_reach_the_cloned_repos_test_command(monkeypatch) -> None:
     """A cloned repo's test script must not be handed this process's credentials.
 
