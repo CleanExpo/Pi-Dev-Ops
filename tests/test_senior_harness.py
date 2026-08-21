@@ -233,6 +233,48 @@ def test_repository_identity_is_bound_to_the_declared_worktree() -> None:
     assert "candidate_sha must equal repository.worktree HEAD" in error_text(wrong_head)
 
 
+def test_repository_ancestry_ignores_local_replace_and_grafts(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    assert git("init", "-q").returncode == 0
+    assert git("config", "user.name", "Senior Harness Test").returncode == 0
+    assert git("config", "user.email", "senior-harness@example.invalid").returncode == 0
+    (repo / "base.txt").write_text("base\n", encoding="utf-8")
+    assert git("add", "base.txt").returncode == 0
+    assert git("commit", "-q", "-m", "base").returncode == 0
+    base_sha = git("rev-parse", "HEAD").stdout.strip()
+
+    assert git("checkout", "--orphan", "unrelated").returncode == 0
+    (repo / "base.txt").unlink()
+    (repo / "candidate.txt").write_text("candidate\n", encoding="utf-8")
+    assert git("add", "-A").returncode == 0
+    assert git("commit", "-q", "-m", "candidate").returncode == 0
+    candidate_sha = git("rev-parse", "HEAD").stdout.strip()
+
+    assert git("merge-base", "--is-ancestor", base_sha, candidate_sha).returncode == 1
+    assert git("replace", "--graft", candidate_sha, base_sha).returncode == 0
+    assert git("merge-base", "--is-ancestor", base_sha, candidate_sha).returncode == 0
+
+    payload = contract()
+    payload["repository"] = {
+        "worktree": str(repo),
+        "base_sha": base_sha,
+        "candidate_sha": candidate_sha,
+    }
+
+    assert "repository.base_sha must be an ancestor" in error_text(payload)
+
+
 def test_task_id_is_derived_from_the_exact_literal_request() -> None:
     payload = contract()
     payload["task_id"] = "made-up"

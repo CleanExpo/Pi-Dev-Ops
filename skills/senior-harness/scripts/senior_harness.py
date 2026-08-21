@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from collections import Counter, defaultdict, deque
@@ -565,12 +566,16 @@ def _validate_repository(contract: dict[str, Any], errors: list[str]) -> None:
         errors.append("repository.candidate_sha must equal repository.worktree HEAD")
     ancestry_tip = candidate_sha if isinstance(candidate_sha, str) and len(candidate_sha) == 40 else head_sha
     if isinstance(base_sha, str) and len(base_sha) == 40:
+        ancestry_env = os.environ.copy()
+        ancestry_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+        ancestry_env["GIT_GRAFT_FILE"] = os.devnull
         ancestry = subprocess.run(
             ["git", "merge-base", "--is-ancestor", base_sha, ancestry_tip],
             cwd=actual_root,
             text=True,
             capture_output=True,
             check=False,
+            env=ancestry_env,
         )
         if ancestry.returncode != 0:
             errors.append("repository.base_sha must be an ancestor of the checked candidate or worktree HEAD")
