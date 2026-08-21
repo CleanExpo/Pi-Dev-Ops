@@ -708,6 +708,38 @@ def test_malformed_or_unavailable_skill_bindings_deny_mutation(
     assert "recovery-only read" in recovery_read["hookSpecificOutput"]["additionalContext"]
 
 
+def test_invalid_utf8_bound_skill_enters_recovery_or_deny_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base, state_path = _start_hook_session(
+        tmp_path / "state", monkeypatch, session_id="invalid-utf8-skill"
+    )
+    invalid_skill = tmp_path / "invalid-senior-harness"
+    invalid_skill.mkdir()
+    (invalid_skill / "SKILL.md").write_bytes(
+        b"---\nname: senior-harness\n---\ninvalid utf-8: \xff\n"
+    )
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    receipt = state["receipt"]
+    binding = receipt["setup_contract"]["required_skills"]["senior-harness"]
+    binding["path"] = str(invalid_skill)
+    binding["folder_digest"] = setup_driver_module._folder_digest(invalid_skill)
+    _rehash_receipt(receipt)
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    recovery_read = _pretool(base, "Read")
+    read_output = recovery_read["hookSpecificOutput"]
+    assert "permissionDecision" not in read_output
+    assert "recovery-only read" in read_output["additionalContext"]
+    assert "grants no mutation" in read_output["additionalContext"]
+    assert "bound skill is unavailable or invalid: senior-harness" in read_output["additionalContext"]
+
+    denied = _pretool(base, "Write")
+    deny_output = denied["hookSpecificOutput"]
+    assert deny_output["permissionDecision"] == "deny"
+    assert "bound skill is unavailable or invalid: senior-harness" in deny_output["permissionDecisionReason"]
+
+
 def test_hook_rejects_malformed_or_mismatched_input() -> None:
     with pytest.raises(SetupError, match="missing session_id"):
         handle_hook({}, surface="claude", event="PreToolUse")

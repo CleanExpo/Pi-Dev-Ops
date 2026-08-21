@@ -135,7 +135,7 @@ def _git(project: Path, *args: str) -> str:
 def _frontmatter_name(skill_file: Path) -> str | None:
     try:
         lines = skill_file.read_text(encoding="utf-8").splitlines()
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return None
     if not lines or lines[0].strip() != "---":
         return None
