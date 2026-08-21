@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.23.4",
-    "generated_at": "2026-08-21T01:54:48.381818+00:00",
+    "version": "1.24.4",
+    "generated_at": "2026-08-21T04:41:50.911541+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -2480,6 +2480,26 @@
       },
       "inferred": true,
       "low_confidence": true
+    },
+    {
+      "id": "senior-harness",
+      "description": "Use before substantive project work that requires governed discovery, delegation, verification, or recovery from repeated failure.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/senior-harness/SKILL.md",
+      "sha256": "e722534272e37d5b9c4218d3635fd5b3aa96613392f9e0e50604e4dcc46516f2",
+      "dependencies": {
+        "tools": [],
+        "skills": [
+          "skill.model-router",
+          "skill.unlazy"
+        ]
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      }
     },
     {
       "id": "session-handoff",

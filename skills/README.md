@@ -11,3 +11,4 @@ placement rule. Add a line here when you add a new skill.
 - [`control-design`](control-design/SKILL.md) — Before a guard, test or fixture exists: will this control actually FIRE when the defect is present?
 - [`control-scope`](control-scope/SKILL.md) — After a check has run: what did the instrument actually look at, and what claim does that permit? Catches searches aimed at the wrong name, fixed-set checks that go stale, and narrowed scope reported as breadth.
 - [`proof-discipline`](proof-discipline/SKILL.md) — Before claiming anything is green, done, fixed or shipped: prove it against the live system rather than asserting it.
+- [`senior-harness`](senior-harness/SKILL.md) — Govern substantive work above the Lead LLM with bounded discovery, 15–20-move horizons, model routing, anti-spin cases, independent verification, and evidence-gated learning.
