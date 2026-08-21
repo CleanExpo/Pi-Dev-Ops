@@ -855,6 +855,25 @@ def guarded(name: str, tier: int, fn: Any, *args: Any) -> list[dict[str, Any]]:
     return result if isinstance(result, list) else [result]
 
 
+def never_fatal(label: str, fn: Any, fallback: Any) -> Any:
+    """Run one step of main()'s alert path. Nothing here may stop the alert.
+
+    `guarded` protects the checks; this protects everything between them and stdout.
+    Three separate defects have now landed in that stretch — a TypeError parsing
+    last_alert_at, and an OSError writing the JSON record — each aborting main() AFTER
+    the work was done and BEFORE the alert went out. A run that looks complete on disk
+    and told nobody is the worst outcome this file can produce, worse than crashing
+    early, because the cron store still shows it ran.
+
+    The record on disk is a convenience. The alert is the product.
+    """
+    try:
+        return fn()
+    except Exception as e:  # noqa: BLE001 — that is the entire point
+        log(f"{label} failed ({type(e).__name__}: {e}) — continuing so the alert goes out")
+        return fallback
+
+
 def run_all() -> list[dict[str, Any]]:
     env = load_env()
     checks: list[dict[str, Any]] = []
@@ -1043,7 +1062,10 @@ def main() -> int:
     started = _dt.datetime.now(_dt.timezone.utc)
     log(f"Unite-Group health check starting — {started.isoformat()}")
 
-    prior = prior_run()
+    # prior_run guards its own JSON parse, but the glob and the sort around it are not
+    # inside that handler — and the invariant should not rest on one function's
+    # internals anyway. A parametrised test breaks each step of this path in turn.
+    prior = never_fatal("prior_run", prior_run, unreadable_prior())
     if prior and prior.get("unreadable"):
         log("prior run UNREADABLE — no regression baseline, but alerting stays live")
     elif prior:
@@ -1053,26 +1075,27 @@ def main() -> int:
 
     checks = run_all()
     finished = _dt.datetime.now(_dt.timezone.utc)
-    regressions = regressed(checks, prior)
+    regressions = never_fatal("regressed", lambda: regressed(checks, prior), [])
 
-    json_path = write_outputs(checks, regressions, started, finished)
+    json_path = never_fatal(
+        "write_outputs",
+        lambda: write_outputs(checks, regressions, started, finished),
+        Path("<not written>"),
+    )
 
     tier1_failing = sorted(
         c["name"] for c in checks if c["tier"] == 1 and c["status"] == "FAIL"
     )
     tier1_fail_now = bool(tier1_failing)
-    # Outside run_all, so `guarded` does not cover this. A failure here lands after
-    # write_outputs and before stdout_report — the JSON record is written and the alert
-    # is never delivered, which is the silent-monitor failure this file keeps finding.
-    # Fail toward alerting: not knowing whether to alert is a reason to alert.
-    try:
-        resurface, why = should_resurface(tier1_failing)
-    except Exception as e:  # noqa: BLE001 — nothing may stop the alert from going out
-        log(f"should_resurface failed ({type(e).__name__}: {e}) — alerting anyway")
-        resurface, why = bool(tier1_failing), "alert-state unusable"
+    # Not knowing whether to alert is a reason to alert, never a reason to go quiet.
+    resurface, why = never_fatal(
+        "should_resurface",
+        lambda: should_resurface(tier1_failing),
+        (bool(tier1_failing), "alert-state unusable"),
+    )
     alert = bool(prior) and (bool(regressions) or resurface)
 
-    stdout_report(checks, regressions, json_path, alert)
+    never_fatal("stdout_report", lambda: stdout_report(checks, regressions, json_path, alert), None)
 
     if not prior:
         log("baseline run; stdout silent, exit 0")

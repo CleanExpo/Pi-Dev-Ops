@@ -554,3 +554,59 @@ def test_main_alerts_even_if_should_resurface_itself_explodes(monkeypatch, tmp_p
 
     assert code == 1
     assert delivered, "a broken alert-state store must not silence a live failure"
+
+
+# ── the invariant, asserted once for every step rather than once per defect ────
+@pytest.mark.parametrize(
+    "victim",
+    ["regressed", "write_outputs", "should_resurface", "prior_run"],
+)
+def test_no_step_between_the_checks_and_stdout_can_silence_the_alert(
+    monkeypatch, tmp_path, victim
+):
+    """Three separate defects landed in this stretch — a TypeError parsing
+    last_alert_at, an OSError writing the JSON record — each aborting main() after the
+    work was done and before the alert went out. Rather than a test per defect, break
+    each step in turn and require the alert regardless."""
+    def explode(*_a, **_k):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(health, victim, explode)
+    code, delivered = _drive_main(
+        monkeypatch, tmp_path,
+        '{"checks": [{"name": "unite api/health", "tier": 1, "status": "PASS"}]}',
+    )
+
+    assert delivered, f"breaking {victim} silenced a live Tier-1 failure"
+    assert code == 1
+
+
+def test_the_alert_names_the_failing_check_when_the_record_cannot_be_written(
+    monkeypatch, tmp_path
+):
+    """A fallback that delivered an EMPTY alert would satisfy the test above. The
+    content has to survive the failure too, not just the delivery."""
+    def explode(*_a, **_k):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(health, "write_outputs", explode)
+    _code, delivered = _drive_main(
+        monkeypatch, tmp_path,
+        '{"checks": [{"name": "unite api/health", "tier": 1, "status": "PASS"}]}',
+    )
+
+    assert "unite api/health" in delivered
+    assert "HTTP 503" in delivered
+
+
+def test_a_healthy_run_is_still_silent_when_every_step_works(monkeypatch, tmp_path):
+    """Negative control for the whole guard family: never_fatal must not turn a clean
+    run into an alert."""
+    code, delivered = _drive_main(
+        monkeypatch, tmp_path,
+        '{"checks": [{"name": "unite api/health", "tier": 1, "status": "PASS"}]}',
+        failing=False,
+    )
+
+    assert code == 0
+    assert delivered == ""
