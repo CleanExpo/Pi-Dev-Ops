@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import time
 from pathlib import Path
+
+import pytest
 
 from app.server import workspace_verify as wv
 
@@ -116,6 +119,49 @@ def test_timeout_kills_descendant_after_process_group_leader_exits(
 
     assert result.status == wv.TIMED_OUT
     assert elapsed < 2, f"descendant kept the timeout path open for {elapsed:.2f}s"
+
+
+def test_cancellation_kills_and_reaps_process_group(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """Cancelling the verifier must not orphan its subprocess tree."""
+    repo = _py_repo(tmp_path, "def test_ok():\n    assert True\n")
+    leader = (
+        "import subprocess,sys,time; "
+        "subprocess.Popen([sys.executable, '-c', "
+        "'import time; time.sleep(30)'], stdout=sys.stdout, stderr=sys.stderr); "
+        "time.sleep(30)"
+    )
+    monkeypatch.setattr(
+        wv,
+        "detect_check",
+        lambda ws: ([sys.executable, "-c", leader], "cancellation probe"),
+    )
+    original_create = asyncio.create_subprocess_exec
+    observed: dict[str, asyncio.subprocess.Process] = {}
+
+    async def tracked_create(*args, **kwargs):
+        proc = await original_create(*args, **kwargs)
+        observed["proc"] = proc
+        return proc
+
+    monkeypatch.setattr(wv.asyncio, "create_subprocess_exec", tracked_create)
+
+    async def scenario() -> None:
+        task = asyncio.create_task(wv.run_workspace_checks(str(repo), timeout_s=30))
+        while "proc" not in observed:
+            await asyncio.sleep(0)
+        await asyncio.sleep(0.1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    _run(scenario())
+
+    proc = observed["proc"]
+    assert proc.returncode is not None
+    with pytest.raises(ProcessLookupError):
+        os.killpg(proc.pid, 0)
 
 
 def test_absent_runner_is_not_reported_as_a_test_failure(tmp_path: Path, monkeypatch) -> None:

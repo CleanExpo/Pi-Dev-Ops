@@ -142,39 +142,48 @@ async def run_workspace_checks(
     except (OSError, ValueError) as exc:
         return VerifyResult(NOT_RUN, label, f"could not start: {exc}", "")
 
-    timed_out = False
-    try:
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
-    except asyncio.TimeoutError:
-        timed_out = True
-        # Kill the group, not just the child — see start_new_session above.
+    async def kill_and_drain() -> None:
+        """Stop the isolated process group and finish pipe cleanup."""
         try:
             # start_new_session=True makes the child's PID the process-group
             # ID. Use that stable ID directly: the leader may already have
-            # exited while a descendant still owns stdout, in which case
-            # getpgid(proc.pid) fails and the descendant survives.
+            # exited while a descendant still owns stdout.
             os.killpg(proc.pid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError, OSError):
+        except OSError:
             try:
                 proc.kill()
             except ProcessLookupError:
                 pass
 
-        # Reap the killed process and drain its pipes before the caller's event loop
-        # closes. Returning immediately here leaves BaseSubprocessTransport alive; its
-        # later destructor then tries to schedule pipe cleanup on the closed loop.
+        # Reap the process and drain its pipes before the caller's event loop
+        # closes. The bound prevents an escaped descendant from holding the
+        # verifier open indefinitely.
         try:
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
-        except (asyncio.TimeoutError, ProcessLookupError, OSError):
-            stdout = b""
+            await asyncio.wait_for(proc.communicate(), timeout=5)
+        except (asyncio.TimeoutError, OSError):
+            pass
 
-    # `communicate()` waits for exit, but on very short-lived children CPython can retain
-    # an open subprocess transport until garbage collection. Explicitly closing the
-    # transport while its loop is alive prevents a delayed `Event loop is closed`
-    # destructor error. asyncio's Process exposes no public close method.
-    transport = getattr(proc, "_transport", None)
-    if transport is not None:
-        transport.close()
+    timed_out = False
+    stdout = b""
+    try:
+        try:
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
+        except asyncio.TimeoutError:
+            timed_out = True
+            await kill_and_drain()
+        except asyncio.CancelledError:
+            # Session aborts and hard stops must not orphan the repo's test
+            # process tree. Clean it up, then preserve cancellation semantics.
+            await kill_and_drain()
+            raise
+    finally:
+        # `communicate()` waits for exit, but on very short-lived children
+        # CPython can retain an open subprocess transport until garbage
+        # collection. Close it while its loop is alive. asyncio's Process has
+        # no public close method on the supported Python versions.
+        transport = getattr(proc, "_transport", None)
+        if transport is not None:
+            transport.close()
 
     if timed_out:
         return VerifyResult(TIMED_OUT, label, "", f"exceeded {timeout_s}s")
