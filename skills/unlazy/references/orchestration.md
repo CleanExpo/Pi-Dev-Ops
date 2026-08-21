@@ -60,10 +60,12 @@ For every return:
 5. unlock dependants only after `passed`.
 
 Only a leaf already in `verifying` may receive a terminal result, and the result flag must be a JSON
-boolean. Its gate receipt must bind the plan ID, node ID, independent verifier ID, base/candidate
+boolean. Its gate receipt must bind the plan ID, node ID, distinct worker/verifier IDs, base/candidate
 SHA, node gate digest, relevant-input digest, runner version, clean worktree, and strict terminal
-counts. Store that receipt on the terminal node; never coerce strings or skip the
-`running -> verifying` boundary.
+counts. Recompute those bindings from the live plan worktree before accepting it; caller-supplied
+hash strings are not authority. Independently replay the node gates with the trusted runner and
+require deterministic execution evidence to reproduce before unlocking dependencies. Store that
+receipt on the terminal node; never coerce strings or skip the `running -> verifying` boundary.
 
 A worker summary is not evidence. A failed leaf may retry once with the exact unmet gates. The
 second comparable failure escalates capability or blocks; it does not loop.

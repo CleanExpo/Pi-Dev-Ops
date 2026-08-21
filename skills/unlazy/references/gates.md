@@ -42,9 +42,13 @@ Capture:
 - bounded stdout/stderr digests and safe summary;
 - expectation result and relevant-input digest.
 
-A verified run requires explicit plan, node, verifier, and relevant-input arguments. The runner
-includes the relevant-input digest in both the receipt and command cache key, so changing a
-contract input invalidates reuse even when the candidate SHA and command text are unchanged.
+A verified run requires explicit plan, node, worker, verifier, and relevant-input arguments; worker
+and verifier IDs must differ. The runner recomputes relevant-input content before every command and
+includes that digest plus the runner version in the receipt and command cache key, so a same-process
+input mutation invalidates reuse even when the candidate SHA and command text are unchanged.
+Before the scheduler unlocks dependencies, it independently replays the declared node gates with
+the trusted runner and requires deterministic execution evidence to reproduce. Caller-supplied
+receipt fields are never authority.
 
 Full output belongs in a protected bounded artifact. Redact secrets, tokens, customer data, and raw
 upstream response bodies from user-facing evidence.

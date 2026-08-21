@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.23.1
-  generated_at: "2026-08-21T00:44:00.550149+00:00"
+  version: 1.23.2
+  generated_at: "2026-08-21T01:12:52.094229+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -2402,7 +2402,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/unlazy/SKILL.md
-    sha256: 60e9f02edf67befe1374113881383f3cfc541915b7b9e309c2bcaa8ac5fb6d42
+    sha256: c9a22b4b7c2b1c6bf9c437ec8f9b58dd513f5335db948ba617d6f41f1cfead37
     dependencies:
       tools: []
       skills: []

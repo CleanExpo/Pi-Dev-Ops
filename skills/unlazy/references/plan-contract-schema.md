@@ -25,6 +25,7 @@ input to `python scripts/unlazy_plan.py`; it is one flat JSON object with a `nod
       "needs": [],
       "exports": ["InterfaceName", "schema:v1"],
       "route_ref": "route-id",
+      "worker_id": "worker-context-id",
       "gates": "gates/leaf-1.1.md",
       "state": "pending",
       "attempt": 0
@@ -53,7 +54,8 @@ populate them before dispatch.
 
 Each node requires a non-empty unique `id`, `type` in `root|branch|leaf`, and list values for `owns`,
 `needs`, and `exports`. `state` defaults to `pending`; `attempt` defaults to zero. A leaf must own at
-least one relative non-wildcard path and name a gate file. Exactly one root is required.
+least one relative non-wildcard path, name a gate file, and freeze a worker identity distinct from
+the later verifier identity. Exactly one root is required.
 
 ## Executable commands
 

@@ -8,12 +8,12 @@ import process from "node:process";
 
 const MAX_JOBS = 8;
 const MAX_OUTPUT = 64 * 1024;
-const RUNNER_VERSION = "nexus-unlazy-gate-v2";
+const RUNNER_VERSION = "nexus-unlazy-gate-v3";
 const DEFAULT_ENV_KEYS = ["PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL", "TERM", "CI"];
 const SECRET = /(sk-[A-Za-z0-9_-]{8,}|Bearer\s+\S+|(?:api[_-]?key|token|secret|password)\s*[=:]\s*\S+)/gi;
 
 function usage() {
-  console.error("usage: unlazy-gate-check.mjs [--status] [--json] [--jobs N] [--cwd DIR] --plan-id ID --node-id ID --verifier-id ID --relevant-input PATH GATES.md [...]");
+  console.error("usage: unlazy-gate-check.mjs [--status] [--json] [--jobs N] [--cwd DIR] --plan-id ID --node-id ID --worker-id ID --verifier-id ID --relevant-input PATH GATES.md [...]");
 }
 
 function parseArgs(argv) {
@@ -25,6 +25,7 @@ function parseArgs(argv) {
     envKeys: [],
     planId: "",
     nodeId: "",
+    workerId: "",
     verifierId: "",
     relevantInputs: [],
     files: [],
@@ -38,6 +39,7 @@ function parseArgs(argv) {
     else if (arg === "--env") out.envKeys.push(argv[++index]);
     else if (arg === "--plan-id") out.planId = argv[++index] || "";
     else if (arg === "--node-id") out.nodeId = argv[++index] || "";
+    else if (arg === "--worker-id") out.workerId = argv[++index] || "";
     else if (arg === "--verifier-id") out.verifierId = argv[++index] || "";
     else if (arg === "--relevant-input") out.relevantInputs.push(argv[++index] || "");
     else if (arg.startsWith("-")) throw new Error(`unknown option ${arg}`);
@@ -47,8 +49,11 @@ function parseArgs(argv) {
     throw new Error(`--jobs must be an integer from 1 to ${MAX_JOBS}`);
   }
   if (!out.files.length) throw new Error("at least one gate file is required");
-  if (!out.status && (!out.planId || !out.nodeId || !out.verifierId)) {
-    throw new Error("--plan-id, --node-id, and --verifier-id are required for a verified run");
+  if (!out.status && (!out.planId || !out.nodeId || !out.workerId || !out.verifierId)) {
+    throw new Error("--plan-id, --node-id, --worker-id, and --verifier-id are required for a verified run");
+  }
+  if (!out.status && out.workerId === out.verifierId) {
+    throw new Error("--verifier-id must differ from --worker-id for an independent verified run");
   }
   if (!out.status && !out.relevantInputs.length) {
     throw new Error("at least one --relevant-input is required for a verified run");
@@ -257,14 +262,17 @@ function statusResult(gate) {
   return { ...gate, state: "pending" };
 }
 
-async function executeGate(gate, cwd, cache, environment, candidateSha, receiptBinding) {
+async function executeGate(
+  gate, cwd, cache, environment, candidateSha, root, relevantFiles, identityBinding,
+) {
   if (gate.parseError || gate.abandoned) return statusResult(gate);
   if (!gate.check) return { ...gate, state: "pending" };
   const expectedBeforeRun = expectationMatches(gate.expect, "");
   if (expectedBeforeRun.error) {
     return { ...gate, state: "runner_error", runnerError: expectedBeforeRun.error };
   }
-  const key = `${candidateSha}\0${cwd}\0${environment.digest}\0${receiptBinding}\0${gate.check}\0${gate.timeout}`;
+  const relevantInputs = digestFiles(root, relevantFiles);
+  const key = `${RUNNER_VERSION}\0${candidateSha}\0${cwd}\0${environment.digest}\0${identityBinding}\0${relevantInputs.digest}\0${gate.check}\0${gate.timeout}`;
   if (!cache.has(key)) cache.set(key, runCommand(gate.check, cwd, gate.timeout, environment.env));
   const result = await cache.get(key);
   const combined = `${result.stdout}\n${result.stderr}`;
@@ -289,6 +297,7 @@ async function executeGate(gate, cwd, cache, environment, candidateSha, receiptB
     elapsedMs: result.elapsedMs,
     ...evidence,
     commandDigest: `sha256:${createHash("sha256").update(key).digest("hex")}`,
+    relevantInputDigest: relevantInputs.digest,
     expectMatched: expected.matched,
     state: exitAllowed && expected.matched ? "passed" : "failed",
   };
@@ -328,12 +337,11 @@ async function main() {
     for (const file of relevantFiles) {
       if (!inside(root, file)) throw new Error(`relevant input must be inside repository: ${file}`);
     }
-    const relevantInputs = digestFiles(root, relevantFiles);
-    const receiptBinding = [
+    const identityBinding = [
       args.planId,
       args.nodeId,
+      args.workerId,
       args.verifierId,
-      relevantInputs.digest,
     ].join("\0");
     const gates = files.flatMap(parseGateFile);
     if (!gates.length) throw new Error("no gates found");
@@ -342,9 +350,10 @@ async function main() {
     const results = args.status
       ? gates.map(statusResult)
       : await runPool(gates, args.jobs, (gate) => executeGate(
-        gate, cwd, cache, environment, candidateSha, receiptBinding,
+        gate, cwd, cache, environment, candidateSha, root, relevantFiles, identityBinding,
       ));
     const summary = summarise(results);
+    const relevantInputs = digestFiles(root, relevantFiles);
     const receipt = {
       schema_version: "1.0",
       mode: args.status ? "status" : "run",
@@ -352,8 +361,9 @@ async function main() {
       runner_version: RUNNER_VERSION,
       plan_id: args.planId || null,
       node_id: args.nodeId || null,
+      worker_id: args.workerId || null,
       verifier_id: args.verifierId || null,
-      independent_verifier: Boolean(args.verifierId),
+      independent_verifier: Boolean(args.verifierId && args.verifierId !== args.workerId),
       started_at: startedAt,
       finished_at: new Date().toISOString(),
       base_sha: baseSha,

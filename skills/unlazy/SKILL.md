@@ -28,9 +28,11 @@ state and never verifies it:
 ```bash
 node scripts/unlazy-gate-check.mjs --json --jobs 3 --cwd "$PWD" \
   --plan-id "$PLAN_ID" --node-id "$NODE_ID" --verifier-id "$VERIFIER_ID" \
+  --worker-id "$WORKER_ID" \
   --relevant-input PLAN.json gates/root.md
 node scripts/unlazy-gate-check.mjs --status --json --cwd "$PWD" \
   --plan-id "$PLAN_ID" --node-id "$NODE_ID" --verifier-id "$VERIFIER_ID" \
+  --worker-id "$WORKER_ID" \
   --relevant-input PLAN.json gates/root.md
 ```
 

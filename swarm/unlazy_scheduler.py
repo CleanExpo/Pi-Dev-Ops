@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
+import os
 import re
+import subprocess
 import sys
 import uuid
 from dataclasses import dataclass
@@ -21,6 +24,8 @@ NODE_STATES = {"pending", "ready", "running", "verifying", "passed", "blocked", 
 WILDCARDS = re.compile(r"[*?\[\]{}]")
 GIT_SHA = re.compile(r"[0-9a-f]{40}")
 SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+TRUSTED_GATE_RUNNER_VERSION = "nexus-unlazy-gate-v3"
+TRUSTED_GATE_RUNNER = Path(__file__).resolve().parents[1] / "scripts" / "unlazy-gate-check.mjs"
 
 
 class PlanValidationError(ValueError):
@@ -40,6 +45,7 @@ class PlanNode:
     needs: tuple[str, ...]
     exports: tuple[str, ...]
     route_ref: str
+    worker_id: str
     gates: str
     state: str
     attempt: int
@@ -80,6 +86,7 @@ class PlanNode:
             needs=tuple(str(item) for item in raw.get("needs", [])),
             exports=tuple(str(item) for item in raw.get("exports", [])),
             route_ref=str(raw.get("route_ref") or "").strip(),
+            worker_id=str(raw.get("worker_id") or "").strip(),
             gates=str(raw.get("gates") or "").strip(),
             state=state,
             attempt=attempt,
@@ -110,6 +117,7 @@ class UnlazyPlan:
 def _verification_receipt_errors(
     plan_id: str,
     base_sha: str,
+    plan_worktree: str,
     node: PlanNode,
     receipt: dict[str, Any] | None,
     *,
@@ -124,10 +132,12 @@ def _verification_receipt_errors(
         errors.append("verification receipt plan_id does not match plan")
     if receipt.get("node_id") != node.id:
         errors.append("verification receipt node_id does not match node")
+    if receipt.get("worker_id") != node.worker_id:
+        errors.append("verification receipt worker_id does not match node")
     verifier_id = receipt.get("verifier_id")
     if not isinstance(verifier_id, str) or not verifier_id.strip():
         errors.append("verification receipt verifier_id is required")
-    if receipt.get("independent_verifier") is not True:
+    if verifier_id == node.worker_id or receipt.get("independent_verifier") is not True:
         errors.append("verification receipt must attest an independent verifier")
     if receipt.get("mode") != "run" or receipt.get("verified") is not True:
         errors.append("verification receipt must be a verified run")
@@ -136,6 +146,8 @@ def _verification_receipt_errors(
     runner_version = receipt.get("runner_version")
     if not isinstance(runner_version, str) or not runner_version.strip():
         errors.append("verification receipt runner_version is required")
+    elif runner_version != TRUSTED_GATE_RUNNER_VERSION:
+        errors.append("verification receipt runner_version is not trusted")
     candidate_sha = receipt.get("candidate_sha")
     if not isinstance(candidate_sha, str) or not GIT_SHA.fullmatch(candidate_sha):
         errors.append("verification receipt candidate_sha must be a full Git SHA")
@@ -175,6 +187,215 @@ def _verification_receipt_errors(
             errors.append("passed requires strict gate counts at zero")
         if not passed and non_passing == 0:
             errors.append("blocked requires a non-passing gate count")
+    errors.extend(_runtime_receipt_errors(plan_worktree, node, receipt, passed=passed))
+    return errors
+
+
+def _git_value(worktree: Path, *args: str) -> str | None:
+    result = subprocess.run(
+        ["git", "-C", str(worktree), *args],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _file_digest(path: Path) -> str:
+    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _safe_bound_file(worktree: Path, relative_path: Any) -> Path | None:
+    if not isinstance(relative_path, str) or not relative_path:
+        return None
+    candidate = (worktree / relative_path).resolve()
+    try:
+        candidate.relative_to(worktree)
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
+
+
+REPLAY_TOP_FIELDS = (
+    "schema_version", "mode", "verified", "runner_version", "plan_id", "node_id",
+    "worker_id", "verifier_id", "independent_verifier", "base_sha", "candidate_sha",
+    "worktree_clean_before_run", "cwd", "environment_keys", "environment_digest",
+    "relevant_inputs", "relevant_input_digest", "gate_files", "summary",
+)
+REPLAY_GATE_FIELDS = (
+    "file", "line", "checked", "id", "outcome", "check", "exits", "expect", "timeout",
+    "evidence", "abandoned", "parseError", "state", "exitCode", "timedOut", "runnerError",
+    "commandDigest", "relevantInputDigest", "expectMatched", "stdoutDigest", "stderrDigest",
+    "safeSummary",
+)
+
+
+def _replay_evidence(receipt: dict[str, Any]) -> dict[str, Any]:
+    evidence = {field: receipt.get(field) for field in REPLAY_TOP_FIELDS}
+    gates = receipt.get("gates")
+    evidence["gates"] = [
+        {field: gate.get(field) for field in REPLAY_GATE_FIELDS}
+        for gate in gates
+        if isinstance(gate, dict)
+    ] if isinstance(gates, list) else None
+    return evidence
+
+
+def _trusted_replay_errors(
+    worktree: Path,
+    node: PlanNode,
+    receipt: dict[str, Any],
+    *,
+    passed: bool,
+) -> list[str]:
+    relevant_entries = receipt.get("relevant_inputs")
+    environment_keys = receipt.get("environment_keys")
+    verifier_id = receipt.get("verifier_id")
+    if (
+        not TRUSTED_GATE_RUNNER.is_file()
+        or not isinstance(relevant_entries, list)
+        or not isinstance(environment_keys, list)
+        or not isinstance(verifier_id, str)
+    ):
+        return ["verification receipt cannot be replayed by the trusted gate runner"]
+
+    command = [
+        "node", str(TRUSTED_GATE_RUNNER), "--json", "--cwd", str(worktree),
+        "--plan-id", str(receipt.get("plan_id", "")),
+        "--node-id", node.id,
+        "--worker-id", node.worker_id,
+        "--verifier-id", verifier_id,
+    ]
+    for key in environment_keys:
+        command.extend(("--env", key))
+    for item in relevant_entries:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+            return ["verification receipt cannot be replayed by the trusted gate runner"]
+        command.extend(("--relevant-input", item["path"]))
+    command.append(node.gates)
+
+    gates = receipt.get("gates")
+    declared_timeout = sum(
+        gate.get("timeout", 60)
+        for gate in gates
+        if isinstance(gate, dict) and isinstance(gate.get("timeout", 60), int)
+    ) if isinstance(gates, list) else 60
+    replay_timeout = min(7200, max(30, declared_timeout + 30))
+    try:
+        replay = subprocess.run(
+            command,
+            cwd=worktree,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=replay_timeout,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ["verification receipt trusted gate replay failed"]
+
+    expected_returncode = 0 if passed else 1
+    if replay.returncode != expected_returncode:
+        return ["verification receipt does not reproduce under trusted gate runner"]
+    try:
+        reproduced = json.loads(replay.stdout)
+    except json.JSONDecodeError:
+        return ["verification receipt trusted gate replay returned invalid JSON"]
+    if not isinstance(reproduced, dict) or _replay_evidence(receipt) != _replay_evidence(reproduced):
+        return ["verification receipt does not reproduce under trusted gate runner"]
+    return []
+
+
+def _runtime_receipt_errors(
+    plan_worktree: str,
+    node: PlanNode,
+    receipt: dict[str, Any],
+    *,
+    passed: bool,
+) -> list[str]:
+    errors: list[str] = []
+    cwd_value = receipt.get("cwd")
+    if not isinstance(cwd_value, str) or not plan_worktree:
+        return ["verification receipt cwd and plan worktree are required"]
+    cwd = Path(cwd_value).resolve()
+    worktree = Path(plan_worktree).resolve()
+    if not worktree.is_dir():
+        return ["verification receipt worktree is not available"]
+    actual_root = _git_value(cwd, "rev-parse", "--show-toplevel")
+    if actual_root is None or Path(actual_root).resolve() != worktree:
+        return ["verification receipt cwd does not belong to the plan worktree"]
+    actual_head = _git_value(worktree, "rev-parse", "HEAD")
+    if actual_head != receipt.get("candidate_sha"):
+        errors.append("verification receipt candidate_sha does not match actual worktree HEAD")
+    actual_status = _git_value(worktree, "status", "--porcelain=v1", "--untracked-files=all")
+    if actual_status is None or actual_status:
+        errors.append("verification receipt worktree is not actually clean")
+    actual_base = _git_value(worktree, "merge-base", "origin/main", "HEAD")
+    if actual_base != receipt.get("base_sha"):
+        errors.append("verification receipt base_sha does not match actual merge base")
+
+    gate_file = _safe_bound_file(worktree, node.gates)
+    gate_entries = receipt.get("gate_files")
+    gate_entry = next(
+        (
+            item for item in gate_entries
+            if isinstance(item, dict) and item.get("path") == node.gates
+        ),
+        None,
+    ) if isinstance(gate_entries, list) else None
+    if gate_file is None or gate_entry is None or gate_entry.get("digest") != _file_digest(gate_file):
+        errors.append("verification receipt node gate digest does not match runtime content")
+
+    relevant_entries = receipt.get("relevant_inputs")
+    recomputed: list[tuple[str, str]] = []
+    if not isinstance(relevant_entries, list) or not relevant_entries:
+        errors.append("verification receipt relevant_inputs are required")
+    else:
+        for item in relevant_entries:
+            path_text = item.get("path") if isinstance(item, dict) else None
+            bound_file = _safe_bound_file(worktree, path_text)
+            if bound_file is None:
+                errors.append("verification receipt relevant input is unavailable or unsafe")
+                continue
+            actual_digest = _file_digest(bound_file)
+            if item.get("digest") != actual_digest:
+                errors.append("verification receipt relevant input digest does not match runtime content")
+            recomputed.append((path_text, actual_digest))
+    recomputed.sort(key=lambda item: item[0])
+    relevant_payload = "\0".join(f"{path}\0{digest}" for path, digest in recomputed)
+    actual_relevant_digest = "sha256:" + hashlib.sha256(relevant_payload.encode()).hexdigest()
+    if receipt.get("relevant_input_digest") != actual_relevant_digest:
+        errors.append("verification receipt relevant_input_digest does not match runtime content")
+
+    environment_keys = receipt.get("environment_keys")
+    if not isinstance(environment_keys, list) or any(
+        not isinstance(key, str) or not key for key in environment_keys
+    ):
+        errors.append("verification receipt environment_keys are invalid")
+    else:
+        environment_payload = "\0".join(
+            f"{key}={os.environ.get(key, '<unset>')}" for key in sorted(set(environment_keys))
+        )
+        actual_environment = "sha256:" + hashlib.sha256(environment_payload.encode()).hexdigest()
+        if receipt.get("environment_digest") != actual_environment:
+            errors.append("verification receipt environment_digest does not match runtime environment")
+
+    gates = receipt.get("gates")
+    if isinstance(gates, list):
+        actual_summary = {"passed": 0, "failed": 0, "pending": 0, "abandoned": 0, "runner_errors": 0}
+        for gate in gates:
+            state = gate.get("state") if isinstance(gate, dict) else None
+            if state == "runner_error":
+                actual_summary["runner_errors"] += 1
+            elif state in actual_summary:
+                actual_summary[state] += 1
+            else:
+                errors.append("verification receipt contains an invalid gate state")
+        if receipt.get("summary") != actual_summary:
+            errors.append("verification receipt summary does not match gate results")
+    else:
+        errors.append("verification receipt gates are required")
+    if not errors:
+        errors.extend(_trusted_replay_errors(worktree, node, receipt, passed=passed))
     return errors
 
 
@@ -292,6 +513,8 @@ def validate_plan(raw: dict[str, Any]) -> UnlazyPlan:
             errors.append(f"leaf {node.id} must name a gate file")
         if node.type == "leaf" and not node.route_ref:
             errors.append(f"leaf {node.id} must name a route_ref")
+        if node.type == "leaf" and not node.worker_id:
+            errors.append(f"leaf {node.id} must name a worker_id")
         if node.gates:
             gate_path = PurePosixPath(node.gates.replace("\\", "/"))
             if gate_path.is_absolute() or ".." in gate_path.parts or gate_path.suffix != ".md":
@@ -301,6 +524,7 @@ def validate_plan(raw: dict[str, Any]) -> UnlazyPlan:
                 _verification_receipt_errors(
                     plan_id,
                     str(raw.get("base_sha") or "").strip(),
+                    str(raw.get("worktree") or "").strip(),
                     node,
                     node.verification_receipt,
                     passed=node.state == "passed",
@@ -403,6 +627,7 @@ def record_result(
     receipt_errors = _verification_receipt_errors(
         plan.plan_id,
         plan.base_sha,
+        plan.worktree,
         node,
         verification_receipt,
         passed=passed,
@@ -457,6 +682,7 @@ def plan_template(task: str, requested_depth: int, *, max_workers: int = 3) -> d
                 "needs": ["1.1"],
                 "exports": [],
                 "route_ref": "",
+                "worker_id": "",
                 "gates": "gates/root.md",
                 "state": "pending",
                 "attempt": 0,
@@ -469,6 +695,7 @@ def plan_template(task: str, requested_depth: int, *, max_workers: int = 3) -> d
                 "needs": [],
                 "exports": [],
                 "route_ref": "",
+                "worker_id": "REPLACE_ME",
                 "gates": "gates/leaf-1.1.md",
                 "state": "pending",
                 "attempt": 0,
