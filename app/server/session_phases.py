@@ -797,11 +797,18 @@ async def verify_workspace_identity(
     )
     if origin_rc != 0:
         return False
+    push_rc, push_origin, _push_error = await run_cmd(
+        workspace, "git", "remote", "get-url", "--push", "origin", timeout=10,
+    )
+    if push_rc != 0:
+        return False
     from .senior_harness_admission import normalize_repository  # noqa: PLC0415
 
     try:
-        return normalize_repository(origin.strip()) == normalize_repository(
-            expected_repo_url
+        expected = normalize_repository(expected_repo_url)
+        return (
+            normalize_repository(origin.strip()) == expected
+            and normalize_repository(push_origin.strip()) == expected
         )
     except Exception:
         return False
@@ -1626,6 +1633,20 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
     """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
     phase_start = time.monotonic()
+    from .senior_harness_admission import deployment_mode  # noqa: PLC0415
+
+    if deployment_mode() == "enforce":
+        reservation = getattr(session, "senior_harness_reservation", None) or {}
+        if not await verify_workspace_identity(
+            session.workspace,
+            reservation.get("base_sha", ""),
+            session.repo_url,
+        ):
+            _fail_phase(
+                session,
+                "Senior Harness workspace origin, push destination, or base SHA drifted before push",
+            )
+            return [], False
     em(session, "phase", f"[{total_phases}/{total_phases}] Pushing to GitHub...")
     af: list[str] = []
     try:

@@ -297,6 +297,7 @@ async def test_resume_workspace_identity_rejects_wrong_origin(admitted, tmp_path
         side_effect=[
             (0, "a" * 40 + "\n", ""),
             (0, "https://github.com/other-owner/other-repo.git\n", ""),
+            (0, "https://github.com/unite-group/pi-dev-ops.git\n", ""),
         ]
     )
     with patch.object(session_phases, "run_cmd", new=run):
@@ -305,6 +306,70 @@ async def test_resume_workspace_identity_rejects_wrong_origin(admitted, tmp_path
             "a" * 40,
             "https://github.com/unite-group/pi-dev-ops.git",
         )
+
+
+@pytest.mark.asyncio
+async def test_workspace_identity_rejects_distinct_push_destination(
+    admitted, tmp_path,
+):
+    expected_repo = "https://github.com/unite-group/pi-dev-ops.git"
+    run = AsyncMock(
+        side_effect=[
+            (0, "a" * 40 + "\n", ""),
+            (0, expected_repo + "\n", ""),
+            (0, "https://github.com/other-owner/other-repo.git\n", ""),
+        ]
+    )
+    with patch.object(session_phases, "run_cmd", new=run):
+        assert not await session_phases.verify_workspace_identity(
+            str(tmp_path),
+            "a" * 40,
+            expected_repo,
+        )
+
+    valid = AsyncMock(
+        side_effect=[
+            (0, "a" * 40 + "\n", ""),
+            (0, expected_repo + "\n", ""),
+            (0, expected_repo + "\n", ""),
+        ]
+    )
+    with patch.object(session_phases, "run_cmd", new=valid):
+        assert await session_phases.verify_workspace_identity(
+            str(tmp_path),
+            "a" * 40,
+            expected_repo,
+        )
+
+
+@pytest.mark.asyncio
+async def test_push_rechecks_complete_workspace_identity_before_git_side_effect(
+    admitted, tmp_path,
+):
+    session = session_model.BuildSession(
+        id="abcdef123456",
+        repo_url="https://github.com/unite-group/pi-dev-ops.git",
+        workspace=str(tmp_path),
+        senior_harness_reservation=admitted["reservation"],
+    )
+    with patch.object(
+        session_phases,
+        "verify_workspace_identity",
+        new=AsyncMock(return_value=False),
+    ) as verify, patch.object(
+        session_phases, "run_cmd", new=AsyncMock()
+    ) as run, patch.object(session_phases, "_fail_phase") as fail:
+        files, pushed = await session_phases._phase_push(session, 7)
+
+    assert files == []
+    assert pushed is False
+    verify.assert_awaited_once_with(
+        session.workspace,
+        admitted["reservation"]["base_sha"],
+        session.repo_url,
+    )
+    run.assert_not_awaited()
+    fail.assert_called_once()
 
 
 @pytest.mark.asyncio
