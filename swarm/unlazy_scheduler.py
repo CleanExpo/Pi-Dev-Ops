@@ -27,6 +27,9 @@ NODE_STATES = {"pending", "ready", "running", "verifying", "passed", "blocked", 
 WILDCARDS = re.compile(r"[*?\[\]{}]")
 GIT_SHA = re.compile(r"[0-9a-f]{40}")
 SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+SENSITIVE_ENV_KEY = re.compile(
+    r"(?:^|_)(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIALS?)(?:_|$)", re.IGNORECASE,
+)
 TRUSTED_GATE_RUNNER_VERSION = "nexus-unlazy-gate-v3"
 TRUSTED_GATE_RUNNER = Path(__file__).resolve().parents[1] / "scripts" / "unlazy-gate-check.mjs"
 TRUSTED_VERIFIER_ID = "unlazy-scheduler-trusted-replay-v1"
@@ -168,6 +171,13 @@ def _verification_receipt_errors(
         digest = receipt.get(digest_field)
         if not isinstance(digest, str) or not SHA256_DIGEST.fullmatch(digest):
             errors.append(f"verification receipt {digest_field} must be a sha256 digest")
+    environment_keys = receipt.get("environment_keys")
+    if not isinstance(environment_keys, list) or any(
+        not isinstance(key, str) or not key for key in environment_keys
+    ):
+        errors.append("verification receipt environment_keys are invalid")
+    elif any(SENSITIVE_ENV_KEY.search(key) for key in environment_keys):
+        errors.append("verification receipt cannot allow-list a sensitive environment key")
     gate_files = receipt.get("gate_files")
     gate_match = False
     if isinstance(gate_files, list):

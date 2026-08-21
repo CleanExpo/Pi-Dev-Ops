@@ -66,6 +66,9 @@ Plan linting, structural validation, and rolling-ready queries are pure reads. T
 execute gate commands; trusted replay occurs only at the explicit terminal transition. Terminal
 reads require `UNLAZY_RECEIPT_HMAC_KEY` (minimum 32 bytes) and fail closed when it is missing or the
 receipt is changed. Keep the key in a runtime secret manager and never pass it to gate subprocesses.
+The runner and scheduler reject any requested environment variable whose name identifies key,
+token, secret, password, or credential material; redaction is a fallback, not permission to expose
+a secret to a gate command.
 
 ## Scope and de-duplication
 

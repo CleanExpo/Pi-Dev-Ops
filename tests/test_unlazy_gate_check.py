@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
@@ -120,6 +121,32 @@ def test_verified_run_requires_plan_node_and_verifier_ids(tmp_path):
     )
     assert result.returncode == 2
     assert "--plan-id, --node-id, --worker-id, and --verifier-id are required" in result.stderr
+
+
+def test_sensitive_environment_key_cannot_be_allowlisted(tmp_path):
+    root = repo_fixture(tmp_path)
+    gate = write_gate(
+        root,
+        """- [ ] G1: signing key remains isolated
+  CHECK: node -e \"console.log(process.env.UNLAZY_RECEIPT_HMAC_KEY || 'MISSING')\"
+  EXIT: 0
+  EXPECT: MISSING
+  EVIDENCE: pending
+""",
+    )
+    environment = os.environ.copy()
+    environment["UNLAZY_RECEIPT_HMAC_KEY"] = "never-emit-this-test-signing-key-material"
+    result = subprocess.run(
+        [
+            "node", str(CHECKER), "--json", "--plan-id", "plan-1", "--node-id", "1.1",
+            "--worker-id", "worker-a", "--verifier-id", "verifier-1",
+            "--relevant-input", gate.name, "--env", "UNLAZY_RECEIPT_HMAC_KEY", gate.name,
+        ],
+        cwd=root, env=environment, text=True, capture_output=True,
+    )
+    assert result.returncode == 2
+    assert "sensitive environment" in result.stderr
+    assert environment["UNLAZY_RECEIPT_HMAC_KEY"] not in result.stdout + result.stderr
 
 
 def test_relevant_input_content_is_bound_to_receipt_digest(tmp_path):
