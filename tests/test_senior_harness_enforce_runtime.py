@@ -411,6 +411,8 @@ async def test_push_uses_admitted_url_explicit_refspec_and_disables_hooks(
     assert f"core.hooksPath={__import__('os').devnull}" in checkout
     assert push == (
         "git",
+        "-c",
+        f"core.hooksPath={__import__('os').devnull}",
         "push",
         "https://github.com/unite-group/pi-dev-ops.git",
         "HEAD:refs/heads/pidev/auto-abcdef12",

@@ -1751,6 +1751,8 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
                 rc, _, err = await run_cmd(
                     session.workspace,
                     "git",
+                    "-c",
+                    f"core.hooksPath={os.devnull}",
                     "push",
                     push_target,
                     f"HEAD:refs/heads/{branch_name}",
