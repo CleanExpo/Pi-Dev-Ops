@@ -10,7 +10,6 @@ import argparse
 import datetime as dt
 import hashlib
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -55,7 +54,7 @@ REF_RE = re.compile(r"\[[^\]]+\]\(([^)#][^)#]*)(?:#[^)]+)?\)|`([^`\s]+\.(?:md|js
 SIBLING_REF_ROOTS = {"assets", "examples", "references", "scripts", "templates"}
 APPROVAL_RE = re.compile(
     r"^- \[[xX]\] APPROVE_PROMOTE name=(?P<name>[a-z0-9_-]+) "
-    r"source=(?P<source>\S+) folder_sha256=(?P<folder>[0-9a-f]{64})"
+    r"source=(?P<source>.+?) folder_sha256=(?P<folder>[0-9a-f]{64})"
     r"(?: resolution=(?P<resolution>[a-z0-9_-]+))?"
 )
 
