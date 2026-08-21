@@ -14,6 +14,7 @@ import contextlib
 import importlib.util
 import io
 import os
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -393,10 +394,22 @@ def test_the_health_check_declines_redirects(monkeypatch):
 
     res = health.check_unite_health_api(URL)
 
-    assert all(flag is False for flag in seen.follow_flags), (
-        "every request this check makes must decline redirects, or an auth wall "
-        "reads as a healthy 200"
-    )
+    assert seen.follow_flags == [False]
+    assert res["status"] == "FAIL"
+    assert res["data"]["code"] == 302
+
+
+def test_the_get_fallback_also_declines_redirects(monkeypatch):
+    """A 302 stops at HEAD, so the test above records ONE flag and would pass even if
+    the GET fallback still chased redirects. Drive the fallback with a 404, which is
+    the only way to reach the second request — the same do-not-overclaim lesson a
+    reviewer taught this file one round earlier."""
+    seen = scripted_http(monkeypatch, {"HEAD": 404, "GET": 302})
+
+    res = health.check_unite_health_api(URL)
+
+    assert seen == ["HEAD", "GET"], "the GET fallback must actually be exercised"
+    assert seen.follow_flags == [False, False]
     assert res["status"] == "FAIL"
     assert res["data"]["code"] == 302
 
@@ -432,3 +445,73 @@ def test_a_signature_with_mixed_element_types_alerts_instead_of_crashing(
 
     assert resurface is True
     assert why
+
+
+# ── no single check may abort the run ──────────────────────────────────────────
+# Six defects across four review rounds were the same shape: an input raised out of
+# one check, hit the top-level handler, and took the whole hour's monitoring with it.
+# Exit 2 with empty stdout means the other fourteen checks never ran.
+def test_a_crashed_check_becomes_a_failing_check(monkeypatch):
+    def explode():
+        raise urllib.error.URLError("nodename nor servname provided")
+
+    out = health.guarded("hermes gateway", 1, explode)
+
+    assert len(out) == 1
+    assert out[0]["status"] == "FAIL"
+    assert out[0]["name"] == "hermes gateway"
+    assert out[0]["tier"] == 1
+    assert "URLError" in out[0]["detail"]
+    assert out[0]["data"]["crashed"] is True
+
+
+def test_a_crashed_tier1_check_reaches_the_alert_path(monkeypatch, tmp_path):
+    """A FAIL alerts; the silence it replaces did not. That is the whole point."""
+    crashed = health.guarded("hermes model", 1, lambda: (_ for _ in ()).throw(OSError("boom")))
+
+    assert crashed[0]["status"] in _ALERTING_STATUSES
+
+
+def test_guarded_normalises_single_and_list_returns():
+    """Half the checks return one record, half return a list. Both must flatten."""
+    one = health.guarded("x", 1, lambda: health.mk("x", 1, "PASS", "d"))
+    many = health.guarded("y", 1, lambda: [health.mk("y1", 1, "PASS", "d"),
+                                           health.mk("y2", 1, "PASS", "d")])
+
+    assert [r["name"] for r in one] == ["x"]
+    assert [r["name"] for r in many] == ["y1", "y2"]
+
+
+def test_a_healthy_check_passes_through_untouched():
+    """Negative control: the guard must not rewrite a check that worked."""
+    original = health.mk("x", 1, "PASS", "all good", code=200)
+
+    assert health.guarded("x", 1, lambda: original) == [original]
+
+
+def test_a_dns_failure_no_longer_aborts_the_run(monkeypatch):
+    """The exact round-9 P0: http_get does not catch URLError, and supabase_rest and
+    check_integration_sync have no handler of their own."""
+    def boom(*a, **k):
+        raise urllib.error.URLError("dns is down")
+
+    monkeypatch.setattr(health, "http_get", boom)
+    env = {"SUPABASE_UNITE_GROUP_URL": "https://x.supabase.co",
+           "SUPABASE_UNITE_GROUP_SERVICE_KEY": "k"}
+
+    out = health.guarded("integration sync", 1, health.check_integration_sync, env)
+
+    assert out[0]["status"] == "FAIL"
+    assert "URLError" in out[0]["detail"]
+
+
+def test_an_unreadable_config_no_longer_aborts_the_run(monkeypatch, tmp_path):
+    """The other round-9 finding: check_hermes_model reads config.yaml with no handler,
+    so a non-UTF8 or permission-denied file killed the run."""
+    monkeypatch.setattr(health, "HERMES_HOME", tmp_path)
+    (tmp_path / "config.yaml").write_bytes(b"\xff\xfe\x00not utf8 \xc3\x28")
+
+    out = health.guarded("hermes model", 1, health.check_hermes_model)
+
+    assert out[0]["status"] == "FAIL"
+    assert "UnicodeDecodeError" in out[0]["detail"]

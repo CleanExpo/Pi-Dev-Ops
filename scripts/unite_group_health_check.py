@@ -827,43 +827,68 @@ def check_linear_in_progress(env: dict[str, str]) -> dict[str, Any]:
 
 
 # ── orchestrator ───────────────────────────────────────────────────────────────
+def guarded(name: str, tier: int, fn: Any, *args: Any) -> list[dict[str, Any]]:
+    """Run one check. No single check may abort the run.
+
+    Six of the defects found in this file across four review rounds were the same
+    shape: some input — an HTTP response, a JSON store, a config file, a DNS lookup —
+    raised out of one check, hit the top-level handler in __main__, and took the whole
+    hour's monitoring with it. Exit 2 with empty stdout means the other fourteen checks
+    never ran and nobody was told anything.
+
+    Fixing each instance one at a time is what produced those four rounds. A crashed
+    check is now a Tier-1 FAIL naming the exception, which ALERTS — strictly louder
+    than the silence it replaces, and it cannot be reintroduced by the next check
+    somebody adds.
+    """
+    try:
+        result = fn(*args)
+    except Exception as e:  # noqa: BLE001 — the point is that nothing escapes
+        log(f"check {name!r} crashed: {type(e).__name__}: {e}")
+        return [mk(name, tier, "FAIL", f"check crashed: {type(e).__name__}: {e}",
+                   crashed=True)]
+    return result if isinstance(result, list) else [result]
+
+
 def run_all() -> list[dict[str, Any]]:
     env = load_env()
     checks: list[dict[str, Any]] = []
 
     # Tier 1
     log("Tier 1: HTTP endpoints")
-    checks.append(check_http("unite-group.in /", "https://unite-group.in/", tier=1))
-    checks.append(
-        check_http("unite-group.in /en/login", "https://unite-group.in/en/login", tier=1)
-    )
-    checks.append(check_unite_health_api("https://unite-group.in/api/health"))
+    checks += guarded("unite-group.in /", 1,
+                      check_http, "unite-group.in /", "https://unite-group.in/", 1)
+    checks += guarded("unite-group.in /en/login", 1,
+                      check_http, "unite-group.in /en/login",
+                      "https://unite-group.in/en/login", 1)
+    checks += guarded("unite api/health", 1,
+                      check_unite_health_api, "https://unite-group.in/api/health")
 
     log("Tier 1: Supabase prod status + advisors")
-    checks.append(check_supabase_status(env))
-    checks.extend(check_supabase_advisors(env))
+    checks += guarded("supabase status", 1, check_supabase_status, env)
+    checks += guarded("supabase advisors", 1, check_supabase_advisors, env)
 
     log("Tier 1: Hermes gateway + model")
-    checks.append(check_hermes_gateway())
-    checks.append(check_hermes_model())
+    checks += guarded("hermes gateway", 1, check_hermes_gateway)
+    checks += guarded("hermes model", 1, check_hermes_model)
 
     log("Tier 1: integration cron sync state")
-    checks.extend(check_integration_sync(env))
+    checks += guarded("integration sync", 1, check_integration_sync, env)
 
     log("Tier 1: Vercel production deployment")
-    checks.append(check_vercel_deployment())
+    checks += guarded("vercel production deployment", 1, check_vercel_deployment)
 
     # Tier 2
     log("Tier 2: integration row counts + growth")
-    checks.extend(check_integration_row_counts(env))
+    checks += guarded("integration row counts", 2, check_integration_row_counts, env)
     prior = prior_run()
-    checks.append(check_github_commits_growth(env, prior))
+    checks += guarded("github commit growth", 2, check_github_commits_growth, env, prior)
 
     # Tier 3
     log("Tier 3: sandbox drift, disk, Linear in-progress")
-    checks.extend(check_sandbox_drift(env))
-    checks.extend(check_disk_space())
-    checks.append(check_linear_in_progress(env))
+    checks += guarded("sandbox drift", 3, check_sandbox_drift, env)
+    checks += guarded("disk space", 3, check_disk_space)
+    checks += guarded("linear in-progress", 3, check_linear_in_progress, env)
 
     return checks
 
