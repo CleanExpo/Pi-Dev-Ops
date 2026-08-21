@@ -19,6 +19,7 @@ from app.server import senior_harness_consumer as consumer
 from app.server.senior_harness_admission import (
     AdmissionVerificationError,
     ConsumerExpectation,
+    SeniorHarnessAdmissionUnavailable,
 )
 
 
@@ -464,6 +465,19 @@ def test_postgrest_transport_calls_only_public_wrapper_names(monkeypatch):
     assert calls[1][0].full_url.endswith("/senior_harness_assert_active")
     assert all("private" not in request.full_url for request, _timeout in calls)
     assert calls[0][0].headers["Authorization"] == "Bearer consumer-token"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.supabase.co",
+        "https://example.supabase.co/rest/v1",
+        "https://example.supabase.co/rest/v1/rpc/extra",
+    ],
+)
+def test_postgrest_transport_rejects_non_rpc_endpoints(url):
+    with pytest.raises(SeniorHarnessAdmissionUnavailable, match="/rest/v1/rpc"):
+        consumer.PostgRESTConsumerTransport(url, "consumer-token")
 
 
 @pytest.mark.parametrize(

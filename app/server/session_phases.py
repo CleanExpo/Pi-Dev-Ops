@@ -592,6 +592,9 @@ async def _phase_clone(session, resume_from: str) -> bool:
             result = None
         if result is not None and result.returncode == 0:
             session.workspace = str(worktree_path)
+            if not await _ensure_enforced_base(session, allow_checkout=True):
+                _emit_phase_metric(session, "clone", phase_start)
+                return False
             session.status = "cloning"
             session.last_completed_phase = "clone"
             em(session, "success", "  Using git worktree (skipped network clone)")
@@ -770,6 +773,21 @@ async def _ensure_enforced_base(session, *, allow_checkout: bool) -> bool:
     return False
 
 
+async def verify_workspace_base(workspace: str, expected_base_sha: str) -> bool:
+    """Read-only exact-HEAD preflight for a resumable admitted workspace."""
+    if (
+        not workspace
+        or not os.path.isdir(workspace)
+        or len(expected_base_sha) != 40
+        or any(char not in "0123456789abcdef" for char in expected_base_sha)
+    ):
+        return False
+    rc, actual, _error = await run_cmd(
+        workspace, "git", "rev-parse", "HEAD", timeout=10,
+    )
+    return rc == 0 and actual.strip() == expected_base_sha
+
+
 def _phase_analyze(session, resume_from: str) -> None:
     phase_start = time.monotonic()
     if _should_skip("analyze", resume_from):
@@ -817,7 +835,7 @@ async def _phase_claude_check(session, resume_from: str) -> bool:
 async def _phase_sandbox(session, resume_from: str) -> bool:
     if _should_skip("sandbox", resume_from):
         em(session, "system", "  [SKIP] Sandbox (already completed)")
-        return True
+        return await _ensure_enforced_base(session, allow_checkout=False)
     em(session, "phase", "[3.5/5] Verifying sandbox...")
     if not session.workspace or not os.path.isdir(session.workspace):
         em(session, "system", "  Sandbox missing — auto-regenerating workspace...")
@@ -832,12 +850,16 @@ async def _phase_sandbox(session, resume_from: str) -> bool:
             if proc_reclone.returncode != 0:
                 _fail_phase(session, f"Sandbox re-clone failed: {stderr.decode().strip()[:300]}")
                 return False
+            if not await _ensure_enforced_base(session, allow_checkout=True):
+                return False
             em(session, "success", "  Sandbox restored via re-clone")
         except Exception as e:
             _fail_phase(session, f"Sandbox regeneration error: {type(e).__name__}: {e}")
             return False
     else:
         em(session, "success", f"  Sandbox verified: {session.workspace}")
+        if not await _ensure_enforced_base(session, allow_checkout=False):
+            return False
     session.last_completed_phase = "sandbox"
     persistence.save_session(session)
     return True
@@ -1877,6 +1899,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         try:
             from .agents.plan_discovery import discover_best_plan  # noqa: PLC0415
             em(session, "phase", "[3.5/5] Plan Discovery (3 variants, haiku)...")
+            require_active_for_run(session.id)
             spec, meta = await discover_best_plan(brief, spec, session_id=session.id)
             session.plan_discovery_meta = meta
             if meta:

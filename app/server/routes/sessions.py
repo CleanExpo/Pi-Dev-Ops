@@ -320,6 +320,18 @@ async def resume_session(sid: str, body: ResumeRequest | None = None):
                 raise AdmissionVerificationError(
                     "admission reference does not match signed claim"
                 )
+            # Resume is the one ingress where a signed child targets an
+            # existing workspace. Prove its HEAD before consuming that
+            # single-use child or emitting any durable/scheduling side effect.
+            from ..session_phases import verify_workspace_base  # noqa: PLC0415
+
+            if not await verify_workspace_base(
+                session.workspace,
+                preview.reservation["base_sha"],
+            ):
+                raise AdmissionVerificationError(
+                    "interrupted workspace does not match the fresh admission base SHA"
+                )
             consumed = consume_for_build(
                 body.senior_harness_admission_envelope,
                 repo_url=session.repo_url,

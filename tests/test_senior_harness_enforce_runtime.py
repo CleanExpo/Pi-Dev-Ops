@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import HTTPException
 
 from app.server import session_model, session_phases, sessions
 from app.server.models import ResumeRequest
@@ -243,14 +244,51 @@ async def test_resume_consumes_fresh_child_before_status_save_and_schedule(admit
         senior_harness_admission_envelope=admitted["envelope"],
     )
     with patch("app.server.routes.sessions.persistence.save_session", side_effect=lambda _s: order.append("save")), \
-         patch("app.server.routes.sessions.asyncio.create_task") as create_task:
+         patch("app.server.routes.sessions.asyncio.create_task") as create_task, \
+         patch(
+             "app.server.session_phases.verify_workspace_base",
+             new=AsyncMock(side_effect=lambda *_args: order.append("preflight") or True),
+         ):
         create_task.side_effect = lambda coro: (order.append("schedule"), coro.close())[-1]
         result = await resume_session(existing.id, body)
 
     assert result == {"session_id": existing.id, "resumed_from": "analyze"}
     assert existing.status == "building"
     assert existing.scope == admitted["scope"]
-    assert order == ["consume", "save", "schedule"]
+    assert order == ["preflight", "consume", "save", "schedule"]
+
+
+@pytest.mark.asyncio
+async def test_resume_rejects_workspace_drift_before_consumption_or_side_effect(admitted):
+    existing = session_model.BuildSession(
+        id="abcdef123456",
+        repo_url="https://github.com/unite-group/pi-dev-ops.git",
+        workspace="/tmp/runtime-resume",
+        status="interrupted",
+        last_completed_phase="analyze",
+    )
+    session_model._sessions[existing.id] = existing
+    body = ResumeRequest(
+        brief=admitted["brief"],
+        scope=admitted["scope"],
+        senior_harness_admission_ref="child-runtime",
+        senior_harness_reservation=admitted["reservation"],
+        senior_harness_admission_envelope=admitted["envelope"],
+    )
+
+    with patch(
+        "app.server.session_phases.verify_workspace_base",
+        new=AsyncMock(return_value=False),
+    ), patch("app.server.routes.sessions.persistence.save_session") as save, patch(
+        "app.server.routes.sessions.asyncio.create_task"
+    ) as create_task:
+        with pytest.raises(HTTPException, match="does not match") as exc:
+            await resume_session(existing.id, body)
+
+    assert exc.value.status_code == 503
+    assert admitted["transport"].consume_calls == []
+    save.assert_not_called()
+    create_task.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -279,3 +317,69 @@ async def test_enforce_establishes_or_verifies_the_signed_base(admitted):
             session, allow_checkout=False
         )
     fail.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_shared_worktree_and_sandbox_paths_cannot_bypass_signed_base(
+    admitted, tmp_path,
+):
+    shared = tmp_path / "shared" / "parent"
+    shared.mkdir(parents=True)
+    session = session_model.BuildSession(
+        id="abcdef123456",
+        repo_url="https://github.com/unite-group/pi-dev-ops.git",
+        shared_workspace=str(shared),
+        parent_session_id="parent-runtime",
+        senior_harness_reservation=admitted["reservation"],
+    )
+    completed = type("Completed", (), {"returncode": 0, "stderr": ""})()
+    with patch.object(
+        session_phases.subprocess,
+        "run",
+        return_value=completed,
+    ), patch.object(
+        session_phases,
+        "_ensure_enforced_base",
+        new=AsyncMock(return_value=False),
+    ) as ensure:
+        assert not await session_phases._phase_clone(session, "")
+    ensure.assert_awaited_once_with(session, allow_checkout=True)
+
+    session.workspace = str(tmp_path)
+    with patch.object(
+        session_phases,
+        "_ensure_enforced_base",
+        new=AsyncMock(return_value=False),
+    ) as ensure:
+        assert not await session_phases._phase_sandbox(session, "sandbox")
+    ensure.assert_awaited_once_with(session, allow_checkout=False)
+
+
+def test_plan_discovery_asserts_active_immediately_before_model_call():
+    tree = ast.parse(inspect.getsource(session_phases.run_build))
+    function = tree.body[0]
+    discovery_await = next(
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Await)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "discover_best_plan"
+    )
+    discovery_statement = next(
+        node
+        for node in ast.walk(function)
+        if isinstance(node, (ast.Assign, ast.Expr))
+        and node.lineno == discovery_await.lineno
+    )
+    guarding_try = next(
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Try) and discovery_statement in node.body
+    )
+    index = guarding_try.body.index(discovery_statement)
+    guard = guarding_try.body[index - 1]
+    assert isinstance(guard, ast.Expr)
+    assert isinstance(guard.value, ast.Call)
+    assert isinstance(guard.value.func, ast.Name)
+    assert guard.value.func.id == "require_active_for_run"

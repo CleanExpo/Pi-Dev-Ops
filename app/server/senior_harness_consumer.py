@@ -107,6 +107,10 @@ class PostgRESTConsumerTransport:
             raise SeniorHarnessAdmissionUnavailable(
                 f"{RPC_URL_ENV} cannot contain a query or fragment"
             )
+        if parsed.path.rstrip("/") != "/rest/v1/rpc":
+            raise SeniorHarnessAdmissionUnavailable(
+                f"{RPC_URL_ENV} must end at the PostgREST /rest/v1/rpc endpoint"
+            )
         if not isinstance(consumer_token, str) or not consumer_token.strip():
             raise SeniorHarnessAdmissionUnavailable(f"{CONSUMER_TOKEN_ENV} is required")
         if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or timeout <= 0:
