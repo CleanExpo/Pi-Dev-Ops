@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import json
 import os
 import urllib.error
 from pathlib import Path
@@ -610,3 +611,36 @@ def test_a_healthy_run_is_still_silent_when_every_step_works(monkeypatch, tmp_pa
 
     assert code == 0
     assert delivered == ""
+
+
+# ── every fallback must point TOWARD alerting ─────────────────────────────────
+@pytest.mark.parametrize(
+    "victim", ["regressed", "write_outputs", "should_resurface", "prior_run"]
+)
+def test_a_broken_step_alerts_even_when_the_resurface_throttle_is_active(
+    monkeypatch, tmp_path, victim
+):
+    """The earlier invariant test left the throttle idle, so `resurface` rescued every
+    case and a wrong fallback stayed invisible. With a recent alert for the SAME
+    failing set, resurface is throttled OFF — and then the regressed fallback of `[]`
+    read as "no regression" and delivered nothing. A fallback is a direction, not a
+    placeholder."""
+    import datetime as _dt
+
+    (tmp_path / "alert-state.json").write_text(json.dumps({
+        "last_alert_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        "signature": ["unite api/health"],
+    }))
+
+    def explode(*_a, **_k):
+        raise RuntimeError(f"{victim} exploded")
+
+    monkeypatch.setattr(health, victim, explode)
+    monkeypatch.setattr(health, "ALERT_STATE", tmp_path / "alert-state.json")
+    code, delivered = _drive_main(
+        monkeypatch, tmp_path,
+        '{"checks": [{"name": "unite api/health", "tier": 1, "status": "PASS"}]}',
+    )
+
+    assert delivered, f"{victim} failing went silent while the throttle was active"
+    assert code == 1

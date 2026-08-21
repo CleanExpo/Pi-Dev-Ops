@@ -226,7 +226,7 @@ def parse_iso(ts: str | None) -> _dt.datetime | None:
         return None
 
 
-def unreadable_prior() -> dict[str, Any]:
+def unreadable_prior(crashed: bool = False) -> dict[str, Any]:
     """Truthy on purpose: `bool(prior)` is what main() uses to tell a first run from a
     later one, and an unreadable record is not a first run.
 
@@ -235,7 +235,7 @@ def unreadable_prior() -> dict[str, Any]:
     every later call in the process. No caller mutates it today; this file's whole
     history is guards that were right until they weren't.
     """
-    return {"started": None, "checks": [], "unreadable": True}
+    return {"started": None, "checks": [], "unreadable": True, "crashed": crashed}
 
 
 def prior_run() -> dict[str, Any] | None:
@@ -855,6 +855,10 @@ def guarded(name: str, tier: int, fn: Any, *args: Any) -> list[dict[str, Any]]:
     return result if isinstance(result, list) else [result]
 
 
+# Named so it is visible in the delivered alert rather than looking like a check.
+REGRESSION_CHECK_FAILED = "<regression check failed — treating as a regression>"
+
+
 def never_fatal(label: str, fn: Any, fallback: Any) -> Any:
     """Run one step of main()'s alert path. Nothing here may stop the alert.
 
@@ -921,6 +925,13 @@ def regressed(checks: list[dict[str, Any]], prior: dict[str, Any] | None) -> lis
     """Return names of Tier-1 checks that were PASS previously and are FAIL now."""
     if not prior:
         return []
+    if prior.get("crashed"):
+        # No baseline can be computed and the store itself failed. Reporting "no
+        # regressions" here is a false all-clear that the resurface throttle will then
+        # silence — the same wrong-direction fallback a reviewer caught in `regressed`.
+        return [REGRESSION_CHECK_FAILED] if any(
+            c.get("tier") == 1 and c.get("status") == "FAIL" for c in checks
+        ) else []
     # Subscripts, not .get() — a Tier-1 entry missing either key raises KeyError here,
     # and one whose "name" is a list raises TypeError when used as a dict key. prior_run
     # screens entry TYPE, not the type of what is inside an entry, so both routes reach
@@ -1043,6 +1054,9 @@ def stdout_report(
     print("")
     print(f"Regressions (Tier-1 PASS→FAIL since prior run): {len(regressions)}")
     for r in regressions:
+        if r == REGRESSION_CHECK_FAILED:
+            print(f"  • {r}")
+            continue
         # Find the current detail line
         for c in checks:
             if c["name"] == r:
@@ -1065,7 +1079,10 @@ def main() -> int:
     # prior_run guards its own JSON parse, but the glob and the sort around it are not
     # inside that handler — and the invariant should not rest on one function's
     # internals anyway. A parametrised test breaks each step of this path in turn.
-    prior = never_fatal("prior_run", prior_run, unreadable_prior())
+    # crashed=True distinguishes "the store is broken" from "one record was corrupt".
+    # A corrupt record is handled and may be throttled; prior_run itself raising is a
+    # malfunction of the monitor, and regressed() turns that into a forced alert.
+    prior = never_fatal("prior_run", prior_run, unreadable_prior(crashed=True))
     if prior and prior.get("unreadable"):
         log("prior run UNREADABLE — no regression baseline, but alerting stays live")
     elif prior:
@@ -1075,7 +1092,15 @@ def main() -> int:
 
     checks = run_all()
     finished = _dt.datetime.now(_dt.timezone.utc)
-    regressions = never_fatal("regressed", lambda: regressed(checks, prior), [])
+    # Every never_fatal fallback must point TOWARD alerting. This one did not: `[]`
+    # reads as "no regression", and with the resurface throttle active that produced
+    # exit 0 and silence on a live failure — the wrapper written to guarantee delivery,
+    # handed a fallback that suppressed it. A reviewer caught it. The sentinel is
+    # truthy, so `alert` fires, and it names itself in the report rather than pretending
+    # a regression was computed.
+    regressions = never_fatal(
+        "regressed", lambda: regressed(checks, prior), [REGRESSION_CHECK_FAILED]
+    )
 
     json_path = never_fatal(
         "write_outputs",
