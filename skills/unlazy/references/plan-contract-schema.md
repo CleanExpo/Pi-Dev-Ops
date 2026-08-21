@@ -94,11 +94,11 @@ approved tools, forbidden paths, root outcomes, sensitivity, spend/time caps, ga
 contract digest. These may live in a signed sidecar/receipt until the executable schema formally
 adds them.
 
-The current CLI does **not** validate root reachability, disconnected nodes, leaf childlessness,
-shared-interface semantics, base cleanliness, root outcomes, cost reservations, contract digests,
-or exact-SHA receipts. Unknown extra JSON fields are not proof that the runtime enforces them. The
-driver/verifier must check them separately and must not present a successful `lint` as full
-completion evidence.
+The current CLI does **not** validate leaf childlessness, shared-interface semantics, root outcomes,
+cost reservations, or contract digests. Terminal leaf states do require a stored gate receipt bound
+to the plan/node, base/candidate SHA, independent verifier, node gate, relevant inputs, clean
+worktree, and strict counts. The driver/verifier must still enforce the remaining sidecar contract
+and must not present a successful `lint` as full completion evidence.
 
 ## Ownership and amendment rules
 

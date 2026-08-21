@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -226,11 +227,14 @@ def test_decision_json_round_trips():
 
 def test_policy_semantics_bind_digest_and_route_id(monkeypatch):
     before = decide_route(request())
-    monkeypatch.setattr(
-        task_routing,
-        "POLICY_RULES",
-        (*task_routing.POLICY_RULES, "mutation-control-rule"),
-    )
+    policy_path = Path(task_routing.__file__).resolve()
+    original_read_bytes = Path.read_bytes
+
+    def mutated_source(path):
+        source = original_read_bytes(path)
+        return source + b"\n# mutation-control\n" if path.resolve() == policy_path else source
+
+    monkeypatch.setattr(Path, "read_bytes", mutated_source)
     after = decide_route(request())
     assert after.policy_version != before.policy_version
     assert after.route_id != before.route_id

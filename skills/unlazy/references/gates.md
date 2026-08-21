@@ -35,12 +35,16 @@ fails. Status display is read-only and never counts as rerun proof.
 
 Capture:
 
-- gate/node/plan IDs and runner version;
+- gate/node/plan IDs, independent verifier ID, and runner version;
 - repository, worktree, cwd, base/candidate SHA;
 - command and environment allow-list digests;
 - timestamp, duration, exit/signal/timeout status;
 - bounded stdout/stderr digests and safe summary;
 - expectation result and relevant-input digest.
+
+A verified run requires explicit plan, node, verifier, and relevant-input arguments. The runner
+includes the relevant-input digest in both the receipt and command cache key, so changing a
+contract input invalidates reuse even when the candidate SHA and command text are unchanged.
 
 Full output belongs in a protected bounded artifact. Redact secrets, tokens, customer data, and raw
 upstream response bodies from user-facing evidence.

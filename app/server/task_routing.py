@@ -9,6 +9,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from app.server import routing_schema as routing_schema_module
 from app.server.routing_schema import RouteDecision, RoutingRequest, RoutingValidationError
 
 
@@ -16,14 +17,6 @@ POLICY_VERSION = "nexus-task-routing-v2"
 HIGH_STAKES = {"auth", "payment", "privacy", "security", "legal", "release", "migration"}
 QUALITY_ORDER = ("cheap", "mid", "top")
 EFFORT_ORDER = ("low", "medium", "high", "xhigh")
-POLICY_RULES = (
-    "strict-json-booleans",
-    "finite-nonnegative-limits",
-    "top-floor-never-inline",
-    "delegation-hard-zero-limits",
-    "timed-fanout-requires-cancellation",
-    "monotonic-quality-effort-escalation",
-)
 
 
 def _stable_route_id(request: RoutingRequest) -> str:
@@ -41,15 +34,18 @@ def _stable_route_id(request: RoutingRequest) -> str:
 
 
 def _policy_digest() -> str:
-    payload = {
-        "version": POLICY_VERSION,
-        "high_stakes": sorted(HIGH_STAKES),
-        "quality_order": QUALITY_ORDER,
-        "effort_order": EFFORT_ORDER,
-        "rules": POLICY_RULES,
-    }
-    text = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    return "sha256:" + hashlib.sha256(text.encode()).hexdigest()
+    """Bind receipts to all executable router and validation source semantics."""
+    source_paths = (
+        Path(__file__).resolve(),
+        Path(routing_schema_module.__file__).resolve(),
+    )
+    digest = hashlib.sha256()
+    for path in sorted(source_paths, key=lambda item: item.name):
+        digest.update(path.name.encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return "sha256:" + digest.hexdigest()
 
 
 def decide_route(raw: RoutingRequest | dict[str, Any]) -> RouteDecision:

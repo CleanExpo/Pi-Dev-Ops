@@ -111,7 +111,7 @@ say `billed_cost_usd=0` only when observed; quota consumption remains a separate
 4. Fan-out requires `max_parallel_workers >= 2` and disjoint owned paths.
 5. Fallback is monotonic and ends in `bailout` when no safe target exists.
 6. A savings claim requires equal root-gate outcome, actual usage, and timestamped baseline prices.
-7. The policy digest and route ID bind the complete declared policy semantics, not only a version
-   label.
+7. The policy digest and route ID bind the executable router and request-validation source bytes,
+   not manually maintained rule labels.
 
 The contract is complete when schema validation and all invariants pass.

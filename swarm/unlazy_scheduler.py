@@ -19,6 +19,8 @@ from typing import Any, Iterable
 NODE_TYPES = {"root", "branch", "leaf"}
 NODE_STATES = {"pending", "ready", "running", "verifying", "passed", "blocked", "cancelled"}
 WILDCARDS = re.compile(r"[*?\[\]{}]")
+GIT_SHA = re.compile(r"[0-9a-f]{40}")
+SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 class PlanValidationError(ValueError):
@@ -41,6 +43,7 @@ class PlanNode:
     gates: str
     state: str
     attempt: int
+    verification_receipt: dict[str, Any] | None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any], index: int) -> "PlanNode":
@@ -80,6 +83,9 @@ class PlanNode:
             gates=str(raw.get("gates") or "").strip(),
             state=state,
             attempt=attempt,
+            verification_receipt=copy.deepcopy(raw.get("verification_receipt"))
+            if isinstance(raw.get("verification_receipt"), dict)
+            else None,
         )
 
 
@@ -99,6 +105,77 @@ class UnlazyPlan:
     @property
     def by_id(self) -> dict[str, PlanNode]:
         return {node.id: node for node in self.nodes}
+
+
+def _verification_receipt_errors(
+    plan_id: str,
+    base_sha: str,
+    node: PlanNode,
+    receipt: dict[str, Any] | None,
+    *,
+    passed: bool,
+) -> list[str]:
+    if not isinstance(receipt, dict):
+        return ["verification receipt is required"]
+    errors: list[str] = []
+    if receipt.get("schema_version") != "1.0":
+        errors.append("verification receipt schema_version must be '1.0'")
+    if receipt.get("plan_id") != plan_id:
+        errors.append("verification receipt plan_id does not match plan")
+    if receipt.get("node_id") != node.id:
+        errors.append("verification receipt node_id does not match node")
+    verifier_id = receipt.get("verifier_id")
+    if not isinstance(verifier_id, str) or not verifier_id.strip():
+        errors.append("verification receipt verifier_id is required")
+    if receipt.get("independent_verifier") is not True:
+        errors.append("verification receipt must attest an independent verifier")
+    if receipt.get("mode") != "run" or receipt.get("verified") is not True:
+        errors.append("verification receipt must be a verified run")
+    if receipt.get("worktree_clean_before_run") is not True:
+        errors.append("verification receipt must bind a clean worktree")
+    runner_version = receipt.get("runner_version")
+    if not isinstance(runner_version, str) or not runner_version.strip():
+        errors.append("verification receipt runner_version is required")
+    candidate_sha = receipt.get("candidate_sha")
+    if not isinstance(candidate_sha, str) or not GIT_SHA.fullmatch(candidate_sha):
+        errors.append("verification receipt candidate_sha must be a full Git SHA")
+    if base_sha and receipt.get("base_sha") != base_sha:
+        errors.append("verification receipt base_sha does not match plan")
+    for digest_field in ("environment_digest", "relevant_input_digest"):
+        digest = receipt.get(digest_field)
+        if not isinstance(digest, str) or not SHA256_DIGEST.fullmatch(digest):
+            errors.append(f"verification receipt {digest_field} must be a sha256 digest")
+    gate_files = receipt.get("gate_files")
+    gate_match = False
+    if isinstance(gate_files, list):
+        gate_match = any(
+            isinstance(item, dict)
+            and item.get("path") == node.gates
+            and isinstance(item.get("digest"), str)
+            and SHA256_DIGEST.fullmatch(item["digest"])
+            for item in gate_files
+        )
+    if not gate_match:
+        errors.append("verification receipt must include the node gate file and digest")
+    summary = receipt.get("summary")
+    count_names = ("passed", "failed", "pending", "abandoned", "runner_errors")
+    counts: dict[str, int] = {}
+    if not isinstance(summary, dict):
+        errors.append("verification receipt summary is required")
+    else:
+        for name in count_names:
+            value = summary.get(name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                errors.append(f"verification receipt summary.{name} must be non-negative")
+            else:
+                counts[name] = value
+    if len(counts) == len(count_names):
+        non_passing = sum(counts[name] for name in count_names if name != "passed")
+        if passed and (counts["passed"] < 1 or non_passing != 0):
+            errors.append("passed requires strict gate counts at zero")
+        if not passed and non_passing == 0:
+            errors.append("blocked requires a non-passing gate count")
+    return errors
 
 
 def _depth(value: Any, name: str, errors: list[str], *, maximum: int | None = None) -> int:
@@ -219,6 +296,16 @@ def validate_plan(raw: dict[str, Any]) -> UnlazyPlan:
             gate_path = PurePosixPath(node.gates.replace("\\", "/"))
             if gate_path.is_absolute() or ".." in gate_path.parts or gate_path.suffix != ".md":
                 errors.append(f"node {node.id} has unsafe gate path {node.gates!r}")
+        if node.type == "leaf" and node.state in {"passed", "blocked"}:
+            errors.extend(
+                _verification_receipt_errors(
+                    plan_id,
+                    str(raw.get("base_sha") or "").strip(),
+                    node,
+                    node.verification_receipt,
+                    passed=node.state == "passed",
+                )
+            )
     if by_id and _has_cycle(by_id):
         errors.append("dependency graph contains a cycle")
     roots = [node for node in nodes if node.type == "root"]
@@ -300,6 +387,7 @@ def record_result(
     *,
     passed: bool,
     changed_paths: Iterable[str],
+    verification_receipt: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return a copied plan with one terminal leaf result, rejecting contract drift."""
     plan = validate_plan(raw)
@@ -312,6 +400,15 @@ def record_result(
         raise PlanValidationError([f"node {node_id} must be verifying before a terminal result"])
     if type(passed) is not bool:
         raise PlanValidationError(["passed must be a boolean"])
+    receipt_errors = _verification_receipt_errors(
+        plan.plan_id,
+        plan.base_sha,
+        node,
+        verification_receipt,
+        passed=passed,
+    )
+    if receipt_errors:
+        raise PlanValidationError(receipt_errors)
     path_errors: list[str] = []
     canonical_changed: list[str] = []
     for raw_path in changed_paths:
@@ -332,6 +429,7 @@ def record_result(
         if entry.get("id") == node_id:
             entry["state"] = "passed" if passed else "blocked"
             entry["attempt"] = int(entry.get("attempt", 0)) + 1
+            entry["verification_receipt"] = copy.deepcopy(verification_receipt)
             break
     validate_plan(updated)
     return updated

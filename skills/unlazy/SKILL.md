@@ -26,8 +26,12 @@ When running reviewed repository gate files, use the strict checker; `--status` 
 state and never verifies it:
 
 ```bash
-node scripts/unlazy-gate-check.mjs --json --jobs 3 --cwd "$PWD" gates/root.md
-node scripts/unlazy-gate-check.mjs --status --json --cwd "$PWD" gates/root.md
+node scripts/unlazy-gate-check.mjs --json --jobs 3 --cwd "$PWD" \
+  --plan-id "$PLAN_ID" --node-id "$NODE_ID" --verifier-id "$VERIFIER_ID" \
+  --relevant-input PLAN.json gates/root.md
+node scripts/unlazy-gate-check.mjs --status --json --cwd "$PWD" \
+  --plan-id "$PLAN_ID" --node-id "$NODE_ID" --verifier-id "$VERIFIER_ID" \
+  --relevant-input PLAN.json gates/root.md
 ```
 
 Plan/gate commands pass only on exit `0`; preserve JSON receipts and treat exit `1` as unmet strict

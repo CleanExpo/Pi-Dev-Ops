@@ -81,6 +81,32 @@ def verifying_plan():
     return raw
 
 
+def gate_receipt(*, passed: bool = True):
+    return {
+        "schema_version": "1.0",
+        "mode": "run",
+        "verified": True,
+        "runner_version": "nexus-unlazy-gate-v2",
+        "plan_id": "plan-1",
+        "node_id": "1.1",
+        "verifier_id": "verifier-1",
+        "independent_verifier": True,
+        "base_sha": "a" * 40,
+        "candidate_sha": "b" * 40,
+        "worktree_clean_before_run": True,
+        "environment_digest": "sha256:" + "c" * 64,
+        "relevant_input_digest": "sha256:" + "d" * 64,
+        "gate_files": [{"path": "gates/a.md", "digest": "sha256:" + "e" * 64}],
+        "summary": {
+            "passed": 1 if passed else 0,
+            "failed": 0 if passed else 1,
+            "pending": 0,
+            "abandoned": 0,
+            "runner_errors": 0,
+        },
+    }
+
+
 def test_lint_accepts_acyclic_disjoint_plan():
     plan = validate_plan(valid_plan())
     assert plan.effective_depth == 3
@@ -92,12 +118,18 @@ def test_rolling_ready_fills_cap_with_disjoint_leaves():
 
 
 def test_out_of_order_return_unlocks_new_leaf_immediately():
-    updated = record_result(verifying_plan(), "1.1", passed=True, changed_paths=["src/a.py"])
+    updated = record_result(
+        verifying_plan(), "1.1", passed=True, changed_paths=["src/a.py"],
+        verification_receipt=gate_receipt(),
+    )
     assert [node.id for node in ready_nodes(updated, active_ids=["1.2"])] == ["1.3"]
 
 
 def test_blocked_dependency_does_not_unlock_dependant():
-    updated = record_result(verifying_plan(), "1.1", passed=False, changed_paths=["src/a.py"])
+    updated = record_result(
+        verifying_plan(), "1.1", passed=False, changed_paths=["src/a.py"],
+        verification_receipt=gate_receipt(passed=False),
+    )
     assert "1.3" not in [node.id for node in ready_nodes(updated)]
 
 
@@ -139,19 +171,79 @@ def test_unsafe_or_wildcard_ownership_is_rejected():
 
 def test_out_of_contract_return_trips_boundary():
     with pytest.raises(PlanValidationError, match="outside ownership"):
-        record_result(verifying_plan(), "1.1", passed=True, changed_paths=["src/b.py"])
+        record_result(
+            verifying_plan(), "1.1", passed=True, changed_paths=["src/b.py"],
+            verification_receipt=gate_receipt(),
+        )
 
 
 def test_terminal_result_requires_verifying_state_and_strict_boolean():
     with pytest.raises(PlanValidationError, match="must be verifying"):
-        record_result(valid_plan(), "1.1", passed=True, changed_paths=["src/a.py"])
+        record_result(
+            valid_plan(), "1.1", passed=True, changed_paths=["src/a.py"],
+            verification_receipt=gate_receipt(),
+        )
     with pytest.raises(PlanValidationError, match="passed must be a boolean"):
         record_result(
             verifying_plan(),
             "1.1",
             passed="false",  # type: ignore[arg-type]
             changed_paths=["src/a.py"],
+            verification_receipt=gate_receipt(),
         )
+
+
+def test_terminal_result_requires_bound_independent_gate_receipt():
+    with pytest.raises(PlanValidationError, match="verification receipt is required"):
+        record_result(verifying_plan(), "1.1", passed=True, changed_paths=[])
+
+
+def test_direct_terminal_state_without_stored_receipt_is_rejected():
+    raw = valid_plan()
+    raw["nodes"][1]["state"] = "passed"
+    with pytest.raises(PlanValidationError, match="verification receipt is required"):
+        ready_nodes(raw)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "match"),
+    [
+        ("plan_id", "other-plan", "plan_id"),
+        ("node_id", "1.2", "node_id"),
+        ("verifier_id", "", "verifier_id"),
+        ("candidate_sha", "not-a-sha", "candidate_sha"),
+        ("verified", False, "verified run"),
+        ("mode", "status", "verified run"),
+        ("worktree_clean_before_run", False, "clean worktree"),
+        ("relevant_input_digest", "", "relevant_input_digest"),
+    ],
+)
+def test_terminal_result_rejects_mutated_receipt_fields(field, value, match):
+    receipt = gate_receipt()
+    receipt[field] = value
+    with pytest.raises(PlanValidationError, match=match):
+        record_result(
+            verifying_plan(), "1.1", passed=True, changed_paths=[],
+            verification_receipt=receipt,
+        )
+
+
+def test_pass_requires_node_gate_digest_and_strict_zero_counts():
+    missing_gate = gate_receipt()
+    missing_gate["gate_files"] = [{"path": "gates/other.md", "digest": "sha256:" + "e" * 64}]
+    with pytest.raises(PlanValidationError, match="node gate file"):
+        record_result(
+            verifying_plan(), "1.1", passed=True, changed_paths=[],
+            verification_receipt=missing_gate,
+        )
+    for count in ("failed", "pending", "abandoned", "runner_errors"):
+        receipt = gate_receipt()
+        receipt["summary"][count] = 1
+        with pytest.raises(PlanValidationError, match="strict gate counts"):
+            record_result(
+                verifying_plan(), "1.1", passed=True, changed_paths=[],
+                verification_receipt=receipt,
+            )
 
 
 def test_ownership_paths_are_canonical_for_result_boundary():
@@ -160,7 +252,10 @@ def test_ownership_paths_are_canonical_for_result_boundary():
     plan = validate_plan(raw)
     assert plan.by_id["1.1"].owns == ("src/a.py",)
     raw["nodes"][1]["state"] = "verifying"
-    updated = record_result(raw, "1.1", passed=True, changed_paths=["src/a.py"])
+    updated = record_result(
+        raw, "1.1", passed=True, changed_paths=["src/a.py"],
+        verification_receipt=gate_receipt(),
+    )
     assert updated["nodes"][1]["state"] == "passed"
 
 
@@ -173,11 +268,15 @@ def test_directory_ownership_accepts_children_but_not_parent_or_sibling():
         "1.1",
         passed=True,
         changed_paths=["src/features/a.py", "src/features/nested/b.py"],
+        verification_receipt=gate_receipt(),
     )
     assert updated["nodes"][1]["state"] == "passed"
     for outside in ("src", "src/feature-other/a.py"):
         with pytest.raises(PlanValidationError, match="outside ownership"):
-            record_result(raw, "1.1", passed=True, changed_paths=[outside])
+            record_result(
+                raw, "1.1", passed=True, changed_paths=[outside],
+                verification_receipt=gate_receipt(),
+            )
 
 
 def test_requested_depth_above_seven_is_truthfully_reduced():

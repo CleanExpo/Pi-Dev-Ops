@@ -25,7 +25,15 @@ def repo_fixture(tmp_path: Path) -> Path:
 
 def run_checker(root: Path, gate: Path, *args: str):
     return subprocess.run(
-        ["node", str(CHECKER), "--json", *args, gate.name],
+        [
+            "node", str(CHECKER), "--json",
+            "--plan-id", "plan-1",
+            "--node-id", "1.1",
+            "--verifier-id", "verifier-1",
+            "--relevant-input", gate.name,
+            *args,
+            gate.name,
+        ],
         cwd=root,
         text=True,
         capture_output=True,
@@ -85,6 +93,81 @@ def test_exit_and_expectation_both_pass(tmp_path):
     receipt = json.loads(result.stdout)
     assert receipt["summary"]["passed"] == 1
     assert receipt["worktree_clean_before_run"] is True
+    assert receipt["plan_id"] == "plan-1"
+    assert receipt["node_id"] == "1.1"
+    assert receipt["verifier_id"] == "verifier-1"
+    assert receipt["relevant_input_digest"].startswith("sha256:")
+
+
+def test_verified_run_requires_plan_node_and_verifier_ids(tmp_path):
+    root = repo_fixture(tmp_path)
+    gate = write_gate(
+        root,
+        """- [ ] G1: exact marker appears
+  CHECK: node -e \"console.log('READY')\"
+  EXIT: 0
+  EXPECT: READY
+  EVIDENCE: pending
+""",
+    )
+    result = subprocess.run(
+        ["node", str(CHECKER), "--json", gate.name],
+        cwd=root,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 2
+    assert "--plan-id, --node-id, and --verifier-id are required" in result.stderr
+
+
+def test_relevant_input_content_is_bound_to_receipt_digest(tmp_path):
+    root = repo_fixture(tmp_path)
+    relevant = root / "contract.json"
+    relevant.write_text('{"version":1}\n')
+    gate = write_gate(
+        root,
+        """- [ ] G1: status-bound gate
+  CHECK: node -e \"console.log('READY')\"
+  EXIT: 0
+  EXPECT: READY
+  EVIDENCE: pending
+""",
+    )
+    first = run_checker(root, gate, "--status", "--relevant-input", relevant.name)
+    relevant.write_text('{"version":2}\n')
+    second = run_checker(root, gate, "--status", "--relevant-input", relevant.name)
+    assert first.returncode == 1
+    assert second.returncode == 1
+    first_receipt = json.loads(first.stdout)
+    second_receipt = json.loads(second.stdout)
+    assert any(item["path"] == "contract.json" for item in first_receipt["relevant_inputs"])
+    assert first_receipt["relevant_input_digest"] != second_receipt["relevant_input_digest"]
+
+
+def test_relevant_input_mutation_changes_command_cache_key_at_same_sha(tmp_path):
+    root = repo_fixture(tmp_path)
+    gate = write_gate(
+        root,
+        """- [ ] G1: relevant-input-bound gate
+  CHECK: node -e \"console.log('READY')\"
+  EXIT: 0
+  EXPECT: READY
+  EVIDENCE: pending
+""",
+    )
+    (root / ".git" / "info" / "exclude").write_text("runtime-contract.json\n")
+    relevant = root / "runtime-contract.json"
+    relevant.write_text('{"version":1}\n')
+    first = run_checker(root, gate, "--relevant-input", relevant.name)
+    relevant.write_text('{"version":2}\n')
+    second = run_checker(root, gate, "--relevant-input", relevant.name)
+    assert first.returncode == 0
+    assert second.returncode == 0
+    first_receipt = json.loads(first.stdout)
+    second_receipt = json.loads(second.stdout)
+    assert first_receipt["candidate_sha"] == second_receipt["candidate_sha"]
+    assert first_receipt["relevant_input_digest"] != second_receipt["relevant_input_digest"]
+    assert first_receipt["gates"][0]["commandDigest"] != second_receipt["gates"][0]["commandDigest"]
 
 
 def test_untracked_worktree_refuses_before_gate_execution(tmp_path):
