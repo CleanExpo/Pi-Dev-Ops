@@ -116,6 +116,45 @@ def test_harness_without_parallelism_degrades_to_delegate():
     assert "harness-parallelism-unavailable" in decision.reasons
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "reason"),
+    [
+        ("max_cost_usd", 0.0, "zero-cost-budget"),
+        ("max_quota_units", 0.0, "zero-quota-budget"),
+        ("deadline_seconds", 0, "zero-deadline"),
+    ],
+)
+def test_delegated_work_fails_closed_on_zero_execution_limit(field, value, reason):
+    raw = request(scope="multi-file", volume=4, ownership_disjoint=True)
+    raw["limits"][field] = value
+    decision = decide_route(raw)
+    assert decision.action == "bailout"
+    assert decision.execution["max_parallel_workers"] == 1
+    assert decision.budget["reservation_required"] is False
+    assert reason in decision.reasons
+
+
+def test_timed_fanout_without_cancellation_degrades_to_one_worker():
+    raw = request(scope="multi-file", volume=4, ownership_disjoint=True)
+    raw["capabilities"]["supports_cancellation"] = False
+    decision = decide_route(raw)
+    assert decision.action == "delegate"
+    assert decision.execution["max_parallel_workers"] == 1
+    assert "harness-cancellation-unavailable" in decision.reasons
+
+
+def test_all_zero_limits_and_no_cancellation_never_fan_out():
+    raw = request(scope="multi-file", volume=4, ownership_disjoint=True)
+    raw["limits"].update(
+        {"max_cost_usd": 0.0, "max_quota_units": 0.0, "deadline_seconds": 0}
+    )
+    raw["capabilities"]["supports_cancellation"] = False
+    decision = decide_route(raw)
+    assert decision.action == "bailout"
+    assert decision.execution["max_parallel_workers"] == 1
+    assert decision.budget["reservation_required"] is False
+
+
 def test_failure_escalation_never_downgrades():
     decision = decide_route(
         request(determinism="high", reasoning_depth="shallow", prior_failures=2)
@@ -124,10 +163,34 @@ def test_failure_escalation_never_downgrades():
     assert decision.fallback == ("top", "bailout")
 
 
+def test_high_stakes_failure_escalation_preserves_xhigh_effort():
+    decision = decide_route(request(stakes=["security"], prior_failures=2))
+    assert decision.quality_floor == "top"
+    assert decision.reasoning_effort == "xhigh"
+    assert "monotonic-failure-escalation" in decision.reasons
+
+
 def test_invalid_bool_integer_is_rejected():
     raw = request()
     raw["signals"]["dependency_count"] = True
     with pytest.raises(RoutingValidationError, match="must be an integer"):
+        decide_route(raw)
+
+
+@pytest.mark.parametrize("invalid", ["false", 0, None, [], {}])
+@pytest.mark.parametrize(
+    ("section", "field"),
+    [
+        ("signals", "ownership_disjoint"),
+        ("capabilities", "supports_parallel"),
+        ("capabilities", "supports_model_override"),
+        ("capabilities", "supports_cancellation"),
+    ],
+)
+def test_boolean_fields_reject_non_json_booleans(section, field, invalid):
+    raw = request()
+    raw[section][field] = invalid
+    with pytest.raises(RoutingValidationError, match=f"{section}.{field} must be a boolean"):
         decide_route(raw)
 
 

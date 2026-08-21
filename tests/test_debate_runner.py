@@ -47,6 +47,13 @@ def _install_fake_kill(monkeypatch, fake: _FakeKillSwitch) -> None:
     monkeypatch.setattr(ks, "is_active", fake.is_active)
 
 
+def _allow_slow_fake_kanban(monkeypatch) -> None:
+    """Keep nested isolation probes from inheriting the production 8s CLI timeout."""
+    from swarm import kanban_adapter
+
+    monkeypatch.setattr(kanban_adapter, "HERMES_TIMEOUT_S", 30.0)
+
+
 def _install_fake_sdk(monkeypatch, *, drafter_text: str, redteam_text: str,
                        drafter_seconds: float = 0.05,
                        redteam_seconds: float = 0.05,
@@ -129,6 +136,7 @@ def test_happy_path_both_sides_succeed(monkeypatch, tmp_path):
     monkeypatch.setattr(DR, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(DR, "DEBATE_STATE_FILE_REL", "debates.jsonl")
     _install_fake_kill(monkeypatch, _FakeKillSwitch(on=False))
+    _allow_slow_fake_kanban(monkeypatch)
     _install_fake_sdk(
         monkeypatch,
         drafter_text="DRAFT: ship the brief.",
@@ -205,6 +213,7 @@ def test_run_debates_parallel_runs_many(monkeypatch, tmp_path):
     monkeypatch.setattr(DR, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(DR, "DEBATE_STATE_FILE_REL", "debates.jsonl")
     _install_fake_kill(monkeypatch, _FakeKillSwitch(on=False))
+    _allow_slow_fake_kanban(monkeypatch)
     _install_fake_sdk(
         monkeypatch,
         drafter_text="d", redteam_text="r",

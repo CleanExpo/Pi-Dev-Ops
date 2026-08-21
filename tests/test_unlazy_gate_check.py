@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from pathlib import Path
 
 
@@ -34,6 +35,15 @@ def run_checker(root: Path, gate: Path, *args: str):
 def write_gate(root: Path, body: str) -> Path:
     path = root / "GATES.md"
     path.write_text(body)
+    subprocess.run(["git", "add", "--all"], cwd=root, check=True)
+    subprocess.run(
+        [
+            "git", "-c", "user.name=Unlazy Test", "-c", "user.email=unlazy@example.invalid",
+            "commit", "-q", "-m", "gate fixture",
+        ],
+        cwd=root,
+        check=True,
+    )
     return path
 
 
@@ -72,7 +82,51 @@ def test_exit_and_expectation_both_pass(tmp_path):
     )
     result = run_checker(root, gate)
     assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout)["summary"]["passed"] == 1
+    receipt = json.loads(result.stdout)
+    assert receipt["summary"]["passed"] == 1
+    assert receipt["worktree_clean_before_run"] is True
+
+
+def test_untracked_worktree_refuses_before_gate_execution(tmp_path):
+    root = repo_fixture(tmp_path)
+    marker = root / "should-not-exist"
+    gate = write_gate(
+        root,
+        f"""- [ ] G1: must not run dirty code
+  CHECK: touch {marker.name}
+  EXIT: 0
+  EXPECT: impossible
+  EVIDENCE: pending
+""",
+    )
+    (root / "untracked.py").write_text("dirty\n")
+    result = run_checker(root, gate)
+    assert result.returncode == 2
+    assert "worktree must be clean" in result.stderr
+    assert result.stdout == ""
+    assert not marker.exists()
+
+
+def test_tracked_worktree_refuses_before_gate_execution(tmp_path):
+    root = repo_fixture(tmp_path)
+    tracked = root / "tracked.py"
+    tracked.write_text("clean\n")
+    marker = root / "should-not-exist"
+    gate = write_gate(
+        root,
+        f"""- [ ] G1: must not run dirty code
+  CHECK: touch {marker.name}
+  EXIT: 0
+  EXPECT: impossible
+  EVIDENCE: pending
+""",
+    )
+    tracked.write_text("dirty\n")
+    result = run_checker(root, gate)
+    assert result.returncode == 2
+    assert "worktree must be clean" in result.stderr
+    assert result.stdout == ""
+    assert not marker.exists()
 
 
 def test_status_is_read_only_and_never_reverifies(tmp_path):
@@ -145,3 +199,36 @@ def test_invalid_regex_is_runner_error(tmp_path):
     result = run_checker(root, gate)
     assert result.returncode == 2
     assert json.loads(result.stdout)["summary"]["runner_errors"] == 1
+
+
+def test_timeout_terminates_descendant_process_group(tmp_path):
+    root = repo_fixture(tmp_path)
+    marker = root / "late-marker"
+    (root / "spawn-descendant.js").write_text(
+        """const { spawn } = require('node:child_process');
+const childCode = `
+  const fs = require('node:fs');
+  process.on('SIGTERM', () => {});
+  setTimeout(() => fs.writeFileSync('late-marker', 'survived'), 1500);
+`;
+spawn(process.execPath, ['-e', childCode], { stdio: 'inherit' });
+setTimeout(() => {}, 3000);
+"""
+    )
+    gate = write_gate(
+        root,
+        """- [ ] G1: descendants are terminated on timeout
+  CHECK: node spawn-descendant.js
+  EXIT: 0
+  EXPECT: impossible
+  TIMEOUT: 1
+  EVIDENCE: pending
+""",
+    )
+    started = time.monotonic()
+    result = run_checker(root, gate)
+    elapsed = time.monotonic() - started
+    assert result.returncode == 2
+    assert elapsed < 2.0
+    time.sleep(0.8)
+    assert not marker.exists()

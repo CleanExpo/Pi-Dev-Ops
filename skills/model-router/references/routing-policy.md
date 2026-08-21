@@ -34,9 +34,14 @@ Compute a baseline, then intersect every applicable constraint:
   the current agent meets all floors.
 - `delegate`: one bounded node benefits from separate execution or verification.
 - `fanout`: at least two ready nodes, disjoint ownership, useful parallel work, sufficient reserved
-  budget/time, and confirmed harness capacity.
+  budget/time, confirmed harness capacity, and cancellation support for a time-bounded run.
 - `bailout`: privacy, isolation, policy, capability, receipt, budget, or verifier contract cannot be
   preserved.
+
+An explicit zero cost, quota, or deadline is a hard zero, not an unknown value. It blocks delegated
+and fan-out work. Use `null` only for an intentionally unbounded or unreported optional budget when
+repository policy permits it. Missing cancellation degrades otherwise-valid timed fan-out to one
+worker; it never leaves multiple workers running beyond the declared boundary.
 
 Gathering work is non-mutating `worker/cheap` unless another constraint raises its floor or changes
 its location. Do not treat high volume as high stakes by itself.

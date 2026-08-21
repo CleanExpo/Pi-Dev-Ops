@@ -105,9 +105,11 @@ def _subprocess_env() -> dict[str, str]:
     }
 
 
-def _run(args: list[str], *, timeout_s: float = HERMES_TIMEOUT_S
+def _run(args: list[str], *, timeout_s: float | None = None
          ) -> tuple[int, str, str]:
     """Run `hermes <args>`; return (rc, stdout, stderr). Never raises."""
+    if timeout_s is None:
+        timeout_s = HERMES_TIMEOUT_S
     binary = _hermes_bin()
     if binary is None:
         return 127, "", "hermes binary not on PATH"

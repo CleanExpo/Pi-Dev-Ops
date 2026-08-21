@@ -80,6 +80,9 @@ The current linter rejects:
 - leaf nodes without owned paths or a gate file;
 - absolute, parent-traversing, wildcard, exact, or parent/child ownership overlaps across any nodes.
 
+Accepted ownership paths are stored in canonical repository-relative POSIX form (for example,
+`./src/a.py` becomes `src/a.py`) before collision and returned-diff checks use them.
+
 The current `ready` command selects only pending/ready leaves whose dependencies are passed. It does
 not execute workers, gates, integrations, reservations, or providers.
 

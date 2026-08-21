@@ -69,7 +69,7 @@ fi
 export PY
 
 # 2. Dependencies. Absent toolchain → SKIP (env not provisioned here), never FAIL.
-PY_OK=0; NODE_OK=0
+PY_OK=0; NODE_OK=0; REMOTION_OK=0
 if [ -f app/requirements.txt ]; then
   [ "$MODE_FULL" = 1 ] && "$PY" -m pip install -q -r app/requirements.txt >>"$LOG" 2>&1
   if "$PY" -c "import fastapi, pydantic" >>"$LOG" 2>&1; then PY_OK=1; gate "deps-python" true
@@ -79,6 +79,11 @@ if [ -f dashboard/package.json ]; then
   [ "$MODE_FULL" = 1 ] && ( cd dashboard && npm ci >>"$LOG" 2>&1 )
   if [ -d dashboard/node_modules ]; then NODE_OK=1; gate "deps-node" true
   else skip "deps-node" "dashboard/node_modules absent — run with --full to install"; fi
+fi
+if [ -f remotion-studio/package-lock.json ]; then
+  [ "$MODE_FULL" = 1 ] && ( cd remotion-studio && npm ci --ignore-scripts --no-audit --no-fund >>"$LOG" 2>&1 )
+  if [ -x remotion-studio/node_modules/.bin/tsx ]; then REMOTION_OK=1; gate "deps-remotion" true
+  else skip "deps-remotion" "remotion-studio/node_modules absent — run with --full to install"; fi
 fi
 
 # 3. Generated files current — agentskills manifest must be a no-op re-run (needs PY).

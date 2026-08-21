@@ -136,6 +136,30 @@ def test_out_of_contract_return_trips_boundary():
         record_result(valid_plan(), "1.1", passed=True, changed_paths=["src/b.py"])
 
 
+def test_ownership_paths_are_canonical_for_result_boundary():
+    raw = valid_plan()
+    raw["nodes"][1]["owns"] = ["./src/a.py"]
+    plan = validate_plan(raw)
+    assert plan.by_id["1.1"].owns == ("src/a.py",)
+    updated = record_result(raw, "1.1", passed=True, changed_paths=["src/a.py"])
+    assert updated["nodes"][1]["state"] == "passed"
+
+
+def test_directory_ownership_accepts_children_but_not_parent_or_sibling():
+    raw = valid_plan()
+    raw["nodes"][1]["owns"] = ["src/features"]
+    updated = record_result(
+        raw,
+        "1.1",
+        passed=True,
+        changed_paths=["src/features/a.py", "src/features/nested/b.py"],
+    )
+    assert updated["nodes"][1]["state"] == "passed"
+    for outside in ("src", "src/feature-other/a.py"):
+        with pytest.raises(PlanValidationError, match="outside ownership"):
+            record_result(raw, "1.1", passed=True, changed_paths=[outside])
+
+
 def test_requested_depth_above_seven_is_truthfully_reduced():
     raw = plan_template("large project", 9)
     assert raw["requested_depth"] == 9

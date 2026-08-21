@@ -45,10 +45,22 @@ function repositoryHead(cwd) {
 
 function repositoryBase(cwd) {
   try {
-    return execFileSync("git", ["merge-base", "origin/main", "HEAD"], { cwd, encoding: "utf8" }).trim();
+    return execFileSync("git", ["merge-base", "origin/main", "HEAD"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
   } catch {
     return null;
   }
+}
+
+function repositoryStatus(cwd) {
+  return execFileSync(
+    "git",
+    ["status", "--porcelain=v1", "--untracked-files=all"],
+    { cwd, encoding: "utf8" },
+  ).trim();
 }
 
 function commandEnvironment(extraKeys) {
@@ -138,16 +150,26 @@ function bounded(text) {
 function runCommand(command, cwd, timeoutSeconds, env) {
   return new Promise((resolveResult) => {
     const started = Date.now();
-    const child = spawn(command, { cwd, shell: true, env, detached: false });
+    const processGroup = process.platform !== "win32";
+    const child = spawn(command, { cwd, shell: true, env, detached: processGroup });
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let forceKillTimer = null;
+    const terminate = (signal) => {
+      try {
+        if (processGroup && child.pid) process.kill(-child.pid, signal);
+        else child.kill(signal);
+      } catch (error) {
+        if (error.code !== "ESRCH") throw error;
+      }
+    };
     child.stdout.on("data", (chunk) => { stdout = bounded(stdout + chunk.toString()); });
     child.stderr.on("data", (chunk) => { stderr = bounded(stderr + chunk.toString()); });
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGTERM");
-      setTimeout(() => child.kill("SIGKILL"), 1000).unref();
+      terminate("SIGTERM");
+      forceKillTimer = setTimeout(() => terminate("SIGKILL"), 250);
     }, timeoutSeconds * 1000);
     child.on("error", (error) => {
       clearTimeout(timer);
@@ -155,6 +177,7 @@ function runCommand(command, cwd, timeoutSeconds, env) {
     });
     child.on("close", (code, signal) => {
       clearTimeout(timer);
+      if (!timedOut && forceKillTimer) clearTimeout(forceKillTimer);
       resolveResult({
         exitCode: code,
         stdout,
@@ -257,6 +280,13 @@ async function main() {
     const environment = commandEnvironment(args.envKeys);
     const cwd = resolve(args.cwd);
     if (!inside(root, cwd)) throw new Error(`cwd must be inside repository: ${cwd}`);
+    const worktreeStatus = repositoryStatus(cwd);
+    const worktreeClean = worktreeStatus === "";
+    if (!args.status && !worktreeClean) {
+      throw new Error(
+        "worktree must be clean before verified run (tracked or untracked changes present)",
+      );
+    }
     const files = args.files.map((file) => resolve(cwd, file));
     for (const file of files) {
       if (!inside(root, file)) throw new Error(`gate file must be inside repository: ${file}`);
@@ -278,6 +308,7 @@ async function main() {
       finished_at: new Date().toISOString(),
       base_sha: baseSha,
       candidate_sha: candidateSha,
+      worktree_clean_before_run: worktreeClean,
       cwd,
       environment_keys: environment.keys,
       environment_digest: environment.digest,

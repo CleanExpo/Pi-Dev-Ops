@@ -110,6 +110,23 @@ def test_documented_model_router_stdin_invocation():
     assert json.loads(result.stdout)["action"] == "fanout"
 
 
+def test_model_router_cli_rejects_string_boolean_before_policy_evaluation():
+    raw = routing_request()
+    raw["signals"]["ownership_disjoint"] = "false"
+    raw["capabilities"]["supports_parallel"] = "false"
+    result = subprocess.run(
+        [sys.executable, "-m", "app.server.task_routing"],
+        cwd=REPO_ROOT,
+        input=json.dumps(raw),
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 2
+    error = json.loads(result.stderr)
+    assert error["status"] == "invalid_request"
+    assert "must be a boolean" in error["error"]
+
+
 def test_documented_unlazy_plan_commands_work_without_pythonpath(tmp_path):
     help_result = subprocess.run(
         [sys.executable, "scripts/unlazy_plan.py", "--help"],

@@ -15,6 +15,7 @@ from app.server.routing_schema import RouteDecision, RoutingRequest, RoutingVali
 POLICY_VERSION = "nexus-task-routing-v1"
 HIGH_STAKES = {"auth", "payment", "privacy", "security", "legal", "release", "migration"}
 QUALITY_ORDER = ("cheap", "mid", "top")
+EFFORT_ORDER = ("low", "medium", "high", "xhigh")
 
 
 def _stable_route_id(request: RoutingRequest) -> str:
@@ -79,7 +80,9 @@ def decide_route(raw: RoutingRequest | dict[str, Any]) -> RouteDecision:
     if signals.prior_failures:
         current = QUALITY_ORDER.index(floor)
         floor = QUALITY_ORDER[min(current + signals.prior_failures, len(QUALITY_ORDER) - 1)]
-        effort = "high" if floor != "cheap" else effort
+        minimum_effort = "high" if floor != "cheap" else effort
+        if EFFORT_ORDER.index(effort) < EFFORT_ORDER.index(minimum_effort):
+            effort = minimum_effort
         reasons.append("monotonic-failure-escalation")
 
     location = "local_only" if local_only else "remote_allowed"
@@ -119,6 +122,20 @@ def decide_route(raw: RoutingRequest | dict[str, Any]) -> RouteDecision:
             action = "delegate"
             if signals.volume >= 2 and not request.capabilities.supports_parallel:
                 reasons.append("harness-parallelism-unavailable")
+
+    if action in {"delegate", "fanout"}:
+        zero_limits = (
+            ("zero-cost-budget", request.limits.max_cost_usd == 0),
+            ("zero-quota-budget", request.limits.max_quota_units == 0),
+            ("zero-deadline", request.limits.deadline_seconds == 0),
+        )
+        blocked_reasons = [reason for reason, blocked in zero_limits if blocked]
+        if blocked_reasons:
+            action = "bailout"
+            reasons.extend(blocked_reasons)
+        elif action == "fanout" and not request.capabilities.supports_cancellation:
+            action = "delegate"
+            reasons.append("harness-cancellation-unavailable")
 
     verifier_floor = "top" if is_high_stakes or floor == "top" else "mid"
     verifier_effort = "xhigh" if verifier_floor == "top" else "high"

@@ -62,11 +62,18 @@ class PlanNode:
                 errors.append(f"node {node_id or index} {field_name} must be a list")
         if errors:
             raise PlanValidationError(errors)
+        owns: list[str] = []
+        for item in raw.get("owns", []):
+            canonical = _normalise_path(str(item), node_id or str(index), errors)
+            if canonical is not None:
+                owns.append(canonical)
+        if errors:
+            raise PlanValidationError(errors)
         return cls(
             id=node_id,
             type=node_type,
             purpose=str(raw.get("purpose") or "").strip(),
-            owns=tuple(str(item) for item in raw.get("owns", [])),
+            owns=tuple(owns),
             needs=tuple(str(item) for item in raw.get("needs", [])),
             exports=tuple(str(item) for item in raw.get("exports", [])),
             route_ref=str(raw.get("route_ref") or "").strip(),
@@ -121,6 +128,15 @@ def paths_overlap(left: str, right: str) -> bool:
     b = PurePosixPath(right).parts
     common = min(len(a), len(b))
     return a[:common] == b[:common]
+
+
+def path_is_owned(candidate: str, owned: str) -> bool:
+    """Return True when candidate is the owned path or one of its descendants."""
+    candidate_parts = PurePosixPath(candidate).parts
+    owned_parts = PurePosixPath(owned).parts
+    return len(candidate_parts) >= len(owned_parts) and (
+        candidate_parts[: len(owned_parts)] == owned_parts
+    )
 
 
 def _has_cycle(nodes: dict[str, PlanNode]) -> bool:
@@ -292,7 +308,19 @@ def record_result(
     node = plan.by_id[node_id]
     if node.type != "leaf":
         raise PlanValidationError([f"node {node_id} is not a leaf"])
-    outside = [path for path in changed_paths if path not in node.owns]
+    path_errors: list[str] = []
+    canonical_changed: list[str] = []
+    for raw_path in changed_paths:
+        canonical = _normalise_path(str(raw_path), node_id, path_errors)
+        if canonical is not None:
+            canonical_changed.append(canonical)
+    if path_errors:
+        raise PlanValidationError(path_errors)
+    outside = [
+        path
+        for path in canonical_changed
+        if not any(path_is_owned(path, owned) for owned in node.owns)
+    ]
     if outside:
         raise PlanValidationError([f"node {node_id} changed paths outside ownership: {sorted(outside)}"])
     updated = copy.deepcopy(raw)

@@ -8,6 +8,15 @@ ROOT = Path(__file__).resolve().parents[1]
 REMOTION = ROOT / "remotion-studio"
 
 
+def test_release_gates_install_locked_remotion_test_dependencies():
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    handoff = (ROOT / "scripts" / "handoff-loop.sh").read_text()
+    assert "cache-dependency-path: remotion-studio/package-lock.json" in ci
+    assert "working-directory: remotion-studio" in ci
+    assert "npm ci --ignore-scripts --no-audit --no-fund" in ci
+    assert "cd remotion-studio && npm ci --ignore-scripts --no-audit --no-fund" in handoff
+
+
 def test_one_shot_brief_schema_defines_required_fields():
     text = (REMOTION / "render" / "brief-schema.ts").read_text()
 

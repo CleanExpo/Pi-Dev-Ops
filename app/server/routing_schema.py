@@ -54,6 +54,12 @@ def _non_negative_int(value: Any, field_name: str) -> int:
     return parsed
 
 
+def _boolean(value: Any, field_name: str) -> bool:
+    if type(value) is not bool:
+        raise RoutingValidationError(f"{field_name} must be a boolean")
+    return value
+
+
 @dataclass(frozen=True)
 class RoutingSignals:
     determinism: str
@@ -93,7 +99,9 @@ class RoutingSignals:
             required_tools=tuple(str(item) for item in raw.get("required_tools", [])),
             sensitivity=_choice(raw.get("sensitivity"), SENSITIVITY, "signals.sensitivity"),
             prior_failures=_non_negative_int(raw.get("prior_failures", 0), "signals.prior_failures"),
-            ownership_disjoint=bool(raw.get("ownership_disjoint", False)),
+            ownership_disjoint=_boolean(
+                raw.get("ownership_disjoint", False), "signals.ownership_disjoint"
+            ),
         )
 
 
@@ -147,9 +155,17 @@ class HarnessCapabilities:
             raise RoutingValidationError(f"capabilities.local_quality_floors has unknown values: {unknown}")
         return cls(
             local_quality_floors=floors,
-            supports_parallel=bool(raw.get("supports_parallel", False)),
-            supports_model_override=bool(raw.get("supports_model_override", False)),
-            supports_cancellation=bool(raw.get("supports_cancellation", False)),
+            supports_parallel=_boolean(
+                raw.get("supports_parallel", False), "capabilities.supports_parallel"
+            ),
+            supports_model_override=_boolean(
+                raw.get("supports_model_override", False),
+                "capabilities.supports_model_override",
+            ),
+            supports_cancellation=_boolean(
+                raw.get("supports_cancellation", False),
+                "capabilities.supports_cancellation",
+            ),
         )
 
 

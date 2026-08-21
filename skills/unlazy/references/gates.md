@@ -25,7 +25,8 @@ A check passes only when:
 1. it exits with an allowed code before timeout and without a terminating signal;
 2. its expectation matches when present;
 3. no runner, teardown, worker, parse, or invalid-regex error occurred;
-4. its evidence is bound to the current candidate SHA and check digest.
+4. its evidence is bound to the current candidate SHA and check digest;
+5. the tracked and untracked worktree was clean immediately before a verified run.
 
 Expected text cannot override a failing process. A green assertion count with teardown/worker errors
 fails. Status display is read-only and never counts as rerun proof.
@@ -43,6 +44,10 @@ Capture:
 
 Full output belongs in a protected bounded artifact. Redact secrets, tokens, customer data, and raw
 upstream response bodies from user-facing evidence.
+
+A dirty worktree fails before any gate command executes; a read-only status view may report dirtiness
+but is never verification. On timeout, terminate the command's entire process group and confirm its
+descendants cannot continue writing delayed artifacts.
 
 ## Scope and de-duplication
 

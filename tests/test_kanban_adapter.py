@@ -71,6 +71,21 @@ def test_run_passes_minimal_env_without_parent_task_identity(monkeypatch):
     assert child_env["PATH"] == os.environ["PATH"]
 
 
+def test_run_resolves_default_timeout_at_call_time(monkeypatch):
+    monkeypatch.setattr(KA, "_hermes_bin", lambda: "/usr/bin/hermes")
+    monkeypatch.setattr(KA, "HERMES_TIMEOUT_S", 30.0)
+    captured: dict = {}
+
+    def fake_run(_command, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(returncode=0, stdout="[]", stderr="")
+
+    monkeypatch.setattr(KA.subprocess, "run", fake_run)
+    rc, _out, _err = KA._run(["kanban", "list", "--json"])
+    assert rc == 0
+    assert captured["timeout"] == 30.0
+
+
 # ── create_card ──────────────────────────────────────────────────────────────
 
 
