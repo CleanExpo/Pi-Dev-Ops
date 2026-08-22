@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "stage": "delivery-contract",
+  "task_id": "e9bdc8d64dae86a9",
+  "observed_at": "2026-08-21T15:30:00+10:00",
+  "literal_request": "Build the Senior Harness and use it on its own implementation so it thinks 15 to 20 moves ahead.",
+  "authorized_scope": [
+    "Build the Senior Harness and use it on its own implementation so it thinks 15 to 20 moves ahead."
+  ],
+  "authority_grants": [],
+  "inferred_outcomes": [
+    {
+      "statement": "Offer a commercial control-plane product after the internal system is independently proven.",
+      "provenance": "operator grill-me session",
+      "confidence": 0.82,
+      "authorization_status": "proposal"
+    }
+  ],
+  "classification": {
+    "horizon_required": true,
+    "rationale": "new strategic control plane with cross-project consequences"
+  },
+  "limits": {
+    "max_parallel_workers": 4,
+    "max_nodes": 30,
+    "max_branch_width": 3,
+    "max_same_path_attempts": 2,
+    "max_minutes_without_new_authoritative_evidence": 5,
+    "max_cost_usd": 5.0
+  },
+  "required_skills": ["model-router", "unlazy", "judge", "storm", "wayfinder"],
+  "repository": {
+    "base_sha": "e58455f53c52123e20008da718517e28841f8b78",
+    "candidate_sha": null,
+    "worktree": "/Volumes/Storage Unit/Application-Data/Codex/worktrees/pi-dev-ops-senior-harness-20260821"
+  },
+  "discovery_runs": [
+    {
+      "question": "What existing Pi-Dev-Ops capabilities can supply the smallest self-hosting Senior Harness without adding a second execution engine?",
+      "source_allowlist": ["current repository", "current tests", "official vendor documentation", "operator-provided sources"],
+      "privacy_allowlist": ["internal project metadata", "public documentation"],
+      "max_minutes": 15,
+      "max_cost_usd": 1.0,
+      "retention_days": 30,
+      "value_of_information_threshold": 0.2,
+      "stop_conditions": ["authoritative integration boundary found", "budget exhausted", "five minutes without new authoritative evidence"]
+    }
+  ],
+  "forecasts": [
+    {
+      "forecast_id": "F-self-host-v1",
+      "outcomes": [
+        {"name": "focused acceptance gates pass on the frozen candidate", "probability": 0.8},
+        {"name": "focused acceptance gates fail on the frozen candidate", "probability": 0.2}
+      ],
+      "mutual_exclusivity_rationale": "The same frozen candidate command cannot both exit successfully and fail in one replay.",
+      "resolution_criterion": "Exit status of the documented self-hosting test command on the frozen candidate.",
+      "resolution_source": "independent verifier command receipt",
+      "resolution_date": "2026-08-28",
+      "scoring_rule_version": "brier-v1",
+      "freeze_time": "2026-08-21T15:00:00+10:00"
+    }
+  ],
+  "move_graph": [
+    {"move_id":"M01","parents":[],"plane":"horizon","kind":"observe","state_delta":"The literal request and its authority boundary are immutable.","owner":"senior-harness","prerequisites":[],"evidence_ids":["E-user-request"],"confidence":1.0,"counter_case":"The request may be superseded by a newer instruction.","value":"Prevents inferred intent from becoming authority.","cost":"low","reversibility":"reversible","trigger":"A substantive request enters the harness.","expiry":"2026-09-21","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M02","parents":["M01"],"plane":"horizon","kind":"discover","state_delta":"The current repository, skills, connectors, conversations, and dirty-state boundaries are inventoried.","owner":"archaeology-specialists","prerequisites":["M01"],"evidence_ids":["E-repo-state"],"confidence":0.95,"counter_case":"A disconnected source may still be absent.","value":"Reuses the estate before adding code.","cost":"medium","reversibility":"reversible","trigger":"The authority boundary is frozen.","expiry":"2026-08-28","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M03","parents":["M02"],"plane":"horizon","kind":"challenge","state_delta":"The smallest provable Senior Harness slice has passed the Judge challenge gate.","owner":"judge","prerequisites":["M02"],"evidence_ids":["E-judge-report"],"confidence":0.94,"counter_case":"The universal control-plane claim remains unprovable.","value":"Removes bloat and unsupported claims.","cost":"low","reversibility":"reversible","trigger":"The estate inventory is complete.","expiry":"2026-08-28","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M04","parents":["M03"],"plane":"horizon","kind":"model","state_delta":"The Senior Harness, Lead LLM, specialists, verifier, arbiter, and human authority hierarchy is explicit.","owner":"principal-architect","prerequisites":["M03"],"evidence_ids":["E-hierarchy-contract"],"confidence":0.95,"counter_case":"A runtime may not expose every control.","value":"Places the harness above model behaviour.","cost":"low","reversibility":"reversible","trigger":"The reduced slice is approved.","expiry":"2026-09-21","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M05","parents":["M04"],"plane":"horizon","kind":"forecast","state_delta":"A bounded 15 to 20 move horizon with observable triggers and counter-cases exists.","owner":"wayfinder","prerequisites":["M04"],"evidence_ids":["E-move-graph"],"confidence":0.9,"counter_case":"Strategic uncertainty may invalidate distant moves.","value":"Makes second-order consequences visible without pretending certainty.","cost":"medium","reversibility":"reversible","trigger":"The authority hierarchy is accepted.","expiry":"2026-09-21","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M06","parents":["M05"],"plane":"delivery","kind":"admit","state_delta":"Only evidence-backed and explicitly authorised horizon proposals enter delivery planning.","owner":"senior-harness","prerequisites":["M05"],"evidence_ids":["E-admission-decision"],"confidence":0.96,"counter_case":"The operator may reject or defer every proposal.","value":"Prevents Horizon from executing its own advice.","cost":"low","reversibility":"reversible","trigger":"The horizon graph passes its machine gate.","expiry":"2026-09-21","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M07","parents":["M06"],"plane":"delivery","kind":"route","state_delta":"Every executable node and independent verifier has a schema-valid model-router decision.","owner":"model-router","prerequisites":["M06"],"evidence_ids":["E-route-contracts"],"confidence":0.92,"counter_case":"The active runtime may fail its capability probe.","value":"Matches cost and model quality to task risk.","cost":"low","reversibility":"reversible","trigger":"A proposal is admitted to delivery.","expiry":"2026-08-28","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M08","parents":["M07"],"plane":"delivery","kind":"decompose","state_delta":"Unlazy owns a bounded dependency tree with disjoint files, needs, exports, and gates.","owner":"unlazy","prerequisites":["M07"],"evidence_ids":["E-unlazy-plan"],"confidence":0.94,"counter_case":"Shared ownership may force serial integration.","value":"Enables safe parallel work without duplicated effort.","cost":"medium","reversibility":"reversible","trigger":"Every node has a safe route.","expiry":"2026-08-28","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M09","parents":["M08"],"plane":"delivery","kind":"guard","state_delta":"Attempt fingerprints reject repeated pathways before model execution.","owner":"senior-harness","prerequisites":["M08"],"evidence_ids":["E-attempt-gate"],"confidence":0.97,"counter_case":"Different labels could conceal a substantively identical route.","value":"Stops token-burning spin.","cost":"low","reversibility":"reversible","trigger":"A worker proposes an attempt.","expiry":"2026-09-21","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M10","parents":["M09"],"plane":"delivery","kind":"escalate","state_delta":"Two failures open an uncertainty case with independent specialists and a separate arbiter.","owner":"storm","prerequisites":["M09"],"evidence_ids":["E-uncertainty-case"],"confidence":0.95,"counter_case":"One decisive authoritative source may resolve the case immediately.","value":"Changes the pathway instead of thinking harder in place.","cost":"medium","reversibility":"reversible","trigger":"Two distinct attempts fail or evidence freshness expires.","expiry":"2026-09-21","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M11","parents":["M10"],"plane":"delivery","kind":"specify","state_delta":"The command skill, contract reference, validator, and self-host fixture have one-file ownership boundaries.","owner":"staff-engineer","prerequisites":["M10"],"evidence_ids":["E-file-contract"],"confidence":0.96,"counter_case":"Manifest regeneration adds generated files.","value":"Keeps the implementation reviewable.","cost":"low","reversibility":"reversible","trigger":"The retry and escalation policy is frozen.","expiry":"2026-08-28","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M12","parents":["M11"],"plane":"delivery","kind":"execute","state_delta":"The provisional Senior Harness implementation exists in an isolated worktree.","owner":"builder-agent","prerequisites":["M11"],"evidence_ids":["E-implementation-diff"],"confidence":0.9,"counter_case":"Tests may expose a contract defect.","value":"Creates the first usable control layer.","cost":"medium","reversibility":"git-revertible","trigger":"The file contract is admitted.","expiry":"2026-08-28","status":"proposed","authority_required":"repository-write","authorization_status":"proposal","authority_source_id":null},
+    {"move_id":"M13","parents":["M12"],"plane":"verification","kind":"test","state_delta":"Positive, mutation, cycle, authority, anti-spin, and horizon-depth controls have executable tests.","owner":"qa-agent","prerequisites":["M12"],"evidence_ids":["E-test-results"],"confidence":0.92,"counter_case":"Repository-wide failures may remain outside the changed scope.","value":"Proves failures are rejected, not merely described.","cost":"medium","reversibility":"reversible","trigger":"The implementation diff is frozen.","expiry":"2026-08-28","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M14","parents":["M13"],"plane":"verification","kind":"verify","state_delta":"A verifier independent from the builder has reviewed the exact candidate and replayed the gates.","owner":"independent-verifier","prerequisites":["M13"],"evidence_ids":["E-verifier-receipt"],"confidence":0.9,"counter_case":"A review can still miss a runtime-specific integration gap.","value":"Prevents self-grading from becoming completion proof.","cost":"medium","reversibility":"reversible","trigger":"All focused tests pass on a frozen candidate.","expiry":"2026-08-28","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M15","parents":["M14"],"plane":"learning","kind":"promote","state_delta":"The first independently verified result is recorded as a provisional Capability Pack.","owner":"capability-curator","prerequisites":["M14"],"evidence_ids":["E-provisional-pack"],"confidence":0.9,"counter_case":"The first result may not generalise to another repository.","value":"Makes the successful pathway immediately reusable.","cost":"low","reversibility":"reversible","trigger":"The independent verifier accepts the exact candidate.","expiry":"2026-09-21","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M16","parents":["M15"],"plane":"learning","kind":"replay","state_delta":"A fresh workspace and separate principal replay the frozen Capability Pack without cache reuse.","owner":"replay-agent","prerequisites":["M15"],"evidence_ids":["E-qualified-replay"],"confidence":0.75,"counter_case":"A second task may require a revised adapter.","value":"Tests portability before durable promotion.","cost":"medium","reversibility":"reversible","trigger":"A qualified second application enters the harness.","expiry":"2026-10-21","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M17","parents":["M16"],"plane":"learning","kind":"harden","state_delta":"A successful qualified replay promotes the Capability Pack to durable Senior Harness capability.","owner":"capability-curator","prerequisites":["M16"],"evidence_ids":["E-durable-pack"],"confidence":0.72,"counter_case":"Replay failure returns the pack to provisional revision.","value":"Prevents one-off success from becoming permanent policy.","cost":"low","reversibility":"reversible","trigger":"The qualified replay receipt passes objective evaluation.","expiry":"2026-10-21","status":"proposed","authority_required":"none","authorization_status":"not-required"},
+    {"move_id":"M18","parents":["M17"],"plane":"learning","kind":"revalidate","state_delta":"Vendor, model, dependency, or stack drift automatically marks affected durable capability stale pending replay.","owner":"drift-monitor","prerequisites":["M17"],"evidence_ids":["E-drift-revalidation"],"confidence":0.84,"counter_case":"A non-semantic vendor change may not affect the capability.","value":"Keeps learned pathways current rather than fossilised.","cost":"low","reversibility":"reversible","trigger":"A bound vendor or dependency version changes.","expiry":"2027-08-21","status":"proposed","authority_required":"none","authorization_status":"not-required"}
+  ],
+  "attempts": [],
+  "uncertainty_cases": [],
+  "verification": {
+    "builder_id": "builder-agent",
+    "verifier_id": "independent-verifier",
+    "arbiter_id": "technical-arbiter",
+    "required_receipt_types": ["contract-lint", "focused-tests", "mutation-controls", "exact-sha-review"],
+    "receipts": []
+  },
+  "capability_pack": {
+    "pack_id": "senior-harness-v1",
+    "status": "candidate",
+    "independent_verification_receipt": null,
+    "qualified_replay_receipt": null,
+    "revalidate_on": ["model-router-policy", "unlazy-contract", "runtime-capabilities", "vendor-version"]
+  }
+}
