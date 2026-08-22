@@ -24,6 +24,7 @@ import base64
 import datetime
 import json
 import logging
+import math
 import os
 import random
 import shutil
@@ -1024,20 +1025,79 @@ async def _phase_sandbox(session, resume_from: str) -> bool:
     return True
 
 
-async def _phase_plan(session, spec: str, resume_from: str) -> None:
+_PLAN_CONFIDENCE_FLOOR = 0.7
+
+
+def _block_plan_phase(session, phase_start: float, reason: str) -> bool:
+    """Persist a planner failure as BLOCKED without advancing the checkpoint.
+
+    A plan is an admission artefact for generation, not an optional status
+    message.  Treating a failed plan as completed makes resume unsafe and lets
+    the generator act on an unverified brief.
+    """
+    message = f"Plan blocked: {reason}"
+    _log.warning("RA-1026: %s (session=%s)", message, session.id)
+    em(session, "error", f"  {message}")
+    session.plan = ""
+    session.error = message[:500]
+    session.status = "blocked"
+    persistence.save_session(session)
+    _emit_phase_metric(session, "plan", phase_start)
+    return False
+
+
+def _validate_plan_data(plan_data: object) -> tuple[float, list[dict], str] | tuple[None, None, str]:
+    """Return validated planner fields or a durable reason to block the build."""
+    if not isinstance(plan_data, dict):
+        return None, None, "planner JSON must be an object"
+
+    raw_confidence = plan_data.get("confidence")
+    if isinstance(raw_confidence, bool) or not isinstance(raw_confidence, (int, float)):
+        return None, None, "planner confidence is missing or not numeric"
+    confidence = float(raw_confidence)
+    if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+        return None, None, "planner confidence must be a finite value between 0.0 and 1.0"
+    if confidence < _PLAN_CONFIDENCE_FLOOR:
+        return None, None, (
+            f"planner confidence {confidence:.0%} is below the required "
+            f"{_PLAN_CONFIDENCE_FLOOR:.0%} floor"
+        )
+
+    units = plan_data.get("units")
+    if not isinstance(units, list) or not 3 <= len(units) <= 8:
+        return None, None, "planner units must contain between 3 and 8 items"
+    for index, unit in enumerate(units, start=1):
+        if not isinstance(unit, dict):
+            return None, None, f"planner unit {index} must be an object"
+        if not isinstance(unit.get("title"), str) or not unit["title"].strip():
+            return None, None, f"planner unit {index} needs a non-empty title"
+        files = unit.get("files")
+        if not isinstance(files, list) or not files or not all(
+            isinstance(path, str) and path.strip() for path in files
+        ):
+            return None, None, f"planner unit {index} needs at least one file path"
+
+    risk_notes = plan_data.get("risk_notes", "")
+    if not isinstance(risk_notes, str):
+        return None, None, "planner risk_notes must be text"
+    return confidence, units, risk_notes
+
+
+async def _phase_plan(session, spec: str, resume_from: str) -> bool:
     """RA-1026 — Lightweight Haiku planning phase between sandbox and generator.
 
     Converts the structured brief into a JSON implementation plan with up to 8
     units, then writes it to .pi-ceo/{session_id}/PLAN.md and attaches a
     markdown summary to session.plan.
 
-    Never blocks the pipeline: any error is logged and the function returns
-    without setting session.status = "failed".
+    Planner output is a required admission artefact.  Timeout, malformed
+    output, insufficient confidence, or an unwritable receipt BLOCKS the
+    build; the generator must never run without it.
     """
     phase_start = time.monotonic()
     if _should_skip("plan", resume_from):
         em(session, "system", "  [SKIP] Plan (already completed)")
-        return
+        return True
 
     # RA-1178 — always use Sonnet for the plan phase regardless of tier.
     #
@@ -1120,27 +1180,13 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
             timeout=_plan_wait_timeout,
         )
     except asyncio.TimeoutError:
-        _log.warning("RA-1026: _phase_plan timed out (non-fatal) — continuing without plan")
-        em(session, "system", "  Plan phase timed out — continuing without plan")
-        session.last_completed_phase = "plan"
-        persistence.save_session(session)
-        _emit_phase_metric(session, "plan", phase_start)
-        return
+        return _block_plan_phase(session, phase_start, "planner timed out")
     except Exception as exc:
-        _log.warning("RA-1026: _phase_plan error (non-fatal): %s", exc)
-        em(session, "system", f"  Plan phase error — continuing without plan: {exc}")
-        session.last_completed_phase = "plan"
-        persistence.save_session(session)
-        _emit_phase_metric(session, "plan", phase_start)
-        return
+        return _block_plan_phase(session, phase_start, f"planner error: {type(exc).__name__}: {exc}")
 
     if rc != 0 or not plan_text.strip():
-        _log.warning("RA-1026: planner returned rc=%d or empty text — continuing without plan", rc)
-        em(session, "system", "  Plan phase returned no output — continuing without plan")
-        session.last_completed_phase = "plan"
-        persistence.save_session(session)
-        _emit_phase_metric(session, "plan", phase_start)
-        return
+        detail = f"planner returned exit status {rc}" if rc != 0 else "planner returned empty output"
+        return _block_plan_phase(session, phase_start, detail)
 
     # Parse JSON — strip accidental markdown fences if the model added them
     plan_data: dict = {}
@@ -1148,25 +1194,15 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         clean = plan_text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
         plan_data = json.loads(clean)
     except Exception as exc:
-        _log.warning("RA-1026: plan JSON parse failed (non-fatal): %s — raw: %.200s", exc, plan_text)
-        em(session, "system", "  Plan JSON parse failed — continuing without structured plan")
-        session.last_completed_phase = "plan"
-        persistence.save_session(session)
-        _emit_phase_metric(session, "plan", phase_start)
-        return
+        _log.warning("RA-1026: plan JSON parse failed: %s — raw: %.200s", exc, plan_text)
+        return _block_plan_phase(session, phase_start, "planner output is not valid JSON")
 
-    # Confidence gate — warn but never block
-    confidence = float(plan_data.get("confidence", 1.0))
-    if confidence < 0.7:
-        _log.warning(
-            "RA-1026: plan confidence=%.2f < 0.7 for session=%s — proceeding with low-confidence plan",
-            confidence, session.id,
-        )
-        em(session, "system", f"  Plan confidence low ({confidence:.0%}) — proceeding with caution")
+    validated = _validate_plan_data(plan_data)
+    confidence, units, risk_notes = validated
+    if confidence is None:
+        return _block_plan_phase(session, phase_start, risk_notes)
 
-    # Build markdown summary for session.plan and PLAN.md
-    units = plan_data.get("units", [])
-    risk_notes = plan_data.get("risk_notes", "")
+    # Build markdown summary for session.plan and PLAN.md.
 
     md_lines = [
         "# Implementation Plan\n",
@@ -1208,7 +1244,7 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         )
         em(session, "system", f"  Plan: {len(units)} unit(s) written → .pi-ceo/{session.id}/PLAN.md")
     except Exception as exc:
-        _log.warning("RA-1026: PLAN.md write failed (non-fatal): %s", exc)
+        return _block_plan_phase(session, phase_start, f"could not write PLAN.md: {type(exc).__name__}: {exc}")
 
     # Attach plan to session for generator injection
     session.plan = plan_md
@@ -1216,6 +1252,7 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
     persistence.save_session(session)
     _emit_phase_metric(session, "plan", phase_start)
     em(session, "success", "  Plan phase complete")
+    return True
 
 
 async def _phase_generate(session, spec: str, model: str, resume_from: str) -> bool:
@@ -2112,11 +2149,13 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
 
     # RA-934 — write cross-session task memory files to workspace before generation
     await _write_task_memory(session, brief, spec)
-    em(session, "system", f"  Task memory: .pi-ceo/{session.id}/PLAN.md written")
+    em(session, "system", f"  Task memory prepared: .pi-ceo/{session.id}/")
 
     # RA-1026 — structured planning phase (haiku) before generator
     require_active_for_run(session.id)
-    await _phase_plan(session, spec, resume_from)
+    if not await _phase_plan(session, spec, resume_from):
+        _sync_linear_on_completion(session)
+        return
     if session.plan:
         plan_header = (
             "## Implementation Plan (pre-computed)\n"
