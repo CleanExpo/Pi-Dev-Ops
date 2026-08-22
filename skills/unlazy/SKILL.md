@@ -14,37 +14,23 @@ after strict root gates pass on the exact candidate SHA.
 
 ## Usage
 
-When creating or checking the machine-readable plan, run from the repository root:
+This slice vendors the Unlazy method and its machine-readable contracts. It ships **no** plan linter
+and **no** gate runner: there is no `unlazy_plan.py` and no `unlazy-gate-check.mjs` here, so do not
+invoke either. Write `PLAN.json` by hand against
+[`references/plan-contract-schema.md`](references/plan-contract-schema.md) and validate it by reading
+that schema, not by running a bundled CLI.
 
-```bash
-python scripts/unlazy_plan.py template "<verbatim task>" --tree 5 --max-workers 3
-python scripts/unlazy_plan.py lint PLAN.json
-python scripts/unlazy_plan.py ready PLAN.json --active 1.1
-```
+Run gates with the repository's own reviewed check commands — the ones its contributing guide,
+`package.json`, or `Makefile` already define — and record their exact command, exit code, and
+terminal summary in the plan node. A gate passes only on the exit code the gate file declares
+(default exactly `0`); treat any other exit as an unmet gate and a crash or usage error as a runner
+error, never as a pass.
 
-When running reviewed repository gate files, use the strict checker; `--status` only reads recorded
-state and never verifies it:
-
-```bash
-node scripts/unlazy-gate-check.mjs --json --jobs 3 --cwd "$PWD" \
-  --plan-id "$PLAN_ID" --node-id "$NODE_ID" \
-  --verifier-id unlazy-scheduler-trusted-replay-v1 \
-  --worker-id "$WORKER_ID" \
-  --relevant-input PLAN.json gates/root.md
-node scripts/unlazy-gate-check.mjs --status --json --cwd "$PWD" \
-  --plan-id "$PLAN_ID" --node-id "$NODE_ID" \
-  --verifier-id unlazy-scheduler-trusted-replay-v1 \
-  --worker-id "$WORKER_ID" \
-  --relevant-input PLAN.json gates/root.md
-```
-
-Plan/gate commands pass only on exit `0`; preserve JSON receipts and treat exit `1` as unmet strict
-gates and exit `2` as a runner/usage error.
-
-Before accepting or reading terminal receipts, load `UNLAZY_RECEIPT_HMAC_KEY` from the runtime secret
-manager. It must contain at least 32 bytes and must never be committed, logged, added to gate
-environment allow-lists, or embedded in a plan. Missing or rotated key material fails terminal
-receipt validation closed.
+Where a host does supply an Unlazy scheduler and gate runner, the receipt, execution-context, and
+HMAC requirements it must satisfy are specified in [`references/gates.md`](references/gates.md) and
+[`references/orchestration.md`](references/orchestration.md). Those are requirements on that runner.
+Nothing in this skill issues, signs, or verifies a terminal receipt, so never present a hand-written
+plan or an unverified summary as one.
 
 ## 1. Intake
 
