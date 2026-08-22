@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -1011,6 +1012,110 @@ def test_global_hook_can_skip_non_git_tasks_without_making_an_admission_claim(tm
     output = json.loads(result.stdout)["hookSpecificOutput"]
     assert "permissionDecision" not in output
     assert "outside a Git project" in output["additionalContext"]
+
+
+def _global_hook(event: str, payload: dict, env: dict[str, str]) -> dict:
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "setup_driver.py"),
+            "hook",
+            "--surface",
+            "claude",
+            "--event",
+            event,
+            "--allow-non-git",
+        ],
+        input=json.dumps({**payload, "hook_event_name": event}),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(result.stdout)["hookSpecificOutput"]
+
+
+def test_global_hook_recovers_original_prompt_after_entering_git(tmp_path: Path) -> None:
+    state_root = tmp_path / "state"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    env = dict(
+        os.environ,
+        SENIOR_HARNESS_STATE_DIR=str(state_root),
+        SENIOR_HARNESS_SEAL_KEY_FILE=str(tmp_path / "seal.key"),
+    )
+    prompt = "Repair the startup receipt loop"
+
+    submitted = _global_hook(
+        "UserPromptSubmit",
+        {
+            "session_id": "outside-then-git",
+            "cwd": str(outside),
+            "prompt": prompt,
+        },
+        env,
+    )
+    assert "pending" in submitted["additionalContext"]
+    repeated = _global_hook(
+        "UserPromptSubmit",
+        {"session_id": "outside-then-git", "cwd": str(outside), "prompt": "Replace it"},
+        env,
+    )
+    assert repr(prompt) in repeated["additionalContext"]
+    assert "Replace it" not in repeated["additionalContext"]
+
+    output = _global_hook(
+        "PreToolUse",
+        {
+            "session_id": "outside-then-git",
+            "cwd": str(REPO_ROOT),
+            "tool_name": "Read",
+            "tool_input": {},
+        },
+        env,
+    )
+    assert "permissionDecision" not in output
+    assert "recovered pending objective" in output["additionalContext"]
+    assert repr(prompt) in output["additionalContext"]
+    assert "no startup receipt exists" not in output["additionalContext"]
+
+
+def test_global_hook_refuses_a_tampered_pending_prompt(tmp_path: Path) -> None:
+    state_root = tmp_path / "state"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    env = dict(
+        os.environ,
+        SENIOR_HARNESS_STATE_DIR=str(state_root),
+        SENIOR_HARNESS_SEAL_KEY_FILE=str(tmp_path / "seal.key"),
+    )
+    _global_hook(
+        "UserPromptSubmit",
+        {
+            "session_id": "tampered-pending",
+            "cwd": str(outside),
+            "prompt": "Inspect only",
+        },
+        env,
+    )
+    pending_files = list(state_root.rglob("*.json"))
+    assert len(pending_files) == 1
+    pending = json.loads(pending_files[0].read_text(encoding="utf-8"))
+    pending["literal_objective"] = "Deploy instead"
+    pending_files[0].write_text(json.dumps(pending), encoding="utf-8")
+
+    output = _global_hook(
+        "PreToolUse",
+        {
+            "session_id": "tampered-pending",
+            "cwd": str(REPO_ROOT),
+            "tool_name": "Write",
+            "tool_input": {},
+        },
+        env,
+    )
+    assert output["permissionDecision"] == "deny"
+    assert "pending startup objective is invalid" in output["permissionDecisionReason"]
 
 
 def test_grill_interaction_binds_skill_and_routes_as_research() -> None:

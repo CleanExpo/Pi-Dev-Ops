@@ -888,14 +888,30 @@ def _is_parallel_verification_tool(payload: dict[str, Any]) -> bool:
     return False
 
 
-def _state_path(project_root: Path, session_id: str) -> Path:
+def _state_root() -> Path:
+    override = os.environ.get("SENIOR_HARNESS_STATE_DIR")
+    return (
+        Path(override).resolve()
+        if override
+        else Path.home() / ".local" / "state" / "senior-harness" / "sessions"
+    )
+
+
+def _session_key(session_id: str) -> str:
     if not session_id:
         raise SetupError(["hook payload has no usable session id"])
-    override = os.environ.get("SENIOR_HARNESS_STATE_DIR")
-    root = Path(override).resolve() if override else Path.home() / ".local" / "state" / "senior-harness" / "sessions"
+    return hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+
+
+def _state_path(project_root: Path, session_id: str) -> Path:
+    root = _state_root()
     project_key = hashlib.sha256(str(project_root).encode("utf-8")).hexdigest()[:20]
-    session_key = hashlib.sha256(session_id.encode("utf-8")).hexdigest()
-    return root / project_key / f"{session_key}.json"
+    return root / project_key / f"{_session_key(session_id)}.json"
+
+
+def _pending_state_path(session_id: str) -> Path:
+    """Session-scoped prompt state used only until a real Git root is observed."""
+    return _state_root() / "pending-project" / f"{_session_key(session_id)}.json"
 
 
 def _write_state(path: Path, state: dict[str, Any]) -> None:
@@ -903,6 +919,82 @@ def _write_state(path: Path, state: dict[str, Any]) -> None:
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     temporary.replace(path)
+
+
+def _pending_objective_seal(pending: dict[str, Any]) -> str:
+    unsealed = {key: value for key, value in pending.items() if key != "pending_seal"}
+    payload = json.dumps(
+        unsealed, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    return SEAL_PREFIX + hmac.new(_seal_key(), payload, hashlib.sha256).hexdigest()
+
+
+def _read_pending_objective(path: Path, *, session_id: str, surface: str) -> dict[str, Any]:
+    try:
+        pending = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SetupError([f"pending startup objective cannot be read: {exc}"]) from exc
+    if not isinstance(pending, dict):
+        raise SetupError(["pending startup objective must be a JSON object"])
+    observed_seal = pending.get("pending_seal")
+    if not isinstance(observed_seal, str) or not hmac.compare_digest(
+        observed_seal, _pending_objective_seal(pending)
+    ):
+        raise SetupError(["pending startup objective seal is invalid"])
+    objective = pending.get("literal_objective")
+    if not isinstance(objective, str) or not objective.strip():
+        raise SetupError(["pending startup objective is missing its literal prompt"])
+    if pending.get("session_key") != _session_key(session_id):
+        raise SetupError(["pending startup objective belongs to a different session"])
+    if pending.get("surface") != surface:
+        raise SetupError(["pending startup objective belongs to a different host surface"])
+    return pending
+
+
+def _record_pending_objective(
+    payload: dict[str, Any], *, surface: str, event: str
+) -> dict[str, Any]:
+    """Freeze a prompt before a checkout exists; never issue startup admission here."""
+    session_id = payload.get("session_id")
+    if not isinstance(session_id, str) or not session_id:
+        raise SetupError(["hook payload is missing session_id"])
+    path = _pending_state_path(session_id)
+    if event == "SessionStart" and payload.get("source") == "clear":
+        path.unlink(missing_ok=True)
+        return _hook_output(
+            event,
+            "Senior Harness cleared the pending objective lock. The next user prompt will become the new primary objective.",
+        )
+    if event != "UserPromptSubmit":
+        return _hook_output(
+            event,
+            "Senior Harness global hook is inactive because this task is outside a Git project. No admission or authority claim was made.",
+        )
+    prompt = payload.get("prompt")
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise SetupError(["UserPromptSubmit payload is missing the literal prompt"])
+    if path.is_file():
+        try:
+            pending = _read_pending_objective(path, session_id=session_id, surface=surface)
+        except SetupError:
+            pass
+        else:
+            primary = pending["literal_objective"]
+            return _hook_output(
+                event,
+                f"Senior Harness pending primary objective remains frozen byte-for-byte: {primary!r}. Enter a real Git checkout to bind startup admission; this pending record grants no authority.",
+            )
+    pending = {
+        "session_key": _session_key(session_id),
+        "literal_objective": prompt,
+        "surface": surface,
+    }
+    pending["pending_seal"] = _pending_objective_seal(pending)
+    _write_state(path, pending)
+    return _hook_output(
+        event,
+        f"Senior Harness froze a pending primary objective outside Git: {prompt!r}. It will bind to the first verified Git checkout; no startup, mutation, business, or irreversible authority has been granted.",
+    )
 
 
 def _tool_is_recovery_safe(payload: dict[str, Any]) -> bool:
@@ -1002,10 +1094,12 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         raise SetupError(["hook payload is missing cwd"])
     project_root = Path(_git(Path(cwd).resolve(), "rev-parse", "--show-toplevel").strip()).resolve()
     state_path = _state_path(project_root, session_id)
+    pending_path = _pending_state_path(session_id)
 
     if event == "SessionStart":
-        if payload.get("source") == "clear" and state_path.is_file():
-            state_path.unlink()
+        if payload.get("source") == "clear":
+            state_path.unlink(missing_ok=True)
+            pending_path.unlink(missing_ok=True)
             return _hook_output(
                 event,
                 "Senior Harness cleared the prior objective lock. The next user prompt will become the new primary objective.",
@@ -1019,6 +1113,17 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         prompt = payload.get("prompt")
         if not isinstance(prompt, str) or not prompt.strip():
             raise SetupError(["UserPromptSubmit payload is missing the literal prompt"])
+        recovered_pending = False
+        if pending_path.is_file():
+            try:
+                pending = _read_pending_objective(
+                    pending_path, session_id=session_id, surface=surface
+                )
+            except SetupError:
+                pass
+            else:
+                prompt = pending["literal_objective"]
+                recovered_pending = True
         if state_path.is_file():
             # A prior receipt that cannot be verified must NOT strand the session.
             # A prompt is the one moment a fresh admission can legitimately be
@@ -1082,6 +1187,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         )
         receipt = admit_startup(contract)
         _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
+        pending_path.unlink(missing_ok=True)
         grill_context = (
             " Grill interaction is active: use the governed Grill session controller; project mutation and worker dispatch remain denied until its shared-understanding receipt validates."
             if interaction in GRILL_INTERACTIONS
@@ -1089,11 +1195,40 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         )
         return _hook_output(
             event,
-            f"Senior Harness froze the primary objective: {prompt!r}. Load model-router and unlazy before substantive delivery.{_parallel_dispatch_context(contract)} Startup admission grants no mutation, business, or irreversible authority.{grill_context}",
+            f"Senior Harness {'recovered the pending and bound' if recovered_pending else 'froze'} the primary objective: {prompt!r}. Load model-router and unlazy before substantive delivery.{_parallel_dispatch_context(contract)} Startup admission grants no mutation, business, or irreversible authority.{grill_context}",
         )
 
     recovery_safe = _tool_is_recovery_safe(payload)
+    recovered_pending = False
+    pending_error: SetupError | None = None
+    if not state_path.is_file() and pending_path.is_file():
+        try:
+            pending = _read_pending_objective(
+                pending_path, session_id=session_id, surface=surface
+            )
+            prompt = pending["literal_objective"]
+            contract = build_setup_contract(
+                prompt,
+                project_root,
+                surface=surface,
+                interaction=_interaction_for_objective(prompt),
+                host_capabilities=_surface_capabilities(surface, hooks_configured=True),
+            )
+            receipt = admit_startup(contract)
+            _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
+            pending_path.unlink(missing_ok=True)
+            recovered_pending = True
+        except SetupError as exc:
+            pending_error = exc
     if not state_path.is_file():
+        if pending_error is not None:
+            reason = f"pending startup objective is invalid ({pending_error})"
+            if recovery_safe:
+                return _hook_output(
+                    event,
+                    f"Senior Harness recovery-only read: {reason}. This permits evidence discovery only and grants no mutation, provider, worker, business, or irreversible authority.",
+                )
+            return _hook_output(event, f"Senior Harness denied the tool: {reason}.", deny=True)
         if recovery_safe:
             return _hook_output(
                 event,
@@ -1178,7 +1313,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
         )
     return _hook_output(
         event,
-        f"Senior Harness objective lock: {primary!r}.{parallel_context} Startup admission does not authorize this tool; normal host and repository policy still decide it. This hook covers mediated local tools only; hosted or specialized bypasses are not claimed.{drift_context}",
+        f"Senior Harness {'recovered pending objective and established' if recovered_pending else 'objective'} lock: {primary!r}.{parallel_context} Startup admission does not authorize this tool; normal host and repository policy still decide it. This hook covers mediated local tools only; hosted or specialized bypasses are not claimed.{drift_context}",
     )
 
 
@@ -1316,9 +1451,10 @@ def main(argv: list[str] | None = None) -> int:
                         error.startswith("git probe failed for") for error in exc.errors
                     )
                     if outside_git:
-                        result = _hook_output(
-                            args.event,
-                            "Senior Harness global hook is inactive because this task is outside a Git project. No admission or authority claim was made.",
+                        result = _record_pending_objective(
+                            payload,
+                            surface=args.surface,
+                            event=args.event,
                         )
                     else:
                         result = _hook_output(
