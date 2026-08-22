@@ -33,6 +33,25 @@ Parse summary, starting point, decisions locked + what shipped (branch/commits/f
 files, running state, verification commands, deferred/open questions, pick-up-here steps,
 and risk notes. If the input is not a recognisable handoff, say so and stop.
 
+### Entry-root preflight
+
+Before using any host `worktree` command, prove the current terminal was started
+inside a real Git checkout. The historic `~/Pi-CEO/Pi-Dev-Ops` directory is an
+operational-data wrapper, not a repository; never initialise Git there and never
+ask a host to enter an existing worktree from there.
+
+Use the handoff's declared worktree, or the authoritative repository root, with
+the installed launcher:
+
+```bash
+pi-ceo-harness --worktree "<handoff worktree>" --check
+```
+
+If it reports `ENTRY_READY`, restart the Claude/Codex session through the same
+launcher before resuming. `ENTRY_RECOVERED` means the legacy wrapper was safely
+redirected to the configured real checkout. `ENTRY_BLOCKED` is a hard stop: record
+the supplied path and use the handoff's exact checkout rather than guessing.
+
 ## Phase 2 — Verify repo state against the handoff (read-only)
 
 ```bash

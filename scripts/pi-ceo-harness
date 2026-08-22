@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Start Claude from a verified Pi-CEO Git checkout.
+#
+# The historic /Users/phill-mac/Pi-CEO/Pi-Dev-Ops path is an operational-data
+# wrapper, not a Git checkout. Starting Claude there and then asking it to enter
+# an existing worktree fails before the Harness gets a chance to admit the task.
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: pi-ceo-harness [--repo PATH | --worktree PATH] [--check] [--] [claude arguments...]
+
+Starts Claude only after resolving an exact Git checkout root. --worktree is
+for resuming an existing worktree; --repo is for a normal project checkout.
+--check prints the resolved root and does not start Claude.
+USAGE
+}
+
+default_repo="${PI_CEO_REPO_ROOT:-$HOME/Pi-Dev-Ops}"
+legacy_wrapper="${PI_CEO_LEGACY_WRAPPER:-$HOME/Pi-CEO/Pi-Dev-Ops}"
+requested=""
+requested_mode=""
+check_only=0
+
+while (($#)); do
+  case "$1" in
+    --repo|--worktree)
+      (($# >= 2)) || { echo "ENTRY_BLOCKED missing path after $1" >&2; exit 2; }
+      if [[ -n "$requested_mode" ]]; then
+        echo "ENTRY_BLOCKED reason=ambiguous_target recovery=pass exactly one of --repo or --worktree" >&2
+        exit 2
+      fi
+      requested="$2"
+      requested_mode="$1"
+      shift 2
+      ;;
+    --check)
+      check_only=1
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+target="${requested:-$default_repo}"
+# Normalise existing directories only. This catches harmless spellings such as a
+# trailing slash or `.` while never inventing a real path for arbitrary missing
+# input. `pwd -P` intentionally resolves symlinks, so a symlink to the legacy
+# wrapper is treated as the wrapper too.
+normalise_existing_directory() {
+  if [[ -d "$1" ]]; then
+    (cd "$1" && pwd -P)
+  else
+    printf '%s\n' "$1"
+  fi
+}
+target_identity="$(normalise_existing_directory "$target")"
+legacy_identity="$(normalise_existing_directory "$legacy_wrapper")"
+if [[ "$target_identity" == "$legacy_identity" ]]; then
+  printf 'ENTRY_RECOVERED legacy_wrapper=%s resolved_default=%s\n' "$legacy_wrapper" "$default_repo" >&2
+  target="$default_repo"
+fi
+
+if ! root="$(git -C "$target" rev-parse --show-toplevel 2>/dev/null)"; then
+  cat >&2 <<EOF
+ENTRY_BLOCKED requested_path=$target
+reason=not_a_git_checkout
+recovery=use --repo <Git checkout> or --worktree <existing Git worktree>; do not create a repository inside a wrapper directory
+EOF
+  exit 2
+fi
+
+root="$(cd "$root" && pwd -P)"
+head="$(git -C "$root" rev-parse HEAD)"
+branch="$(git -C "$root" branch --show-current || true)"
+dirty=0
+if [[ -n "$(git -C "$root" status --porcelain)" ]]; then dirty=1; fi
+
+printf 'ENTRY_READY worktree=%s head=%s branch=%s dirty=%s\n' "$root" "$head" "${branch:-DETACHED}" "$dirty"
+if ((check_only)); then exit 0; fi
+
+claude_bin="${PI_CEO_CLAUDE_BIN:-$(command -v claude || true)}"
+if [[ -z "$claude_bin" ]]; then
+  echo "ENTRY_BLOCKED reason=claude_not_found recovery=install Claude Code or set PI_CEO_CLAUDE_BIN" >&2
+  exit 2
+fi
+
+cd "$root"
+exec "$claude_bin" "$@"

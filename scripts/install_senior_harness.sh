@@ -3,14 +3,26 @@
 set -euo pipefail
 
 DRY_RUN=0
-if [[ "${1:-}" == "--dry-run" || "${1:-}" == "-n" ]]; then
-  DRY_RUN=1
-fi
+ENTRY_ONLY=0
+while (($#)); do
+  case "$1" in
+    --dry-run|-n) DRY_RUN=1 ;;
+    --entry-only) ENTRY_ONLY=1 ;;
+    --help|-h)
+      echo "Usage: install_senior_harness.sh [--dry-run] [--entry-only]"
+      exit 0
+      ;;
+    *) echo "ERROR: unknown option: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_ROOT="$REPO_ROOT/skills"
 SKILLS=(senior-harness model-router unlazy)
 TARGET_ROOTS=("$HOME/.codex/skills" "$HOME/.claude/skills" "$HOME/.agents/skills")
+ENTRY_SOURCE="$REPO_ROOT/scripts/pi-ceo-harness"
+ENTRY_TARGET="$HOME/.local/bin/pi-ceo-harness"
 
 for skill in "${SKILLS[@]}"; do
   [[ -f "$SOURCE_ROOT/$skill/SKILL.md" ]] || {
@@ -18,6 +30,25 @@ for skill in "${SKILLS[@]}"; do
     exit 2
   }
 done
+[[ -x "$ENTRY_SOURCE" ]] || {
+  echo "ERROR: required entry launcher is missing or not executable: $ENTRY_SOURCE" >&2
+  exit 2
+}
+
+if [[ $ENTRY_ONLY -eq 1 ]]; then
+  if [[ ! -L "$ENTRY_TARGET" && -e "$ENTRY_TARGET" ]]; then
+    echo "ERROR: refusing to replace real path: $ENTRY_TARGET" >&2
+    exit 3
+  fi
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "ENTRY_ONLY $ENTRY_TARGET -> $ENTRY_SOURCE"
+    exit 0
+  fi
+  mkdir -p -- "$(dirname "$ENTRY_TARGET")"
+  ln -sfn -- "$ENTRY_SOURCE" "$ENTRY_TARGET"
+  echo "Senior Harness entry launcher installed: $ENTRY_TARGET"
+  exit 0
+fi
 
 # Preflight every destination before changing any of them. A protected real
 # directory in the ninth slot must leave the first eight untouched too.
@@ -30,6 +61,10 @@ for target_root in "${TARGET_ROOTS[@]}"; do
     fi
   done
 done
+if [[ ! -L "$ENTRY_TARGET" && -e "$ENTRY_TARGET" ]]; then
+  echo "ERROR: refusing to replace real path: $ENTRY_TARGET" >&2
+  exit 3
+fi
 
 # The real install is a small transaction. We record every prior symlink and
 # roll it back if a later mkdir/link fails, so a ninth-root failure cannot leave
@@ -67,6 +102,10 @@ if [[ $DRY_RUN -eq 0 ]]; then
       created_roots+=("$target_root")
     fi
   done
+  if [[ ! -d "$(dirname "$ENTRY_TARGET")" ]]; then
+    mkdir -p -- "$(dirname "$ENTRY_TARGET")"
+    created_roots+=("$(dirname "$ENTRY_TARGET")")
+  fi
 fi
 
 for target_root in "${TARGET_ROOTS[@]}"; do
@@ -94,6 +133,26 @@ for target_root in "${TARGET_ROOTS[@]}"; do
     fi
   done
 done
+
+if [[ -L "$ENTRY_TARGET" ]]; then
+  if [[ "$(readlink "$ENTRY_TARGET")" == "$ENTRY_SOURCE" ]]; then
+    echo "CURRENT $ENTRY_TARGET"
+  else
+    echo "UPDATE  $ENTRY_TARGET -> $ENTRY_SOURCE"
+    if [[ $DRY_RUN -eq 0 ]]; then
+      changed_paths+=("$ENTRY_TARGET")
+      previous_targets+=("$(readlink "$ENTRY_TARGET")")
+      ln -sfn -- "$ENTRY_SOURCE" "$ENTRY_TARGET"
+    fi
+  fi
+else
+  echo "LINK    $ENTRY_TARGET -> $ENTRY_SOURCE"
+  if [[ $DRY_RUN -eq 0 ]]; then
+    changed_paths+=("$ENTRY_TARGET")
+    previous_targets+=(__MISSING__)
+    ln -s -- "$ENTRY_SOURCE" "$ENTRY_TARGET"
+  fi
+fi
 
 committed=1
 trap - ERR INT TERM
