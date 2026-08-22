@@ -363,11 +363,14 @@ def test_hook_lifecycle_freezes_first_prompt_and_denies_missing_receipt(tmp_path
     assert denied_after_clear["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
-@pytest.mark.parametrize("surface", ["codex", "claude"])
+@pytest.mark.parametrize(
+    ("surface", "parallel_expected"),
+    [("codex", True), ("claude", False)],
+)
 def test_fresh_hook_session_routes_substantive_work_to_parallel_fanout(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, surface: str
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, surface: str, parallel_expected: bool
 ) -> None:
-    """A new window must not silently advertise a serial-only host."""
+    """A host may claim parallel capacity only when its signed adapter exists."""
     monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
     base = {"session_id": "fresh-parallel-window", "cwd": str(REPO_ROOT)}
 
@@ -384,18 +387,21 @@ def test_fresh_hook_session_routes_substantive_work_to_parallel_fanout(
     state_path = setup_driver_module._state_path(REPO_ROOT.resolve(), base["session_id"])
     receipt = json.loads(state_path.read_text(encoding="utf-8"))["receipt"]
     contract = receipt["setup_contract"]
-    assert contract["routing_request"]["capabilities"]["supports_parallel"] is True
-    assert contract["routing_request"]["capabilities"]["supports_cancellation"] is True
-    assert contract["routing_request"]["signals"]["ownership_disjoint"] is False
-    assert contract["route_decision"]["action"] == "delegate"
-    assert contract["route_decision"]["execution"]["max_parallel_workers"] == 4
-    assert "parallel-first-capacity-pending-disjoint-proof" in contract["route_decision"]["reasons"]
-    assert contract["orchestration_policy"]["parallel_required"] is True
+    assert contract["routing_request"]["capabilities"]["supports_parallel"] is parallel_expected
+    assert contract["routing_request"]["capabilities"]["supports_cancellation"] is parallel_expected
+    assert contract["orchestration_policy"]["parallel_required"] is parallel_expected
     assert contract["orchestration_policy"]["requires_disjoint_ownership_proof"] is True
-    assert contract["orchestration_policy"]["root_mutation_authority"] is False
     context = submitted["hookSpecificOutput"]["additionalContext"]
-    assert "dispatch independent workers immediately" in context
-    assert "Do not begin root implementation first" in context
+    if parallel_expected:
+        assert contract["routing_request"]["signals"]["ownership_disjoint"] is False
+        assert contract["route_decision"]["action"] == "delegate"
+        assert contract["route_decision"]["execution"]["max_parallel_workers"] == 4
+        assert "parallel-first-capacity-pending-disjoint-proof" in contract["route_decision"]["reasons"]
+        assert contract["orchestration_policy"]["root_mutation_authority"] is False
+        assert "dispatch independent workers immediately" in context
+        assert "Do not begin root implementation first" in context
+    else:
+        assert "dispatch independent workers immediately" not in context
 
 
 def test_parallel_required_root_cannot_implement_but_can_dispatch_and_coordinate(
@@ -667,8 +673,8 @@ def test_delivery_control_drift_after_clean_first_tool_warns_without_denying_mut
 
     later_write = _pretool(base, "Write")
     later_output = later_write["hookSpecificOutput"]
-    assert later_output["permissionDecision"] == "deny"
-    assert "denied root implementation" in later_output["permissionDecisionReason"]
+    assert "permissionDecision" not in later_output
+    assert "control-code drift detected" in later_output["additionalContext"]
 
     followup = handle_hook(
         {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Continue the same objective"},

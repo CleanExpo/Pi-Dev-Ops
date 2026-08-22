@@ -73,10 +73,14 @@ def _surface_capabilities(surface: str, *, hooks_configured: bool) -> dict[str, 
     lifecycle_state = "configured" if hooks_configured else "explicit-driver"
     adapter_evidence = {
         "codex": "codex-collaboration-spawn-and-interrupt",
-        "claude": "claude-agent-dispatch-and-cancel",
+        "claude": "claude-lifecycle-hooks-without-signed-dispatch-adapter",
         "vscode-openrouter": "no-probed-lifecycle-adapter",
     }
-    lifecycle_parallel = hooks_configured and surface in {"codex", "claude"}
+    # Claude's lifecycle hook can observe generic Agent calls but cannot attach
+    # the signed Unlazy dispatch envelope required by the parallel root gate.
+    # Advertising parallel capacity therefore deadlocks a fresh Claude delivery
+    # session: the root is denied mutation and no admissible leaf can exist.
+    lifecycle_parallel = hooks_configured and surface == "codex"
     return {
         "lifecycle_hooks": lifecycle_state,
         "pre_tool_use": lifecycle_state if hooks_configured else "explicit-driver",
