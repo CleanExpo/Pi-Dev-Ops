@@ -699,6 +699,14 @@ def _hook_output(event: str, context: str, *, deny: bool = False) -> dict[str, A
     return {"continue": not deny, "stopReason": context if deny else None, "systemMessage": context}
 
 
+def _normalise_tool_name(raw_name: Any) -> str:
+    """Map host tool labels to the portable snake_case control vocabulary."""
+    if isinstance(raw_name, dict):
+        raw_name = raw_name.get("name", "")
+    name = str(raw_name).replace("-", "_").replace(".", "_")
+    return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()
+
+
 def _parallel_dispatch_context(contract: dict[str, Any]) -> str:
     policy = contract.get("orchestration_policy", {})
     if not isinstance(policy, dict) or policy.get("parallel_required") is not True:
@@ -714,9 +722,7 @@ def _parallel_dispatch_context(contract: dict[str, Any]) -> str:
 def _is_parallel_control_tool(payload: dict[str, Any]) -> bool:
     """Allow only exact host orchestration controls on a parallel-required root."""
     raw_name = payload.get("tool_name") or payload.get("tool") or ""
-    if isinstance(raw_name, dict):
-        raw_name = raw_name.get("name", "")
-    name = str(raw_name).lower().replace("-", "_")
+    name = _normalise_tool_name(raw_name)
     return name in {
         "wait_agent",
         "list_agents",
@@ -736,9 +742,7 @@ def _is_parallel_dispatch_tool(payload: dict[str, Any]) -> bool:
     turn a tool label into mutation authority.
     """
     raw_name = payload.get("tool_name") or payload.get("tool") or ""
-    if isinstance(raw_name, dict):
-        raw_name = raw_name.get("name", "")
-    return str(raw_name).lower().replace("_", "-") == "senior-harness.dispatch"
+    return _normalise_tool_name(raw_name) == "senior_harness_dispatch"
 
 
 def _has_signed_dispatch_admission(
@@ -826,9 +830,7 @@ def _safe_test_argument(token: str, payload: dict[str, Any]) -> bool:
 def _is_parallel_verification_tool(payload: dict[str, Any]) -> bool:
     """Permit narrowly bounded, read-only proof commands while denying writes."""
     raw_name = payload.get("tool_name") or payload.get("tool") or ""
-    if isinstance(raw_name, dict):
-        raw_name = raw_name.get("name", "")
-    name = str(raw_name).lower().replace("-", "_")
+    name = _normalise_tool_name(raw_name)
     if not any(marker in name for marker in ("bash", "exec", "command", "shell")):
         return False
     tool_input = payload.get("tool_input")
@@ -902,16 +904,17 @@ def _write_state(path: Path, state: dict[str, Any]) -> None:
 def _tool_is_recovery_safe(payload: dict[str, Any]) -> bool:
     """Recognise exact read-only discovery tools; never infer safety from a substring."""
     raw_name = payload.get("tool_name") or payload.get("tool") or ""
-    if isinstance(raw_name, dict):
-        raw_name = raw_name.get("name", "")
-    tool_name = str(raw_name).lower().replace("-", "_")
+    tool_name = _normalise_tool_name(raw_name)
     safe_names = {
         "read",
         "grep",
         "glob",
         "webfetch",
+        "web_fetch",
         "websearch",
+        "web_search",
         "toolsearch",
+        "tool_search",
         "web__run",
         "view_image",
         "list_mcp_resources",

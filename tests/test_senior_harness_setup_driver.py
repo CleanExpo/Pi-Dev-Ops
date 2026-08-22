@@ -438,7 +438,18 @@ def test_parallel_required_root_cannot_implement_but_can_dispatch_and_coordinate
         assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
         assert "denied root implementation" in denied["hookSpecificOutput"]["permissionDecisionReason"]
 
-    for tool_name in ("wait_agent", "list_agents", "interrupt_agent", "send_message"):
+    for tool_name in (
+        "wait_agent",
+        "list_agents",
+        "interrupt_agent",
+        "send_message",
+        # The actual host emits PascalCase labels.  These must retain the same
+        # coordination-only authority as the portable snake_case names.
+        "WaitAgent",
+        "ListAgents",
+        "InterruptAgent",
+        "SendMessage",
+    ):
         allowed = handle_hook(
             {**base, "hook_event_name": "PreToolUse", "tool_name": tool_name, "tool_input": {}},
             surface="codex",
@@ -530,6 +541,7 @@ def test_hook_allows_only_exact_recovery_safe_reads_without_startup_state(
     for tool_name in (
         "Read",
         "ToolSearch",
+        "ReadMcpResource",
         "mcp__exa__web_search_exa",
         "mcp__plugin_exa_exa__get_code_context_exa",
     ):
