@@ -194,9 +194,13 @@ The repository fixture `tests/fixtures/senior_harness_self_host.json` describes 
 itself across 18 linked moves. This replay proves validator consistency and mutation resistance, not
 independent acceptance:
 
+The fixture's `repository` block names a base and candidate commit, and the contract requires both
+to resolve inside the declared worktree. Only the running checkout can supply commits that satisfy
+that, so the test helper binds the block to it; the fixture is not lintable as a standalone file and
+is replayed through the tests instead.
+
 ```bash
-python skills/senior-harness/scripts/senior_harness.py lint tests/fixtures/senior_harness_self_host.json
-python -m pytest tests/test_senior_harness.py -q
+python -m pytest tests/test_senior_harness_setup_driver.py tests/test_senior_harness_skill_slice.py tests/test_senior_harness_dispatch_fail_closed.py -q
 ```
 
 The positive control must pass. Mutation controls must reject a short horizon, a cycle, duplicate

@@ -17,6 +17,7 @@ import re
 import shlex
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -106,6 +107,15 @@ class SetupError(ValueError):
         self.errors = errors
 
 
+class GitProbeError(SetupError):
+    """Raised when a read-only Git probe could not run against the requested path.
+
+    Carrying the outside-Git condition in the exception type keeps the pending-objective
+    recovery lane from depending on the wording of an error string, per the same rule
+    ``ControlBindingResult`` states below: classify evidence, never parse message text.
+    """
+
+
 @dataclass(frozen=True)
 class ControlBindingResult:
     """Classify binding evidence without deriving policy from message text."""
@@ -161,7 +171,7 @@ def _git(project: Path, *args: str) -> str:
             timeout=10,
         )
     except (OSError, subprocess.SubprocessError) as exc:
-        raise SetupError([f"git probe failed for {project}: {exc}"]) from exc
+        raise GitProbeError([f"git probe failed for {project}: {exc}"]) from exc
     return result.stdout
 
 
@@ -933,10 +943,24 @@ def _pending_state_path(session_id: str) -> Path:
 
 
 def _write_state(path: Path, state: dict[str, Any]) -> None:
+    """Publish session state atomically through a temporary file unique to this call.
+
+    Claude and Codex PreToolUse matchers fire on every tool, so two hook processes can
+    write the same session state concurrently.  A shared sibling ``.tmp`` name let one
+    writer's partial bytes be published as the other's state, and a corrupt state file
+    drops the session into the invalid-startup branch.  ``mkstemp`` also creates the
+    file 0600, and ``replace`` carries that mode onto the published state.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    descriptor, temporary_name = tempfile.mkstemp(dir=path.parent, prefix=f"{path.name}.", suffix=".tmp")
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(state, indent=2, sort_keys=True) + "\n")
+        temporary.replace(path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
 
 
 def _pending_objective_seal(pending: dict[str, Any]) -> str:
@@ -1113,8 +1137,19 @@ def _tool_is_recovery_safe(payload: dict[str, Any]) -> bool:
     return executable in {"file", "find", "head", "ls", "pwd", "rg", "stat", "tail", "wc"}
 
 
-def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[str, Any]:
-    """Adapt one Codex/Claude lifecycle event to the portable startup contract."""
+def handle_hook(
+    payload: dict[str, Any],
+    *,
+    surface: str,
+    event: str,
+    skill_search_roots: Iterable[str | Path] | None = None,
+) -> dict[str, Any]:
+    """Adapt one Codex/Claude lifecycle event to the portable startup contract.
+
+    ``skill_search_roots`` names the canonical skills root explicitly.  Without it the
+    hook falls back to the project checkout and the host install roots, which a
+    temporary or freshly-cloned checkout with a clean HOME cannot supply.
+    """
     if surface not in {"codex", "claude"}:
         raise SetupError([f"hook surface is unsupported: {surface}"])
     if event not in {"SessionStart", "UserPromptSubmit", "PreToolUse"}:
@@ -1201,6 +1236,20 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
             except (OSError, json.JSONDecodeError, KeyError, TypeError, SetupError):
                 control_drift = None  # signal: re-admit from this prompt
             if control_drift is not None:
+                # The receipt validated, so this project already holds a frozen objective
+                # and this prompt is admitted against it.  That is a successful admission
+                # boundary, and any pending record read above has been superseded by it.
+                # Retire the record here: it is keyed by session alone while startup state
+                # is keyed by (project, session), so leaving it on disk lets the PreToolUse
+                # recovery lane -- which fires whenever a project has no state file -- later
+                # re-admit the stale pending objective instead of the live frozen one.
+                # Only a pending record that already passed its own seal check can reach
+                # this line; a tampered record returned a terminal quarantine above, so the
+                # quarantine remains the only exit for invalid pending state.
+                pending_context = ""
+                if recovered_pending:
+                    pending_path.unlink(missing_ok=True)
+                    pending_context = " A superseded pending startup objective was retired."
                 drift_context = (
                     " Control-code drift is present and must be revalidated in a fresh session: "
                     + "; ".join(control_drift)
@@ -1210,7 +1259,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
                 )
                 return _hook_output(
                     event,
-                    f"Senior Harness primary objective remains frozen byte-for-byte: {primary!r}. Treat this prompt as a subordinate instruction unless the user starts a new task.{parallel_context}{drift_context}",
+                    f"Senior Harness primary objective remains frozen byte-for-byte: {primary!r}. Treat this prompt as a subordinate instruction unless the user starts a new task.{parallel_context}{pending_context}{drift_context}",
                 )
         interaction = _interaction_for_objective(prompt)
         if interaction is None:
@@ -1220,6 +1269,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
             project_root,
             surface=surface,
             interaction=interaction,
+            skill_search_roots=skill_search_roots,
             host_capabilities=_surface_capabilities(surface, hooks_configured=True),
         )
         receipt = admit_startup(contract)
@@ -1257,6 +1307,7 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
                 project_root,
                 surface=surface,
                 interaction=_interaction_for_objective(prompt),
+                skill_search_roots=skill_search_roots,
                 host_capabilities=_surface_capabilities(surface, hooks_configured=True),
             )
             receipt = admit_startup(contract)
@@ -1455,6 +1506,7 @@ def build_parser() -> argparse.ArgumentParser:
     hook.add_argument("--surface", choices=("codex", "claude"), required=True)
     hook.add_argument("--event", choices=("SessionStart", "UserPromptSubmit", "PreToolUse"), required=True)
     hook.add_argument("--allow-non-git", action="store_true")
+    hook.add_argument("--skill-root", action="append", default=[])
     return parser
 
 
@@ -1490,11 +1542,14 @@ def main(argv: list[str] | None = None) -> int:
                 result = _hook_output(args.event, f"Senior Harness rejected malformed hook input: {exc}", deny=True)
             else:
                 try:
-                    result = handle_hook(payload, surface=args.surface, event=args.event)
-                except SetupError as exc:
-                    outside_git = args.allow_non_git and any(
-                        error.startswith("git probe failed for") for error in exc.errors
+                    result = handle_hook(
+                        payload,
+                        surface=args.surface,
+                        event=args.event,
+                        skill_search_roots=args.skill_root,
                     )
+                except SetupError as exc:
+                    outside_git = args.allow_non_git and isinstance(exc, GitProbeError)
                     if outside_git:
                         result = _record_pending_objective(
                             payload,

@@ -83,8 +83,9 @@ execution contract; unsupported controls are visible.
 
 ## 5. Dispatch
 
-Run a bounded dependency-aware ready queue. Launch up to the lowest of plan, harness, ownership, and
-budget capacity. Verify each returned diff and leaf gates immediately, then unlock newly ready work
+Run a bounded dependency-aware ready queue. Launch up to the lowest of plan, user, repository,
+harness, ownership, privacy, budget, and deadline capacity — the same complete bound the executable
+scheduler applies, so the skill-level rule can never authorise a dispatch the scheduler refuses. Verify each returned diff and leaf gates immediately, then unlock newly ready work
 without waiting for unrelated workers. Never let workers dispatch workers.
 
 Scheduler states, reservations, retries, circuit breakers, integration, and cancellation are

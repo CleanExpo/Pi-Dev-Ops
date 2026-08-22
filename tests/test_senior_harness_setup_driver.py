@@ -4,6 +4,7 @@ import copy
 import json
 import os
 import shlex
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -20,7 +21,7 @@ from grill_session import (  # noqa: E402
     confirm_shared_understanding,
     start_session,
 )
-from senior_harness import digest  # noqa: E402
+from senior_harness import ContractError, digest, validate_contract  # noqa: E402
 import setup_driver as setup_driver_module  # noqa: E402
 from setup_driver import (  # noqa: E402
     SetupError,
@@ -39,15 +40,43 @@ def _receipt(objective: str = "Create the setup driver") -> dict:
     return admit_startup(contract)
 
 
+def _checkout_base_sha(head: str) -> str:
+    """The deepest ancestor of HEAD that this checkout actually contains.
+
+    The fixture ships a literal base commit, but the contract requires
+    ``repository.base_sha`` to resolve *inside* ``repository.worktree`` and to be an
+    ancestor of the candidate.  CI runs ``actions/checkout`` at its default depth of 1,
+    so neither the pinned commit nor ``HEAD~1`` exists there and every delivery test
+    fails on an ancestry rule it was never meant to exercise.
+
+    Prefer a genuine parent so base and candidate stay distinct wherever history is
+    present, and fall back to HEAD only in a shallow checkout, where HEAD is the sole
+    commit and therefore the only base that can satisfy the rule at all.  The rule
+    itself is covered on its own terms by the hermetic repository tests below, which
+    build their own history instead of depending on how the host cloned this one.
+    """
+    parent = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", "HEAD~1^{commit}"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    resolved = parent.stdout.strip()
+    return resolved if parent.returncode == 0 and resolved else head
+
+
 def _delivery(objective: str = "Create the setup driver") -> dict:
     payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
     payload["literal_request"] = objective
     payload["authorized_scope"] = [objective]
     payload["task_id"] = digest({"task": objective})[7:23]
     payload["repository"]["worktree"] = str(REPO_ROOT)
-    payload["repository"]["candidate_sha"] = subprocess.run(
+    head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, check=True, capture_output=True, text=True
     ).stdout.strip()
+    payload["repository"]["candidate_sha"] = head
+    payload["repository"]["base_sha"] = _checkout_base_sha(head)
     return payload
 
 
@@ -1273,12 +1302,18 @@ def test_grill_hook_rechecks_project_bytes_after_first_tool_and_session_ids_do_n
     state_root = tmp_path / "state"
     monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(state_root))
 
+    # The project under test is a throwaway checkout, so name this repository's
+    # canonical skills root explicitly instead of relying on a host install that a
+    # clean CI HOME does not have.
+    roots = [REPO_ROOT / "skills"]
+
     for session_id in ("a/b", "a_b"):
         base = {"session_id": session_id, "cwd": str(project)}
         handle_hook(
             {**base, "hook_event_name": "UserPromptSubmit", "prompt": "/grill-me shape hook project"},
             surface="codex",
             event="UserPromptSubmit",
+            skill_search_roots=roots,
         )
     assert len(list(state_root.rglob("*.json"))) == 2
 
@@ -1287,6 +1322,7 @@ def test_grill_hook_rechecks_project_bytes_after_first_tool_and_session_ids_do_n
         {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
         surface="codex",
         event="PreToolUse",
+        skill_search_roots=roots,
     )
     assert "permissionDecision" not in first["hookSpecificOutput"]
     tracked.write_text("# Drifted\n", encoding="utf-8")
@@ -1294,6 +1330,7 @@ def test_grill_hook_rechecks_project_bytes_after_first_tool_and_session_ids_do_n
         {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
         surface="codex",
         event="PreToolUse",
+        skill_search_roots=roots,
     )
     assert "permissionDecision" not in second["hookSpecificOutput"]
     assert "recovery-only read" in second["hookSpecificOutput"]["additionalContext"]
@@ -1583,3 +1620,249 @@ def test_recovery_read_denies_a_grill_write_when_no_receipt_exists(tmp_path: Pat
         else:
             assert "permissionDecision" not in output, command
             assert "recovery-only read" in output["additionalContext"]
+
+
+# ── Regressions for the exact-SHA review findings ────────────────────────────
+
+
+def _init_repo(project: Path) -> str:
+    """Create a one-commit checkout owned by the caller and return its HEAD."""
+    project.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=project, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=project, check=True)
+    (project / "README.md").write_text("# Base\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=project, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=project, check=True)
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=project, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def test_valid_receipt_retires_a_superseded_pending_objective(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pending record must not outlive the admission boundary that supersedes it.
+
+    Startup state is keyed by (project, session) while the pending record is keyed by
+    session alone, so a pending record left on disk after a successful admission is
+    still visible to the PreToolUse recovery lane, which fires for any project that has
+    no state file.  Before the fix the lane re-admitted that stale objective.
+    """
+    project = tmp_path / "live-project"
+    _init_repo(project)
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
+    session_id = "orphaned-pending-session"
+    roots = [REPO_ROOT / "skills"]
+    base = {"session_id": session_id, "cwd": str(project)}
+
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Live objective for this project"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    state_path = setup_driver_module._state_path(project.resolve(), session_id)
+    assert state_path.is_file()
+
+    outside = tmp_path / "outside-any-checkout"
+    outside.mkdir()
+    setup_driver_module._record_pending_objective(
+        {
+            "session_id": session_id,
+            "cwd": str(outside),
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": "Stale pending objective",
+        },
+        surface="codex",
+        event="UserPromptSubmit",
+    )
+    pending_path = setup_driver_module._pending_state_path(session_id)
+    assert pending_path.is_file()
+
+    admitted = handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "a later subordinate prompt"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    context = admitted["hookSpecificOutput"]["additionalContext"]
+    assert "remains frozen byte-for-byte" in context
+    assert "Live objective for this project" in context
+    assert not pending_path.is_file()
+
+    state_path.unlink()
+    recovered = handle_hook(
+        {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
+        surface="codex",
+        event="PreToolUse",
+        skill_search_roots=roots,
+    )
+    recovered_context = recovered["hookSpecificOutput"]["additionalContext"]
+    assert "Stale pending objective" not in recovered_context
+    assert "no startup receipt exists for this session" in recovered_context
+
+
+def test_tampered_pending_record_still_quarantines_after_a_valid_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Retiring a superseded pending record must not become a laundering route."""
+    project = tmp_path / "quarantine-project"
+    _init_repo(project)
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
+    session_id = "quarantine-session"
+    roots = [REPO_ROOT / "skills"]
+    base = {"session_id": session_id, "cwd": str(project)}
+
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Live objective for this project"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    pending_path = setup_driver_module._pending_state_path(session_id)
+    pending_path.parent.mkdir(parents=True, exist_ok=True)
+    pending_path.write_text(
+        json.dumps(
+            {
+                "session_key": setup_driver_module._session_key(session_id),
+                "literal_objective": "Injected objective",
+                "surface": "codex",
+                "pending_seal": "sha256-hmac:" + "0" * 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    denied = handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "a later prompt"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    assert denied["decision"] == "block"
+    assert "pending startup objective is invalid" in denied["reason"]
+    assert pending_path.is_file()
+
+
+def test_write_state_uses_a_temporary_path_unique_to_each_writer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "session.json"
+    observed: list[Path] = []
+    real_replace = Path.replace
+
+    def recording_replace(self: Path, other) -> None:
+        observed.append(Path(self))
+        return real_replace(self, other)
+
+    monkeypatch.setattr(Path, "replace", recording_replace)
+    setup_driver_module._write_state(target, {"writer": "a"})
+    setup_driver_module._write_state(target, {"writer": "b"})
+
+    assert len(observed) == 2
+    assert observed[0] != observed[1]
+    assert target.with_suffix(".tmp") not in observed
+
+
+def test_concurrent_writers_cannot_publish_each_others_session_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Interleave two writers in the exact window a shared temp name makes fatal.
+
+    Claude and Codex PreToolUse matchers fire on every tool, so a second hook process
+    can complete a whole write between the first writer's temp write and its replace.
+    With one fixed sibling ``.tmp`` the second writer overwrites and then consumes the
+    first writer's temp file, so the first replace fails outright.
+    """
+    target = tmp_path / "session.json"
+    real_replace = Path.replace
+    interleaved = {"done": False}
+
+    def interleaving_replace(self: Path, other) -> None:
+        if not interleaved["done"]:
+            interleaved["done"] = True
+            setup_driver_module._write_state(target, {"writer": "b"})
+        return real_replace(self, other)
+
+    monkeypatch.setattr(Path, "replace", interleaving_replace)
+    setup_driver_module._write_state(target, {"writer": "a"})
+
+    assert json.loads(target.read_text(encoding="utf-8")) == {"writer": "a"}
+    assert not list(tmp_path.glob("*.tmp"))
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+
+
+def test_delivery_repository_shas_resolve_and_are_ordered_in_this_checkout() -> None:
+    """The fixture's repository block must be valid in whatever checkout is running.
+
+    CI clones at ``actions/checkout`` depth 1, where the fixture's pinned base commit
+    does not exist at all.
+    """
+    repository = _delivery()["repository"]
+    for label in ("base_sha", "candidate_sha"):
+        resolved = subprocess.run(
+            ["git", "cat-file", "-e", f"{repository[label]}^{{commit}}"],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+        )
+        assert resolved.returncode == 0, f"{label} does not resolve in this checkout"
+    ancestry = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", repository["base_sha"], repository["candidate_sha"]],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+    )
+    assert ancestry.returncode == 0
+
+
+def _hermetic_repository_contract(tmp_path: Path) -> tuple[dict, Path, str, str]:
+    """A delivery contract bound to a two-commit checkout the test owns outright."""
+    project = tmp_path / "ancestry-project"
+    first = _init_repo(project)
+    (project / "README.md").write_text("# Candidate\n", encoding="utf-8")
+    subprocess.run(["git", "commit", "-qam", "candidate"], cwd=project, check=True)
+    second = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=project, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    contract = _delivery()
+    contract["repository"] = {
+        "base_sha": first,
+        "candidate_sha": second,
+        "worktree": str(project.resolve()),
+    }
+    return contract, project, first, second
+
+
+def test_repository_contract_accepts_a_base_that_is_a_real_ancestor(tmp_path: Path) -> None:
+    contract, _project, _first, _second = _hermetic_repository_contract(tmp_path)
+    assert validate_contract(contract)["status"] == "valid"
+
+
+def test_repository_contract_rejects_a_base_that_is_not_an_ancestor(tmp_path: Path) -> None:
+    contract, project, _first, _second = _hermetic_repository_contract(tmp_path)
+    subprocess.run(["git", "checkout", "-q", "--orphan", "sidebranch"], cwd=project, check=True)
+    (project / "SIDE.md").write_text("# Side\n", encoding="utf-8")
+    subprocess.run(["git", "add", "SIDE.md"], cwd=project, check=True)
+    subprocess.run(["git", "commit", "-qm", "side"], cwd=project, check=True)
+    unrelated = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=project, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    contract["repository"]["base_sha"] = unrelated
+
+    with pytest.raises(ContractError) as excinfo:
+        validate_contract(contract)
+    assert any("must be an ancestor" in error for error in excinfo.value.errors)
+
+
+def test_repository_contract_rejects_a_base_absent_from_the_worktree(tmp_path: Path) -> None:
+    contract, _project, _first, _second = _hermetic_repository_contract(tmp_path)
+    contract["repository"]["base_sha"] = "0" * 40
+
+    with pytest.raises(ContractError) as excinfo:
+        validate_contract(contract)
+    assert any("does not resolve to a commit" in error for error in excinfo.value.errors)
+

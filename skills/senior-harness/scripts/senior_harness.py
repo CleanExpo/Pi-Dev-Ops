@@ -531,6 +531,13 @@ def _validate_repository(contract: dict[str, Any], errors: list[str]) -> None:
         return
     if declared_root != actual_root:
         errors.append("repository.worktree must name the Git checkout root")
+    # One hardened environment for every ancestry-relevant probe.  A replace ref or a
+    # graft file inside the declared worktree could otherwise make `cat-file -e` report
+    # that a SHA resolves while `merge-base --is-ancestor` runs with replacement
+    # disabled, so the two probes would disagree about the same object graph.
+    probe_env = os.environ.copy()
+    probe_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+    probe_env["GIT_GRAFT_FILE"] = os.devnull
     for label, sha in (("base_sha", base_sha), ("candidate_sha", candidate_sha)):
         if not isinstance(sha, str) or len(sha) != 40:
             continue
@@ -541,6 +548,7 @@ def _validate_repository(contract: dict[str, Any], errors: list[str]) -> None:
                 text=True,
                 capture_output=True,
                 check=False,
+                env=probe_env,
             )
         except OSError as exc:
             errors.append(f"repository.{label} could not be checked: {exc}")
@@ -566,16 +574,13 @@ def _validate_repository(contract: dict[str, Any], errors: list[str]) -> None:
         errors.append("repository.candidate_sha must equal repository.worktree HEAD")
     ancestry_tip = candidate_sha if isinstance(candidate_sha, str) and len(candidate_sha) == 40 else head_sha
     if isinstance(base_sha, str) and len(base_sha) == 40:
-        ancestry_env = os.environ.copy()
-        ancestry_env["GIT_NO_REPLACE_OBJECTS"] = "1"
-        ancestry_env["GIT_GRAFT_FILE"] = os.devnull
         ancestry = subprocess.run(
             ["git", "merge-base", "--is-ancestor", base_sha, ancestry_tip],
             cwd=actual_root,
             text=True,
             capture_output=True,
             check=False,
-            env=ancestry_env,
+            env=probe_env,
         )
         if ancestry.returncode != 0:
             errors.append("repository.base_sha must be an ancestor of the checked candidate or worktree HEAD")
