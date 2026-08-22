@@ -1794,7 +1794,7 @@ def test_review_later_pending_objective_is_not_discarded_by_older_receipt(
     assert blocked["decision"] == "block"
     reason = blocked["reason"]
     assert reason == blocked["hookSpecificOutput"]["additionalContext"]
-    assert "cannot be proven older" in reason
+    assert "order cannot be established" in reason
     assert "Later pending objective" in reason
     assert "Older admitted objective" in reason
     # It must not claim the pending record was retired.
@@ -1867,7 +1867,65 @@ def test_unstamped_state_or_pending_record_blocks_instead_of_retiring(
     # shape so a regression fails on the destroyed record, not on a missing key.
     assert pending_path.is_file(), "an unstamped record must never be destroyed"
     assert blocked["decision"] == "block"
-    assert "cannot be proven older" in blocked["reason"]
+    assert "order cannot be established" in blocked["reason"]
+
+
+def test_clock_rollback_between_writes_cannot_delete_the_later_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Wall-clock samples are not chronology, so they must not authorise deletion.
+
+    ``time.time_ns`` reads CLOCK_REALTIME, which this host reports as adjustable and
+    non-monotonic.  If the earlier admission happens to sample a LARGER value than the
+    later pending write, a comparison-based rule reads the newer record as older and
+    destroys it.  Both records are produced through the normal integrity-covered paths
+    here: nothing is forged, the clock simply moved.
+    """
+    project = tmp_path / "live-project"
+    _init_repo(project)
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
+    session_id = "clock-rollback"
+    roots = [REPO_ROOT / "skills"]
+    base = {"session_id": session_id, "cwd": str(project)}
+
+    monkeypatch.setattr(setup_driver_module.time, "time_ns", lambda: 200)
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Older admitted objective"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+
+    # The clock is adjusted backwards before the later write.
+    monkeypatch.setattr(setup_driver_module.time, "time_ns", lambda: 100)
+    outside = tmp_path / "outside-any-checkout"
+    outside.mkdir()
+    setup_driver_module._record_pending_objective(
+        {
+            "session_id": session_id,
+            "cwd": str(outside),
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": "Later pending objective",
+        },
+        surface="codex",
+        event="UserPromptSubmit",
+    )
+    pending_path = setup_driver_module._pending_state_path(session_id)
+    assert pending_path.is_file()
+
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "a later subordinate prompt"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+
+    assert pending_path.is_file(), (
+        "a backwards clock adjustment must never delete the later sealed objective"
+    )
+    survived = json.loads(pending_path.read_text(encoding="utf-8"))
+    assert survived["literal_objective"] == "Later pending objective"
 
 
 def test_tampered_outer_admission_stamp_cannot_retire_a_newer_pending_record(
@@ -1934,13 +1992,17 @@ def test_tampered_outer_admission_stamp_cannot_retire_a_newer_pending_record(
     assert survived["literal_objective"] == "Later pending objective"
 
 
-def test_pending_record_proven_older_than_the_receipt_is_retired(
+def test_even_a_genuinely_older_sealed_record_is_preserved_not_retired(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Supersession still works when ordering is actually provable.
+    """Retirement is removed entirely; this supersedes the old retire-on-order test.
 
-    The ordering gate must not degenerate into "always block": a record whose sealed
-    stamp really does predate the admission is retired exactly as before.
+    That test asserted a genuinely-older sealed record WAS deleted.  Deciding this
+    needs an authoritative, rollback-resistant sequence, and none exists here: the
+    seal proves integrity, not freshness.  Both stamps are CLOCK_REALTIME samples, so
+    "genuinely older" is not something this code can establish.  The guarantee is now
+    strictly stronger -- no sealed objective is ever destroyed automatically -- and the
+    operator clears the record explicitly instead.
     """
     project = tmp_path / "live-project"
     _init_repo(project)
@@ -1973,27 +2035,23 @@ def test_pending_record_proven_older_than_the_receipt_is_retired(
     )
     state_path = setup_driver_module._state_path(project.resolve(), session_id)
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    admission_order = state["receipt"]["admission_order_ns"]
-    assert isinstance(admission_order, int)
-    # That admission consumed the record; restore it with its original earlier stamp
-    # to exercise the retire branch with provable ordering.
-    assert sealed["recorded_at_ns"] < admission_order
+    # Its stamp really is earlier than the admission's, and it is STILL preserved.
+    assert sealed["recorded_at_ns"] < state["receipt"]["admission_order_ns"]
     pending_path.parent.mkdir(parents=True, exist_ok=True)
     pending_path.write_text(json.dumps(sealed), encoding="utf-8")
 
-    admitted = handle_hook(
+    blocked = handle_hook(
         {**base, "hook_event_name": "UserPromptSubmit", "prompt": "a later subordinate prompt"},
         surface="codex",
         event="UserPromptSubmit",
         skill_search_roots=roots,
     )
-    context = admitted["hookSpecificOutput"]["additionalContext"]
-    assert "remains frozen byte-for-byte" in context
-    # The first prompt recovered the pending record, so that objective is the one
-    # this project froze; the restored earlier record is now provably superseded.
-    assert "Genuinely earlier pending objective" in context
-    assert "A superseded pending startup objective was retired." in context
-    assert not pending_path.is_file()
+
+    assert pending_path.is_file(), "no sealed objective may be destroyed automatically"
+    assert blocked["decision"] == "block"
+    assert "order cannot be established" in blocked["reason"]
+    # The stamps are still surfaced, explicitly as non-authoritative evidence.
+    assert "NOT authoritative" in blocked["reason"]
 
 
 def test_tampered_pending_record_still_quarantines_after_a_valid_receipt(

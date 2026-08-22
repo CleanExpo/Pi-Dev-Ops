@@ -1028,22 +1028,34 @@ def _pending_objective_seal(pending: dict[str, Any]) -> str:
     return SEAL_PREFIX + hmac.new(_seal_key(), payload, hashlib.sha256).hexdigest()
 
 
-def _pending_reconciliation_reason(frozen: str, pending_objective: str) -> str:
-    """Refuse when a pending record cannot be proven older than the receipt.
+def _pending_reconciliation_reason(
+    frozen: str,
+    pending_objective: str,
+    *,
+    admission_stamp: Any = None,
+    pending_stamp: Any = None,
+) -> str:
+    """Refuse while a project receipt and a pending objective both exist.
 
-    The retire path used to delete any recovered pending record on the strength
-    of a valid receipt alone.  Validity is not chronology: a receipt admitted in
-    this project can predate an objective the operator sealed later while the
-    session was outside Git, and deleting it silently destroyed the newer
-    instruction while reporting that the older one remained frozen.  When
-    ordering is not provable the record is preserved and the session blocks.
+    Two earlier attempts tried to decide this automatically and both destroyed a
+    record they should have kept.  Deleting on a valid receipt alone confused
+    validity with chronology.  Deleting on stamp comparison then failed for a
+    different reason: both stamps are CLOCK_REALTIME samples, so a backwards
+    clock adjustment between the two writes makes the later record read as older.
+
+    Deciding it correctly needs an authoritative, rollback-resistant sequence,
+    and none exists here -- the seal proves integrity, not freshness.  So nothing
+    is deleted: both records are preserved and the operator reconciles. The
+    stamps are reported only as evidence for that person, never as authority.
     """
     return (
         "Senior Harness denied the request: this project holds a frozen objective "
         f"{frozen!r} while a pending startup objective {pending_objective!r} is sealed for "
-        "the same session, and the pending record cannot be proven older than the "
-        "receipt. Neither is discarded. Reconcile explicitly, or run an explicit "
-        "SessionStart with source=clear to discard the pending record."
+        "the same session. Their order cannot be established, so neither is discarded. "
+        f"Wall-clock stamps, which are NOT authoritative ordering evidence and must not be "
+        f"used to decide which to keep: admission={admission_stamp!r}, "
+        f"pending={pending_stamp!r}. Reconcile explicitly, or run an explicit SessionStart "
+        "with source=clear to discard the pending record."
     )
 
 
@@ -1322,40 +1334,37 @@ def handle_hook(
                 # and this prompt is admitted against it.  That is a successful admission
                 # boundary, and any pending record read above has been superseded by it.
                 # Retire the record here: it is keyed by session alone while startup state
-                # is keyed by (project, session), so leaving it on disk lets the PreToolUse
-                # recovery lane -- which fires whenever a project has no state file -- later
-                # re-admit the stale pending objective instead of the live frozen one.
-                # Only a pending record that already passed its own seal check can reach
-                # this line; a tampered record returned a terminal quarantine above, so the
-                # quarantine remains the only exit for invalid pending state.
-                pending_context = ""
+                # is keyed by (project, session), so a pending record can coexist with a
+                # live frozen objective for the same session.  Only a pending record that
+                # already passed its own seal check can reach this line; a tampered record
+                # returned a terminal quarantine above, so the quarantine remains the only
+                # exit for invalid pending state.
                 if recovered_pending:
-                    # Retire ONLY a record proven older than the receipt validating
-                    # here.  A valid receipt proves integrity, never chronology, so
-                    # ordering is decided on the sealed issuance stamps.  Missing or
-                    # equal stamps are not proof: those fail closed to reconciliation
-                    # rather than destroying whichever objective arrived later.
-                    # Read the order from the SEALED receipt that just validated,
-                    # never from the mutable outer state object.
-                    admitted_at_ns = receipt.get("admission_order_ns")
-                    recorded_at_ns = pending.get("recorded_at_ns")
-                    pending_proven_older = (
-                        isinstance(admitted_at_ns, int)
-                        and not isinstance(admitted_at_ns, bool)
-                        and isinstance(recorded_at_ns, int)
-                        and not isinstance(recorded_at_ns, bool)
-                        and recorded_at_ns < admitted_at_ns
+                    # No automatic deletion, on any comparison.  Sealing the stamps
+                    # fixed forgery but not chronology: both stamps are CLOCK_REALTIME
+                    # samples, which this platform reports as adjustable and
+                    # non-monotonic, so an ordinary backwards clock adjustment between
+                    # the two writes makes the LATER record read as older and destroys
+                    # it -- reproduced, with both records issued through the normal
+                    # integrity-covered paths and nothing forged.
+                    #
+                    # Deciding this correctly needs an authoritative, rollback-resistant
+                    # sequence. No such primitive exists here: the seal proves integrity,
+                    # not freshness, and the state-file holder in this file's threat model
+                    # can replay any earlier sealed file. Order evidence is therefore
+                    # unavailable, and the rule is to preserve BOTH records and block for
+                    # explicit reconciliation. The stamps are kept as non-authoritative
+                    # evidence for whoever reconciles; nothing reads them for a decision.
+                    return _hook_output(
+                        event,
+                        _pending_reconciliation_reason(
+                            primary,
+                            pending["literal_objective"],
+                            admission_stamp=receipt.get("admission_order_ns"),
+                            pending_stamp=pending.get("recorded_at_ns"),
+                        ),
+                        deny=True,
                     )
-                    if not pending_proven_older:
-                        return _hook_output(
-                            event,
-                            _pending_reconciliation_reason(
-                                primary, pending["literal_objective"]
-                            ),
-                            deny=True,
-                        )
-                    pending_path.unlink(missing_ok=True)
-                    pending_context = " A superseded pending startup objective was retired."
                 drift_context = (
                     " Control-code drift is present and must be revalidated in a fresh session: "
                     + "; ".join(control_drift)
@@ -1365,7 +1374,7 @@ def handle_hook(
                 )
                 return _hook_output(
                     event,
-                    f"Senior Harness primary objective remains frozen byte-for-byte: {primary!r}. Treat this prompt as a subordinate instruction unless the user starts a new task.{parallel_context}{pending_context}{drift_context}",
+                    f"Senior Harness primary objective remains frozen byte-for-byte: {primary!r}. Treat this prompt as a subordinate instruction unless the user starts a new task.{parallel_context}{drift_context}",
                 )
         interaction = _interaction_for_objective(prompt)
         if interaction is None:
