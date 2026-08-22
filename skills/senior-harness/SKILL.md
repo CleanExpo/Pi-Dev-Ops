@@ -93,29 +93,7 @@ normal host and repository policy still decides generic tools, and a fresh sessi
 produce new control-code evidence. Grill interactions continue revalidating project and control
 bytes on every tool, with recovery reads as the only carve-out.
 
-### Governed Grill-Me entry
-
-First create or select a fat-marker sketch in the real Obsidian vault's `Sketches/` directory. Then
-freeze the Grill interaction explicitly:
-
-```bash
-python ~/.codex/skills/senior-harness/scripts/setup_driver.py start \
-  "/grill-me <literal project objective>" --project "<git-root>" --surface codex \
-  --interaction grill-me
-```
-
-Use `grill-with-docs` for an existing codebase. Build a dependency-ordered decision-tree JSON, then
-start the session with `grill_session.py start`. Keep its state below
-`$SENIOR_HARNESS_STATE_DIR` or `~/.local/state/senior-harness/`; never store control state in the
-project. The machine exposes an evidence query or exactly one human question. Human questions must
-carry a recommendation and rationale. Record the user's words verbatim as `DECIDED`, `RABBIT_HOLE`,
-or `NO_GO`. Confirmation requires the exact phrase printed by the driver and cannot succeed while a
-leaf is unresolved. Only then may `materialize` write the bound transcript under the vault's sibling
-`Grills/` directory.
-
-Load [`references/grill-contract.md`](references/grill-contract.md) for the state schema and authority
-boundary. A shared-understanding receipt proves the interview resolved; it grants no mutation,
-business, financial, privacy, deployment, or irreversible authority.
+Governed Grill-Me entry, and the authority its receipt withholds, is specified in [`references/grill-contract.md`](references/grill-contract.md).
 
 ## 1. Ground
 

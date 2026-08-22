@@ -44,15 +44,14 @@ def _choice(value: Any, allowed: set[str], field_name: str) -> str:
 
 
 def _non_negative_int(value: Any, field_name: str) -> int:
-    if isinstance(value, bool):
+    # Only a genuine int is an integer here. Coercing via int() truncated
+    # fractional values (0.9 -> 0), which silently suppressed monotonic
+    # failure escalation, and accepted numeric strings the contract rejects.
+    if isinstance(value, bool) or not isinstance(value, int):
         raise RoutingValidationError(f"{field_name} must be an integer")
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError) as exc:
-        raise RoutingValidationError(f"{field_name} must be an integer") from exc
-    if parsed < 0:
+    if value < 0:
         raise RoutingValidationError(f"{field_name} must be non-negative")
-    return parsed
+    return value
 
 
 def _boolean(value: Any, field_name: str) -> bool:

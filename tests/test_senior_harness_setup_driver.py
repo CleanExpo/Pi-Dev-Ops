@@ -114,6 +114,33 @@ def _start_hook_session(
     return base, state_path
 
 
+def _observe_adapter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, surface: str = "codex"
+) -> Path:
+    """Publish an observed adapter receipt so the surface may claim capacity.
+
+    Hook presence alone proves nothing, so the parallel regime is unreachable
+    without this receipt.  Tests that exercise the regime must observe an
+    adapter first, exactly as a real host would.
+    """
+    receipt_path = tmp_path / f"{surface}-adapter-receipt.json"
+    receipt_path.write_text(
+        json.dumps(
+            {
+                "surface": surface,
+                "capacity": True,
+                "isolation": True,
+                "signed_dispatch": True,
+                "cancellation": True,
+                "adapter_signature": "test-observed-adapter-signature",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(setup_driver_module.ADAPTER_RECEIPT_ENV, str(receipt_path))
+    return receipt_path
+
+
 def _pretool(base: dict[str, str], tool_name: str) -> dict:
     return handle_hook(
         {**base, "hook_event_name": "PreToolUse", "tool_name": tool_name, "tool_input": {}},
@@ -352,6 +379,7 @@ def test_cli_start_is_machine_readable_read_only_and_conservative(surface: str) 
 
 def test_hook_lifecycle_freezes_first_prompt_and_denies_missing_receipt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    _observe_adapter(tmp_path, monkeypatch)
     base = {"session_id": "session-1", "cwd": str(REPO_ROOT)}
 
     denied = handle_hook({**base, "hook_event_name": "PreToolUse"}, surface="codex", event="PreToolUse")
@@ -395,14 +423,80 @@ def test_hook_lifecycle_freezes_first_prompt_and_denies_missing_receipt(tmp_path
 
 
 @pytest.mark.parametrize(
-    ("surface", "parallel_expected"),
-    [("codex", True), ("claude", False)],
+    ("mutation", "reason"),
+    [
+        ({"adapter_signature": "   "}, "blank signature"),
+        ({"adapter_signature": None}, "missing signature"),
+        ({"capacity": False}, "capacity not demonstrated"),
+        ({"isolation": False}, "isolation not demonstrated"),
+        ({"signed_dispatch": False}, "dispatch not signed"),
+        ({"cancellation": False}, "cancellation not demonstrated"),
+        ({"capacity": "yes"}, "evidence is not a boolean true"),
+        ({"surface": "claude"}, "receipt belongs to another surface"),
+    ],
+)
+def test_incomplete_adapter_receipt_never_grants_capacity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: dict, reason: str
+) -> None:
+    """A receipt missing any named evidence item must fail closed, not degrade quietly."""
+    receipt_path = _observe_adapter(tmp_path, monkeypatch)
+    payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    payload.update(mutation)
+    receipt_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert setup_driver_module._read_adapter_receipt("codex") is None, reason
+    capabilities = setup_driver_module._surface_capabilities(
+        "codex",
+        hooks_configured=True,
+        adapter_receipt=setup_driver_module._read_adapter_receipt("codex"),
+    )
+    assert capabilities["supports_parallel"] is False, reason
+    assert capabilities["supports_cancellation"] is False, reason
+    assert capabilities["capability_probe"] == "unprobed"
+
+
+def test_unreadable_adapter_receipt_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A malformed or absent receipt file is unprobed, never assumed good."""
+    monkeypatch.setenv(setup_driver_module.ADAPTER_RECEIPT_ENV, str(tmp_path / "absent.json"))
+    assert setup_driver_module._read_adapter_receipt("codex") is None
+
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json", encoding="utf-8")
+    monkeypatch.setenv(setup_driver_module.ADAPTER_RECEIPT_ENV, str(broken))
+    assert setup_driver_module._read_adapter_receipt("codex") is None
+
+    monkeypatch.delenv(setup_driver_module.ADAPTER_RECEIPT_ENV, raising=False)
+    assert setup_driver_module._read_adapter_receipt("codex") is None
+
+
+@pytest.mark.parametrize(
+    ("surface", "observed_adapter", "parallel_expected"),
+    [
+        # Codex with an observed adapter receipt is the only capacity claim.
+        ("codex", True, True),
+        # Planted: configured hooks and no observed adapter.  Hook presence is
+        # not a probe, so this must fail closed to serial rather than reserve
+        # parallel capacity the host was never measured to have.
+        ("codex", False, False),
+        # A receipt cannot buy Claude capacity it has no signed dispatch for.
+        ("claude", True, False),
+        ("claude", False, False),
+    ],
 )
 def test_fresh_hook_session_routes_substantive_work_to_parallel_fanout(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, surface: str, parallel_expected: bool
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    surface: str,
+    observed_adapter: bool,
+    parallel_expected: bool,
 ) -> None:
     """A host may claim parallel capacity only when its signed adapter exists."""
     monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.delenv(setup_driver_module.ADAPTER_RECEIPT_ENV, raising=False)
+    if observed_adapter:
+        _observe_adapter(tmp_path, monkeypatch, surface=surface)
     base = {"session_id": "fresh-parallel-window", "cwd": str(REPO_ROOT)}
 
     submitted = handle_hook(
@@ -439,6 +533,7 @@ def test_parallel_required_root_cannot_implement_but_can_dispatch_and_coordinate
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    _observe_adapter(tmp_path, monkeypatch)
     base = {"session_id": "parallel-root-boundary", "cwd": str(REPO_ROOT)}
     handle_hook(
         {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Repair and verify the harness"},
@@ -526,6 +621,7 @@ def test_parallel_root_denies_mutating_or_unbounded_verifier_commands(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
 ) -> None:
     monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    _observe_adapter(tmp_path, monkeypatch)
     base = {"session_id": f"unsafe-verifier-{abs(hash(command))}", "cwd": str(REPO_ROOT)}
     handle_hook(
         {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Repair and verify the harness"},
@@ -1639,15 +1735,16 @@ def _init_repo(project: Path) -> str:
     ).stdout.strip()
 
 
-def test_valid_receipt_retires_a_superseded_pending_objective(
+def test_review_later_pending_objective_is_not_discarded_by_older_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A pending record must not outlive the admission boundary that supersedes it.
+    """A receipt proves integrity, never chronology.
 
-    Startup state is keyed by (project, session) while the pending record is keyed by
-    session alone, so a pending record left on disk after a successful admission is
-    still visible to the PreToolUse recovery lane, which fires for any project that has
-    no state file.  Before the fix the lane re-admitted that stale objective.
+    Admit an objective in a Git project, then seal a LATER objective for the same
+    session while outside Git, then return to the project.  The receipt predates the
+    pending record, so it cannot supersede it.  Before the fix the newer objective was
+    silently deleted while the hook reported the older one still frozen.  Neither may
+    be destroyed: the session blocks for explicit reconciliation.
     """
     project = tmp_path / "live-project"
     _init_repo(project)
@@ -1658,7 +1755,7 @@ def test_valid_receipt_retires_a_superseded_pending_objective(
     base = {"session_id": session_id, "cwd": str(project)}
 
     handle_hook(
-        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Live objective for this project"},
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Older admitted objective"},
         surface="codex",
         event="UserPromptSubmit",
         skill_search_roots=roots,
@@ -1673,13 +1770,82 @@ def test_valid_receipt_retires_a_superseded_pending_objective(
             "session_id": session_id,
             "cwd": str(outside),
             "hook_event_name": "UserPromptSubmit",
-            "prompt": "Stale pending objective",
+            "prompt": "Later pending objective",
         },
         surface="codex",
         event="UserPromptSubmit",
     )
     pending_path = setup_driver_module._pending_state_path(session_id)
     assert pending_path.is_file()
+
+    blocked = handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "a later subordinate prompt"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+
+    # The newer objective survives -- this is the assertion that failed before.
+    assert pending_path.is_file()
+    sealed = json.loads(pending_path.read_text(encoding="utf-8"))
+    assert sealed["literal_objective"] == "Later pending objective"
+
+    # UserPromptSubmit refuses through the top-level decision/reason pair.
+    assert blocked["decision"] == "block"
+    reason = blocked["reason"]
+    assert reason == blocked["hookSpecificOutput"]["additionalContext"]
+    assert "cannot be proven older" in reason
+    assert "Later pending objective" in reason
+    assert "Older admitted objective" in reason
+    # It must not claim the pending record was retired.
+    assert "was retired" not in reason
+
+
+def test_pending_record_proven_older_than_the_receipt_is_retired(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Supersession still works when ordering is actually provable.
+
+    The ordering gate must not degenerate into "always block": a record whose sealed
+    stamp really does predate the admission is retired exactly as before.
+    """
+    project = tmp_path / "live-project"
+    _init_repo(project)
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
+    session_id = "ordered-pending-session"
+    roots = [REPO_ROOT / "skills"]
+    base = {"session_id": session_id, "cwd": str(project)}
+
+    outside = tmp_path / "outside-any-checkout"
+    outside.mkdir()
+    setup_driver_module._record_pending_objective(
+        {
+            "session_id": session_id,
+            "cwd": str(outside),
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": "Genuinely earlier pending objective",
+        },
+        surface="codex",
+        event="UserPromptSubmit",
+    )
+    pending_path = setup_driver_module._pending_state_path(session_id)
+    sealed = json.loads(pending_path.read_text(encoding="utf-8"))
+
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Objective admitted here"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    state_path = setup_driver_module._state_path(project.resolve(), session_id)
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert isinstance(state["admitted_at_ns"], int)
+    # That admission consumed the record; restore it with its original earlier stamp
+    # to exercise the retire branch with provable ordering.
+    assert sealed["recorded_at_ns"] < state["admitted_at_ns"]
+    pending_path.parent.mkdir(parents=True, exist_ok=True)
+    pending_path.write_text(json.dumps(sealed), encoding="utf-8")
 
     admitted = handle_hook(
         {**base, "hook_event_name": "UserPromptSubmit", "prompt": "a later subordinate prompt"},
@@ -1689,19 +1855,11 @@ def test_valid_receipt_retires_a_superseded_pending_objective(
     )
     context = admitted["hookSpecificOutput"]["additionalContext"]
     assert "remains frozen byte-for-byte" in context
-    assert "Live objective for this project" in context
+    # The first prompt recovered the pending record, so that objective is the one
+    # this project froze; the restored earlier record is now provably superseded.
+    assert "Genuinely earlier pending objective" in context
+    assert "A superseded pending startup objective was retired." in context
     assert not pending_path.is_file()
-
-    state_path.unlink()
-    recovered = handle_hook(
-        {**base, "hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {}},
-        surface="codex",
-        event="PreToolUse",
-        skill_search_roots=roots,
-    )
-    recovered_context = recovered["hookSpecificOutput"]["additionalContext"]
-    assert "Stale pending objective" not in recovered_context
-    assert "no startup receipt exists for this session" in recovered_context
 
 
 def test_tampered_pending_record_still_quarantines_after_a_valid_receipt(

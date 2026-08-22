@@ -18,6 +18,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -73,8 +74,48 @@ READ_ONLY_GIT = {
 }
 
 
-def _surface_capabilities(surface: str, *, hooks_configured: bool) -> dict[str, Any]:
-    """Declare only lifecycle capabilities backed by a configured host adapter."""
+ADAPTER_RECEIPT_ENV = "SENIOR_HARNESS_ADAPTER_RECEIPT"
+# The four evidence items a host adapter must have demonstrated before this
+# surface may claim parallel capacity.  Presence of a configured hook proves
+# none of them.
+REQUIRED_ADAPTER_EVIDENCE = ("capacity", "isolation", "signed_dispatch", "cancellation")
+
+
+def _read_adapter_receipt(surface: str) -> dict[str, Any] | None:
+    """Return a validated observed-adapter receipt, or None when unprobed.
+
+    Validation is deliberately shallow: required evidence present, of the
+    expected type, and a non-empty signature field.  The signature is NOT
+    cryptographically verified here -- that lands with the real signed adapter.
+    Any absent, unreadable, malformed, or surface-mismatched receipt yields
+    None, which fails the surface closed to serial execution.
+    """
+    raw_path = os.environ.get(ADAPTER_RECEIPT_ENV, "").strip()
+    if not raw_path:
+        return None
+    try:
+        payload = json.loads(Path(raw_path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("surface") != surface:
+        return None
+    if any(payload.get(name) is not True for name in REQUIRED_ADAPTER_EVIDENCE):
+        return None
+    signature = payload.get("adapter_signature")
+    if not isinstance(signature, str) or not signature.strip():
+        return None
+    return payload
+
+
+def _surface_capabilities(
+    surface: str,
+    *,
+    hooks_configured: bool,
+    adapter_receipt: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Declare only lifecycle capabilities backed by an observed host adapter."""
     if surface not in {"codex", "claude", "vscode-openrouter"}:
         raise SetupError([f"unsupported surface: {surface}"])
     lifecycle_state = "configured" if hooks_configured else "explicit-driver"
@@ -87,7 +128,16 @@ def _surface_capabilities(surface: str, *, hooks_configured: bool) -> dict[str, 
     # the signed Unlazy dispatch envelope required by the parallel root gate.
     # Advertising parallel capacity therefore deadlocks a fresh Claude delivery
     # session: the root is denied mutation and no admissible leaf can exist.
-    lifecycle_parallel = hooks_configured and surface == "codex"
+    #
+    # Configuration presence is not a probe.  Every hook admission passes
+    # hooks_configured=True, so deriving capacity from hook presence alone
+    # advertised parallel dispatch and cancellation that nothing had measured,
+    # on hosts that may be unable to dispatch an admissible leaf at all.
+    # Capacity is claimed only against an observed adapter receipt carrying
+    # capacity, isolation, signed-dispatch and cancellation evidence; absent
+    # that receipt the surface fails closed to serial execution.
+    probed = adapter_receipt is not None
+    lifecycle_parallel = hooks_configured and surface == "codex" and probed
     return {
         "lifecycle_hooks": lifecycle_state,
         "pre_tool_use": lifecycle_state if hooks_configured else "explicit-driver",
@@ -95,6 +145,7 @@ def _surface_capabilities(surface: str, *, hooks_configured: bool) -> dict[str, 
         "supports_parallel": lifecycle_parallel,
         "supports_model_override": False,
         "supports_cancellation": lifecycle_parallel,
+        "capability_probe": "observed-adapter-receipt" if probed else "unprobed",
         "evidence": adapter_evidence[surface],
     }
 
@@ -971,6 +1022,25 @@ def _pending_objective_seal(pending: dict[str, Any]) -> str:
     return SEAL_PREFIX + hmac.new(_seal_key(), payload, hashlib.sha256).hexdigest()
 
 
+def _pending_reconciliation_reason(frozen: str, pending_objective: str) -> str:
+    """Refuse when a pending record cannot be proven older than the receipt.
+
+    The retire path used to delete any recovered pending record on the strength
+    of a valid receipt alone.  Validity is not chronology: a receipt admitted in
+    this project can predate an objective the operator sealed later while the
+    session was outside Git, and deleting it silently destroyed the newer
+    instruction while reporting that the older one remained frozen.  When
+    ordering is not provable the record is preserved and the session blocks.
+    """
+    return (
+        "Senior Harness denied the request: this project holds a frozen objective "
+        f"{frozen!r} while a pending startup objective {pending_objective!r} is sealed for "
+        "the same session, and the pending record cannot be proven older than the "
+        "receipt. Neither is discarded. Reconcile explicitly, or run an explicit "
+        "SessionStart with source=clear to discard the pending record."
+    )
+
+
 def _pending_quarantine_reason(exc: SetupError) -> str:
     """One terminal refusal for pending state that failed its own integrity check.
 
@@ -1046,6 +1116,12 @@ def _record_pending_objective(
         "session_key": _session_key(session_id),
         "literal_objective": prompt,
         "surface": surface,
+        # Ordering identity.  Without it nothing can prove which of a pending
+        # record and a project receipt came first, and the retire path below
+        # simply assumed the receipt was newer -- silently discarding a later
+        # objective sealed while the session was outside Git.  The stamp is
+        # inside the seal, so it cannot be back-dated without breaking it.
+        "recorded_at_ns": time.time_ns(),
     }
     pending["pending_seal"] = _pending_objective_seal(pending)
     _write_state(path, pending)
@@ -1248,6 +1324,28 @@ def handle_hook(
                 # quarantine remains the only exit for invalid pending state.
                 pending_context = ""
                 if recovered_pending:
+                    # Retire ONLY a record proven older than the receipt validating
+                    # here.  A valid receipt proves integrity, never chronology, so
+                    # ordering is decided on the sealed issuance stamps.  Missing or
+                    # equal stamps are not proof: those fail closed to reconciliation
+                    # rather than destroying whichever objective arrived later.
+                    admitted_at_ns = state.get("admitted_at_ns")
+                    recorded_at_ns = pending.get("recorded_at_ns")
+                    pending_proven_older = (
+                        isinstance(admitted_at_ns, int)
+                        and not isinstance(admitted_at_ns, bool)
+                        and isinstance(recorded_at_ns, int)
+                        and not isinstance(recorded_at_ns, bool)
+                        and recorded_at_ns < admitted_at_ns
+                    )
+                    if not pending_proven_older:
+                        return _hook_output(
+                            event,
+                            _pending_reconciliation_reason(
+                                primary, pending["literal_objective"]
+                            ),
+                            deny=True,
+                        )
                     pending_path.unlink(missing_ok=True)
                     pending_context = " A superseded pending startup objective was retired."
                 drift_context = (
@@ -1270,10 +1368,21 @@ def handle_hook(
             surface=surface,
             interaction=interaction,
             skill_search_roots=skill_search_roots,
-            host_capabilities=_surface_capabilities(surface, hooks_configured=True),
+            host_capabilities=_surface_capabilities(
+                surface,
+                hooks_configured=True,
+                adapter_receipt=_read_adapter_receipt(surface),
+            ),
         )
         receipt = admit_startup(contract)
-        _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
+        _write_state(
+                state_path,
+                {
+                    "receipt": receipt,
+                    "first_tool_admitted": False,
+                    "admitted_at_ns": time.time_ns(),
+                },
+            )
         pending_path.unlink(missing_ok=True)
         grill_context = (
             " Grill interaction is active: use the governed Grill session controller; project mutation and worker dispatch remain denied until its shared-understanding receipt validates."
@@ -1308,10 +1417,21 @@ def handle_hook(
                 surface=surface,
                 interaction=_interaction_for_objective(prompt),
                 skill_search_roots=skill_search_roots,
-                host_capabilities=_surface_capabilities(surface, hooks_configured=True),
+                host_capabilities=_surface_capabilities(
+                    surface,
+                    hooks_configured=True,
+                    adapter_receipt=_read_adapter_receipt(surface),
+                ),
             )
             receipt = admit_startup(contract)
-            _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
+            _write_state(
+                state_path,
+                {
+                    "receipt": receipt,
+                    "first_tool_admitted": False,
+                    "admitted_at_ns": time.time_ns(),
+                },
+            )
             pending_path.unlink(missing_ok=True)
             recovered_pending = True
         except SetupError as exc:
