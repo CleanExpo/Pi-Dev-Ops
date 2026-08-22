@@ -1331,30 +1331,40 @@ def handle_hook(
                 control_drift = None  # signal: re-admit from this prompt
             if control_drift is not None:
                 # The receipt validated, so this project already holds a frozen objective
-                # and this prompt is admitted against it.  That is a successful admission
-                # boundary, and any pending record read above has been superseded by it.
-                # Retire the record here: it is keyed by session alone while startup state
-                # is keyed by (project, session), so a pending record can coexist with a
-                # live frozen objective for the same session.  Only a pending record that
-                # already passed its own seal check can reach this line; a tampered record
-                # returned a terminal quarantine above, so the quarantine remains the only
-                # exit for invalid pending state.
+                # and this prompt is admitted against it.  A pending record may still exist
+                # alongside it: the pending record is keyed by session alone while startup
+                # state is keyed by (project, session).  Only a pending record that already
+                # passed its own seal check can reach this line; a tampered record returned
+                # a terminal quarantine above, so the quarantine remains the only exit for
+                # invalid pending state.
                 if recovered_pending:
-                    # No automatic deletion, on any comparison.  Sealing the stamps
-                    # fixed forgery but not chronology: both stamps are CLOCK_REALTIME
-                    # samples, which this platform reports as adjustable and
-                    # non-monotonic, so an ordinary backwards clock adjustment between
-                    # the two writes makes the LATER record read as older and destroys
-                    # it -- reproduced, with both records issued through the normal
-                    # integrity-covered paths and nothing forged.
+                    # No automatic deletion, on any comparison.  Three mechanisms were
+                    # tried and each destroyed a record it should have kept: a valid
+                    # receipt treated as chronology; an unsealed outer stamp; then sealed
+                    # stamps, which fixed forgery but not chronology, because both are
+                    # CLOCK_REALTIME samples and this platform reports that clock as
+                    # adjustable and non-monotonic -- a backwards adjustment between the
+                    # two writes makes the LATER record read as older. Reproduced with
+                    # both records issued through the normal integrity-covered paths.
                     #
                     # Deciding this correctly needs an authoritative, rollback-resistant
-                    # sequence. No such primitive exists here: the seal proves integrity,
-                    # not freshness, and the state-file holder in this file's threat model
-                    # can replay any earlier sealed file. Order evidence is therefore
-                    # unavailable, and the rule is to preserve BOTH records and block for
-                    # explicit reconciliation. The stamps are kept as non-authoritative
-                    # evidence for whoever reconciles; nothing reads them for a decision.
+                    # sequence, and one IS constructible here: _seal_key_path() puts the
+                    # HMAC key under a separately trusted config root, deliberately
+                    # outside the state root this file treats as attacker-controlled, so
+                    # a locked, durable per-session generation ledger beside that key
+                    # would be authoritative against a state-file holder and would survive
+                    # process and host restarts.  Building it is queued as its own scoped
+                    # work: it needs allocation locking, atomic durable publication, an
+                    # epoch bound into each HMAC, and concurrent-writer, restart, replay,
+                    # crash-before-publish, epoch-mismatch and unavailable-ledger controls.
+                    #
+                    # Until that lands, trusted order evidence is not available AT RUNTIME,
+                    # so both records are preserved and the operator reconciles. That is
+                    # not a workaround around the ledger design: it is that design's own
+                    # fallback branch, which preserves both records whenever the ledger is
+                    # unavailable, corrupt, or on an unrecognized epoch.  The stamps below
+                    # are reported to the operator as evidence only; nothing reads them to
+                    # make a decision.
                     return _hook_output(
                         event,
                         _pending_reconciliation_reason(

@@ -2014,6 +2014,9 @@ def test_even_a_genuinely_older_sealed_record_is_preserved_not_retired(
 
     outside = tmp_path / "outside-any-checkout"
     outside.mkdir()
+    # Pin the clock rather than trusting CLOCK_REALTIME to advance between the two
+    # writes: "genuinely earlier" must be a fact of the fixture, not of the host.
+    monkeypatch.setattr(setup_driver_module.time, "time_ns", lambda: 100)
     setup_driver_module._record_pending_objective(
         {
             "session_id": session_id,
@@ -2027,6 +2030,7 @@ def test_even_a_genuinely_older_sealed_record_is_preserved_not_retired(
     pending_path = setup_driver_module._pending_state_path(session_id)
     sealed = json.loads(pending_path.read_text(encoding="utf-8"))
 
+    monkeypatch.setattr(setup_driver_module.time, "time_ns", lambda: 200)
     handle_hook(
         {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Objective admitted here"},
         surface="codex",
