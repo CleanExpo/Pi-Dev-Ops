@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -1305,3 +1306,280 @@ def test_grill_hook_rechecks_project_bytes_after_first_tool_and_session_ids_do_n
     )
     assert denied_write["hookSpecificOutput"]["permissionDecision"] == "deny"
     assert "worktree_state_digest changed" in denied_write["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+def _global_hook_result(event: str, payload: dict, env: dict[str, str]) -> dict:
+    """Full driver output, including the top-level refusal channel."""
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "setup_driver.py"),
+            "hook",
+            "--surface",
+            "claude",
+            "--event",
+            event,
+            "--allow-non-git",
+        ],
+        input=json.dumps({**payload, "hook_event_name": event}),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(result.stdout)
+
+
+def _tamper_env(tmp_path: Path) -> dict[str, str]:
+    return dict(
+        os.environ,
+        SENIOR_HARNESS_STATE_DIR=str(tmp_path / "state"),
+        SENIOR_HARNESS_SEAL_KEY_FILE=str(tmp_path / "seal.key"),
+    )
+
+
+def _pending_file(tmp_path: Path) -> Path:
+    pending = list((tmp_path / "state" / "pending-project").glob("*.json"))
+    assert len(pending) == 1, pending
+    return pending[0]
+
+
+def test_a_later_prompt_cannot_launder_a_tampered_pending_objective(tmp_path: Path) -> None:
+    """tampered state -> another prompt -> first tool attempt stays denied."""
+    env = _tamper_env(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    session = "tamper-then-prompt"
+
+    _global_hook(
+        "UserPromptSubmit",
+        {"session_id": session, "cwd": str(outside), "prompt": "Inspect only"},
+        env,
+    )
+    pending_path = _pending_file(tmp_path)
+    tampered = json.loads(pending_path.read_text(encoding="utf-8"))
+    tampered["literal_objective"] = "Deploy instead"
+    pending_path.write_text(json.dumps(tampered), encoding="utf-8")
+
+    outside_prompt = _global_hook_result(
+        "UserPromptSubmit",
+        {"session_id": session, "cwd": str(outside), "prompt": "Replace it"},
+        env,
+    )
+    assert outside_prompt["decision"] == "block"
+    assert "pending startup objective is invalid" in outside_prompt["reason"]
+    assert "source=clear" in outside_prompt["reason"]
+
+    inside_prompt = _global_hook_result(
+        "UserPromptSubmit",
+        {"session_id": session, "cwd": str(REPO_ROOT), "prompt": "Replace it"},
+        env,
+    )
+    assert inside_prompt["decision"] == "block"
+    assert "pending startup objective is invalid" in inside_prompt["reason"]
+
+    # The tampered record is preserved verbatim: neither prompt overwrote it, and
+    # neither prompt was promoted into an objective of its own.
+    assert json.loads(pending_path.read_text(encoding="utf-8")) == tampered
+    assert not setup_driver_module._state_path(REPO_ROOT.resolve(), session).exists()
+
+    for tool in ("Write", "Bash", "Read"):
+        denied = _global_hook(
+            "PreToolUse",
+            {
+                "session_id": session,
+                "cwd": str(REPO_ROOT),
+                "tool_name": tool,
+                "tool_input": {},
+            },
+            env,
+        )
+        assert denied["permissionDecision"] == "deny", tool
+        assert "pending startup objective is invalid" in denied["permissionDecisionReason"]
+    assert not setup_driver_module._state_path(REPO_ROOT.resolve(), session).exists()
+
+
+def test_session_start_clear_is_the_one_recovery_from_a_tampered_pending_objective(
+    tmp_path: Path,
+) -> None:
+    """Positive control: the terminal denial is escapable exactly as documented."""
+    env = _tamper_env(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    session = "tamper-then-clear"
+
+    _global_hook(
+        "UserPromptSubmit",
+        {"session_id": session, "cwd": str(outside), "prompt": "Inspect only"},
+        env,
+    )
+    pending_path = _pending_file(tmp_path)
+    tampered = json.loads(pending_path.read_text(encoding="utf-8"))
+    tampered["literal_objective"] = "Deploy instead"
+    pending_path.write_text(json.dumps(tampered), encoding="utf-8")
+
+    denied = _global_hook(
+        "PreToolUse",
+        {"session_id": session, "cwd": str(REPO_ROOT), "tool_name": "Write", "tool_input": {}},
+        env,
+    )
+    assert denied["permissionDecision"] == "deny"
+
+    cleared = _global_hook(
+        "SessionStart",
+        {"session_id": session, "cwd": str(outside), "source": "clear"},
+        env,
+    )
+    assert "cleared the pending objective lock" in cleared["additionalContext"]
+    assert not pending_path.exists()
+
+    recovered_prompt = "Rebuild the startup receipt"
+    frozen = _global_hook(
+        "UserPromptSubmit",
+        {"session_id": session, "cwd": str(outside), "prompt": recovered_prompt},
+        env,
+    )
+    assert repr(recovered_prompt) in frozen["additionalContext"]
+
+    admitted = _global_hook(
+        "PreToolUse",
+        {"session_id": session, "cwd": str(REPO_ROOT), "tool_name": "Read", "tool_input": {}},
+        env,
+    )
+    assert "permissionDecision" not in admitted
+    assert "recovered pending objective" in admitted["additionalContext"]
+    assert repr(recovered_prompt) in admitted["additionalContext"]
+
+
+def _grill_command(*argv: str) -> dict:
+    return {
+        "session_id": "grill-classification",
+        "cwd": str(REPO_ROOT),
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {
+            "command": shlex.join(
+                [sys.executable, str(SCRIPT_DIR / "grill_session.py"), *argv]
+            )
+        },
+    }
+
+
+def test_recovery_read_admits_only_the_read_only_grill_subcommands() -> None:
+    for command in sorted(setup_driver_module.GRILL_READ_ONLY_COMMANDS):
+        payload = _grill_command(command, "--state", "/tmp/grill-state.json")
+        assert setup_driver_module._tool_is_recovery_safe(payload) is True, command
+
+
+def test_recovery_read_denies_every_state_writing_grill_subcommand() -> None:
+    for command in ("start", "evidence", "answer", "confirm", "materialize"):
+        payload = _grill_command(command, "--state", "/tmp/grill-state.json")
+        assert setup_driver_module._tool_is_recovery_safe(payload) is False, command
+    # A bare invocation and an unrecognised subcommand are denied by omission.
+    assert setup_driver_module._tool_is_recovery_safe(_grill_command()) is False
+    assert setup_driver_module._tool_is_recovery_safe(_grill_command("purge")) is False
+
+
+def test_grill_read_only_allowlist_tracks_the_grill_cli(tmp_path: Path) -> None:
+    """Every shipped subcommand is classified, and new ones are denied by default."""
+    import argparse
+
+    import grill_session as grill_session_module
+
+    subparsers = [
+        action
+        for action in grill_session_module._parser()._actions
+        if isinstance(action, argparse._SubParsersAction)
+    ]
+    assert len(subparsers) == 1
+    shipped = set(subparsers[0].choices)
+    assert setup_driver_module.GRILL_READ_ONLY_COMMANDS <= shipped
+    for command in sorted(shipped - setup_driver_module.GRILL_READ_ONLY_COMMANDS):
+        assert setup_driver_module._tool_is_recovery_safe(_grill_command(command)) is False, command
+
+
+def test_allowlisted_grill_subcommands_do_not_write_state_but_denied_ones_do(
+    tmp_path: Path,
+) -> None:
+    """Prove the classification against the real CLI rather than trusting its name."""
+    sketch = tmp_path / "Sketches" / "01-recovery.md"
+    sketch.parent.mkdir(parents=True)
+    sketch.write_text("# Recovery\n", encoding="utf-8")
+    session = start_session(
+        "Shape the recovery",
+        sketch,
+        [{
+            "leaf_id": "market",
+            "kind": "human-decision",
+            "depends_on": [],
+            "question": "Which market ships first?",
+            "recommendation": "Start with the internal proving ground.",
+            "rationale": "It produces evidence before external commitments.",
+        }],
+        materialization_path=sketch.parent.parent / "Grills" / "01-recovery.md",
+    )
+    control_root = tmp_path / "state"
+    control_root.mkdir()
+    env = dict(os.environ, SENIOR_HARNESS_STATE_DIR=str(control_root))
+    state_path = control_root / "grill-state.json"
+    state_path.write_text(json.dumps(session, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    before = state_path.read_bytes()
+
+    for command in sorted(setup_driver_module.GRILL_READ_ONLY_COMMANDS):
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT_DIR / "grill_session.py"), command, "--state", str(state_path)],
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, (command, result.stderr)
+        assert state_path.read_bytes() == before, command
+
+    answered = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "grill_session.py"),
+            "answer",
+            "--state",
+            str(state_path),
+            "--answer",
+            "Internal proving ground first.",
+            "--resolution",
+            "DECIDED",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert answered.returncode == 0, answered.stderr
+    assert state_path.read_bytes() != before
+
+
+def test_recovery_read_denies_a_grill_write_when_no_receipt_exists(tmp_path: Path) -> None:
+    env = _tamper_env(tmp_path)
+    for command, expect_deny in (("show", False), ("materialize", True)):
+        payload = _grill_command(command, "--state", str(tmp_path / "grill-state.json"))
+        payload["session_id"] = f"no-receipt-{command}"
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPT_DIR / "setup_driver.py"),
+                "hook",
+                "--surface",
+                "claude",
+                "--event",
+                "PreToolUse",
+            ],
+            input=json.dumps(payload),
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        output = json.loads(result.stdout)["hookSpecificOutput"]
+        if expect_deny:
+            assert output["permissionDecision"] == "deny", command
+            assert "no startup receipt exists" in output["permissionDecisionReason"]
+        else:
+            assert "permissionDecision" not in output, command
+            assert "recovery-only read" in output["additionalContext"]

@@ -28,8 +28,12 @@ locked and never receive an early dispatch instruction.
 Install the same control stack into all three skill discovery roots with:
 
 ```bash
-bash scripts/install_senior_harness.sh
+bash skills/senior-harness/scripts/install_senior_harness.sh
 ```
+
+Add `--dry-run` to print the exact link plan without changing anything. The installer refuses to
+replace a real directory and rolls every link back if any root fails, so a partial install cannot
+leave the three roots on different control stacks.
 
 This aligns `senior-harness`, `model-router`, and `unlazy` under `~/.codex/skills`,
 `~/.claude/skills`, and `~/.agents/skills`. Codex and Claude have lifecycle-hook adapters; the

@@ -1,7 +1,8 @@
 # Executable Plan and Ownership Contract
 
-Load this schema when creating, validating, or amending an Unlazy plan. `PLAN.json` is the normative
-input to `python scripts/unlazy_plan.py`; it is one flat JSON object with a `nodes` array.
+Load this schema when creating, validating, or amending an Unlazy plan. `PLAN.json` is one flat JSON
+object with a `nodes` array. This slice ships no plan CLI, so this document is the normative
+definition: validate a plan by checking it against the rules below.
 
 ## PLAN.json 1.0
 
@@ -57,23 +58,14 @@ Each node requires a non-empty unique `id`, `type` in `root|branch|leaf`, and li
 least one relative non-wildcard path, name a gate file, and freeze a worker identity distinct from
 the later verifier identity. Exactly one root is required.
 
-## Executable commands
+## Validation rules
 
-Run from the repository root:
+No plan CLI ships with this slice; the rules below are checked by reading the plan against this
+document. A plan is valid only when every rule holds, and the next dispatchable work is the set of
+pending/ready leaves whose dependencies have all passed, excluding leaves already active and
+respecting the worker cap.
 
-```bash
-python scripts/unlazy_plan.py template "<verbatim task>" --tree 5 --max-workers 3
-python scripts/unlazy_plan.py lint PLAN.json
-python scripts/unlazy_plan.py ready PLAN.json --active 1.1
-```
-
-`template` prints a plan shell that still contains `REPLACE_ME`; replace it before `lint`. `lint`
-prints `{"status":"valid",...}` only after the current executable validations pass. `ready` prints
-the next deterministic leaf IDs, excluding supplied `--active` IDs and respecting the worker cap.
-
-## Current CLI enforcement
-
-The current linter rejects:
+A plan rejects on:
 
 - schema versions other than `1.0`, missing task/plan ID, invalid depths, effective depth above
   requested depth or seven, and worker caps outside one through sixteen;
@@ -85,8 +77,8 @@ The current linter rejects:
 Accepted ownership paths are stored in canonical repository-relative POSIX form (for example,
 `./src/a.py` becomes `src/a.py`) before collision and returned-diff checks use them.
 
-The current `ready` command selects only pending/ready leaves whose dependencies are passed. It does
-not execute workers, gates, integrations, reservations, or providers.
+Readiness selection is a query over the plan only. It does not execute workers, gates,
+integrations, reservations, or providers, and readiness is never itself evidence of completion.
 
 ## Driver-enforced contract
 
@@ -96,13 +88,12 @@ approved tools, forbidden paths, root outcomes, sensitivity, spend/time caps, ga
 contract digest. These may live in a signed sidecar/receipt until the executable schema formally
 adds them.
 
-The current CLI does **not** validate leaf childlessness, shared-interface semantics, root outcomes,
-cost reservations, or contract digests. Terminal leaf states do require an HMAC-authenticated,
-scheduler-issued gate receipt bound to the plan/node, base/candidate SHA, fixed automated verifier
-context, node gate, relevant inputs, clean worktree, execution controls, usage status, and strict
-counts. Terminal lint/ready therefore require the same runtime HMAC key but remain non-executing.
-The driver/verifier must still enforce the remaining sidecar contract and must not present a
-successful `lint` as full completion evidence.
+These schema rules do **not** cover leaf childlessness, shared-interface semantics, root outcomes,
+cost reservations, or contract digests. Where a host supplies a scheduler, a terminal leaf state
+additionally requires that scheduler's HMAC-authenticated gate receipt bound to the plan/node,
+base/candidate SHA, fixed automated verifier context, node gate, relevant inputs, clean worktree,
+execution controls, usage status, and strict counts. The driver/verifier must still enforce the
+remaining sidecar contract and must never present a schema-valid plan as full completion evidence.
 
 ## Ownership and amendment rules
 
@@ -115,5 +106,5 @@ successful `lint` as full completion evidence.
 5. A moving/dirty base or contract change invalidates affected routes and gates; re-freeze, reroute,
    and rerun.
 
-Executable plan validation passes only when `lint` exits zero. Full contract readiness additionally
+Plan validation passes only when every rule above holds. Full contract readiness additionally
 requires the driver-enforced checks above before any dispatch.

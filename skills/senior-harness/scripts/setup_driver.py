@@ -41,6 +41,12 @@ from senior_harness import ContractError, MUTATING_KINDS, digest, ready_moves, v
 SETUP_SCHEMA_VERSION = "1.0"
 REQUIRED_SKILLS = ("senior-harness", "model-router", "unlazy")
 GRILL_INTERACTIONS = ("grill-me", "grill-with-docs")
+# grill_session.py subcommands proven to read state and print it without writing.
+# Its start/evidence/answer/confirm subcommands persist session state and
+# materialize writes a receipt-bound transcript, so recovery — which holds no
+# startup receipt at all — must never reach any of them.  Unknown subcommands are
+# denied by omission: a newly added command is mutating until proven otherwise.
+GRILL_READ_ONLY_COMMANDS = frozenset({"show", "validate"})
 SHA256_DIGEST_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 GIT_SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 STARTUP_AUTHORITY = {
@@ -693,6 +699,18 @@ def _hook_output(event: str, context: str, *, deny: bool = False) -> dict[str, A
                 "permissionDecisionReason": context,
             }
         }
+    if event == "UserPromptSubmit" and deny:
+        # UserPromptSubmit has no permissionDecision field; its documented refusal
+        # channel is the top-level decision/reason pair.  additionalContext is kept
+        # so a host that only renders context still surfaces the same reason.
+        return {
+            "decision": "block",
+            "reason": context,
+            "hookSpecificOutput": {
+                "hookEventName": event,
+                "additionalContext": context,
+            },
+        }
     if event in {"SessionStart", "UserPromptSubmit", "PreToolUse"}:
         return {
             "hookSpecificOutput": {
@@ -929,6 +947,23 @@ def _pending_objective_seal(pending: dict[str, Any]) -> str:
     return SEAL_PREFIX + hmac.new(_seal_key(), payload, hashlib.sha256).hexdigest()
 
 
+def _pending_quarantine_reason(exc: SetupError) -> str:
+    """One terminal refusal for pending state that failed its own integrity check.
+
+    An invalid or tampered pending record is the one condition a later prompt must
+    never be able to launder away: if a fresh UserPromptSubmit could overwrite it,
+    whoever corrupted the record simply waits one turn and installs an objective of
+    their choosing.  The only exit is an explicit SessionStart with source=clear,
+    which is a deliberate operator act rather than anything the tampered session can
+    reach on its own.
+    """
+    return (
+        f"Senior Harness denied the request: pending startup objective is invalid ({exc}). "
+        "This session stays denied until an explicit SessionStart with source=clear "
+        "discards the pending record; no later prompt or tool can override it."
+    )
+
+
 def _read_pending_objective(path: Path, *, session_id: str, surface: str) -> dict[str, Any]:
     try:
         pending = json.loads(path.read_text(encoding="utf-8"))
@@ -976,14 +1011,13 @@ def _record_pending_objective(
     if path.is_file():
         try:
             pending = _read_pending_objective(path, session_id=session_id, surface=surface)
-        except SetupError:
-            pass
-        else:
-            primary = pending["literal_objective"]
-            return _hook_output(
-                event,
-                f"Senior Harness pending primary objective remains frozen byte-for-byte: {primary!r}. Enter a real Git checkout to bind startup admission; this pending record grants no authority.",
-            )
+        except SetupError as exc:
+            return _hook_output(event, _pending_quarantine_reason(exc), deny=True)
+        primary = pending["literal_objective"]
+        return _hook_output(
+            event,
+            f"Senior Harness pending primary objective remains frozen byte-for-byte: {primary!r}. Enter a real Git checkout to bind startup admission; this pending record grants no authority.",
+        )
     pending = {
         "session_key": _session_key(session_id),
         "literal_objective": prompt,
@@ -1054,10 +1088,14 @@ def _tool_is_recovery_safe(payload: dict[str, Any]) -> bool:
         return False
     executable = Path(argv[0]).name
     if executable in {"python", "python3"}:
-        if len(argv) < 2:
+        # The script path alone is not evidence of a read: grill_session.py is both
+        # the control-state reader and the control-state writer.
+        if len(argv) < 3:
             return False
         script = Path(os.path.expandvars(argv[1])).expanduser().resolve()
-        return script == (SCRIPT_DIR / "grill_session.py").resolve()
+        if script != (SCRIPT_DIR / "grill_session.py").resolve():
+            return False
+        return argv[2] in GRILL_READ_ONLY_COMMANDS
     if executable == "git":
         args = argv[1:]
         while len(args) >= 2 and args[0] == "-C":
@@ -1119,11 +1157,10 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
                 pending = _read_pending_objective(
                     pending_path, session_id=session_id, surface=surface
                 )
-            except SetupError:
-                pass
-            else:
-                prompt = pending["literal_objective"]
-                recovered_pending = True
+            except SetupError as exc:
+                return _hook_output(event, _pending_quarantine_reason(exc), deny=True)
+            prompt = pending["literal_objective"]
+            recovered_pending = True
         if state_path.is_file():
             # A prior receipt that cannot be verified must NOT strand the session.
             # A prompt is the one moment a fresh admission can legitimately be
@@ -1200,12 +1237,20 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
 
     recovery_safe = _tool_is_recovery_safe(payload)
     recovered_pending = False
-    pending_error: SetupError | None = None
+    admission_error: SetupError | None = None
     if not state_path.is_file() and pending_path.is_file():
+        # Integrity of the pending record and admissibility of the objective it
+        # carries are separate questions.  A failed integrity check is terminal;
+        # a checkout that merely cannot be admitted yet (missing skills, dirty
+        # control code) keeps the existing recovery-only read lane so the session
+        # can still gather the evidence needed to fix it.
         try:
             pending = _read_pending_objective(
                 pending_path, session_id=session_id, surface=surface
             )
+        except SetupError as exc:
+            return _hook_output(event, _pending_quarantine_reason(exc), deny=True)
+        try:
             prompt = pending["literal_objective"]
             contract = build_setup_contract(
                 prompt,
@@ -1219,10 +1264,10 @@ def handle_hook(payload: dict[str, Any], *, surface: str, event: str) -> dict[st
             pending_path.unlink(missing_ok=True)
             recovered_pending = True
         except SetupError as exc:
-            pending_error = exc
+            admission_error = exc
     if not state_path.is_file():
-        if pending_error is not None:
-            reason = f"pending startup objective is invalid ({pending_error})"
+        if admission_error is not None:
+            reason = f"pending startup objective cannot be admitted here ({admission_error})"
             if recovery_safe:
                 return _hook_output(
                     event,
