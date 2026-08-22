@@ -1043,10 +1043,13 @@ def _pending_reconciliation_reason(
     different reason: both stamps are CLOCK_REALTIME samples, so a backwards
     clock adjustment between the two writes makes the later record read as older.
 
-    Deciding it correctly needs an authoritative, rollback-resistant sequence,
-    and none exists here -- the seal proves integrity, not freshness.  So nothing
-    is deleted: both records are preserved and the operator reconciles. The
-    stamps are reported only as evidence for that person, never as authority.
+    Deciding it correctly needs an authoritative, rollback-resistant sequence.
+    One IS constructible here -- a locked, durable per-session generation ledger
+    beside the HMAC key, outside the attacker-controlled state root -- but it is
+    not built yet, so no trusted order evidence is available at runtime.  Until
+    that separately scoped work lands, nothing is deleted: both records are
+    preserved and the operator reconciles.  The stamps are reported only as
+    evidence for that person, never as authority.
     """
     return (
         "Senior Harness denied the request: this project holds a frozen objective "
@@ -1054,8 +1057,10 @@ def _pending_reconciliation_reason(
         "the same session. Their order cannot be established, so neither is discarded. "
         f"Wall-clock stamps, which are NOT authoritative ordering evidence and must not be "
         f"used to decide which to keep: admission={admission_stamp!r}, "
-        f"pending={pending_stamp!r}. Reconcile explicitly, or run an explicit SessionStart "
-        "with source=clear to discard the pending record."
+        f"pending={pending_stamp!r}. Reconcile explicitly. The only other exit is an "
+        "explicit SessionStart with source=clear, which DISCARDS BOTH records -- the frozen "
+        "project objective and its receipt as well as the pending objective -- so capture "
+        "anything worth keeping before running it."
     )
 
 
@@ -1135,7 +1140,7 @@ def _record_pending_objective(
         "literal_objective": prompt,
         "surface": surface,
         # Ordering identity.  Without it nothing can prove which of a pending
-        # record and a project receipt came first, and the retire path below
+        # record and a project receipt came first, and the reconciliation path below
         # simply assumed the receipt was newer -- silently discarding a later
         # objective sealed while the session was outside Git.  The stamp is
         # inside the seal, so it cannot be back-dated without breaking it.

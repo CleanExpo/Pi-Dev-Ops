@@ -1870,6 +1870,67 @@ def test_unstamped_state_or_pending_record_blocks_instead_of_retiring(
     assert "order cannot be established" in blocked["reason"]
 
 
+def test_refusal_discloses_that_clear_discards_both_records(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stated operator exit must not understate what it destroys.
+
+    The refusal points the operator at SessionStart source=clear.  That call unlinks
+    the project state AND the pending record, so describing it as discarding only the
+    pending record would understate a destructive action to the person about to run it.
+    """
+    project = tmp_path / "live-project"
+    _init_repo(project)
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
+    session_id = "clear-discloses-both"
+    roots = [REPO_ROOT / "skills"]
+    base = {"session_id": session_id, "cwd": str(project)}
+
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Frozen project objective"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    state_path = setup_driver_module._state_path(project.resolve(), session_id)
+
+    outside = tmp_path / "outside-any-checkout"
+    outside.mkdir()
+    setup_driver_module._record_pending_objective(
+        {
+            "session_id": session_id,
+            "cwd": str(outside),
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": "Pending objective",
+        },
+        surface="codex",
+        event="UserPromptSubmit",
+    )
+    pending_path = setup_driver_module._pending_state_path(session_id)
+
+    blocked = handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "a later subordinate prompt"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    reason = blocked["reason"]
+    assert "DISCARDS BOTH" in reason
+    assert "pending" in reason and "receipt" in reason
+
+    # Positive control: the disclosure is accurate, both files really do go.
+    assert state_path.is_file() and pending_path.is_file()
+    handle_hook(
+        {**base, "hook_event_name": "SessionStart", "source": "clear"},
+        surface="codex",
+        event="SessionStart",
+        skill_search_roots=roots,
+    )
+    assert not state_path.is_file(), "clear removes the project state too"
+    assert not pending_path.is_file(), "clear removes the pending record"
+
+
 def test_clock_rollback_between_writes_cannot_delete_the_later_record(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1998,8 +2059,9 @@ def test_even_a_genuinely_older_sealed_record_is_preserved_not_retired(
     """Retirement is removed entirely; this supersedes the old retire-on-order test.
 
     That test asserted a genuinely-older sealed record WAS deleted.  Deciding this
-    needs an authoritative, rollback-resistant sequence, and none exists here: the
-    seal proves integrity, not freshness.  Both stamps are CLOCK_REALTIME samples, so
+    needs an authoritative, rollback-resistant sequence.  One is constructible --
+    a ledger beside the HMAC key, outside the state root -- but is not built yet,
+    so no trusted order evidence is available at runtime.  Both stamps are CLOCK_REALTIME samples, so
     "genuinely older" is not something this code can establish.  The guarantee is now
     strictly stronger -- no sealed objective is ever destroyed automatically -- and the
     operator clears the record explicitly instead.
@@ -2061,7 +2123,7 @@ def test_even_a_genuinely_older_sealed_record_is_preserved_not_retired(
 def test_tampered_pending_record_still_quarantines_after_a_valid_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Retiring a superseded pending record must not become a laundering route."""
+    """A tampered pending record must not become a laundering route."""
     project = tmp_path / "quarantine-project"
     _init_repo(project)
     monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
