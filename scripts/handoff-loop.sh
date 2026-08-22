@@ -2,8 +2,9 @@
 # handoff-loop.sh — the definition-of-done gate runner for /session-handoff.
 #
 # Runs the readiness gates for THIS repo, writes a timestamped healthcheck log to
-# .handoff-logs/, and exits 0 only when every gate is green (or SKIPPED for a stated
-# reason). /session-handoff runs this in Phase 0 and refuses to declare the tree ready
+# .handoff-logs/, and exits 0 only when every required gate is green. A skipped gate
+# is visible but incomplete, never evidence of readiness. /session-handoff runs this
+# in Phase 0 and refuses to declare the tree ready
 # until it exits 0; /resume-from-handoff re-runs it as its verification gate. Repo-
 # adaptive: a gate is SKIPPED (not failed) when its stack is absent.
 #
@@ -261,8 +262,8 @@ if [ "$FAIL" -gt 0 ]; then
   log "════ log: $LOG"; echo "$LOG"; exit 1
 fi
 if [ "$SKIP" -gt 0 ]; then
-  log "════ VERDICT: READY (with $SKIP skipped — env not provisioned here; treat CI as source of truth for skipped gates)"
-else
-  log "════ VERDICT: READY — all $PASS gates green"
+  log "════ VERDICT: INCOMPLETE — $SKIP required gates skipped; provision the environment or supply exact-SHA CI evidence"
+  log "════ log: $LOG"; echo "$LOG"; exit 1
 fi
+log "════ VERDICT: READY — all $PASS gates green"
 log "════ log: $LOG"; echo "$LOG"; exit 0
