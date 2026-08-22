@@ -63,7 +63,7 @@ accepted_projection_drift:
     rationale: The existing Codex projection differs from the stricter canonical judge policy; detect changes without rewriting either file.
   - id: resume-from-handoff
     agents_sha256: 55de621b44ac9b1434a0283e8ddc4378e8b1fd062b621045c9f4dfbb523349b7
-    canonical_sha256: 6349c54e6aaaa8a6e61e5a69db783503e1db6004b7292e57e323d60a30d2ae9c
+    canonical_sha256: d10c221f21e8182db757146a3c7ed207a99daf1a67e5b27ea9c050bf4591f9fc
     rationale: The canonical skill includes the reconciled gate ordering and durable-log rules; detect projection drift without treating it as source.
   - id: session-handoff
     agents_sha256: 64e7b793f1796cebfe365ea94565ba3953d2d9cda1eade700f42a6d637d5d7bb

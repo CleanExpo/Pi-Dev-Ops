@@ -219,7 +219,7 @@ def test_installer_dry_run_reports_the_plan_and_changes_nothing(tmp_path: Path) 
     home.mkdir()
     result = _run_installer(home, "--dry-run")
     assert result.returncode == 0, result.stderr
-    assert result.stdout.count("LINK    ") == 9, result.stdout
+    assert result.stdout.count("LINK    ") == 10, result.stdout
     assert not list(home.iterdir())
 
 def test_installer_links_every_skill_root_and_is_idempotent(tmp_path: Path) -> None:
@@ -236,7 +236,7 @@ def test_installer_links_every_skill_root_and_is_idempotent(tmp_path: Path) -> N
 
     second = _run_installer(home)
     assert second.returncode == 0, second.stderr
-    assert second.stdout.count("CURRENT ") == 9, second.stdout
+    assert second.stdout.count("CURRENT ") == 10, second.stdout
     assert "LINK    " not in second.stdout
 
 
