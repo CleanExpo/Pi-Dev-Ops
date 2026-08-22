@@ -167,7 +167,8 @@
       "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
       "resolves_in_target": "file: lib/supabase/unite-group-server.ts",
       "judgment": "no-source-baseline",
-      "note": "Was @/lib/supabase/server (Pi-CEO-scoped service-role client, zbryrmxmgfmslqzizsto) until the wrong-project bug was found: wiki_pages lives in the Unite-Group prod project (lksfwktwtmyznckodsau), so every read 404'd upstream and surfaced as an opaque 500. Repointed to a client scoped to the correct project. Still privilege-sensitive (service-role, bypasses RLS) - that property did not change, only which project it reaches."
+      "note": "Was @/lib/supabase/server (Pi-CEO-scoped service-role client, zbryrmxmgfmslqzizsto) until the wrong-project bug was found: wiki_pages lives in the Unite-Group prod project (lksfwktwtmyznckodsau), so every read 404'd upstream and surfaced as an opaque 500. Repointed to a client scoped to the correct project. Still privilege-sensitive (service-role, bypasses RLS) - that property did not change, only which project it reaches.",
+      "privilege": "service-role"
     },
     "app/api/command-centre/wiki-graph/route.ts :: @/lib/command-centre/wiki-graph": {
       "specifier": "@/lib/command-centre/wiki-graph",
@@ -258,7 +259,8 @@
       "resolves_in_source": "n/a: this file has no source baseline for this specifier (the source's @/lib/supabase/server import was replaced, see note)",
       "resolves_in_target": "file: lib/supabase/unite-group-server.ts",
       "judgment": "different-but-checked",
-      "note": "THE drift case, still. Source: anon-key, RLS-enforced, per-user (getUser + createClient) against the source's own project. First rebuild pointed this app's data access at createServerClient() (this app's Pi-CEO-scoped service-role client, zbryrmxmgfmslqzizsto) - typechecked, ran, and was wrong: wiki_pages lives in the Unite-Group prod project (lksfwktwtmyznckodsau), so every read 404'd upstream and surfaced as an opaque 500 with nothing pointing at the real cause. Repointed to createUniteGroupServerClient(), scoped to the correct project. Not a silent substitution either time - both the auth-model divergence and the wrong-project bug are the reasons this file keeps needing rebuilding instead of a straight port."
+      "note": "THE drift case, still. Source: anon-key, RLS-enforced, per-user (getUser + createClient) against the source's own project. First rebuild pointed this app's data access at createServerClient() (this app's Pi-CEO-scoped service-role client, zbryrmxmgfmslqzizsto) - typechecked, ran, and was wrong: wiki_pages lives in the Unite-Group prod project (lksfwktwtmyznckodsau), so every read 404'd upstream and surfaced as an opaque 500 with nothing pointing at the real cause. Repointed to createUniteGroupServerClient(), scoped to the correct project. Not a silent substitution either time - both the auth-model divergence and the wrong-project bug are the reasons this file keeps needing rebuilding instead of a straight port.",
+      "privilege": "service-role"
     },
     "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/command-centre/wiki-graph": {
       "specifier": "@/lib/command-centre/wiki-graph",
@@ -357,6 +359,83 @@
       "resolves_in_target": "file: components/command-centre/DegradedDataBanner.tsx",
       "judgment": "must-change",
       "note": "specifier rewritten from '../DegradedDataBanner' for the target alias (R5); same already-ported component"
+    },
+    "app/api/command-centre/youtube-intent/route.ts :: next/server": {
+      "specifier": "next/server",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/server",
+      "judgment": "no-source-baseline",
+      "note": "Used only for NextResponse.json to serialise the summary. No database or network client."
+    },
+    "app/api/command-centre/youtube-intent/route.ts :: node:path": {
+      "specifier": "node:path",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: node:path",
+      "judgment": "no-source-baseline",
+      "note": "Path join for the local state file under process.cwd()/.harness. Read-only path arithmetic."
+    },
+    "app/api/command-centre/youtube-intent/route.ts :: node:fs": {
+      "specifier": "node:fs",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: node:fs",
+      "judgment": "no-source-baseline",
+      "note": "fs.promises.readFile of .harness/ugn_intent_youtube/state.json only. No write, unlink, or exec API is imported or called."
+    },
+    "app/(main)/command-centre/youtube-intent/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/link",
+      "judgment": "no-source-baseline",
+      "note": "Renders the '<- Knowledge deck' internal link. No data access."
+    },
+    "app/(main)/command-centre/youtube-intent/page.tsx :: node:path": {
+      "specifier": "node:path",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: node:path",
+      "judgment": "no-source-baseline",
+      "note": "Path join for the same local state file. Read-only path arithmetic."
+    },
+    "app/(main)/command-centre/youtube-intent/page.tsx :: node:fs": {
+      "specifier": "node:fs",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: node:fs",
+      "judgment": "no-source-baseline",
+      "note": "fs.promises.readFile of the same local state file. Read-only; no write or exec API imported."
+    },
+    "app/(main)/command-centre/youtube-intent/page.tsx :: @/components/command-centre/DeckThemeShell": {
+      "specifier": "@/components/command-centre/DeckThemeShell",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/command-centre/DeckThemeShell.tsx",
+      "judgment": "no-source-baseline",
+      "note": "Presentation shell already declared in this map and already in the capability graph. Its own imports are ./command-deck.module.css, ./shell.module.css, @/store/ui and react — no data client."
+    },
+    "components/command-centre/youtube-intent/IntentCatalogTile.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: react",
+      "judgment": "no-source-baseline",
+      "note": "useEffect/useState for the tile's own load state."
+    },
+    "components/command-centre/youtube-intent/IntentCatalogTile.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/link",
+      "judgment": "no-source-baseline",
+      "note": "Renders the internal 'Open catalog' link to /command-centre/youtube-intent."
+    },
+    "components/command-centre/youtube-intent/IntentCatalogTile.tsx :: @/components/command-centre/SourceBadge": {
+      "specifier": "@/components/command-centre/SourceBadge",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/command-centre/SourceBadge.tsx",
+      "judgment": "no-source-baseline",
+      "note": "Live/degraded/loading badge already declared in this map. It is a leaf: SourceBadge.tsx has no imports of its own."
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/youtube-intent/IntentCatalogTile": {
+      "specifier": "@/components/command-centre/youtube-intent/IntentCatalogTile",
+      "resolves_in_source": "unresolved: @/components/command-centre/youtube-intent/IntentCatalogTile",
+      "resolves_in_target": "file: components/command-centre/youtube-intent/IntentCatalogTile.tsx",
+      "judgment": "must-change",
+      "note": "Target-only addition. knowledge/page.tsx IS a ported file (app/(founder)/founder/command-centre/knowledge/page.tsx), so 'no-source-baseline' is not claimable here; the honest judgment is that the source never had this import. Added by the same commit 9100adc4 (PR #650). The tracked-construct comparison for knowledge/page.tsx still runs against its baseline and is unaffected by this addition."
     }
   },
   "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant.",
@@ -364,7 +443,10 @@
     "app/api/command-centre/wiki-graph/route.ts": "REBUILT, now against createUniteGroupServerClient (was this app's Pi-CEO-scoped createServerClient until the wrong-Supabase-project bug was fixed — see the imports map entry for this file below). The source imports getUser+createClient from its own @/lib/supabase/server (anon-key, RLS-enforced, per-user). The same specifier originally resolved here to a service-role client with no per-user identity; it still does, just scoped to the correct project now. A verbatim port would have typechecked while silently swapping an RLS-enforced read for an RLS-bypassing one. No source baseline applies, so it is excluded from diff-relative comparison by design.",
     "app/(main)/command-centre/page.tsx": "NEW in the target. The source index carries the founder shell and nine deck tiles; porting it would drag in six unmigrated capabilities. Small index over what exists; grows as capabilities land. No source baseline applies.",
     "app/api/command-centre/provider-usage/route.ts": "REBUILT. The source imports getUser from its @/lib/supabase/server (anon-key, RLS-enforced, per-user); the identical specifier resolves here to a service-role client with no per-user identity, so a verbatim port would have typechecked while swapping a per-user auth check for nothing. Auth is enforced by proxy.ts and asserted in command-centre-auth-coverage.test.ts. Read-only, metadata-only: never reads a key value, never reaches credentials_vault, holds no write path. No source baseline applies.",
-    "app/(main)/command-centre/providers/page.tsx": "REBUILT. The source page composes ProviderAccountsTile + ProviderUsageCockpit + CostAllocationTile; only the usage cockpit is ported (KI-006 provider-test omitted as a spend path, KI-007 credential custody deferred to per-capability tokens). A verbatim port would import two components this app deliberately does not have. Written fresh over what exists. No source baseline applies."
+    "app/(main)/command-centre/providers/page.tsx": "REBUILT. The source page composes ProviderAccountsTile + ProviderUsageCockpit + CostAllocationTile; only the usage cockpit is ported (KI-006 provider-test omitted as a spend path, KI-007 credential custody deferred to per-capability tokens). A verbatim port would import two components this app deliberately does not have. Written fresh over what exists. No source baseline applies.",
+    "app/api/command-centre/youtube-intent/route.ts": "REBUILT, no source baseline. Introduced by commit 9100adc4 (PR #650, 2026-08-20) 'feat: add intent-only YouTube catalog for UG-N Nexus', together with its own Python backend (app/server/youtube_intent.py), route module, Supabase migration and policy config. It is new work in THIS repository, not a port: command-centre-baseline-549acbe9.json carries no youtube-intent entry, and _baseline_root has no counterpart file. That commit added capability surface under app/(main)/command-centre and app/api/command-centre — both graph roots for this suite — without touching this map, which is why the gate has been red on main since 2026-08-20. Reads .harness/ugn_intent_youtube/state.json from the local filesystem and returns a summary; it opens no database client and no outbound network connection. On any read/parse failure it returns an empty summary at HTTP 200 rather than surfacing the error.",
+    "app/(main)/command-centre/youtube-intent/page.tsx": "REBUILT, no source baseline. Introduced by commit 9100adc4 (PR #650, 2026-08-20) 'feat: add intent-only YouTube catalog for UG-N Nexus', together with its own Python backend (app/server/youtube_intent.py), route module, Supabase migration and policy config. It is new work in THIS repository, not a port: command-centre-baseline-549acbe9.json carries no youtube-intent entry, and _baseline_root has no counterpart file. That commit added capability surface under app/(main)/command-centre and app/api/command-centre — both graph roots for this suite — without touching this map, which is why the gate has been red on main since 2026-08-20. A server component that reads the same local state.json directly rather than calling its own API route, and renders it. No database client, no outbound fetch; the one remote literal is a rendered link to the operator's local Excalidraw board at http://localhost:7119.",
+    "components/command-centre/youtube-intent/IntentCatalogTile.tsx": "REBUILT, no source baseline. Introduced by commit 9100adc4 (PR #650, 2026-08-20) 'feat: add intent-only YouTube catalog for UG-N Nexus', together with its own Python backend (app/server/youtube_intent.py), route module, Supabase migration and policy config. It is new work in THIS repository, not a port: command-centre-baseline-549acbe9.json carries no youtube-intent entry, and _baseline_root has no counterpart file. That commit added capability surface under app/(main)/command-centre and app/api/command-centre — both graph roots for this suite — without touching this map, which is why the gate has been red on main since 2026-08-20. Client component; its single fetch is a same-origin GET to /api/command-centre/youtube-intent, the route declared above. No database client and no cross-origin request."
   },
   "_omitted_deliberately": {
     "components/command-centre/WikiEnhanceControl.tsx": "KI-002. Dropped from the knowledge port. It POSTs to a route that enqueues into operator_jobs on a production database and needs a per-user identity this app lacks. The route is ABSENT rather than stubbed.",
@@ -391,5 +473,6 @@
       }
     }
   },
-  "_declared_deltas_note": "Per-file, per-rule expected divergences, each naming the EXACT count transition it excuses (from -> to) plus a reason. Only that one measured transition is exempt: any other magnitude, in the same file under the same rule, still fails. Keying on file+rule alone - the first design - was a blanket exclusion wearing a narrower label, and cross-vendor review caught it: declaring 'auth gate' on a file excused every future auth-gate loss in that file, forever. Second lesson from the same review: a reason must be checkable against something. 'Enforced upstream by proxy.ts' read as evidence, was not, and was wrong - until a test made it both."
+  "_declared_deltas_note": "Per-file, per-rule expected divergences, each naming the EXACT count transition it excuses (from -> to) plus a reason. Only that one measured transition is exempt: any other magnitude, in the same file under the same rule, still fails. Keying on file+rule alone - the first design - was a blanket exclusion wearing a narrower label, and cross-vendor review caught it: declaring 'auth gate' on a file excused every future auth-gate loss in that file, forever. Second lesson from the same review: a reason must be checkable against something. 'Enforced upstream by proxy.ts' read as evidence, was not, and was wrong - until a test made it both.",
+  "_privilege_note": "privilege is required on an import ENTRY exactly when that import resolves to an in-repo module which constructs a privileged database client (a client built from a *SERVICE_ROLE* or *SERVICE_KEY* env var, which bypasses Row Level Security). The check derives the privileged set by reading the resolved modules, so a module that BECOMES privileged without any import changing is still caught — the case none of the existing map checks can see, because they only compare the map against the set of import specifiers. Declaring privilege on an import that does NOT resolve to such a module is also a failure: a stale claim inflates the map the same way a phantom entry does."
 }

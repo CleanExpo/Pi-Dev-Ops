@@ -204,6 +204,103 @@ function importGraph(): string[] {
 
 const rel = (f: string) => f.slice(ROOT.length + 1).replace(/\\/g, "/");
 
+/**
+ * ---- Shared predicates ----
+ *
+ * The checks below are pure functions of (map, observed surface) so the mutation
+ * controls at the end of this file can run THE REAL LOGIC over a deliberately broken
+ * map. A control that re-implements the check it is meant to falsify proves only that
+ * the copy works; these call the same function the passing test calls.
+ */
+const undeclaredFiles = (declared: Set<string>, graphFiles: string[]): string[] =>
+  graphFiles.filter((f) => !declared.has(f));
+
+const unmappedImports = (map: Record<string, unknown>, actual: Set<string>): string[] =>
+  [...actual].filter((k) => !(k in map));
+
+interface ImportEntry {
+  specifier: string;
+  judgment: string;
+  note: string;
+  resolves_in_target?: string;
+  /** Required exactly when this import resolves to a module that builds a
+   *  service-role database client. See _privilege_note in the provenance file. */
+  privilege?: string;
+}
+
+const IMPORT_MAP: Record<string, ImportEntry> =
+  (PROV as unknown as { imports?: Record<string, ImportEntry> }).imports ?? {};
+
+const ACTUAL_IMPORTS = new Set<string>(
+  importGraph().flatMap((f) =>
+    [...readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)]
+      .map((m) => `${rel(f)} :: ${m[1]}`)
+  )
+);
+
+/**
+ * ---- Privilege boundary ----
+ *
+ * A module is PRIVILEGED when its own source builds a database client from a
+ * service-role credential — the credential that bypasses Row Level Security.
+ * `dashboard/lib/supabase/server.ts` says so in its own words ("Bypasses Row Level
+ * Security — never expose to browser"), and `lib/supabase/unite-group-server.ts`
+ * repeats it for the Unite-Group project.
+ *
+ * The set is DERIVED by reading the resolved modules, never maintained by hand. That
+ * is the whole point: every other check in this file compares the map against the set
+ * of import SPECIFIERS, so all of them pass unchanged when a module that is already
+ * mapped quietly starts constructing a service-role client. No specifier moved, no
+ * file entered the graph, and the privilege boundary shifted anyway. That is the
+ * "same specifier, compatible shapes, clean typecheck, silent privilege change" case
+ * this suite's own docstring names, and until now nothing here could see it.
+ */
+const SERVICE_ROLE_CREDENTIAL = /SERVICE_ROLE[A-Z_]*|SERVICE_KEY/;
+
+const privilegedModules = (graphFiles: string[]): Set<string> =>
+  new Set(
+    graphFiles.filter((f) =>
+      SERVICE_ROLE_CREDENTIAL.test(strip(readFileSync(join(ROOT, f), "utf8")))
+    )
+  );
+
+/** Resolve `"<file> :: <specifier>"` to a repo-relative target file, or null. */
+const resolveEntryTarget = (key: string): string | null => {
+  const [from, spec] = key.split(" :: ");
+  if (!from || !spec) return null;
+  const r = resolveSpec(spec, join(ROOT, from));
+  return r ? rel(r) : null;
+};
+
+/** Imports that reach a privileged module without saying so. */
+const undeclaredPrivilegedImports = (
+  map: Record<string, ImportEntry>,
+  actual: Set<string>,
+  privileged: Set<string>
+): string[] =>
+  [...actual]
+    .filter((k) => {
+      const target = resolveEntryTarget(k);
+      if (!target || !privileged.has(target)) return false;
+      const e = map[k];
+      return !e || e.privilege !== "service-role" || !String(e.note ?? "").trim();
+    })
+    .sort();
+
+/** Entries claiming service-role over something that is not one. A stale claim
+ *  inflates the map exactly the way a phantom entry does. */
+const phantomPrivilegeClaims = (
+  map: Record<string, ImportEntry>,
+  privileged: Set<string>
+): string[] =>
+  Object.keys(map)
+    .filter((k) => {
+      if (map[k]?.privilege !== "service-role") return false;
+      const target = resolveEntryTarget(k);
+      return !target || !privileged.has(target);
+    })
+    .sort();
+
 describe("command-centre: no new surface vs source baseline", () => {
   const files = importGraph().map(rel);
 
@@ -215,7 +312,7 @@ describe("command-centre: no new surface vs source baseline", () => {
   it("every file in the capability surface has a declared origin", () => {
     // A file with no provenance has no baseline, so "no new surface" is unprovable
     // for it. Unlisted means fail, not skip.
-    const undeclared = files.filter((f) => !DECLARED.has(f));
+    const undeclared = undeclaredFiles(DECLARED, files);
     expect(undeclared, `no provenance entry for:\n${undeclared.join("\n")}`).toEqual([]);
   });
 
@@ -370,9 +467,7 @@ describe("command-centre: no new surface vs source baseline", () => {
  * compatible shapes, clean typecheck, silent privilege change.
  */
 describe("command-centre: every import has a declared judgment", () => {
-  const IMPORTS = (PROV as unknown as {
-    imports?: Record<string, { specifier: string; judgment: string; note: string }>;
-  }).imports ?? {};
+  const IMPORTS = IMPORT_MAP;
 
   it("the import map is populated (positive control)", () => {
     // An empty map would make every assertion below vacuously true.
@@ -449,12 +544,7 @@ describe("command-centre: every import has a declared judgment", () => {
    * map overstates what was checked, the second means something entered the surface
    * unreviewed.
    */
-  const ACTUAL = new Set<string>(
-    importGraph().flatMap((f) =>
-      [...readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)]
-        .map((m) => `${rel(f)} :: ${m[1]}`)
-    )
-  );
+  const ACTUAL = ACTUAL_IMPORTS;
 
   it("the actual-import set is populated (positive control)", () => {
     // Both directional tests below compare against ACTUAL. If the graph walk or the
@@ -474,7 +564,7 @@ describe("command-centre: every import has a declared judgment", () => {
   });
 
   it("every actual import in the capability graph has a map entry", () => {
-    const unmapped = [...ACTUAL].filter((k) => !(k in IMPORTS));
+    const unmapped = unmappedImports(IMPORTS, ACTUAL);
     expect(
       unmapped,
       "imports present in the capability graph with no provenance entry — these entered\n" +
@@ -493,5 +583,124 @@ describe("command-centre: every import has a declared judgment", () => {
       missing,
       `map entries resolving to a target file that is absent from disk:\n${missing.join("\n")}`
     ).toEqual([]);
+  });
+});
+
+describe("command-centre: no silent privilege change", () => {
+  const PRIVILEGED = privilegedModules(importGraph().map(rel));
+
+  it("at least one privileged module is in the graph (positive control)", () => {
+    // Without this, a graph that reached no service-role client at all would make
+    // every assertion below vacuously true and read as coverage.
+    expect(
+      [...PRIVILEGED],
+      "no module in the capability graph builds a service-role client, so the privilege " +
+        "checks below verified nothing. If that is genuinely true now, this control must " +
+        "be revisited deliberately rather than deleted."
+    ).not.toEqual([]);
+  });
+
+  it("every import reaching a privileged module declares it", () => {
+    const silent = undeclaredPrivilegedImports(IMPORT_MAP, ACTUAL_IMPORTS, PRIVILEGED);
+    expect(
+      silent,
+      "these imports resolve to a module that builds a service-role client (RLS bypassed)\n" +
+        "but carry no `\"privilege\": \"service-role\"` declaration with a note:\n" +
+        silent.join("\n")
+    ).toEqual([]);
+  });
+
+  it("no entry claims service-role over a module that is not privileged", () => {
+    const stale = phantomPrivilegeClaims(IMPORT_MAP, PRIVILEGED);
+    expect(
+      stale,
+      "these entries declare service-role privilege but resolve to a module that builds no\n" +
+        "such client. The claim overstates what was reviewed:\n" + stale.join("\n")
+    ).toEqual([]);
+  });
+});
+
+/**
+ * ---- Mutation controls ----
+ *
+ * A gate that cannot fail is not a gate. Each control asserts the real map is clean,
+ * then breaks exactly one thing IN MEMORY and asserts the same predicate reports it.
+ * Nothing on disk is touched, so these run in CI on every commit rather than being a
+ * procedure someone is trusted to have performed once.
+ */
+describe("command-centre: the provenance and privilege gates can fail (mutation controls)", () => {
+  const files = importGraph().map(rel);
+  const PRIVILEGED = privilegedModules(files);
+  const clone = (): Record<string, ImportEntry> =>
+    JSON.parse(JSON.stringify(IMPORT_MAP)) as Record<string, ImportEntry>;
+
+  it("removing a file's provenance entry is caught", () => {
+    const declared = new Set(DECLARED);
+    const victim = files.find((f) => declared.has(f));
+    expect(victim, "no declared file in the graph to mutate").toBeDefined();
+    expect(undeclaredFiles(declared, files)).toEqual([]);
+    declared.delete(victim!);
+    expect(undeclaredFiles(declared, files)).toEqual([victim]);
+  });
+
+  it("removing an import's map entry is caught", () => {
+    const map = clone();
+    const victim = [...ACTUAL_IMPORTS][0];
+    expect(victim, "no actual import to mutate").toBeDefined();
+    expect(unmappedImports(map, ACTUAL_IMPORTS)).toEqual([]);
+    delete map[victim];
+    expect(unmappedImports(map, ACTUAL_IMPORTS)).toEqual([victim]);
+  });
+
+  it("removing or downgrading a privilege declaration is caught", () => {
+    const declaredPrivileged = Object.keys(IMPORT_MAP)
+      .filter((k) => IMPORT_MAP[k].privilege === "service-role")
+      .sort();
+    expect(
+      declaredPrivileged,
+      "no import declares service-role privilege, so this control proves nothing"
+    ).not.toEqual([]);
+    expect(undeclaredPrivilegedImports(IMPORT_MAP, ACTUAL_IMPORTS, PRIVILEGED)).toEqual([]);
+
+    const removed = clone();
+    for (const k of declaredPrivileged) delete removed[k].privilege;
+    expect(undeclaredPrivilegedImports(removed, ACTUAL_IMPORTS, PRIVILEGED)).toEqual(
+      declaredPrivileged
+    );
+
+    const downgraded = clone();
+    for (const k of declaredPrivileged) downgraded[k].privilege = "anon";
+    expect(undeclaredPrivilegedImports(downgraded, ACTUAL_IMPORTS, PRIVILEGED)).toEqual(
+      declaredPrivileged
+    );
+  });
+
+  it("a declaration with no stated reason is caught", () => {
+    const map = clone();
+    const victim = Object.keys(map).find((k) => map[k].privilege === "service-role");
+    expect(victim).toBeDefined();
+    map[victim!].note = "   ";
+    expect(undeclaredPrivilegedImports(map, ACTUAL_IMPORTS, PRIVILEGED)).toEqual([victim]);
+  });
+
+  it("claiming service-role over a module that is not privileged is caught", () => {
+    const map = clone();
+    expect(phantomPrivilegeClaims(map, PRIVILEGED)).toEqual([]);
+    const innocent = Object.keys(map).find((k) => map[k].privilege !== "service-role");
+    expect(innocent).toBeDefined();
+    map[innocent!].privilege = "service-role";
+    expect(phantomPrivilegeClaims(map, PRIVILEGED)).toEqual([innocent]);
+  });
+
+  it("a module that BECOMES privileged with no import change is caught", () => {
+    // The case no other check in this file can see: no specifier moves, no file enters
+    // the graph, and an already-mapped module starts building a service-role client.
+    const victim = Object.keys(IMPORT_MAP).find((k) => {
+      const t = resolveEntryTarget(k);
+      return t !== null && !PRIVILEGED.has(t) && IMPORT_MAP[k].privilege !== "service-role";
+    });
+    expect(victim, "no non-privileged in-repo import to promote").toBeDefined();
+    const promoted = new Set([...PRIVILEGED, resolveEntryTarget(victim!)!]);
+    expect(undeclaredPrivilegedImports(IMPORT_MAP, ACTUAL_IMPORTS, promoted)).toContain(victim);
   });
 });
