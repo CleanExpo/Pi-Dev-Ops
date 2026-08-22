@@ -1801,6 +1801,68 @@ def test_review_later_pending_objective_is_not_discarded_by_older_receipt(
     assert "was retired" not in reason
 
 
+@pytest.mark.parametrize("drop", ["admitted_at_ns", "recorded_at_ns"])
+def test_unstamped_state_or_pending_record_blocks_instead_of_retiring(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drop: str
+) -> None:
+    """Ordering must be proven, not assumed, when a stamp is absent.
+
+    A state file or pending record written by an older driver carries no issuance
+    stamp.  Absence of evidence is not evidence of supersession, so these must block
+    for reconciliation rather than fall back to the old always-retire behaviour.
+    """
+    project = tmp_path / "live-project"
+    _init_repo(project)
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
+    session_id = f"legacy-stamp-{drop}"
+    roots = [REPO_ROOT / "skills"]
+    base = {"session_id": session_id, "cwd": str(project)}
+
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Admitted objective"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    state_path = setup_driver_module._state_path(project.resolve(), session_id)
+
+    setup_driver_module._record_pending_objective(
+        {
+            "session_id": session_id,
+            "cwd": str(tmp_path),
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": "Pending objective",
+        },
+        surface="codex",
+        event="UserPromptSubmit",
+    )
+    pending_path = setup_driver_module._pending_state_path(session_id)
+
+    if drop == "admitted_at_ns":
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state.pop("admitted_at_ns", None)
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+    else:
+        # A legacy pending record: unstamped, but still correctly sealed.
+        sealed = json.loads(pending_path.read_text(encoding="utf-8"))
+        sealed.pop("recorded_at_ns", None)
+        sealed["pending_seal"] = setup_driver_module._pending_objective_seal(sealed)
+        pending_path.write_text(json.dumps(sealed), encoding="utf-8")
+
+    blocked = handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "a later subordinate prompt"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    # Substantive claim first: the record survives.  Assert this before the output
+    # shape so a regression fails on the destroyed record, not on a missing key.
+    assert pending_path.is_file(), "an unstamped record must never be destroyed"
+    assert blocked["decision"] == "block"
+    assert "cannot be proven older" in blocked["reason"]
+
+
 def test_pending_record_proven_older_than_the_receipt_is_retired(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

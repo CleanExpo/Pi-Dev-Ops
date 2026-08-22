@@ -7,6 +7,11 @@ the request still validated and exited successfully.
 """
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from app.server.routing_schema import RoutingValidationError
@@ -97,3 +102,26 @@ def test_fractional_limits_are_rejected(field: str) -> None:
     payload["limits"] = {"max_parallel_workers": 1, field: 1.5}
     with pytest.raises(RoutingValidationError, match="must be an integer"):
         decide_route(payload)
+
+
+def test_route_cli_rejects_fractional_prior_failures(tmp_path: Path) -> None:
+    """Bind the fix at the boundary the reviewer actually reproduced.
+
+    The reported defect was the route CLI exiting 0 and returning
+    quality_floor='cheap' with 'monotonic-failure-escalation' omitted.  Asserting
+    only on decide_route() would leave that exact surface unproven.
+    """
+    payload = _request(prior_failures=0.9)
+    request_file = tmp_path / "request.json"
+    request_file.write_text(json.dumps(payload), encoding="utf-8")
+
+    completed = subprocess.run(
+        [sys.executable, "-m", "app.server.task_routing", str(request_file)],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode != 0, "the CLI must not exit 0 on a fractional signal"
+    combined = completed.stdout + completed.stderr
+    assert "must be an integer" in combined
+    assert "cheap" not in combined
