@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.22.0",
-    "generated_at": "2026-08-17T22:25:36.702174+00:00",
+    "version": "1.23.1",
+    "generated_at": "2026-08-22T11:38:05.885043+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -1707,6 +1707,25 @@
       "low_confidence": true
     },
     {
+      "id": "model-router",
+      "description": "Use before substantive work when choosing whether to work inline, delegate, fan out, or escalate based on ambiguity, stakes, scope, repetition, privacy, and prior failure.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/model-router/SKILL.md",
+      "sha256": "b343f55bdd4f199410dae0363153cb3fd6f7d6ead894df9cffbe470a6cac4ea2",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
       "id": "nexus",
       "description": "Master-orchestrator command. Type /nexus <goal> to have the estate's best minds work a goal end-to-end \u2014 frame it, research it to primary sources, deploy the right specialists, think past the obvious downstream, verify it adversarially, and hand back a decision a non-technical founder can act on. Default-lean; it does the minimum the goal actually needs.",
       "owner_role": "(unset)",
@@ -2463,6 +2482,26 @@
       "low_confidence": true
     },
     {
+      "id": "senior-harness",
+      "description": "Use before substantive project work that requires governed discovery, delegation, verification, or recovery from repeated failure.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/senior-harness/SKILL.md",
+      "sha256": "544f1ffa368b419e044618fa68e1e8ed0812cae7d023a7d3379cc942f3a435d1",
+      "dependencies": {
+        "tools": [],
+        "skills": [
+          "skill.model-router",
+          "skill.unlazy"
+        ]
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      }
+    },
+    {
       "id": "session-handoff",
       "description": "Durable session handoff (/session-handoff). Gates the tree green via scripts/handoff-loop.sh, classifies the session SHIPPED / READY-TO-SHIP / WIP-BLOCKED against a Definition-of-Done, then generates a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent, or resuming later. Refuses to present unfinished work as a clean stop; for ready work hands off the exact merge-gate-guarded ship command. Writes a durable report + healthcheck log; the \"1\" of the 1-2 combo with /resume-from-handoff. Captures what was done, decisions locked, what shipped, key files, running state, verification, deferred/open questions, exact pickup point, risk notes, and a quality check.",
       "owner_role": "Tier-Architect (end-of-session handoff; gate-then-report)",
@@ -3014,6 +3053,25 @@
       "status": "(unset)",
       "path": "skills/unite-group-ci-recovery/SKILL.md",
       "sha256": "90177cc198a6b8e25e5cb294f5a7ea164ed3bbb7e8e7c21315d1cd6337d61066",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "unlazy",
+      "description": "Turn substantial delivery work into a dependency tree with owned files, rolling dispatch, executable gates, and exact completion evidence.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/unlazy/SKILL.md",
+      "sha256": "104f34510c2fb00b273b26486590c42874b0c0387225a26eb7f000317b9e4aff",
       "dependencies": {
         "tools": [],
         "skills": []

@@ -1,0 +1,43 @@
+{
+  "description": "Senior Harness startup admission for trusted Pi-Dev-Ops sessions.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.codex/skills/senior-harness/scripts/setup_driver.py\" hook --surface codex --event SessionStart --allow-non-git",
+            "statusMessage": "Loading the Senior Harness",
+            "additionalContextLimit": 1200
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.codex/skills/senior-harness/scripts/setup_driver.py\" hook --surface codex --event UserPromptSubmit --allow-non-git",
+            "statusMessage": "Freezing the primary objective",
+            "additionalContextLimit": 1200
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.codex/skills/senior-harness/scripts/setup_driver.py\" hook --surface codex --event PreToolUse --allow-non-git",
+            "statusMessage": "Checking Senior Harness admission",
+            "additionalContextLimit": 1200
+          }
+        ]
+      }
+    ]
+  }
+}
