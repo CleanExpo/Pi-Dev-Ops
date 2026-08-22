@@ -534,12 +534,18 @@ def admit_startup(contract: dict[str, Any]) -> dict[str, Any]:
         raise SetupError(["setup contract interaction does not match its frozen literal objective"])
     if contract.get("secondary_objectives") != []:
         raise SetupError(["setup contract cannot pre-authorize secondary objectives"])
+    # Ordering evidence lives INSIDE the receipt so the seal covers it.  Written
+    # beside the receipt it was just an outer state field, and the state-file
+    # holder -- who is explicitly in this file's threat model, see _receipt_seal --
+    # could raise it to make an older admission outrank a newer sealed pending
+    # objective and delete it, without ever touching the receipt.
     receipt: dict[str, Any] = {
         "schema_version": SETUP_SCHEMA_VERSION,
         "stage": "startup-admitted",
         "setup_contract": contract,
         "driver_digest": _file_digest(Path(__file__).resolve()),
         "admission": dict(STARTUP_ADMISSION),
+        "admission_order_ns": time.time_ns(),
     }
     receipt["receipt_integrity_digest"] = digest(receipt)
     receipt["receipt_seal"] = _receipt_seal(receipt)
@@ -1329,7 +1335,9 @@ def handle_hook(
                     # ordering is decided on the sealed issuance stamps.  Missing or
                     # equal stamps are not proof: those fail closed to reconciliation
                     # rather than destroying whichever objective arrived later.
-                    admitted_at_ns = state.get("admitted_at_ns")
+                    # Read the order from the SEALED receipt that just validated,
+                    # never from the mutable outer state object.
+                    admitted_at_ns = receipt.get("admission_order_ns")
                     recorded_at_ns = pending.get("recorded_at_ns")
                     pending_proven_older = (
                         isinstance(admitted_at_ns, int)
@@ -1375,14 +1383,7 @@ def handle_hook(
             ),
         )
         receipt = admit_startup(contract)
-        _write_state(
-                state_path,
-                {
-                    "receipt": receipt,
-                    "first_tool_admitted": False,
-                    "admitted_at_ns": time.time_ns(),
-                },
-            )
+        _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
         pending_path.unlink(missing_ok=True)
         grill_context = (
             " Grill interaction is active: use the governed Grill session controller; project mutation and worker dispatch remain denied until its shared-understanding receipt validates."
@@ -1424,14 +1425,7 @@ def handle_hook(
                 ),
             )
             receipt = admit_startup(contract)
-            _write_state(
-                state_path,
-                {
-                    "receipt": receipt,
-                    "first_tool_admitted": False,
-                    "admitted_at_ns": time.time_ns(),
-                },
-            )
+            _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
             pending_path.unlink(missing_ok=True)
             recovered_pending = True
         except SetupError as exc:

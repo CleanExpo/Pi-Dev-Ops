@@ -1840,8 +1840,15 @@ def test_unstamped_state_or_pending_record_blocks_instead_of_retiring(
     pending_path = setup_driver_module._pending_state_path(session_id)
 
     if drop == "admitted_at_ns":
+        # Simulate a receipt from a driver predating the sealed order field: remove it
+        # and re-seal, so the receipt is genuinely valid but carries no ordering proof.
         state = json.loads(state_path.read_text(encoding="utf-8"))
-        state.pop("admitted_at_ns", None)
+        receipt = state["receipt"]
+        assert receipt.pop("admission_order_ns", None) is not None
+        receipt.pop("receipt_integrity_digest", None)
+        receipt.pop("receipt_seal", None)
+        receipt["receipt_integrity_digest"] = digest(receipt)
+        receipt["receipt_seal"] = setup_driver_module._receipt_seal(receipt)
         state_path.write_text(json.dumps(state), encoding="utf-8")
     else:
         # A legacy pending record: unstamped, but still correctly sealed.
@@ -1861,6 +1868,70 @@ def test_unstamped_state_or_pending_record_blocks_instead_of_retiring(
     assert pending_path.is_file(), "an unstamped record must never be destroyed"
     assert blocked["decision"] == "block"
     assert "cannot be proven older" in blocked["reason"]
+
+
+def test_tampered_outer_admission_stamp_cannot_retire_a_newer_pending_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Ordering evidence must live under the seal, not beside it.
+
+    The state-file holder can rewrite any unsealed field -- the receipt seal exists
+    precisely because that party is in the threat model.  Editing only the outer
+    admission stamp, leaving the HMAC-sealed receipt untouched, must not be able to
+    make an older admission look newer and delete a newer sealed objective.
+    """
+    project = tmp_path / "live-project"
+    _init_repo(project)
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
+    session_id = "outer-stamp-tamper"
+    roots = [REPO_ROOT / "skills"]
+    base = {"session_id": session_id, "cwd": str(project)}
+
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Older admitted objective"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    state_path = setup_driver_module._state_path(project.resolve(), session_id)
+
+    outside = tmp_path / "outside-any-checkout"
+    outside.mkdir()
+    setup_driver_module._record_pending_objective(
+        {
+            "session_id": session_id,
+            "cwd": str(outside),
+            "hook_event_name": "UserPromptSubmit",
+            "prompt": "Later pending objective",
+        },
+        surface="codex",
+        event="UserPromptSubmit",
+    )
+    pending_path = setup_driver_module._pending_state_path(session_id)
+    sealed_pending = json.loads(pending_path.read_text(encoding="utf-8"))
+
+    # Tamper with ONLY the unsealed outer field; the sealed receipt is untouched.
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    sealed_receipt_before = json.dumps(state["receipt"], sort_keys=True)
+    state["admitted_at_ns"] = sealed_pending["recorded_at_ns"] + 1
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+    assert json.dumps(
+        json.loads(state_path.read_text(encoding="utf-8"))["receipt"], sort_keys=True
+    ) == sealed_receipt_before, "the receipt itself must be unchanged by this tamper"
+
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "a later subordinate prompt"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+
+    assert pending_path.is_file(), (
+        "a forged outer admission stamp must not retire the newer sealed objective"
+    )
+    survived = json.loads(pending_path.read_text(encoding="utf-8"))
+    assert survived["literal_objective"] == "Later pending objective"
 
 
 def test_pending_record_proven_older_than_the_receipt_is_retired(
@@ -1902,10 +1973,11 @@ def test_pending_record_proven_older_than_the_receipt_is_retired(
     )
     state_path = setup_driver_module._state_path(project.resolve(), session_id)
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    assert isinstance(state["admitted_at_ns"], int)
+    admission_order = state["receipt"]["admission_order_ns"]
+    assert isinstance(admission_order, int)
     # That admission consumed the record; restore it with its original earlier stamp
     # to exercise the retire branch with provable ordering.
-    assert sealed["recorded_at_ns"] < state["admitted_at_ns"]
+    assert sealed["recorded_at_ns"] < admission_order
     pending_path.parent.mkdir(parents=True, exist_ok=True)
     pending_path.write_text(json.dumps(sealed), encoding="utf-8")
 
