@@ -162,8 +162,12 @@ def _trusted_python(token: str) -> bool:
 
 
 def _single_option(argv: list[str], name: str) -> str | None:
-    if any(token.startswith(f"{name}=") for token in argv):
-        return None
+    for token in argv:
+        option = token.split("=", 1)[0]
+        if token.startswith(f"{name}=") or (
+            option.startswith("--") and option != name and name.startswith(option)
+        ):
+            return None
     positions = [index for index, token in enumerate(argv) if token == name]
     if len(positions) != 1 or positions[0] + 1 >= len(argv):
         return None

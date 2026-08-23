@@ -152,6 +152,55 @@ def test_concurrent_answers_use_compare_and_swap(
     assert "state changed after it was observed" in loser_error
 
 
+def test_grill_cli_rejects_abbreviated_state_option(
+    tmp_path: Path,
+) -> None:
+    state_path, env, before = _grill_state(tmp_path)
+    other = tmp_path / "other.json"
+    grill = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "grill_session.py"),
+            "show",
+            "--state",
+            str(state_path),
+            "--sta",
+            str(other),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert grill.returncode == 2
+    assert "unrecognized arguments: --sta" in grill.stderr
+    assert state_path.read_bytes() == before
+
+
+def test_guard_cli_rejects_abbreviated_session_option(tmp_path: Path) -> None:
+    state_path, env, _before = _grill_state(tmp_path)
+    other = tmp_path / "other.json"
+    guard = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_DIR / "setup_driver.py"),
+            "guard-dispatch",
+            str(tmp_path / "contract.json"),
+            str(tmp_path / "receipt.json"),
+            "--move-id",
+            "M07",
+            "--grill-session",
+            str(state_path),
+            "--gr",
+            str(other),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert guard.returncode == 2
+    assert "unrecognized arguments: --gr" in guard.stderr
+
+
 def test_recovery_read_denies_a_grill_write_when_no_receipt_exists(
     tmp_path: Path,
 ) -> None:

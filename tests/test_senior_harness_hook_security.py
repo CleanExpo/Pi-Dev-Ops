@@ -171,6 +171,9 @@ def test_grill_driver_rejects_fake_interpreter_and_unbound_state(tmp_path: Path)
     duplicate = _grill_command("show", state)
     duplicate["tool_input"]["command"] += f" --state={tmp_path / 'other.json'}"
     assert setup_driver._tool_is_grill_driver(duplicate, receipt) is False
+    abbreviated = _grill_command("show", state)
+    abbreviated["tool_input"]["command"] += f" --sta {tmp_path / 'other.json'}"
+    assert setup_driver._tool_is_grill_driver(abbreviated, receipt) is False
 
 
 def test_receipt_bound_guard_dispatch_reaches_its_confirmation_gate(
@@ -195,6 +198,12 @@ def test_receipt_bound_guard_dispatch_reaches_its_confirmation_gate(
     duplicate = f"{command} --grill-session={tmp_path / 'other.json'}"
     denied = setup_driver.handle_hook(
         {**_base("grill-guard", "PreToolUse"), "tool_name": "Bash", "tool_input": {"command": duplicate}},
+        surface="codex", event="PreToolUse",
+    )["hookSpecificOutput"]
+    assert denied["permissionDecision"] == "deny"
+    abbreviated = f"{command} --gr {tmp_path / 'other.json'}"
+    denied = setup_driver.handle_hook(
+        {**_base("grill-guard", "PreToolUse"), "tool_name": "Bash", "tool_input": {"command": abbreviated}},
         surface="codex", event="PreToolUse",
     )["hookSpecificOutput"]
     assert denied["permissionDecision"] == "deny"

@@ -23,32 +23,35 @@ from grill_session_transitions import (
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Advance one governed Grill-Me session transition.")
+    parser = argparse.ArgumentParser(
+        description="Advance one governed Grill-Me session transition.",
+        allow_abbrev=False,
+    )
     sub = parser.add_subparsers(dest="command", required=True)
-    start = sub.add_parser("start")
+    start = sub.add_parser("start", allow_abbrev=False)
     start.add_argument("--state", required=True)
     start.add_argument("--objective", required=True)
     start.add_argument("--sketch", required=True)
     start.add_argument("--decision-tree", required=True)
     start.add_argument("--transcript", required=True)
     for name in ("show", "validate"):
-        command = sub.add_parser(name)
+        command = sub.add_parser(name, allow_abbrev=False)
         command.add_argument("--state", required=True)
-    evidence = sub.add_parser("evidence")
+    evidence = sub.add_parser("evidence", allow_abbrev=False)
     evidence.add_argument("--state", required=True)
     evidence.add_argument("--expected-integrity", required=True)
     evidence.add_argument("--answer", required=True)
     evidence.add_argument("--sources", required=True)
-    answer = sub.add_parser("answer")
+    answer = sub.add_parser("answer", allow_abbrev=False)
     answer.add_argument("--state", required=True)
     answer.add_argument("--expected-integrity", required=True)
     answer.add_argument("--answer", required=True)
     answer.add_argument("--resolution", choices=sorted(DECISION_RESOLUTIONS), required=True)
-    confirm = sub.add_parser("confirm")
+    confirm = sub.add_parser("confirm", allow_abbrev=False)
     confirm.add_argument("--state", required=True)
     confirm.add_argument("--expected-integrity", required=True)
     confirm.add_argument("--phrase", required=True)
-    materialize = sub.add_parser("materialize")
+    materialize = sub.add_parser("materialize", allow_abbrev=False)
     materialize.add_argument("--state", required=True)
     materialize.add_argument("--expected-integrity", required=True)
     return parser

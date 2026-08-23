@@ -86,10 +86,15 @@ def _active_tool_state(state_path: Path, project_root: Path) -> tuple[Any, ...]:
         raise SetupError([*bindings.integrity_failures, *bindings.drift])
     if bindings.drift and (first_tool or interaction in GRILL_INTERACTIONS):
         raise SetupError(list(bindings.drift))
-    if first_tool:
-        state["first_tool_admitted"] = True
-        _write_state(state_path, state)
-    return receipt, interaction, bindings.drift
+    return receipt, interaction, bindings.drift, first_tool
+
+
+def _record_first_tool_admission(state_path: Path) -> None:
+    state = _read_state(state_path)
+    if state.get("first_tool_admitted") is not False:
+        raise SetupError(["startup state first-tool checkpoint changed during admission"])
+    state["first_tool_admitted"] = True
+    _write_state(state_path, state)
 
 
 def _invalid_state_response(exc: Exception, recovery_safe: bool) -> dict[str, Any]:
@@ -209,9 +214,18 @@ def _handle_pretool_locked(
     if not state_path.is_file():
         return _missing_state_response(recovery_safe, admission_error)
     try:
-        receipt, interaction, drift = _active_tool_state(state_path, project_root)
+        receipt, interaction, drift, first_tool = _active_tool_state(
+            state_path, project_root
+        )
     except (KeyError, SetupError) as exc:
         return _invalid_state_response(exc, recovery_safe)
-    return _tool_policy_response(
+    response = _tool_policy_response(
         payload, project_root, receipt, interaction, drift, recovery_safe, recovered
     )
+    decision = response.get("hookSpecificOutput", {}).get("permissionDecision")
+    if first_tool and decision != "deny":
+        try:
+            _record_first_tool_admission(state_path)
+        except SetupError as exc:
+            return _invalid_state_response(exc, recovery_safe)
+    return response

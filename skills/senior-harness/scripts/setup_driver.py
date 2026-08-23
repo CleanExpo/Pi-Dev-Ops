@@ -94,10 +94,11 @@ __all__ = [
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Freeze and verify Senior Harness startup admission."
+        description="Freeze and verify Senior Harness startup admission.",
+        allow_abbrev=False,
     )
     sub = parser.add_subparsers(dest="command", required=True)
-    start = sub.add_parser("start")
+    start = sub.add_parser("start", allow_abbrev=False)
     start.add_argument("objective")
     start.add_argument("--project", required=True)
     start.add_argument(
@@ -106,17 +107,17 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--interaction", choices=("delivery", *GRILL_INTERACTIONS), default="delivery")
     start.add_argument("--strict-clean", action="store_true")
     start.add_argument("--skill-root", action="append", default=[])
-    verify = sub.add_parser("verify")
+    verify = sub.add_parser("verify", allow_abbrev=False)
     verify.add_argument("receipt")
     verify.add_argument("--objective")
     verify.add_argument("--project")
-    guard = sub.add_parser("guard-dispatch")
+    guard = sub.add_parser("guard-dispatch", allow_abbrev=False)
     guard.add_argument("contract")
     guard.add_argument("receipt")
     guard.add_argument("--move-id", required=True)
     guard.add_argument("--problem-id")
     guard.add_argument("--grill-session")
-    hook = sub.add_parser("hook")
+    hook = sub.add_parser("hook", allow_abbrev=False)
     hook.add_argument("--surface", choices=("codex", "claude"), required=True)
     hook.add_argument(
         "--event", choices=("SessionStart", "UserPromptSubmit", "PreToolUse"), required=True

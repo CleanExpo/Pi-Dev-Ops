@@ -156,6 +156,38 @@ def test_first_tool_control_drift_denies_mutation_in_a_fresh_session(
     )
 
 
+def test_denied_first_tool_does_not_consume_strict_drift_checkpoint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base, state_path = _start_hook_session(
+        tmp_path / "state", monkeypatch, session_id="denied-first-tool"
+    )
+    denied_dispatch = handle_hook(
+        {
+            **base,
+            "hook_event_name": "PreToolUse",
+            "tool_name": "senior-harness.dispatch",
+            "tool_input": {"node_id": "1.1"},
+        },
+        surface="claude",
+        event="PreToolUse",
+    )
+    assert denied_dispatch["hookSpecificOutput"]["permissionDecision"] == "deny"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["first_tool_admitted"] is False
+
+    state["receipt"]["driver_digest"] = "sha256:" + "0" * 64
+    _rehash_receipt(state["receipt"])
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+    denied_drift = _pretool(base, "Write")
+    assert denied_drift["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert (
+        "setup driver changed after startup admission"
+        in denied_drift["hookSpecificOutput"]["permissionDecisionReason"]
+    )
+
+
 def test_delivery_control_drift_after_clean_first_tool_warns_without_denying_mutation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
