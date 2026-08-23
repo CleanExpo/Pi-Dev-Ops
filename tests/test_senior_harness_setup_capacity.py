@@ -43,7 +43,7 @@ def _assert_parallel_contract(contract: dict, context: str, expected: bool) -> N
 
 
 ADAPTER_CAPACITY_CASES = [
-    ("codex", True, True),
+    ("codex", True, False),
     ("codex", False, False),
     ("claude", True, False),
     ("claude", False, False),
@@ -66,17 +66,15 @@ def test_hook_lifecycle_freezes_first_prompt_and_denies_missing_receipt(
     allowed = _hook(base, "PreToolUse", tool_name="Read", tool_input={})
     assert "permissionDecision" not in allowed["hookSpecificOutput"]
     assert "Primary objective" in allowed["hookSpecificOutput"]["additionalContext"]
-    assert (
-        "dispatch independent workers immediately"
-        in allowed["hookSpecificOutput"]["additionalContext"]
+    assert "dispatch independent workers immediately" not in (
+        allowed["hookSpecificOutput"]["additionalContext"]
     )
 
     followup = _hook(base, "UserPromptSubmit", prompt="Push an unrelated release")
     assert "remains frozen" in followup["hookSpecificOutput"]["additionalContext"]
     assert "Primary objective" in followup["hookSpecificOutput"]["additionalContext"]
-    assert (
-        "dispatch independent workers immediately"
-        in followup["hookSpecificOutput"]["additionalContext"]
+    assert "dispatch independent workers immediately" not in (
+        followup["hookSpecificOutput"]["additionalContext"]
     )
 
     cleared = _hook(base, "SessionStart", source="clear")
@@ -130,6 +128,17 @@ def test_unreadable_adapter_receipt_fails_closed(
     )
     assert setup_driver_module._read_adapter_receipt("codex") is None
 
+
+def test_forged_all_true_adapter_receipt_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt_path = _observe_adapter(tmp_path, monkeypatch)
+    payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert all(payload[name] is True for name in (
+        "capacity", "isolation", "signed_dispatch", "cancellation"
+    ))
+    assert setup_driver_module._read_adapter_receipt("codex") is None
+
     broken = tmp_path / "broken.json"
     broken.write_text("{not json", encoding="utf-8")
     monkeypatch.setenv(setup_driver_module.ADAPTER_RECEIPT_ENV, str(broken))
@@ -149,7 +158,7 @@ def test_fresh_hook_session_routes_substantive_work_to_parallel_fanout(
     observed_adapter: bool,
     parallel_expected: bool,
 ) -> None:
-    """A host may claim parallel capacity only when its signed adapter exists."""
+    """Unsigned adapter JSON never activates unavailable parallel dispatch."""
     monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.delenv(setup_driver_module.ADAPTER_RECEIPT_ENV, raising=False)
     if observed_adapter:

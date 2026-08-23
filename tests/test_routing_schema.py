@@ -46,11 +46,25 @@ def test_baseline_mechanical_route_is_cheap_without_failures() -> None:
     assert "monotonic-failure-escalation" not in decision.reasons
 
 
-def test_integer_prior_failures_escalates_the_quality_floor() -> None:
-    """Positive control: escalation fires for a genuine integer."""
+def test_first_integer_failure_retries_same_floor_with_named_feedback() -> None:
+    decision = decide_route(
+        _request(prior_failures=1, failure_feedback=["unit-tests: assertion mismatch"])
+    )
+    assert decision.quality_floor == "cheap"
+    assert decision.action != "bailout"
+    assert "same-floor-retry-with-gate-feedback" in decision.reasons
+
+
+def test_failure_without_named_feedback_bails_out() -> None:
     decision = decide_route(_request(prior_failures=1))
-    assert decision.quality_floor == "mid"
-    assert "monotonic-failure-escalation" in decision.reasons
+    assert decision.action == "bailout"
+    assert "failure-feedback-missing" in decision.reasons
+
+
+@pytest.mark.parametrize("value", ["gate failed", [""], [1], None])
+def test_failure_feedback_requires_nonempty_string_list(value: object) -> None:
+    with pytest.raises(RoutingValidationError, match="list of non-empty strings"):
+        decide_route(_request(failure_feedback=value))
 
 
 @pytest.mark.parametrize("value", [0.9, 1.5, 2.0])

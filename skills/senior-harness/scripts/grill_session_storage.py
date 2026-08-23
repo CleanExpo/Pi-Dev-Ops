@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import tempfile
+import secrets
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -29,7 +29,8 @@ def _control_root() -> Path:
 
 
 def _state_path(raw_path: str | Path) -> Path:
-    path = Path(raw_path).expanduser().resolve()
+    expanded = Path(raw_path).expanduser()
+    path = Path(os.path.abspath(expanded))
     root = _control_root()
     try:
         path.relative_to(root)
@@ -41,19 +42,31 @@ def _state_path(raw_path: str | Path) -> Path:
 
 
 def _write_state(path: Path, session: Mapping[str, Any]) -> None:
-    """Publish private session state atomically through a unique 0600 file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    temporary = Path(temporary_name)
+    """Publish state atomically through a no-follow directory descriptor."""
+    path = _state_path(path)
+    parent = _open_control_parent(path)
+    temporary_name = f".{path.name}.{secrets.token_hex(12)}.tmp"
+    descriptor: int | None = None
     try:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+        descriptor = os.open(temporary_name, flags, 0o600, dir_fd=parent)
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = None
             handle.write(json.dumps(session, indent=2, sort_keys=True) + "\n")
-        temporary.replace(path)
+        os.replace(
+            temporary_name, path.name, src_dir_fd=parent, dst_dir_fd=parent
+        )
+        os.fsync(parent)
     except BaseException:
-        temporary.unlink(missing_ok=True)
+        try:
+            os.unlink(temporary_name, dir_fd=parent)
+        except FileNotFoundError:
+            pass
         raise
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        os.close(parent)
 
 
 def _open_directory_chain(path: Path) -> int:
@@ -71,6 +84,30 @@ def _open_directory_chain(path: Path) -> int:
             except FileExistsError:
                 pass
             child = os.open(component, directory_flags, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        return descriptor
+    except Exception:
+        os.close(descriptor)
+        raise
+
+
+def _open_control_parent(path: Path) -> int:
+    """Open the state parent below a private control root without symlinks."""
+    root = _control_root()
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    root.chmod(0o700)
+    relative = path.parent.relative_to(root)
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    descriptor = os.open(root, flags)
+    try:
+        for component in relative.parts:
+            try:
+                os.mkdir(component, mode=0o700, dir_fd=descriptor)
+            except FileExistsError:
+                pass
+            child = os.open(component, flags, dir_fd=descriptor)
+            os.fchmod(child, 0o700)
             os.close(descriptor)
             descriptor = child
         return descriptor

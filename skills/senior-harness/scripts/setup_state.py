@@ -7,6 +7,8 @@ import json
 import os
 import tempfile
 import time
+from contextlib import contextmanager
+import fcntl
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +53,25 @@ def _write_state(path: Path, state: dict[str, Any]) -> None:
     except BaseException:
         temporary.unlink(missing_ok=True)
         raise
+
+
+@contextmanager
+def _state_lock(path: Path):
+    """Serialize state decisions for one session without following a lock symlink."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_RDWR | os.O_CREAT
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(f"{path}.lock", flags, 0o600)
+    except OSError as exc:
+        raise SetupError([f"startup state lock cannot be opened: {exc}"]) from exc
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
 
 
 def _read_state(path: Path) -> dict[str, Any]:
@@ -186,6 +207,7 @@ def _record_pending_objective(
             event,
             "Senior Harness global hook is inactive because this task is outside a Git project. No admission or authority claim was made.",
         )
-    return _pending_prompt(
-        payload, surface=surface, event=event, path=path, session_id=session_id
-    )
+    with _state_lock(path):
+        return _pending_prompt(
+            payload, surface=surface, event=event, path=path, session_id=session_id
+        )

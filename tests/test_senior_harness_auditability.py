@@ -13,7 +13,10 @@ MAX_FUNCTION_LINES = 39
 
 
 def _governed_files() -> list[Path]:
-    files = [REPO_ROOT / "app" / "server" / "task_routing.py"]
+    files = [
+        REPO_ROOT / "app" / "server" / "task_routing.py",
+        REPO_ROOT / "app" / "server" / "routing_schema.py",
+    ]
     files.extend(SCRIPT_ROOT.glob("*.py"))
     files.extend(TEST_ROOT.glob("test_senior_harness_*.py"))
     files.extend(TEST_ROOT.glob("test_grill_session_*.py"))

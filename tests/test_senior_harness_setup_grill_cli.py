@@ -63,10 +63,10 @@ def _run_grill(
     )
 
 
-def test_recovery_read_admits_only_the_read_only_grill_subcommands() -> None:
+def test_recovery_without_receipt_denies_all_shell_grill_subcommands() -> None:
     for command in sorted(setup_driver_module.GRILL_READ_ONLY_COMMANDS):
         payload = _grill_command(command, "--state", "/tmp/grill-state.json")
-        assert setup_driver_module._tool_is_recovery_safe(payload) is True, command
+        assert setup_driver_module._tool_is_recovery_safe(payload) is False, command
 
 
 def test_recovery_read_denies_every_state_writing_grill_subcommand() -> None:
@@ -126,7 +126,7 @@ def test_recovery_read_denies_a_grill_write_when_no_receipt_exists(
     tmp_path: Path,
 ) -> None:
     env = _tamper_env(tmp_path)
-    for command, expect_deny in (("show", False), ("materialize", True)):
+    for command in ("show", "materialize"):
         payload = _grill_command(command, "--state", str(tmp_path / "grill-state.json"))
         payload["session_id"] = f"no-receipt-{command}"
         result = subprocess.run(
@@ -146,9 +146,5 @@ def test_recovery_read_denies_a_grill_write_when_no_receipt_exists(
             check=True,
         )
         output = json.loads(result.stdout)["hookSpecificOutput"]
-        if expect_deny:
-            assert output["permissionDecision"] == "deny", command
-            assert "no startup receipt exists" in output["permissionDecisionReason"]
-        else:
-            assert "permissionDecision" not in output, command
-            assert "recovery-only read" in output["additionalContext"]
+        assert output["permissionDecision"] == "deny", command
+        assert "no startup receipt exists" in output["permissionDecisionReason"]

@@ -43,7 +43,7 @@ READ_ONLY_GIT = {
     ("rev-parse", "--show-toplevel"),
     ("rev-parse", "HEAD"),
     ("status", "--porcelain=v1", "--untracked-files=all"),
-    ("diff", "--binary", "--no-ext-diff", "HEAD", "--"),
+    ("diff", "--binary", "--no-ext-diff", "--no-textconv", "HEAD", "--"),
     ("ls-files", "--others", "--exclude-standard", "-z"),
 }
 ADAPTER_RECEIPT_ENV = "SENIOR_HARNESS_ADAPTER_RECEIPT"

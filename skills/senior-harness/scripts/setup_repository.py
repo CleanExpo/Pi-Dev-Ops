@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import subprocess
 from pathlib import Path
@@ -11,10 +10,8 @@ from typing import Any, Iterable
 from app.server.task_routing import decide_route
 from senior_harness import digest
 from setup_common import (
-    ADAPTER_RECEIPT_ENV,
     GRILL_INTERACTIONS,
     READ_ONLY_GIT,
-    REQUIRED_ADAPTER_EVIDENCE,
     REQUIRED_SKILLS,
     SETUP_SCHEMA_VERSION,
     STARTUP_AUTHORITY,
@@ -26,22 +23,9 @@ from setup_common import (
 
 
 def _read_adapter_receipt(surface: str) -> dict[str, Any] | None:
-    """Return structurally valid observed-adapter evidence, or fail closed."""
-    raw_path = os.environ.get(ADAPTER_RECEIPT_ENV, "").strip()
-    if not raw_path:
-        return None
-    try:
-        payload = json.loads(Path(raw_path).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    if not isinstance(payload, dict) or payload.get("surface") != surface:
-        return None
-    if any(payload.get(name) is not True for name in REQUIRED_ADAPTER_EVIDENCE):
-        return None
-    signature = payload.get("adapter_signature")
-    if not isinstance(signature, str) or not signature.strip():
-        return None
-    return payload
+    """Reject adapter claims until a verified signed dispatcher actually ships."""
+    del surface
+    return None
 
 
 def _surface_capabilities(
@@ -57,7 +41,8 @@ def _surface_capabilities(
         "claude": "claude-lifecycle-hooks-without-signed-dispatch-adapter",
         "vscode-openrouter": "no-probed-lifecycle-adapter",
     }
-    probed = adapter_receipt is not None
+    del adapter_receipt
+    probed = False
     lifecycle_parallel = hooks_configured and surface == "codex" and probed
     return {
         "lifecycle_hooks": lifecycle_state,
@@ -76,7 +61,11 @@ def _git(project: Path, *args: str) -> str:
         raise SetupError([f"setup driver refused non-read-only git probe: {' '.join(args)}"])
     try:
         result = subprocess.run(
-            ["git", "-C", str(project), *args], check=True, capture_output=True,
+            [
+                "git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
+                "-c", "diff.external=", "-c", "core.attributesFile=/dev/null",
+                "--no-pager", "-C", str(project), *args,
+            ], check=True, capture_output=True,
             text=True, timeout=10,
         )
     except (OSError, subprocess.SubprocessError) as exc:
@@ -149,7 +138,9 @@ def _repository_snapshot(project: Path, *, strict_clean: bool) -> dict[str, Any]
         raise SetupError(["strict startup requires a clean Git checkout"])
     dirty_hasher = hashlib.sha256()
     dirty_hasher.update(status.encode())
-    dirty_hasher.update(_git(root, "diff", "--binary", "--no-ext-diff", "HEAD", "--").encode())
+    dirty_hasher.update(
+        _git(root, "diff", "--binary", "--no-ext-diff", "--no-textconv", "HEAD", "--").encode()
+    )
     untracked = _git(root, "ls-files", "--others", "--exclude-standard", "-z").split("\0")
     for relative in sorted(item for item in untracked if item):
         path = root / relative
@@ -210,6 +201,7 @@ def build_setup_contract(
     interaction: str = "delivery", strict_clean: bool = False,
     skill_search_roots: Iterable[str | Path] | None = None,
     host_capabilities: dict[str, Any] | None = None,
+    host_session_id: str | None = None,
 ) -> dict[str, Any]:
     if not isinstance(literal_objective, str) or not literal_objective.strip():
         raise SetupError(["literal objective must be non-empty"])
@@ -224,12 +216,32 @@ def build_setup_contract(
     roots = [Path(item).resolve() for item in skill_search_roots or ()]
     repository = _repository_snapshot(project_root, strict_clean=strict_clean)
     capabilities = host_capabilities or _default_capabilities()
-    return _assemble_contract(literal_objective, surface, interaction, repository, roots, capabilities)
+    return _assemble_contract(
+        literal_objective, surface, interaction, repository, roots, capabilities,
+        host_session_id,
+    )
+
+
+def _grill_control(
+    repository: dict[str, Any], objective: str, host_session_id: str | None
+) -> dict[str, str]:
+    root_override = os.environ.get("SENIOR_HARNESS_STATE_DIR")
+    root = (
+        Path(root_override).expanduser().resolve() if root_override
+        else Path.home() / ".local" / "state" / "senior-harness" / "sessions"
+    )
+    project_key = hashlib.sha256(repository["worktree"].encode()).hexdigest()[:20]
+    identity = host_session_id or digest({"explicit_grill": objective})
+    session_key = hashlib.sha256(identity.encode()).hexdigest()
+    return {
+        "state_path": str(root / project_key / f"{session_key}.grill.json"),
+        "decision_authority": "authenticated-human-outside-mediated-tool-lane",
+    }
 
 
 def _assemble_contract(
     objective: str, surface: str, interaction: str, repository: dict[str, Any],
-    roots: list[Path], capabilities: dict[str, Any],
+    roots: list[Path], capabilities: dict[str, Any], host_session_id: str | None,
 ) -> dict[str, Any]:
     skill_names = REQUIRED_SKILLS + (("grill-me",) if interaction in GRILL_INTERACTIONS else ())
     skills = {name: _resolve_skill(name, Path(repository["worktree"]), roots) for name in skill_names}
@@ -253,5 +265,9 @@ def _assemble_contract(
         },
         "secondary_objectives": [], "authority": dict(STARTUP_AUTHORITY),
     }
+    if interaction in GRILL_INTERACTIONS:
+        contract["grill_control"] = _grill_control(
+            repository, objective, host_session_id
+        )
     contract["setup_contract_digest"] = digest(contract)
     return contract

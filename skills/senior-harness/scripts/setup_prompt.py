@@ -12,6 +12,7 @@ from setup_state import (
     _pending_reconciliation_reason,
     _read_pending_objective,
     _read_state,
+    _state_lock,
     _write_state,
 )
 from setup_tools import _parallel_dispatch_context
@@ -76,7 +77,7 @@ def _respond_existing_prompt(
 
 def _new_contract(
     prompt: str, project_root: Path, surface: str,
-    skill_search_roots: Iterable[str | Path] | None,
+    skill_search_roots: Iterable[str | Path] | None, session_id: str | None = None,
 ) -> dict[str, Any]:
     interaction = _interaction_for_objective(prompt)
     if interaction is None:
@@ -84,6 +85,7 @@ def _new_contract(
     return build_setup_contract(
         prompt, project_root, surface=surface, interaction=interaction,
         skill_search_roots=skill_search_roots,
+        host_session_id=session_id,
         host_capabilities=_surface_capabilities(
             surface, hooks_configured=True,
             adapter_receipt=_read_adapter_receipt(surface),
@@ -94,9 +96,9 @@ def _new_contract(
 def _admit_prompt(
     prompt: str, project_root: Path, surface: str, state_path: Path,
     pending_path: Path, recovered: bool,
-    roots: Iterable[str | Path] | None,
+    roots: Iterable[str | Path] | None, session_id: str,
 ) -> dict[str, Any]:
-    contract = _new_contract(prompt, project_root, surface, roots)
+    contract = _new_contract(prompt, project_root, surface, roots, session_id)
     receipt = admit_startup(contract)
     _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
     pending_path.unlink(missing_ok=True)
@@ -128,9 +130,10 @@ def handle_prompt(
         )
     except SetupError as exc:
         return _hook_output("UserPromptSubmit", _pending_quarantine_reason(exc), deny=True)
-    if state_path.is_file():
-        return _respond_existing_prompt(state_path, project_root, pending)
-    return _admit_prompt(
-        prompt, project_root, surface, state_path, pending_path,
-        pending is not None, roots,
-    )
+    with _state_lock(state_path):
+        if state_path.is_file():
+            return _respond_existing_prompt(state_path, project_root, pending)
+        return _admit_prompt(
+            prompt, project_root, surface, state_path, pending_path,
+            pending is not None, roots, session_id,
+        )

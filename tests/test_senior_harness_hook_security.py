@@ -5,6 +5,8 @@ import json
 import shlex
 import subprocess
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -105,12 +107,21 @@ def test_invalid_receipt_cannot_replace_the_frozen_objective(
 
 
 @pytest.mark.parametrize(
-    "command", ["start", "show", "validate", "evidence", "answer", "confirm", "materialize"]
+    ("command", "expected"),
+    [
+        ("start", True), ("show", True), ("validate", True),
+        ("evidence", True), ("materialize", True),
+        ("answer", False), ("confirm", False),
+    ],
 )
 def test_only_shipped_grill_state_commands_use_the_driver_lane(
-    command: str, tmp_path: Path
+    command: str, expected: bool, tmp_path: Path
 ) -> None:
-    assert setup_driver._tool_is_grill_driver(_grill_command(command, tmp_path / "state.json"))
+    state = tmp_path / "state.json"
+    receipt = {"setup_contract": {"grill_control": {"state_path": str(state)}}}
+    assert setup_driver._tool_is_grill_driver(
+        _grill_command(command, state), receipt
+    ) is expected
 
 
 def test_ungoverned_question_tool_is_not_a_recovery_read() -> None:
@@ -123,9 +134,12 @@ def test_valid_grill_receipt_admits_its_driver_but_denies_generic_questions(
     monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
     prompt = {**_base("grill-security", "UserPromptSubmit"), "prompt": "/grill-me secure intake"}
     setup_driver.handle_hook(prompt, surface="codex", event="UserPromptSubmit")
+    startup_state = setup_driver._state_path(REPO_ROOT.resolve(), "grill-security")
+    receipt = json.loads(startup_state.read_text(encoding="utf-8"))["receipt"]
+    bound_state = Path(receipt["setup_contract"]["grill_control"]["state_path"])
 
     driver = setup_driver.handle_hook(
-        _grill_command("show", tmp_path / "state" / "grill.json"),
+        _grill_command("show", bound_state),
         surface="codex",
         event="PreToolUse",
     )["hookSpecificOutput"]
@@ -141,3 +155,62 @@ def test_valid_grill_receipt_admits_its_driver_but_denies_generic_questions(
     )["hookSpecificOutput"]
     assert denied["permissionDecision"] == "deny"
     assert "control-state driver" in denied["permissionDecisionReason"]
+
+
+def test_grill_driver_rejects_fake_interpreter_and_unbound_state(tmp_path: Path) -> None:
+    state = tmp_path / "bound.json"
+    receipt = {"setup_contract": {"grill_control": {"state_path": str(state)}}}
+    fake = _grill_command("show", state)
+    fake["tool_input"]["command"] = fake["tool_input"]["command"].replace(
+        shlex.quote(sys.executable), "/tmp/attacker/python"
+    )
+    assert setup_driver._tool_is_grill_driver(fake, receipt) is False
+    assert setup_driver._tool_is_grill_driver(
+        _grill_command("show", tmp_path / "other.json"), receipt
+    ) is False
+
+
+def test_receipt_bound_guard_dispatch_reaches_its_confirmation_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    prompt = {**_base("grill-guard", "UserPromptSubmit"), "prompt": "/grill-me shape intake"}
+    setup_driver.handle_hook(prompt, surface="codex", event="UserPromptSubmit")
+    startup_path = setup_driver._state_path(REPO_ROOT.resolve(), "grill-guard")
+    receipt = json.loads(startup_path.read_text(encoding="utf-8"))["receipt"]
+    grill_state = receipt["setup_contract"]["grill_control"]["state_path"]
+    command = shlex.join([
+        sys.executable, str(SCRIPT_DIR / "setup_driver.py"), "guard-dispatch",
+        str(tmp_path / "contract.json"), str(tmp_path / "receipt.json"),
+        "--move-id", "M07", "--grill-session", grill_state,
+    ])
+    output = setup_driver.handle_hook(
+        {**_base("grill-guard", "PreToolUse"), "tool_name": "Bash", "tool_input": {"command": command}},
+        surface="codex", event="PreToolUse",
+    )["hookSpecificOutput"]
+    assert "permissionDecision" not in output
+
+
+def test_competing_first_prompts_publish_exactly_one_primary_objective(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    barrier = threading.Barrier(2)
+
+    def submit(prompt: str) -> dict:
+        barrier.wait()
+        return setup_driver.handle_hook(
+            {**_base("concurrent-first", "UserPromptSubmit"), "prompt": prompt},
+            surface="codex", event="UserPromptSubmit",
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(submit, ("objective A", "objective B")))
+    contexts = [item["hookSpecificOutput"]["additionalContext"] for item in results]
+    assert sum("froze the primary objective" in item for item in contexts) == 1
+    assert sum("remains frozen byte-for-byte" in item for item in contexts) == 1
+    state_path = setup_driver._state_path(REPO_ROOT.resolve(), "concurrent-first")
+    primary = json.loads(state_path.read_text(encoding="utf-8"))["receipt"][
+        "setup_contract"
+    ]["literal_objective"]
+    assert primary in {"objective A", "objective B"}

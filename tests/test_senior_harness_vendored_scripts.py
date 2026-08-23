@@ -14,6 +14,7 @@ SKILL_ROOT = REPO_ROOT / "skills"
 VENDORED_SKILLS = ("senior-harness", "model-router", "unlazy")
 INSTALLER = SKILL_ROOT / "senior-harness" / "scripts" / "install_senior_harness.sh"
 RUNNER = SKILL_ROOT / "senior-harness" / "scripts" / "run_setup_driver.sh"
+BOOTSTRAP = SKILL_ROOT / "senior-harness" / "scripts" / "setup_hook_bootstrap.py"
 
 
 def _run_installer(home: Path) -> subprocess.CompletedProcess[str]:
@@ -100,8 +101,51 @@ def test_hook_runner_fails_closed_without_a_compatible_python(tmp_path: Path, ev
         env={"PATH": f"{fake_bin}:/usr/bin:/bin"},
         capture_output=True,
         text=True,
-        check=True,
     )
-    assert "Senior Harness denied execution" in result.stdout
-    expected = '"decision":"block"' if event == "UserPromptSubmit" else '"permissionDecision":"deny"'
-    assert expected in result.stdout
+    assert result.returncode == 2
+    assert "Senior Harness denied execution" in result.stderr
+
+
+def test_explicit_start_fails_when_python_is_unavailable(tmp_path: Path) -> None:
+    scripts = tmp_path / "skill" / "scripts"
+    scripts.mkdir(parents=True)
+    runner = scripts / RUNNER.name
+    runner.write_bytes(RUNNER.read_bytes())
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    python = fake_bin / "python3"
+    python.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    python.chmod(0o755)
+    result = subprocess.run(
+        ["bash", str(runner), "start", "objective"],
+        env={"PATH": f"{fake_bin}:/usr/bin:/bin"}, capture_output=True, text=True,
+    )
+    assert result.returncode == 2
+    assert "Python 3.10 or newer is unavailable" in result.stderr
+
+
+@pytest.mark.parametrize("failure", ["missing", "crash", "timeout"])
+def test_hook_bootstrap_converts_runtime_failures_to_blocking_exit(
+    tmp_path: Path, failure: str
+) -> None:
+    scripts = tmp_path / "skill" / "scripts"
+    scripts.mkdir(parents=True)
+    runner = scripts / RUNNER.name
+    runner.write_bytes(RUNNER.read_bytes())
+    bootstrap = scripts / BOOTSTRAP.name
+    bootstrap_text = BOOTSTRAP.read_text(encoding="utf-8")
+    if failure == "timeout":
+        bootstrap_text = bootstrap_text.replace("TIMEOUT_SECONDS = 30", "TIMEOUT_SECONDS = 1")
+    bootstrap.write_text(bootstrap_text, encoding="utf-8")
+    driver = scripts / "setup_driver.py"
+    if failure == "crash":
+        driver.write_text("raise RuntimeError('crash')\n", encoding="utf-8")
+    elif failure == "timeout":
+        driver.write_text("import time\ntime.sleep(60)\n", encoding="utf-8")
+    result = subprocess.run(
+        ["bash", str(runner), "hook", "--event", "PreToolUse"],
+        env={**os.environ, "SENIOR_HARNESS_PYTHON": os.sys.executable},
+        capture_output=True, text=True, timeout=5,
+    )
+    assert result.returncode == 2
+    assert "failed closed" in result.stderr

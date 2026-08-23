@@ -35,7 +35,9 @@ def _recover_pending(
         pending_path, session_id=session_id, surface=surface
     )
     try:
-        contract = _new_contract(pending["literal_objective"], project_root, surface, roots)
+        contract = _new_contract(
+            pending["literal_objective"], project_root, surface, roots, session_id
+        )
         receipt = admit_startup(contract)
         _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
         pending_path.unlink(missing_ok=True)
@@ -102,13 +104,13 @@ def _invalid_state_response(exc: Exception, recovery_safe: bool) -> dict[str, An
 
 def _parallel_denial(
     payload: dict[str, Any], project_root: Path, receipt: dict[str, Any],
-    recovery_safe: bool,
+    control_safe: bool,
 ) -> str | None:
     policy = receipt["setup_contract"].get("orchestration_policy", {})
     dispatch = _is_parallel_dispatch_tool(payload)
     admitted = dispatch and _has_signed_dispatch_admission(payload, project_root, receipt)
     allowed = (
-        recovery_safe or _is_parallel_control_tool(payload) or admitted
+        control_safe or _is_parallel_control_tool(payload) or admitted
         or _is_parallel_verification_tool(payload)
     )
     if not isinstance(policy, dict) or policy.get("parallel_required") is not True or allowed:
@@ -124,35 +126,56 @@ def _parallel_denial(
     )
 
 
-def _tool_policy_response(
-    payload: dict[str, Any], project_root: Path, receipt: dict[str, Any],
-    interaction: Any, drift: tuple[str, ...], recovery_safe: bool, recovered: bool,
-) -> dict[str, Any]:
-    if interaction in GRILL_INTERACTIONS and not (
-        recovery_safe or _tool_is_grill_driver(payload)
-    ):
-        return _hook_output(
-            "PreToolUse",
-            "Senior Harness denied the tool: Grill-Me permits evidence discovery and its control-state driver only until shared understanding is explicitly confirmed.",
-            deny=True,
-        )
-    denial = _parallel_denial(payload, project_root, receipt, recovery_safe)
-    if denial:
-        return _hook_output("PreToolUse", denial, deny=True)
-    contract = receipt["setup_contract"]
+def _unsigned_dispatch(payload: dict[str, Any], project_root: Path, receipt: dict[str, Any]) -> bool:
+    return _is_parallel_dispatch_tool(payload) and not _has_signed_dispatch_admission(
+        payload, project_root, receipt
+    )
+
+
+def _active_context(contract: dict[str, Any], drift: tuple[str, ...], recovered: bool) -> str:
     drift_context = (
         " Senior Harness control-code drift detected: " + "; ".join(drift)
         + ". Delivery may continue under normal host and repository policy, but this startup receipt cannot be reused as fresh control-code evidence."
         if drift else ""
     )
     action = "recovered pending objective and established" if recovered else "objective"
-    context = (
+    return (
         f"Senior Harness {action} lock: {contract['literal_objective']!r}."
         f"{_parallel_dispatch_context(contract)} Startup admission does not authorize this tool; "
         "normal host and repository policy still decide it. This hook covers mediated local tools "
         f"only; hosted or specialized bypasses are not claimed.{drift_context}"
     )
-    return _hook_output("PreToolUse", context)
+
+
+def _tool_policy_response(
+    payload: dict[str, Any], project_root: Path, receipt: dict[str, Any],
+    interaction: Any, drift: tuple[str, ...], recovery_safe: bool, recovered: bool,
+) -> dict[str, Any]:
+    if _unsigned_dispatch(payload, project_root, receipt):
+        return _hook_output(
+            "PreToolUse",
+            "Senior Harness denied dispatch: no verified signed dispatcher is installed.",
+            deny=True,
+        )
+    grill_control = (
+        interaction in GRILL_INTERACTIONS and _tool_is_grill_driver(payload, receipt)
+    )
+    if interaction in GRILL_INTERACTIONS and not (
+        recovery_safe or grill_control
+    ):
+        return _hook_output(
+            "PreToolUse",
+            "Senior Harness denied the tool: Grill-Me permits evidence discovery and its control-state driver only until shared understanding is explicitly confirmed.",
+            deny=True,
+        )
+    denial = _parallel_denial(
+        payload, project_root, receipt, recovery_safe or grill_control
+    )
+    if denial:
+        return _hook_output("PreToolUse", denial, deny=True)
+    return _hook_output(
+        "PreToolUse", _active_context(receipt["setup_contract"], drift, recovered)
+    )
 
 
 def handle_pretool(

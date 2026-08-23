@@ -71,19 +71,19 @@ First create or select a fat-marker sketch in the real Obsidian vault's `Sketche
 freeze the Grill interaction explicitly:
 
 ```bash
-python ~/.codex/skills/senior-harness/scripts/setup_driver.py start \
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh start \
   "/grill-me <literal project objective>" --project "<git-root>" --surface codex \
   --interaction grill-me
 ```
 
 Use `grill-with-docs` for an existing codebase. Build a dependency-ordered decision-tree JSON, then
-start the session with `grill_session.py start`. Keep its state below
-`$SENIOR_HARNESS_STATE_DIR` or `~/.local/state/senior-harness/`; never store control state in the
-project. The machine exposes an evidence query or exactly one human question. Human questions must
-carry a recommendation and rationale. Record the user's words verbatim as `DECIDED`, `RABBIT_HOLE`,
-or `NO_GO`. Confirmation requires the exact phrase printed by the driver and cannot succeed while a
-leaf is unresolved. Only then may `materialize` write the bound transcript under the vault's sibling
-`Grills/` directory.
+start the session only at the `grill_control.state_path` sealed into the startup receipt. Never choose
+another state path or store control state in the project. The machine exposes an evidence query or
+exactly one human question. Human questions must carry a recommendation and rationale. The mediated
+model tool lane cannot execute `answer` or `confirm`; the operator must enter those transitions outside
+that lane so the model cannot forge the user's words or the confirmation phrase. Record those words
+verbatim as `DECIDED`, `RABBIT_HOLE`, or `NO_GO`. Only then may `materialize` write the bound transcript
+under the vault's sibling `Grills/` directory.
 
 A shared-understanding receipt proves the interview resolved; it grants no mutation,
 business, financial, privacy, deployment, or irreversible authority.

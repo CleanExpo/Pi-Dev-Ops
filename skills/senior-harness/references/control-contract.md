@@ -45,10 +45,11 @@ stale evidence instead of becoming a blanket tool denial. This is not re-admissi
 cannot serve as fresh control-code evidence, and Grill interactions continue byte revalidation on
 every tool.
 
-For `grill-me` and `grill-with-docs`, the adapter narrows further. Until the Grill session reaches
-explicit shared understanding, it admits only read-only evidence discovery and the dedicated Grill
-state driver. The driver binds a real sketch and decision-tree, separates evidence facts from human
-choices, exposes at most one question, retains answers verbatim, and buffers transcript/domain changes.
+For `grill-me` and `grill-with-docs`, the adapter narrows further. It admits only read-only evidence
+discovery and receipt-bound machine transitions. The state path is sealed into the startup receipt;
+the mediated model lane cannot execute human `answer` or `confirm` transitions. The driver binds a real
+sketch and decision-tree, separates evidence facts from human choices, exposes at most one question,
+retains operator-entered answers verbatim, and buffers transcript/domain changes.
 The confirmed receipt still grants zero authority. `guard-dispatch` may use it to admit a ready
 nonmutating delivery move only; the existing mutation-authority stop remains in force. The complete
 state contract is [`grill-contract.md`](grill-contract.md).

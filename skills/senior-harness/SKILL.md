@@ -18,12 +18,11 @@ digest, this driver, and the installed `senior-harness`, `model-router`, and `un
 It also executes the provider-neutral router and binds its `RoutingRequest` and `RouteDecision`, then
 requires Unlazy as the downstream decomposition, gate, integration, and receipt controller.
 
-For normal Codex and Claude delivery sessions, startup also binds a parallel-first orchestration
-policy. Before the root performs implementation, load Unlazy, prove disjoint leaf ownership, admit
-the delivery contract, and dispatch the independent leaves up to the four-worker cap. The root owns
-coordination and final proof; bounded leaf and integration workers own every mutation. The lifecycle
-hook denies root mutation tools throughout a parallel-required session. Grill interactions remain
-locked and never receive an early dispatch instruction.
+Parallel-first enforcement activates only when a cryptographically verified signed dispatcher is
+installed and proves cancellation, isolation, and capacity. This slice ships no such dispatcher, so
+adapter JSON and hook presence cannot activate that policy. Use host-authorised parallel agents
+directly when available, with Unlazy ownership and independent verification; do not claim the startup
+hook admitted or controlled those workers. Grill interactions never receive an early dispatch instruction.
 
 Install the same control stack into all three skill discovery roots with:
 
@@ -64,8 +63,8 @@ Claude:     /senior-harness <literal request>
 Locate the canonical source, then create the immutable intake envelope from any project:
 
 ```bash
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py where
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py intake "<literal request>" --horizon-required
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh contract where
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh contract intake "<literal request>" --horizon-required
 ```
 
 Claude Code uses the same path under `~/.claude/skills/`. Do not assume the active project contains
@@ -82,10 +81,12 @@ gate on those surfaces.
 
 The hooks mechanically require a valid startup receipt before the first mediated local tool and keep
 injecting the frozen objective afterward. In a `/grill-me` or `/grill-with-docs` interaction they
-fail closed: only evidence discovery and the Grill state driver may run; edits, pushes, deploys, sends,
+fail closed: only evidence discovery and receipt-bound machine transitions may run; edits, pushes, deploys, sends,
 and worker dispatch are denied. Outside a Grill, existing host/repository policy still controls generic
 mutations. `guard-dispatch` rejects every Grill delivery move until a confirmed shared-understanding
 session is supplied and continues rejecting mutating moves until a trusted authority adapter exists.
+The mediated model lane cannot submit `answer` or `confirm`; those human decisions must be entered by
+the operator outside the model-controlled tool lane against the receipt-bound state path.
 
 Recovery is deliberately asymmetric. A missing or invalid session receipt may still admit exact,
 read-only discovery tools such as `Read`, `Grep`, `Glob`, `ToolSearch`, web search, and the named
@@ -167,7 +168,7 @@ source set, and model class before dispatch. Record the hypothesis, but exclude 
 from the fingerprint so paraphrasing cannot create a new pathway:
 
 ```bash
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py bind-attempt CONTRACT.json ATTEMPT.json
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh contract bind-attempt CONTRACT.json ATTEMPT.json
 ```
 
 The binding command derives the input digest and stable route handle from the frozen task, then emits
@@ -185,8 +186,8 @@ uncertainty case names its specialists, arbiter, evidence, experiment, and resol
 Validate the frozen candidate contract before execution and query admitted delivery work:
 
 ```bash
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py lint CONTRACT.json
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py ready CONTRACT.json
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh contract lint CONTRACT.json
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh contract ready CONTRACT.json
 ```
 
 Treat exit `2` or invalid JSON as a hard stop. `lint` proves contract structure only; identity strings,

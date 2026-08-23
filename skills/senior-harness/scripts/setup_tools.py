@@ -1,19 +1,15 @@
 """Fail-closed tool classification for recovery and parallel dispatch lanes."""
 from __future__ import annotations
 
-import os
-import re
 import shlex
+import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
 from setup_common import (
-    GRILL_READ_ONLY_COMMANDS,
-    GRILL_STATE_COMMANDS,
     SCRIPT_DIR,
-    SetupError,
     _normalise_tool_name,
-    _read_json,
     _tool_command,
 )
 
@@ -43,57 +39,12 @@ def _is_parallel_dispatch_tool(payload: dict[str, Any]) -> bool:
     return name == "senior_harness_dispatch"
 
 
-def _dispatch_fields(tool_input: dict[str, Any]) -> tuple[str, ...] | None:
-    names = (
-        "receipt_path", "plan_path", "routing_request_path", "state_path",
-        "node_id", "worker_context_id",
-    )
-    if any(not isinstance(tool_input.get(key), str) or not tool_input[key] for key in names):
-        return None
-    return names
-
-
-def _dispatch_receipt_matches(
-    supplied: dict[str, Any], current: dict[str, Any], project_root: Path
-) -> bool:
-    supplied_contract = supplied.get("setup_contract", {})
-    current_contract = current.get("setup_contract", {})
-    if not isinstance(supplied_contract, dict) or not isinstance(current_contract, dict):
-        return False
-    fields = ("literal_objective", "task_id", "setup_contract_digest")
-    if any(supplied_contract.get(field) != current_contract.get(field) for field in fields):
-        return False
-    if supplied.get("receipt_seal") != current.get("receipt_seal"):
-        return False
-    repository = supplied_contract.get("repository", {})
-    if not isinstance(repository, dict):
-        return False
-    worktree = Path(str(repository.get("worktree", ""))).expanduser().resolve()
-    return worktree == project_root.resolve()
-
-
 def _has_signed_dispatch_admission(
     payload: dict[str, Any], project_root: Path, current_receipt: dict[str, Any]
 ) -> bool:
-    tool_input = payload.get("tool_input")
-    if not isinstance(tool_input, dict) or _dispatch_fields(tool_input) is None:
-        return False
-    try:
-        from control_plane import authorize_event
-
-        receipt = _read_json(tool_input["receipt_path"])
-        if not _dispatch_receipt_matches(receipt, current_receipt, project_root):
-            return False
-        result = authorize_event(
-            receipt,
-            _read_json(tool_input["plan_path"]),
-            _read_json(tool_input["routing_request_path"]),
-            {"tool_name": "senior-harness.dispatch", "tool_input": tool_input},
-            state_path=tool_input["state_path"],
-        )
-        return result.get("status") == "admitted"
-    except (ImportError, OSError, ValueError, KeyError, TypeError, SetupError):
-        return False
+    """No signed dispatcher ships in this slice, so dispatch is never admitted."""
+    del payload, project_root, current_receipt
+    return False
 
 
 def _safe_repo_argument(token: str) -> bool:
@@ -182,42 +133,6 @@ def _command_argv(payload: dict[str, Any]) -> list[str] | None:
     return argv
 
 
-def _git_read_is_safe(args: list[str]) -> bool:
-    while len(args) >= 2 and args[0] == "-C":
-        args = args[2:]
-    unsafe = ("--config", "--exec", "--ext-diff", "--output", "--paginate", "--textconv")
-    return bool(args) and args[0] in {
-        "diff", "log", "ls-files", "rev-parse", "show", "status",
-    } and not any(
-        any(arg == token or arg.startswith(token + "=") for token in unsafe) for arg in args
-    )
-
-
-def _python_grill_read_is_safe(argv: list[str]) -> bool:
-    if len(argv) < 3:
-        return False
-    script = Path(os.path.expandvars(argv[1])).expanduser().resolve()
-    return script == (SCRIPT_DIR / "grill_session.py").resolve() and argv[2] in GRILL_READ_ONLY_COMMANDS
-
-
-def _recovery_command_is_safe(payload: dict[str, Any]) -> bool:
-    argv = _command_argv(payload)
-    if argv is None:
-        return False
-    executable = Path(argv[0]).name
-    if executable in {"python", "python3"}:
-        return _python_grill_read_is_safe(argv)
-    if executable == "git":
-        return _git_read_is_safe(argv[1:])
-    if executable == "find" and any(
-        arg in {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint"} for arg in argv
-    ):
-        return False
-    if executable == "rg" and any(arg == "--pre" or arg.startswith("--pre=") for arg in argv[1:]):
-        return False
-    return executable in {"file", "find", "head", "ls", "pwd", "rg", "stat", "tail", "wc"}
-
-
 def _tool_is_recovery_safe(payload: dict[str, Any]) -> bool:
     """Recognise exact read-only discovery tools; never infer safety from a substring."""
     name = _normalise_tool_name(payload.get("tool_name") or payload.get("tool") or "")
@@ -233,21 +148,53 @@ def _tool_is_recovery_safe(payload: dict[str, Any]) -> bool:
     }
     if name in safe or name in exa or name.replace("mcp__plugin_exa_exa__", "mcp__exa__") in exa:
         return True
-    if not any(marker in name for marker in ("bash", "exec", "command", "shell")):
+    return False
+
+
+def _trusted_python(token: str) -> bool:
+    candidate = shutil.which(token) if Path(token).name == token else token
+    if not candidate:
         return False
-    return _recovery_command_is_safe(payload)
+    try:
+        return Path(candidate).resolve() == Path(sys.executable).resolve()
+    except OSError:
+        return False
 
 
-def _tool_is_grill_driver(payload: dict[str, Any]) -> bool:
-    """Admit only a direct invocation of the shipped Grill state controller."""
+def _single_option(argv: list[str], name: str) -> str | None:
+    positions = [index for index, token in enumerate(argv) if token == name]
+    if len(positions) != 1 or positions[0] + 1 >= len(argv):
+        return None
+    return argv[positions[0] + 1]
+
+
+def _bound_grill_state(receipt: dict[str, Any]) -> Path | None:
+    contract = receipt.get("setup_contract")
+    control = contract.get("grill_control") if isinstance(contract, dict) else None
+    raw_path = control.get("state_path") if isinstance(control, dict) else None
+    if not isinstance(raw_path, str) or not raw_path:
+        return None
+    return Path(raw_path).expanduser().resolve()
+
+
+def _tool_is_grill_driver(payload: dict[str, Any], receipt: dict[str, Any]) -> bool:
+    """Admit exact machine transitions bound to this startup receipt."""
     name = _normalise_tool_name(payload.get("tool_name") or payload.get("tool") or "")
     if not any(marker in name for marker in ("bash", "exec", "command", "shell")):
         return False
     argv = _command_argv(payload)
     if argv is None or len(argv) < 3:
         return False
-    executable = Path(argv[0]).name
-    if re.fullmatch(r"python(?:3(?:\.\d+)*)?", executable) is None:
+    if not _trusted_python(argv[0]):
         return False
-    script = Path(os.path.expandvars(argv[1])).expanduser().resolve()
-    return script == (SCRIPT_DIR / "grill_session.py").resolve() and argv[2] in GRILL_STATE_COMMANDS
+    script = Path(argv[1]).expanduser().resolve()
+    bound_state = _bound_grill_state(receipt)
+    supplied_state = _single_option(argv, "--state")
+    if script == (SCRIPT_DIR / "grill_session.py").resolve():
+        if argv[2] not in {"start", "show", "validate", "evidence", "materialize"}:
+            return False
+        return bool(bound_state and supplied_state and Path(supplied_state).resolve() == bound_state)
+    if script != (SCRIPT_DIR / "setup_driver.py").resolve() or argv[2] != "guard-dispatch":
+        return False
+    grill_session = _single_option(argv, "--grill-session")
+    return bool(bound_state and grill_session and Path(grill_session).resolve() == bound_state)

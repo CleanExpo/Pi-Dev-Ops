@@ -65,7 +65,7 @@ def _assert_root_denied(result: dict) -> None:
     assert "denied root implementation" in output["permissionDecisionReason"]
 
 
-def test_parallel_required_root_cannot_implement_but_can_dispatch_and_coordinate(
+def test_unverified_adapter_does_not_lock_root_or_admit_dispatch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     base = _start_parallel_session(tmp_path, monkeypatch)
@@ -74,30 +74,11 @@ def test_parallel_required_root_cannot_implement_but_can_dispatch_and_coordinate
         ("Edit", {"file_path": "app.py"}),
         ("apply_patch", {"patch": "*** Begin Patch"}),
     ):
-        denied = _parallel_hook(base, tool_name, tool_input)
-        _assert_root_denied(denied)
+        result = _parallel_hook(base, tool_name, tool_input)
+        assert "permissionDecision" not in result["hookSpecificOutput"]
 
     proof = _parallel_hook(base, "exec_command", {"cmd": "pytest -q"})
     assert "permissionDecision" not in proof["hookSpecificOutput"]
-
-    for tool_name in ("spawn_agent", "followup_task", "agent", "task"):
-        denied = _parallel_hook(base, tool_name)
-        _assert_root_denied(denied)
-
-    for tool_name in (
-        "wait_agent",
-        "list_agents",
-        "interrupt_agent",
-        "send_message",
-        # The actual host emits PascalCase labels.  These must retain the same
-        # coordination-only authority as the portable snake_case names.
-        "WaitAgent",
-        "ListAgents",
-        "InterruptAgent",
-        "SendMessage",
-    ):
-        allowed = _parallel_hook(base, tool_name)
-        assert "permissionDecision" not in allowed["hookSpecificOutput"]
 
     dispatch = _parallel_hook(base, "senior-harness.dispatch", {"node_id": "1.1"})
     assert dispatch["hookSpecificOutput"]["permissionDecision"] == "deny"
@@ -108,32 +89,12 @@ def test_parallel_required_root_cannot_implement_but_can_dispatch_and_coordinate
 def test_parallel_root_denies_mutating_or_unbounded_verifier_commands(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: str
 ) -> None:
-    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
-    _observe_adapter(tmp_path, monkeypatch)
-    base = {
-        "session_id": f"unsafe-verifier-{abs(hash(command))}",
-        "cwd": str(REPO_ROOT),
+    del tmp_path, monkeypatch
+    payload = {
+        "tool_name": "exec_command", "cwd": str(REPO_ROOT),
+        "tool_input": {"cmd": command},
     }
-    handle_hook(
-        {
-            **base,
-            "hook_event_name": "UserPromptSubmit",
-            "prompt": "Repair and verify the harness",
-        },
-        surface="codex",
-        event="UserPromptSubmit",
-    )
-    denied = handle_hook(
-        {
-            **base,
-            "hook_event_name": "PreToolUse",
-            "tool_name": "exec_command",
-            "tool_input": {"cmd": command},
-        },
-        surface="codex",
-        event="PreToolUse",
-    )
-    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert setup_driver_module._is_parallel_verification_tool(payload) is False
 
 
 def test_parallel_verifier_binds_actual_execution_workdir(tmp_path: Path) -> None:

@@ -148,7 +148,7 @@ def test_grill_hook_denies_project_action_but_allows_evidence_discovery(
     assert "permissionDecision" not in read_result["hookSpecificOutput"]
 
     search_result = _grill_pretool(
-        base, "exec_command", {"cmd": "rg -n recovery CONTEXT.md"}
+        base, "Grep", {"pattern": "recovery", "path": "CONTEXT.md"}
     )
     assert "permissionDecision" not in search_result["hookSpecificOutput"]
 

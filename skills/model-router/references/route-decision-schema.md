@@ -26,6 +26,7 @@ selected floor. JSON examples are normative for field names, not live values.
     "required_tools": ["read", "edit", "test"],
     "sensitivity": "public|internal|confidential|client",
     "prior_failures": 0,
+    "failure_feedback": [],
     "ownership_disjoint": true
   },
   "limits": {

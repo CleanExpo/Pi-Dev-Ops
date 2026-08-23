@@ -69,12 +69,18 @@ def _classify_task(signals: Any) -> tuple[tuple[str, str, str, str, bool], set[s
 
 
 def _apply_failure_escalation(
-    profile: tuple[str, str, str, str, bool], prior_failures: int
+    profile: tuple[str, str, str, str, bool], prior_failures: int,
+    failure_feedback: tuple[str, ...],
 ) -> tuple[tuple[str, str, str, str, bool], bool, list[str]]:
     if not prior_failures:
         return profile, False, []
+    if not failure_feedback:
+        return profile, True, ["failure-feedback-missing"]
     task_class, role, floor, effort, high_stakes = profile
-    target_rank = QUALITY_ORDER.index(floor) + prior_failures
+    escalation_steps = max(0, prior_failures - 1)
+    if not escalation_steps:
+        return profile, False, ["same-floor-retry-with-gate-feedback"]
+    target_rank = QUALITY_ORDER.index(floor) + escalation_steps
     exhausted = target_rank >= len(QUALITY_ORDER)
     floor = QUALITY_ORDER[min(target_rank, len(QUALITY_ORDER) - 1)]
     minimum_effort = "high" if floor != "cheap" else effort
@@ -193,7 +199,7 @@ def decide_route(raw: RoutingRequest | dict[str, Any]) -> RouteDecision:
     request = raw if isinstance(raw, RoutingRequest) else RoutingRequest.from_dict(raw)
     profile, stake_set, reasons = _classify_task(request.signals)
     profile, exhausted, escalation_reasons = _apply_failure_escalation(
-        profile, request.signals.prior_failures
+        profile, request.signals.prior_failures, request.signals.failure_feedback
     )
     reasons.extend(escalation_reasons)
     location = (

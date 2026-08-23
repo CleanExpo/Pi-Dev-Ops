@@ -148,6 +148,12 @@ def _run_hook(args: argparse.Namespace) -> dict[str, Any]:
             f"Senior Harness rejected hook input: {'; '.join(exc.errors)}",
             deny=True,
         )
+    except Exception as exc:
+        return _hook_output(
+            args.event,
+            f"Senior Harness denied execution after an internal hook failure ({type(exc).__name__}).",
+            deny=True,
+        )
 
 
 def _run_command(args: argparse.Namespace) -> dict[str, Any]:
@@ -180,6 +186,12 @@ def main(argv: list[str] | None = None) -> int:
         errors = exc.errors if hasattr(exc, "errors") else [str(exc)]
         print(
             json.dumps({"status": "invalid", "errors": errors}, sort_keys=True),
+            file=sys.stderr,
+        )
+        return 2
+    except Exception as exc:
+        print(
+            json.dumps({"status": "invalid", "errors": [f"internal driver failure ({type(exc).__name__})"]}),
             file=sys.stderr,
         )
         return 2

@@ -60,6 +60,14 @@ def _boolean(value: Any, field_name: str) -> bool:
     return value
 
 
+def _string_tuple(value: Any, field_name: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or any(
+        not isinstance(item, str) or not item.strip() for item in value
+    ):
+        raise RoutingValidationError(f"{field_name} must be a list of non-empty strings")
+    return tuple(item.strip() for item in value)
+
+
 @dataclass(frozen=True)
 class RoutingSignals:
     determinism: str
@@ -75,6 +83,7 @@ class RoutingSignals:
     required_tools: tuple[str, ...]
     sensitivity: str
     prior_failures: int
+    failure_feedback: tuple[str, ...]
     ownership_disjoint: bool
 
     @classmethod
@@ -99,6 +108,9 @@ class RoutingSignals:
             required_tools=tuple(str(item) for item in raw.get("required_tools", [])),
             sensitivity=_choice(raw.get("sensitivity"), SENSITIVITY, "signals.sensitivity"),
             prior_failures=_non_negative_int(raw.get("prior_failures", 0), "signals.prior_failures"),
+            failure_feedback=_string_tuple(
+                raw.get("failure_feedback", []), "signals.failure_feedback"
+            ),
             ownership_disjoint=_boolean(
                 raw.get("ownership_disjoint", False), "signals.ownership_disjoint"
             ),
