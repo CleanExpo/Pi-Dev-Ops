@@ -1,4 +1,4 @@
-# .claude — Wiki
+# .codex — Wiki
 
 _Last updated: 2026-08-23T04:19:17Z (commits feb08fa..c6e2386)_
 
@@ -7,7 +7,7 @@ _Last updated: 2026-08-23T04:19:17Z (commits feb08fa..c6e2386)_
 - 9edc3c4 — fix(senior-harness): recover a session whose first prompt was outside Git
 
 ## Architecture (current)
-Auto-stub: `.claude/` had 2 recent commits. SDK unavailable for synthesis.
+Auto-stub: `.codex/` had 2 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .claude/settings.json — touched in recent commits
+- .codex/hooks.json — touched in recent commits
