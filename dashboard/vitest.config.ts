@@ -28,6 +28,10 @@ export default defineConfig({
     // Nothing here relaxes an assertion: the same statuses are still required.
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    // The suite runs from an external-volume worktree. Unbounded cold fork startup
+    // can saturate that volume and time out workers before any test is collected.
+    // Two workers preserve file isolation and every assertion while keeping startup bounded.
+    maxWorkers: 2,
     include: ["**/__tests__/**/*.{test,spec}.{ts,tsx}", "**/*.{test,spec}.{ts,tsx}"],
     exclude: ["node_modules", ".next"],
   },
