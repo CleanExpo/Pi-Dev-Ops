@@ -27,8 +27,11 @@ unresolved `op://...` reference does not work — `server.ts` rejects it.
 
 ## Prerequisite — the headless 1Password token
 
-`run.sh` reads the service-role key at every launch via `op read`, so no secret is
-ever placed in a config file or a shell profile. It needs two things present:
+`run.sh` reads the Supabase service-role key at every launch via `op read`, so that
+key is never written into the MCP registration or a shell profile. This is a
+deliberate trade, not the removal of all stored credentials: a narrowly-scoped
+1Password service-account token is still stored on disk, in a protected file, and
+is what the wrapper uses to fetch the key. It needs two things present:
 
 - The `op` CLI on `PATH`.
 - A 1Password service-account token named `OP_SERVICE_ACCOUNT_TOKEN_NEXUS_AUDIT`
