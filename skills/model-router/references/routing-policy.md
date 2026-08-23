@@ -55,9 +55,9 @@ its location. Do not treat high volume as high stakes by itself.
 | Role | Authority | Typical floor | Verification |
 |---|---|---|---|
 | `driver` | intent, plan, dispatch, integration, root result | `top` | Does not verify its own leaf. |
-| `senior` | architecture, subtle debugging, migrations, security design | `mid|top` | Independent, equal or higher floor. |
-| `worker` | frozen implementation or non-mutating gathering | `cheap|mid` | Never below worker; production mutation defaults to `mid`. |
-| `verifier` | diff boundary and gate rerun | `mid|top` | Fresh context; no candidate repair. |
+| `senior` | architecture, subtle debugging, migrations, security design | `mid\|top` | Independent, equal or higher floor. |
+| `worker` | frozen implementation or non-mutating gathering | `cheap\|mid` | Never below worker; production mutation defaults to `mid`. |
+| `verifier` | diff boundary and gate rerun | `mid\|top` | Fresh context; no candidate repair. |
 
 Verifier independence means a different execution context that did not author the candidate. A
 worker self-check is evidence for handoff, not acceptance.

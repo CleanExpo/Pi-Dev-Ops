@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.codex/skills/senior-harness/scripts/setup_driver.py\" hook --surface codex --event SessionStart --allow-non-git",
+            "command": "bash \"$HOME/.codex/skills/senior-harness/scripts/run_setup_driver.sh\" hook --surface codex --event SessionStart --allow-non-git",
             "statusMessage": "Loading the Senior Harness",
             "additionalContextLimit": 1200
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.codex/skills/senior-harness/scripts/setup_driver.py\" hook --surface codex --event UserPromptSubmit --allow-non-git",
+            "command": "bash \"$HOME/.codex/skills/senior-harness/scripts/run_setup_driver.sh\" hook --surface codex --event UserPromptSubmit --allow-non-git",
             "statusMessage": "Freezing the primary objective",
             "additionalContextLimit": 1200
           }
@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.codex/skills/senior-harness/scripts/setup_driver.py\" hook --surface codex --event PreToolUse --allow-non-git",
+            "command": "bash \"$HOME/.codex/skills/senior-harness/scripts/run_setup_driver.sh\" hook --surface codex --event PreToolUse --allow-non-git",
             "statusMessage": "Checking Senior Harness admission",
             "additionalContextLimit": 1200
           }

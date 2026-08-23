@@ -18,12 +18,11 @@ digest, this driver, and the installed `senior-harness`, `model-router`, and `un
 It also executes the provider-neutral router and binds its `RoutingRequest` and `RouteDecision`, then
 requires Unlazy as the downstream decomposition, gate, integration, and receipt controller.
 
-For normal Codex and Claude delivery sessions, startup also binds a parallel-first orchestration
-policy. Before the root performs implementation, load Unlazy, prove disjoint leaf ownership, admit
-the delivery contract, and dispatch the independent leaves up to the four-worker cap. The root owns
-coordination and final proof; bounded leaf and integration workers own every mutation. The lifecycle
-hook denies root mutation tools throughout a parallel-required session. Grill interactions remain
-locked and never receive an early dispatch instruction.
+Parallel-first enforcement activates only when a cryptographically verified signed dispatcher is
+installed and proves cancellation, isolation, and capacity. This slice ships no such dispatcher, so
+adapter JSON and hook presence cannot activate that policy. Use host-authorised parallel agents
+directly when available, with Unlazy ownership and independent verification; do not claim the startup
+hook admitted or controlled those workers. Grill interactions never receive an early dispatch instruction.
 
 Install the same control stack into all three skill discovery roots with:
 
@@ -39,10 +38,14 @@ This aligns `senior-harness`, `model-router`, and `unlazy` under `~/.codex/skill
 `~/.claude/skills`, and `~/.agents/skills`. Codex and Claude have lifecycle-hook adapters; the
 Agents root is discovery-only unless its host separately proves a lifecycle adapter.
 
+Lifecycle hooks invoke `scripts/run_setup_driver.sh`. The runner prefers an explicit
+`SENIOR_HARNESS_PYTHON`, then the canonical checkout's `.venv`, and uses ambient `python3` only when
+it is version 3.10 or newer. If none is available, prompt submission and tool use fail closed.
+
 Run the same driver explicitly from any Git project when hooks are unavailable or untrusted:
 
 ```bash
-python ~/.codex/skills/senior-harness/scripts/setup_driver.py start \
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh start \
   "<literal request>" --project "$(git rev-parse --show-toplevel)" --surface codex
 ```
 
@@ -60,8 +63,8 @@ Claude:     /senior-harness <literal request>
 Locate the canonical source, then create the immutable intake envelope from any project:
 
 ```bash
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py where
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py intake "<literal request>" --horizon-required
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh contract where
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh contract intake "<literal request>" --horizon-required
 ```
 
 Claude Code uses the same path under `~/.claude/skills/`. Do not assume the active project contains
@@ -78,10 +81,12 @@ gate on those surfaces.
 
 The hooks mechanically require a valid startup receipt before the first mediated local tool and keep
 injecting the frozen objective afterward. In a `/grill-me` or `/grill-with-docs` interaction they
-fail closed: only evidence discovery and the Grill state driver may run; edits, pushes, deploys, sends,
+fail closed: only evidence discovery and receipt-bound machine transitions may run; edits, pushes, deploys, sends,
 and worker dispatch are denied. Outside a Grill, existing host/repository policy still controls generic
 mutations. `guard-dispatch` rejects every Grill delivery move until a confirmed shared-understanding
 session is supplied and continues rejecting mutating moves until a trusted authority adapter exists.
+The mediated model lane cannot submit `answer` or `confirm`; those human decisions must be entered by
+the operator outside the model-controlled tool lane against the receipt-bound state path.
 
 Recovery is deliberately asymmetric. A missing or invalid session receipt may still admit exact,
 read-only discovery tools such as `Read`, `Grep`, `Glob`, `ToolSearch`, web search, and the named
@@ -93,29 +98,7 @@ normal host and repository policy still decides generic tools, and a fresh sessi
 produce new control-code evidence. Grill interactions continue revalidating project and control
 bytes on every tool, with recovery reads as the only carve-out.
 
-### Governed Grill-Me entry
-
-First create or select a fat-marker sketch in the real Obsidian vault's `Sketches/` directory. Then
-freeze the Grill interaction explicitly:
-
-```bash
-python ~/.codex/skills/senior-harness/scripts/setup_driver.py start \
-  "/grill-me <literal project objective>" --project "<git-root>" --surface codex \
-  --interaction grill-me
-```
-
-Use `grill-with-docs` for an existing codebase. Build a dependency-ordered decision-tree JSON, then
-start the session with `grill_session.py start`. Keep its state below
-`$SENIOR_HARNESS_STATE_DIR` or `~/.local/state/senior-harness/`; never store control state in the
-project. The machine exposes an evidence query or exactly one human question. Human questions must
-carry a recommendation and rationale. Record the user's words verbatim as `DECIDED`, `RABBIT_HOLE`,
-or `NO_GO`. Confirmation requires the exact phrase printed by the driver and cannot succeed while a
-leaf is unresolved. Only then may `materialize` write the bound transcript under the vault's sibling
-`Grills/` directory.
-
-Load [`references/grill-contract.md`](references/grill-contract.md) for the state schema and authority
-boundary. A shared-understanding receipt proves the interview resolved; it grants no mutation,
-business, financial, privacy, deployment, or irreversible authority.
+Governed Grill-Me entry, and the authority its receipt withholds, is specified in [`references/grill-contract.md`](references/grill-contract.md).
 
 ## 1. Ground
 
@@ -185,7 +168,7 @@ source set, and model class before dispatch. Record the hypothesis, but exclude 
 from the fingerprint so paraphrasing cannot create a new pathway:
 
 ```bash
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py bind-attempt CONTRACT.json ATTEMPT.json
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh contract bind-attempt CONTRACT.json ATTEMPT.json
 ```
 
 The binding command derives the input digest and stable route handle from the frozen task, then emits
@@ -203,8 +186,8 @@ uncertainty case names its specialists, arbiter, evidence, experiment, and resol
 Validate the frozen candidate contract before execution and query admitted delivery work:
 
 ```bash
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py lint CONTRACT.json
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py ready CONTRACT.json
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh contract lint CONTRACT.json
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh contract ready CONTRACT.json
 ```
 
 Treat exit `2` or invalid JSON as a hard stop. `lint` proves contract structure only; identity strings,

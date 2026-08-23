@@ -74,8 +74,10 @@ a secret to a gate command.
 
 - Leaf gates prove leaf-local outcomes.
 - Cross-leaf/shared checks belong to branch/root gates.
-- Cache a shared check only by command + cwd + allow-listed environment + runner + relevant inputs +
-  candidate SHA. Any change invalidates the cache.
+- Cache a shared check only by the complete gate contract: `CHECK` + `EXIT` + `EXPECT` + `TIMEOUT` +
+  the check digest + cwd + allow-listed environment + runner + relevant inputs + candidate SHA. Any
+  change invalidates the cache. Keying on the command alone lets a changed expectation or a widened
+  allowed exit reuse a receipt that never proved the new contract.
 - Run branch/root checks once per distinct integration SHA and check digest.
 
 ## Strict terminal semantics

@@ -57,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/skills/senior-harness/scripts/setup_driver.py\" hook --surface claude --event SessionStart --allow-non-git"
+            "command": "bash \"$HOME/.claude/skills/senior-harness/scripts/run_setup_driver.sh\" hook --surface claude --event SessionStart --allow-non-git"
           }
         ]
       }
@@ -67,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/skills/senior-harness/scripts/setup_driver.py\" hook --surface claude --event UserPromptSubmit --allow-non-git"
+            "command": "bash \"$HOME/.claude/skills/senior-harness/scripts/run_setup_driver.sh\" hook --surface claude --event UserPromptSubmit --allow-non-git"
           }
         ]
       }
@@ -78,7 +78,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/skills/senior-harness/scripts/setup_driver.py\" hook --surface claude --event PreToolUse --allow-non-git"
+            "command": "bash \"$HOME/.claude/skills/senior-harness/scripts/run_setup_driver.sh\" hook --surface claude --event PreToolUse --allow-non-git"
           }
         ]
       },

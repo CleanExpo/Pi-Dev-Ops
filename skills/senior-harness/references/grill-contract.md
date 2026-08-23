@@ -64,3 +64,28 @@ The session and receipt always carry:
 
 The receipt proves only that the bound interview reached shared understanding. It is not a mutation
 lease, approval to implement, business approval, deployment approval, or irreversible-action grant.
+
+## Entry procedure
+
+First create or select a fat-marker sketch in the real Obsidian vault's `Sketches/` directory. Then
+freeze the Grill interaction explicitly:
+
+```bash
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh start \
+  "/grill-me <literal project objective>" --project "<git-root>" --surface codex \
+  --interaction grill-me
+```
+
+Use `grill-with-docs` for an existing codebase. Build a dependency-ordered decision-tree JSON, then
+start the session only at the `grill_control.state_path` sealed into the startup receipt. Never choose
+another state path or store control state in the project. The machine exposes an evidence query or
+exactly one human question. Human questions must carry a recommendation and rationale. The mediated
+model tool lane cannot execute `answer` or `confirm`; the operator must enter those transitions outside
+that lane so the model cannot forge the user's words or the confirmation phrase. Record those words
+verbatim as `DECIDED`, `RABBIT_HOLE`, or `NO_GO`. Every state-changing command must supply the
+`--expected-integrity` value returned by the immediately preceding `show`; a stale or concurrent
+transition is rejected. Only then may `materialize` write the bound transcript under the vault's
+sibling `Grills/` directory.
+
+A shared-understanding receipt proves the interview resolved; it grants no mutation,
+business, financial, privacy, deployment, or irreversible authority.

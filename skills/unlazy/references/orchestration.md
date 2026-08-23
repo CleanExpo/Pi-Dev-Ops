@@ -22,7 +22,7 @@ while root is non-terminal:
   mark dependency-satisfied nodes ready
   select ready nodes with no ownership collision
   reserve spend/time/slots atomically
-  dispatch up to min(plan cap, harness cap, ownership cap, budget cap)
+  dispatch up to min(plan, user, repository, harness, ownership, privacy, budget, deadline caps)
   on each return:
     freeze candidate SHA and diff
     verify owned paths and leaf gates immediately

@@ -71,7 +71,9 @@ A plan rejects on:
   requested depth or seven, and worker caps outside one through sixteen;
 - missing/duplicate node IDs, invalid types/states/attempts, unknown/self dependencies, and cycles;
 - plans without exactly one root;
-- leaf nodes without owned paths or a gate file;
+- leaf nodes without owned paths, without a gate file, or without a non-empty `worker_id` that
+  differs from the verifier identity — terminal receipts are bound to that identity, so a plan
+  missing it is not dispatchable;
 - absolute, parent-traversing, wildcard, exact, or parent/child ownership overlaps across any nodes.
 
 Accepted ownership paths are stored in canonical repository-relative POSIX form (for example,

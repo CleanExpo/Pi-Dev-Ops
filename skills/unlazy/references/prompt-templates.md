@@ -59,6 +59,12 @@ First prove the candidate touched only owned paths and the contract/base are unc
 approved checks in a clean verifier context. Require allowed exits, expectations, no runner or
 teardown errors, and non-vacuous positive/mutation controls. Return pass/fail/blocked with exact
 SHA-bound evidence. Do not accept summaries and do not edit the candidate.
+
+The return is only acceptable when it carries every field the terminal contract binds: the fixed
+scheduler-verifier replay context, the relevant-input digest and the gate/check digest, proof of a
+clean worktree, strict terminal counts, the execution controls with usage known or explicitly
+unknown, and the scheduler-issued HMAC-authenticated receipt. Hashes you were handed are inputs to
+check, never authority to quote back.
 ```
 
 ## Integrator

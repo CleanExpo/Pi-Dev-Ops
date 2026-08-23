@@ -44,21 +44,28 @@ def _choice(value: Any, allowed: set[str], field_name: str) -> str:
 
 
 def _non_negative_int(value: Any, field_name: str) -> int:
-    if isinstance(value, bool):
+    # Only a genuine int is an integer here. Coercing via int() truncated
+    # fractional values (0.9 -> 0), which silently suppressed monotonic
+    # failure escalation, and accepted numeric strings the contract rejects.
+    if isinstance(value, bool) or not isinstance(value, int):
         raise RoutingValidationError(f"{field_name} must be an integer")
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError) as exc:
-        raise RoutingValidationError(f"{field_name} must be an integer") from exc
-    if parsed < 0:
+    if value < 0:
         raise RoutingValidationError(f"{field_name} must be non-negative")
-    return parsed
+    return value
 
 
 def _boolean(value: Any, field_name: str) -> bool:
     if type(value) is not bool:
         raise RoutingValidationError(f"{field_name} must be a boolean")
     return value
+
+
+def _string_tuple(value: Any, field_name: str) -> tuple[str, ...]:
+    if not isinstance(value, list) or any(
+        not isinstance(item, str) or not item.strip() for item in value
+    ):
+        raise RoutingValidationError(f"{field_name} must be a list of non-empty strings")
+    return tuple(item.strip() for item in value)
 
 
 @dataclass(frozen=True)
@@ -76,6 +83,7 @@ class RoutingSignals:
     required_tools: tuple[str, ...]
     sensitivity: str
     prior_failures: int
+    failure_feedback: tuple[str, ...]
     ownership_disjoint: bool
 
     @classmethod
@@ -100,6 +108,9 @@ class RoutingSignals:
             required_tools=tuple(str(item) for item in raw.get("required_tools", [])),
             sensitivity=_choice(raw.get("sensitivity"), SENSITIVITY, "signals.sensitivity"),
             prior_failures=_non_negative_int(raw.get("prior_failures", 0), "signals.prior_failures"),
+            failure_feedback=_string_tuple(
+                raw.get("failure_feedback", []), "signals.failure_feedback"
+            ),
             ownership_disjoint=_boolean(
                 raw.get("ownership_disjoint", False), "signals.ownership_disjoint"
             ),
