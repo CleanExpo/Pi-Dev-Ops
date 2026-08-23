@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.23.4",
-    "generated_at": "2026-08-23T03:49:03.733134+00:00",
+    "version": "1.23.8",
+    "generated_at": "2026-08-23T08:15:39.291376+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -2373,7 +2373,7 @@
       "owner_role": "Tier-Architect (handoff resumption; verify-then-resume)",
       "status": "active",
       "path": "skills/resume-from-handoff/SKILL.md",
-      "sha256": "6b2f51f41dd1b7833a8585190dd95966ba26c7f00c20aae5b7d4777bb1dbe3d7",
+      "sha256": "b9eb0e2ba7db0d29d2bbf7be4e04dcf8fbd01e100db3768bf6ce075542b4cc77",
       "dependencies": {
         "tools": [],
         "skills": []

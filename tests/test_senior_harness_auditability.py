@@ -20,9 +20,10 @@ def _governed_files() -> list[Path]:
     files.extend(SCRIPT_ROOT.glob("*.py"))
     files.extend(TEST_ROOT.glob("test_senior_harness_*.py"))
     files.extend(TEST_ROOT.glob("test_grill_session_*.py"))
-    support = TEST_ROOT / "_senior_harness_setup_support.py"
-    if support.is_file():
-        files.append(support)
+    for support_name in ("_senior_harness_setup_support.py", "_harness_entry_support.py"):
+        support = TEST_ROOT / support_name
+        if support.is_file():
+            files.append(support)
     return sorted(set(files))
 
 
