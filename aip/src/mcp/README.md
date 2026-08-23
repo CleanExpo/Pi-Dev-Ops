@@ -105,7 +105,15 @@ server-side access layer.
 ### Sourcing the service key from 1Password
 
 The key is stored as `SUPABASE_SERVICE_ROLE_KEY` in the `Unite-Group-Infrastructure`
-1Password vault. Pull it into the current shell with:
+1Password vault. The registered `run.sh` wrapper uses the existing headless
+1Password service account. When a GUI-launched MCP process has no
+`OP_SERVICE_ACCOUNT_TOKEN`, the wrapper reads only
+`OP_SERVICE_ACCOUNT_TOKEN_NEXUS_AUDIT` from `~/.hermes/.env`. It refuses a file
+not owned by the current user or with permissions other than `0600`/`0400`,
+never logs the token, and removes the token from the MCP server's environment
+after the one `op read` call.
+
+For a manual development shell, pull the service key with:
 
 ```bash
 export SUPABASE_SERVICE_ROLE_KEY=$(op item get SUPABASE_SERVICE_ROLE_KEY \
