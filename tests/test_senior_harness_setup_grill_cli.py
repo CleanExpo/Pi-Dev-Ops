@@ -48,6 +48,12 @@ def _grill_state(tmp_path: Path) -> tuple[Path, dict[str, str], bytes]:
 def _run_grill(
     command: str, state_path: Path, env: dict[str, str], *args: str
 ) -> subprocess.CompletedProcess[str]:
+    arguments = list(args)
+    if command in {"evidence", "answer", "confirm", "materialize"}:
+        integrity = json.loads(state_path.read_text(encoding="utf-8"))[
+            "session_integrity_digest"
+        ]
+        arguments.extend(["--expected-integrity", integrity])
     return subprocess.run(
         [
             sys.executable,
@@ -55,7 +61,7 @@ def _run_grill(
             command,
             "--state",
             str(state_path),
-            *args,
+            *arguments,
         ],
         env=env,
         capture_output=True,
@@ -120,6 +126,30 @@ def test_allowlisted_grill_subcommands_do_not_write_state_but_denied_ones_do(
     )
     assert answered.returncode == 0, answered.stderr
     assert state_path.read_bytes() != before
+
+
+def test_concurrent_answers_use_compare_and_swap(
+    tmp_path: Path,
+) -> None:
+    state_path, env, _before = _grill_state(tmp_path)
+    integrity = json.loads(state_path.read_text(encoding="utf-8"))[
+        "session_integrity_digest"
+    ]
+    base = [
+        sys.executable, str(SCRIPT_DIR / "grill_session.py"), "answer",
+        "--state", str(state_path), "--resolution", "DECIDED",
+        "--expected-integrity", integrity, "--answer",
+    ]
+    processes = [
+        subprocess.Popen([*base, answer], env=env, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, text=True)
+        for answer in ("Market A", "Market B")
+    ]
+    results = [process.communicate(timeout=10) for process in processes]
+    returncodes = [process.returncode for process in processes]
+    assert sorted(returncodes) == [0, 2], results
+    loser_error = results[returncodes.index(2)][1]
+    assert "state changed after it was observed" in loser_error
 
 
 def test_recovery_read_denies_a_grill_write_when_no_receipt_exists(

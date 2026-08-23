@@ -11,6 +11,8 @@ from setup_state import (
     _pending_quarantine_reason,
     _read_pending_objective,
     _read_state,
+    _session_lock_path,
+    _state_lock,
     _write_state,
 )
 from setup_tools import (
@@ -184,6 +186,19 @@ def handle_pretool(
     roots: Iterable[str | Path] | None,
 ) -> dict[str, Any]:
     recovery_safe = _tool_is_recovery_safe(payload)
+    with _state_lock(_session_lock_path(session_id)):
+        return _handle_pretool_locked(
+            payload, project_root=project_root, surface=surface,
+            session_id=session_id, state_path=state_path,
+            pending_path=pending_path, roots=roots, recovery_safe=recovery_safe,
+        )
+
+
+def _handle_pretool_locked(
+    payload: dict[str, Any], *, project_root: Path, surface: str,
+    session_id: str, state_path: Path, pending_path: Path,
+    roots: Iterable[str | Path] | None, recovery_safe: bool,
+) -> dict[str, Any]:
     try:
         recovered, admission_error = _recover_pending(
             pending_path=pending_path, state_path=state_path, session_id=session_id,

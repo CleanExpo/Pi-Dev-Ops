@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import hashlib
+import fcntl
 import json
 import os
 import secrets
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -114,6 +116,37 @@ def _open_control_parent(path: Path) -> int:
     except Exception:
         os.close(descriptor)
         raise
+
+
+@contextmanager
+def _state_lock(path: Path):
+    """Serialize one Grill transition through a private no-follow lock file."""
+    parent = _open_control_parent(path)
+    descriptor: int | None = None
+    try:
+        descriptor = _open_lock_file(parent, f".{path.name}.lock")
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        if descriptor is not None:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+            os.close(descriptor)
+        os.close(parent)
+
+
+def _open_lock_file(parent: int, name: str) -> int:
+    flags = os.O_RDWR | os.O_NOFOLLOW
+    for _attempt in range(5):
+        try:
+            return os.open(name, flags | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=parent)
+        except FileExistsError:
+            try:
+                return os.open(name, flags, dir_fd=parent)
+            except FileNotFoundError:
+                continue
+        except FileNotFoundError:
+            continue
+    raise GrillSessionError("unable to establish the Grill state transition lock")
 
 
 def _validated_materialization(

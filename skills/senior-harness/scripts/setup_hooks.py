@@ -8,7 +8,7 @@ from setup_common import SetupError, _hook_output
 from setup_pretool import handle_pretool
 from setup_prompt import handle_prompt
 from setup_repository import _git
-from setup_state import _pending_state_path, _state_path
+from setup_state import _pending_state_path, _session_lock_path, _state_lock, _state_path
 
 
 def _validate_hook_input(payload: Any, surface: str, event: str) -> tuple[str, str]:
@@ -58,7 +58,8 @@ def handle_hook(
     state_path = _state_path(root, session_id)
     pending_path = _pending_state_path(session_id)
     if event == "SessionStart":
-        return _handle_session_start(payload, state_path, pending_path)
+        with _state_lock(_session_lock_path(session_id)):
+            return _handle_session_start(payload, state_path, pending_path)
     if event == "UserPromptSubmit":
         return handle_prompt(
             payload, project_root=root, surface=surface, session_id=session_id,

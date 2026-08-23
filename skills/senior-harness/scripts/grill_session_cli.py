@@ -12,7 +12,9 @@ from grill_session_contract import (
     GrillSessionError,
 )
 from grill_session_model import start_session, validate_session
-from grill_session_storage import _materialize_transcript, _read_object, _state_path, _write_state
+from grill_session_storage import (
+    _materialize_transcript, _read_object, _state_lock, _state_path, _write_state,
+)
 from grill_session_transitions import (
     answer_pending_evidence,
     answer_pending_question,
@@ -34,17 +36,21 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument("--state", required=True)
     evidence = sub.add_parser("evidence")
     evidence.add_argument("--state", required=True)
+    evidence.add_argument("--expected-integrity", required=True)
     evidence.add_argument("--answer", required=True)
     evidence.add_argument("--sources", required=True)
     answer = sub.add_parser("answer")
     answer.add_argument("--state", required=True)
+    answer.add_argument("--expected-integrity", required=True)
     answer.add_argument("--answer", required=True)
     answer.add_argument("--resolution", choices=sorted(DECISION_RESOLUTIONS), required=True)
     confirm = sub.add_parser("confirm")
     confirm.add_argument("--state", required=True)
+    confirm.add_argument("--expected-integrity", required=True)
     confirm.add_argument("--phrase", required=True)
     materialize = sub.add_parser("materialize")
     materialize.add_argument("--state", required=True)
+    materialize.add_argument("--expected-integrity", required=True)
     return parser
 
 
@@ -71,6 +77,10 @@ def _evidence(args: argparse.Namespace, session: dict[str, Any]) -> dict[str, An
 def _advance(args: argparse.Namespace, state_path: Path) -> dict[str, Any]:
     session = _read_object(state_path)
     validate_session(session)
+    observed = session.get("session_integrity_digest")
+    expected = getattr(args, "expected_integrity", observed)
+    if observed != expected:
+        raise GrillSessionError("state changed after it was observed; reload before advancing")
     if args.command == "evidence":
         session = _evidence(args, session)
     elif args.command == "answer":
@@ -88,7 +98,10 @@ def _advance(args: argparse.Namespace, state_path: Path) -> dict[str, Any]:
 
 def _execute(args: argparse.Namespace) -> dict[str, Any]:
     state_path = _state_path(args.state)
-    return _start(args, state_path) if args.command == "start" else _advance(args, state_path)
+    if args.command in {"show", "validate"}:
+        return _advance(args, state_path)
+    with _state_lock(state_path):
+        return _start(args, state_path) if args.command == "start" else _advance(args, state_path)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -97,6 +110,6 @@ def main(argv: list[str] | None = None) -> int:
         session = _execute(args)
         print(json.dumps(session, indent=2, sort_keys=True))
         return 0
-    except GrillSessionError as exc:
+    except (GrillSessionError, OSError) as exc:
         print(json.dumps({"status": "invalid", "error": str(exc)}, sort_keys=True), file=sys.stderr)
         return 2

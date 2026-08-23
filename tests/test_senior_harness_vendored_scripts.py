@@ -124,6 +124,27 @@ def test_explicit_start_fails_when_python_is_unavailable(tmp_path: Path) -> None
     assert "Python 3.10 or newer is unavailable" in result.stderr
 
 
+def test_non_python_override_cannot_silently_bypass_a_hook(tmp_path: Path) -> None:
+    scripts = tmp_path / "skill" / "scripts"
+    scripts.mkdir(parents=True)
+    runner = scripts / RUNNER.name
+    runner.write_bytes(RUNNER.read_bytes())
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    python = fake_bin / "python3"
+    python.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    python.chmod(0o755)
+    result = subprocess.run(
+        ["bash", str(runner), "hook", "--event", "PreToolUse"],
+        env={
+            "PATH": f"{fake_bin}:/usr/bin:/bin",
+            "SENIOR_HARNESS_PYTHON": "/usr/bin/true",
+        }, capture_output=True, text=True,
+    )
+    assert result.returncode == 2
+    assert "Python 3.10 or newer is unavailable" in result.stderr
+
+
 @pytest.mark.parametrize("failure", ["missing", "crash", "timeout"])
 def test_hook_bootstrap_converts_runtime_failures_to_blocking_exit(
     tmp_path: Path, failure: str

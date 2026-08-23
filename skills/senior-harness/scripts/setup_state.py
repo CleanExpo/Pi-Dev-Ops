@@ -39,6 +39,10 @@ def _pending_state_path(session_id: str) -> Path:
     return _state_root() / "pending-project" / f"{_session_key(session_id)}.json"
 
 
+def _session_lock_path(session_id: str) -> Path:
+    return _state_root() / "session-locks" / f"{_session_key(session_id)}.json"
+
+
 def _write_state(path: Path, state: dict[str, Any]) -> None:
     """Atomically publish private session state with a per-call temporary file."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -199,7 +203,8 @@ def _record_pending_objective(
         raise SetupError(["hook payload is missing session_id"])
     path = _pending_state_path(session_id)
     if event == "SessionStart" and payload.get("source") == "clear":
-        return _clear_pending(event, path)
+        with _state_lock(_session_lock_path(session_id)):
+            return _clear_pending(event, path)
     if event == "PreToolUse":
         return _outside_git_tool(payload, event)
     if event != "UserPromptSubmit":
@@ -207,7 +212,7 @@ def _record_pending_objective(
             event,
             "Senior Harness global hook is inactive because this task is outside a Git project. No admission or authority claim was made.",
         )
-    with _state_lock(path):
+    with _state_lock(_session_lock_path(session_id)):
         return _pending_prompt(
             payload, surface=surface, event=event, path=path, session_id=session_id
         )

@@ -5,11 +5,16 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 repo_python="$script_dir/../../../.venv/bin/python"
 python_bin=${SENIOR_HARNESS_PYTHON:-}
 
-if [ -n "$python_bin" ] && [ -x "$python_bin" ]; then
+is_compatible_python() {
+  [ -n "$1" ] && [ -x "$1" ] &&
+    [ "$("$1" -c 'import sys; print("senior-harness-python-ok" if sys.version_info >= (3, 10) else "")' 2>/dev/null || true)" = "senior-harness-python-ok" ]
+}
+
+if is_compatible_python "$python_bin"; then
   selected_python=$python_bin
-elif [ -x "$repo_python" ]; then
+elif is_compatible_python "$repo_python"; then
   selected_python=$repo_python
-elif command -v python3 >/dev/null 2>&1 && python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 10))'; then
+elif command -v python3 >/dev/null 2>&1 && is_compatible_python "$(command -v python3)"; then
   selected_python=$(command -v python3)
 else
   selected_python=

@@ -168,6 +168,9 @@ def test_grill_driver_rejects_fake_interpreter_and_unbound_state(tmp_path: Path)
     assert setup_driver._tool_is_grill_driver(
         _grill_command("show", tmp_path / "other.json"), receipt
     ) is False
+    duplicate = _grill_command("show", state)
+    duplicate["tool_input"]["command"] += f" --state={tmp_path / 'other.json'}"
+    assert setup_driver._tool_is_grill_driver(duplicate, receipt) is False
 
 
 def test_receipt_bound_guard_dispatch_reaches_its_confirmation_gate(
@@ -189,6 +192,12 @@ def test_receipt_bound_guard_dispatch_reaches_its_confirmation_gate(
         surface="codex", event="PreToolUse",
     )["hookSpecificOutput"]
     assert "permissionDecision" not in output
+    duplicate = f"{command} --grill-session={tmp_path / 'other.json'}"
+    denied = setup_driver.handle_hook(
+        {**_base("grill-guard", "PreToolUse"), "tool_name": "Bash", "tool_input": {"command": duplicate}},
+        surface="codex", event="PreToolUse",
+    )["hookSpecificOutput"]
+    assert denied["permissionDecision"] == "deny"
 
 
 def test_competing_first_prompts_publish_exactly_one_primary_objective(
@@ -214,3 +223,38 @@ def test_competing_first_prompts_publish_exactly_one_primary_objective(
         "setup_contract"
     ]["literal_objective"]
     assert primary in {"objective A", "objective B"}
+
+
+def test_outside_and_inside_git_prompts_cannot_discard_each_other(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    session_id = "cross-path-first"
+    barrier = threading.Barrier(2)
+
+    def outside() -> dict:
+        barrier.wait()
+        return setup_driver._record_pending_objective(
+            {"session_id": session_id, "prompt": "outside objective"},
+            surface="codex", event="UserPromptSubmit",
+        )
+
+    def inside() -> dict:
+        barrier.wait()
+        return setup_driver.handle_hook(
+            {**_base(session_id, "UserPromptSubmit"), "prompt": "inside objective"},
+            surface="codex", event="UserPromptSubmit",
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(lambda function: function(), (outside, inside)))
+    state_path = setup_driver._state_path(REPO_ROOT.resolve(), session_id)
+    primary = json.loads(state_path.read_text(encoding="utf-8"))["receipt"][
+        "setup_contract"
+    ]["literal_objective"]
+    pending_path = setup_driver._pending_state_path(session_id)
+    assert primary == "outside objective" or pending_path.is_file()
+    if pending_path.is_file():
+        pending = json.loads(pending_path.read_text(encoding="utf-8"))
+        assert primary == "inside objective"
+        assert pending["literal_objective"] == "outside objective"

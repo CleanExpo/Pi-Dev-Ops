@@ -12,6 +12,7 @@ from setup_state import (
     _pending_reconciliation_reason,
     _read_pending_objective,
     _read_state,
+    _session_lock_path,
     _state_lock,
     _write_state,
 )
@@ -124,13 +125,15 @@ def handle_prompt(
     prompt = payload.get("prompt")
     if not isinstance(prompt, str) or not prompt.strip():
         raise SetupError(["UserPromptSubmit payload is missing the literal prompt"])
-    try:
-        prompt, pending = _pending_for_prompt(
-            pending_path, session_id=session_id, surface=surface, prompt=prompt
-        )
-    except SetupError as exc:
-        return _hook_output("UserPromptSubmit", _pending_quarantine_reason(exc), deny=True)
-    with _state_lock(state_path):
+    with _state_lock(_session_lock_path(session_id)):
+        try:
+            prompt, pending = _pending_for_prompt(
+                pending_path, session_id=session_id, surface=surface, prompt=prompt
+            )
+        except SetupError as exc:
+            return _hook_output(
+                "UserPromptSubmit", _pending_quarantine_reason(exc), deny=True
+            )
         if state_path.is_file():
             return _respond_existing_prompt(state_path, project_root, pending)
         return _admit_prompt(
