@@ -2345,4 +2345,3 @@ def test_repository_contract_rejects_a_base_absent_from_the_worktree(tmp_path: P
     with pytest.raises(ContractError) as excinfo:
         validate_contract(contract)
     assert any("does not resolve to a commit" in error for error in excinfo.value.errors)
-
