@@ -1,17 +1,18 @@
 # skills — Wiki
 
-_Last updated: 2026-08-09T11:15:17Z (commits 7291c1b..390da2d)_
+_Last updated: 2026-08-23T04:19:17Z (commits feb08fa..c6e2386)_
 
 ## Recent changes
-- 390da2d — feat(models): bump default orchestrator/top-tier model from Opus 4.8 to Opus 5 (#631)
+- c6e2386 — Merge pull request #662 from CleanExpo/fix/senior-harness-startup-recovery
+- 9edc3c4 — fix(senior-harness): recover a session whose first prompt was outside Git
 
 ## Architecture (current)
-Auto-stub: `skills/` had 1 recent commits. SDK unavailable for synthesis.
+Auto-stub: `skills/` had 2 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- skills/boardroom/SKILL.md — touched in recent commits
-- skills/nexus/references/orchestration-playbook.md — touched in recent commits
-- skills/pi-dev-ops-model-farm/SKILL.md — touched in recent commits
-- skills/spm/references/leveling.md — touched in recent commits
-- skills/spm/references/moa-board.md — touched in recent commits
-- skills/wiki-growth/SKILL.md — touched in recent commits
+- skills/senior-harness/SKILL.md — touched in recent commits
+- skills/senior-harness/scripts/install_senior_harness.sh — touched in recent commits
+- skills/senior-harness/scripts/setup_driver.py — touched in recent commits
+- skills/unlazy/SKILL.md — touched in recent commits
+- skills/unlazy/references/plan-contract-schema.md — touched in recent commits
+- skills/model-router/SKILL.md — touched in recent commits
