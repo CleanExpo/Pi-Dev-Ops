@@ -1072,12 +1072,16 @@ def _pending_quarantine_reason(exc: SetupError) -> str:
     whoever corrupted the record simply waits one turn and installs an objective of
     their choosing.  The only exit is an explicit SessionStart with source=clear,
     which is a deliberate operator act rather than anything the tampered session can
-    reach on its own.
+    reach on its own.  That exit is not narrow: it unlinks the project state as well
+    as the pending record, so it also destroys a frozen objective and its receipt if
+    this project holds one.  The refusal below must say so.
     """
     return (
         f"Senior Harness denied the request: pending startup objective is invalid ({exc}). "
-        "This session stays denied until an explicit SessionStart with source=clear "
-        "discards the pending record; no later prompt or tool can override it."
+        "This session stays denied until an explicit SessionStart with source=clear; no "
+        "later prompt or tool can override it. That clear DISCARDS BOTH records -- the "
+        "invalid pending objective AND this project's frozen objective and receipt if it "
+        "holds one -- so capture anything worth keeping before running it."
     )
 
 
@@ -1274,7 +1278,9 @@ def handle_hook(
             pending_path.unlink(missing_ok=True)
             return _hook_output(
                 event,
-                "Senior Harness cleared the prior objective lock. The next user prompt will become the new primary objective.",
+                "Senior Harness cleared the prior objective lock, discarding both this project's "
+                "startup state and any pending objective for this session. The next user prompt "
+                "will become the new primary objective.",
             )
         return _hook_output(
             event,

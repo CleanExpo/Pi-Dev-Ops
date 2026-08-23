@@ -1870,6 +1870,70 @@ def test_unstamped_state_or_pending_record_blocks_instead_of_retiring(
     assert "order cannot be established" in blocked["reason"]
 
 
+def test_quarantine_refusal_also_discloses_that_clear_discards_both_records(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """EVERY refusal that points at source=clear must disclose what it destroys.
+
+    The reconciliation refusal was corrected first and the quarantine refusal was left
+    understating the same act, because the fix was applied to the instance in hand
+    rather than to every message naming that command.  Both paths are covered here.
+    """
+    project = tmp_path / "live-project"
+    _init_repo(project)
+    monkeypatch.setenv("SENIOR_HARNESS_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
+    session_id = "quarantine-discloses-both"
+    roots = [REPO_ROOT / "skills"]
+    base = {"session_id": session_id, "cwd": str(project)}
+
+    handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "Frozen project objective"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    state_path = setup_driver_module._state_path(project.resolve(), session_id)
+
+    # A tampered pending record drives the quarantine path.
+    pending_path = setup_driver_module._pending_state_path(session_id)
+    pending_path.parent.mkdir(parents=True, exist_ok=True)
+    pending_path.write_text(
+        json.dumps(
+            {
+                "session_key": setup_driver_module._session_key(session_id),
+                "literal_objective": "tampered",
+                "surface": "codex",
+                "recorded_at_ns": 1,
+                "pending_seal": "sha256-hmac:deadbeef",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    denied = handle_hook(
+        {**base, "hook_event_name": "UserPromptSubmit", "prompt": "a later subordinate prompt"},
+        surface="codex",
+        event="UserPromptSubmit",
+        skill_search_roots=roots,
+    )
+    reason = denied["reason"]
+    assert "invalid" in reason
+    assert "DISCARDS BOTH" in reason, "the quarantine refusal must not understate clear"
+    assert "receipt" in reason
+
+    # Positive control: the disclosure matches what clear actually does.
+    assert state_path.is_file() and pending_path.is_file()
+    handle_hook(
+        {**base, "hook_event_name": "SessionStart", "source": "clear"},
+        surface="codex",
+        event="SessionStart",
+        skill_search_roots=roots,
+    )
+    assert not state_path.is_file(), "clear removes the frozen project state too"
+    assert not pending_path.is_file(), "clear removes the pending record"
+
+
 def test_refusal_discloses_that_clear_discards_both_records(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
