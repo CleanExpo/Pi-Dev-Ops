@@ -1,15 +1,24 @@
 # Registering the AIP MCP server with Claude Code
 
-Register the wrapper with the Claude Code CLI:
+Register the wrapper with the Claude Code CLI. Run this **from the repository
+root** — `--scope local` binds the entry to the directory you run it in:
 
 ```bash
+cd <absolute-path-to-repo>
 claude mcp add --scope local aip-readonly -- <absolute-path-to-repo>/aip/src/mcp/run.sh
 ```
 
-That writes the entry to `~/.claude.json`. MCP servers live there (local and user
-scope) or in a project `.mcp.json`. Do **not** put them in
-`~/.claude/settings.local.json` — Claude Code does not read MCP configuration from
-that file, and a server registered there is silently never discovered.
+That writes the entry to `~/.claude.json`, under the project you ran it from, so
+`aip-readonly` is visible in that project and its subdirectories and nowhere else.
+Running the command from anywhere else registers it against that other directory
+and Claude Code will report `No MCP server named "aip-readonly"` here — the
+absolute path to `run.sh` does not make the registration location-independent. Open
+the same project in the GUI. To have it everywhere instead, use `--scope user`.
+
+MCP servers live in `~/.claude.json` (local and user scope) or in a project
+`.mcp.json`. Do **not** put them in `~/.claude/settings.local.json` — Claude Code
+does not read MCP configuration from that file, and a server registered there is
+silently never discovered.
 
 Register `run.sh`, not `server.ts` directly. The wrapper exports
 `SUPABASE_PICEO_URL` and resolves the service-role key from 1Password itself, so
