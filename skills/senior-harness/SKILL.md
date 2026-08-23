@@ -39,10 +39,14 @@ This aligns `senior-harness`, `model-router`, and `unlazy` under `~/.codex/skill
 `~/.claude/skills`, and `~/.agents/skills`. Codex and Claude have lifecycle-hook adapters; the
 Agents root is discovery-only unless its host separately proves a lifecycle adapter.
 
+Lifecycle hooks invoke `scripts/run_setup_driver.sh`. The runner prefers an explicit
+`SENIOR_HARNESS_PYTHON`, then the canonical checkout's `.venv`, and uses ambient `python3` only when
+it is version 3.10 or newer. If none is available, prompt submission and tool use fail closed.
+
 Run the same driver explicitly from any Git project when hooks are unavailable or untrusted:
 
 ```bash
-python ~/.codex/skills/senior-harness/scripts/setup_driver.py start \
+bash ~/.codex/skills/senior-harness/scripts/run_setup_driver.sh start \
   "<literal request>" --project "$(git rev-parse --show-toplevel)" --surface codex
 ```
 

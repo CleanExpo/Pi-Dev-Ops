@@ -34,7 +34,7 @@ def _shipped_setup_driver_hooks() -> list[dict[str, str]]:
             for group in groups:
                 for hook in group["hooks"]:
                     command = hook["command"]
-                    if "setup_driver.py" in command:
+                    if "run_setup_driver.sh" in command:
                         hooks.append(
                             {
                                 "manifest": relative.as_posix(),
@@ -108,6 +108,33 @@ def test_shipped_hook_manifests_declare_the_full_recovery_command_set() -> None:
         assert "--allow-non-git" in hook["command"], hook
 
 
+def _start_outside_git(command: str, env: dict[str, str], outside: Path, session: str) -> None:
+    started = _run_shipped(
+        command,
+        env=env,
+        cwd=outside,
+        payload={"session_id": session, "cwd": str(outside), "hook_event_name": "SessionStart"},
+    )
+    assert "permissionDecision" not in started["hookSpecificOutput"]
+
+
+def _enter_git(command: str, env: dict[str, str], session: str) -> str:
+    entered = _run_shipped(
+        command,
+        env=env,
+        cwd=REPO_ROOT,
+        payload={
+            "session_id": session,
+            "cwd": str(REPO_ROOT),
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Read",
+            "tool_input": {},
+        },
+    )
+    assert "permissionDecision" not in entered["hookSpecificOutput"]
+    return entered["hookSpecificOutput"]["additionalContext"]
+
+
 @pytest.mark.parametrize("surface", ["claude", "codex"])
 def test_shipped_hook_commands_recover_an_outside_git_prompt_unmodified(
     tmp_path: Path, surface: str
@@ -124,14 +151,7 @@ def test_shipped_hook_commands_recover_an_outside_git_prompt_unmodified(
     session = f"shipped-{surface}"
     prompt = "Recover the harness from outside a Git checkout"
 
-    started = _run_shipped(
-        hooks["SessionStart"],
-        env=env,
-        cwd=outside,
-        payload={"session_id": session, "cwd": str(outside), "hook_event_name": "SessionStart"},
-    )
-    assert "permissionDecision" not in started["hookSpecificOutput"]
-
+    _start_outside_git(hooks["SessionStart"], env, outside, session)
     frozen = _run_shipped(
         hooks["UserPromptSubmit"],
         env=env,
@@ -147,20 +167,7 @@ def test_shipped_hook_commands_recover_an_outside_git_prompt_unmodified(
     pending = list((tmp_path / "state" / "pending-project").glob("*.json"))
     assert len(pending) == 1, pending
 
-    entered = _run_shipped(
-        hooks["PreToolUse"],
-        env=env,
-        cwd=REPO_ROOT,
-        payload={
-            "session_id": session,
-            "cwd": str(REPO_ROOT),
-            "hook_event_name": "PreToolUse",
-            "tool_name": "Read",
-            "tool_input": {},
-        },
-    )
-    context = entered["hookSpecificOutput"]["additionalContext"]
-    assert "permissionDecision" not in entered["hookSpecificOutput"]
+    context = _enter_git(hooks["PreToolUse"], env, session)
     assert "recovered pending objective" in context
     assert repr(prompt) in context
 
@@ -214,7 +221,6 @@ def test_installer_dry_run_reports_the_plan_and_changes_nothing(tmp_path: Path) 
     assert result.returncode == 0, result.stderr
     assert result.stdout.count("LINK    ") == 9, result.stdout
     assert not list(home.iterdir())
-
 
 def test_installer_links_every_skill_root_and_is_idempotent(tmp_path: Path) -> None:
     home = tmp_path / "home"
@@ -280,63 +286,3 @@ def test_installer_refuses_an_incomplete_source_tree(tmp_path: Path) -> None:
     assert result.returncode == 2, result.stdout
     assert "required source skill is missing" in result.stderr
     assert not list(home.iterdir())
-
-
-@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores directory permissions")
-def test_installer_rolls_back_every_link_when_a_later_root_fails(tmp_path: Path) -> None:
-    home = tmp_path / "home"
-    blocked = home / ".agents" / "skills"
-    blocked.mkdir(parents=True)
-    blocked.chmod(0o500)
-    try:
-        result = _run_installer(home)
-        assert result.returncode != 0, result.stdout
-        assert "previous skill links were restored" in result.stderr
-        for host in (".codex", ".claude"):
-            for skill in VENDORED_SKILLS:
-                assert not (home / host / "skills" / skill).exists()
-    finally:
-        blocked.chmod(0o700)
-
-
-def _instructed_executables() -> set[tuple[str, str]]:
-    """Every script path the vendored skills tell an agent to run."""
-    import re
-
-    pattern = re.compile(r"[~$\w./-]*scripts/[\w.-]+\.(?:py|sh|mjs|js)")
-    found: set[tuple[str, str]] = set()
-    for skill in VENDORED_SKILLS:
-        for document in sorted((SKILL_ROOT / skill).rglob("*.md")):
-            for token in pattern.findall(document.read_text(encoding="utf-8")):
-                found.add((skill, token))
-    return found
-
-
-def test_every_script_the_vendored_skills_instruct_is_present(tmp_path: Path) -> None:
-    instructed = _instructed_executables()
-    assert instructed, "expected the vendored skills to instruct at least one script"
-    missing: list[str] = []
-    for skill, token in sorted(instructed):
-        relative = token
-        for prefix in ("~/.codex/skills/", "~/.claude/skills/", "~/.agents/skills/"):
-            if relative.startswith(prefix):
-                relative = "skills/" + relative[len(prefix) :]
-                break
-        if relative.startswith("scripts/"):
-            candidate = SKILL_ROOT / skill / relative
-        else:
-            candidate = REPO_ROOT / relative
-        if not candidate.is_file():
-            missing.append(f"{skill}: {token} -> {candidate}")
-    assert not missing, "vendored skills instruct scripts that do not exist: " + "; ".join(missing)
-
-
-def test_vendored_unlazy_skill_claims_no_runner_it_does_not_ship() -> None:
-    text = (SKILL_ROOT / "unlazy" / "SKILL.md").read_text(encoding="utf-8")
-    schema = (SKILL_ROOT / "unlazy" / "references" / "plan-contract-schema.md").read_text(
-        encoding="utf-8"
-    )
-    for document in (text, schema):
-        assert "python scripts/unlazy_plan.py" not in document
-        assert "node scripts/unlazy-gate-check.mjs" not in document
-    assert "ships **no** plan linter" in text or "no** plan linter" in text

@@ -200,7 +200,7 @@ that, so the test helper binds the block to it; the fixture is not lintable as a
 is replayed through the tests instead.
 
 ```bash
-python -m pytest tests/test_senior_harness_setup_driver.py tests/test_senior_harness_skill_slice.py tests/test_senior_harness_dispatch_fail_closed.py -q
+.venv/bin/python -m pytest tests/test_senior_harness_*.py tests/test_grill_session_*.py -q
 ```
 
 The positive control must pass. Mutation controls must reject a short horizon, a cycle, duplicate
