@@ -141,5 +141,6 @@ caller to the Foundry Logic-functions path per Path D Hybrid. The corresponding
 
 ## Registering with Claude Code
 
-See `REGISTER.md` in this directory for the JSON snippet to paste into your
-`~/.claude/settings.local.json` `mcpServers` block.
+See `REGISTER.md` in this directory. Registration is a single
+`claude mcp add --scope local` command against the `run.sh` wrapper; it lands in
+`~/.claude.json`, not in `~/.claude/settings.local.json`.

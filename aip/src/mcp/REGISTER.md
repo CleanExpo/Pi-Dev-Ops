@@ -1,23 +1,20 @@
 # Registering the AIP MCP server with Claude Code
 
-Add this snippet to the `mcpServers` block in `~/.claude/settings.local.json`
-(create the block if it doesn't exist). Do **not** check the file in.
+Register the wrapper with the Claude Code CLI:
 
-```json
-{
-  "mcpServers": {
-    "aip-readonly": {
-      "command": "<absolute-path-to-repo>/aip/src/mcp/run.sh",
-      "args": []
-    }
-  }
-}
+```bash
+claude mcp add --scope local aip-readonly -- <absolute-path-to-repo>/aip/src/mcp/run.sh
 ```
+
+That writes the entry to `~/.claude.json`. MCP servers live there (local and user
+scope) or in a project `.mcp.json`. Do **not** put them in
+`~/.claude/settings.local.json` — Claude Code does not read MCP configuration from
+that file, and a server registered there is silently never discovered.
 
 Register `run.sh`, not `server.ts` directly. The wrapper exports
 `SUPABASE_PICEO_URL` and resolves the service-role key from 1Password itself, so
-this snippet carries no `env` block. Supplying `SUPABASE_PICEO_SERVICE_KEY` here
-as an unresolved `op://...` reference does not work — `server.ts` rejects it.
+the entry needs no `env` block. Supplying `SUPABASE_PICEO_SERVICE_KEY` here as an
+unresolved `op://...` reference does not work — `server.ts` rejects it.
 
 ## Prerequisite — the headless 1Password token
 
