@@ -35,8 +35,11 @@ load_headless_op_token() {
     return 1
   fi
 
-  file_mode="$(stat -f '%Lp' "${OP_TOKEN_ENV_FILE}" 2>/dev/null || stat -c '%a' "${OP_TOKEN_ENV_FILE}" 2>/dev/null || true)"
-  file_uid="$(stat -f '%u' "${OP_TOKEN_ENV_FILE}" 2>/dev/null || stat -c '%u' "${OP_TOKEN_ENV_FILE}" 2>/dev/null || true)"
+  # GNU form first: it fails loudly on BSD/macOS, whereas BSD -f on GNU is
+  # --file-system and exits 0 with unrelated output, so a BSD-first chain never
+  # reaches the GNU fallback on Linux and reads a bogus mode.
+  file_mode="$(stat -c '%a' "${OP_TOKEN_ENV_FILE}" 2>/dev/null || stat -f '%Lp' "${OP_TOKEN_ENV_FILE}" 2>/dev/null || true)"
+  file_uid="$(stat -c '%u' "${OP_TOKEN_ENV_FILE}" 2>/dev/null || stat -f '%u' "${OP_TOKEN_ENV_FILE}" 2>/dev/null || true)"
   if [ "${file_uid}" != "$(id -u)" ] || { [ "${file_mode}" != "600" ] && [ "${file_mode}" != "400" ]; }; then
     echo "AIP MCP wrapper: refusing insecure 1Password service-account env file" >&2
     return 1
