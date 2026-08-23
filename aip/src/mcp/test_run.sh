@@ -12,6 +12,9 @@ FAKE_HOME="${TMP_ROOT}/home"
 FAKE_ENV="${FAKE_HOME}/.hermes/.env"
 OP_CALLED="${TMP_ROOT}/op-called"
 NPX_CALLED="${TMP_ROOT}/npx-called"
+# Generated per run: a scanner cannot tell a fixture from a real credential.
+TEST_OP_VALUE="$(od -An -tx1 -N24 /dev/urandom | tr -d ' \n')"
+TEST_SERVICE_KEY="$(od -An -tx1 -N24 /dev/urandom | tr -d ' \n')"
 mkdir -p -- "${FAKE_BIN}" "$(dirname -- "${FAKE_ENV}")"
 
 cat >"${FAKE_BIN}/op" <<'EOF'
@@ -21,7 +24,7 @@ set -eu
 if [ "${OP_MODE:-allow}" = "forbid" ]; then
   exit 91
 fi
-[ "${OP_SERVICE_ACCOUNT_TOKEN:-}" = "${EXPECTED_OP_TOKEN}" ] || exit 92
+[ "${OP_SERVICE_ACCOUNT_TOKEN:-}" = "${EXPECTED_OP_VALUE}" ] || exit 92
 printf '%s' "${FAKE_SERVICE_KEY}"
 EOF
 
@@ -39,8 +42,8 @@ run_envless_wrapper() {
     PATH="${FAKE_BIN}:/usr/bin:/bin" \
     HOME="${FAKE_HOME}" \
     AIP_OP_SERVICE_ACCOUNT_ENV_FILE="${FAKE_ENV}" \
-    EXPECTED_OP_TOKEN="test-headless-token" \
-    FAKE_SERVICE_KEY="test-supabase-key" \
+    EXPECTED_OP_VALUE="${TEST_OP_VALUE}" \
+    FAKE_SERVICE_KEY="${TEST_SERVICE_KEY}" \
     OP_CALLED="${OP_CALLED}" \
     NPX_CALLED="${NPX_CALLED}" \
     "$@" \
@@ -48,7 +51,7 @@ run_envless_wrapper() {
 }
 
 test_envless_gui_launch_uses_headless_token() {
-  printf '%s\n' 'OP_SERVICE_ACCOUNT_TOKEN_NEXUS_AUDIT=test-headless-token' >"${FAKE_ENV}"
+  printf '%s\n' "OP_SERVICE_ACCOUNT_TOKEN_NEXUS_AUDIT=${TEST_OP_VALUE}" >"${FAKE_ENV}"
   chmod 600 "${FAKE_ENV}"
   rm -f -- "${OP_CALLED}" "${NPX_CALLED}"
 
