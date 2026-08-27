@@ -22,6 +22,8 @@ _FIELDS = (
     "out_of_scope",
 )
 _TABLE = "goal_projects"
+_SETTINGS = "settings"
+_PREFIX = "goal_project:"
 
 
 class GoalProjectStoreError(Exception):
@@ -29,6 +31,10 @@ class GoalProjectStoreError(Exception):
         super().__init__(hint)
         self.code = code
         self.hint = hint
+
+
+class _TableMissing(Exception):
+    pass
 
 
 def store_path() -> Path:
@@ -71,16 +77,6 @@ def validate_brief(body: dict[str, Any]) -> list[str]:
     return missing
 
 
-def _db_headers(key: str, *, prefer: str) -> dict[str, str]:
-    return {
-        "Content-Type": "application/json",
-        "apikey": key,
-        "Authorization": f"Bearer {key}",
-        "Prefer": prefer,
-        "Accept": "application/json",
-    }
-
-
 def _db_configured() -> bool:
     from .supabase_log import _cfg
 
@@ -88,7 +84,7 @@ def _db_configured() -> bool:
     return bool(url and key)
 
 
-def _db_insert(row: dict[str, str]) -> dict[str, str]:
+def _creds() -> tuple[str, str]:
     from .supabase_log import _cfg
 
     url, key = _cfg()
@@ -97,62 +93,106 @@ def _db_insert(row: dict[str, str]) -> dict[str, str]:
             "supabase_not_configured",
             "Supabase is not configured, so the project was not stored.",
         )
+    return url, key
+
+
+def _request(method: str, path: str, data: dict[str, Any] | None = None) -> Any:
+    url, key = _creds()
     req = Request(
-        f"{url}/rest/v1/{_TABLE}",
-        data=json.dumps(row).encode(),
-        method="POST",
-        headers=_db_headers(key, prefer="return=representation"),
+        f"{url}/rest/v1/{path}",
+        data=json.dumps(data).encode() if data is not None else None,
+        method=method,
+        headers={
+            "Content-Type": "application/json",
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Prefer": "return=representation",
+            "Accept": "application/json",
+        },
     )
     try:
         with urlopen(req, timeout=8) as resp:
-            body = json.loads(resp.read() or b"[]")
+            return json.loads(resp.read() or b"[]")
     except HTTPError as exc:
-        hint = (
-            "The goal_projects table is missing. Apply the migration."
-            if exc.code == 404
-            else "Project was not stored in the database."
-        )
-        raise GoalProjectStoreError("supabase_write_failed", hint) from exc
+        if exc.code == 404:
+            raise _TableMissing from exc
+        raise GoalProjectStoreError(
+            "supabase_write_failed" if method != "GET" else "supabase_read_failed",
+            "Project was not stored in the database."
+            if method != "GET"
+            else "Projects could not be loaded from the database.",
+        ) from exc
     except OSError as exc:
+        raise GoalProjectStoreError(
+            "supabase_write_failed" if method != "GET" else "supabase_read_failed",
+            "Project was not stored in the database."
+            if method != "GET"
+            else "Projects could not be loaded from the database.",
+        ) from exc
+
+
+def _from_dedicated(body: Any) -> list[dict[str, str]]:
+    rows = body if isinstance(body, list) else [body] if isinstance(body, dict) else []
+    return [_as_row(row) for row in rows if isinstance(row, dict) and row.get("id")]
+
+
+def _from_setting(item: dict[str, Any]) -> dict[str, str] | None:
+    try:
+        parsed = json.loads(str(item.get("value") or ""))
+    except json.JSONDecodeError:
+        return None
+    if isinstance(parsed, dict) and parsed.get("id"):
+        return _as_row(parsed)
+    return None
+
+
+def _settings_list() -> list[dict[str, str]]:
+    from .supabase_log import _q
+
+    body = _request("GET", f"{_SETTINGS}?key=like.{_q(_PREFIX)}*&select=key,value")
+    if not isinstance(body, list):
+        return []
+    rows = [_from_setting(item) for item in body if isinstance(item, dict)]
+    return [row for row in rows if row]
+
+
+def _settings_get(project_id: str) -> dict[str, str] | None:
+    from .supabase_log import _q
+
+    body = _request("GET", f"{_SETTINGS}?key=eq.{_q(_PREFIX + project_id)}&select=key,value")
+    if not isinstance(body, list):
+        return None
+    for item in body:
+        if isinstance(item, dict):
+            row = _from_setting(item)
+            if row:
+                return row
+    return None
+
+
+def _settings_insert(row: dict[str, str]) -> dict[str, str]:
+    _request(
+        "POST",
+        _SETTINGS,
+        {"key": f"{_PREFIX}{row['id']}", "value": json.dumps(row), "updated_at": row["created_at"]},
+    )
+    return row
+
+
+def _db_insert(row: dict[str, str]) -> dict[str, str]:
+    try:
+        saved = _from_dedicated(_request("POST", _TABLE, row))
+        if saved:
+            return saved[0]
+    except _TableMissing:
+        pass
+    try:
+        return _settings_insert(row)
+    except _TableMissing as exc:
         raise GoalProjectStoreError(
             "supabase_write_failed",
             "Project was not stored in the database.",
         ) from exc
-    if isinstance(body, list) and body and isinstance(body[0], dict):
-        return _as_row(body[0])
-    if isinstance(body, dict) and body.get("id"):
-        return _as_row(body)
-    raise GoalProjectStoreError(
-        "supabase_write_failed",
-        "Project was not stored in the database.",
-    )
-
-
-def _db_select(params: str) -> list[dict[str, str]]:
-    from .supabase_log import _cfg
-
-    url, key = _cfg()
-    if not url or not key:
-        raise GoalProjectStoreError(
-            "supabase_not_configured",
-            "Supabase is not configured, so projects cannot be loaded.",
-        )
-    req = Request(
-        f"{url}/rest/v1/{_TABLE}?{params}",
-        method="GET",
-        headers=_db_headers(key, prefer="return=representation"),
-    )
-    try:
-        with urlopen(req, timeout=8) as resp:
-            rows = json.loads(resp.read() or b"[]")
-    except (HTTPError, OSError) as exc:
-        raise GoalProjectStoreError(
-            "supabase_read_failed",
-            "Projects could not be loaded from the database.",
-        ) from exc
-    if not isinstance(rows, list):
-        return []
-    return [_as_row(row) for row in rows if isinstance(row, dict) and row.get("id")]
 
 
 def _load_file() -> list[dict[str, str]]:
@@ -172,7 +212,13 @@ def _load_file() -> list[dict[str, str]]:
 def load_projects() -> list[dict[str, str]]:
     if _use_file():
         return _load_file()
-    return _db_select("select=*&order=created_at.desc")
+    try:
+        rows = _from_dedicated(_request("GET", f"{_TABLE}?select=*&order=created_at.desc"))
+    except _TableMissing:
+        return _settings_list()
+    seen = {row["id"] for row in rows}
+    rows.extend(extra for extra in _settings_list() if extra["id"] not in seen)
+    return rows
 
 
 def get_project(project_id: str) -> dict[str, str] | None:
@@ -186,8 +232,13 @@ def get_project(project_id: str) -> dict[str, str] | None:
         return None
     from .supabase_log import _q
 
-    rows = _db_select(f"id=eq.{_q(wanted)}&select=*")
-    return rows[0] if rows else None
+    try:
+        rows = _from_dedicated(_request("GET", f"{_TABLE}?id=eq.{_q(wanted)}&select=*"))
+        if rows:
+            return rows[0]
+    except _TableMissing:
+        pass
+    return _settings_get(wanted)
 
 
 def create_project(body: dict[str, Any]) -> dict[str, str]:

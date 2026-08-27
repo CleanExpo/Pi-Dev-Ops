@@ -101,6 +101,31 @@ def test_create_project_writes_supabase_not_a_local_file(
     assert not dummy.exists()
 
 
+def test_create_project_uses_settings_when_goal_projects_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GOAL_PROJECTS_PATH", raising=False)
+    posted: list[tuple[str, str]] = []
+
+    def fake_request(method: str, path: str, data: dict[str, Any] | None = None) -> Any:
+        posted.append((method, path.split("?")[0]))
+        if path.split("?")[0] == "goal_projects":
+            raise store._TableMissing()
+        return [data or {}]
+
+    monkeypatch.setattr(store, "_request", fake_request)
+    row = create_project(
+        {
+            "title": "Saved looks workspace",
+            "description": "Shoppers save looks from the feed.",
+            "audience": "Shoppers on Synthex.",
+        }
+    )
+    assert ("POST", "goal_projects") in posted
+    assert ("POST", "settings") in posted
+    assert row["title"] == "Saved looks workspace"
+
+
 def test_create_project_fails_when_database_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -126,25 +151,26 @@ def test_create_project_fails_when_database_is_missing(
 
 def test_load_projects_reads_supabase(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("GOAL_PROJECTS_PATH", raising=False)
-    monkeypatch.setattr(store, "_db_configured", lambda: True)
-    monkeypatch.setattr(
-        store,
-        "_db_select",
-        lambda params: [
-            {
-                "id": "p1",
-                "title": "Saved looks workspace",
-                "description": "Shoppers save looks from the feed.",
-                "audience": "Shoppers on Synthex.",
-                "problem": "",
-                "users": "",
-                "outcomes": "",
-                "constraints": "",
-                "out_of_scope": "",
-                "created_at": "2026-08-27T00:00:00Z",
-            }
-        ],
-    )
+
+    def fake_request(method: str, path: str, data: dict[str, Any] | None = None) -> Any:
+        if path.startswith("goal_projects"):
+            return [
+                {
+                    "id": "p1",
+                    "title": "Saved looks workspace",
+                    "description": "Shoppers save looks from the feed.",
+                    "audience": "Shoppers on Synthex.",
+                    "problem": "",
+                    "users": "",
+                    "outcomes": "",
+                    "constraints": "",
+                    "out_of_scope": "",
+                    "created_at": "2026-08-27T00:00:00Z",
+                }
+            ]
+        return []
+
+    monkeypatch.setattr(store, "_request", fake_request)
     rows = load_projects()
     assert rows[0]["id"] == "p1"
 
