@@ -1,25 +1,25 @@
-"""Runtime model guard for Pi-CEO production.
+"""Runtime model guard and Mission Control Model Fabric bootstrap.
 
-Prevents deprecated Ollama/Gemma model routes from re-entering the live
-process through stale Railway environment variables. The guard runs before
-Uvicorn and then replaces itself with the API server process.
-
-Founder directive (2026-08-27): Ollama and Gemma are not permitted in the
-Pi-CEO/Margot production runtime.
+Prevents deprecated Ollama/Gemma routes from re-entering the live process and,
+when enabled, starts a private OmniRoute sidecar before Uvicorn. OmniRoute is
+rehydrated from Pi-CEO's existing approved provider credentials on each deploy;
+Mission Control remains the authority, memory, policy and user-facing surface.
 """
 from __future__ import annotations
 
 import logging
 import os
+import secrets
+import subprocess
+import time
+import urllib.request
 from collections.abc import MutableMapping
 
 log = logging.getLogger("runtime_model_guard")
 
-# Background cheap work can stay inexpensive, but must be remote and explicit.
 SAFE_CHEAP_MODEL = "z-ai/glm-4.7-flash"
-# Margot is the founder-facing chief-of-staff surface. Do not run her on a cheap
-# model. OpenRouter's rolling Sonnet alias currently resolves to Sonnet 5.
 MARGOT_MODEL = "openrouter:~anthropic/claude-sonnet-latest"
+OMNIROUTE_PORT = "20128"
 
 _OLLAMA_ENV_KEYS = {
     "OLLAMA_BASE_URL",
@@ -32,17 +32,17 @@ _OLLAMA_ENV_KEYS = {
 }
 
 
+def _truthy(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _is_banned_model_spec(value: str) -> bool:
     lowered = (value or "").strip().lower()
     return "gemma" in lowered or lowered.startswith("ollama:")
 
 
 def sanitise_environment(environ: MutableMapping[str, str]) -> list[str]:
-    """Remove deprecated local/Gemma routes and pin safe production models.
-
-    Returns variable names only. Values are intentionally never returned or
-    logged because environment variables may contain credentials.
-    """
+    """Remove deprecated local/Gemma routes and pin a safe direct fallback."""
     changed: list[str] = []
 
     for key in _OLLAMA_ENV_KEYS:
@@ -50,19 +50,15 @@ def sanitise_environment(environ: MutableMapping[str, str]) -> list[str]:
             environ.pop(key, None)
             changed.append(key)
 
-    # This legacy knob has higher precedence than the newer cheap-tier config.
-    # Removing it prevents a stale local tag from silently winning again.
     if "TAO_CHEAP_MODEL" in environ:
         environ.pop("TAO_CHEAP_MODEL", None)
         changed.append("TAO_CHEAP_MODEL")
 
-    # Remove explicit Ollama/Gemma role overrides. Margot is repinned below.
     for key, value in list(environ.items()):
         if key.startswith("TAO_MODEL_") and _is_banned_model_spec(value):
             environ.pop(key, None)
             changed.append(key)
 
-    # Force provider routing away from local Ollama probing on every start.
     if environ.get("TAO_CHEAP_PROVIDER") != "openrouter":
         changed.append("TAO_CHEAP_PROVIDER")
     environ["TAO_CHEAP_PROVIDER"] = "openrouter"
@@ -71,11 +67,135 @@ def sanitise_environment(environ: MutableMapping[str, str]) -> list[str]:
         changed.append("TAO_CHEAP_REMOTE_MODEL")
     environ["TAO_CHEAP_REMOTE_MODEL"] = SAFE_CHEAP_MODEL
 
+    # Direct high-trust escape hatch when the model fabric is unavailable.
     if environ.get("TAO_MODEL_MARGOT_CASUAL") != MARGOT_MODEL:
         changed.append("TAO_MODEL_MARGOT_CASUAL")
     environ["TAO_MODEL_MARGOT_CASUAL"] = MARGOT_MODEL
 
     return sorted(set(changed))
+
+
+def _omniroute_env() -> dict[str, str]:
+    env = dict(os.environ)
+    env.setdefault("DATA_DIR", "/pi-ceo/.omniroute")
+    env.setdefault("HOSTNAME", "127.0.0.1")
+    env.setdefault("REQUIRE_API_KEY", "false")
+    # Dashboard/API security still receives non-default secrets even though the
+    # service is loopback-only inside the Pi-CEO container.
+    env.setdefault("JWT_SECRET", secrets.token_urlsafe(48))
+    env.setdefault("API_KEY_SECRET", secrets.token_hex(32))
+    env.setdefault("INITIAL_PASSWORD", secrets.token_urlsafe(24))
+    env.setdefault("OMNIROUTE_WS_BRIDGE_SECRET", secrets.token_urlsafe(32))
+    return env
+
+
+def _run_setup(args: list[str], env: dict[str, str], label: str) -> bool:
+    try:
+        result = subprocess.run(
+            args,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=90,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+        log.warning("OmniRoute %s failed: %s", label, exc)
+        return False
+    if result.returncode != 0:
+        # Never print command arguments or provider credentials.
+        tail = (result.stdout or "")[-500:].replace("\n", " ")
+        log.warning("OmniRoute %s exited %d: %s", label, result.returncode, tail)
+        return False
+    log.info("OmniRoute %s complete", label)
+    return True
+
+
+def _hydrate_provider(provider: str, key_env: str, env: dict[str, str]) -> None:
+    credential = (os.environ.get(key_env) or "").strip()
+    if not credential:
+        return
+    provider_env = dict(env)
+    # OmniRoute setup binds OMNIROUTE_API_KEY to --api-key. Keep the credential
+    # out of argv/process listings and scope it only to this child invocation.
+    provider_env["OMNIROUTE_API_KEY"] = credential
+    _run_setup(
+        [
+            "omniroute",
+            "setup",
+            "--non-interactive",
+            "--password",
+            env["INITIAL_PASSWORD"],
+            "--add-provider",
+            "--provider",
+            provider,
+        ],
+        provider_env,
+        f"provider {provider}",
+    )
+
+
+def _wait_for_omniroute(timeout_s: float = 25.0) -> bool:
+    deadline = time.monotonic() + timeout_s
+    url = f"http://127.0.0.1:{OMNIROUTE_PORT}/api/health/ping"
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=1.5) as response:
+                if response.status < 500:
+                    return True
+        except Exception:  # noqa: BLE001
+            time.sleep(0.5)
+    return False
+
+
+def start_model_fabric() -> subprocess.Popen[str] | None:
+    if not _truthy(os.environ.get("OMNIROUTE_ENABLED")):
+        log.info("Mission Control Model Fabric disabled (OMNIROUTE_ENABLED!=1)")
+        return None
+
+    env = _omniroute_env()
+    os.makedirs(env["DATA_DIR"], exist_ok=True)
+
+    # Initialise storage/password, then rehydrate only providers whose existing
+    # Pi-CEO credentials are present. No no-auth provider is auto-added here.
+    _run_setup(
+        [
+            "omniroute",
+            "setup",
+            "--non-interactive",
+            "--password",
+            env["INITIAL_PASSWORD"],
+        ],
+        env,
+        "base setup",
+    )
+    _hydrate_provider("openrouter", "OPENROUTER_API_KEY", env)
+    _hydrate_provider("anthropic", "ANTHROPIC_API_KEY", env)
+    _hydrate_provider("groq", "GROQ_API_KEY", env)
+
+    try:
+        proc = subprocess.Popen(
+            ["omniroute", "--port", OMNIROUTE_PORT, "--no-open"],
+            env=env,
+            stdin=subprocess.DEVNULL,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        log.warning("OmniRoute binary unavailable: %s", exc)
+        return None
+
+    if _wait_for_omniroute():
+        log.info("Mission Control Model Fabric healthy on loopback:%s (pid=%s)", OMNIROUTE_PORT, proc.pid)
+        return proc
+
+    log.warning("Mission Control Model Fabric did not become healthy; Pi-CEO will use direct provider fallback")
+    try:
+        proc.terminate()
+    except Exception:  # noqa: BLE001
+        pass
+    return None
 
 
 def main() -> None:
@@ -87,8 +207,12 @@ def main() -> None:
             ", ".join(changed),
         )
 
+    # Best-effort: failure does not block Pi-CEO because provider_openrouter has
+    # an explicit direct fallback path.
+    start_model_fabric()
+
     # Replace this bootstrap process so Railway signals and restarts still
-    # target Uvicorn directly.
+    # target Uvicorn directly. The OmniRoute child remains beneath this PID.
     os.execvp(
         "uvicorn",
         [
