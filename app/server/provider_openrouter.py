@@ -1,32 +1,9 @@
 """provider_openrouter.py — RA-1868 Wave 5.2: OpenRouter inference wrapper.
 
-OpenAI-compatible HTTP client for OpenRouter. Used by the cheap tier of
-provider_router. Anthropic stays on its native SDK; OpenRouter goes
-through this module.
-
-Why OpenAI-compatible: OpenRouter speaks the OpenAI Chat Completions
-API for any underlying model (GLM, Llama, Nemotron, etc.). One client,
-many models, configurable per-role via env.
-
-Required env:
-  OPENROUTER_API_KEY — get from https://openrouter.ai/
-
-Optional env:
-  OPENROUTER_HTTP_REFERER  — your site URL, used for OpenRouter's traffic
-                              attribution (default: https://github.com/CleanExpo)
-  OPENROUTER_X_TITLE       — your app name (default: pi-ceo)
-
-Cost tracking: OpenRouter returns usage tokens + cost in the response.
-We surface cost_usd back to the caller so the existing budget tracker
-keeps working.
-
-Failure modes:
-  Missing API key  → (1, "", 0.0, "openrouter_no_api_key")
-  Network error    → (1, "", 0.0, "openrouter_call_raised: <details>")
-  HTTP error       → (1, "", 0.0, "openrouter_http_<status>: <body>")
-  Empty response   → (1, "", 0.0, "openrouter_empty_response")
-
-httpx imported lazily so the module loads in environments without it.
+OpenAI-compatible HTTP client for OpenRouter. Mission Control can optionally
+place the governed OmniRoute Model Fabric in front of selected roles. When the
+fabric is unavailable, this module falls back to the existing direct OpenRouter
+path. Banned local/Gemma routes are enforced by the fabric and production guard.
 """
 from __future__ import annotations
 
@@ -61,13 +38,8 @@ def _build_headers() -> dict[str, str]:
 
 def _build_body(prompt: str, model_id: str, *, max_tokens: int) -> dict[str, Any]:
     # ``reasoning.enabled=False`` matters for reasoning-capable cheap-tier
-    # models (GLM 4.7 Flash, Nemotron 3). Left on, they spend the whole
-    # max_tokens budget on a reasoning trace, return ``content: None`` and
-    # finish_reason "length" — which reaches _extract_text as an empty
-    # string and fails the call. Measured 2026-08-19: glm-4.7-flash at
-    # max_tokens=120 burned 122 reasoning tokens and returned no content;
-    # with reasoning off it answered in 0.8s. Harmless on non-reasoning
-    # models — OpenRouter ignores the field when unsupported.
+    # models. Left on, they can consume the response budget on reasoning and
+    # return no user-facing content. Harmless on models that ignore the field.
     return {
         "model": model_id,
         "messages": [
@@ -89,47 +61,21 @@ def _extract_text(response: dict[str, Any]) -> str:
     finish = choice.get("finish_reason")
     content = msg.get("content") or ""
     if content:
-        # Truncated content is still the model's own output — for the long-form
-        # roles (generator, evaluator, board) hitting max_tokens is routine and
-        # the partial text is the useful result, so discarding it here would
-        # turn every long generation into openrouter_empty_response. But a
-        # truncated read must not look like a complete one, so say so.
         if finish not in (None, "", "stop"):
             log.warning(
                 "openrouter: returning %d chars that ended on finish_reason=%r "
                 "— the response is incomplete", len(content), finish,
             )
         return content
-    # Some providers (Cloudflare/DeepInfra serving GLM, Nemotron) put the
-    # answer in ``reasoning`` and leave ``content`` null. Falling back keeps
-    # a valid response from being reported as openrouter_empty_response.
-    #
-    # But only when the model actually finished. finish_reason "length" means
-    # the budget ran out mid-trace, so ``reasoning`` holds a partial thought
-    # ("1. **Analyze the Request:** ...") rather than an answer — measured on
-    # glm-4.7-flash at max_tokens=120. Returning that would hand the caller a
-    # chain-of-thought dressed as a result, which is worse than a clean empty.
-    #
-    # Allowlist rather than denylist, and an ABSENT finish_reason does not
-    # earn the fallback either. "length" is the truncation case we measured,
-    # but content_filter, error, and a provider that simply never says whether
-    # it finished are all "no evidence this thought was completed". Returning
-    # a half-finished trace as the answer would be a failed read rendering as
-    # a successful one; an empty string surfaces honestly to the caller as
-    # openrouter_empty_response instead.
+    # Only return a provider's reasoning fallback when the response actually
+    # completed. A truncated reasoning trace is not a valid answer.
     if finish != "stop":
         return ""
     return msg.get("reasoning") or ""
 
 
 def _extract_cost_usd(response: dict[str, Any]) -> float:
-    """OpenRouter exposes cost on the usage block when available.
-
-    Shape varies by model; we read both ``usage.cost`` (preferred) and
-    fall back to estimated cost = 0 if absent. Real cost tracking happens
-    via OpenRouter's dashboard regardless — this is a best-effort surface
-    for the local budget tracker.
-    """
+    """OpenRouter exposes cost on the usage block when available."""
     usage = response.get("usage") or {}
     cost = usage.get("cost") or usage.get("total_cost") or 0.0
     try:
@@ -147,12 +93,36 @@ async def call(*, prompt: str, model_id: str,
                  role: str = "",
                  session_id: str = "",
                  ) -> tuple[int, str, float, str | None]:
-    """One OpenRouter call. Returns (rc, text, cost_usd, error_or_None).
+    """One model call. Returns (rc, text, cost_usd, error_or_None).
 
-    Async, runs the sync httpx call in a worker thread to avoid blocking
-    the event loop. Caller is expected to be in an async context (the
-    existing _call_llm pattern).
+    For roles explicitly enabled in Mission Control's Model Fabric, OmniRoute is
+    attempted first. Fabric failure is fail-soft: the existing direct OpenRouter
+    path remains the high-trust escape hatch so Telegram/Slack conversations do
+    not stop merely because the routing gateway is unhealthy.
     """
+    try:
+        from . import model_fabric  # noqa: PLC0415
+        if model_fabric.role_allowed(role):
+            result = await asyncio.to_thread(
+                model_fabric.complete,
+                prompt=prompt,
+                role=role,
+                session_id=session_id,
+                timeout_s=timeout_s,
+                max_tokens=max_tokens,
+            )
+            if int(result[0]) == 0:
+                return result
+            log.warning(
+                "model_fabric failed for role=%s (%s); using direct OpenRouter fallback",
+                role or "?", result[3],
+            )
+    except Exception as exc:  # noqa: BLE001
+        log.warning(
+            "model_fabric seam failed for role=%s (%s); using direct OpenRouter fallback",
+            role or "?", exc,
+        )
+
     headers = _build_headers()
     if not headers:
         return 1, "", 0.0, "openrouter_no_api_key"
@@ -172,7 +142,6 @@ async def call(*, prompt: str, model_id: str,
         except Exception as exc:  # noqa: BLE001
             return 1, "", 0.0, f"openrouter_call_raised: {exc}"
         if r.status_code >= 400:
-            # Truncate body to keep the error log readable
             body_snippet = (r.text or "")[:500]
             return 1, "", 0.0, (
                 f"openrouter_http_{r.status_code}: {body_snippet}"
