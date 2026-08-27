@@ -63,6 +63,17 @@ def handle_telegram_intent(payload: dict[str, Any], *,
         log.warning("margot bot: handle_turn raised (%s)", exc)
         return {"status": "failed", "reason": str(exc)}
 
+    # Telegram is the mobile front door; Slack is the private strengthening
+    # room. Mirror completed Telegram turns as Slack threads best-effort so a
+    # Slack human reply can re-enter the same Margot brain without creating a
+    # second assistant identity. Tests pass _send=False and do not perform I/O.
+    if _send:
+        try:
+            from ..margot_slack_bridge import mirror_telegram_turn  # noqa: PLC0415
+            mirror_telegram_turn(turn)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("margot bot: Slack bridge mirror suppressed (%s)", exc)
+
     return {
         "status": "ok" if not turn.error else "failed",
         "turn_id": turn.turn_id,
