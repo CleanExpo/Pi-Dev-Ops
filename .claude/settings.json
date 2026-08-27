@@ -68,6 +68,10 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/skills/senior-harness/scripts/run_setup_driver.sh\" hook --surface claude --event UserPromptSubmit --allow-non-git"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/continuation_horizon_hook.py\""
           }
         ]
       }
@@ -88,6 +92,16 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/continuation_horizon_hook.py\""
           }
         ]
       }
