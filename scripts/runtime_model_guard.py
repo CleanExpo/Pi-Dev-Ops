@@ -1,9 +1,9 @@
 """Runtime model guard and Mission Control Model Fabric bootstrap.
 
-Prevents deprecated Ollama/Gemma routes from re-entering the live process and,
-when enabled, starts a private OmniRoute sidecar before Uvicorn. OmniRoute is
-rehydrated from Pi-CEO's existing approved provider credentials on each deploy;
-Mission Control remains the authority, memory, policy and user-facing surface.
+Prevents deprecated Ollama/Gemma routes from re-entering the live process.
+Pi-CEO must become healthy immediately; OmniRoute setup/provider hydration is
+started in a separate bootstrap process so Railway's healthcheck is never held
+hostage by provider setup or a slow native dependency.
 """
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import logging
 import os
 import secrets
 import subprocess
+import sys
 import time
 import urllib.request
 from collections.abc import MutableMapping
@@ -145,6 +146,7 @@ def _wait_for_omniroute(timeout_s: float = 25.0) -> bool:
 
 
 def start_model_fabric() -> subprocess.Popen[str] | None:
+    """Configure and start OmniRoute. Intended to run outside Pi-CEO startup."""
     if not _truthy(os.environ.get("OMNIROUTE_ENABLED")):
         log.info("Mission Control Model Fabric disabled (OMNIROUTE_ENABLED!=1)")
         return None
@@ -169,7 +171,7 @@ def start_model_fabric() -> subprocess.Popen[str] | None:
 
     try:
         proc = subprocess.Popen(
-            ["omniroute", "--port", OMNIROUTE_PORT, "--no-open"],
+            ["omniroute", "serve", "--port", OMNIROUTE_PORT, "--no-open"],
             env=env,
             stdin=subprocess.DEVNULL,
             text=True,
@@ -188,13 +190,29 @@ def start_model_fabric() -> subprocess.Popen[str] | None:
 
     log.warning(
         "Mission Control Model Fabric did not become healthy; "
-        "Pi-CEO will use direct provider fallback"
+        "Pi-CEO continues on direct high-trust provider fallback"
     )
     try:
         proc.terminate()
     except Exception:  # noqa: BLE001
         pass
     return None
+
+
+def _spawn_model_fabric_bootstrap() -> subprocess.Popen[str] | None:
+    """Start slow sidecar hydration without delaying Railway's /health route."""
+    if not _truthy(os.environ.get("OMNIROUTE_ENABLED")):
+        return None
+    try:
+        return subprocess.Popen(
+            [sys.executable, "scripts/model_fabric_bootstrap.py"],
+            env=dict(os.environ),
+            stdin=subprocess.DEVNULL,
+            text=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Mission Control Model Fabric bootstrap spawn failed: %s", exc)
+        return None
 
 
 def main() -> None:
@@ -206,7 +224,9 @@ def main() -> None:
             ", ".join(changed),
         )
 
-    start_model_fabric()
+    # Critical ordering: Railway checks /health with a 30s timeout. Never run
+    # OmniRoute setup/provider hydration synchronously before Uvicorn starts.
+    _spawn_model_fabric_bootstrap()
 
     os.execvp(
         "uvicorn",
