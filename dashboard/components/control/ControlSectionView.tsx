@@ -8,7 +8,7 @@ import CuratorProposalsPanel from "./CuratorProposalsPanel";
 import GoalTicketForm from "./GoalTicketForm";
 import HealthGrid from "./HealthGrid";
 import MargotAssetsPanel from "./MargotAssetsPanel";
-import ModelBadge from "./ModelBadge";
+import ModelFabricPanel from "./ModelFabricPanel";
 import RoutineTable from "./RoutineTable";
 import SpecPipelinePanel from "./SpecPipelinePanel";
 import SwarmPanel from "./SwarmPanel";
@@ -19,7 +19,7 @@ import { controlSectionBySlug } from "@/lib/control/nav";
 const VIEWS: Record<ControlSectionSlug, ComponentType> = {
   goal: GoalTicketForm,
   swarm: SwarmPanel,
-  model: ModelBadge,
+  model: ModelFabricPanel,
   health: HealthGrid,
   roles: AgentRolesPanel,
   build: BuildForm,
