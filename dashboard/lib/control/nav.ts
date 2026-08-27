@@ -48,9 +48,9 @@ export const CONTROL_SECTIONS: readonly ControlNavItem[] = [
   {
     href: "/control/model",
     slug: "model",
-    label: "Model",
-    title: "Model & ZTE",
-    blurb: "Active model and ZTE score.",
+    label: "Models",
+    title: "Model Fabric",
+    blurb: "Governed model routing, live provider health, failover and ZTE evidence.",
   },
   {
     href: "/control/health",
