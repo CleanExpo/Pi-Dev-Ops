@@ -40,7 +40,7 @@ def format_testing(value: Any) -> str:
     if not isinstance(value, dict):
         return as_text(value)
     parts: list[str] = []
-    for key in ("unit", "integration", "e2e", "accessibility", "manual"):
+    for key in ("manual", "automated", "unit", "integration", "e2e", "accessibility"):
         body = as_text(value.get(key))
         if body:
             parts.append(f"{key}:\n{body}")
@@ -102,7 +102,7 @@ def format_sub_tasks(value: Any) -> str:
         if isinstance(item, dict):
             title = as_text(item.get("title")) or f"Sub-task {index}"
             body = as_text(item.get("description"))
-            scenarios = as_text(item.get("scenarios"))
+            scenarios = as_text(item.get("scenario") or item.get("scenarios"))
             details = as_text(item.get("details"))
             chunk = [f"{index}. {title}"]
             if body:
@@ -144,9 +144,13 @@ def normalize_sub_tasks(value: Any) -> list[dict[str, str]]:
                 {
                     "title": title[:200],
                     "description": as_text(item.get("description")),
-                    "scenarios": as_text(item.get("scenarios")),
+                    "scenarios": as_text(item.get("scenario") or item.get("scenarios")),
                     "details": as_text(item.get("details")),
-                    "acceptance": as_text(item.get("acceptance") or item.get("scenarios")),
+                    "acceptance": as_text(
+                        item.get("acceptance")
+                        or item.get("scenario")
+                        or item.get("scenarios")
+                    ),
                 }
             )
         else:
@@ -164,6 +168,33 @@ def normalize_sub_tasks(value: Any) -> list[dict[str, str]]:
     return out
 
 
+def _apply_implementation(item: dict[str, Any], out: dict[str, str]) -> None:
+    impl = item.get("implementation")
+    if not isinstance(impl, dict):
+        return
+    if not out["technical_requirements"]:
+        out["technical_requirements"] = as_text(impl.get("requirements"))
+    notes = as_text(impl.get("important_details"))
+    unknowns = as_text(impl.get("unknowns"))
+    extra = [part for part in (notes, f"Unknowns:\n{unknowns}" if unknowns else "") if part]
+    if extra:
+        existing = out["implementation_notes"]
+        out["implementation_notes"] = "\n\n".join([existing, *extra] if existing else extra)
+
+
+def _apply_hierarchy(item: dict[str, Any], out: dict[str, str]) -> None:
+    hier = item.get("hierarchy")
+    if not isinstance(hier, dict):
+        return
+    purpose = as_text(hier.get("purpose"))
+    if purpose and not out["context"]:
+        out["context"] = purpose
+    depends = as_text(hier.get("depends_on"))
+    if depends:
+        existing = out["dependencies"]
+        out["dependencies"] = f"{existing}\n{depends}" if existing else depends
+
+
 def flatten_ticket(item: dict[str, Any]) -> dict[str, str]:
     """Turn one model ticket (nested or flat) into string fields."""
     out: dict[str, str] = {}
@@ -172,20 +203,44 @@ def flatten_ticket(item: dict[str, Any]) -> dict[str, str]:
     out["acceptance"] = as_text(item.get("acceptance") or item.get("acceptance_criteria"))
     out["sub_tasks"] = format_sub_tasks(item.get("sub_tasks"))
     out["sub_tasks_json"] = encode_sub_tasks(item.get("sub_tasks"))
-    out["testing"] = format_testing(item.get("testing"))
+    out["testing"] = format_testing(item.get("verification") or item.get("testing"))
     out["scope"] = format_scope(item.get("scope"))
     out["review"] = format_review(item.get("review"))
     out["ui_ux"] = format_block(item.get("ui_ux"))
     out["data_state"] = format_block(item.get("data_state"))
     out["ticket_id"] = as_text(item.get("id") or item.get("ticket_id"))
     out["priority"] = as_text(item.get("priority"))
+    _apply_implementation(item, out)
+    _apply_hierarchy(item, out)
+    return out
+
+
+_GA_ALIASES = (
+    ("user_problem", "problem"),
+    ("acceptance_interpretation", "acceptance_summary"),
+    ("existing_functionality_to_reuse", "existing_functionality"),
+    ("identified_gaps", "new_work"),
+    ("repo_limitations", "unknowns"),
+    ("overall_risk", "risk"),
+)
+
+
+def _alias_goal_analysis(ga: dict[str, Any]) -> dict[str, Any]:
+    out = dict(ga)
+    for dest, src in _GA_ALIASES:
+        if as_text(out.get(dest)):
+            continue
+        value = out.get(src)
+        if value not in (None, "", []):
+            out[dest] = value
     return out
 
 
 def analysis_overlay(payload: dict[str, Any] | None) -> dict[str, Any]:
     """Top-level review fields. Accepts both the new schema and the old flat one."""
     src = payload or {}
-    ga = src.get("goal_analysis") if isinstance(src.get("goal_analysis"), dict) else {}
+    raw_ga = src.get("goal_analysis") if isinstance(src.get("goal_analysis"), dict) else {}
+    ga = _alias_goal_analysis(raw_ga)
     summary = as_text(ga.get("summary") or src.get("summary"))
     user_flow = src.get("user_flow") if isinstance(src.get("user_flow"), dict) else {}
     technical_flow = (
@@ -193,9 +248,10 @@ def analysis_overlay(payload: dict[str, Any] | None) -> dict[str, Any]:
     )
     order = src.get("implementation_order")
     review = src.get("final_review")
+    split = as_text(src.get("split_reason") or ga.get("implementation_strategy"))
     return {
         "summary": summary,
-        "split_reason": as_text(src.get("split_reason")),
+        "split_reason": split,
         "goal_analysis": ga,
         "user_flow": user_flow,
         "technical_flow": technical_flow,

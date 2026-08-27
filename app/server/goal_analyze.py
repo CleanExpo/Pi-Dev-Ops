@@ -22,10 +22,8 @@ _MAX_TICKETS = 6
 _MAX_TOKENS = 16384
 _PROMPT_PATH = Path(__file__).with_name("goal_analyze_prompt.txt")
 _SYSTEM = (
-    "Return one JSON object only. Fill every ticket from the project brief, goal, "
-    "and acceptance. Do not inspect a repository. Do not invent file paths. "
-    "Every ticket needs expected_behaviour, Given/When/Then acceptance, tasks, "
-    "sub-tasks, and scenarios a junior can follow. Do not copy schema placeholders."
+    "Return one JSON object only. Follow the ticket standard in the user message. "
+    "Do not invent repositories or file paths. Do not copy schema placeholders."
 )
 _PLACEHOLDERS = (
     "human-written imperative title",
@@ -146,6 +144,8 @@ def fallback_overlay(limitation: str, reason: str) -> dict[str, Any]:
         ),
         "goal_analysis": {
             "summary": summary,
+            "unknowns": [],
+            "risk": "High",
             "repo_limitations": [],
             "overall_risk": "High",
         },

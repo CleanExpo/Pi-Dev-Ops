@@ -382,12 +382,13 @@ async def test_analyze_goal_maps_nested_goal_analysis(goal_project: dict[str, st
     async def fake_complete(**kwargs: Any) -> tuple[str, float]:
         assert "{{GOAL}}" not in kwargs["prompt"]
         assert "Maximum 6 parent tickets" in kwargs["prompt"]
+        assert "Project Brief:" in kwargs["prompt"]
         return (
-            '{"goal_analysis":{"summary":"Inspected Control Goal.","overall_risk":"Low"},'
-            '"split_reason":"One ticket.",'
-            '"user_flow":{"diagram":"User\\n↓\\nApprove"},'
+            '{"goal_analysis":{"summary":"Inspected Control Goal.","risk":"Low",'
+            '"implementation_strategy":"One ticket."},'
+            '"user_flow":{"summary":"User approves before Linear."},'
             '"tickets":[{"id":"T1","priority":"P0","title":"Gate Linear write",'
-            '"expected_behaviour":"Analyze then approve before Linear.",'
+            '"summary":"Analyze then approve before Linear.",'
             '"acceptance":["Given drafts exist When approve Then Linear is written"]}]}',
             0.01,
         )
@@ -400,8 +401,10 @@ async def test_analyze_goal_maps_nested_goal_analysis(goal_project: dict[str, st
     )
     assert out["filed"] is False
     assert out["summary"] == "Inspected Control Goal."
+    assert out["goal_analysis"]["risk"] == "Low"
     assert out["goal_analysis"]["overall_risk"] == "Low"
-    assert out["user_flow"]["diagram"].startswith("User")
+    assert out["split_reason"] == "One ticket."
+    assert out["user_flow"]["summary"].startswith("User")
     assert out["tickets"][0]["ticket_id"] == "T1"
     assert out["tickets"][0]["priority"] == "P0"
 
@@ -524,6 +527,55 @@ def test_render_analyze_prompt_uses_project_brief() -> None:
     assert "sub_tasks" in text
 
 
+def test_drafts_from_payload_flattens_ticket_standard() -> None:
+    drafts = drafts_from_payload(
+        {
+            "goal_analysis": {"summary": "One ticket is enough.", "risk": "Low"},
+            "tickets": [
+                {
+                    "id": "T1",
+                    "priority": "P0",
+                    "title": "Add save look",
+                    "summary": "Look A appears in Saved after save.",
+                    "acceptance": [
+                        "Given the user is logged in When they save Look A Then it appears in Saved"
+                    ],
+                    "hierarchy": {"parent": "T1", "purpose": "Persist a saved look", "depends_on": [""]},
+                    "implementation": {
+                        "requirements": ["Reuse the existing save API"],
+                        "important_details": ["Do not invent a new table"],
+                        "unknowns": ["Where saved looks are stored"],
+                    },
+                    "verification": {
+                        "manual": ["Save then refresh"],
+                        "automated": ["parser"],
+                    },
+                    "sub_tasks": [
+                        {
+                            "title": "Wire the save action",
+                            "description": "Call the existing save path from the feed button.",
+                            "scenario": "Given Look A When save Then Saved lists Look A",
+                            "details": ["Keep the existing button label"],
+                        }
+                    ],
+                    "scope": {"included": ["save button"], "excluded": ["new feed"]},
+                }
+            ],
+        },
+        "parent goal text here",
+        "parent acceptance text here",
+    )
+    assert len(drafts) == 1
+    assert drafts[0]["ticket_id"] == "T1"
+    assert "Reuse the existing save API" in drafts[0]["technical_requirements"]
+    assert "Do not invent a new table" in drafts[0]["implementation_notes"]
+    assert "Where saved looks are stored" in drafts[0]["implementation_notes"]
+    assert "manual:" in drafts[0]["testing"]
+    assert "Wire the save action" in drafts[0]["sub_tasks"]
+    assert "Given Look A When save" in drafts[0]["sub_tasks"]
+    assert "Persist a saved look" in drafts[0]["context"]
+
+
 def test_drafts_from_payload_flattens_nested_schema() -> None:
     drafts = drafts_from_payload(
         {
@@ -596,7 +648,8 @@ def test_drafts_from_payload_skips_schema_placeholder_tickets() -> None:
 @pytest.mark.asyncio
 async def test_analyze_goal_uses_project_not_repo(goal_project: dict[str, str]) -> None:
     async def fake_complete(**kwargs: Any) -> tuple[str, float]:
-        assert "Do not inspect" in kwargs["system"] or "project brief" in kwargs["prompt"]
+        assert "Do not invent repositories" in kwargs["system"]
+        assert "Project Brief:" in kwargs["prompt"]
         assert "github.com" not in kwargs["prompt"].lower()
         return (
             '{"goal_analysis":{"summary":"Split by create then persist."},'
