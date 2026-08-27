@@ -70,6 +70,9 @@ const PROTECTED_API_PREFIXES = [
   "/api/zte",
   "/api/swarm-status",
   "/api/curator-proposals",
+  // Mission Control Model Fabric exposes provider/model routing telemetry and
+  // is consumed only by the protected /control/model surface.
+  "/api/model-fabric",
 ];
 
 // Public API routes — never require session

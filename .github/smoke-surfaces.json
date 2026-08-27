@@ -24,7 +24,7 @@
       "method": "GET",
       "auth": false,
       "expected_status": 307,
-      "_comment": "RA-6862 / PR #385: /loop (Loop Cockpit) added to PROTECTED_PAGE_PREFIXES in proxy.ts. It is data-only (every panel reads /api/pi-ceo/* which 401s without a session), so an unauthenticated visit must redirect to login (307) rather than render a bare shell."
+      "_comment": "RA-6862 / PR #385: /loop (Loop Cockpit) added to PROTECTED_PAGE_PREFIXES in proxy.ts. It is data-only (every panel reads /api/pi-ceo/* which 401s without a session), so an unauthenticated visit is a bare shell. Protect it so unauthenticated users are redirected to login instead."
     },
     {
       "name": "brain-page",
@@ -48,6 +48,31 @@
         "Unauthorised"
       ],
       "_comment": "2026-08-02: was expected_status 200. That assertion recorded what the route did after it fell through proxy.ts's default-open fallthrough — never a decision. Ratified by Phill McGurk: the path is now in PROTECTED_API_PREFIXES, so an anonymous caller is refused. Its real callers are panels on /control, already a protected page. || prior: "
+    },
+    {
+      "name": "api-model-fabric-unauth",
+      "path": "/api/model-fabric",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "body_contains": [
+        "Unauthorised"
+      ],
+      "_comment": "Mission Control Model Fabric telemetry is internal status information. proxy.ts protects /api/model-fabric, so anonymous callers are refused before the route can borrow Pi-CEO authority."
+    },
+    {
+      "name": "api-model-fabric",
+      "path": "/api/model-fabric",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "enabled",
+        "healthy",
+        "lanes",
+        "blocked"
+      ],
+      "_comment": "Mission Control /control/model telemetry path. The dashboard route authenticates through piCeoFetch and proxies FastAPI /api/model-fabric/status; the envelope remains HTTP 200 even when the OmniRoute sidecar is degraded so Mission Control can display the failure truthfully."
     },
     {
       "name": "api-swarm-status",
