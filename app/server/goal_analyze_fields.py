@@ -20,6 +20,9 @@ _TEXT_KEYS = (
     "implementation_notes",
     "risks",
     "affected_surfaces",
+    "tasks",
+    "scenarios",
+    "junior_notes",
 )
 
 
@@ -91,12 +94,84 @@ def format_block(value: Any, *, details_key: str = "details") -> str:
     return "\n".join(bits)
 
 
+def format_sub_tasks(value: Any) -> str:
+    if not isinstance(value, list):
+        return as_text(value)
+    blocks: list[str] = []
+    for index, item in enumerate(value, start=1):
+        if isinstance(item, dict):
+            title = as_text(item.get("title")) or f"Sub-task {index}"
+            body = as_text(item.get("description"))
+            scenarios = as_text(item.get("scenarios"))
+            details = as_text(item.get("details"))
+            chunk = [f"{index}. {title}"]
+            if body:
+                chunk.append(body)
+            if scenarios:
+                chunk.append(f"Scenarios:\n{scenarios}")
+            if details:
+                chunk.append(f"Details:\n{details}")
+            blocks.append("\n".join(chunk))
+        else:
+            text = as_text(item)
+            if text:
+                blocks.append(f"{index}. {text}")
+    return "\n\n".join(blocks)
+
+
+def encode_sub_tasks(value: Any) -> str:
+    rows = normalize_sub_tasks(value)
+    return json.dumps(rows) if rows else ""
+
+
+def normalize_sub_tasks(value: Any) -> list[dict[str, str]]:
+    if isinstance(value, str) and value.strip().startswith("["):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            value = [line.strip() for line in value.splitlines() if line.strip()]
+    if isinstance(value, str):
+        value = [line.strip() for line in value.splitlines() if line.strip()]
+    if not isinstance(value, list):
+        return []
+    out: list[dict[str, str]] = []
+    for item in value[:6]:
+        if isinstance(item, dict):
+            title = as_text(item.get("title"))
+            if not title:
+                continue
+            out.append(
+                {
+                    "title": title[:200],
+                    "description": as_text(item.get("description")),
+                    "scenarios": as_text(item.get("scenarios")),
+                    "details": as_text(item.get("details")),
+                    "acceptance": as_text(item.get("acceptance") or item.get("scenarios")),
+                }
+            )
+        else:
+            title = as_text(item)
+            if title:
+                out.append(
+                    {
+                        "title": title[:200],
+                        "description": title,
+                        "scenarios": "",
+                        "details": "",
+                        "acceptance": "",
+                    }
+                )
+    return out
+
+
 def flatten_ticket(item: dict[str, Any]) -> dict[str, str]:
     """Turn one model ticket (nested or flat) into string fields."""
     out: dict[str, str] = {}
     for key in _TEXT_KEYS:
         out[key] = as_text(item.get(key))
     out["acceptance"] = as_text(item.get("acceptance") or item.get("acceptance_criteria"))
+    out["sub_tasks"] = format_sub_tasks(item.get("sub_tasks"))
+    out["sub_tasks_json"] = encode_sub_tasks(item.get("sub_tasks"))
     out["testing"] = format_testing(item.get("testing"))
     out["scope"] = format_scope(item.get("scope"))
     out["review"] = format_review(item.get("review"))

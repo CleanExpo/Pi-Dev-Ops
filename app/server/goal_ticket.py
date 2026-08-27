@@ -9,6 +9,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+from .goal_ticket_children import file_sub_tasks
 from .goal_ticket_format import format_draft_notes
 
 log = logging.getLogger("pi-ceo.goal_ticket")
@@ -70,12 +71,15 @@ def build_description(
     *,
     notes: str = "",
     parent_goal: str = "",
+    project_title: str = "",
 ) -> str:
     parts = [
         f"## Goal\n{goal.strip()}",
         f"## Target repo\n`{repo}`",
         f"## Acceptance\n{acceptance.strip()}",
     ]
+    if project_title.strip():
+        parts.append(f"## Project\n{project_title.strip()}")
     if parent_goal.strip() and parent_goal.strip() != goal.strip():
         parts.append(f"## Parent goal\n{parent_goal.strip()}")
     if notes.strip():
@@ -188,6 +192,8 @@ def file_goal(
     title: str | None = None,
     notes: str = "",
     parent_goal: str = "",
+    parent_id: str = "",
+    project_title: str = "",
 ) -> dict[str, Any]:
     """Create a Backlog Linear ticket. Never authorises autonomous pickup."""
     missing = validate_goal(goal, repo, acceptance)
@@ -212,9 +218,16 @@ def file_goal(
         "stateId": state_id,
         "title": issue_title[:200],
         "description": build_description(
-            goal, slug, acceptance, notes=notes, parent_goal=parent_goal,
+            goal,
+            slug,
+            acceptance,
+            notes=notes,
+            parent_goal=parent_goal,
+            project_title=project_title,
         ),
     }
+    if parent_id.strip():
+        issue_input["parentId"] = parent_id.strip()
     labels = [_SOURCE_LABEL]
     if label_id:
         issue_input["labelIds"] = [label_id]
@@ -273,6 +286,7 @@ def file_drafts(
     approved: bool,
     parent_goal: str = "",
     gql: GqlFn | None = None,
+    project_title: str = "",
 ) -> dict[str, Any]:
     """File approved drafts. Refuses unless `approved` is True."""
     if not approved:
@@ -289,6 +303,7 @@ def file_drafts(
             title=str(draft.get("title") or ""),
             notes=format_draft_notes(draft),
             parent_goal=parent_goal,
+            project_title=project_title,
         )
         if out.get("error"):
             return {
@@ -298,4 +313,16 @@ def file_drafts(
                 "failed_title": draft.get("title"),
             }
         created.append(out)
+        children = file_sub_tasks(
+            repo,
+            draft,
+            parent_id=str(out.get("id") or ""),
+            parent_goal=parent_goal,
+            project_title=project_title,
+            file_goal=file_goal,
+            gql=gql,
+        )
+        if children.get("error"):
+            return {**children, "filed": created}
+        created.extend(children.get("tickets") or [])
     return {"status": "created", "count": len(created), "tickets": created}

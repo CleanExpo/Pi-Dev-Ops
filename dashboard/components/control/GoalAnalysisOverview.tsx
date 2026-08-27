@@ -130,13 +130,11 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
             This is a fallback draft. The analyzer did not return a completed plan.
           </p>
         ) : null}
-        {!analysis.code_inspected && analysis.code_limitation ? (
-          <p className="mt-2 text-[13px]" style={{ color: "var(--warning)" }}>
-            {analysis.code_limitation}
-          </p>
-        ) : analysis.code_inspected ? (
-          <p className={`${styles.note} mt-2`}>Repo excerpt was used. Paths still need a human check.</p>
-        ) : null}
+        {analysis.code_limitation ? (
+          <p className={`${styles.note} mt-2`}>{analysis.code_limitation}</p>
+        ) : (
+          <p className={`${styles.note} mt-2`}>Tickets are grounded in the selected project brief, not a repository.</p>
+        )}
       </section>
 
       <Block title="Current behaviour" body={ga.current_behaviour || ""} />

@@ -2,23 +2,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useActiveProject } from "./ProjectSelector";
 import GoalDraftReview, {
   draftsFromAnalyze,
   filePayloadFromDraft,
   type AnalysisPayload,
   type DraftTicket,
 } from "./GoalDraftReview";
+import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
 import styles from "./control-deck.module.css";
 
 function sanitize(s: string): string {
   return s.replace(/[<>]/g, "");
-}
-
-function repoToUrl(repo: string): string {
-  if (!repo) return "";
-  if (repo.startsWith("http")) return repo;
-  return `https://github.com/${repo}`;
 }
 
 interface FiledTicket {
@@ -49,15 +43,14 @@ function errorMessage(data: ErrorBody, status: number): string {
 }
 
 function analyzingCopy(seconds: number): string {
-  if (seconds < 10) return `${seconds}s · inspecting the repo. Linear is not written.`;
+  if (seconds < 10) return `${seconds}s · reading the project brief. Linear is not written.`;
   if (seconds < 35) return `${seconds}s · breaking the goal into tickets. Linear is not written.`;
   return `${seconds}s · still analyzing. Linear is not written.`;
 }
 
 export default function GoalTicketForm() {
-  const activeProject = useActiveProject();
   const [goal, setGoal] = useState("");
-  const [repo, setRepo] = useState("");
+  const [project, setProject] = useState<GoalProject | null>(null);
   const [acceptance, setAcceptance] = useState("");
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -65,11 +58,6 @@ export default function GoalTicketForm() {
   const [analysis, setAnalysis] = useState<AnalysisPayload | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [filed, setFiled] = useState<FiledTicket[]>([]);
-
-  useEffect(() => {
-    if (!activeProject) return;
-    setRepo((current) => (current ? current : repoToUrl(activeProject.repo)));
-  }, [activeProject]);
 
   useEffect(() => {
     if (!busy) {
@@ -92,12 +80,13 @@ export default function GoalTicketForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           goal: sanitize(goal.trim()),
-          repo: sanitize(repo.trim()),
           acceptance: sanitize(acceptance.trim()),
+          project_id: project?.id || "",
         }),
       });
       const data = (await res.json().catch(() => ({}))) as ErrorBody & Partial<AnalysisPayload> & {
         filed?: boolean;
+        project_title?: string;
         tickets?: Array<Partial<DraftTicket>>;
       };
       if (!res.ok) {
@@ -118,7 +107,9 @@ export default function GoalTicketForm() {
         split_reason: data.split_reason || "",
         fallback: Boolean(data.fallback),
         code_inspected: Boolean(data.code_inspected),
-        code_limitation: data.code_limitation || "",
+        code_limitation: data.project_title
+          ? `Tickets grounded in project: ${data.project_title}`
+          : data.code_limitation || "",
         goal_analysis: data.goal_analysis,
         user_flow: data.user_flow,
         technical_flow: data.technical_flow,
@@ -145,8 +136,8 @@ export default function GoalTicketForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           goal: sanitize(goal.trim()),
-          repo: sanitize(repo.trim()),
           acceptance: sanitize(acceptance.trim()),
+          project_id: project?.id || "",
           approved: true,
           tickets: chosen.map((t) => filePayloadFromDraft(t, sanitize)),
         }),
@@ -203,19 +194,11 @@ export default function GoalTicketForm() {
           className={styles.input}
         />
       </label>
-      <label className={styles.field}>
-        <span className={styles.fieldLabel}>Repository</span>
-        <input
-          id="goal-repo"
-          name="repo"
-          type="text"
-          value={repo}
-          onChange={(e) => setRepo(e.target.value)}
-          placeholder="https://github.com/CleanExpo/Synthex"
-          disabled={busy || Boolean(analysis)}
-          className={styles.input}
-        />
-      </label>
+      <GoalProjectPicker
+        selectedId={project?.id || ""}
+        disabled={busy || Boolean(analysis)}
+        onSelect={setProject}
+      />
       <label className={styles.field}>
         <span className={styles.fieldLabel}>Acceptance</span>
         <textarea
@@ -234,7 +217,7 @@ export default function GoalTicketForm() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => void analyze()}
-            disabled={busy || !goal.trim() || !repo.trim() || !acceptance.trim()}
+            disabled={busy || !goal.trim() || !project || !acceptance.trim()}
             className={styles.primary}
           >
             {busy ? "Analyzing…" : "Analyze goal"}

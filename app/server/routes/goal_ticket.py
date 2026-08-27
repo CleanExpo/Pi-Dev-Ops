@@ -1,12 +1,15 @@
-"""Goal → Linear: analyze (no write), then file only after approval."""
+"""Goal → Linear: projects, analyze (no write), file only after approval."""
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import require_auth, require_rate_limit
 from ..goal_analyze import analyze_goal
+from ..goal_projects import create_project, get_project, load_projects, validate_brief
 from ..goal_ticket import file_drafts
-from ..models import GoalTicketFileRequest, GoalTicketRequest
+from ..models import GoalProjectCreate, GoalTicketFileRequest, GoalTicketRequest
 
 router = APIRouter()
+
+_LINEAR_DEST_REPO = "CleanExpo/Pi-Dev-Ops"
 
 
 def _raise_goal_error(result: dict) -> None:
@@ -17,7 +20,16 @@ def _raise_goal_error(result: dict) -> None:
             {
                 "error": "validation",
                 "fields": result.get("fields") or [],
-                "hint": "goal, repo, and acceptance are required.",
+                "hint": "goal, acceptance, and project_id are required.",
+            },
+        )
+    if err == "unknown_project":
+        raise HTTPException(
+            400,
+            {
+                "error": "unknown_project",
+                "project_id": result.get("project_id"),
+                "hint": "Create a project first, then select it.",
             },
         )
     if err == "unknown_repo":
@@ -26,7 +38,7 @@ def _raise_goal_error(result: dict) -> None:
             {
                 "error": "unknown_repo",
                 "repo": result.get("repo"),
-                "hint": "Repo must match an entry in config/harness/projects.json.",
+                "hint": "Linear destination could not be resolved.",
             },
         )
     if err == "not_approved":
@@ -45,12 +57,38 @@ def _raise_goal_error(result: dict) -> None:
         raise HTTPException(502, result)
 
 
+@router.get(
+    "/api/goal-projects",
+    dependencies=[Depends(require_auth), Depends(require_rate_limit)],
+)
+def list_goal_projects() -> dict:
+    return {"projects": load_projects()}
+
+
+@router.post(
+    "/api/goal-projects",
+    dependencies=[Depends(require_auth), Depends(require_rate_limit)],
+)
+def create_goal_project(body: GoalProjectCreate) -> dict:
+    missing = validate_brief(body.model_dump())
+    if missing:
+        raise HTTPException(
+            400,
+            {
+                "error": "validation",
+                "fields": missing,
+                "hint": "title, description, and audience are required.",
+            },
+        )
+    return {"project": create_project(body.model_dump())}
+
+
 @router.post(
     "/api/goal-ticket/analyze",
     dependencies=[Depends(require_auth), Depends(require_rate_limit)],
 )
 async def analyze_goal_ticket(body: GoalTicketRequest) -> dict:
-    result = await analyze_goal(body.goal, body.repo, body.acceptance)
+    result = await analyze_goal(body.goal, body.acceptance, body.project_id)
     if result.get("error"):
         _raise_goal_error(result)
     return result
@@ -61,12 +99,16 @@ async def analyze_goal_ticket(body: GoalTicketRequest) -> dict:
     dependencies=[Depends(require_auth), Depends(require_rate_limit)],
 )
 async def create_goal_ticket(body: GoalTicketFileRequest) -> dict:
+    brief = get_project(body.project_id)
+    if not brief:
+        _raise_goal_error({"error": "unknown_project", "project_id": body.project_id})
     drafts = [t.model_dump() for t in body.tickets]
     result = file_drafts(
-        body.repo,
+        _LINEAR_DEST_REPO,
         drafts,
         approved=body.approved,
         parent_goal=body.goal,
+        project_title=brief["title"],
     )
     if result.get("error"):
         _raise_goal_error(result)

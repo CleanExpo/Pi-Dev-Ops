@@ -11,14 +11,9 @@ from app.server.goal_analyze_fields import (
     flatten_ticket,
     parse_analyze_payload,
 )
-from app.server.goal_repo_context import gather_repo_context
-from app.server.goal_ticket import (
-    _MIN_TEXT,
-    normalize_repo,
-    resolve_project,
-    title_from_goal,
-    validate_goal,
-)
+from app.server.goal_projects import format_brief, get_project
+from app.server.goal_ticket import _MIN_TEXT, title_from_goal
+
 from app.server.spec_pipeline.llm import complete
 
 log = logging.getLogger("pi-ceo.goal_analyze")
@@ -27,10 +22,10 @@ _MAX_TICKETS = 6
 _MAX_TOKENS = 16384
 _PROMPT_PATH = Path(__file__).with_name("goal_analyze_prompt.txt")
 _SYSTEM = (
-    "Return one JSON object only. Fill every ticket with real work, not the empty schema. "
-    "Every ticket needs a real title, expected_behaviour, and Given/When/Then acceptance. "
-    "If repo inspection is unavailable, still produce tickets and list limitations. "
-    "Do not copy placeholder text from the schema."
+    "Return one JSON object only. Fill every ticket from the project brief, goal, "
+    "and acceptance. Do not inspect a repository. Do not invent file paths. "
+    "Every ticket needs expected_behaviour, Given/When/Then acceptance, tasks, "
+    "sub-tasks, and scenarios a junior can follow. Do not copy schema placeholders."
 )
 _PLACEHOLDERS = (
     "human-written imperative title",
@@ -38,27 +33,23 @@ _PLACEHOLDERS = (
     "as a ... i want ... so that ...",
 )
 CompleteFn = Callable[..., Awaitable[tuple[str, float]]]
-ContextFn = Callable[[str, str], dict[str, Any]]
 
 
 def fallback_drafts(goal: str, acceptance: str, limitation: str) -> list[dict[str, str]]:
-    """Structured draft that does not claim repo inspection happened."""
-    limit = limitation or "Repo/code analysis was unavailable."
+    """One editable draft when the model does not return tickets."""
+    limit = limitation or "Analysis could not complete a grounded split."
     return [
         {
             "title": title_from_goal(goal),
             "goal": goal.strip(),
             "acceptance": acceptance.strip(),
-            "context": f"{limit} Confirm current behaviour in the repo before building.",
+            "context": limit,
             "user_story": "",
-            "current_behaviour": "Unknown without inspecting the product.",
+            "current_behaviour": "Unknown until the project brief and goal are applied.",
             "expected_behaviour": goal.strip(),
-            "technical_requirements": (
-                "Verify pages, APIs, auth, and data in the target repo. "
-                "Do not assume new tables or routes exist."
-            ),
-            "edge_cases": "Cover loading, empty, error, auth, and theme if this is a UI change.",
-            "testing": "Add tests that match the acceptance once the real surface is confirmed.",
+            "technical_requirements": "Describe behaviour from the project brief. Do not invent files.",
+            "edge_cases": "Cover empty, error, and permission cases that the audience will hit.",
+            "testing": "Add tests that match the acceptance.",
             "dependencies": "None.",
             "rationale": "Single draft because analysis could not complete a grounded split.",
             "ticket_id": "T1",
@@ -74,6 +65,11 @@ def fallback_drafts(goal: str, acceptance: str, limitation: str) -> list[dict[st
             "ui_ux": "",
             "data_state": "",
             "affected_surfaces": "",
+            "tasks": "",
+            "sub_tasks": "",
+            "sub_tasks_json": "",
+            "scenarios": "",
+            "junior_notes": "",
         }
     ]
 
@@ -150,7 +146,7 @@ def fallback_overlay(limitation: str, reason: str) -> dict[str, Any]:
         ),
         "goal_analysis": {
             "summary": summary,
-            "repo_limitations": [limitation] if limitation else [],
+            "repo_limitations": [],
             "overall_risk": "High",
         },
         "user_flow": {},
@@ -160,44 +156,41 @@ def fallback_overlay(limitation: str, reason: str) -> dict[str, Any]:
     }
 
 
-def render_analyze_prompt(goal: str, slug: str, acceptance: str, ctx: dict[str, Any]) -> str:
+def render_analyze_prompt(goal: str, acceptance: str, project: dict[str, str]) -> str:
     template = _PROMPT_PATH.read_text(encoding="utf-8")
-    if ctx.get("ok") and ctx.get("excerpt"):
-        repo_context = str(ctx["excerpt"])
-    else:
-        repo_context = (
-            "CODE INSPECTION UNAVAILABLE.\n"
-            + str(ctx.get("limitation") or "No repo excerpt.")
-            + "\nDo not invent file paths. State the limitation in goal_analysis.repo_limitations."
-        )
     return (
         template.replace("{{GOAL}}", goal.strip())
         .replace("{{ACCEPTANCE}}", acceptance.strip())
-        .replace("{{REPO}}", slug)
-        .replace("{{REPO_CONTEXT}}", repo_context)
+        .replace("{{PROJECT}}", format_brief(project))
     )
+
+
+def validate_analyze(goal: str, acceptance: str, project_id: str) -> list[str]:
+    missing: list[str] = []
+    if len((goal or "").strip()) < _MIN_TEXT:
+        missing.append("goal")
+    if len((acceptance or "").strip()) < _MIN_TEXT:
+        missing.append("acceptance")
+    if not (project_id or "").strip():
+        missing.append("project_id")
+    return missing
 
 
 async def analyze_goal(
     goal: str,
-    repo: str,
     acceptance: str,
+    project_id: str,
     *,
     complete_fn: CompleteFn | None = None,
-    context_fn: ContextFn | None = None,
 ) -> dict[str, Any]:
-    """Propose tickets. Never calls Linear."""
-    missing = validate_goal(goal, repo, acceptance)
+    """Propose tickets from the project brief. Never calls Linear or GitHub."""
+    missing = validate_analyze(goal, acceptance, project_id)
     if missing:
         return {"error": "validation", "fields": missing}
-    slug = normalize_repo(repo)
-    project = resolve_project(slug)
+    project = get_project(project_id)
     if not project:
-        return {"error": "unknown_repo", "repo": slug}
+        return {"error": "unknown_project", "project_id": project_id}
 
-    ctx = (context_fn or gather_repo_context)(slug, goal)
-    inspected = bool(ctx.get("ok"))
-    limitation = str(ctx.get("limitation") or "")
     payload: dict[str, Any] | None = None
     fallback = False
     model_reason = ""
@@ -205,7 +198,7 @@ async def analyze_goal(
     try:
         fn = complete_fn or complete
         text, cost = await fn(
-            prompt=render_analyze_prompt(goal, slug, acceptance, ctx),
+            prompt=render_analyze_prompt(goal, acceptance, project),
             system=_SYSTEM,
             role="goal_analyst",
             max_tokens=_MAX_TOKENS,
@@ -225,24 +218,21 @@ async def analyze_goal(
         fallback = True
         if not model_reason:
             model_reason = "The model JSON had no implementable tickets."
-        tickets = fallback_drafts(goal, acceptance, limitation)
+        tickets = fallback_drafts(goal, acceptance, model_reason)
         overlay = analysis_overlay(payload)
         if not overlay["summary"]:
-            overlay = fallback_overlay(limitation, model_reason)
+            overlay = fallback_overlay("", model_reason)
     else:
         overlay = analysis_overlay(payload)
-        if limitation and not overlay["summary"]:
-            overlay["summary"] = limitation
     return {
         "status": "proposed",
         "filed": False,
         "fallback": fallback,
-        "code_inspected": inspected,
-        "code_limitation": "" if inspected else limitation,
+        "code_inspected": False,
+        "code_limitation": "",
         "cost_usd": cost,
-        "repo": slug,
-        "project_id": project["project_id"],
-        "registry_id": project["registry_id"],
+        "project_id": project["id"],
+        "project_title": project["title"],
         "tickets": tickets,
         **overlay,
     }

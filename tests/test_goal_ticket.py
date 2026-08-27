@@ -26,6 +26,7 @@ from app.server.goal_analyze import (
     fallback_drafts,
     render_analyze_prompt,
 )
+from app.server.goal_projects import create_project
 from app.server.goal_ticket_format import format_draft_notes
 from app.server.routes import goal_ticket as goal_ticket_route
 
@@ -175,6 +176,18 @@ def test_file_goal_rejects_short_fields() -> None:
 
 
 @pytest.fixture
+def goal_project(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+    monkeypatch.setenv("GOAL_PROJECTS_PATH", str(tmp_path / "goal-projects.json"))
+    return create_project(
+        {
+            "title": "Control Goal desk",
+            "description": "Operators turn a stated goal into Linear tickets.",
+            "audience": "Operators and engineers using Control.",
+        }
+    )
+
+
+@pytest.fixture
 def client() -> TestClient:
     app = FastAPI()
     app.include_router(goal_ticket_route.router)
@@ -183,7 +196,9 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def test_route_returns_ticket_url(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_route_returns_ticket_url(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, goal_project: dict[str, str]
+) -> None:
     def fake_file(
         repo: str,
         drafts: list[dict[str, Any]],
@@ -191,6 +206,7 @@ def test_route_returns_ticket_url(client: TestClient, monkeypatch: pytest.Monkey
         approved: bool,
         parent_goal: str = "",
         gql: Any = None,
+        project_title: str = "",
     ) -> dict[str, Any]:
         assert approved is True
         assert len(drafts) == 1
@@ -214,8 +230,8 @@ def test_route_returns_ticket_url(client: TestClient, monkeypatch: pytest.Monkey
         "/api/goal-ticket",
         json={
             "goal": "File this as a Linear ticket now",
-            "repo": "CleanExpo/Pi-Dev-Ops",
             "acceptance": "Ticket RA-8001 exists in Linear Backlog.",
+            "project_id": goal_project["id"],
             "approved": True,
             "tickets": [
                 {
@@ -236,7 +252,7 @@ def test_route_returns_ticket_url(client: TestClient, monkeypatch: pytest.Monkey
 
 
 def test_route_rejects_empty_body(client: TestClient) -> None:
-    resp = client.post("/api/goal-ticket", json={"goal": "", "repo": "", "acceptance": ""})
+    resp = client.post("/api/goal-ticket", json={"goal": "", "acceptance": "", "project_id": ""})
     assert resp.status_code == 422
 
 
@@ -327,7 +343,7 @@ def test_drafts_from_payload_falls_back_when_empty() -> None:
 
 
 @pytest.mark.asyncio
-async def test_analyze_goal_does_not_write_linear() -> None:
+async def test_analyze_goal_does_not_write_linear(goal_project: dict[str, str]) -> None:
     async def fake_complete(**kwargs: Any) -> tuple[str, float]:
         return (
             '{"summary":"Two hops.","split_reason":"UI vs API",'
@@ -346,15 +362,15 @@ async def test_analyze_goal_does_not_write_linear() -> None:
 
     out = await analyze_goal(
         "Analyze then file Linear tickets after approval",
-        "CleanExpo/Pi-Dev-Ops",
         "Drafts appear first; Linear only after approve.",
+        goal_project["id"],
         complete_fn=fake_complete,
-        context_fn=lambda slug, goal: {"ok": True, "limitation": "", "excerpt": "app/server/goal_ticket.py"},
     )
     assert out["status"] == "proposed"
     assert out["filed"] is False
     assert out["fallback"] is False
-    assert out["code_inspected"] is True
+    assert out["code_inspected"] is False
+    assert out["project_title"] == goal_project["title"]
     assert len(out["tickets"]) == 2
     assert out["tickets"][0]["context"] == "Control Goal"
     assert "issueCreate" not in str(out)
@@ -362,10 +378,10 @@ async def test_analyze_goal_does_not_write_linear() -> None:
 
 
 @pytest.mark.asyncio
-async def test_analyze_goal_maps_nested_goal_analysis() -> None:
+async def test_analyze_goal_maps_nested_goal_analysis(goal_project: dict[str, str]) -> None:
     async def fake_complete(**kwargs: Any) -> tuple[str, float]:
         assert "{{GOAL}}" not in kwargs["prompt"]
-        assert "Maximum 6 tickets" in kwargs["prompt"]
+        assert "Maximum 6 parent tickets" in kwargs["prompt"]
         return (
             '{"goal_analysis":{"summary":"Inspected Control Goal.","overall_risk":"Low"},'
             '"split_reason":"One ticket.",'
@@ -378,10 +394,9 @@ async def test_analyze_goal_maps_nested_goal_analysis() -> None:
 
     out = await analyze_goal(
         "Analyze then file Linear tickets after approval",
-        "CleanExpo/Pi-Dev-Ops",
         "Drafts appear first; Linear only after approve.",
+        goal_project["id"],
         complete_fn=fake_complete,
-        context_fn=lambda slug, goal: {"ok": True, "limitation": "", "excerpt": "app/server/goal_ticket.py"},
     )
     assert out["filed"] is False
     assert out["summary"] == "Inspected Control Goal."
@@ -392,38 +407,32 @@ async def test_analyze_goal_maps_nested_goal_analysis() -> None:
 
 
 @pytest.mark.asyncio
-async def test_analyze_goal_falls_back_when_model_fails() -> None:
+async def test_analyze_goal_falls_back_when_model_fails(goal_project: dict[str, str]) -> None:
     async def boom(**kwargs: Any) -> tuple[str, float]:
         raise RuntimeError("no model")
 
     out = await analyze_goal(
         "Analyze then file Linear tickets after approval",
-        "CleanExpo/Pi-Dev-Ops",
         "Drafts appear first; Linear only after approve.",
+        goal_project["id"],
         complete_fn=boom,
-        context_fn=lambda slug, goal: {
-            "ok": False,
-            "limitation": "Repo inspection unavailable in this test.",
-            "excerpt": "",
-        },
     )
     assert out["filed"] is False
     assert out["fallback"] is True
     assert out["code_inspected"] is False
-    assert "unavailable" in out["code_limitation"].lower() or "unavailable" in out["tickets"][0]["context"].lower()
     assert out["tickets"][0]["current_behaviour"].startswith("Unknown")
     assert len(out["tickets"]) == 1
     assert out["summary"]
-    assert "failed" in out["summary"].lower() or "unavailable" in out["summary"].lower()
+    assert "failed" in out["summary"].lower()
 
 
-def test_route_rejects_unapproved_file(client: TestClient) -> None:
+def test_route_rejects_unapproved_file(client: TestClient, goal_project: dict[str, str]) -> None:
     resp = client.post(
         "/api/goal-ticket",
         json={
             "goal": "File this as a Linear ticket now",
-            "repo": "CleanExpo/Pi-Dev-Ops",
             "acceptance": "Ticket should not exist yet in Linear.",
+            "project_id": goal_project["id"],
             "approved": False,
             "tickets": [
                 {
@@ -439,9 +448,9 @@ def test_route_rejects_unapproved_file(client: TestClient) -> None:
 
 
 def test_analyze_route_returns_drafts_not_identifiers(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, goal_project: dict[str, str]
 ) -> None:
-    async def fake_analyze(goal: str, repo: str, acceptance: str) -> dict[str, Any]:
+    async def fake_analyze(goal: str, acceptance: str, project_id: str) -> dict[str, Any]:
         return {
             "status": "proposed",
             "filed": False,
@@ -465,8 +474,8 @@ def test_analyze_route_returns_drafts_not_identifiers(
         "/api/goal-ticket/analyze",
         json={
             "goal": "File this as a Linear ticket now",
-            "repo": "CleanExpo/Pi-Dev-Ops",
             "acceptance": "Drafts exist; Linear does not yet.",
+            "project_id": goal_project["id"],
         },
     )
     assert resp.status_code == 200
@@ -490,19 +499,29 @@ def test_format_draft_notes_includes_implementation_sections() -> None:
     assert "Ready for Pi-Dev" not in body
 
 
-def test_render_analyze_prompt_uses_review_template() -> None:
+def test_render_analyze_prompt_uses_project_brief() -> None:
     text = render_analyze_prompt(
         "Save a look on the feed",
-        "CleanExpo/Synthex",
         "Saved look remains after refresh.",
-        {"ok": True, "limitation": "", "excerpt": "app/pages/look.tsx"},
+        {
+            "title": "Synthex saved looks",
+            "description": "People save looks from the feed.",
+            "audience": "Shoppers on Synthex.",
+            "problem": "",
+            "users": "",
+            "outcomes": "",
+            "constraints": "",
+            "out_of_scope": "",
+        },
     )
     assert "Save a look on the feed" in text
-    assert "CleanExpo/Synthex" in text
-    assert "app/pages/look.tsx" in text
+    assert "Synthex saved looks" in text
+    assert "Shoppers on Synthex." in text
     assert "{{GOAL}}" not in text
-    assert "Maximum 6 tickets" in text
+    assert "{{PROJECT}}" not in text
+    assert "Maximum 6 parent tickets" in text
     assert "goal_analysis" in text
+    assert "sub_tasks" in text
 
 
 def test_drafts_from_payload_flattens_nested_schema() -> None:
@@ -575,30 +594,62 @@ def test_drafts_from_payload_skips_schema_placeholder_tickets() -> None:
 
 
 @pytest.mark.asyncio
-async def test_analyze_goal_keeps_model_tickets_when_repo_inspect_fails() -> None:
+async def test_analyze_goal_uses_project_not_repo(goal_project: dict[str, str]) -> None:
     async def fake_complete(**kwargs: Any) -> tuple[str, float]:
+        assert "Do not inspect" in kwargs["system"] or "project brief" in kwargs["prompt"]
+        assert "github.com" not in kwargs["prompt"].lower()
         return (
-            '{"goal_analysis":{"summary":"Inspection failed; tickets still split by surface."},'
+            '{"goal_analysis":{"summary":"Split by create then persist."},'
             '"split_reason":"UI vs persist.",'
             '"tickets":[{"title":"Create project from dashboard",'
             '"expected_behaviour":"User can create a named project.",'
-            '"acceptance":["Given a logged-in user When they create a project Then it appears after refresh"]}]}',
+            '"acceptance":["Given a logged-in user When they create a project Then it appears after refresh"],'
+            '"tasks":["Add the create form"],'
+            '"sub_tasks":[{"title":"Add the title field","description":"Title is required and persists.",'
+            '"scenarios":["Given empty title When submit Then show an error"],'
+            '"details":["Trim whitespace before save"]}]}]}',
             0.01,
         )
 
     out = await analyze_goal(
         "Let a user create projects, add tasks, and track task status from their dashboard",
-        "CleanExpo/Synthex",
         "A user can create a project, add a task, change its status, refresh, and see it persist.",
+        goal_project["id"],
         complete_fn=fake_complete,
-        context_fn=lambda slug, goal: {
-            "ok": False,
-            "limitation": "Repo inspection unavailable (GitHub HTTP 401).",
-            "excerpt": "",
-        },
     )
     assert out["fallback"] is False
     assert out["code_inspected"] is False
-    assert "401" in out["code_limitation"]
+    assert out["project_title"] == goal_project["title"]
     assert out["tickets"][0]["title"] == "Create project from dashboard"
-    assert out["summary"] == "Inspection failed; tickets still split by surface."
+    assert "Add the title field" in out["tickets"][0]["sub_tasks"]
+    assert out["tickets"][0]["sub_tasks_json"]
+
+
+def test_file_drafts_creates_parent_and_sub_tasks() -> None:
+    fake = _FakeLinear()
+    out = file_drafts(
+        "CleanExpo/Pi-Dev-Ops",
+        [
+            {
+                "title": "Add project create",
+                "goal": "User can create a named project from the dashboard",
+                "acceptance": "A created project remains after refresh.",
+                "sub_tasks_json": (
+                    '[{"title":"Add the title field","description":"Required title persists after save.",'
+                    '"scenarios":"Given empty title When submit Then show an error",'
+                    '"details":"Trim whitespace","acceptance":"Empty title is rejected with an error."}]'
+                ),
+            }
+        ],
+        approved=True,
+        parent_goal="Let a user create projects",
+        project_title="Control Goal desk",
+        gql=fake,
+    )
+    assert out["status"] == "created"
+    assert out["count"] == 2
+    assert fake.created[0]["title"] == "Add project create"
+    assert fake.created[1]["title"] == "Add the title field"
+    assert fake.created[1]["parentId"] == "issue-1"
+    assert "## Project" in fake.created[0]["description"]
+    assert "Control Goal desk" in fake.created[0]["description"]

@@ -79,14 +79,35 @@ class TriggerRequest(BaseModel):
         return v
 
 
+class GoalProjectCreate(BaseModel):
+    """Operator-created project brief used to ground Goal tickets."""
+
+    title: str
+    description: str
+    audience: str
+    problem: str = ""
+    users: str = ""
+    outcomes: str = ""
+    constraints: str = ""
+    out_of_scope: str = ""
+
+    @field_validator("title", "description", "audience")
+    @classmethod
+    def strip_required_brief(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("field cannot be empty")
+        return v
+
+
 class GoalTicketRequest(BaseModel):
     """Goal → Linear: required fields only. No autonomy markers."""
 
     goal: str
-    repo: str
     acceptance: str
+    project_id: str
 
-    @field_validator("goal", "repo", "acceptance")
+    @field_validator("goal", "acceptance", "project_id")
     @classmethod
     def strip_required(cls, v: str) -> str:
         v = (v or "").strip()
@@ -125,6 +146,11 @@ class GoalDraft(BaseModel):
     ui_ux: str = ""
     data_state: str = ""
     affected_surfaces: str = ""
+    tasks: str = ""
+    sub_tasks: str = ""
+    sub_tasks_json: str = ""
+    scenarios: str = ""
+    junior_notes: str = ""
 
     @field_validator("title", "goal", "acceptance")
     @classmethod

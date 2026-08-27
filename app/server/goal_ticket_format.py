@@ -24,6 +24,10 @@ _DRAFT_NOTE_FIELDS = (
     ("Dependencies", "dependencies"),
     ("Risks", "risks"),
     ("Review", "review"),
+    ("Tasks", "tasks"),
+    ("Sub-tasks", "sub_tasks"),
+    ("Scenarios", "scenarios"),
+    ("Junior notes", "junior_notes"),
     ("Why this ticket", "rationale"),
 )
 
