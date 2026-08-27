@@ -3,17 +3,24 @@
 
 FROM python:3.12-slim
 
-# System deps: git (clone/push), Node.js 22 (Claude CLI + OmniRoute), and
+# System deps: git (clone/push), Node.js 24 LTS (Claude CLI + OmniRoute), and
 # build tooling for better-sqlite3 if a prebuilt binary is unavailable.
+# OmniRoute's supported secure runtime floor is >=22.22.2 or >=24; pinning the
+# major to Node 24 avoids an ambiguous/older Node 22 patch from NodeSource.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git curl ca-certificates build-essential \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/nodesource_setup.sh \
+    && bash /tmp/nodesource_setup.sh \
+    && rm -f /tmp/nodesource_setup.sh \
     && apt-get install -y --no-install-recommends nodejs \
+    && node --version | grep -Eq '^v24\.' \
+    && npm --version \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Claude remains the high-trust escape hatch. OmniRoute is pinned to the latest
 # published npm version reviewed for the Mission Control model-fabric build.
-RUN npm install -g @anthropic-ai/claude-code omniroute@3.8.49
+RUN npm install -g @anthropic-ai/claude-code omniroute@3.8.49 \
+    && omniroute --version
 
 # Create non-root user — claude_agent_sdk refuses --dangerously-skip-permissions
 # when invoked as root, so the server must run as an unprivileged user.
