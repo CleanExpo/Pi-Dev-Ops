@@ -1,6 +1,7 @@
 """Goal → Linear ticket: required fields, Backlog only, no autonomy markers."""
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -20,6 +21,7 @@ from app.server.goal_ticket import (
     title_from_goal,
     validate_goal,
 )
+from app.server import goal_analyze as goal_analyze_mod
 from app.server.goal_analyze import (
     analyze_goal,
     drafts_from_payload,
@@ -429,6 +431,28 @@ async def test_analyze_goal_falls_back_when_model_fails(goal_project: dict[str, 
     assert "failed" in out["summary"].lower()
 
 
+@pytest.mark.asyncio
+async def test_analyze_goal_returns_drafts_when_model_is_slow(
+    goal_project: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(goal_analyze_mod, "_ANALYZE_BUDGET_S", 0.05)
+
+    async def slow(**kwargs: Any) -> tuple[str, float]:
+        await asyncio.sleep(1)
+        return '{"tickets":[]}', 0.0
+
+    out = await analyze_goal(
+        "Analyze then file Linear tickets after approval",
+        "Drafts appear first; Linear only after approve.",
+        goal_project["id"],
+        complete_fn=slow,
+    )
+    assert out["filed"] is False
+    assert out["fallback"] is True
+    assert len(out["tickets"]) == 1
+    assert "budget" in out["summary"].lower() or "time" in out["summary"].lower()
+
+
 def test_route_rejects_unapproved_file(client: TestClient, goal_project: dict[str, str]) -> None:
     resp = client.post(
         "/api/goal-ticket",
@@ -525,6 +549,8 @@ def test_render_analyze_prompt_uses_project_brief() -> None:
     assert "Maximum 6 parent tickets" in text
     assert "goal_analysis" in text
     assert "sub_tasks" in text
+    assert "Project Brief:" in text
+    assert len(text) < 2500
 
 
 def test_drafts_from_payload_flattens_ticket_standard() -> None:
@@ -649,6 +675,7 @@ def test_drafts_from_payload_skips_schema_placeholder_tickets() -> None:
 async def test_analyze_goal_uses_project_not_repo(goal_project: dict[str, str]) -> None:
     async def fake_complete(**kwargs: Any) -> tuple[str, float]:
         assert "Do not invent repositories" in kwargs["system"]
+        assert kwargs["max_tokens"] <= 2048
         assert "Project Brief:" in kwargs["prompt"]
         assert "github.com" not in kwargs["prompt"].lower()
         return (

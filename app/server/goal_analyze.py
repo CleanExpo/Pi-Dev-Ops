@@ -1,6 +1,7 @@
 """Turn a stated goal into draft Linear tickets. Never writes to Linear."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -19,11 +20,14 @@ from app.server.spec_pipeline.llm import complete
 log = logging.getLogger("pi-ceo.goal_analyze")
 
 _MAX_TICKETS = 6
-_MAX_TOKENS = 16384
+_MAX_TOKENS = 2048
+# Stay inside the dashboard proxy window (100s). A 16k completion was still
+# running when Vercel returned "Analyze can take up to a minute."
+_ANALYZE_BUDGET_S = 70.0
 _PROMPT_PATH = Path(__file__).with_name("goal_analyze_prompt.txt")
 _SYSTEM = (
-    "Return one JSON object only. Follow the ticket standard in the user message. "
-    "Do not invent repositories or file paths. Do not copy schema placeholders."
+    "JSON only. Omit empty keys. One short sentence per field. "
+    "Do not invent repositories or file paths."
 )
 _PLACEHOLDERS = (
     "human-written imperative title",
@@ -197,17 +201,26 @@ async def analyze_goal(
     cost = 0.0
     try:
         fn = complete_fn or complete
-        text, cost = await fn(
-            prompt=render_analyze_prompt(goal, acceptance, project),
-            system=_SYSTEM,
-            role="goal_analyst",
-            max_tokens=_MAX_TOKENS,
+        text, cost = await asyncio.wait_for(
+            fn(
+                prompt=render_analyze_prompt(goal, acceptance, project),
+                system=_SYSTEM,
+                role="goal_analyst",
+                max_tokens=_MAX_TOKENS,
+            ),
+            timeout=_ANALYZE_BUDGET_S,
         )
         payload = parse_analyze_payload(text)
         if payload is None:
             fallback = True
             model_reason = "The model did not return a usable ticket plan."
             log.warning("goal analyze: no usable JSON in model output")
+    except TimeoutError:
+        fallback = True
+        model_reason = (
+            "Analysis hit the time budget. Drafts below are from the stated goal."
+        )
+        log.warning("goal analyze: timed out after %.0fs", _ANALYZE_BUDGET_S)
     except Exception as exc:
         fallback = True
         model_reason = f"The model call failed ({type(exc).__name__})."
