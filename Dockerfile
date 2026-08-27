@@ -3,15 +3,17 @@
 
 FROM python:3.12-slim
 
-# System deps: git (clone/push), Node.js (claude CLI)
+# System deps: git (clone/push), Node.js 22 (Claude CLI + OmniRoute), and
+# build tooling for better-sqlite3 if a prebuilt binary is unavailable.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git curl ca-certificates \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+        git curl ca-certificates build-essential \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install claude CLI (uses ANTHROPIC_API_KEY at runtime)
-RUN npm install -g @anthropic-ai/claude-code
+# Claude remains the high-trust escape hatch. OmniRoute is pinned to the latest
+# published npm version reviewed for the Mission Control model-fabric build.
+RUN npm install -g @anthropic-ai/claude-code omniroute@3.8.49
 
 # Create non-root user — claude_agent_sdk refuses --dangerously-skip-permissions
 # when invoked as root, so the server must run as an unprivileged user.
@@ -28,37 +30,26 @@ COPY app/server/ ./app/server/
 # TAO engine (imported by sessions.py via sys.path manipulation)
 COPY src/ ./src/
 
-# RA-1869 — Wave-4/5 swarm orchestrator + bots (CoS Telegram poller, senior
-# bots, Board, Margot, debate runner, kanban adapter, voice composer).
-# Imported from app/server/app_factory.py:on_startup. Without this COPY,
-# `from swarm import orchestrator` fails at runtime with ModuleNotFoundError.
+# RA-1869 — Wave-4/5 swarm orchestrator + bots.
 COPY swarm/ ./swarm/
 
-# Committed config — the seven spec/instance-data files config_loader.py reads.
-# Was `COPY .harness/ ./.harness/`, which could not build from a clean clone: #607 untracked
-# .harness/, so the path is absent in CI and the build died with `"/.harness": not found`.
-# Only config is tracked and copied. .harness/ is runtime STATE — created empty below and
-# written at run time; copying it also baked gitignored runtime files into the image.
+# Committed config / skills
 COPY config/harness/ ./config/harness/
 COPY skills/ ./skills/
 
-# Board governance corpus — the locked conditions the mandate-consistency gate
-# reads (board_decision_index.build_decision_index). Not documentation from the
-# image's point of view: without it the gate raises BoardCorpusMissingError and
-# the daily board meeting stops at the gap-audit phase. Scoped to the one
-# directory rather than COPY docs/, which would bake the whole doc tree in.
+# Board governance corpus
 COPY docs/governance/board-meetings/ ./docs/governance/board-meetings/
 
-# Utility scripts (analyse_lessons, smoke_test, fallback_dryrun, etc.)
+# Utility scripts
 COPY scripts/ ./scripts/
 
-# Packaged Margot FastMCP runtime. The canonical source remains in
-# ~/.margot, but Railway containers need an in-image server path.
+# Packaged Margot FastMCP runtime.
 COPY vendor/margot-deep-research/ ./vendor/margot-deep-research/
 
-# Runtime directories — owned by pidev so the server can write to them.
-# .harness/ is created empty on purpose: it is generated state, no longer shipped in the image.
-RUN mkdir -p app/workspaces app/logs/.sessions app/data .harness && \
+# Runtime directories. OmniRoute state is intentionally local/ephemeral here:
+# Mission Control rehydrates approved providers on each deploy and does not use
+# OmniRoute as its source of memory or authority.
+RUN mkdir -p app/workspaces app/logs/.sessions app/data .harness /pi-ceo/.omniroute && \
     chown -R pidev:pidev /pi-ceo
 
 USER pidev
@@ -69,12 +60,21 @@ ENV TAO_PORT=8080
 ENV TAO_USE_AGENT_SDK=1
 ENV PYTHONPATH=/pi-ceo
 ENV MARGOT_SERVER_PATH=/pi-ceo/vendor/margot-deep-research/server.py
+
+# Mission Control Model Fabric — local sidecar, not a public dashboard.
+ENV OMNIROUTE_ENABLED=1
+ENV OMNIROUTE_BASE_URL=http://127.0.0.1:20128
+ENV OMNIROUTE_ROLES=margot.casual
+ENV OMNIROUTE_STRENGTHEN_MARGOT=smart
+ENV DATA_DIR=/pi-ceo/.omniroute
+ENV REQUIRE_API_KEY=false
+ENV HOSTNAME=127.0.0.1
+
 # OM-1: 15-move lookahead planner (override per-deploy via Railway env).
 ENV TAO_OM1_ENABLED=1
 ENV TAO_PLANNER_MAX_REPLANS=2
 
 EXPOSE 8080
 
-# Set working dir so relative paths in config.py resolve correctly
 WORKDIR /pi-ceo
-CMD ["uvicorn", "app.server.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]
+CMD ["python", "scripts/runtime_model_guard.py"]
