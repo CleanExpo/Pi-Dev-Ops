@@ -17,6 +17,7 @@ from .routes import terminal  # Terminal Orchestrator read API — pane-UI backe
 from .routes import health  # noqa: F401
 from .routes import health_full  # RA-1910 — /api/health/full endpoint
 from .routes import nexus as nexus_routes  # Phase A — Nexus onboarding + growth OS
+from . import continuation_bridge  # noqa: F401 — internal Telegram/Margot rolling-horizon hook
 
 app.include_router(auth.router)
 app.include_router(goal_ticket.router)
