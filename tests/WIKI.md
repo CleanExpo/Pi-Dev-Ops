@@ -1,12 +1,12 @@
 # tests — Wiki
 
-_Last updated: 2026-08-27T07:12:29Z (commits c3ef6dd..37cf164)_
+_Last updated: 2026-08-27T10:10:08Z (commits 797ba72..96bbce3)_
 
 ## Recent changes
-- 37cf164 — fix(linear): store Goal projects in settings when the table is missing
+- 96bbce3 — Mission Control: governed OmniRoute model fabric (#668)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_goal_projects.py — touched in recent commits
+- tests/test_model_fabric.py — touched in recent commits
