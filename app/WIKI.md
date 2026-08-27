@@ -1,13 +1,13 @@
 # app — Wiki
 
-_Last updated: 2026-08-23T04:19:17Z (commits feb08fa..c6e2386)_
+_Last updated: 2026-08-27T06:51:59Z (commits 3545ac9..87abf95)_
 
 ## Recent changes
-- 9edc3c4 — fix(senior-harness): recover a session whose first prompt was outside Git
+- 87abf95 — fix(linear): keep Goal analyze inside the proxy window
 
 ## Architecture (current)
 Auto-stub: `app/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- app/server/routing_schema.py — touched in recent commits
-- app/server/task_routing.py — touched in recent commits
+- app/server/goal_analyze.py — touched in recent commits
+- app/server/goal_analyze_prompt.txt — touched in recent commits
