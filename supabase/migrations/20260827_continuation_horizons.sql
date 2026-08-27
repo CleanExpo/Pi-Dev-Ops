@@ -23,6 +23,9 @@ $$;
 
 revoke all on function public.set_continuation_horizons_updated_at() from public;
 
+drop trigger if exists continuation_horizons_set_updated_at
+on public.continuation_horizons;
+
 create trigger continuation_horizons_set_updated_at
 before update on public.continuation_horizons
 for each row execute function public.set_continuation_horizons_updated_at();
