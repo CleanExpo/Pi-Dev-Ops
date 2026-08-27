@@ -4,22 +4,31 @@ import styles from "./control-deck.module.css";
 
 export interface GoalAnalysisBlock {
   summary?: string;
+  problem?: string;
   user_problem?: string;
+  users?: unknown;
   desired_outcome?: string;
+  acceptance_summary?: string;
   acceptance_interpretation?: string;
   current_behaviour?: string;
+  new_work?: unknown;
   identified_gaps?: unknown;
+  existing_functionality?: unknown;
   existing_functionality_to_reuse?: unknown;
   scope?: { included?: unknown; excluded?: unknown };
+  unknowns?: unknown;
   repo_limitations?: unknown;
   implementation_strategy?: string;
+  risk?: string;
   overall_risk?: string;
 }
 
 export interface FlowBlock {
+  summary?: string;
   diagram?: string;
   happy_path?: unknown;
   failure_paths?: unknown;
+  edge_cases?: unknown;
   steps?: unknown;
 }
 
@@ -32,6 +41,7 @@ export interface FinalReviewBlock {
   acceptance_coverage?: string;
   missing_requirements?: unknown;
   unnecessary_scope?: unknown;
+  unknowns?: unknown;
   key_unknowns?: unknown;
   main_risks?: unknown;
   smallest_viable_path?: string;
@@ -90,13 +100,17 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
   const review = analysis.final_review || {};
   const order = analysis.implementation_order || [];
   const summary = (ga.summary || "").trim() || analysis.summary || "No analysis text returned.";
-  const gaps = asLines(ga.identified_gaps);
-  const reuse = asLines(ga.existing_functionality_to_reuse);
+  const problem = String(ga.user_problem || ga.problem || "").trim();
+  const risk = String(ga.overall_risk || ga.risk || "").trim();
+  const users = asLines(ga.users);
+  const gaps = asLines(ga.identified_gaps || ga.new_work);
+  const reuse = asLines(ga.existing_functionality_to_reuse || ga.existing_functionality);
   const included = asLines(ga.scope?.included);
   const excluded = asLines(ga.scope?.excluded);
-  const limits = asLines(ga.repo_limitations);
+  const limits = asLines(ga.repo_limitations || ga.unknowns);
   const happy = asLines(userFlow.happy_path);
   const fail = asLines(userFlow.failure_paths);
+  const flowEdges = asLines(userFlow.edge_cases);
   const steps = asLines(techFlow.steps);
   const orderText = order
     .map((step, i) => {
@@ -112,9 +126,9 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
         <p className="mt-2 text-[14px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text)" }}>
           {summary}
         </p>
-        {ga.user_problem ? (
+        {problem ? (
           <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            {ga.user_problem}
+            {problem}
           </p>
         ) : null}
         {ga.desired_outcome ? (
@@ -122,8 +136,8 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
             {ga.desired_outcome}
           </p>
         ) : null}
-        {ga.overall_risk ? (
-          <p className={`${styles.note} mt-2`}>Overall risk: {ga.overall_risk}</p>
+        {risk ? (
+          <p className={`${styles.note} mt-2`}>Overall risk: {risk}</p>
         ) : null}
         {analysis.fallback ? (
           <p className="mt-2 text-[13px]" style={{ color: "var(--warning)" }}>
@@ -138,31 +152,36 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
       </section>
 
       <Block title="Current behaviour" body={ga.current_behaviour || ""} />
-      <Block title="Acceptance interpretation" body={ga.acceptance_interpretation || ""} />
-      <Block title="Gaps" body={gaps} />
+      <Block title="Users" body={users} />
+      <Block
+        title="Acceptance interpretation"
+        body={String(ga.acceptance_interpretation || ga.acceptance_summary || "")}
+      />
+      <Block title="New work" body={gaps} />
       <Block title="Reuse" body={reuse} />
       <Block title="Included" body={included} />
       <Block title="Not included" body={excluded} />
-      <Block title="Repo limitations" body={limits} />
+      <Block title="Unknowns" body={limits} />
       <Block title="Implementation strategy" body={ga.implementation_strategy || ""} />
 
       <section className={styles.card}>
         <div className={styles.fieldLabel}>Implementation breakdown</div>
         <p className="mt-2 text-[14px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text)" }}>
-          {analysis.split_reason || "Split reason was not returned."}
+          {analysis.split_reason || ga.implementation_strategy || "Implementation strategy was not returned."}
         </p>
       </section>
 
-      <Block title="User flow" body={userFlow.diagram || ""} pre />
+      <Block title="User flow" body={String(userFlow.summary || userFlow.diagram || "")} pre={Boolean(userFlow.diagram)} />
       <Block title="Happy path" body={happy} />
       <Block title="Failure paths" body={fail} />
+      <Block title="User-flow edge cases" body={flowEdges} />
       <Block title="Technical flow" body={techFlow.diagram || ""} pre />
       <Block title="Technical steps" body={steps} />
       <Block title="Implementation order" body={orderText} />
       <Block title="Acceptance coverage" body={review.acceptance_coverage || ""} />
       <Block title="Missing requirements" body={asLines(review.missing_requirements)} />
       <Block title="Unnecessary scope" body={asLines(review.unnecessary_scope)} />
-      <Block title="Unknowns" body={asLines(review.key_unknowns)} />
+      <Block title="Review unknowns" body={asLines(review.unknowns || review.key_unknowns)} />
       <Block title="Main risks" body={asLines(review.main_risks)} />
       <Block title="Smallest viable path" body={review.smallest_viable_path || ""} />
     </>
