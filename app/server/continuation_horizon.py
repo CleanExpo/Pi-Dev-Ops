@@ -1,10 +1,9 @@
 """Cross-channel rolling execution horizon for Mission Control.
 
 Keeps one canonical objective and up to 15 next moves visible across Claude,
-Telegram, Slack and Mission Control. This module is intentionally policy-only:
-it never bypasses approval, kill-switch, spend, deploy, merge, delete or other
-protected-action gates. It exists to stop safe work from ending merely because
-one sub-task completed.
+Telegram, Slack and Mission Control. Protected-action gates remain authoritative.
+Supabase is the durable cross-machine source when available; a local atomic file
+remains the fail-soft hot cache.
 """
 from __future__ import annotations
 
@@ -16,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 HORIZON_TARGET = 15
-STATE_VERSION = 1
+STATE_VERSION = 2
 
 
 def _now() -> str:
@@ -29,13 +28,24 @@ def state_path() -> Path:
     return root / "continuation-horizon.json"
 
 
-def load_state() -> dict[str, Any]:
+def _load_local() -> dict[str, Any]:
     path = state_path()
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
         return raw if isinstance(raw, dict) else {}
     except (OSError, json.JSONDecodeError):
         return {}
+
+
+def load_state() -> dict[str, Any]:
+    try:
+        from app.server import continuation_store
+        durable = continuation_store.load()
+        if durable:
+            return durable
+    except Exception:  # noqa: BLE001
+        pass
+    return _load_local()
 
 
 def save_state(state: dict[str, Any]) -> None:
@@ -53,24 +63,46 @@ def save_state(state: dict[str, Any]) -> None:
             os.unlink(tmp_name)
         except FileNotFoundError:
             pass
+    try:
+        from app.server import continuation_store
+        continuation_store.save(state)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def arm_objective(*, objective: str, source: str, chat_id: str = "") -> dict[str, Any]:
     current = load_state()
-    objective = objective.strip()
-    if not objective:
+    instruction = objective.strip()
+    if not instruction:
         return current
-    state = {
-        **current,
-        "armed": True,
-        "objective": objective,
-        "source": source,
-        "chat_id": chat_id or current.get("chat_id", ""),
-        "completed": False,
-        "completion_evidence": [],
-        "horizon_target": HORIZON_TARGET,
-        "last_progress_at": _now(),
-    }
+
+    active = bool(current.get("armed")) and not bool(current.get("completed"))
+    if active:
+        updates = current.get("objective_updates") if isinstance(current.get("objective_updates"), list) else []
+        updates = [*updates, {"text": instruction, "source": source, "at": _now()}][-50:]
+        state = {
+            **current,
+            "armed": True,
+            "latest_instruction": instruction,
+            "objective_updates": updates,
+            "source": source,
+            "chat_id": chat_id or current.get("chat_id", ""),
+            "last_progress_at": _now(),
+        }
+    else:
+        state = {
+            **current,
+            "armed": True,
+            "objective": instruction,
+            "latest_instruction": instruction,
+            "objective_updates": [],
+            "source": source,
+            "chat_id": chat_id or current.get("chat_id", ""),
+            "completed": False,
+            "completion_evidence": [],
+            "horizon_target": HORIZON_TARGET,
+            "last_progress_at": _now(),
+        }
     save_state(state)
     return state
 
@@ -148,6 +180,7 @@ def should_continue() -> bool:
 def operator_context() -> str:
     state = load_state()
     objective = str(state.get("objective") or "").strip()
+    latest = str(state.get("latest_instruction") or "").strip()
     steps = state.get("steps") if isinstance(state.get("steps"), list) else []
     pending = [s for s in steps if s.get("status") not in {"done", "verified", "complete"}]
     lines = [
@@ -160,7 +193,9 @@ def operator_context() -> str:
         "- Stop only when the objective is verified complete, a real safety/authority boundary blocks all useful work, or the kill switch is active.",
     ]
     if objective:
-        lines.append(f"- Current objective: {objective}")
+        lines.append(f"- Root objective: {objective}")
+    if latest and latest != objective:
+        lines.append(f"- Latest refinement: {latest}")
     if pending:
         lines.append("- Current pending horizon: " + " | ".join(str(s.get("title")) for s in pending[:HORIZON_TARGET]))
     return "\n".join(lines)

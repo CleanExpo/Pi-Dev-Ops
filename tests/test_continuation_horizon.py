@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from app.server import continuation_horizon as horizon
+from app.server import continuation_store
 
 
 def _isolated(monkeypatch, tmp_path):
     monkeypatch.setenv("TAO_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(continuation_store, "load", lambda: {})
+    monkeypatch.setattr(continuation_store, "save", lambda state: False)
 
 
 def test_arm_objective_persists_cross_channel_state(monkeypatch, tmp_path):
@@ -15,6 +18,22 @@ def test_arm_objective_persists_cross_channel_state(monkeypatch, tmp_path):
     assert state["source"] == "telegram"
     assert state["chat_id"] == "8792816988"
     assert horizon.load_state()["objective"] == "Finish Model Fabric"
+
+
+def test_followup_refines_instead_of_replacing_root_objective(monkeypatch, tmp_path):
+    _isolated(monkeypatch, tmp_path)
+    horizon.arm_objective(objective="Finish Mission Control", source="telegram")
+    state = horizon.arm_objective(objective="Also fix the Pixel Office", source="telegram")
+    assert state["objective"] == "Finish Mission Control"
+    assert state["latest_instruction"] == "Also fix the Pixel Office"
+    assert state["objective_updates"][-1]["text"] == "Also fix the Pixel Office"
+
+
+def test_durable_state_wins_over_local_cache(monkeypatch, tmp_path):
+    _isolated(monkeypatch, tmp_path)
+    horizon.save_state({"armed": True, "objective": "local"})
+    monkeypatch.setattr(continuation_store, "load", lambda: {"armed": True, "objective": "durable"})
+    assert horizon.load_state()["objective"] == "durable"
 
 
 def test_horizon_caps_at_fifteen_and_ready_steps_respect_dependencies(monkeypatch, tmp_path):
