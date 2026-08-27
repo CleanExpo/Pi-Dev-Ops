@@ -1,16 +1,14 @@
 # app — Wiki
 
-_Last updated: 2026-08-27T10:10:08Z (commits 797ba72..96bbce3)_
+_Last updated: 2026-08-27T11:27:19Z (commits 8978b3c..6b58d72)_
 
 ## Recent changes
-- 96bbce3 — Mission Control: governed OmniRoute model fabric (#668)
+- 6b58d72 — Mission Control: rolling 15-step continuation across Claude, Telegram and Margot
 
 ## Architecture (current)
 Auto-stub: `app/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
+- app/server/continuation_bridge.py — touched in recent commits
+- app/server/continuation_horizon.py — touched in recent commits
 - app/server/main.py — touched in recent commits
-- app/server/model_fabric.py — touched in recent commits
-- app/server/provider_openrouter.py — touched in recent commits
-- app/server/routes/mission_control.py — touched in recent commits
-- app/server/routes/model_fabric.py — touched in recent commits
