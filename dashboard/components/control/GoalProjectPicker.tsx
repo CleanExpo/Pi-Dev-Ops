@@ -41,8 +41,15 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
 
   async function reload() {
     const res = await fetch("/api/pi-ceo/api/goal-projects");
-    const data = (await res.json().catch(() => ({}))) as { projects?: GoalProject[] };
-    setProjects(Array.isArray(data.projects) ? data.projects : []);
+    const data = (await res.json().catch(() => ({}))) as {
+      projects?: GoalProject[];
+      hint?: string;
+      detail?: { hint?: string };
+    };
+    if (!res.ok || !Array.isArray(data.projects)) {
+      throw new Error(data.hint || data.detail?.hint || "Could not load projects.");
+    }
+    setProjects(data.projects);
   }
 
   useEffect(() => {
@@ -68,10 +75,10 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         setError(data.hint || data.detail?.hint || "Project was not created.");
         return;
       }
-      setProjects((rows) => [...rows, data.project as GoalProject]);
       onSelect(data.project);
       setDraft(EMPTY);
       setCreating(false);
+      await reload();
     } catch {
       setError("Network error — project was not created.");
     } finally {

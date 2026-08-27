@@ -3,7 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..auth import require_auth, require_rate_limit
 from ..goal_analyze import analyze_goal
-from ..goal_projects import create_project, get_project, load_projects, validate_brief
+from ..goal_projects import (
+    GoalProjectStoreError,
+    create_project,
+    get_project,
+    load_projects,
+    validate_brief,
+)
 from ..goal_ticket import file_drafts
 from ..models import GoalProjectCreate, GoalTicketFileRequest, GoalTicketRequest
 
@@ -49,6 +55,13 @@ def _raise_goal_error(result: dict) -> None:
                 "hint": "Linear is not written until the proposed tickets are approved.",
             },
         )
+    if err in {
+        "supabase_not_configured",
+        "supabase_read_failed",
+        "supabase_write_failed",
+        "file_store_disabled",
+    }:
+        raise HTTPException(503, {"error": err, "hint": result.get("hint") or "Database store failed."})
     if err == "no_api_key":
         raise HTTPException(503, "LINEAR_API_KEY is not configured")
     if err == "backlog_state_missing":
@@ -62,7 +75,10 @@ def _raise_goal_error(result: dict) -> None:
     dependencies=[Depends(require_auth), Depends(require_rate_limit)],
 )
 def list_goal_projects() -> dict:
-    return {"projects": load_projects()}
+    try:
+        return {"projects": load_projects()}
+    except GoalProjectStoreError as exc:
+        raise HTTPException(503, {"error": exc.code, "hint": exc.hint}) from exc
 
 
 @router.post(
@@ -80,7 +96,10 @@ def create_goal_project(body: GoalProjectCreate) -> dict:
                 "hint": "title, description, and audience are required.",
             },
         )
-    return {"project": create_project(body.model_dump())}
+    try:
+        return {"project": create_project(body.model_dump())}
+    except GoalProjectStoreError as exc:
+        raise HTTPException(503, {"error": exc.code, "hint": exc.hint}) from exc
 
 
 @router.post(
@@ -99,7 +118,10 @@ async def analyze_goal_ticket(body: GoalTicketRequest) -> dict:
     dependencies=[Depends(require_auth), Depends(require_rate_limit)],
 )
 async def create_goal_ticket(body: GoalTicketFileRequest) -> dict:
-    brief = get_project(body.project_id)
+    try:
+        brief = get_project(body.project_id)
+    except GoalProjectStoreError as exc:
+        _raise_goal_error({"error": exc.code, "hint": exc.hint})
     if not brief:
         _raise_goal_error({"error": "unknown_project", "project_id": body.project_id})
     drafts = [t.model_dump() for t in body.tickets]

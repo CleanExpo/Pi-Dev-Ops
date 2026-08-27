@@ -12,7 +12,7 @@ from app.server.goal_analyze_fields import (
     flatten_ticket,
     parse_analyze_payload,
 )
-from app.server.goal_projects import format_brief, get_project
+from app.server.goal_projects import GoalProjectStoreError, format_brief, get_project
 from app.server.goal_ticket import _MIN_TEXT, title_from_goal
 
 from app.server.spec_pipeline.llm import complete
@@ -191,7 +191,10 @@ async def analyze_goal(
     missing = validate_analyze(goal, acceptance, project_id)
     if missing:
         return {"error": "validation", "fields": missing}
-    project = get_project(project_id)
+    try:
+        project = get_project(project_id)
+    except GoalProjectStoreError as exc:
+        return {"error": exc.code, "hint": exc.hint}
     if not project:
         return {"error": "unknown_project", "project_id": project_id}
 

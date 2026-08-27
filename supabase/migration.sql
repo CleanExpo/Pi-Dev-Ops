@@ -520,6 +520,27 @@ ALTER TABLE margot_research_queue ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "service_only" ON margot_research_queue;
 CREATE POLICY "service_only" ON margot_research_queue FOR ALL TO service_role USING (true);
 
+-- ── goal_projects ────────────────────────────────────────────────────────────
+-- Control Goal briefs. Service role only. Not the intake_projects CIP table.
+CREATE TABLE IF NOT EXISTS goal_projects (
+  id           TEXT         PRIMARY KEY,
+  title        TEXT         NOT NULL,
+  description  TEXT         NOT NULL,
+  audience     TEXT         NOT NULL,
+  problem      TEXT         NOT NULL DEFAULT '',
+  users        TEXT         NOT NULL DEFAULT '',
+  outcomes     TEXT         NOT NULL DEFAULT '',
+  constraints  TEXT         NOT NULL DEFAULT '',
+  out_of_scope TEXT         NOT NULL DEFAULT '',
+  created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS goal_projects_created_at_idx
+  ON goal_projects (created_at DESC);
+ALTER TABLE goal_projects ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_only" ON goal_projects;
+CREATE POLICY "service_only" ON goal_projects
+  FOR ALL TO service_role USING (true);
+
 -- Completion marker (RA-7117): the historical failure mode was an unguarded
 -- CREATE POLICY aborting a re-run midway, leaving a silent partial migration.
 -- A full run now always ends by returning this row. It sits INSIDE the transaction
