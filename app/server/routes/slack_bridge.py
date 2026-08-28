@@ -1,7 +1,6 @@
 """Slack Events API ingress for the Margot Slack <-> Telegram bridge."""
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import hmac
 import json
@@ -9,9 +8,6 @@ import logging
 import os
 import threading
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 from collections import deque
 from typing import Any
 
@@ -34,23 +30,6 @@ _MAX_SEEN_EVENTS = 500
 def _signing_secret() -> str:
     """Return the configured Slack signing secret without logging it."""
     return (os.environ.get("SLACK_SIGNING_SECRET") or "").strip()
-
-
-def _bot_token() -> str:
-    """Return the configured Slack bot token without logging it."""
-    return (os.environ.get("SLACK_BOT_TOKEN") or "").strip()
-
-
-def _bridge_enabled() -> bool:
-    """Return whether production explicitly opted into the bridge."""
-    return (os.environ.get("SLACK_TELEGRAM_BRIDGE_ENABLED") or "0").strip().lower() in {
-        "1", "true", "yes", "on",
-    }
-
-
-def _strengthening_channel() -> str:
-    """Return the configured strengthening channel ID."""
-    return (os.environ.get("SLACK_MARGOT_STRENGTHENING_CHANNEL") or "").strip()
 
 
 def _verify_signature(*, raw_body: bytes, timestamp: str, signature: str,
@@ -137,76 +116,6 @@ def _parse_signed_payload(request: Request, raw_body: bytes) -> dict[str, Any]:
     return payload
 
 
-def _slack_json(method: str, payload: dict[str, str] | None = None) -> dict[str, Any]:
-    """Run a bounded Slack Web API probe without ever returning credential material."""
-    token = _bot_token()
-    if not token:
-        return {"ok": False, "error": "missing_bot_token"}
-    data = json.dumps(payload or {}).encode("utf-8")
-    req = urllib.request.Request(
-        f"https://slack.com/api/{method}",
-        data=data,
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json; charset=utf-8",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=5) as response:
-            body = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
-        return {"ok": False, "error": "network_or_invalid_response"}
-    if not isinstance(body, dict):
-        return {"ok": False, "error": "invalid_response"}
-    return {
-        "ok": bool(body.get("ok")),
-        "error": str(body.get("error") or "")[:80],
-    }
-
-
-def _slack_health_snapshot() -> dict[str, Any]:
-    """Return a non-secret readiness snapshot for the production Slack bridge."""
-    token_present = bool(_bot_token())
-    signing_present = bool(_signing_secret())
-    channel = _strengthening_channel()
-    enabled = _bridge_enabled()
-    auth = _slack_json("auth.test") if token_present else {"ok": False, "error": "missing_bot_token"}
-    channel_check = (
-        _slack_json("conversations.info", {"channel": channel})
-        if auth.get("ok") and channel
-        else {"ok": False, "error": "auth_or_channel_missing"}
-    )
-    ready = bool(
-        enabled and token_present and signing_present and channel
-        and auth.get("ok") and channel_check.get("ok")
-    )
-    if ready:
-        status = "ready"
-    elif not enabled:
-        status = "disabled"
-    elif not token_present:
-        status = "missing_bot_token"
-    elif not signing_present:
-        status = "missing_signing_secret"
-    elif not auth.get("ok"):
-        status = "bot_auth_failed"
-    elif not channel:
-        status = "missing_channel"
-    else:
-        status = "channel_inaccessible"
-    return {
-        "ready": ready,
-        "status": status,
-        "enabled": enabled,
-        "bot_token_present": token_present,
-        "signing_secret_present": signing_present,
-        "channel_configured": bool(channel),
-        "bot_auth_ok": bool(auth.get("ok")),
-        "channel_access": bool(channel_check.get("ok")),
-    }
-
-
 async def _process_event(event: dict[str, Any], event_id: str) -> None:
     """Run one accepted Slack event and reopen its ID if processing fails."""
     try:
@@ -231,12 +140,6 @@ def _dispatch_callback(
         return {"ok": True, "ignored": "not_message"}
     background_tasks.add_task(_process_event, event, event_id)
     return {"ok": True}
-
-
-@router.get("/health")
-async def slack_bridge_health() -> dict[str, Any]:
-    """Expose bridge readiness using booleans/status only, never secret values."""
-    return await asyncio.to_thread(_slack_health_snapshot)
 
 
 @router.post("/events")
