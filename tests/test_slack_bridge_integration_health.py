@@ -50,6 +50,7 @@ def test_slack_bridge_probe_reports_ready_without_exposing_secrets(monkeypatch):
     """Healthy configuration reports bot identity but never credentials."""
     token = "xoxb-do-not-print-this"
     signing = "do-not-print-signing-secret"
+    bot_user = "U0BOT12345"
     monkeypatch.setenv("SLACK_TELEGRAM_BRIDGE_ENABLED", "1")
     monkeypatch.setenv("SLACK_BOT_TOKEN", token)
     monkeypatch.setenv("SLACK_SIGNING_SECRET", signing)
@@ -60,7 +61,7 @@ def test_slack_bridge_probe_reports_ready_without_exposing_secrets(monkeypatch):
     def healthy_probe(_token, method, payload=None):
         calls.append((method, payload))
         if method == "auth.test":
-            return {"ok": True, "error": "", "user_id": "U0BOT123"}
+            return {"ok": True, "error": "", "user_id": bot_user}
         return {"ok": True, "error": "", "user_id": ""}
 
     monkeypatch.setattr(health, "_slack_api_json", healthy_probe)
@@ -68,7 +69,7 @@ def test_slack_bridge_probe_reports_ready_without_exposing_secrets(monkeypatch):
 
     assert result == (
         True,
-        "ready;bot_user=U0BOT123;enabled=1;token=present;signing=present;channel=present",
+        f"ready;bot_user={bot_user};enabled=1;token=present;signing=present;channel=present",
     )
     assert calls == [
         ("auth.test", None),
@@ -81,6 +82,7 @@ def test_slack_bridge_probe_reports_ready_without_exposing_secrets(monkeypatch):
 
 def test_slack_bridge_probe_reports_private_channel_access_failure(monkeypatch):
     """A valid bot outside the private room exposes only its safe user ID and error."""
+    bot_user = "U0BOT12345"
     monkeypatch.setenv("SLACK_TELEGRAM_BRIDGE_ENABLED", "1")
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-test")
     monkeypatch.setenv("SLACK_SIGNING_SECRET", "signing-test")
@@ -88,12 +90,33 @@ def test_slack_bridge_probe_reports_private_channel_access_failure(monkeypatch):
 
     def probe(_token, method, payload=None):
         if method == "auth.test":
-            return {"ok": True, "error": "", "user_id": "U0BOT123"}
+            return {"ok": True, "error": "", "user_id": bot_user}
         return {"ok": False, "error": "channel_not_found", "user_id": ""}
 
     monkeypatch.setattr(health, "_slack_api_json", probe)
     assert health._probe_slack_bridge() == (
         False,
-        "channel_inaccessible:channel_not_found;bot_user=U0BOT123;"
+        f"channel_inaccessible:channel_not_found;bot_user={bot_user};"
         "enabled=1;token=present;signing=present;channel=present",
     )
+
+
+def test_unknown_slack_error_is_never_forwarded():
+    """Provider-controlled text is collapsed to a fixed safe code."""
+    malicious = "token=xoxb-leak-me&redirect=https://evil.example"
+    assert health._safe_slack_error("channel_not_found") == "channel_not_found"
+    assert health._safe_slack_error(malicious) == "slack_error"
+    assert malicious not in health._safe_slack_error(malicious)
+
+
+def test_slack_user_id_is_strictly_normalized():
+    """Only Slack-shaped user identifiers may reach the public health detail."""
+    assert health._safe_slack_user_id("U0BOT12345") == "U0BOT12345"
+    assert health._safe_slack_user_id("not-a-user-id") == ""
+    assert health._safe_slack_user_id("U123;secret=oops") == ""
+
+
+def test_slack_redirect_handler_refuses_all_redirects():
+    """A Slack probe must never carry its Authorization header through a redirect."""
+    handler = health._NoSlackRedirect()
+    assert handler.redirect_request(None, None, 302, "Found", {}, "https://evil.example") is None
