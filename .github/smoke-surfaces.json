@@ -475,6 +475,20 @@
       "_comment": "PR #347: FastAPI Telegram webhook intake bridge. Missing X-Telegram-Bot-Api-Secret-Token must reject before any inbox/Linear side effect; signed live traffic is covered by unit tests because smoke_test_e2e.py cannot set custom Telegram secret headers."
     },
     {
+      "name": "slack-margot-bridge-nosig",
+      "path": "/api/pi-ceo/webhooks/slack/events",
+      "method": "POST",
+      "auth": true,
+      "expected_status": 401,
+      "body": {
+        "type": "event_callback"
+      },
+      "body_contains": [
+        "Invalid Slack signature"
+      ],
+      "_comment": "PR #673: signed Slack Events API ingress for the Margot Telegram strengthening bridge. An authenticated dashboard smoke request is forwarded to Railway but intentionally carries no Slack signature headers, so the backend must return 401 before inspecting SLACK_SIGNING_SECRET or running Margot. Signed Slack traffic is covered by tests/test_margot_slack_bridge.py."
+    },
+    {
       "name": "margot-delegate-nosig",
       "path": "/api/pi-ceo/api/margot/delegate",
       "method": "POST",
