@@ -79,13 +79,19 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks
 
     Slack expects a response in roughly three seconds, so accepted message
     events are processed after the HTTP acknowledgement via BackgroundTasks.
+    Missing signature headers are always 401, independent of deployment
+    configuration, which gives the live smoke suite a stable safety probe.
     """
-    if not _signing_secret():
-        raise HTTPException(status_code=503, detail="Slack bridge not configured")
-
     raw_body = await request.body()
     timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
     signature = request.headers.get("X-Slack-Signature", "")
+
+    # Reject anonymous/unsigned traffic before inspecting whether a secret is
+    # configured. This makes the security boundary stable in every environment.
+    if not timestamp or not signature:
+        raise HTTPException(status_code=401, detail="Invalid Slack signature")
+    if not _signing_secret():
+        raise HTTPException(status_code=503, detail="Slack bridge not configured")
     if not _verify_signature(
         raw_body=raw_body, timestamp=timestamp, signature=signature,
     ):
