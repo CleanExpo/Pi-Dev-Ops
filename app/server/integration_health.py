@@ -34,6 +34,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -45,6 +46,21 @@ log = logging.getLogger("pi-ceo.integration_health")
 _LOG_FILE = (
     Path(os.path.dirname(__file__)).parents[1] / ".harness" / "integration-health.jsonl"
 )
+_AUTH_SCHEME = "Bearer"
+_SLACK_SAFE_ERRORS = frozenset({
+    "account_inactive",
+    "channel_not_found",
+    "invalid_auth",
+    "is_archived",
+    "missing_scope",
+    "no_permission",
+    "not_in_channel",
+    "ratelimited",
+    "restricted_action",
+    "team_access_not_granted",
+    "token_revoked",
+})
+_SLACK_USER_ID_RE = re.compile(r"^[UW][A-Z0-9]{8,31}$")
 
 # In-memory state exposed by autonomy_status() / integrations_health()
 _last_snapshot: dict[str, Any] = {}
@@ -52,6 +68,16 @@ _last_tick_at: float = 0.0
 _tick_count: int = 0
 # State transitions (healthy → unhealthy) trigger Telegram; repeats don't spam.
 _last_state: dict[str, bool] = {}
+
+
+class _NoSlackRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse every redirect so Slack credentials never cross an origin boundary."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
+        return None
+
+
+_SLACK_OPENER = urllib.request.build_opener(_NoSlackRedirect())
 
 
 # -----------------------------------------------------------------------------
@@ -89,7 +115,10 @@ def _probe_github_token() -> tuple[bool, str]:
         return False, "GITHUB_TOKEN env var not set"
     req = urllib.request.Request(
         "https://api.github.com/user",
-        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+        headers={
+            "Authorization": _AUTH_SCHEME + " " + token,
+            "Accept": "application/vnd.github+json",
+        },
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -102,35 +131,48 @@ def _probe_github_token() -> tuple[bool, str]:
     return (bool(login), f"login={login}" if login else "no login in response")
 
 
+def _safe_slack_error(value: Any) -> str:
+    """Return only allowlisted Slack error codes; provider text never escapes."""
+    candidate = str(value or "").strip()
+    return candidate if candidate in _SLACK_SAFE_ERRORS else "slack_error"
+
+
+def _safe_slack_user_id(value: Any) -> str:
+    """Return a syntactically valid Slack user ID or an empty string."""
+    candidate = str(value or "").strip()
+    return candidate if _SLACK_USER_ID_RE.fullmatch(candidate) else ""
+
+
 def _slack_api_json(
     token: str, method: str, payload: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Call Slack and return only the small response needed by readiness probes."""
+    """Call Slack without redirects and retain only fixed status fields."""
     req = urllib.request.Request(
         f"https://slack.com/api/{method}",
         data=json.dumps(payload or {}).encode("utf-8"),
         method="POST",
         headers={
-            "Authorization": f"Bearer {token}",
+            "Authorization": _AUTH_SCHEME + " " + token,
             "Content-Type": "application/json; charset=utf-8",
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
+        with _SLACK_OPENER.open(req, timeout=8) as resp:
             data = json.loads(resp.read())
     except urllib.error.HTTPError as exc:
-        return {"ok": False, "error": f"HTTP {exc.code}"}
+        error = "redirect_rejected" if 300 <= exc.code < 400 else "http_error"
+        return {"ok": False, "error": error, "user_id": ""}
     except Exception:
-        return {"ok": False, "error": "network_or_invalid_response"}
+        return {"ok": False, "error": "network_error", "user_id": ""}
     if not isinstance(data, dict):
-        return {"ok": False, "error": "invalid_response"}
+        return {"ok": False, "error": "invalid_response", "user_id": ""}
     return {
         "ok": bool(data.get("ok")),
-        "error": str(data.get("error") or "")[:80],
+        "error": "" if data.get("ok") else _safe_slack_error(data.get("error")),
         # Slack bot user IDs are identifiers, not credentials. Keeping only
-        # this field lets an operator invite an already-authenticated bot into
-        # a private channel without exposing any token or workspace payload.
-        "user_id": str(data.get("user_id") or "")[:32],
+        # this validated field lets an operator invite an authenticated bot
+        # into a private channel without exposing a token or provider payload.
+        "user_id": _safe_slack_user_id(data.get("user_id")),
     }
 
 
@@ -164,12 +206,12 @@ def _probe_slack_bridge() -> tuple[bool, str]:
     auth = _slack_api_json(token, "auth.test")
     bot_user = auth.get("user_id") or "unknown"
     if not auth.get("ok"):
-        return False, f"bot_auth_failed:{auth.get('error') or 'unknown'};{state}"
+        return False, f"bot_auth_failed:{auth.get('error') or 'slack_error'};{state}"
     channel_result = _slack_api_json(token, "conversations.info", {"channel": channel})
     if not channel_result.get("ok"):
         return (
             False,
-            f"channel_inaccessible:{channel_result.get('error') or 'unknown'};"
+            f"channel_inaccessible:{channel_result.get('error') or 'slack_error'};"
             f"bot_user={bot_user};{state}",
         )
     return True, f"ready;bot_user={bot_user};{state}"
