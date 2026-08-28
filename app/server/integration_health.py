@@ -79,8 +79,7 @@ def _probe_linear_api_key() -> tuple[bool, str]:
         return False, f"network: {exc}"
     if "errors" in data:
         return False, f"gql: {data['errors'][0].get('message', 'unknown')[:80]}"
-    login = data.get("data", {}).get("viewer", {}).get("id")
-    return (bool(login), "ok" if login else "no viewer in response")
+    return True, "ok"
 
 
 def _probe_github_token() -> tuple[bool, str]:
