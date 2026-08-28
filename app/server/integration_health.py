@@ -12,7 +12,8 @@ Dependencies probed (in priority order):
                        cross-project poller is useless without this key valid.
     github_token     — GitHub REST `/user`. Required for push + PR open
                        (RA-1183).
-    railway_health   — Railway service /health reachable (self-probe).
+    slack_bridge     — Margot Slack bridge enablement, secret presence, bot
+                       auth, and access to the private strengthening channel.
     linear_poll_live — autonomy._last_poll_at within 2× poll interval.
 
 Kill switch: TAO_INTEGRATION_HEALTH_ENABLED=0 in Railway env.
@@ -33,6 +34,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -44,6 +46,21 @@ log = logging.getLogger("pi-ceo.integration_health")
 _LOG_FILE = (
     Path(os.path.dirname(__file__)).parents[1] / ".harness" / "integration-health.jsonl"
 )
+_AUTH_SCHEME = "Bearer"
+_SLACK_SAFE_ERRORS = frozenset({
+    "account_inactive",
+    "channel_not_found",
+    "invalid_auth",
+    "is_archived",
+    "missing_scope",
+    "no_permission",
+    "not_in_channel",
+    "ratelimited",
+    "restricted_action",
+    "team_access_not_granted",
+    "token_revoked",
+})
+_SLACK_USER_ID_RE = re.compile(r"^[UW][A-Z0-9]{8,31}$")
 
 # In-memory state exposed by autonomy_status() / integrations_health()
 _last_snapshot: dict[str, Any] = {}
@@ -51,6 +68,16 @@ _last_tick_at: float = 0.0
 _tick_count: int = 0
 # State transitions (healthy → unhealthy) trigger Telegram; repeats don't spam.
 _last_state: dict[str, bool] = {}
+
+
+class _NoSlackRedirect(urllib.request.HTTPRedirectHandler):
+    """Refuse every redirect so Slack credentials never cross an origin boundary."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
+        return None
+
+
+_SLACK_OPENER = urllib.request.build_opener(_NoSlackRedirect())
 
 
 # -----------------------------------------------------------------------------
@@ -88,7 +115,10 @@ def _probe_github_token() -> tuple[bool, str]:
         return False, "GITHUB_TOKEN env var not set"
     req = urllib.request.Request(
         "https://api.github.com/user",
-        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+        headers={
+            "Authorization": _AUTH_SCHEME + " " + token,
+            "Accept": "application/vnd.github+json",
+        },
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -99,6 +129,92 @@ def _probe_github_token() -> tuple[bool, str]:
         return False, f"network: {exc}"
     login = data.get("login")
     return (bool(login), f"login={login}" if login else "no login in response")
+
+
+def _safe_slack_error(value: Any) -> str:
+    """Return only allowlisted Slack error codes; provider text never escapes."""
+    candidate = str(value or "").strip()
+    return candidate if candidate in _SLACK_SAFE_ERRORS else "slack_error"
+
+
+def _safe_slack_user_id(value: Any) -> str:
+    """Return a syntactically valid Slack user ID or an empty string."""
+    candidate = str(value or "").strip()
+    return candidate if _SLACK_USER_ID_RE.fullmatch(candidate) else ""
+
+
+def _slack_api_json(
+    token: str, method: str, payload: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Call Slack without redirects and retain only fixed status fields."""
+    req = urllib.request.Request(
+        f"https://slack.com/api/{method}",
+        data=json.dumps(payload or {}).encode("utf-8"),
+        method="POST",
+        headers={
+            "Authorization": _AUTH_SCHEME + " " + token,
+            "Content-Type": "application/json; charset=utf-8",
+        },
+    )
+    try:
+        with _SLACK_OPENER.open(req, timeout=8) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        error = "redirect_rejected" if 300 <= exc.code < 400 else "http_error"
+        return {"ok": False, "error": error, "user_id": ""}
+    except Exception:
+        return {"ok": False, "error": "network_error", "user_id": ""}
+    if not isinstance(data, dict):
+        return {"ok": False, "error": "invalid_response", "user_id": ""}
+    return {
+        "ok": bool(data.get("ok")),
+        "error": "" if data.get("ok") else _safe_slack_error(data.get("error")),
+        # Slack bot user IDs are identifiers, not credentials. Keeping only
+        # this validated field lets an operator invite an authenticated bot
+        # into a private channel without exposing a token or provider payload.
+        "user_id": _safe_slack_user_id(data.get("user_id")),
+    }
+
+
+def _presence(value: str) -> str:
+    """Render config presence without exposing its value."""
+    return "present" if value else "missing"
+
+
+def _probe_slack_bridge() -> tuple[bool, str]:
+    """Verify bridge config, bot identity, and private-channel accessibility."""
+    enabled_raw = (os.environ.get("SLACK_TELEGRAM_BRIDGE_ENABLED") or "0").strip().lower()
+    enabled = enabled_raw in {"1", "true", "yes", "on"}
+    token = (os.environ.get("SLACK_BOT_TOKEN") or "").strip()
+    signing = (os.environ.get("SLACK_SIGNING_SECRET") or "").strip()
+    channel = (os.environ.get("SLACK_MARGOT_STRENGTHENING_CHANNEL") or "").strip()
+    state = (
+        f"enabled={1 if enabled else 0};"
+        f"token={_presence(token)};"
+        f"signing={_presence(signing)};"
+        f"channel={_presence(channel)}"
+    )
+    if not enabled:
+        return False, f"bridge_disabled;{state}"
+    if not token:
+        return False, f"bot_token_missing;{state}"
+    if not signing:
+        return False, f"signing_secret_missing;{state}"
+    if not channel:
+        return False, f"strengthening_channel_missing;{state}"
+
+    auth = _slack_api_json(token, "auth.test")
+    bot_user = auth.get("user_id") or "unknown"
+    if not auth.get("ok"):
+        return False, f"bot_auth_failed:{auth.get('error') or 'slack_error'};{state}"
+    channel_result = _slack_api_json(token, "conversations.info", {"channel": channel})
+    if not channel_result.get("ok"):
+        return (
+            False,
+            f"channel_inaccessible:{channel_result.get('error') or 'slack_error'};"
+            f"bot_user={bot_user};{state}",
+        )
+    return True, f"ready;bot_user={bot_user};{state}"
 
 
 def _probe_linear_poll_live() -> tuple[bool, str]:
@@ -118,6 +234,7 @@ def _probe_linear_poll_live() -> tuple[bool, str]:
 _PROBES = {
     "linear_api_key":   _probe_linear_api_key,
     "github_token":     _probe_github_token,
+    "slack_bridge":     _probe_slack_bridge,
     "linear_poll_live": _probe_linear_poll_live,
 }
 
@@ -213,12 +330,15 @@ async def integration_health_loop() -> None:
         return
     log.info("integration-health: started (interval=%ds)", interval)
 
-    # Small startup delay so the other daemons are up first
+    # Small startup delay so the other daemons are up first.
     await asyncio.sleep(15)
 
     while True:
         try:
-            tick()
+            # All probe implementations use blocking stdlib HTTP. Keep the
+            # complete health pass off FastAPI's event loop so a slow provider
+            # cannot stall unrelated requests while health is being measured.
+            await asyncio.to_thread(tick)
         except Exception as exc:
             log.error("integration-health: tick crashed: %s", exc)
         await asyncio.sleep(interval)
