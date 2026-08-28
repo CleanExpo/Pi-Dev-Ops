@@ -12,7 +12,8 @@ Dependencies probed (in priority order):
                        cross-project poller is useless without this key valid.
     github_token     — GitHub REST `/user`. Required for push + PR open
                        (RA-1183).
-    railway_health   — Railway service /health reachable (self-probe).
+    slack_bridge     — Margot Slack bridge enablement, secret presence, bot
+                       auth, and access to the private strengthening channel.
     linear_poll_live — autonomy._last_poll_at within 2× poll interval.
 
 Kill switch: TAO_INTEGRATION_HEALTH_ENABLED=0 in Railway env.
@@ -101,6 +102,61 @@ def _probe_github_token() -> tuple[bool, str]:
     return (bool(login), f"login={login}" if login else "no login in response")
 
 
+def _slack_api_probe(
+    token: str, method: str, payload: dict[str, str] | None = None,
+) -> tuple[bool, str]:
+    """Call Slack with a token but return only ok/error state, never response data."""
+    req = urllib.request.Request(
+        f"https://slack.com/api/{method}",
+        data=json.dumps(payload or {}).encode("utf-8"),
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json; charset=utf-8",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        return False, f"HTTP {exc.code}"
+    except Exception:
+        return False, "network_or_invalid_response"
+    if not isinstance(data, dict):
+        return False, "invalid_response"
+    if data.get("ok"):
+        return True, "ok"
+    error = str(data.get("error") or "unknown")[:80]
+    return False, error
+
+
+def _probe_slack_bridge() -> tuple[bool, str]:
+    """Verify bridge config, Slack bot validity, and private-channel accessibility."""
+    enabled = (os.environ.get("SLACK_TELEGRAM_BRIDGE_ENABLED") or "0").strip().lower()
+    if enabled not in {"1", "true", "yes", "on"}:
+        return False, "bridge_disabled"
+
+    token = (os.environ.get("SLACK_BOT_TOKEN") or "").strip()
+    signing = (os.environ.get("SLACK_SIGNING_SECRET") or "").strip()
+    channel = (os.environ.get("SLACK_MARGOT_STRENGTHENING_CHANNEL") or "").strip()
+    if not token:
+        return False, "bot_token_missing"
+    if not signing:
+        return False, "signing_secret_missing"
+    if not channel:
+        return False, "strengthening_channel_missing"
+
+    auth_ok, auth_detail = _slack_api_probe(token, "auth.test")
+    if not auth_ok:
+        return False, f"bot_auth_failed:{auth_detail}"
+    channel_ok, channel_detail = _slack_api_probe(
+        token, "conversations.info", {"channel": channel},
+    )
+    if not channel_ok:
+        return False, f"channel_inaccessible:{channel_detail}"
+    return True, "ready"
+
+
 def _probe_linear_poll_live() -> tuple[bool, str]:
     """autonomy._last_poll_at must be within 2× the poll interval — otherwise
     the poller is silently wedged even if the key works."""
@@ -118,6 +174,7 @@ def _probe_linear_poll_live() -> tuple[bool, str]:
 _PROBES = {
     "linear_api_key":   _probe_linear_api_key,
     "github_token":     _probe_github_token,
+    "slack_bridge":     _probe_slack_bridge,
     "linear_poll_live": _probe_linear_poll_live,
 }
 
