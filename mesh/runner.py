@@ -1,23 +1,14 @@
 #!/usr/bin/env python3
 """Nexus Mesh runner — the per-machine work loop.
 
-Spec: docs/superpowers/specs/2026-06-11-nexus-mesh-design.md
-
 Each fleet node runs one runner. It polls the Pi-CEO mesh API for work claims
-assigned to THIS machine, and for each one: creates an isolated git worktree on a
-`mesh/<host>/<ticket>` branch, runs the local agent (claude/codex) with the ticket
-as the prompt, lets autogit ship every turn, then marks the claim done and updates
-Linear. Branch-only — production `main` stays PR+CI gated.
+assigned to this machine, creates an isolated worktree, runs the configured
+local agent, then records the claim outcome. The runner uses the same protected
+``~/.hermes/.env`` credential source as the heartbeat daemon so a machine cannot
+be visible to the fleet while its worker silently lacks authority.
 
-Kill switch: honours `~/.claude/HARD_STOP`, re-checked every cycle before any
-work AND polled every `MESH_KILL_POLL_SECONDS` while an agent subprocess is in
-flight, so a stop mid-run terminates the subprocess instead of waiting up to
-the 3600s timeout. (The Pi-CEO /api/swarm/kill state is NOT consulted yet —
-file check only.)
-
-This is P1/P2 infrastructure — it goes live once the /api/mesh/* endpoints are
-deployed to Railway. Until then `--once --dry-run` exercises the full claim→run
-plan without mutating anything, which is how it is tested in CI.
+Kill switch: ``~/.claude/HARD_STOP`` is checked before work and while an agent
+subprocess is running. Production ``main`` remains PR+CI gated.
 """
 from __future__ import annotations
 
@@ -33,162 +24,230 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-PI_CEO_API_URL = os.environ.get("PI_CEO_API_URL", "https://pi-dev-ops-production.up.railway.app")
-PI_CEO_SECRET = os.environ.get("PI_CEO_API_KEY", "")
+
+def _from_env_file(name: str) -> str:
+    """Read one key from the protected Hermes env file without executing it."""
+    envf = Path.home() / ".hermes" / ".env"
+    if not envf.exists():
+        return ""
+    try:
+        for raw in envf.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if line.startswith(f"{name}="):
+                return line.split("=", 1)[1].strip().strip("'\"")
+    except OSError:
+        return ""
+    return ""
+
+
+PI_CEO_API_URL = (
+    os.environ.get("PI_CEO_API_URL")
+    or _from_env_file("PI_CEO_API_URL")
+    or "https://pi-dev-ops-production.up.railway.app"
+)
+PI_CEO_SECRET = os.environ.get("PI_CEO_API_KEY") or _from_env_file("PI_CEO_API_KEY")
 HOST = socket.gethostname().split(".")[0]
 HARD_STOP = Path.home() / ".claude" / "HARD_STOP"
-AGENT_CMD = os.environ.get("MESH_AGENT_CMD", "claude")  # claude | codex
+AGENT_CMD = os.environ.get("MESH_AGENT_CMD", "claude")
 POLL_INTERVAL = int(os.environ.get("MESH_POLL_INTERVAL", "30"))
-# Capacity: how many agents may run on THIS machine at once. Idle detection keeps
-# the node pulling work while under this ceiling instead of sleeping a poll cycle.
 MAX_PARALLEL = int(os.environ.get("MESH_MAX_PARALLEL", "1"))
-# Cost mandate: hard cap on claims a single runner lifetime may process.
-# Defaults to 25 so a misbehaving selection loop can never spend unbounded;
-# operators may set an explicit "0" to opt in to unlimited.
 MAX_CLAIMS = int(os.environ.get("MESH_MAX_CLAIMS", "25"))
-# Sleep floor between immediate re-claims on the idle-detection path — the loop
-# must never spin hot even if claim selection misbehaves.
 IDLE_RECLAIM_DELAY = float(os.environ.get("MESH_IDLE_RECLAIM_DELAY", "3"))
-# Breadcrumb the heartbeat daemon reads so Mission Control shows the live task.
 STATE_FILE = Path(os.environ.get(
     "MESH_RUNNER_STATE", str(Path.home() / ".claude" / "mesh-runner-state.json")))
-# How often an in-flight agent subprocess is polled for HARD_STOP so a kill
-# request lands promptly instead of waiting for the process to exit on its own.
 MESH_KILL_POLL_SECONDS = float(os.environ.get("MESH_KILL_POLL_SECONDS", "5"))
-# Grace period after SIGTERM before escalating to SIGKILL on a kill-switch stop.
 MESH_KILL_GRACE_SECONDS = 10
-# Hard ceiling on a single agent run, enforced manually now that the process is
-# polled rather than blocked on via subprocess.run(timeout=...).
 AGENT_TIMEOUT_SECONDS = 3600
+DEFAULT_REPO_DIR = Path(os.environ.get(
+    "MESH_REPO_DIR", str(Path(__file__).resolve().parents[1])))
 
 
 def _api(method: str, path: str, body=None) -> dict:
+    """Call the authenticated Pi-CEO mesh API and return a bounded error object."""
+    if not PI_CEO_SECRET:
+        return {"error": "PI_CEO_API_KEY missing"}
     url = f"{PI_CEO_API_URL.rstrip('/')}{path}"
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers={
         "Content-Type": "application/json", "X-Pi-CEO-Secret": PI_CEO_SECRET})
     try:
-        with urllib.request.urlopen(req, timeout=15) as r:
-            return json.loads(r.read() or "{}")
-    except urllib.error.HTTPError as e:
-        return {"error": f"HTTP {e.code}", "detail": e.read()[:200].decode(errors="replace")}
-    except Exception as e:  # noqa: BLE001
-        return {"error": str(e)}
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return json.loads(response.read() or "{}")
+    except urllib.error.HTTPError as exc:
+        return {
+            "error": f"HTTP {exc.code}",
+            "detail": exc.read()[:200].decode(errors="replace"),
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"error": str(exc)}
 
 
 def killed() -> bool:
+    """Return whether the machine-local hard stop is armed."""
     return HARD_STOP.exists()
 
 
 def write_state(current_task, state: str) -> None:
-    """Drop a breadcrumb the heartbeat daemon reads so Mission Control shows this
-    runner's live task + state per agent. Best-effort; never blocks the loop."""
+    """Write the runner breadcrumb consumed by the heartbeat/Mission Control."""
     try:
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         STATE_FILE.write_text(json.dumps({
-            "runtime": AGENT_CMD, "current_task": current_task,
-            "state": state, "ts": int(time.time())}))
+            "runtime": AGENT_CMD,
+            "current_task": current_task,
+            "state": state,
+            "ts": int(time.time()),
+        }))
     except OSError:
         pass
 
 
 def my_claims() -> list[dict]:
+    """Return open work claims assigned to this exact host."""
     fleet = _api("GET", "/api/mesh/fleet")
-    return [c for c in fleet.get("claims", []) if c.get("machine") == HOST and c.get("state") == "claimed"]
+    return [
+        claim for claim in fleet.get("claims", [])
+        if claim.get("machine") == HOST and claim.get("state") == "claimed"
+    ]
 
 
 def active_agent_count() -> int:
-    """Non-idle agents on THIS machine, per the fleet snapshot (mesh_agents)."""
+    """Count non-idle agents currently reported on this host."""
     fleet = _api("GET", "/api/mesh/fleet")
-    return sum(1 for a in fleet.get("agents", []) if a.get("machine") == HOST)
+    return sum(1 for agent in fleet.get("agents", []) if agent.get("machine") == HOST)
 
 
 def get_work() -> list[dict]:
-    """Pre-assigned claims first; if none, atomically self-claim the top-priority
-    unclaimed `mesh:auto` ticket so capacity never idles waiting on the dispatcher."""
+    """Use assigned work first, otherwise atomically self-claim a mesh:auto ticket."""
     claims = my_claims()
     if claims:
         return claims
-    resp = _api("POST", "/api/mesh/claim/self", {"host": HOST})
-    claimed = resp.get("claimed")
+    response = _api("POST", "/api/mesh/claim/self", {"host": HOST})
+    claimed = response.get("claimed")
     return [claimed] if claimed else []
 
 
+def _repo_dir_for(claim: dict) -> Path:
+    """Resolve a claim repo directory, defaulting deterministically to this repo."""
+    value = claim.get("repo_dir") or str(DEFAULT_REPO_DIR)
+    return Path(value).expanduser().resolve()
+
+
+def _terminate_for_stop(proc: subprocess.Popen) -> None:
+    """Terminate an in-flight agent cleanly, escalating only after the grace period."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=MESH_KILL_GRACE_SECONDS)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+
+
+def _wait_for_agent(proc: subprocess.Popen, plan: dict) -> None:
+    """Poll an agent for completion, hard stop, or timeout."""
+    deadline = time.monotonic() + AGENT_TIMEOUT_SECONDS
+    while True:
+        status = proc.poll()
+        if status is not None:
+            returncode = getattr(proc, "returncode", status)
+            plan["state"] = "done" if returncode == 0 else "failed"
+            if returncode:
+                plan["error"] = f"agent exited {returncode}"
+            return
+        if killed():
+            _terminate_for_stop(proc)
+            plan["state"] = "released"
+            return
+        if time.monotonic() >= deadline:
+            proc.kill()
+            proc.wait()
+            plan["state"] = "failed"
+            plan["error"] = f"timed out after {AGENT_TIMEOUT_SECONDS}s"
+            return
+        time.sleep(MESH_KILL_POLL_SECONDS)
+
+
 def run_claim(claim: dict, *, dry_run: bool) -> dict:
-    """Execute one work claim in an isolated worktree on a mesh branch."""
+    """Execute one work claim in an isolated branch/worktree and report its state."""
     linear_id = claim["linear_id"]
-    repo_dir = claim.get("repo_dir") or os.getcwd()
-    # Unique per-run suffix: a re-run of the same linear_id (retry, re-dispatch)
-    # must not insta-fail on "branch already exists" / a leftover worktree dir.
+    repo_dir = _repo_dir_for(claim)
     run_id = uuid.uuid4().hex[:8]
     branch = f"mesh/{HOST.lower()}/{linear_id.lower()}-{run_id}"
-    plan = {"linear_id": linear_id, "repo_dir": repo_dir, "branch": branch, "agent": AGENT_CMD}
+    plan = {
+        "linear_id": linear_id,
+        "repo_dir": str(repo_dir),
+        "branch": branch,
+        "agent": AGENT_CMD,
+    }
     if dry_run:
         plan["dry_run"] = True
         return plan
+    if not (repo_dir / ".git").exists():
+        return {**plan, "state": "failed", "error": f"repo missing: {repo_dir}"}
+
     write_state(linear_id, "working")
-    _api("POST", "/api/mesh/claim/update", {"linear_id": linear_id, "state": "working", "branch": branch})
-    wt = Path("/tmp") / f"mesh-{linear_id}-{run_id}"
-    subprocess.run(["git", "-C", repo_dir, "worktree", "add", "-b", branch, str(wt)], check=False)
-    prompt = (f"Work the Linear ticket {linear_id}. Make a small, verifiable change, "
-              f"run the repo's gates, and stop. autogit ships each turn to {branch}.")
-    try:
-        proc = subprocess.Popen([AGENT_CMD, "-p", prompt], cwd=str(wt))
-        deadline = time.monotonic() + AGENT_TIMEOUT_SECONDS
-        while True:
-            if proc.poll() is not None:
-                plan["state"] = "done"
-                break
-            if killed():
-                # Mid-run HARD_STOP: end the agent, not the ticket — release the
-                # claim so it is honestly re-claimable once the stop is lifted.
-                proc.terminate()
-                try:
-                    proc.wait(timeout=MESH_KILL_GRACE_SECONDS)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                    proc.wait()
-                plan["state"] = "released"
-                break
-            if time.monotonic() >= deadline:
-                proc.kill()
-                proc.wait()
-                plan["state"] = "failed"
-                plan["error"] = f"timed out after {AGENT_TIMEOUT_SECONDS}s"
-                break
-            time.sleep(MESH_KILL_POLL_SECONDS)
-    except Exception as e:  # noqa: BLE001
-        plan["state"] = "failed"; plan["error"] = str(e)
-    finally:
-        subprocess.run(["git", "-C", repo_dir, "worktree", "remove", "--force", str(wt)], check=False)
+    _api("POST", "/api/mesh/claim/update", {
+        "linear_id": linear_id, "state": "working", "branch": branch})
+    worktree = Path("/tmp") / f"mesh-{linear_id}-{run_id}"
+    added = subprocess.run(
+        ["git", "-C", str(repo_dir), "worktree", "add", "-b", branch, str(worktree)],
+        capture_output=True, text=True, check=False,
+    )
+    if getattr(added, "returncode", 0) != 0:
+        plan.update(state="failed", error="git worktree add failed")
+        _api("POST", "/api/mesh/claim/update", {
+            "linear_id": linear_id, "state": "failed", "branch": branch})
         write_state(None, "idle")
-    _api("POST", "/api/mesh/claim/update", {"linear_id": linear_id, "state": plan["state"], "branch": branch})
+        return plan
+
+    prompt = (
+        f"Work the Linear ticket {linear_id}. Make a small, verifiable change, "
+        f"run the repo's gates, and stop. autogit ships each turn to {branch}."
+    )
+    try:
+        proc = subprocess.Popen([AGENT_CMD, "-p", prompt], cwd=str(worktree))
+        _wait_for_agent(proc, plan)
+    except Exception as exc:  # noqa: BLE001
+        plan["state"] = "failed"
+        plan["error"] = str(exc)
+    finally:
+        subprocess.run(
+            ["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],
+            capture_output=True, check=False,
+        )
+        write_state(None, "idle")
+    _api("POST", "/api/mesh/claim/update", {
+        "linear_id": linear_id, "state": plan["state"], "branch": branch})
     return plan
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Nexus Mesh runner")
-    ap.add_argument("--once", action="store_true", help="process current claims once and exit")
-    ap.add_argument("--dry-run", action="store_true", help="plan only; no worktrees, no agent runs")
-    args = ap.parse_args()
+    """Run the persistent per-machine claim loop."""
+    parser = argparse.ArgumentParser(description="Nexus Mesh runner")
+    parser.add_argument("--once", action="store_true", help="process current claims once and exit")
+    parser.add_argument("--dry-run", action="store_true", help="plan only; no worktrees, no agent runs")
+    args = parser.parse_args()
     processed = 0
     while True:
-        # Kill switch + cost mandate, re-checked every cycle before any work.
         if killed():
             write_state(None, "idle")
-            print(json.dumps({"runner": HOST, "status": "HARD_STOP"})); return 0
+            print(json.dumps({"runner": HOST, "status": "HARD_STOP"}))
+            return 0
         if MAX_CLAIMS and processed >= MAX_CLAIMS:
             write_state(None, "idle")
-            print(json.dumps({"runner": HOST, "status": "MAX_CLAIMS", "processed": processed})); return 0
+            print(json.dumps({
+                "runner": HOST, "status": "MAX_CLAIMS", "processed": processed}))
+            return 0
         work = get_work()
-        results = [run_claim(c, dry_run=args.dry_run) for c in work]
+        results = [run_claim(claim, dry_run=args.dry_run) for claim in work]
         processed += len(work)
-        print(json.dumps({"runner": HOST, "claims": len(work), "results": results, "processed": processed}))
+        print(json.dumps({
+            "runner": HOST,
+            "claims": len(work),
+            "results": results,
+            "processed": processed,
+        }))
         if args.once:
             return 0
-        # Idle detection: if we did work and stay under this machine's capacity,
-        # pull the next claim after a short floor delay instead of waiting a full
-        # poll cycle — keeps the node draining the queue without ever spinning hot.
         if work and active_agent_count() < MAX_PARALLEL:
             time.sleep(IDLE_RECLAIM_DELAY)
             continue
