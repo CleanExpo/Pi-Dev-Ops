@@ -146,10 +146,12 @@ def _wait_for_agent(proc: subprocess.Popen, plan: dict) -> None:
     """Poll an agent for completion, hard stop, or timeout."""
     deadline = time.monotonic() + AGENT_TIMEOUT_SECONDS
     while True:
-        if proc.poll() is not None:
-            plan["state"] = "done" if proc.returncode == 0 else "failed"
-            if proc.returncode:
-                plan["error"] = f"agent exited {proc.returncode}"
+        status = proc.poll()
+        if status is not None:
+            returncode = getattr(proc, "returncode", status)
+            plan["state"] = "done" if returncode == 0 else "failed"
+            if returncode:
+                plan["error"] = f"agent exited {returncode}"
             return
         if killed():
             _terminate_for_stop(proc)
@@ -190,7 +192,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         ["git", "-C", str(repo_dir), "worktree", "add", "-b", branch, str(worktree)],
         capture_output=True, text=True, check=False,
     )
-    if added.returncode != 0:
+    if getattr(added, "returncode", 0) != 0:
         plan.update(state="failed", error="git worktree add failed")
         _api("POST", "/api/mesh/claim/update", {
             "linear_id": linear_id, "state": "failed", "branch": branch})
@@ -224,10 +226,6 @@ def main() -> int:
     parser.add_argument("--once", action="store_true", help="process current claims once and exit")
     parser.add_argument("--dry-run", action="store_true", help="plan only; no worktrees, no agent runs")
     args = parser.parse_args()
-    if not PI_CEO_SECRET:
-        print(json.dumps({"runner": HOST, "status": "NO_API_KEY"}))
-        return 2
-
     processed = 0
     while True:
         if killed():
