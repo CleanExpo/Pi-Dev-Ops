@@ -20,6 +20,7 @@ log = logging.getLogger("app.server.routes.slack_bridge")
 router = APIRouter(prefix="/webhooks/slack", tags=["slack-bridge"])
 
 _MAX_SIGNATURE_AGE_S = 300
+_MAX_SLACK_REQUEST_BODY = 1024 * 1024  # Slack event payloads are small; cap at 1 MiB.
 _seen_event_ids: set[str] = set()
 _seen_event_order: deque[str] = deque()
 _seen_lock = threading.Lock()
@@ -27,11 +28,13 @@ _MAX_SEEN_EVENTS = 500
 
 
 def _signing_secret() -> str:
+    """Return the configured Slack signing secret without logging it."""
     return (os.environ.get("SLACK_SIGNING_SECRET") or "").strip()
 
 
 def _verify_signature(*, raw_body: bytes, timestamp: str, signature: str,
                       now: float | None = None) -> bool:
+    """Validate Slack's v0 HMAC signature and five-minute replay window."""
     secret = _signing_secret()
     if not secret or not timestamp or not signature:
         return False
@@ -50,7 +53,7 @@ def _verify_signature(*, raw_body: bytes, timestamp: str, signature: str,
 
 
 def _mark_event_once(event_id: str) -> bool:
-    """Return True once per process for a Slack event_id."""
+    """Reserve an event ID once per process while it is processing/completed."""
     if not event_id:
         return True
     with _seen_lock:
@@ -64,67 +67,94 @@ def _mark_event_once(event_id: str) -> bool:
         return True
 
 
-async def _process_event(event: dict[str, Any], event_id: str) -> None:
-    try:
-        result = await handle_slack_message_event(event)
-        log.info("slack bridge event=%s result=%s", event_id or "?", result)
-    except Exception as exc:  # noqa: BLE001
-        log.exception("slack bridge background handler failed: %s", exc)
+def _release_failed_event(event_id: str) -> None:
+    """Release a failed reservation so a later Slack retry may run it again."""
+    if not event_id:
+        return
+    with _seen_lock:
+        _seen_event_ids.discard(event_id)
+        try:
+            _seen_event_order.remove(event_id)
+        except ValueError:
+            pass
 
 
-@router.post("/events")
-async def slack_events(request: Request, background_tasks: BackgroundTasks
-                       ) -> dict[str, Any]:
-    """Verify and acknowledge Slack Events API callbacks.
+async def _read_limited_body(request: Request) -> bytes:
+    """Stream the request body and stop at one MiB, including chunked bodies."""
+    declared = request.headers.get("content-length")
+    if declared:
+        try:
+            if int(declared) > _MAX_SLACK_REQUEST_BODY:
+                raise HTTPException(status_code=413, detail="Request too large")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length")
 
-    Slack expects a response in roughly three seconds, so accepted message
-    events are processed after the HTTP acknowledgement via BackgroundTasks.
-    Missing signature headers are always 401, independent of deployment
-    configuration, which gives the live smoke suite a stable safety probe.
-    """
-    raw_body = await request.body()
+    body = bytearray()
+    async for chunk in request.stream():
+        if len(body) + len(chunk) > _MAX_SLACK_REQUEST_BODY:
+            raise HTTPException(status_code=413, detail="Request too large")
+        body.extend(chunk)
+    return bytes(body)
+
+
+def _parse_signed_payload(request: Request, raw_body: bytes) -> dict[str, Any]:
+    """Authenticate and decode a Slack request after the bounded body read."""
     timestamp = request.headers.get("X-Slack-Request-Timestamp", "")
     signature = request.headers.get("X-Slack-Signature", "")
-
-    # Reject anonymous/unsigned traffic before inspecting whether a secret is
-    # configured. This makes the security boundary stable in every environment.
     if not timestamp or not signature:
         raise HTTPException(status_code=401, detail="Invalid Slack signature")
     if not _signing_secret():
         raise HTTPException(status_code=503, detail="Slack bridge not configured")
-    if not _verify_signature(
-        raw_body=raw_body, timestamp=timestamp, signature=signature,
-    ):
+    if not _verify_signature(raw_body=raw_body, timestamp=timestamp, signature=signature):
         raise HTTPException(status_code=401, detail="Invalid Slack signature")
-
     try:
         payload = json.loads(raw_body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         raise HTTPException(status_code=400, detail="Invalid Slack payload")
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Invalid Slack payload")
+    return payload
 
-    if payload.get("type") == "url_verification":
-        return {"challenge": payload.get("challenge", "")}
 
-    if payload.get("type") != "event_callback":
-        return {"ok": True, "ignored": "unsupported_type"}
+async def _process_event(event: dict[str, Any], event_id: str) -> None:
+    """Run one accepted Slack event and reopen its ID if processing fails."""
+    try:
+        result = await handle_slack_message_event(event)
+        log.info("slack bridge event=%s result=%s", event_id or "?", result)
+        if str(result).startswith("failed:"):
+            _release_failed_event(event_id)
+    except Exception as exc:  # noqa: BLE001
+        _release_failed_event(event_id)
+        log.exception("slack bridge background handler failed: %s", exc)
 
-    # Our handler acknowledges immediately. Slack retry callbacks are therefore
-    # duplicates, not a reason to execute Margot a second time.
-    if request.headers.get("X-Slack-Retry-Num"):
-        return {"ok": True, "duplicate": True}
 
+def _dispatch_callback(
+    payload: dict[str, Any], background_tasks: BackgroundTasks,
+) -> dict[str, Any]:
+    """Validate one event_callback and schedule exactly one message handler."""
     event_id = str(payload.get("event_id") or "").strip()
     if not _mark_event_once(event_id):
         return {"ok": True, "duplicate": True}
-
     event = payload.get("event") or {}
     if not isinstance(event, dict) or event.get("type") != "message":
         return {"ok": True, "ignored": "not_message"}
-
     background_tasks.add_task(_process_event, event, event_id)
     return {"ok": True}
+
+
+@router.post("/events")
+async def slack_events(
+    request: Request, background_tasks: BackgroundTasks,
+) -> dict[str, Any]:
+    """Authenticate, acknowledge, and defer Slack Events API callbacks safely."""
+    raw_body = await _read_limited_body(request)
+    payload = _parse_signed_payload(request, raw_body)
+    payload_type = payload.get("type")
+    if payload_type == "url_verification":
+        return {"challenge": payload.get("challenge", "")}
+    if payload_type != "event_callback":
+        return {"ok": True, "ignored": "unsupported_type"}
+    return _dispatch_callback(payload, background_tasks)
 
 
 __all__ = ["router"]
