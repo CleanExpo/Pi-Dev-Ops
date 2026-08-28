@@ -16,18 +16,38 @@ def _clear_bridge_env(monkeypatch) -> None:
 
 
 def test_slack_bridge_probe_reports_disabled_without_network(monkeypatch):
-    """Disabled configuration must fail clearly before any Slack API call."""
+    """Disabled config reports presence flags before any Slack network call."""
     _clear_bridge_env(monkeypatch)
 
     def fail_if_called(*_args, **_kwargs):
         raise AssertionError("Slack API must not be called for disabled bridge")
 
-    monkeypatch.setattr(health, "_slack_api_probe", fail_if_called)
-    assert health._probe_slack_bridge() == (False, "bridge_disabled")
+    monkeypatch.setattr(health, "_slack_api_json", fail_if_called)
+    assert health._probe_slack_bridge() == (
+        False,
+        "bridge_disabled;enabled=0;token=missing;signing=missing;channel=missing",
+    )
+
+
+def test_disabled_probe_still_reports_existing_secret_presence(monkeypatch):
+    """A disabled flag does not hide whether the required variables already exist."""
+    monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-existing")
+    monkeypatch.setenv("SLACK_SIGNING_SECRET", "existing-signing")
+    monkeypatch.setenv("SLACK_MARGOT_STRENGTHENING_CHANNEL", "C123")
+    monkeypatch.delenv("SLACK_TELEGRAM_BRIDGE_ENABLED", raising=False)
+
+    ok, detail = health._probe_slack_bridge()
+
+    assert ok is False
+    assert detail == (
+        "bridge_disabled;enabled=0;token=present;signing=present;channel=present"
+    )
+    assert "xoxb-existing" not in detail
+    assert "existing-signing" not in detail
 
 
 def test_slack_bridge_probe_reports_ready_without_exposing_secrets(monkeypatch):
-    """Healthy configuration reports only readiness text, never credentials."""
+    """Healthy configuration reports bot identity but never credentials."""
     token = "xoxb-do-not-print-this"
     signing = "do-not-print-signing-secret"
     monkeypatch.setenv("SLACK_TELEGRAM_BRIDGE_ENABLED", "1")
@@ -39,12 +59,17 @@ def test_slack_bridge_probe_reports_ready_without_exposing_secrets(monkeypatch):
 
     def healthy_probe(_token, method, payload=None):
         calls.append((method, payload))
-        return True, "ok"
+        if method == "auth.test":
+            return {"ok": True, "error": "", "user_id": "U0BOT123"}
+        return {"ok": True, "error": "", "user_id": ""}
 
-    monkeypatch.setattr(health, "_slack_api_probe", healthy_probe)
+    monkeypatch.setattr(health, "_slack_api_json", healthy_probe)
     result = health._probe_slack_bridge()
 
-    assert result == (True, "ready")
+    assert result == (
+        True,
+        "ready;bot_user=U0BOT123;enabled=1;token=present;signing=present;channel=present",
+    )
     assert calls == [
         ("auth.test", None),
         ("conversations.info", {"channel": "C123"}),
@@ -55,7 +80,7 @@ def test_slack_bridge_probe_reports_ready_without_exposing_secrets(monkeypatch):
 
 
 def test_slack_bridge_probe_reports_private_channel_access_failure(monkeypatch):
-    """A valid bot outside the private room is surfaced as channel_inaccessible."""
+    """A valid bot outside the private room exposes only its safe user ID and error."""
     monkeypatch.setenv("SLACK_TELEGRAM_BRIDGE_ENABLED", "1")
     monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-test")
     monkeypatch.setenv("SLACK_SIGNING_SECRET", "signing-test")
@@ -63,11 +88,12 @@ def test_slack_bridge_probe_reports_private_channel_access_failure(monkeypatch):
 
     def probe(_token, method, payload=None):
         if method == "auth.test":
-            return True, "ok"
-        return False, "channel_not_found"
+            return {"ok": True, "error": "", "user_id": "U0BOT123"}
+        return {"ok": False, "error": "channel_not_found", "user_id": ""}
 
-    monkeypatch.setattr(health, "_slack_api_probe", probe)
+    monkeypatch.setattr(health, "_slack_api_json", probe)
     assert health._probe_slack_bridge() == (
         False,
-        "channel_inaccessible:channel_not_found",
+        "channel_inaccessible:channel_not_found;bot_user=U0BOT123;"
+        "enabled=1;token=present;signing=present;channel=present",
     )
