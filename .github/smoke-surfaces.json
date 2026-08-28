@@ -1,5 +1,5 @@
 {
-  "_comment": "RA-1154 declarative surface map. Every interactive surface (dashboard button, API endpoint, streaming route) MUST have an entry. A CI gate fails PRs touching dashboard/components, dashboard/app/api, or app/server/routes without updating this file. Read by scripts/smoke_test_e2e.py. Keep stdlib-parseable (no comments in the JSON itself — use _comment fields if needed).",
+  "_comment": "RA-1154 declarative surface map. Every interactive surface (dashboard button, API endpoint, streaming route) MUST have an entry. A CI gate fails PRs touching dashboard/components, dashboard/app/api, or app/server/routes without updating this file. Read by scripts/smoke_test_e2e.py. Keep stdlib-parseable (no comments in the JSON itself — use _comment fields if needed). PR #674 revalidated the existing Slack Margot bridge surface while hardening chunked-body limits, retries, and explicit bridge opt-in.",
   "version": 1,
   "horizontal": [
     {
@@ -486,7 +486,7 @@
       "body_contains": [
         "Invalid Slack signature"
       ],
-      "_comment": "PR #673: signed Slack Events API ingress for the Margot Telegram strengthening bridge. An authenticated dashboard smoke request is forwarded to Railway but intentionally carries no Slack signature headers, so the backend must return 401 before inspecting SLACK_SIGNING_SECRET or running Margot. Signed Slack traffic is covered by tests/test_margot_slack_bridge.py."
+      "_comment": "PR #673: signed Slack Events API ingress for the Margot Telegram strengthening bridge. PR #674 hardens bounded request-body reads, non-blocking Slack calls, retry recovery, durable duplicate suppression, and explicit bridge opt-in. An authenticated dashboard smoke request intentionally carries no Slack signature headers, so the backend must return 401 before any Margot work."
     },
     {
       "name": "margot-delegate-nosig",
