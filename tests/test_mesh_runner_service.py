@@ -26,10 +26,23 @@ def test_runner_reads_same_hermes_env_as_heartbeat(monkeypatch, tmp_path):
     assert runner._from_env_file("PI_CEO_API_KEY") == "shared-secret"
 
 
-def test_runner_defaults_to_repository_root():
+def test_runner_defaults_to_repository_root(monkeypatch):
     """A daemon claim cannot inherit an arbitrary launchd working directory."""
+    # bootstrap.sh exports MESH_REPO_DIR into the runner service, so every
+    # mesh-dispatched agent inherits it, and DEFAULT_REPO_DIR reads it at import
+    # time. Left set, this asserts against the ambient session instead of the
+    # fallback it claims to cover — and fails in exactly the environment the
+    # guard exists to protect.
+    monkeypatch.delenv("MESH_REPO_DIR", raising=False)
     runner = _load_runner()
     assert runner._repo_dir_for({}) == REPO_ROOT.resolve()
+
+
+def test_runner_honours_operator_repo_dir_override(monkeypatch, tmp_path):
+    """MESH_REPO_DIR is the operator's deliberate override, not ambient drift."""
+    monkeypatch.setenv("MESH_REPO_DIR", str(tmp_path))
+    runner = _load_runner()
+    assert runner._repo_dir_for({}) == tmp_path.resolve()
 
 
 def test_macos_bootstrap_installs_worker_peer_to_heartbeat():
