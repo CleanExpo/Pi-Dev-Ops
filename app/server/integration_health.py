@@ -79,7 +79,8 @@ def _probe_linear_api_key() -> tuple[bool, str]:
         return False, f"network: {exc}"
     if "errors" in data:
         return False, f"gql: {data['errors'][0].get('message', 'unknown')[:80]}"
-    return True, "ok"
+    login = data.get("data", {}).get("viewer", {}).get("id")
+    return (bool(login), "ok" if login else "no viewer in response")
 
 
 def _probe_github_token() -> tuple[bool, str]:
@@ -102,10 +103,10 @@ def _probe_github_token() -> tuple[bool, str]:
     return (bool(login), f"login={login}" if login else "no login in response")
 
 
-def _slack_api_probe(
+def _slack_api_json(
     token: str, method: str, payload: dict[str, str] | None = None,
-) -> tuple[bool, str]:
-    """Call Slack with a token but return only ok/error state, never response data."""
+) -> dict[str, Any]:
+    """Call Slack and return only the small response needed by readiness probes."""
     req = urllib.request.Request(
         f"https://slack.com/api/{method}",
         data=json.dumps(payload or {}).encode("utf-8"),
@@ -119,42 +120,60 @@ def _slack_api_probe(
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read())
     except urllib.error.HTTPError as exc:
-        return False, f"HTTP {exc.code}"
+        return {"ok": False, "error": f"HTTP {exc.code}"}
     except Exception:
-        return False, "network_or_invalid_response"
+        return {"ok": False, "error": "network_or_invalid_response"}
     if not isinstance(data, dict):
-        return False, "invalid_response"
-    if data.get("ok"):
-        return True, "ok"
-    error = str(data.get("error") or "unknown")[:80]
-    return False, error
+        return {"ok": False, "error": "invalid_response"}
+    return {
+        "ok": bool(data.get("ok")),
+        "error": str(data.get("error") or "")[:80],
+        # Slack bot user IDs are identifiers, not credentials. Keeping only
+        # this field lets an operator invite an already-authenticated bot into
+        # a private channel without exposing any token or workspace payload.
+        "user_id": str(data.get("user_id") or "")[:32],
+    }
+
+
+def _presence(value: str) -> str:
+    """Render config presence without exposing its value."""
+    return "present" if value else "missing"
 
 
 def _probe_slack_bridge() -> tuple[bool, str]:
-    """Verify bridge config, Slack bot validity, and private-channel accessibility."""
-    enabled = (os.environ.get("SLACK_TELEGRAM_BRIDGE_ENABLED") or "0").strip().lower()
-    if enabled not in {"1", "true", "yes", "on"}:
-        return False, "bridge_disabled"
-
+    """Verify bridge config, bot identity, and private-channel accessibility."""
+    enabled_raw = (os.environ.get("SLACK_TELEGRAM_BRIDGE_ENABLED") or "0").strip().lower()
+    enabled = enabled_raw in {"1", "true", "yes", "on"}
     token = (os.environ.get("SLACK_BOT_TOKEN") or "").strip()
     signing = (os.environ.get("SLACK_SIGNING_SECRET") or "").strip()
     channel = (os.environ.get("SLACK_MARGOT_STRENGTHENING_CHANNEL") or "").strip()
-    if not token:
-        return False, "bot_token_missing"
-    if not signing:
-        return False, "signing_secret_missing"
-    if not channel:
-        return False, "strengthening_channel_missing"
-
-    auth_ok, auth_detail = _slack_api_probe(token, "auth.test")
-    if not auth_ok:
-        return False, f"bot_auth_failed:{auth_detail}"
-    channel_ok, channel_detail = _slack_api_probe(
-        token, "conversations.info", {"channel": channel},
+    state = (
+        f"enabled={1 if enabled else 0};"
+        f"token={_presence(token)};"
+        f"signing={_presence(signing)};"
+        f"channel={_presence(channel)}"
     )
-    if not channel_ok:
-        return False, f"channel_inaccessible:{channel_detail}"
-    return True, "ready"
+    if not enabled:
+        return False, f"bridge_disabled;{state}"
+    if not token:
+        return False, f"bot_token_missing;{state}"
+    if not signing:
+        return False, f"signing_secret_missing;{state}"
+    if not channel:
+        return False, f"strengthening_channel_missing;{state}"
+
+    auth = _slack_api_json(token, "auth.test")
+    bot_user = auth.get("user_id") or "unknown"
+    if not auth.get("ok"):
+        return False, f"bot_auth_failed:{auth.get('error') or 'unknown'};{state}"
+    channel_result = _slack_api_json(token, "conversations.info", {"channel": channel})
+    if not channel_result.get("ok"):
+        return (
+            False,
+            f"channel_inaccessible:{channel_result.get('error') or 'unknown'};"
+            f"bot_user={bot_user};{state}",
+        )
+    return True, f"ready;bot_user={bot_user};{state}"
 
 
 def _probe_linear_poll_live() -> tuple[bool, str]:
@@ -270,12 +289,15 @@ async def integration_health_loop() -> None:
         return
     log.info("integration-health: started (interval=%ds)", interval)
 
-    # Small startup delay so the other daemons are up first
+    # Small startup delay so the other daemons are up first.
     await asyncio.sleep(15)
 
     while True:
         try:
-            tick()
+            # All probe implementations use blocking stdlib HTTP. Keep the
+            # complete health pass off FastAPI's event loop so a slow provider
+            # cannot stall unrelated requests while health is being measured.
+            await asyncio.to_thread(tick)
         except Exception as exc:
             log.error("integration-health: tick crashed: %s", exc)
         await asyncio.sleep(interval)
