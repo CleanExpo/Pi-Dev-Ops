@@ -2,36 +2,32 @@
 # Nexus Mesh — one-command fleet join. Run this on each machine (Mac mini, Windows
 # via Git Bash/WSL, any Linux node) to enlist it in the fleet.
 #
-#   curl -fsSL <raw-url>/mesh/bootstrap.sh | bash      # or run from a Pi-CEO checkout
-#
-# It is idempotent and read-mostly: installs autogit, wires the agent + Hermes
-# hooks, drops the heartbeat daemon, and registers the machine. No secrets are
-# written by this script — set PI_CEO_API_KEY in your shell first.
-#
-# Spec: docs/superpowers/specs/2026-06-11-nexus-mesh-design.md
+# It is idempotent: wires agent hooks, installs BOTH the heartbeat and the work
+# runner, and keeps secrets in ~/.hermes/.env rather than daemon definitions.
 set -euo pipefail
 
 say() { printf '\033[1;36m▸ %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m! %s\033[0m\n' "$*"; }
 
 MESH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$MESH_DIR/.." && pwd)"
 HOST="$(hostname | cut -d. -f1)"
 : "${PI_CEO_API_URL:=https://pi-dev-ops-production.up.railway.app}"
+DAEMON_PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
 say "Nexus Mesh bootstrap on $HOST"
 
 # 1. Prereqs
 command -v node >/dev/null || { warn "Node.js >=18 required — install it first"; exit 1; }
 command -v python3 >/dev/null || { warn "python3 required"; exit 1; }
-[ -n "${PI_CEO_API_KEY:-}" ] || warn "PI_CEO_API_KEY not set — heartbeat will be rejected until you export it"
+[ -n "${PI_CEO_API_KEY:-}" ] || warn "PI_CEO_API_KEY not set — daemons will use ~/.hermes/.env if already provisioned"
 
-# 1b. Persist the secret to ~/.hermes/.env (mode 600) so the daemon reads it at
-#     runtime — it is never embedded in the launchd plist / Scheduled Task.
+# 1b. Persist mesh authority to the protected shared env when supplied.
 if [ -n "${PI_CEO_API_KEY:-}" ]; then
   ENVF="$HOME/.hermes/.env"; mkdir -p "$HOME/.hermes"; touch "$ENVF"; chmod 600 "$ENVF"
   grep -q '^PI_CEO_API_KEY=' "$ENVF" 2>/dev/null || printf 'PI_CEO_API_KEY=%s\n' "$PI_CEO_API_KEY" >> "$ENVF"
   grep -q '^PI_CEO_API_URL=' "$ENVF" 2>/dev/null || printf 'PI_CEO_API_URL=%s\n' "$PI_CEO_API_URL" >> "$ENVF"
-  say "Secret persisted to ~/.hermes/.env (600); not embedded in any daemon config"
+  say "Mesh authority persisted to ~/.hermes/.env (600)"
 fi
 
 # 2. autogit — work bus
@@ -42,10 +38,7 @@ fi
 say "Wiring agent hooks (Claude/Codex/Cursor/Pi)"
 autogit setup || warn "autogit setup reported issues (non-fatal)"
 
-# 2b. Harden the wired hooks. Claude Code / Codex run hooks with a minimal PATH that
-# usually excludes the npm global bin (e.g. ~/.local/bin), so a bare `autogit` fails
-# with "command not found" on every Stop/PostToolUse. Rewrite each autogit hook to
-# prepend the common bin dirs and no-op silently when autogit is genuinely absent.
+# Harden generated hooks for the minimal PATH used by agent runtimes.
 say "Hardening agent hooks (PATH-safe autogit)"
 python3 - <<'PYH' || warn "hook hardening skipped (non-fatal)"
 import json, os
@@ -69,19 +62,12 @@ def harden(path):
                 c = h.get("command", "")
                 prefix = (f'export PATH="{BINS}:$PATH"; cd "${{CLAUDE_PROJECT_DIR:-.}}" '
                           f'&& command -v autogit >/dev/null 2>&1 && ')
-                # `ship` commits+pushes+PRs the current branch. Guard it so it never
-                # fires on human/agent review branches (feat/*, fix/*) or protected
-                # branches — autogit only ships its own autonomous work branches.
-                # Re-runs on already-hardened-but-unguarded hooks (guard absent) so
-                # enlisted machines pick up the fix on the next bootstrap. Idempotent:
-                # skips once the guard ("feat/*") is already present.
                 if "autogit ship" in c and "feat/*" not in c:
                     run = ('{ b="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"; '
                            'case "$b" in feat/*|feature/*|fix/*|main|master|HEAD) ;; '
                            '*) autogit ship ;; esac; }')
                     h["command"] = prefix + run + " || true"
                     changed = True
-                # `busy` is a harmless state signal; only harden the bare form.
                 elif "autogit busy" in c and "command -v autogit" not in c:
                     h["command"] = prefix + "autogit busy || true"
                     changed = True
@@ -93,24 +79,23 @@ PYH
 
 # 3. Hermes adapter (only if Hermes is present on this node)
 if [ -f "$HOME/.hermes/config.yaml" ]; then
-  say "Hermes detected — wire mesh/hooks/hermes_ship.sh as an on_session_end hook"
-  warn "Add to ~/.hermes/config.yaml (then: hermes hooks list to approve):"
-  echo "    hooks:"
-  echo "      on_session_end:"
-  echo "        - command: \"$MESH_DIR/hooks/hermes_ship.sh\""
+  say "Hermes detected — mesh ship hook available"
   chmod +x "$MESH_DIR/hooks/hermes_ship.sh" 2>/dev/null || true
 fi
 
-# 4. Heartbeat — nervous system. Register once, then schedule the loop.
+# 4. Heartbeat — visibility. A machine is not considered operational merely
+# because this daemon is alive; the runner below is installed as a peer service.
 say "Publishing first heartbeat"
 python3 "$MESH_DIR/heartbeat.py" || warn "heartbeat publish failed (check PI_CEO_API_KEY / endpoint deploy)"
 
 OS="$(uname -s)"
 case "$OS" in
   Darwin)
-    PLIST="$HOME/Library/LaunchAgents/com.unite-group.mesh-heartbeat.plist"
-    say "Installing launchd heartbeat daemon → $PLIST"
-    cat > "$PLIST" <<PL
+    mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+
+    HEARTBEAT_PLIST="$HOME/Library/LaunchAgents/com.unite-group.mesh-heartbeat.plist"
+    say "Installing launchd heartbeat daemon → $HEARTBEAT_PLIST"
+    cat > "$HEARTBEAT_PLIST" <<PL
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -119,23 +104,57 @@ case "$OS" in
     <string>/usr/bin/env</string><string>python3</string>
     <string>$MESH_DIR/heartbeat.py</string><string>--loop</string>
   </array>
+  <key>WorkingDirectory</key><string>$REPO_DIR</string>
   <key>EnvironmentVariables</key><dict>
     <key>PI_CEO_API_URL</key><string>$PI_CEO_API_URL</string>
+    <key>PATH</key><string>$DAEMON_PATH</string>
   </dict>
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>$HOME/Library/Logs/nexus-mesh-heartbeat.log</string>
+  <key>StandardErrorPath</key><string>$HOME/Library/Logs/nexus-mesh-heartbeat.err.log</string>
 </dict></plist>
 PL
-    # The secret is NOT embedded in the plist — heartbeat.py reads PI_CEO_API_KEY
-    # from ~/.hermes/.env at runtime. Make sure it's there and protected.
-    launchctl unload "$PLIST" 2>/dev/null || true
-    launchctl load "$PLIST" && say "launchd heartbeat loaded"
+    launchctl unload "$HEARTBEAT_PLIST" 2>/dev/null || true
+    launchctl load "$HEARTBEAT_PLIST" && say "launchd heartbeat loaded"
+
+    RUNNER_PLIST="$HOME/Library/LaunchAgents/com.unite-group.mesh-runner.plist"
+    say "Installing launchd work runner → $RUNNER_PLIST"
+    cat > "$RUNNER_PLIST" <<PL
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.unite-group.mesh-runner</string>
+  <key>ProgramArguments</key><array>
+    <string>/usr/bin/env</string><string>python3</string>
+    <string>$MESH_DIR/runner.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>$REPO_DIR</string>
+  <key>EnvironmentVariables</key><dict>
+    <key>PI_CEO_API_URL</key><string>$PI_CEO_API_URL</string>
+    <key>MESH_REPO_DIR</key><string>$REPO_DIR</string>
+    <key>PATH</key><string>$DAEMON_PATH</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>ThrottleInterval</key><integer>15</integer>
+  <key>StandardOutPath</key><string>$HOME/Library/Logs/nexus-mesh-runner.log</string>
+  <key>StandardErrorPath</key><string>$HOME/Library/Logs/nexus-mesh-runner.err.log</string>
+</dict></plist>
+PL
+    # The runner reads PI_CEO_API_KEY from ~/.hermes/.env at runtime. It is not
+    # embedded in this plist. Successful exit (hard stop or claim cap) stays
+    # stopped; crashes restart after the throttle interval.
+    launchctl unload "$RUNNER_PLIST" 2>/dev/null || true
+    launchctl load "$RUNNER_PLIST" && say "launchd work runner loaded"
     ;;
   Linux)
-    say "Linux — add to crontab:  */1 * * * * PI_CEO_API_KEY=... python3 $MESH_DIR/heartbeat.py"
+    say "Linux — supervise both mesh daemons (systemd recommended):"
+    echo "  python3 $MESH_DIR/heartbeat.py --loop"
+    echo "  python3 $MESH_DIR/runner.py"
     ;;
   *)
-    warn "Windows: register a Scheduled Task running 'python $MESH_DIR\\heartbeat.py --loop' at logon"
+    warn "Windows: register Scheduled Tasks at logon for BOTH heartbeat.py --loop and runner.py"
     ;;
 esac
 
-say "Done. $HOST is enlisted. Watch it appear in Mission Control."
+say "Done. $HOST is enlisted with visibility + work execution."
