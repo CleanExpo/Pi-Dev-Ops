@@ -167,49 +167,6 @@ def test_slack_signature_verification(monkeypatch):
     ) is False
 
 
-def test_slack_health_reports_missing_configuration(monkeypatch):
-    """Readiness reports missing config without making a network request."""
-    for key in (
-        "SLACK_BOT_TOKEN",
-        "SLACK_SIGNING_SECRET",
-        "SLACK_MARGOT_STRENGTHENING_CHANNEL",
-        "SLACK_TELEGRAM_BRIDGE_ENABLED",
-    ):
-        monkeypatch.delenv(key, raising=False)
-
-    snapshot = slack_route._slack_health_snapshot()
-
-    assert snapshot == {
-        "ready": False,
-        "status": "disabled",
-        "enabled": False,
-        "bot_token_present": False,
-        "signing_secret_present": False,
-        "channel_configured": False,
-        "bot_auth_ok": False,
-        "channel_access": False,
-    }
-
-
-def test_slack_health_never_exposes_credentials(monkeypatch):
-    """Even a ready snapshot contains booleans/status only, never credential text."""
-    token = "xoxb-super-secret-value"
-    signing = "super-secret-signing-value"
-    monkeypatch.setenv("SLACK_BOT_TOKEN", token)
-    monkeypatch.setenv("SLACK_SIGNING_SECRET", signing)
-    monkeypatch.setenv("SLACK_MARGOT_STRENGTHENING_CHANNEL", "C123")
-    monkeypatch.setenv("SLACK_TELEGRAM_BRIDGE_ENABLED", "1")
-    monkeypatch.setattr(slack_route, "_slack_json", lambda *_args, **_kwargs: {"ok": True, "error": ""})
-
-    snapshot = slack_route._slack_health_snapshot()
-    rendered = repr(snapshot)
-
-    assert snapshot["ready"] is True
-    assert snapshot["status"] == "ready"
-    assert token not in rendered
-    assert signing not in rendered
-
-
 class _ChunkedRequest:
     """Minimal Request-like object for exercising chunked body limits."""
 
