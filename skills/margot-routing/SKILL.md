@@ -20,9 +20,15 @@ Cross-project routing hygiene for Margot (RA-6814). Prevents duplicate or orphan
    - Cross-cutting product idea → create in **parent** project (Margot, Pi-Dev-Ops epic, or RestoreAssist umbrella) first.
 
 2. **Pick project from SSOT**
-   - Read `config/harness/projects.json` — match repo name (case-insensitive) → `linear_team_id` + `linear_project_id`.
-   - Pi-Dev-Ops harness work → team RestoreAssist, project **Pi - Dev - Ops**.
-   - Margot persona / voice / Telegram → project **Margot**.
+   - Read `config/harness/projects.json` and match on **`id`, never `repo`** → `linear_team_id` +
+     `linear_project_id`. `id` is unique across all entries; `repo` is not. `CleanExpo/Pi-Dev-Ops`
+     carries both `pi-dev-ops` and `margot`, on different `linear_project_id` values, so a
+     repo-keyed match is ambiguous for exactly the repo Margot lives in — it silently picks one and
+     lands Margot tickets in the harness project. Re-derive the id→project map with the command in
+     CLAUDE.md § Linear routing.
+   - Choose the `id` from intent, then read that entry:
+     - Pi-Dev-Ops harness work → id `pi-dev-ops` (team RestoreAssist, project **Pi - Dev - Ops**).
+     - Margot persona / voice / Telegram → id `margot` (project **Margot**).
    - **Margot ElevenLabs voice ID (Margot only):** `p43fx6U8afP2xoq1Ai9f` — `MARGOT_ELEVENLABS_VOICE_ID` / `resolve_margot_voice_id()`. **Never** `ELEVENLABS_VOICE_ID` (that is another agent's voice).
    - RestoreAssist product → project **RestoreAssist** (not Pi-Dev-Ops unless the change is in `CleanExpo/Pi-Dev-Ops`).
 
@@ -61,6 +67,7 @@ Cross-project routing hygiene for Margot (RA-6814). Prevents duplicate or orphan
 ## Validation before close
 
 - [ ] Parent ticket exists (if multi-repo)
-- [ ] Project matches `config/harness/projects.json` for the repo that will change
+- [ ] Project matches the `config/harness/projects.json` entry whose **`id`** the work belongs to
+      (not merely the repo — `CleanExpo/Pi-Dev-Ops` has two entries)
 - [ ] Labels match intended pickup path (autonomous vs manual)
 - [ ] Description names acceptance criteria + repo path

@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.23.12",
-    "generated_at": "2026-08-30T21:26:46.649624+00:00",
+    "version": "1.23.13",
+    "generated_at": "2026-08-30T21:34:18.490850+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -1446,7 +1446,7 @@
       "owner_role": "Margot",
       "status": "active",
       "path": "skills/margot-routing/SKILL.md",
-      "sha256": "847522a5051231b6e88beb4807d7737c5b36ef8455e719c3d65444a6f86e298d",
+      "sha256": "e6923dba42cf298eb5c7e81cf2bf76e81a37705bff24abec29e3d411dfc819c6",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1826,7 +1826,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/pi-dev-linear-contract/SKILL.md",
-      "sha256": "fc9fddff1850c91602b51ee4f319e4b196b1613ae65324ae1959b1f2bab5672b",
+      "sha256": "c4ef688792d9508dca1c9b3bdb4c982ca46f68c7f65f4814bfe98e295ada0aea",
       "dependencies": {
         "tools": [],
         "skills": []
