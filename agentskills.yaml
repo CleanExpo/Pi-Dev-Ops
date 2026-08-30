@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.23.8
-  generated_at: "2026-08-23T08:15:39.291376+00:00"
+  version: 1.23.11
+  generated_at: "2026-08-30T03:25:28.212954+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -1914,12 +1914,12 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/scheduled-tasks/SKILL.md
-    sha256: 7620f9fbb35ff103ceacab72176f611b6d8adc062e5c77fac6e9da9dd3f6c79e
+    sha256: 5399f63e5333f7c414bfc12c7a5e16880926481250377eb992e6e3283210f276
     dependencies:
       tools: []
       skills: []
     safety:
-      requires_kill_switch: false
+      requires_kill_switch: true
       requires_hitl_gate: false
       pii_handling: pass-through
     inferred: true
