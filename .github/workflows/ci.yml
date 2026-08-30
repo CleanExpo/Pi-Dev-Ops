@@ -96,6 +96,23 @@ jobs:
         run: python scripts/check_business_charters.py
         working-directory: .
 
+      # RA-7252: a PR can edit a SKILL.md and merge without regenerating the
+      # manifest — main carried stale content for weeks and nothing here noticed,
+      # because the `generated-agentskills` gate existed only in handoff-loop.sh,
+      # which runs on a laptop at handoff time. Regeneration is idempotent (no
+      # version bump or history append when nothing changed), so a clean tree is
+      # the correct success condition. Invoked as a MODULE deliberately: the
+      # script-path form cannot resolve its relative imports and writes nothing,
+      # which would leave this diff check passing on stale content.
+      - name: Agentskills manifest gate (RA-7252)
+        run: |
+          python -m swarm.agentskills_manifest
+          if ! git diff --exit-code -- agentskills.json agentskills.yaml; then
+            echo "::error::agentskills manifest is stale — a SKILL.md changed without regeneration. Fix with: python3 -m swarm.agentskills_manifest (then commit agentskills.json and agentskills.yaml)"
+            exit 1
+          fi
+        working-directory: .
+
   # ── Frontend: TypeScript + ESLint + build ────────────────────────────────────
   frontend:
     name: Frontend (tsc + eslint + build)

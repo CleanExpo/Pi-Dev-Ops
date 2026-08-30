@@ -361,6 +361,22 @@ def export() -> dict[str, Any]:
 
 
 if __name__ == "__main__":
+    # Run as a script path (`python3 swarm/agentskills_manifest.py`) this module is
+    # not inside a package, so export()'s `from ._atomic import ...` raises a bare
+    # ImportError that names a relative-import problem rather than the real one —
+    # after writing nothing and leaving a clean tree. That is the dangerous shape
+    # for RA-7252's CI guard: regenerate-then-diff would pass on stale content,
+    # because a guard whose generator no-ops is a guard that always passes. Refuse
+    # the invocation up front, with the command that works.
+    if not __package__:
+        sys.stderr.write(
+            "agentskills_manifest must be run as a module, not a script path.\n"
+            "  correct: python3 -m swarm.agentskills_manifest\n"
+            "  used:    python3 swarm/agentskills_manifest.py\n"
+            "Run as a script path it cannot resolve its relative imports, writes\n"
+            "nothing, and leaves a clean tree that reads as 'already in sync'.\n"
+        )
+        sys.exit(2)
     m = export()
     print(f"Wrote {JSON_OUT.relative_to(REPO_ROOT)} (version {m['package']['version']})")
     print(f"Wrote {YAML_OUT.relative_to(REPO_ROOT)}")
