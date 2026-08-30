@@ -39,6 +39,7 @@ from swarm.nexus.autonomy_ladder import (
     SEGMENT_RULES as _SEGMENT_RULES,
     SHELL_SEP as _SHELL_SEP,
     WHOLE_RULES as _WHOLE_RULES,
+    strip_git_global_opts as _strip_git_global_opts,
 )
 
 
@@ -117,11 +118,18 @@ def _inspect_bash(tool_name: str, tool_input: dict) -> ToolGateDecision:
             return _deny(label)
 
     for seg in (s.strip() for s in _SHELL_SEP.split(cmd)):
-        if not seg or re.match(r"git\s+rm\b", seg, re.IGNORECASE):
-            continue  # `git rm` is tracked/recoverable — not the rm-rf rule
-        for label, pat in _SEGMENT_RULES:
-            if pat.search(seg):
-                return _deny(label)
+        # RA-7386: also test the segment with git's global options stripped, so
+        # `git -C /repo reset --hard` cannot duck the rules. Both forms are
+        # checked and either one denies, so the rewrite can only ever ADD a
+        # denial. The `git rm` skip is applied PER FORM on purpose: today
+        # `git -C . rm -rf .` is denied (the skip does not match it, so rm-rf
+        # catches it) and normalising it alone would hand it the skip.
+        for cand in (seg, _strip_git_global_opts(seg)):
+            if not cand or re.match(r"git\s+rm\b", cand, re.IGNORECASE):
+                continue  # `git rm` is tracked/recoverable — not the rm-rf rule
+            for label, pat in _SEGMENT_RULES:
+                if pat.search(cand):
+                    return _deny(label)
 
     return _ALLOW
 
