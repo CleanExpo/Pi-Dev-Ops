@@ -140,6 +140,53 @@ SEGMENT_RULES: list[tuple[str, re.Pattern[str]]] = [
         re.IGNORECASE)),
     ("find-delete", re.compile(r"\bfind\b[^\n]*\s-delete\b", re.IGNORECASE)),
     ("find-exec-rm", re.compile(r"\bfind\b[^\n]*-exec\s+rm\b", re.IGNORECASE)),
+
+    # --- Work-discard family (RA-7384) --------------------------------------
+    # Irrecoverably discards uncommitted or stashed work. These belong HERE and
+    # not in _L3_BASH, for the reason this section's header gives: they are
+    # locally destructive with no undo path, so the unattended loop must not
+    # self-authorize them, while a PRESENT human is the right judge and keeps
+    # the normal permission prompt. `classify()` therefore still returns L1 for
+    # them by design — the tier is not the control, this denylist is.
+    #
+    # The gap this closes: `git reset --hard` was reachable by the unattended
+    # generator with no gate of any kind, though it destroys uncommitted work
+    # unconditionally — while `git merge --abort`, which only undoes an
+    # in-progress merge, sat at L3 needing human approval. The dangerous command
+    # was the ungated one.
+    #
+    # Each rule denies only the destroying spelling. Modes that leave the
+    # worktree intact (`reset --soft/--mixed`, `restore --staged`, `clean -n`)
+    # or that git itself refuses when work would be lost (`reset --keep`, a
+    # plain `checkout <branch>`) stay allowed: this must not cost the loop
+    # ordinary git.
+    ("git-reset-discard", re.compile(
+        r"\bgit\s+reset\b[^\n]*\s--(?:hard|merge)\b", re.IGNORECASE)),
+    # `--force(?![-\w])` so `git switch --force-create` (branch creation) is not
+    # swept up; `-p` cannot work unattended anyway and still discards.
+    ("git-checkout-discard", re.compile(
+        r"\bgit\s+(?:checkout|switch)\b[^\n]*"
+        r"(?:\s--(?:force|discard-changes)(?![-\w])|\s-[a-z]*f\b"
+        r"|\s--\s|\s\.\s*$|\s-p\b|\s--patch\b)",
+        re.IGNORECASE)),
+    # `git checkout <tree-ish> <pathspec>` restores files over the worktree
+    # without any of the markers above — `git checkout HEAD src/app.py`. Two
+    # non-option operands is the discriminator; the branch-creating spellings
+    # (`-b`, `-B`, `--track`, `--orphan`) legitimately take two and are excluded.
+    # Both operands must be non-option, or `git checkout -q main` backtracks
+    # into a match.
+    ("git-checkout-pathspec", re.compile(
+        r"\bgit\s+checkout\b(?![^\n]*\s-[bB]\b)"
+        r"(?![^\n]*\s--(?:track|no-track|orphan)\b)"
+        r"(?:\s+-\S+)*\s+[^-\s]\S*\s+[^-\s]\S*",
+        re.IGNORECASE)),
+    ("git-restore-worktree", re.compile(
+        r"\bgit\s+restore\b(?:(?![^\n]*\s--staged\b)|[^\n]*\s--worktree\b)",
+        re.IGNORECASE)),
+    ("git-clean-force", re.compile(
+        r"\bgit\s+clean\b[^\n]*\s(?:--force\b|-[a-z]*f[a-z]*\b)", re.IGNORECASE)),
+    ("git-stash-discard", re.compile(
+        r"\bgit\s+stash\s+(?:drop|clear)\b", re.IGNORECASE)),
     ("git-force-push", re.compile(
         r"\bgit\s+push\b[^\n]*\s(?:--force\b|--force-with-lease\b|-[a-z]*f\b|\+[\w./-]+)",
         re.IGNORECASE)),
