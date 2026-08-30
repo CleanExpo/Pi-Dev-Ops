@@ -44,6 +44,7 @@ prints the exempt paths so nothing is ignored silently.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 import sys
@@ -86,7 +87,12 @@ _HEADER = """\
 # --update and commit the smaller number; when a file drops under {limit} the
 # update removes it and it can never come back.
 #
-# format: <lines><TAB><path>
+# format: <lines><TAB><content-fingerprint><TAB><path>
+#
+# The fingerprint is a hash of the file's bytes, so a pure `git mv` keeps it and
+# an edit loses it. Move forgiveness matches on it, never on line count alone:
+# baselined files repeat lengths often enough that equal length would let an
+# unrelated new file inherit a deleted one's slot.
 """
 
 
@@ -102,33 +108,43 @@ def tracked_source_files() -> list[Path]:
     ]
 
 
-def line_count(path: Path) -> int:
-    """Newline count, matching `wc -l` so the two never disagree."""
+def measure(path: Path) -> tuple[int, str]:
+    """`(newline count, content fingerprint)`.
+
+    The count matches `wc -l` so the two never disagree. The fingerprint is a
+    hash of the bytes: a `git mv` leaves them identical, so a pure move keeps it
+    and any edit loses it. Content rather than structure because this gate also
+    covers `.ts`/`.tsx`, where there is no parser to hand.
+    """
     try:
-        with path.open("rb") as fh:
-            return fh.read().count(b"\n")
+        raw = path.read_bytes()
     except OSError:
-        return 0
+        return 0, ""
+    return raw.count(b"\n"), hashlib.sha256(raw).hexdigest()[:12]
 
 
-def read_baseline() -> dict[str, int]:
+def read_baseline() -> dict[str, tuple[int, str]]:
+    """`path -> (lines, fingerprint)`. Fingerprint is "" for pre-fingerprint rows."""
     if not BASELINE_PATH.exists():
         return {}
-    entries: dict[str, int] = {}
+    entries: dict[str, tuple[int, str]] = {}
     for raw in BASELINE_PATH.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        count, _, path = line.partition("\t")
-        if path:
-            entries[path.strip()] = int(count.strip())
+        parts = line.split("\t")
+        if len(parts) >= 3:
+            entries[parts[2].strip()] = (int(parts[0]), parts[1].strip())
+        elif len(parts) == 2:
+            entries[parts[1].strip()] = (int(parts[0]), "")
     return entries
 
 
-def write_baseline(sizes: dict[str, int]) -> None:
-    over = {p: n for p, n in sizes.items() if n > LIMIT}
+def write_baseline(sizes: dict[str, tuple[int, str]]) -> None:
+    over = {p: v for p, v in sizes.items() if v[0] > LIMIT}
     body = "".join(
-        f"{n}\t{p}\n" for p, n in sorted(over.items(), key=lambda kv: (-kv[1], kv[0]))
+        f"{n}\t{fp}\t{p}\n"
+        for p, (n, fp) in sorted(over.items(), key=lambda kv: (-kv[1][0], kv[0]))
     )
     BASELINE_PATH.write_text(_HEADER.format(limit=LIMIT) + body, encoding="utf-8")
     print(f"wrote {BASELINE_PATH} — {len(over)} file(s) over {LIMIT} lines")
@@ -139,105 +155,100 @@ def annotate(path: str, message: str) -> None:
         print(f"::error file={path}::{message}")
 
 
+def classify(
+    sizes: dict[str, tuple[int, str]], baseline: dict[str, tuple[int, str]]
+) -> dict[str, list]:
+    """Sort every measured file into new / grown / shrunk / moved.
+
+    Move forgiveness matches on the CONTENT FINGERPRINT, not on length. An earlier
+    version keyed it on line count alone, which is the same defect CodeRabbit found
+    in the function gate: delete a baselined 310-line file, add an unrelated
+    310-line one, and the new file inherited the old one's slot. Baselined files
+    repeat lengths often enough for that to be reachable -- rarer than for
+    functions, not absent.
+    """
+    missing = {p: v for p, v in baseline.items() if p not in sizes}
+    movable: dict[str, int] = {}
+    for _, fp in missing.values():
+        if fp:  # pre-fingerprint rows cannot be matched, so they are never movable
+            movable[fp] = movable.get(fp, 0) + 1
+
+    out: dict[str, list] = {"new": [], "grown": [], "shrunk": [], "moved": []}
+    for path, (count, fp) in sorted(sizes.items()):
+        entry = baseline.get(path)
+        if entry is None:
+            if count > LIMIT:
+                if movable.get(fp):
+                    movable[fp] -= 1
+                    out["moved"].append((path, count))
+                else:
+                    out["new"].append((path, count))
+            continue
+        allowed = entry[0]
+        if count > allowed:
+            out["grown"].append((path, allowed, count))
+        elif count < allowed:
+            out["shrunk"].append((path, allowed, count))
+    return out
+
+
+def report_failures(found: dict[str, list]) -> None:
+    """Print failures and warnings, with GitHub annotations on the failures."""
+    for path, count in found["new"]:
+        msg = (f"{count} lines exceeds the {LIMIT}-line convention (CLAUDE.md "
+               f"§ Conventions). Split it, or extract before adding here.")
+        print(f"FAIL  {path}: {msg}")
+        annotate(path, msg)
+
+    for path, allowed, count in found["grown"]:
+        msg = (f"grew from {allowed} to {count} lines, over the {LIMIT}-line "
+               f"convention. CLAUDE.md: extract when you touch these; do not add to them.")
+        print(f"FAIL  {path}: {msg}")
+        annotate(path, msg)
+
+    for path, count in found["moved"]:
+        print(f"warn  {path}: {count} lines, byte-identical to a baselined file that "
+              f"left the tree — treated as a move, not a new offender. Run --update.")
+    for path, allowed, count in found["shrunk"]:
+        print(f"warn  {path}: shrank {allowed} -> {count}; lower the baseline (--update)")
+
+
 def main() -> int:
     if not Path(".git").exists():
         print("error: run from the repository root", file=sys.stderr)
         return 2
 
-    sizes = {str(p): line_count(p) for p in tracked_source_files()}
-
+    sizes = {str(p): measure(p) for p in tracked_source_files()}
     if "--update" in sys.argv:
         write_baseline(sizes)
         return 0
 
     baseline = read_baseline()
+    found = classify(sizes, baseline)
+    report_failures(found)
 
-    # A grandfathered file that is merely MOVED is not a new offender. Its path
-    # leaves the baseline and arrives unlisted, so a naive check fails the build
-    # and tells the author to split a file they did not touch -- punishing the
-    # refactor this gate exists to encourage. Sizes of baseline paths that have
-    # left the tree are therefore forgiven once each: same length, vanished
-    # path, so it moved. Deliberately narrow -- a genuinely new file that
-    # happens to match a deleted one's length exactly is forgiven too, which is
-    # rare, visible in the diff, and cheaper than blocking every rename.
-    missing = {p: n for p, n in baseline.items() if p not in sizes}
-    movable: dict[int, int] = {}
-    for n in missing.values():
-        movable[n] = movable.get(n, 0) + 1
-
-    new_offenders: list[tuple[str, int]] = []
-    grown: list[tuple[str, int, int]] = []
-    shrunk: list[tuple[str, int, int]] = []
-    moved: list[tuple[str, int]] = []
-
-    for path, count in sorted(sizes.items()):
-        allowed = baseline.get(path)
-        if allowed is None:
-            if count > LIMIT:
-                if movable.get(count):
-                    movable[count] -= 1
-                    moved.append((path, count))
-                else:
-                    new_offenders.append((path, count))
-        elif count > allowed:
-            grown.append((path, allowed, count))
-        elif count < allowed:
-            shrunk.append((path, allowed, count))
-
-    for path, count in new_offenders:
-        msg = (
-            f"{count} lines exceeds the {LIMIT}-line convention (CLAUDE.md "
-            f"§ Conventions). Split it, or extract before adding here."
-        )
-        print(f"FAIL  {path}: {msg}")
-        annotate(path, msg)
-
-    for path, allowed, count in grown:
-        msg = (
-            f"grew from {allowed} to {count} lines, over the {LIMIT}-line "
-            f"convention. CLAUDE.md: extract when you touch these; do not add to them."
-        )
-        print(f"FAIL  {path}: {msg}")
-        annotate(path, msg)
-
-    for path, count in moved:
-        print(f"warn  {path}: {count} lines, matches a baselined file that left the "
-              f"tree — treated as a move, not a new offender. Run --update.")
-
-    for path, allowed, count in shrunk:
-        print(f"warn  {path}: shrank {allowed} -> {count}; lower the baseline (--update)")
-
-    failures = len(new_offenders) + len(grown)
-    if failures:
-        print(
-            f"\nfile-length gate FAILED — {len(new_offenders)} new offender(s), "
-            f"{len(grown)} grown.\n"
-            f"Fix by extracting code, not by editing the baseline. If a split is "
-            f"genuinely out of scope, say so in the PR and update the baseline "
-            f"deliberately:\n"
-            f"    python3 {BASELINE_PATH.parent / 'scripts/file_length_lint.py'} --update"
-        )
+    if found["new"] or found["grown"]:
+        print(f"\nfile-length gate FAILED — {len(found['new'])} new offender(s), "
+              f"{len(found['grown'])} grown.\n"
+              f"Fix by extracting code, not by editing the baseline. If a split is "
+              f"genuinely out of scope, say so in the PR and update the baseline "
+              f"deliberately:\n"
+              f"    python3 {BASELINE_PATH.parent}/scripts/file_length_lint.py --update")
         return 1
 
     exempt = sum(
         1 for line in subprocess.run(
-            ["git", "ls-files", *SUFFIXES],
-            capture_output=True, text=True, check=True,
+            ["git", "ls-files", *SUFFIXES], capture_output=True, text=True, check=True,
         ).stdout.split("\n")
         if line and any(part in f"/{line}" for part in EXCLUDE_PARTS)
     )
-    grandfathered = len(baseline)
-    print(
-        f"file-length gate passed — {len(sizes)} tracked source files, "
-        f"{grandfathered} grandfathered over {LIMIT} lines, 0 new, 0 grown."
-    )
+    print(f"file-length gate passed — {len(sizes)} tracked source files, "
+          f"{len(baseline)} grandfathered over {LIMIT} lines, 0 new, 0 grown.")
     if exempt:
-        print(
-            f"{exempt} file(s) exempt, not merely grandfathered: "
-            f"{', '.join(EXCLUDE_PARTS)}"
-        )
-    if shrunk:
-        print(f"{len(shrunk)} file(s) shrank — run --update to ratchet the baseline down.")
+        print(f"{exempt} file(s) exempt, not merely grandfathered: "
+              f"{', '.join(EXCLUDE_PARTS)}")
+    if found["shrunk"]:
+        print(f"{len(found['shrunk'])} file(s) shrank — run --update to ratchet the baseline down.")
     return 0
 
 
