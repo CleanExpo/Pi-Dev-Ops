@@ -91,7 +91,7 @@ Found by direct check on 2026-08-18. Each is real and unfixed; treat as work, no
 | 3 | ~~Four `.claude/skills/*/SKILL.md` missing~~ — **FIXED 2026-08-18.** Added as symlinks to the `.agents/skills/` originals, matching the existing `skybridge` convention. Six routes now resolve | `ls -la .claude/skills/` |
 | 4 | `HERMES.md` is **missing**, though it was cited as Launch Crew governance | `ls HERMES.md` |
 | 5 | `app/server/routes/webhooks.py` is **1292 lines** against a documented 300-line ceiling; `mission_control.py` 406; `health.py` 302 | `wc -l app/server/routes/*.py` |
-| 6 | `Monorepo CI` on `main` last passed **2026-08-14T04:44** and has been red since **05:18** that day | `gh run list --workflow ci.yml` |
+| 6 | ~~`Monorepo CI` on `main` red since 2026-08-14~~ — **RETRACTED 2026-08-30.** The claim was two weeks stale when checked: `main` had been green for many consecutive runs, and the most recent failure long predated the date the row named. The workflow's display name is also `CI`, not `Monorepo CI`. CI health rots by the hour — run the command, never trust a pasted verdict here | `gh run list --workflow ci.yml --branch main` |
 
 Do not paste per-file line counts into this document again. They were wrong in every row of the
 previous version — one claimed ~214 lines against an actual 1292. Run `wc -l` instead.
@@ -188,6 +188,15 @@ These cost real debugging time. Each is a behaviour of an external system, not a
 - **`ANTHROPIC_API_KEY=""`** — the `claude` CLI exports an empty string, which children inherit and
   then fail with 401. Empty is not unset. In Python `os.environ.pop("ANTHROPIC_API_KEY", None)` when
   no explicit key is given. In Next.js `.trim()` it — Vercel appends a trailing newline.
+- **`CLAUDE_CODE_OAUTH_TOKEN` fails the Claude lane guard.** `claude setup-token` mints a long-lived
+  subscription token for headless use, and it is the right tool on a runner or container. It is a
+  refusal on a review host: `scripts/estate/guard_claude_lane.sh:44-51` fails on the variable's
+  *presence*, value never read, alongside every other override route — an env-supplied credential
+  would make the check self-approving. The lane demands `claude auth status` reporting
+  `authMethod == "oauth_token"` **and** `apiProvider == "firstParty"` (`:80-81`), which is an
+  interactive `claude login` on the host. Never export it from a shell profile on a machine that
+  runs `review_bridge.sh`. `tests/estate/test_bridge_failclosed.sh:52-58` strips it in `clean_env()`
+  for the same reason. The guard cannot read plan tier (`:85-90`) — confirm Max via `/status` by eye.
 - **`op://` refs** resolve only under `op run --`. `dotenv` reads them literally. Add a Pydantic
   `field_validator(mode="before")` returning `None` for strings starting with `op://`.
 - **Rate limiting behind a load balancer** — on Railway/Render/Fly, `request.client.host` is the
