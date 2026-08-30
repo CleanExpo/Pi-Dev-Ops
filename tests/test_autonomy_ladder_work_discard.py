@@ -265,6 +265,17 @@ def test_previously_denied_commands_are_still_denied(command):
     "ls -la",
     "pytest tests/ -x",
     "git log --oneline",
+    # RA-7386 added git global-option normalisation on top of these rules. The
+    # destructive `-C` spellings became denied by design, so they are NOT in the
+    # previously-denied list above — that list is the pre-#682 baseline and must
+    # stay honest. These benign ones were allowed before and must stay allowed:
+    # `-C` is how an agent works in a sibling worktree, so a false positive here
+    # is real lost capability. Full `-C` coverage lives in
+    # tests/test_autonomy_ladder_git_global_opts.py.
+    "git -C /repo status",
+    "git -C /repo log --oneline",
+    "git -C /repo commit -m x",
+    "git --no-pager diff",
 ])
 def test_previously_allowed_commands_are_still_allowed(command):
     """And the new rules must not sweep up what the loop could already run."""

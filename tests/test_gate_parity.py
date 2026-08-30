@@ -77,6 +77,25 @@ MATRIX = [
      "git merge: CLI-deny, SDK-gap"),
     ("Bash", {"command": "gh secret set K --body v"}, ladder.TIER_IRREVERSIBLE, False, True,
      "secret set: CLI-deny, SDK-gap"),
+
+    # RA-7386: a git global option must not change any row above. Each of these
+    # is the `-C` spelling of a row already in this matrix and must land on the
+    # SAME tier and the SAME disposition — that equality is the whole contract,
+    # so a regression on either gate surfaces here rather than in one gate's
+    # own suite. Before the fix every one of them classified L1 and the SDK
+    # allowed it.
+    ("Bash", {"command": "git -C /repo status"}, ladder.TIER_LOCAL, False, False,
+     "-C read-only: L1 not L0, READ_ONLY is deliberately not normalised"),
+    ("Bash", {"command": "git -C /repo push origin feat/x"}, ladder.TIER_OUTWARD, False, False,
+     "-C L2 feat push"),
+    ("Bash", {"command": "git -C /repo merge origin/main"}, ladder.TIER_IRREVERSIBLE, False, True,
+     "-C git merge: CLI-deny, SDK-gap (mirrors the un-prefixed row)"),
+    ("Bash", {"command": "git -C /repo reset --hard"}, ladder.TIER_LOCAL, True, False,
+     "-C reset --hard: SDK-deny, CLI-pass (mirrors rm -rf)"),
+    ("Bash", {"command": "git --work-tree=/repo clean -fdx"}, ladder.TIER_LOCAL, True, False,
+     "--work-tree clean -f: SDK-deny, CLI-pass"),
+    ("Bash", {"command": "git -c core.editor=true stash drop"}, ladder.TIER_LOCAL, True, False,
+     "-c stash drop: SDK-deny, CLI-pass"),
 ]
 
 @pytest.mark.parametrize("name,inp,tier,sdk_deny,cli_deny,note", MATRIX)

@@ -220,6 +220,70 @@ WHOLE_RULES: list[tuple[str, re.Pattern[str]]] = [
 # intact (handled by WHOLE_RULES) and `find ... | xargs rm` is not severed.
 SHELL_SEP = re.compile(r"&&|\|\||;|\n")
 
+# --- Git global options (RA-7386) ------------------------------------------
+# Every git rule here anchors on `git <subcommand>`, but git accepts global
+# options in between, so `git -C /repo reset --hard` reached none of them and
+# `git -C . push origin main` fell L3 -> L1.
+#
+# CONTRACT — read before calling. Callers MUST test the ORIGINAL string too and
+# deny (or raise the tier) if EITHER form hits. The rewrite can then only ever
+# ADD a match, never remove one: a bug here over-denies instead of opening a
+# bypass. That is a property of the construction, not of corpus coverage — which
+# matters, because four designs on this file have leaked and each passed its own
+# author's corpus. Two corollaries:
+#   * never match on the normalised form ALONE;
+#   * never normalise for a pattern whose hit LOWERS the tier (READ_ONLY_BASH),
+#     which would turn a raise into a drop — `git -C . status` must stay L1.
+#
+# The option list is what git 2.43 actually runs a subcommand after, checked by
+# running each one: `--exec-path` (bare), `--html-path`, `--man-path`,
+# `--info-path`, `-v` and `-h` print and exit, so they are not vectors.
+GIT_GLOBAL_OPT = re.compile(
+    r"""[ \t]+(?:
+          -[cC][ \t]+\S+                      # -c name=value, -C <path>
+        | --(?:git-dir|work-tree|namespace|super-prefix|attr-source
+             |config-env)(?:=\S*|[ \t]+\S+)
+        | --exec-path(?:=\S*)?
+        | --(?:no-pager|paginate|bare|no-replace-objects|no-optional-locks
+             |no-lazy-fetch|literal-pathspecs|glob-pathspecs|noglob-pathspecs
+             |icase-pathspecs)
+        | -[pP]
+    )(?=[ \t]|\Z)""",
+    re.VERBOSE | re.IGNORECASE,
+)
+_GIT_TOKEN = re.compile(r"\bgit(?=[ \t])", re.IGNORECASE)
+
+
+def strip_git_global_opts(text: str) -> str:
+    """Drop git's global options so `git <subcommand>` is adjacent again.
+
+    ``git -C /repo reset --hard`` -> ``git reset --hard``. A quoted option value
+    containing spaces is only partly consumed, leaving a harmless fragment; that
+    is why the caller must still match the original. See the CONTRACT above.
+
+    Deliberately NOT capped at a fixed option count: a cap hands back a bypass one
+    option past it, and repeating ``-C`` is valid git. No cap is needed, because
+    ``.match(text, cursor)`` anchors each attempt at the cursor and every match
+    begins with ``[ \\t]+``, so each one advances. Spans never overlap, leaving the
+    rewrite linear — it runs inside a PreToolUse hook, where a hang is a DoS.
+    """
+    out: list[str] = []
+    pos = 0
+    for m in _GIT_TOKEN.finditer(text):
+        if m.start() < pos:
+            continue  # already consumed as a preceding option's value
+        out.append(text[pos:m.end()])
+        cursor = m.end()
+        while True:
+            opt = GIT_GLOBAL_OPT.match(text, cursor)
+            if opt is None or opt.end() <= cursor:
+                break
+            cursor = opt.end()
+        pos = cursor
+    out.append(text[pos:])
+    return "".join(out)
+
+
 # Allowlist (default-deny) for the unattended SDK generator.
 ALLOWED_TOOLS: frozenset[str] = frozenset({
     "Bash", "bash", "BashOutput",
@@ -262,11 +326,16 @@ def classify(tool_name: str, tool_input: Optional[dict[str, Any]]) -> int:
 
     if name == "Bash":
         cmd = str(tool_input.get("command", ""))
-        if L3_BASH_RE.search(cmd):
+        # RA-7386: also test the form with git's global options stripped, so
+        # `git -C . push origin main` cannot duck the L3 rules. Original OR
+        # normalised, so this can only ever RAISE the tier — and deliberately
+        # NOT applied to READ_ONLY_BASH, where a hit LOWERS it.
+        norm = strip_git_global_opts(cmd)
+        if L3_BASH_RE.search(cmd) or L3_BASH_RE.search(norm):
             return TIER_IRREVERSIBLE
         if READ_ONLY_BASH.search(cmd):
             return TIER_READ
-        if L2_BASH.search(cmd):
+        if L2_BASH.search(cmd) or L2_BASH.search(norm):
             return TIER_OUTWARD
         return TIER_LOCAL
 
@@ -286,6 +355,7 @@ __all__ = [
     "READ_ONLY_TOOLS", "READ_ONLY_BASH", "L2_BASH", "L3_BASH_RE",
     "L3_TOOL_RE", "L3_VERB_RE",
     "SEGMENT_RULES", "WHOLE_RULES", "SHELL_SEP",
+    "GIT_GLOBAL_OPT", "strip_git_global_opts",
     "ALLOWED_TOOLS", "MCP_DESTRUCTIVE_NAME", "MCP_READONLY_NAME",
     "classify",
 ]
