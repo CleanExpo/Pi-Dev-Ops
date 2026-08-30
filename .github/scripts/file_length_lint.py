@@ -127,15 +127,34 @@ def main() -> int:
         return 0
 
     baseline = read_baseline()
+
+    # A grandfathered file that is merely MOVED is not a new offender. Its path
+    # leaves the baseline and arrives unlisted, so a naive check fails the build
+    # and tells the author to split a file they did not touch -- punishing the
+    # refactor this gate exists to encourage. Sizes of baseline paths that have
+    # left the tree are therefore forgiven once each: same length, vanished
+    # path, so it moved. Deliberately narrow -- a genuinely new file that
+    # happens to match a deleted one's length exactly is forgiven too, which is
+    # rare, visible in the diff, and cheaper than blocking every rename.
+    missing = {p: n for p, n in baseline.items() if p not in sizes}
+    movable: dict[int, int] = {}
+    for n in missing.values():
+        movable[n] = movable.get(n, 0) + 1
+
     new_offenders: list[tuple[str, int]] = []
     grown: list[tuple[str, int, int]] = []
     shrunk: list[tuple[str, int, int]] = []
+    moved: list[tuple[str, int]] = []
 
     for path, count in sorted(sizes.items()):
         allowed = baseline.get(path)
         if allowed is None:
             if count > LIMIT:
-                new_offenders.append((path, count))
+                if movable.get(count):
+                    movable[count] -= 1
+                    moved.append((path, count))
+                else:
+                    new_offenders.append((path, count))
         elif count > allowed:
             grown.append((path, allowed, count))
         elif count < allowed:
@@ -156,6 +175,10 @@ def main() -> int:
         )
         print(f"FAIL  {path}: {msg}")
         annotate(path, msg)
+
+    for path, count in moved:
+        print(f"warn  {path}: {count} lines, matches a baselined file that left the "
+              f"tree — treated as a move, not a new offender. Run --update.")
 
     for path, allowed, count in shrunk:
         print(f"warn  {path}: shrank {allowed} -> {count}; lower the baseline (--update)")
