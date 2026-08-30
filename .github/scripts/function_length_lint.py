@@ -5,13 +5,14 @@ WHY NOT PLR0915
 ---------------
 CLAUDE.md § Conventions says "functions under 40 lines". Ruff's nearest rule,
 `PLR0915 too-many-statements`, counts STATEMENTS, and on this codebase the two
-measurements barely correlate. Measured over 8910 tracked functions, 615 of
-which exceed 40 lines:
+measurements barely correlate. A snapshot over 8920 tracked functions, 615 of
+which exceed 40 lines -- the shape is the argument, not the exact figures,
+which drift as the tree changes:
 
     max-statements=50 (ruff default)  catches   66/615 =  10%   0 false hits
     max-statements=40                 catches  119/615 =  19%   0 false hits
     max-statements=30                 catches  225/615 =  36%   6 false hits
-    max-statements=20                 catches  429/615 =  69% 183 false hits
+    max-statements=20                 catches  429/615 =  69% 186 false hits
 
 There is no setting that works: loose thresholds miss ~90% of the functions the
 convention is about, and the threshold that catches most of them flags 183
@@ -34,7 +35,10 @@ violations means a hard limit fails everything on day one.
 
   FAIL  a function not in the baseline exceeds the limit
   FAIL  a function in the baseline grows beyond its entry
-  WARN  a baselined function shrank (lower it) or moved (same size, new name)
+  WARN  a baselined function shrank (lower it), or moved -- matched on a
+        structural hash of its body, never on line count alone: 615 baselined
+        functions share only 113 distinct lengths, so equal length is no
+        evidence of identity here.
 
 USAGE
 -----
@@ -49,10 +53,14 @@ Baseline key is `path::qualname`, verified unique across all 8910 functions.
 from __future__ import annotations
 
 import ast
+import hashlib
 import os
 import subprocess
 import sys
 from pathlib import Path
+
+# (lines, lineno, body fingerprint)
+Fn = tuple[int, int, str]
 
 LIMIT = int(os.environ.get("FUNCTION_LENGTH_LIMIT", "40"))
 EXCLUDE_PARTS = ("node_modules/", "/dist/")
@@ -72,7 +80,12 @@ _HEADER = """\
 # Fix by extracting, then --update and commit the smaller number. Never raise an
 # entry to get green -- that defeats the only thing this file does.
 #
-# format: <lines><TAB><path>::<qualname>
+# format: <lines><TAB><body-fingerprint><TAB><path>::<qualname>
+#
+# The fingerprint is a structural hash of the function BODY, name excluded, so a
+# rename or move keeps it and an edit loses it. Rename forgiveness matches on it
+# rather than on length: 615 functions share only 113 distinct lengths here, so
+# length alone would let an unrelated new function inherit a deleted one's slot.
 """
 
 
@@ -83,8 +96,19 @@ def tracked_python_files() -> list[str]:
     return [p for p in out if p and not any(x in f"/{p}" for x in EXCLUDE_PARTS)]
 
 
-def _walk(node: ast.AST, prefix: str, path: str, out: dict[str, tuple[int, int]]) -> None:
-    """Collect `path::qualname -> (lines, lineno)` for every function, nested included."""
+def _fingerprint(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+    """Structural hash of the BODY, excluding the name.
+
+    Excluding the name is the point: a renamed or moved function keeps its
+    fingerprint, while an edited one loses it. Structural rather than textual so
+    reformatting and comment edits do not read as a rewrite.
+    """
+    dumped = "".join(ast.dump(stmt) for stmt in node.body)
+    return hashlib.sha256(dumped.encode("utf-8")).hexdigest()[:12]
+
+
+def _walk(node: ast.AST, prefix: str, path: str, out: dict[str, Fn]) -> None:
+    """Collect `path::qualname -> (lines, lineno, fingerprint)`, nested included."""
     for child in ast.iter_child_nodes(node):
         if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             qual = f"{prefix}.{child.name}" if prefix else child.name
@@ -93,15 +117,16 @@ def _walk(node: ast.AST, prefix: str, path: str, out: dict[str, tuple[int, int]]
                 out[f"{path}::{qual}"] = (
                     child.end_lineno - child.lineno + 1,
                     child.lineno,
+                    _fingerprint(child),
                 )
             _walk(child, qual, path, out)
         else:
             _walk(child, prefix, path, out)
 
 
-def measure() -> tuple[dict[str, tuple[int, int]], list[str]]:
+def measure() -> tuple[dict[str, Fn], list[str]]:
     """Every function's length, plus the files that could not be parsed."""
-    sizes: dict[str, tuple[int, int]] = {}
+    sizes: dict[str, Fn] = {}
     unparsed: list[str] = []
     for path in tracked_python_files():
         try:
@@ -113,24 +138,28 @@ def measure() -> tuple[dict[str, tuple[int, int]], list[str]]:
     return sizes, unparsed
 
 
-def read_baseline() -> dict[str, int]:
+def read_baseline() -> dict[str, tuple[int, str]]:
+    """`key -> (lines, fingerprint)`. Fingerprint is "" for pre-fingerprint rows."""
     if not BASELINE_PATH.exists():
         return {}
-    entries: dict[str, int] = {}
+    entries: dict[str, tuple[int, str]] = {}
     for raw in BASELINE_PATH.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        count, _, key = line.partition("\t")
-        if key:
-            entries[key.strip()] = int(count.strip())
+        parts = line.split("\t")
+        if len(parts) >= 3:
+            entries[parts[2].strip()] = (int(parts[0]), parts[1].strip())
+        elif len(parts) == 2:
+            entries[parts[1].strip()] = (int(parts[0]), "")
     return entries
 
 
-def write_baseline(sizes: dict[str, tuple[int, int]]) -> None:
-    over = {k: v[0] for k, v in sizes.items() if v[0] > LIMIT}
+def write_baseline(sizes: dict[str, Fn]) -> None:
+    over = {k: (v[0], v[2]) for k, v in sizes.items() if v[0] > LIMIT}
     body = "".join(
-        f"{n}\t{k}\n" for k, n in sorted(over.items(), key=lambda kv: (-kv[1], kv[0]))
+        f"{n}\t{fp}\t{k}\n"
+        for k, (n, fp) in sorted(over.items(), key=lambda kv: (-kv[1][0], kv[0]))
     )
     BASELINE_PATH.write_text(_HEADER.format(limit=LIMIT) + body, encoding="utf-8")
     print(f"wrote {BASELINE_PATH} — {len(over)} function(s) over {LIMIT} lines")
@@ -150,8 +179,8 @@ def report() -> int:
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 n = sum(1 for x in ast.walk(node) if isinstance(x, ast.stmt)) - 1
-                for key, (_, lineno) in collected.items():
-                    if lineno == node.lineno:
+                for key, meta in collected.items():
+                    if meta[1] == node.lineno:
                         stmt_counts[key] = n
     over = {k for k, v in sizes.items() if v[0] > LIMIT}
     print(f"functions: {len(sizes)} | over {LIMIT} lines: {len(over)}")
@@ -167,31 +196,35 @@ def report() -> int:
     return 0
 
 
-def classify(
-    sizes: dict[str, tuple[int, int]], baseline: dict[str, int]
-) -> dict[str, list]:
+def classify(sizes: dict[str, Fn], baseline: dict[str, tuple[int, str]]) -> dict[str, list]:
     """Sort every measured function into new / grown / shrunk / moved.
 
-    Rename forgiveness matches file_length_lint.py: a renamed or moved function
-    leaves its baseline key and arrives under a new one, which would otherwise
-    read as a new violation and tell the author to split code they only moved.
+    Rename forgiveness matches on the BODY FINGERPRINT, not on length. An earlier
+    draft keyed it on line count alone, which CodeRabbit correctly flagged: delete
+    a baselined 41-line function, add an unrelated 41-line one, and the new one
+    inherited the old one's slot silently. That is not a rare collision here --
+    the 615 baselined functions share only 113 distinct lengths, and 32 of them
+    are exactly 41 lines. A fingerprint match means the same body really did move.
     """
-    missing = {k: n for k, n in baseline.items() if k not in sizes}
-    movable: dict[int, int] = {}
-    for n in missing.values():
-        movable[n] = movable.get(n, 0) + 1
+    missing = {k: v for k, v in baseline.items() if k not in sizes}
+    movable: dict[str, int] = {}
+    for _, fp in missing.values():
+        if fp:  # pre-fingerprint rows cannot be matched, so they are never movable
+            movable[fp] = movable.get(fp, 0) + 1
 
     out: dict[str, list] = {"new": [], "grown": [], "shrunk": [], "moved": []}
-    for key, (count, lineno) in sorted(sizes.items()):
-        allowed = baseline.get(key)
-        if allowed is None:
+    for key, (count, lineno, fp) in sorted(sizes.items()):
+        entry = baseline.get(key)
+        if entry is None:
             if count > LIMIT:
-                if movable.get(count):
-                    movable[count] -= 1
+                if movable.get(fp):
+                    movable[fp] -= 1
                     out["moved"].append((key, count))
                 else:
                     out["new"].append((key, count, lineno))
-        elif count > allowed:
+            continue
+        allowed = entry[0]
+        if count > allowed:
             out["grown"].append((key, allowed, count, lineno))
         elif count < allowed:
             out["shrunk"].append((key, allowed, count))

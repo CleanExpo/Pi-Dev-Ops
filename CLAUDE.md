@@ -178,8 +178,8 @@ next agent a first command.
 - **TypeScript:** strict, no `any`, named exports, interfaces over types.
 - **Commits:** Conventional Commits. **Branches:** `feature/{ticket}-{desc}` or `fix/{ticket}-{desc}`.
 - **Size:** functions under 40 lines, files under 300. The file limit is enforced for `.py`,
-  `.ts` and `.tsx` by `.github/scripts/file_length_lint.py`, in its own `File-length gate` CI
-  job — ruff has no file-length rule, so it cannot live inside ruff. It ratchets: files already
+  `.ts` and `.tsx` by `.github/scripts/file_length_lint.py`, in the `Size gates (file +
+  function length)` CI job — ruff has no file-length rule, so it cannot live inside ruff. It ratchets: files already
   over are grandfathered in `.github/file-length.baseline.txt`, and CI fails only on a new file
   over the limit or a baselined file that grows. Extract when you edit one, then `--update` to
   ratchet the baseline down. Never raise an entry to get green. Two things are exempt rather
