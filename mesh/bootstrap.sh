@@ -38,12 +38,23 @@ fi
 say "Wiring agent hooks (Claude/Codex/Cursor/Pi)"
 autogit setup || warn "autogit setup reported issues (non-fatal)"
 
-# Harden generated hooks for the minimal PATH used by agent runtimes.
-say "Hardening agent hooks (PATH-safe autogit)"
-python3 - <<'PYH' || warn "hook hardening skipped (non-fatal)"
+# Harden generated hooks for the minimal PATH used by agent runtimes, and route
+# every ship through mesh/hooks/mesh_ship.sh rather than calling `autogit ship`
+# directly. Two independent defects produced the same symptom — zero
+# refs/heads/mesh/* on origin — and the wrapper closes both:
+#   RA-6505: autogit missing from the hook's minimal PATH, so nothing ran.
+#   RA-7376: autogit ships only UNCOMMITTED work, so an agent that committed its
+#            own turn (as every gate in this estate requires) shipped nothing.
+# The ship call is therefore deliberately NOT gated on `command -v autogit`: the
+# wrapper must still push committed work on a node where autogit is unavailable.
+say "Hardening agent hooks (mesh ship wrapper, PATH-safe)"
+MESH_DIR="$MESH_DIR" python3 - <<'PYH' || warn "hook hardening skipped (non-fatal)"
 import json, os
 BINS = os.path.expanduser("~/.local/bin") + ":/opt/homebrew/bin:/usr/local/bin"
+MESH_DIR = os.environ.get("MESH_DIR", "")
+SHIP = os.path.join(MESH_DIR, "hooks", "mesh_ship.sh")
 def harden(path):
+    """Rewrite an agent's hook commands in place; idempotent across re-runs."""
     if not os.path.exists(path):
         return
     try:
@@ -60,22 +71,26 @@ def harden(path):
         for grp in groups:
             for h in grp.get("hooks", []) if isinstance(grp, dict) else []:
                 c = h.get("command", "")
-                prefix = (f'export PATH="{BINS}:$PATH"; cd "${{CLAUDE_PROJECT_DIR:-.}}" '
-                          f'&& command -v autogit >/dev/null 2>&1 && ')
-                if "autogit ship" in c and "feat/*" not in c:
-                    run = ('{ b="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"; '
-                           'case "$b" in feat/*|feature/*|fix/*|main|master|HEAD) ;; '
-                           '*) autogit ship ;; esac; }')
-                    h["command"] = prefix + run + " || true"
-                    changed = True
+                prefix = f'export PATH="{BINS}:$PATH"; cd "${{CLAUDE_PROJECT_DIR:-.}}" 2>/dev/null; '
+                # Re-point both a legacy `autogit ship` hook and an earlier
+                # wrapper install (possibly at a stale path) at the current one.
+                if "autogit ship" in c or "mesh_ship.sh" in c:
+                    new = prefix + f'bash "{SHIP}" || true'
+                    if c != new:
+                        h["command"] = new
+                        changed = True
                 elif "autogit busy" in c and "command -v autogit" not in c:
-                    h["command"] = prefix + "autogit busy || true"
+                    h["command"] = (f'export PATH="{BINS}:$PATH"; cd "${{CLAUDE_PROJECT_DIR:-.}}" '
+                                    f'&& command -v autogit >/dev/null 2>&1 && autogit busy || true')
                     changed = True
     if changed:
         json.dump(d, open(path, "w"), indent=2)
         print(f"  hardened {path}")
+if not os.path.isfile(SHIP):
+    raise SystemExit(f"mesh_ship.sh not found at {SHIP}")
 harden(os.path.expanduser("~/.claude/settings.json"))
 PYH
+chmod +x "$MESH_DIR/hooks/mesh_ship.sh" 2>/dev/null || true
 
 # 3. Hermes adapter (only if Hermes is present on this node)
 if [ -f "$HOME/.hermes/config.yaml" ]; then
