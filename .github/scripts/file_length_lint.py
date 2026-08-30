@@ -37,9 +37,10 @@ USAGE
     python3 .github/scripts/file_length_lint.py --update   # rewrite baseline
     FILE_LENGTH_LIMIT=250 python3 ... --update             # tighten the limit
 
-Scope is tracked `*.py`, `*.ts` and `*.tsx`. Tracked build output is excluded: a
-generated file has no author to tell "split this", and `tsup --clean` rewrites it
-on every build, so policing its length fails CI for something nobody wrote.
+Scope is tracked `*.py`, `*.ts` and `*.tsx`, minus two exemptions -- generated
+output and Remotion compositions. See GENERATED_PARTS / DOMAIN_EXEMPT_PARTS for
+why each is exempt; the reasons differ and are recorded separately. The run
+prints the exempt paths so nothing is ignored silently.
 """
 from __future__ import annotations
 
@@ -50,9 +51,23 @@ from pathlib import Path
 
 LIMIT = int(os.environ.get("FILE_LENGTH_LIMIT", "300"))
 SUFFIXES = ("*.py", "*.ts", "*.tsx")
-# Not authored, so "split this file" is not actionable advice. `node_modules` is
-# vendored; `/dist/` is tsup output that is tracked but regenerated on every build.
-EXCLUDE_PARTS = ("node_modules/", "/dist/")
+# Two exemptions, kept apart because the reasons are not the same and merging them
+# would make one of the comments false.
+#
+# NOT AUTHORED — no one to tell "split this". `node_modules` is vendored;
+# `/dist/` is tsup output, tracked but rewritten by --clean on every build.
+GENERATED_PARTS = ("node_modules/", "/dist/")
+#
+# AUTHORED, but long by the nature of the medium rather than by neglect. A
+# Remotion composition is one declarative animation timeline; splitting it across
+# files scatters a single frame-by-frame sequence for no reader's benefit. These
+# were baselined at first, which implied a promise to shrink them that nobody
+# intends to keep -- an exemption states the position honestly, where a baseline
+# entry pretends it is debt. Note this covers `src/compositions/` only:
+# `remotion-studio/scripts/` is ordinary code and stays governed.
+DOMAIN_EXEMPT_PARTS = ("remotion-studio/src/compositions/",)
+
+EXCLUDE_PARTS = GENERATED_PARTS + DOMAIN_EXEMPT_PARTS
 BASELINE_PATH = Path(".github/file-length.baseline.txt")
 # Emit GitHub Actions annotations when running inside Actions.
 ANNOTATE = bool(os.environ.get("GITHUB_ACTIONS"))
@@ -204,11 +219,23 @@ def main() -> int:
         )
         return 1
 
+    exempt = sum(
+        1 for line in subprocess.run(
+            ["git", "ls-files", *SUFFIXES],
+            capture_output=True, text=True, check=True,
+        ).stdout.split("\n")
+        if line and any(part in f"/{line}" for part in EXCLUDE_PARTS)
+    )
     grandfathered = len(baseline)
     print(
         f"file-length gate passed — {len(sizes)} tracked source files, "
         f"{grandfathered} grandfathered over {LIMIT} lines, 0 new, 0 grown."
     )
+    if exempt:
+        print(
+            f"{exempt} file(s) exempt, not merely grandfathered: "
+            f"{', '.join(EXCLUDE_PARTS)}"
+        )
     if shrunk:
         print(f"{len(shrunk)} file(s) shrank — run --update to ratchet the baseline down.")
     return 0
