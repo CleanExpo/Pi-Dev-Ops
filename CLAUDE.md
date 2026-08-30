@@ -187,7 +187,11 @@ next agent a first command.
   `remotion-studio/src/compositions/`, where a composition is one declarative animation
   timeline and splitting it helps no reader. `remotion-studio/scripts/` is ordinary code and
   stays governed. The run prints the exempt paths, so check that line before concluding a
-  file is covered. The 40-line function limit is still convention only.
+  file is covered. The 40-line **function** limit is enforced the same way by
+  `.github/scripts/function_length_lint.py` (Python only — it walks `ast`). Ruff's
+  `PLR0915` is not that rule: it counts statements, catching 10% of this repo's
+  over-40-line functions at its default, so it was rejected rather than adopted —
+  re-derive with `function_length_lint.py --report`.
 - **Security:** bcrypt passwords, parameterised queries, CSP headers, no secrets in code. Run
   `detect-secrets scan` pre-commit.
 - **Content:** no first-person business voice (we/our/I/us/my), no AI filler (delve, tapestry,
