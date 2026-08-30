@@ -18,11 +18,8 @@
 1292	app/server/routes/webhooks.py
 1219	scripts/unite_group_health_check.py
 1216	app/server/autonomy.py
-1199	remotion-studio/src/compositions/RaWave1Launch.tsx
 1139	app/server/cron_watchdogs.py
-1131	remotion-studio/src/compositions/CoutisIntro75.tsx
 1098	scripts/weekly_enhancement_loop.py
-962	remotion-studio/src/compositions/Explainer.tsx
 903	tests/test_unite_group_health_check.py
 821	swarm/meta_curator.py
 819	app/server/scanner.py

@@ -182,8 +182,12 @@ next agent a first command.
   job — ruff has no file-length rule, so it cannot live inside ruff. It ratchets: files already
   over are grandfathered in `.github/file-length.baseline.txt`, and CI fails only on a new file
   over the limit or a baselined file that grows. Extract when you edit one, then `--update` to
-  ratchet the baseline down. Never raise an entry to get green. Tracked build output (`/dist/`)
-  is exempt — nobody authors it. The 40-line function limit is still convention only.
+  ratchet the baseline down. Never raise an entry to get green. Two things are exempt rather
+  than baselined: tracked build output (`/dist/`), which nobody authors, and
+  `remotion-studio/src/compositions/`, where a composition is one declarative animation
+  timeline and splitting it helps no reader. `remotion-studio/scripts/` is ordinary code and
+  stays governed. The run prints the exempt paths, so check that line before concluding a
+  file is covered. The 40-line function limit is still convention only.
 - **Security:** bcrypt passwords, parameterised queries, CSP headers, no secrets in code. Run
   `detect-secrets scan` pre-commit.
 - **Content:** no first-person business voice (we/our/I/us/my), no AI filler (delve, tapestry,
