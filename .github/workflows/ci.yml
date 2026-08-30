@@ -41,12 +41,31 @@ jobs:
       - name: Ruff lint
         run: ruff check app/ --output-format=github
 
-      # RA — the 300-line file convention in CLAUDE.md was prose only; nothing
-      # measured it and 164 files were already over. Ruff has no file-length
-      # rule (pylint's C0302 is not among the PL* rules it implements), so the
-      # limit is enforced here, in the same job, as a ratchet against a
-      # baseline. Fails on a new file over the limit or a baselined file that
-      # grows. Regenerate with: python3 .github/scripts/file_length_lint.py --update
+  # ── File length: the 300-line convention, ratcheted ─────────────────────────
+  # CLAUDE.md § Conventions was prose only; nothing measured it and 186 files
+  # were already over. Ruff has no file-length rule (pylint's C0302 is not among
+  # the PL* rules it implements), so the limit lives in a script instead.
+  #
+  # Its own job rather than a step of `Ruff lint`: the gate covers .ts and .tsx
+  # as well as .py, and a TypeScript violation failing a check named "Ruff lint"
+  # sends a frontend dev hunting for a ruff config problem that does not exist.
+  # The check name is the error message a reader sees first.
+  file-length:
+    name: File-length gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Fails on a new file over the limit or a baselined file that grows.
+      # Regenerate with: python3 .github/scripts/file_length_lint.py --update
       - name: File-length gate (300-line convention)
         run: python3 .github/scripts/file_length_lint.py
 
