@@ -1,0 +1,18 @@
+== Guard proofs (real guards, this node) ==
+  PASS: G1 sentinel ANTHROPIC_API_KEY refused (rc=1 as required)
+  PASS: G2 un-allowlisted ANTHROPIC_BASE_URL (gateway) refused (rc=1 as required)
+  PASS: G3 green control: clean env + allowlisted base URL passes (rc=0 as required)
+  PASS: G4 sentinel OPENAI_API_KEY refused (rc=1 as required)
+  PASS: G5 base-URL override refused (rc=1 as required)
+  PASS: G6 logged-out Codex refused (real codex binary) (rc=1 as required)
+== Bridge proofs (stub pass-guards + stub codex; substitutions are recorded) ==
+  PASS: B1 timeout child rejected (rc=1 as required)
+  PASS: B2 killed child rejected (rc=1 as required)
+  PASS: B3 empty output rejected (rc=1 as required)
+  PASS: B4 malformed JSON rejected (rc=1 as required)
+  PASS: B5 hash-mismatched verdict rejected (rc=1 as required)
+  PASS: B6 quota exhaustion halts with code 3, no fallback (rc=3 as required)
+  PASS: B7 green control: valid matching verdict accepted (rc=0 as required)
+  PASS: B7b verdict record written and valid JSON
+  PASS: B8 default path uses REAL guards and refuses on a logged-out node (rc=1 as required)
+== SUMMARY pass=15 fail=0 ==

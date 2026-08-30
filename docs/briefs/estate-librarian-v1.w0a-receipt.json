@@ -1,0 +1,67 @@
+{
+  "unit": "W0a",
+  "state": "INSTALL_COMPATIBILITY_REPORTED_UNVERIFIED",
+  "host": {
+    "machine_id": "ccr-e564c70f",
+    "hostname": "vm",
+    "kernel": "Linux 6.18.44-fc-v22",
+    "type": "ephemeral cloud container (Claude Code remote session)"
+  },
+  "utc": {
+    "session_reference_timestamp": "2026-08-30T01:50:01Z (date -u run immediately before the install window)",
+    "install_window": "2026-08-30T01:52Z-01:54Z, derived from filesystem mtimes (per-command wall-clock stamps were not captured live; disclosed, not reconstructed)",
+    "reverification_run": "2026-08-30T02:12:38Z (all probe values below re-executed and re-confirmed)"
+  },
+  "repo": {
+    "repository": "CleanExpo/Pi-Dev-Ops",
+    "remote": "https://github.com/CleanExpo/Pi-Dev-Ops",
+    "branch": "claude/estate-librarian-v1-build-sxhfzb",
+    "base_head": "1b47a40f6a59a19f19bb35c2649b03f36f62e4a2",
+    "git_state_before": "clean - git status --porcelain --untracked-files=all empty (verified pre-install)",
+    "git_state_after": "clean - 0 changed files and HEAD unchanged at reverification 2026-08-30T02:12:38Z"
+  },
+  "commands": [
+    {"cmd": "npm install -g @openai/codex", "exit": 0},
+    {"cmd": "codex --version", "exit": 0, "output": "codex-cli 0.151.0"},
+    {"cmd": "codex login status", "exit": 1, "output": "Not logged in", "note": "the REQUIRED W0a end-state: zero authentication material"},
+    {"cmd": "claude plugin marketplace add openai/codex-plugin-cc", "exit": 0, "output": "Successfully added marketplace: openai-codex (declared in user settings)"},
+    {"cmd": "claude plugin install codex@openai-codex", "exit": 0, "output": "Successfully installed plugin: codex@openai-codex (scope: user)"}
+  ],
+  "resolved_binaries": {
+    "codex": "/opt/node22/bin/codex",
+    "codex_version": "codex-cli 0.151.0",
+    "codex_npm_package_path": "/opt/node22/lib/node_modules/@openai/codex",
+    "claude": "2.1.251 (Claude Code)",
+    "node": "v22.22.2"
+  },
+  "plugin": {
+    "marketplace": "openai/codex-plugin-cc",
+    "marketplace_commit": "db52e28f4d9ded852ab3942cea316258ae4ef346",
+    "marketplace_version": "1.0.6",
+    "owner": "OpenAI",
+    "plugin_name": "codex",
+    "plugin_version": "1.0.6",
+    "content_digest_sha256": "add7b2f698112d27ae979be371a412df6adb91e02ec974d39a97882872198e1b",
+    "digest_method": "sha256 over sorted per-file sha256s of /root/.claude/plugins/cache/openai-codex/codex (43 files), EXCLUDING runtime marker dir 1.0.6/.in_use/ which the plugin loader writes after install; the tree WITH that marker (44 files) hashes 9e28223d30c07dc94caecb6eddee9fddcfe3e4ac3044cb6689009474c8228a3d; the content digest was reproduced identically at 2026-08-30T02:14Z"
+  },
+  "modified_paths": [
+    "/opt/node22/lib/node_modules/@openai/codex (new, npm -g)",
+    "/opt/node22/bin/codex (new symlink)",
+    "/root/.claude/plugins/marketplaces/openai-codex (new, marketplace clone)",
+    "/root/.claude/plugins/cache/openai-codex/codex/1.0.6 (new, plugin files)",
+    "user-scope Claude settings under /root/.claude: marketplace and plugin declaration (outside the repository)",
+    "/root/.codex/tmp (new empty scratch dir created by the codex CLI)"
+  ],
+  "explicitly_not_done": [
+    "/codex:setup",
+    "any login, credential, or authentication-material handling",
+    "any modification to the repository, its hooks, its settings, or the brief"
+  ],
+  "rollback": [
+    "npm uninstall -g @openai/codex",
+    "claude plugin uninstall codex@openai-codex",
+    "claude plugin marketplace remove openai-codex",
+    "rm -rf /root/.codex /root/.claude/plugins/cache/openai-codex /root/.claude/plugins/marketplaces/openai-codex"
+  ],
+  "verification_note": "UNVERIFIED means reported by the installing agent and not yet independently re-executed. Any party verifies by re-running, read-only: codex --version; codex login status; git -C /root/.claude/plugins/marketplaces/openai-codex rev-parse HEAD; the digest command in digest_method; git -C /home/user/Pi-Dev-Ops status --porcelain."
+}
