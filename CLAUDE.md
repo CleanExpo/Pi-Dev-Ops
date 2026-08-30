@@ -91,7 +91,7 @@ Found by direct check on 2026-08-18. Each is real and unfixed; treat as work, no
 | 3 | ~~Four `.claude/skills/*/SKILL.md` missing~~ — **FIXED 2026-08-18.** Added as symlinks to the `.agents/skills/` originals, matching the existing `skybridge` convention. Six routes now resolve | `ls -la .claude/skills/` |
 | 4 | `HERMES.md` is **missing**, though it was cited as Launch Crew governance | `ls HERMES.md` |
 | 5 | `app/server/routes/webhooks.py` is **1292 lines** against a documented 300-line ceiling; `mission_control.py` 406; `health.py` 302 | `wc -l app/server/routes/*.py` |
-| 6 | `Monorepo CI` on `main` last passed **2026-08-14T04:44** and has been red since **05:18** that day | `gh run list --workflow ci.yml` |
+| 6 | ~~`Monorepo CI` on `main` red since 2026-08-14~~ — **STALE, corrected 2026-08-30.** The workflow's display name is `CI`, not `Monorepo CI`. It has been green on `main` for the last **15 consecutive runs**, from `33061771018` (2026-08-27T10:09Z) through `33310523540` (2026-08-30T12:04Z, `4fc3912`). The most recent failure was `33055133581` on 2026-08-27T08:41Z | `gh run list --workflow ci.yml --branch main` |
 
 Do not paste per-file line counts into this document again. They were wrong in every row of the
 previous version — one claimed ~214 lines against an actual 1292. Run `wc -l` instead.
