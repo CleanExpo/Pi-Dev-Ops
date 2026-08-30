@@ -1,6 +1,6 @@
 // components/control/ProjectSelector.tsx — RA-1103 — global active-project picker.
 //
-// Sits in the TopBar. Reads .harness/projects.json via the existing portfolio
+// Sits in the TopBar. Reads config/harness/projects.json via the existing portfolio
 // health endpoint (already auth-gated through the proxy), persists selection
 // to localStorage, and emits a CustomEvent('pi-active-project-changed') so
 // other components (BuildForm) can react without a React context.

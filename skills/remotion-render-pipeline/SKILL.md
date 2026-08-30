@@ -64,7 +64,7 @@ Turns the composition into a delivered MP4.
 - [`render/render.ts`](../../remotion-studio/render/render.ts)
 - [`render/voiceover.ts`](../../remotion-studio/render/voiceover.ts)
 - [`app/server/telegram_video.py`](../../app/server/telegram_video.py) (shared util)
-- `.harness/projects.json` for Linear team/project resolution
+- `config/harness/projects.json` for Linear team/project resolution
 
 ## Per-project API keys
 

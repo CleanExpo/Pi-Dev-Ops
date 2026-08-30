@@ -218,7 +218,7 @@ The lock auto-expires after 1 hour OR when the operator manually clears it via T
 ## Per-project isolation
 
 Each Sandcastle run gets exactly ONE manifest. The runner:
-- Loads `{project_slug}.json` based on `repo_workdir` mapped via `.harness/projects.json`.
+- Loads `{project_slug}.json` based on `repo_workdir` mapped via `config/harness/projects.json`.
 - Never reads any other manifest.
 - Validates against Sandcastle's own `agent.env`+`sandbox.env` non-overlap rule before launch.
 - Uses Sandcastle's `cwd` parameter to prevent the agent from `cd`-ing into another project's worktree.
