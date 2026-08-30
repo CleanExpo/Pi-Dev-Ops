@@ -188,6 +188,15 @@ These cost real debugging time. Each is a behaviour of an external system, not a
 - **`ANTHROPIC_API_KEY=""`** — the `claude` CLI exports an empty string, which children inherit and
   then fail with 401. Empty is not unset. In Python `os.environ.pop("ANTHROPIC_API_KEY", None)` when
   no explicit key is given. In Next.js `.trim()` it — Vercel appends a trailing newline.
+- **`CLAUDE_CODE_OAUTH_TOKEN` fails the Claude lane guard.** `claude setup-token` mints a long-lived
+  subscription token for headless use, and it is the right tool on a runner or container. It is a
+  refusal on a review host: `scripts/estate/guard_claude_lane.sh:44-51` fails on the variable's
+  *presence*, value never read, alongside every other override route — an env-supplied credential
+  would make the check self-approving. The lane demands `claude auth status` reporting
+  `authMethod == "oauth_token"` **and** `apiProvider == "firstParty"` (`:80-81`), which is an
+  interactive `claude login` on the host. Never export it from a shell profile on a machine that
+  runs `review_bridge.sh`. `tests/estate/test_bridge_failclosed.sh:52-58` strips it in `clean_env()`
+  for the same reason. The guard cannot read plan tier (`:85-90`) — confirm Max via `/status` by eye.
 - **`op://` refs** resolve only under `op run --`. `dotenv` reads them literally. Add a Pydantic
   `field_validator(mode="before")` returning `None` for strings starting with `op://`.
 - **Rate limiting behind a load balancer** — on Railway/Render/Fly, `request.client.host` is the
