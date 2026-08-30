@@ -10,619 +10,624 @@
 # Fix by extracting, then --update and commit the smaller number. Never raise an
 # entry to get green -- that defeats the only thing this file does.
 #
-# format: <lines><TAB><path>::<qualname>
-435	swarm/orchestrator.py::run
-311	swarm/margot_bot.py::handle_turn
-280	app/server/session_sdk.py::_run_claude_via_sdk
-259	app/server/spec_pipeline/__init__.py::run_pipeline
-250	app/server/session_phases.py::_phase_evaluate
-219	app/server/agents/anthropic_intel_refresh.py::refresh_anthropic_intel
-211	swarm/nexus/channels.py::request_provision
-199	app/server/cron_watchdog_zte.py::_watchdog_zte_reality_check
-187	app/server/session_evaluator.py::_run_persona_review
-186	app/server/routes/webhooks.py::webhook
-174	app/server/agents/board_meeting.py::run_gap_audit_phase
-171	app/server/cron_watchdogs.py::_watchdog_vercel_deploy_failures
-168	app/server/session_phases.py::_phase_plan
-166	scripts/smoke_test_pipeline.py::run_pipeline_smoke
-165	swarm/inbox/botfather_minter.py::mint_queue
-164	scripts/weekly_enhancement_loop.py::enhance_repo
-164	swarm/margot_tools.py::propose_idea
-162	swarm/debate_runner.py::run_debate
-161	app/server/session_sdk.py::_run_claude_via_sdk._attempt
-160	fence/pretooluse_fence.py::main
-157	app/server/session_phases.py::_phase_push
-155	app/server/autonomy.py::_process_autonomy_issue
-154	app/server/agents/board_meeting.py::_call_claude_for_discrepancies
-152	app/server/session_phases.py::run_build
-149	swarm/closed_loop.py::run_cycle
-148	app/server/cron_watchdogs.py::_watchdog_board_meeting_silence
-147	app/server/session_phases.py::_phase_clone
-145	app/server/app_factory.py::on_startup
-145	swarm/bots/guardian.py::run_cycle
-144	app/server/routes/health.py::health
-143	app/server/cron_scheduler.py::cron_loop
-142	swarm/bots/chief_of_staff.py::_route
-142	swarm/draft_review.py::post_draft
-140	tests/swarm/nexus/test_e2e_pipeline.py::test_phase_b_full_pipeline
-139	app/server/agents/board_meeting.py::_run_fast_research
-135	app/server/cron_watchdogs.py::_watchdog_notebooklm_health
-134	swarm/bots/builder.py::run_cycle
-134	swarm/tmux_validator.py::validate_command
-126	app/server/session_phases.py::_phase_adversary
-126	scripts/unite_group_health_check.py::check_integration_sync
-125	app/server/agents/feedback_loop.py::run_feedback_cycle
-125	swarm/inbox/intake_dispatch.py::dispatch_telegram_update
-124	app/server/provider_router.py::run_via_provider
-124	app/server/spec_pipeline/liaison_loop.py::judge_with_liaison
-124	app/server/tao_loop.py::run_until_done
-123	swarm/six_pager_dispatcher.py::maybe_fire_daily
-122	app/server/agents/scout.py::run_scout_cycle
-121	app/server/cron_watchdogs.py::_watchdog_docs_staleness
-119	swarm/bots/cfo.py::run_cycle
-116	app/server/agents/board_meeting.py::save_board_minutes
-115	swarm/bots/cs.py::run_cycle
-114	app/server/brief.py::scan_repo_context
-112	app/server/agents/board_meeting.py::run_status_phase
-112	app/server/triage.py::TriageEngine.triage
-111	app/server/agents/board_meeting.py::_normalize_margot_to_research_brief
-110	app/server/orchestrator.py::fan_out
-110	app/server/pipeline.py::run_ship_phase
-110	app/server/routes/delegate.py::delegate_task
-110	scripts/idea_expansion.py::expand_idea
-109	scripts/probe_dr_nrpg_stripe_keys.py::probe
-109	swarm/bots/cmo.py::run_cycle
-108	app/server/cron_triggers.py::_fire_portfolio_pulse_trigger
-108	claude-hooks-mirror/Stop/02_autonomous_continue.py::main
-108	swarm/meta_curator.py::propose_from_cluster
-107	swarm/bots/cto.py::run_cycle
-106	scripts/validate_tao_context_prune.py::main
-105	app/server/session_evaluator.py::_run_eval_with_cache
-105	scripts/plaud_actions.py::process
-105	scripts/skill_sync.py::write_report
-105	swarm/cto.py::detect_breaches
-104	app/server/agents/pi_seo_monitor.py::run_monitor_cycle
-104	scripts/fallback_dryrun.py::run_dryrun
-102	app/server/provider_nex_n2.py::call
-102	swarm/nexus/scheduler.py::run_nexus_cycle
-102	swarm/wiki_ingest.py::ingest
-101	app/server/autopr.py::run_autopr
-101	app/server/cron_watchdogs.py::_watchdog_linear_auth
-101	swarm/hermes_production_unit.py::build_packet
-100	.github/scripts/file_length_lint.py::main
-100	app/server/agents/feedback_loop.py::_classify_with_claude
-100	app/server/cron_fire_agents.py::_fire_board_meeting_trigger
-100	scripts/marathon_pi_seo_dryrun.py::main
-98	app/server/routes/sessions.py::stream_session_logs_v2
-98	swarm/nexus/policy.py::auto_gate
-97	app/server/autonomy.py::_orphan_recovery
-97	scripts/hermes_model_chain_health.py::main
-96	fence/drift_check.py::main
-96	swarm/flow_engine.py::execute_flow
-96	swarm/pm_scoper.py::run_cycle
-95	app/server/spec_pipeline/ceo_board_liaison.py::run_ceo_board_liaison
-95	swarm/bots/scribe.py::run_cycle
-94	app/server/agents/board_meeting.py::_harvest_completed_margot_briefs
-94	app/server/session_linear.py::_update_linear_state
-93	swarm/intent_router.py::classify
-92	swarm/margot_bot.py::build_prompt_with_research
-91	app/server/linear_pulse.py::run_pulse
-91	scripts/validate_tao_context_vcc.py::main
-91	swarm/margot_inflight.py::harvest_completed_for_chat
-90	app/server/routes/webhooks.py::_handle_workflow_run
-90	scripts/serve_intent_excalidraw.py::_build_elements
-90	scripts/zte_v2_score.py::score_c2_output_acceptance
-90	swarm/intake/handoff.py::execute_handoff
-90	swarm/nexus/discovery_loop.py::run_discovery_cycle
-89	scripts/verify_deploy.py::main
-88	app/server/agents/pi_seo_monitor.py::_generate_alerts
-88	scripts/dspy_pov.py::main
-86	app/server/model_fabric.py::complete
-86	app/server/workspace_verify.py::run_workspace_checks
-86	scripts/unite_group_health_check.py::check_supabase_advisors
-86	scripts/unite_group_health_check.py::main
-85	app/server/agents/board_meeting.py::run_persona_debate_phase
-85	app/server/tao_tdd_pipeline.py::run_tdd
-85	scripts/check_build_logs.py::analyse
-85	scripts/plaud_ingest.py::run_once
-85	scripts/verify_margot_voice_stt.py::main
-85	swarm/margot_bot.py::_run_research_batch
-84	app/server/session_model.py::recover_interrupted_sessions_from_supabase
-84	app/server/session_phases.py::_phase_generate
-84	app/server/webhook.py::parse_linear_event
-84	scripts/smoke_test_e2e.py::run_vertical
-84	swarm/bots/chief_of_staff.py::_poll_telegram
-84	swarm/cs.py::detect_breaches
-83	app/server/model_fabric.py::_chat_once
-83	scripts/zte_v2_score.py::compute_ra7216_metrics
-82	app/server/burndown.py::run_burndown
-82	app/server/supabase_log.py::log_gate_check
-82	swarm/nexus/agent_registry.py::_agent_from_raw
-82	swarm/nexus/onboarding.py::qualify_client
-82	tools/ccw_support_watch/runner.py::run_watch
-81	swarm/project_health_monitor.py::_check_github_health
-81	swarm/telegram_alerts.py::send
-80	app/server/agents/notebooklm_refresh.py::refresh_all_notebooks
-80	app/server/brief.py::build_structured_brief
-80	app/server/lessons.py::hydrate_from_durable
-80	swarm/cfo.py::detect_breaches
-80	swarm/inbox/provisioner.py::_provision_one
-79	app/server/discovery_archive.py::archive_stale_discovery_tickets
-79	app/server/routes/margot.py::margot_voice_turn
-79	scripts/process_ideas_inbox.py::process_file
-79	scripts/sandbox_health_check.py::check_logs
-78	app/server/agents/board_meeting.py::_run_prompt_via_sdk
-78	app/server/agents/board_meeting.py::run_board_research_phase
-78	scripts/smoke_test_e2e.py::run_horizontal
-78	swarm/bots/builder.py::_fetch_buildable_tickets
-78	swarm/inbox/intake_dispatch.py::_apply_decision
-78	swarm/six_pager.py::assemble_six_pager
-78	tests/test_ccw_support_consumers.py::test_real_consumer_writers_close_same_run_without_replaying_alerts
-77	app/server/cron_fire_agents.py::_generate_board_prebrief
-77	app/server/orchestrator.py::_decompose_brief
-77	app/server/routes/webhooks.py::routine_complete_webhook
-77	swarm/portfolio_pulse_linear.py::_render_section
-76	app/server/pipeline.py::run_review_phase
-76	app/server/triage.py::_claude_triage
-76	swarm/gap_detector.py::run_daily
-76	swarm/nexus/approvals.py::decide_approval
-76	swarm/portfolio_pulse_telegram.py::deliver_to_telegram
-75	app/server/session_phases.py::_route_linear_ticket_to_target_project
-75	scripts/secrets_history_check.py::main
-75	scripts/workspace_intel_brief_ci.py::main
-75	swarm/board.py::_process_one
-75	swarm/board/__init__.py::_process_one
-75	swarm/bots/click.py::_check_local_health
-75	swarm/inbox/preamble_trainer.py::build_prompt
-75	swarm/nexus/audit.py::build_audit_row
-75	tests/test_discovery.py::test_run_persona_cycle_happy_path
-74	app/server/agents/plan_discovery.py::discover_best_plan
-74	app/server/cron_watchdogs.py::_watchdog_check
-74	app/server/cron_watchdogs.py::_watchdog_health_full
-74	app/server/pipeline.py::_update_linear_state_pipeline
-74	app/server/session_recorder.py::record_episode
-74	scripts/analyse_lessons.py::build_proposal
-74	swarm/wiki_lint.py::lint
-73	app/server/cron_watchdogs.py::_watchdog_escalations
-73	app/server/push_helper.py::push_files_atomic
-73	swarm/analyst.py::_call_llm
-73	swarm/intake/cli.py::run_once
-73	swarm/project_health_monitor.py::run_daily
-72	app/server/autonomy.py::fetch_todo_issues
-72	app/server/goal_analyze.py::analyze_goal
-72	app/server/pi_ceo_docparser.py::_parse_pdf
-72	app/server/provider_router.py::select_provider_model
-72	scripts/validate_tao_context_mode.py::main
-72	skills/forward-planner/scripts/validate_plan.py::validate
-72	swarm/analyst.py::_collect_breaches
-72	swarm/linear_tools.py::save_issue
-72	swarm/pii_redactor.py::redact
-72	swarm/wiki_query.py::query
-71	scripts/secrets_check.py::_list_tracked_files
-71	scripts/unite_group_health_check.py::write_outputs
-71	swarm/intake/margot_router.py::route_inbound
-70	app/server/discovery.py::_propose
-70	app/server/lessons.py::_ensure_seeded
-70	app/server/routes/phone.py::progress
-70	app/server/routes/webhooks.py::workspace_intel_refresh
-70	scripts/sync_claude_sessions.py::parse_session
-70	scripts/weekly_enhancement_loop.py::run_phase
-69	app/server/agents/board_meeting.py::run_swot_phase
-69	claude-hooks-mirror/Stop/03_quality_gate.py::_spawn_reviewer
-69	scripts/marathon_watchdog.py::_check_tests
-69	scripts/process_ideas_inbox.py::_build_ticket
-69	swarm/fix_orchestrator.py::_dispatch_specialist
-69	swarm/intake/margot_router.py::_handle_awaiting_project_name
-69	swarm/meta_curator.py::reconcile_proposals
-69	swarm/portfolio_pulse_synthesis.py::_extract_board_triggers
-69	swarm/production_coordinator.py::run_daily
-68	app/server/provider_openrouter.py::call
-68	scripts/consolidate_anthropic_docs.py::build_output
-68	scripts/obsidian_analyst_relay.py::RelayHandler.do_PUT
-68	skills/pi-dev-ops-model-farm/scripts/model-farm.py::worker_thread
-68	swarm/meta_curator.py::_compose_skill_body_via_sdk
-68	swarm/providers/zendesk.py::_intercom_metrics
-68	tests/test_provider_nex_n2.py::test_reasoning_details_round_trip_multi_turn
-67	app/server/tao_context_prune.py::_pass_drop_resolved_errors
-67	scripts/analyse_lessons.py::main
-67	scripts/ingest_repos.py::process_repo
-67	swarm/aip_watcher.py::run_daily
-67	swarm/providers/github_actions.py::_compute_dora
-67	swarm/providers/zendesk.py::_zendesk_metrics_for_brand
-66	app/server/routes/scan_monitor.py::project_findings
-66	app/server/session_linear.py::_send_autonomy_outcome_telegram
-66	app/server/sessions.py::create_session
-66	scripts/plaud_actions.py::extract_actions
-66	scripts/zte_v2_score.py::score_c1_deployment_success
-66	swarm/health_check.py::run
-66	swarm/nexus/loop_runner.py::run_due_loops
-65	app/server/agents/board_meeting.py::_run_research_via_sdk
-65	app/server/agents/feedback_loop.py::_create_stale_review_issue
-65	app/server/routes/phone.py::session_action
-65	app/server/tao_tournament.py::rank_candidates_bt
-65	scripts/marathon_watchdog.py::_drain_inbox
-65	scripts/secrets_check.py::main
-65	tests/fixtures/fake_hermes_kanban.py::main
-64	app/server/agents/pi_seo_monitor.py::_run_agent_analysis
-64	app/server/pi_ceo_docparser.py::_parse_docx
-64	scripts/margot_generate.py::main
-64	swarm/cto.py::assemble_daily_brief
-64	swarm/margot_tools.py::_call_gemini_research
-64	swarm/nexus/bra.py::generate_bra
-64	vendor/margot-deep-research/server.py::image_generate
-63	app/server/autonomy.py::_run_poller_iteration
-63	app/server/pi_ceo_session_fts.py::search
-63	app/server/routes/scan_monitor.py::trigger_scan
-63	app/server/vercel_monitor.py::check_deployment_drift
-63	swarm/cmo.py::detect_breaches
-63	swarm/nexus/projection_drift.py::validate_projection_drift
-63	swarm/providers/google_ads.py::_real_for_business
-63	swarm/sources_watcher.py::run_cycle
-62	app/server/pipeline.py::_run_claude_via_sdk_async
-62	app/server/routes/margot.py::_download_telegram_file
-62	app/server/routes/webhooks.py::_create_linear_ci_ticket_sync
-62	app/server/routes/webhooks.py::_record_reverts_in_push
-62	swarm/cfo.py::approve_spend
-62	swarm/cfo.py::assemble_daily_brief
-61	app/server/orchestrator.py::_launch_wave
-61	app/server/routes/health.py::obsidian_health
-61	app/server/spec_pipeline/storm_evidence.py::gather_evidence
-61	app/server/triage.py::TriageEngine._telegram_alert
-61	claude-hooks-mirror/phone/pretooluse_gate.py::main
-61	scripts/cron_error_sweep.py::failing_jobs
-61	swarm/bots/click.py::run_cycle
-61	swarm/ollama_client.py::chat
-61	tests/test_kanban_env_isolation.py::_run_producer_case
-60	app/server/agents/board_meeting.py::_run_prompt_with_cache
-60	app/server/provider_router.py::_resolve_cheap_tier
-60	app/server/provider_whisper.py::transcribe
-60	app/server/session_phases.py::parse_event
-60	scripts/check_business_charters.py::main
-60	scripts/send_telegram.py::send_telegram
-60	scripts/skill_self_update.py::run_cycle
-60	tests/test_six_pager.py::test_assemble_with_all_ledgers
-59	app/server/discovery.py::run_persona_cycle
-59	app/server/tao_boomerang.py::dispatch_one
-59	app/server/tao_context_prune.py::_pass_supersede_path_reads
-59	scripts/nexus_backfill.py::main
-59	scripts/plaud_ingest_to_itr.py::main
-59	swarm/cmo.py::assemble_daily_brief
-59	swarm/draft_review.py::_do_send
-59	swarm/margot_bot.py::build_prompt
-59	tests/swarm/nexus/test_workspace_lookup.py::TestWebhookPassesLookup.test_stripe_webhook_uses_lookup_when_metadata_missing
-59	tests/test_portfolio_pulse_github.py::test_happy_path_renders_all_sections
-58	app/server/agents/board_meeting.py::_read_morning_intel
-58	app/server/linear_pulse.py::_pulse_issue_id
-58	app/server/routes/webhooks.py::telegram_webhook
-58	scripts/analyse_lessons.py::_claude_cluster_title
-58	scripts/calibration_corpus_miner.py::mine_transcript
-58	scripts/desk_voice_loop.py::run_loop
-58	scripts/skill_sync.py::scan_skill
-58	swarm/bots/scribe.py::_fetch_linear_stalled
-58	swarm/cs.py::assemble_daily_brief
-58	swarm/inbox/provisioner.py::build_day0_portal_content
-58	swarm/model_router.py::AnthropicProvider.complete
-58	swarm/nexus/ingest/stripe.py::parse
-58	tests/test_persistent_goals.py::test_debate_runner_advances_goal_on_success
-57	app/server/cron_triggers.py::_fire_trigger
-57	app/server/pi_ceo_session_fts.py::rebuild_incremental
-57	scripts/cron_error_sweep.py::self_test
-57	scripts/open_skill_pr.py::open_pr
-57	scripts/weekly_enhancement_loop.py::_exec_tool
-57	swarm/bots/chief_of_staff.py::run_cycle
-57	swarm/ccw_support_contract.py::derive_state
-57	swarm/kill_switch.py::trigger
-57	swarm/model_router.py::OpenRouterProvider.complete
-57	swarm/portfolio_pulse.py::run_all_projects
-57	swarm/tmux_audit.py::append
-56	app/server/agents/board_meeting.py::_format_research_brief_for_personas
-56	app/server/gc.py::collect_garbage
-56	app/server/pi_ceo_session_fts.py::build_index
-56	app/server/pipeline.py::run_spec_phase
-56	scripts/reviewer_recalibration.py::compute_weights
-56	swarm/marketing_skill_bridge.py::run_scheduled_bridge
-56	tests/test_elevenlabs_margot_voice_route.py::_client
-56	tests/test_fable_adversary_canary.py::_install_fake_sdk
-56	tests/test_margot_propose_idea.py::test_handle_turn_files_idea_and_appends_confirmation
-55	app/server/discovery.py::load_persona_config
-55	app/server/youtube_intent.py::synthesize_state
-55	mesh/heartbeat.py::cpu_mem_load
-55	scripts/marathon_watchdog.py::main
-55	scripts/run_tao_tdd.py::main
-55	scripts/weekly_enhancement_loop.py::main
-55	scripts/workspace_intel_brief.py::main
-55	swarm/draft_review.py::mark_reaction
-55	swarm/hermes_production_unit.py::render_markdown
-55	swarm/nexus/margot_intake.py::dispatch_intake
-55	swarm/nexus/margot_intake.py::parse_voice_intake
-55	swarm/tmux_writer.py::send
-55	swarm/wiki_sync.py::run_sync
-55	tests/smoke_cos_cycle.py::smoke_route_each_intent
-55	tests/test_liaison_loop.py::test_liaison_loop_reaches_100_after_one_round
-54	app/server/goal_ticket.py::file_goal
-54	app/server/routes/elevenlabs.py::margot_post_call
-54	app/server/session_phases.py::_log_ship_gate_check
-54	app/server/spec_pipeline/ship_gate.py::open_pr_and_merge
-54	app/server/tier0_runner.py::run_tier0
-54	scripts/fleet_value_dryrun.py::main
-54	scripts/secrets_check.py::raise_linear_ticket
-54	scripts/specialised_skill_foundation.py::_draft_skill_md
-54	swarm/agentskills_manifest.py::_vendored_schema
-54	swarm/inbox/preamble_trainer.py::train
-54	swarm/oauth_refresh.py::_refresh_provider
-54	swarm/providers/ccw_supabase.py::create_alert_intent
-54	swarm/tmux_writer.py::close_session
-54	swarm/visual_briefing.py::_assemble_brief
-54	tests/test_margot_propose_idea.py::test_propose_idea_payload_includes_label_and_project
-53	app/server/agents/eval_capture.py::maybe_capture_candidate
-53	app/server/agents/pi_seo_monitor.py::_route_critical_alerts
-53	app/server/agents/scout.py::_create_linear_issue
-53	fence/deploy_skills.py::main
-53	scripts/audit_sandboxes.py::audit
-53	scripts/capability_scout.py::score_discovery
-53	scripts/smoke_test.py::_ws_connect_check
-53	scripts/specialised_skill_foundation.py::build_foundation_packet
-53	scripts/supervisor/supervisor.py::main
-53	swarm/bots/builder.py::_fire_build
-53	swarm/bots/margot.py::handle_telegram_intent
-53	swarm/debate_runner.py::_call_one_side
-53	swarm/margot_bot.py::_run_research_batch._fire
-53	swarm/providers/stripe_xero.py::_real_for_business
-53	tests/test_goal_ticket.py::test_route_returns_ticket_url
-52	app/server/agents/plan_discovery.py::_maybe_propose_research_intent
-52	app/server/routes/phone.py::create_gate
-52	app/server/tao_codebase_wiki.py::update_wiki
-52	mesh/runner.py::run_claim
-52	scripts/review_eval_candidates.py::review
-52	scripts/runtime_model_guard.py::start_model_fabric
-52	scripts/test_lessons_durable_migration.py::main
-52	swarm/analyst.py::_synthesise_deliverable
-52	swarm/cmo.py::approve_adspend
-52	swarm/cs.py::approve_refund
-52	swarm/fix_orchestrator.py::run_cycle
-52	swarm/nexus/onboarding.py::create_workspace
-52	swarm/portfolio_pulse_github.py::ci_summary
-52	swarm/providers/synthetic_marketing.py::_synth_one
-52	tests/test_autonomy_priority_filter.py::test_fetch_filters_unlabelled_issues
-52	tests/test_ccw_watch_runner.py::test_re_evaluation_fails_closed_for_missing_malformed_stale_and_cross_run_evidence
-51	app/server/agents/feedback_loop.py::get_feedback_summary
-51	app/server/persistence.py::save_session
-51	app/server/pipeline.py::run_test_phase
-51	app/server/provider_router.py::run_via_provider_blocking
-51	app/server/spec_pipeline/boardroom.py::boardroom_query
-51	claude-hooks-mirror/discipline/founder_voice_critique.py::_detect_structural
-51	scripts/linear_helpers.py::create_linear_issue
-51	swarm/cto.py::approve_pr_merge
-51	swarm/history_parser.py::parse_repo
-51	swarm/portfolio_pulse_github.py::pr_summary
-51	swarm/wiki_ingest.py::_corpus_reupload
-51	tests/test_ccw_supabase_provider.py::test_checkpoint_writer_serializes_datetimes_and_uses_schema_primary_key
-51	tests/test_docs_stale_watchdog_ra7027.py::test_cron_loop_total_failure_no_persistence
-50	app/server/agents/board_meeting.py::run_linear_review_phase
-50	app/server/autonomy.py::_transition_to_in_progress
-50	app/server/routes/delegate.py::delegate_task._call_llm
-50	app/server/routes/goal_ticket.py::_raise_goal_error
-50	app/server/session_recorder.py::retrieve_similar_episodes
-50	app/server/supabase_log.py::save_session_checkpoint
-50	archive/run_parallel_board.py::run_managed_agents
-50	scripts/test_lessons_durable_migration.py::assert_contract
-50	scripts/zte_v2_score.py::compute_v2_score
-50	swarm/bots/cmo.py::request_adspend_approval
-50	swarm/cfo.py::compute_metrics
-50	swarm/kill_switch.py::resume
-50	swarm/margot_bot.py::_call_llm
-50	swarm/nexus/ingest/linear.py::parse
-50	swarm/project_health_monitor.py::_file_work_order_ticket
-50	swarm/research_provider.py::research
-49	app/server/cron_fire_agents.py::_fire_feedback_trigger
-49	app/server/lessons.py::seed_at_boot
-49	app/server/routes/webhooks.py::morning_intel_webhook
-49	app/server/scanner.py::ProjectScanner.scan_project
-49	app/server/session_phases.py::_check_scope_adherence
-49	scripts/desk_voice_loop.py::record_ptt
-49	scripts/fable_canary_check.py::main
-49	scripts/hermes_model_chain_health.py::multiplex_finding
-49	scripts/marathon_telegram_inbox.py::main
-49	scripts/margot_generate.py::build_matrix_packet
-49	scripts/skill_sync.py::apply_report
-49	src/tao/agents/__init__.py::AgentDispatcher._execute_skills
-49	swarm/cmo.py::compute_metrics
-49	swarm/intake/spm.py::build_spm_brief
-49	swarm/kanban_adapter.py::create_card
-49	swarm/margot_bot.py::load_history
-49	swarm/nexus/approvals.py::sweep_expired
-49	swarm/nexus/onboarding.py::enable_loops
-49	swarm/portfolio_pulse_synthesis.py::_call_llm
-49	tests/test_autonomy_contract.py::test_orphan_recovery_transitions_to_blocked_with_reason_label
-49	tests/test_fable_adversary_canary.py::test_fable_refusal_falls_back_to_opus_no_silent_success
-49	tests/test_margot_supabase_memory.py::test_cross_deploy_simulation
-49	tests/test_open_skill_pr.py::test_open_pr_real_mode_runs_well_formed_git_gh_sequence
-49	tests/test_plaud_ingest.py::test_run_once_happy_path_writes_page_and_advances_state
-48	app/server/agents/board_meeting.py::_read_latest_anthropic_docs
-48	app/server/agents/board_meeting.py::run_full_board_meeting
-48	app/server/autonomy.py::_calc_effective_autonomy
-48	app/server/cron_watchdogs.py::_has_open_linear_issue_with_prefix
-48	app/server/job_success_record.py::read_record
-48	app/server/routes/utils.py::ws_build
-48	app/server/scanner.py::ProjectScanner.get_health_summary
-48	app/server/tao_boomerang.py::_strip_summary_artifacts
-48	claude-hooks-mirror/discipline/founder_voice_critique.py::_scan_transcript
-48	scripts/assert_image_digest.py::main
-48	scripts/controller_violation_trend.py::compute_trend
-48	scripts/sync_claude_sessions.py::main
-48	swarm/agentskills_manifest.py::export
-48	swarm/nexus/agent_registry.py::load_registry
-48	swarm/pii_classify.py::_parse_spans
-48	swarm/providers/ccw_supabase.py::load_consumer_checkpoints
-48	tests/test_push_helper.py::test_push_files_atomic_calls_github_api
-47	app/server/goal_ticket.py::file_drafts
-47	app/server/grounding.py::reground
-47	app/server/lessons.py::search_lessons_keyword
-47	app/server/provider_nex_n2.py::research_pass
-47	app/server/routes/sessions.py::stream_session_logs
-47	scripts/unite_group_health_check.py::check_sandbox_drift
-47	swarm/aip_watcher.py::flush_queue
-47	swarm/analyst.py::_deterministic_deliverable
-47	swarm/analyst.py::_mirror_obsidian_rest
-47	swarm/bots/cfo.py::request_spend_approval
-47	swarm/budget_tracker.py::record_cost
-47	swarm/margot_bot.py::_run_truth_check_batch
-47	swarm/marketing_content_generator.py::generate_social_post
-47	swarm/nexus/onboarding.py::approve_qualification
-47	swarm/nexus/scheduler_daemon.py::nexus_scheduler_loop
-47	swarm/pilot/dispatcher.py::send
-47	swarm/voice_compose.py::synthesise_voice
-47	tests/test_cron_enabled_flag.py::test_startup_skips_cron_loop_when_disabled
-47	tests/test_goal_ticket.py::_FakeLinear.__call__
-47	tests/test_goal_ticket.py::test_drafts_from_payload_flattens_ticket_standard
-47	tests/test_margot_slack_bridge.py::test_slack_thread_reply_reenters_same_margot_chat
-47	tests/test_workspace_verify.py::test_cancellation_kills_and_reaps_process_group
-46	app/server/lessons.py::extract_lesson_from_eval
-46	app/server/scanner.py::DeploymentHealthScanner._check_url
-46	scripts/capability_scout.py::candidate_to_crm_task
-46	scripts/dns_takeover_scan.py::scan_hostname
-46	scripts/hermes_model_chain_health.py::probe
-46	scripts/idea_expansion.py::write_outputs
-46	scripts/marathon_watchdog.py::_compose_alert
-46	scripts/sync_harness_to_supabase.py::sync_seo_reports
-46	swarm/fleet_value_optimizer.py::default_entitlements
-46	swarm/intake/specialists.py::gather_specialist_takes
-46	swarm/intake/spm.py::aggregate_board_response
-46	swarm/margot_bot.py::_run_realtime_batch
-46	swarm/pilot/scripts/shadow_run.py::run
-46	swarm/providers/synthetic.py::_synth_one
-46	tests/test_remotion_workspace_images.py::test_one_shot_accepts_image_provider_and_scene_assets
-45	app/server/agents/feedback_loop.py::_write_outcome_lesson
-45	app/server/agents/pi_seo_monitor.py::_render_digest_markdown
-45	app/server/cron_triggers.py::_should_catch_up
-45	app/server/goal_ticket_children.py::file_sub_tasks
-45	app/server/lessons.py::append_lesson_dedup
-45	app/server/supabase_log.py::record_acceptance
-45	app/server/youtube_connector.py::exchange_code
-45	scripts/check_wiki_bot_token_expiry.py::check_expiry
-45	scripts/marathon_telegram_inbox.py::_ingest_update
-45	scripts/process_ideas_inbox.py::linear_create_issue
-45	scripts/unite_group_health_check.py::run_all
-45	scripts/verify_margot_voice_tts.py::main
-45	swarm/analyst.py::run_breach_review
-45	swarm/intake/handoff.py::pr_body_for
-45	swarm/model_router.py::ModelClient.complete
-45	swarm/providers/ccw_supabase.py::record_consumer_checkpoint
-45	swarm/training/hf_traces.py::summarise
-45	swarm/wiki_ingest.py::_enrich_youtube_frontmatter
-45	tests/test_karpathy_integration.py::test_empty_diff_skips_evaluator_lessons
-45	tests/test_telegram_linear_intake.py::test_telegram_inbox_accepts_phone_chat_and_writes_heartbeat
-44	app/server/agents/feedback_loop.py::_analyse_patterns
-44	app/server/agents/pi_seo_monitor.py::_detect_regressions
-44	app/server/agents/scout.py::_existing_scout_canonical
-44	app/server/cron_fire_agents.py::_fire_scout_trigger
-44	app/server/cron_fire_agents.py::_persist_board_meeting_failure
-44	app/server/cron_triggers.py::_recently_eligible
-44	app/server/digest.py::push_digest_to_telegram
-44	app/server/provider_ollama.py::call
-44	app/server/provider_router.py::run_secondary_research_pass
-44	app/server/research_sonar.py::sonar_caller
-44	app/server/routes/cost_report.py::cost_report
-44	app/server/routes/sessions.py::stream_session_logs_v2.generate
-44	claude-hooks-mirror/discipline/reviewer.py::review
-44	scripts/capability_scout.py::render_report
-44	scripts/linear_evidence_audit.py::main
-44	scripts/sdk_metrics.py::main
-44	scripts/sync_claude_sessions.py::render_digest
-44	scripts/unite_group_health_check.py::stdout_report
-44	skills/pi-dev-ops-model-farm/scripts/model-farm.py::start
-44	swarm/fix_orchestrator.py::_parse_work_order_from_ticket
-44	swarm/inbox/__tests__/test_botfather_minter.py::SupabaseInsertTests.test_successful_mint_inserts_into_supabase
-44	swarm/inbox/provisioner.py::tick
-44	swarm/linear_tools.py::list_issues
-44	swarm/nexus/ingest/vercel.py::parse
-44	swarm/six_pager_client.py::render_first_client_section
-44	tests/test_autonomy_watchdog.py::test_orphan_recovery_routes_per_team_state
-43	app/server/agents/board_meeting.py::_fetch_gap_audit_canonical
-43	app/server/agents/plan_discovery.py::_score_plan
-43	app/server/agents/scout.py::_get_or_create_scout_label
-43	app/server/config_loader.py::validate_startup
-43	app/server/model_fabric.py::status_snapshot
-43	app/server/routes/webhooks.py::intake_webhook
-43	app/server/scanner.py::SecurityScanner._check_secrets
-43	app/server/session_sdk.py::_write_sdk_metric
-43	claude-hooks-mirror/phone/_common.py::get_token
-43	scripts/calibration_corpus_miner.py::main
-43	scripts/fetch_anthropic_docs.py::run
-43	scripts/pi_essentials.py::run_ship_chain
-43	swarm/analyst.py::maybe_analyse_research
-43	swarm/bots/cto.py::request_pr_merge_approval
-43	swarm/closed_loop.py::run_pending_triggers
-43	swarm/inbox/intake_router.py::_maybe_handle_pilot_voice
-43	swarm/inbox/provisioner.py::welcome_email_html
-43	swarm/linear_tools.py::save_comment
-43	swarm/margot_telegram.py::_post_multipart
-43	swarm/margot_tools.py::deep_research_max
-43	swarm/meta_curator.py::accept_proposal
-43	swarm/persistent_goals.py::advance_goal
-43	swarm/portfolio_pulse_telegram.py::_split_at_section_boundaries
-43	swarm/providers/google_ads.py::_query_customer_spend
-43	tests/test_anthropic_intel_refresh.py::test_refresh_with_delta
-43	tests/test_autonomy_priority_filter.py::test_fetch_filter_partial_match
-43	tests/test_discovery_archive.py::test_archive_skips_high_severity_defence_in_depth
-42	app/server/agents/scout.py::_get_or_create_cleanup_label
-42	app/server/cron_fire_agents.py::_fire_marketing_bridge_trigger
-42	app/server/cron_fire_agents.py::_fire_meta_curator_trigger
-42	app/server/goal_analyze_fields.py::normalize_sub_tasks
-42	app/server/model_policy.py::select_model
-42	app/server/pi_ceo_session_fts.py::_extract_text
-42	app/server/provider_router.py::_record_tier_downgrade
-42	app/server/routes/phone.py::_progress_card_html
-42	app/server/routes/telegram_intake.py::_ensure_telegram_webhook
-42	app/server/webhook.py::parse_github_event
-42	app/server/workspace_context.py::build_workspace_claude_md
-42	claude-hooks-mirror/phone/tier_classifier.py::classify
-42	evals/test_tmux_writer_golden.py::test_tmux_writer_matches_golden
-42	scripts/capability_scout.py::write_brain_outputs
-42	scripts/check_agent_registry.py::main
-42	scripts/plaud_ingest.py::main
-42	scripts/run_doc_parse.py::main
-42	scripts/smoke_test_e2e.py::_probe_sse
-42	swarm/inbox/preamble_trainer.py::list_active_contexts
-42	swarm/inbox/preamble_trainer.py::write_preamble
-42	swarm/meta_curator.py::_draft_skill_md_stub
-42	swarm/meta_curator.py::reject_proposal
-42	swarm/nexus/autonomy_ladder.py::classify
-42	swarm/pii_classify.py::_make_classifier_with_anthropic
-42	swarm/pilot/feedback.py::handle_callback
-42	swarm/providers/stripe_xero.py::_xero_cash_and_cogs
-42	swarm/tmux_observer.py::main
-42	tests/test_process_ideas_inbox_expansion.py::test_process_file_expands_idea_before_linear
-42	tests/test_workspace_verify.py::test_short_lived_runner_transport_is_closed_before_loop_shutdown
-41	app/server/agents/board_meeting.py::build_board_system_prompt
-41	app/server/agents/notebooklm_refresh.py::get_notebooklm_freshness_summary
-41	app/server/autonomy.py::linear_todo_poller
-41	app/server/discovery.py::scan
-41	app/server/scanner.py::_main
-41	app/server/session_evaluator.py::_run_persona_review._call_persona
-41	app/server/session_linear.py::_record_session_outcome
-41	app/server/supabase_log.py::record_outcome_event
-41	app/server/tao_judge.py::judge
-41	archive/run_parallel_board.py::main
-41	scripts/hermes_production_packet.py::_load_issues
-41	scripts/launchd/health_check.py::main
-41	scripts/morning_briefing.py::_open_prs
-41	scripts/plaud_ingest.py::format_page
-41	scripts/unite_group_health_check.py::prior_run
-41	scripts/validate_tao_context_vcc.py::_extract_messages
-41	scripts/verify_autonomous_mode.py::main
-41	scripts/verify_desk_voice_stack.py::main
-41	scripts/wiki_knowledge_scout.py::scout
-41	swarm/audit_emit.py::row
-41	swarm/intake/handoff.py::plan_handoff
-41	swarm/nexus/ingest/sentry.py::parse
-41	swarm/portfolio_pulse_finance.py::_gather_figures
-41	swarm/portfolio_pulse_telegram.py::_send_chunk
-41	tests/swarm/nexus/test_scheduler.py::TestDryRun.test_dry_run_skips_loop_runner_and_bra
-41	tests/test_autonomy_contract.py::test_fetch_todo_issues_filter_requires_status_and_label
-41	tests/test_autonomy_priority_filter.py::test_fetch_no_filter_when_disabled
-41	tests/test_karpathy_integration.py::test_karpathy_failure_appends_to_lessons_jsonl
-41	tests/test_mesh_runner_idle_autoclaim.py::runner
-41	tests/test_remotion_one_shot_schema.py::test_one_shot_dry_run_generates_packet_without_tts
-41	tests/test_telegram_intake_route.py::test_telegram_intake_webhook_mode_sets_webhook_and_skips_poll
-41	tests/test_telegram_linear_intake.py::test_watchdog_queues_telegram_idea_for_linear_jsonl
+# format: <lines><TAB><body-fingerprint><TAB><path>::<qualname>
+#
+# The fingerprint is a structural hash of the function BODY, name excluded, so a
+# rename or move keeps it and an edit loses it. Rename forgiveness matches on it
+# rather than on length: 615 functions share only 113 distinct lengths here, so
+# length alone would let an unrelated new function inherit a deleted one's slot.
+435	ab4db82f1204	swarm/orchestrator.py::run
+311	6f980e3e3451	swarm/margot_bot.py::handle_turn
+280	e59149d1872e	app/server/session_sdk.py::_run_claude_via_sdk
+259	013d365f684d	app/server/spec_pipeline/__init__.py::run_pipeline
+250	426976381fbe	app/server/session_phases.py::_phase_evaluate
+219	788a189b2818	app/server/agents/anthropic_intel_refresh.py::refresh_anthropic_intel
+211	9510e3358736	swarm/nexus/channels.py::request_provision
+199	7bbffea30c1d	app/server/cron_watchdog_zte.py::_watchdog_zte_reality_check
+187	e1c7832933af	app/server/session_evaluator.py::_run_persona_review
+186	e48e7f808ea6	app/server/routes/webhooks.py::webhook
+174	0da4a693444e	app/server/agents/board_meeting.py::run_gap_audit_phase
+171	73d78fb40997	app/server/cron_watchdogs.py::_watchdog_vercel_deploy_failures
+168	d948d49a5f23	app/server/session_phases.py::_phase_plan
+166	82f5c418a5ca	scripts/smoke_test_pipeline.py::run_pipeline_smoke
+165	850eed045507	swarm/inbox/botfather_minter.py::mint_queue
+164	dd19d598c24c	scripts/weekly_enhancement_loop.py::enhance_repo
+164	c8f31284111c	swarm/margot_tools.py::propose_idea
+162	c0b2c5c2b13e	swarm/debate_runner.py::run_debate
+161	1eeca300a67f	app/server/session_sdk.py::_run_claude_via_sdk._attempt
+160	003d27f0071a	fence/pretooluse_fence.py::main
+157	d6f632ee1fbb	app/server/session_phases.py::_phase_push
+155	9c6009db6384	app/server/autonomy.py::_process_autonomy_issue
+154	c3cdf956734d	app/server/agents/board_meeting.py::_call_claude_for_discrepancies
+152	813713f8dfbb	app/server/session_phases.py::run_build
+149	4f92904f269a	swarm/closed_loop.py::run_cycle
+148	52eb067f5812	app/server/cron_watchdogs.py::_watchdog_board_meeting_silence
+147	ea616536e16d	app/server/session_phases.py::_phase_clone
+145	7a2c7b011228	app/server/app_factory.py::on_startup
+145	76236f565095	swarm/bots/guardian.py::run_cycle
+144	0322c6dfe9d9	app/server/routes/health.py::health
+143	e1c41516a688	app/server/cron_scheduler.py::cron_loop
+142	1c29f1c0d552	swarm/bots/chief_of_staff.py::_route
+142	537f34aeaf2f	swarm/draft_review.py::post_draft
+140	63fc749a4b7b	tests/swarm/nexus/test_e2e_pipeline.py::test_phase_b_full_pipeline
+139	c396900de769	app/server/agents/board_meeting.py::_run_fast_research
+135	7fb9f859e1a7	app/server/cron_watchdogs.py::_watchdog_notebooklm_health
+134	d42212f60209	swarm/bots/builder.py::run_cycle
+134	d3cf1923542d	swarm/tmux_validator.py::validate_command
+126	136e126d8975	app/server/session_phases.py::_phase_adversary
+126	5679bd08799f	scripts/unite_group_health_check.py::check_integration_sync
+125	4bab87250d13	app/server/agents/feedback_loop.py::run_feedback_cycle
+125	7ed50367bce2	swarm/inbox/intake_dispatch.py::dispatch_telegram_update
+124	8d36a663bf0c	app/server/provider_router.py::run_via_provider
+124	c8bad738abf9	app/server/spec_pipeline/liaison_loop.py::judge_with_liaison
+124	4833f230c60e	app/server/tao_loop.py::run_until_done
+123	6131367841b1	swarm/six_pager_dispatcher.py::maybe_fire_daily
+122	b538b832a861	app/server/agents/scout.py::run_scout_cycle
+121	7ec22284620f	app/server/cron_watchdogs.py::_watchdog_docs_staleness
+119	5e1922286f75	swarm/bots/cfo.py::run_cycle
+116	b95f550322fd	app/server/agents/board_meeting.py::save_board_minutes
+115	04230aed4030	swarm/bots/cs.py::run_cycle
+114	2c9f4353ecb8	app/server/brief.py::scan_repo_context
+112	2f47ddbde63a	app/server/agents/board_meeting.py::run_status_phase
+112	6dfc31b6906d	app/server/triage.py::TriageEngine.triage
+111	7576ca06795e	app/server/agents/board_meeting.py::_normalize_margot_to_research_brief
+110	36996be79864	app/server/orchestrator.py::fan_out
+110	c8d2b9bc4315	app/server/pipeline.py::run_ship_phase
+110	dcfca182fa7a	app/server/routes/delegate.py::delegate_task
+110	31eb0f2cfcfd	scripts/idea_expansion.py::expand_idea
+109	a4fdde5d923c	scripts/probe_dr_nrpg_stripe_keys.py::probe
+109	c491b3955b80	swarm/bots/cmo.py::run_cycle
+108	7362e50fbc41	app/server/cron_triggers.py::_fire_portfolio_pulse_trigger
+108	f48caf31eac3	claude-hooks-mirror/Stop/02_autonomous_continue.py::main
+108	a1ca54541af7	swarm/meta_curator.py::propose_from_cluster
+107	b218f064ac57	swarm/bots/cto.py::run_cycle
+106	efbb733391ea	scripts/validate_tao_context_prune.py::main
+105	ad03c5432a1f	app/server/session_evaluator.py::_run_eval_with_cache
+105	a4b95da5a78e	scripts/plaud_actions.py::process
+105	2b8bf5cbcd4d	scripts/skill_sync.py::write_report
+105	34263bbb8520	swarm/cto.py::detect_breaches
+104	294e085fc2e3	app/server/agents/pi_seo_monitor.py::run_monitor_cycle
+104	1f4c035d08ab	scripts/fallback_dryrun.py::run_dryrun
+102	2950982ce861	app/server/provider_nex_n2.py::call
+102	985e46cbdb34	swarm/nexus/scheduler.py::run_nexus_cycle
+102	484890a07c0b	swarm/wiki_ingest.py::ingest
+101	1f4622c228dc	app/server/autopr.py::run_autopr
+101	d0365d7a47b6	app/server/cron_watchdogs.py::_watchdog_linear_auth
+101	8e4b0ea9b245	swarm/hermes_production_unit.py::build_packet
+100	059da52a6357	.github/scripts/file_length_lint.py::main
+100	e9ec4e374a82	app/server/agents/feedback_loop.py::_classify_with_claude
+100	6cfab4c36d2a	app/server/cron_fire_agents.py::_fire_board_meeting_trigger
+100	d96098eeca19	scripts/marathon_pi_seo_dryrun.py::main
+98	8cc7a067264f	app/server/routes/sessions.py::stream_session_logs_v2
+98	dfbb23467439	swarm/nexus/policy.py::auto_gate
+97	a73ee1158eef	app/server/autonomy.py::_orphan_recovery
+97	bf379003b691	scripts/hermes_model_chain_health.py::main
+96	4a4729f8ebf0	fence/drift_check.py::main
+96	48080461a2da	swarm/flow_engine.py::execute_flow
+96	e9c10da42562	swarm/pm_scoper.py::run_cycle
+95	8e40e461c143	app/server/spec_pipeline/ceo_board_liaison.py::run_ceo_board_liaison
+95	dd0d9f4ff5ed	swarm/bots/scribe.py::run_cycle
+94	8d7db0608d30	app/server/agents/board_meeting.py::_harvest_completed_margot_briefs
+94	a87f1e9f320e	app/server/session_linear.py::_update_linear_state
+93	8656323d312e	swarm/intent_router.py::classify
+92	9b487de8199a	swarm/margot_bot.py::build_prompt_with_research
+91	c117e8f0449a	app/server/linear_pulse.py::run_pulse
+91	7db4410bb69b	scripts/validate_tao_context_vcc.py::main
+91	8c658903f454	swarm/margot_inflight.py::harvest_completed_for_chat
+90	d62e0a2b78cf	app/server/routes/webhooks.py::_handle_workflow_run
+90	3367398f41af	scripts/serve_intent_excalidraw.py::_build_elements
+90	6d316e3da959	scripts/zte_v2_score.py::score_c2_output_acceptance
+90	cae8e42bb55b	swarm/intake/handoff.py::execute_handoff
+90	2078352540ec	swarm/nexus/discovery_loop.py::run_discovery_cycle
+89	168d887f3fa0	scripts/verify_deploy.py::main
+88	4bb0bf46cccb	app/server/agents/pi_seo_monitor.py::_generate_alerts
+88	9c56fd48cedb	scripts/dspy_pov.py::main
+86	668efa71e0ca	app/server/model_fabric.py::complete
+86	7e43738c57ac	app/server/workspace_verify.py::run_workspace_checks
+86	c4ccecdb9510	scripts/unite_group_health_check.py::check_supabase_advisors
+86	b77097f2d7c4	scripts/unite_group_health_check.py::main
+85	6a1ec9166dbd	app/server/agents/board_meeting.py::run_persona_debate_phase
+85	beb3b8fbf413	app/server/tao_tdd_pipeline.py::run_tdd
+85	fde270c9739c	scripts/check_build_logs.py::analyse
+85	0bc66be27ce5	scripts/plaud_ingest.py::run_once
+85	2bf67e720fb6	scripts/verify_margot_voice_stt.py::main
+85	14cf674faec3	swarm/margot_bot.py::_run_research_batch
+84	69e1fef5dbbf	app/server/session_model.py::recover_interrupted_sessions_from_supabase
+84	28cfac7d0881	app/server/session_phases.py::_phase_generate
+84	7a8fc5310a9d	app/server/webhook.py::parse_linear_event
+84	3b8bc1847ea7	scripts/smoke_test_e2e.py::run_vertical
+84	26269ccb9bcf	swarm/bots/chief_of_staff.py::_poll_telegram
+84	f30d0152d76c	swarm/cs.py::detect_breaches
+83	0ce5190cb5fc	app/server/model_fabric.py::_chat_once
+83	2d0e700ade7e	scripts/zte_v2_score.py::compute_ra7216_metrics
+82	7cdd64da5eba	app/server/burndown.py::run_burndown
+82	725c356ad95d	app/server/supabase_log.py::log_gate_check
+82	1733d946dc4f	swarm/nexus/agent_registry.py::_agent_from_raw
+82	a6968d79dde8	swarm/nexus/onboarding.py::qualify_client
+82	a03d936935b7	tools/ccw_support_watch/runner.py::run_watch
+81	08457e83ee2f	swarm/project_health_monitor.py::_check_github_health
+81	f0aa19027395	swarm/telegram_alerts.py::send
+80	0ef018b1e1bf	app/server/agents/notebooklm_refresh.py::refresh_all_notebooks
+80	cd2830e21605	app/server/brief.py::build_structured_brief
+80	c3c8cd51de42	app/server/lessons.py::hydrate_from_durable
+80	690622045868	swarm/cfo.py::detect_breaches
+80	f4c6230e1ac4	swarm/inbox/provisioner.py::_provision_one
+79	c4c3dbb9f33c	app/server/discovery_archive.py::archive_stale_discovery_tickets
+79	1bbe304ae472	app/server/routes/margot.py::margot_voice_turn
+79	b936717a44ad	scripts/process_ideas_inbox.py::process_file
+79	e3cf792ea962	scripts/sandbox_health_check.py::check_logs
+78	8e5f49691210	app/server/agents/board_meeting.py::_run_prompt_via_sdk
+78	41deeae3601a	app/server/agents/board_meeting.py::run_board_research_phase
+78	cf613e9ed988	scripts/smoke_test_e2e.py::run_horizontal
+78	a1eaafcff59c	swarm/bots/builder.py::_fetch_buildable_tickets
+78	32b2d81ec190	swarm/inbox/intake_dispatch.py::_apply_decision
+78	101a3dc19948	swarm/six_pager.py::assemble_six_pager
+78	1fd866a01722	tests/test_ccw_support_consumers.py::test_real_consumer_writers_close_same_run_without_replaying_alerts
+77	a02a896af177	app/server/cron_fire_agents.py::_generate_board_prebrief
+77	97b80fa4e290	app/server/orchestrator.py::_decompose_brief
+77	c0f1adf9db42	app/server/routes/webhooks.py::routine_complete_webhook
+77	a19811bc1779	swarm/portfolio_pulse_linear.py::_render_section
+76	f21ae6ad14b6	app/server/pipeline.py::run_review_phase
+76	c316aaa48696	app/server/triage.py::_claude_triage
+76	a60f0d05ec36	swarm/gap_detector.py::run_daily
+76	6bdb76dbdd7e	swarm/nexus/approvals.py::decide_approval
+76	22ad5c74c43c	swarm/portfolio_pulse_telegram.py::deliver_to_telegram
+75	9e63e0948af2	app/server/session_phases.py::_route_linear_ticket_to_target_project
+75	0481806551be	scripts/secrets_history_check.py::main
+75	1f947b5ff0c8	scripts/workspace_intel_brief_ci.py::main
+75	ead453e97665	swarm/board.py::_process_one
+75	ead453e97665	swarm/board/__init__.py::_process_one
+75	eb4c0690f117	swarm/bots/click.py::_check_local_health
+75	cb9db76500ff	swarm/inbox/preamble_trainer.py::build_prompt
+75	3c15bc5da67a	swarm/nexus/audit.py::build_audit_row
+75	b90295b49cee	tests/test_discovery.py::test_run_persona_cycle_happy_path
+74	77c588c833a5	app/server/agents/plan_discovery.py::discover_best_plan
+74	bd9ef83e171c	app/server/cron_watchdogs.py::_watchdog_check
+74	bfbed5d3a2e3	app/server/cron_watchdogs.py::_watchdog_health_full
+74	2d1ad1531d3b	app/server/pipeline.py::_update_linear_state_pipeline
+74	98d51728ff44	app/server/session_recorder.py::record_episode
+74	4ba784b660d1	scripts/analyse_lessons.py::build_proposal
+74	581e5b1ca4af	swarm/wiki_lint.py::lint
+73	1eef84ffd461	app/server/cron_watchdogs.py::_watchdog_escalations
+73	398e239cc81e	app/server/push_helper.py::push_files_atomic
+73	b70ff8663da1	swarm/analyst.py::_call_llm
+73	7a50cd70de9e	swarm/intake/cli.py::run_once
+73	75eadf6e1d5e	swarm/project_health_monitor.py::run_daily
+72	6054dd0b42e5	app/server/autonomy.py::fetch_todo_issues
+72	6e04e0f3c5c1	app/server/goal_analyze.py::analyze_goal
+72	dd1944326389	app/server/pi_ceo_docparser.py::_parse_pdf
+72	e730c573961e	app/server/provider_router.py::select_provider_model
+72	7a1a5b7f319b	scripts/validate_tao_context_mode.py::main
+72	8fe2bafe5d21	skills/forward-planner/scripts/validate_plan.py::validate
+72	8fed4d914b47	swarm/analyst.py::_collect_breaches
+72	c45d1a9b4d10	swarm/linear_tools.py::save_issue
+72	2c4d6708e421	swarm/pii_redactor.py::redact
+72	0715420f2609	swarm/wiki_query.py::query
+71	5b84d4b44c12	scripts/secrets_check.py::_list_tracked_files
+71	7337bca94333	scripts/unite_group_health_check.py::write_outputs
+71	e2f6f06b140a	swarm/intake/margot_router.py::route_inbound
+70	34d0bd57b750	app/server/discovery.py::_propose
+70	9f378dd5b499	app/server/lessons.py::_ensure_seeded
+70	4a430044a0cb	app/server/routes/phone.py::progress
+70	c75d5fc5c559	app/server/routes/webhooks.py::workspace_intel_refresh
+70	8ce94bf933e2	scripts/sync_claude_sessions.py::parse_session
+70	453cb744b076	scripts/weekly_enhancement_loop.py::run_phase
+69	e140b6a7b5d2	app/server/agents/board_meeting.py::run_swot_phase
+69	431c7ee6e9d1	claude-hooks-mirror/Stop/03_quality_gate.py::_spawn_reviewer
+69	079f032a018c	scripts/marathon_watchdog.py::_check_tests
+69	a11e79942669	scripts/process_ideas_inbox.py::_build_ticket
+69	e13145a974be	swarm/fix_orchestrator.py::_dispatch_specialist
+69	f5103435beea	swarm/intake/margot_router.py::_handle_awaiting_project_name
+69	f849ae3f3751	swarm/meta_curator.py::reconcile_proposals
+69	b57bc89da813	swarm/portfolio_pulse_synthesis.py::_extract_board_triggers
+69	80b984e9e0d8	swarm/production_coordinator.py::run_daily
+68	c6d1f2f62db6	app/server/provider_openrouter.py::call
+68	d01a308a0e65	scripts/consolidate_anthropic_docs.py::build_output
+68	882fb48b95bc	scripts/obsidian_analyst_relay.py::RelayHandler.do_PUT
+68	4aa9f1534d69	skills/pi-dev-ops-model-farm/scripts/model-farm.py::worker_thread
+68	3bf5cdd33d85	swarm/meta_curator.py::_compose_skill_body_via_sdk
+68	fd3eb0a98ba1	swarm/providers/zendesk.py::_intercom_metrics
+68	fd73b9cfeafa	tests/test_provider_nex_n2.py::test_reasoning_details_round_trip_multi_turn
+67	42b8c3c9d085	app/server/tao_context_prune.py::_pass_drop_resolved_errors
+67	36797079ce0d	scripts/analyse_lessons.py::main
+67	c2ab6d8067d6	scripts/ingest_repos.py::process_repo
+67	ebe8c5179d61	swarm/aip_watcher.py::run_daily
+67	a4e769df61da	swarm/providers/github_actions.py::_compute_dora
+67	182f54bc222e	swarm/providers/zendesk.py::_zendesk_metrics_for_brand
+66	33ffc132e03b	app/server/routes/scan_monitor.py::project_findings
+66	52e10c96cf52	app/server/session_linear.py::_send_autonomy_outcome_telegram
+66	49016ad7c0f6	app/server/sessions.py::create_session
+66	9b88b636f320	scripts/plaud_actions.py::extract_actions
+66	08c42c438371	scripts/zte_v2_score.py::score_c1_deployment_success
+66	a157470e1e3b	swarm/health_check.py::run
+66	30968c842c9e	swarm/nexus/loop_runner.py::run_due_loops
+65	604398c9588a	app/server/agents/board_meeting.py::_run_research_via_sdk
+65	44a8e68a3959	app/server/agents/feedback_loop.py::_create_stale_review_issue
+65	db7f543e18c5	app/server/routes/phone.py::session_action
+65	6afa723d349b	app/server/tao_tournament.py::rank_candidates_bt
+65	92895f96246b	scripts/marathon_watchdog.py::_drain_inbox
+65	2560a2fb71b9	scripts/secrets_check.py::main
+65	cbf2d29a7da5	tests/fixtures/fake_hermes_kanban.py::main
+64	1415f083301c	app/server/agents/pi_seo_monitor.py::_run_agent_analysis
+64	6592eb2616ce	app/server/pi_ceo_docparser.py::_parse_docx
+64	6e95c1ac0dc2	scripts/margot_generate.py::main
+64	492a512e68cb	swarm/cto.py::assemble_daily_brief
+64	c8b62bf2facd	swarm/margot_tools.py::_call_gemini_research
+64	cf8362f3d567	swarm/nexus/bra.py::generate_bra
+64	0aa722029dd9	vendor/margot-deep-research/server.py::image_generate
+63	7c01d5b57a87	app/server/autonomy.py::_run_poller_iteration
+63	b9f8f7963855	app/server/pi_ceo_session_fts.py::search
+63	7b91c8bb1d22	app/server/routes/scan_monitor.py::trigger_scan
+63	200fa326373c	app/server/vercel_monitor.py::check_deployment_drift
+63	537faa9391f6	swarm/cmo.py::detect_breaches
+63	2a2f401d39bf	swarm/nexus/projection_drift.py::validate_projection_drift
+63	cd9c669d4eb6	swarm/providers/google_ads.py::_real_for_business
+63	634aedc038c1	swarm/sources_watcher.py::run_cycle
+62	3eae27651539	app/server/pipeline.py::_run_claude_via_sdk_async
+62	df27357552ab	app/server/routes/margot.py::_download_telegram_file
+62	e00c0f752644	app/server/routes/webhooks.py::_create_linear_ci_ticket_sync
+62	2307df5e81fb	app/server/routes/webhooks.py::_record_reverts_in_push
+62	62f56938b1cf	swarm/cfo.py::approve_spend
+62	36be0f2a7260	swarm/cfo.py::assemble_daily_brief
+61	dfc5f3a873f7	app/server/orchestrator.py::_launch_wave
+61	330fb23b6ae5	app/server/routes/health.py::obsidian_health
+61	9f2bb0f3149a	app/server/spec_pipeline/storm_evidence.py::gather_evidence
+61	fdd24c8d0a29	app/server/triage.py::TriageEngine._telegram_alert
+61	e4a7f1af76d2	claude-hooks-mirror/phone/pretooluse_gate.py::main
+61	2e339c9dad2f	scripts/cron_error_sweep.py::failing_jobs
+61	ab1bb9fb0bb7	swarm/bots/click.py::run_cycle
+61	a432048aefcf	swarm/ollama_client.py::chat
+61	9834e3efaaf5	tests/test_kanban_env_isolation.py::_run_producer_case
+60	2cedf9d6d688	app/server/agents/board_meeting.py::_run_prompt_with_cache
+60	5c29737c133e	app/server/provider_router.py::_resolve_cheap_tier
+60	a072f217ba56	app/server/provider_whisper.py::transcribe
+60	bf8400e77cd2	app/server/session_phases.py::parse_event
+60	8e41ffd9cd5f	scripts/check_business_charters.py::main
+60	4b10d675b366	scripts/send_telegram.py::send_telegram
+60	2b293201cd0f	scripts/skill_self_update.py::run_cycle
+60	091852c1d375	tests/test_six_pager.py::test_assemble_with_all_ledgers
+59	c33771f02c4c	app/server/discovery.py::run_persona_cycle
+59	282d3fbf88f0	app/server/tao_boomerang.py::dispatch_one
+59	8056a5d366d9	app/server/tao_context_prune.py::_pass_supersede_path_reads
+59	54f89faf3c41	scripts/nexus_backfill.py::main
+59	06a068e056da	scripts/plaud_ingest_to_itr.py::main
+59	fb23888ca8eb	swarm/cmo.py::assemble_daily_brief
+59	f17f5be2c205	swarm/draft_review.py::_do_send
+59	21138e0a6105	swarm/margot_bot.py::build_prompt
+59	981f97696c18	tests/swarm/nexus/test_workspace_lookup.py::TestWebhookPassesLookup.test_stripe_webhook_uses_lookup_when_metadata_missing
+59	4c72e91198b6	tests/test_portfolio_pulse_github.py::test_happy_path_renders_all_sections
+58	7074898cc335	app/server/agents/board_meeting.py::_read_morning_intel
+58	001bec6b6b03	app/server/linear_pulse.py::_pulse_issue_id
+58	7970e7d92a68	app/server/routes/webhooks.py::telegram_webhook
+58	2c641dc6684b	scripts/analyse_lessons.py::_claude_cluster_title
+58	c40bffceeb57	scripts/calibration_corpus_miner.py::mine_transcript
+58	92e7c105bfd0	scripts/desk_voice_loop.py::run_loop
+58	c48406e5d8ab	scripts/skill_sync.py::scan_skill
+58	f303e8fb7c2b	swarm/bots/scribe.py::_fetch_linear_stalled
+58	28ae6966986e	swarm/cs.py::assemble_daily_brief
+58	60a0b13abf30	swarm/inbox/provisioner.py::build_day0_portal_content
+58	fa78aee4c42b	swarm/model_router.py::AnthropicProvider.complete
+58	b6b16a55c416	swarm/nexus/ingest/stripe.py::parse
+58	500104f830ca	tests/test_persistent_goals.py::test_debate_runner_advances_goal_on_success
+57	374cb66f24ec	app/server/cron_triggers.py::_fire_trigger
+57	c801c6025fae	app/server/pi_ceo_session_fts.py::rebuild_incremental
+57	2cc685754c53	scripts/cron_error_sweep.py::self_test
+57	fb6e3d053484	scripts/open_skill_pr.py::open_pr
+57	ede8b7a23d6d	scripts/weekly_enhancement_loop.py::_exec_tool
+57	3172b6664ed5	swarm/bots/chief_of_staff.py::run_cycle
+57	a21bca9704dc	swarm/ccw_support_contract.py::derive_state
+57	2e7108480688	swarm/kill_switch.py::trigger
+57	e1df5b731c40	swarm/model_router.py::OpenRouterProvider.complete
+57	3d5f26172207	swarm/portfolio_pulse.py::run_all_projects
+57	c2cf2585e735	swarm/tmux_audit.py::append
+56	61dec55c4c4a	app/server/agents/board_meeting.py::_format_research_brief_for_personas
+56	4ae2a4c21895	app/server/gc.py::collect_garbage
+56	798998c017ad	app/server/pi_ceo_session_fts.py::build_index
+56	4ec1aa96f47d	app/server/pipeline.py::run_spec_phase
+56	444dd5d08648	scripts/reviewer_recalibration.py::compute_weights
+56	3a254f5c36f3	swarm/marketing_skill_bridge.py::run_scheduled_bridge
+56	9312f3aa07d3	tests/test_elevenlabs_margot_voice_route.py::_client
+56	734242333896	tests/test_fable_adversary_canary.py::_install_fake_sdk
+56	4eea15214822	tests/test_margot_propose_idea.py::test_handle_turn_files_idea_and_appends_confirmation
+55	b2cef30046c7	app/server/discovery.py::load_persona_config
+55	6513d8fdcef9	app/server/youtube_intent.py::synthesize_state
+55	c235b2050316	mesh/heartbeat.py::cpu_mem_load
+55	c6ce642bd34c	scripts/marathon_watchdog.py::main
+55	712930a9ad45	scripts/run_tao_tdd.py::main
+55	5b0821918668	scripts/weekly_enhancement_loop.py::main
+55	614b2205cfec	scripts/workspace_intel_brief.py::main
+55	93d1aa2fe63c	swarm/draft_review.py::mark_reaction
+55	546010963578	swarm/hermes_production_unit.py::render_markdown
+55	9f54e4c2df49	swarm/nexus/margot_intake.py::dispatch_intake
+55	52adc6b0e318	swarm/nexus/margot_intake.py::parse_voice_intake
+55	1ece33b67a3a	swarm/tmux_writer.py::send
+55	46fa7d77e30f	swarm/wiki_sync.py::run_sync
+55	647a62bdb014	tests/smoke_cos_cycle.py::smoke_route_each_intent
+55	57c128ad854c	tests/test_liaison_loop.py::test_liaison_loop_reaches_100_after_one_round
+54	12855399b4f9	app/server/goal_ticket.py::file_goal
+54	dab43056422a	app/server/routes/elevenlabs.py::margot_post_call
+54	cc71330e8288	app/server/session_phases.py::_log_ship_gate_check
+54	fdf258e1d301	app/server/spec_pipeline/ship_gate.py::open_pr_and_merge
+54	65b756ac95ca	app/server/tier0_runner.py::run_tier0
+54	5a3f1d1334d4	scripts/fleet_value_dryrun.py::main
+54	2f10da17e893	scripts/secrets_check.py::raise_linear_ticket
+54	9cd5d71cb48e	scripts/specialised_skill_foundation.py::_draft_skill_md
+54	77ccb20566f3	swarm/agentskills_manifest.py::_vendored_schema
+54	04a65ba91280	swarm/inbox/preamble_trainer.py::train
+54	6759e91ed9fe	swarm/oauth_refresh.py::_refresh_provider
+54	155d59343542	swarm/providers/ccw_supabase.py::create_alert_intent
+54	1e6fe3e3ea0f	swarm/tmux_writer.py::close_session
+54	a3f9da06ede8	swarm/visual_briefing.py::_assemble_brief
+54	1895c2db2840	tests/test_margot_propose_idea.py::test_propose_idea_payload_includes_label_and_project
+53	3c93d331f08a	app/server/agents/eval_capture.py::maybe_capture_candidate
+53	fc19afa3f258	app/server/agents/pi_seo_monitor.py::_route_critical_alerts
+53	04d583aa4648	app/server/agents/scout.py::_create_linear_issue
+53	ee5e64f524aa	fence/deploy_skills.py::main
+53	030640051a24	scripts/audit_sandboxes.py::audit
+53	3ba85622fd11	scripts/capability_scout.py::score_discovery
+53	c8504e16d885	scripts/smoke_test.py::_ws_connect_check
+53	688086384420	scripts/specialised_skill_foundation.py::build_foundation_packet
+53	a62a140a4387	scripts/supervisor/supervisor.py::main
+53	3957067aac6f	swarm/bots/builder.py::_fire_build
+53	4e4019182a2a	swarm/bots/margot.py::handle_telegram_intent
+53	5d73fc73f35f	swarm/debate_runner.py::_call_one_side
+53	2adb49c1e420	swarm/margot_bot.py::_run_research_batch._fire
+53	8fec019c886d	swarm/providers/stripe_xero.py::_real_for_business
+53	37b521d1db65	tests/test_goal_ticket.py::test_route_returns_ticket_url
+52	4d769f95f5ee	app/server/agents/plan_discovery.py::_maybe_propose_research_intent
+52	277944f2b3dd	app/server/routes/phone.py::create_gate
+52	5f70a8c323b2	app/server/tao_codebase_wiki.py::update_wiki
+52	e282bdea056f	mesh/runner.py::run_claim
+52	bf3db7f6ea12	scripts/review_eval_candidates.py::review
+52	f1a575ec77b1	scripts/runtime_model_guard.py::start_model_fabric
+52	3d6dc288fe2a	scripts/test_lessons_durable_migration.py::main
+52	308e7f1048b0	swarm/analyst.py::_synthesise_deliverable
+52	ea8d9db8f6be	swarm/cmo.py::approve_adspend
+52	ca65b00a43a0	swarm/cs.py::approve_refund
+52	d01910eb2906	swarm/fix_orchestrator.py::run_cycle
+52	ec641c096722	swarm/nexus/onboarding.py::create_workspace
+52	608137924981	swarm/portfolio_pulse_github.py::ci_summary
+52	eab28ca32229	swarm/providers/synthetic_marketing.py::_synth_one
+52	b88f77203937	tests/test_autonomy_priority_filter.py::test_fetch_filters_unlabelled_issues
+52	0bc72019dcde	tests/test_ccw_watch_runner.py::test_re_evaluation_fails_closed_for_missing_malformed_stale_and_cross_run_evidence
+51	128f57ac4e77	app/server/agents/feedback_loop.py::get_feedback_summary
+51	b9a8d825359d	app/server/persistence.py::save_session
+51	3b1fb948c134	app/server/pipeline.py::run_test_phase
+51	07260e00823e	app/server/provider_router.py::run_via_provider_blocking
+51	609cb38c365f	app/server/spec_pipeline/boardroom.py::boardroom_query
+51	a0b482c89175	claude-hooks-mirror/discipline/founder_voice_critique.py::_detect_structural
+51	e7a6a8ce83b3	scripts/linear_helpers.py::create_linear_issue
+51	b18872cd114f	swarm/cto.py::approve_pr_merge
+51	ef3a41f0a26e	swarm/history_parser.py::parse_repo
+51	e4429e85dc8a	swarm/portfolio_pulse_github.py::pr_summary
+51	dbd816ca45ac	swarm/wiki_ingest.py::_corpus_reupload
+51	db9eb46af501	tests/test_ccw_supabase_provider.py::test_checkpoint_writer_serializes_datetimes_and_uses_schema_primary_key
+51	e8a18da0d57f	tests/test_docs_stale_watchdog_ra7027.py::test_cron_loop_total_failure_no_persistence
+50	43a8838f8313	app/server/agents/board_meeting.py::run_linear_review_phase
+50	50a86d8f9c01	app/server/autonomy.py::_transition_to_in_progress
+50	1ded3658b185	app/server/routes/delegate.py::delegate_task._call_llm
+50	080c8c13e053	app/server/routes/goal_ticket.py::_raise_goal_error
+50	cdd494df52c4	app/server/session_recorder.py::retrieve_similar_episodes
+50	0eb55674be51	app/server/supabase_log.py::save_session_checkpoint
+50	fb0d983dcf11	archive/run_parallel_board.py::run_managed_agents
+50	3dd7866a49de	scripts/test_lessons_durable_migration.py::assert_contract
+50	f315db88fae3	scripts/zte_v2_score.py::compute_v2_score
+50	59233abb84b2	swarm/bots/cmo.py::request_adspend_approval
+50	89cc960f4be4	swarm/cfo.py::compute_metrics
+50	4d6c13f6060a	swarm/kill_switch.py::resume
+50	1303c3cfe553	swarm/margot_bot.py::_call_llm
+50	34551f56c2bd	swarm/nexus/ingest/linear.py::parse
+50	931e342966c0	swarm/project_health_monitor.py::_file_work_order_ticket
+50	fedb6c95ba45	swarm/research_provider.py::research
+49	c489489f8e00	app/server/cron_fire_agents.py::_fire_feedback_trigger
+49	a8e76667ca94	app/server/lessons.py::seed_at_boot
+49	0ade63d289ca	app/server/routes/webhooks.py::morning_intel_webhook
+49	6faca102075d	app/server/scanner.py::ProjectScanner.scan_project
+49	63d0a794d9f4	app/server/session_phases.py::_check_scope_adherence
+49	4c09539208ac	scripts/desk_voice_loop.py::record_ptt
+49	f2c6f438b5d1	scripts/fable_canary_check.py::main
+49	b58ec1cb1614	scripts/hermes_model_chain_health.py::multiplex_finding
+49	c9c338f64671	scripts/marathon_telegram_inbox.py::main
+49	7eadf364308f	scripts/margot_generate.py::build_matrix_packet
+49	7218ddc50f98	scripts/skill_sync.py::apply_report
+49	c85e5456fab9	src/tao/agents/__init__.py::AgentDispatcher._execute_skills
+49	69b3436d0305	swarm/cmo.py::compute_metrics
+49	fc5307491ffb	swarm/intake/spm.py::build_spm_brief
+49	079da544d9e1	swarm/kanban_adapter.py::create_card
+49	f4eedb62864b	swarm/margot_bot.py::load_history
+49	00136ffa0f1a	swarm/nexus/approvals.py::sweep_expired
+49	e5a6d987070f	swarm/nexus/onboarding.py::enable_loops
+49	cbef0468e0a0	swarm/portfolio_pulse_synthesis.py::_call_llm
+49	e04f354d3331	tests/test_autonomy_contract.py::test_orphan_recovery_transitions_to_blocked_with_reason_label
+49	c8db6fe14257	tests/test_fable_adversary_canary.py::test_fable_refusal_falls_back_to_opus_no_silent_success
+49	6b06e647c594	tests/test_margot_supabase_memory.py::test_cross_deploy_simulation
+49	b0ca5fa47b6d	tests/test_open_skill_pr.py::test_open_pr_real_mode_runs_well_formed_git_gh_sequence
+49	43dbbb3bb7b2	tests/test_plaud_ingest.py::test_run_once_happy_path_writes_page_and_advances_state
+48	4a274ee2d795	app/server/agents/board_meeting.py::_read_latest_anthropic_docs
+48	b351b8bccdaa	app/server/agents/board_meeting.py::run_full_board_meeting
+48	b0492f19829f	app/server/autonomy.py::_calc_effective_autonomy
+48	837c0582a7de	app/server/cron_watchdogs.py::_has_open_linear_issue_with_prefix
+48	8b9e1004c8f8	app/server/job_success_record.py::read_record
+48	48431ad21807	app/server/routes/utils.py::ws_build
+48	e75449fefd60	app/server/scanner.py::ProjectScanner.get_health_summary
+48	3dd912b073fb	app/server/tao_boomerang.py::_strip_summary_artifacts
+48	227c1bd821ff	claude-hooks-mirror/discipline/founder_voice_critique.py::_scan_transcript
+48	543c7f6b1a8a	scripts/assert_image_digest.py::main
+48	4a90b21ac14f	scripts/controller_violation_trend.py::compute_trend
+48	f7eef8163383	scripts/sync_claude_sessions.py::main
+48	623c9f5165ff	swarm/agentskills_manifest.py::export
+48	37d0cf5ff3dc	swarm/nexus/agent_registry.py::load_registry
+48	64b423b8e747	swarm/pii_classify.py::_parse_spans
+48	e9d73b3daa68	swarm/providers/ccw_supabase.py::load_consumer_checkpoints
+48	46e52893633c	tests/test_push_helper.py::test_push_files_atomic_calls_github_api
+47	84287d051ae8	app/server/goal_ticket.py::file_drafts
+47	4ed16ac33c22	app/server/grounding.py::reground
+47	91cebd363bfe	app/server/lessons.py::search_lessons_keyword
+47	0c91cdc8b2cd	app/server/provider_nex_n2.py::research_pass
+47	88350e2bbdba	app/server/routes/sessions.py::stream_session_logs
+47	7fa3b694b270	scripts/unite_group_health_check.py::check_sandbox_drift
+47	cf443539dd62	swarm/aip_watcher.py::flush_queue
+47	ded42bd13d33	swarm/analyst.py::_deterministic_deliverable
+47	4b7d0b77b96f	swarm/analyst.py::_mirror_obsidian_rest
+47	a79a25df3364	swarm/bots/cfo.py::request_spend_approval
+47	df6157175486	swarm/budget_tracker.py::record_cost
+47	11067a6c605b	swarm/margot_bot.py::_run_truth_check_batch
+47	9852953c9811	swarm/marketing_content_generator.py::generate_social_post
+47	0eca5a81a4f5	swarm/nexus/onboarding.py::approve_qualification
+47	e066c89eddb8	swarm/nexus/scheduler_daemon.py::nexus_scheduler_loop
+47	a9931bce875e	swarm/pilot/dispatcher.py::send
+47	d99e1f483acc	swarm/voice_compose.py::synthesise_voice
+47	db7c7293d643	tests/test_cron_enabled_flag.py::test_startup_skips_cron_loop_when_disabled
+47	b35c4f3bcf1f	tests/test_goal_ticket.py::_FakeLinear.__call__
+47	ddf7d63962e4	tests/test_goal_ticket.py::test_drafts_from_payload_flattens_ticket_standard
+47	807b15ddf854	tests/test_margot_slack_bridge.py::test_slack_thread_reply_reenters_same_margot_chat
+47	1d6a8514db4f	tests/test_workspace_verify.py::test_cancellation_kills_and_reaps_process_group
+46	465e546f5db8	app/server/lessons.py::extract_lesson_from_eval
+46	6de4375ced6a	app/server/scanner.py::DeploymentHealthScanner._check_url
+46	0f579a2cae3a	scripts/capability_scout.py::candidate_to_crm_task
+46	8cebb6c6ff6f	scripts/dns_takeover_scan.py::scan_hostname
+46	7091ca26f748	scripts/hermes_model_chain_health.py::probe
+46	cfd1364c05f2	scripts/idea_expansion.py::write_outputs
+46	36e320f3c04d	scripts/marathon_watchdog.py::_compose_alert
+46	5900b0b14b82	scripts/sync_harness_to_supabase.py::sync_seo_reports
+46	93086d5dd865	swarm/fleet_value_optimizer.py::default_entitlements
+46	28210c0d5b4a	swarm/intake/specialists.py::gather_specialist_takes
+46	2198e7da8198	swarm/intake/spm.py::aggregate_board_response
+46	fe25bae1c1cf	swarm/margot_bot.py::_run_realtime_batch
+46	8ad62cf3e056	swarm/pilot/scripts/shadow_run.py::run
+46	c4eab5e5bfaa	swarm/providers/synthetic.py::_synth_one
+46	4a2acf0c7c1f	tests/test_remotion_workspace_images.py::test_one_shot_accepts_image_provider_and_scene_assets
+45	f67b961827cd	app/server/agents/feedback_loop.py::_write_outcome_lesson
+45	0bef10cfef23	app/server/agents/pi_seo_monitor.py::_render_digest_markdown
+45	1f9076f70ef9	app/server/cron_triggers.py::_should_catch_up
+45	bcac2e465a9a	app/server/goal_ticket_children.py::file_sub_tasks
+45	75795a66003a	app/server/lessons.py::append_lesson_dedup
+45	5be179dfe2f4	app/server/supabase_log.py::record_acceptance
+45	f66acc3e3e48	app/server/youtube_connector.py::exchange_code
+45	e314b51be023	scripts/check_wiki_bot_token_expiry.py::check_expiry
+45	5803318b5974	scripts/marathon_telegram_inbox.py::_ingest_update
+45	ce09eaf6bfd5	scripts/process_ideas_inbox.py::linear_create_issue
+45	c7ab8a40378d	scripts/unite_group_health_check.py::run_all
+45	148e39852182	scripts/verify_margot_voice_tts.py::main
+45	a5444069521c	swarm/analyst.py::run_breach_review
+45	27521494e1e9	swarm/intake/handoff.py::pr_body_for
+45	d990b1bc164d	swarm/model_router.py::ModelClient.complete
+45	2b5769f20d1b	swarm/providers/ccw_supabase.py::record_consumer_checkpoint
+45	9f942047044e	swarm/training/hf_traces.py::summarise
+45	62fd4123dfdc	swarm/wiki_ingest.py::_enrich_youtube_frontmatter
+45	4b216c1821d3	tests/test_karpathy_integration.py::test_empty_diff_skips_evaluator_lessons
+45	848aa10390f1	tests/test_telegram_linear_intake.py::test_telegram_inbox_accepts_phone_chat_and_writes_heartbeat
+44	47aaa222fc27	app/server/agents/feedback_loop.py::_analyse_patterns
+44	5b161f8a9df6	app/server/agents/pi_seo_monitor.py::_detect_regressions
+44	58054fdee1f4	app/server/agents/scout.py::_existing_scout_canonical
+44	3abcdc177081	app/server/cron_fire_agents.py::_fire_scout_trigger
+44	98fdf0faef7e	app/server/cron_fire_agents.py::_persist_board_meeting_failure
+44	5a1d22c87397	app/server/cron_triggers.py::_recently_eligible
+44	1b081081e6ee	app/server/digest.py::push_digest_to_telegram
+44	7f9105bbd7f9	app/server/provider_ollama.py::call
+44	5e653c59c175	app/server/provider_router.py::run_secondary_research_pass
+44	3c919656885f	app/server/research_sonar.py::sonar_caller
+44	6c6088885d81	app/server/routes/cost_report.py::cost_report
+44	3a2bcbb4e7cc	app/server/routes/sessions.py::stream_session_logs_v2.generate
+44	9f4336d08a5e	claude-hooks-mirror/discipline/reviewer.py::review
+44	fb3853494d73	scripts/capability_scout.py::render_report
+44	a37eb65133bf	scripts/linear_evidence_audit.py::main
+44	7870dd071e0b	scripts/sdk_metrics.py::main
+44	0594fbb5aae3	scripts/sync_claude_sessions.py::render_digest
+44	5061cd5deecc	scripts/unite_group_health_check.py::stdout_report
+44	58428ef357f1	skills/pi-dev-ops-model-farm/scripts/model-farm.py::start
+44	3ea9d8af4756	swarm/fix_orchestrator.py::_parse_work_order_from_ticket
+44	a53fdba6ddbc	swarm/inbox/__tests__/test_botfather_minter.py::SupabaseInsertTests.test_successful_mint_inserts_into_supabase
+44	3f18ad78f57a	swarm/inbox/provisioner.py::tick
+44	f3ffe01e7b10	swarm/linear_tools.py::list_issues
+44	06ebea89b776	swarm/nexus/ingest/vercel.py::parse
+44	a6d26204a600	swarm/six_pager_client.py::render_first_client_section
+44	232596b8fb23	tests/test_autonomy_watchdog.py::test_orphan_recovery_routes_per_team_state
+43	146fc49c2693	app/server/agents/board_meeting.py::_fetch_gap_audit_canonical
+43	16d628d13f5b	app/server/agents/plan_discovery.py::_score_plan
+43	c6654c8023c6	app/server/agents/scout.py::_get_or_create_scout_label
+43	5c96f634e588	app/server/config_loader.py::validate_startup
+43	9fd7cb1aeb76	app/server/model_fabric.py::status_snapshot
+43	7967ad5d6936	app/server/routes/webhooks.py::intake_webhook
+43	2c92c264a299	app/server/scanner.py::SecurityScanner._check_secrets
+43	7aa20eca1c58	app/server/session_sdk.py::_write_sdk_metric
+43	06e470baf949	claude-hooks-mirror/phone/_common.py::get_token
+43	9d44402116e3	scripts/calibration_corpus_miner.py::main
+43	efb12db491af	scripts/fetch_anthropic_docs.py::run
+43	374a457706cf	scripts/pi_essentials.py::run_ship_chain
+43	d390e9a8bdcd	swarm/analyst.py::maybe_analyse_research
+43	3faaf05f82be	swarm/bots/cto.py::request_pr_merge_approval
+43	23c6c196e2a4	swarm/closed_loop.py::run_pending_triggers
+43	eda1207d66b6	swarm/inbox/intake_router.py::_maybe_handle_pilot_voice
+43	a7be1edfa332	swarm/inbox/provisioner.py::welcome_email_html
+43	e23c913e72dd	swarm/linear_tools.py::save_comment
+43	1b9653ded0ea	swarm/margot_telegram.py::_post_multipart
+43	69009df84297	swarm/margot_tools.py::deep_research_max
+43	02918950789a	swarm/meta_curator.py::accept_proposal
+43	2db206596b0b	swarm/persistent_goals.py::advance_goal
+43	cfc84f0e951c	swarm/portfolio_pulse_telegram.py::_split_at_section_boundaries
+43	a0c51f643616	swarm/providers/google_ads.py::_query_customer_spend
+43	275ca478a194	tests/test_anthropic_intel_refresh.py::test_refresh_with_delta
+43	33382e477821	tests/test_autonomy_priority_filter.py::test_fetch_filter_partial_match
+43	e9527bcf0587	tests/test_discovery_archive.py::test_archive_skips_high_severity_defence_in_depth
+42	107c905e03ff	app/server/agents/scout.py::_get_or_create_cleanup_label
+42	94065d35530b	app/server/cron_fire_agents.py::_fire_marketing_bridge_trigger
+42	8cc1a8c681c8	app/server/cron_fire_agents.py::_fire_meta_curator_trigger
+42	e85af1c1d211	app/server/goal_analyze_fields.py::normalize_sub_tasks
+42	fe42a2413aeb	app/server/model_policy.py::select_model
+42	2dddbbc58151	app/server/pi_ceo_session_fts.py::_extract_text
+42	200a97e36e28	app/server/provider_router.py::_record_tier_downgrade
+42	13891ea0894c	app/server/routes/phone.py::_progress_card_html
+42	58ca1d403c22	app/server/routes/telegram_intake.py::_ensure_telegram_webhook
+42	7614fe808394	app/server/webhook.py::parse_github_event
+42	6f49f41978ce	app/server/workspace_context.py::build_workspace_claude_md
+42	b45151e82e77	claude-hooks-mirror/phone/tier_classifier.py::classify
+42	c3df838033ea	evals/test_tmux_writer_golden.py::test_tmux_writer_matches_golden
+42	8b0200443133	scripts/capability_scout.py::write_brain_outputs
+42	2884e7acdaa7	scripts/check_agent_registry.py::main
+42	b338f80f816b	scripts/plaud_ingest.py::main
+42	33b47faa0b62	scripts/run_doc_parse.py::main
+42	c718881b1b73	scripts/smoke_test_e2e.py::_probe_sse
+42	f652a5e4772a	swarm/inbox/preamble_trainer.py::list_active_contexts
+42	ff8f2cda7577	swarm/inbox/preamble_trainer.py::write_preamble
+42	711844329f09	swarm/meta_curator.py::_draft_skill_md_stub
+42	ca40212c9fa8	swarm/meta_curator.py::reject_proposal
+42	42a419dc1bbe	swarm/nexus/autonomy_ladder.py::classify
+42	7a2700453ba4	swarm/pii_classify.py::_make_classifier_with_anthropic
+42	70c3f7dcd57c	swarm/pilot/feedback.py::handle_callback
+42	036f82e1b16f	swarm/providers/stripe_xero.py::_xero_cash_and_cogs
+42	44e1c92995ad	swarm/tmux_observer.py::main
+42	75d5b0ee2c73	tests/test_process_ideas_inbox_expansion.py::test_process_file_expands_idea_before_linear
+42	2ee884e2a4e0	tests/test_workspace_verify.py::test_short_lived_runner_transport_is_closed_before_loop_shutdown
+41	198e82bf34b7	app/server/agents/board_meeting.py::build_board_system_prompt
+41	2966ac532a36	app/server/agents/notebooklm_refresh.py::get_notebooklm_freshness_summary
+41	bdb24cd0fd80	app/server/autonomy.py::linear_todo_poller
+41	05306ec3ceef	app/server/discovery.py::scan
+41	7467209f646d	app/server/scanner.py::_main
+41	29b572d10e7d	app/server/session_evaluator.py::_run_persona_review._call_persona
+41	5656016646a3	app/server/session_linear.py::_record_session_outcome
+41	c66f9247fa2c	app/server/supabase_log.py::record_outcome_event
+41	12d0e9996f15	app/server/tao_judge.py::judge
+41	17e13b15295c	archive/run_parallel_board.py::main
+41	6537aebeb92c	scripts/hermes_production_packet.py::_load_issues
+41	e09d97f51305	scripts/launchd/health_check.py::main
+41	a6f3c5f98f4f	scripts/morning_briefing.py::_open_prs
+41	c2cfb1adb921	scripts/plaud_ingest.py::format_page
+41	bf58f4b5d4ef	scripts/unite_group_health_check.py::prior_run
+41	99ab559cb5bf	scripts/validate_tao_context_vcc.py::_extract_messages
+41	4f700c13c4d6	scripts/verify_autonomous_mode.py::main
+41	6e2364450a4f	scripts/verify_desk_voice_stack.py::main
+41	76e1bca6b3cb	scripts/wiki_knowledge_scout.py::scout
+41	414fb27076dc	swarm/audit_emit.py::row
+41	dcd3db797d44	swarm/intake/handoff.py::plan_handoff
+41	80c8e3e9975a	swarm/nexus/ingest/sentry.py::parse
+41	d40bf8fdb731	swarm/portfolio_pulse_finance.py::_gather_figures
+41	608c14b82c47	swarm/portfolio_pulse_telegram.py::_send_chunk
+41	c328dfc7cda5	tests/swarm/nexus/test_scheduler.py::TestDryRun.test_dry_run_skips_loop_runner_and_bra
+41	d15bccadf72c	tests/test_autonomy_contract.py::test_fetch_todo_issues_filter_requires_status_and_label
+41	ce2510e36f78	tests/test_autonomy_priority_filter.py::test_fetch_no_filter_when_disabled
+41	51e1b64a0c0c	tests/test_karpathy_integration.py::test_karpathy_failure_appends_to_lessons_jsonl
+41	48bf0f008779	tests/test_mesh_runner_idle_autoclaim.py::runner
+41	8c247f24ef39	tests/test_remotion_one_shot_schema.py::test_one_shot_dry_run_generates_packet_without_tts
+41	7b82241bc44f	tests/test_telegram_intake_route.py::test_telegram_intake_webhook_mode_sets_webhook_and_skips_poll
+41	ff90b2979e1c	tests/test_telegram_linear_intake.py::test_watchdog_queues_telegram_idea_for_linear_jsonl
