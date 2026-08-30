@@ -1,18 +1,30 @@
-== Guard proofs (real guards, this node) ==
-  PASS: G1 sentinel ANTHROPIC_API_KEY refused (rc=1 as required)
-  PASS: G2 un-allowlisted ANTHROPIC_BASE_URL (gateway) refused (rc=1 as required)
-  PASS: G3 green control: clean env + allowlisted base URL passes (rc=0 as required)
-  PASS: G4 sentinel OPENAI_API_KEY refused (rc=1 as required)
-  PASS: G5 base-URL override refused (rc=1 as required)
-  PASS: G6 logged-out Codex refused (real codex binary) (rc=1 as required)
+== Claude lane guard (real guard, deterministic env) ==
+  PASS: G1 sentinel ANTHROPIC_API_KEY refused
+  PASS: G2 un-allowlisted ANTHROPIC_BASE_URL refused
+  PASS: G2b caller-supplied allowlist cannot self-approve
+  PASS: G3 green control: clean env + protected allowlist passes
+  PASS: G3b world-writable allowlist refused
+== Codex lane guard (real guard, isolated HOME) ==
+  PASS: G4 sentinel OPENAI_API_KEY refused
+  PASS: G5 OPENAI_BASE_URL override refused
+  PASS: G6 openai_base_url in config refused
+  PASS: G7 custom [model_providers] table refused
+  PASS: G8 absent cli_auth_credentials_store refused
+  PASS: G9 cli_auth_credentials_store=auto refused (plaintext fallback)
+  PASS: G10 missing forced_login_method pin refused
+  PASS: G11 logged-out Codex refused (real codex binary, clean config)
 == Bridge proofs (stub pass-guards + stub codex; substitutions are recorded) ==
-  PASS: B1 timeout child rejected (rc=1 as required)
-  PASS: B2 killed child rejected (rc=1 as required)
-  PASS: B3 empty output rejected (rc=1 as required)
-  PASS: B4 malformed JSON rejected (rc=1 as required)
-  PASS: B5 hash-mismatched verdict rejected (rc=1 as required)
-  PASS: B6 quota exhaustion halts with code 3, no fallback (rc=3 as required)
-  PASS: B7 green control: valid matching verdict accepted (rc=0 as required)
-  PASS: B7b verdict record written and valid JSON
-  PASS: B8 default path uses REAL guards and refuses on a logged-out node (rc=1 as required)
-== SUMMARY pass=15 fail=0 ==
+  PASS: B1 timeout child rejected
+  PASS: B2 killed child rejected
+  PASS: B3 empty final message rejected
+  PASS: B4 malformed JSON rejected
+  PASS: B5 hash-mismatched verdict rejected
+  PASS: B6 quota exhaustion halts rc=3, no fallback
+  PASS: B7 trailing second object rejected
+  PASS: B8 non-openai provider rejected
+  PASS: B9 missing required key rejected
+  PASS: B10 valid verdict mentioning quota is accepted, not misread
+  PASS: B11 green control: valid matching verdict accepted
+  PASS: B11b verdict record written and valid JSON
+  PASS: B12 default path uses REAL guards and refuses on a logged-out node
+== SUMMARY pass=26 fail=0 ==
