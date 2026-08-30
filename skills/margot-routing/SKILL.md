@@ -16,11 +16,11 @@ Cross-project routing hygiene for Margot (RA-6814). Prevents duplicate or orphan
 ## Routing checklist (run before every Linear create)
 
 1. **Classify scope**
-   - Single repo / single deploy surface → create in that repo's Linear project (see `.harness/projects.json`).
+   - Single repo / single deploy surface → create in that repo's Linear project (see `config/harness/projects.json`).
    - Cross-cutting product idea → create in **parent** project (Margot, Pi-Dev-Ops epic, or RestoreAssist umbrella) first.
 
 2. **Pick project from SSOT**
-   - Read `.harness/projects.json` — match repo name (case-insensitive) → `linear_team_id` + `linear_project_id`.
+   - Read `config/harness/projects.json` — match repo name (case-insensitive) → `linear_team_id` + `linear_project_id`.
    - Pi-Dev-Ops harness work → team RestoreAssist, project **Pi - Dev - Ops**.
    - Margot persona / voice / Telegram → project **Margot**.
    - **Margot ElevenLabs voice ID (Margot only):** `p43fx6U8afP2xoq1Ai9f` — `MARGOT_ELEVENLABS_VOICE_ID` / `resolve_margot_voice_id()`. **Never** `ELEVENLABS_VOICE_ID` (that is another agent's voice).
@@ -61,6 +61,6 @@ Cross-project routing hygiene for Margot (RA-6814). Prevents duplicate or orphan
 ## Validation before close
 
 - [ ] Parent ticket exists (if multi-repo)
-- [ ] Project matches `.harness/projects.json` for the repo that will change
+- [ ] Project matches `config/harness/projects.json` for the repo that will change
 - [ ] Labels match intended pickup path (autonomous vs manual)
 - [ ] Description names acceptance criteria + repo path

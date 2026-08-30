@@ -37,7 +37,7 @@ Treat the project like a game tree with a defined win condition. Eight moves of 
 **1. Name the win condition first.** Before any move, state what "done / winning" looks like as *checkable* conditions — capabilities that must exist, surfaces that must respond, schema that must be present, integrations that must be wired, tests that must pass. This is the anchor. The entire reason the system keeps missing things is that it plans forward from a brief instead of backward from a defined end-state. You cannot find what's missing without first declaring what "complete" is. If a charter exists for the project (e.g. `.harness/business-charters/<project>.md`), mine it for the first draft of these conditions, but convert prose into checkable statements.
 
 **2. Read the board.** Know where the pieces actually are before moving them.
-- *Internal*: the repo, the registry (`.harness/projects.json`, `PORTFOLIO.yaml`), open Linear tickets, current deployment state.
+- *Internal*: the repo, the registry (`config/harness/projects.json`, `PORTFOLIO.yaml`), open Linear tickets, current deployment state.
 - *External*: relevant technology, market, and best-practice research via web search / deep research — what's changed, what others do, what's coming.
 Ground the plan in reality; a move that assumes a thing exists when it doesn't is a future apology.
 

@@ -60,7 +60,7 @@ The machine-readable counterpart. The swarm/orchestrator consumes this to file t
 ```json
 {
   "schema_version": "1.0",
-  "project_id": "<id from .harness/projects.json, e.g. 'unite-hub'>",
+  "project_id": "<id from config/harness/projects.json, e.g. 'unite-hub'>",
   "goal": "<the original brief / goal>",
   "generated": "<ISO date>",
   "horizon": 15,
@@ -111,7 +111,7 @@ The machine-readable counterpart. The swarm/orchestrator consumes this to file t
 - **`win_condition[]`** is the Definition of Done. Every `move.satisfies` should reference a real `wc*` id; every `wc*` should be satisfied by at least one move (the validator warns if not — that's a red-team miss).
 - **`moves[]`** must contain ≥15 entries. `depends_on` and `unlocks` form the dependency graph; they must be acyclic and reference existing move ids.
 - **`is_branch_point` / `branches[]`**: only `true` where outcomes genuinely diverge. Each branch names its `decider` and ideally a `reconverge` move.
-- **`linear`** routing comes straight from `.harness/projects.json` for the project — this is what lets `gap_detector` / the orchestrator file each unmet move as a ticket in the correct Linear project and team.
+- **`linear`** routing comes straight from `config/harness/projects.json` for the project — this is what lets `gap_detector` / the orchestrator file each unmet move as a ticket in the correct Linear project and team.
 - **`probe`** on a win condition is optional but valuable: it's the seed for the coverage check that lets the loop terminate on project completeness rather than per-task `GOAL_MET`.
 
 Write the JSON to a file (e.g. `<project>-forward-plan.json`) and validate it with `scripts/validate_plan.py` before handing it to the loop.

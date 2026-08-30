@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.23.11",
-    "generated_at": "2026-08-30T03:25:28.212954+00:00",
+    "version": "1.23.12",
+    "generated_at": "2026-08-30T21:26:46.649624+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -799,7 +799,7 @@
       "owner_role": "CTO",
       "status": "wave-4",
       "path": "skills/cto/SKILL.md",
-      "sha256": "047b35a8df864ea7ba5c625a82fb8e55033f05dc66e350326ef6977c7684857b",
+      "sha256": "adc9bd24a026a031860cf271c38d84f1b9911b20e6fbf43b4502fb2ceb4eae7a",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1104,7 +1104,7 @@
       "owner_role": "Strategist",
       "status": "wave-5",
       "path": "skills/forward-planner/SKILL.md",
-      "sha256": "c891b19b4481793abc79ae3677c4bdfb9dc1249d307fdb8cee5ba936e4b30f27",
+      "sha256": "4178e8b73310edfd56e0fc3157915d2b1e9a6da37957b0d978f47d565ff74e8a",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1351,7 +1351,7 @@
       "owner_role": "Curator",
       "status": "wave-4",
       "path": "skills/launch-project-audit/SKILL.md",
-      "sha256": "967d5090bead3e832bb0e642280ea9cff705d6b4e78b22e665ddfeb45c775326",
+      "sha256": "ba273cf6c51ea4021b1ef5a25bb2b932da41b1de7abb8215440b5400be814286",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1446,7 +1446,7 @@
       "owner_role": "Margot",
       "status": "active",
       "path": "skills/margot-routing/SKILL.md",
-      "sha256": "736eb14439880eb99e3c2d98544afe0ab36735224c3650dcc69a925f1c138e51",
+      "sha256": "847522a5051231b6e88beb4807d7737c5b36ef8455e719c3d65444a6f86e298d",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1465,7 +1465,7 @@
       "owner_role": "Margot (research) \u2192 Chief of Staff (HITL) \u2192 Builder (execution)",
       "status": "wave-5",
       "path": "skills/margot-sandcastle-bridge/SKILL.md",
-      "sha256": "3b2cd4458d463078e5e3f9cea2f272d95487b629271c219237c9a14e52f5370b",
+      "sha256": "7ef0908a79b2b975abebcd3da61a7fe21584ccccab7051740cf9224c17afcb73",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1579,7 +1579,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/marketing-launch-runbook/SKILL.md",
-      "sha256": "425d7d050c3faac387bbeb1ea16596cb3378e168af26a99aae57fd07ab56ab97",
+      "sha256": "738c97c21a949471d094ada59d269a2afa28b47b2da280d3dd86dedb7784a5cd",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1826,7 +1826,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/pi-dev-linear-contract/SKILL.md",
-      "sha256": "8ed87e05202411c5fcb6691c827f8f23994d181169c1b276a5b7788951c53e09",
+      "sha256": "fc9fddff1850c91602b51ee4f319e4b196b1613ae65324ae1959b1f2bab5672b",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2259,7 +2259,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/remotion-orchestrator/SKILL.md",
-      "sha256": "c234f054a044d15f5f0990bbadc0dc368cb1696c5d57188e49eb48c5d4a55ec2",
+      "sha256": "aef5b6f8c2b1c6735f96a72b3b06d22e95a18805b1573bc00dbd3f85c1d68776",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2316,7 +2316,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/remotion-render-pipeline/SKILL.md",
-      "sha256": "f257b727c686f14e03fe6817a59156446857594473db3c3f0f4f1c5a4a423116",
+      "sha256": "4359d9cac7a710a366e88302065ed01b05f45e3b8ebb59fef607cd05b2ee0433",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -3090,7 +3090,7 @@
       "owner_role": "CISO (binds in front of every Sandcastle launch)",
       "status": "wave-5",
       "path": "skills/vercel-env-puller/SKILL.md",
-      "sha256": "338bd8b973820c0bfa9f99588d3c5e29b59e1e52d16fa038710653286d745e21",
+      "sha256": "c1da905e66fa364e488fa15a225b7699d3256a2ed069e83b8cd04819fbfd32ee",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -3181,11 +3181,11 @@
     },
     {
       "id": "weekly-enhancement-loop",
-      "description": "\"Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in .harness/projects.json, opening review PRs so all projects compound over time. Cost-optimised open-weight ladder (Qwen/DeepSeek) via OpenRouter \u2014 cheap grunt tiers, one reserved reasoner for the planner handoff (~$5/full run).\"",
+      "description": "\"Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in config/harness/projects.json, opening review PRs so all projects compound over time. Cost-optimised open-weight ladder (Qwen/DeepSeek) via OpenRouter \u2014 cheap grunt tiers, one reserved reasoner for the planner handoff (~$5/full run).\"",
       "owner_role": "\"Senior PM\"",
       "status": "\"wave-6\"",
       "path": "skills/weekly-enhancement-loop/SKILL.md",
-      "sha256": "4331d482edbf1a5da588100ea81c752cf0faacba43a22ecf2ae1733295c1fa29",
+      "sha256": "556249a77bc4fa08ee19f8318214a5f66e48e9948dd414ecf47cd97c3af89f91",
       "dependencies": {
         "tools": [],
         "skills": []

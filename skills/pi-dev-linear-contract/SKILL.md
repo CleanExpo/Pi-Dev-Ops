@@ -174,7 +174,7 @@ The launch crew ([`ship-it`](../ship-it/SKILL.md) → [`launch-project-audit`](.
 
 ### Push (findings → Linear)
 1. Read the latest `.harness/audits/audit-*.md`, `review-*.md`, `enhance-*.md`.
-2. Map each finding to the correct project via `.harness/projects.json` (match by brand; if ambiguous, ask once and persist).
+2. Map each finding to the correct project via `config/harness/projects.json` (match by brand; if ambiguous, ask once and persist).
 3. Create one issue per finding (de-duplicate first — search existing issues, update rather than duplicate):
    - **Title** — short, concrete.
    - **Description** — what / where (file/URL) / why it matters / suggested fix, plus the `run_id` + footer block this contract already mandates.

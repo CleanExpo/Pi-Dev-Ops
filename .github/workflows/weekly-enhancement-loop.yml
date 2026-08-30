@@ -1,6 +1,6 @@
 name: Weekly Enhancement Loop
 
-# 8-Claude-Loops improve-system pass across every repo in .harness/projects.json.
+# 8-Claude-Loops improve-system pass across every repo in config/harness/projects.json.
 # Opens a review PR per repo; never merges. Model ladder runs on OpenRouter
 # (Claude Opus/Sonnet/Haiku via its Anthropic /v1/messages surface) because
 # Fable-5 left the Max plan on 2026-07-08 and the direct Anthropic org has no

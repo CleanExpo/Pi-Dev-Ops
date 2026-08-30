@@ -86,11 +86,11 @@ Found by direct check on 2026-08-18. Each is real and unfixed; treat as work, no
 
 | # | Defect | Evidence |
 |---|---|---|
-| 1 | `.harness/config.yaml` **does not exist**, yet the prior model-routing table named it as the config location for all six agent roles | `ls .harness/` |
+| 1 | ~~`.harness/config.yaml` **does not exist**~~ — **RETRACTED 2026-08-30, was never a defect.** Absence is correct by design. `.harness/` is gitignored (`.gitignore:220`), so the file is absent from every fresh clone and from CI — it is per-project runtime state. The role→model map it once carried now lives in code as `config_loader.HARNESS_SPEC`; a present file only overrides it. `ls .harness/` can never show it, so the old row was a null result mistaken for evidence. Untracking `.harness/` in `#607` is what silently dropped planner/orchestrator/adversary to sonnet for four days; `config_loader.py` exists so that absence resolves to the correct models instead | `python3 -c "from app.server import config_loader; print(config_loader.harness_config()['agents'])"` |
 | 2 | ~~`projects.json` repo→project lookup is ambiguous~~ — **RETRACTED, was never a defect.** `CleanExpo/Pi-Dev-Ops` legitimately carries two Linear projects (`pi-dev-ops`, `margot`). All 12 `id` values are unique and both consumers key on `id`, never `repo`. See the routing section | ids 12/12 unique |
 | 3 | ~~Four `.claude/skills/*/SKILL.md` missing~~ — **FIXED 2026-08-18.** Added as symlinks to the `.agents/skills/` originals, matching the existing `skybridge` convention. Six routes now resolve | `ls -la .claude/skills/` |
-| 4 | `HERMES.md` is **missing**, though it was cited as Launch Crew governance | `ls HERMES.md` |
-| 5 | `app/server/routes/webhooks.py` is **1292 lines** against a documented 300-line ceiling; `mission_control.py` 406; `health.py` 302 | `wc -l app/server/routes/*.py` |
+| 4 | ~~`HERMES.md` is **missing**, cited as Launch Crew governance~~ — **RETRACTED 2026-08-30.** The file is genuinely absent, but it is not governance and nothing depends on it: its only reference is one entry in an opportunistic inventory glob in `skills/launch-project-audit/SKILL.md`. Launch Crew governance is `skills/launch-charter/SKILL.md`, which exists | `git grep -n 'HERMES\.md'` |
+| 5 | `app/server/routes/webhooks.py` is by far the largest route module and breaches the 300-line convention, along with most of `routes/`. The old row's other two counts were wrong — `mission_control.py` has since dropped under the ceiling — and "four files" repo-wide understated it by two orders of magnitude. The ceiling is prose in this file only; no linter enforces it, so treat it as intent, not a gate. Count it, never read a count from here | `wc -l app/server/routes/*.py \| sort -rn` |
 | 6 | ~~`Monorepo CI` on `main` red since 2026-08-14~~ — **RETRACTED 2026-08-30.** The claim was two weeks stale when checked: `main` had been green for many consecutive runs, and the most recent failure long predated the date the row named. The workflow's display name is also `CI`, not `Monorepo CI`. CI health rots by the hour — run the command, never trust a pasted verdict here | `gh run list --workflow ci.yml --branch main` |
 
 Do not paste per-file line counts into this document again. They were wrong in every row of the
@@ -110,8 +110,11 @@ surface; anything over 2 s gets a live progress surface, not a toast; destructiv
 confirm plus success/undo or an actionable error; spawn actions get an inline log stream or a link
 to watch it. `.github/PULL_REQUEST_TEMPLATE.md` enforces a "Manual verification path".
 
-**POLICY — Model routing (RA-1099).** Opus is reserved for `planner` and `orchestrator`. Every
-other role uses Sonnet or Haiku. Enforcement lives in code, not in a config file:
+**POLICY — Model routing (RA-1099).** Opus is reserved for the roles in `OPUS_ALLOWED_ROLES` — as of
+2026-08-30 `planner`, `orchestrator`, `adversary` and `portfolio`, not the two this file claimed for
+months. `adversary` is deliberate (RA-1743): the pre-push review gate needs genuine model diversity
+against the Sonnet generator/evaluator. Every other role uses Sonnet or Haiku. Read the set, do not
+trust this sentence — enforcement lives in code, not in a config file:
 
 - `app/server/model_policy.py` — `select_model()` downshifts opus→sonnet for non-allowed roles and
   logs to `.harness/model-policy-violations.jsonl`
@@ -174,8 +177,9 @@ next agent a first command.
   `_JsonFormatter`.
 - **TypeScript:** strict, no `any`, named exports, interfaces over types.
 - **Commits:** Conventional Commits. **Branches:** `feature/{ticket}-{desc}` or `fix/{ticket}-{desc}`.
-- **Size:** functions under 40 lines, files under 300. Four files already breach this (defect 5) —
-  extract when you touch them; do not add to them.
+- **Size:** functions under 40 lines, files under 300 — an unenforced convention, not a gate. Well over
+  a hundred tracked files already breach it (defect 5), so it binds new files and files you touch:
+  extract when you edit one, and do not add to it.
 - **Security:** bcrypt passwords, parameterised queries, CSP headers, no secrets in code. Run
   `detect-secrets scan` pre-commit.
 - **Content:** no first-person business voice (we/our/I/us/my), no AI filler (delve, tapestry,

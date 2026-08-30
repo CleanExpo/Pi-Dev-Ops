@@ -46,7 +46,7 @@ _BOARD_MEETING_SILENT_COOLDOWN_H = 12.0
 # 6 days / 11 h respectively while every prod deploy errored. /health
 # stayed green (it polls the DB, not the deploy state). This watchdog
 # polls the Vercel API for the most-recent prod deployment per project
-# in `.harness/projects.json` and alerts when the latest is `ERROR` and
+# in `config/harness/projects.json` and alerts when the latest is `ERROR` and
 # >2 h old. Cooldown: 6 h to avoid storming during a multi-day outage.
 _vercel_deploy_failure_last_raised: float = 0.0
 _VERCEL_DEPLOY_FAILURE_THRESHOLD_H = 2.0
@@ -843,7 +843,7 @@ async def _watchdog_linear_auth(log) -> None:
 
 def _vercel_projects_to_monitor():
     """Return [{name, project_id, team_id}] for portfolio repos with
-    Vercel deployments worth monitoring. Read from .harness/projects.json
+    Vercel deployments worth monitoring. Read from config/harness/projects.json
     so the watchdog automatically picks up new repos as the portfolio grows.
 
     Pulled into a function so tests can monkeypatch this single seam.
@@ -897,7 +897,7 @@ async def _watchdog_vercel_deploy_failures(log) -> None:
 
     projects = _vercel_projects_to_monitor()
     if not projects:
-        log.debug("Vercel watchdog: no monitored projects in .harness/projects.json")
+        log.debug("Vercel watchdog: no monitored projects in config/harness/projects.json")
         return
 
     import urllib.request as _ureq

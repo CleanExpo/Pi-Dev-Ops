@@ -27,7 +27,7 @@ It complements, never replaces, the existing auditors — it is the ONE thing no
 Work cheaply first; escalate only for judgment.
 
 1. **Flatten the repo (cheap/auxiliary model).** Use `rendergit` (github.com/karpathy/rendergit) to turn the repo into one page, or fall back to `git ls-files` + reading key files. Feed to the cheap model for the bulk pass. Do not load the frontier model yet.
-2. **Inventory features** from the flattened repo + every spec / `.md` / `CLAUDE.md` / `AGENTS.md` / `HERMES.md` / `.harness/projects.json`.
+2. **Inventory features** from the flattened repo + every spec / `.md` / `CLAUDE.md` / `AGENTS.md` / `HERMES.md` / `config/harness/projects.json`.
 3. **Classify each feature's BUILD STATE** on concrete signals, not vibes:
    - `not-started` — named in docs but no file/route/component exists.
    - `stubbed` — file exists but body is a placeholder: `TODO`, `FIXME`, `raise NotImplementedError`, `return None`, empty handler, "coming soon", mock/hardcoded data where real logic belongs.
