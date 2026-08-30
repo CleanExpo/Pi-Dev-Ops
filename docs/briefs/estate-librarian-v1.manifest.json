@@ -10,6 +10,7 @@
   "remote": "https://github.com/CleanExpo/Pi-Dev-Ops",
   "branch": "claude/estate-librarian-v1-build-sxhfzb",
   "base_head": "1b47a40f6a59a19f19bb35c2649b03f36f62e4a2",
+  "note": "The brief bytes and their SHA-256 are unchanged by the lane hardening round; only the lane scripts and their proofs changed. PR #678 (merge 65936b3) landed the first revision of those scripts, and this manifest supersedes its lane_artifacts block.",
   "state_labels": {
     "R4_STATE": "DRAFT_R4_UNREVIEWED",
     "CROSS_VENDOR_VERDICT": "UNAVAILABLE",
@@ -24,6 +25,7 @@
   },
   "dependency_gate": {
     "state": "UNVERIFIED",
+    "tracking_issue": "RA-7381",
     "upstream_repo_candidate": "https://github.com/nvk/llm-wiki",
     "candidate_evidence": "strongest match: branches add-librarian, add-cowork, codex-first-class-install, codex/hermes-lite ('librarian' and 'Hermes' are this estate's own vocabulary); repo ships claude-plugin/commands/librarian.md and claude-plugin/skills/wiki-manager/references/librarian.md on branch add-librarian (tip 23c0a29 'Wire all recent features across all distributions'); description matches the brief's pipeline",
     "candidates_rejected": "ddsyasas/llm-wiki, atomicstrata/llm-wiki-compiler, nashsu/llm_wiki - each bare-cloned in full and searched; d7751c0a absent from every one",
@@ -38,14 +40,16 @@
     ]
   },
   "lane_artifacts": {
-    "scripts/estate/guard_claude_lane.sh": "6e87b53c32515501c5c30d518dd7077f59d2b8b9c209305c2261e3de1e411bd3",
-    "scripts/estate/guard_codex_lane.sh": "92b27d21c90501e4f6ca5cbb3e1351dd237d2b169a79b2e65b71ca21eda7ec6b",
-    "scripts/estate/review_bridge.sh": "f32c662fc165751660aa90d893fd36bd50d7b93bd218ced4022feae61f789443",
-    "tests/estate/test_bridge_failclosed.sh": "d1a4c57fe466307d5682b9d7ee054640f91b59ca7d70d92d0e58018206674371",
-    "docs/briefs/estate-librarian-v1.lane-proof.txt": "353db0d7f29fbc827635c8d46225e411a70750ffe4a08d737aba40c415473c3f",
+    "scripts/estate/guard_claude_lane.sh": "a2d87a1184dcf4295459adf9c61161a1c5987ae270f10636dae27683f6dc9b9e",
+    "scripts/estate/guard_codex_lane.sh": "bf5d6c65f0d0b007b5023b1705529cd7c2f7e06c10f0b28677bb4aa728ef8f4a",
+    "scripts/estate/review_bridge.sh": "da05f8bd846f0e81297e4ffc8027fe03226ed2c74a9adfbf2b44b4d44f043cbb",
+    "tests/estate/test_bridge_failclosed.sh": "ba2b671db283c5bd7230d6835b9a538918e622b92b6cbb1f4466adc254a78dbc",
+    "docs/briefs/estate-librarian-v1.lane-proof.txt": "a36f5a49a805e92c950528098a61b78096fcf7a4aa6fc7d677bebcc25c843808",
     "docs/briefs/estate-librarian-v1.w0a-receipt.json": "eb1cb8c45844ccc1e52ef7f17085d7b945872caeec95822b4147fc4fca8ec976",
-    "proof_result": "15/15 PASS at 2026-08-30T02:36Z on ccr-e564c70f, re-run from the committed repo layout: G1 sentinel ANTHROPIC_API_KEY refused; G2 un-allowlisted base URL refused; G3 green control passes; G4 sentinel OPENAI_API_KEY refused; G5 base-URL override refused; G6 logged-out Codex refused (real codex binary); B1 timeout, B2 killed child, B3 empty output, B4 malformed JSON, B5 hash mismatch all rejected; B6 quota exhaustion halts rc=3 with no fallback; B7 green control accepted; B7b verdict record valid JSON; B8 default path uses real guards and refuses on a logged-out node",
-    "codex_config_pinned": "~/.codex/config.toml on ccr-e564c70f sets forced_login_method=\"chatgpt\" and credential_store=\"keyring\" (outside the repository; no credentials present or created)",
+    "proof_result": "26/26 PASS at 2026-08-30T02:55Z on ccr-e564c70f (was 15/15 before the hardening round). Claude lane: sentinel API key refused; un-allowlisted base URL refused; caller-supplied allowlist cannot self-approve; green control with a protected allowlist passes; world-writable allowlist refused. Codex lane: sentinel OPENAI_API_KEY refused; OPENAI_BASE_URL refused; openai_base_url in config refused; custom [model_providers] refused; absent and 'auto' cli_auth_credentials_store refused; missing forced_login_method pin refused; logged-out Codex refused against the real binary. Bridge: timeout, killed child, empty final message, malformed JSON, hash mismatch, trailing second object, non-openai provider and missing required key all rejected; quota exhaustion halts rc=3 with no fallback; a valid verdict that merely mentions quota is accepted; green control accepted with a valid verdict record; the default path uses the real guards and refuses on a logged-out node.",
+    "config_key_verification": "Config key names were checked against the shipped codex-cli 0.151.0 binary rather than assumed: cli_auth_credentials_store (18 string hits), openai_base_url (13), forced_login_method (18), chatgpt_base_url (5), model_providers (24) are present; credential_store and preferred_auth_method have ZERO hits. The first revision of the codex guard asserted credential_store=\"keyring\", a key that does not exist in that binary, so its storage assertion was vacuous.",
+    "codex_config_pinned": "~/.codex/config.toml on ccr-e564c70f sets forced_login_method=\"chatgpt\" and cli_auth_credentials_store=\"keyring\" (outside the repository; no credentials present or created)",
+    "claude_allowlist": "The Claude guard reads its single approved base URL from /etc/estate/claude-lane.allow (fixed path, host-protected, HTTPS-only, rejected when symlinked or group/world-writable). It is deliberately not env-configurable: the bridge passes the caller's environment through, so an env-supplied allowlist could be set to whatever endpoint the caller wanted and would self-approve.",
     "limitation": "'claude auth status' exposes no plan tier, so the Claude guard proves subscription OAuth on the firstParty provider but not the Max tier; the operator confirms /status on the durable review host"
   },
   "pins": {
@@ -59,7 +63,7 @@
     "node_version_w0b": "TBD",
     "review_model": "TBD (founder-selected, subscription-supported)",
     "w0b_machine": "TBD (founder MacBook or Mac Mini)",
-    "credential_store": "TBD on W0b (macOS Keychain expected)",
+    "credential_store": "TBD on W0b (macOS Keychain via cli_auth_credentials_store=\"keyring\")",
     "auto_upgrades": "disabled for the review lane"
   },
   "w0_status": {
