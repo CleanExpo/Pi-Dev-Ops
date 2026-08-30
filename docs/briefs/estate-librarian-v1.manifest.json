@@ -1,0 +1,76 @@
+{
+  "artifact": "docs/briefs/estate-librarian-v1.md",
+  "revision": "r4",
+  "sha256": "3a3982874ad36f1a07f22498bd96d7331d688e4fb4c0090b26e58bba14ef9d75",
+  "byte_count": 18964,
+  "encoding": {"charset": "UTF-8", "eol": "LF", "bom": false, "trailing_newlines": 1},
+  "author_provider": "anthropic",
+  "authored_utc": "2026-08-30T01:50:01Z",
+  "repository": "CleanExpo/Pi-Dev-Ops",
+  "remote": "https://github.com/CleanExpo/Pi-Dev-Ops",
+  "branch": "claude/estate-librarian-v1-build-sxhfzb",
+  "base_head": "1b47a40f6a59a19f19bb35c2649b03f36f62e4a2",
+  "state_labels": {
+    "R4_STATE": "DRAFT_R4_UNREVIEWED",
+    "CROSS_VENDOR_VERDICT": "UNAVAILABLE",
+    "EXECUTION_GATE": "CLOSED",
+    "W0A_STATE": "INSTALL_COMPATIBILITY_REPORTED_UNVERIFIED"
+  },
+  "review": {
+    "required_provider_family": "openai",
+    "transport": "scripts/estate/review_bridge.sh on the W0b host (deterministic wrapper, payload-bound)",
+    "status": "REVIEW_NOT_POSSIBLE yet: no reviewer has received the exact artifact; delivery path is the W0b bridge on a founder-controlled durable Mac",
+    "verdicts": []
+  },
+  "dependency_gate": {
+    "state": "UNVERIFIED",
+    "upstream_repo_candidate": "https://github.com/nvk/llm-wiki",
+    "candidate_evidence": "strongest match: branches add-librarian, add-cowork, codex-first-class-install, codex/hermes-lite ('librarian' and 'Hermes' are this estate's own vocabulary); repo ships claude-plugin/commands/librarian.md and claude-plugin/skills/wiki-manager/references/librarian.md on branch add-librarian (tip 23c0a29 'Wire all recent features across all distributions'); description matches the brief's pipeline",
+    "candidates_rejected": "ddsyasas/llm-wiki, atomicstrata/llm-wiki-compiler, nashsu/llm_wiki - each bare-cloned in full and searched; d7751c0a absent from every one",
+    "upstream_commit_full": "UNRESOLVED_AFTER_FULL_HISTORY_SEARCH - nvk/llm-wiki bare-cloned 2026-08-30T02:19Z and refetched with '+refs/*:refs/foreign/*' (all branches, PR heads, tags); 'git rev-parse d7751c0a^{commit}' returns unknown revision. The prefix therefore does not exist in any public candidate. Remaining explanations, all requiring founder input: (a) the vendored upstream is a private or renamed repo; (b) d7751c0a is a commit in a local-only or unpushed clone (matches the estate pattern in RA-7315: work lives unpushed on the Mac Mini); (c) the prefix was transcribed inexactly",
+    "u1_u2_tests": "NOT_FOUND after documented search: absent from CleanExpo/Pi-Dev-Ops (grep + object scan) and from nvk/llm-wiki HEAD (grep -E '\\bU[12]\\b' over AGENTS.md/README.md returns nothing; tests/ holds test-codex-runtime.sh, test-local-cli-*.sh, evals/, budgets/, ci/ - no U1/U2 naming). Genuine founder input now",
+    "vendoring_manifest": "TBD - contingent on upstream confirmation",
+    "integration_commit": "TBD - contingent on upstream confirmation",
+    "founder_input_required": [
+      "confirm the canonical llm-wiki upstream (nvk/llm-wiki, or name the private/renamed repo)",
+      "supply the full 40-hex commit for d7751c0a, or the host holding the clone that contains it",
+      "name the U1/U2 acceptance tests"
+    ]
+  },
+  "lane_artifacts": {
+    "scripts/estate/guard_claude_lane.sh": "6e87b53c32515501c5c30d518dd7077f59d2b8b9c209305c2261e3de1e411bd3",
+    "scripts/estate/guard_codex_lane.sh": "92b27d21c90501e4f6ca5cbb3e1351dd237d2b169a79b2e65b71ca21eda7ec6b",
+    "scripts/estate/review_bridge.sh": "f32c662fc165751660aa90d893fd36bd50d7b93bd218ced4022feae61f789443",
+    "tests/estate/test_bridge_failclosed.sh": "d1a4c57fe466307d5682b9d7ee054640f91b59ca7d70d92d0e58018206674371",
+    "docs/briefs/estate-librarian-v1.lane-proof.txt": "353db0d7f29fbc827635c8d46225e411a70750ffe4a08d737aba40c415473c3f",
+    "docs/briefs/estate-librarian-v1.w0a-receipt.json": "eb1cb8c45844ccc1e52ef7f17085d7b945872caeec95822b4147fc4fca8ec976",
+    "proof_result": "15/15 PASS at 2026-08-30T02:36Z on ccr-e564c70f, re-run from the committed repo layout: G1 sentinel ANTHROPIC_API_KEY refused; G2 un-allowlisted base URL refused; G3 green control passes; G4 sentinel OPENAI_API_KEY refused; G5 base-URL override refused; G6 logged-out Codex refused (real codex binary); B1 timeout, B2 killed child, B3 empty output, B4 malformed JSON, B5 hash mismatch all rejected; B6 quota exhaustion halts rc=3 with no fallback; B7 green control accepted; B7b verdict record valid JSON; B8 default path uses real guards and refuses on a logged-out node",
+    "codex_config_pinned": "~/.codex/config.toml on ccr-e564c70f sets forced_login_method=\"chatgpt\" and credential_store=\"keyring\" (outside the repository; no credentials present or created)",
+    "limitation": "'claude auth status' exposes no plan tier, so the Claude guard proves subscription OAuth on the firstParty provider but not the Max tier; the operator confirms /status on the durable review host"
+  },
+  "pins": {
+    "plugin_repo_commit": "db52e28f4d9ded852ab3942cea316258ae4ef346",
+    "plugin_marketplace": "openai/codex-plugin-cc (owner: OpenAI, marketplace v1.0.6)",
+    "plugin_version": "codex 1.0.6",
+    "plugin_content_digest": "add7b2f698112d27ae979be371a412df6adb91e02ec974d39a97882872198e1b (sha256 over sorted per-file sha256s of the plugin cache dir, 43 files, EXCLUDING the runtime marker dir 1.0.6/.in_use/ that the plugin loader writes after install; reproduced identically at 2026-08-30T02:14Z)",
+    "plugin_tree_digest_with_runtime_marker": "9e28223d30c07dc94caecb6eddee9fddcfe3e4ac3044cb6689009474c8228a3d (44 files incl. 1.0.6/.in_use/496, 29 bytes, mtime 02:11Z)",
+    "codex_cli_version": "codex-cli 0.151.0",
+    "node_version_w0a": "v22.22.2",
+    "node_version_w0b": "TBD",
+    "review_model": "TBD (founder-selected, subscription-supported)",
+    "w0b_machine": "TBD (founder MacBook or Mac Mini)",
+    "credential_store": "TBD on W0b (macOS Keychain expected)",
+    "auto_upgrades": "disabled for the review lane"
+  },
+  "w0_status": {
+    "w0a": {
+      "machine": "ccr-e564c70f (ephemeral cloud container)",
+      "status": "INSTALL_COMPATIBILITY_REPORTED_UNVERIFIED - install and probes executed and reported by this agent; not yet independently re-executed; full receipt in docs/briefs/estate-librarian-v1.w0a-receipt.json",
+      "read_only_prechecks": "node v22.22.2; claude CLI 2.1.251 loggedIn oauth_token/firstParty; github.com reachable"
+    },
+    "w0b": {
+      "machine": "founder MacBook or Mac Mini (founder-controlled, durable)",
+      "status": "PENDING_FOUNDER - plugin + Codex CLI install and one-time local ChatGPT login; credentials never leave that machine, never on ephemeral nodes"
+    }
+  }
+}
