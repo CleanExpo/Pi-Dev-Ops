@@ -14,8 +14,9 @@
 #
 # The fingerprint is a structural hash of the function BODY, name excluded, so a
 # rename or move keeps it and an edit loses it. Rename forgiveness matches on it
-# rather than on length: 615 functions share only 113 distinct lengths here, so
-# length alone would let an unrelated new function inherit a deleted one's slot.
+# rather than on length: these functions share barely a hundred distinct lengths
+# between them, so length alone would let an unrelated new function inherit a
+# deleted one's slot.
 435	ab4db82f1204	swarm/orchestrator.py::run
 311	6f980e3e3451	swarm/margot_bot.py::handle_turn
 280	e59149d1872e	app/server/session_sdk.py::_run_claude_via_sdk
@@ -94,7 +95,6 @@
 101	1f4622c228dc	app/server/autopr.py::run_autopr
 101	d0365d7a47b6	app/server/cron_watchdogs.py::_watchdog_linear_auth
 101	8e4b0ea9b245	swarm/hermes_production_unit.py::build_packet
-100	059da52a6357	.github/scripts/file_length_lint.py::main
 100	e9ec4e374a82	app/server/agents/feedback_loop.py::_classify_with_claude
 100	6cfab4c36d2a	app/server/cron_fire_agents.py::_fire_board_meeting_trigger
 100	d96098eeca19	scripts/marathon_pi_seo_dryrun.py::main

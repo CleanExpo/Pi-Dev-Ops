@@ -11,187 +11,192 @@
 # --update and commit the smaller number; when a file drops under 300 the
 # update removes it and it can never come back.
 #
-# format: <lines><TAB><path>
-2614	app/server/agents/board_meeting.py
-1928	app/server/session_phases.py
-1744	swarm/margot_bot.py
-1292	app/server/routes/webhooks.py
-1219	scripts/unite_group_health_check.py
-1216	app/server/autonomy.py
-1139	app/server/cron_watchdogs.py
-1098	scripts/weekly_enhancement_loop.py
-903	tests/test_unite_group_health_check.py
-821	swarm/meta_curator.py
-819	app/server/scanner.py
-789	swarm/margot_tools.py
-779	app/server/supabase_log.py
-752	app/server/agents/feedback_loop.py
-746	app/server/pipeline.py
-746	dashboard/components/control/HealthGrid.tsx
-736	app/server/discovery.py
-735	app/server/provider_router.py
-735	tests/test_goal_ticket.py
-721	app/server/agents/pi_seo_monitor.py
-720	remotion-studio/scripts/rerender-brand-videos.ts
-715	scripts/capability_scout.py
-706	dashboard/__tests__/command-centre-readonly.test.ts
-694	app/server/agents/scout.py
-690	swarm/analyst.py
-682	tests/test_margot.py
-669	tests/test_plaud_actions.py
-668	scripts/secrets_check.py
-655	scripts/plaud_ingest.py
-650	swarm/board/__init__.py
-647	app/server/triage.py
-641	scripts/zte_v2_score.py
-631	swarm/intake/margot_router.py
-623	swarm/board.py
-621	tests/test_margot_research_voice.py
-614	scripts/marathon_watchdog.py
-605	app/server/brief.py
-604	tests/test_discovery.py
-598	scripts/skill_sync.py
-587	app/server/session_evaluator.py
-580	swarm/intake/tests/test_margot_router.py
-575	swarm/orchestrator.py
-574	swarm/closed_loop.py
-572	app/server/config.py
-571	swarm/inbox/botfather_minter.py
-569	dashboard/app/api/analyze/route.ts
-561	app/server/lessons.py
-560	tests/test_plaud_ingest.py
-557	tests/swarm/nexus/test_api.py
-555	swarm/nexus/onboarding.py
-553	tests/test_provider_router.py
-546	app/server/routes/nexus.py
-539	tests/test_mesh_runner_idle_autoclaim.py
-537	app/server/cron_fire_agents.py
-535	scripts/analyse_lessons.py
-530	swarm/persistent_goals.py
-529	tests/test_margot_propose_idea.py
-528	tests/test_persistent_goals.py
-527	scripts/idea_expansion.py
-525	dashboard/app/(main)/overview/page.tsx
-523	scripts/smoke_test.py
-523	tests/swarm/test_tmux_observer.py
-518	dashboard/app/api/telegram/route.ts
-513	tests/test_docs_stale_watchdog_ra7027.py
-512	app/server/routes/phone.py
-512	swarm/inbox/preamble_trainer.py
-508	scripts/plaud_actions.py
-507	swarm/model_router.py
-506	tests/test_board.py
-504	tests/swarm/nexus/test_onboarding.py
-502	aip/src/mcp/server.ts
-485	dashboard/components/control/KillSwitchPanel.tsx
-479	dashboard/app/(main)/builds/page.tsx
-476	tests/test_gap_audit_scout_dedup.py
-472	swarm/bots/builder.py
-471	dashboard/components/control/LiveActivityFeed.tsx
-467	app/server/session_sdk.py
-465	app/server/model_fabric.py
-464	app/server/routes/mesh.py
-464	swarm/tmux_validator.py
-463	swarm/debate_runner.py
-462	swarm/inbox/provisioner.py
-453	swarm/cto.py
-453	swarm/inbox/__tests__/test_intake_dispatch.py
-449	swarm/cfo.py
-444	app/server/cron_triggers.py
-441	tests/swarm/nexus/test_channels.py
-438	fence/pretooluse_fence.py
-436	tests/swarm/nexus/test_approvals.py
-435	app/server/pi_ceo_session_fts.py
-435	swarm/intake/handoff.py
-434	swarm/wiki_ingest.py
-430	dashboard/lib/phases.ts
-430	swarm/fix_orchestrator.py
-429	swarm/portfolio_pulse_github.py
-427	dashboard/components/command-centre/wiki-graph/WikiGraphCanvas.tsx
-425	tests/test_sessions.py
-424	tests/test_pipeline_routes.py
-419	swarm/inbox/intake_dispatch.py
-419	swarm/intake/spm.py
-418	swarm/cmo.py
-415	swarm/draft_review.py
-413	swarm/project_health_monitor.py
-412	swarm/pm_scoper.py
-411	tests/test_lessons_seed.py
-407	swarm/cs.py
-405	swarm/intake/tests/test_handoff.py
-403	app/server/spec_pipeline/__init__.py
-403	tests/test_mesh_claim_reap.py
-402	scripts/smoke_test_e2e.py
-397	tests/test_provider_nex_n2.py
-392	tests/test_ccw_supabase_provider.py
-388	swarm/nexus/channels.py
-385	swarm/agentskills_manifest.py
-383	swarm/inbox/intake_router.py
-376	swarm/intake/tests/test_spm.py
-375	swarm/tmux_observer.py
-371	tests/test_routes_webhooks.py
-368	app/server/autopr.py
-368	scripts/margot_generate.py
-364	app/server/youtube_connector.py
-361	swarm/nexus/autonomy_ladder.py
-361	tests/test_ra7216_acceptance_events.py
-360	swarm/portfolio_pulse.py
-359	app/server/agents/plan_discovery.py
-358	app/server/integration_health.py
-356	app/server/youtube_intent.py
-355	app/server/session_linear.py
-355	app/server/tao_context_prune.py
-354	tests/swarm/test_model_router.py
-353	swarm/portfolio_pulse_linear.py
-352	swarm/nexus/store_factory.py
-351	swarm/production_coordinator.py
-348	swarm/inbox/__tests__/test_botfather_minter.py
-347	aip/src/seed/portfolio-expansion-2026-05-11.ts
-345	dashboard/app/(main)/routines/page.tsx
-344	app/server/tao_codebase_wiki.py
-344	swarm/research_provider.py
-343	aip/src/seed/audit-2026-05-11.ts
-342	scripts/smoke_test_pipeline.py
-342	swarm/providers/ccw_supabase.py
-342	tests/test_weekly_enhancement_loop.py
-341	app/server/orchestrator.py
-341	app/server/routes/margot.py
-338	swarm/providers/zendesk.py
-336	swarm/wiki_lint.py
-336	tests/test_ra6502_linear_outbound.py
-335	dashboard/components/brain/BrainStatusPanel.tsx
-334	app/server/provider_nex_n2.py
-333	swarm/portfolio_pulse_synthesis.py
-333	tests/swarm/nexus/test_scheduler.py
-331	tests/test_ccw_watch_runner.py
-330	tests/test_pi_ceo_session_fts.py
-329	scripts/hermes_model_chain_health.py
-328	app/server/goal_ticket.py
-328	tests/test_provider_openrouter.py
-324	dashboard/components/control/MargotAssetsPanel.tsx
-322	scripts/desk_voice_loop.py
-322	tests/test_ra7216_attribution_keys.py
-322	tests/test_ra7216_outcome_events.py
-321	swarm/flow_engine.py
-317	tests/test_sse_stream_ra6504.py
-316	swarm/bots/chief_of_staff.py
-315	app/server/agents/notebooklm_refresh.py
-315	scripts/nexus_backfill.py
-315	swarm/intent_router.py
-312	app/server/config_loader.py
-312	app/server/linear_pulse.py
-311	swarm/linear_tools.py
-310	app/server/agents/anthropic_intel_refresh.py
-310	app/server/goal_analyze_fields.py
-310	dashboard/components/SettingsForm.tsx
-310	scripts/marathon_telegram_inbox.py
-310	tests/test_workspace_verify.py
-309	swarm/kanban_adapter.py
-308	dashboard/components/control/SpecPipelinePanel.tsx
-304	app/server/pi_ceo_docparser.py
-304	app/server/routes/health_full.py
-303	claude-hooks-mirror/Stop/02_autonomous_continue.py
-303	tests/test_tao_codebase_wiki.py
-302	app/server/routes/health.py
-302	app/server/routes/telegram_proxy.py
-302	app/server/tao_context_vcc.py
+# format: <lines><TAB><content-fingerprint><TAB><path>
+#
+# The fingerprint is a hash of the file's bytes, so a pure `git mv` keeps it and
+# an edit loses it. Move forgiveness matches on it, never on line count alone:
+# baselined files repeat lengths often enough that equal length would let an
+# unrelated new file inherit a deleted one's slot.
+2614	c718d9023152	app/server/agents/board_meeting.py
+1928	d294b7b0d24b	app/server/session_phases.py
+1744	92b238df3bca	swarm/margot_bot.py
+1292	ffe39904cc89	app/server/routes/webhooks.py
+1219	b420cc9c57d4	scripts/unite_group_health_check.py
+1216	3b8c502a7593	app/server/autonomy.py
+1139	0a1b15c4f3d5	app/server/cron_watchdogs.py
+1098	87fc6cc60ab3	scripts/weekly_enhancement_loop.py
+903	e1b0315ce9b7	tests/test_unite_group_health_check.py
+821	fe92d6b64412	swarm/meta_curator.py
+819	18aa6216f092	app/server/scanner.py
+789	cfa6bd70c4f1	swarm/margot_tools.py
+779	5a0d72cd84bc	app/server/supabase_log.py
+752	a260764ef6e7	app/server/agents/feedback_loop.py
+746	e125b5bd4df1	app/server/pipeline.py
+746	6ebf6746aedf	dashboard/components/control/HealthGrid.tsx
+736	02fc8d0591a2	app/server/discovery.py
+735	bf94fffdf80d	app/server/provider_router.py
+735	c46d2c7837dd	tests/test_goal_ticket.py
+721	76196a2d5d79	app/server/agents/pi_seo_monitor.py
+720	1c3afff94df9	remotion-studio/scripts/rerender-brand-videos.ts
+715	49b5075c9597	scripts/capability_scout.py
+706	19ae8f35357c	dashboard/__tests__/command-centre-readonly.test.ts
+694	8801f3d853bf	app/server/agents/scout.py
+690	bf0fec4b477e	swarm/analyst.py
+682	d1e895166902	tests/test_margot.py
+669	ff89b895e055	tests/test_plaud_actions.py
+668	71a8d4f9ecb4	scripts/secrets_check.py
+655	2861fc10c735	scripts/plaud_ingest.py
+650	2ae38bd09fe9	swarm/board/__init__.py
+647	5a1371ca3ac7	app/server/triage.py
+641	f49421ab30c5	scripts/zte_v2_score.py
+631	ff852dae0478	swarm/intake/margot_router.py
+623	31645fa63292	swarm/board.py
+621	0cf1038b41e7	tests/test_margot_research_voice.py
+614	f3f803805d1f	scripts/marathon_watchdog.py
+605	c5609c445350	app/server/brief.py
+604	cd9d55b9219b	tests/test_discovery.py
+598	34a9ba1aa147	scripts/skill_sync.py
+587	58b6534c0ff1	app/server/session_evaluator.py
+580	164c69f23d1c	swarm/intake/tests/test_margot_router.py
+575	bfb72fd28c33	swarm/orchestrator.py
+574	278199476411	swarm/closed_loop.py
+572	f3c283c97fc5	app/server/config.py
+571	1c21434ec793	swarm/inbox/botfather_minter.py
+569	744da4a2703f	dashboard/app/api/analyze/route.ts
+561	2b4ef8301b13	app/server/lessons.py
+560	a9b598749249	tests/test_plaud_ingest.py
+557	3db9bad21f22	tests/swarm/nexus/test_api.py
+555	ff6d2b732fb1	swarm/nexus/onboarding.py
+553	5385ce6beeab	tests/test_provider_router.py
+546	3165f923b038	app/server/routes/nexus.py
+539	2047ad491cf9	tests/test_mesh_runner_idle_autoclaim.py
+537	03ac89c21987	app/server/cron_fire_agents.py
+535	4818e6ddc778	scripts/analyse_lessons.py
+530	478c38a8e500	swarm/persistent_goals.py
+529	6ac53a6a18cf	tests/test_margot_propose_idea.py
+528	3be9e0814960	tests/test_persistent_goals.py
+527	2f12de155db0	scripts/idea_expansion.py
+525	6d34158cb982	dashboard/app/(main)/overview/page.tsx
+523	27da9bf1fa11	scripts/smoke_test.py
+523	0e56be8304a3	tests/swarm/test_tmux_observer.py
+518	e3996b3c7bba	dashboard/app/api/telegram/route.ts
+513	570157d4da73	tests/test_docs_stale_watchdog_ra7027.py
+512	3f0f2a35198c	app/server/routes/phone.py
+512	314bbd933534	swarm/inbox/preamble_trainer.py
+508	7dfb2ed7768b	scripts/plaud_actions.py
+507	d06881c644d6	swarm/model_router.py
+506	ce4b4287fba8	tests/test_board.py
+504	3d9681a1e148	tests/swarm/nexus/test_onboarding.py
+502	d3b2fcc37978	aip/src/mcp/server.ts
+485	cd8b890b3644	dashboard/components/control/KillSwitchPanel.tsx
+479	9bee86acd4ef	dashboard/app/(main)/builds/page.tsx
+476	e536287edb18	tests/test_gap_audit_scout_dedup.py
+472	97801133f421	swarm/bots/builder.py
+471	8eaa62707b76	dashboard/components/control/LiveActivityFeed.tsx
+467	0a286e60322a	app/server/session_sdk.py
+465	aac2ece56e4b	app/server/model_fabric.py
+464	c02b1694ea7f	app/server/routes/mesh.py
+464	c1cc0cf5a3fc	swarm/tmux_validator.py
+463	ab302c9ddba8	swarm/debate_runner.py
+462	feb2e5383ebc	swarm/inbox/provisioner.py
+453	54c70936958c	swarm/cto.py
+453	bd0e969ed193	swarm/inbox/__tests__/test_intake_dispatch.py
+449	898639bff71a	swarm/cfo.py
+444	8128dd3816dc	app/server/cron_triggers.py
+441	99ffa5d79100	tests/swarm/nexus/test_channels.py
+438	04af471f5300	fence/pretooluse_fence.py
+436	f5133b32e431	tests/swarm/nexus/test_approvals.py
+435	52168138611d	app/server/pi_ceo_session_fts.py
+435	566e7b7e02a7	swarm/intake/handoff.py
+434	85a95abd818f	swarm/wiki_ingest.py
+430	678cdbdaf6e8	dashboard/lib/phases.ts
+430	adf5308ffb4c	swarm/fix_orchestrator.py
+429	8eaa1bfe3993	swarm/portfolio_pulse_github.py
+427	77e9b799794e	dashboard/components/command-centre/wiki-graph/WikiGraphCanvas.tsx
+425	d0c16d44af11	tests/test_sessions.py
+424	7f066bdac22e	tests/test_pipeline_routes.py
+419	ef51583a2154	swarm/inbox/intake_dispatch.py
+419	a37c754b7ca5	swarm/intake/spm.py
+418	0c298d81400e	swarm/cmo.py
+415	4c7f42414297	swarm/draft_review.py
+413	4d3c3b051afe	swarm/project_health_monitor.py
+412	897d037f46d7	swarm/pm_scoper.py
+411	80d53f890420	tests/test_lessons_seed.py
+407	5ef12f99be37	swarm/cs.py
+405	3ffa0c343140	swarm/intake/tests/test_handoff.py
+403	ecdc98ee9c64	app/server/spec_pipeline/__init__.py
+403	a24af226c595	tests/test_mesh_claim_reap.py
+402	e43b78fe21e9	scripts/smoke_test_e2e.py
+397	9c6f9fe89c20	tests/test_provider_nex_n2.py
+392	bb57f41dc268	tests/test_ccw_supabase_provider.py
+388	72a9f1c2273c	swarm/nexus/channels.py
+385	ef2be1f3ad44	swarm/agentskills_manifest.py
+383	eeb90a79db4d	swarm/inbox/intake_router.py
+376	8984a37f386b	swarm/intake/tests/test_spm.py
+375	2ce0b69ae46e	swarm/tmux_observer.py
+371	b9f0bad56a2b	tests/test_routes_webhooks.py
+368	4a9889591684	app/server/autopr.py
+368	96e54eaa4e50	scripts/margot_generate.py
+364	65a0da907cb5	app/server/youtube_connector.py
+361	579d36bc0986	swarm/nexus/autonomy_ladder.py
+361	2792f8c24296	tests/test_ra7216_acceptance_events.py
+360	190cf0c91743	swarm/portfolio_pulse.py
+359	a9e6a87af04a	app/server/agents/plan_discovery.py
+358	b342f71f17e9	app/server/integration_health.py
+356	2b9278f017dc	app/server/youtube_intent.py
+355	125704dddded	app/server/session_linear.py
+355	006f75681423	app/server/tao_context_prune.py
+354	e761eecc9615	tests/swarm/test_model_router.py
+353	3e2941d06783	swarm/portfolio_pulse_linear.py
+352	731e46a1ca28	swarm/nexus/store_factory.py
+351	62df4ebbf8a6	swarm/production_coordinator.py
+348	edfe25d460ea	swarm/inbox/__tests__/test_botfather_minter.py
+347	5f2e10412837	aip/src/seed/portfolio-expansion-2026-05-11.ts
+345	0b92b64e3b82	dashboard/app/(main)/routines/page.tsx
+344	6f67b5f426e8	app/server/tao_codebase_wiki.py
+344	0c15b2a671cc	swarm/research_provider.py
+343	c745e8538ebd	aip/src/seed/audit-2026-05-11.ts
+342	d1609be59b5d	scripts/smoke_test_pipeline.py
+342	6ed4c248cd7c	swarm/providers/ccw_supabase.py
+342	3bab8f09e6a5	tests/test_weekly_enhancement_loop.py
+341	32fd4d02f35d	app/server/orchestrator.py
+341	0c1754f919d6	app/server/routes/margot.py
+338	6894f2c70267	swarm/providers/zendesk.py
+336	e8cb54339857	swarm/wiki_lint.py
+336	9c0e810d387d	tests/test_ra6502_linear_outbound.py
+335	f25372acf685	dashboard/components/brain/BrainStatusPanel.tsx
+334	bbbf7ab1485b	app/server/provider_nex_n2.py
+333	82d65e85eb34	swarm/portfolio_pulse_synthesis.py
+333	c5d6e45a8935	tests/swarm/nexus/test_scheduler.py
+331	735306950587	tests/test_ccw_watch_runner.py
+330	ff107fa4b1f7	tests/test_pi_ceo_session_fts.py
+329	c0db24f74911	scripts/hermes_model_chain_health.py
+328	65ef3ae53184	app/server/goal_ticket.py
+328	ffa7abf79d97	tests/test_provider_openrouter.py
+324	84a489bdab80	dashboard/components/control/MargotAssetsPanel.tsx
+322	bbd88fbf85cc	scripts/desk_voice_loop.py
+322	23ab18887d3f	tests/test_ra7216_attribution_keys.py
+322	f1f0fa3a8ffc	tests/test_ra7216_outcome_events.py
+321	e6b425c30467	swarm/flow_engine.py
+317	de667bca9390	tests/test_sse_stream_ra6504.py
+316	949fb361734b	swarm/bots/chief_of_staff.py
+315	ebc46c7a6b78	app/server/agents/notebooklm_refresh.py
+315	2d4299dbee2a	scripts/nexus_backfill.py
+315	e7bbb7010fa8	swarm/intent_router.py
+312	82f6341b9686	app/server/config_loader.py
+312	1be56d7904db	app/server/linear_pulse.py
+311	49ff799830c4	swarm/linear_tools.py
+310	c3c44c3e3652	app/server/agents/anthropic_intel_refresh.py
+310	501a41592aeb	app/server/goal_analyze_fields.py
+310	e7298e4a267a	dashboard/components/SettingsForm.tsx
+310	58b8f2a179e5	scripts/marathon_telegram_inbox.py
+310	c49bdf057efe	tests/test_workspace_verify.py
+309	cc5e4753ef0f	swarm/kanban_adapter.py
+308	6d6f5ddd3b9e	dashboard/components/control/SpecPipelinePanel.tsx
+304	3482f2377a1a	app/server/pi_ceo_docparser.py
+304	e077f951ac77	app/server/routes/health_full.py
+303	9bb64138ff5f	claude-hooks-mirror/Stop/02_autonomous_continue.py
+303	3807cd860995	tests/test_tao_codebase_wiki.py
+302	4a5462a47bcc	app/server/routes/health.py
+302	f09e99c3709a	app/server/routes/telegram_proxy.py
+302	6efc5fbb45f6	app/server/tao_context_vcc.py

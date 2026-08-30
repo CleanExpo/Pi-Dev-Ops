@@ -5,14 +5,14 @@ WHY NOT PLR0915
 ---------------
 CLAUDE.md § Conventions says "functions under 40 lines". Ruff's nearest rule,
 `PLR0915 too-many-statements`, counts STATEMENTS, and on this codebase the two
-measurements barely correlate. A snapshot over 8920 tracked functions, 615 of
+measurements barely correlate. A snapshot over 8922 tracked functions, 614 of
 which exceed 40 lines -- the shape is the argument, not the exact figures,
 which drift as the tree changes:
 
-    max-statements=50 (ruff default)  catches   66/615 =  10%   0 false hits
-    max-statements=40                 catches  119/615 =  19%   0 false hits
-    max-statements=30                 catches  225/615 =  36%   6 false hits
-    max-statements=20                 catches  429/615 =  69% 186 false hits
+    max-statements=50 (ruff default)  catches   65/614 =  10%    0 false hits
+    max-statements=40                 catches  118/614 =  19%    0 false hits
+    max-statements=30                 catches  224/614 =  36%    6 false hits
+    max-statements=20                 catches  428/614 =  69%  187 false hits
 
 There is no setting that works: loose thresholds miss ~90% of the functions the
 convention is about, and the threshold that catches most of them flags 183
@@ -30,15 +30,15 @@ Re-derive the table above with `--report`.
 
 THE RATCHET
 -----------
-Same shape as file_length_lint.py, for the same reason: 615 pre-existing
-violations means a hard limit fails everything on day one.
+Same shape as file_length_lint.py, for the same reason: hundreds of pre-existing
+violations mean a hard limit fails everything on day one.
 
   FAIL  a function not in the baseline exceeds the limit
   FAIL  a function in the baseline grows beyond its entry
   WARN  a baselined function shrank (lower it), or moved -- matched on a
-        structural hash of its body, never on line count alone: 615 baselined
-        functions share only 113 distinct lengths, so equal length is no
-        evidence of identity here.
+        structural hash of its body, never on line count alone. The baselined
+        functions share barely a hundred distinct lengths between them, so equal
+        length is no evidence of identity -- see classify() for the command.
 
 USAGE
 -----
@@ -84,8 +84,9 @@ _HEADER = """\
 #
 # The fingerprint is a structural hash of the function BODY, name excluded, so a
 # rename or move keeps it and an edit loses it. Rename forgiveness matches on it
-# rather than on length: 615 functions share only 113 distinct lengths here, so
-# length alone would let an unrelated new function inherit a deleted one's slot.
+# rather than on length: these functions share barely a hundred distinct lengths
+# between them, so length alone would let an unrelated new function inherit a
+# deleted one's slot.
 """
 
 
@@ -203,8 +204,13 @@ def classify(sizes: dict[str, Fn], baseline: dict[str, tuple[int, str]]) -> dict
     draft keyed it on line count alone, which CodeRabbit correctly flagged: delete
     a baselined 41-line function, add an unrelated 41-line one, and the new one
     inherited the old one's slot silently. That is not a rare collision here --
-    the 615 baselined functions share only 113 distinct lengths, and 32 of them
-    are exactly 41 lines. A fingerprint match means the same body really did move.
+    the baselined functions share barely a hundred distinct lengths between them,
+    dozens sharing the single most common value. A fingerprint match means the
+    same body really did move. Re-derive the spread with:
+
+        python3 -c "import collections; lens=[int(l.split(chr(9))[0]) for l in
+          open('.github/function-length.baseline.txt') if not l.startswith('#')
+          and l.strip()]; print(len(lens), len(collections.Counter(lens)))"
     """
     missing = {k: v for k, v in baseline.items() if k not in sizes}
     movable: dict[str, int] = {}
