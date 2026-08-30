@@ -51,7 +51,7 @@ jobs:
   # sends a frontend dev hunting for a ruff config problem that does not exist.
   # The check name is the error message a reader sees first.
   file-length:
-    name: File-length gate
+    name: Size gates (file + function length)
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -68,6 +68,13 @@ jobs:
       # Regenerate with: python3 .github/scripts/file_length_lint.py --update
       - name: File-length gate (300-line convention)
         run: python3 .github/scripts/file_length_lint.py
+
+      # The 40-line function convention. Ruff's PLR0915 counts statements, not
+      # lines: at its default it catches 10% of this repo's over-40-line
+      # functions, and the threshold that catches most flags 183 compliant ones.
+      # Re-derive that comparison with `function_length_lint.py --report`.
+      - name: Function-length gate (40-line convention)
+        run: python3 .github/scripts/function_length_lint.py
 
   # ── Python: unit tests + gates ──────────────────────────────────────────────
   python:
