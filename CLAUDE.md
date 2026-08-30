@@ -90,7 +90,7 @@ Found by direct check on 2026-08-18. Each is real and unfixed; treat as work, no
 | 2 | ~~`projects.json` repo→project lookup is ambiguous~~ — **RETRACTED, was never a defect.** `CleanExpo/Pi-Dev-Ops` legitimately carries two Linear projects (`pi-dev-ops`, `margot`). All 12 `id` values are unique and both consumers key on `id`, never `repo`. See the routing section | ids 12/12 unique |
 | 3 | ~~Four `.claude/skills/*/SKILL.md` missing~~ — **FIXED 2026-08-18.** Added as symlinks to the `.agents/skills/` originals, matching the existing `skybridge` convention. Six routes now resolve | `ls -la .claude/skills/` |
 | 4 | ~~`HERMES.md` is **missing**, cited as Launch Crew governance~~ — **RETRACTED 2026-08-30.** The file is genuinely absent, but it is not governance and nothing depends on it: its only reference is one entry in an opportunistic inventory glob in `skills/launch-project-audit/SKILL.md`. Launch Crew governance is `skills/launch-charter/SKILL.md`, which exists | `git grep -n 'HERMES\.md'` |
-| 5 | `app/server/routes/webhooks.py` is by far the largest route module and breaches the 300-line convention, along with most of `routes/`. The old row's other two counts were wrong — `mission_control.py` has since dropped under the ceiling — and "four files" repo-wide understated it by two orders of magnitude. The ceiling is prose in this file only; no linter enforces it, so treat it as intent, not a gate. Count it, never read a count from here | `wc -l app/server/routes/*.py \| sort -rn` |
+| 5 | `app/server/routes/webhooks.py` is by far the largest route module and breaches the 300-line convention, along with most of `routes/`. The old row's other two counts were wrong — `mission_control.py` has since dropped under the ceiling — and "four files" repo-wide understated it by two orders of magnitude. The ceiling is now enforced for Python as a ratchet, not a hard limit — existing files are grandfathered in `.github/file-length.baseline.txt`; CI fails on a new file over 300 or a baselined file that grows. TypeScript is not yet covered. Count it, never read a count from here | `python3 .github/scripts/file_length_lint.py` |
 | 6 | ~~`Monorepo CI` on `main` red since 2026-08-14~~ — **RETRACTED 2026-08-30.** The claim was two weeks stale when checked: `main` had been green for many consecutive runs, and the most recent failure long predated the date the row named. The workflow's display name is also `CI`, not `Monorepo CI`. CI health rots by the hour — run the command, never trust a pasted verdict here | `gh run list --workflow ci.yml --branch main` |
 
 Do not paste per-file line counts into this document again. They were wrong in every row of the
@@ -177,9 +177,13 @@ next agent a first command.
   `_JsonFormatter`.
 - **TypeScript:** strict, no `any`, named exports, interfaces over types.
 - **Commits:** Conventional Commits. **Branches:** `feature/{ticket}-{desc}` or `fix/{ticket}-{desc}`.
-- **Size:** functions under 40 lines, files under 300 — an unenforced convention, not a gate. Well over
-  a hundred tracked files already breach it (defect 5), so it binds new files and files you touch:
-  extract when you edit one, and do not add to it.
+- **Size:** functions under 40 lines, files under 300. The file limit is enforced for Python by
+  `.github/scripts/file_length_lint.py`, running in the `Ruff lint` job — ruff itself has no
+  file-length rule, so it lives beside ruff rather than inside it. It ratchets: the ~160 files
+  already over are grandfathered in `.github/file-length.baseline.txt`, and CI fails only on a
+  new file over the limit or a baselined file that grows. Extract when you edit one, then
+  `--update` to ratchet the baseline down. Never raise an entry to get green. The 40-line
+  function limit and TypeScript files are still convention only.
 - **Security:** bcrypt passwords, parameterised queries, CSP headers, no secrets in code. Run
   `detect-secrets scan` pre-commit.
 - **Content:** no first-person business voice (we/our/I/us/my), no AI filler (delve, tapestry,
