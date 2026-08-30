@@ -62,8 +62,39 @@ L2_BASH = re.compile(
 # match. Any match => L3. This is the CLI hook's L3 set (interactive surface):
 # merge/deploy/migrate/secret/env/provision/branch-strategy — genuine
 # "stop for a human/Board" actions, all rare in an interactive session.
+#
+# The push rules deliberately keep a WHOLE-LINE `[^\n]*` gap, and the cost is
+# known: a feature-branch push chained with a read-only `git rev-parse
+# origin/main` is classified L3 even though nothing touches a protected ref.
+# That is a false positive on a fail-closed gate — lost capability, one
+# redundant approval prompt — and it is the cheaper failure. Three attempts to
+# narrow it all opened real bypasses (RA-7382); see the rejected designs below
+# and `tests/test_autonomy_ladder_l3_segments.py`.
+#
+# Rejected, in order, each killed by a measured leak against a bash oracle:
+#   1. Split the command on shell separators, test each segment. Quote-blind: a
+#      separator inside a quoted ARGUMENT severs the signature and neither half
+#      matches. 59-75 leaks, including a production `vercel -e CSP="...; ..."
+#      --prod` and a branch-protection DELETE.
+#   2. Mask quoted spans, then split. Closed part of it; escaped quotes,
+#      backticks, `${...}`, ANSI-C `$'...'` and a bare `a\;b` still leaked 75. A
+#      hand-rolled scanner tracking quote and nesting depth still leaked 15.
+#   3. Constrain the gap to a repetition of one shell-argument-shaped unit, so
+#      it cannot traverse a BARE separator. This one looked airtight and was
+#      shipped before review caught it: a quoted span is consumed WHOLE, so when
+#      the protected ref is itself quoted the gap swallows it and the trailing
+#      `(main|master|prod|production)` can never match. `git push origin "main"`
+#      — an ordinary command needing no adversarial intent — dropped L3 to L1,
+#      with 18 in the same class. Letting the gap traverse quote characters
+#      fixes the leak and makes the pattern catastrophically backtracking:
+#      42 s on 18 quoted arguments, a DoS in a PreToolUse hook.
+#
+# A narrowing that fails CLOSED (fall back to the whole line whenever the parse
+# is uncertain) is the only safe shape left, and it has to be computed in code
+# with a bound, not spelled as a regex. Tracked separately; do not retry a
+# regex tweak here.
 _L3_BASH = [
-    r"\bgit\s+merge\b",                                              # merge (esp. to main)
+    r"\bgit\s+merge(?![-\w])",                                       # merge; NOT merge-base/-file/-tree
     r"\bgh\s+pr\s+merge\b",                                          # PR merge to base
     r"\bgit\s+push\b[^\n]*\b(origin\s+)?(main|master|prod|production)\b",  # push to main/prod
     r"\bgit\s+push\b[^\n]*--force[^\n]*\b(main|master)\b",           # force-push main
