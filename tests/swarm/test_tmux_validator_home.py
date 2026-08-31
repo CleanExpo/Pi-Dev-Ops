@@ -100,3 +100,66 @@ def test_prefix_matching_is_not_a_bare_string_prefix(monkeypatch, home):
     """
     monkeypatch.setenv("HOME", home)
     assert validate_command("cd /tmpevil && ls").allowed is False
+
+
+# ── traversal out of an allowed prefix ───────────────────────────────────────
+#
+# Found by review on PR #699, AFTER the HOME fix had already merged. The tests
+# above pass with or without this defect: they only ever compared paths with no
+# `..` in them, so "starts with /tmp/" and "is inside /tmp" looked like the same
+# question. They are not, and the gap survived precisely because every fixture
+# was well-formed. Adversarial inputs have to be written deliberately; they do
+# not fall out of testing the happy path from more angles.
+
+
+@pytest.mark.parametrize("home", HOMES)
+@pytest.mark.parametrize("escape", [
+    "/tmp/../var/log",       # one level up, into a real directory
+    "/tmp/../../etc",        # past the root
+    "/tmp/./../etc",         # a no-op segment first
+    "/tmp/sub/../../etc",    # down then up twice
+    "/tmp/..",               # the parent itself
+])
+def test_traversal_out_of_an_allowed_prefix_is_denied(monkeypatch, home, escape):
+    """THE REGRESSION TEST for the second defect in this function.
+
+    `/tmp` is allowlisted, so each of these passes a raw `startswith("/tmp/")`
+    while actually entering somewhere else — `/tmp/../../etc` lands in `/etc`,
+    which is refused when written directly. An allowlist that can be walked out
+    of constrains nothing; the entry is only meaningful if the path compared is
+    the path that will be entered.
+    """
+    monkeypatch.setenv("HOME", home)
+    assert validate_command(f"cd {escape} && ls").allowed is False
+    assert validate_command(f"cd {escape}").allowed is False
+
+
+@pytest.mark.parametrize("home", HOMES)
+def test_a_traversal_that_stays_inside_is_still_allowed(monkeypatch, home):
+    """GREEN CONTROL. `..` is not itself the problem — leaving the prefix is.
+
+    Without this, refusing every path containing `..` would satisfy the test
+    above while denying a legitimate `cd /tmp/a/../b`.
+    """
+    monkeypatch.setenv("HOME", home)
+    assert validate_command("cd /tmp/a/../b && ls").allowed is True
+
+
+def test_the_canonical_form_is_lexical_not_filesystem_resolved(tmp_path, monkeypatch):
+    """Normalisation must not depend on what exists on disk, or on symlinks.
+
+    `resolve()` would follow a symlink an attacker controls and could turn an
+    outside path into an inside-looking one (or vice versa). `canonical()` is
+    purely textual, so its verdict is reproducible on any machine — including
+    for paths that do not exist at all.
+    """
+    from swarm.path_allowlist import canonical
+
+    assert canonical("/tmp/../etc") == "/etc"
+    assert canonical("/nonexistent/../also-not-there") == "/also-not-there"
+    # A real symlink pointing outside must NOT be followed.
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(outside)
+    assert canonical(f"{link}/x") == f"{link}/x"

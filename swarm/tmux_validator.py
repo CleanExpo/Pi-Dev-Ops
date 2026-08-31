@@ -47,6 +47,8 @@ from typing import Literal
 
 import yaml
 
+from .path_allowlist import under_any_prefix
+
 POLICY_DIR = Path(__file__).resolve().parent.parent / "skills" / "terminal-orchestrator" / "policy"
 
 Level = Literal["L1", "L2", "L3"]
@@ -184,23 +186,9 @@ def _is_safe_chain(cmd: str) -> tuple[str, str] | None:
     return m.group(1), m.group(2)
 
 
-def _under_any_prefix(target: str, prefixes: list[str]) -> bool:
-    """True when `target` is one of `prefixes` or lives beneath one. A prefix
-    expanding to "/" is SKIPPED — it would match every absolute path and silently
-    void the sandbox. Fails closed. One copy of a check that used to be two; the
-    HOME-dependence is pinned by tests/swarm/test_tmux_validator_home.py."""
-    for prefix in prefixes:
-        exp = str(Path(prefix).expanduser()) if prefix else ""
-        base = exp.rstrip("/")
-        if exp and exp != "/" and (target in (base, exp) or target.startswith(base + "/")):
-            return True
-    return False
-
-
 def _cd_target_is_safe(target: str) -> bool:
     cd_rules = _load_allowlist().get("verbs", {}).get("cd", {})
-    expanded = str(Path(target).expanduser()) if target.startswith("~") else target
-    return _under_any_prefix(expanded, cd_rules.get("safe_path_prefixes", []))
+    return under_any_prefix(target, cd_rules.get("safe_path_prefixes", []))
 
 
 # ============================================================
@@ -238,7 +226,7 @@ def _check_safe_path_prefixes_only(tokens: list[str], verb_rules: dict) -> str |
             continue
         expanded = str(Path(tok).expanduser()) if tok.startswith("~") else tok
         if expanded.startswith("/") or expanded.startswith("~"):
-            if not _under_any_prefix(expanded, safe):
+            if not under_any_prefix(expanded, safe):
                 return f"path {tok!r} not under any safe_path_prefixes"
     return None
 
