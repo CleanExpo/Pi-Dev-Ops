@@ -13,6 +13,7 @@ from .app_factory import app  # noqa: F401  (re-exported for uvicorn / callers)
 from .routes import auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, telegram_proxy, telegram_intake, mission_control, phone, swarm, margot, margot_assets, cost_report, delegate, elevenlabs, spec_pipeline, goal_ticket, youtube_intent, model_fabric, slack_bridge
 from .routes import mesh  # Nexus Mesh — fleet heartbeat + Mission Control
 from .routes import terminal  # Terminal Orchestrator read API — pane-UI backend (RA-7012)
+from .routes import conversations  # Shared conversation brain — cross-machine digests
 # health registers its routes directly on `app` via @app.get/@app.on_event decorators
 from .routes import health  # noqa: F401
 from .routes import health_full  # RA-1910 — /api/health/full endpoint
@@ -45,6 +46,7 @@ app.include_router(mesh.router)  # Nexus Mesh — /api/mesh/*
 app.include_router(terminal.router)  # Terminal Orchestrator read API — /api/terminal/* (RA-7012)
 app.include_router(model_fabric.router)  # Mission Control Model Fabric telemetry
 app.include_router(slack_bridge.router)  # Signed Slack <-> Telegram Margot bridge
+app.include_router(conversations.router)  # Shared conversation brain — /api/conversations/*
 app.include_router(nexus_routes.webhooks_router)  # Phase A — /webhooks/*
 
 __all__ = ["app"]

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Milestone 3 — hourly LaunchAgent for scripts/conversation_collector.py (macOS).
+
+  TEMPLATE. Nothing auto-installs. Copy it, edit the two marked values, load it:
+    cp scripts/com.piceo.conversation-collector.plist.example \
+       ~/Library/LaunchAgents/com.piceo.conversation-collector.plist
+    launchctl load ~/Library/LaunchAgents/com.piceo.conversation-collector.plist
+
+  Verify:
+    launchctl list | grep conversation-collector
+    tail -f /tmp/piceo-conversation-collector.log
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.piceo.conversation-collector.plist
+
+  No username is baked in. launchd does NOT expand ~ or $HOME in
+  ProgramArguments, so the command runs through `bash -lc` and the shell
+  expands $HOME at run time — set PI_CEO_REPO below only if this checkout does
+  not live at $HOME/Pi-Dev-Ops. StandardOutPath cannot be expanded at all, so
+  it points at /tmp; change it if you want the log in your home directory.
+
+  Why RunAtLoad + StartInterval: the MacBook goes offline mid-session and
+  rejoins later. On rejoin launchd fires once immediately, and the collector's
+  marker file means that run ships only what changed while it was away.
+
+  Credentials: PI_CEO_API_KEY is read from the environment or from
+  ~/.hermes/.env. Do NOT paste the key into this file — the real .plist lives
+  outside the repo but is still plaintext on disk.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.piceo.conversation-collector</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <!-- EDIT: PI_CEO_REPO if the checkout is not at $HOME/Pi-Dev-Ops -->
+        <string>PI_CEO_REPO="${PI_CEO_REPO:-$HOME/Pi-Dev-Ops}"; cd "$PI_CEO_REPO" &amp;&amp; exec .venv/bin/python scripts/conversation_collector.py</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>CONVERSATION_SYNC_ENABLED</key>
+        <string>1</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <!-- Hourly, plus one catch-up run at load/rejoin. -->
+    <key>StartInterval</key>
+    <integer>3600</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- EDIT (optional): launchd will not expand $HOME in these two paths. -->
+    <key>StandardOutPath</key>
+    <string>/tmp/piceo-conversation-collector.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/piceo-conversation-collector.log</string>
+</dict>
+</plist>
