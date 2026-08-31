@@ -96,6 +96,22 @@ def test_write_through_never_blocks_the_caller(runtime_store, monkeypatch):
     assert seen.get("thread") != "MainThread", "write-through ran on the caller's thread"
 
 
+def _wait_for_log(needle: str, caplog, timeout: float = 5.0) -> bool:
+    """True once `needle` appears in a captured log record, or the deadline passes.
+
+    The local append is synchronous but the durable write-through is not, so a
+    bare `any(... for r in caplog.records)` races the daemon thread that emits
+    the record. Returns a bool rather than asserting so the caller can attach the
+    records it actually saw to the failure message.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if any(needle in r.getMessage() for r in caplog.records):
+            return True
+        time.sleep(0.01)
+    return any(needle in r.getMessage() for r in caplog.records)
+
+
 def test_write_through_failure_never_breaks_append(runtime_store, monkeypatch, caplog):
     def boom(_e):
         raise RuntimeError("supabase down")
@@ -105,7 +121,16 @@ def test_write_through_failure_never_breaks_append(runtime_store, monkeypatch, c
         entry = lessons.append_lesson("test", "unit-test", "must land locally", "info")
     assert entry["lesson"] == "must land locally"
     assert any(e.get("lesson") == "must land locally" for e in lessons.load_lessons(limit=1000))
-    assert any("write-through failed" in r.getMessage() for r in caplog.records)
+    # The warning is emitted by the write-through DAEMON thread (lessons.py:190),
+    # so it may not have been recorded yet when the two assertions above pass —
+    # those describe the local append, which is synchronous. Asserting on
+    # caplog.records immediately made this the flakiest test in the suite: 0
+    # failures in 60 isolated runs, 13 in 40 under CPU load, and always this
+    # third assertion, never the two before it. Poll with a deadline, matching
+    # _Captured.wait_for, whose docstring exists for exactly this reason.
+    assert _wait_for_log("write-through failed", caplog), (
+        "the daemon thread never logged the failure: "
+        f"{[r.getMessage() for r in caplog.records]}")
 
 
 def test_hydration_appends_and_advances_watermark(runtime_store, monkeypatch):
