@@ -45,6 +45,18 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   // never reached the check it exists to verify. Forwarding is safe precisely
   // because slack_bridge.py rejects an unsigned body before doing any work.
   /^\/webhooks\/slack\/events$/,
+  // The dispatch webhook, same posture as the two above. Its smoke probe is
+  // auth:true and expects the BACKEND's 400 "Missing webhook signature header"
+  // (app/server/routes/webhooks.py:297) — the assertion that the signature gate
+  // runs. Forwarding is safe for the same reason: the backend refuses an
+  // unsigned body before doing any work, so admitting the path here grants no
+  // capability the signature check does not already govern.
+  //
+  // This entry is REQUIRED by the auth:true flag on that probe, not incidental:
+  // __tests__/pi-ceo-proxy-allowlist.test.ts derives its expected set from
+  // smoke-surfaces.json with `.filter((s) => s.auth === true)`, so the two must
+  // move together.
+  /^\/api\/webhook$/,
 ];
 
 export function allowed(pathStr: string): boolean {
