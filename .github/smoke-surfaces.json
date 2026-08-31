@@ -589,6 +589,17 @@
       "_comment": "PR #542: heartbeat upsert fixed to target the (machine, runtime, session_id) UNIQUE constraint via on_conflict — merge-duplicates alone resolved against the uuid PK and every repeat heartbeat 409'd (~8.6k/day, the bulk of the Supabase failure rate). Requires X-Pi-CEO-Secret; unauthenticated POST with a valid minimal body returns 401 inside the handler before any Supabase write, same pattern as mesh-claim-self-nosig. An authenticated probe is deliberately NOT declared — a valid secret would upsert a phantom 'smoke' machine row (state mutation); upsert semantics are asserted post-merge by watching mesh_agents POSTs return 2xx not 409 in the Supabase API logs."
     },
     {
+      "name": "mesh-dispatch-nosig",
+      "path": "/api/pi-ceo/api/mesh/dispatch",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "linear_ids": []
+      },
+      "_comment": "Nexus Mesh P2: the dispatcher tick (app/server/routes/mesh.py dispatch) now also runs on a 5-minute cron via cron_fire_mesh, gated by MESH_DISPATCH_ENABLED \u2014 previously nothing called it, so an online fleet stayed idle. The route body moved to app/server/mesh_dispatch_service.run_dispatch_tick so the schedule and the endpoint share one implementation; the HTTP surface is unchanged. Requires X-Pi-CEO-Secret; unauthenticated POST returns 401 before any Linear query or mesh_work_claims insert, same pattern as mesh-claim-self-nosig. An authenticated probe is deliberately NOT declared \u2014 a valid secret would assign live tickets to real machines (state mutation); assignment, least-loaded ordering and the 409 race path are covered offline by tests/test_mesh_dispatch_scheduled.py."
+    },
+    {
       "name": "fable-canary",
       "path": "/api/pi-ceo/api/canary/fable",
       "method": "GET",

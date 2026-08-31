@@ -40,16 +40,44 @@ def dispatch_enabled() -> bool:
     return os.environ.get("MESH_DISPATCH_ENABLED", "0").strip().lower() in ("1", "true", "yes")
 
 
+def _assign(mesh_routes, tickets: list[dict], machines: list[dict]) -> list[dict]:
+    """Claim each unclaimed ticket for a machine, least-loaded first then round-robin.
+
+    A machine slot is consumed only by a claim that actually won: a ticket lost
+    to a racing claimant must not shift the next ticket onto a different node.
+    """
+    open_ids = mesh_routes._open_claim_ids()
+    assigned: list[dict] = []
+    idx = 0
+    for ticket in tickets:
+        ident = ticket.get("identifier") or ticket.get("id")
+        if not ident or ident in open_ids:
+            continue
+        host = machines[idx % len(machines)]["host"]
+        status, _ = mesh_routes._sb(
+            "POST", "mesh_work_claims",
+            {"linear_id": ident, "machine": host, "state": "claimed"},
+            prefer="return=minimal",
+        )
+        # status 409 = already claimed by a racing dispatch/self-claim → skip silently
+        if status < 300:
+            assigned.append({"linear_id": ident, "machine": host})
+            open_ids.add(ident)
+            idx += 1
+            mesh_routes._mark_issue_in_progress(ticket)  # leave the pool — no re-claim loop
+    return assigned
+
+
 def run_dispatch_tick(linear_ids: Optional[list[str]] = None) -> dict[str, Any]:
     """Assign unclaimed work to free nodes. One tick, idempotent.
 
     Tickets come from the explicit `linear_ids` list, or from Linear's
     `mesh:auto` pool when it is empty. Nodes are ordered least-loaded first
-    (`_online_machines`) and then filled round-robin, so a three-machine fleet
-    spreads work instead of stacking it on whichever node answered first.
+    (`_online_machines`), so a three-machine fleet spreads work instead of
+    stacking it on whichever node answered first.
 
-    Returns the assignment list plus the machines considered, so the caller
-    can log what actually happened rather than "tick ran".
+    Returns the assignment list plus the machines considered, so the caller can
+    log what actually happened rather than "tick ran".
     """
     # Imported here, not at module scope: the route module imports this one, so
     # a module-level import back into it would be circular. By call time the
@@ -67,23 +95,7 @@ def run_dispatch_tick(linear_ids: Optional[list[str]] = None) -> dict[str, Any]:
     if not machines:
         return {"assigned": [], "online_machines": [], "reason": "no online machines"}
 
-    open_ids = mesh_routes._open_claim_ids()
-    assigned: list[dict] = []
-    idx = 0
-    for ticket in tickets:
-        ident = ticket.get("identifier") or ticket.get("id")
-        if not ident or ident in open_ids:
-            continue
-        host = machines[idx % len(machines)]["host"]  # least-loaded first, then round-robin
-        status, _ = mesh_routes._sb(
-            "POST", "mesh_work_claims",
-            {"linear_id": ident, "machine": host, "state": "claimed"},
-            prefer="return=minimal",
-        )
-        if status < 300:
-            assigned.append({"linear_id": ident, "machine": host})
-            open_ids.add(ident)
-            idx += 1
-            mesh_routes._mark_issue_in_progress(ticket)  # leave the pool — no re-claim loop
-        # status 409 = already claimed by a racing dispatch/self-claim → skip silently
-    return {"assigned": assigned, "online_machines": [m["host"] for m in machines]}
+    return {
+        "assigned": _assign(mesh_routes, tickets, machines),
+        "online_machines": [m["host"] for m in machines],
+    }
