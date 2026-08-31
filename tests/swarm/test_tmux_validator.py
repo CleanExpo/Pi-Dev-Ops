@@ -11,6 +11,21 @@ import pytest
 from swarm.tmux_validator import redact_secrets, validate_command
 
 
+@pytest.fixture(autouse=True)
+def _fixed_home(monkeypatch):
+    """Pin HOME, because several cases below use `~` and would otherwise assert
+    against whatever home the runner happens to have.
+
+    That inheritance is not hypothetical. `~` is in the cd allowlist, and a home
+    of `/` used to expand it into a prefix matching the entire filesystem — so
+    this suite passed on CI (HOME=/home/runner) while the cd sandbox was void in
+    any container started with HOME=/. No expectation here changes; the variable
+    they always depended on is simply named. The HOME-dependence itself is
+    covered by test_tmux_validator_home.py, which varies it deliberately.
+    """
+    monkeypatch.setenv("HOME", "/Users/phillmcgurk")
+
+
 # ============================================================
 # DENY tests — must reject
 # ============================================================
