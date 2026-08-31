@@ -387,5 +387,34 @@
     "enabled": true,
     "created_at": 1788134400,
     "last_fired_at": null
+  },
+  {
+    "id": "wiki-staging-pull-every-15min",
+    "type": "staging_pull",
+    "name": "Knowledge front door: drain wiki_source_staging into Sources/",
+    "minute": [
+      0,
+      15,
+      30,
+      45
+    ],
+    "enabled": true,
+    "created_at": 1788163200,
+    "last_fired_at": null
+  },
+  {
+    "id": "youtube-transcripts-daily-0400",
+    "type": "youtube_transcripts",
+    "name": "Knowledge front door: fetch captions for catalogued videos",
+    "hour": [
+      4
+    ],
+    "minute": [
+      0
+    ],
+    "enabled": true,
+    "limit": 10,
+    "created_at": 1788163200,
+    "last_fired_at": null
   }
 ]
