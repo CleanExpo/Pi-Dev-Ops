@@ -33,11 +33,8 @@ import logging
 import os
 import socket
 import sys
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -57,16 +54,11 @@ from scripts.conversation_markers import (  # noqa: E402
 )
 
 LAKE = Path.home() / ".claude" / "projects"
-INGEST_PATH = "/api/conversations/ingest"
 DEFAULT_API_URL = "https://pi-dev-ops-production.up.railway.app"
-BATCH_SIZE = 25  # server caps a request at CONVERSATION_INGEST_MAX_ROWS (200)
 TRUTHY = {"1", "true", "yes", "on"}
-WIRE_FIELDS = ("project_dir", "title", "digest_md", "turn_count",
-               "started_at", "last_activity_at")
 
 # (url, headers, payload) -> (status, body); injected so tests never open a
 # socket. Default implementation: urllib_poster.
-Poster = Callable[[str, dict, dict], tuple[int, str]]
 
 
 def machine_name() -> str:
@@ -191,44 +183,18 @@ def _dedupe_by_id(rows: list[dict]) -> list[dict]:
     return list(by_id.values())
 
 
-# ── Shipping ─────────────────────────────────────────────────────────────────
-def urllib_poster(url: str, headers: dict, payload: dict) -> tuple[int, str]:
-    """Default poster. Replaced in tests so no test can reach the network."""
-    req = urllib.request.Request(
-        url, data=json.dumps(payload).encode(), method="POST", headers=headers
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as response:
-            return response.status, (response.read() or b"").decode(errors="replace")[:400]
-    except urllib.error.HTTPError as exc:
-        return exc.code, exc.read()[:400].decode(errors="replace")
-    except Exception as exc:  # noqa: BLE001
-        return 0, str(exc)[:400]
-
-
-def _payload(batch: list[dict]) -> dict:
-    """Ingest envelope {machine, digests[]}. The server re-derives each row id
-    as "<machine>:<session_id>"; one run collects one machine's sessions."""
-    return {"machine": batch[0]["machine"], "digests": [
-        {"session_id": row["id"].split(":", 1)[1], **{f: row[f] for f in WIRE_FIELDS}}
-        for row in batch]}
-
-
-def ship_rows(rows: list[dict], *, poster: Poster, url: str, secret: str) -> dict:
-    """POST rows in batches. Returns counts and the first failure seen."""
-    headers = {"Content-Type": "application/json", "X-Pi-CEO-Secret": secret}
-    endpoint = f"{url.rstrip('/')}{INGEST_PATH}"
-    sent = 0
-    errors: list[str] = []
-    for start in range(0, len(rows), BATCH_SIZE):
-        batch = rows[start:start + BATCH_SIZE]
-        status, body = poster(endpoint, headers, _payload(batch))
-        if 200 <= status < 300:
-            sent += len(batch)
-        else:
-            errors.append(f"HTTP {status}: {body[:120]}")
-            log.error("conversation-collector: batch failed — HTTP %s", status)
-    return {"sent": sent, "batches": (len(rows) + BATCH_SIZE - 1) // BATCH_SIZE, "errors": errors}
+# Shipping lives in its own module; re-exported so existing call sites and the
+# tests that monkeypatch them keep working.
+from conversation_shipper import (  # noqa: E402
+    BATCH_SIZE,  # noqa: F401 — re-exported for callers and tests
+    INGEST_PATH,  # noqa: F401
+    Poster,  # noqa: F401
+    WIRE_FIELDS,  # noqa: F401
+    _accounting,  # noqa: F401
+    _payload,  # noqa: F401
+    ship_rows,
+    urllib_poster,  # noqa: F401
+)
 
 
 def run(
