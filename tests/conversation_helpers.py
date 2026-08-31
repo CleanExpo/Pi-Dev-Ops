@@ -37,20 +37,24 @@ class FakeStore:
     """Records what the route asked the Supabase layer to do."""
 
     def __init__(self, *, written: int | None = None) -> None:
+        """`written` forces the confirmed-row count, to fake a partial write."""
         self.saved: list[dict[str, Any]] = []
         self.searches: list[tuple] = []
         self.recents: list[tuple] = []
         self._written = written
 
     def save(self, rows: list[dict[str, Any]]) -> int:
+        """Record the rows and report how many Supabase "confirmed"."""
         self.saved.extend(rows)
         return len(rows) if self._written is None else self._written
 
     def search(self, query: str, *, machine=None, limit=20) -> list[dict[str, Any]]:
+        """Record the search arguments verbatim; always return one hit."""
         self.searches.append((query, machine, limit))
         return [{"id": "mac:s1", "title": "hit"}]
 
     def recent(self, machine=None, limit=20) -> list[dict[str, Any]]:
+        """Record the recent-query arguments verbatim; always return one row."""
         self.recents.append((machine, limit))
         return [{"id": "mac:s1", "title": "recent"}]
 

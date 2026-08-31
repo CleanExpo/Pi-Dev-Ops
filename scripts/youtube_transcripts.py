@@ -58,6 +58,12 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.youtube_transcript_fetch import fetch_transcript  # noqa: E402
+from scripts.youtube_transcript_state import (  # noqa: E402
+    load_done as _load_done,
+    load_state as _load_state,
+    mark_done as _mark_done,
+    sources_dir as _sources_dir,
+)
 
 log = logging.getLogger("pi-ceo.youtube-transcripts")
 
@@ -65,7 +71,6 @@ log = logging.getLogger("pi-ceo.youtube-transcripts")
 # history would fetch hundreds of transcripts in a burst and get the host
 # blocked — which looks exactly like "the feature does not work".
 DEFAULT_LIMIT = int(os.environ.get("YT_TRANSCRIPT_LIMIT", "25"))
-MARKER_PATH = REPO_ROOT / ".harness" / "youtube_transcripts_done.jsonl"
 
 _VIDEO_ID_RE = re.compile(r"(?:v=|youtu\.be/|/shorts/|/embed/)([A-Za-z0-9_-]{11})")
 _SAFE_SLUG_RE = re.compile(r"[^A-Za-z0-9._-]+")
@@ -107,23 +112,6 @@ def video_id_of(item: dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _load_done() -> set[str]:
-    """Video ids already turned into a clip. Absent marker file means none."""
-    if not MARKER_PATH.exists():
-        return set()
-    done: set[str] = set()
-    for line in MARKER_PATH.read_text(encoding="utf-8").splitlines():
-        try:
-            done.add(json.loads(line)["video_id"])
-        except (json.JSONDecodeError, KeyError, TypeError):
-            continue  # a torn line must not lose the whole marker
-    return done
-
-
-def _mark_done(video_id: str, outcome: str) -> None:
-    MARKER_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with MARKER_PATH.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps({"video_id": video_id, "outcome": outcome}) + "\n")
 
 
 def accepted_videos(state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -260,14 +248,6 @@ def _produce_one(
     _mark_done(video_id, "written")
 
 
-def _load_state() -> dict[str, Any]:
-    from app.server import youtube_intent  # noqa: PLC0415
-    return youtube_intent.load_state()
-
-
-def _sources_dir() -> Path:
-    from swarm import config  # noqa: PLC0415
-    return Path(config.BRAIN1_WIKI_DIR).parent / "Sources"
 
 
 def main() -> int:

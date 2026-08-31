@@ -21,6 +21,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 import youtube_transcripts as yt  # noqa: E402
 from scripts import youtube_transcript_fetch as yt_fetch  # noqa: E402
+from scripts import youtube_transcript_state as yt_state  # noqa: E402
 from swarm import wiki_ingest  # noqa: E402
 
 
@@ -41,8 +42,14 @@ def _video(**kw) -> dict:
 
 @pytest.fixture(autouse=True)
 def _isolate_marker(tmp_path, monkeypatch):
-    """Never let a test read or append the repo's real marker file."""
-    monkeypatch.setattr(yt, "MARKER_PATH", tmp_path / "done.jsonl")
+    """Never let a test read or append the repo's real marker file.
+
+    Patched on `youtube_transcript_state`, NOT on `youtube_transcripts`: the
+    load/mark functions live there and close over that module's global, so
+    patching the producer's re-exported name would leave every test reading and
+    appending the real `.harness/` marker while still appearing to pass.
+    """
+    monkeypatch.setattr(yt_state, "MARKER_PATH", tmp_path / "done.jsonl")
 
 
 def test_clip_round_trips_through_the_existing_consumer(tmp_path):
@@ -134,7 +141,7 @@ def test_operational_failure_is_not_recorded_as_no_captions(tmp_path):
 
     assert first.failed == ["dQw4w9WgXcQ"], "operational error not counted as failed"
     assert first.no_captions == [] and first.written == []
-    assert not yt.MARKER_PATH.exists(), "a failed fetch wrote a completion marker"
+    assert not yt_state.MARKER_PATH.exists(), "a failed fetch wrote a completion marker"
 
     # ...and the next run must actually retry it, which is the whole point.
     second = yt.run(tmp_path / "S", state=state, fetcher=lambda v: calls.append(v) or "t")
@@ -211,7 +218,7 @@ def test_failed_fetches_also_count_against_the_limit(tmp_path):
 
     assert len(calls) == 2 and res.attempted == 2
     assert len(res.failed) == 2
-    assert not yt.MARKER_PATH.exists()
+    assert not yt_state.MARKER_PATH.exists()
 
 
 def test_dry_run_writes_nothing_and_records_nothing(tmp_path):
@@ -219,7 +226,7 @@ def test_dry_run_writes_nothing_and_records_nothing(tmp_path):
     res = yt.run(src, state=_state(_video()), fetcher=lambda _v: "t", dry_run=True)
     assert len(res.written) == 1          # reported as planned...
     assert not src.exists()               # ...but nothing on disk
-    assert not yt.MARKER_PATH.exists()    # and nothing marked, so a real run still runs
+    assert not yt_state.MARKER_PATH.exists()    # and nothing marked, so a real run still runs
 
 
 def test_limit_caps_a_run(tmp_path):
@@ -250,7 +257,7 @@ def test_disabled_by_default(monkeypatch):
 
 def test_torn_marker_line_does_not_lose_the_rest(tmp_path):
     """A half-written line must cost one entry, not the whole history."""
-    yt.MARKER_PATH.write_text(
+    yt_state.MARKER_PATH.write_text(
         json.dumps({"video_id": "aaaaaaaaaaa", "outcome": "written"}) + "\n"
         + "{not json\n"
         + json.dumps({"video_id": "bbbbbbbbbbb", "outcome": "written"}) + "\n",
