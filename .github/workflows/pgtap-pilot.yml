@@ -1,29 +1,30 @@
 name: pgtap-pilot
 
-# SCOPE — read before trusting a green tick here.
+# SCOPE — this job now covers EVERY migration, not just the pilot ones.
 #
-# This job covers the PILOT migrations ONLY. The apply step below globs
-# `supabase/migrations/*pilot*.sql`, and the assertions are
-# `supabase/tests/pgtap/pilot_v1_isolation.sql`.
+# It used to apply `supabase/migrations/*pilot*.sql` — one file of seventeen —
+# while triggering on all of `supabase/migrations/**`. The other sixteen summoned
+# it, passed, and were never applied or asserted. Green said nothing about them.
+# Found when 20260831T000000_requirements_and_staging.sql triggered a green run
+# of a job that had never read it, and it had let four tables reach main with no
+# RLS at all (see the baseline in rls_coverage.sql).
 #
-# The `supabase/migrations/**` path trigger is WIDER than that coverage, so a
-# migration whose filename does not contain "pilot" summons this job, passes it,
-# and is never applied and never asserted. Green here says nothing about such a
-# migration — it is not evidence that its RLS is enabled or that its policies are
-# scoped. Found the hard way: 20260831T000000_requirements_and_staging.sql
-# triggered a green run of this job having never been read by it.
+# What the apply order below requires, established by applying all 17 to a
+# scratch Postgres rather than by reading them:
+#   * `supabase/migration.sql` FIRST. The migrations directory is NOT
+#     self-contained — 20260830T000000_session_leases.sql ALTERs `sessions`,
+#     which that base file creates.
+#   * The `vector` extension, for `build_episodes.embedding` in the base file.
+#     Hence the pgvector image rather than stock postgres.
+#   * Roles `anon`, `authenticated`, `service_role`. `anon` is new here:
+#     20260827_continuation_horizons.sql grants to it.
+#   * A stub `auth.uid()`. 20260512_aip_core.sql uses it in a policy, and
+#     Postgres resolves that at CREATE POLICY time.
 #
-# Deliberately left as-is rather than "fixed" in passing, because both obvious
-# repairs carry blast radius that belongs to a considered change, not a drive-by:
-#   * Narrowing the trigger to *pilot* stops the false signal but leaves
-#     non-pilot migrations with no RLS check at all.
-#   * Applying every migration here can fail on pre-existing files that assume
-#     extensions, roles or ordering this shadow DB does not set up — turning a
-#     green gate red for reasons unrelated to whichever PR trips it.
-#   * Renaming the job is not free either: if branch protection requires the
-#     check by name, a rename silently drops the requirement.
-# Until one is chosen, this comment is the guard: the name promises more than
-# the body delivers, and now says so.
+# The job name (`rls-assertions`) and workflow name (`pgtap-pilot`) are
+# deliberately unchanged: if branch protection requires a check by name, a
+# rename silently drops the requirement, and that cannot be verified from here.
+# The workflow filename is now cosmetically narrow — the body is what is honest.
 on:
   pull_request:
     paths:
@@ -48,7 +49,11 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        # pgvector rather than stock postgres: supabase/migration.sql declares
+        # `CREATE EXTENSION vector` for build_episodes.embedding, and without it
+        # the base schema cannot be applied at all. Same major version as the
+        # postgres:15 image this replaces.
+        image: pgvector/pgvector:pg15
         env:
           POSTGRES_PASSWORD: shadow
           POSTGRES_DB: pilot_shadow
@@ -74,21 +79,39 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y postgresql-client
 
-      - name: Bootstrap roles
+      - name: Bootstrap roles and auth stub
         run: |
+          psql -c "create role anon nologin;"
           psql -c "create role authenticated nologin;"
           psql -c "create role service_role nologin;"
-          psql -c "grant all on schema public to authenticated, service_role;"
+          psql -c "grant all on schema public to anon, authenticated, service_role;"
+          # 20260512_aip_core.sql has a policy using auth.uid(); Postgres resolves
+          # that function at CREATE POLICY time, so the schema must exist first.
+          psql -c "create schema auth;"
+          psql -c "create function auth.uid() returns uuid language sql as \$\$ select null::uuid \$\$;"
 
-      - name: Apply pilot migrations
+      - name: Apply base schema
+        # FIRST, and load-bearing: supabase/migrations/ is not self-contained.
+        # 20260830T000000_session_leases.sql ALTERs `sessions`, created here.
+        run: psql -v ON_ERROR_STOP=1 -f supabase/migration.sql
+
+      - name: Apply every migration
+        # ALL of them, in lexical order — filenames are date-prefixed, so lexical
+        # order is chronological order. Was `*pilot*`, which matched 1 of 17.
         run: |
-          for f in supabase/migrations/*pilot*.sql; do
+          for f in supabase/migrations/*.sql; do
             echo "Applying $f"
-            psql -f "$f"
+            psql -v ON_ERROR_STOP=1 -f "$f"
           done
 
-      - name: Run RLS assertions
+      - name: Run pilot RLS assertions
         run: psql -f supabase/tests/pgtap/pilot_v1_isolation.sql -v ON_ERROR_STOP=1
+
+      - name: Run RLS coverage assertions
+        # Catalog-wide: every public table needs RLS AND a policy, with a
+        # shrink-only baseline for what is already broken. This is the check that
+        # covers a new table by it existing, rather than by being remembered.
+        run: psql -f supabase/tests/pgtap/rls_coverage.sql -v ON_ERROR_STOP=1
 
       - name: Rollback drill (forward + drop + re-forward)
         # Bakes Discipline 4 (rollback-drill before deploy) into CI so the
