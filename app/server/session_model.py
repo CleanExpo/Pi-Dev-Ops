@@ -167,7 +167,7 @@ def recover_interrupted_sessions_from_supabase(max_concurrent: int = 0) -> int:
     """
     global _recovered_from_supabase
     try:
-        from . import config, persistence, supabase_log  # noqa: PLC0415
+        from . import config, persistence, session_lease, session_recovery, supabase_log  # noqa: PLC0415
         from .session_phases import run_build  # noqa: PLC0415
     except Exception as exc:
         _log.warning("RA-1407 startup recovery: import failed — %s", exc)
@@ -201,25 +201,18 @@ def recover_interrupted_sessions_from_supabase(max_concurrent: int = 0) -> int:
                 "RA-1407 startup recovery: skipping %s — no last_completed_phase in checkpoint", sid,
             )
             continue
+        # Ownership BEFORE hydration: N replicas booting together all read the
+        # same rows from `fetch_interrupted_sessions`, so without this every one
+        # of them resumed every session. Exactly one wins the conditional PATCH.
+        if not supabase_log.claim_interrupted_session(sid, session_lease.local_host()):
+            _log.info("startup recovery: %s already leased by another machine — skipping", sid)
+            continue
         try:
-            session = BuildSession(
-                id=sid,
-                repo_url=row.get("repo_url", ""),
-                workspace=checkpoint.get("workspace", ""),
-                started_at=0.0,
-                status="building",  # run_build will advance from last_completed_phase
-                error=checkpoint.get("error"),
-                last_completed_phase=last_phase,
-                retry_count=int(checkpoint.get("retry_count", 0) or 0),
-                evaluator_status=checkpoint.get("evaluator_status", "pending"),
-                evaluator_score=checkpoint.get("evaluator_score"),
-                evaluator_model=checkpoint.get("evaluator_model", ""),
-                evaluator_consensus=checkpoint.get("evaluator_consensus", ""),
-                linear_issue_id=checkpoint.get("linear_issue_id"),
-            )
+            session = session_recovery.session_from_checkpoint(sid, row, checkpoint)
+            _, resume_from = session_recovery.resume_target(checkpoint, last_phase)
             _sessions[sid] = session
             persistence.save_session(session)
-            asyncio.create_task(run_build(session, resume_from=last_phase))
+            asyncio.create_task(run_build(session, resume_from=resume_from))
             scheduled += 1
         except Exception as exc:
             _log.warning("RA-1407 startup recovery: failed to rehydrate %s — %s", sid, exc)

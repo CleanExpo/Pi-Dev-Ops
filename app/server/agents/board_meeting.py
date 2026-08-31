@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from app.server import config
+from app.server.agents import board_actions
 from app.server.board_decision_index import build_decision_index, check_mandate_consistency
 
 
@@ -2397,15 +2398,12 @@ def run_sprint_recommendations_phase(
         + swot.get("content", "(SWOT not available)")[:2000]
         + "\n\n## Open Urgent/High Issues\n"
         + (issue_list or "(no open issues)")
-        + "\n\n## Instructions\n"
-        "Recommend exactly 3 sprint priorities. For each:\n"
-        "1. Reference the specific Linear ticket ID (RA-xxx) if one exists, or propose a title\n"
-        "2. One-sentence rationale\n"
-        "3. Estimate: XS (<1h) | S (1–2h) | M (2–4h) | L (4–8h) | XL (>8h)\n"
-        "4. Expected impact on ZTE score or operational health\n\n"
-        "Format:\n"
-        "PRIORITY 1: [ticket] — [rationale] — Estimate: [size] — Impact: [impact]\n"
-        "PRIORITY 2: ...\nPRIORITY 3: ..."
+        + "\n\n## Instructions\nRecommend exactly 3 sprint priorities as prose lines\n"
+        "'PRIORITY n: [ticket] — [rationale] — Estimate: [XS|S|M|L|XL] — Impact: [impact]',\n"
+        "then close with a fenced ```json block holding ONLY a JSON array of 3 objects with\n"
+        "keys: ticket (RA-xxx or \"\"), title, rationale, estimate, impact. That block is the\n"
+        "machine contract parsed by board_actions.file_sprint_recommendations — if it is\n"
+        "absent or malformed, nothing is filed, so emit valid JSON or none at all."
     )
     raw = _run_prompt_with_cache(system_text=system_prompt, user_content=user_content, timeout=90)
     if not raw:
@@ -2556,16 +2554,16 @@ def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, A
     persona_debate = run_persona_debate_phase(system_prompt, status, linear, research=research)
     bvi = compute_bvi(cycle)
     swot = run_swot_phase(system_prompt, status, linear, persona_debate=persona_debate, bvi=bvi)
+    swot["typed"] = vars(typed_swot := board_actions.emit_typed_swot(swot))  # JSON-safe copy
     recommendations = run_sprint_recommendations_phase(system_prompt, swot, linear)
+    recommendations["filed"] = board_actions.file_sprint_recommendations(recommendations, dry_run=dry_run, swot=typed_swot)  # noqa: E501
     gap_audit = run_gap_audit_phase(dry_run=dry_run)
+    gap_audit["skill_seeds"] = board_actions.seed_skill_proposals(gap_audit)
 
     if not dry_run:
         minutes_path = save_board_minutes(
             cycle, status, linear, swot, recommendations, gap_audit,
-            persona_debate=persona_debate,
-            bvi=bvi,
-            research=research,
-        )
+            persona_debate=persona_debate, bvi=bvi, research=research)
         gap_audit["minutes_path"] = str(minutes_path)
         record_bvi_entry(bvi)
 

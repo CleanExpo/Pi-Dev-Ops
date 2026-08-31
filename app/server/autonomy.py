@@ -38,7 +38,7 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 from typing import Any
-from app.server import config_loader
+from app.server import config_loader, session_lease
 
 log = logging.getLogger("pi-ceo.autonomy")
 
@@ -1054,6 +1054,13 @@ async def _process_autonomy_issue(
         })
 
 
+def _transition_error(identifier: str, title: str, exc: BaseException) -> None:
+    """Log + ring-record one failed Linear transition."""
+    log.error("Autonomy: transition failed for %s: %s", identifier, exc)
+    _log_event({"action": "transition_error", "ticket": identifier,
+                "title": title, "error": str(exc)})
+
+
 def _transition_to_in_progress(
     config: Any,
     issue_id: str,
@@ -1061,7 +1068,18 @@ def _transition_to_in_progress(
     title: str,
     team_id: str,
 ) -> str | None:
-    """Transition an issue to 'Pi-Dev: In Progress' (or fallback). Return target state or None on error."""
+    """Claim the ticket fleet-wide, then move it to 'Pi-Dev: In Progress'.
+
+    The claim is the same `mesh_work_claims` INSERT the mesh dispatcher and a
+    runner's `claim/self` use, guarded by the `mesh_work_claims_one_open`
+    partial unique index — one lock, all claimants. Linear's own state is not a
+    lock: the poll and the transition are two round trips, so every replica saw
+    the same Ready ticket and each started its own session on it. A 409 means
+    another worker owns it — return None and let the caller skip the ticket.
+    """
+    if not session_lease.claim_linear_ticket(identifier):
+        log.info("Autonomy: %s claimed by another worker — skipping", identifier)
+        return None
     try:
         transition_issue(config.LINEAR_API_KEY, issue_id,
                          "Pi-Dev: In Progress", team_id=team_id)
@@ -1078,31 +1096,12 @@ def _transition_to_in_progress(
                                  "In Progress", team_id=team_id)
                 return "In Progress"
             except Exception as inner:
-                log.error("Autonomy: fallback transition failed for %s: %s",
-                          identifier, inner)
-                _log_event({
-                    "action": "transition_error",
-                    "ticket": identifier,
-                    "title": title,
-                    "error": str(inner),
-                })
+                _transition_error(identifier, title, inner)
                 return None
-        log.error("Autonomy: transition failed for %s: %s", identifier, exc)
-        _log_event({
-            "action": "transition_error",
-            "ticket": identifier,
-            "title": title,
-            "error": str(exc),
-        })
+        _transition_error(identifier, title, exc)
         return None
     except Exception as exc:
-        log.error("Autonomy: transition failed for %s: %s", identifier, exc)
-        _log_event({
-            "action": "transition_error",
-            "ticket": identifier,
-            "title": title,
-            "error": str(exc),
-        })
+        _transition_error(identifier, title, exc)
         return None
 
 

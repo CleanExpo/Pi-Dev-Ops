@@ -64,101 +64,72 @@ def _q(value: Any) -> str:
 
 # ── Low-level REST helpers ─────────────────────────────────────────────────────
 
-def _insert(table: str, row: dict[str, Any]) -> bool:
+def _request(
+    method: str,
+    path: str,
+    body: Any = None,
+    prefer: str = "return=minimal",
+) -> tuple[int, Any]:
+    """The ONE HTTP path for every Supabase REST call in this module.
+
+    `_insert` / `_upsert` / `_patch` / `_select` were four copies of the same
+    request builder, and none could return a response body — so a conditional
+    write had no way to learn how many rows it changed, which is what makes a
+    lease a lease. Returns `(status, parsed_body_or_None)`; status 0 is "not
+    configured" or a transport failure, both a no-op for these fire-and-forget
+    callers, so an observability outage never blocks the pipeline.
+    """
     url, key = _cfg()
     if not url or not key:
-        log.debug("Supabase not configured — skipping insert into %s", table)
-        return False
-    payload = json.dumps(row).encode()
-    req = urllib.request.Request(
-        f"{url}/rest/v1/{table}",
-        data=payload,
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Prefer": "return=minimal",
-        },
-    )
+        log.debug("Supabase not configured — skipping %s %s", method, path)
+        return 0, None
+    headers = {"apikey": key, "Authorization": f"Bearer {key}", "Accept": "application/json"}
+    if prefer:
+        headers["Prefer"] = prefer
+    data = None
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(body).encode()
+    req = urllib.request.Request(f"{url}/rest/v1/{path}", data=data, method=method, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
-            resp.read()
-        return True
+            raw = resp.read()
+            try:
+                return resp.status, (json.loads(raw) if raw else None)
+            except Exception:
+                return resp.status, None
+    except urllib.error.HTTPError as exc:
+        log.warning("Supabase %s %s failed (non-fatal): HTTP %s", method, path, exc.code)
+        return exc.code, None
     except Exception as exc:
-        log.warning("Supabase insert %s failed (non-fatal): %s", table, exc)
-        return False
+        log.warning("Supabase %s %s failed (non-fatal): %s", method, path, exc)
+        return 0, None
+
+
+def _ok(status: int) -> bool:
+    """True for a 2xx PostgREST status."""
+    return 200 <= status < 300
+
+
+def _insert(table: str, row: dict[str, Any]) -> bool:
+    """POST one row. False on conflict (409), transport error, or no config."""
+    return _ok(_request("POST", table, row)[0])
 
 
 def _upsert(table: str, row: dict[str, Any]) -> bool:
-    url, key = _cfg()
-    if not url or not key:
-        return False
-    payload = json.dumps(row).encode()
-    req = urllib.request.Request(
-        f"{url}/rest/v1/{table}",
-        data=payload,
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Prefer": "return=minimal,resolution=merge-duplicates",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            resp.read()
-        return True
-    except Exception as exc:
-        log.warning("Supabase upsert %s failed (non-fatal): %s", table, exc)
-        return False
+    """POST one row, merging on primary-key conflict instead of failing."""
+    return _ok(_request("POST", table, row, "return=minimal,resolution=merge-duplicates")[0])
 
 
 def _patch(table: str, filter_param: str, patch: dict[str, Any]) -> bool:
-    url, key = _cfg()
-    if not url or not key:
-        return False
-    payload = json.dumps(patch).encode()
-    req = urllib.request.Request(
-        f"{url}/rest/v1/{table}?{filter_param}",
-        data=payload,
-        method="PATCH",
-        headers={
-            "Content-Type": "application/json",
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Prefer": "return=minimal",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            resp.read()
-        return True
-    except Exception as exc:
-        log.warning("Supabase patch %s failed (non-fatal): %s", table, exc)
-        return False
+    """PATCH rows matching a PostgREST filter. True on 2xx, even if zero matched."""
+    return _ok(_request("PATCH", f"{table}?{filter_param}", patch)[0])
 
 
 def _select(table: str, params: str) -> list[dict[str, Any]]:
-    url, key = _cfg()
-    if not url or not key:
-        return []
-    req = urllib.request.Request(
-        f"{url}/rest/v1/{table}?{params}",
-        method="GET",
-        headers={
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Accept": "application/json",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            return json.loads(resp.read())
-    except Exception as exc:
-        log.warning("Supabase select %s failed: %s", table, exc)
-        return []
+    """GET rows matching a PostgREST query string. `[]` on any failure."""
+    rows = _request("GET", f"{table}?{params}", None, "")[1]
+    return rows if isinstance(rows, list) else []
 
 
 # ── RA-651: gate_checks ───────────────────────────────────────────────────────
@@ -456,6 +427,42 @@ def _repo_name_from_url(repo_url: str) -> str:
     return s
 
 
+_TERMINAL_STATES = frozenset({
+    "complete", "done", "failed", "error", "killed", "interrupted", "blocked",
+})
+
+
+def _checkpoint_payload(session) -> dict[str, Any]:
+    """The `sessions` row for one session, checkpoint JSONB included.
+
+    The checkpoint body is built by `session_lease.checkpoint_payload()`, which
+    also applies the size caps — this row is rewritten on every phase, so an
+    uncapped `plan` / `modified_files` / `evaluator_findings` would grow the
+    JSONB without bound. It carries the writing machine's `host`, and the write
+    renews `lease_expires_at`: a machine that is still checkpointing is still
+    alive, so it should keep the session nobody else may resume.
+    """
+    from . import session_lease  # noqa: PLC0415 — session_lease imports this module
+
+    repo_url = getattr(session, "repo_url", "") or ""
+    status = (getattr(session, "status", "") or "running").lower()
+    row: dict[str, Any] = {
+        "id": session.id,
+        "repo_url": repo_url,
+        "repo_name": _repo_name_from_url(repo_url),
+        "branch": getattr(session, "branch", "") or "",
+        "status": status,
+        "trigger": getattr(session, "trigger", "manual") or "manual",
+        "started_at": _iso_or_now(getattr(session, "started_at", None)),
+        "checkpoint": session_lease.checkpoint_payload(session),
+        "claimed_by": session_lease.local_host(),
+        "lease_expires_at": session_lease.lease_deadline(),
+    }
+    if status in _TERMINAL_STATES:
+        row["completed_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return row
+
+
 def save_session_checkpoint(session) -> bool:
     """RA-1407 — Persist session checkpoint to Supabase `sessions` table.
 
@@ -473,36 +480,7 @@ def save_session_checkpoint(session) -> bool:
     if session is None or not getattr(session, "id", ""):
         return False
     try:
-        repo_url = getattr(session, "repo_url", "") or ""
-        status = (getattr(session, "status", "") or "running").lower()
-        terminal_states = {
-            "complete", "done", "failed", "error",
-            "killed", "interrupted", "blocked",
-        }
-        row: dict[str, Any] = {
-            "id": session.id,
-            "repo_url": repo_url,
-            "repo_name": _repo_name_from_url(repo_url),
-            "branch": getattr(session, "branch", "") or "",
-            "status": status,
-            "trigger": getattr(session, "trigger", "manual") or "manual",
-            "started_at": _iso_or_now(getattr(session, "started_at", None)),
-            "checkpoint": {
-                "last_completed_phase": getattr(session, "last_completed_phase", "") or "",
-                "retry_count":       int(getattr(session, "retry_count", 0) or 0),
-                "evaluator_status":  getattr(session, "evaluator_status", "pending") or "pending",
-                "evaluator_score":   getattr(session, "evaluator_score", None),
-                "evaluator_model":   getattr(session, "evaluator_model", "") or "",
-                "evaluator_consensus": getattr(session, "evaluator_consensus", "") or "",
-                "linear_issue_id":   getattr(session, "linear_issue_id", None),
-                "workspace":         getattr(session, "workspace", "") or "",
-                "error":             getattr(session, "error", "") or "",
-                "output_line_count": len(getattr(session, "output_lines", []) or []),
-            },
-        }
-        if status in terminal_states:
-            row["completed_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        return _upsert("sessions", row)
+        return _upsert("sessions", _checkpoint_payload(session))
     except Exception as exc:
         log.warning("RA-1407 save_session_checkpoint failed (non-fatal): %s", exc)
         return False
@@ -513,6 +491,10 @@ def fetch_interrupted_sessions(limit: int = 20) -> list[dict[str, Any]]:
 
     Used by the startup hook (RA-1407 PR 2) to auto-enqueue resume calls.
     Fail-soft: returns empty list if Supabase unavailable.
+
+    This is a plain read and gives no ownership: N replicas booting together all
+    get the same rows. Every caller must win `claim_interrupted_session()` on a
+    row before touching it.
     """
     try:
         return _select(
@@ -522,6 +504,20 @@ def fetch_interrupted_sessions(limit: int = 20) -> list[dict[str, Any]]:
     except Exception as exc:
         log.warning("RA-1407 fetch_interrupted_sessions failed: %s", exc)
         return []
+
+
+def claim_interrupted_session(session_id: str, host: str, lease_minutes: int = 10) -> bool:
+    """Take exclusive ownership of one interrupted session. True ⇔ this caller won.
+
+    One atomic conditional PATCH — see `session_lease.claim_interrupted_session`
+    for the filter and why a read-then-write cannot substitute. Re-exported
+    here because the `sessions` table is this module's surface; the body lives
+    in `session_lease` only because this file is baselined over the 300-line
+    ceiling in `.github/file-length.baseline.txt` and may not grow.
+    """
+    from . import session_lease  # noqa: PLC0415 — session_lease imports this module
+
+    return session_lease.claim_interrupted_session(session_id, host, lease_minutes)
 
 
 def _iso_or_now(ts: Any) -> str:
