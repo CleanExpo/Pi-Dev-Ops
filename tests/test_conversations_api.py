@@ -253,6 +253,49 @@ def test_empty_tsquery_returns_nothing_rather_than_everything(monkeypatch):
     assert conversation_store.search_conversation_digests("   ??? ") == []
 
 
+@pytest.mark.parametrize("hostile", [
+    "x&limit=1000&select=*",          # a second filter parameter
+    "machine=eq.other",               # an operator split
+    "a' OR '1'='1",                   # SQL-shaped
+    "'; drop table conversation_digests; --",
+    "foo|bar!baz&qux",                # tsquery operators
+])
+def test_a_search_term_cannot_widen_the_query(hostile, monkeypatch):
+    """Search text reaches a PostgREST filter built by f-string interpolation.
+
+    An unescaped `&` there starts a NEW filter parameter and an unescaped `=`
+    splits the operator, so a crafted term would BROADEN the query rather than
+    error — and a broadened read is silent. Two things stop it: `_tsquery`
+    keeps only `[A-Za-z0-9_]+` tokens, and `_q` percent-encodes what survives.
+    Both were verified by probing, but neither was pinned, so widening the token
+    regex later (to support quoted phrases, say) would quietly reopen this.
+    """
+    from app.server import conversation_store as cs
+    seen: dict[str, str] = {}
+
+    def fake_request(method, path, body=None, prefer=""):
+        seen["path"] = path
+        return 200, []
+
+    # Layer 1, checked BEFORE encoding. Asserting only on the final URL would
+    # not test this: `_q` percent-encodes `&` and `=`, so a widened token regex
+    # still yields a clean-looking URL and the assertion passes for the wrong
+    # reason. Verified — widening the regex to `[^\s]+` left a URL-only check
+    # green.
+    tsq = cs._tsquery(hostile)
+    assert set(tsq) <= set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_&"), \
+        f"_tsquery let a metacharacter through: {tsq!r}"
+
+    # Layer 2: what actually reaches the filter.
+    monkeypatch.setattr(cs.supabase_log, "_request", fake_request)
+    cs.search_conversation_digests(hostile, limit=5)
+    path = seen["path"]
+    value = path.split("search_tsv=fts(english).")[1].split("&")[0]
+    assert "=" not in value and "&" not in value, f"term escaped into the filter: {value!r}"
+    assert path.count("select=") == 1 and path.count("limit=") == 1
+    assert "machine=" not in path, "a term forged a machine filter"
+
+
 def test_search_builds_an_fts_filter_on_the_generated_column(monkeypatch):
     from app.server import conversation_store
     seen: dict[str, str] = {}
