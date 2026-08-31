@@ -63,7 +63,7 @@ Do not trust the setting screen — confirm from the system:
 
 | # | Confirm with |
 |---|---|
-| 1 | Two checks, not one. **Visibility:** `curl -s "$PI_CEO_API_URL/api/mesh/fleet" -H "X-Pi-CEO-Secret: $PI_CEO_API_KEY"` → 3 rows, all fresh within ~20 s. **Execution:** on each machine, `launchctl list \| grep unite-group.mesh` (2 services), `schtasks /Query /TN NexusMeshRunner`, or the systemd equivalent. A fresh row proves only that the heartbeat published — see below. |
+| 1 | Two checks, not one. **Visibility:** `curl -s "$PI_CEO_API_URL/api/mesh/fleet" -H "X-Pi-CEO-Secret: $PI_CEO_API_KEY"` → 3 rows, all fresh within ~20 s. **Execution:** only macOS has services `bootstrap.sh` installed, so only there is there something to query without setup: `launchctl list \| grep unite-group.mesh` → 2 entries. On Windows and Linux the script installs nothing, so the check is against whatever *you* created from the commands it printed — `schtasks /Query /TN NexusMeshRunner` once you have run its `/Create`, or your own systemd user unit. Nothing to query means supervision was never installed, which is a fail, not an inconclusive. A fresh row proves only that the heartbeat published — see below. |
 | 2 | Railway logs show `mesh_dispatch id=… assigned=N online=[…]` within 5 minutes |
 | 3 | The `e2e` workflow on `main` reports `113 passed · 0 failed` |
 | 4 | `GET /api/conversations/recent` with the secret returns 200 rather than 503 |
