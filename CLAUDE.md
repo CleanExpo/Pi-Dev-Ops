@@ -29,7 +29,7 @@ Generator and evaluator run through `claude_agent_sdk`. `TAO_USE_AGENT_SDK=0` ra
 | TAO engine | Python | `src/tao/` |
 | Harness state | JSONL / JSON | `.harness/` |
 | Skills | `SKILL.md` files | `skills/` |
-| Database | Supabase (PostgreSQL) | `supabase/migration.sql` |
+| Database | Supabase (PostgreSQL) | `supabase/migration.sql` **and** `supabase/migrations/*.sql` |
 | Deploy | Vercel (FE) · Railway (BE) | `dashboard/vercel.json`, `railway.toml` |
 
 Shared packages: `packages/brand-config/` (brand-token SSOT) and `packages/ui/` (shadcn New York
@@ -240,21 +240,59 @@ These cost real debugging time. Each is a behaviour of an external system, not a
 - **Workspace isolation** — `TAO_WORKSPACE` must live outside any parent git repo (e.g.
   `/tmp/pi-ceo-workspaces`), or git uses the outer `.git` and pushes to the wrong remote. Plant a
   stub `CLAUDE.md` at the workspace root so Claude's upward search cannot inherit this file.
+- **`Path("~").expanduser()` is `/` when `HOME=/`**, which this repo's own dev container sets. A
+  path allowlist that expands `~` then does `prefix.rstrip("/") + "/"` gets `"/"` — and every
+  absolute path starts with `"/"`, so the allowlist matches everything and stops constraining
+  anything, silently. It voided the tmux `cd` sandbox and CI could not see it, because CI has
+  `HOME=/home/runner` and no test set the variable. Any test over a guard that reads `HOME` must
+  set it explicitly and vary it (`tests/swarm/test_tmux_validator_home.py`).
+- **A prefix check is only as good as what it compares.** `swarm/path_allowlist.py` canonicalises
+  both sides (`~` expanded, `.`/`..` collapsed) before comparing, because raw text let
+  `/tmp/../var/log` pass as "under `/tmp`" and then run in `/var/log`. Use `os.path.normpath`,
+  never `Path.resolve()`: resolve touches the filesystem and follows symlinks, so the verdict
+  starts depending on what exists and on links an attacker may control.
 
 ## Observability
 
 `app/server/supabase_log.py` is the single write path for server-side Supabase events. All writes
 are fire-and-forget — observability failures must never block the pipeline.
 
-Adding a logger means adding the matching idempotent `CREATE TABLE IF NOT EXISTS` to
-`supabase/migration.sql` in the same PR. Re-derive the current table set with:
+Adding a logger means adding the matching idempotent `CREATE TABLE IF NOT EXISTS` in the same PR.
+**New tables go in a dated file under `supabase/migrations/`, not in `supabase/migration.sql`** —
+that is where every table since 2026-05 has landed. `migration.sql` is the base schema and is
+still applied first; see the sequencing note below.
+
+Re-derive the current table set across BOTH locations:
 
 ```bash
-grep -oiE 'create table (if not exists )?[a-z_."]+' supabase/migration.sql | sort -u
+grep -hoiE 'create table (if not exists )?[a-z_."]+' supabase/migration.sql supabase/migrations/*.sql | sort -u
 ```
+
+The `-h` and the second path are load-bearing. The command here used to read `migration.sql`
+alone: it returned **16 tables against an actual 49**, so two thirds of the schema were invisible
+to the one command this file offered for checking. A re-derivation command that quietly
+under-reports is worse than no command, because it looks like verification.
 
 Do not maintain a hand-written table list here. The previous version carried one that disagreed
 with the migration file in both directions.
+
+**Sequencing — `supabase/migrations/` is NOT self-contained.** Establish this by applying them,
+not by reading them; none of it is visible in the files:
+
+- `supabase/migration.sql` must be applied FIRST. `20260830T000000_session_leases.sql` ALTERs
+  `sessions`, which only the base file creates.
+- The base file needs the **`vector`** extension (`build_episodes.embedding`), so a stock
+  `postgres` image cannot apply it — CI uses `pgvector/pgvector:pg15`.
+- Roles `anon`, `authenticated`, `service_role` must all exist. `anon` is easy to miss:
+  `20260827_continuation_horizons.sql` grants to it and nothing else does.
+- A stub `auth.uid()` must exist before any migration runs. `20260512_aip_core.sql` uses it in a
+  policy, and Postgres resolves the function at `CREATE POLICY` time, not at first use.
+
+`.github/workflows/pgtap-pilot.yml` does all four, applies every migration, and asserts that each
+`public` table has RLS **and** a policy (`supabase/tests/pgtap/rls_coverage.sql`, shrink-only
+baseline). Until 2026-08-31 that job applied `*pilot*.sql` — one file of seventeen — while
+triggering on all of `supabase/migrations/**`, so sixteen migrations summoned a green tick that
+had never read them. Four tables reached main with RLS never enabled that way.
 
 ## Autonomy and kill switches
 
