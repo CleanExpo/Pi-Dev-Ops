@@ -198,8 +198,16 @@ def _row(machine: str, d: Digest) -> dict[str, Any]:
         "title": _redact(d.title),
         "digest_md": (_redact(d.digest_md) or "")[:CONVERSATION_DIGEST_MAX_CHARS] or None,
         "turn_count": d.turn_count,
-        "started_at": d.started_at,
-        "last_activity_at": d.last_activity_at,
+        # Redacted too, though both are TIMESTAMPTZ columns so Postgres would
+        # reject a secret-bearing string rather than store it. The residual
+        # exposure is real but narrower than the table: the value still travels
+        # to Supabase in the request body before it is rejected. The bigger
+        # reason is the invariant — "every caller-supplied string is redacted"
+        # is checkable at a glance, while "every string except the two whose
+        # column type we reasoned about" silently becomes wrong the day one of
+        # those columns is widened to TEXT.
+        "started_at": _redact(d.started_at),
+        "last_activity_at": _redact(d.last_activity_at),
     }
 
 

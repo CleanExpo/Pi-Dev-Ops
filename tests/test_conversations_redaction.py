@@ -88,13 +88,20 @@ def test_every_stored_field_is_redacted_not_just_the_obvious_two(convo):
             "project_dir": f"/Users/phill/work {FAKE_OAUTH_TOKEN}",
             "title": f"t {FAKE_OAUTH_TOKEN}",
             "digest_md": f"body {FAKE_OAUTH_TOKEN}",
+            "started_at": f"2026-08-30T01:00:00Z {FAKE_OAUTH_TOKEN}",
+            "last_activity_at": f"2026-08-30T02:00:00Z {FAKE_OAUTH_TOKEN}",
         }],
     }
     r = client.post("/api/conversations/ingest", json=body, headers=HDR)
     assert r.status_code == 200, r.text
     row = store.saved[0]
-    for field in ("id", "machine", "project_dir", "title", "digest_md"):
-        assert FAKE_OAUTH_TOKEN not in str(row[field]), f"{field} reached the store unredacted"
+    # EVERY caller-supplied string, enumerated from the row itself rather than
+    # hand-listed, so a column added later is covered without anyone
+    # remembering to extend this list.
+    for field, value in row.items():
+        assert FAKE_OAUTH_TOKEN not in str(value), f"{field} reached the store unredacted"
+    assert {"id", "machine", "project_dir", "title", "digest_md",
+            "started_at", "last_activity_at"} <= set(row), "the row lost a field this pins"
     # The response echoes the machine back, so it must be clean too.
     assert FAKE_OAUTH_TOKEN not in r.text
 
