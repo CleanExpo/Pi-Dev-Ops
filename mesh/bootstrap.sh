@@ -100,8 +100,21 @@ fi
 
 # 4. Heartbeat — visibility. A machine is not considered operational merely
 # because this daemon is alive; the runner below is installed as a peer service.
+# HEARTBEAT_OK and SUPERVISED are the two halves of "enlisted". The verdict at
+# the bottom is DERIVED from them rather than asserted alongside them: this
+# script used to print "Done. $HOST is enlisted with visibility + work
+# execution." unconditionally, so a Windows node that installed no daemon and
+# whose heartbeat returned {"published": false} still reported success and
+# exited 0. A machine that failed to enlist must not look like one that did.
+HEARTBEAT_OK=0
+SUPERVISED=0
+
 say "Publishing first heartbeat"
-python3 "$MESH_DIR/heartbeat.py" || warn "heartbeat publish failed (check PI_CEO_API_KEY / endpoint deploy)"
+if python3 "$MESH_DIR/heartbeat.py"; then
+  HEARTBEAT_OK=1
+else
+  warn "heartbeat publish failed (check PI_CEO_API_KEY / endpoint deploy)"
+fi
 
 OS="$(uname -s)"
 case "$OS" in
@@ -130,7 +143,12 @@ case "$OS" in
 </dict></plist>
 PL
     launchctl unload "$HEARTBEAT_PLIST" 2>/dev/null || true
-    launchctl load "$HEARTBEAT_PLIST" && say "launchd heartbeat loaded"
+    HB_SVC=0
+    if launchctl load "$HEARTBEAT_PLIST"; then
+      say "launchd heartbeat loaded"; HB_SVC=1
+    else
+      warn "launchd could not load the heartbeat daemon"
+    fi
 
     RUNNER_PLIST="$HOME/Library/LaunchAgents/com.unite-group.mesh-runner.plist"
     say "Installing launchd work runner → $RUNNER_PLIST"
@@ -160,16 +178,44 @@ PL
     # embedded in this plist. Successful exit (hard stop or claim cap) stays
     # stopped; crashes restart after the throttle interval.
     launchctl unload "$RUNNER_PLIST" 2>/dev/null || true
-    launchctl load "$RUNNER_PLIST" && say "launchd work runner loaded"
+    RUN_SVC=0
+    if launchctl load "$RUNNER_PLIST"; then
+      say "launchd work runner loaded"; RUN_SVC=1
+    else
+      warn "launchd could not load the work runner"
+    fi
+
+    # Both, or the node is not supervised. Visibility without execution is a
+    # machine dispatch can see and cannot use.
+    if [ "$HB_SVC" = 1 ] && [ "$RUN_SVC" = 1 ]; then SUPERVISED=1; fi
     ;;
   Linux)
-    say "Linux — supervise both mesh daemons (systemd recommended):"
+    warn "Linux — this script does NOT install supervision. Both daemons must be"
+    warn "supervised (systemd user units recommended) or this node goes stale in 60s:"
     echo "  python3 $MESH_DIR/heartbeat.py --loop"
     echo "  python3 $MESH_DIR/runner.py"
     ;;
   *)
-    warn "Windows: register Scheduled Tasks at logon for BOTH heartbeat.py --loop and runner.py"
+    warn "Windows ($OS) — this script does NOT install supervision. Register both"
+    warn "Scheduled Tasks at logon, or this node goes stale 60s from now:"
+    echo "  schtasks /Create /F /SC ONLOGON /TN NexusMeshHeartbeat \\"
+    echo "    /TR \"python \\\"$MESH_DIR/heartbeat.py\\\" --loop\""
+    echo "  schtasks /Create /F /SC ONLOGON /TN NexusMeshRunner \\"
+    echo "    /TR \"python \\\"$MESH_DIR/runner.py\\\"\""
     ;;
 esac
 
-say "Done. $HOST is enlisted with visibility + work execution."
+# The verdict. Both halves must hold; each failure names the work it needs,
+# because a denial an operator cannot act on is barely better than a false
+# success. Exit is non-zero so automation cannot read this as done either.
+if [ "$HEARTBEAT_OK" = 1 ] && [ "$SUPERVISED" = 1 ]; then
+  say "Done. $HOST is enlisted with visibility + work execution."
+  exit 0
+fi
+
+warn "$HOST is NOT enlisted."
+[ "$HEARTBEAT_OK" = 1 ] || warn "  - the first heartbeat did not publish; the node is invisible to dispatch"
+[ "$SUPERVISED" = 1 ] || warn "  - no supervision installed; the node goes stale ~60s from now"
+warn "Confirm from the fleet, not from this output:"
+echo "  curl -s \"\$PI_CEO_API_URL/api/mesh/fleet\" -H \"X-Pi-CEO-Secret: \$PI_CEO_API_KEY\""
+exit 1
