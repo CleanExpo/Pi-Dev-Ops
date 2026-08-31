@@ -229,6 +229,38 @@ def test_dry_run_writes_nothing_and_records_nothing(tmp_path):
     assert not yt_state.MARKER_PATH.exists()    # and nothing marked, so a real run still runs
 
 
+def test_dry_run_does_not_touch_the_network(tmp_path):
+    """A plan must issue ZERO fetches.
+
+    Suppressing only the write still sent one real YouTube request per accepted
+    video — up to `limit` per invocation, against the API whose throttling that
+    limit exists to avoid. Someone running `--dry-run` a few times to see what
+    would happen could get the host blocked and make the real run fail, and the
+    repo's own manual-verification path opens with exactly that command.
+    """
+    calls: list[str] = []
+
+    def spy(video_id: str) -> str:
+        calls.append(video_id)
+        return "transcript"
+
+    vids = [_video(video_key=f"k{i}", video_id=f"vid{i:08d}") for i in range(9)]
+    res = yt.run(tmp_path / "S", state=_state(*vids), fetcher=spy, limit=25, dry_run=True)
+
+    assert calls == [], f"a dry run issued {len(calls)} network fetches"
+    assert len(res.written) == 9, "a plan must still report what it would fetch"
+    assert not yt_state.MARKER_PATH.exists()
+
+
+def test_dry_run_still_respects_the_limit(tmp_path):
+    """The plan must show what a real run would do, so the cap still applies."""
+    vids = [_video(video_key=f"k{i}", video_id=f"vid{i:08d}") for i in range(9)]
+    res = yt.run(
+        tmp_path / "S", state=_state(*vids), fetcher=lambda _v: "t", limit=3, dry_run=True)
+    assert res.attempted == 3
+    assert len(res.written) == 3
+
+
 def test_limit_caps_a_run(tmp_path):
     vids = [_video(video_key=f"k{i}", video_id=f"vid{i:08d}") for i in range(5)]
     res = yt.run(tmp_path / "S", state=_state(*vids), fetcher=lambda _v: "t", limit=2)

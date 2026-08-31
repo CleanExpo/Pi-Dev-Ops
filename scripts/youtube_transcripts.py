@@ -85,8 +85,10 @@ class Result:
     failed: list[str] = field(default_factory=list)
     skipped_done: int = 0
     considered: int = 0
-    # Fetches issued. This, not `written`, is what the limit governs: YouTube
-    # throttles on requests, and one that finds no captions costs the same quota.
+    # Videos the run took up, which is what the limit governs: YouTube throttles
+    # on requests, and a fetch that finds no captions costs the same quota. In a
+    # real run this equals the fetches issued; in a dry run nothing is fetched
+    # and this is what a real run WOULD have taken up.
     attempted: int = 0
 
 
@@ -224,7 +226,16 @@ def _produce_one(
     confirmed absence of captions is marked and never re-fetched, and an
     operational failure is counted in `failed` with NO marker — a marker there
     would be undoable only by hand-editing the JSONL.
+
+    A dry run returns before the fetch: suppressing only the write would still
+    issue one real YouTube request per video, up to `limit` per run, against the
+    API whose throttling that limit exists to avoid. A plan reports the files it
+    would write; it does not touch the network.
     """
+    target = sources_dir / clip_filename(item, video_id)
+    if dry_run:
+        result.written.append(str(target))  # planned, not fetched
+        return
     try:
         transcript = fetch(video_id)
     except Exception as exc:  # noqa: BLE001 — any fetch failure is retryable
@@ -232,17 +243,12 @@ def _produce_one(
         result.failed.append(video_id)
         return
     if not transcript:
+        # Permanent: "no captions" is an answer about the video, and re-asking it
+        # on every run is exactly what invites throttling.
         result.no_captions.append(video_id)
-        if not dry_run:
-            # Recorded so an uncaptioned video is not re-fetched on every run —
-            # "no captions" is a permanent answer, and re-asking invites throttling.
-            _mark_done(video_id, "no_captions")
+        _mark_done(video_id, "no_captions")
         return
-
-    target = sources_dir / clip_filename(item, video_id)
     result.written.append(str(target))
-    if dry_run:
-        return
     sources_dir.mkdir(parents=True, exist_ok=True)
     target.write_text(clip_markdown(item, video_id, transcript), encoding="utf-8")
     _mark_done(video_id, "written")
