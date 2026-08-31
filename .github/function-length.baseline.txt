@@ -101,7 +101,7 @@
 98	dfbb23467439	swarm/nexus/policy.py::auto_gate
 97	a73ee1158eef	app/server/autonomy.py::_orphan_recovery
 97	bf379003b691	scripts/hermes_model_chain_health.py::main
-97	8d214c741364	swarm/wiki_ingest.py::ingest
+97	3f43f7cf40f3	swarm/wiki_ingest.py::ingest
 96	4a4729f8ebf0	fence/drift_check.py::main
 96	48080461a2da	swarm/flow_engine.py::execute_flow
 96	e9c10da42562	swarm/pm_scoper.py::run_cycle
@@ -376,7 +376,6 @@
 52	4d769f95f5ee	app/server/agents/plan_discovery.py::_maybe_propose_research_intent
 52	277944f2b3dd	app/server/routes/phone.py::create_gate
 52	5f70a8c323b2	app/server/tao_codebase_wiki.py::update_wiki
-52	51755ee6ed0e	mesh/runner.py::run_claim
 52	bf3db7f6ea12	scripts/review_eval_candidates.py::review
 52	f1a575ec77b1	scripts/runtime_model_guard.py::start_model_fabric
 52	3d6dc288fe2a	scripts/test_lessons_durable_migration.py::main
@@ -449,6 +448,7 @@
 48	e75449fefd60	app/server/scanner.py::ProjectScanner.get_health_summary
 48	3dd912b073fb	app/server/tao_boomerang.py::_strip_summary_artifacts
 48	227c1bd821ff	claude-hooks-mirror/discipline/founder_voice_critique.py::_scan_transcript
+48	b7b6d92005d1	mesh/runner.py::run_claim
 48	543c7f6b1a8a	scripts/assert_image_digest.py::main
 48	4a90b21ac14f	scripts/controller_violation_trend.py::compute_trend
 48	623c9f5165ff	swarm/agentskills_manifest.py::export
