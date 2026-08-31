@@ -16,7 +16,6 @@ Fully offline: the HTTP/Supabase/Linear layers are mocked.
 """
 from __future__ import annotations
 
-import importlib.util
 import json
 import subprocess
 import sys
@@ -30,11 +29,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 
-def _load(name: str, rel: str):
-    spec = importlib.util.spec_from_file_location(name, REPO_ROOT / rel)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+from mesh_helpers import Break as _Break  # noqa: E402
+from mesh_helpers import ImmediateProc as _ImmediateProc  # noqa: E402
+from mesh_helpers import load_module as _load  # noqa: E402
 
 
 # ── Fake Supabase enforcing the partial unique index ─────────────────────────
@@ -250,12 +247,16 @@ class FakeMeshServer:
         return {}
 
 
-class _Break(Exception):
-    pass
-
-
 @pytest.fixture
 def runner(monkeypatch, tmp_path):
+    # RA-7370. `mesh/runner.py` reads MESH_REPO_DIR into DEFAULT_REPO_DIR at
+    # module scope, so this must be cleared BEFORE the import below, not after.
+    # Left set, every claim resolves to that path, `run_claim` bails on the
+    # missing `.git`, and 8 tests in this file fail — on any machine where the
+    # mesh runner's own shell exported it, which is where `handoff-loop.sh`
+    # runs. The deliberate-override branch is covered separately by
+    # `test_mesh_runner_service.py::test_runner_honours_operator_repo_dir_override`.
+    monkeypatch.delenv("MESH_REPO_DIR", raising=False)
     mod = _load("mesh_runner", "mesh/runner.py")
     monkeypatch.setattr(mod, "HOST", "TESTNODE")
     monkeypatch.setattr(mod, "HARD_STOP", tmp_path / "HARD_STOP")
@@ -265,22 +266,6 @@ def runner(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "IDLE_RECLAIM_DELAY", 0.01)
     # Never spawn a real agent/git worktree.
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: None)
-
-    class _ImmediateProc:
-        """Default fake agent process: exits clean on the first poll so tests
-        that don't care about the kill-switch poll loop still land 'done'."""
-
-        def poll(self):
-            return 0
-
-        def wait(self, timeout=None):
-            return 0
-
-        def terminate(self):
-            pass
-
-        def kill(self):
-            pass
 
     monkeypatch.setattr(mod.subprocess, "Popen", lambda *a, **k: _ImmediateProc())
     # Record every sleep; only the full poll-cycle sleep ends the loop. The
