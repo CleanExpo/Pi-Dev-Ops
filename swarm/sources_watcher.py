@@ -128,4 +128,76 @@ def run_cycle(repo_root: Path | None = None) -> WatcherResult:
     return result
 
 
-__all__ = ["run_cycle", "WatcherResult"]
+@dataclass
+class DrainResult:
+    written: list[str] = field(default_factory=list)
+    quarantined: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+
+
+def _safe_destination(filename: str, sources: Path) -> Path | None:
+    """The path this row may be written to, or None if it may not be written.
+
+    RE-VALIDATED HERE, not trusted from the row. `routes/wiki_sources.py`
+    validates the filename before insert, but this function is what actually
+    touches a filesystem, and a check performed by a different process at a
+    different time is a claim rather than a guarantee — the table could be
+    written by a future caller, a migration, or by hand.
+
+    Two independent checks, because either alone has a hole: the name must match
+    the guard's allowlist AND the resolved path must still be inside `Sources/`.
+    The second catches anything the first's regex did not anticipate.
+    """
+    from .ingest_guard import PROTECTED_PAGES, SAFE_NAME  # noqa: PLC0415
+
+    name = (filename or "").strip()
+    if not name or not SAFE_NAME.match(name) or name in PROTECTED_PAGES:
+        return None
+    dest = (sources / name).resolve()
+    if dest.parent != sources.resolve():
+        return None
+    return dest
+
+
+def pull_staging(limit: int = 20) -> DrainResult:
+    """Drain `wiki_source_staging` into `Sources/` on the brain host.
+
+    The other half of the knowledge front door: `POST /api/wiki/sources/upload`
+    accepts a document from anywhere into Supabase, and this — running only
+    where the vault actually lives — turns those rows into files that
+    `run_cycle()` then ingests on its normal pass.
+
+    A row whose filename cannot be re-validated is marked `quarantined` and left
+    on disk-untouched: refusing to write it is the whole point, and deleting it
+    would destroy the evidence of what was attempted.
+    """
+    from app.server import wiki_source_store  # noqa: PLC0415
+
+    result = DrainResult()
+    rows = wiki_source_store.queued_sources(limit)
+    if not rows:
+        return result
+    sources = _sources_dir()
+    sources.mkdir(parents=True, exist_ok=True)
+
+    for row in rows:
+        sid = str(row.get("id") or "")
+        dest = _safe_destination(str(row.get("filename") or ""), sources)
+        if dest is None:
+            wiki_source_store.mark_source(sid, "quarantined", "filename failed re-validation")
+            result.quarantined.append(sid[:12])
+            log.warning("pull_staging: quarantined %s — filename failed re-validation", sid[:12])
+            continue
+        try:
+            dest.write_text(str(row.get("body_md") or ""), encoding="utf-8")
+        except OSError as exc:
+            wiki_source_store.mark_source(sid, "error", f"write failed: {exc}")
+            result.errors.append(f"{sid[:12]}: {exc}")
+            continue
+        wiki_source_store.mark_source(sid, "ingested", None)
+        result.written.append(dest.name)
+        log.info("pull_staging: wrote %s from staging row %s", dest.name, sid[:12])
+    return result
+
+
+__all__ = ["run_cycle", "WatcherResult", "pull_staging", "DrainResult"]

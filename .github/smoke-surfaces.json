@@ -629,6 +629,31 @@
       "_comment": "Milestone 3: most-recent digests per machine (app/server/routes/conversations.py recent). Same auth contract and the same honest scope as conversations-search-nosig."
     },
     {
+      "name": "wiki-sources-upload-nosig",
+      "path": "/api/pi-ceo/api/wiki/sources/upload",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {"filename": "smoke.md", "body_md": "smoke"},
+      "_comment": "Milestone 4 knowledge front door (app/server/routes/wiki_sources.py upload). Closes the estate-librarian §3 UNREACHABLE_FROM_NODE gap: sources_watcher ingests Sources/*.md from a folder on the brain host, so nothing outside that machine could reach the wiki pipeline. SCOPE, stated precisely and deliberately NOT overclaimed: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so proxy() answers 401 for every path under it before routing, the allowlist or the backend is reached. This proves the dashboard session gate refuses anonymous uploads. It does NOT prove the route exists or that its filename allowlist works — deleting the route file would leave this probe green, exactly as documented on conversations-ingest-nosig. An authenticated probe is deliberately NOT declared: a valid secret would insert a real wiki_source_staging row, and the lane ships disabled, so it would assert a 503 that flips the day WIKI_SOURCES_ENABLED is set. The hostile-filename refusal (10 traversal shapes plus index.md/log.md), the fail-closed behaviour when swarm.ingest_guard cannot load, the size cap and the content-addressed dedupe are covered offline by tests/test_wiki_sources_api.py; the drain's independent re-validation is covered by tests/test_sources_drain.py. Both run in CI."
+    },
+    {
+      "name": "wiki-sources-list-nosig",
+      "path": "/api/pi-ceo/api/wiki/sources",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "Milestone 4: what was uploaded and what became of it (app/server/routes/wiki_sources.py list_sources). Staged rows are the full text of uploaded documents and wiki_source_staging is service-role only (supabase/migrations/20260831T000000_requirements_and_staging.sql). Same honest scope as wiki-sources-upload-nosig: this proves the dashboard proxy's session gate, not the backend route."
+    },
+    {
+      "name": "wiki-requirements-nosig",
+      "path": "/api/pi-ceo/api/wiki/requirements?project_key=pi-dev-ops",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "Milestone 4: the requirements registry the Librarian scores source relevance against (app/server/routes/wiki_sources.py list_requirements). wiki_ingest._identify_targets() chose targets from index.md alone, so it knew what the wiki HAS and nothing about what is WANTED. Routes on projects.json `id`, never `repo`. Same honest scope as wiki-sources-upload-nosig."
+    },
+    {
       "name": "fable-canary",
       "path": "/api/pi-ceo/api/canary/fable",
       "method": "GET",
@@ -724,7 +749,7 @@
       "auth": true,
       "expected_status": 200,
       "body_contains": ["pageCount"],
-      "_comment": "#609: returns {...graph, pageCount, truncated}. pageCount is always present; truncated may legitimately be false, so it is not asserted."
+      "_comment": "#609: returns {...graph, pageCount, truncated}. pageCount is always present; truncated may legitimately be false, so it is not asserted. 200 stays the expectation on purpose — it is the correct configured end state, and this probe going red IS the signal that production lacks SUPABASE_UNITE_GROUP_URL / SUPABASE_UNITE_GROUP_SERVICE_KEY. An unconfigured deployment now answers 503 {error, missing:[...]} rather than a blank 500, so a red run names its own cause; do not relax this to accept that 503, which would turn the probe green while the feature stayed broken."
     },
     {
       "name": "curator-proposals",
