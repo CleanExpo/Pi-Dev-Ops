@@ -107,9 +107,9 @@
 436	f5133b32e431	tests/swarm/nexus/test_approvals.py
 435	52168138611d	app/server/pi_ceo_session_fts.py
 435	566e7b7e02a7	swarm/intake/handoff.py
-431	40bb223f234b	swarm/wiki_ingest.py
 430	678cdbdaf6e8	dashboard/lib/phases.ts
 430	adf5308ffb4c	swarm/fix_orchestrator.py
+430	03018cff97f9	swarm/wiki_ingest.py
 429	8eaa1bfe3993	swarm/portfolio_pulse_github.py
 427	77e9b799794e	dashboard/components/command-centre/wiki-graph/WikiGraphCanvas.tsx
 425	d0c16d44af11	tests/test_sessions.py

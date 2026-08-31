@@ -9,16 +9,14 @@ Public API:
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-from . import ingest_guard
+from . import ingest_guard, wiki_relevance
 
 log = logging.getLogger("swarm.wiki_ingest")
 
@@ -91,32 +89,6 @@ def _call_llm(prompt: str) -> str:
         return ex.submit(
             lambda: client.models.generate_content(model=text_model, contents=prompt).text
         ).result(timeout=90)
-
-
-def _identify_targets(finding: str, index: str) -> dict[str, Any]:
-    """Ask LLM which pages to update and whether a new page is needed."""
-    prompt = (
-        "You are updating a personal knowledge wiki. Given the finding below "
-        "and the wiki index, identify which pages to update.\n\n"
-        f"Wiki index:\n{ingest_guard.fence_source(index, label='wiki index')}\n\n"
-        f"{ingest_guard.fence_source(finding, label='finding')}\n\n"
-        "Reply with JSON only (no markdown fences):\n"
-        '{"update": ["filename.md", ...], '
-        '"create": {"slug": "new-page-slug", "description": "one-line", "section": "## Section"} | null}\n'
-        "Rules: update ≤5 files. create is null if no new page is needed. "
-        "Only name files that actually appear in the index. "
-        "NEVER include index.md or log.md — those are managed by the system."
-    )
-    raw = _call_llm(prompt).strip()
-    raw = re.sub(r"^```[a-z]*\n?", "", raw)
-    raw = re.sub(r"\n?```$", "", raw)
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r'\{.*\}', raw, re.DOTALL)
-        if m:
-            return json.loads(m.group())
-        return {"update": [], "create": None}
 
 
 def _merge_page(page_content: str, finding: str, today: str) -> str:
@@ -222,8 +194,40 @@ def _corpus_reupload(changed_files: list[Path]) -> bool:
 # ── Public entry point ───────────────────────────────────────────────────────
 
 
+def _plan_ingest(
+    finding: str, wdir: Path, project_key: str,
+) -> tuple[dict, IngestResult | None]:
+    """Target pages, or the result that ends this ingest before any write.
+
+    A below-threshold finding is PARKED, not dropped — quarantined with an audit
+    line so a mis-scored document stays recoverable. Skipped entirely when the
+    registry is empty; see `wiki_relevance.below_threshold`.
+    """
+    try:
+        index = _load_index(wdir)
+        requirements = wiki_relevance.fetch_requirements(project_key)
+        targets = wiki_relevance.identify_targets(finding, index, requirements, _call_llm)
+    except Exception as exc:  # noqa: BLE001
+        failed = IngestResult()
+        failed.status = "error"
+        failed.error = f"target identification failed: {exc}"
+        return {}, failed
+
+    if wiki_relevance.below_threshold(targets, requirements):
+        reason = (f"below relevance threshold for {project_key} "
+                  f"(scored {targets.get('relevance')})")
+        ingest_guard.quarantine(finding, reason, wdir.parent / "Sources", wiki_dir=wdir)
+        parked = IngestResult()
+        parked.status = "quarantined"
+        parked.error = reason
+        return targets, parked
+
+    return targets, None
+
+
 def ingest(finding: str, source_type: str = "research",
-           topic: str = "", turn_id: str = "") -> IngestResult:
+           topic: str = "", turn_id: str = "",
+           project_key: str = "") -> IngestResult:
     """Ingest a finding into the Brain-1 wiki.
 
     Args:
@@ -231,9 +235,11 @@ def ingest(finding: str, source_type: str = "research",
         source_type: "research" | "board" | "board_trigger" | "manual"
         topic:       Short label for log.md (optional)
         turn_id:     Links back to a Margot turn or Board session (optional)
+        project_key: Whose requirements to score against (see wiki_relevance).
 
     Returns:
         IngestResult with pages_updated, pages_created, log_entry, corpus_synced.
+        status is "quarantined" when the finding scored below the threshold.
     """
     result = IngestResult()
     wdir = _wiki_dir()
@@ -243,17 +249,14 @@ def ingest(finding: str, source_type: str = "research",
         result.error = f"wiki dir not found: {wdir}"
         return result
 
+    project_key = project_key or wiki_relevance.project_key_for(None)
     finding = finding[:MAX_FINDING_CHARS]
     today = _now_date()
     changed: list[Path] = []
 
-    try:
-        index = _load_index(wdir)
-        targets = _identify_targets(finding, index)
-    except Exception as exc:  # noqa: BLE001
-        result.status = "error"
-        result.error = f"target identification failed: {exc}"
-        return result
+    targets, terminal = _plan_ingest(finding, wdir, project_key)
+    if terminal is not None:
+        return terminal
 
     # ── Update existing pages (guarded — source content cannot select files) ──
     wanted = (targets.get("update") or [])[:MAX_PAGES_PER_INGEST]
@@ -410,22 +413,18 @@ def ingest_file(path: str | Path, topic: str = "") -> IngestResult:
     raw = p.read_text(encoding="utf-8")
     raw = _enrich_youtube_frontmatter(p, raw)
 
-    # Strip frontmatter so the LLM sees clean content + channel context
-    channel = None
-    if raw.startswith("---"):
-        end = raw.find("\n---", 3)
-        if end != -1:
-            fm = raw[3:end]
-            m = re.search(r'^channel:\s*"?([^"\n]+)"?', fm, re.MULTILINE)
-            if m:
-                channel = m.group(1).strip()
-            raw = raw[end + 4:].lstrip()
-
-    channel_prefix = f"[YouTube channel: {channel}]\n\n" if channel else ""
+    # Captured before the block is cut off the text — `project:` is read from it
+    # below, after `raw` no longer contains it.
+    raw, frontmatter = wiki_relevance.split_frontmatter(raw)
+    m = re.search(r'^channel:\s*"?([^"\n]+)"?', frontmatter or "", re.MULTILINE)
+    channel_prefix = f"[YouTube channel: {m.group(1).strip()}]\n\n" if m else ""
     finding = channel_prefix + raw
 
     label = topic or re.sub(r"^\d{4}-\d{2}-\d{2}-?", "", p.stem)
-    return ingest(finding, source_type="clip", topic=label)
+    # `project:` in the source's own frontmatter wins; otherwise the env default.
+    # Read from the frontmatter captured ABOVE, before it was stripped off.
+    return ingest(finding, source_type="clip", topic=label,
+                  project_key=wiki_relevance.project_key_for(frontmatter))
 
 
 __all__ = ["ingest", "ingest_file", "IngestResult"]
