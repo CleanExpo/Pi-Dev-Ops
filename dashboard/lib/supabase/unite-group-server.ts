@@ -13,13 +13,40 @@
 // Bypasses Row Level Security; never expose to the browser.
 import { createClient } from "@supabase/supabase-js";
 
+/** The env vars this client requires. One list, so the check and the error cannot drift. */
+const REQUIRED_ENV = [
+  "SUPABASE_UNITE_GROUP_URL",
+  "SUPABASE_UNITE_GROUP_SERVICE_KEY",
+] as const;
+
+/**
+ * Which of this client's env vars are unset, by NAME — never by value.
+ *
+ * Exists so a caller can tell "this deployment was never configured" apart from
+ * "the query failed" WITHOUT parsing an exception message. Today those are the
+ * same opaque 500: the wiki-graph route's catch-all deliberately swallows every
+ * message because a driver error can carry a connection string, so the one
+ * failure an operator can actually act on is indistinguishable from the ones
+ * they cannot.
+ *
+ * Variable NAMES are safe to return and safe to put in a response body — they
+ * are already in this file, in the deploy config, and in
+ * docs/runbooks/fleet-operations.md. Values are never read here, only tested for
+ * presence, so nothing this returns can carry a credential.
+ */
+export function missingUniteGroupEnv(): string[] {
+  return REQUIRED_ENV.filter((name) => !process.env[name]);
+}
+
 export function createUniteGroupServerClient() {
-  const url = process.env.SUPABASE_UNITE_GROUP_URL;
-  const key = process.env.SUPABASE_UNITE_GROUP_SERVICE_KEY;
-  if (!url || !key) {
-    throw new Error(
-      "Missing Supabase env vars: SUPABASE_UNITE_GROUP_URL and SUPABASE_UNITE_GROUP_SERVICE_KEY"
-    );
+  const missing = missingUniteGroupEnv();
+  if (missing.length > 0) {
+    // Names only, and only the ones actually absent.
+    throw new Error(`Missing Supabase env vars: ${missing.join(" and ")}`);
   }
-  return createClient(url, key, { auth: { persistSession: false } });
+  return createClient(
+    process.env.SUPABASE_UNITE_GROUP_URL as string,
+    process.env.SUPABASE_UNITE_GROUP_SERVICE_KEY as string,
+    { auth: { persistSession: false } }
+  );
 }

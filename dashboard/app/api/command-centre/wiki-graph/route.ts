@@ -38,7 +38,10 @@
 // lib/supabase/unite-group-server.ts.
 
 import { NextResponse } from "next/server";
-import { createUniteGroupServerClient } from "@/lib/supabase/unite-group-server";
+import {
+  createUniteGroupServerClient,
+  missingUniteGroupEnv,
+} from "@/lib/supabase/unite-group-server";
 import { buildWikiGraph, type WikiPageRow } from "@/lib/command-centre/wiki-graph";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +51,37 @@ export const dynamic = "force-dynamic";
 const WIKI_PAGES_LIMIT = 1000;
 
 export async function GET(): Promise<Response> {
+  // Checked BEFORE the try, so an unconfigured deployment is reported as itself
+  // rather than being flattened into the catch-all below.
+  //
+  // That catch-all is deliberately message-free (see its own comment) because a
+  // driver error can carry a connection string. The cost was that the ONE failure
+  // an operator can act on — "these two env vars were never set on this
+  // deployment" — arrived as the same blank 500 as every failure they cannot.
+  //
+  // 503, not 500: nothing here is broken. The feature is unconfigured, which is a
+  // different thing to tell an operator, and it is temporary in exactly the way
+  // 503 means. Only variable NAMES cross the boundary; missingUniteGroupEnv()
+  // never reads a value.
+  //
+  // This does NOT make the cc-wiki-graph smoke probe pass — that probe expects 200
+  // with a pageCount, and there is no pageCount to return without the credentials.
+  // It makes the failure legible, nothing more.
+  const missingEnv = missingUniteGroupEnv();
+  if (missingEnv.length > 0) {
+    return NextResponse.json(
+      {
+        error: "Wiki graph is not configured on this deployment",
+        missing: missingEnv,
+        detail:
+          "wiki_pages lives in the Unite-Group Supabase project, which needs its " +
+          "own credentials. Set the variables named above on the dashboard " +
+          "deployment — see docs/runbooks/fleet-operations.md.",
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     const supabase = createUniteGroupServerClient();
 
