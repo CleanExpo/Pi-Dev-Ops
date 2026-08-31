@@ -50,6 +50,7 @@ SHIP_ROWS = [{"machine": "unite-mac-mini", "repo": "CleanExpo/Pi-Dev-Ops"}]
 def _fake_sb(table_bodies: dict):
     """Stub of `mesh._sb`, keyed on the table each query starts with."""
     def sb(method, path, body=None, *, prefer=""):
+        """Return the stubbed body for the first table this path matches."""
         for table, payload in table_bodies.items():
             if path.startswith(table):
                 return 200, payload
@@ -58,6 +59,7 @@ def _fake_sb(table_bodies: dict):
 
 
 def _ok_bodies() -> dict:
+    """The four well-formed table responses a healthy snapshot reads."""
     return {
         "mesh_fleet": json.dumps(FLEET_ROWS),
         "mesh_agents": json.dumps(AGENT_ROWS),
@@ -68,6 +70,11 @@ def _ok_bodies() -> dict:
 
 @pytest.fixture
 def mesh_client(monkeypatch):
+    """A TestClient over the mesh router alone, with the secret set.
+
+    The module is popped from sys.modules first so it re-reads config at
+    import time rather than inheriting a secret from an earlier test file.
+    """
     from app.server import config as _config
     monkeypatch.setattr(_config, "INTERNAL_WEBHOOK_SECRET", "test-secret", raising=False)
     sys.modules.pop("app.server.routes.mesh", None)

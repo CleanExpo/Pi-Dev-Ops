@@ -44,6 +44,7 @@ NO_SUPERVISION = "no supervision installed"
 
 
 def _write(path: Path, body: str) -> None:
+    """Write an executable stub. Every fake binary here must be chmod +x."""
     path.write_text(body, encoding="utf-8")
     path.chmod(0o755)
 
@@ -77,6 +78,12 @@ def _stub_bins(sandbox: Path, *, uname_s: str, heartbeat_ok: bool) -> Path:
 
 
 def _run_bootstrap(sandbox: Path, *, uname_s: str, heartbeat_ok: bool) -> subprocess.CompletedProcess:
+    """Run bootstrap.sh with the platform and heartbeat outcome controlled.
+
+    `env -i`-style: only PATH, HOME and the API key are passed, so nothing
+    leaks in from the runner and the two inputs under test are the only
+    things that vary between cases.
+    """
     binn = _stub_bins(sandbox, uname_s=uname_s, heartbeat_ok=heartbeat_ok)
     home = sandbox / "home"
     home.mkdir(parents=True, exist_ok=True)
