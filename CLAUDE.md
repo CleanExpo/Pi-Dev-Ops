@@ -192,6 +192,11 @@ next agent a first command.
   `PLR0915` is not that rule: it counts statements, catching 10% of this repo's
   over-40-line functions at its default, so it was rejected rather than adopted —
   re-derive with `function_length_lint.py --report`.
+  **Run both gates AFTER `git add`.** They enumerate via `git ls-files`, so a
+  brand-new file is invisible until staged: the gate prints "passed" locally and
+  then fails in CI on the file you just wrote. `git add -N` is enough. This is
+  the same blindness that once hid `file_length_lint.py`'s own `main()` from
+  itself, and it recurred on 2026-08-31 with `mesh_dispatch_service.py`.
 - **Security:** bcrypt passwords, parameterised queries, CSP headers, no secrets in code. Run
   `detect-secrets scan` pre-commit.
 - **Content:** no first-person business voice (we/our/I/us/my), no AI filler (delve, tapestry,
