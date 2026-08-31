@@ -7,6 +7,48 @@ Fleet: `phills-macbook-pro` (mobile — leaves and rejoins), `unite-mac-mini` (a
 `phill-desktop` (Windows, always on when powered). Transport is HTTPS to the Railway API, not
 peer-to-peer, so a machine on hotel wifi works exactly like one on the LAN.
 
+## ACTION REQUIRED — the six things only you can do
+
+Everything below this section is reference. This section is the work queue for a human, ordered
+by what unblocks the most. Each item names what stays broken until it is done, so nothing here
+can be quietly reported as finished while it is still outstanding.
+
+Nothing in this list is waiting on code. Every one of them needs a credential, a machine you are
+sitting at, or a Google consent screen — none of which an agent can supply.
+
+| # | Do this | Where | Until then |
+|---|---|---|---|
+| 1 | `bash mesh/bootstrap.sh` | each of the 3 machines | No machine is in the fleet. Dispatch has nothing to assign to. |
+| 2 | Set `MESH_DISPATCH_ENABLED=1` | Railway | Work is never assigned. The fleet is awake but idle. |
+| 3 | Set `SUPABASE_UNITE_GROUP_URL` + `SUPABASE_UNITE_GROUP_SERVICE_KEY` | Vercel | `cc-wiki-graph` 500s. This is the **last remaining production e2e failure**. |
+| 4 | Apply the `conversation_digests` migration, then set `CONVERSATION_SYNC_ENABLED=1` | Supabase, then Railway | No machine can search another's conversations. |
+| 5 | Run `scripts/setup-pc-ssh.ps1` | the Windows PC | `/done` and the other PC-only commands cannot be read, so they cannot be ported. |
+| 6 | Grant YouTube OAuth **or** drop a Takeout export | browser | The transcript producer has no input; the wiki pipeline stays empty. |
+
+Optional, unblocks the free-model research lane rather than a broken surface:
+set `OPENROUTER_API_KEY` on Railway. Without it the OpenRouter harness raises on first call, so
+any "run the swarm on free models" request fails at the first request rather than degrading.
+
+### Order that wastes the least of your time
+
+1 and 2 together (one sitting, all three machines), then 3 (two minutes, closes the last red
+e2e probe), then 5 (unlocks porting `/done`), then 4 and 6 whenever.
+
+### How to confirm each one actually took
+
+Do not trust the setting screen — confirm from the system:
+
+| # | Confirm with |
+|---|---|
+| 1 | `curl -s "$PI_CEO_API_URL/api/mesh/fleet" -H "X-Pi-CEO-Secret: $PI_CEO_API_KEY"` → 3 rows, all fresh within ~20 s |
+| 2 | Railway logs show `mesh_dispatch id=… assigned=N online=[…]` within 5 minutes |
+| 3 | The `e2e` workflow on `main` reports `113 passed · 0 failed` |
+| 4 | `GET /api/conversations/recent` with the secret returns 200 rather than 503 |
+| 5 | The script prints the transferred filenames and reports them verified by name |
+| 6 | `python3 scripts/youtube_transcripts.py --dry-run` plans a non-zero number of clips |
+
+A step that reports success but fails its confirmation is not done — say so rather than moving on.
+
 ## Check the fleet is alive
 
 ```bash
