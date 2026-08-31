@@ -27,8 +27,24 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   /^\/api\/integrations\/health$/,
   /^\/api\/nexus\/health$/,
   /^\/api\/nexus\/ingest\/health$/,
+  // YouTube connector. PR #650 declared these four in .github/smoke-surfaces.json
+  // as "surfaced through dashboard proxy" and expecting 200/422 — but never added
+  // them here, so every call 403'd on `refuse()` instead. The e2e suite has been
+  // red on main on exactly these four ever since. Anchored one path each, no
+  // wildcard: the rest of the youtube-intent router (catalog, synthesize,
+  // pull-live, oauth/callback) is deliberately NOT proxied.
+  /^\/api\/nexus\/youtube-intent\/policy$/,
+  /^\/api\/nexus\/youtube-intent\/oauth\/start$/,
+  /^\/api\/nexus\/youtube-intent\/oauth\/state$/,
+  /^\/api\/nexus\/youtube-intent\/import-takeout$/,
   /^\/api\/telegram\/intake\/status$/,
   /^\/webhook\/telegram$/,
+  // Slack Events ingress (PR #673), the sibling of /webhook/telegram above. Its
+  // smoke probe expects the BACKEND's 401 "Invalid Slack signature" — proof that
+  // signature validation runs. Unlisted, the proxy 403'd it first, so the probe
+  // never reached the check it exists to verify. Forwarding is safe precisely
+  // because slack_bridge.py rejects an unsigned body before doing any work.
+  /^\/webhooks\/slack\/events$/,
 ];
 
 export function allowed(pathStr: string): boolean {

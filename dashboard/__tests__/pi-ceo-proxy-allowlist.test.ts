@@ -10,11 +10,49 @@
  * exercise this allowlist at all), and keeps a hostile-path check alongside so a fix here can't
  * silently widen the gate into a catch-all again.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { allowed } from "@/lib/pi-ceo-proxy-allowlist";
 import { PROXY_ANALYZE_MS, PROXY_DEFAULT_MS, proxyAbortPayload, proxyTimeoutMs } from "@/lib/pi-ceo-proxy-timeout";
 
+/**
+ * Every proxied surface the smoke suite declares, read from smoke-surfaces.json
+ * rather than copied into this file.
+ *
+ * The hand-copied list below caught the 2026 regression it was written for, then
+ * missed the next one for the same reason it existed: PR #650 declared four
+ * `/api/nexus/youtube-intent/*` probes expecting 200/422, nobody added them to
+ * ALLOWED_UPSTREAM or to this file's array, and the e2e suite went red on main on
+ * those four for days. A list maintained by hand drifts from the thing it claims
+ * to pin. Deriving it means a surface can never again be declared and silently
+ * refused — adding the probe is what makes this test demand the allowlist entry.
+ */
+function declaredProxySurfaces(): string[] {
+  const raw = readFileSync(
+    join(process.cwd(), "..", ".github", "smoke-surfaces.json"), "utf-8");
+  const surfaces = JSON.parse(raw).horizontal as Array<{
+    path: string; auth?: boolean; expected_status?: number;
+  }>;
+  return surfaces
+    // auth:false probes are refused earlier by proxy.ts's session check and never
+    // reach this gate; a probe that EXPECTS 403 is asserting the refusal itself.
+    .filter((s) => s.auth === true && s.expected_status !== 403)
+    .filter((s) => s.path.startsWith("/api/pi-ceo/"))
+    .map((s) => s.path.replace(/^\/api\/pi-ceo/, "").split("?")[0]);
+}
+
 describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
+  it("admits every proxied surface declared in smoke-surfaces.json", () => {
+    const declared = declaredProxySurfaces();
+    // Guard against a silently-empty derivation: a parse or path change that
+    // returned [] would make this test vacuously pass and prove nothing.
+    expect(declared.length).toBeGreaterThan(5);
+    const refused = declared.filter((p) => !allowed(p));
+    expect(refused, `declared in smoke-surfaces.json but refused by the proxy: ${refused.join(", ")}`)
+      .toEqual([]);
+  });
+
   it("admits every auth:true route the smoke suite depends on", () => {
     const legitimate = [
       "/api/autonomy/status",
