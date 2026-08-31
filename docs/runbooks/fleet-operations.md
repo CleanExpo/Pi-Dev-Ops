@@ -18,16 +18,37 @@ sitting at, or a Google consent screen — none of which an agent can supply.
 
 | # | Do this | Where | Until then |
 |---|---|---|---|
-| 1 | `bash mesh/bootstrap.sh` | each of the 3 machines | No machine is in the fleet. Dispatch has nothing to assign to. |
+| 1 | `bash mesh/bootstrap.sh`, then on `phill-desktop` the two `schtasks` commands it prints | each of the 3 machines | No machine is in the fleet. Dispatch has nothing to assign to. The script exits non-zero and names the gap if a node only half-joined. |
 | 2 | Set `MESH_DISPATCH_ENABLED=1` | Railway | Work is never assigned. The fleet is awake but idle. |
 | 3 | Set `SUPABASE_UNITE_GROUP_URL` + `SUPABASE_UNITE_GROUP_SERVICE_KEY` | Vercel | `cc-wiki-graph` 500s. This is the **last remaining production e2e failure**. |
 | 4 | Apply the `conversation_digests` migration, then set `CONVERSATION_SYNC_ENABLED=1` | Supabase, then Railway | No machine can search another's conversations. |
-| 5 | Run `scripts/setup-pc-ssh.ps1` | the Windows PC | `/done` and the other PC-only commands cannot be read, so they cannot be ported. |
+| 5 | Run `scripts/setup-pc-ssh.ps1`, then run it again with `-SyncCommands` | the Windows PC | `/done` and the other PC-only commands cannot be read, so they cannot be ported. **Both runs are needed** — without the flag the script proves the connection and copies nothing. |
 | 6 | Grant YouTube OAuth **or** drop a Takeout export | browser | The transcript producer has no input; the wiki pipeline stays empty. |
 
 Optional, unblocks the free-model research lane rather than a broken surface:
 set `OPENROUTER_API_KEY` on Railway. Without it the OpenRouter harness raises on first call, so
 any "run the swarm on free models" request fails at the first request rather than degrading.
+
+### Before 1 and 2 on `unite-mac-mini` — check for an ambient `MESH_REPO_DIR`
+
+```bash
+echo "${MESH_REPO_DIR:-(unset — good)}"
+```
+
+If it prints a path, **do not turn on dispatch on that node yet**. `mesh/runner.py`
+`_repo_dir_for()` falls back to it, so the runner does its claimed work in whatever
+directory that variable names rather than in the checkout it claimed the ticket
+against — and the claim still reads as served. RA-7375 records it exported on
+`Phills-Mac-mini` pointing at a Codex worktree on an external volume, which also
+breaks whenever that volume is unmounted.
+
+**No test can tell you this** — check the variable itself, above. `_repo_dir_for()`
+cannot distinguish an ambient export from an operator's deliberate relocation, and
+`tests/test_mesh_runner_service.py` pins both branches on purpose: one `delenv`s the
+variable to test the fallback, the other sets it to prove the override is honoured.
+Both pass on an affected node. That is correct unit-test behaviour, not a gap in the
+suite — the gap is that the two cases are indistinguishable at runtime, which is
+RA-7375's second half.
 
 ### Order that wastes the least of your time
 
@@ -44,7 +65,7 @@ Do not trust the setting screen — confirm from the system:
 | 2 | Railway logs show `mesh_dispatch id=… assigned=N online=[…]` within 5 minutes |
 | 3 | The `e2e` workflow on `main` reports `113 passed · 0 failed` |
 | 4 | `GET /api/conversations/recent` with the secret returns 200 rather than 503 |
-| 5 | The script prints the transferred filenames and reports them verified by name |
+| 5 | The `-SyncCommands` run reports every file verified **by name** in the remote listing. A run without that flag stops at "Re-run with -SyncCommands" and is not step 5. |
 | 6 | `python3 scripts/youtube_transcripts.py --dry-run` plans a non-zero number of clips |
 
 A step that reports success but fails its confirmation is not done — say so rather than moving on.
@@ -65,13 +86,23 @@ machine is missing entirely it never enlisted: run the join below on it.
 bash mesh/bootstrap.sh          # idempotent; safe to re-run
 ```
 
-Installs the heartbeat daemon and runner, wires the agent hooks, and writes credentials to
-`~/.hermes/.env` (mode 600). The machine holds only `PI_CEO_API_KEY` — never the Supabase
-service-role key. Verify with the fleet call above: a new row should appear within ~20 s.
+Wires the agent hooks, writes credentials to `~/.hermes/.env` (mode 600), publishes one
+heartbeat, and **on macOS only** installs the heartbeat daemon and work runner as launchd
+services. The machine holds only `PI_CEO_API_KEY` — never the Supabase service-role key.
 
-`bootstrap.sh` is bash. On `phill-desktop` run it under WSL or Git Bash; if neither is present,
-that node cannot enlist yet and needs a PowerShell port. Check before assuming it joined —
-a machine that silently failed to enlist looks identical to one that is merely idle.
+**Read the last line and the exit code.** The script reports `enlisted` only when the heartbeat
+published *and* supervision was installed, and exits non-zero otherwise, naming which half
+failed. It used to print `Done. $HOST is enlisted with visibility + work execution.` and exit 0
+unconditionally — including on a node where the heartbeat returned `{"published": false}` and no
+daemon was installed at all. Still verify with the fleet call above rather than the output: a new
+row should appear within ~20 s.
+
+`bootstrap.sh` is bash. On `phill-desktop` run it under WSL or Git Bash; without either, that
+node cannot run it at all and needs a PowerShell port. Under Git Bash it **enlists visibility but
+not execution** — it does not install supervision, so the node goes stale ~60 s later and
+dispatch skips it. The script now prints the two `schtasks /Create /SC ONLOGON` commands you
+must run to finish the join; the same gap applies on Linux, where it prints the two daemon
+commands for systemd.
 
 ## Turn work assignment on
 

@@ -139,6 +139,27 @@ def _repo_dir_for(claim: dict) -> Path:
     return Path(value).expanduser().resolve()
 
 
+def _fail_claim(plan: dict, linear_id: str, branch: str, error: str) -> dict:
+    """Mark a claim failed and TELL THE SERVER, then return the plan.
+
+    Reporting is the whole point. `mesh_work_claims_one_open` is a partial
+    unique index over `claimed`/`working`, so a claim left in either state
+    blocks every other node from taking that ticket — and `_reap_stale_claims`
+    will not release it, because that deliberately skips machines whose
+    heartbeat is fresh, which a runner failing this way still has.
+
+    Extracted because this sequence existed twice and one copy omitted the POST:
+    a repo with no `.git` returned `state: failed` to a caller that only prints
+    it, so the ticket stayed claimed, unworked and locked (RA-7394). One
+    function means the next terminal failure cannot forget the report.
+    """
+    plan.update(state="failed", error=error)
+    _api("POST", "/api/mesh/claim/update", {
+        "linear_id": linear_id, "state": "failed", "branch": branch})
+    write_state(None, "idle")
+    return plan
+
+
 def _terminate_for_stop(proc: subprocess.Popen) -> None:
     """Terminate an in-flight agent cleanly, escalating only after the grace period."""
     proc.terminate()
@@ -189,7 +210,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         plan["dry_run"] = True
         return plan
     if not (repo_dir / ".git").exists():
-        return {**plan, "state": "failed", "error": f"repo missing: {repo_dir}"}
+        return _fail_claim(plan, linear_id, branch, f"repo missing: {repo_dir}")
 
     write_state(linear_id, "working", session_id=run_id)
     _api("POST", "/api/mesh/claim/update", {
@@ -200,11 +221,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         capture_output=True, text=True, check=False,
     )
     if getattr(added, "returncode", 0) != 0:
-        plan.update(state="failed", error="git worktree add failed")
-        _api("POST", "/api/mesh/claim/update", {
-            "linear_id": linear_id, "state": "failed", "branch": branch})
-        write_state(None, "idle")
-        return plan
+        return _fail_claim(plan, linear_id, branch, "git worktree add failed")
 
     prompt = (
         f"Work the Linear ticket {linear_id}. Make a small, verifiable change, "
