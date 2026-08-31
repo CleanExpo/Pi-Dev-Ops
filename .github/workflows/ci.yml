@@ -115,6 +115,27 @@ jobs:
         run: bash aip/src/mcp/test_run.sh
         working-directory: .
 
+      # Run directly, NOT under pytest: this file has no test functions and calls
+      # sys.exit() at import, which makes `pytest scripts/` die with INTERNALERROR.
+      # (`pytest scripts/` would also collect scripts/smoke_test.py, which matches
+      # *_test.py and is a live-server probe that can target production.) That is
+      # why the whole directory is not simply added to the pytest steps above.
+      #
+      # It is wired now because app/server/routes/conversations.py imports this
+      # module's _SECRET_PATTERNS as half of the ingest redaction bank, and that
+      # route fails closed on an ImportError but NOT on a bank that imports fine
+      # with a weakened pattern.
+      #
+      # It is complementary to tests/test_conversations_redaction.py, not
+      # redundant with it — checked, not assumed. Deleting the sk-ant-oat pattern
+      # fails BOTH, because that shape is the one the conversation tests assert.
+      # But those tests only ever construct the two Anthropic shapes, so the
+      # Google, GitHub, Slack, JWT and bearer patterns, and render_digest itself,
+      # are covered here and nowhere that runs. Hermetic, under a second.
+      - name: Transcript redaction bank (guards the conversation ingest lane)
+        run: python scripts/test_sync_claude_sessions.py
+        working-directory: .
+
       - name: Provisioning gate (RA-7015 Cap 0)
         run: python scripts/check_provisioning.py
         working-directory: .
