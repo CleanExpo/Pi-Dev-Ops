@@ -178,41 +178,6 @@ def test_appended_session_is_shipped_again(lake: Path, marker: Path) -> None:
     assert _run(lake, marker, again)["sent"] == 1
 
 
-def test_marker_positive_control_note() -> None:
-    """Control: dropping the marker write makes the idempotence test FAIL.
-
-    Verified by editing scripts/conversation_collector.py to replace
-    `save_markers(markers, marker_path)` in run() with `pass`  (substitution
-    asserted to change the file), then re-running this module: 1 failed on
-    `assert summary["candidates"] == 0` (got 1 — the same session re-shipped).
-    Reverted; green again.
-    """
-    assert "save_markers(markers, marker_path)" in Path(cc.__file__).read_text()
-
-
-def test_torn_marker_costs_one_entry_not_the_history(tmp_path: Path) -> None:
-    path = tmp_path / "m.json"
-    path.write_text(
-        json.dumps({"path": "/a.jsonl", "mtime": 1.0, "size": 10}) + "\n"
-        + '{"path": "/b.jsonl", "mtime": 2.0, "siz\n'          # torn line
-        + json.dumps({"path": "/c.jsonl", "mtime": 3.0, "size": 30}) + "\n"
-    )
-    markers = cc.load_markers(path)
-    assert set(markers) == {"/a.jsonl", "/c.jsonl"}
-
-
-def test_marker_roundtrip_and_legacy_json_object(tmp_path: Path) -> None:
-    path = tmp_path / "m.json"
-    cc.save_markers({"/a.jsonl": {"mtime": 1.5, "size": 7}}, path)
-    assert cc.load_markers(path) == {"/a.jsonl": {"mtime": 1.5, "size": 7}}
-    assert not path.with_suffix(path.suffix + ".tmp").exists()
-    legacy = tmp_path / "legacy.json"
-    legacy.write_text(json.dumps({"/x.jsonl": {"mtime": 9.0, "size": 3}}))
-    assert cc.load_markers(legacy)["/x.jsonl"]["size"] == 3
-    assert cc.load_markers(tmp_path / "missing.json") == {}
-
-
-# ── gating, limits, failure handling ─────────────────────────────────────────
 def test_dry_run_neither_posts_nor_writes_marker(lake: Path, marker: Path) -> None:
     poster = FakePoster()
     summary = _run(lake, marker, poster, dry_run=True)

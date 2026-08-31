@@ -174,5 +174,62 @@ run_case e2 Pi-Dev-Ops '' '-Users-x-[Pp]i-Dev-Ops' -Users-y-Other
 expect "E2 metacharacters in a project name do not widen the match" 2 "$CASE_RC" \
   "$CASE_LOG" "memory dir not found"
 
+say "== Credential redaction in the log =="
+
+# $LOG_FILE is persistent. Two paths put a git URL into it: the "remote drifted"
+# line, and git's own stderr on push, which quotes the full remote URL on an auth
+# failure. An HTTPS remote carrying a PAT is the natural way to run this on a node
+# with no SSH agent, so redact_url() must strip credentials from both.
+#
+# Extracted from $SRC rather than retyped, so this tests the shipped function.
+RED="$T/redact.fn"
+awk '/^redact_url\(\) \{/,/^\}/' "$SRC" > "$RED"
+if [ ! -s "$RED" ]; then
+  bad "C0 redact_url() could not be extracted from $SRC"
+  say "    the function was renamed or removed - this suite cannot vouch for redaction"
+  say "== SUMMARY pass=$PASS fail=$FAIL =="; exit 1
+fi
+ok "C0 redact_url() extracted ($(wc -l < "$RED") lines)"
+
+# shellcheck disable=SC1090
+. "$RED"
+
+red_out="$(printf '%s\n' "https://x-access-token:ghp_AAAABBBBCCCCDDDDEEEEFFFF@github.com/o/r.git" | redact_url)"
+case "$red_out" in
+  *ghp_AAAABBBBCCCCDDDDEEEEFFFF*) bad "C1 a PAT in an HTTPS remote is stripped (leaked: $red_out)" ;;
+  *"***@github.com"*)             ok  "C1 a PAT in an HTTPS remote is stripped" ;;
+  *)                              bad "C1 unexpected redaction output: $red_out" ;;
+esac
+
+# The dangerous path: git quotes the credentialed URL exactly when auth fails,
+# which is when an operator is most likely to paste the log somewhere.
+git_err="fatal: Authentication failed for 'https://user:ghp_SECRETSECRETSECRET@github.com/o/r.git'"
+red_out="$(printf '%s\n' "$git_err" | redact_url)"
+case "$red_out" in
+  *ghp_SECRETSECRETSECRET*) bad "C2 git's auth-failure line is stripped (leaked: $red_out)" ;;
+  *"***@github.com"*)       ok  "C2 git's auth-failure line is stripped" ;;
+  *)                        bad "C2 unexpected redaction output: $red_out" ;;
+esac
+
+# Green control: the DOCUMENTED SSH form carries no secret and must survive intact,
+# or the drift diagnostic becomes useless. Without this, a redactor that mangled
+# every URL would pass C1 and C2.
+ssh_url="git@github.com:CleanExpo/claude-memory.git"
+red_out="$(printf '%s\n' "$ssh_url" | redact_url)"
+if [ "$red_out" = "$ssh_url" ]; then
+  ok "C3 an SSH remote is left intact"
+else
+  bad "C3 an SSH remote is left intact (got: $red_out)"
+fi
+
+# Green control: credential-free HTTPS must also survive untouched.
+plain="https://github.com/CleanExpo/claude-memory.git"
+red_out="$(printf '%s\n' "$plain" | redact_url)"
+if [ "$red_out" = "$plain" ]; then
+  ok "C4 a credential-free HTTPS remote is left intact"
+else
+  bad "C4 a credential-free HTTPS remote is left intact (got: $red_out)"
+fi
+
 say "== SUMMARY pass=$PASS fail=$FAIL =="
 [ "$FAIL" -eq 0 ] && exit 0 || exit 1

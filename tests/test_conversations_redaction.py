@@ -71,6 +71,102 @@ def test_redaction_bank_covers_transcript_only_shapes(convo):
     assert FAKE_OAUTH_TOKEN not in store.saved[0]["digest_md"]
 
 
+def test_every_stored_field_is_redacted_not_just_the_obvious_two(convo):
+    """POSITIVE CONTROL over the WHOLE row, not two columns of it.
+
+    `project_dir` is a cwd, so it carries a username at minimum, and the client
+    redacts it for exactly that reason — while this server, which exists because
+    the client's claim cannot be verified, was copying it through verbatim along
+    with `machine` and the `id` built from them. Asserting only on title and
+    digest_md is what let three fields leak while the tests stayed green.
+    """
+    client, _, store = convo
+    body = {
+        # Identity fields are clean here on purpose: a secret in `machine` or
+        # `session_id` is now REFUSED rather than redacted (redacting an identity
+        # destroys it and collides the primary key) — see the two tests below.
+        "machine": "macbook",
+        "digests": [{
+            "session_id": "s1",
+            "project_dir": f"/Users/phill/work {FAKE_OAUTH_TOKEN}",
+            "title": f"t {FAKE_OAUTH_TOKEN}",
+            "digest_md": f"body {FAKE_OAUTH_TOKEN}",
+            "started_at": f"2026-08-30T01:00:00Z {FAKE_OAUTH_TOKEN}",
+            "last_activity_at": f"2026-08-30T02:00:00Z {FAKE_OAUTH_TOKEN}",
+        }],
+    }
+    r = client.post("/api/conversations/ingest", json=body, headers=HDR)
+    assert r.status_code == 200, r.text
+    row = store.saved[0]
+    # EVERY caller-supplied string, enumerated from the row itself rather than
+    # hand-listed, so a column added later is covered without anyone
+    # remembering to extend this list.
+    for field, value in row.items():
+        assert FAKE_OAUTH_TOKEN not in str(value), f"{field} reached the store unredacted"
+    assert {"id", "machine", "project_dir", "title", "digest_md",
+            "started_at", "last_activity_at"} <= set(row), "the row lost a field this pins"
+    # The response echoes the machine back, so it must be clean too.
+    assert FAKE_OAUTH_TOKEN not in r.text
+
+
+def test_a_secret_bearing_machine_name_is_refused_not_stored(convo, caplog):
+    """Identity must be CLEAN, not merely redacted.
+
+    Redacting an identity does not sanitise it, it destroys it: the row id is
+    "<machine>:<session_id>", so two different secret-bearing values both become
+    the same placeholder and therefore the same primary key — one machine's
+    history silently overwriting another's. Storing "[REDACTED:...]" as a machine
+    name would also be useless data in a table whose whole purpose is knowing
+    which machine said what.
+
+    `machine` applies to every digest in the request, so there is no partial
+    recovery: the request is refused. The raw value must appear in neither the
+    response nor the log — the 422 is what stops it reaching either.
+    """
+    client, _, store = convo
+    body = {"machine": f"macbook {FAKE_OAUTH_TOKEN}", "digests": [{"session_id": "s1"}]}
+    with caplog.at_level("INFO", logger="pi-ceo.routes.conversations"):
+        r = client.post("/api/conversations/ingest", json=body, headers=HDR)
+    assert r.status_code == 422
+    assert FAKE_OAUTH_TOKEN not in r.text
+    assert FAKE_OAUTH_TOKEN not in " ".join(rec.getMessage() for rec in caplog.records)
+    assert store.saved == [], "nothing may be stored under an unusable identity"
+
+
+def test_a_clean_machine_name_still_reaches_the_log(convo, caplog):
+    """Green control. Without it, a validator that refused EVERY machine would
+    satisfy the test above while taking the whole lane down."""
+    client, _, _ = convo
+    with caplog.at_level("INFO", logger="pi-ceo.routes.conversations"):
+        assert client.post(
+            "/api/conversations/ingest", json=ingest_body(), headers=HDR).status_code == 200
+    logged = " ".join(rec.getMessage() for rec in caplog.records)
+    assert "conversation digests stored" in logged, "the log line under test did not fire"
+    assert "machine=macbook" in logged
+
+
+def test_an_unidentifiable_digest_is_skipped_not_collided(convo):
+    """One bad digest must not cost the batch, nor collide with another.
+
+    Two different secret-bearing session ids redact to the SAME placeholder, so
+    without this they would share a primary key and one would overwrite the
+    other. Skipping them keeps every identifiable digest in the same request.
+    """
+    client, _, store = convo
+    body = {
+        "machine": "macbook",
+        "digests": [
+            {"session_id": f"a-{FAKE_OAUTH_TOKEN}", "digest_md": "first"},
+            {"session_id": f"b-{FAKE_OAUTH_TOKEN}", "digest_md": "second"},
+            {"session_id": "good-1", "digest_md": "keep me"},
+        ],
+    }
+    r = client.post("/api/conversations/ingest", json=body, headers=HDR)
+    assert r.status_code == 200, r.text
+    assert r.json()["skipped"] == 2
+    assert [row["id"] for row in store.saved] == ["macbook:good-1"]
+
+
 def test_redaction_is_idempotent(convo):
     """A digest the client already redacted passes through unchanged, so a
     re-sync cannot accumulate nested placeholders."""
@@ -133,3 +229,46 @@ def test_a_failed_extension_import_reports_the_bank_incomplete(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", real_import)
     _bank, healthy = conversations._build_redaction_bank()
     assert healthy is True
+
+
+def test_a_secret_bearing_timestamp_is_dropped_not_shipped_as_text(convo):
+    """A bad timestamp must cost one field, not the whole batch.
+
+    `started_at` and `last_activity_at` are TIMESTAMPTZ. A caller-supplied value
+    carrying a secret is not a timestamp before redaction and is still not one
+    after it — redaction turns it into text, which Postgres rejects just the
+    same. The upsert is a SINGLE statement for the entire batch, so that one
+    value would fail every digest sent alongside it, up to
+    CONVERSATION_INGEST_MAX_ROWS of them.
+
+    Both columns are nullable by design, so None keeps the row.
+    """
+    client, _, store = convo
+    body = ingest_body()
+    body["digests"][0]["started_at"] = f"2026-08-30T01:00:00Z {FAKE_OAUTH_TOKEN}"
+    body["digests"][0]["last_activity_at"] = "not-a-timestamp-at-all"
+    assert client.post(
+        "/api/conversations/ingest", json=body, headers=HDR).status_code == 200
+    row = store.saved[0]
+    assert row["started_at"] is None, "unparseable value must not be shipped as text"
+    assert row["last_activity_at"] is None
+    # The rest of the row still arrives — the point is that one bad field does
+    # not cost the digest, let alone its batch.
+    assert row["id"] == "macbook:sess-1"
+    assert row["digest_md"]
+    assert FAKE_OAUTH_TOKEN not in str(row)
+
+
+def test_a_valid_timestamp_still_passes_through_untouched(convo):
+    """Green control. Without this, dropping EVERY timestamp would satisfy the
+    test above while silently destroying the ordering the search relies on
+    (`order=last_activity_at.desc`)."""
+    client, _, store = convo
+    body = ingest_body()
+    body["digests"][0]["started_at"] = "2026-08-30T01:00:00Z"
+    body["digests"][0]["last_activity_at"] = "2026-08-30T02:00:00+10:00"
+    assert client.post(
+        "/api/conversations/ingest", json=body, headers=HDR).status_code == 200
+    row = store.saved[0]
+    assert row["started_at"] == "2026-08-30T01:00:00Z"
+    assert row["last_activity_at"] == "2026-08-30T02:00:00+10:00"

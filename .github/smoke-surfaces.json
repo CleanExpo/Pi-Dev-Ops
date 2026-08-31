@@ -283,9 +283,10 @@
       "name": "webhook-dispatch-nosig",
       "path": "/api/pi-ceo/api/webhook",
       "method": "POST",
-      "auth": false,
+      "auth": true,
       "expected_status": 400,
-      "_comment": "RA-7216: the shared GitHub+Linear dispatch route (app/server/routes/webhooks.py:102) had no smoke entry at all until this PR — the surface gate caught it. RA-7216 added a third branch here: a Linear terminal-state transition (issue_completed) records the acceptance outcome instead of spawning a build. A request carrying NEITHER x-hub-signature-256 nor Linear-Signature always returns 400 before any branch is reached, which is config-independent by design — the 401 (bad signature) and 500 (LINEAR_WEBHOOK_SECRET unset) paths both depend on deploy config and would make this probe flap. Signed traffic, including the terminal-transition branch, is covered by tests/test_ra7216_acceptance_events.py because smoke_test_e2e.py cannot forge a Linear HMAC. RA-7216 gap 2 (PR #641) adds a FOURTH branch: a GitHub pull_request closed-as-merged event records the merge identity (merge_sha, merged_at) onto the matching gate_checks row instead of spawning a build. It is ordered ahead of BOTH the pidev/ auto-branch skip and the RA-1182 self-modification skip - the latter deliberately, because that skip exists to stop Pi-CEO BUILDING against its own repo and recording a merge is not building; with the skip first, Pi-CEO's own merges would carry no merge_sha and the repo shipping the most changes would be the one blind spot in rollback attribution. The unsigned 400 probe is unchanged and still config-independent; the merged-PR path needs a valid GitHub HMAC and is covered by tests/test_ra7216_attribution_keys.py. RA-7216 gap 2 phases 3-4 (PR #643) add two more branches to this same route: a push containing a revert commit on a default branch records an outcome_events row instead of spawning a build, and a Linear issue transitioning back to started on an already-accepted row records a reopen - the reopen branch deliberately does NOT return, because a reopened issue moving to In Progress is still a legitimate build trigger. Both sit ahead of the pidev/ and RA-1182 skips for the same reason the merge branch does. The unsigned 400 probe is unchanged and still config-independent; all four branches need a valid HMAC and are covered by tests/test_ra7216_outcome_events.py."
+      "body_contains": ["Missing webhook signature header"],
+      "_comment": "The dispatch webhook (app/server/routes/webhooks.py). Sends no signature header, so the backend raises 400 \"Missing webhook signature header (x-hub-signature-256 or Linear-Signature)\" at webhooks.py:297 \u2014 the assertion that the signature gate runs at all. auth:true is LOAD-BEARING, not a copy-paste slip: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts) and this path matches none of the three PUBLIC_API_PREFIXES, so proxy() 401s it at line 121 before the backend is reached. scripts/smoke_test_e2e.py runs auth:false probes before login with an empty cookie jar, so as auth:false this probe asserted a 400 the architecture could never produce and was permanently red while verifying nothing. Note '-nosig' means no webhook SIGNATURE, not no session \u2014 the auth:true members of that family (this one and slack-margot-bridge-nosig) do reach the backend."
     },
     {
       "name": "cron-analyze-unauth",
@@ -567,7 +568,7 @@
       "body": {
         "host": "smoke"
       },
-      "_comment": "UNI-2248 (PR #509): idle-runner atomic self-claim of the top-priority unclaimed mesh:auto ticket (app/server/routes/mesh.py claim_self). Requires X-Pi-CEO-Secret; unauthenticated POST returns 401 before any Linear query or mesh_work_claims insert, so this probe proves route + auth without ever creating a real claim. Same pattern as cost-report-nosig/margot-turn-nosig. An authenticated probe is deliberately NOT declared — a valid secret would self-claim a live ticket (state mutation); the claim race/priority logic is covered offline by tests/test_mesh_runner_idle_autoclaim.py."
+      "_comment": "Nexus Mesh idle-runner self-claim (app/server/routes/mesh.py). WHAT THIS PROBE ACTUALLY PROVES, stated precisely because an earlier version of this comment overclaimed: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so proxy() answers 401 for EVERY path under that prefix before routing, the allowlist, or the backend is reached. This probe therefore proves the dashboard's session gate refuses anonymous access to this path. It does NOT prove the backend route exists, nor that the route's own X-Pi-CEO-Secret check works \u2014 deleting the route file would leave this probe green. The same holds for every other auth:false probe under this prefix. It is NOT a property of the '-nosig' name, which refers to a missing webhook SIGNATURE: the auth:true members of that family (slack-margot-bridge-nosig, webhook-dispatch-nosig) pass the session gate and do reach the backend. The claim's atomicity \u2014 the mesh_work_claims_one_open partial unique index letting exactly one concurrent claimant win \u2014 is covered by the offline mesh tests, not by this probe."
     },
     {
       "name": "mesh-claims-reap-nosig",
@@ -609,7 +610,7 @@
         "machine": "smoke",
         "digests": []
       },
-      "_comment": "Milestone 3 shared conversation brain (app/server/routes/conversations.py ingest). A machine publishes REDACTED session digests; raw ~/.claude/projects JSONL never leaves its origin host. Requires X-Pi-CEO-Secret; the unauthenticated POST returns 401 before the second-pass redaction, the CONVERSATION_SYNC_ENABLED flag check, or any Supabase write, so this probe proves route + auth without ever storing a phantom 'smoke' row. Same pattern as mesh-heartbeat-nosig. An authenticated probe is deliberately NOT declared for two reasons: a valid secret would upsert a real conversation_digests row (state mutation), and the lane ships disabled (CONVERSATION_SYNC_ENABLED unset), so an authenticated probe would assert a 503 that flips to 200 the day the flag is turned on — a flapping probe. Redaction, the kill switch, the machine-scoped PK and partial-write reporting are covered offline by tests/test_conversations_api.py."
+      "_comment": "Milestone 3 shared conversation brain (app/server/routes/conversations.py ingest). A machine publishes REDACTED session digests; raw ~/.claude/projects JSONL never leaves its origin host. WHAT THIS PROBE ACTUALLY PROVES, stated precisely because an earlier version of this comment overclaimed: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so proxy() answers 401 for EVERY path under that prefix before routing, the allowlist, or the backend is reached. This probe therefore proves the dashboard's session gate refuses anonymous access to this path. It does NOT prove the backend route exists, nor that the route's own X-Pi-CEO-Secret check works \u2014 deleting the route file would leave this probe green. The same holds for every other auth:false probe under this prefix. It is NOT a property of the '-nosig' name, which refers to a missing webhook SIGNATURE: the auth:true members of that family (slack-margot-bridge-nosig, webhook-dispatch-nosig) pass the session gate and do reach the backend. An authenticated probe is deliberately NOT declared: a valid secret would upsert a real conversation_digests row, and the lane ships disabled, so it would assert a 503 that flips to 200 the day the flag is turned on. The route's auth, the second-pass redaction of EVERY stored field, the kill switch, the machine-scoped PK and partial-write reporting are covered offline by tests/test_conversations_api.py and tests/test_conversations_redaction.py, which do run in CI."
     },
     {
       "name": "conversations-search-nosig",
@@ -617,7 +618,7 @@
       "method": "GET",
       "auth": false,
       "expected_status": 401,
-      "_comment": "Milestone 3: cross-machine full-text search over conversation_digests (app/server/routes/conversations.py search). Unauthenticated GET returns 401 before any Supabase read — digest bodies are private conversation content and the table is service-role only (supabase/migrations/20260830T000001_conversation_digests.sql), so anonymous read is never accepted. See conversations-ingest-nosig for why no authenticated probe is declared."
+      "_comment": "Milestone 3: cross-machine full-text search over conversation_digests (app/server/routes/conversations.py search). Digest bodies are private conversation content and the table is service-role only (supabase/migrations/20260830T000001_conversation_digests.sql). As with conversations-ingest-nosig, this probe proves the dashboard proxy's session gate and not the backend route \u2014 see that entry for why, and for what covers the route itself."
     },
     {
       "name": "conversations-recent-nosig",
@@ -625,7 +626,7 @@
       "method": "GET",
       "auth": false,
       "expected_status": 401,
-      "_comment": "Milestone 3: most-recent digests per machine (app/server/routes/conversations.py recent). Same auth contract and same rationale as conversations-search-nosig."
+      "_comment": "Milestone 3: most-recent digests per machine (app/server/routes/conversations.py recent). Same auth contract and the same honest scope as conversations-search-nosig."
     },
     {
       "name": "fable-canary",

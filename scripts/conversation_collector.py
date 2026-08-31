@@ -33,31 +33,32 @@ import logging
 import os
 import socket
 import sys
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sync_claude_sessions import (  # noqa: E402
-    find_jsonl, load_marker, parse_session, redact, render_digest, truncate)
+    find_jsonl, parse_session, redact, render_digest, truncate)
 
 log = logging.getLogger("pi-ceo.conversation_collector")
 
+# Incremental-sync state lives in its own module; re-exported here so the
+# existing call sites and the tests that monkeypatch them keep working.
+from scripts.conversation_markers import (  # noqa: E402
+    MARKER_PATH,
+    is_unchanged,
+    load_markers,
+    marker_entry,
+    save_markers,
+)
+
 LAKE = Path.home() / ".claude" / "projects"
-MARKER_PATH = Path.home() / ".claude" / ".conversation-sync-markers.json"
-INGEST_PATH = "/api/conversations/ingest"
 DEFAULT_API_URL = "https://pi-dev-ops-production.up.railway.app"
-BATCH_SIZE = 25  # server caps a request at CONVERSATION_INGEST_MAX_ROWS (200)
 TRUTHY = {"1", "true", "yes", "on"}
-WIRE_FIELDS = ("project_dir", "title", "digest_md", "turn_count",
-               "started_at", "last_activity_at")
 
 # (url, headers, payload) -> (status, body); injected so tests never open a
 # socket. Default implementation: urllib_poster.
-Poster = Callable[[str, dict, dict], tuple[int, str]]
 
 
 def machine_name() -> str:
@@ -93,58 +94,6 @@ def api_secret() -> str:
 def sync_enabled() -> bool:
     """Real (posting) runs are opt-in per machine; default OFF."""
     return os.environ.get("CONVERSATION_SYNC_ENABLED", "").strip().lower() in TRUTHY
-
-
-# ── Incremental marker ───────────────────────────────────────────────────────
-def marker_entry(path: Path) -> dict:
-    """Freshness fingerprint of one session file: mtime + size."""
-    st = path.stat()
-    return {"mtime": st.st_mtime, "size": st.st_size}
-
-
-def load_markers(path: Path) -> dict[str, dict]:
-    """Load the marker map line by line, so damage costs one entry not all."""
-    markers: dict[str, dict] = {}
-    try:
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
-        return markers
-    for line in lines:
-        try:
-            rec = json.loads(line) if line.strip() else {}
-        except ValueError:
-            log.warning("conversation-collector: dropping corrupt marker line")
-            continue
-        key = rec.get("path") if isinstance(rec, dict) else None
-        if key:
-            markers[key] = {"mtime": rec.get("mtime"), "size": rec.get("size")}
-    if markers:
-        return markers
-    # Pre-JSONL format: one whole-file {path: {...}} object.
-    return {k: v for k, v in load_marker(path).items() if isinstance(v, dict)}
-
-
-def save_markers(markers: dict[str, dict], path: Path) -> None:
-    """Atomically write the marker map as one self-contained record per line."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    body = "\n".join(
-        json.dumps({"path": key, "mtime": val.get("mtime"), "size": val.get("size")})
-        for key, val in sorted(markers.items())
-    )
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(body + "\n" if body else "", encoding="utf-8")
-    os.replace(tmp, path)
-
-
-def is_unchanged(path: Path, markers: dict[str, dict]) -> bool:
-    """True when this file matches its marker and can be skipped."""
-    seen = markers.get(str(path))
-    if not seen:
-        return False
-    try:
-        return marker_entry(path) == {"mtime": seen.get("mtime"), "size": seen.get("size")}
-    except OSError:
-        return False
 
 
 # ── Row building ─────────────────────────────────────────────────────────────
@@ -200,47 +149,52 @@ def collect_rows(
         fresh[str(path)] = entry
         if row:
             rows.append(row)
-    return rows, fresh
+    return _dedupe_by_id(rows), fresh
 
 
-# ── Shipping ─────────────────────────────────────────────────────────────────
-def urllib_poster(url: str, headers: dict, payload: dict) -> tuple[int, str]:
-    """Default poster. Replaced in tests so no test can reach the network."""
-    req = urllib.request.Request(
-        url, data=json.dumps(payload).encode(), method="POST", headers=headers
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as response:
-            return response.status, (response.read() or b"").decode(errors="replace")[:400]
-    except urllib.error.HTTPError as exc:
-        return exc.code, exc.read()[:400].decode(errors="replace")
-    except Exception as exc:  # noqa: BLE001
-        return 0, str(exc)[:400]
+def _dedupe_by_id(rows: list[dict]) -> list[dict]:
+    """Collapse rows sharing an id, keeping the most recently active.
+
+    The id is "<machine>:<session_id>" and session_id is the JSONL filename stem,
+    so the same session appearing under two project directories — a worktree, a
+    copied or renamed checkout — yields two rows with the SAME id. Postgres
+    refuses that: an upsert whose payload hits one row twice fails the whole
+    statement with "ON CONFLICT DO UPDATE command cannot affect row a second
+    time". One duplicate would therefore reject an entire batch of up to
+    BATCH_SIZE digests, not just itself.
+
+    Newest wins, because the two copies are the same conversation and the later
+    last_activity_at is the more complete transcript. Rows without the field sort
+    first, so a row that has one always beats a row that does not.
+    """
+    by_id: dict[str, dict] = {}
+    for row in rows:
+        prior = by_id.get(row["id"])
+        if prior is None or (row.get("last_activity_at") or "") >= (
+            prior.get("last_activity_at") or ""
+        ):
+            by_id[row["id"]] = row
+    if len(by_id) != len(rows):
+        log.warning(
+            "conversation-collector: collapsed %d duplicate session id(s) — "
+            "the same session appears under more than one project directory",
+            len(rows) - len(by_id),
+        )
+    return list(by_id.values())
 
 
-def _payload(batch: list[dict]) -> dict:
-    """Ingest envelope {machine, digests[]}. The server re-derives each row id
-    as "<machine>:<session_id>"; one run collects one machine's sessions."""
-    return {"machine": batch[0]["machine"], "digests": [
-        {"session_id": row["id"].split(":", 1)[1], **{f: row[f] for f in WIRE_FIELDS}}
-        for row in batch]}
-
-
-def ship_rows(rows: list[dict], *, poster: Poster, url: str, secret: str) -> dict:
-    """POST rows in batches. Returns counts and the first failure seen."""
-    headers = {"Content-Type": "application/json", "X-Pi-CEO-Secret": secret}
-    endpoint = f"{url.rstrip('/')}{INGEST_PATH}"
-    sent = 0
-    errors: list[str] = []
-    for start in range(0, len(rows), BATCH_SIZE):
-        batch = rows[start:start + BATCH_SIZE]
-        status, body = poster(endpoint, headers, _payload(batch))
-        if 200 <= status < 300:
-            sent += len(batch)
-        else:
-            errors.append(f"HTTP {status}: {body[:120]}")
-            log.error("conversation-collector: batch failed — HTTP %s", status)
-    return {"sent": sent, "batches": (len(rows) + BATCH_SIZE - 1) // BATCH_SIZE, "errors": errors}
+# Shipping lives in its own module; re-exported so existing call sites and the
+# tests that monkeypatch them keep working.
+from conversation_shipper import (  # noqa: E402
+    BATCH_SIZE,  # noqa: F401 — re-exported for callers and tests
+    INGEST_PATH,  # noqa: F401
+    Poster,  # noqa: F401
+    WIRE_FIELDS,  # noqa: F401
+    _accounting,  # noqa: F401
+    _payload,  # noqa: F401
+    ship_rows,
+    urllib_poster,  # noqa: F401
+)
 
 
 def run(
