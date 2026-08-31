@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import ingest_guard
+
 log = logging.getLogger("swarm.wiki_ingest")
 
 MAX_PAGES_PER_INGEST = 10
@@ -96,8 +98,8 @@ def _identify_targets(finding: str, index: str) -> dict[str, Any]:
     prompt = (
         "You are updating a personal knowledge wiki. Given the finding below "
         "and the wiki index, identify which pages to update.\n\n"
-        f"Wiki index:\n{index}\n\n"
-        f"Finding:\n{finding}\n\n"
+        f"Wiki index:\n{ingest_guard.fence_source(index, label='wiki index')}\n\n"
+        f"{ingest_guard.fence_source(finding, label='finding')}\n\n"
         "Reply with JSON only (no markdown fences):\n"
         '{"update": ["filename.md", ...], '
         '"create": {"slug": "new-page-slug", "description": "one-line", "section": "## Section"} | null}\n'
@@ -130,7 +132,7 @@ def _merge_page(page_content: str, finding: str, today: str) -> str:
         "- Return the complete updated page content only — no explanation.\n\n"
         f"Today: {today}\n\n"
         f"Current page:\n{page_content}\n\n"
-        f"Finding to merge:\n{finding}"
+        f"{ingest_guard.fence_source(finding, label='finding to merge')}"
     )
     return _call_llm(prompt).strip()
 
@@ -146,7 +148,7 @@ def _write_new_page(slug: str, finding: str, today: str) -> str:
         "- Use [[double-bracket]] links to other wiki pages where relevant.\n"
         "- End with a ## Cross-refs section listing related pages.\n"
         "- Return the complete page content only — no explanation.\n\n"
-        f"Source finding:\n{finding}"
+        f"{ingest_guard.fence_source(finding, label='source finding')}"
     )
     return _call_llm(prompt).strip()
 
@@ -253,13 +255,9 @@ def ingest(finding: str, source_type: str = "research",
         result.error = f"target identification failed: {exc}"
         return result
 
-    # ── Update existing pages ─────────────────────────────────────────────
-    protected = {"index.md", "log.md"}
-    for filename in (targets.get("update") or [])[:MAX_PAGES_PER_INGEST]:
-        if not filename.endswith(".md"):
-            filename = filename + ".md"
-        if filename in protected:
-            continue
+    # ── Update existing pages (guarded — source content cannot select files) ──
+    wanted = (targets.get("update") or [])[:MAX_PAGES_PER_INGEST]
+    for filename in ingest_guard.screen(wanted, wdir, finding):
         p = wdir / filename
         if not p.exists():
             log.warning("wiki_ingest: target page %s not found — skipping", filename)
@@ -275,11 +273,10 @@ def ingest(finding: str, source_type: str = "research",
     # ── Create new page if warranted ──────────────────────────────────────
     new_page = targets.get("create")
     if new_page and isinstance(new_page, dict):
-        slug = new_page.get("slug", "").strip()
-        description = new_page.get("description", "").strip()
-        section = new_page.get("section", "").strip()
-        if slug:
-            filename = f"{slug}.md"
+        slug = str(new_page.get("slug") or "").strip()
+        description = str(new_page.get("description") or "").strip()
+        section = str(new_page.get("section") or "").strip()
+        for filename in ingest_guard.screen([f"{slug}.md"] if slug else [], wdir, finding):
             p = wdir / filename
             try:
                 content = _write_new_page(slug, finding, today)

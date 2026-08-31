@@ -87,13 +87,20 @@ def killed() -> bool:
     return HARD_STOP.exists()
 
 
-def write_state(current_task, state: str) -> None:
-    """Write the runner breadcrumb consumed by the heartbeat/Mission Control."""
+def write_state(current_task, state: str, session_id: str | None = None) -> None:
+    """Write the runner breadcrumb consumed by the heartbeat/Mission Control.
+
+    ``session_id`` is this claim's run id. The heartbeat forwards it into
+    ``mesh_agents.session_id`` — the column the mesh schema defined for the
+    fleet-identity/session join and that nothing ever populated, so an agent row
+    could say *which machine* was busy but never *which run* it was busy on.
+    """
     try:
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         STATE_FILE.write_text(json.dumps({
             "runtime": AGENT_CMD,
             "current_task": current_task,
+            "session_id": session_id,
             "state": state,
             "ts": int(time.time()),
         }))
@@ -184,7 +191,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     if not (repo_dir / ".git").exists():
         return {**plan, "state": "failed", "error": f"repo missing: {repo_dir}"}
 
-    write_state(linear_id, "working")
+    write_state(linear_id, "working", session_id=run_id)
     _api("POST", "/api/mesh/claim/update", {
         "linear_id": linear_id, "state": "working", "branch": branch})
     worktree = Path("/tmp") / f"mesh-{linear_id}-{run_id}"

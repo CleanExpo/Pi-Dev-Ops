@@ -172,14 +172,20 @@ def running_agent_sessions() -> list[dict]:
     # Only when actively on a task — an idle breadcrumb must not fabricate an agent.
     crumb = runner_breadcrumb()
     rt, task = crumb.get("runtime"), crumb.get("current_task")
+    # session_id is the runner's per-claim run id: it makes mesh_agents.session_id
+    # identify the run, not just the runtime, so an agent row joins to the work it
+    # is doing. Absent (a non-runner agent, or an older runner) it stays None and
+    # the server falls back to the runtime name exactly as before.
     if rt and task:
         for s in uniq:
             if s["runtime"] == rt:
                 s["current_task"] = task
+                s["session_id"] = crumb.get("session_id")
                 s["state"] = crumb.get("state", "working")
                 break
         else:
             uniq.append({"runtime": rt, "current_task": task,
+                         "session_id": crumb.get("session_id"),
                          "state": crumb.get("state", "working")})
     return uniq
 

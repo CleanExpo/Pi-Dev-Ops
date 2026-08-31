@@ -17,19 +17,19 @@
 # an edit loses it. Move forgiveness matches on it, never on line count alone:
 # baselined files repeat lengths often enough that equal length would let an
 # unrelated new file inherit a deleted one's slot.
-2614	c718d9023152	app/server/agents/board_meeting.py
+2612	9f16a1752b55	app/server/agents/board_meeting.py
 1928	d294b7b0d24b	app/server/session_phases.py
 1744	92b238df3bca	swarm/margot_bot.py
 1292	ffe39904cc89	app/server/routes/webhooks.py
 1219	b420cc9c57d4	scripts/unite_group_health_check.py
-1216	3b8c502a7593	app/server/autonomy.py
+1215	8fb4b89e6a56	app/server/autonomy.py
 1139	0a1b15c4f3d5	app/server/cron_watchdogs.py
 1098	87fc6cc60ab3	scripts/weekly_enhancement_loop.py
 903	e1b0315ce9b7	tests/test_unite_group_health_check.py
 821	fe92d6b64412	swarm/meta_curator.py
 819	18aa6216f092	app/server/scanner.py
 789	cfa6bd70c4f1	swarm/margot_tools.py
-779	5a0d72cd84bc	app/server/supabase_log.py
+775	1eba526ac25a	app/server/supabase_log.py
 752	a260764ef6e7	app/server/agents/feedback_loop.py
 746	e125b5bd4df1	app/server/pipeline.py
 746	6ebf6746aedf	dashboard/components/control/HealthGrid.tsx
@@ -95,26 +95,26 @@
 471	8eaa62707b76	dashboard/components/control/LiveActivityFeed.tsx
 467	0a286e60322a	app/server/session_sdk.py
 465	aac2ece56e4b	app/server/model_fabric.py
-464	c02b1694ea7f	app/server/routes/mesh.py
 464	c1cc0cf5a3fc	swarm/tmux_validator.py
 463	ab302c9ddba8	swarm/debate_runner.py
+462	437c843deaa5	app/server/routes/mesh.py
 462	feb2e5383ebc	swarm/inbox/provisioner.py
 453	54c70936958c	swarm/cto.py
 453	bd0e969ed193	swarm/inbox/__tests__/test_intake_dispatch.py
 449	898639bff71a	swarm/cfo.py
-444	8128dd3816dc	app/server/cron_triggers.py
 441	99ffa5d79100	tests/swarm/nexus/test_channels.py
 438	04af471f5300	fence/pretooluse_fence.py
 436	f5133b32e431	tests/swarm/nexus/test_approvals.py
 435	52168138611d	app/server/pi_ceo_session_fts.py
 435	566e7b7e02a7	swarm/intake/handoff.py
-434	85a95abd818f	swarm/wiki_ingest.py
+431	40bb223f234b	swarm/wiki_ingest.py
 430	678cdbdaf6e8	dashboard/lib/phases.ts
 430	adf5308ffb4c	swarm/fix_orchestrator.py
 429	8eaa1bfe3993	swarm/portfolio_pulse_github.py
 427	77e9b799794e	dashboard/components/command-centre/wiki-graph/WikiGraphCanvas.tsx
 425	d0c16d44af11	tests/test_sessions.py
 424	7f066bdac22e	tests/test_pipeline_routes.py
+422	45f37c58fcc1	app/server/cron_triggers.py
 419	ef51583a2154	swarm/inbox/intake_dispatch.py
 419	a37c754b7ca5	swarm/intake/spm.py
 418	0c298d81400e	swarm/cmo.py
@@ -124,11 +124,11 @@
 411	80d53f890420	tests/test_lessons_seed.py
 407	5ef12f99be37	swarm/cs.py
 405	3ffa0c343140	swarm/intake/tests/test_handoff.py
-403	ecdc98ee9c64	app/server/spec_pipeline/__init__.py
 403	a24af226c595	tests/test_mesh_claim_reap.py
 402	e43b78fe21e9	scripts/smoke_test_e2e.py
 397	9c6f9fe89c20	tests/test_provider_nex_n2.py
 392	bb57f41dc268	tests/test_ccw_supabase_provider.py
+389	387943972ef6	app/server/spec_pipeline/__init__.py
 388	72a9f1c2273c	swarm/nexus/channels.py
 385	ef2be1f3ad44	swarm/agentskills_manifest.py
 383	eeb90a79db4d	swarm/inbox/intake_router.py

@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.23.13",
-    "generated_at": "2026-08-30T21:34:18.490850+00:00",
+    "version": "1.24.0",
+    "generated_at": "2026-08-31T00:28:54.097876+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -1093,6 +1093,25 @@
       "safety": {
         "requires_kill_switch": false,
         "requires_hitl_gate": true,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "fleet-knowledge-pipeline",
+      "description": "Use when asked to turn watched/read/recorded material into shipped work \u2014 \"get this into the wiki\", \"research this and build it\", \"why isn't the fleet picking this up\", \"make the machines work on this\" \u2014 or when a request spans learning \u2192 research \u2192 board decision \u2192 spec \u2192 build across the three-machine fleet. Also use before adding a new ingestion source, a new researcher, or a new board\u2192build hop, so the existing chain is reused instead of duplicated.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/fleet-knowledge-pipeline/SKILL.md",
+      "sha256": "8ccd68eb3854ea7f031738f53fd9665d3723bf4732fc2ca8cb9bf3c4a87095eb",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
         "pii_handling": "pass-through"
       },
       "inferred": true,

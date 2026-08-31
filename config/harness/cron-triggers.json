@@ -365,5 +365,27 @@
     "created_at": 1782958800,
     "last_fired_at": 1782978952.0,
     "note": "Pipes marketing-skill output into social_posts with eeat/geo scoring for publisher crons."
+  },
+  {
+    "id": "mesh-dispatch-every-5min",
+    "type": "mesh_dispatch",
+    "name": "Nexus Mesh: assign mesh:auto tickets to online nodes",
+    "minute": [
+      0,
+      5,
+      10,
+      15,
+      20,
+      25,
+      30,
+      35,
+      40,
+      45,
+      50,
+      55
+    ],
+    "enabled": true,
+    "created_at": 1788134400,
+    "last_fired_at": null
   }
 ]

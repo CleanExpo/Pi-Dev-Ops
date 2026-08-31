@@ -20,8 +20,8 @@
 435	ab4db82f1204	swarm/orchestrator.py::run
 311	6f980e3e3451	swarm/margot_bot.py::handle_turn
 280	e59149d1872e	app/server/session_sdk.py::_run_claude_via_sdk
-259	013d365f684d	app/server/spec_pipeline/__init__.py::run_pipeline
 250	426976381fbe	app/server/session_phases.py::_phase_evaluate
+244	0bb1af798a41	app/server/spec_pipeline/__init__.py::run_pipeline
 219	788a189b2818	app/server/agents/anthropic_intel_refresh.py::refresh_anthropic_intel
 211	9510e3358736	swarm/nexus/channels.py::request_provision
 199	7bbffea30c1d	app/server/cron_watchdog_zte.py::_watchdog_zte_reality_check
@@ -91,7 +91,6 @@
 104	1f4c035d08ab	scripts/fallback_dryrun.py::run_dryrun
 102	2950982ce861	app/server/provider_nex_n2.py::call
 102	985e46cbdb34	swarm/nexus/scheduler.py::run_nexus_cycle
-102	484890a07c0b	swarm/wiki_ingest.py::ingest
 101	1f4622c228dc	app/server/autopr.py::run_autopr
 101	d0365d7a47b6	app/server/cron_watchdogs.py::_watchdog_linear_auth
 101	8e4b0ea9b245	swarm/hermes_production_unit.py::build_packet
@@ -102,6 +101,7 @@
 98	dfbb23467439	swarm/nexus/policy.py::auto_gate
 97	a73ee1158eef	app/server/autonomy.py::_orphan_recovery
 97	bf379003b691	scripts/hermes_model_chain_health.py::main
+97	8d214c741364	swarm/wiki_ingest.py::ingest
 96	4a4729f8ebf0	fence/drift_check.py::main
 96	48080461a2da	swarm/flow_engine.py::execute_flow
 96	e9c10da42562	swarm/pm_scoper.py::run_cycle
@@ -132,7 +132,6 @@
 85	0bc66be27ce5	scripts/plaud_ingest.py::run_once
 85	2bf67e720fb6	scripts/verify_margot_voice_stt.py::main
 85	14cf674faec3	swarm/margot_bot.py::_run_research_batch
-84	69e1fef5dbbf	app/server/session_model.py::recover_interrupted_sessions_from_supabase
 84	28cfac7d0881	app/server/session_phases.py::_phase_generate
 84	7a8fc5310a9d	app/server/webhook.py::parse_linear_event
 84	3b8bc1847ea7	scripts/smoke_test_e2e.py::run_vertical
@@ -166,6 +165,7 @@
 77	a02a896af177	app/server/cron_fire_agents.py::_generate_board_prebrief
 77	97b80fa4e290	app/server/orchestrator.py::_decompose_brief
 77	c0f1adf9db42	app/server/routes/webhooks.py::routine_complete_webhook
+77	33f15079ecab	app/server/session_model.py::recover_interrupted_sessions_from_supabase
 77	a19811bc1779	swarm/portfolio_pulse_linear.py::_render_section
 76	f21ae6ad14b6	app/server/pipeline.py::run_review_phase
 76	c316aaa48696	app/server/triage.py::_claude_triage
@@ -309,7 +309,6 @@
 58	fa78aee4c42b	swarm/model_router.py::AnthropicProvider.complete
 58	b6b16a55c416	swarm/nexus/ingest/stripe.py::parse
 58	500104f830ca	tests/test_persistent_goals.py::test_debate_runner_advances_goal_on_success
-57	374cb66f24ec	app/server/cron_triggers.py::_fire_trigger
 57	c801c6025fae	app/server/pi_ceo_session_fts.py::rebuild_incremental
 57	2cc685754c53	scripts/cron_error_sweep.py::self_test
 57	fb6e3d053484	scripts/open_skill_pr.py::open_pr
@@ -377,7 +376,7 @@
 52	4d769f95f5ee	app/server/agents/plan_discovery.py::_maybe_propose_research_intent
 52	277944f2b3dd	app/server/routes/phone.py::create_gate
 52	5f70a8c323b2	app/server/tao_codebase_wiki.py::update_wiki
-52	e282bdea056f	mesh/runner.py::run_claim
+52	51755ee6ed0e	mesh/runner.py::run_claim
 52	bf3db7f6ea12	scripts/review_eval_candidates.py::review
 52	f1a575ec77b1	scripts/runtime_model_guard.py::start_model_fabric
 52	3d6dc288fe2a	scripts/test_lessons_durable_migration.py::main
@@ -404,11 +403,9 @@
 51	db9eb46af501	tests/test_ccw_supabase_provider.py::test_checkpoint_writer_serializes_datetimes_and_uses_schema_primary_key
 51	e8a18da0d57f	tests/test_docs_stale_watchdog_ra7027.py::test_cron_loop_total_failure_no_persistence
 50	43a8838f8313	app/server/agents/board_meeting.py::run_linear_review_phase
-50	50a86d8f9c01	app/server/autonomy.py::_transition_to_in_progress
 50	1ded3658b185	app/server/routes/delegate.py::delegate_task._call_llm
 50	080c8c13e053	app/server/routes/goal_ticket.py::_raise_goal_error
 50	cdd494df52c4	app/server/session_recorder.py::retrieve_similar_episodes
-50	0eb55674be51	app/server/supabase_log.py::save_session_checkpoint
 50	fb0d983dcf11	archive/run_parallel_board.py::run_managed_agents
 50	3dd7866a49de	scripts/test_lessons_durable_migration.py::assert_contract
 50	f315db88fae3	scripts/zte_v2_score.py::compute_v2_score
@@ -444,7 +441,7 @@
 49	b0ca5fa47b6d	tests/test_open_skill_pr.py::test_open_pr_real_mode_runs_well_formed_git_gh_sequence
 49	43dbbb3bb7b2	tests/test_plaud_ingest.py::test_run_once_happy_path_writes_page_and_advances_state
 48	4a274ee2d795	app/server/agents/board_meeting.py::_read_latest_anthropic_docs
-48	b351b8bccdaa	app/server/agents/board_meeting.py::run_full_board_meeting
+48	415e8579ad96	app/server/agents/board_meeting.py::run_full_board_meeting
 48	b0492f19829f	app/server/autonomy.py::_calc_effective_autonomy
 48	837c0582a7de	app/server/cron_watchdogs.py::_has_open_linear_issue_with_prefix
 48	8b9e1004c8f8	app/server/job_success_record.py::read_record
@@ -571,6 +568,7 @@
 43	33382e477821	tests/test_autonomy_priority_filter.py::test_fetch_filter_partial_match
 43	e9527bcf0587	tests/test_discovery_archive.py::test_archive_skips_high_severity_defence_in_depth
 42	107c905e03ff	app/server/agents/scout.py::_get_or_create_cleanup_label
+42	caa36debb23c	app/server/autonomy.py::_transition_to_in_progress
 42	94065d35530b	app/server/cron_fire_agents.py::_fire_marketing_bridge_trigger
 42	8cc1a8c681c8	app/server/cron_fire_agents.py::_fire_meta_curator_trigger
 42	e85af1c1d211	app/server/goal_analyze_fields.py::normalize_sub_tasks

@@ -42,6 +42,8 @@ router = APIRouter(prefix="/api/mesh", tags=["mesh"])
 # runner is still legitimately working. Unlike MESH_MAX_CLAIMS, an explicit
 # "0" here is NOT a special case: every configured value is clamped.
 MESH_CLAIM_TTL_MINUTES = max(int(os.environ.get("MESH_CLAIM_TTL_MINUTES", "90")), 65)
+# How long a machine's idle agent rows are kept before the heartbeat prunes them.
+MESH_AGENT_RETENTION_HOURS = max(int(os.environ.get("MESH_AGENT_RETENTION_HOURS", "24")), 1)
 
 
 def _check_secret(secret: Optional[str]) -> None:
@@ -72,6 +74,23 @@ def _sb(method: str, path: str, body: Any = None, *, prefer: str = "") -> tuple[
         return e.code, e.read().decode(errors="replace")
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"Supabase request failed: {e}") from e
+
+
+def _prune_idle_agents(host: str) -> None:
+    """Drop this machine's long-idle agent rows.
+
+    `mesh_agents` is unique on (machine, runtime, session_id) and nothing ever
+    deleted from it. That was harmless while session_id was the runtime name —
+    one row per runtime, upserted forever. Now the runner reports its real
+    per-claim run id, so every claim would leave a permanent idle row behind.
+    Rows are only removed once they have been idle past the retention window,
+    so a live agent is never pruned out from under Mission Control.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=MESH_AGENT_RETENTION_HOURS)).isoformat()
+    _sb("DELETE",
+        f"mesh_agents?machine=eq.{urllib.parse.quote(host)}&state=eq.idle"
+        f"&updated_at=lt.{urllib.parse.quote(cutoff)}",
+        prefer="return=minimal")
 
 
 class AgentState(BaseModel):
@@ -118,6 +137,7 @@ async def heartbeat(
     # Reconcile this machine's agent rows: mark all idle, then upsert the live ones.
     _sb("PATCH", f"mesh_agents?machine=eq.{urllib.parse.quote(hb.host)}",
         {"state": "idle"}, prefer="return=minimal")
+    _prune_idle_agents(hb.host)
     for a in hb.agents:
         row = {"machine": hb.host, "runtime": a.runtime, "session_id": a.session_id or a.runtime,
                "repo": a.repo, "branch": a.branch, "current_task": a.current_task, "state": a.state,
@@ -401,35 +421,13 @@ async def dispatch(
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
     """Assign unclaimed work to free nodes. One tick. Idempotent — already-claimed
-    tickets are skipped, and the unique index rejects any racing double-claim."""
+    tickets are skipped, and the unique index rejects any racing double-claim.
+
+    The tick itself lives in ``mesh_dispatch_service`` so the cron loop runs the
+    same code in-process instead of the server POSTing to its own endpoint."""
     _check_secret(x_pi_ceo_secret)
-    _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before assigning
-    if body.linear_ids:
-        tickets = [{"identifier": t} for t in body.linear_ids]
-    else:
-        nodes = _linear_graphql(_MESH_AUTO_QUERY).get("issues", {}).get("nodes", [])
-        tickets = nodes or []
-    machines = _online_machines()
-    if not machines:
-        return {"assigned": [], "online_machines": [], "reason": "no online machines"}
-    open_ids = _open_claim_ids()
-    assigned: list[dict] = []
-    idx = 0
-    for tk in tickets:
-        ident = tk.get("identifier") or tk.get("id")
-        if not ident or ident in open_ids:
-            continue
-        host = machines[idx % len(machines)]["host"]   # least-loaded first, then round-robin
-        status, _ = _sb("POST", "mesh_work_claims",
-                        {"linear_id": ident, "machine": host, "state": "claimed"},
-                        prefer="return=minimal")
-        if status < 300:
-            assigned.append({"linear_id": ident, "machine": host})
-            open_ids.add(ident)
-            idx += 1
-            _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
-        # status 409 = already claimed by a racing dispatch → skip silently
-    return {"assigned": assigned, "online_machines": [m["host"] for m in machines]}
+    from ..mesh_dispatch_service import run_dispatch_tick  # noqa: PLC0415
+    return run_dispatch_tick(body.linear_ids)
 
 
 @router.post("/claim/self")

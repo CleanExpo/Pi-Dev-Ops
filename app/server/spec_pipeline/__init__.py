@@ -15,6 +15,7 @@ from app.server import supabase_log
 from app.server.tao_planner import resolve_planner_loop_kwargs
 from app.server.tao_loop import run_until_done
 
+from . import linear_reporter
 from . import persistence as persist
 from .boardroom import boardroom_query
 from .review_runner import run_review
@@ -165,9 +166,8 @@ async def run_pipeline(
         reason = f"boundary blocked: {boundary.blocked_paths}"
         stages.append({"stage": "boundary", "status": "blocked", "reason": reason})
         _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
-        _persist_meta(
-            pipeline_id, status="blocked", proposal=proposal, reason=reason, stages=stages,
-        )
+        _persist_meta(pipeline_id, status="blocked", proposal=proposal, reason=reason, stages=stages)
+        linear_reporter.report(issue_id, "blocked — proposal boundary", reason)
         return PipelineResult(pipeline_id, "blocked", reason, stages=stages)
 
     try:
@@ -176,9 +176,8 @@ async def run_pipeline(
         reason = f"proposal validation: {exc}"
         stages.append({"stage": "proposal_validator", "status": "blocked", "reason": str(exc)})
         _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
-        _persist_meta(
-            pipeline_id, status="blocked", proposal=proposal, reason=reason, stages=stages,
-        )
+        _persist_meta(pipeline_id, status="blocked", proposal=proposal, reason=reason, stages=stages)
+        linear_reporter.report(issue_id, "blocked — proposal validation", reason)
         return PipelineResult(pipeline_id, "blocked", reason, stages=stages)
 
     evidence = await gather_evidence(proposal)
@@ -199,13 +198,10 @@ async def run_pipeline(
         reason = final_judge.ceiling_reason or f"judge score {final_judge.score}"
         _write_handoff(pipeline_id, status="BLOCKED", proposal=working_proposal, reason=reason, extra={})
         _persist_meta(
-            pipeline_id,
-            status="blocked",
-            proposal=working_proposal,
-            reason=reason,
-            stages=stages,
-            judge_score=final_judge.score,
+            pipeline_id, status="blocked", proposal=working_proposal, reason=reason,
+            stages=stages, judge_score=final_judge.score,
         )
+        linear_reporter.report(issue_id, "blocked — judge gate", reason)
         return PipelineResult(
             pipeline_id, "blocked", reason,
             judge_score=final_judge.score, stages=stages,
@@ -214,6 +210,7 @@ async def run_pipeline(
     spec = await run_spm(working_proposal, final_judge)
     persist.write_text(pipeline_id, "03-spm-spec.md", spec.markdown)
     stages.append({"stage": "spm", "status": "ok"})
+    linear_reporter.report(issue_id, "spec approved", f"Judge {final_judge.score}/100. Goal: {spec.goal_command}")
 
     br_prompt = (
         f"Should we build this proposal?\n\n{working_proposal}\n\n"
@@ -228,11 +225,11 @@ async def run_pipeline(
     )
     persist.write_json(pipeline_id, "04-boardroom.json", boardroom.to_dict())
     stages.append({
-        "stage": "boardroom",
-        "status": "ok",
-        "decision": boardroom.decision,
-        "escalated": boardroom.escalated,
+        "stage": "boardroom", "status": "ok",
+        "decision": boardroom.decision, "escalated": boardroom.escalated,
     })
+    linear_reporter.report(
+        issue_id, "boardroom vote", f"{boardroom.decision} (escalated={boardroom.escalated})")
 
     approved = (
         boardroom.decision == "APPROVE_BUILD"
@@ -252,14 +249,10 @@ async def run_pipeline(
         reason = f"boardroom {boardroom.decision}"
         _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
         _persist_meta(
-            pipeline_id,
-            status="blocked",
-            proposal=proposal,
-            reason=reason,
-            stages=stages,
-            judge_score=final_judge.score,
-            boardroom_decision=boardroom.decision,
+            pipeline_id, status="blocked", proposal=proposal, reason=reason, stages=stages,
+            judge_score=final_judge.score, boardroom_decision=boardroom.decision,
         )
+        linear_reporter.report(issue_id, "blocked — boardroom", reason)
         return PipelineResult(
             pipeline_id, "blocked", reason,
             judge_score=final_judge.score,
@@ -273,14 +266,10 @@ async def run_pipeline(
             "pickup": "Set TAO_MACHINE_SHIP_MODE=1 and re-run without --dry-run to build.",
         })
         _persist_meta(
-            pipeline_id,
-            status="dry_complete",
-            proposal=proposal,
-            reason=reason,
-            stages=stages,
-            judge_score=100,
-            boardroom_decision=boardroom.decision,
+            pipeline_id, status="dry_complete", proposal=proposal, reason=reason,
+            stages=stages, judge_score=100, boardroom_decision=boardroom.decision,
         )
+        linear_reporter.report(issue_id, "dry complete — no build", reason)
         return PipelineResult(
             pipeline_id, "dry_complete", reason,
             judge_score=100, boardroom_decision=boardroom.decision, stages=stages,
@@ -298,6 +287,7 @@ async def run_pipeline(
     subprocess.run(["git", "add", "-A"], cwd=workspace, check=False, capture_output=True)
     subprocess.run(["git", "commit", "-m", "init"], cwd=workspace, check=False, capture_output=True)
 
+    linear_reporter.report(issue_id, "build started", f"Workspace `{workspace}`. Goal: {spec.goal_command}")
     loop_result = await run_until_done(
         goal=spec.goal_command,
         workspace=workspace,
@@ -322,10 +312,9 @@ async def run_pipeline(
     if diff_boundary.tier == "blocked":
         reason = f"diff boundary: {diff_boundary.blocked_paths}"
         _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
-        _persist_meta(
-            pipeline_id, status="blocked", proposal=proposal, reason=reason,
-            stages=stages, judge_score=100,
-        )
+        _persist_meta(pipeline_id, status="blocked", proposal=proposal, reason=reason,
+                      stages=stages, judge_score=100)
+        linear_reporter.report(issue_id, "blocked — diff boundary", reason)
         return PipelineResult(pipeline_id, "blocked", reason, judge_score=100, stages=stages)
 
     oracles = run_oracles(workspace)
@@ -336,10 +325,9 @@ async def run_pipeline(
     if review.verdict == "BLOCKED":
         reason = "; ".join(review.blockers)
         _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
-        _persist_meta(
-            pipeline_id, status="blocked", proposal=proposal, reason=reason,
-            stages=stages, judge_score=100,
-        )
+        _persist_meta(pipeline_id, status="blocked", proposal=proposal, reason=reason,
+                      stages=stages, judge_score=100)
+        linear_reporter.report(issue_id, "blocked — review", reason)
         return PipelineResult(pipeline_id, "blocked", reason, judge_score=100, stages=stages)
 
     branch = f"pidev/auto-{pipeline_id[:8]}"
@@ -364,6 +352,8 @@ async def run_pipeline(
     )
     persist.write_json(pipeline_id, "07-ship-result.json", ship)
     stages.append({"stage": "ship", "status": ship.get("status", "unknown")})
+    linear_reporter.report(
+        issue_id, "PR opened", f"{ship.get('pr_url') or 'no URL'} — status {ship.get('status')}")
 
     _log_machine_gate(pipeline_id, {
         "spec_exists": True,
@@ -380,15 +370,11 @@ async def run_pipeline(
                        "pickup": ship.get("pr_url", ""),
                    })
     _persist_meta(
-        pipeline_id,
-        status=status,
-        proposal=proposal,
-        reason=str(ship.get("status", "")),
-        stages=stages,
-        pr_url=ship.get("pr_url", ""),
-        judge_score=100,
+        pipeline_id, status=status, proposal=proposal, reason=str(ship.get("status", "")),
+        stages=stages, pr_url=ship.get("pr_url", ""), judge_score=100,
         boardroom_decision=boardroom.decision,
     )
+    linear_reporter.report(issue_id, status, f"{ship.get('pr_url', '')} ({ship.get('status', '')})")
     return PipelineResult(
         pipeline_id, status,
         reason=str(ship.get("status", "")),

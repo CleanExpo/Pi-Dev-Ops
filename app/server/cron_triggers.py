@@ -7,22 +7,59 @@ Contains:
     _fire_scan_trigger()            — Pi-SEO scanner
     _fire_monitor_trigger()         — Pi-SEO monitor agent
     _fire_intel_refresh_trigger()   — Anthropic intel refresh (RA-587)
-    _fire_script_trigger()          — generic script subprocess
     _fire_trigger()                 — type-based dispatcher
 
-Agent fire functions with Telegram summaries live in cron_fire_agents.py.
+Agent fire functions with Telegram summaries live in cron_fire_agents.py, the
+generic script-subprocess runner in cron_fire_script.py, and the Nexus Mesh
+dispatcher tick in cron_fire_mesh.py.
 """
 import asyncio
 import os
 import time
 
-from .cron_fire_agents import (
+# These handlers are re-exported into this module's namespace on purpose: the
+# registry resolves them with getattr(cron_triggers, "<name>") at fire time, so
+# the imports are load-bearing even though nothing here calls them by name —
+# and patching `cron_triggers._fire_script_trigger` in a test keeps working.
+# noqa: F401 is therefore required, not cosmetic; removing these breaks dispatch.
+from .cron_fire_agents import (  # noqa: F401
     _fire_board_meeting_trigger,
     _fire_feedback_trigger,
     _fire_marketing_bridge_trigger,
     _fire_meta_curator_trigger,
     _fire_scout_trigger,
 )
+from .cron_fire_script import _fire_script_trigger  # noqa: F401
+from .cron_handler_registry import resolve_handler
+
+
+def _calendar_matches(
+    trigger: dict,
+    now_weekday: int | None,
+    now_day: int | None,
+    now_month: int | None,
+) -> bool:
+    """Return True if the trigger's optional weekday/day/month gates all pass.
+
+    Split out of ``_matches`` so that function stays under the 40-line ceiling;
+    these three gates are one concern (calendar filtering) and always evaluate
+    together. An absent gate, or an absent "now" component, never blocks.
+    """
+    # Optional weekday gate (0=Monday per Python convention, matches cron spec)
+    wd = trigger.get("weekday")
+    if wd is not None and now_weekday is not None and wd != now_weekday:
+        return False
+    # Optional day-of-month gate (RA-634: quarterly triggers)
+    dom = trigger.get("day_of_month")
+    if dom is not None and now_day is not None and dom != now_day:
+        return False
+    # Optional month gate: int or list[int] (RA-634: [1, 4, 7, 10] = quarterly)
+    months = trigger.get("month")
+    if months is not None and now_month is not None:
+        if isinstance(months, list):
+            return now_month in months
+        return now_month == months
+    return True
 
 
 def _matches(
@@ -36,27 +73,22 @@ def _matches(
     """Return True if trigger schedule matches the given time components."""
     if not trigger.get("enabled", True):
         return False
-    if trigger.get("minute") != now_minute:
+    # `minute` is an int, or a list of ints for sub-hourly cadences (the same
+    # int-or-list shape `month` already uses below). A list is what lets a
+    # trigger run every few minutes: without it the only expressible cadence
+    # was "once at minute N of an hour", which is far too slow for work
+    # dispatch. The 90s debounce below still caps this at one fire per minute.
+    minutes = trigger.get("minute")
+    if isinstance(minutes, list):
+        if now_minute not in minutes:
+            return False
+    elif minutes != now_minute:
         return False
     h = trigger.get("hour")
     if h is not None and h != now_hour:
         return False
-    # Optional weekday gate (0=Monday per Python convention, matches cron spec)
-    wd = trigger.get("weekday")
-    if wd is not None and now_weekday is not None and wd != now_weekday:
+    if not _calendar_matches(trigger, now_weekday, now_day, now_month):
         return False
-    # Optional day-of-month gate (RA-634: quarterly triggers)
-    dom = trigger.get("day_of_month")
-    if dom is not None and now_day is not None and dom != now_day:
-        return False
-    # Optional month gate: int or list[int] (RA-634: [1, 4, 7, 10] = quarterly)
-    months = trigger.get("month")
-    if months is not None and now_month is not None:
-        if isinstance(months, list):
-            if now_month not in months:
-                return False
-        elif now_month != months:
-            return False
     # Debounce: don't fire twice in the same minute.
     # Use abs() to guard against bogus future last_fired_at values.
     last = trigger.get("last_fired_at")
@@ -359,32 +391,6 @@ async def _fire_portfolio_pulse_trigger(trigger: dict, log) -> None:
             log.warning("portfolio_pulse: telegram delivery raised: %s", exc)
 
 
-async def _fire_script_trigger(trigger: dict, log) -> None:
-    """Fire a script-based trigger (analyse_lessons, etc.) as a subprocess."""
-    script = trigger.get("script", "")
-    if not script:
-        log.warning("Script trigger id=%s has no 'script' field — skipped", trigger["id"])
-        return
-    log.info("Firing script trigger id=%s script=%s", trigger["id"], script)
-    _repo_root = os.path.join(os.path.dirname(__file__), "..", "..")
-    cmd = ["python3"] + script.split() if not script.startswith("python") else script.split()
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        cwd=_repo_root,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
-    if proc.returncode != 0:
-        log.error(
-            "Script trigger id=%s exited %d: %s",
-            trigger["id"], proc.returncode,
-            stderr.decode("utf-8", errors="replace")[:500],
-        )
-    else:
-        log.info("Script trigger id=%s complete (rc=0)", trigger["id"])
-
-
 async def _fire_trigger(trigger: dict, log) -> None:
     """Dispatch a single trigger by type. Raises on failure.
 
@@ -399,46 +405,18 @@ async def _fire_trigger(trigger: dict, log) -> None:
     Wiki/hermes-agent-sprinkle-audit-2026-05-11.md § plan-discovery
     investigation.
     """
-    from .sessions import create_session
     trigger_type = trigger.get("type", "build")
-    if trigger_type == "scan":
-        await _fire_scan_trigger(trigger, log)
-    elif trigger_type == "monitor":
-        await _fire_monitor_trigger(trigger, log)
-    elif trigger_type == "intel_refresh":                      # RA-587
-        await _fire_intel_refresh_trigger(trigger, log)
-    elif trigger_type in ("analyse_lessons", "fallback_dryrun", "zte_v2_score", "script", "capability_loop"):
-        await _fire_script_trigger(trigger, log)
-    elif trigger_type == "board_meeting":
-        await _fire_board_meeting_trigger(trigger, log)
-    elif trigger_type == "scout":                              # RA-684
-        await _fire_scout_trigger(trigger, log)
-    elif trigger_type == "feedback_loop":                      # RA-689
-        await _fire_feedback_trigger(trigger, log)
-    elif trigger_type == "meta_curator":                       # RA-1839
-        await _fire_meta_curator_trigger(trigger, log)
-    elif trigger_type == "portfolio_pulse":                    # RA-1888
-        await _fire_portfolio_pulse_trigger(trigger, log)
-    elif trigger_type == "discovery":                           # RA-2026
-        from .discovery import _fire_discovery_trigger  # noqa: PLC0415
-        await _fire_discovery_trigger(trigger, log)
-    elif trigger_type == "discovery_archive":                   # RA-2027
-        from .discovery_archive import _fire_discovery_archive_trigger  # noqa: PLC0415
-        await _fire_discovery_archive_trigger(trigger, log)
-    elif trigger_type == "burndown":                            # RA-6670
-        from .burndown import _fire_burndown_trigger  # noqa: PLC0415
-        await _fire_burndown_trigger(trigger, log)
-    elif trigger_type == "plan_discovery":
-        from .plan_discovery_cron import _fire_plan_discovery_trigger  # noqa: PLC0415
-        await _fire_plan_discovery_trigger(trigger, log)
-    elif trigger_type == "marketing_bridge":                    # UNI-2236
-        await _fire_marketing_bridge_trigger(trigger, log)
-    elif trigger_type == "build":
+    handler = resolve_handler(trigger_type)
+    if handler is not None:
+        await handler(trigger, log)
+        return
+    if trigger_type == "build":
+        from .sessions import create_session  # noqa: PLC0415
         await create_session(
             repo_url=trigger["repo_url"],
             brief=trigger.get("brief", ""),
             model=trigger.get("model", "sonnet"),
         )
         log.info("Fired build trigger id=%s repo=%s", trigger["id"], trigger.get("repo_url"))
-    else:
-        raise ValueError(f"unknown trigger type {trigger_type!r}")
+        return
+    raise ValueError(f"unknown trigger type {trigger_type!r}")
