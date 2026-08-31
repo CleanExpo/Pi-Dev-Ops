@@ -42,12 +42,21 @@ from typing import Callable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sync_claude_sessions import (  # noqa: E402
-    find_jsonl, load_marker, parse_session, redact, render_digest, truncate)
+    find_jsonl, parse_session, redact, render_digest, truncate)
 
 log = logging.getLogger("pi-ceo.conversation_collector")
 
+# Incremental-sync state lives in its own module; re-exported here so the
+# existing call sites and the tests that monkeypatch them keep working.
+from scripts.conversation_markers import (  # noqa: E402
+    MARKER_PATH,
+    is_unchanged,
+    load_markers,
+    marker_entry,
+    save_markers,
+)
+
 LAKE = Path.home() / ".claude" / "projects"
-MARKER_PATH = Path.home() / ".claude" / ".conversation-sync-markers.json"
 INGEST_PATH = "/api/conversations/ingest"
 DEFAULT_API_URL = "https://pi-dev-ops-production.up.railway.app"
 BATCH_SIZE = 25  # server caps a request at CONVERSATION_INGEST_MAX_ROWS (200)
@@ -93,58 +102,6 @@ def api_secret() -> str:
 def sync_enabled() -> bool:
     """Real (posting) runs are opt-in per machine; default OFF."""
     return os.environ.get("CONVERSATION_SYNC_ENABLED", "").strip().lower() in TRUTHY
-
-
-# ── Incremental marker ───────────────────────────────────────────────────────
-def marker_entry(path: Path) -> dict:
-    """Freshness fingerprint of one session file: mtime + size."""
-    st = path.stat()
-    return {"mtime": st.st_mtime, "size": st.st_size}
-
-
-def load_markers(path: Path) -> dict[str, dict]:
-    """Load the marker map line by line, so damage costs one entry not all."""
-    markers: dict[str, dict] = {}
-    try:
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
-        return markers
-    for line in lines:
-        try:
-            rec = json.loads(line) if line.strip() else {}
-        except ValueError:
-            log.warning("conversation-collector: dropping corrupt marker line")
-            continue
-        key = rec.get("path") if isinstance(rec, dict) else None
-        if key:
-            markers[key] = {"mtime": rec.get("mtime"), "size": rec.get("size")}
-    if markers:
-        return markers
-    # Pre-JSONL format: one whole-file {path: {...}} object.
-    return {k: v for k, v in load_marker(path).items() if isinstance(v, dict)}
-
-
-def save_markers(markers: dict[str, dict], path: Path) -> None:
-    """Atomically write the marker map as one self-contained record per line."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    body = "\n".join(
-        json.dumps({"path": key, "mtime": val.get("mtime"), "size": val.get("size")})
-        for key, val in sorted(markers.items())
-    )
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(body + "\n" if body else "", encoding="utf-8")
-    os.replace(tmp, path)
-
-
-def is_unchanged(path: Path, markers: dict[str, dict]) -> bool:
-    """True when this file matches its marker and can be skipped."""
-    seen = markers.get(str(path))
-    if not seen:
-        return False
-    try:
-        return marker_entry(path) == {"mtime": seen.get("mtime"), "size": seen.get("size")}
-    except OSError:
-        return False
 
 
 # ── Row building ─────────────────────────────────────────────────────────────
@@ -200,7 +157,38 @@ def collect_rows(
         fresh[str(path)] = entry
         if row:
             rows.append(row)
-    return rows, fresh
+    return _dedupe_by_id(rows), fresh
+
+
+def _dedupe_by_id(rows: list[dict]) -> list[dict]:
+    """Collapse rows sharing an id, keeping the most recently active.
+
+    The id is "<machine>:<session_id>" and session_id is the JSONL filename stem,
+    so the same session appearing under two project directories — a worktree, a
+    copied or renamed checkout — yields two rows with the SAME id. Postgres
+    refuses that: an upsert whose payload hits one row twice fails the whole
+    statement with "ON CONFLICT DO UPDATE command cannot affect row a second
+    time". One duplicate would therefore reject an entire batch of up to
+    BATCH_SIZE digests, not just itself.
+
+    Newest wins, because the two copies are the same conversation and the later
+    last_activity_at is the more complete transcript. Rows without the field sort
+    first, so a row that has one always beats a row that does not.
+    """
+    by_id: dict[str, dict] = {}
+    for row in rows:
+        prior = by_id.get(row["id"])
+        if prior is None or (row.get("last_activity_at") or "") >= (
+            prior.get("last_activity_at") or ""
+        ):
+            by_id[row["id"]] = row
+    if len(by_id) != len(rows):
+        log.warning(
+            "conversation-collector: collapsed %d duplicate session id(s) — "
+            "the same session appears under more than one project directory",
+            len(rows) - len(by_id),
+        )
+    return list(by_id.values())
 
 
 # ── Shipping ─────────────────────────────────────────────────────────────────
