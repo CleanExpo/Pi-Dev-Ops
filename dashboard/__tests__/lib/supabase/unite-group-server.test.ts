@@ -100,13 +100,21 @@ describe("missingUniteGroupEnv", () => {
 
   it("never returns a VALUE, only a name", async () => {
     // The whole point is that this result is safe to serialise into a response.
-    // The set variable here carries a secret-shaped value; it must not appear.
-    const secret = "sb-service-role-DO-NOT-LEAK-0123456789";
-    process.env.SUPABASE_UNITE_GROUP_URL = secret;
+    // The set variable carries a distinctive sentinel; it must not come back.
+    //
+    // The sentinel is ASSEMBLED rather than written as a literal, and is not
+    // credential-shaped. A literal that looked like a real service-role key made
+    // this file itself a finding for scripts/secrets_check.py — which then
+    // auto-patched .gitignore to untrack the very test that proves the property.
+    // What is under test is "a value must not appear in the output", and any
+    // distinctive value proves that; looking like a credential adds nothing,
+    // because the implementation matches on names and never inspects the value.
+    const sentinel = ["VALUE", "MUST", "NOT", "APPEAR", "IN", "OUTPUT"].join("-");
+    process.env.SUPABASE_UNITE_GROUP_URL = sentinel;
     delete process.env.SUPABASE_UNITE_GROUP_SERVICE_KEY;
     const { missingUniteGroupEnv } = await import("@/lib/supabase/unite-group-server");
     const missing = missingUniteGroupEnv();
-    expect(JSON.stringify(missing)).not.toContain(secret);
+    expect(JSON.stringify(missing)).not.toContain(sentinel);
     expect(missing).toEqual(["SUPABASE_UNITE_GROUP_SERVICE_KEY"]);
   });
 

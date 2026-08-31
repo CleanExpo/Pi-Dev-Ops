@@ -724,7 +724,7 @@
       "auth": true,
       "expected_status": 200,
       "body_contains": ["pageCount"],
-      "_comment": "#609: returns {...graph, pageCount, truncated}. pageCount is always present; truncated may legitimately be false, so it is not asserted."
+      "_comment": "#609: returns {...graph, pageCount, truncated}. pageCount is always present; truncated may legitimately be false, so it is not asserted. 200 stays the expectation on purpose — it is the correct configured end state, and this probe going red IS the signal that production lacks SUPABASE_UNITE_GROUP_URL / SUPABASE_UNITE_GROUP_SERVICE_KEY. An unconfigured deployment now answers 503 {error, missing:[...]} rather than a blank 500, so a red run names its own cause; do not relax this to accept that 503, which would turn the probe green while the feature stayed broken."
     },
     {
       "name": "curator-proposals",
