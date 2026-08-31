@@ -142,7 +142,9 @@ Three steps, in this order:
    machines authenticate to *it* with `X-Pi-CEO-Secret` rather than ever holding the
    service-role key.
 2. Set `CONVERSATION_SYNC_ENABLED=1` on the Railway service. Unset or any value outside
-   `1/true/yes/on` leaves every route answering 503 to an authenticated caller.
+   `1/true/yes/on` leaves every route answering 503 to an authenticated caller. The server
+   and the collectors accept the same set — pinned by a test, because when they disagreed
+   `=true` meant every machine shipped into a 503 forever while this page said it would work.
 3. Install the collector on each machine — `scripts/com.piceo.conversation-collector.plist.example`
    (macOS) or `scripts/conversation-collector.task.xml.example` (Windows). Copy to a real
    `.plist`/task first; the templates derive paths from `$HOME` and bake in no username.

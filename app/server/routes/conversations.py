@@ -105,9 +105,21 @@ def _check_secret(secret: Optional[str]) -> None:
         raise HTTPException(401, "Invalid or missing X-Pi-CEO-Secret")
 
 
+# Must match scripts/conversation_collector.py's TRUTHY. They are the two halves
+# of one switch: the collectors decide whether to POST, this route decides
+# whether to accept. When the server took only the literal "1" and the collector
+# took the whole set, CONVERSATION_SYNC_ENABLED=true meant every machine shipped
+# into a 503 forever, and the runbook told operators that value would work.
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
 def _sync_enabled() -> bool:
-    """Read the kill switch per call so it can be flipped without a redeploy."""
-    return os.environ.get("CONVERSATION_SYNC_ENABLED", "0") == "1"
+    """Read the kill switch per call so it can be flipped without a redeploy.
+
+    Default OFF: unset, "", "0" and "false" all disable, so a missing variable
+    can never fail open.
+    """
+    return os.environ.get("CONVERSATION_SYNC_ENABLED", "").strip().lower() in _TRUTHY
 
 
 def _guard(secret: Optional[str]) -> None:
@@ -164,15 +176,25 @@ class IngestRequest(BaseModel):
 def _row(machine: str, d: Digest) -> dict[str, Any]:
     """One `conversation_digests` row: redacted, capped, and identity-keyed.
 
-    Redaction happens HERE, on the way in, so there is no path from a request
-    body to the table that skips it. The cap is applied after redaction — a
-    placeholder is shorter than the secret it replaced, so truncating first
-    could slice a secret in half and leave a fragment no pattern matches.
+    EVERY text field is redacted, not just the obvious two. `project_dir` is a
+    cwd, so it carries a username at minimum — the client redacts it for exactly
+    that reason (`scripts/conversation_collector.py`), and this server exists
+    because the client's claim cannot be verified. `machine` and `session_id`
+    are caller-supplied strings that end up concatenated into the primary key,
+    so they are redacted before that concatenation rather than after.
+
+    `machine` arrives already redacted from `ingest`, which needs the clean
+    value for its log line and response body too.
+
+    The cap is applied after redaction — a placeholder is shorter than the
+    secret it replaced, so truncating first could slice a secret in half and
+    leave a fragment no pattern matches.
     """
+    session_id = _redact(d.session_id) or ""
     return {
-        "id": f"{machine}:{d.session_id}",
+        "id": f"{machine}:{session_id}",
         "machine": machine,
-        "project_dir": d.project_dir,
+        "project_dir": _redact(d.project_dir),
         "title": _redact(d.title),
         "digest_md": (_redact(d.digest_md) or "")[:CONVERSATION_DIGEST_MAX_CHARS] or None,
         "turn_count": d.turn_count,
@@ -189,13 +211,18 @@ async def ingest(
     """Publish one machine's redacted digests into the shared store."""
     _guard(x_pi_ceo_secret)
     _require_complete_bank()
-    if not body.machine.strip():
+    # Redacted once, here, because this value reaches three durable places: the
+    # row, this route's log line, and the response body. Logging the raw value
+    # put a caller-supplied secret into the server log even when the row itself
+    # was clean.
+    machine = (_redact(body.machine) or "").strip()
+    if not machine:
         raise HTTPException(422, "machine is required")
     if len(body.digests) > CONVERSATION_INGEST_MAX_ROWS:
         raise HTTPException(
             413, f"at most {CONVERSATION_INGEST_MAX_ROWS} digests per request",
         )
-    rows = [_row(body.machine, d) for d in body.digests if d.session_id]
+    rows = [_row(machine, d) for d in body.digests if d.session_id]
     written = conversation_store.save_conversation_digests(rows)
     # Unlike the observability writers in supabase_log.py, this one reports.
     # A machine that syncs nightly and is told "ok" for a write that never
@@ -204,8 +231,8 @@ async def ingest(
         raise HTTPException(
             502, f"stored {written} of {len(rows)} digests — Supabase write incomplete",
         )
-    log.info("conversation digests stored: machine=%s rows=%d", body.machine, written)
-    return {"ok": True, "machine": body.machine, "stored": written}
+    log.info("conversation digests stored: machine=%s rows=%d", machine, written)
+    return {"ok": True, "machine": machine, "stored": written}
 
 
 @router.get("/search")

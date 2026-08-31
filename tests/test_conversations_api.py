@@ -59,6 +59,30 @@ def test_routes_refuse_when_sync_disabled(convo, monkeypatch, unset):
     assert store.saved == []
 
 
+@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on", " 1 "])
+def test_the_server_accepts_the_same_truthy_values_as_the_collector(
+    convo, monkeypatch, value):
+    """The two halves of one switch must agree on what "on" means.
+
+    The server took only the literal "1" while
+    `scripts/conversation_collector.py` accepts {1,true,yes,on}. With
+    CONVERSATION_SYNC_ENABLED=true every machine considered itself enabled and
+    shipped into a 503 forever — and the fleet runbook told operators that value
+    would work. Divergence here is silent on both sides, so it is pinned.
+    """
+    client, _, _ = convo
+    monkeypatch.setenv("CONVERSATION_SYNC_ENABLED", value)
+    assert client.get("/api/conversations/recent", headers=HDR).status_code == 200
+
+
+@pytest.mark.parametrize("value", ["", " ", "0", "false", "off", "no"])
+def test_nothing_outside_the_truthy_set_opens_the_lane(convo, monkeypatch, value):
+    """Widening the accepted set must not weaken default-off."""
+    client, _, _ = convo
+    monkeypatch.setenv("CONVERSATION_SYNC_ENABLED", value)
+    assert client.get("/api/conversations/recent", headers=HDR).status_code == 503
+
+
 def test_disabled_lane_still_401s_anonymous_callers(convo, monkeypatch):
     """Auth is checked BEFORE the flag — an anonymous caller must not read this
     deployment's config state off the status code, and the declared smoke

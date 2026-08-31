@@ -71,6 +71,48 @@ def test_redaction_bank_covers_transcript_only_shapes(convo):
     assert FAKE_OAUTH_TOKEN not in store.saved[0]["digest_md"]
 
 
+def test_every_stored_field_is_redacted_not_just_the_obvious_two(convo):
+    """POSITIVE CONTROL over the WHOLE row, not two columns of it.
+
+    `project_dir` is a cwd, so it carries a username at minimum, and the client
+    redacts it for exactly that reason — while this server, which exists because
+    the client's claim cannot be verified, was copying it through verbatim along
+    with `machine` and the `id` built from them. Asserting only on title and
+    digest_md is what let three fields leak while the tests stayed green.
+    """
+    client, _, store = convo
+    body = {
+        "machine": f"macbook {FAKE_OAUTH_TOKEN}",
+        "digests": [{
+            "session_id": f"s1-{FAKE_OAUTH_TOKEN}",
+            "project_dir": f"/Users/phill/work {FAKE_OAUTH_TOKEN}",
+            "title": f"t {FAKE_OAUTH_TOKEN}",
+            "digest_md": f"body {FAKE_OAUTH_TOKEN}",
+        }],
+    }
+    r = client.post("/api/conversations/ingest", json=body, headers=HDR)
+    assert r.status_code == 200, r.text
+    row = store.saved[0]
+    for field in ("id", "machine", "project_dir", "title", "digest_md"):
+        assert FAKE_OAUTH_TOKEN not in str(row[field]), f"{field} reached the store unredacted"
+    # The response echoes the machine back, so it must be clean too.
+    assert FAKE_OAUTH_TOKEN not in r.text
+
+
+def test_the_machine_name_is_redacted_before_it_is_logged(convo, caplog):
+    """The log line took the raw body value, so a secret in `machine` landed in
+    the server log even when every stored column was clean. Logs outlive
+    requests and are shipped off-host, so that is a durable leak of its own."""
+    client, _, _ = convo
+    body = {"machine": f"macbook {FAKE_OAUTH_TOKEN}", "digests": [{"session_id": "s1"}]}
+    with caplog.at_level("INFO", logger="pi-ceo.routes.conversations"):
+        assert client.post(
+            "/api/conversations/ingest", json=body, headers=HDR).status_code == 200
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    assert "conversation digests stored" in logged, "the log line under test did not fire"
+    assert FAKE_OAUTH_TOKEN not in logged
+
+
 def test_redaction_is_idempotent(convo):
     """A digest the client already redacted passes through unchanged, so a
     re-sync cannot accumulate nested placeholders."""
