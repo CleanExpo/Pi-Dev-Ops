@@ -151,14 +151,31 @@ def test_darwin_still_installs_both_launchd_services(tmp_path):
     assert (agents / "com.unite-group.mesh-runner.plist").exists(), proc.stdout
 
 
-@pytest.mark.parametrize("uname_s", ["Darwin", "Linux", WINDOWS_UNAME])
-def test_bootstrap_never_crashes_on_any_platform(tmp_path, uname_s):
-    """Whatever the verdict, the script must reach it deliberately.
+@pytest.mark.parametrize("uname_s,enlisted,exit_code", [
+    ("Darwin", True, 0),          # installs both launchd services
+    ("Linux", False, 1),          # prints daemon commands, supervises nothing
+    (WINDOWS_UNAME, False, 1),    # prints schtasks commands, supervises nothing
+])
+def test_every_platform_reaches_its_own_verdict(tmp_path, uname_s, enlisted, exit_code):
+    """Each platform must arrive at its verdict deliberately, not fall out early.
 
-    `set -euo pipefail` plus a new exit path is an easy way to die early on an
-    unrelated line, which would produce a non-zero exit that the regression
-    tests above would happily mistake for the fix working.
+    `set -euo pipefail` makes any failing command an exit, so a script that
+    died on an unrelated line would still exit non-zero — which the two
+    regression tests above would happily read as the fix working. Asserting the
+    TERMINAL LINE, not just a tolerated exit code, is what separates "reached
+    the verdict block and decided" from "died on the way there".
+
+    Raised by CodeRabbit on this PR. The earlier version of this test accepted
+    any exit of 0 or 1 once it saw the opening banner, and the banner prints on
+    line 18. Verified by planting `false` right after it: the script died at
+    line 20, never reached the verdict, and all three cases passed — the exact
+    early exit the docstring claimed to guard.
     """
     proc = _run_bootstrap(tmp_path, uname_s=uname_s, heartbeat_ok=True)
     assert "Nexus Mesh bootstrap on" in proc.stdout
-    assert proc.returncode in (0, 1), f"unexpected exit {proc.returncode}: {proc.stderr}"
+    combined = proc.stdout + proc.stderr
+    if enlisted:
+        assert SUCCESS_CLAIM in combined, combined
+    else:
+        assert "NOT enlisted" in combined, combined
+    assert proc.returncode == exit_code, f"exit {proc.returncode}: {proc.stderr}"
