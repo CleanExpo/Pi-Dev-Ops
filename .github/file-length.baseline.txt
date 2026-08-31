@@ -95,14 +95,13 @@
 471	8eaa62707b76	dashboard/components/control/LiveActivityFeed.tsx
 467	0a286e60322a	app/server/session_sdk.py
 465	aac2ece56e4b	app/server/model_fabric.py
-464	c02b1694ea7f	app/server/routes/mesh.py
 464	c1cc0cf5a3fc	swarm/tmux_validator.py
 463	ab302c9ddba8	swarm/debate_runner.py
+462	437c843deaa5	app/server/routes/mesh.py
 462	feb2e5383ebc	swarm/inbox/provisioner.py
 453	54c70936958c	swarm/cto.py
 453	bd0e969ed193	swarm/inbox/__tests__/test_intake_dispatch.py
 449	898639bff71a	swarm/cfo.py
-444	8128dd3816dc	app/server/cron_triggers.py
 441	99ffa5d79100	tests/swarm/nexus/test_channels.py
 438	04af471f5300	fence/pretooluse_fence.py
 436	f5133b32e431	tests/swarm/nexus/test_approvals.py
@@ -115,6 +114,7 @@
 427	77e9b799794e	dashboard/components/command-centre/wiki-graph/WikiGraphCanvas.tsx
 425	d0c16d44af11	tests/test_sessions.py
 424	7f066bdac22e	tests/test_pipeline_routes.py
+422	45f37c58fcc1	app/server/cron_triggers.py
 419	ef51583a2154	swarm/inbox/intake_dispatch.py
 419	a37c754b7ca5	swarm/intake/spm.py
 418	0c298d81400e	swarm/cmo.py

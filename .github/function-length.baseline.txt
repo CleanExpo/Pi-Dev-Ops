@@ -309,7 +309,6 @@
 58	fa78aee4c42b	swarm/model_router.py::AnthropicProvider.complete
 58	b6b16a55c416	swarm/nexus/ingest/stripe.py::parse
 58	500104f830ca	tests/test_persistent_goals.py::test_debate_runner_advances_goal_on_success
-57	374cb66f24ec	app/server/cron_triggers.py::_fire_trigger
 57	c801c6025fae	app/server/pi_ceo_session_fts.py::rebuild_incremental
 57	2cc685754c53	scripts/cron_error_sweep.py::self_test
 57	fb6e3d053484	scripts/open_skill_pr.py::open_pr
@@ -377,7 +376,7 @@
 52	4d769f95f5ee	app/server/agents/plan_discovery.py::_maybe_propose_research_intent
 52	277944f2b3dd	app/server/routes/phone.py::create_gate
 52	5f70a8c323b2	app/server/tao_codebase_wiki.py::update_wiki
-52	e282bdea056f	mesh/runner.py::run_claim
+52	51755ee6ed0e	mesh/runner.py::run_claim
 52	bf3db7f6ea12	scripts/review_eval_candidates.py::review
 52	f1a575ec77b1	scripts/runtime_model_guard.py::start_model_fabric
 52	3d6dc288fe2a	scripts/test_lessons_durable_migration.py::main
