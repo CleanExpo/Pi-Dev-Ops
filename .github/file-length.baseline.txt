@@ -69,7 +69,6 @@
 555	ff6d2b732fb1	swarm/nexus/onboarding.py
 553	5385ce6beeab	tests/test_provider_router.py
 546	3165f923b038	app/server/routes/nexus.py
-539	2047ad491cf9	tests/test_mesh_runner_idle_autoclaim.py
 537	03ac89c21987	app/server/cron_fire_agents.py
 535	4818e6ddc778	scripts/analyse_lessons.py
 530	478c38a8e500	swarm/persistent_goals.py
@@ -77,6 +76,7 @@
 528	3be9e0814960	tests/test_persistent_goals.py
 527	2f12de155db0	scripts/idea_expansion.py
 525	6d34158cb982	dashboard/app/(main)/overview/page.tsx
+524	426f53c64ed2	tests/test_mesh_runner_idle_autoclaim.py
 523	27da9bf1fa11	scripts/smoke_test.py
 523	0e56be8304a3	tests/swarm/test_tmux_observer.py
 518	e3996b3c7bba	dashboard/app/api/telegram/route.ts

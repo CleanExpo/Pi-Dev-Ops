@@ -33,7 +33,6 @@ turns "retries forever" into a clean `DID NOT RAISE` instead of a hang.
 """
 from __future__ import annotations
 
-import importlib.util
 import sys
 from pathlib import Path
 
@@ -43,16 +42,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 
-def _load(name: str, rel: str):
-    """Import a module by path, so the runner is loaded exactly as its tests expect."""
-    spec = importlib.util.spec_from_file_location(name, REPO_ROOT / rel)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-class _Break(Exception):
-    """Raised from the patched poll sleep to end main()'s loop deliberately."""
+from mesh_helpers import Break as _Break  # noqa: E402
+from mesh_helpers import ImmediateProc as _DoneProc  # noqa: E402
+from mesh_helpers import load_module as _load  # noqa: E402
 
 
 class FakeServer:
@@ -173,16 +165,6 @@ def test_the_runner_does_not_retry_a_repo_missing_ticket_forever(runner, monkeyp
 
 
 # ── green control ────────────────────────────────────────────────────────────
-
-
-class _DoneProc:
-    """An agent process that has already exited cleanly on first poll."""
-
-    returncode = 0
-
-    def poll(self):
-        """Report immediate clean exit, so `_wait_for_agent` lands `done`."""
-        return 0
 
 
 def test_a_working_repo_reports_the_full_working_then_done_sequence(runner, tmp_path, monkeypatch):
