@@ -25,11 +25,18 @@
     <key>Label</key>
     <string>com.phillmcgurk.claude-memory-backup</string>
 
+    <!-- No username is baked in. launchd does NOT expand ~ or $HOME in
+         ProgramArguments, so the command runs through `bash -lc` and the shell
+         expands $HOME at run time. This previously hardcoded
+         /Users/phill-mac/Pi-CEO/..., which meant the agent loaded and then did
+         nothing on the other two machines — the same silent-wrong-path failure
+         the script itself was just fixed for. Set PI_CEO_REPO only if this
+         checkout does not live at $HOME/Pi-Dev-Ops. -->
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>-l</string>
-        <string>/Users/phill-mac/Pi-CEO/scripts/claude_memory_backup.sh</string>
+        <string>-lc</string>
+        <string>PI_CEO_REPO="${PI_CEO_REPO:-$HOME/Pi-Dev-Ops}"; exec "$PI_CEO_REPO/scripts/claude_memory_backup.sh"</string>
     </array>
 
     <key>EnvironmentVariables</key>
@@ -50,11 +57,14 @@
         <integer>14</integer>
     </dict>
 
+    <!-- launchd cannot expand $HOME in these two paths, so they use /tmp rather
+         than one machine's Library/Logs. Point them at an absolute path under
+         your own home if you want the log to persist across reboots. -->
     <key>StandardOutPath</key>
-    <string>/Users/phill-mac/Library/Logs/claude-memory-backup.log</string>
+    <string>/tmp/claude-memory-backup.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/phill-mac/Library/Logs/claude-memory-backup.log</string>
+    <string>/tmp/claude-memory-backup.log</string>
 
     <key>RunAtLoad</key>
     <false/>
