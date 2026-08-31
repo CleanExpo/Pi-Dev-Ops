@@ -331,6 +331,7 @@ const READ_ONLY_TOOLS = new Set([
   "get_zte_score", "get_sprint_plan", "get_pipeline", "list_harness_files",
   "linear_list_issues", "linear_search_issues", "linear_status",
   "get_monitor_digest", "search_lessons", "read_obsidian_note",
+  "conversation_search", "conversation_recent",
 ]);
 
 // Internal dispatch map for run_parallel — populated as tools are registered.
@@ -2211,13 +2212,114 @@ function validateStartup() {
   }
 }
 
+// ── Conversation brain ─────────────────────────────────────────────────────────
+// The reason these exist: a Claude session can see its own machine's history and
+// nothing else. Conversations live in ~/.claude/projects/**/*.jsonl on whichever
+// machine ran them, so the MacBook cannot recall what the Mac mini worked on last
+// night, and vice versa. scripts/conversation_collector.py ships REDACTED digests
+// from every machine to a shared store; these two tools are how a session reads it.
+//
+// Read-only by construction: there is no write tool here. Digests are produced by
+// the collector on each machine, never by an agent through this surface.
+const CONVERSATION_LIMIT_DEFAULT = 10;
+
+async function _conversationsGet(routePath) {
+  const base = (process.env.PI_CEO_URL || "http://127.0.0.1:7777").replace(/\/$/, "");
+  const secret = process.env.PI_CEO_API_KEY || "";
+  if (!secret) {
+    // Named distinctly from "no results": an unconfigured machine must never look
+    // like a machine whose history is genuinely empty.
+    throw new Error("PI_CEO_API_KEY not set — cannot reach the shared conversation store");
+  }
+  const res = await _shipHttp("GET", `${base}${routePath}`, null, { "X-Pi-CEO-Secret": secret });
+  if (res.status === 503) {
+    throw new Error("Conversation sync is disabled on the server (CONVERSATION_SYNC_ENABLED unset)");
+  }
+  if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.body.slice(0, 200)}`);
+  return JSON.parse(res.body || "{}");
+}
+
+function _renderConversations(rows, emptyNote) {
+  if (!rows.length) return emptyNote;
+  return rows.map((r) => {
+    const when = (r.last_activity_at || r.started_at || "").slice(0, 16).replace("T", " ");
+    const head = `## ${r.title || r.id}\n- machine: ${r.machine}  ·  ${when}  ·  ${r.turn_count ?? "?"} turns`;
+    const dir = r.project_dir ? `\n- project: ${r.project_dir}` : "";
+    return `${head}${dir}\n\n${(r.digest_md || "").trim()}`;
+  }).join("\n\n---\n\n");
+}
+
+const _handle_conversation_search = async ({ query, machine, limit }) => {
+  const params = new URLSearchParams({ q: query, limit: String(limit || CONVERSATION_LIMIT_DEFAULT) });
+  if (machine) params.set("machine", machine);
+  try {
+    const data = await _conversationsGet(`/api/conversations/search?${params}`);
+    const rows = data.results || data.digests || [];
+    return { content: [{ type: "text", text: _renderConversations(
+      rows, `No conversation on any machine matched "${query}".`) }] };
+  } catch (e) {
+    return { content: [{ type: "text", text: `Conversation search failed: ${e.message}` }] };
+  }
+};
+_readHandlers.set("conversation_search", _handle_conversation_search);
+server.registerTool(
+  "conversation_search",
+  {
+    title: "Search Conversations Across Machines",
+    description:
+      "Full-text search every machine's Claude Code conversation history — not just this one's. " +
+      "Use when the user refers to earlier work ('what did we decide about X', 'the session where I " +
+      "fixed Y') that may have happened on a different computer. Returns redacted digests.",
+    inputSchema: {
+      query: z.string().describe("What to search for, e.g. 'mesh dispatcher' or 'supabase lease'"),
+      machine: z.string().optional().describe("Restrict to one machine's history by hostname"),
+      limit: z.number().optional().describe("Max conversations to return (default 10)"),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  _handle_conversation_search
+);
+
+const _handle_conversation_recent = async ({ machine, limit }) => {
+  const params = new URLSearchParams({ limit: String(limit || CONVERSATION_LIMIT_DEFAULT) });
+  if (machine) params.set("machine", machine);
+  try {
+    const data = await _conversationsGet(`/api/conversations/recent?${params}`);
+    const rows = data.results || data.digests || [];
+    return { content: [{ type: "text", text: _renderConversations(
+      rows, "No conversations have been synced yet — check the collector is installed and enabled.") }] };
+  } catch (e) {
+    return { content: [{ type: "text", text: `Recent conversations unavailable: ${e.message}` }] };
+  }
+};
+_readHandlers.set("conversation_recent", _handle_conversation_recent);
+server.registerTool(
+  "conversation_recent",
+  {
+    title: "Recent Conversations Across Machines",
+    description:
+      "The most recent Claude Code conversations from every machine in the fleet, newest first. " +
+      "Use to pick up where another machine left off — e.g. after the MacBook has been offline.",
+    inputSchema: {
+      machine: z.string().optional().describe("Restrict to one machine's history by hostname"),
+      limit: z.number().optional().describe("Max conversations to return (default 10)"),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  _handle_conversation_recent
+);
+
 // ── Start Server ───────────────────────────────────────────────────────────────
 async function main() {
   validateStartup();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  // Server is now running — the SDK handles all MCP protocol negotiation
-  process.stderr.write("Pi CEO MCP Server v3.5.0 started (stdio transport, 26 tools)\n");
+  // Server is now running — the SDK handles all MCP protocol negotiation.
+  // The tool count is NOT printed. It was hardcoded as "26" while the file
+  // actually registered 31 — a number nobody updated when tools were added, so
+  // it misreported the surface for an unknown span. Count it when you need it:
+  //   grep -c "^server.registerTool(" mcp/pi-ceo-server.js
+  process.stderr.write("Pi CEO MCP Server v3.5.0 started (stdio transport)\n");
 }
 
 main().catch((err) => {
