@@ -182,3 +182,46 @@ def test_a_failed_extension_import_reports_the_bank_incomplete(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", real_import)
     _bank, healthy = conversations._build_redaction_bank()
     assert healthy is True
+
+
+def test_a_secret_bearing_timestamp_is_dropped_not_shipped_as_text(convo):
+    """A bad timestamp must cost one field, not the whole batch.
+
+    `started_at` and `last_activity_at` are TIMESTAMPTZ. A caller-supplied value
+    carrying a secret is not a timestamp before redaction and is still not one
+    after it — redaction turns it into text, which Postgres rejects just the
+    same. The upsert is a SINGLE statement for the entire batch, so that one
+    value would fail every digest sent alongside it, up to
+    CONVERSATION_INGEST_MAX_ROWS of them.
+
+    Both columns are nullable by design, so None keeps the row.
+    """
+    client, _, store = convo
+    body = ingest_body()
+    body["digests"][0]["started_at"] = f"2026-08-30T01:00:00Z {FAKE_OAUTH_TOKEN}"
+    body["digests"][0]["last_activity_at"] = "not-a-timestamp-at-all"
+    assert client.post(
+        "/api/conversations/ingest", json=body, headers=HDR).status_code == 200
+    row = store.saved[0]
+    assert row["started_at"] is None, "unparseable value must not be shipped as text"
+    assert row["last_activity_at"] is None
+    # The rest of the row still arrives — the point is that one bad field does
+    # not cost the digest, let alone its batch.
+    assert row["id"] == "macbook:sess-1"
+    assert row["digest_md"]
+    assert FAKE_OAUTH_TOKEN not in str(row)
+
+
+def test_a_valid_timestamp_still_passes_through_untouched(convo):
+    """Green control. Without this, dropping EVERY timestamp would satisfy the
+    test above while silently destroying the ordering the search relies on
+    (`order=last_activity_at.desc`)."""
+    client, _, store = convo
+    body = ingest_body()
+    body["digests"][0]["started_at"] = "2026-08-30T01:00:00Z"
+    body["digests"][0]["last_activity_at"] = "2026-08-30T02:00:00+10:00"
+    assert client.post(
+        "/api/conversations/ingest", json=body, headers=HDR).status_code == 200
+    row = store.saved[0]
+    assert row["started_at"] == "2026-08-30T01:00:00Z"
+    assert row["last_activity_at"] == "2026-08-30T02:00:00+10:00"

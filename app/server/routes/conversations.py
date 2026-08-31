@@ -29,6 +29,7 @@ import hmac as _hmac
 import logging
 import os
 import re
+from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Header, HTTPException
@@ -173,6 +174,25 @@ class IngestRequest(BaseModel):
     digests: list[Digest] = Field(default_factory=list)
 
 
+def _timestamp_or_none(value: Optional[str]) -> Optional[str]:
+    """An ISO-8601 timestamp, or None when the value is not one.
+
+    Guards the two TIMESTAMPTZ columns. A caller can send anything in these
+    fields, and redaction can itself turn a secret-bearing value into text that
+    is still not a timestamp. Either way Postgres rejects the row — and because
+    the upsert is a single statement for the entire batch, that one value fails
+    every digest sent with it. Returning None costs one field on one row.
+    """
+    if not value:
+        return None
+    try:
+        datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        log.warning("conversation ingest: dropping unparseable timestamp")
+        return None
+    return value
+
+
 def _row(machine: str, d: Digest) -> dict[str, Any]:
     """One `conversation_digests` row: redacted, capped, and identity-keyed.
 
@@ -198,16 +218,15 @@ def _row(machine: str, d: Digest) -> dict[str, Any]:
         "title": _redact(d.title),
         "digest_md": (_redact(d.digest_md) or "")[:CONVERSATION_DIGEST_MAX_CHARS] or None,
         "turn_count": d.turn_count,
-        # Redacted too, though both are TIMESTAMPTZ columns so Postgres would
-        # reject a secret-bearing string rather than store it. The residual
-        # exposure is real but narrower than the table: the value still travels
-        # to Supabase in the request body before it is rejected. The bigger
-        # reason is the invariant — "every caller-supplied string is redacted"
-        # is checkable at a glance, while "every string except the two whose
-        # column type we reasoned about" silently becomes wrong the day one of
-        # those columns is widened to TEXT.
-        "started_at": _redact(d.started_at),
-        "last_activity_at": _redact(d.last_activity_at),
+        # Redacted like every other caller string, THEN validated. Redaction
+        # alone was not enough and reasoning it was is what this fixes: a
+        # secret-bearing timestamp is not a timestamp either before or after
+        # redaction, so TIMESTAMPTZ rejects it — and the upsert is ONE statement
+        # for the whole batch, so a single bad value takes up to
+        # CONVERSATION_INGEST_MAX_ROWS good digests down with it. Dropping the
+        # field keeps the row, and both columns are nullable by design.
+        "started_at": _timestamp_or_none(_redact(d.started_at)),
+        "last_activity_at": _timestamp_or_none(_redact(d.last_activity_at)),
     }
 
 
