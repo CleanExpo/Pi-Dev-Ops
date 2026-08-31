@@ -36,6 +36,12 @@ WINDOWS_UNAME = "MINGW64_NT-10.0-22631"
 
 SUCCESS_CLAIM = "is enlisted with visibility + work execution"
 
+# The two halves of "enlisted", as the script names them when one is missing.
+# Tests assert the SPECIFIC gap: a script that merely failed somewhere would
+# satisfy "did not claim success" without ever diagnosing anything.
+NO_HEARTBEAT = "the first heartbeat did not publish"
+NO_SUPERVISION = "no supervision installed"
+
 
 def _write(path: Path, body: str) -> None:
     path.write_text(body, encoding="utf-8")
@@ -97,8 +103,14 @@ def test_windows_node_does_not_claim_enlistment_it_did_not_achieve(tmp_path):
     it as stale forever. Claiming "enlisted with work execution" there is false.
     """
     proc = _run_bootstrap(tmp_path, uname_s=WINDOWS_UNAME, heartbeat_ok=True)
-    assert SUCCESS_CLAIM not in proc.stdout
-    assert proc.returncode != 0
+    combined = proc.stdout + proc.stderr
+    assert SUCCESS_CLAIM not in combined
+    # The heartbeat DID publish here, so only the supervision half may be named.
+    # `!= 0` and "no success claim" were both satisfied by a script that died
+    # before reaching the verdict at all — see the module docstring.
+    assert NO_SUPERVISION in combined, combined
+    assert NO_HEARTBEAT not in combined, combined
+    assert proc.returncode == 1, f"exit {proc.returncode}: {proc.stderr}"
 
 
 def test_a_failed_heartbeat_is_not_reported_as_enlisted(tmp_path):
@@ -108,8 +120,14 @@ def test_a_failed_heartbeat_is_not_reported_as_enlisted(tmp_path):
     `/api/mesh/fleet`, the confirmation the runbook asks for cannot pass.
     """
     proc = _run_bootstrap(tmp_path, uname_s="Darwin", heartbeat_ok=False)
-    assert SUCCESS_CLAIM not in proc.stdout
-    assert proc.returncode != 0
+    combined = proc.stdout + proc.stderr
+    assert SUCCESS_CLAIM not in combined
+    # Mirror image of the case above: launchd loaded both services, so ONLY the
+    # heartbeat half is missing. Asserting both directions is what stops a
+    # blanket "NOT enlisted" from passing either test.
+    assert NO_HEARTBEAT in combined, combined
+    assert NO_SUPERVISION not in combined, combined
+    assert proc.returncode == 1, f"exit {proc.returncode}: {proc.stderr}"
 
 
 def test_the_operator_is_told_which_half_failed(tmp_path):
