@@ -29,6 +29,27 @@ Optional, unblocks the free-model research lane rather than a broken surface:
 set `OPENROUTER_API_KEY` on Railway. Without it the OpenRouter harness raises on first call, so
 any "run the swarm on free models" request fails at the first request rather than degrading.
 
+### Before 1 and 2 on `unite-mac-mini` — check for an ambient `MESH_REPO_DIR`
+
+```bash
+echo "${MESH_REPO_DIR:-(unset — good)}"
+```
+
+If it prints a path, **do not turn on dispatch on that node yet**. `mesh/runner.py`
+`_repo_dir_for()` falls back to it, so the runner does its claimed work in whatever
+directory that variable names rather than in the checkout it claimed the ticket
+against — and the claim still reads as served. RA-7375 records it exported on
+`Phills-Mac-mini` pointing at a Codex worktree on an external volume, which also
+breaks whenever that volume is unmounted.
+
+**No test can tell you this** — check the variable itself, above. `_repo_dir_for()`
+cannot distinguish an ambient export from an operator's deliberate relocation, and
+`tests/test_mesh_runner_service.py` pins both branches on purpose: one `delenv`s the
+variable to test the fallback, the other sets it to prove the override is honoured.
+Both pass on an affected node. That is correct unit-test behaviour, not a gap in the
+suite — the gap is that the two cases are indistinguishable at runtime, which is
+RA-7375's second half.
+
 ### Order that wastes the least of your time
 
 1 and 2 together (one sitting, all three machines), then 3 (two minutes, closes the last red
