@@ -92,6 +92,43 @@ Work through it in this order; each step names the command that decides it.
 Rule that saves time: **dormant is not missing.** Most "it isn't working" in this system is a
 flag that is off by design. Check the flag before debugging the code.
 
+## Getting files off the Windows PC (the SSH lane)
+
+Some work on `phill-desktop` cannot reach the estate through git at all. `~/.claude`
+on that machine **is** the repo `CleanExpo/skills-library`, whose `.gitignore` is
+deny-all (`*`) plus an allowlist — and `commands/` is not on it. So
+`~/.claude/commands/*.md` is structurally invisible: `git status` cannot see it, the
+scheduled estate sync cannot see it, and committing cannot move it. That file's own
+comments record the identical bug ten times over for `.github/`, `scripts/`,
+`agents/` and `hooks/`.
+
+Allowlisting `commands/**` would fix the sync and **publish those files** —
+skills-library is public. That is the same trade the repo already refused for session
+handoffs. SSH avoids it: the files travel PC → brain host over the tailnet and never
+touch GitHub.
+
+```powershell
+# On the Windows PC, once:
+.\scripts\setup-pc-ssh.ps1 -BrainHost "<mac-mini>.ts.net" -BrainUser "<user>"
+# It prints one command to paste on the brain host, then proves the connection.
+
+# Then, to move the commands across:
+.\scripts\setup-pc-ssh.ps1 -BrainHost "<mac-mini>.ts.net" -BrainUser "<user>" -SyncCommands
+```
+
+Prerequisites: Tailscale up on both ends (`tailscale status`), and Remote Login
+enabled on the brain host (macOS: Settings → General → Sharing → Remote Login).
+`scripts/setup-brain-host.ps1` covers the Tailscale side.
+
+The script is idempotent — it reuses an existing key rather than regenerating one,
+because a new key would orphan every host that already trusts this machine. Its
+connection probe runs with `BatchMode=yes`, so a missing authorisation fails fast
+with a reason instead of hanging on a password prompt.
+
+Files land in `~/estate-inbox/pc-commands/` on the brain host and are **not** in
+git. Read one before copying it into a repo — that copy is the deliberate act of
+publishing it.
+
 ## After a change to any of this
 
 ```bash
