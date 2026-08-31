@@ -567,7 +567,7 @@
       "body": {
         "host": "smoke"
       },
-      "_comment": "UNI-2248 (PR #509): idle-runner atomic self-claim of the top-priority unclaimed mesh:auto ticket (app/server/routes/mesh.py claim_self). Requires X-Pi-CEO-Secret; unauthenticated POST returns 401 before any Linear query or mesh_work_claims insert, so this probe proves route + auth without ever creating a real claim. Same pattern as cost-report-nosig/margot-turn-nosig. An authenticated probe is deliberately NOT declared — a valid secret would self-claim a live ticket (state mutation); the claim race/priority logic is covered offline by tests/test_mesh_runner_idle_autoclaim.py."
+      "_comment": "Nexus Mesh idle-runner self-claim (app/server/routes/mesh.py). WHAT THIS PROBE ACTUALLY PROVES, stated precisely because an earlier version of this comment overclaimed: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so proxy() answers 401 for EVERY path under that prefix before routing, the allowlist, or the backend is reached. This probe therefore proves the dashboard's session gate refuses anonymous access to this path. It does NOT prove the backend route exists, nor that the route's own X-Pi-CEO-Secret check works \u2014 deleting the route file would leave this probe green. Around 15 sibling *-nosig probes share that limitation; it is the repo's convention, not a property of this lane. The claim's atomicity \u2014 the mesh_work_claims_one_open partial unique index letting exactly one concurrent claimant win \u2014 is covered by the offline mesh tests, not by this probe."
     },
     {
       "name": "mesh-claims-reap-nosig",
@@ -609,7 +609,7 @@
         "machine": "smoke",
         "digests": []
       },
-      "_comment": "Milestone 3 shared conversation brain (app/server/routes/conversations.py ingest). A machine publishes REDACTED session digests; raw ~/.claude/projects JSONL never leaves its origin host. Requires X-Pi-CEO-Secret; the unauthenticated POST returns 401 before the second-pass redaction, the CONVERSATION_SYNC_ENABLED flag check, or any Supabase write, so this probe proves route + auth without ever storing a phantom 'smoke' row. Same pattern as mesh-heartbeat-nosig. An authenticated probe is deliberately NOT declared for two reasons: a valid secret would upsert a real conversation_digests row (state mutation), and the lane ships disabled (CONVERSATION_SYNC_ENABLED unset), so an authenticated probe would assert a 503 that flips to 200 the day the flag is turned on — a flapping probe. Redaction, the kill switch, the machine-scoped PK and partial-write reporting are covered offline by tests/test_conversations_api.py."
+      "_comment": "Milestone 3 shared conversation brain (app/server/routes/conversations.py ingest). A machine publishes REDACTED session digests; raw ~/.claude/projects JSONL never leaves its origin host. WHAT THIS PROBE ACTUALLY PROVES, stated precisely because an earlier version of this comment overclaimed: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so proxy() answers 401 for EVERY path under that prefix before routing, the allowlist, or the backend is reached. This probe therefore proves the dashboard's session gate refuses anonymous access to this path. It does NOT prove the backend route exists, nor that the route's own X-Pi-CEO-Secret check works \u2014 deleting the route file would leave this probe green. Around 15 sibling *-nosig probes share that limitation; it is the repo's convention, not a property of this lane. An authenticated probe is deliberately NOT declared: a valid secret would upsert a real conversation_digests row, and the lane ships disabled, so it would assert a 503 that flips to 200 the day the flag is turned on. The route's auth, the second-pass redaction of EVERY stored field, the kill switch, the machine-scoped PK and partial-write reporting are covered offline by tests/test_conversations_api.py and tests/test_conversations_redaction.py, which do run in CI."
     },
     {
       "name": "conversations-search-nosig",
@@ -617,7 +617,7 @@
       "method": "GET",
       "auth": false,
       "expected_status": 401,
-      "_comment": "Milestone 3: cross-machine full-text search over conversation_digests (app/server/routes/conversations.py search). Unauthenticated GET returns 401 before any Supabase read — digest bodies are private conversation content and the table is service-role only (supabase/migrations/20260830T000001_conversation_digests.sql), so anonymous read is never accepted. See conversations-ingest-nosig for why no authenticated probe is declared."
+      "_comment": "Milestone 3: cross-machine full-text search over conversation_digests (app/server/routes/conversations.py search). Digest bodies are private conversation content and the table is service-role only (supabase/migrations/20260830T000001_conversation_digests.sql). As with conversations-ingest-nosig, this probe proves the dashboard proxy's session gate and not the backend route \u2014 see that entry for why, and for what covers the route itself."
     },
     {
       "name": "conversations-recent-nosig",
@@ -625,7 +625,7 @@
       "method": "GET",
       "auth": false,
       "expected_status": 401,
-      "_comment": "Milestone 3: most-recent digests per machine (app/server/routes/conversations.py recent). Same auth contract and same rationale as conversations-search-nosig."
+      "_comment": "Milestone 3: most-recent digests per machine (app/server/routes/conversations.py recent). Same auth contract and the same honest scope as conversations-search-nosig."
     },
     {
       "name": "fable-canary",
