@@ -20,6 +20,7 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 import youtube_transcripts as yt  # noqa: E402
+from scripts import youtube_transcript_fetch as yt_fetch  # noqa: E402
 from swarm import wiki_ingest  # noqa: E402
 
 
@@ -111,6 +112,106 @@ def test_uncaptioned_video_is_recorded_not_retried(tmp_path):
     assert first.no_captions == ["dQw4w9WgXcQ"] and first.written == []
     assert second.skipped_done == 1
     assert len(calls) == 1, "uncaptioned video re-fetched — throttling risk"
+
+
+def test_operational_failure_is_not_recorded_as_no_captions(tmp_path):
+    """A fetch that BLEW UP must be retried, never retired as `no_captions`.
+
+    The bug this guards: the default fetcher used to swallow every exception —
+    including the ImportError from a missing `youtube-transcript-api` — and
+    return None. `_produce_one` writes a done-marker for None, so a single
+    missing dependency would have marked the entire accepted watch history as
+    having no captions, permanently, on one run that exited 0.
+    """
+    calls: list[str] = []
+
+    def boom(video_id: str) -> str:
+        calls.append(video_id)
+        raise ImportError("youtube-transcript-api not installed")
+
+    state = _state(_video())
+    first = yt.run(tmp_path / "S", state=state, fetcher=boom)
+
+    assert first.failed == ["dQw4w9WgXcQ"], "operational error not counted as failed"
+    assert first.no_captions == [] and first.written == []
+    assert not yt.MARKER_PATH.exists(), "a failed fetch wrote a completion marker"
+
+    # ...and the next run must actually retry it, which is the whole point.
+    second = yt.run(tmp_path / "S", state=state, fetcher=lambda v: calls.append(v) or "t")
+    assert len(second.written) == 1, "video was permanently lost after one failure"
+    assert calls == ["dQw4w9WgXcQ", "dQw4w9WgXcQ"]
+
+
+def test_real_fetcher_raises_on_missing_dependency(monkeypatch):
+    """The default fetcher itself must raise, not return None, when uninstallable.
+
+    Tested at the real entry point rather than through an injected fake, because
+    the injected fake cannot prove the shipped code no longer swallows ImportError.
+    """
+    import builtins
+
+    real_import = builtins.__import__
+
+    def no_library(name: str, *a, **kw):
+        if name == "youtube_transcript_api":
+            raise ImportError("No module named 'youtube_transcript_api'")
+        return real_import(name, *a, **kw)
+
+    monkeypatch.setattr(builtins, "__import__", no_library)
+    with pytest.raises(ImportError):
+        yt_fetch.fetch_transcript("dQw4w9WgXcQ")
+
+
+def test_caption_absence_still_yields_no_captions(monkeypatch):
+    """The other half of the split: TranscriptsDisabled is still a permanent None.
+
+    Without this, "make everything raise" would pass the test above while
+    breaking the uncaptioned-video path the marker file exists for.
+    """
+    ytapi = pytest.importorskip("youtube_transcript_api")
+
+    class _Api:
+        def fetch(self, video_id, languages=None):
+            raise ytapi.TranscriptsDisabled(video_id)
+
+    monkeypatch.setattr(ytapi, "YouTubeTranscriptApi", _Api)
+    assert yt_fetch.fetch_transcript("dQw4w9WgXcQ") is None
+
+
+def test_limit_counts_fetch_attempts_not_writes(tmp_path):
+    """The cap exists to avoid throttling, and throttling is caused by attempts.
+
+    N videos that all turn out to have no captions used to leave `written` at 0,
+    so the `len(result.written) >= limit` guard never fired and one run fetched
+    the entire backlog — exactly the burst the cap was written to prevent.
+    """
+    calls: list[str] = []
+    vids = [_video(video_key=f"k{i}", video_id=f"vid{i:08d}") for i in range(9)]
+
+    res = yt.run(
+        tmp_path / "S", state=_state(*vids),
+        fetcher=lambda v: calls.append(v) or None, limit=3,
+    )
+
+    assert len(calls) == 3, f"{len(calls)} fetches issued with limit=3"
+    assert res.attempted == 3
+    assert len(res.no_captions) == 3 and res.written == []
+
+
+def test_failed_fetches_also_count_against_the_limit(tmp_path):
+    """A failing fetch is still a request, so it must consume the same quota."""
+    calls: list[str] = []
+
+    def boom(video_id: str) -> str:
+        calls.append(video_id)
+        raise RuntimeError("IpBlocked")
+
+    vids = [_video(video_key=f"k{i}", video_id=f"vid{i:08d}") for i in range(9)]
+    res = yt.run(tmp_path / "S", state=_state(*vids), fetcher=boom, limit=2)
+
+    assert len(calls) == 2 and res.attempted == 2
+    assert len(res.failed) == 2
+    assert not yt.MARKER_PATH.exists()
 
 
 def test_dry_run_writes_nothing_and_records_nothing(tmp_path):

@@ -14,7 +14,8 @@ from pathlib import Path
 
 import pytest
 
-SOURCE = Path("mcp/pi-ceo-server.js").read_text(encoding="utf-8")
+REPO_ROOT = Path(__file__).resolve().parent.parent
+SOURCE = (REPO_ROOT / "mcp" / "pi-ceo-server.js").read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize("tool", ["conversation_search", "conversation_recent"])

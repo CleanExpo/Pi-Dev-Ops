@@ -247,6 +247,12 @@ def test_failed_batch_leaves_marker_unwritten_for_retry(
     assert not marker.exists()
     ok = FakePoster()
     assert _run(lake, marker, ok)["sent"] == 1
+    # launchd sees only the exit code, and this run committed no marker at all.
+    monkeypatch.setattr(sys, "argv", ["conversation_collector.py"])
+    monkeypatch.setattr(cc, "run", lambda **kw: summary)
+    assert cc.main() == 4
+    monkeypatch.setattr(cc, "run", lambda **kw: {"status": "a-future-status"})
+    assert cc.main() == 1, "an unmapped status must never report success"
 
 
 def test_secret_header_and_endpoint(lake: Path, marker: Path, monkeypatch) -> None:

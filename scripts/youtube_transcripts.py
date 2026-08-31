@@ -57,13 +57,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.youtube_transcript_fetch import fetch_transcript  # noqa: E402
+
 log = logging.getLogger("pi-ceo.youtube-transcripts")
 
 # Per-run cap. YouTube throttles by IP, and a first run against a full watch
 # history would fetch hundreds of transcripts in a burst and get the host
 # blocked — which looks exactly like "the feature does not work".
 DEFAULT_LIMIT = int(os.environ.get("YT_TRANSCRIPT_LIMIT", "25"))
-LANGS = [s.strip() for s in os.environ.get("YT_TRANSCRIPT_LANGS", "en").split(",") if s.strip()]
 MARKER_PATH = REPO_ROOT / ".harness" / "youtube_transcripts_done.jsonl"
 
 _VIDEO_ID_RE = re.compile(r"(?:v=|youtu\.be/|/shorts/|/embed/)([A-Za-z0-9_-]{11})")
@@ -79,6 +80,9 @@ class Result:
     failed: list[str] = field(default_factory=list)
     skipped_done: int = 0
     considered: int = 0
+    # Fetches issued. This, not `written`, is what the limit governs: YouTube
+    # throttles on requests, and one that finds no captions costs the same quota.
+    attempted: int = 0
 
 
 def enabled() -> bool:
@@ -178,27 +182,6 @@ def clip_filename(item: dict[str, Any], video_id: str) -> str:
     return _SAFE_SLUG_RE.sub("", f"{prefix}{video_id}") + ".md"
 
 
-def _default_fetcher(video_id: str) -> Optional[str]:
-    """Fetch captions with youtube-transcript-api, or None when there are none.
-
-    Imported inside the call so the module — and its tests — do not require the
-    dependency, and so a missing install reports itself once rather than
-    breaking collection.
-    """
-    try:
-        from youtube_transcript_api import YouTubeTranscriptApi  # noqa: PLC0415
-    except ImportError:
-        log.error("youtube-transcript-api not installed — `uv pip install youtube-transcript-api`")
-        return None
-    try:
-        rows = YouTubeTranscriptApi().fetch(video_id, languages=LANGS)
-    except Exception as exc:  # noqa: BLE001 — the library raises many distinct types
-        log.info("no transcript for %s: %s", video_id, type(exc).__name__)
-        return None
-    text = " ".join(str(getattr(r, "text", "") or "") for r in rows).strip()
-    return text or None
-
-
 def run(
     sources_dir: Path,
     *,
@@ -210,16 +193,20 @@ def run(
     """Write one clip per accepted, un-fetched video. Returns what happened.
 
     `fetcher` is injectable so the whole path is testable without the network:
-    the real one is the only part that cannot be exercised offline.
+    the real one is the only part that cannot be exercised offline. It returns
+    None only for confirmed caption-absence and raises for operational failure —
+    see `youtube_transcript_fetch.fetch_transcript`.
     """
-    fetch = fetcher or _default_fetcher
+    fetch = fetcher or fetch_transcript
     catalog = state if state is not None else _load_state()
     done = _load_done()
     result = Result()
 
     for item in accepted_videos(catalog):
-        if len(result.written) >= limit:
-            log.info("stopping at limit=%d — rerun to continue", limit)
+        # Attempts, not writes: a run where nothing had captions would otherwise
+        # fetch the whole backlog in one burst with `written` stuck at 0.
+        if result.attempted >= limit:
+            log.info("stopping at limit=%d fetches — rerun to continue", limit)
             break
         video_id = video_id_of(item)
         if not video_id:
@@ -229,6 +216,7 @@ def run(
         if video_id in done:
             result.skipped_done += 1
             continue
+        result.attempted += 1
         _produce_one(item, video_id, sources_dir, fetch, result, dry_run)
 
     return result
@@ -242,8 +230,19 @@ def _produce_one(
     result: Result,
     dry_run: bool,
 ) -> None:
-    """Fetch one video and write its clip, recording the outcome either way."""
-    transcript = fetch(video_id)
+    """Fetch one video and write its clip, recording the outcome either way.
+
+    Three outcomes; only two are permanent. A transcript is written and marked, a
+    confirmed absence of captions is marked and never re-fetched, and an
+    operational failure is counted in `failed` with NO marker — a marker there
+    would be undoable only by hand-editing the JSONL.
+    """
+    try:
+        transcript = fetch(video_id)
+    except Exception as exc:  # noqa: BLE001 — any fetch failure is retryable
+        log.warning("fetch failed for %s: %s: %s", video_id, type(exc).__name__, exc)
+        result.failed.append(video_id)
+        return
     if not transcript:
         result.no_captions.append(video_id)
         if not dry_run:
@@ -290,6 +289,7 @@ def main() -> int:
         "failed": len(result.failed),
         "skipped_already_done": result.skipped_done,
         "considered": result.considered,
+        "attempted": result.attempted,
         "dry_run": args.dry_run,
     }, indent=2))
     return 0

@@ -23,7 +23,7 @@ mid-session and rejoins later, and re-shipping months of digests over one
 truncated line is the failure this avoids.
 
 ``--dry-run`` plans; a real run needs ``CONVERSATION_SYNC_ENABLED=1``.
-Exit 0 ok · 2 lake missing · 3 refused (disabled, or no credential).
+Exit 0 ok · 2 lake missing · 3 refused · 4 delivery failed · 1 unknown status.
 """
 from __future__ import annotations
 
@@ -290,7 +290,10 @@ def main() -> int:
     args = ap.parse_args()
     summary = run(root=Path(args.lake).expanduser(), limit=args.limit, dry_run=args.dry_run)
     print(json.dumps(summary))
-    return {"no-lake": 2, "disabled": 3, "no-credential": 3}.get(summary["status"], 0)
+    # One code for partial and total failure: run() returns before save_markers(),
+    # so nothing committed either way. Unmapped statuses exit 1, never a silent 0.
+    return {"ok": 0, "dry-run": 0, "no-lake": 2, "disabled": 3,
+            "no-credential": 3, "partial": 4}.get(summary["status"], 1)
 
 
 if __name__ == "__main__":

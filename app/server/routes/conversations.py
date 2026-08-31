@@ -52,33 +52,40 @@ CONVERSATION_INGEST_MAX_ROWS = max(
 )
 
 
-def _build_redaction_bank() -> list[tuple[re.Pattern[str], str]]:
+def _build_redaction_bank() -> tuple[list[tuple[re.Pattern[str], str]], bool]:
     """Compile the existing secret banks into (pattern, tag) pairs.
+
+    Returns `(bank, complete)`. `complete` is False when the transcript-specific
+    extension could not be loaded, and that flag is what closes the lane — see
+    `_require_complete_bank`.
 
     Union, not a choice between them: `scanner._SECRET_PATTERNS` is the
     server-side bank (`scripts/secrets_check.py` documents itself as mirroring
     it), while `scripts/sync_claude_sessions.py` extends it with the shapes that
-    bank misses but transcripts actually contain — sk-ant-oat OAuth tokens,
-    AIza, xox*, gho_/github_pat_. Neither alone covers a conversation digest.
+    bank misses but transcripts actually contain — Anthropic OAuth tokens,
+    Google API keys, Slack tokens and GitHub PATs. Neither alone covers a
+    conversation digest.
 
-    The scripts/ import is best-effort so a refactor over there degrades the
-    second pass instead of 500-ing the route, and says so loudly — a silent
-    downgrade of a redaction bank is exactly the failure this endpoint exists
-    to prevent.
+    The import stays best-effort so a refactor over there cannot 500 the route
+    on startup, but a degraded bank must never be treated as a working one: the
+    scanner half does not match the transcript-only shapes, so ingesting under
+    it would persist exactly the tokens this endpoint exists to strip.
     """
     bank = [(re.compile(p), title) for p, title, _sev in _SCANNER_SECRET_PATTERNS]
     try:
         from scripts.sync_claude_sessions import _SECRET_PATTERNS as _extra  # noqa: PLC0415
         bank += [(re.compile(p), tag) for p, tag in _extra]
     except Exception:  # noqa: BLE001 — never let an import failure open the lane
-        log.warning(
+        log.error(
             "conversation redaction: scripts.sync_claude_sessions bank unavailable — "
-            "second pass covers the scanner shapes only", exc_info=True,
+            "INGEST DISABLED, the scanner-only bank does not cover transcript token "
+            "shapes", exc_info=True,
         )
-    return bank
+        return bank, False
+    return bank, True
 
 
-_REDACTION_BANK = _build_redaction_bank()
+_REDACTION_BANK, _REDACTION_BANK_COMPLETE = _build_redaction_bank()
 
 
 def _redact(text: Optional[str]) -> Optional[str]:
@@ -116,6 +123,24 @@ def _guard(secret: Optional[str]) -> None:
             503,
             "Conversation sync is disabled on this server "
             "(set CONVERSATION_SYNC_ENABLED=1 to enable).",
+        )
+
+
+def _require_complete_bank() -> None:
+    """Fail closed on the WRITE path when the second pass is degraded.
+
+    Only ingest is blocked, not the reads: rows already in the table were
+    redacted by whatever bank was in force when they were written, and refusing
+    to read them would hide data rather than protect it. What must not happen is
+    a NEW row landing under a bank that cannot match the shapes transcripts
+    actually carry — a durable leak with no signal that it occurred.
+    """
+    if not _REDACTION_BANK_COMPLETE:
+        raise HTTPException(
+            503,
+            "Conversation ingest is disabled: the transcript redaction bank "
+            "(scripts.sync_claude_sessions) failed to load, so the second pass "
+            "cannot cover transcript token shapes.",
         )
 
 
@@ -163,6 +188,7 @@ async def ingest(
 ) -> dict[str, Any]:
     """Publish one machine's redacted digests into the shared store."""
     _guard(x_pi_ceo_secret)
+    _require_complete_bank()
     if not body.machine.strip():
         raise HTTPException(422, "machine is required")
     if len(body.digests) > CONVERSATION_INGEST_MAX_ROWS:
