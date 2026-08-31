@@ -1,0 +1,285 @@
+#!/usr/bin/env python3
+"""youtube_transcripts.py — turn watched videos into wiki source clips.
+
+THE MISSING PRODUCER
+--------------------
+`swarm/wiki_ingest.py` has parsed YouTube clips since it was written:
+`_enrich_youtube_frontmatter` reads a `source:` URL, pulls the channel out of
+`author:`, and threads it into the ingest prompt. Nothing ever wrote that file.
+The consumer has been waiting for a producer that did not exist, so no video the
+owner watched ever reached the wiki.
+
+This is that producer, and it is deliberately the only new part of the chain.
+Everything downstream already runs on its own:
+
+    this script -> Sources/*.md
+                -> swarm/sources_watcher.run_cycle()     (orchestrator cycle)
+                -> swarm/wiki_ingest.ingest_file()       (guarded by ingest_guard)
+                -> swarm/gap_detector / enhancement_scout -> Linear / Board
+
+Re-derive that the chain is wired, rather than trusting this comment:
+
+    grep -nE "sources_watcher|gap_detector|enhancement_scout" swarm/orchestrator.py
+
+INPUT
+-----
+The catalog `app.server.youtube_intent` already maintains, filled by either of
+the two lanes the owner chose: the OAuth `pull-live` route or a Google Takeout
+drop through `import-takeout`. Only items this catalog already classified
+`accepted` are fetched — the strategic-relevance decision is made there, not
+here, so this script never widens what gets ingested.
+
+SAFETY
+------
+Captions are attacker-controlled text. This script does not interpret them: it
+writes them to a file. Interpretation happens in `wiki_ingest`, behind
+`swarm/ingest_guard.fence_source` and its target allowlist. Nothing here is a
+trust boundary, and nothing here should ever grow one.
+
+USAGE
+    python3 scripts/youtube_transcripts.py --dry-run     # plan only, no writes
+    python3 scripts/youtube_transcripts.py --limit 5
+    YOUTUBE_TRANSCRIPTS_ENABLED=1 python3 scripts/youtube_transcripts.py
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import os
+import re
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable, Optional
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.youtube_transcript_fetch import fetch_transcript  # noqa: E402
+from scripts.youtube_transcript_state import (  # noqa: E402
+    load_done as _load_done,
+    load_state as _load_state,
+    mark_done as _mark_done,
+    sources_dir as _sources_dir,
+)
+
+log = logging.getLogger("pi-ceo.youtube-transcripts")
+
+# Per-run cap. YouTube throttles by IP, and a first run against a full watch
+# history would fetch hundreds of transcripts in a burst and get the host
+# blocked — which looks exactly like "the feature does not work".
+DEFAULT_LIMIT = int(os.environ.get("YT_TRANSCRIPT_LIMIT", "25"))
+
+_VIDEO_ID_RE = re.compile(r"(?:v=|youtu\.be/|/shorts/|/embed/)([A-Za-z0-9_-]{11})")
+_SAFE_SLUG_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+@dataclass
+class Result:
+    """What one run did. Every list is a path a reader may need to act on."""
+
+    written: list[str] = field(default_factory=list)
+    no_captions: list[str] = field(default_factory=list)
+    failed: list[str] = field(default_factory=list)
+    skipped_done: int = 0
+    considered: int = 0
+    # Videos the run took up, which is what the limit governs: YouTube throttles
+    # on requests, and a fetch that finds no captions costs the same quota. In a
+    # real run this equals the fetches issued; in a dry run nothing is fetched
+    # and this is what a real run WOULD have taken up.
+    attempted: int = 0
+
+
+def enabled() -> bool:
+    """Whether the producer may write. Default OFF, like every other new lane."""
+    return os.environ.get("YOUTUBE_TRANSCRIPTS_ENABLED", "0").strip().lower() in ("1", "true", "yes")
+
+
+def video_id_of(item: dict[str, Any]) -> Optional[str]:
+    """The 11-character YouTube id for a catalog row, or None.
+
+    Takeout rows carry a `titleUrl`-derived `url` and often a `video_id` that is
+    really that same URL, so a bare `video_id` is only trusted when it already
+    looks like an id.
+    """
+    raw = str(item.get("video_id") or "").strip()
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", raw):
+        return raw
+    for candidate in (raw, str(item.get("url") or ""), str(item.get("video_key") or "")):
+        m = _VIDEO_ID_RE.search(candidate)
+        if m:
+            return m.group(1)
+    return None
+
+
+
+
+def accepted_videos(state: dict[str, Any]) -> list[dict[str, Any]]:
+    """Catalog rows already classified `accepted`, newest-looking first.
+
+    Relevance is the catalog's decision (`youtube_intent.classify_item`), not
+    this script's. Re-deciding it here would give the estate two disagreeing
+    definitions of "strategic".
+    """
+    return [v for v in state.get("videos", []) if v.get("status") == "accepted"]
+
+
+def clip_markdown(item: dict[str, Any], video_id: str, transcript: str) -> str:
+    """Render the Sources clip in the shape wiki_ingest already parses.
+
+    `source:` MUST hold a youtube.com/youtu.be URL: that string is the only gate
+    on `_enrich_youtube_frontmatter` doing anything at all, and dropping it
+    silently turns the clip into an ordinary note. Verified by breaking it — the
+    round-trip test fails.
+
+    `author:` supplies the channel. The consumer's `_extract_channel` accepts
+    both `"[[Name]]"` and a bare `"Name"` (its brackets are optional), so the
+    wikilink form here is for the vault's own conventions — Obsidian resolves it
+    to a channel page — not because the parser requires it.
+
+    `channel:` is deliberately NOT written here. Letting the consumer inject it
+    is what exercises the code path this producer exists to feed.
+    """
+    channel = str(item.get("channel") or "unknown").replace("[", "").replace("]", "").strip()
+    title = str(item.get("title") or video_id).replace("\n", " ").strip()
+    url = str(item.get("url") or f"https://www.youtube.com/watch?v={video_id}")
+    watched = str(item.get("watched_at") or item.get("ingested_at") or "")
+    return (
+        "---\n"
+        f'title: "{title}"\n'
+        f"source: {url}\n"
+        f'author: "[[{channel}]]"\n'
+        "type: clip\n"
+        f"video_id: {video_id}\n"
+        + (f"watched: {watched}\n" if watched else "")
+        + "---\n\n"
+        f"# {title}\n\n"
+        f"{transcript.strip()}\n"
+    )
+
+
+def clip_filename(item: dict[str, Any], video_id: str) -> str:
+    """`YYYYMMDD-<videoid>.md` when a date is known, else `<videoid>.md`.
+
+    The id, never the title, carries identity: titles contain slashes and quotes,
+    and two videos can share one. Any date is sanitised rather than trusted —
+    it comes from Takeout JSON.
+    """
+    stamp = str(item.get("watched_at") or item.get("ingested_at") or "")[:10].replace("-", "")
+    prefix = f"{stamp}-" if stamp.isdigit() and len(stamp) == 8 else ""
+    return _SAFE_SLUG_RE.sub("", f"{prefix}{video_id}") + ".md"
+
+
+def run(
+    sources_dir: Path,
+    *,
+    state: Optional[dict[str, Any]] = None,
+    fetcher: Optional[Callable[[str], Optional[str]]] = None,
+    limit: int = DEFAULT_LIMIT,
+    dry_run: bool = False,
+) -> Result:
+    """Write one clip per accepted, un-fetched video. Returns what happened.
+
+    `fetcher` is injectable so the whole path is testable without the network:
+    the real one is the only part that cannot be exercised offline. It returns
+    None only for confirmed caption-absence and raises for operational failure —
+    see `youtube_transcript_fetch.fetch_transcript`.
+    """
+    fetch = fetcher or fetch_transcript
+    catalog = state if state is not None else _load_state()
+    done = _load_done()
+    result = Result()
+
+    for item in accepted_videos(catalog):
+        # Attempts, not writes: a run where nothing had captions would otherwise
+        # fetch the whole backlog in one burst with `written` stuck at 0.
+        if result.attempted >= limit:
+            log.info("stopping at limit=%d fetches — rerun to continue", limit)
+            break
+        video_id = video_id_of(item)
+        if not video_id:
+            result.failed.append(str(item.get("video_key") or item.get("title") or "?"))
+            continue
+        result.considered += 1
+        if video_id in done:
+            result.skipped_done += 1
+            continue
+        result.attempted += 1
+        _produce_one(item, video_id, sources_dir, fetch, result, dry_run)
+
+    return result
+
+
+def _produce_one(
+    item: dict[str, Any],
+    video_id: str,
+    sources_dir: Path,
+    fetch: Callable[[str], Optional[str]],
+    result: Result,
+    dry_run: bool,
+) -> None:
+    """Fetch one video and write its clip, recording the outcome either way.
+
+    Three outcomes; only two are permanent. A transcript is written and marked, a
+    confirmed absence of captions is marked and never re-fetched, and an
+    operational failure is counted in `failed` with NO marker — a marker there
+    would be undoable only by hand-editing the JSONL.
+
+    A dry run returns before the fetch: suppressing only the write would still
+    issue one real YouTube request per video, up to `limit` per run, against the
+    API whose throttling that limit exists to avoid. A plan reports the files it
+    would write; it does not touch the network.
+    """
+    target = sources_dir / clip_filename(item, video_id)
+    if dry_run:
+        result.written.append(str(target))  # planned, not fetched
+        return
+    try:
+        transcript = fetch(video_id)
+    except Exception as exc:  # noqa: BLE001 — any fetch failure is retryable
+        log.warning("fetch failed for %s: %s: %s", video_id, type(exc).__name__, exc)
+        result.failed.append(video_id)
+        return
+    if not transcript:
+        # Permanent: "no captions" is an answer about the video, and re-asking it
+        # on every run is exactly what invites throttling.
+        result.no_captions.append(video_id)
+        _mark_done(video_id, "no_captions")
+        return
+    result.written.append(str(target))
+    sources_dir.mkdir(parents=True, exist_ok=True)
+    target.write_text(clip_markdown(item, video_id, transcript), encoding="utf-8")
+    _mark_done(video_id, "written")
+
+
+
+
+def main() -> int:
+    """CLI entry point."""
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    ap = argparse.ArgumentParser(description="YouTube transcripts -> wiki Sources clips")
+    ap.add_argument("--dry-run", action="store_true", help="plan only; no files, no markers")
+    ap.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
+    args = ap.parse_args()
+
+    if not args.dry_run and not enabled():
+        log.info("YOUTUBE_TRANSCRIPTS_ENABLED not set — nothing written (use --dry-run to plan)")
+        return 0
+
+    result = run(_sources_dir(), limit=args.limit, dry_run=args.dry_run)
+    print(json.dumps({
+        "written": len(result.written),
+        "no_captions": len(result.no_captions),
+        "failed": len(result.failed),
+        "skipped_already_done": result.skipped_done,
+        "considered": result.considered,
+        "attempted": result.attempted,
+        "dry_run": args.dry_run,
+    }, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

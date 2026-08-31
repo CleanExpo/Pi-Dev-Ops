@@ -179,6 +179,16 @@ jobs:
         run: npm run lint
         continue-on-error: false
 
+      # dashboard/package.json has declared `"test": "vitest run"` all along and
+      # no workflow ever called it, so all 155 dashboard tests ran nowhere. That
+      # included the one guarding the pi-ceo proxy allowlist against surfaces
+      # declared in smoke-surfaces.json but never admitted — the drift that had
+      # `e2e` red on main with five 403s for over a week. A guard nobody runs
+      # cannot catch the recurrence it exists for.
+      # Re-derive that it is wired: grep -n "npm test" .github/workflows/ci.yml
+      - name: Vitest
+        run: npm test
+
       - name: Build
         run: npm run build
         env:

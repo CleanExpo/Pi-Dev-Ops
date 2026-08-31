@@ -600,6 +600,34 @@
       "_comment": "Nexus Mesh P2: the dispatcher tick (app/server/routes/mesh.py dispatch) now also runs on a 5-minute cron via cron_fire_mesh, gated by MESH_DISPATCH_ENABLED \u2014 previously nothing called it, so an online fleet stayed idle. The route body moved to app/server/mesh_dispatch_service.run_dispatch_tick so the schedule and the endpoint share one implementation; the HTTP surface is unchanged. Requires X-Pi-CEO-Secret; unauthenticated POST returns 401 before any Linear query or mesh_work_claims insert, same pattern as mesh-claim-self-nosig. An authenticated probe is deliberately NOT declared \u2014 a valid secret would assign live tickets to real machines (state mutation); assignment, least-loaded ordering and the 409 race path are covered offline by tests/test_mesh_dispatch_scheduled.py."
     },
     {
+      "name": "conversations-ingest-nosig",
+      "path": "/api/pi-ceo/api/conversations/ingest",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "machine": "smoke",
+        "digests": []
+      },
+      "_comment": "Milestone 3 shared conversation brain (app/server/routes/conversations.py ingest). A machine publishes REDACTED session digests; raw ~/.claude/projects JSONL never leaves its origin host. Requires X-Pi-CEO-Secret; the unauthenticated POST returns 401 before the second-pass redaction, the CONVERSATION_SYNC_ENABLED flag check, or any Supabase write, so this probe proves route + auth without ever storing a phantom 'smoke' row. Same pattern as mesh-heartbeat-nosig. An authenticated probe is deliberately NOT declared for two reasons: a valid secret would upsert a real conversation_digests row (state mutation), and the lane ships disabled (CONVERSATION_SYNC_ENABLED unset), so an authenticated probe would assert a 503 that flips to 200 the day the flag is turned on — a flapping probe. Redaction, the kill switch, the machine-scoped PK and partial-write reporting are covered offline by tests/test_conversations_api.py."
+    },
+    {
+      "name": "conversations-search-nosig",
+      "path": "/api/pi-ceo/api/conversations/search?q=smoke",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "Milestone 3: cross-machine full-text search over conversation_digests (app/server/routes/conversations.py search). Unauthenticated GET returns 401 before any Supabase read — digest bodies are private conversation content and the table is service-role only (supabase/migrations/20260830T000001_conversation_digests.sql), so anonymous read is never accepted. See conversations-ingest-nosig for why no authenticated probe is declared."
+    },
+    {
+      "name": "conversations-recent-nosig",
+      "path": "/api/pi-ceo/api/conversations/recent",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "Milestone 3: most-recent digests per machine (app/server/routes/conversations.py recent). Same auth contract and same rationale as conversations-search-nosig."
+    },
+    {
       "name": "fable-canary",
       "path": "/api/pi-ceo/api/canary/fable",
       "method": "GET",

@@ -451,7 +451,6 @@
 48	227c1bd821ff	claude-hooks-mirror/discipline/founder_voice_critique.py::_scan_transcript
 48	543c7f6b1a8a	scripts/assert_image_digest.py::main
 48	4a90b21ac14f	scripts/controller_violation_trend.py::compute_trend
-48	f7eef8163383	scripts/sync_claude_sessions.py::main
 48	623c9f5165ff	swarm/agentskills_manifest.py::export
 48	37d0cf5ff3dc	swarm/nexus/agent_registry.py::load_registry
 48	64b423b8e747	swarm/pii_classify.py::_parse_spans
@@ -462,6 +461,7 @@
 47	91cebd363bfe	app/server/lessons.py::search_lessons_keyword
 47	0c91cdc8b2cd	app/server/provider_nex_n2.py::research_pass
 47	88350e2bbdba	app/server/routes/sessions.py::stream_session_logs
+47	f56b819d69f8	scripts/sync_claude_sessions.py::main
 47	7fa3b694b270	scripts/unite_group_health_check.py::check_sandbox_drift
 47	cf443539dd62	swarm/aip_watcher.py::flush_queue
 47	ded42bd13d33	swarm/analyst.py::_deterministic_deliverable

@@ -92,6 +92,115 @@ Work through it in this order; each step names the command that decides it.
 Rule that saves time: **dormant is not missing.** Most "it isn't working" in this system is a
 flag that is off by design. Check the flag before debugging the code.
 
+## Getting files off the Windows PC (the SSH lane)
+
+Some work on `phill-desktop` cannot reach the estate through git at all. `~/.claude`
+on that machine **is** the repo `CleanExpo/skills-library`, whose `.gitignore` is
+deny-all (`*`) plus an allowlist — and `commands/` is not on it. So
+`~/.claude/commands/*.md` is structurally invisible: `git status` cannot see it, the
+scheduled estate sync cannot see it, and committing cannot move it. That file's own
+comments record the identical bug ten times over for `.github/`, `scripts/`,
+`agents/` and `hooks/`.
+
+Allowlisting `commands/**` would fix the sync and **publish those files** —
+skills-library is public. That is the same trade the repo already refused for session
+handoffs. SSH avoids it: the files travel PC → brain host over the tailnet and never
+touch GitHub.
+
+```powershell
+# On the Windows PC, once:
+.\scripts\setup-pc-ssh.ps1 -BrainHost "<mac-mini>.ts.net" -BrainUser "<user>"
+# It prints one command to paste on the brain host, then proves the connection.
+
+# Then, to move the commands across:
+.\scripts\setup-pc-ssh.ps1 -BrainHost "<mac-mini>.ts.net" -BrainUser "<user>" -SyncCommands
+```
+
+Prerequisites: Tailscale up on both ends (`tailscale status`), and Remote Login
+enabled on the brain host (macOS: Settings → General → Sharing → Remote Login).
+`scripts/setup-brain-host.ps1` covers the Tailscale side.
+
+The script is idempotent — it reuses an existing key rather than regenerating one,
+because a new key would orphan every host that already trusts this machine. Its
+connection probe runs with `BatchMode=yes`, so a missing authorisation fails fast
+with a reason instead of hanging on a password prompt.
+
+Files land in `~/estate-inbox/pc-commands/` on the brain host and are **not** in
+git. Read one before copying it into a repo — that copy is the deliberate act of
+publishing it.
+
+## Turn shared conversation search on
+
+Each machine's Claude Code transcripts live only on that machine. This lane makes them
+searchable from any of them. **Raw JSONL never travels** — a machine ships only a digest it
+already redacted, and the server redacts a second time before writing.
+
+Three steps, in this order:
+
+1. Apply `supabase/migrations/20260830T000001_conversation_digests.sql`. Idempotent, safe to
+   re-run. The table is RLS service-role only: this server is its sole reader and writer, and
+   machines authenticate to *it* with `X-Pi-CEO-Secret` rather than ever holding the
+   service-role key.
+2. Set `CONVERSATION_SYNC_ENABLED=1` on the Railway service. Unset or any value outside
+   `1/true/yes/on` leaves every route answering 503 to an authenticated caller.
+3. Install the collector on each machine — `scripts/com.piceo.conversation-collector.plist.example`
+   (macOS) or `scripts/conversation-collector.task.xml.example` (Windows). Copy to a real
+   `.plist`/task first; the templates derive paths from `$HOME` and bake in no username.
+
+Check it before trusting it:
+
+```bash
+python3 scripts/conversation_collector.py --dry-run     # plans; no POST, no marker write
+curl -s "$PI_CEO_API_URL/api/conversations/recent" -H "X-Pi-CEO-Secret: $PI_CEO_API_KEY"
+```
+
+Read the collector's **exit code**, not just its log: `0` ok · `2` lake missing · `3` refused
+(disabled, or no credential) · `4` delivery failed · `1` an unmapped status. A scheduler that
+records success for a run where nothing was accepted is the failure this lane is built to avoid.
+
+Two behaviours worth knowing before they surprise you:
+
+- **Ingest fails closed on a degraded redactor.** The second pass is the union of
+  `app/server/scanner` and the transcript-specific bank in `scripts/sync_claude_sessions.py`.
+  If that import breaks, ingest 503s rather than writing under the scanner-only bank, which
+  does not match the token shapes transcripts actually carry. Reads stay up.
+- **Nothing is lost when a machine is away.** Each machine keeps its own marker, so a MacBook
+  that misses a week ships the backlog on its next run.
+
+From inside any Claude session, `conversation_search` and `conversation_recent` are registered
+on the MCP server. Both are read-only by design — there is deliberately no write tool, because
+one would let any session fabricate another machine's history.
+
+## Turn the YouTube transcript producer on
+
+Writes one `Sources/*.md` clip per accepted video, which the existing `sources_watcher` →
+`wiki_ingest` chain then picks up. Ships **off**:
+
+```
+YOUTUBE_TRANSCRIPTS_ENABLED=1     # unset or not in 1/true/yes writes nothing
+YT_TRANSCRIPT_LIMIT=25            # fetches per run; YouTube throttles by IP
+YT_TRANSCRIPT_LANGS=en
+```
+
+It reads the catalog `app.server.youtube_intent` maintains, so it does nothing until that
+catalog has `accepted` rows — fill it with the OAuth pull-live route or a Google Takeout drop.
+Relevance is the catalog's decision, not this script's; it cannot widen what gets ingested.
+
+```bash
+python3 scripts/youtube_transcripts.py --dry-run    # plans; issues NO network requests
+python3 scripts/youtube_transcripts.py --limit 5
+```
+
+`.harness/youtube_transcripts_done.jsonl` is append-only and **permanent**: any video id it
+names is skipped forever, undoable only by editing that file. Only two outcomes are recorded
+there — a clip was written, or the video confirmedly has no captions. A failed fetch (a blocked
+IP, a missing dependency) is counted as failed and left to retry, so one bad run cannot retire
+the backlog.
+
+Captions are attacker-controlled text. This script does not interpret them — it writes them to
+a file, and interpretation happens downstream behind `swarm/ingest_guard`'s fence and target
+allowlist. Nothing here is a trust boundary, and nothing here should grow one.
+
 ## After a change to any of this
 
 ```bash

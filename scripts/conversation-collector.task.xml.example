@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Milestone 3 — hourly Task Scheduler job for scripts/conversation_collector.py
+  (Windows; the two always-on desktops).
+
+  TEMPLATE. Nothing auto-installs. Copy it, edit the marked values, register it:
+
+    copy scripts\conversation-collector.task.xml.example %TEMP%\piceo-collector.xml
+    schtasks /Create /TN "PiCEO\ConversationCollector" /XML %TEMP%\piceo-collector.xml
+
+  Verify / run once by hand / remove:
+    schtasks /Query  /TN "PiCEO\ConversationCollector" /V /FO LIST
+    schtasks /Run    /TN "PiCEO\ConversationCollector"
+    schtasks /Delete /TN "PiCEO\ConversationCollector" /F
+    type %USERPROFILE%\.claude\logs\conversation-collector.log
+
+  No username is baked in: Task Scheduler expands %USERPROFILE% in Command,
+  Arguments and WorkingDirectory at run time. EDIT the repo path below only if
+  this checkout is not at %USERPROFILE%\Pi-Dev-Ops, and EDIT <UserId> to the
+  account that owns the ~/.claude session lake.
+
+  StartWhenAvailable is true so a desktop that was asleep or offline runs the
+  missed occurrence on wake; the collector's marker file makes that catch-up
+  ship only what changed. The file is UTF-8 and declares UTF-8; if an editor
+  re-saves it as UTF-16, change the declaration to match or schtasks refuses it.
+
+  Credentials: PI_CEO_API_KEY comes from the user environment or
+  %USERPROFILE%\.hermes\.env. Do NOT paste the key into this file.
+-->
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Ships redacted Claude Code session digests to the shared Pi-CEO conversation API. Raw JSONL never leaves this machine.</Description>
+    <URI>\PiCEO\ConversationCollector</URI>
+  </RegistrationInfo>
+  <Triggers>
+    <LogonTrigger>
+      <Enabled>true</Enabled>
+      <Delay>PT2M</Delay>
+    </LogonTrigger>
+    <CalendarTrigger>
+      <StartBoundary>2026-01-01T00:07:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByDay>
+        <DaysInterval>1</DaysInterval>
+      </ScheduleByDay>
+      <Repetition>
+        <Interval>PT1H</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <!-- EDIT: the account that owns %USERPROFILE%\.claude -->
+      <UserId>DOMAIN_OR_HOST\YOUR_USERNAME</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable>
+    <ExecutionTimeLimit>PT15M</ExecutionTimeLimit>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>cmd.exe</Command>
+      <!-- EDIT: repo path, if not %USERPROFILE%\Pi-Dev-Ops -->
+      <Arguments>/c set CONVERSATION_SYNC_ENABLED=1 &amp;&amp; if not exist "%USERPROFILE%\.claude\logs" mkdir "%USERPROFILE%\.claude\logs" &amp;&amp; ".venv\Scripts\python.exe" scripts\conversation_collector.py &gt;&gt; "%USERPROFILE%\.claude\logs\conversation-collector.log" 2&gt;&amp;1</Arguments>
+      <WorkingDirectory>%USERPROFILE%\Pi-Dev-Ops</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

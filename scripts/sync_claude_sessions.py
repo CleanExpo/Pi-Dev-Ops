@@ -21,6 +21,9 @@ Usage:
     python scripts/sync_claude_sessions.py --since-last          # only changed files
 
 Exit codes: 0 ok · 2 infra error.
+
+Reusable API, imported by scripts/conversation_collector.py: redact,
+parse_session, render_digest, truncate, find_jsonl, load_marker, save_marker.
 """
 from __future__ import annotations
 
@@ -29,7 +32,6 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 HOME = Path.home()
@@ -72,7 +74,7 @@ def redact(text: str) -> str:
 
 
 # ── JSONL parsing (shape verified 2026-06-29) ────────────────────────────────
-def _text_of(content) -> str:
+def _text_of(content: object) -> str:
     """Flatten an Anthropic message.content (str | list of blocks) to text."""
     if isinstance(content, str):
         return content
@@ -164,8 +166,12 @@ def parse_session(path: Path) -> dict | None:
 
 # ── OKF digest rendering ─────────────────────────────────────────────────────
 def _trunc(s: str, n: int) -> str:
+    """Collapse whitespace and clip to n characters with an ellipsis."""
     s = " ".join(s.split())
     return s if len(s) <= n else s[: n - 1] + "…"
+
+
+truncate = _trunc  # public alias for importers (conversation_collector.py)
 
 
 def render_digest(sess: dict, session_id: str) -> str:
@@ -216,14 +222,24 @@ def render_digest(sess: dict, session_id: str) -> str:
 
 # ── Walk + incremental marker ────────────────────────────────────────────────
 def find_jsonl(root: Path) -> list[Path]:
+    """Every session JSONL under root, newest first."""
     return sorted(root.rglob("*.jsonl"), key=lambda p: -p.stat().st_mtime)
 
 
-def load_marker() -> dict:
+def load_marker(path: Path | None = None) -> dict:
+    """Read an incremental marker map. Any read/parse failure yields {}."""
+    target = path or MARKER
     try:
-        return json.loads(MARKER.read_text())
+        return json.loads(target.read_text())
     except Exception:
         return {}
+
+
+def save_marker(marker: dict, path: Path | None = None) -> None:
+    """Write an incremental marker map, creating the parent directory."""
+    target = path or MARKER
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(marker, indent=0))
 
 
 def main() -> int:
@@ -269,8 +285,7 @@ def main() -> int:
         written += 1
 
     if not args.dry_run:
-        MARKER.parent.mkdir(parents=True, exist_ok=True)
-        MARKER.write_text(json.dumps(new_marker, indent=0))
+        save_marker(new_marker)
 
     print(f"sessions: {written} written, {skipped} skipped, {empty} empty → {out_dir}")
     return 0
