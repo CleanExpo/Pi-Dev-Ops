@@ -23,6 +23,9 @@ dependencies = [
     "anthropic>=0.90",
     "elevenlabs>=2.0",
     "pyotp>=2.9",   # RA-1839 — TOTP validation for /api/swarm/{kill,resume}
+    # Caption fetch for scripts/youtube_transcripts.py. Imported lazily there, so
+    # the producer reports a missing install rather than breaking test collection.
+    "youtube-transcript-api>=0.6",
     "mcp>=1.0.0",
     "bubus @ git+https://github.com/browser-use/bubus.git@7c09342724feabee7785f99e60e583d54bf6882c",
     "libtmux>=0.31",  # Terminal Orchestrator T1 observer — stable pane_id (%N) access
