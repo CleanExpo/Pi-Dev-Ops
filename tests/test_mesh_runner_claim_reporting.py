@@ -175,16 +175,40 @@ def test_the_runner_does_not_retry_a_repo_missing_ticket_forever(runner, monkeyp
 # ── green control ────────────────────────────────────────────────────────────
 
 
-def test_a_working_repo_still_reports_working_not_failed(runner, tmp_path):
+class _DoneProc:
+    """An agent process that has already exited cleanly on first poll."""
+
+    returncode = 0
+
+    def poll(self):
+        """Report immediate clean exit, so `_wait_for_agent` lands `done`."""
+        return 0
+
+
+def test_a_working_repo_reports_the_full_working_then_done_sequence(runner, tmp_path, monkeypatch):
     """GREEN CONTROL. A fix that reported `failed` unconditionally, or that
     refused every claim, would satisfy all three tests above while breaking
-    every real run. A claim whose repo IS a checkout must still go `working`."""
+    every real run.
+
+    Raised by CodeRabbit: this asserted only `reported(...)[0] == "working"`,
+    and the claim was in fact ending `failed`. `subprocess.Popen` was left
+    unstubbed, so it tried to spawn the agent with `cwd` set to a worktree that
+    was never created, raised, and landed in run_claim's except branch. The
+    real sequence was `["working", "failed"]` — the test passed by looking only
+    at the first element, so a green control was itself green for the wrong
+    reason.
+
+    Stubbing the agent process makes the happy path complete, and the whole
+    sequence is asserted so the ending cannot drift unnoticed again.
+    """
     repo = tmp_path / "checkout"
     (repo / ".git").mkdir(parents=True)
     server = FakeServer()
     server.claims["UNI-A"] = "claimed"
     runner._api = server.api
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: _DoneProc())
 
-    runner.run_claim({"linear_id": "UNI-A", "repo_dir": str(repo)}, dry_run=False)
+    plan = runner.run_claim({"linear_id": "UNI-A", "repo_dir": str(repo)}, dry_run=False)
 
-    assert server.reported("UNI-A")[0] == "working", server.calls
+    assert plan["state"] == "done", plan
+    assert server.reported("UNI-A") == ["working", "done"], server.calls

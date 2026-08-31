@@ -18,7 +18,7 @@ sitting at, or a Google consent screen — none of which an agent can supply.
 
 | # | Do this | Where | Until then |
 |---|---|---|---|
-| 1 | `bash mesh/bootstrap.sh`, then on `phill-desktop` the two `schtasks` commands it prints | each of the 3 machines | No machine is in the fleet. Dispatch has nothing to assign to. The script exits non-zero and names the gap if a node only half-joined. |
+| 1 | `bash mesh/bootstrap.sh`, then on `phill-desktop` the two `schtasks` commands it prints | each of the 3 machines | No machine is fully enlisted and dispatchable. Dispatch has nothing to assign to. The script exits non-zero and names the gap if a node only half-joined. |
 | 2 | Set `MESH_DISPATCH_ENABLED=1` | Railway | Work is never assigned. The fleet is awake but idle. |
 | 3 | Set `SUPABASE_UNITE_GROUP_URL` + `SUPABASE_UNITE_GROUP_SERVICE_KEY` | Vercel | `cc-wiki-graph` 500s. This is the **last remaining production e2e failure**. |
 | 4 | Apply the `conversation_digests` migration, then set `CONVERSATION_SYNC_ENABLED=1` | Supabase, then Railway | No machine can search another's conversations. |
@@ -35,7 +35,9 @@ any "run the swarm on free models" request fails at the first request rather tha
 echo "${MESH_REPO_DIR:-(unset — good)}"
 ```
 
-If it prints a path, **do not turn on dispatch on that node yet**. `mesh/runner.py`
+If it prints a path, **do not set `MESH_DISPATCH_ENABLED` yet** — it is one
+Railway variable for the whole fleet (item 2), not a per-node switch, so turning
+it on to use the other machines also starts feeding this one. `mesh/runner.py`
 `_repo_dir_for()` falls back to it, so the runner does its claimed work in whatever
 directory that variable names rather than in the checkout it claimed the ticket
 against — and the claim still reads as served. RA-7375 records it exported on
@@ -61,12 +63,23 @@ Do not trust the setting screen — confirm from the system:
 
 | # | Confirm with |
 |---|---|
-| 1 | `curl -s "$PI_CEO_API_URL/api/mesh/fleet" -H "X-Pi-CEO-Secret: $PI_CEO_API_KEY"` → 3 rows, all fresh within ~20 s |
+| 1 | Two checks, not one. **Visibility:** `curl -s "$PI_CEO_API_URL/api/mesh/fleet" -H "X-Pi-CEO-Secret: $PI_CEO_API_KEY"` → 3 rows, all fresh within ~20 s. **Execution:** on each machine, `launchctl list \| grep unite-group.mesh` (2 services), `schtasks /Query /TN NexusMeshRunner`, or the systemd equivalent. A fresh row proves only that the heartbeat published — see below. |
 | 2 | Railway logs show `mesh_dispatch id=… assigned=N online=[…]` within 5 minutes |
 | 3 | The `e2e` workflow on `main` reports `113 passed · 0 failed` |
 | 4 | `GET /api/conversations/recent` with the secret returns 200 rather than 503 |
 | 5 | The `-SyncCommands` run reports every file verified **by name** in the remote listing. A run without that flag stops at "Re-run with -SyncCommands" and is not step 5. |
 | 6 | `python3 scripts/youtube_transcripts.py --dry-run` plans a non-zero number of clips |
+
+**Why item 1 needs a local check too.** A `mesh_fleet` row is written by the
+heartbeat daemon alone, and nothing in the snapshot reports whether the work
+runner is supervised. `agents[]` does not cover it either: `running_agent_sessions()`
+scans for `claude`/`codex`/`hermes` binaries rather than the runner daemon, and the
+runner's breadcrumb only produces an agent row when it is *actively on a task* —
+`mesh/heartbeat.py:171` skips an idle one deliberately, so as not to fabricate an
+agent. A supervised idle node and a node running only the heartbeat are therefore
+indistinguishable from the API. On macOS `bootstrap.sh`'s own exit code is the
+reliable signal, because it now reports supervision separately; elsewhere it
+installs nothing and says so.
 
 A step that reports success but fails its confirmation is not done — say so rather than moving on.
 
