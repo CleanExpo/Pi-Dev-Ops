@@ -28,7 +28,6 @@ from __future__ import annotations
 import hmac as _hmac
 import logging
 import os
-import re
 from datetime import datetime
 from typing import Any, Optional
 
@@ -36,7 +35,6 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .. import config, conversation_store
-from ..scanner import _SECRET_PATTERNS as _SCANNER_SECRET_PATTERNS
 
 log = logging.getLogger("pi-ceo.routes.conversations")
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
@@ -53,49 +51,14 @@ CONVERSATION_INGEST_MAX_ROWS = max(
 )
 
 
-def _build_redaction_bank() -> tuple[list[tuple[re.Pattern[str], str]], bool]:
-    """Compile the existing secret banks into (pattern, tag) pairs.
+from ..conversation_redaction import (  # noqa: E402
+    _build_redaction_bank,
+    _redact,
+)
 
-    Returns `(bank, complete)`. `complete` is False when the transcript-specific
-    extension could not be loaded, and that flag is what closes the lane — see
-    `_require_complete_bank`.
-
-    Union, not a choice between them: `scanner._SECRET_PATTERNS` is the
-    server-side bank (`scripts/secrets_check.py` documents itself as mirroring
-    it), while `scripts/sync_claude_sessions.py` extends it with the shapes that
-    bank misses but transcripts actually contain — Anthropic OAuth tokens,
-    Google API keys, Slack tokens and GitHub PATs. Neither alone covers a
-    conversation digest.
-
-    The import stays best-effort so a refactor over there cannot 500 the route
-    on startup, but a degraded bank must never be treated as a working one: the
-    scanner half does not match the transcript-only shapes, so ingesting under
-    it would persist exactly the tokens this endpoint exists to strip.
-    """
-    bank = [(re.compile(p), title) for p, title, _sev in _SCANNER_SECRET_PATTERNS]
-    try:
-        from scripts.sync_claude_sessions import _SECRET_PATTERNS as _extra  # noqa: PLC0415
-        bank += [(re.compile(p), tag) for p, tag in _extra]
-    except Exception:  # noqa: BLE001 — never let an import failure open the lane
-        log.error(
-            "conversation redaction: scripts.sync_claude_sessions bank unavailable — "
-            "INGEST DISABLED, the scanner-only bank does not cover transcript token "
-            "shapes", exc_info=True,
-        )
-        return bank, False
-    return bank, True
-
-
+# Re-bound as module globals so `_require_complete_bank` reads THIS module's
+# copy and the tests that monkeypatch it keep working.
 _REDACTION_BANK, _REDACTION_BANK_COMPLETE = _build_redaction_bank()
-
-
-def _redact(text: Optional[str]) -> Optional[str]:
-    """Replace every known secret shape with a typed placeholder. Idempotent."""
-    if not text:
-        return text
-    for rx, tag in _REDACTION_BANK:
-        text = rx.sub(f"[REDACTED:{tag}]", text)
-    return text
 
 
 def _check_secret(secret: Optional[str]) -> None:
@@ -174,6 +137,24 @@ class IngestRequest(BaseModel):
     digests: list[Digest] = Field(default_factory=list)
 
 
+def _identifiable(d: Digest) -> bool:
+    """True when this digest's session_id survives redaction unchanged.
+
+    The row id is "<machine>:<session_id>" and BOTH halves are redacted, so two
+    different secret-bearing session ids collapse to the same placeholder text
+    and therefore the same primary key — one conversation silently overwriting
+    another. Redacting an identity does not sanitise it, it destroys it.
+
+    A real collector cannot trigger this: session_id is a JSONL filename stem, a
+    UUID. But this route's whole premise is that the client's claim cannot be
+    verified, so the pathological case has to be handled rather than assumed
+    away. The digest is skipped and counted rather than rejecting the request,
+    because one unidentifiable digest must not cost the batch it arrived in —
+    the same rule the duplicate-id and bad-timestamp paths follow.
+    """
+    return _redact(d.session_id) == d.session_id
+
+
 def _timestamp_or_none(value: Optional[str]) -> Optional[str]:
     """An ISO-8601 timestamp, or None when the value is not one.
 
@@ -245,11 +226,18 @@ async def ingest(
     machine = (_redact(body.machine) or "").strip()
     if not machine:
         raise HTTPException(422, "machine is required")
+    if machine != body.machine.strip():
+        # Identity must be clean, not merely redacted. A machine name that
+        # changed under redaction is a broken client, and it applies to every
+        # digest in the request, so there is no partial recovery to attempt.
+        raise HTTPException(422, "machine must not contain a secret")
     if len(body.digests) > CONVERSATION_INGEST_MAX_ROWS:
         raise HTTPException(
             413, f"at most {CONVERSATION_INGEST_MAX_ROWS} digests per request",
         )
-    rows = [_row(machine, d) for d in body.digests if d.session_id]
+    usable = [d for d in body.digests if d.session_id and _identifiable(d)]
+    skipped = len([d for d in body.digests if d.session_id]) - len(usable)
+    rows = [_row(machine, d) for d in usable]
     written = conversation_store.save_conversation_digests(rows)
     # Unlike the observability writers in supabase_log.py, this one reports.
     # A machine that syncs nightly and is told "ok" for a write that never
@@ -258,8 +246,11 @@ async def ingest(
         raise HTTPException(
             502, f"stored {written} of {len(rows)} digests — Supabase write incomplete",
         )
-    log.info("conversation digests stored: machine=%s rows=%d", machine, written)
-    return {"ok": True, "machine": machine, "stored": written}
+    log.info(
+        "conversation digests stored: machine=%s rows=%d skipped=%d",
+        machine, written, skipped,
+    )
+    return {"ok": True, "machine": machine, "stored": written, "skipped": skipped}
 
 
 @router.get("/search")
