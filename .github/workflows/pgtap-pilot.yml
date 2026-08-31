@@ -1,5 +1,29 @@
 name: pgtap-pilot
 
+# SCOPE — read before trusting a green tick here.
+#
+# This job covers the PILOT migrations ONLY. The apply step below globs
+# `supabase/migrations/*pilot*.sql`, and the assertions are
+# `supabase/tests/pgtap/pilot_v1_isolation.sql`.
+#
+# The `supabase/migrations/**` path trigger is WIDER than that coverage, so a
+# migration whose filename does not contain "pilot" summons this job, passes it,
+# and is never applied and never asserted. Green here says nothing about such a
+# migration — it is not evidence that its RLS is enabled or that its policies are
+# scoped. Found the hard way: 20260831T000000_requirements_and_staging.sql
+# triggered a green run of this job having never been read by it.
+#
+# Deliberately left as-is rather than "fixed" in passing, because both obvious
+# repairs carry blast radius that belongs to a considered change, not a drive-by:
+#   * Narrowing the trigger to *pilot* stops the false signal but leaves
+#     non-pilot migrations with no RLS check at all.
+#   * Applying every migration here can fail on pre-existing files that assume
+#     extensions, roles or ordering this shadow DB does not set up — turning a
+#     green gate red for reasons unrelated to whichever PR trips it.
+#   * Renaming the job is not free either: if branch protection requires the
+#     check by name, a rename silently drops the requirement.
+# Until one is chosen, this comment is the guard: the name promises more than
+# the body delivers, and now says so.
 on:
   pull_request:
     paths:
