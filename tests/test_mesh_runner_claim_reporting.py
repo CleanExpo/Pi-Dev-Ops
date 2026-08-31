@@ -59,11 +59,13 @@ class FakeServer:
     """The three `/api/mesh/*` calls `run_claim` and `get_work` actually make."""
 
     def __init__(self, queue=()):
+        """`queue` is the pool `claim/self` hands out, top-priority first."""
         self.queue = list(queue)
         self.claims: dict[str, str] = {}
         self.calls: list[tuple[str, str, dict]] = []
 
     def api(self, method, path, body=None):
+        """Stand in for `_api`, recording every call so reporting is assertable."""
         self.calls.append((method, path, body or {}))
         if path == "/api/mesh/fleet":
             return {"claims": [{"linear_id": k, "machine": "TESTNODE", "state": v}
@@ -157,6 +159,8 @@ def test_the_runner_does_not_retry_a_repo_missing_ticket_forever(runner, monkeyp
     monkeypatch.setattr(runner, "DEFAULT_REPO_DIR", Path(_no_git(tmp_path)))
 
     def _sleep(_seconds):
+        """End the loop at its first poll sleep, which it only reaches once the
+        queue has drained — so reaching here IS the assertion that it drained."""
         raise _Break
 
     monkeypatch.setattr(runner.time, "sleep", _sleep)
