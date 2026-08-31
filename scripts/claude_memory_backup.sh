@@ -52,6 +52,25 @@ log() {
     printf '[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$LOG_FILE" >&2
 }
 
+# Strip credentials from any git URL before it reaches the log file.
+#
+# $LOG_FILE is persistent and world-readable by the account that runs this.
+# CLAUDE_MEMORY_REMOTE is DOCUMENTED as an SSH URL, which carries no secret —
+# but nothing enforces that, and an HTTPS remote of the form
+# https://x-access-token:ghp_...@github.com/owner/repo.git is the obvious way to
+# run this on a machine with no SSH agent. That is exactly the Windows node this
+# script was just fixed to support, so the unsafe case is the one newly in reach.
+#
+# Two paths reach the log, and both are covered:
+#   - the "remote drifted" line below, which prints both URLs;
+#   - git's own stderr on push, which quotes the full remote URL on an auth
+#     failure ("Authentication failed for 'https://user:token@github.com/...'").
+# The second is the more dangerous: it fires precisely when credentials are
+# wrong, which is when an operator is most likely to paste the log somewhere.
+redact_url() {
+    sed -E 's#(://)[^/@[:space:]]+@#\1***@#g'
+}
+
 # Fallback: the checkout may sit at a different path than the session that
 # wrote the memory (worktrees, a clone under another parent). Match on the
 # repo's basename, encoded the same way as the full path above so a dotted
@@ -120,7 +139,7 @@ fi
 # Ensure remote is current (in case operator rotated SSH URL)
 current_remote="$(git remote get-url origin 2>/dev/null || echo '')"
 if [ "$current_remote" != "$CLAUDE_MEMORY_REMOTE" ]; then
-    log "remote drifted ($current_remote) → setting to $CLAUDE_MEMORY_REMOTE"
+    log "remote drifted ($(printf '%s' "$current_remote" | redact_url)) → setting to $(printf '%s' "$CLAUDE_MEMORY_REMOTE" | redact_url)"
     git remote set-url origin "$CLAUDE_MEMORY_REMOTE"
 fi
 
@@ -139,7 +158,7 @@ git commit -q -m "$commit_msg" --author="Claude Memory Backup <noreply@unite-gro
 log "committed: $commit_msg"
 
 # Push (will create remote branch on first run if repo is empty)
-if ! git push -q origin "HEAD:$BRANCH" 2>&1 | tee -a "$LOG_FILE" >&2; then
+if ! git push -q origin "HEAD:$BRANCH" 2>&1 | redact_url | tee -a "$LOG_FILE" >&2; then
     log "ERROR push failed — check SSH agent + repo access"
     exit 6
 fi
