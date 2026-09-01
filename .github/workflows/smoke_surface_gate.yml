@@ -12,10 +12,25 @@ name: Smoke Surface Gate
 on:
   pull_request:
     branches: [main]
+    # The three interactive prefixes the gate judges, PLUS the two files the job
+    # itself reads. That second half is the rule RA-7396 established on
+    # pgtap-pilot.yml: a gate that loads a file it is not triggered by goes stale
+    # the first time that file changes, and nothing reports it. Adding the script
+    # here also means this workflow is exercised by any PR that edits it —
+    # otherwise a change to the gate ships without the gate ever having run.
     paths:
       - "dashboard/components/**"
       - "dashboard/app/api/**"
       - "app/server/routes/**"
+      - ".github/workflows/smoke_surface_gate.yml"
+      - ".github/scripts/smoke_surface_gate.py"
+      # The manifest is read on both sides of the diff. Listing it does NOT
+      # change any verdict today — a manifest-only PR adds no interactive files,
+      # so the gate passes either way — but the rule is one entry per file the
+      # job reads, checked by enumerating them rather than by whoever adds the
+      # next step remembering. It is also the entry that would matter first if
+      # this gate ever grows a check on entries being REMOVED.
+      - ".github/smoke-surfaces.json"
 
 # RA-7222 — cancel superseded runs. Without this, pushing three times in quick
 # succession runs all three sets to completion and bills every one. The group is
