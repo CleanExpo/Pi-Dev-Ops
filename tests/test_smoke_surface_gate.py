@@ -148,3 +148,33 @@ def test_surface_allow_is_per_file_not_a_blanket_disable():
 def test_allowing_every_added_file_passes():
     added = ["dashboard/components/Helper.tsx"]
     assert gate.evaluate(added, BEFORE, BEFORE, set(added)) == []
+
+
+# --------------------------------------------------------------------------
+# the trailer parser — untested until an end-to-end control caught it failing
+# --------------------------------------------------------------------------
+
+def test_surface_allow_survives_hyphens_in_the_path(monkeypatch):
+    """The path is the first whitespace-delimited token, hyphens included.
+
+    The original pattern was `[^\\s-]+`, written to stop before the " -- why"
+    separator. It stopped at the first hyphen in the PATH instead, so
+    "dashboard/app/api/scratch-route/route.ts" silently became
+    "dashboard/app/api/scratch" and authorised nothing — the hatch looked
+    applied and did nothing.
+
+    The unit test above missed this entirely because it passed the allowed set
+    in directly and never ran this function. An end-to-end control caught it.
+    """
+    monkeypatch.setattr(
+        gate, "git",
+        lambda *a: "scratch\n\nSurface-Allow: dashboard/app/api/scratch-route/route.ts -- control\n",
+    )
+    assert gate.allowances("BASE") == {"dashboard/app/api/scratch-route/route.ts"}
+
+
+def test_surface_allow_ignores_the_reason_text():
+    """Only the token is the key; the prose after ' -- ' is for the reviewer."""
+    import re
+    line = "Surface-Allow: a/b.tsx -- because it is a helper, not a surface"
+    assert re.findall(r"^Surface-Allow:\s*(\S+)", line, re.M) == ["a/b.tsx"]

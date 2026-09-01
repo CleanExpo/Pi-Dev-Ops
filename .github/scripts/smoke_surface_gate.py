@@ -127,7 +127,14 @@ def allowances(base: str) -> set:
     gate with no hatch is deleted the first time it is wrong.
     """
     out = git("log", f"{base}..HEAD", "--format=%B") or ""
-    return {m.strip() for m in re.findall(r"^Surface-Allow:\s*([^\s-]+)", out, re.M)}
+    # `\S+` — the first whitespace-delimited token, NOT `[^\s-]+`. That earlier
+    # pattern was meant to stop before the " -- why" separator and instead
+    # stopped at the first hyphen in the PATH, so
+    # "Surface-Allow: dashboard/app/api/scratch-route/route.ts" silently became
+    # "dashboard/app/api/scratch" and authorised nothing: the hatch looked
+    # applied and did nothing. Caught by an end-to-end control, not by the unit
+    # test, which passed the allowed set in directly and never ran this parser.
+    return {m.strip() for m in re.findall(r"^Surface-Allow:\s*(\S+)", out, re.M)}
 
 
 def evaluate(added: list, before: dict, after: dict, allowed: set) -> list:

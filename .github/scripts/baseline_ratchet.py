@@ -140,7 +140,14 @@ def allowed_keys(base: str) -> set[str]:
     )
     if proc.returncode != 0:
         return set()
-    return {k.strip() for k in re.findall(r"^Baseline-Allow:\s*([^\s-]+)", proc.stdout, re.M)}
+    # `\S+` — the first whitespace-delimited token, NOT `[^\s-]+`. That earlier
+    # pattern was meant to stop before the " -- why" separator and instead
+    # stopped at the first hyphen in the KEY, so a baselined path such as
+    # "remotion-studio/scripts/render.py" was read as "remotion" and authorised
+    # nothing. Every key in these baselines is a file path and this repo has
+    # hyphenated directories, so it was reachable rather than theoretical.
+    # Found via the identical bug in smoke_surface_gate.py (RA-7398).
+    return {k.strip() for k in re.findall(r"^Baseline-Allow:\s*(\S+)", proc.stdout, re.M)}
 
 
 def compare(path: str, before: Baseline, after: Baseline, allowed: set[str]) -> list[str]:

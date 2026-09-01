@@ -128,3 +128,18 @@ def test_no_baseline_entries_at_base_is_not_reported_as_clean(tmp_path, capsys, 
     problems = ratchet.check_one(str(target), ratchet.parse_tsv, "BASE", set())
     assert problems == []
     assert "unverifiable" in capsys.readouterr().out
+
+
+def test_baseline_allow_survives_hyphens_in_the_key(monkeypatch):
+    """Same defect as smoke_surface_gate's trailer parser, same fix.
+
+    Every key in these baselines is a file path and this repo has hyphenated
+    directories (`remotion-studio/`), so `[^\\s-]+` truncating at the first
+    hyphen was reachable, not theoretical: "remotion-studio/scripts/render.py"
+    was read as "remotion" and authorised nothing.
+    """
+    class Result:
+        returncode = 0
+        stdout = "msg\n\nBaseline-Allow: remotion-studio/scripts/render.py -- generated\n"
+    monkeypatch.setattr(ratchet.subprocess, "run", lambda *a, **k: Result())
+    assert ratchet.allowed_keys("BASE") == {"remotion-studio/scripts/render.py"}
