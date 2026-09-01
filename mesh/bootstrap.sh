@@ -218,4 +218,8 @@ warn "$HOST is NOT enlisted."
 [ "$SUPERVISED" = 1 ] || warn "  - no supervision installed; the node goes stale ~60s from now"
 warn "Confirm from the fleet, not from this output:"
 echo "  curl -s \"\$PI_CEO_API_URL/api/mesh/fleet\" -H \"X-Pi-CEO-Secret: \$PI_CEO_API_KEY\""
+# A degraded read returns the same empty lists as a fleet nobody joined (RA-7392), so an
+# operator acting on row count alone would re-run a join that had already succeeded. Name
+# the field that tells the two apart, next to the command that returns it.
+warn "  If that reports \"degraded\": true, the READ failed - retry it before re-joining."
 exit 1

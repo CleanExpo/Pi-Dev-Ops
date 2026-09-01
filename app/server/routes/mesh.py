@@ -3,7 +3,7 @@
 Spec: docs/superpowers/specs/2026-06-11-nexus-mesh-design.md
 
 POST /api/mesh/heartbeat   — a fleet node publishes its live state (machine + agents).
-GET  /api/mesh/fleet       — the Mission Control Panel reads the whole fleet.
+GET  /api/mesh/fleet       — whole-fleet snapshot for mesh/runner.py and operators.
 
 Machines authenticate with the X-Pi-CEO-Secret header (== TAO_WEBHOOK_SECRET), the
 same scheme margot/cost-report use — so nodes never hold the Supabase service-role

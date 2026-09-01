@@ -63,7 +63,7 @@ Do not trust the setting screen — confirm from the system:
 
 | # | Confirm with |
 |---|---|
-| 1 | Two checks, not one. **Visibility:** `curl -s "$PI_CEO_API_URL/api/mesh/fleet" -H "X-Pi-CEO-Secret: $PI_CEO_API_KEY"` → 3 rows, all fresh within ~20 s. **Execution:** only macOS has services `bootstrap.sh` installed, so only there is there something to query without setup: `launchctl list \| grep unite-group.mesh` → 2 entries. On Windows and Linux the script installs nothing, so the check is against whatever *you* created from the commands it printed — `schtasks /Query /TN NexusMeshRunner` once you have run its `/Create`, or your own systemd user unit. Nothing to query means supervision was never installed, which is a fail, not an inconclusive. A fresh row proves only that the heartbeat published — see below. |
+| 1 | Two checks, not one. **Visibility:** `curl -s "$PI_CEO_API_URL/api/mesh/fleet" -H "X-Pi-CEO-Secret: $PI_CEO_API_KEY"` → `degraded` false AND 3 rows, all fresh within ~20 s. Zero rows with `degraded` true is a failed read, not a failed join — retry rather than re-joining. **Execution:** only macOS has services `bootstrap.sh` installed, so only there is there something to query without setup: `launchctl list \| grep unite-group.mesh` → 2 entries. On Windows and Linux the script installs nothing, so the check is against whatever *you* created from the commands it printed — `schtasks /Query /TN NexusMeshRunner` once you have run its `/Create`, or your own systemd user unit. Nothing to query means supervision was never installed, which is a fail, not an inconclusive. A fresh row proves only that the heartbeat published — see below. |
 | 2 | Railway logs show `mesh_dispatch id=… assigned=N online=[…]` within 5 minutes |
 | 3 | The `e2e` workflow on `main` reports `113 passed · 0 failed` |
 | 4 | `GET /api/conversations/recent` with the secret returns 200 rather than 503 |
@@ -89,9 +89,18 @@ A step that reports success but fails its confirmation is not done — say so ra
 curl -s "$PI_CEO_API_URL/api/mesh/fleet" -H "X-Pi-CEO-Secret: $PI_CEO_API_KEY" | python3 -m json.tool
 ```
 
-Read `machines[].is_stale` — a node whose heartbeat is older than 60 s reads stale and is
-skipped by dispatch. `agents[]` shows what is running; `claims[]` shows open work. If a
-machine is missing entirely it never enlisted: run the join below on it.
+**Read `degraded` first.** If it is `true`, the read itself failed and every list in the
+response is empty for that reason — `errors[]` names which source broke and why
+(`not-json` = something in front of Supabase answered with a page rather than data;
+`not-a-list` = PostgREST refused the query; `http-error` = it answered non-2xx). Retry
+before concluding anything. Until RA-7392 the response could not say this: a failed read
+returned the same four empty lists as a healthy fleet nobody had joined, so the instruction
+below sent operators to re-run a join that had in fact already succeeded.
+
+With `degraded` false, read `machines[].is_stale` — a node whose heartbeat is older than
+60 s reads stale and is skipped by dispatch. `agents[]` shows what is running; `claims[]`
+shows open work. A machine missing from a NON-degraded response never enlisted: run the
+join below on it.
 
 ## Join a machine to the fleet
 
@@ -163,8 +172,10 @@ be deep inside a long agent run.
 
 Work through it in this order; each step names the command that decides it.
 
-1. **Is anything online?** `…/api/mesh/fleet` → all `is_stale`? The machines are asleep or the
-   heartbeat daemon died. Re-run `bootstrap.sh` on one and watch the row refresh.
+1. **Is anything online?** `…/api/mesh/fleet` → `degraded` true means the read failed and the
+   emptiness tells you nothing; retry first. Otherwise, all `is_stale`? The machines are
+   asleep or the heartbeat daemon died. Re-run `bootstrap.sh` on one and watch the row
+   refresh.
 2. **Is dispatch on?** No `mesh_dispatch` lines in the Railway logs → `MESH_DISPATCH_ENABLED`
    is unset. That is the intended default, not a fault.
 3. **Is there work to assign?** No Linear issues labelled `mesh:auto` in an unstarted state →
