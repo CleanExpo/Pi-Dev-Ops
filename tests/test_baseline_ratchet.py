@@ -143,3 +143,116 @@ def test_baseline_allow_survives_hyphens_in_the_key(monkeypatch):
         stdout = "msg\n\nBaseline-Allow: remotion-studio/scripts/render.py -- generated\n"
     monkeypatch.setattr(ratchet.subprocess, "run", lambda *a, **k: Result())
     assert ratchet.allowed_keys("BASE") == {"remotion-studio/scripts/render.py"}
+
+
+# --------------------------------------------------------------------------
+# the coverage direction — RA-7402
+# --------------------------------------------------------------------------
+
+def test_removal_is_a_failure_in_the_coverage_direction():
+    """Deleting a smoke entry shrinks what runs against the live deploy.
+
+    The suite then reports the same green with less behind it, and nothing in
+    the diff reads as a reduction. That is the whole reason this direction
+    exists.
+    """
+    problems = ratchet.compare("m", {"a": None, "b": None}, {"a": None}, set(),
+                               shrink_weakens=True)
+    assert problems == ["m: REMOVED b"]
+
+
+def test_addition_passes_in_the_coverage_direction():
+    """The green control. Declaring MORE surfaces must never be blocked."""
+    assert ratchet.compare("m", {"a": None}, {"a": None, "b": None}, set(),
+                           shrink_weakens=True) == []
+
+
+def test_the_default_direction_is_untouched_by_the_new_one():
+    """Guards against inverting the baselines while adding the manifest.
+
+    Every existing call site passes four positional arguments, so a default
+    that flipped would silently reverse five baselines at once and the suite
+    would still be green on the tests written before this parameter existed.
+    """
+    assert ratchet.compare("f", {"a": 1}, {"a": 1, "b": 2}, set()) != []   # added -> fails
+    assert ratchet.compare("f", {"a": 1, "b": 2}, {"a": 1}, set()) == []   # removed -> passes
+
+
+def test_the_allow_trailer_authorises_one_removal_and_not_its_neighbour():
+    """The hatch is per key, never a blanket disable — same as the other way.
+
+    Legitimate removals are the common case here (a genuinely deleted surface
+    should lose its entry), so this path is load-bearing rather than
+    theoretical.
+    """
+    problems = ratchet.compare("m", {"keep": None, "drop": None}, {}, {"drop"},
+                               shrink_weakens=True)
+    assert problems == ["m: REMOVED keep"]
+
+
+# --------------------------------------------------------------------------
+# the manifest parser
+# --------------------------------------------------------------------------
+
+MANIFEST = """{
+  "horizontal": [
+    {"name": "alpha", "path": "/api/pi-ceo/api/one", "method": "GET"},
+    {"name": "beta",  "path": "/api/two",            "method": "POST"}
+  ],
+  "vertical": {"flow": "f", "steps": [
+    {"action": "login", "path": "/api/auth/login"},
+    {"action": "sse",   "path_template": "/api/x/{id}/logs"},
+    {"action": "noop"}
+  ]}
+}"""
+
+
+def test_parse_surfaces_covers_horizontal_names_and_vertical_steps():
+    """RA-7402 named only `horizontal`; a deleted vertical step shrinks
+    coverage identically, so both are keyed."""
+    keys = ratchet.parse_surfaces(MANIFEST)
+    assert "alpha" in keys and "beta" in keys
+    assert "vertical:login:/api/auth/login" in keys
+    assert "vertical:sse:/api/x/{id}/logs" in keys
+
+
+def test_parse_surfaces_skips_a_vertical_step_with_no_path():
+    """A step with nothing to key on must not become a phantom entry, which
+    would then read as REMOVED the moment anything else changed."""
+    assert not any(k.startswith("vertical:noop") for k in ratchet.parse_surfaces(MANIFEST))
+
+
+def test_parse_surfaces_on_unparseable_json_yields_nothing():
+    """Fail-closed feed for `check_one`.
+
+    An unparseable manifest must return empty, not partial: empty trips the
+    `if not before` guard and is reported as unverifiable, whereas a partial
+    parse would report every unparsed entry as REMOVED.
+    """
+    assert ratchet.parse_surfaces("{not json") == {}
+
+
+def test_parse_surfaces_matches_the_committed_manifest():
+    manifest = _SCRIPT.parents[2] / ".github" / "smoke-surfaces.json"
+    keys = ratchet.parse_surfaces(manifest.read_text(encoding="utf-8"))
+    assert len(keys) > 50, "the real manifest should not parse to almost nothing"
+    assert sum(k.startswith("vertical:") for k in keys) == 4
+
+
+# --------------------------------------------------------------------------
+# the registry
+# --------------------------------------------------------------------------
+
+def test_every_baseline_declares_a_direction():
+    """BASELINES values are (parser, shrink_weakens). A bare parser left behind
+    would raise at unpack time in CI rather than here."""
+    for path, entry in ratchet.BASELINES.items():
+        assert isinstance(entry, tuple) and len(entry) == 2, path
+        assert callable(entry[0]) and isinstance(entry[1], bool), path
+
+
+def test_only_the_coverage_manifest_ratchets_the_other_way():
+    """Pins the direction assignment. Flipping one of the other five would
+    silently stop it enforcing anything."""
+    inverted = {p for p, (_, shrink) in ratchet.BASELINES.items() if shrink}
+    assert inverted == {".github/smoke-surfaces.json"}
