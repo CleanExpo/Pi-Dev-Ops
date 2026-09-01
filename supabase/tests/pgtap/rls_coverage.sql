@@ -132,7 +132,13 @@ begin
       'Baselined tables that no longer exist: %. Remove them from the baseline.', stale;
   end if;
 
-  raise notice 'rls_coverage: every public table has RLS and a policy (% baselined)',
+  -- Say exactly what passed. "every public table has RLS and a policy" was an
+  -- OVERSTATEMENT: baselined tables are exempt from BOTH checks above, not just
+  -- the policy one, so four of them have RLS off and still pass. A gate whose
+  -- own success line claims more than it verified is the same defect this file
+  -- exists to catch, printed by the catcher (CodeRabbit, PR #707).
+  raise notice
+    'rls_coverage: every non-baselined public table has RLS and a policy; % baselined and exempt',
     (select count(*) from _rls_baseline);
 end $$;
 
