@@ -98,7 +98,8 @@ previous version — one claimed ~214 lines against an actual 1292. Run `wc -l` 
 
 ## Non-negotiables
 
-**POLICY — Surface-treatment prohibition (RA-1109).** A feature is not shipped until the
+**POLICY — Surface-treatment prohibition (RA-1109 — see the note below before concluding this
+citation is stale).** A feature is not shipped until the
 user-visible outcome is demonstrable. HTTP 200, clean types, and green lint are not shipping.
 
 Reject on sight: `.catch(() => {})` on a user action; a button that logs `ok` and never updates
@@ -109,6 +110,15 @@ Require: every write action produces an immediate UI state change or a subscriba
 surface; anything over 2 s gets a live progress surface, not a toast; destructive actions get
 confirm plus success/undo or an actionable error; spawn actions get an inline log stream or a link
 to watch it. `.github/PULL_REQUEST_TEMPLATE.md` enforces a "Manual verification path".
+
+The RA-1109 citation is **correct but looks wrong**, so do not "fix" it. That ticket's own title
+and description are about `@next/bundle-analyzer` bundle ceilings, it is Done, and it sits in the
+RestoreAssist project — yet `feat(process): RA-1109 hardwire prevention of surface-treatment merges`
+(PR #57) and `fix(dashboard): RA-1109 remove .catch swallowers` (PR #130) were both filed under it.
+The number is right; the ticket is inconsistent with itself. The **enforcement gate** is a different
+ticket again: RA-1154, PR #58, which built `.github/workflows/smoke_surface_gate.yml`. That gate has
+its own defect — it checks that `.github/smoke-surfaces.json` was touched, never that the new
+surface was declared (RA-7398).
 
 **POLICY — Model routing (RA-1099).** Opus is reserved for the roles in `OPUS_ALLOWED_ROLES` — as of
 2026-08-30 `planner`, `orchestrator`, `adversary` and `portfolio`, not the two this file claimed for
