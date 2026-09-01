@@ -50,6 +50,7 @@ from collections import Counter
 REPO = pathlib.Path(__file__).resolve().parents[1]
 MANIFEST = REPO / ".github" / "smoke-surfaces.json"
 GATE = REPO / ".github" / "scripts" / "smoke_surface_gate.py"
+ALLOWLIST = REPO / "dashboard" / "lib" / "pi-ceo-proxy-allowlist.ts"
 
 # `python scripts/route_inventory.py` puts scripts/ on sys.path, not the repo
 # root, so `import app.server.main` fails unless the root is added explicitly.
@@ -65,6 +66,7 @@ METHODS = ("get", "post", "put", "patch", "delete")
 # from a broken comparison looks exactly like zero findings from a healthy one.
 CONTROL_DECLARED = "/api/autonomy/status"
 CONTROL_ABSENT = "/api/definitely-not-real"
+CONTROL_REACHABLE = "/api/sessions"
 
 
 def load_gate():
@@ -116,6 +118,35 @@ def declared_paths(gate) -> set:
     }
 
 
+def proxy_allowlist() -> list:
+    """The regexes in ALLOWED_UPSTREAM, as Python patterns.
+
+    WHY THIS BELONGS HERE. `/api/pi-ceo/[...path]` forwards only an explicit
+    allowlist and answers 403 to everything else, so a backend route absent
+    from it is not reachable from the dashboard AT ALL. Counting such a route
+    as an "undeclared surface" overstates the gap by an order of magnitude:
+    of 64 undeclared entries, 55 are simply not proxied.
+
+    Getting this wrong has a history. The allowlist's own comments record PR
+    #650 declaring four youtube-intent probes in the manifest without adding
+    them here, leaving the e2e suite red on main on exactly those four until
+    somebody noticed. The same mistake was made once more while writing this
+    script, which is why the classification now lives in code.
+
+    JS regex literals here are plain enough to reuse directly; only the
+    escaped forward slashes need translating.
+    """
+    text = ALLOWLIST.read_text(encoding="utf-8")
+    block = text[text.index("ALLOWED_UPSTREAM"):]
+    found = re.findall(r"^\s*/(\^.*?\$)/,\s*$", block, re.M)
+    return [re.compile(pattern.replace("\\/", "/")) for pattern in found]
+
+
+def is_reachable(path: str, allow: list) -> bool:
+    """Would the dashboard proxy forward this path, or 403 it?"""
+    return any(rule.fullmatch(path) for rule in allow)
+
+
 def _as_regex(path: str) -> str:
     """`/a/{id}/b` -> a regex matching `/a/anything/b`."""
     escaped = re.escape(path).replace(r"\{", "{").replace(r"\}", "}")
@@ -160,9 +191,38 @@ def report(entries: list, paths: dict, declared: set, undeclared: list) -> None:
     print(f"UNDECLARED paths   : {len(set(e[0] for e in undeclared))}\n")
     for tag, count in Counter(e[2] for e in undeclared).most_common():
         print(f"  {tag:<18} {count}")
-    print()
-    for path, method, tag in sorted(undeclared, key=lambda e: (e[2], e[0])):
-        print(f"{tag:<18} {method:<6} {path}")
+
+    allow = proxy_allowlist()
+    reachable = [e for e in undeclared if is_reachable(e[0], allow)]
+    print(f"\n  of the undeclared, proxy-REACHABLE : {len(reachable)}"
+          f"   <- the genuine dashboard gap")
+    print(f"  not proxied (403 by design)        : {len(undeclared) - len(reachable)}\n")
+    for path, method, _ in sorted(reachable):
+        print(f"  REACHABLE  {method:<6} {path}")
+
+
+def preflight(entries: list, declared: set) -> "str | None":
+    """Every reason to refuse to report a number. Returns an error, or None.
+
+    FAIL CLOSED in each direction. An app that exposed no routes, a manifest
+    that parsed to nothing, or an allowlist that parsed to nothing would each
+    produce a confident figure derived from never having looked — and the
+    smallest, most reassuring figure at that.
+    """
+    if not entries:
+        return ("the app exposed 0 routes. Refusing to report a gap of zero "
+                "from an app that did not load.")
+    if not declared:
+        return (f"parsed 0 declared paths from {MANIFEST.name}. Refusing to "
+                "call every route undeclared.")
+    allow = proxy_allowlist()
+    if not allow:
+        return ("parsed 0 patterns from ALLOWED_UPSTREAM. Refusing to classify "
+                "every route as unreachable.")
+    if not is_reachable(CONTROL_REACHABLE, allow):
+        return (f"control failed — {CONTROL_REACHABLE} is allowlisted but read "
+                "as unreachable.")
+    return run_controls(declared)
 
 
 def main() -> int:
@@ -175,19 +235,7 @@ def main() -> int:
     entries = route_entries(paths)
     declared = declared_paths(gate)
 
-    # FAIL CLOSED, both directions. An import that yields no routes, or a
-    # manifest that parses to nothing, must not read as "no gap" — that is a
-    # verdict produced by never having looked.
-    if not entries:
-        print("route-inventory: the app exposed 0 routes. Refusing to report a "
-              "gap of zero from an app that did not load.", file=sys.stderr)
-        return 2
-    if not declared:
-        print(f"route-inventory: parsed 0 declared paths from {MANIFEST.name}. "
-              "Refusing to call every route undeclared.", file=sys.stderr)
-        return 2
-
-    failure = run_controls(declared)
+    failure = preflight(entries, declared)
     if failure:
         print(f"route-inventory: {failure}", file=sys.stderr)
         return 2

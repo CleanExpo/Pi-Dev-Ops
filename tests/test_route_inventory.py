@@ -174,3 +174,49 @@ def test_a_declared_get_does_not_cover_the_same_paths_post():
     declared = {("GET", "/api/triggers")}
     assert inv.is_declared("/api/triggers", "GET", declared)
     assert not inv.is_declared("/api/triggers", "POST", declared)
+
+
+# --------------------------------------------------------------------------
+# proxy reachability — the classification that makes the count mean something
+# --------------------------------------------------------------------------
+
+def test_allowlist_parses_the_real_typescript_file():
+    """If this returns nothing, every route reads as unreachable.
+
+    The count would then look reassuringly small for the worst possible
+    reason, so the script fails closed on an empty parse.
+    """
+    allow = inv.proxy_allowlist()
+    assert len(allow) > 20, f"parsed only {len(allow)} patterns"
+
+
+def test_a_known_allowlisted_path_is_reachable():
+    assert inv.is_reachable("/api/sessions", inv.proxy_allowlist())
+    assert inv.is_reachable("/api/autonomy/status", inv.proxy_allowlist())
+
+
+def test_a_path_absent_from_the_allowlist_is_not_reachable():
+    """The proxy 403s these, so they cannot be undeclared DASHBOARD surfaces.
+
+    `/api/nexus/youtube-intent/catalog` is the sharp case: the allowlist file
+    says in as many words that the rest of that router is "deliberately NOT
+    proxied", and declaring it anyway is what produced nine 403s while this
+    ticket was being written.
+    """
+    allow = inv.proxy_allowlist()
+    assert not inv.is_reachable("/api/nexus/youtube-intent/catalog", allow)
+    assert not inv.is_reachable("/api/me", allow)
+    assert not inv.is_reachable("/api/definitely-not-real", allow)
+
+
+def test_reachability_anchors_and_does_not_match_a_prefix():
+    """`/api/sessions` must not admit `/api/sessions/evil/extra`.
+
+    The rules are anchored `^...$`; a substring match here would report
+    unproxied routes as reachable and re-inflate the gap the classification
+    exists to deflate.
+    """
+    allow = inv.proxy_allowlist()
+    assert not inv.is_reachable("/api/sessionsX", allow)
+    assert not inv.is_reachable("/api/build/parallel", allow)
+    assert inv.is_reachable("/api/build", allow)
