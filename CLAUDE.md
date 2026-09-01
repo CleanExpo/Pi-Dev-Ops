@@ -321,12 +321,43 @@ CI never touches a live project — `ci.yml` builds against `https://stub.supaba
 migration is live; the daily `Schema Drift` job (RA-7399) is what reports the difference, and it
 needs `SUPABASE_DB_URL` to run at all.
 
-Re-derive the ledger, which is the authority on what was actually applied:
+Re-derive the ledger, which is the authority on what was actually applied. It is an MCP call, not a
+shell command, so the two halves below are separate:
 
+```text
+mcp__Supabase__list_migrations(project_id="zbryrmxmgfmslqzizsto")   # 13 entries, last 20260814044712
 ```
-mcp__Supabase__list_migrations(project_id="zbryrmxmgfmslqzizsto")   # last entry: 20260814044712
-ls supabase/migrations/                                             # 18 files, 7 dated later
+
+The repo half is fully mechanical. It DERIVES the "seven never applied" count instead of asserting
+it, needing only the last applied version from the ledger above:
+
+```bash
+ls supabase/migrations/ | awk '{d=$0; gsub(/[^0-9].*$/,"",d); if (substr(d,1,8) > "20260814") print}'
 ```
+
+The other direction cannot be fully mechanised, and the attempt is worth keeping because the
+discrepancy is itself the finding. Save the ledger's `version name` pairs to `ledger.txt`, then:
+
+```bash
+norm() { sed -E 's/^[0-9]{8,14}[a-z]?_?//; s/_?[0-9]{8,14}[a-z]?$//'; }
+comm -23 <(awk '{print $2}' ledger.txt | norm | sort -u) \
+         <(ls supabase/migrations/ | sed 's/\.sql$//' | norm | sort -u)
+```
+
+**That prints 7, not the 4 stated above, and the gap is the point.** A ledger name is typed by
+whoever applied the migration, so it is not derivable from the filename; three of the seven are
+matches no string comparison can make:
+
+| Printed as unmatched | Actually |
+|---|---|
+| `nexus_mesh_0001` | `mesh/schema/0001_nexus_mesh.sql` — in the repo, outside `supabase/migrations/` |
+| `nexus_v1_phase_a_8_tables` | `20260601_nexus_v1.sql`, renamed |
+| `phase_c_workspace_resolver_stripe_customer_id` | `20260601_phase_c_workspace_resolver.sql`, renamed |
+
+The other four — `ra_672_gate_checks_timing_columns`, `nexus_mesh_0002_rls`, `ra7014_eval_candidates`
+and `ra7216_acceptance_attribution_and_outcome_events` — match no tracked file anywhere
+(`git ls-files | grep -i`, with a matching slug as the positive control). Expect 7, subtract the
+three above, and re-check the three rather than trusting this table.
 
 **Sequencing — `supabase/migrations/` is NOT self-contained.** Establish this by applying them,
 not by reading them; none of it is visible in the files:
