@@ -3,7 +3,7 @@
 Spec: docs/superpowers/specs/2026-06-11-nexus-mesh-design.md
 
 POST /api/mesh/heartbeat   — a fleet node publishes its live state (machine + agents).
-GET  /api/mesh/fleet       — the Mission Control Panel reads the whole fleet.
+GET  /api/mesh/fleet       — whole-fleet snapshot for mesh/runner.py and operators.
 
 Machines authenticate with the X-Pi-CEO-Secret header (== TAO_WEBHOOK_SECRET), the
 same scheme margot/cost-report use — so nodes never hold the Supabase service-role
@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config
+from .. import config, mesh_fleet
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -155,23 +155,20 @@ async def heartbeat(
 async def fleet(
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
-    """Whole-fleet snapshot for the Mission Control Panel."""
+    """Whole-fleet snapshot: the runbook's only confirmation that the fleet joined.
+
+    Read by `mesh/runner.py` and by operators following
+    docs/runbooks/fleet-operations.md. NOT by the dashboard — `/api/mesh/fleet`
+    is absent from ALLOWED_UPSTREAM (dashboard/lib/pi-ceo-proxy-allowlist.ts),
+    so the proxy 403s it; the old "for the Mission Control Panel" docstring
+    described an intention, not a caller (RA-7392).
+
+    Always 200 with list-typed fields. A failed source yields an empty list AND
+    an entry in `errors`, with `degraded` true, so "nobody has joined yet" and
+    "the read broke" stop being the same response.
+    """
     _check_secret(x_pi_ceo_secret)
-    _, machines = _sb("GET", "mesh_fleet?select=*&order=host")
-    _, agents = _sb("GET", "mesh_agents?select=*&state=neq.idle&order=updated_at.desc")
-    _, ships = _sb("GET", "mesh_ships?select=*&order=shipped_at.desc&limit=25")
-    _, claims = _sb("GET", "mesh_work_claims?select=*&state=in.(claimed,working)&order=claimed_at.desc")
-    def _j(s: str) -> Any:
-        try:
-            return json.loads(s)
-        except (json.JSONDecodeError, TypeError):
-            return []
-    return {
-        "machines": _j(machines),
-        "agents": _j(agents),
-        "ships": _j(ships),
-        "claims": _j(claims),
-    }
+    return mesh_fleet.snapshot(lambda path: _sb("GET", path))
 
 
 # ── Dispatcher: assign mesh:auto tickets to free nodes ───────────────────────

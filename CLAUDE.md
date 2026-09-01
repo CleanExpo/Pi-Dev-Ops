@@ -109,7 +109,11 @@ the only feedback for a long action; a label overstating what the action did.
 Require: every write action produces an immediate UI state change or a subscribable progress
 surface; anything over 2 s gets a live progress surface, not a toast; destructive actions get
 confirm plus success/undo or an actionable error; spawn actions get an inline log stream or a link
-to watch it. `.github/PULL_REQUEST_TEMPLATE.md` enforces a "Manual verification path".
+to watch it. `.github/PULL_REQUEST_TEMPLATE.md` carries the nearest thing to a gate — a
+"Sandbox testing" URL and a "Manual smoke test of changed feature" checkbox. It has NO
+"Manual verification path" section; that heading, cited here until 2026-09-01, appears
+nowhere in the file (`grep -n "Manual verification" .github/PULL_REQUEST_TEMPLATE.md`).
+Both are unenforced checkboxes an author ticks, not a check that can fail.
 
 The RA-1109 citation is **correct but looks wrong**, so do not "fix" it. That ticket's own title
 and description are about `@next/bundle-analyzer` bundle ceilings, it is Done, and it sits in the

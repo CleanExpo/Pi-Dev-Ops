@@ -25,6 +25,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from fleet_state import active_agent_count, my_claims  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
 
 
@@ -111,24 +112,11 @@ def write_state(current_task, state: str, session_id: str | None = None) -> None
         pass
 
 
-def my_claims() -> list[dict]:
-    """Return open work claims assigned to this exact host."""
-    fleet = _api("GET", "/api/mesh/fleet")
-    return [
-        claim for claim in fleet.get("claims", [])
-        if claim.get("machine") == HOST and claim.get("state") == "claimed"
-    ]
-
-
-def active_agent_count() -> int:
-    """Count non-idle agents currently reported on this host."""
-    fleet = _api("GET", "/api/mesh/fleet")
-    return sum(1 for agent in fleet.get("agents", []) if agent.get("machine") == HOST)
-
-
 def get_work() -> list[dict]:
     """Use assigned work first, otherwise atomically self-claim a mesh:auto ticket."""
-    claims = my_claims()
+    claims = my_claims(_api, HOST)
+    if claims is None:
+        return []          # fleet unreadable: hold, never self-claim on a guess
     if claims:
         return claims
     response = _api("POST", "/api/mesh/claim/self", {"host": HOST})
@@ -286,7 +274,8 @@ def main() -> int:
         }))
         if args.once:
             return 0
-        if work and active_agent_count() < MAX_PARALLEL:
+        agents = active_agent_count(_api, HOST)
+        if work and agents is not None and agents < MAX_PARALLEL:
             time.sleep(IDLE_RECLAIM_DELAY)
             continue
         write_state(None, "idle")

@@ -96,8 +96,8 @@
 467	0a286e60322a	app/server/session_sdk.py
 465	aac2ece56e4b	app/server/model_fabric.py
 463	ab302c9ddba8	swarm/debate_runner.py
-462	437c843deaa5	app/server/routes/mesh.py
 462	feb2e5383ebc	swarm/inbox/provisioner.py
+459	5a1dba532d5f	app/server/routes/mesh.py
 453	54c70936958c	swarm/cto.py
 453	bd0e969ed193	swarm/inbox/__tests__/test_intake_dispatch.py
 452	0203c1bb6857	swarm/tmux_validator.py
