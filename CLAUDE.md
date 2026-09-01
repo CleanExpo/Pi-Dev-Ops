@@ -227,6 +227,14 @@ These cost real debugging time. Each is a behaviour of an external system, not a
   interval after restart. Use a short `startup_delay` and log every skipped poll.
 - **Cron trigger reset** — `config/harness/cron-triggers.json` `last_fired_at` reverts to committed values on
   Railway redeploy. Use `abs()` in the debounce check and fire overdue triggers within 10 s of boot.
+- **GitHub `pull_request` path filters read the WHOLE PR diff, not the pushed commit.** A job with
+  `paths:` re-runs on every commit of a PR whose base→head diff touches a filtered path, even a
+  commit that touches nothing relevant. Established on 2026-09-01: `e2208b52` changed only
+  `CLAUDE.md`, matches no filter in `pgtap-pilot.yml`, and this branch is not in that workflow's
+  `push.branches` — yet `rls-assertions` ran. Two consequences, opposite in sign: **protection is
+  per-PR**, so a filter gap is survivable while other files in the same PR pull the job in — which
+  is how the missing `supabase/migration.sql` entry hid for months — and **CI cost is per-commit**,
+  so a docs-only push re-runs the whole matched set. Neither is guessable from the workflow file.
 - **Anthropic docs redirects** — `docs.claude.com` → `platform.claude.com`/`code.claude.com`. Any
   `httpx` fetcher needs `follow_redirects=True`.
 - **`_sessions` is in-memory.** Persist status to disk after every state change: write to `.tmp`
