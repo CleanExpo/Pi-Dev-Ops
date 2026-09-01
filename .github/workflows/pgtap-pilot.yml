@@ -42,8 +42,14 @@ name: pgtap-pilot
 # The workflow filename is now cosmetically narrow — the body is what is honest.
 on:
   pull_request:
+    # ONE ENTRY PER FILE THE JOB READS, and that is the rule for extending it.
+    # `supabase/migration.sql` is not matched by `supabase/migrations/**` — the
+    # directory glob and the singular filename are different paths — so the base
+    # schema every other file is layered on could change with no run at all
+    # (CodeRabbit, PR #707). Same stale-gate shape this PR fixes for mesh/schema.
     paths:
       - 'swarm/pilot/**'
+      - 'supabase/migration.sql'
       - 'supabase/migrations/**'
       - 'supabase/tests/pgtap/**'
       - 'mesh/schema/**'
