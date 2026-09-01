@@ -821,6 +821,99 @@
       "expected_status": 422,
       "body": {},
       "_comment": "Connector import surface exists and validates payload shape. Empty payload is intentionally rejected with 422."
+    },
+    {
+      "name": "proxy-me",
+      "path": "/api/pi-ceo/api/me",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "authenticated"
+      ],
+      "_comment": "RA-7401: declared from the authoritative route inventory (scripts/route_inventory.py). auth:true is load-bearing - '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so an auth:false probe would be 401'd by the proxy before the backend answered. Session identity. The response key is a fixed literal, not data."
+    },
+    {
+      "name": "proxy-swarm-status",
+      "path": "/api/pi-ceo/api/swarm/status",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "kill_switch_active"
+      ],
+      "_comment": "RA-7401: declared from the authoritative route inventory (scripts/route_inventory.py). auth:true is load-bearing - '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so an auth:false probe would be 401'd by the proxy before the backend answered. Swarm kill-switch and escalation state. Keys are a fixed struct, present whatever the values."
+    },
+    {
+      "name": "proxy-swarm-curator-proposals",
+      "path": "/api/pi-ceo/api/swarm/curator/proposals",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "proposals"
+      ],
+      "_comment": "RA-7401: declared from the authoritative route inventory (scripts/route_inventory.py). auth:true is load-bearing - '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so an auth:false probe would be 401'd by the proxy before the backend answered. Curator proposal roster. The envelope carries total/returned/by_status/proposals even when empty."
+    },
+    {
+      "name": "proxy-sessions-persistence",
+      "path": "/api/pi-ceo/api/sessions/persistence",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "file_count"
+      ],
+      "_comment": "RA-7401: declared from the authoritative route inventory (scripts/route_inventory.py). auth:true is load-bearing - '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so an auth:false probe would be 401'd by the proxy before the backend answered. Session persistence counters - the disk/memory split behind _sessions being in-memory."
+    },
+    {
+      "name": "proxy-model-fabric-status",
+      "path": "/api/pi-ceo/api/model-fabric/status",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "allowed_roles"
+      ],
+      "_comment": "RA-7401: declared from the authoritative route inventory (scripts/route_inventory.py). auth:true is load-bearing - '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so an auth:false probe would be 401'd by the proxy before the backend answered. Model Fabric telemetry. allowed_roles is structural and ties to the RA-1099 routing policy."
+    },
+    {
+      "name": "proxy-margot-assets-options",
+      "path": "/api/pi-ceo/api/margot/assets/options",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "canonical_name"
+      ],
+      "_comment": "RA-7401: declared from the authoritative route inventory (scripts/route_inventory.py). auth:true is load-bearing - '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so an auth:false probe would be 401'd by the proxy before the backend answered. Margot asset generation options. schema_version/canonical_name are fixed envelope keys."
+    },
+    {
+      "name": "proxy-youtube-intent-catalog",
+      "path": "/api/pi-ceo/api/nexus/youtube-intent/catalog",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "accepted_count"
+      ],
+      "_comment": "RA-7401: declared from the authoritative route inventory (scripts/route_inventory.py). auth:true is load-bearing - '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so an auth:false probe would be 401'd by the proxy before the backend answered. YouTube intent catalog summary. Counter keys are always present; their values are data."
+    },
+    {
+      "name": "proxy-pipelines",
+      "path": "/api/pi-ceo/api/pipelines",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "_comment": "RA-7401: declared from the authoritative route inventory (scripts/route_inventory.py). auth:true is load-bearing - '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so an auth:false probe would be 401'd by the proxy before the backend answered. Pipeline roster. NO body_contains deliberately: this returns a bare JSON array that is legitimately empty, so any content assertion would assert data rather than contract. Status alone still catches deletion, an auth regression, and proxy misrouting."
+    },
+    {
+      "name": "proxy-triggers",
+      "path": "/api/pi-ceo/api/triggers",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "_comment": "RA-7401: declared from the authoritative route inventory (scripts/route_inventory.py). auth:true is load-bearing - '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so an auth:false probe would be 401'd by the proxy before the backend answered. Cron trigger roster. Bare array, same reasoning as proxy-pipelines - status-only by intent."
     }
   ],
   "vertical": {
