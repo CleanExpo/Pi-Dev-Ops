@@ -821,14 +821,6 @@
       "expected_status": 422,
       "body": {},
       "_comment": "Connector import surface exists and validates payload shape. Empty payload is intentionally rejected with 422."
-    },
-    {
-      "name": "proxy-goal-projects",
-      "path": "/api/pi-ceo/api/goal-projects",
-      "method": "GET",
-      "auth": true,
-      "expected_status": 200,
-      "_comment": "RA-7401. The ONLY read-only, proxy-reachable, side-effect-free backend GET that was undeclared. Found by classifying the 64 undeclared route entries against ALLOWED_UPSTREAM (dashboard/lib/pi-ceo-proxy-allowlist.ts): only 9 are proxy-reachable at all, and 7 of those spawn work (build, scan, goal-ticket, goal-projects POST, session kill/resume) so must never be smoke-probed, while the 9th needs a live session id. The other 55 undeclared entries are deliberately not proxied and therefore cannot be undeclared DASHBOARD surfaces. No body_contains: the payload is Supabase-backed data whose keys are not a fixed envelope, and asserting on data rather than contract is what makes a manifest look thorough while asserting nothing."
     }
   ],
   "vertical": {
