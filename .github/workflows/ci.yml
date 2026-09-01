@@ -82,7 +82,7 @@ jobs:
       # resolve. Branch protection routes changes to main through PRs, so gating
       # here covers the real path instead of adding a step that breaks on
       # branch creation.
-      - name: Baseline ratchet (baselines shrink, never grow)
+      - name: Baseline ratchet (enforcement may never weaken, either direction)
         if: github.event_name == 'pull_request'
         env:
           BASELINE_BASE_SHA: ${{ github.event.pull_request.base.sha }}

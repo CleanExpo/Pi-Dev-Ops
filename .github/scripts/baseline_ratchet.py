@@ -38,85 +38,40 @@ one.
 from __future__ import annotations
 
 import os
+import pathlib
 import re
 import subprocess
 import sys
 
-# key -> numeric limit, or None where the baseline lists bare keys with no value.
-Baseline = dict[str, "int | None"]
+# The parsers live next door and this directory is not an importable package,
+# so put it on the path before importing them by name.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+from baseline_parsers import (  # noqa: E402
+    Baseline,
+    parse_kv,
+    parse_names,
+    parse_rls,
+    parse_surfaces,
+    parse_tsv,
+)
 
-def parse_tsv(text: str) -> Baseline:
-    """`count \\t fingerprint \\t key` — both length baselines."""
-    out: Baseline = {}
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        parts = stripped.split("\t")
-        if len(parts) < 3:
-            continue
-        try:
-            out[parts[2]] = int(parts[0])
-        except ValueError:
-            continue
-    return out
-
-
-def parse_kv(text: str) -> Baseline:
-    """`key=value` — the design-md lint baseline."""
-    out: Baseline = {}
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or "=" not in stripped:
-            continue
-        key, _, value = stripped.partition("=")
-        try:
-            out[key.strip()] = int(value.strip())
-        except ValueError:
-            out[key.strip()] = None
-    return out
-
-
-def parse_rls(text: str) -> Baseline:
-    """Table names from the `_rls_baseline` INSERT in rls_coverage.sql.
-
-    Comments are stripped FIRST, and that is load-bearing. One of them contains
-    an apostrophe ("Supabase's advisor"); a naive quote scan reads it as an
-    opening quote and swallows the rest of the block, returning 5 entries where
-    there are 9. A parser that under-reports here would report "no additions" on
-    a diff that added four -- this guard becoming the thing it guards.
-    """
-    body = "\n".join(
-        line for line in text.splitlines() if not line.strip().startswith("--")
-    )
-    match = re.search(r"insert\s+into\s+_rls_baseline.*?;", body, re.S | re.I)
-    if not match:
-        return {}
-    return {t: None for t in re.findall(r"\(\s*'([a-z0-9_]+)'\s*,", match.group(0), re.I)}
-
-
-def parse_names(text: str) -> Baseline:
-    """`name \\t why` — the schema-drift baseline, which carries no numbers."""
-    out: Baseline = {}
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        out[stripped.split("\t")[0].strip()] = None
-    return out
-
-
+# path -> (parser, shrink_weakens). `shrink_weakens` picks the direction: the
+# default False means "growth is the weakening" (a baseline of exemptions),
+# True means "shrinkage is the weakening" (a manifest of coverage). One
+# invariant underneath both: enforcement must never weaken.
 BASELINES = {
-    ".github/file-length.baseline.txt": parse_tsv,
-    ".github/function-length.baseline.txt": parse_tsv,
-    ".github/design-md-lint.baseline.txt": parse_kv,
+    ".github/file-length.baseline.txt": (parse_tsv, False),
+    ".github/function-length.baseline.txt": (parse_tsv, False),
+    ".github/design-md-lint.baseline.txt": (parse_kv, False),
     # RA-7399. Tables a migration declares that production does not have. Added
     # here so the drift job's own escape hatch ratchets: silencing a newly
     # unapplied migration by appending to that file is blocked, the same way
     # appending to the RLS baseline is.
-    ".github/schema-drift.baseline.txt": parse_names,
-    "supabase/tests/pgtap/rls_coverage.sql": parse_rls,
+    ".github/schema-drift.baseline.txt": (parse_names, False),
+    "supabase/tests/pgtap/rls_coverage.sql": (parse_rls, False),
+    # RA-7402. The one that ratchets the other way — see parse_surfaces.
+    ".github/smoke-surfaces.json": (parse_surfaces, True),
 }
 
 
@@ -166,9 +121,25 @@ def allowed_keys(base: str) -> set[str]:
     return {k.strip() for k in re.findall(r"^Baseline-Allow:\s*(\S+)", proc.stdout, re.M)}
 
 
-def compare(path: str, before: Baseline, after: Baseline, allowed: set[str]) -> list[str]:
-    """Additions and raised values, both weakenings. Removals and drops pass."""
+def compare(path: str, before: Baseline, after: Baseline, allowed: set[str],
+            *, shrink_weakens: bool = False) -> list[str]:
+    """Report the weakenings, in whichever direction weakens THIS baseline.
+
+    Default (`shrink_weakens=False`): additions and raised values are the
+    weakenings; removals and lowered values pass, because that is the ratchet
+    direction for a baseline of exemptions.
+
+    `shrink_weakens=True` inverts it for the coverage manifest: removals are
+    the weakenings and additions pass. Keyword-only with a default so the
+    existing call sites and tests, which pass four positional arguments, keep
+    the original direction without being touched.
+    """
     problems: list[str] = []
+    if shrink_weakens:
+        for key in sorted(set(before) - set(after)):
+            if key not in allowed:
+                problems.append(f"{path}: REMOVED {key}")
+        return problems
     for key in sorted(set(after) - set(before)):
         if key not in allowed:
             problems.append(f"{path}: ADDED  {key}")
@@ -189,7 +160,8 @@ def read_head(path: str) -> "str | None":
         return None
 
 
-def check_one(path: str, parser, base: str, allowed: set[str]) -> list[str]:
+def check_one(path: str, parser, base: str, allowed: set[str],
+              shrink_weakens: bool = False) -> list[str]:
     """Compare one baseline against its version at `base`."""
     head_text = read_head(path)
     if head_text is None:
@@ -203,21 +175,23 @@ def check_one(path: str, parser, base: str, allowed: set[str]) -> list[str]:
     if not before:
         print(f"warn  {path}: parsed 0 entries at {base} — treating as unverifiable")
         return []
-    problems = compare(path, before, after, allowed)
+    problems = compare(path, before, after, allowed, shrink_weakens=shrink_weakens)
     print(f"{'FAIL' if problems else 'ok  '}  {path}: {len(before)} -> {len(after)} entries")
     return problems
 
 
 def report(problems: list[str]) -> None:
     """Print every weakening, with GitHub annotations, and how to proceed."""
-    print("\nBaselines ratchet DOWN only. These grew:\n")
+    print("\nEnforcement must never weaken. These did:\n")
     for problem in problems:
         print(f"  {problem}")
         print(f"::error::baseline-ratchet: {problem}")
     print(
         "\nAn added key exempts something from a gate; a raised value lets a "
-        "baselined\noffender grow. Fix the underlying file instead. If the "
-        "addition is genuinely\ncorrect, say so in the commit message:"
+        "baselined\noffender grow; a REMOVED key drops a surface the e2e suite "
+        "was probing, so the\nsuite reports the same green with less behind it. "
+        "Fix the underlying file\ninstead. If the change is genuinely correct, "
+        "say so in the commit message:"
         "\n\n    Baseline-Allow: <key> -- <why>\n"
     )
 
@@ -240,13 +214,13 @@ def main() -> int:
         print(f"baseline-ratchet: explicitly allowed by trailer: {sorted(allowed)}")
 
     problems: list[str] = []
-    for path, parser in BASELINES.items():
-        problems.extend(check_one(path, parser, base, allowed))
+    for path, (parser, shrink_weakens) in BASELINES.items():
+        problems.extend(check_one(path, parser, base, allowed, shrink_weakens))
 
     if problems:
         report(problems)
         return 1
-    print(f"\nbaseline-ratchet passed — {len(BASELINES)} baselines, none grew.")
+    print(f"\nbaseline-ratchet passed — {len(BASELINES)} baselines, none weakened.")
     return 0
 
 
