@@ -1,0 +1,22 @@
+# Declared by a migration but ABSENT from the live Pi CEO catalog.
+#
+# SHRINK-ONLY. Applying the migration, or dropping the declaration, removes the
+# entry — and this file fails if a baselined table turns up live, so the list
+# cannot quietly become permanent. It is also registered in
+# .github/scripts/baseline_ratchet.py, so an ADDITION here is itself blocked:
+# a new unapplied migration must be dealt with, not silenced.
+#
+# Measured 2026-09-01 against zbryrmxmgfmslqzizsto (Pi CEO), and each confirmed
+# absent from Unite-Group too, so none is merely "deployed elsewhere".
+#
+# name<TAB>why
+continuation_horizons	20260827 — never applied; continuation_store.py reads it
+conversation_digests	20260830 — never applied; routes/conversations.py reads it
+goal_projects	base migration.sql — never applied; routes/goal_ticket.py reads it
+persona_traits	20260820 youtube_intent_catalog — never applied
+project_requirements	20260831 — never applied; swarm/wiki_relevance.py reads it
+telegram_sessions	base migration.sql — never applied; no live consumer found
+vertical_pathway_signals	20260820 youtube_intent_catalog — never applied
+wiki_source_staging	20260831 — never applied; routes/wiki_sources.py reads it
+youtube_signal_items	20260820 youtube_intent_catalog — never applied
+youtube_topics	20260820 youtube_intent_catalog — never applied
