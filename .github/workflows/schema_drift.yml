@@ -1,0 +1,104 @@
+name: Schema Drift
+
+# RA-7399. `rls-assertions` builds its shadow database from files in this repo,
+# so it asserts the DECLARED schema is sound and is structurally incapable of
+# saying anything about production. PR #707 made the two match on 2026-09-01 —
+# a snapshot, not a mechanism. This is the second job with the different input:
+# the live catalog.
+#
+# Scheduled rather than per-PR, deliberately. Drift does not arrive through a
+# pull request — it arrives when somebody creates a table in the Supabase
+# console — so a PR trigger would watch the one path drift never takes.
+#
+# IF THIS JOB IS RED BECAUSE THE SECRET IS MISSING, that is the intended
+# behaviour and not something to route around. "We cannot check production" is
+# a real state and it should look like one. Do NOT make the step skip when
+# SUPABASE_DB_URL is absent: a skipped drift check reports the same green as a
+# clean database, which is precisely the defect this job exists to detect one
+# level down.
+#
+# NO `pull_request` TRIGGER, and that is a deliberate reversal worth explaining
+# because the RA-7396 rule elsewhere in this repo says the opposite: a job
+# should be triggered by the files it reads.
+#
+# It cannot apply here. A PR run cannot reach the database unless the secret is
+# present, which leaves three possible behaviours and two of them are wrong:
+#
+#   fail        a permanently red check on every PR that touches these files,
+#               which blocks the PR and teaches people to ignore the job.
+#   skip green  a `schema-drift` check reporting SUCCESS having never queried
+#               production — the exact false green this job exists to detect.
+#   don't run   honest. The script's logic is covered by
+#               tests/test_schema_drift_check.py, which runs in the Python job
+#               on every PR, so editing the checker is not unguarded.
+#
+# The third is chosen. The cost is that a change to this workflow file is only
+# validated when the schedule next fires or someone dispatches it manually;
+# that is a real gap, and smaller than a check that could report green without
+# ever opening a connection.
+on:
+  schedule:
+    - cron: "17 6 * * *"   # daily, 06:17 UTC — off the hour to avoid the rush
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    name: schema-drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Postgres client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+
+      # Fail here rather than three steps later with a confusing psql error.
+      - name: Require the live credential
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL is not set. This job compares the LIVE"
+            echo "::error::Pi CEO catalog against the schema this repo declares, so it"
+            echo "::error::needs a connection string with catalog read access."
+            echo ""
+            echo "Add it as a repository secret, then re-run. A read-only role is"
+            echo "sufficient — the job only ever SELECTs from pg_class/pg_namespace."
+            echo ""
+            echo "This step deliberately fails instead of skipping: a drift check"
+            echo "that quietly does nothing reports the same green as a clean"
+            echo "database (RA-7399)."
+            exit 1
+          fi
+
+      # `set -o pipefail` is load-bearing: without it a psql failure yields an
+      # empty stdin and the exit code of the last command in the pipe. The
+      # script also refuses an empty list, so this is belt and braces — the two
+      # together mean a broken connection can never read as "no drift".
+      - name: Compare live catalog against declared schema
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -o pipefail
+          psql "$SUPABASE_DB_URL" -Atc \
+            "select c.relname from pg_class c
+               join pg_namespace n on c.relnamespace = n.oid
+              where n.nspname = 'public' and c.relkind = 'r'
+              order by c.relname;" \
+          | python3 scripts/schema_drift_check.py

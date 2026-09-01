@@ -96,10 +96,26 @@ def parse_rls(text: str) -> Baseline:
     return {t: None for t in re.findall(r"\(\s*'([a-z0-9_]+)'\s*,", match.group(0), re.I)}
 
 
+def parse_names(text: str) -> Baseline:
+    """`name \\t why` — the schema-drift baseline, which carries no numbers."""
+    out: Baseline = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        out[stripped.split("\t")[0].strip()] = None
+    return out
+
+
 BASELINES = {
     ".github/file-length.baseline.txt": parse_tsv,
     ".github/function-length.baseline.txt": parse_tsv,
     ".github/design-md-lint.baseline.txt": parse_kv,
+    # RA-7399. Tables a migration declares that production does not have. Added
+    # here so the drift job's own escape hatch ratchets: silencing a newly
+    # unapplied migration by appending to that file is blocked, the same way
+    # appending to the RLS baseline is.
+    ".github/schema-drift.baseline.txt": parse_names,
     "supabase/tests/pgtap/rls_coverage.sql": parse_rls,
 }
 
