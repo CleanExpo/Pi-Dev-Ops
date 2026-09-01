@@ -39,44 +39,23 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Check if smoke-surfaces.yml was updated
-        id: check
-        run: |
-          set -e
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-          CHANGED_INTERACTIVE=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
-            | grep -E "^(dashboard/components/|dashboard/app/api/|app/server/routes/)" || true)
-
-          MAP_UPDATED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
-            | grep -Fx ".github/smoke-surfaces.json" || true)
-
-          if [ -n "$CHANGED_INTERACTIVE" ] && [ -z "$MAP_UPDATED" ]; then
-            echo ""
-            echo "🛑 SMOKE SURFACE GATE: this PR touches interactive surfaces but does NOT"
-            echo "   update .github/smoke-surfaces.json."
-            echo ""
-            echo "Files touched (interactive):"
-            echo "$CHANGED_INTERACTIVE" | sed 's/^/   /'
-            echo ""
-            echo "Why this matters: scripts/smoke_test_e2e.py reads smoke-surfaces.json to"
-            echo "verify every declared surface works end-to-end on the live deploy."
-            echo "Without your entry, nothing exercises the new surface and the next"
-            echo "surface-treatment bug ships silently (see Pi-Dev-Ops PR #48 history)."
-            echo ""
-            echo "How to fix: add an entry under 'horizontal:' for each new endpoint or"
-            echo "button with expected status + body_contains assertions. Format:"
-            echo ""
-            echo "   - {name: my-feature, path: /api/.., method: GET|POST, auth: true|false,"
-            echo "      expected_status: 200, body_contains: [\"expected\", \"keys\"]}"
-            echo ""
-            echo "See CLAUDE.md § Surface Treatment Prohibition."
-            exit 1
-          fi
-
-          if [ -z "$CHANGED_INTERACTIVE" ]; then
-            echo "No interactive surfaces changed — gate passes."
-          else
-            echo "smoke-surfaces.json updated alongside the interactive changes — gate passes."
-          fi
+      # RA-7398. This was 30 lines of inline bash whose entire test was whether
+      # ".github/smoke-surfaces.json" appeared in `git diff --name-only`. It never
+      # parsed the file, so ANY touch satisfied it — whitespace, a reordering, or
+      # an entry for an unrelated surface. Logic that lives only in YAML also
+      # cannot be run or tested locally, which is how that survived; the script
+      # has tests in tests/test_smoke_surface_gate.py.
+      #
+      # The rule is now: only files this PR ADDED count, and the manifest's parsed
+      # entry set must actually grow. Narrowing to added files is what makes
+      # requiring a real entry fair — the old gate fired on every edit to an
+      # existing component, which cannot honestly gain a surface entry, so a
+      # cosmetic touch was the only way past.
+      - name: Declared-surface gate (a new surface must be declared, not merely accompanied)
+        env:
+          SURFACE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 .github/scripts/smoke_surface_gate.py
