@@ -303,6 +303,31 @@ rather than patching the one omission somebody happened to trip over.
 Do not maintain a hand-written table list here. The previous version carried one that disagreed
 with the migration file in both directions.
 
+**Nothing in this repo applies a migration to production. It is a manual step, and it stopped on
+2026-08-14.** Established 2026-09-01 from Supabase's own ledger, not inferred. Two consequences
+that look like bugs until you know this:
+
+- **Seven migrations dated after 2026-08-14 have never been applied.** Their tables do not exist
+  in Pi CEO, and code touching them does not crash — `supabase_log` reads return `[]` and writes
+  return `False`, each with a log warning — so the feature is present and silently does nothing
+  (RA-7403).
+- **Four migrations WERE applied whose files are not in this repo**, including `nexus_mesh_0002_rls`
+  (2026-06-11). That is why `mesh/schema/0001_nexus_mesh.sql` could create policies without ever
+  enabling RLS and still be correct in production: a second migration did it, and `mesh/schema/`
+  contains only `0001`. Schema authored outside version control is the mirror of the first problem.
+
+CI never touches a live project — `ci.yml` builds against `https://stub.supabase.co` and
+`pgtap-pilot.yml` against `localhost`. There is no `supabase/config.toml`. Do not assume a merged
+migration is live; the daily `Schema Drift` job (RA-7399) is what reports the difference, and it
+needs `SUPABASE_DB_URL` to run at all.
+
+Re-derive the ledger, which is the authority on what was actually applied:
+
+```
+mcp__Supabase__list_migrations(project_id="zbryrmxmgfmslqzizsto")   # last entry: 20260814044712
+ls supabase/migrations/                                             # 18 files, 7 dated later
+```
+
 **Sequencing — `supabase/migrations/` is NOT self-contained.** Establish this by applying them,
 not by reading them; none of it is visible in the files:
 
