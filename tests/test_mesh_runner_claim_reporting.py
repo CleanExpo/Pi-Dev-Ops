@@ -50,9 +50,15 @@ from mesh_helpers import load_module as _load  # noqa: E402
 class FakeServer:
     """The three `/api/mesh/*` calls `run_claim` and `get_work` actually make."""
 
-    def __init__(self, queue=()):
-        """`queue` is the pool `claim/self` hands out, top-priority first."""
+    def __init__(self, queue=(), repo_dir=None):
+        """`queue` is the pool `claim/self` hands out, top-priority first.
+
+        `repo_dir`, when given, is attached to each handed-out claim the way the
+        dispatcher attaches one, so tests can exercise the explicit path rather
+        than the module-level default.
+        """
         self.queue = list(queue)
+        self.repo_dir = repo_dir
         self.claims: dict[str, str] = {}
         self.calls: list[tuple[str, str, dict]] = []
 
@@ -60,15 +66,21 @@ class FakeServer:
         """Stand in for `_api`, recording every call so reporting is assertable."""
         self.calls.append((method, path, body or {}))
         if path == "/api/mesh/fleet":
-            return {"claims": [{"linear_id": k, "machine": "TESTNODE", "state": v}
-                               for k, v in self.claims.items()
-                               if v in ("claimed", "working")], "agents": []}
+            rows = [{"linear_id": k, "machine": "TESTNODE", "state": v}
+                    for k, v in self.claims.items() if v in ("claimed", "working")]
+            if self.repo_dir:
+                for row in rows:
+                    row["repo_dir"] = self.repo_dir
+            return {"claims": rows, "agents": []}
         if path == "/api/mesh/claim/self":
             if not self.queue:
                 return {"claimed": None}
             lid = self.queue.pop(0)
             self.claims[lid] = "claimed"
-            return {"claimed": {"linear_id": lid, "machine": "TESTNODE"}}
+            claim = {"linear_id": lid, "machine": "TESTNODE"}
+            if self.repo_dir:
+                claim["repo_dir"] = self.repo_dir
+            return {"claimed": claim}
         if path == "/api/mesh/claim/update":
             self.claims[body["linear_id"]] = body["state"]
             return {"ok": True}
@@ -83,6 +95,10 @@ class FakeServer:
 @pytest.fixture
 def runner(monkeypatch, tmp_path):
     """The runner module with every side effect neutralised except reporting."""
+    # Same hermeticity RA-7370 needed next door: DEFAULT_REPO_DIR is read at
+    # module scope, so an ambient MESH_REPO_DIR would both redirect every claim
+    # and trip RA-7375's startup guard before any loop test could run.
+    monkeypatch.delenv("MESH_REPO_DIR", raising=False)
     mod = _load("mesh_runner_reporting", "mesh/runner.py")
     monkeypatch.setattr(mod, "HOST", "TESTNODE")
     monkeypatch.setattr(mod, "HARD_STOP", tmp_path / "HARD_STOP")
@@ -144,11 +160,17 @@ def test_the_runner_does_not_retry_a_repo_missing_ticket_forever(runner, monkeyp
     host, so an unreported failure comes straight back next pass. Bounded by
     MAX_CLAIMS so a regression ends as `DID NOT RAISE` rather than hanging CI —
     there is no pytest-timeout here.
+
+    The doomed path is now an EXPLICIT `repo_dir` on the claim, not the default.
+    RA-7375's startup guard refuses to run at all when DEFAULT_REPO_DIR is not a
+    checkout of this project, so that route can no longer reach the loop — but a
+    server-assigned `repo_dir` bypasses the guard by design, and remains the
+    reachable way for `run_claim` to meet a directory with no `.git`.
     """
-    server = FakeServer(queue=["UNI-A"])
+    bad = _no_git(tmp_path)
+    server = FakeServer(queue=["UNI-A"], repo_dir=bad)
     runner._api = server.api
     monkeypatch.setattr(runner, "MAX_CLAIMS", 6)
-    monkeypatch.setattr(runner, "DEFAULT_REPO_DIR", Path(_no_git(tmp_path)))
 
     def _sleep(_seconds):
         """End the loop at its first poll sleep, which it only reaches once the

@@ -24,6 +24,9 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from repo_guard import repo_dir_problem  # noqa: E402
+
 
 def _from_env_file(name: str) -> str:
     """Read one key from the protected Hermes env file without executing it."""
@@ -131,6 +134,11 @@ def get_work() -> list[dict]:
     response = _api("POST", "/api/mesh/claim/self", {"host": HOST})
     claimed = response.get("claimed")
     return [claimed] if claimed else []
+
+
+def default_repo_dir_problem() -> str:
+    """Why DEFAULT_REPO_DIR must not be trusted, or "" when it is sound."""
+    return repo_dir_problem(DEFAULT_REPO_DIR, Path(__file__).resolve().parents[1])
 
 
 def _repo_dir_for(claim: dict) -> Path:
@@ -250,6 +258,12 @@ def main() -> int:
     parser.add_argument("--once", action="store_true", help="process current claims once and exit")
     parser.add_argument("--dry-run", action="store_true", help="plan only; no worktrees, no agent runs")
     args = parser.parse_args()
+    problem = default_repo_dir_problem()
+    if problem:
+        # Non-zero on purpose: KeepAlive{SuccessfulExit:false} retries it, so
+        # the node keeps announcing this and resumes once it is fixed.
+        print(json.dumps({"runner": HOST, "status": "REFUSED", "reason": problem}))
+        return 2
     processed = 0
     while True:
         if killed():
