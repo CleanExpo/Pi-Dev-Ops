@@ -97,12 +97,12 @@
 465	aac2ece56e4b	app/server/model_fabric.py
 463	ab302c9ddba8	swarm/debate_runner.py
 462	feb2e5383ebc	swarm/inbox/provisioner.py
-459	5a1dba532d5f	app/server/routes/mesh.py
 453	54c70936958c	swarm/cto.py
 453	bd0e969ed193	swarm/inbox/__tests__/test_intake_dispatch.py
 452	0203c1bb6857	swarm/tmux_validator.py
 449	898639bff71a	swarm/cfo.py
 441	99ffa5d79100	tests/swarm/nexus/test_channels.py
+438	e413e3f268cb	app/server/routes/mesh.py
 438	04af471f5300	fence/pretooluse_fence.py
 436	f5133b32e431	tests/swarm/nexus/test_approvals.py
 435	52168138611d	app/server/pi_ceo_session_fts.py
@@ -124,7 +124,6 @@
 411	80d53f890420	tests/test_lessons_seed.py
 407	5ef12f99be37	swarm/cs.py
 405	3ffa0c343140	swarm/intake/tests/test_handoff.py
-403	a24af226c595	tests/test_mesh_claim_reap.py
 402	e43b78fe21e9	scripts/smoke_test_e2e.py
 397	9c6f9fe89c20	tests/test_provider_nex_n2.py
 392	bb57f41dc268	tests/test_ccw_supabase_provider.py
@@ -174,6 +173,7 @@
 328	65ef3ae53184	app/server/goal_ticket.py
 328	ffa7abf79d97	tests/test_provider_openrouter.py
 324	84a489bdab80	dashboard/components/control/MargotAssetsPanel.tsx
+324	f69118e438c2	tests/test_mesh_claim_reap.py
 322	bbd88fbf85cc	scripts/desk_voice_loop.py
 322	23ab18887d3f	tests/test_ra7216_attribution_keys.py
 322	f1f0fa3a8ffc	tests/test_ra7216_outcome_events.py
