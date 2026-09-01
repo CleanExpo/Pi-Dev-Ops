@@ -22,6 +22,21 @@
 -- with "remove it from the baseline" — the same ratchet as
 -- .github/scripts/file_length_lint.py, and the reason the list cannot quietly
 -- become permanent. Entries are what is TRUE today, not what is acceptable.
+--
+-- WHAT THIS FILE DOES NOT PROVE, since it has already been misread once.
+-- It runs against a shadow database built from THIS REPO'S FILES. It therefore
+-- asserts that the declared schema is sound — never that the live database is.
+-- The two differ:
+--   * RA-7393 read the five entries above as a live exposure. They are not:
+--     measured 2026-08-31, none of those five tables exists in any live project.
+--     They are true statements about migrations, and only that.
+--   * Conversely, 20 of Pi CEO's 57 live tables were declared nowhere in this
+--     repo and so were invisible here — a third of production, on a gate whose
+--     name suggests otherwise. The 2026-09-01 back-fill and the mesh/schema
+--     apply step close today's gap; nothing stops it reopening the next time a
+--     table is created straight against production.
+-- Measuring the live catalog needs credentials CI does not hold. It is a
+-- different job, and it does not exist yet (RA-7396).
 
 begin;
 
@@ -36,7 +51,19 @@ insert into _rls_baseline (tbl, why) values
   ('youtube_topics',            'RLS off — 20260820032000_youtube_intent_catalog.sql'),
   ('persona_traits',            'RLS off — 20260820032000_youtube_intent_catalog.sql'),
   ('vertical_pathway_signals',  'RLS off — 20260820032000_youtube_intent_catalog.sql'),
-  ('continuation_horizons',     'RLS on but zero policies — 20260827_continuation_horizons.sql');
+  ('continuation_horizons',     'RLS on but zero policies — 20260827_continuation_horizons.sql'),
+  -- Added 2026-09-01 with 20260901T000000_backfill_live_tables.sql. These four
+  -- are live in Pi CEO and were declared nowhere, so this gate had never seen
+  -- them; declaring them is what brings them under it. They carry RLS and NO
+  -- policy in production — the state Supabase's advisor reports as
+  -- rls_enabled_no_policy — so they enter the baseline in the state they are
+  -- actually in. Policies were NOT invented for them: this repo has no consumer
+  -- for three of the four, and writing a policy here would change their
+  -- semantics for whoever does. All four are empty, so nothing is locked out.
+  ('claude_api_costs',          'RLS on, zero policies live — declared by the 2026-09-01 back-fill'),
+  ('heartbeat_log',             'RLS on, zero policies live — declared by the 2026-09-01 back-fill'),
+  ('triage_log',                'RLS on, zero policies live — declared by the 2026-09-01 back-fill'),
+  ('workflow_runs',             'RLS on, zero policies live — declared by the 2026-09-01 back-fill');
 
 do $$
 declare

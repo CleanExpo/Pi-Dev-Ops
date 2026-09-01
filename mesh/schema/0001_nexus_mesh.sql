@@ -72,6 +72,24 @@ from mesh_machines m;
 -- RLS policies: the design intent ("RLS-locked to service role") — RLS was
 -- enabled but no policies existed (advisor rls_enabled_no_policy). service_role
 -- bypasses RLS so the server keeps writing either way; these make intent explicit.
+--
+-- ENABLE COMES FIRST, and did not used to be here at all (RA-7396). The comment
+-- above says "RLS was enabled" because it was — in production, already, by hand.
+-- This file only added the missing policies, so it was correct solely by virtue
+-- of prior state nobody could see from reading it. Applied to a FRESH database
+-- it produced these four tables with policies attached and RLS off, which means
+-- the policies are inert and the tables are readable by anyone the grants admit.
+-- ADR-008 calls this file the mesh schema of record, so a rebuild from it — a
+-- new environment, a restore — was silently insecure.
+--
+-- Caught the first time CI applied this file, by the coverage assertion that
+-- had never seen a mesh table before. Idempotent, and a no-op against any
+-- database where RLS is already on.
+alter table mesh_machines    enable row level security;
+alter table mesh_agents      enable row level security;
+alter table mesh_ships       enable row level security;
+alter table mesh_work_claims enable row level security;
+
 drop policy if exists "service_only" on mesh_machines;
 create policy "service_only" on mesh_machines for all to service_role using (true);
 drop policy if exists "service_only" on mesh_agents;

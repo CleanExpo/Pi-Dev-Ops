@@ -1,6 +1,7 @@
 name: pgtap-pilot
 
-# SCOPE — this job now covers EVERY migration, not just the pilot ones.
+# SCOPE — this job covers EVERY migration plus mesh/schema, not just the pilot
+# ones. It still does NOT cover tables created outside this repo; see the end.
 #
 # It used to apply `supabase/migrations/*pilot*.sql` — one file of seventeen —
 # while triggering on all of `supabase/migrations/**`. The other sixteen summoned
@@ -21,6 +22,20 @@ name: pgtap-pilot
 #   * A stub `auth.uid()`. 20260512_aip_core.sql uses it in a policy, and
 #     Postgres resolves that at CREATE POLICY time.
 #
+# `supabase/migrations/` is also not the only schema in the repo — mesh/schema/
+# declares the four live mesh_* tables and nothing applied it here until
+# RA-7396. It is applied below, and `mesh/schema/**` is a trigger path: a gate
+# that loads a file it is not triggered by would go stale the first time that
+# file changed.
+#
+# WHAT THIS STILL CANNOT SEE. The scratch database is built from files in this
+# repo, so it only ever contains what this repo declares. 16 tables are live in
+# Pi CEO and declared nowhere — a companion migration back-fills them, but the
+# structural limit remains: anything created directly against production is
+# invisible here, and green means "the declared schema is sound", never "the
+# live database is sound". Measuring the live catalog is a separate job that
+# needs credentials CI does not have (RA-7396).
+#
 # The job name (`rls-assertions`) and workflow name (`pgtap-pilot`) are
 # deliberately unchanged: if branch protection requires a check by name, a
 # rename silently drops the requirement, and that cannot be verified from here.
@@ -31,6 +46,7 @@ on:
       - 'swarm/pilot/**'
       - 'supabase/migrations/**'
       - 'supabase/tests/pgtap/**'
+      - 'mesh/schema/**'
       - '.github/workflows/pgtap-pilot.yml'
   push:
     branches: [main, feat/pilot-v1]
@@ -89,6 +105,13 @@ jobs:
           # that function at CREATE POLICY time, so the schema must exist first.
           psql -c "create schema auth;"
           psql -c "create function auth.uid() returns uuid language sql as \$\$ select null::uuid \$\$;"
+          # auth.users, for the same reason one step further on: every cc_* table
+          # back-filled by 20260901T000000_backfill_live_tables.sql declares
+          # `founder_id uuid references auth.users(id) on delete cascade`, and a
+          # FOREIGN KEY needs its target to exist at CREATE TABLE time. Supabase
+          # provides this table; a shadow database has to stub it. Only `id` is
+          # needed — nothing here reads any other column of it.
+          psql -c "create table auth.users (id uuid primary key);"
 
       - name: Apply base schema
         # FIRST, and load-bearing: supabase/migrations/ is not self-contained.
@@ -100,6 +123,23 @@ jobs:
         # order is chronological order. Was `*pilot*`, which matched 1 of 17.
         run: |
           for f in supabase/migrations/*.sql; do
+            echo "Applying $f"
+            psql -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Apply the mesh schema
+        # `supabase/migrations/` is not the only schema in this repo. The four
+        # mesh_* tables are declared in mesh/schema/, cited by ADR-008 and by
+        # app/server/mesh_dispatch_service.py as the schema of record — and until
+        # this step existed, NOTHING applied them here, so the coverage assertion
+        # below had never seen a single mesh table. They are live in production
+        # and hold the fleet's work claims (RA-7396).
+        #
+        # Safe to apply after the migrations: every statement is
+        # CREATE TABLE IF NOT EXISTS, and the file's only role dependency is
+        # service_role, created in the bootstrap step above.
+        run: |
+          for f in mesh/schema/*.sql; do
             echo "Applying $f"
             psql -v ON_ERROR_STOP=1 -f "$f"
           done
