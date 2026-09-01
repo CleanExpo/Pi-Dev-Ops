@@ -59,10 +59,34 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          # Required by the baseline-ratchet step below, which reads each
+          # baseline at the PR's base commit. At the default depth of 1 that read
+          # fails, and the script FAILS rather than report a result it cannot
+          # support — so a shallow checkout breaks the build loudly instead of
+          # silently disarming the guard.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      # RA-7400. The two gates below read their baseline as ground truth, so
+      # editing the baseline was the unguarded way past both: add a key and the
+      # file is exempt, or raise a value and it "did not grow". Both claim to be
+      # shrink-only; this is what makes that true. Runs FIRST — a weakened
+      # baseline would otherwise make the gates below pass on its terms.
+      #
+      # PR-only, and worth stating plainly rather than implying full coverage:
+      # on a push the base is `github.event.before`, which is all-zeros when a
+      # branch is created, and the script fails closed on a base it cannot
+      # resolve. Branch protection routes changes to main through PRs, so gating
+      # here covers the real path instead of adding a step that breaks on
+      # branch creation.
+      - name: Baseline ratchet (baselines shrink, never grow)
+        if: github.event_name == 'pull_request'
+        env:
+          BASELINE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 .github/scripts/baseline_ratchet.py
 
       # Fails on a new file over the limit or a baselined file that grows.
       # Regenerate with: python3 .github/scripts/file_length_lint.py --update
