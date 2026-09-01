@@ -262,16 +262,25 @@ Adding a logger means adding the matching idempotent `CREATE TABLE IF NOT EXISTS
 that is where every table since 2026-05 has landed. `migration.sql` is the base schema and is
 still applied first; see the sequencing note below.
 
-Re-derive the current table set across BOTH locations:
+Re-derive the current table set across ALL THREE locations:
 
 ```bash
-grep -hoiE 'create table (if not exists )?[a-z_."]+' supabase/migration.sql supabase/migrations/*.sql | sort -u
+grep -hoiE 'create table (if not exists )?[a-z_."]+' \
+  supabase/migration.sql supabase/migrations/*.sql mesh/schema/*.sql | sort -u
 ```
 
-The `-h` and the second path are load-bearing. The command here used to read `migration.sql`
-alone: it returned **16 tables against an actual 49**, so two thirds of the schema were invisible
-to the one command this file offered for checking. A re-derivation command that quietly
-under-reports is worse than no command, because it looks like verification.
+Every path is load-bearing, and the list has been wrong twice for the same reason. It first read
+`migration.sql` alone and returned **16 tables against an actual 49**, so two thirds of the schema
+were invisible to the one command this file offered for checking. Adding `supabase/migrations/*.sql`
+fixed that and left `mesh/schema/*.sql` out — the four `mesh_*` tables, live in production, cited
+by ADR-008 as the schema of record, and **65 against 69** on 2026-09-01. A re-derivation command
+that quietly under-reports is worse than no command, because it looks like verification; a fix that
+closes one omission and not its siblings is the same defect with better cover.
+
+The general lesson, which cost a CI gate the same way on the same day (`pgtap-pilot.yml` applied
+one migration of seventeen, and separately never triggered on the base schema it applies): when a
+command or a gate enumerates inputs, enumerate what it MUST read and check the list against that,
+rather than patching the one omission somebody happened to trip over.
 
 Do not maintain a hand-written table list here. The previous version carried one that disagreed
 with the migration file in both directions.
@@ -287,12 +296,34 @@ not by reading them; none of it is visible in the files:
   `20260827_continuation_horizons.sql` grants to it and nothing else does.
 - A stub `auth.uid()` must exist before any migration runs. `20260512_aip_core.sql` uses it in a
   policy, and Postgres resolves the function at `CREATE POLICY` time, not at first use.
+- A stub `auth.users(id uuid primary key)` must exist too. Every `cc_*` table in
+  `20260901T000000_backfill_live_tables.sql` declares `founder_id references auth.users(id)`, and a
+  FOREIGN KEY needs its target at `CREATE TABLE` time. Supabase supplies this table; a shadow
+  database has to fake it. Found by generating the DDL from the live catalog — hand-writing it
+  would have hidden the dependency.
 
-`.github/workflows/pgtap-pilot.yml` does all four, applies every migration, and asserts that each
-`public` table has RLS **and** a policy (`supabase/tests/pgtap/rls_coverage.sql`, shrink-only
-baseline). Until 2026-08-31 that job applied `*pilot*.sql` — one file of seventeen — while
-triggering on all of `supabase/migrations/**`, so sixteen migrations summoned a green tick that
-had never read them. Four tables reached main with RLS never enabled that way.
+`.github/workflows/pgtap-pilot.yml` does all five, applies every migration **and**
+`mesh/schema/*.sql`, and asserts that each `public` table has RLS **and** a policy
+(`supabase/tests/pgtap/rls_coverage.sql`, shrink-only baseline). Its coverage has been wrong
+three times, each the same shape — the job reading a different set of files than it is triggered
+by, or than exists:
+
+- Until 2026-08-31 it applied `*pilot*.sql`, one file of seventeen, while triggering on all of
+  `supabase/migrations/**`. Sixteen migrations summoned a green tick that had never read them, and
+  four tables reached main with RLS never enabled that way.
+- Until 2026-09-01 it never applied `mesh/schema/`, so the four live `mesh_*` tables were outside
+  the assertion entirely. Applying them found that `0001_nexus_mesh.sql` creates four policies and
+  never enables RLS — correct in production only because someone had enabled it by hand, and
+  silently insecure on any rebuild.
+- Until 2026-09-01 `supabase/migration.sql` was not in `pull_request.paths`, though the job applies
+  it. `supabase/migrations/**` does not match it: the directory glob and the singular filename are
+  different paths, so the base schema everything is layered on could change with no run.
+
+**The gate asserts over the DECLARED schema, never the live one.** It builds a shadow database from
+files in this repo, so anything created straight against production is invisible to it — 20 of Pi
+CEO's 57 live tables were, until the 2026-09-01 back-fill. Green means the declared schema is
+sound. Measuring the live catalog needs credentials CI does not hold and is a separate job that
+does not exist (RA-7396).
 
 ## Autonomy and kill switches
 
