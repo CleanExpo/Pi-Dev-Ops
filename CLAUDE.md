@@ -321,8 +321,12 @@ not by reading them; none of it is visible in the files:
   would have hidden the dependency.
 
 `.github/workflows/pgtap-pilot.yml` does all five, applies every migration **and**
-`mesh/schema/*.sql`, and asserts that each `public` table has RLS **and** a policy
-(`supabase/tests/pgtap/rls_coverage.sql`, shrink-only baseline). Its coverage has been wrong
+`mesh/schema/*.sql`, and asserts over `supabase/tests/pgtap/rls_coverage.sql`. State that
+invariant precisely, because an overstated one is the defect this whole section is about: **every
+`public` table has RLS AND a policy, except the 9 in the shrink-only baseline, which are exempt
+from both checks.** Of those 9, four have RLS off and five have RLS on with no policy. A baselined
+table that starts passing must LEAVE the baseline — the file fails on it — so the list only ever
+shrinks. Its coverage has been wrong
 three times, each the same shape — the job reading a different set of files than it is triggered
 by, or than exists:
 
