@@ -112,8 +112,12 @@ def test_fleet_returns_the_four_lists_the_runbook_reads(mesh_client):
     r = client.get("/api/mesh/fleet", headers=HDR)
     assert r.status_code == 200
     body = r.json()
-    assert set(body) == {"machines", "agents", "ships", "claims"}
+    assert set(body) == {"machines", "agents", "ships", "claims", "degraded", "errors"}
     assert [m["host"] for m in body["machines"]] == ["unite-mac-mini", "phill-desktop"]
+    # RA-7392 added the last two. Still an EXACT set: the point of this
+    # assertion is that a renamed or dropped key breaks the runbook silently,
+    # and that argument does not weaken because the contract grew.
+    assert body["degraded"] is False and body["errors"] == []
 
 
 def test_is_stale_reaches_the_operator_unchanged(mesh_client):
@@ -133,29 +137,68 @@ def test_is_stale_reaches_the_operator_unchanged(mesh_client):
 # ── the empty-vs-broken trade, pinned deliberately ───────────────────────────
 
 
-def test_a_malformed_supabase_body_reads_as_an_empty_fleet(mesh_client):
-    """PINNING A KNOWN TRADE-OFF, not endorsing it.
+def test_a_malformed_supabase_body_is_reported_not_silently_empty(mesh_client):
+    """RA-7392: the trade-off this file used to pin is now fixed.
 
-    `_j()` swallows JSONDecodeError and yields `[]`, so a Supabase failure
-    renders as `{"machines": []}` — indistinguishable from a fleet where nobody
-    has run bootstrap yet. An operator following confirmation 1 would read zero
-    rows and conclude the join failed.
+    It previously asserted that a Supabase failure rendered as
+    `{"machines": []}` — indistinguishable from a fleet nobody has joined — and
+    said so deliberately, because the Mission Control Panel was believed to
+    consume this endpoint and a 5xx would blank it.
 
-    It is pinned rather than changed because the Mission Control Panel consumes
-    this endpoint and a 5xx here would blank the whole panel on one bad read;
-    turning that into a visible error is a dashboard decision, not a test fix.
-    Recorded so the behaviour is deliberate and reviewable instead of an
-    accident nothing describes.
+    That premise was wrong: the dashboard has no reference to `/api/mesh/fleet`
+    and the path is absent from ALLOWED_UPSTREAM, so the proxy 403s it. The real
+    consumer is `mesh/runner.py`. The list stays empty (nothing here should
+    500), but `degraded` and `errors` now make the two states distinguishable.
     """
     client, mesh, mp = mesh_client
     mp.setattr(mesh, "_sb", _fake_sb({"mesh_fleet": "<html>502 Bad Gateway</html>"}))
     r = client.get("/api/mesh/fleet", headers=HDR)
     assert r.status_code == 200
     assert r.json()["machines"] == []
+    assert r.json()["degraded"] is True
+    assert r.json()["errors"] == [
+        {"source": "machines", "status": 200, "reason": "not-json"}
+    ]
+
+
+def test_a_postgrest_error_object_cannot_reach_the_caller_as_a_dict(mesh_client):
+    """The failure shape RA-7392 did not describe, and the worse of the two.
+
+    A PostgREST error is VALID JSON — `{"message": ..., "code": ...}` — so it
+    never hit the old `except JSONDecodeError` fallback and was returned in the
+    field verbatim. `mesh/runner.py` does
+    `[c for c in fleet["claims"] if c.get("machine") == HOST]`; iterating a dict
+    yields strings and `.get` on a string raises AttributeError, so this
+    crashed the caller rather than merely misleading it.
+    """
+    client, mesh, mp = mesh_client
+    body = '{"message":"permission denied for table mesh_fleet","code":"42501"}'
+    mp.setattr(mesh, "_sb", _fake_sb({"mesh_fleet": body}))
+    machines = client.get("/api/mesh/fleet", headers=HDR).json()["machines"]
+    assert isinstance(machines, list) and machines == []
+    # and iterating it is safe, which is the property the runner depends on
+    assert [m.get("host") for m in machines] == []
+
+
+def test_an_http_error_status_is_not_read_as_success(mesh_client):
+    """`fleet()` discarded the status with `_, body = _sb(...)`.
+
+    A 500 whose body happened to parse as a list therefore looked healthy. The
+    rows still come through — they may be all the operator has — but the
+    snapshot says so.
+    """
+    client, mesh, mp = mesh_client
+    def _sb_500(method, path, body=None, *, prefer=""):
+        return (500, json.dumps(FLEET_ROWS)) if path.startswith("mesh_fleet") else (200, "[]")
+    mp.setattr(mesh, "_sb", _sb_500)
+    r = client.get("/api/mesh/fleet", headers=HDR).json()
+    assert len(r["machines"]) == 2
+    assert r["degraded"] is True
+    assert r["errors"][0]["reason"] == "http-error" and r["errors"][0]["status"] == 500
 
 
 def test_the_empty_assertion_above_is_not_vacuous(mesh_client):
-    """GREEN CONTROL for the test immediately above.
+    """GREEN CONTROL for the degraded-path tests above.
 
     Same stub shape, valid JSON: the machines list must come back populated. A
     stub that returned `[]` for everything — a typo'd table prefix, say — would
