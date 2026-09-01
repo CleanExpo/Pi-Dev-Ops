@@ -34,6 +34,13 @@ create index if not exists pilot_suggestions_pillar_gin_idx
   on public.pilot_suggestions using gin (pillar);
 
 alter table public.pilot_suggestions enable row level security;
+-- RA-7397: drop-then-create, matching every later migration in this repo
+-- (20260512_aip_core.sql, mesh/schema/0001_nexus_mesh.sql). The tables and
+-- indexes above are already `if not exists`; a bare `create policy` was the one
+-- statement that could not be re-applied, so this file errored against any
+-- already-migrated database. Semantically identical on a fresh apply -- the
+-- drop is a no-op -- so the resulting schema is unchanged.
+drop policy if exists tenant_isolation_pilot_suggestions on public.pilot_suggestions;
 create policy tenant_isolation_pilot_suggestions
   on public.pilot_suggestions
   using (tenant_slug = current_setting('app.current_tenant_slug', true));
@@ -55,6 +62,7 @@ create table if not exists public.pilot_preferences (
 );
 
 alter table public.pilot_preferences enable row level security;
+drop policy if exists tenant_isolation_pilot_preferences on public.pilot_preferences;
 create policy tenant_isolation_pilot_preferences
   on public.pilot_preferences
   using (tenant_slug = current_setting('app.current_tenant_slug', true));
@@ -71,6 +79,7 @@ create table if not exists public.pilot_suggestion_messages (
 );
 
 alter table public.pilot_suggestion_messages enable row level security;
+drop policy if exists tenant_isolation_pilot_suggestion_messages on public.pilot_suggestion_messages;
 create policy tenant_isolation_pilot_suggestion_messages
   on public.pilot_suggestion_messages
   using (tenant_slug = current_setting('app.current_tenant_slug', true));
