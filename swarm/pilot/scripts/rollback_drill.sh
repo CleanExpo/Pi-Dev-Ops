@@ -39,7 +39,17 @@ guard_not_production() {
 }
 
 psql_scratch() {
-  psql "$SCRATCH_DB_URL" "$@"
+  # ON_ERROR_STOP=1 is the whole point of RA-7397. WITHOUT it psql exits 0 even
+  # when individual statements ERROR, so `set -e` above cannot see the failure
+  # and the script's own "Forward migration applied." narrates over it. That is
+  # how this drill printed three ERRORs in Step 1 and still reached "cutover is
+  # safe to schedule".
+  #
+  # Set here in the wrapper rather than on Step 1 alone, deliberately: Step 5
+  # re-applies the same migration through the same unguarded call and had the
+  # identical hole. Fixing only the step somebody happened to read the log of
+  # would leave its twin in place.
+  psql -v ON_ERROR_STOP=1 "$SCRATCH_DB_URL" "$@"
 }
 
 echo "=== Pilot V1 rollback drill ==="
