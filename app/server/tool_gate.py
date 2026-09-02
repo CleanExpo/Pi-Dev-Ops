@@ -107,6 +107,116 @@ def _mcp_decision(tool_name: str, tool_input: dict) -> ToolGateDecision:
     return _deny("mcp-write-not-allowlisted")
 
 
+# RA-7412 — closing the quote-blind split, without weakening what already works.
+#
+# THE LEAK. `_inspect_bash` splits on `_SHELL_SEP` before testing `_SEGMENT_RULES`.
+# A `;` inside a quoted ARGUMENT is data, not a command boundary, but the split
+# cannot tell, so it severs the signature and neither half matches. Two commands
+# reached the unattended loop ALLOWED:
+#
+#     vercel -e CSP="default-src 'self'; script-src 'self'" --prod   -> prod deploy
+#     git -c note="a;b" reset --hard                                 -> destroys work
+#
+# Both are denied correctly once the quoted span is removed, which is what proved
+# it was the split and not the rules. RA-7382 measured 59-75 leaks of this exact
+# shape against the INTERACTIVE gate and rejected segmentation for it. This file
+# kept it — and here there is no human to catch a miss.
+#
+# WHY NOT SIMPLY TEST THE WHOLE COMMAND TOO. Tried first; the existing suite
+# rejected it, and was right to. Several rules scan forward with `[^\n]*`, so over
+# an uncut chain they collect tokens from unrelated later commands:
+#
+#     rm notes.txt && tar -rvf archive.tar src   -> `rm` + a LATER `-rvf` = rm-rf
+#
+# Segmentation is not merely weaker than whole-command matching; for those rules
+# it is what makes them correct. The same is true in the other direction for
+# `sql-delete-no-where`, whose `(?![\s\S]*\bWHERE\b)` lookahead is suppressed by a
+# WHERE in an unrelated later statement. Neither reading dominates, so this ADDS a
+# pass rather than replacing one.
+#
+# THE ADDED PASS: split a quote-MASKED copy, then run the same rules on it. The
+# masking only has to be good enough to add a denial — the original passes are
+# untouched, so a masking mistake can never REMOVE protection. That is the same
+# inversion RA-7383 used, and it is what makes masking safe here when RA-7382
+# found it unsafe there: that design masked in order to NARROW a match.
+_QUOTE_CHARS = frozenset("\"'")
+# Escapes, backticks and `$(`/`${` defeat a simple masker (RA-7382 measured it).
+# Their presence does not disable the pass — that would make the bypass one `$`
+# away — it falls back to the strictest reading instead: the whole command as a
+# single segment.
+_MASK_UNSAFE = frozenset("\\`$")
+_QUOTED_SPAN = re.compile(r"\"[^\"]*\"|'[^']*'")
+
+# THREE THINGS `_requoted_segments` GETS RIGHT, each of which it got wrong first
+# and each caught by measurement rather than by reading the code:
+#
+# 1. The trigger covers everything that can HIDE a separator, not just quotes.
+#    Testing for `"`/`'` alone left ``vercel --meta note=`echo a;b` --prod``
+#    leaking — it carries no quote character, so the pass was skipped entirely and
+#    the ordinary split severed the signature at the backticked `;`. A trigger
+#    narrower than the set of hiding places is a bypass one backtick wide.
+#
+# 2. An unclosed quote invalidates the mask, so it takes the strict path. There is
+#    no complete span to blank in `vercel -e "a;b --prod`, so masking is a no-op
+#    and the split severs exactly as before. The leftover-quote test runs on the
+#    MASKED text on purpose: an apostrophe inside a double-quoted span
+#    (`echo "don't"`) reads as unbalanced before masking and balanced after, so
+#    counting up front would send ordinary commands down the strict path.
+#
+# 3. The `git rm` exemption does NOT travel with the strict path. It is a claim
+#    about ONE command — `git rm -rf x` is recoverable — and `re.match` anchors it
+#    at the start, so on an uncut chain it exempted everything after the first
+#    command too:
+#        git rm x && vercel -e "a;$X" --prod   -> allowed
+#        ls        && vercel -e "a;$X" --prod  -> denied   (the control)
+#    Prefixing a chain with `git rm x &&` must not launder the rest of it.
+
+
+def _requoted_segments(cmd: str) -> tuple[list[str], bool]:
+    """Segments for the ADDED pass, and whether the `git rm` exemption applies.
+
+    No segments means the ordinary split is already correct. The flag is False
+    when the single "segment" is the whole uncut command. See the notes above the
+    constants for why each branch is shaped the way it is.
+    """
+    has_quote = any(ch in _QUOTE_CHARS for ch in cmd)
+    has_unsafe = any(ch in _MASK_UNSAFE for ch in cmd)
+    if not has_quote and not has_unsafe:
+        return [], True
+    if has_unsafe:
+        return [cmd], False
+    # Blank each quoted span so separators inside it stop being boundaries. A
+    # space, not a placeholder token, so the masked text cannot invent a match.
+    masked = _QUOTED_SPAN.sub(lambda m: " " * len(m.group(0)), cmd)
+    # A quote left over means a span never closed, so the mask is not trustworthy
+    # — `vercel -e "a;b --prod` has no complete span to blank and would split at
+    # the quoted `;` exactly as before. Counting quotes up front would be worse
+    # than this: an apostrophe inside a double-quoted span (`echo "don't"`) reads
+    # as unbalanced before masking and as balanced after, so the check has to run
+    # on the masked text or it sends ordinary commands down the strict path.
+    if any(ch in _QUOTE_CHARS for ch in masked):
+        return [cmd], False
+    return [s.strip() for s in _SHELL_SEP.split(masked)], True
+
+
+def _segment_denial(seg: str, git_rm_exempt: bool = True) -> str | None:
+    """The label of the first `_SEGMENT_RULES` hit on a segment, or None.
+
+    Carries the RA-7386 contract with it: the original AND the global-option
+    normalised form are both tested, and the `git rm` exemption is applied PER
+    FORM, so `git -C . rm -rf .` stays denied while `git rm -rf cached` does not.
+    """
+    for cand in (seg, _strip_git_global_opts(seg)):
+        if not cand:
+            continue
+        if git_rm_exempt and re.match(r"git\s+rm\b", cand, re.IGNORECASE):
+            continue  # `git rm` is tracked/recoverable — not the rm-rf rule
+        for label, pat in _SEGMENT_RULES:
+            if pat.search(cand):
+                return label
+    return None
+
+
 def _inspect_bash(tool_name: str, tool_input: dict) -> ToolGateDecision:
     """Per-segment + whole-command denylist over a Bash command. Allow if clean."""
     cmd = _command_text(tool_name, tool_input)
@@ -117,19 +227,23 @@ def _inspect_bash(tool_name: str, tool_input: dict) -> ToolGateDecision:
         if pat.search(cmd):
             return _deny(label)
 
+    # RA-7412: the added quote-aware pass. Runs first only because it is cheap;
+    # both passes run and either one denies, so order carries no meaning.
+    requoted, git_rm_exempt = _requoted_segments(cmd)
+    for seg in requoted:
+        label = _segment_denial(seg, git_rm_exempt)
+        if label:
+            return _deny(label)
+
+    # The original quote-blind pass, unchanged in behaviour and deliberately kept:
+    # for the forward-scanning rules it is the STRONGER reading, and dropping it
+    # would trade one leak for another. RA-7386's normalisation and the `git rm`
+    # exemption now live in `_segment_denial`, shared by both passes so they
+    # cannot drift apart.
     for seg in (s.strip() for s in _SHELL_SEP.split(cmd)):
-        # RA-7386: also test the segment with git's global options stripped, so
-        # `git -C /repo reset --hard` cannot duck the rules. Both forms are
-        # checked and either one denies, so the rewrite can only ever ADD a
-        # denial. The `git rm` skip is applied PER FORM on purpose: today
-        # `git -C . rm -rf .` is denied (the skip does not match it, so rm-rf
-        # catches it) and normalising it alone would hand it the skip.
-        for cand in (seg, _strip_git_global_opts(seg)):
-            if not cand or re.match(r"git\s+rm\b", cand, re.IGNORECASE):
-                continue  # `git rm` is tracked/recoverable — not the rm-rf rule
-            for label, pat in _SEGMENT_RULES:
-                if pat.search(cand):
-                    return _deny(label)
+        label = _segment_denial(seg)
+        if label:
+            return _deny(label)
 
     return _ALLOW
 
