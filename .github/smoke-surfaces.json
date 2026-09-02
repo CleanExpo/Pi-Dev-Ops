@@ -525,6 +525,17 @@
       "_comment": "RA-6788: compatibility alias for the hardened SSE build-log stream. Uses a deliberately absent sid so production smoke gets 404 before streaming, proving the short route exists end-to-end through the dashboard proxy without holding an SSE connection open in smoke. PR #352 wires this short alias through the dashboard proxy's SSE path so upstream 404s are preserved instead of converted to quiet GET fallbacks."
     },
     {
+      "name": "session-logs-original",
+      "path": "/api/pi-ceo/api/sessions/ra7407-missing-session/logs",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 404,
+      "body_contains": [
+        "Session not found"
+      ],
+      "_comment": "RA-7407: the ORIGINAL build-log SSE route (sessions.py:104 stream_session_logs), distinct from the two entries above, which cover the RA-6504 hardened stream and its RA-6788 short alias. It was one of eight proxy-reachable routes with no smoke coverage. Status derived from a live call against a running server, not guessed: authenticated + absent sid returns 404 {\"detail\":\"Session not found\"} at sessions.py:119, raised BEFORE the StreamingResponse generator is constructed, so nothing streams and there is no side effect. auth:true is load-bearing — the same call unauthenticated returns 401 {\"detail\":\"Not authenticated\"} from require_auth, so an auth:false probe here would assert only the dashboard session gate and would stay green with the backend route deleted. The sid cannot collide with a real session: ids are uuid4().hex[:12] (session_model.py:42), and this one is 22 chars containing non-hex letters. NO QUERY STRING, deliberately: both siblings use ?after=0, so this is the only probe exercising the `$` branch of SSE_PATH_RE in the proxy (dashboard/app/api/pi-ceo/[...path]/route.ts:18); proxySse passes res.status through verbatim, so the 404 survives. DO NOT DROP body_contains — it is what makes this probe non-vacuous, and the status alone is not. Measured, not argued: with the backend route renamed away and the server restarted, this probe still returned 404 (FastAPI's own unknown-path 404) and the status assertion stayed GREEN; only body_contains caught it, because the body became {\"detail\":\"Not Found\"}. A status-only 404 probe here would be exactly the check-that-cannot-fail this entry exists to avoid. Verified end-to-end before landing, per the PR #650 caution recorded in the proxy allowlist: run against a local dashboard proxying a local backend, this probe returned 404 with the expected body in 14-18 ms, and four checksum-verified sabotages each made it fail — wrong expected_status, an unreachable body string, auth flipped to false (401 at the proxy, the webhook-dispatch-nosig failure mode), and the backend route deleted. The other seven undeclared reachable routes (POST build, scan, goal-projects, goal-ticket, goal-ticket/analyze, sessions/kill, sessions/resume) are deliberately NOT declared: their only safe probe is an auth:false 401 that proves nothing, and their strong probe runs a real build, scan, Linear ticket or session kill against production. Seven weak entries would raise the coverage count by seven while covering nothing, and RA-7402's ratchet would then lock them in permanently."
+    },
+    {
       "name": "spec-pipeline-list",
       "path": "/api/pi-ceo/api/spec-pipeline",
       "method": "GET",
