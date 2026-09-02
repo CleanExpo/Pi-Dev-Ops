@@ -237,6 +237,22 @@
       "scan_schedule": "0 0 * * *",
       "business_charter": "business-charters/carsi.md",
       "discovery_enabled": true
+    },
+    {
+      "id": "skills-library",
+      "repo": "CleanExpo/skills-library",
+      "linear_project_id": "c13882ca-1871-48b0-b672-48b6d58a1d48",
+      "linear_project_name": "Skills Library",
+      "linear_team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673",
+      "linear_team_key": "RA",
+      "stack": [
+        "Python",
+        "Bash",
+        "Claude Code skills"
+      ],
+      "deployments": {},
+      "notes": "RA-7406 — the estate-wide skills library: pr-release-gate, /spm, swarm review, estate-sync. Checked out as ~/.claude on each machine, so it has no deployment.",
+      "_comment_no_scan_priority": "Omitted deliberately, not overlooked. This repo is PRIVATE and scanner.py _clone_or_update clones a bare https://github.com/<repo>.git with no credentials, unlike the session path which injects GITHUB_TOKEN via session_phases._git_clone_env. scan_all() selects on scan_priority, and every cron in cron-triggers.json passes one, so an entry without the key is never scheduled-scanned — which is the intent. Adding scan_priority would buy up to four failed clones a day and no findings. The autonomy poller does NOT read this key and DOES cover this entry."
     }
   ],
   "scan_types": [

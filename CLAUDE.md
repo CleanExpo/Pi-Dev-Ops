@@ -14,6 +14,13 @@
 Other directories matching `pi-dev-ops*` on this machine are worktrees, Hermes profile copies, or
 scan output. Only the path above has the `origin` remote. Do not edit the others.
 
+**A second repo is load-bearing here and is NOT this one.** `CleanExpo/skills-library` — private,
+checked out as `~/.claude` on each machine — holds the estate-wide skills: `pr-release-gate`,
+`/spm`, swarm review, `estate-sync`. Three sections below reference it. It is `skills-library` in
+`config/harness/projects.json` (added 2026-09-02, RA-7406), so route findings about it there.
+Before filing anything against a path, check which repo actually holds it: `find . -name <file>`
+returning nothing here usually means it lives in the library, not that the file is missing.
+
 ## What this repo does
 
 Converts a GitHub repo URL plus a plain-English brief into an autonomous Claude Code session.
@@ -59,6 +66,13 @@ bash scripts/handoff-loop.sh                            # full definition-of-don
 ```
 
 ### Release-gate receipts — record ONE command, not four
+
+**The gate is not in this repo.** `pr_release_gate.py` ships in `CleanExpo/skills-library` under
+`skills/pr-release-gate/scripts/`; `find . -name pr_release_gate.py` returns nothing here and never
+has. It runs as a local pre-push hook on the developer's machine, and the **receipt** is what
+crosses the boundary — a `.git/pr-release-gate.json` whose `tests` array names commands to run in
+*this* tree. So the advice below is about what you write into that receipt while working here.
+Findings about the gate itself route to `skills-library`, not to Pi-Dev-Ops (RA-7406).
 
 `pr_release_gate.py` re-runs every command recorded in the receipt's `tests` array on each push.
 `scripts/handoff-loop.sh` already runs ruff, `pytest tests/` and `pytest swarm/` as its own gates
