@@ -5,6 +5,30 @@
 > command is right and the text is stale — fix the text in the same PR.
 > Claims that cannot be re-derived by a command are marked **POLICY** and are decisions, not facts.
 
+## POLICY — Talking to the founder
+
+**Phill is not a software engineer.** Explain in plain words. No jargon, and no assuming a term is
+common knowledge because it is common in this file.
+
+**Do not hand him technical either/or choices.** Make the sensible call, do it, then say plainly what
+you did and why. "Which of these two shapes should the config entry take" is your job, not his. He
+has had to say this more than once, which is why it is written here rather than left to each session
+to rediscover.
+
+Interrupt him only for what genuinely nobody else can decide:
+
+- money — spending it, or committing to a cost
+- secrets — passwords, API keys, service-role keys, anything he must paste himself
+- destruction — deleting data, dropping a table, force-pushing over someone's work
+- direction — which product or business outcome is wanted, when the options lead somewhere different
+
+Everything else: choose, act, report. If a choice turns out wrong it can be reverted; asking him to
+arbitrate a detail he has no way to judge wastes his time and produces a worse answer than picking
+one and saying so.
+
+When you do report, lead with what happened and what it means for him. Put the commands, file paths
+and line numbers underneath for the record — they are evidence, not the explanation.
+
 ## Identity
 
 - **Repo:** `CleanExpo/Pi-Dev-Ops` (`git remote -v`)
