@@ -20,7 +20,7 @@ sitting at, or a Google consent screen — none of which an agent can supply.
 |---|---|---|---|
 | 1 | `bash mesh/bootstrap.sh`, then on `phill-desktop` the two `schtasks` commands it prints | each of the 3 machines | No machine is fully enlisted and dispatchable. Dispatch has nothing to assign to. The script exits non-zero and names the gap if a node only half-joined. |
 | 2 | Set `MESH_DISPATCH_ENABLED=1` | Railway | Work is never assigned. The fleet is awake but idle. |
-| 3 | Set `SUPABASE_UNITE_GROUP_URL` + `SUPABASE_UNITE_GROUP_SERVICE_KEY` | Vercel | `cc-wiki-graph` 500s. This is the **last remaining production e2e failure**. |
+| 3 | Set `SUPABASE_UNITE_GROUP_URL` + `SUPABASE_UNITE_GROUP_SERVICE_KEY` | Vercel | `cc-wiki-graph` 503s. Still the **only** production e2e failure — measured 2026-09-02, run 33592669936 on `main`: 119 passed, 1 failed. See below for the values. |
 | 4 | Apply the `conversation_digests` migration, then set `CONVERSATION_SYNC_ENABLED=1` | Supabase, then Railway | No machine can search another's conversations. |
 | 5 | Run `scripts/setup-pc-ssh.ps1`, then run it again with `-SyncCommands` | the Windows PC | `/done` and the other PC-only commands cannot be read, so they cannot be ported. **Both runs are needed** — without the flag the script proves the connection and copies nothing. |
 | 6 | Grant YouTube OAuth **or** drop a Takeout export | browser | The transcript producer has no input; the wiki pipeline stays empty. |
@@ -28,6 +28,31 @@ sitting at, or a Google consent screen — none of which an agent can supply.
 Optional, unblocks the free-model research lane rather than a broken surface:
 set `OPENROUTER_API_KEY` on Railway. Without it the OpenRouter harness raises on first call, so
 any "run the swarm on free models" request fails at the first request rather than degrading.
+
+### Item 3 — the two values, and why only one of them is a secret (RA-7404)
+
+`wiki_pages` lives in the **Unite-Group** Supabase project, not Pi CEO's own. Both halves of that
+are already fixed in code and in the repo, so only the key is unknown:
+
+| Variable | Value | Where it comes from |
+|---|---|---|
+| `SUPABASE_UNITE_GROUP_URL` | `https://lksfwktwtmyznckodsau.supabase.co` | Not a secret. Hardcoded at `scripts/sync_wiki_to_supabase.py:22`, the script that *writes* `wiki_pages`, so the reader and the writer are provably pointed at the same project. |
+| `SUPABASE_UNITE_GROUP_SERVICE_KEY` | — | The Unite-Group project's service-role key. An operator credential; do not paste it anywhere but the Vercel dashboard. |
+
+Set both on the **`pi-dev-ops` Vercel project** (Production). No code change is needed and no deploy
+has to be hand-triggered beyond Vercel's own redeploy on an env change.
+
+**Do not "fix" this by relaxing the smoke expectation to 503.** `.github/smoke-surfaces.json` says
+so in the `cc-wiki-graph` entry itself, and the reason is that a green check asserting the feature
+is *absent* reads as coverage while asserting nothing — the defect RA-7398 and RA-7400 were filed
+against. The feature is built and linked (`/command-centre/wiki-graph`, the `WikiGraphTile` on the
+knowledge page, and the Command Centre index link), so today a viewer sees a tile reading
+"Could not load wiki graph: HTTP 503". Either configure it or remove the feature; the middle
+option is the one that rots.
+
+Verify after setting them by dispatching **Smoke Test E2E (production)** with `mode=horizontal`
+(`full` runs a real build lifecycle) and reading the `cc-wiki-graph` line. It should go
+`200` with a `pageCount`.
 
 ### Before 1 and 2 on `unite-mac-mini` — check for an ambient `MESH_REPO_DIR`
 
