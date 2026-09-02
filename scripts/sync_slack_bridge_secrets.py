@@ -50,12 +50,20 @@ def read_env_keys(path: Path) -> dict[str, str]:
 
 
 def resolve_secret(raw: str, *, key: str) -> tuple[str, str]:
-    """Resolve plaintext or an op:// reference without exposing the secret."""
+    """Resolve plaintext or an op:// reference without exposing the secret.
+
+    The second element is HOW the value was resolved — "plaintext" or
+    "1password" — and says nothing about WHERE the candidate came from. It used
+    to be spelled "hermes-env", which named an origin this function never
+    learns: it is returned just the same for a plaintext value read out of the
+    process environment. Conflating the two is what made the caller's report
+    wrong in both directions (RA-7371).
+    """
     value = (raw or "").strip()
     if not value:
         raise RuntimeError(f"{key} is empty")
     if not value.startswith("op://"):
-        return value, "hermes-env"
+        return value, "plaintext"
     if shutil.which("op") is None:
         raise RuntimeError(f"{key} is a 1Password reference but `op` CLI is unavailable")
     proc = subprocess.run(
@@ -68,17 +76,34 @@ def resolve_secret(raw: str, *, key: str) -> tuple[str, str]:
 
 
 def collect_existing_secrets(env_file: Path) -> tuple[dict[str, str], dict[str, str]]:
-    """Collect Slack secrets from Hermes first, then the current process env."""
+    """Collect Slack secrets from Hermes first, then the current process env.
+
+    ORIGIN AND RESOLUTION ARE TWO AXES, and RA-7371 was one overwriting the
+    other: `sources[key] = source if key in raw else "process-env"` discarded
+    the resolver's answer whenever the key was absent from the Hermes file.
+    That misreported both ways — an `op://` ref in the environment resolved
+    from 1Password but was reported as loose process env, and a key
+    present-but-EMPTY in the file was credited to that file although its value
+    came from the environment.
+
+    `raw.get(key)` rather than `key in raw` fixes the second: it asks whether
+    the file supplied a USABLE value, which is the question always meant.
+    Cases and controls: tests/test_sync_slack_bridge_secrets.py.
+    """
     raw = read_env_keys(env_file)
     values: dict[str, str] = {}
     sources: dict[str, str] = {}
     for key in SECRET_KEYS:
-        candidate = raw.get(key) or (os.environ.get(key) or "").strip()
+        from_file = raw.get(key)
+        candidate = from_file or (os.environ.get(key) or "").strip()
         if not candidate:
             raise RuntimeError(f"{key} was not found in {env_file} or the current environment")
-        value, source = resolve_secret(candidate, key=key)
+        value, resolution = resolve_secret(candidate, key=key)
+        origin = "hermes-env" if from_file else "process-env"
         values[key] = value
-        sources[key] = source if key in raw else "process-env"
+        sources[key] = (
+            f"1password (ref from {origin})" if resolution == "1password" else origin
+        )
     return values, sources
 
 
