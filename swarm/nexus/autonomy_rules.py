@@ -59,8 +59,108 @@ _L3_BASH = [
 ]
 L3_BASH_RE = re.compile("|".join(_L3_BASH), re.IGNORECASE)
 
+# RA-7383: the two target-based push rules, and everything else, derived by
+# IDENTITY from `_L3_BASH` rather than restated — a second copy would drift from
+# the first, and a drifted copy here would silently stop protecting whichever
+# rule fell out of it. The assert is the tripwire for that drift.
+#
+# `autonomy_ladder.classify` decides every non-push L3 signature on this
+# expression FIRST and never reconsiders it, so the push narrowing in
+# `push_targets` can only ever touch a push verdict. See that module for why the
+# narrowing subtracts from an authoritative match instead of replacing it.
+_PUSH_TARGET_PATTERNS = [p for p in _L3_BASH if r"\bgit\s+push\b" in p]
+_L3_BASH_OTHER = [p for p in _L3_BASH if p not in _PUSH_TARGET_PATTERNS]
+if len(_PUSH_TARGET_PATTERNS) != 2:
+    # `raise`, not `assert`: `python -O` strips asserts, and a drift tripwire that
+    # disappears under a flag is the same "check that cannot fail" shape this
+    # ticket family exists to stop. If a third push rule is added, decide
+    # deliberately whether the narrowing may subtract from it — do not widen this
+    # count to make the import succeed.
+    raise RuntimeError(
+        f"push-rule identification drifted from _L3_BASH: expected 2 target-based "
+        f"push patterns, found {len(_PUSH_TARGET_PATTERNS)}"
+    )
+L3_BASH_EXCLUDING_PUSH_TARGET_RE = re.compile("|".join(_L3_BASH_OTHER), re.IGNORECASE)
+
+# Re-exported so `autonomy_ladder` keeps a single rules import. The by-path
+# fallback mirrors the one in that module: this file is loaded by path in tests
+# and by the hook, where `swarm.nexus` is not an importable package.
+try:
+    from .push_targets import push_targets_are_all_unprotected  # noqa: F401
+except ImportError:  # pragma: no cover - exercised by the by-path test loader
+    import importlib.util as _ilu
+    from pathlib import Path as _Path
+
+    _spec = _ilu.spec_from_file_location(
+        "swarm_nexus_push_targets", _Path(__file__).with_name("push_targets.py")
+    )
+    _pt = _ilu.module_from_spec(_spec)
+    assert _spec.loader is not None
+    _spec.loader.exec_module(_pt)
+    push_targets_are_all_unprotected = _pt.push_targets_are_all_unprotected
+
+# --- Git global options (RA-7386) ------------------------------------------
+# Every git rule here anchors on `git <subcommand>`, but git accepts global
+# options in between, so `git -C /repo reset --hard` reached none of them and
+# `git -C . push origin main` fell L3 -> L1.
+#
+# CONTRACT — read before calling. Callers MUST test the ORIGINAL string too and
+# deny (or raise the tier) if EITHER form hits. The rewrite can then only ever
+# ADD a match, never remove one: a bug here over-denies instead of opening a
+# bypass. That is a property of the construction, not of corpus coverage — which
+# matters, because four designs on this file have leaked and each passed its own
+# author's corpus. Two corollaries:
+#   * never match on the normalised form ALONE;
+#   * never normalise for a pattern whose hit LOWERS the tier (READ_ONLY_BASH),
+#     which would turn a raise into a drop — `git -C . status` must stay L1.
+#
+# The option list is what git 2.43 actually runs a subcommand after, checked by
+# running each one: `--exec-path` (bare), `--html-path`, `--man-path`,
+# `--info-path`, `-v` and `-h` print and exit, so they are not vectors.
+GIT_GLOBAL_OPT = re.compile(
+    r"""[ \t]+(?:
+          -[cC][ \t]+\S+                      # -c name=value, -C <path>
+        | --(?:git-dir|work-tree|namespace|super-prefix|attr-source
+             |config-env)(?:=\S*|[ \t]+\S+)
+        | --exec-path(?:=\S*)?
+        | --(?:no-pager|paginate|bare|no-replace-objects|no-optional-locks
+             |no-lazy-fetch|literal-pathspecs|glob-pathspecs|noglob-pathspecs
+             |icase-pathspecs)
+        | -[pP]
+    )(?=[ \t]|\Z)""",
+    re.VERBOSE | re.IGNORECASE,
+)
+_GIT_TOKEN = re.compile(r"\bgit(?=[ \t])", re.IGNORECASE)
 
 
+def strip_git_global_opts(text: str) -> str:
+    """Drop git's global options so `git <subcommand>` is adjacent again.
+
+    ``git -C /repo reset --hard`` -> ``git reset --hard``. A quoted option value
+    containing spaces is only partly consumed, leaving a harmless fragment; that
+    is why the caller must still match the original. See the CONTRACT above.
+
+    Deliberately NOT capped at a fixed option count: a cap hands back a bypass one
+    option past it, and repeating ``-C`` is valid git. No cap is needed, because
+    ``.match(text, cursor)`` anchors each attempt at the cursor and every match
+    begins with ``[ \\t]+``, so each one advances. Spans never overlap, leaving the
+    rewrite linear — it runs inside a PreToolUse hook, where a hang is a DoS.
+    """
+    out: list[str] = []
+    pos = 0
+    for m in _GIT_TOKEN.finditer(text):
+        if m.start() < pos:
+            continue  # already consumed as a preceding option's value
+        out.append(text[pos:m.end()])
+        cursor = m.end()
+        while True:
+            opt = GIT_GLOBAL_OPT.match(text, cursor)
+            if opt is None or opt.end() <= cursor:
+                break
+            cursor = opt.end()
+        pos = cursor
+    out.append(text[pos:])
+    return "".join(out)
 
 # ===========================================================================
 # SDK-loop destructive denylist (unattended surface).

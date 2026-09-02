@@ -41,7 +41,9 @@ from typing import Any, Optional
 # fallback exists for every other loader.
 try:
     from .autonomy_rules import (  # noqa: F401
-        L3_BASH_RE, SEGMENT_RULES, WHOLE_RULES, _L3_BASH,
+        GIT_GLOBAL_OPT, L3_BASH_EXCLUDING_PUSH_TARGET_RE, L3_BASH_RE,
+        SEGMENT_RULES, WHOLE_RULES, _L3_BASH, push_targets_are_all_unprotected,
+        strip_git_global_opts,
     )
 except ImportError:  # pragma: no cover - exercised by the by-path test loader
     import importlib.util as _ilu
@@ -54,6 +56,10 @@ except ImportError:  # pragma: no cover - exercised by the by-path test loader
     _spec.loader.exec_module(_rules)
     L3_BASH_RE, _L3_BASH = _rules.L3_BASH_RE, _rules._L3_BASH
     SEGMENT_RULES, WHOLE_RULES = _rules.SEGMENT_RULES, _rules.WHOLE_RULES
+    L3_BASH_EXCLUDING_PUSH_TARGET_RE = _rules.L3_BASH_EXCLUDING_PUSH_TARGET_RE
+    push_targets_are_all_unprotected = _rules.push_targets_are_all_unprotected
+    GIT_GLOBAL_OPT = _rules.GIT_GLOBAL_OPT
+    strip_git_global_opts = _rules.strip_git_global_opts
 
 # --- Tiers (DeepMind AGI→ASI continuum mapped to autonomy-ladder L0-L3) ------
 TIER_READ = 0          # L0 — read-only / advise
@@ -91,36 +97,14 @@ L2_BASH = re.compile(
 # merge/deploy/migrate/secret/env/provision/branch-strategy — genuine
 # "stop for a human/Board" actions, all rare in an interactive session.
 #
-# The push rules deliberately keep a WHOLE-LINE `[^\n]*` gap, and the cost is
-# known: a feature-branch push chained with a read-only `git rev-parse
-# origin/main` is classified L3 even though nothing touches a protected ref.
-# That is a false positive on a fail-closed gate — lost capability, one
-# redundant approval prompt — and it is the cheaper failure. Three attempts to
-# narrow it all opened real bypasses (RA-7382); see the rejected designs below
-# and `tests/test_autonomy_ladder_l3_segments.py`.
-#
-# Rejected, in order, each killed by a measured leak against a bash oracle:
-#   1. Split the command on shell separators, test each segment. Quote-blind: a
-#      separator inside a quoted ARGUMENT severs the signature and neither half
-#      matches. 59-75 leaks, including a production `vercel -e CSP="...; ..."
-#      --prod` and a branch-protection DELETE.
-#   2. Mask quoted spans, then split. Closed part of it; escaped quotes,
-#      backticks, `${...}`, ANSI-C `$'...'` and a bare `a\;b` still leaked 75. A
-#      hand-rolled scanner tracking quote and nesting depth still leaked 15.
-#   3. Constrain the gap to a repetition of one shell-argument-shaped unit, so
-#      it cannot traverse a BARE separator. This one looked airtight and was
-#      shipped before review caught it: a quoted span is consumed WHOLE, so when
-#      the protected ref is itself quoted the gap swallows it and the trailing
-#      `(main|master|prod|production)` can never match. `git push origin "main"`
-#      — an ordinary command needing no adversarial intent — dropped L3 to L1,
-#      with 18 in the same class. Letting the gap traverse quote characters
-#      fixes the leak and makes the pattern catastrophically backtracking:
-#      42 s on 18 quoted arguments, a DoS in a PreToolUse hook.
-#
-# A narrowing that fails CLOSED (fall back to the whole line whenever the parse
-# is uncertain) is the only safe shape left, and it has to be computed in code
-# with a bound, not spelled as a regex. Tracked separately; do not retry a
-# regex tweak here.
+# The push rules keep a WHOLE-LINE `[^\n]*` gap, so any later protected token
+# satisfies them. Three attempts to narrow that gap with a smarter REGEX all
+# opened real bypasses (RA-7382) and are not to be retried here. RA-7383 closed
+# it a different way — an authoritative whole-line match that a bounded,
+# fail-closed parser may only ever SUBTRACT from. That parser, the three
+# post-mortems and the adversarial round that attacked it live in
+# `swarm/nexus/push_targets.py` and
+# `tests/test_autonomy_ladder_l3_segments.py`. Read both before touching this.
 
 # --- L3: strategic / irreversible — non-Bash tool-name signatures ----------
 # MCP + built-in tool names that are inherently L3.
@@ -132,70 +116,6 @@ L3_TOOL_RE = re.compile(
 # Destructive/strategic verbs in an otherwise-unknown tool name -> higher tier.
 L3_VERB_RE = re.compile(r"(rotate|charge|payout|transfer|drop_)", re.IGNORECASE)
 SHELL_SEP = re.compile(r"&&|\|\||;|\n")
-
-# --- Git global options (RA-7386) ------------------------------------------
-# Every git rule here anchors on `git <subcommand>`, but git accepts global
-# options in between, so `git -C /repo reset --hard` reached none of them and
-# `git -C . push origin main` fell L3 -> L1.
-#
-# CONTRACT — read before calling. Callers MUST test the ORIGINAL string too and
-# deny (or raise the tier) if EITHER form hits. The rewrite can then only ever
-# ADD a match, never remove one: a bug here over-denies instead of opening a
-# bypass. That is a property of the construction, not of corpus coverage — which
-# matters, because four designs on this file have leaked and each passed its own
-# author's corpus. Two corollaries:
-#   * never match on the normalised form ALONE;
-#   * never normalise for a pattern whose hit LOWERS the tier (READ_ONLY_BASH),
-#     which would turn a raise into a drop — `git -C . status` must stay L1.
-#
-# The option list is what git 2.43 actually runs a subcommand after, checked by
-# running each one: `--exec-path` (bare), `--html-path`, `--man-path`,
-# `--info-path`, `-v` and `-h` print and exit, so they are not vectors.
-GIT_GLOBAL_OPT = re.compile(
-    r"""[ \t]+(?:
-          -[cC][ \t]+\S+                      # -c name=value, -C <path>
-        | --(?:git-dir|work-tree|namespace|super-prefix|attr-source
-             |config-env)(?:=\S*|[ \t]+\S+)
-        | --exec-path(?:=\S*)?
-        | --(?:no-pager|paginate|bare|no-replace-objects|no-optional-locks
-             |no-lazy-fetch|literal-pathspecs|glob-pathspecs|noglob-pathspecs
-             |icase-pathspecs)
-        | -[pP]
-    )(?=[ \t]|\Z)""",
-    re.VERBOSE | re.IGNORECASE,
-)
-_GIT_TOKEN = re.compile(r"\bgit(?=[ \t])", re.IGNORECASE)
-
-
-def strip_git_global_opts(text: str) -> str:
-    """Drop git's global options so `git <subcommand>` is adjacent again.
-
-    ``git -C /repo reset --hard`` -> ``git reset --hard``. A quoted option value
-    containing spaces is only partly consumed, leaving a harmless fragment; that
-    is why the caller must still match the original. See the CONTRACT above.
-
-    Deliberately NOT capped at a fixed option count: a cap hands back a bypass one
-    option past it, and repeating ``-C`` is valid git. No cap is needed, because
-    ``.match(text, cursor)`` anchors each attempt at the cursor and every match
-    begins with ``[ \\t]+``, so each one advances. Spans never overlap, leaving the
-    rewrite linear — it runs inside a PreToolUse hook, where a hang is a DoS.
-    """
-    out: list[str] = []
-    pos = 0
-    for m in _GIT_TOKEN.finditer(text):
-        if m.start() < pos:
-            continue  # already consumed as a preceding option's value
-        out.append(text[pos:m.end()])
-        cursor = m.end()
-        while True:
-            opt = GIT_GLOBAL_OPT.match(text, cursor)
-            if opt is None or opt.end() <= cursor:
-                break
-            cursor = opt.end()
-        pos = cursor
-    out.append(text[pos:])
-    return "".join(out)
-
 
 # Allowlist (default-deny) for the unattended SDK generator.
 ALLOWED_TOOLS: frozenset[str] = frozenset({
@@ -238,19 +158,7 @@ def classify(tool_name: str, tool_input: Optional[dict[str, Any]]) -> int:
         return TIER_IRREVERSIBLE
 
     if name == "Bash":
-        cmd = str(tool_input.get("command", ""))
-        # RA-7386: also test the form with git's global options stripped, so
-        # `git -C . push origin main` cannot duck the L3 rules. Original OR
-        # normalised, so this can only ever RAISE the tier — and deliberately
-        # NOT applied to READ_ONLY_BASH, where a hit LOWERS it.
-        norm = strip_git_global_opts(cmd)
-        if L3_BASH_RE.search(cmd) or L3_BASH_RE.search(norm):
-            return TIER_IRREVERSIBLE
-        if READ_ONLY_BASH.search(cmd):
-            return TIER_READ
-        if L2_BASH.search(cmd) or L2_BASH.search(norm):
-            return TIER_OUTWARD
-        return TIER_LOCAL
+        return _classify_bash(str(tool_input.get("command", "")))
 
     if name in READ_ONLY_TOOLS:
         return TIER_READ
@@ -260,6 +168,69 @@ def classify(tool_name: str, tool_input: Optional[dict[str, Any]]) -> int:
 
     # Unknown tools default to L1 (local/reversible) — do NOT over-block; the
     # destructive-verb / tool-name guards above already lift the dangerous ones.
+    return TIER_LOCAL
+
+
+def _bash_is_l3(cmd: str, norm: str) -> tuple[bool, bool]:
+    """`(is_l3, push_was_subtracted)` for one Bash command.
+
+    Split from `_classify_bash` under the 40-line rule, and it earns the split:
+    this is the only place a tier can be RAISED, and the caller is the only place
+    one can be lowered. Keeping those apart is what makes "the narrowing can only
+    touch a push verdict" checkable by reading rather than by trusting.
+    """
+    # RA-7383: an L3 signature that is NOT one of the two target-based push rules
+    # is decided here and never reconsidered.
+    if (L3_BASH_EXCLUDING_PUSH_TARGET_RE.search(cmd)
+            or L3_BASH_EXCLUDING_PUSH_TARGET_RE.search(norm)):
+        return True, False
+    if L3_BASH_RE.search(cmd) or L3_BASH_RE.search(norm):
+        # Only the whole-line push gap matched. Stay L3 unless BOTH spellings are
+        # provably targeting unprotected refs. `and`, not `or`: the normalised
+        # form exists so a global-option spelling cannot duck the rule, so a
+        # clearance holding for only one of the two is no clearance. Any doubt
+        # inside the helper returns False.
+        if not (push_targets_are_all_unprotected(cmd)
+                and push_targets_are_all_unprotected(norm)):
+            return True, False
+        return False, True
+    return False, False
+
+
+def _classify_bash(cmd: str) -> int:
+    """Tier for one Bash command. Extracted from `classify` under the 40-line rule.
+
+    Order is load-bearing: L3 first so nothing can talk a strategic action down,
+    then the read-only and outward rules, each of which LOWERS the tier and so
+    must never see a push the narrowing has already cleared.
+    """
+    # RA-7386: also test the form with git's global options stripped, so
+    # `git -C . push origin main` cannot duck the L3 rules. Original OR
+    # normalised, so this can only ever RAISE the tier — and deliberately
+    # NOT applied to READ_ONLY_BASH, where a hit LOWERS it.
+    norm = strip_git_global_opts(cmd)
+    is_l3, push_subtracted = _bash_is_l3(cmd, norm)
+    if is_l3:
+        return TIER_IRREVERSIBLE
+    # A subtracted push must not fall into the read-only branch. READ_ONLY_BASH
+    # matches on the FIRST command in a chain, so `git status && git push
+    # origin feature/x && echo main` would score L0 — a WRITE classified as a
+    # read. That over-match is older than this change and reachable without it
+    # (the same command minus `echo main` already scores L0 on main, filed as
+    # RA-7410), but the narrowing routes a new class of command into it, so it
+    # is floored here rather than left to be inherited.
+    if READ_ONLY_BASH.search(cmd) and not push_subtracted:
+        return TIER_READ
+    # `or push_subtracted` for the same reason as the floor above, one tier
+    # down. L2_BASH's push pattern carries the SAME whole-line lookahead —
+    # `git push` not followed anywhere by a protected token — because L3 used
+    # to own every command that had one. Now that L3 subtracts some of them,
+    # they fall out of L2's lookahead too and would land at L1: `git push
+    # origin feature/x && echo main` scoring BELOW the identical
+    # `git push origin feature/x && echo hi`, which is L2. A subtracted push
+    # is still a push, so it is outward by L2_BASH's own intent.
+    if L2_BASH.search(cmd) or L2_BASH.search(norm) or push_subtracted:
+        return TIER_OUTWARD
     return TIER_LOCAL
 
 

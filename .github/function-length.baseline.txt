@@ -590,7 +590,6 @@
 42	ff8f2cda7577	swarm/inbox/preamble_trainer.py::write_preamble
 42	711844329f09	swarm/meta_curator.py::_draft_skill_md_stub
 42	ca40212c9fa8	swarm/meta_curator.py::reject_proposal
-42	42a419dc1bbe	swarm/nexus/autonomy_ladder.py::classify
 42	7a2700453ba4	swarm/pii_classify.py::_make_classifier_with_anthropic
 42	70c3f7dcd57c	swarm/pilot/feedback.py::handle_callback
 42	036f82e1b16f	swarm/providers/stripe_xero.py::_xero_cash_and_cogs
