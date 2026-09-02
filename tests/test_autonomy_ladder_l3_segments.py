@@ -9,7 +9,7 @@ Two patterns in `swarm/nexus/autonomy_ladder.py` classified on raw line text:
 2. The push rules' ``[^\\n]*`` gap spans the whole line, so any later ``main``
    token supplies the match. A feature-branch push chained with a read-only
    ``git rev-parse origin/main`` classifies L3 though nothing touches a
-   protected ref. **Not fixed — deliberately.** See the xfail block below.
+   protected ref. **Fixed in RA-7383 by design 4** — see below.
 
 Both are fail-closed: the cost is lost capability, not unsafe passage. A fix is
 therefore held to a strict standard — it may only remove false positives, never
@@ -31,10 +31,23 @@ add a bypass. Three designs failed that bar, each killed by measurement:
    characters closes it and turns the pattern catastrophically backtracking
    (42 s on 18 quoted arguments — a DoS inside a PreToolUse hook).
 
-So the push gap stays whole-line and the three false positives stay. The
-must-block half of this suite is the load-bearing half: it carries every
-reproducing command from all three review rounds, so any future narrowing has
-to clear all of them at once.
+Design 4 (RA-7383) cleared the bar by **inverting the failure direction**. The
+whole-line match stays authoritative and is never weakened; a separate parser
+(``autonomy_rules.push_targets_are_all_unprotected``) may only ever SUBTRACT a
+push verdict, and only when it is certain. Certainty is defined by refusal: any
+quote, ``$``, backtick or backslash in the push segment, any unrecognised flag,
+any missing refspec, any destination that is not a plain branch name — the parse
+is abandoned and the whole-line verdict stands. That single rule retires all
+three earlier leak classes at once, because every one of them is a command this
+refuses to reason about. An imperfect parse now costs a redundant prompt instead
+of a bypass, which is what the first three designs could not offer.
+
+The must-block half of this suite is the load-bearing half: it carries every
+reproducing command from all three review rounds plus the adversarial round that
+attacked design 4 itself, so any future narrowing has to clear all of them at
+once. Two of those adversarial cases were live leaks in design 4's first draft
+(``git push origin HEAD`` and ``git push origin @`` — both name whatever branch
+is checked out, which may be main) and were found by probe, not by review.
 """
 from __future__ import annotations
 
@@ -58,7 +71,19 @@ def _ladder():
     return module
 
 
+def _rules():
+    """Load the rule table module directly, for parser-level assertions."""
+    spec = importlib.util.spec_from_file_location(
+        "autonomy_rules_under_test", REPO_ROOT / "swarm" / "nexus" / "autonomy_rules.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
 LADDER = _ladder()
+RULES = _rules()
 
 
 def is_l3(command: str) -> bool:
@@ -188,26 +213,6 @@ def test_l3_later_in_a_chain_is_still_caught(command):
 def test_extra_whitespace_does_not_sever_a_signature(command):
     """Guards against any implementation treating whitespace runs as boundaries."""
     assert is_l3(command), f"whitespace severed a signature: {command}"
-
-
-# --- Known residual, recorded rather than papered over ----------------------
-
-@pytest.mark.xfail(strict=True, reason=(
-    "RA-7382 residual: the push gap is whole-line, so a later `main` token in a "
-    "chained read-only command satisfies the rule. Fail-closed — one redundant "
-    "approval prompt, no unsafe passage. Three regex narrowings were measured "
-    "and all opened bypasses; the safe shape must fail closed and be computed "
-    "in code, tracked separately. strict=True so a real fix flips this red and "
-    "forces the module comment and this docstring to be updated with it."
-))
-@pytest.mark.parametrize("command", [
-    "git push origin HEAD:refs/heads/claude/my-feature && git rev-parse --short origin/main",
-    "git push -u origin feature/x && git log --oneline origin/main -1",
-    "git push origin feature/x | tee main.log",
-])
-def test_feature_push_with_unrelated_main_token_is_not_l3(command):
-    """Documented false positive: a later `main` token still makes a push L3."""
-    assert not is_l3(command), f"feature-branch push misclassified as L3: {command}"
 
 
 # --- Non-regression across the rest of the L3 set ---------------------------
