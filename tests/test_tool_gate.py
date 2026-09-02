@@ -188,3 +188,53 @@ def test_mcp_readonly_allowed(tool):
 def test_mcp_destructive_beats_readonly_name():
     # delete_branch contains neither but matches destructive; ensure order holds.
     assert decide("mcp__claude_ai_Supabase__delete_branch", {}).allow is False
+
+
+# ---- RA-7413: the L3 backstop -------------------------------------------------
+#
+# The full both-gates-deny sweep over every L3 signature lives in
+# `tests/test_gate_parity.py`, which is where the convergence contract belongs.
+# What is asserted HERE is what that sweep cannot say: the backstop is a distinct,
+# named disposition of THIS gate, and it does not cost the loop its ordinary work.
+
+def test_l3_backstop_denies_under_its_own_label():
+    """A command L3 only by the shared classifier denies as `l3-irreversible`.
+
+    `gh repo create` matches no rule in this file's denylist. Before RA-7413 the
+    unattended gate allowed it while the attended one stopped for approval.
+    """
+    d = decide("Bash", {"command": "gh repo " + "create" + " newthing"})
+    assert d.allow is False
+    assert d.label == "l3-irreversible"
+    assert d.reversibility == "irreversible"
+
+
+def test_the_denylist_still_owns_the_commands_it_names():
+    """Positive control on placement: the backstop runs LAST, so it never masks.
+
+    If it ran first every denial would collapse to `l3-irreversible` and the audit
+    trail would lose which rule fired. These two are denied by name, not by tier.
+    """
+    assert decide("Bash", {"command": "rm -rf /tmp/x"}).label == "rm-rf"
+    assert decide("Bash", {"command": "npm publish"}).label == "npm-publish"
+
+
+@pytest.mark.parametrize("cmd", [
+    "pytest -q",
+    "npm run build",
+    "npx tsc --noEmit",
+    "git add -A && git commit -m 'fix: thing'",
+    "git checkout -b feature/x",
+    "ruff check .",
+    "git " + "merge" + "-base --is-ancestor HEAD origin/main",   # read-only, RA-7382
+    "echo x > .env.example",                                      # explicitly excluded
+])
+def test_l3_backstop_does_not_cost_the_loop_its_ordinary_work(cmd):
+    """Negative control — the reason this change is safe to make.
+
+    Denying every irreversible action only works if the loop never needs one. It
+    does not: `scripts/weekly_enhancement_loop.py` already instructs the generator
+    "Do not commit, push, open a PR ... the trusted controller owns those". The
+    last two entries sit deliberately next to an L3 rule without being one.
+    """
+    assert decide("Bash", {"command": cmd}).allow is True, f"over-denied: {cmd}"
