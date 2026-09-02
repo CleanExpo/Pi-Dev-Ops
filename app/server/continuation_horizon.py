@@ -97,6 +97,9 @@ def arm_objective(*, objective: str, source: str, chat_id: str = "") -> dict[str
             "latest_instruction": instruction,
             "objective_updates": [],
             "source": source,
+            # RA-7373: `source` is overwritten by every later refinement, so it
+            # tracks the latest instruction, not the objective. See operator_context.
+            "objective_source": source,
             "chat_id": chat_id or current.get("chat_id", ""),
             "completed": False,
             "completion_evidence": [],
@@ -173,7 +176,13 @@ def should_continue() -> bool:
         return False
     steps = state.get("steps") if isinstance(state.get("steps"), list) else []
     if not steps:
-        return True
+        # RA-7373. An empty horizon means "nothing queued", not "continue
+        # indefinitely". This returned True, and `set_horizon()` has no caller
+        # outside tests, so `steps` was never populated by anything that ships
+        # — making the Stop hook block unconditionally, forever, with no
+        # horizon to work through. A guard that cannot pass carries no more
+        # information than one that cannot fail.
+        return False
     return any(s.get("status") not in {"done", "verified", "complete", "blocked_protected"} for s in steps)
 
 
@@ -191,10 +200,23 @@ def operator_context() -> str:
         "- Continue safe work without asking for another human prompt.",
         "- Protected actions remain gated; mark them blocked_protected and continue other safe lanes.",
         "- Stop only when the objective is verified complete, a real safety/authority boundary blocks all useful work, or the kill switch is active.",
+        # RA-7373: name the exit. The line above says WHEN to stop and never
+        # said HOW to record it, so the one mechanism that clears the guard was
+        # undiscoverable — it appears in no other line of this contract and in
+        # none of the repo's markdown.
+        "- Record completion with continuation_horizon.mark_complete(evidence); that is the only thing that clears this guard.",
     ]
     if objective:
         lines.append(f"- Root objective: {objective}")
-    if latest and latest != objective:
+    # RA-7373: only surface a refinement that belongs to THIS objective's
+    # context. One global state key is armed from every surface (claude,
+    # telegram, slack, subagents), so an unrelated prompt was being rendered to
+    # an agent as a refinement of its own objective. `objective_source` is
+    # absent on state written before this change — treat unknown as "cannot
+    # verify" and stay silent rather than risk showing another context's work.
+    same_context = bool(state.get("objective_source")) and \
+        state.get("source") == state.get("objective_source")
+    if latest and latest != objective and same_context:
         lines.append(f"- Latest refinement: {latest}")
     if pending:
         lines.append("- Current pending horizon: " + " | ".join(str(s.get("title")) for s in pending[:HORIZON_TARGET]))
