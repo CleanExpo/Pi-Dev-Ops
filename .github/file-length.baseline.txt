@@ -137,7 +137,6 @@
 368	4a9889591684	app/server/autopr.py
 368	96e54eaa4e50	scripts/margot_generate.py
 364	65a0da907cb5	app/server/youtube_connector.py
-361	579d36bc0986	swarm/nexus/autonomy_ladder.py
 361	2792f8c24296	tests/test_ra7216_acceptance_events.py
 360	190cf0c91743	swarm/portfolio_pulse.py
 359	a9e6a87af04a	app/server/agents/plan_discovery.py
