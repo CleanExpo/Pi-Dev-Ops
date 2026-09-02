@@ -80,3 +80,25 @@ def snapshot(fetch: Callable[[str], "tuple[int, str]"]) -> dict[str, Any]:
     out["degraded"] = bool(errors)
     out["errors"] = errors
     return out
+
+
+def read(fetch: Callable[[str], "tuple[int, str]"], path: str) -> "tuple[list, str | None]":
+    """Rows for `path`, or `(…, reason)` when the read cannot be trusted.
+
+    THE POINT OF THE SIGNATURE. This takes the FETCHER, not a body, so there is
+    no way to reach rows without the status having been considered. The helper
+    it replaces took a body alone (`_rows(body)`), which made
+    `_, body = _sb("GET", …)` the natural call — and that idiom was written five
+    separate times in `routes/mesh.py`, once destructively (RA-7405). A parser
+    that never sees the status cannot report an HTTP failure, so every caller
+    had to remember to check, and none did.
+
+    `_sb` raises on a transport error but RETURNS on a non-2xx from PostgREST,
+    which is the dangerous half: an expired service-role key answers 401 with a
+    valid JSON error object on every read, so nothing raises and every list
+    comes back empty. That case is `http-401` here rather than silence.
+    """
+    status, body = fetch(path)
+    if status >= 300:
+        return [], f"http-{status}"
+    return parse_rows(body)

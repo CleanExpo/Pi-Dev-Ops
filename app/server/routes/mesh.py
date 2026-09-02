@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, mesh_fleet
+from .. import config, mesh_fleet, mesh_reaper
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -74,6 +74,15 @@ def _sb(method: str, path: str, body: Any = None, *, prefer: str = "") -> tuple[
         return e.code, e.read().decode(errors="replace")
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"Supabase request failed: {e}") from e
+
+
+def _get(path: str) -> tuple[int, str]:
+    """The only sanctioned read path: hand this to `mesh_fleet.read`.
+
+    Reads go through `mesh_fleet.read(_get, path)` so the status cannot be
+    dropped on the way to the rows. See RA-7405 and `mesh_fleet.read`.
+    """
+    return _sb("GET", path)
 
 
 def _prune_idle_agents(host: str) -> None:
@@ -273,42 +282,14 @@ def _mark_issue_reaped(linear_id: str) -> bool:
 
 
 def _reap_stale_claims() -> list[dict]:
-    """Release claims stuck in claimed/working past MESH_CLAIM_TTL_MINUTES,
-    freeing the mesh_work_claims_one_open unique index so the ticket becomes
-    claimable again. Guarded by machine liveness: a claim past TTL is only
-    reaped when the claiming machine's heartbeat is itself stale or absent
-    (mesh_fleet.is_stale) — a live heartbeat means the runner may legitimately
-    still be inside its up-to-3600s agent run, so leave it alone."""
-    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=MESH_CLAIM_TTL_MINUTES)).isoformat()
-    _, body = _sb(
-        "GET",
-        "mesh_work_claims?select=id,linear_id,machine,claimed_at&state=in.(claimed,working)"
-        f"&claimed_at=lt.{urllib.parse.quote(cutoff)}",
-    )
-    candidates = _rows(body)
-    if not candidates:
-        return []
-    _, fleet_body = _sb("GET", "mesh_fleet?select=host,is_stale")
-    stale_by_host = {m["host"]: m.get("is_stale") for m in _rows(fleet_body)}
-    now_iso = datetime.now(timezone.utc).isoformat()
-    reaped: list[dict] = []
-    for c in candidates:
-        machine = c.get("machine")
-        if machine is not None and stale_by_host.get(machine) is False:
-            continue  # fresh heartbeat — runner may still be legitimately working
-        status, body = _sb(
-            "PATCH",
-            f"mesh_work_claims?id=eq.{c['id']}&state=in.(claimed,working)",
-            {"state": "released", "released_at": now_iso},
-            prefer="return=representation",
-        )
-        # return=representation: a 0-row response means a racing reap (or the
-        # runner itself) already flipped this claim's state — don't record a
-        # reap or fire a redundant Linear transition for a row we didn't touch.
-        if status < 300 and _rows(body):
-            reaped.append({"linear_id": c["linear_id"], "machine": machine})
-            _mark_issue_reaped(c["linear_id"])
-    return reaped
+    """Release claims stuck past MESH_CLAIM_TTL_MINUTES whose machine is not
+    demonstrably alive, freeing the mesh_work_claims_one_open unique index.
+
+    The sweep itself lives in `mesh_reaper`, which takes its collaborators as
+    arguments so it needs no HTTP to test. They are passed at CALL time, so a
+    test that monkeypatches `mesh._sb` still reaches the fake. See RA-7405 for
+    why a failed read must abort this rather than reap blind."""
+    return mesh_reaper.reap(_get, _sb, _mark_issue_reaped, MESH_CLAIM_TTL_MINUTES)
 
 
 def _reap_sweep_best_effort() -> None:
@@ -322,24 +303,21 @@ def _reap_sweep_best_effort() -> None:
         log.warning("inline reap sweep failed (%s), continuing without it", e.detail)
 
 
-def _rows(body: str) -> list:
-    """Parse a PostgREST body to a list of row dicts; [] on error or error-object."""
-    try:
-        data = json.loads(body)
-    except (json.JSONDecodeError, TypeError):
-        return []
-    return [r for r in data if isinstance(r, dict)] if isinstance(data, list) else []
-
-
 def _online_machines() -> list[dict]:
     """Online, non-stale nodes, least-loaded first."""
-    _, body = _sb("GET", "mesh_fleet?select=host,is_stale,active_agents,load1&order=load1.asc.nullslast")
-    return [m for m in _rows(body) if not m.get("is_stale")]
+    rows, problem = mesh_fleet.read(
+        _get, "mesh_fleet?select=host,is_stale,active_agents,load1&order=load1.asc.nullslast")
+    if problem:
+        raise HTTPException(503, f"fleet read failed ({problem}); cannot pick a target machine")
+    return [m for m in rows if not m.get("is_stale")]
 
 
 def _open_claim_ids() -> set:
-    _, body = _sb("GET", "mesh_work_claims?select=linear_id&state=in.(claimed,working)")
-    return {r["linear_id"] for r in _rows(body) if r.get("linear_id")}
+    rows, problem = mesh_fleet.read(
+        _get, "mesh_work_claims?select=linear_id&state=in.(claimed,working)")
+    if problem:
+        raise HTTPException(503, f"open-claim read failed ({problem}); cannot tell what is claimed")
+    return {r["linear_id"] for r in rows if r.get("linear_id")}
 
 
 class DispatchRequest(BaseModel):
@@ -366,8 +344,9 @@ async def claims(
     q = "mesh_work_claims?select=*&state=in.(claimed,working)&order=claimed_at.desc"
     if machine:
         q += f"&machine=eq.{urllib.parse.quote(machine)}"
-    _, body = _sb("GET", q)
-    return {"claims": _rows(body)}
+    rows, problem = mesh_fleet.read(_get, q)
+    return {"claims": rows, "degraded": bool(problem),
+            "errors": [{"source": "claims", "reason": problem}] if problem else []}
 
 
 @router.post("/claim/update")
@@ -389,7 +368,7 @@ async def claim_update(
     # reaper released it and another runner re-claimed) still 2xxs, so gate the
     # reversal on rows actually returned or a stale runner's `released` would
     # yank a freshly re-claimed ticket back to Todo.
-    if u.state == "released" and status < 300 and _rows(body):
+    if u.state == "released" and status < 300 and mesh_fleet.parse_rows(body)[0]:
         # A HARD_STOP-released claim must return its Linear issue to the
         # unstarted pool, same as a reaped claim — otherwise it strands
         # In Progress forever even though the mesh_work_claims row is freed.
