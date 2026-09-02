@@ -27,6 +27,34 @@ from __future__ import annotations
 import re
 from typing import Any, Optional
 
+# RA-7387: the L3 Bash rule table lives next door so it can grow — this file
+# sits on a size-gate baseline. Re-exported so every existing importer of
+# `autonomy_ladder.L3_BASH_RE` keeps working unchanged.
+#
+# THE FALLBACK IS LOAD-BEARING, not defensive clutter. This module is also
+# loaded BY PATH, with no package context — `tests/test_autonomy_ladder_l3_
+# segments.py` does exactly that and says why: "`swarm.nexus` need not be
+# importable". A relative import raises ImportError under that loader, so the
+# split would have silently traded one gate bypass for an unloadable gate. The
+# live PreToolUse hook imports as a package (`.claude/hooks/autonomy_gate_hook`
+# puts the repo root on sys.path first), so it takes the fast path above; the
+# fallback exists for every other loader.
+try:
+    from .autonomy_rules import (  # noqa: F401
+        L3_BASH_RE, SEGMENT_RULES, WHOLE_RULES, _L3_BASH,
+    )
+except ImportError:  # pragma: no cover - exercised by the by-path test loader
+    import importlib.util as _ilu
+    from pathlib import Path as _Path
+
+    _spec = _ilu.spec_from_file_location(
+        "autonomy_rules", _Path(__file__).with_name("autonomy_rules.py"))
+    _rules = _ilu.module_from_spec(_spec)
+    assert _spec.loader is not None
+    _spec.loader.exec_module(_rules)
+    L3_BASH_RE, _L3_BASH = _rules.L3_BASH_RE, _rules._L3_BASH
+    SEGMENT_RULES, WHOLE_RULES = _rules.SEGMENT_RULES, _rules.WHOLE_RULES
+
 # --- Tiers (DeepMind AGI→ASI continuum mapped to autonomy-ladder L0-L3) ------
 TIER_READ = 0          # L0 — read-only / advise
 TIER_LOCAL = 1         # L1 — reversible single-domain act
@@ -93,25 +121,6 @@ L2_BASH = re.compile(
 # is uncertain) is the only safe shape left, and it has to be computed in code
 # with a bound, not spelled as a regex. Tracked separately; do not retry a
 # regex tweak here.
-_L3_BASH = [
-    r"\bgit\s+merge(?![-\w])",                                       # merge; NOT merge-base/-file/-tree
-    r"\bgh\s+pr\s+merge\b",                                          # PR merge to base
-    r"\bgit\s+push\b[^\n]*\b(origin\s+)?(main|master|prod|production)\b",  # push to main/prod
-    r"\bgit\s+push\b[^\n]*--force[^\n]*\b(main|master)\b",           # force-push main
-    r"\bvercel\b[^\n]*(--prod|\bpromote\b)",                         # prod deploy / promote
-    r"\bvercel\s+deploy\b",                                          # deploy (prod by default)
-    r"\bsupabase\s+db\s+push\b",                                     # prod DB migration
-    r"\bprisma\s+migrate\s+deploy\b",
-    r"\bsupabase\s+migration\s+up\b",
-    r"\bgh\s+secret\s+set\b",                                        # secret rotation
-    r"\bvercel\s+env\s+(add|rm|remove)\b",                           # env-secret write
-    r">>?\s*(?!\S*\.env\.example)\S*\.env(\.[a-z]+)?\b",             # write to a real .env
-    r"\bvercel\s+project\s+add\b",                                  # new service
-    r"\bsupabase\s+projects?\s+create\b",
-    r"\bgh\s+repo\s+create\b",
-    r"\bgh\s+api\b[^\n]*branches[^\n]*protection",                  # branch-strategy change
-]
-L3_BASH_RE = re.compile("|".join(_L3_BASH), re.IGNORECASE)
 
 # --- L3: strategic / irreversible — non-Bash tool-name signatures ----------
 # MCP + built-in tool names that are inherently L3.
@@ -122,102 +131,6 @@ L3_TOOL_RE = re.compile(
 )
 # Destructive/strategic verbs in an otherwise-unknown tool name -> higher tier.
 L3_VERB_RE = re.compile(r"(rotate|charge|payout|transfer|drop_)", re.IGNORECASE)
-
-
-# ===========================================================================
-# SDK-loop destructive denylist (unattended surface).
-# The autonomous generator runs default-deny; on top of the shared L3 set above
-# it also refuses LOCAL-destructive commands with no undo path (rm -rf, mkfs,
-# dd, DROP TABLE, curl|sh, ...). These are tier-L3 by reversibility but the CLI
-# hook lets a *present human* handle them via the normal prompt — hence they
-# live in the SDK subset, not L3_BASH. See RA-6882 spec §D3.
-# ===========================================================================
-
-# Per-segment rules: matched against each shell segment independently.
-SEGMENT_RULES: list[tuple[str, re.Pattern[str]]] = [
-    ("rm-rf", re.compile(
-        r"\brm\b(?=(?:[^\n]*\s-{1,2}[a-z-]*r))(?=(?:[^\n]*\s-{1,2}[a-z-]*f))",
-        re.IGNORECASE)),
-    ("find-delete", re.compile(r"\bfind\b[^\n]*\s-delete\b", re.IGNORECASE)),
-    ("find-exec-rm", re.compile(r"\bfind\b[^\n]*-exec\s+rm\b", re.IGNORECASE)),
-
-    # --- Work-discard family (RA-7384) --------------------------------------
-    # Irrecoverably discards uncommitted or stashed work. These belong HERE and
-    # not in _L3_BASH, for the reason this section's header gives: they are
-    # locally destructive with no undo path, so the unattended loop must not
-    # self-authorize them, while a PRESENT human is the right judge and keeps
-    # the normal permission prompt. `classify()` therefore still returns L1 for
-    # them by design — the tier is not the control, this denylist is.
-    #
-    # The gap this closes: `git reset --hard` was reachable by the unattended
-    # generator with no gate of any kind, though it destroys uncommitted work
-    # unconditionally — while `git merge --abort`, which only undoes an
-    # in-progress merge, sat at L3 needing human approval. The dangerous command
-    # was the ungated one.
-    #
-    # Each rule denies only the destroying spelling. Modes that leave the
-    # worktree intact (`reset --soft/--mixed`, `restore --staged`, `clean -n`)
-    # or that git itself refuses when work would be lost (`reset --keep`, a
-    # plain `checkout <branch>`) stay allowed: this must not cost the loop
-    # ordinary git.
-    ("git-reset-discard", re.compile(
-        r"\bgit\s+reset\b[^\n]*\s--(?:hard|merge)\b", re.IGNORECASE)),
-    # `--force(?![-\w])` so `git switch --force-create` (branch creation) is not
-    # swept up; `-p` cannot work unattended anyway and still discards.
-    ("git-checkout-discard", re.compile(
-        r"\bgit\s+(?:checkout|switch)\b[^\n]*"
-        r"(?:\s--(?:force|discard-changes)(?![-\w])|\s-[a-z]*f\b"
-        r"|\s--\s|\s\.\s*$|\s-p\b|\s--patch\b)",
-        re.IGNORECASE)),
-    # `git checkout <tree-ish> <pathspec>` restores files over the worktree
-    # without any of the markers above — `git checkout HEAD src/app.py`. Two
-    # non-option operands is the discriminator; the branch-creating spellings
-    # (`-b`, `-B`, `--track`, `--orphan`) legitimately take two and are excluded.
-    # Both operands must be non-option, or `git checkout -q main` backtracks
-    # into a match.
-    ("git-checkout-pathspec", re.compile(
-        r"\bgit\s+checkout\b(?![^\n]*\s-[bB]\b)"
-        r"(?![^\n]*\s--(?:track|no-track|orphan)\b)"
-        r"(?:\s+-\S+)*\s+[^-\s]\S*\s+[^-\s]\S*",
-        re.IGNORECASE)),
-    ("git-restore-worktree", re.compile(
-        r"\bgit\s+restore\b(?:(?![^\n]*\s--staged\b)|[^\n]*\s--worktree\b)",
-        re.IGNORECASE)),
-    ("git-clean-force", re.compile(
-        r"\bgit\s+clean\b[^\n]*\s(?:--force\b|-[a-z]*f[a-z]*\b)", re.IGNORECASE)),
-    ("git-stash-discard", re.compile(
-        r"\bgit\s+stash\s+(?:drop|clear)\b", re.IGNORECASE)),
-    ("git-force-push", re.compile(
-        r"\bgit\s+push\b[^\n]*\s(?:--force\b|--force-with-lease\b|-[a-z]*f\b|\+[\w./-]+)",
-        re.IGNORECASE)),
-    ("sql-drop", re.compile(r"\bDROP\s+(?:TABLE|DATABASE|SCHEMA)\b", re.IGNORECASE)),
-    ("sql-truncate", re.compile(r"\bTRUNCATE\s+(?:TABLE\s+)?\w", re.IGNORECASE)),
-    ("sql-delete-no-where", re.compile(
-        r"\bDELETE\s+FROM\b(?![\s\S]*\bWHERE\b)", re.IGNORECASE)),
-    ("vercel-prod", re.compile(r"\bvercel\b[^\n]*--prod\b", re.IGNORECASE)),
-    ("supabase-db-push", re.compile(r"\bsupabase\s+db\s+push\b", re.IGNORECASE)),
-    ("prisma-migrate", re.compile(r"\bprisma\s+migrate\s+(?:deploy|reset)\b", re.IGNORECASE)),
-    ("npm-publish", re.compile(r"\bnpm\s+publish\b", re.IGNORECASE)),
-    ("gh-release", re.compile(r"\bgh\s+release\s+create\b", re.IGNORECASE)),
-    ("terraform", re.compile(r"\bterraform\s+(?:apply|destroy)\b", re.IGNORECASE)),
-    ("kubectl-delete", re.compile(r"\bkubectl\s+delete\b", re.IGNORECASE)),
-    ("mkfs", re.compile(r"\bmkfs\b", re.IGNORECASE)),
-    ("dd-to-device", re.compile(r"\bdd\b[^\n]*\bof=/dev/", re.IGNORECASE)),
-]
-
-# Whole-command rules: inherently cross-segment (a pipe IS the payload).
-WHOLE_RULES: list[tuple[str, re.Pattern[str]]] = [
-    ("pipe-to-shell", re.compile(
-        r"(?:curl|wget|fetch|base64)\b[^\n]*\|\s*(?:sudo\s+)?(?:ba)?sh\b", re.IGNORECASE)),
-    ("eval-exec", re.compile(r"\beval\s+[\"'$]", re.IGNORECASE)),
-    ("interpreter-delete", re.compile(
-        r"\b(?:python3?|node|ruby|perl)\b[^\n]*\s-[ce]\b[^\n]*"
-        r"(?:rmtree|os\.remove|os\.unlink|unlinkSync|rmSync|File\.delete)",
-        re.IGNORECASE)),
-]
-
-# Split on shell command separators — but NOT a bare pipe, so pipelines stay
-# intact (handled by WHOLE_RULES) and `find ... | xargs rm` is not severed.
 SHELL_SEP = re.compile(r"&&|\|\||;|\n")
 
 # --- Git global options (RA-7386) ------------------------------------------

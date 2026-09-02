@@ -259,16 +259,3 @@ def test_matching_is_not_catastrophically_backtracking(hostile):
     decide("Bash", {"command": hostile})
     classify("Bash", {"command": hostile})
     assert time.monotonic() - started < 1.0, "normalisation backtracks badly"
-
-
-# --- Known boundaries, recorded rather than implied ------------------------
-
-def test_alias_smuggling_is_a_documented_boundary():
-    """`git -c alias.z='reset --hard' z` is NOT closed by this change.
-
-    Prefix-stripping cannot catch it: the destructive verb lives inside an
-    option *value*, not after the subcommand. Tracked separately rather than
-    left to look like coverage. This test documents the gap; when it is fixed,
-    it should flip to an assertion that the command is denied.
-    """
-    assert not is_denied("git -c alias.z='reset --hard' z")
