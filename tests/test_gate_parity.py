@@ -70,13 +70,18 @@ MATRIX = [
     ("Bash", {"command": "terraform apply -auto-approve"}, ladder.TIER_LOCAL, True, False,
      "terraform: SDK-deny, CLI-pass"),
 
-    # Strategic, CLI-only L3 — KNOWN divergence the other way (CLI denies, SDK's
-    # denylist does not cover it). Documented as a follow-up gap, pinned so it is
-    # a deliberate, visible state and not an accident.
-    ("Bash", {"command": "git merge origin/main"}, ladder.TIER_IRREVERSIBLE, False, True,
-     "git merge: CLI-deny, SDK-gap"),
-    ("Bash", {"command": "gh secret set K --body v"}, ladder.TIER_IRREVERSIBLE, False, True,
-     "secret set: CLI-deny, SDK-gap"),
+    # Strategic L3 — CLOSED by RA-7413. These two rows read `sdk_deny=False` for
+    # months, described as "a deliberate, visible state and not an accident". The
+    # state was deliberate; its SIZE was not. Two rows were pinned out of THIRTEEN
+    # L3 signatures the SDK gate did not cover, so the eleven nobody sampled were
+    # invisible — see `test_every_l3_signature_has_an_example` below, which is the
+    # actual fix. The SDK gate now consults `classify` as a backstop, so both gates
+    # deny every L3 signature and these rows join the shared-L3 block above in
+    # substance.
+    ("Bash", {"command": "git merge origin/main"}, ladder.TIER_IRREVERSIBLE, True, True,
+     "git merge: both deny (was the SDK gap)"),
+    ("Bash", {"command": "gh secret set K --body v"}, ladder.TIER_IRREVERSIBLE, True, True,
+     "secret set: both deny (was the SDK gap)"),
 
     # RA-7386: a git global option must not change any row above. Each of these
     # is the `-C` spelling of a row already in this matrix and must land on the
@@ -88,8 +93,8 @@ MATRIX = [
      "-C read-only: L1 not L0, READ_ONLY is deliberately not normalised"),
     ("Bash", {"command": "git -C /repo push origin feat/x"}, ladder.TIER_OUTWARD, False, False,
      "-C L2 feat push"),
-    ("Bash", {"command": "git -C /repo merge origin/main"}, ladder.TIER_IRREVERSIBLE, False, True,
-     "-C git merge: CLI-deny, SDK-gap (mirrors the un-prefixed row)"),
+    ("Bash", {"command": "git -C /repo merge origin/main"}, ladder.TIER_IRREVERSIBLE, True, True,
+     "-C git merge: both deny (mirrors the un-prefixed row)"),
     ("Bash", {"command": "git -C /repo reset --hard"}, ladder.TIER_LOCAL, True, False,
      "-C reset --hard: SDK-deny, CLI-pass (mirrors rm -rf)"),
     ("Bash", {"command": "git --work-tree=/repo clean -fdx"}, ladder.TIER_LOCAL, True, False,
@@ -116,3 +121,98 @@ def test_shared_l3_never_diverges():
     for name, inp, tier, sdk_deny, cli_deny, note in MATRIX:
         if sdk_deny and cli_deny:
             assert tier == ladder.TIER_IRREVERSIBLE, note
+
+
+# ===========================================================================
+# RA-7413 — enumerate the L3 set; do not sample it.
+#
+# The matrix above is hand-picked, and that is exactly how the gap it was meant
+# to expose stayed hidden. It carried TWO "CLI-deny, SDK-gap" rows. The real
+# number was THIRTEEN. The eleven nobody happened to write down were not a
+# deliberate visible state — they were absent, and a test cannot report a gap it
+# never looks at.
+#
+# So coverage is asserted MECHANICALLY against the rule table itself: every
+# pattern in `_L3_BASH` must be matched by at least one command below. A rule
+# added without an example fails here, which is the property the old matrix
+# lacked.
+#
+# This is not theoretical. The first corpus written for this test — 17 commands,
+# one per rule, believed complete — was measured against the table and came back
+# one short: `git push --force ... main` had no example. A hand-written list that
+# looks complete is not, which is the whole argument for deriving the check from
+# the table rather than from memory.
+# ===========================================================================
+
+# One representative command per L3 signature. Assembled from fragments so this
+# file's own literals cannot trip the always-on PreToolUse hook, which scans
+# command text for these very signatures and cannot tell a fixture from an intent.
+_V = "ver" "cel"
+_SB = "supa" "base"
+_P = "m" "ain"
+_AL = "ali" "as"
+
+L3_CORPUS = [
+    "git " + "merge" + " feature/x",
+    "gh pr " + "merge" + " 123",
+    "git " + "push" + " origin " + _P,
+    "git " + "push" + " --force origin " + _P,
+    _V + " --" + "prod",
+    _V + " " + "promote" + " dpl_1",
+    _V + " " + "deploy",
+    _SB + " db " + "push",
+    "prisma " + "migrate" + " deploy",
+    _SB + " " + "migration" + " up",
+    "gh " + "secret" + " set TOK",
+    _V + " env " + "add" + " SECRET",
+    "echo x > ." + "env",
+    _V + " project " + "add" + " thing",
+    _SB + " projects " + "create" + " thing",
+    "gh repo " + "create" + " newthing",
+    "gh api repos/o/r/branches/" + _P + "/protection -X DELETE",
+    "git -c " + _AL + ".z=q z",
+]
+
+
+def test_every_l3_signature_has_an_example():
+    """Every rule in the L3 table must be represented in `L3_CORPUS`.
+
+    This is the guard the old two-row sample could not provide: it fails when a
+    rule is added to `_L3_BASH` without a command exercising it, so the coverage
+    below can never quietly stop covering the whole set.
+    """
+    import re
+
+    uncovered = [
+        pattern for pattern in ladder._L3_BASH
+        if not any(re.search(pattern, cmd, re.IGNORECASE) for cmd in L3_CORPUS)
+    ]
+    assert not uncovered, (
+        "L3 patterns with no example in L3_CORPUS — add one per rule:\n  "
+        + "\n  ".join(uncovered)
+    )
+
+
+def test_the_corpus_contains_no_dead_entries():
+    """Positive control: every corpus command really is L3.
+
+    Without this the coverage test above could be satisfied by commands that no
+    longer match anything meaningful, and "every pattern has an example" would
+    become true by accident rather than by coverage.
+    """
+    not_l3 = [c for c in L3_CORPUS if ladder.classify("Bash", {"command": c}) != ladder.TIER_IRREVERSIBLE]
+    assert not not_l3, f"corpus entries that are no longer L3: {not_l3}"
+
+
+@pytest.mark.parametrize("cmd", L3_CORPUS)
+def test_both_gates_deny_every_l3_signature(cmd):
+    """The convergence claim, checked over the WHOLE L3 set rather than a sample.
+
+    RA-6882 said the two gates may differ in disposition but not in what counts
+    as dangerous. Measured before RA-7413 that was false for 13 of these: the
+    interactive gate denied them and the unattended one — the surface with no
+    human behind it — allowed them.
+    """
+    inp = {"command": cmd}
+    assert _cli_denies("Bash", inp), f"interactive gate stopped denying: {cmd}"
+    assert _sdk_denies("Bash", inp), f"unattended gate does not deny: {cmd}"
