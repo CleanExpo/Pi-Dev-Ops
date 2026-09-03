@@ -1,0 +1,13 @@
+{
+  "name": "bewg-site",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "BEWG building science site — content-driven static build",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check",
+    "serve": "node build.mjs && npx --yes serve dist -l 4173",
+    "test": "node build.mjs && node test/smoke.mjs"
+  }
+}
