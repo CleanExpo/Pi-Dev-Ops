@@ -3,11 +3,11 @@ from __future__ import annotations
 from scripts import runtime_model_guard as guard
 
 
-def test_sanitise_environment_blocks_ollama_gemma_and_pins_margot() -> None:
+def test_sanitise_environment_blocks_ollama_gemma_for_work_lanes() -> None:
     env = {
         "OLLAMA_BASE_URL": "http://old-local:11434",
         "TAO_CHEAP_MODEL": "ollama:gemma4:latest",
-        "TAO_MODEL_MARGOT_CASUAL": "openrouter:google/gemma-4-26b-a4b-it",
+        "TAO_MODEL_MONITOR": "openrouter:google/gemma-4-26b-a4b-it",
         "TAO_MODEL_OTHER": "openrouter:anthropic/claude-sonnet-latest",
     }
 
@@ -15,11 +15,31 @@ def test_sanitise_environment_blocks_ollama_gemma_and_pins_margot() -> None:
 
     assert "OLLAMA_BASE_URL" not in env
     assert "TAO_CHEAP_MODEL" not in env
+    assert "TAO_MODEL_MONITOR" not in env
     assert env["TAO_CHEAP_PROVIDER"] == "openrouter"
     assert env["TAO_CHEAP_REMOTE_MODEL"] == guard.SAFE_CHEAP_MODEL
-    assert env["TAO_MODEL_MARGOT_CASUAL"] == guard.MARGOT_MODEL
     assert env["TAO_MODEL_OTHER"] == "openrouter:anthropic/claude-sonnet-latest"
-    assert "TAO_MODEL_MARGOT_CASUAL" in changed
+    assert "TAO_MODEL_MONITOR" in changed
+
+
+def test_sanitise_environment_leaves_margot_casual_to_ra7434() -> None:
+    """RA-7434: margot.casual runs on a FREE ladder owned by provider_router.
+
+    The guard used to inject TAO_MODEL_MARGOT_CASUAL=<Sonnet> on every Railway
+    boot. provider_router now refuses any Anthropic model for that role, so the
+    injection would fail every Telegram turn closed. The guard must neither pin
+    that key nor strip a gemma value from it — the router polices it.
+    """
+    env = {"TAO_MODEL_MARGOT_CASUAL": "openrouter:google/gemma-4-26b-a4b-it:free"}
+    changed = guard.sanitise_environment(env)
+    assert env["TAO_MODEL_MARGOT_CASUAL"] == "openrouter:google/gemma-4-26b-a4b-it:free"
+    assert "TAO_MODEL_MARGOT_CASUAL" not in changed
+
+    env = {}
+    changed = guard.sanitise_environment(env)
+    assert "TAO_MODEL_MARGOT_CASUAL" not in env
+    assert "TAO_MODEL_MARGOT_CASUAL" not in changed
+    assert not hasattr(guard, "MARGOT_MODEL")
 
 
 def test_model_fabric_uses_serve_subcommand(monkeypatch, tmp_path) -> None:

@@ -19,8 +19,14 @@ from collections.abc import MutableMapping
 log = logging.getLogger("runtime_model_guard")
 
 SAFE_CHEAP_MODEL = "z-ai/glm-4.7-flash"
-MARGOT_MODEL = "openrouter:~anthropic/claude-sonnet-latest"
 OMNIROUTE_PORT = "20128"
+
+# RA-7434 (founder ruling 03/09/2026): margot.casual runs on a FREE ladder that
+# app.server.provider_router owns and polices (it refuses Kimi and every
+# Anthropic model itself). This guard used to inject a Sonnet pin for that key
+# on every boot; with the router's refusal that would fail every Telegram turn
+# closed. The key is left exactly as the environment supplies it.
+_ROUTER_OWNED_KEYS = {"TAO_MODEL_MARGOT_CASUAL"}
 
 _OLLAMA_ENV_KEYS = {
     "OLLAMA_BASE_URL",
@@ -56,6 +62,8 @@ def sanitise_environment(environ: MutableMapping[str, str]) -> list[str]:
         changed.append("TAO_CHEAP_MODEL")
 
     for key, value in list(environ.items()):
+        if key in _ROUTER_OWNED_KEYS:
+            continue
         if key.startswith("TAO_MODEL_") and _is_banned_model_spec(value):
             environ.pop(key, None)
             changed.append(key)
@@ -67,10 +75,6 @@ def sanitise_environment(environ: MutableMapping[str, str]) -> list[str]:
     if environ.get("TAO_CHEAP_REMOTE_MODEL") != SAFE_CHEAP_MODEL:
         changed.append("TAO_CHEAP_REMOTE_MODEL")
     environ["TAO_CHEAP_REMOTE_MODEL"] = SAFE_CHEAP_MODEL
-
-    if environ.get("TAO_MODEL_MARGOT_CASUAL") != MARGOT_MODEL:
-        changed.append("TAO_MODEL_MARGOT_CASUAL")
-    environ["TAO_MODEL_MARGOT_CASUAL"] = MARGOT_MODEL
 
     return sorted(set(changed))
 
