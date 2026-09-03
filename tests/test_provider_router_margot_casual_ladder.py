@@ -27,7 +27,7 @@ _ROUTER_ENV = (
     "TAO_CHEAP_MODEL", "TAO_CHEAP_PROVIDER",
     "TAO_CHEAP_LOCAL_MODEL", "TAO_CHEAP_REMOTE_MODEL",
     "TAO_TOP_USE_CLAUDE_PRINT", "TAO_MID_USE_CLAUDE_PRINT",
-    "OLLAMA_BASE_URL",
+    "OLLAMA_BASE_URL", "MARGOT_OLLAMA_BASE_URL",
 )
 
 
@@ -153,6 +153,33 @@ def test_step1_ollama_when_base_url_configured_and_reachable(monkeypatch):
     assert (pm.provider, pm.model_id) == ("ollama", "gemma4:latest")
     assert pm.source == "ladder-step-1"
     assert pm.tier == "cheap"
+
+
+def test_step1_prefers_margot_ollama_base_url_and_threads_it_to_the_call(monkeypatch, tmp_path):
+    """Round-2 P1: Railway's start guard strips OLLAMA_BASE_URL from every work
+    lane, so step 1 has its own key. The probe AND the call must target it."""
+    import asyncio  # noqa: PLC0415
+    import types  # noqa: PLC0415
+    monkeypatch.setenv("BUDGET_TRACKER_LOG_PATH", str(tmp_path / "llm-cost.jsonl"))
+    monkeypatch.setenv("MARGOT_OLLAMA_BASE_URL", "http://margot-ollama:11434/v1")
+    seen: dict = {}
+
+    def is_reachable(**kw):
+        seen["probe"] = kw
+        return True
+
+    async def call(*, prompt, model_id, timeout_s=120, role="", session_id="", base_url=None):
+        seen["call"] = (model_id, base_url)
+        return 0, "hi from gemma", 0.0, None
+
+    monkeypatch.setitem(sys.modules, "app.server.provider_ollama",
+                        types.SimpleNamespace(is_reachable=is_reachable, call=call))
+    pm = PR.select_provider_model("margot.casual")
+    assert pm.source == "ladder-step-1"
+    assert seen["probe"] == {"base_url": "http://margot-ollama:11434/v1"}
+    rc, text, _cost, _err = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
+    assert (rc, text) == (0, "hi from gemma")
+    assert seen["call"] == ("gemma4:latest", "http://margot-ollama:11434/v1")
 
 
 def test_step2_when_ollama_base_url_unset_even_if_probe_is_up(monkeypatch):

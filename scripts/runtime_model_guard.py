@@ -28,6 +28,10 @@ OMNIROUTE_PORT = "20128"
 # closed. The key is left exactly as the environment supplies it.
 _ROUTER_OWNED_KEYS = {"TAO_MODEL_MARGOT_CASUAL"}
 
+# MARGOT_OLLAMA_BASE_URL is deliberately NOT in this set: it is read only by
+# provider_router's margot.casual ladder (RA-7434, step 1) and by nothing else,
+# so keeping it cannot reopen a work lane to Ollama. The global OLLAMA_BASE_URL
+# still goes, because swarm/model_router, swarm/ollama_client and friends read it.
 _OLLAMA_ENV_KEYS = {
     "OLLAMA_BASE_URL",
     "OLLAMA_TIMEOUT_S",

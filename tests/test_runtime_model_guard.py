@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from scripts import runtime_model_guard as guard
 
 
@@ -40,6 +42,60 @@ def test_sanitise_environment_leaves_margot_casual_to_ra7434() -> None:
     assert "TAO_MODEL_MARGOT_CASUAL" not in env
     assert "TAO_MODEL_MARGOT_CASUAL" not in changed
     assert not hasattr(guard, "MARGOT_MODEL")
+
+
+def _apply_sanitised_env(monkeypatch, env: dict[str, str]) -> None:
+    for k in list(os.environ):
+        if k.startswith(("TAO_", "OLLAMA_")):
+            monkeypatch.delenv(k, raising=False)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+
+
+def test_guard_then_router_keeps_margot_ladder_step_1(monkeypatch) -> None:
+    """Round-2 P1 (Codex): the guard is Railway's start command; if it deletes
+    OLLAMA_BASE_URL, margot.casual's step 1 can never fire on Railway even when
+    the founder configures it. After sanitise_environment a configured,
+    reachable Ollama must still resolve margot.casual to ladder-step-1."""
+    from app.server import provider_ollama, provider_router  # noqa: PLC0415
+
+    env = {
+        "OLLAMA_BASE_URL": "http://ollama.local:11434/v1",
+        "MARGOT_OLLAMA_BASE_URL": "http://margot-ollama:11434/v1",
+    }
+    guard.sanitise_environment(env)
+    assert "OLLAMA_BASE_URL" not in env, "the work-lane strip must stay"
+    assert env["MARGOT_OLLAMA_BASE_URL"] == "http://margot-ollama:11434/v1"
+
+    _apply_sanitised_env(monkeypatch, env)
+    probes: list = []
+    monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: probes.append(kw) or True)
+
+    pm = provider_router.select_provider_model("margot.casual")
+    assert (pm.provider, pm.model_id, pm.source) == ("ollama", "gemma4:latest", "ladder-step-1")
+    assert probes == [{"base_url": "http://margot-ollama:11434/v1"}]
+
+
+def test_guard_then_router_still_keeps_work_lanes_off_ollama(monkeypatch) -> None:
+    """Control for the test above: keeping OLLAMA_BASE_URL must not reopen a
+    work lane to Ollama. The guard's TAO_CHEAP_PROVIDER=openrouter pin and its
+    stripping of ollama: per-role specs are what hold that line."""
+    from app.server import provider_ollama, provider_router  # noqa: PLC0415
+
+    env = {
+        "OLLAMA_BASE_URL": "http://ollama.local:11434/v1",
+        "MARGOT_OLLAMA_BASE_URL": "http://margot-ollama:11434/v1",
+        "TAO_MODEL_MONITOR": "ollama:qwen3.5:latest",
+        "TAO_CHEAP_MODEL": "qwen3.5:latest",
+    }
+    guard.sanitise_environment(env)
+    _apply_sanitised_env(monkeypatch, env)
+    monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: True)
+
+    for role in ("monitor", "intent_classify", "guardian", "scribe.draft", "sprinkle.triage"):
+        pm = provider_router.select_provider_model(role)
+        assert pm.provider == "openrouter", (role, pm)
+        assert pm.model_id == guard.SAFE_CHEAP_MODEL
 
 
 def test_model_fabric_uses_serve_subcommand(monkeypatch, tmp_path) -> None:

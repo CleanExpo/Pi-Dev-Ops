@@ -118,7 +118,10 @@ DEFAULT_CHEAP_REMOTE_MODEL = "z-ai/glm-4.7-flash"
 # days by riding TAO_CHEAP_REMOTE_MODEL; this role no longer reads ANY
 # TAO_CHEAP_* knob. First usable step wins; run_via_provider fails over to the
 # next step at call time (the free pool 429s):
-#   1. ollama gemma4:latest        — only when OLLAMA_BASE_URL is set AND reachable
+#   1. ollama gemma4:latest        — only when MARGOT_OLLAMA_BASE_URL (or, off
+#      Railway, OLLAMA_BASE_URL) is set AND that Ollama answers the probe. The
+#      Railway start guard (scripts/runtime_model_guard.py) strips the global
+#      OLLAMA_BASE_URL from every work lane; the Margot-only key survives it.
 #   2. openrouter google/gemma-4-26b-a4b-it:free
 #   3. openrouter z-ai/glm-4.7-flash
 # Single override: TAO_MODEL_MARGOT_CASUAL=<provider>:<model>, still subject to
@@ -126,6 +129,7 @@ DEFAULT_CHEAP_REMOTE_MODEL = "z-ai/glm-4.7-flash"
 # sliding to the next paid option.
 MARGOT_CASUAL_ROLE = "margot.casual"
 MARGOT_CASUAL_ENV = "TAO_MODEL_MARGOT_CASUAL"
+MARGOT_CASUAL_OLLAMA_ENV = "MARGOT_OLLAMA_BASE_URL"
 MARGOT_CASUAL_LADDER: tuple[tuple[Provider, str], ...] = (
     ("ollama", "gemma4:latest"),
     ("openrouter", "google/gemma-4-26b-a4b-it:free"),
@@ -327,17 +331,27 @@ def _margot_casual_refusal(provider: str, model_id: str) -> str | None:
     return None
 
 
+def _margot_ollama_base_url() -> str:
+    """The Ollama margot.casual may use: MARGOT_OLLAMA_BASE_URL first, else the
+    global OLLAMA_BASE_URL (only present off Railway — the start guard strips it),
+    else "" meaning step 1 is not configured."""
+    return (
+        os.environ.get(MARGOT_CASUAL_OLLAMA_ENV) or os.environ.get("OLLAMA_BASE_URL") or ""
+    ).strip()
+
+
 def _ollama_configured_and_reachable() -> bool:
-    """Ladder step 1 needs an explicit OLLAMA_BASE_URL — the localhost default
+    """Ladder step 1 needs an explicit base URL — the localhost default
     provider_ollama falls back to is never a real Ollama on Railway."""
-    if not (os.environ.get("OLLAMA_BASE_URL") or "").strip():
+    base_url = _margot_ollama_base_url()
+    if not base_url:
         return False
     try:
         import sys as _sys  # noqa: PLC0415
         ollama_mod = _sys.modules.get("app.server.provider_ollama")
         if ollama_mod is None:
             from . import provider_ollama as ollama_mod  # noqa: PLC0415
-        return bool(ollama_mod.is_reachable())
+        return bool(ollama_mod.is_reachable(base_url=base_url))
     except Exception as exc:  # noqa: BLE001
         log.debug("provider_router: margot.casual ollama probe failed (%s)", exc)
         return False
@@ -408,9 +422,10 @@ async def _run_margot_casual(prompt: str, *, timeout_s: int, session_id: str,
                     from . import provider_ollama as provider_mod  # noqa: PLC0415
                 else:
                     from . import provider_openrouter as provider_mod  # noqa: PLC0415
+            extra = {"base_url": _margot_ollama_base_url()} if prov == "ollama" else {}
             rc, text, cost, err = await provider_mod.call(
                 prompt=prompt, model_id=model, timeout_s=timeout_s,
-                role=MARGOT_CASUAL_ROLE, session_id=session_id,
+                role=MARGOT_CASUAL_ROLE, session_id=session_id, **extra,
             )
         except Exception as exc:  # noqa: BLE001
             rc, text, cost, err = 1, "", 0.0, f"{prov}_call_raised: {exc}"
@@ -782,7 +797,7 @@ __all__ = [
     "Provider", "ProviderModel", "ROLE_TIER",
     "DEFAULT_TOP_MODEL", "DEFAULT_MID_MODEL",
     "DEFAULT_CHEAP_LOCAL_MODEL", "DEFAULT_CHEAP_REMOTE_MODEL",
-    "MARGOT_CASUAL_ROLE", "MARGOT_CASUAL_ENV", "MARGOT_CASUAL_LADDER",
+    "MARGOT_CASUAL_ROLE", "MARGOT_CASUAL_ENV", "MARGOT_CASUAL_OLLAMA_ENV", "MARGOT_CASUAL_LADDER",
     "MARGOT_CASUAL_REFUSED_MARKERS", "RefusedModelError",
     "select_provider_model", "run_via_provider",
     "is_anthropic", "is_openrouter", "is_ollama", "is_claude_print",
