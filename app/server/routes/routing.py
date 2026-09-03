@@ -11,6 +11,7 @@ scheme, reused verbatim.
 from __future__ import annotations
 
 import logging
+import math
 import os
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -54,7 +55,9 @@ def _tier_source(pm: PR.ProviderModel) -> str:
             return "env:TAO_CHEAP_REMOTE_MODEL"
         if pm.provider == "ollama" and _env_set("TAO_CHEAP_LOCAL_MODEL"):
             return "env:TAO_CHEAP_LOCAL_MODEL"
-        if _env_set("TAO_CHEAP_PROVIDER"):
+        # provider_router ignores an unknown pin and falls through to the probe;
+        # only a value it honours may be credited as the source.
+        if (os.environ.get("TAO_CHEAP_PROVIDER") or "").strip().lower() in ("ollama", "openrouter"):
             return "env:TAO_CHEAP_PROVIDER"
     return "code-default"
 
@@ -70,7 +73,8 @@ def _source_label(pm: PR.ProviderModel) -> str:
 
 def _resolve(role: str) -> dict[str, Any]:
     try:
-        pm = PR.select_provider_model(role)
+        # Read-only: never append a tier-downgrade row to the violations ledger.
+        pm = PR.select_provider_model(role, record_observation=False)
     except PR.RefusedModelError as exc:
         return {
             "tier": PR.ROLE_TIER.get(role, "mid"), "provider": None, "model": None,
@@ -98,13 +102,19 @@ def _cost_today_by_role(day_iso: str, tenant_id: str) -> tuple[Optional[dict[str
         return None, f"llm_costs read failed (HTTP {status})"
     if len(rows) >= _PAGE_CAP:
         return None, f"llm_costs read hit the {_PAGE_CAP}-row page cap; a partial sum would be wrong"
+    # One unusable row fails the whole aggregation closed: a partial sum would
+    # render as a smaller-than-real number with no reason attached.
     out: dict[str, float] = {}
-    for r in rows:
-        role = str(r.get("role") or "")
+    for i, r in enumerate(rows):
+        raw = r.get("cost_usd") if isinstance(r, dict) else None
         try:
-            out[role] = round(out.get(role, 0.0) + float(r.get("cost_usd") or 0.0), 6)
+            cost = float(raw)
         except (TypeError, ValueError):
-            continue
+            cost = math.nan
+        if not math.isfinite(cost):
+            return None, f"llm_costs row {i} has an unusable cost_usd={raw!r}; cost unknown"
+        role = str(r.get("role") or "")  # role is nullable in the table; "" is the no-role bucket
+        out[role] = round(out.get(role, 0.0) + cost, 6)
     return out, None
 
 

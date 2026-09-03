@@ -485,7 +485,8 @@ def _record_tier_downgrade(role: str, provider: str, model_id: str, env_key: str
 
 
 def select_provider_model(role: str,
-                            task_class: str = "default") -> ProviderModel:
+                            task_class: str = "default",
+                            *, record_observation: bool = True) -> ProviderModel:
     """Pick the (provider, model_id) for one role.
 
     Resolution order:
@@ -497,6 +498,11 @@ def select_provider_model(role: str,
     margot.casual.classify could route differently from margot.casual.reply
     even within the same role). Today it's a no-op label that lands in
     audit + cost-tracking metadata.
+
+    record_observation=False (RA-7434, GET /api/routing) resolves without
+    appending a tier-downgrade row to model_policy.VIOLATIONS_PATH — a
+    read-only view must not manufacture a violation event on every request.
+    The correction itself still applies; only the ledger write is skipped.
     """
     # 0. margot.casual has its own fixed free ladder (RA-7434) and never
     #    reaches the tier machinery below. Raises RefusedModelError on a
@@ -513,7 +519,8 @@ def select_provider_model(role: str,
             prov, model = parsed
             log.debug("provider_router: %s overridden via %s = %s:%s",
                       role, env_key, prov, model)
-            _record_tier_downgrade(role, prov, model, env_key)
+            if record_observation:
+                _record_tier_downgrade(role, prov, model, env_key)
 
             # A per-role override may not DOWNGRADE a quality-critical role onto
             # the cheap-tier model. The previous change made this visible; making

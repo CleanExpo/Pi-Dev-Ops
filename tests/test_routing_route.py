@@ -22,16 +22,17 @@ HEADERS = {"X-Pi-CEO-Secret": "test-secret"}
 
 
 @pytest.fixture
-def client(monkeypatch):
+def client(monkeypatch, tmp_path):
     for k in list(os.environ):
         if k.startswith(("TAO_MODEL_", "TAO_CHEAP_", "TAO_TOP_", "TAO_MID_")) or k == "OLLAMA_BASE_URL":
             monkeypatch.delenv(k, raising=False)
     from app.server import config as _config  # noqa: PLC0415
     monkeypatch.setattr(_config, "WEBHOOK_SECRET", "test-secret", raising=False)
     monkeypatch.setattr(_config, "INTERNAL_WEBHOOK_SECRET", "test-secret", raising=False)
-    from app.server import provider_ollama, provider_router  # noqa: PLC0415
+    from app.server import model_policy, provider_ollama  # noqa: PLC0415
     monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: False)
-    monkeypatch.setattr(provider_router, "_record_tier_downgrade", lambda *a, **kw: None)
+    # Any violation write lands here; the read-only test asserts it never does.
+    monkeypatch.setattr(model_policy, "VIOLATIONS_PATH", tmp_path / "violations.jsonl")
     from app.server import supabase_log  # noqa: PLC0415
     monkeypatch.setattr(supabase_log, "_cfg", lambda: ("", ""))
     from app.server.routes import routing  # noqa: PLC0415
@@ -161,3 +162,57 @@ def test_routing_cost_is_null_when_the_page_cap_hides_rows(client, monkeypatch):
 def test_routing_is_registered_on_the_production_app():
     from app.server.main import app  # noqa: PLC0415
     assert "/api/routing" in {getattr(r, "path", "") for r in app.routes}
+
+
+# ── Round-1 review findings (Codex, report ra7434-review-r1.json) ───────────
+
+
+def test_routing_get_never_writes_the_violations_ledger(client, monkeypatch, tmp_path):
+    """P1-ROUTING-GET-WRITES-AUDIT-LOG: a top-tier role pinned to the cheap model
+    makes select_provider_model append to VIOLATIONS_PATH. A read-only GET must
+    observe that state without manufacturing a new violation event."""
+    monkeypatch.setenv("TAO_CHEAP_REMOTE_MODEL", "z-ai/glm-4.7-flash")
+    monkeypatch.setenv("TAO_MODEL_PLANNER", "openrouter:z-ai/glm-4.7-flash")
+    ledger = tmp_path / "violations.jsonl"
+    resp = client.get("/api/routing", headers=HEADERS)
+    assert resp.status_code == 200
+    planner = resp.json()["roles"]["planner"]
+    assert planner["model"] != "z-ai/glm-4.7-flash"  # the correction still shows
+    assert planner["source"] == "code-default"
+    assert not ledger.exists(), "GET /api/routing wrote a violation record"
+
+
+@pytest.mark.parametrize("bad_cost", ["corrupt", None, float("nan")])
+def test_routing_cost_is_null_with_reason_on_an_unusable_row(client, monkeypatch, bad_cost):
+    """P1-ROUTING-PARTIAL-COST-BECOMES-ZERO: one unusable row fails the whole
+    aggregation closed; no role may render 0.0 off a partial read."""
+    from app.server import supabase_log  # noqa: PLC0415
+    monkeypatch.setattr(supabase_log, "_cfg", lambda: ("https://x.supabase.co", "key"))
+    monkeypatch.setattr(supabase_log, "_request", lambda *a, **kw: (200, [
+        {"role": "planner", "cost_usd": 1.5},
+        {"role": "monitor", "cost_usd": bad_cost},
+    ]))
+    data = client.get("/api/routing", headers=HEADERS).json()
+    assert data["cost_source"] is None
+    assert "cost_usd" in data["cost_reason"]
+    for row in data["roles"].values():
+        assert row["cost_today_usd"] is None
+        assert row["cost_reason"] == data["cost_reason"]
+
+
+def test_routing_source_is_code_default_when_cheap_provider_pin_is_invalid(client, monkeypatch):
+    """P1-ROUTING-SOURCE-LABELS-IGNORED-PIN: provider_router ignores an unknown
+    TAO_CHEAP_PROVIDER and falls through; the label must not credit it."""
+    monkeypatch.setenv("TAO_CHEAP_PROVIDER", "not-a-provider")
+    roles = client.get("/api/routing", headers=HEADERS).json()["roles"]
+    assert roles["monitor"]["model"] == "z-ai/glm-4.7-flash"
+    assert roles["monitor"]["source"] == "code-default"
+
+
+def test_routing_source_credits_a_valid_cheap_provider_pin(client, monkeypatch):
+    from app.server import provider_ollama  # noqa: PLC0415
+    monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: False)
+    monkeypatch.setenv("TAO_CHEAP_PROVIDER", "ollama")
+    roles = client.get("/api/routing", headers=HEADERS).json()["roles"]
+    assert roles["monitor"]["provider"] == "ollama"
+    assert roles["monitor"]["source"] == "env:TAO_CHEAP_PROVIDER"
