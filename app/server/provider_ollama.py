@@ -49,12 +49,18 @@ PROBE_CACHE_TTL_S = 60.0
 _REACHABLE_CACHE: dict[str, tuple[bool, float]] = {}
 
 
-def _base_url() -> str:
-    return (os.environ.get("OLLAMA_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+def _base_url(override: str | None = None) -> str:
+    """OLLAMA_BASE_URL (or the default) unless the caller supplies its own.
+
+    ``override`` exists for provider_router's margot.casual ladder (RA-7434),
+    which reads MARGOT_OLLAMA_BASE_URL so the Railway start guard can keep
+    stripping the global key from every work lane.
+    """
+    return (override or os.environ.get("OLLAMA_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
 
 
-def _tags_url() -> str:
-    base = _base_url()
+def _tags_url(base_url: str | None = None) -> str:
+    base = _base_url(base_url)
     if base.endswith("/v1"):
         return base[:-3] + "/api/tags"
     return f"{base}/api/tags"
@@ -63,13 +69,14 @@ def _tags_url() -> str:
 # ── Reachability probe ──────────────────────────────────────────────────────
 
 
-def is_reachable(*, force_refresh: bool = False) -> bool:
+def is_reachable(*, force_refresh: bool = False, base_url: str | None = None) -> bool:
     """True when localhost:11434 (or override) responds within PROBE_TIMEOUT_S.
 
     Cached for PROBE_CACHE_TTL_S to avoid hammering Ollama on every
     cycle. force_refresh=True bypasses the cache (use sparingly).
+    base_url probes a specific Ollama instead of OLLAMA_BASE_URL.
     """
-    url = _tags_url()
+    url = _tags_url(base_url)
     now = time.time()
 
     if not force_refresh:
@@ -142,10 +149,12 @@ async def call(*, prompt: str, model_id: str,
                  max_tokens: int = 4096,
                  role: str = "",
                  session_id: str = "",
+                 base_url: str | None = None,
                  ) -> tuple[int, str, float, str | None]:
     """One Ollama call. Returns (rc, text, cost_usd, error_or_None).
 
-    cost_usd is always 0.0 — Ollama is free.
+    cost_usd is always 0.0 — Ollama is free. base_url targets a specific
+    Ollama instead of OLLAMA_BASE_URL.
     """
     headers = _build_headers()
     body = _build_body(prompt, model_id, max_tokens=max_tokens)
@@ -156,7 +165,7 @@ async def call(*, prompt: str, model_id: str,
         return 1, "", 0.0, f"ollama_httpx_import_failed: {exc}"
 
     def _do_call() -> tuple[int, str, float, str | None]:
-        url = f"{_base_url()}/chat/completions"
+        url = f"{_base_url(base_url)}/chat/completions"
         try:
             with httpx.Client(timeout=timeout_s) as client:
                 r = client.post(url, headers=headers, json=body)

@@ -140,12 +140,51 @@ def _status() -> dict[str, Any]:
         "has_chat_allowlist": _has_chat_allowlist(),
         "has_linear_api_key": bool(os.environ.get("LINEAR_API_KEY")),
         "webhook_autoconfigure": _webhook_autoconfigure_enabled(),
+        "webhook_owned_bot_id_set": bool(_owned_bot_id()),
         "webhook_mode": _should_use_webhook_mode(),
         "webhook_url": _telegram_webhook_url() if _should_use_webhook_mode() else "",
         "last_webhook_ok": _last_webhook_ok,
         "last_webhook_error": _last_webhook_error,
         "last_webhook_age_s": int(now - _last_webhook_at) if _last_webhook_at else None,
     }
+
+
+def _owned_bot_id() -> str:
+    return os.environ.get("TELEGRAM_OWNED_BOT_ID", "").strip()
+
+
+def _telegram_get_me_id(token: str) -> str:
+    """The bot id Telegram reports for this token (``getMe``)."""
+    req = urllib.request.Request(f"https://api.telegram.org/bot{token}/getMe", method="GET")
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        body = json.loads(resp.read().decode("utf-8"))
+    if not body.get("ok"):
+        raise RuntimeError(body.get("description") or str(body))
+    return str((body.get("result") or {}).get("id") or "")
+
+
+def _webhook_ownership_error(token: str) -> str:
+    """Why setWebhook must NOT run for this token, or "" when the bot is ours.
+
+    RA-7434: setWebhook silently converts a bot from polling to webhook mode. If
+    a token for a bot polled elsewhere (PiMargot_bot via the Hermes gateway) ever
+    lands here, an unconditional setWebhook kills that poller. So the intake loop
+    asks Telegram whose token this is and only proceeds for the allow-listed id.
+    Unset allow-list means refuse.
+    """
+    owned = _owned_bot_id()
+    if not owned:
+        return "TELEGRAM_OWNED_BOT_ID unset — refusing setWebhook (RA-7434)"
+    try:
+        bot_id = _telegram_get_me_id(token)
+    except Exception as exc:  # noqa: BLE001
+        return f"getMe failed — refusing setWebhook (RA-7434): {str(exc)[:120]}"
+    if bot_id != owned:
+        return (
+            f"token belongs to bot {bot_id or '?'}, not the owned bot {owned} — "
+            "refusing setWebhook (RA-7434)"
+        )
+    return ""
 
 
 def _ensure_telegram_webhook() -> bool:
@@ -158,6 +197,14 @@ def _ensure_telegram_webhook() -> bool:
     if not token or not secret:
         _last_webhook_ok = False
         _last_webhook_error = "missing TELEGRAM_BOT_TOKEN or TELEGRAM_WEBHOOK_SECRET"
+        return False
+
+    refusal = _webhook_ownership_error(token)
+    if refusal:
+        _last_webhook_ok = False
+        _last_webhook_error = refusal[:200]
+        _last_webhook_at = time.time()
+        log.warning("Telegram webhook refused: %s", refusal)
         return False
 
     payload = urllib.parse.urlencode(

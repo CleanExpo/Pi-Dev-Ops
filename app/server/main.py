@@ -15,6 +15,7 @@ from .routes import mesh  # Nexus Mesh — fleet heartbeat + Mission Control
 from .routes import terminal  # Terminal Orchestrator read API — pane-UI backend (RA-7012)
 from .routes import conversations  # Shared conversation brain — cross-machine digests
 from .routes import wiki_sources  # Knowledge front door — cloud-reachable Sources/ intake
+from .routes import routing  # RA-7434 — read-only role → model → cost view for Mission Control
 # health registers its routes directly on `app` via @app.get/@app.on_event decorators
 from .routes import health  # noqa: F401
 from .routes import health_full  # RA-1910 — /api/health/full endpoint
@@ -39,6 +40,7 @@ app.include_router(margot_assets.router)
 app.include_router(spec_pipeline.router)
 app.include_router(elevenlabs.router)
 app.include_router(cost_report.router)  # RA-1909
+app.include_router(routing.router)  # RA-7434 — /api/routing
 app.include_router(health_full.router)  # RA-1910
 app.include_router(delegate.router)  # RA-1631
 app.include_router(nexus_routes.router)  # Phase A — /api/nexus/*

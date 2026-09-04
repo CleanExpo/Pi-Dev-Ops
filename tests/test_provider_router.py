@@ -80,19 +80,24 @@ def test_evaluator_mid():
     assert PR.select_provider_model("evaluator").tier == "mid"
 
 
-def test_margot_casual_routes_to_cheap_remote_when_ollama_unreachable():
-    """Phase 1 with Ollama unreachable → OpenRouter remote default."""
-    pm = PR.select_provider_model("margot.casual")
+def test_cheap_role_routes_to_cheap_remote_when_ollama_unreachable():
+    """Cheap tier with Ollama unreachable → OpenRouter remote default.
+
+    Was margot.casual until RA-7434 gave that role its own free ladder
+    (tests/test_provider_router_margot_casual_ladder.py); intent_classify
+    keeps the plain cheap-tier contract under test.
+    """
+    pm = PR.select_provider_model("intent_classify")
     assert pm.tier == "cheap"
     assert pm.provider == "openrouter"
     assert pm.model_id == PR.DEFAULT_CHEAP_REMOTE_MODEL
 
 
-def test_margot_casual_routes_to_ollama_when_reachable(monkeypatch):
+def test_cheap_role_routes_to_ollama_when_reachable(monkeypatch):
     """When Ollama probe returns True, cheap tier → ollama:qwen3.5:latest."""
     from app.server import provider_ollama
     monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: True)
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.tier == "cheap"
     assert pm.provider == "ollama"
     assert pm.model_id == PR.DEFAULT_CHEAP_LOCAL_MODEL
@@ -119,7 +124,7 @@ def test_tao_top_model_env_overrides_default(monkeypatch):
 def test_tao_cheap_model_env_routes_openrouter_when_slash(monkeypatch):
     """Legacy TAO_CHEAP_MODEL with '/' → OpenRouter (vendor/model shape)."""
     monkeypatch.setenv("TAO_CHEAP_MODEL", "meta-llama/llama-3.3-70b-instruct")
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.model_id == "meta-llama/llama-3.3-70b-instruct"
     assert pm.provider == "openrouter"
 
@@ -127,7 +132,7 @@ def test_tao_cheap_model_env_routes_openrouter_when_slash(monkeypatch):
 def test_tao_cheap_model_env_routes_ollama_when_no_slash(monkeypatch):
     """Legacy TAO_CHEAP_MODEL without '/' → Ollama (local tag shape)."""
     monkeypatch.setenv("TAO_CHEAP_MODEL", "qwen3.5:latest")
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.provider == "ollama"
     assert pm.model_id == "qwen3.5:latest"
 
@@ -135,7 +140,7 @@ def test_tao_cheap_model_env_routes_ollama_when_no_slash(monkeypatch):
 def test_tao_cheap_anthropic_haiku_routes_via_anthropic(monkeypatch):
     """Setting cheap to claude-haiku-* keeps the call on Anthropic."""
     monkeypatch.setenv("TAO_CHEAP_MODEL", "claude-haiku-4-5")
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.provider == "anthropic"
     assert pm.model_id == "claude-haiku-4-5"
 
@@ -143,7 +148,7 @@ def test_tao_cheap_anthropic_haiku_routes_via_anthropic(monkeypatch):
 def test_tao_cheap_provider_pin_ollama(monkeypatch):
     """TAO_CHEAP_PROVIDER=ollama forces Ollama even if probe would fail."""
     monkeypatch.setenv("TAO_CHEAP_PROVIDER", "ollama")
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.provider == "ollama"
     assert pm.model_id == PR.DEFAULT_CHEAP_LOCAL_MODEL
 
@@ -153,7 +158,7 @@ def test_tao_cheap_provider_pin_openrouter(monkeypatch):
     from app.server import provider_ollama
     monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: True)
     monkeypatch.setenv("TAO_CHEAP_PROVIDER", "openrouter")
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.provider == "openrouter"
     assert pm.model_id == PR.DEFAULT_CHEAP_REMOTE_MODEL
 
@@ -163,7 +168,7 @@ def test_tao_cheap_local_model_override(monkeypatch):
     from app.server import provider_ollama
     monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: True)
     monkeypatch.setenv("TAO_CHEAP_LOCAL_MODEL", "qwen3.5:latest")
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.provider == "ollama"
     assert pm.model_id == "qwen3.5:latest"
 
@@ -173,7 +178,7 @@ def test_tao_cheap_remote_model_override(monkeypatch):
     monkeypatch.setenv(
         "TAO_CHEAP_REMOTE_MODEL", "openai/gpt-4o-mini",
     )
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.provider == "openrouter"
     assert pm.model_id == "openai/gpt-4o-mini"
 
@@ -181,7 +186,7 @@ def test_tao_cheap_remote_model_override(monkeypatch):
 def test_invalid_cheap_provider_pin_falls_through(monkeypatch):
     """TAO_CHEAP_PROVIDER=bogus warns + falls through to probe path."""
     monkeypatch.setenv("TAO_CHEAP_PROVIDER", "vertex")
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("intent_classify")
     # Probe returns False (autouse fixture) → OpenRouter
     assert pm.provider == "openrouter"
 
@@ -190,11 +195,12 @@ def test_invalid_cheap_provider_pin_falls_through(monkeypatch):
 
 
 def test_per_role_env_override(monkeypatch):
+    # monitor, not margot.casual: RA-7434 gave that role its own override contract.
     monkeypatch.setenv(
-        "TAO_MODEL_MARGOT_CASUAL",
+        "TAO_MODEL_MONITOR",
         "openrouter:meta-llama/llama-3.3-70b-instruct",
     )
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("monitor")
     assert pm.source == "env_role_override"
     assert pm.provider == "openrouter"
     assert pm.model_id == "meta-llama/llama-3.3-70b-instruct"
@@ -202,10 +208,10 @@ def test_per_role_env_override(monkeypatch):
 
 def test_per_role_override_to_anthropic(monkeypatch):
     monkeypatch.setenv(
-        "TAO_MODEL_MARGOT_CASUAL",
+        "TAO_MODEL_MONITOR",
         "anthropic:claude-haiku-4-5",
     )
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("monitor")
     assert pm.provider == "anthropic"
     assert pm.model_id == "claude-haiku-4-5"
 
@@ -235,16 +241,16 @@ def test_per_role_override_role_with_dot(monkeypatch):
 
 def test_per_role_override_malformed_falls_through(monkeypatch):
     """No colon in env → ignored, falls back to tier default."""
-    monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", "no-colon-here")
-    pm = PR.select_provider_model("margot.casual")
+    monkeypatch.setenv("TAO_MODEL_MONITOR", "no-colon-here")
+    pm = PR.select_provider_model("monitor")
     assert pm.source == "env_tier_default"
 
 
 def test_per_role_override_unknown_provider_falls_through(monkeypatch):
     monkeypatch.setenv(
-        "TAO_MODEL_MARGOT_CASUAL", "google:gemini-pro",  # bogus prefix
+        "TAO_MODEL_MONITOR", "google:gemini-pro",  # bogus prefix
     )
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("monitor")
     assert pm.source == "env_tier_default"
 
 
@@ -304,7 +310,7 @@ def test_run_via_provider_anthropic_path(monkeypatch):
 
 
 def test_run_via_provider_openrouter_path(monkeypatch):
-    """role=margot.casual → OpenRouter call."""
+    """role=intent_classify → OpenRouter call."""
     async def fake_or_call(*, prompt, model_id, timeout_s, max_tokens=4096,
                             role="", session_id=""):
         return 0, "qwen reply", 0.0001, None
@@ -313,7 +319,7 @@ def test_run_via_provider_openrouter_path(monkeypatch):
     monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", fake_mod)
 
     rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hi", role="margot.casual",
+        prompt="hi", role="intent_classify",
     ))
     assert rc == 0
     assert text == "qwen reply"
@@ -344,7 +350,7 @@ def test_run_via_provider_openrouter_failure_propagates(monkeypatch):
     monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", fake_mod)
 
     rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hi", role="margot.casual",
+        prompt="hi", role="intent_classify",
     ))
     assert rc == 1
     assert error == "openrouter_no_api_key"
@@ -362,7 +368,7 @@ def test_run_via_provider_ollama_path(monkeypatch):
     monkeypatch.setitem(sys.modules, "app.server.provider_ollama", fake_mod)
 
     rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hi", role="margot.casual",
+        prompt="hi", role="intent_classify",
     ))
     assert rc == 0
     assert text == "qwen reply"
@@ -380,7 +386,7 @@ def test_run_via_provider_ollama_failure_propagates(monkeypatch):
     monkeypatch.setitem(sys.modules, "app.server.provider_ollama", fake_mod)
 
     rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hi", role="margot.casual",
+        prompt="hi", role="intent_classify",
     ))
     assert rc == 1
     assert "connection refused" in error
@@ -415,9 +421,9 @@ def test_top_use_claude_print_flag_off_routes_anthropic(monkeypatch):
 def test_per_role_override_to_claude_print(monkeypatch):
     """A specific role can opt in via TAO_MODEL_<ROLE>=claude_print:<model>."""
     monkeypatch.setenv(
-        "TAO_MODEL_MARGOT_CASUAL", "claude_print:claude-opus-4-8",
+        "TAO_MODEL_INTENT_CLASSIFY", "claude_print:claude-opus-4-8",
     )
-    pm = PR.select_provider_model("margot.casual")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.source == "env_role_override"
     assert pm.provider == "claude_print"
     assert pm.model_id == "claude-opus-4-8"
