@@ -1,0 +1,99 @@
+{
+  "intro": "Six questions, about a minute. You will get the assessment type that fits your situation, what it involves, and a written brief you can send us or keep for your own records.",
+  "questions": [
+    {
+      "id": "symptoms",
+      "label": "What are you seeing or smelling?",
+      "help": "Choose everything that applies.",
+      "multi": true,
+      "required": true,
+      "options": [
+        { "value": "Visible mould growth", "weights": { "mould-iaq-investigation": 5, "condensation-diagnosis": 2 } },
+        { "value": "Musty smell, nothing visible", "weights": { "mould-iaq-investigation": 4, "condensation-diagnosis": 2 } },
+        { "value": "Water stain or active leak", "weights": { "building-defect-investigation": 4, "moisture-mapping": 4 } },
+        { "value": "Condensation on windows or walls", "weights": { "condensation-diagnosis": 5, "air-leakage-envelope": 2 } },
+        { "value": "Bubbling paint, blistering or salt deposits", "weights": { "building-defect-investigation": 3, "moisture-mapping": 2 } },
+        { "value": "Cupped, buckled or gapping timber floor", "weights": { "timber-floor-moisture": 6 } },
+        { "value": "Draughts or rooms that will not hold temperature", "weights": { "air-leakage-envelope": 5 } },
+        { "value": "Flood, burst pipe or storm damage", "weights": { "moisture-mapping": 6, "major-loss-assessment": 3 } },
+        { "value": "Nothing visible, but something is wrong", "weights": { "mould-iaq-investigation": 2, "condensation-diagnosis": 2, "moisture-mapping": 2 } }
+      ]
+    },
+    {
+      "id": "location",
+      "label": "Where is the problem?",
+      "multi": true,
+      "required": true,
+      "options": [
+        { "value": "One room", "weights": {} },
+        { "value": "Bathroom, laundry or kitchen", "weights": { "condensation-diagnosis": 3 } },
+        { "value": "External wall, window or facade", "weights": { "building-defect-investigation": 4, "condensation-diagnosis": 2 } },
+        { "value": "Ceiling or roof space", "weights": { "building-defect-investigation": 3, "condensation-diagnosis": 2 } },
+        { "value": "Subfloor, basement or slab", "weights": { "moisture-mapping": 3, "timber-floor-moisture": 2 } },
+        { "value": "Balcony or wet area above another space", "weights": { "building-defect-investigation": 5, "moisture-mapping": 3 } },
+        { "value": "Across several floors or units", "weights": { "moisture-mapping": 5, "major-loss-assessment": 5 } },
+        { "value": "Throughout the building", "weights": { "condensation-diagnosis": 3, "air-leakage-envelope": 3, "major-loss-assessment": 2 } }
+      ]
+    },
+    {
+      "id": "building",
+      "label": "What kind of building is it?",
+      "multi": false,
+      "required": true,
+      "options": [
+        { "value": "House or townhouse", "weights": {} },
+        { "value": "Apartment or strata property", "weights": { "building-defect-investigation": 2, "major-loss-assessment": 1 } },
+        { "value": "Commercial or industrial", "weights": { "major-loss-assessment": 2 } },
+        { "value": "Heritage or historical building", "weights": { "major-loss-assessment": 5 } },
+        { "value": "Under construction or being designed", "weights": { "hygrothermal-modelling": 7, "air-leakage-envelope": 2 } }
+      ]
+    },
+    {
+      "id": "pattern",
+      "label": "When did it start, and does it change?",
+      "multi": false,
+      "required": true,
+      "options": [
+        { "value": "Suddenly, after a specific event", "weights": { "moisture-mapping": 5, "building-defect-investigation": 3 } },
+        { "value": "Worse in winter, better in summer", "weights": { "condensation-diagnosis": 6, "air-leakage-envelope": 2 } },
+        { "value": "Worse after rain", "weights": { "building-defect-investigation": 6 } },
+        { "value": "Gradually, over months or years", "weights": { "building-defect-investigation": 2, "condensation-diagnosis": 2 } },
+        { "value": "It keeps coming back after repairs", "weights": { "mould-iaq-investigation": 3, "building-defect-investigation": 3, "condensation-diagnosis": 2 } },
+        { "value": "Since renovation, insulation or new windows", "weights": { "condensation-diagnosis": 6, "air-leakage-envelope": 3 } },
+        { "value": "Not built yet", "weights": { "hygrothermal-modelling": 7 } }
+      ]
+    },
+    {
+      "id": "health",
+      "label": "Is anyone in the building unwell?",
+      "help": "This affects how we prioritise air sampling. We are building scientists, not clinicians, and we do not give medical advice.",
+      "multi": false,
+      "required": true,
+      "options": [
+        { "value": "No", "weights": {} },
+        { "value": "Some symptoms that ease when they leave the building", "weights": { "mould-iaq-investigation": 5 } },
+        { "value": "Ongoing symptoms, medical advice already sought", "weights": { "mould-iaq-investigation": 6 } },
+        { "value": "Someone with asthma, allergy or immune vulnerability lives here", "weights": { "mould-iaq-investigation": 4 } }
+      ]
+    },
+    {
+      "id": "purpose",
+      "label": "What do you need the report for?",
+      "multi": false,
+      "required": true,
+      "options": [
+        { "value": "I just want it diagnosed and fixed", "weights": {} },
+        { "value": "An insurance claim", "weights": { "moisture-mapping": 2 } },
+        { "value": "A strata or body corporate matter", "weights": { "building-defect-investigation": 3 } },
+        { "value": "A builder or warranty dispute", "weights": { "building-defect-investigation": 4 } },
+        { "value": "Legal proceedings or expert evidence", "weights": { "building-defect-investigation": 3, "major-loss-assessment": 2 } },
+        { "value": "Buying or selling the property", "weights": {} },
+        { "value": "Design stage compliance or certification", "weights": { "hygrothermal-modelling": 6 } }
+      ]
+    }
+  ],
+  "urgency": {
+    "high": "Tell us when you make contact. Active water and vulnerable occupants both change how quickly we need to get there.",
+    "normal": "No emergency indicators in your answers. A scheduled attendance is appropriate."
+  }
+}
