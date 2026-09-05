@@ -7,6 +7,7 @@ import GoalAnalysisOverview, {
   type GoalAnalysisBlock,
   type OrderStep,
 } from "./GoalAnalysisOverview";
+import { CHILD_TICKETS_NOTE, LINEAR_DEST_NOTE } from "@/lib/control/goalCopy";
 import {
   ALWAYS_SHOW,
   DRAFT_AREAS,
@@ -65,6 +66,9 @@ export default function GoalDraftReview({
       <GoalAnalysisOverview analysis={analysis} />
 
       <div className={styles.fieldLabel}>Draft Linear tickets</div>
+      {analysis.tickets.some((t) => t.selected && t.sub_tasks.trim()) ? (
+        <p className={styles.note}>{CHILD_TICKETS_NOTE}</p>
+      ) : null}
       {analysis.tickets.map((ticket, index) => (
         <article
           key={`${ticket.ticket_id || ticket.title}-${index}`}
@@ -144,7 +148,7 @@ export default function GoalDraftReview({
       {confirming ? (
         <div className={`${styles.card} ${styles.confirm}`}>
           <p style={{ color: "var(--text)", fontSize: 14 }}>
-            File {count} ticket{count === 1 ? "" : "s"} to Linear Backlog? This writes to Linear.
+            File {count} ticket{count === 1 ? "" : "s"} to Linear Backlog? {LINEAR_DEST_NOTE}
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
             <button onClick={onApprove} disabled={filing || count === 0} className={styles.primary}>
