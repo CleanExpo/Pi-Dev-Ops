@@ -769,3 +769,52 @@ def test_file_drafts_returns_partial_filed_when_later_ticket_fails() -> None:
     assert len(out["filed"]) == 1
     assert out["filed"][0]["identifier"] == "RA-8001"
     assert len(fake.created) == 1
+
+
+def test_file_route_returns_filed_tickets_on_error(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, goal_project: dict[str, str]
+) -> None:
+    def fake_file(
+        repo: str,
+        drafts: list[dict[str, Any]],
+        *,
+        approved: bool,
+        parent_goal: str = "",
+        gql: Any = None,
+        project_title: str = "",
+    ) -> dict[str, Any]:
+        return {
+            "error": "create_failed",
+            "failed_title": "Second ticket fails",
+            "filed": [
+                {
+                    "identifier": "RA-8001",
+                    "url": "https://linear.app/unite-group/issue/RA-8001",
+                    "title": "First ticket lands",
+                    "state": "Backlog",
+                    "labels": [_SOURCE_LABEL],
+                }
+            ],
+        }
+
+    monkeypatch.setattr(goal_ticket_route, "file_drafts", fake_file)
+    resp = client.post(
+        "/api/goal-ticket",
+        json={
+            "goal": "File two tickets and stop if the second write fails",
+            "acceptance": "The first ticket remains visible after the second write fails.",
+            "project_id": goal_project["id"],
+            "approved": True,
+            "tickets": [
+                {
+                    "title": "First ticket lands",
+                    "goal": "The first approved ticket exists in Linear",
+                    "acceptance": "RA-8001 exists in Backlog after the first write.",
+                }
+            ],
+        },
+    )
+    assert resp.status_code == 502
+    detail = resp.json()["detail"]
+    assert detail["failed_title"] == "Second ticket fails"
+    assert detail["filed"][0]["identifier"] == "RA-8001"
