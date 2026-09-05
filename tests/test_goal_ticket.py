@@ -818,3 +818,54 @@ def test_file_route_returns_filed_tickets_on_error(
     detail = resp.json()["detail"]
     assert detail["failed_title"] == "Second ticket fails"
     assert detail["filed"][0]["identifier"] == "RA-8001"
+
+
+def test_file_route_keeps_filed_on_validation_error(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, goal_project: dict[str, str]
+) -> None:
+    def fake_file(
+        repo: str,
+        drafts: list[dict[str, Any]],
+        *,
+        approved: bool,
+        parent_goal: str = "",
+        gql: Any = None,
+        project_title: str = "",
+    ) -> dict[str, Any]:
+        return {
+            "error": "validation",
+            "fields": ["goal"],
+            "failed_title": "Short child",
+            "filed": [
+                {
+                    "identifier": "RA-8001",
+                    "url": "https://linear.app/unite-group/issue/RA-8001",
+                    "title": "Parent landed",
+                    "state": "Backlog",
+                    "labels": [_SOURCE_LABEL],
+                }
+            ],
+        }
+
+    monkeypatch.setattr(goal_ticket_route, "file_drafts", fake_file)
+    resp = client.post(
+        "/api/goal-ticket",
+        json={
+            "goal": "File a parent then a short child that the server rejects",
+            "acceptance": "The parent remains visible after the child validation fails.",
+            "project_id": goal_project["id"],
+            "approved": True,
+            "tickets": [
+                {
+                    "title": "Parent landed",
+                    "goal": "The parent ticket exists in Linear",
+                    "acceptance": "RA-8001 exists in Backlog after the parent write.",
+                }
+            ],
+        },
+    )
+    assert resp.status_code == 400
+    detail = resp.json()["detail"]
+    assert detail["error"] == "validation"
+    assert detail["filed"][0]["identifier"] == "RA-8001"
+    assert detail["failed_title"] == "Short child"
