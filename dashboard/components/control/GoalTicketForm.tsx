@@ -9,6 +9,7 @@ import GoalDraftReview, {
   type DraftTicket,
 } from "./GoalDraftReview";
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
+import GoalStagePills from "./GoalStagePills";
 import styles from "./control-deck.module.css";
 
 function sanitize(s: string): string {
@@ -168,18 +169,7 @@ export default function GoalTicketForm() {
 
   return (
     <div className="max-w-3xl">
-      <div className={styles.stageRow} aria-label="Goal filing stages">
-        {[
-          { n: 1, label: "Compose" },
-          { n: 2, label: "Analyze" },
-          { n: 3, label: "Approve" },
-        ].map((s) => (
-          <div key={s.n} className={`${styles.stage} ${stage === s.n ? styles.stageOn : ""}`}>
-            <div className={styles.stageNum}>Stage {s.n}</div>
-            <div className={styles.stageLabel}>{s.label}</div>
-          </div>
-        ))}
-      </div>
+      <GoalStagePills stage={stage} />
 
       <label className={styles.field}>
         <span className={styles.fieldLabel}>Goal</span>
