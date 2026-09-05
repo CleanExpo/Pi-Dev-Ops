@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TWO_PROJECTS_NOTE } from "@/lib/control/goalCopy";
+import { readGoalBriefId, writeGoalBriefId } from "@/lib/control/goalProjectStore";
 import styles from "./control-deck.module.css";
 
 export interface GoalProject {
@@ -41,7 +42,12 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  async function reload() {
+  function choose(project: GoalProject) {
+    writeGoalBriefId(project.id);
+    onSelect(project);
+  }
+
+  async function reload(): Promise<GoalProject[]> {
     const res = await fetch("/api/pi-ceo/api/goal-projects");
     const data = (await res.json().catch(() => ({}))) as {
       projects?: GoalProject[];
@@ -52,12 +58,20 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
       throw new Error(data.hint || data.detail?.hint || "Could not load projects.");
     }
     setProjects(data.projects);
+    return data.projects;
   }
 
   useEffect(() => {
     void reload()
+      .then((list) => {
+        if (selectedId) return;
+        const found = list.find((p) => p.id === readGoalBriefId());
+        if (found) onSelect(found);
+      })
       .catch(() => setError("Could not load projects."))
       .finally(() => setLoading(false));
+    // Restore once after the first list load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function save() {
@@ -79,7 +93,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         setError(data.hint || data.detail?.hint || "Project was not created.");
         return;
       }
-      onSelect(data.project);
+      choose(data.project);
       setDraft(EMPTY);
       setCreating(false);
       await reload();
@@ -102,7 +116,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         disabled={disabled || creating || loading}
         onChange={(e) => {
           const next = projects.find((p) => p.id === e.target.value);
-          if (next) onSelect(next);
+          if (next) choose(next);
         }}
         className={styles.input}
         aria-label="Project"
