@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { TWO_PROJECTS_NOTE } from "@/lib/control/goalCopy";
 import styles from "./control-deck.module.css";
 
 export interface GoalProject {
@@ -93,7 +94,8 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
 
   return (
     <div className={styles.field}>
-      <span className={styles.fieldLabel}>Project</span>
+      <span className={styles.fieldLabel}>Project brief</span>
+      <p className={`${styles.note} mb-2`}>{TWO_PROJECTS_NOTE}</p>
       {loading ? <p className={styles.note}>Loading project briefs…</p> : null}
       <select
         value={selectedId}
