@@ -12,7 +12,7 @@ describe("Goal brief rules", () => {
     expect(MIN_BRIEF).toBe(8);
     expect(meetsMin("1234567")).toBe(false);
     expect(meetsMin("12345678")).toBe(true);
-    expect(meetsMin("  padded8")).toBe(true);
+    expect(meetsMin("  12345678")).toBe(true);
   });
 
   it("blocks Analyze until goal, acceptance, and a project are ready", () => {
