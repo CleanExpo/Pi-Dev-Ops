@@ -10,7 +10,7 @@ import GoalDraftReview, {
 } from "./GoalDraftReview";
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
 import { readyToAnalyze, remainingHint } from "@/lib/control/goalBrief";
-import { ANALYZE_STAGE_NOTE, LINEAR_DEST_NOTE } from "@/lib/control/goalCopy";
+import { ANALYZE_STAGE_NOTE, LINEAR_DEST_NOTE, PROJECT_KEPT_NOTE } from "@/lib/control/goalCopy";
 import {
   errorMessage,
   filedTickets,
@@ -224,6 +224,18 @@ export default function GoalTicketForm() {
         <p className="mt-3 text-[13px]" style={{ color: "var(--error)" }}>{error}</p>
       ) : null}
 
+      {filed.length > 0 && !analysis ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <p className={styles.note}>{PROJECT_KEPT_NOTE}</p>
+          <button
+            type="button"
+            onClick={() => { setFiled([]); setError(""); }}
+            className={styles.ghost}
+          >
+            Start another goal
+          </button>
+        </div>
+      ) : null}
       <GoalFiledList tickets={filed} />
     </div>
   );
