@@ -11,6 +11,7 @@ import GoalDraftReview, {
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
 import { readyToAnalyze, remainingHint } from "@/lib/control/goalBrief";
 import type { FiledTicket } from "@/lib/control/goalErrors";
+import { goalStage } from "@/lib/control/goalStage";
 import GoalFiledList from "./GoalFiledList";
 import GoalStagePills from "./GoalStagePills";
 import styles from "./control-deck.module.css";
@@ -162,7 +163,11 @@ export default function GoalTicketForm() {
     }
   }
 
-  const stage = confirming ? 3 : analysis ? 2 : 1;
+  const stage = goalStage({
+    confirming,
+    hasAnalysis: Boolean(analysis),
+    analyzing: busy && !analysis,
+  });
 
   return (
     <div className="max-w-3xl">
