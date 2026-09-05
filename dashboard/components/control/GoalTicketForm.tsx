@@ -11,7 +11,12 @@ import GoalDraftReview, {
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
 import { readyToAnalyze, remainingHint } from "@/lib/control/goalBrief";
 import { ANALYZE_STAGE_NOTE, LINEAR_DEST_NOTE } from "@/lib/control/goalCopy";
-import type { FiledTicket } from "@/lib/control/goalErrors";
+import {
+  errorMessage,
+  filedTickets,
+  type FiledTicket,
+  type GoalErrorBody,
+} from "@/lib/control/goalErrors";
 import { goalStage } from "@/lib/control/goalStage";
 import GoalFiledList from "./GoalFiledList";
 import GoalStagePills from "./GoalStagePills";
@@ -19,25 +24,6 @@ import styles from "./control-deck.module.css";
 
 function sanitize(s: string): string {
   return s.replace(/[<>]/g, "");
-}
-
-interface ErrorBody {
-  error?: string;
-  hint?: string;
-  detail?: { error?: string; fields?: string[]; hint?: string; repo?: string };
-}
-
-function errorMessage(data: ErrorBody, status: number): string {
-  const detail = data.detail;
-  const fields = detail?.fields?.join(", ");
-  return (
-    data.hint
-    || detail?.hint
-    || (fields ? `Missing: ${fields}` : null)
-    || detail?.error
-    || data.error
-    || `Request failed (${status})`
-  );
 }
 
 function analyzingCopy(seconds: number): string {
@@ -84,8 +70,7 @@ export default function GoalTicketForm() {
           project_id: project?.id || "",
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as ErrorBody & Partial<AnalysisPayload> & {
-        filed?: boolean;
+      const data = (await res.json().catch(() => ({}))) as GoalErrorBody & Partial<AnalysisPayload> & {
         project_title?: string;
         tickets?: Array<Partial<DraftTicket>>;
       };
@@ -142,12 +127,14 @@ export default function GoalTicketForm() {
           tickets: chosen.map((t) => filePayloadFromDraft(t, sanitize)),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as ErrorBody & { tickets?: FiledTicket[] };
+      const data = (await res.json().catch(() => ({}))) as GoalErrorBody;
       if (!res.ok) {
+        const partial = filedTickets(data);
+        if (partial.length) setFiled(partial);
         setError(errorMessage(data, res.status));
         return;
       }
-      const created = (data.tickets || []).filter((t) => t.identifier && t.url);
+      const created = filedTickets(data);
       if (created.length === 0) {
         setError("Approval returned no tickets. Linear may not have been written.");
         return;
