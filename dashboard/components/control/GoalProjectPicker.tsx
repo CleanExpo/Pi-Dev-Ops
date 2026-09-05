@@ -96,10 +96,16 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         setError(data.hint || data.detail?.hint || "Project was not created.");
         return;
       }
-      choose(data.project);
+      const created = data.project;
+      choose(created);
+      setProjects((prev) => (prev.some((p) => p.id === created.id) ? prev : [...prev, created]));
       setDraft(EMPTY);
       setCreating(false);
-      await reload();
+      try {
+        await reload();
+      } catch {
+        setError("Saved. The list did not refresh.");
+      }
     } catch {
       setError("Network error — project was not created.");
     } finally {
