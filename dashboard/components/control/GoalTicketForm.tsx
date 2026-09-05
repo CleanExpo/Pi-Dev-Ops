@@ -9,19 +9,13 @@ import GoalDraftReview, {
   type DraftTicket,
 } from "./GoalDraftReview";
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
+import type { FiledTicket } from "@/lib/control/goalErrors";
+import GoalFiledList from "./GoalFiledList";
 import GoalStagePills from "./GoalStagePills";
 import styles from "./control-deck.module.css";
 
 function sanitize(s: string): string {
   return s.replace(/[<>]/g, "");
-}
-
-interface FiledTicket {
-  identifier: string;
-  url: string;
-  title: string;
-  state: string;
-  labels: string[];
 }
 
 interface ErrorBody {
@@ -233,19 +227,7 @@ export default function GoalTicketForm() {
         <p className="mt-3 text-[13px]" style={{ color: "var(--error)" }}>{error}</p>
       ) : null}
 
-      {filed.length > 0 ? (
-        <ul className="mt-4 flex flex-col gap-2">
-          {filed.map((ticket) => (
-            <li key={ticket.identifier} className={styles.card}>
-              <a href={ticket.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>
-                {ticket.identifier}
-              </a>
-              <span className="block text-[13px] mt-1" style={{ color: "var(--text)" }}>{ticket.title}</span>
-              <span className={styles.note}>{ticket.state}{ticket.labels.length ? ` · ${ticket.labels.join(", ")}` : ""}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <GoalFiledList tickets={filed} />
     </div>
   );
 }
