@@ -18,56 +18,58 @@ router = APIRouter()
 _LINEAR_DEST_REPO = "CleanExpo/Pi-Dev-Ops"
 
 
+def _error_detail(result: dict, extra: dict) -> dict:
+    """Keep already-filed tickets on every Goal HTTP error."""
+    body = dict(extra)
+    if result.get("filed"):
+        body["filed"] = result["filed"]
+    if result.get("failed_title"):
+        body["failed_title"] = result["failed_title"]
+    return body
+
+
+def _fail(status: int, result: dict, extra: dict) -> None:
+    raise HTTPException(status, _error_detail(result, extra))
+
+
 def _raise_goal_error(result: dict) -> None:
     err = result.get("error")
     if err == "validation":
-        raise HTTPException(
-            400,
-            {
-                "error": "validation",
-                "fields": result.get("fields") or [],
-                "hint": "goal, acceptance, and project_id are required.",
-            },
-        )
+        _fail(400, result, {
+            "error": "validation",
+            "fields": result.get("fields") or [],
+            "hint": "goal, acceptance, and project_id are required.",
+        })
     if err == "unknown_project":
-        raise HTTPException(
-            400,
-            {
-                "error": "unknown_project",
-                "project_id": result.get("project_id"),
-                "hint": "Create a project first, then select it.",
-            },
-        )
+        _fail(400, result, {
+            "error": "unknown_project",
+            "project_id": result.get("project_id"),
+            "hint": "Create a project first, then select it.",
+        })
     if err == "unknown_repo":
-        raise HTTPException(
-            400,
-            {
-                "error": "unknown_repo",
-                "repo": result.get("repo"),
-                "hint": "Linear destination could not be resolved.",
-            },
-        )
+        _fail(400, result, {
+            "error": "unknown_repo",
+            "repo": result.get("repo"),
+            "hint": "Linear destination could not be resolved.",
+        })
     if err == "not_approved":
-        raise HTTPException(
-            400,
-            {
-                "error": "not_approved",
-                "hint": "Linear is not written until the proposed tickets are approved.",
-            },
-        )
+        _fail(400, result, {
+            "error": "not_approved",
+            "hint": "Linear is not written until the proposed tickets are approved.",
+        })
     if err in {
         "supabase_not_configured",
         "supabase_read_failed",
         "supabase_write_failed",
         "file_store_disabled",
     }:
-        raise HTTPException(503, {"error": err, "hint": result.get("hint") or "Database store failed."})
+        _fail(503, result, {"error": err, "hint": result.get("hint") or "Database store failed."})
     if err == "no_api_key":
-        raise HTTPException(503, "LINEAR_API_KEY is not configured")
+        _fail(503, result, {"error": err, "hint": "LINEAR_API_KEY is not configured"})
     if err == "backlog_state_missing":
-        raise HTTPException(502, "Linear team has no Backlog workflow state")
+        _fail(502, result, {"error": err, "hint": "Linear team has no Backlog workflow state"})
     if err:
-        raise HTTPException(502, result)
+        raise HTTPException(502, _error_detail(result, result))
 
 
 @router.get(
