@@ -10,6 +10,7 @@ import GoalDraftReview, {
 } from "./GoalDraftReview";
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
 import { readyToAnalyze, remainingHint } from "@/lib/control/goalBrief";
+import { ANALYZE_STAGE_NOTE, LINEAR_DEST_NOTE } from "@/lib/control/goalCopy";
 import type { FiledTicket } from "@/lib/control/goalErrors";
 import { goalStage } from "@/lib/control/goalStage";
 import GoalFiledList from "./GoalFiledList";
@@ -172,6 +173,7 @@ export default function GoalTicketForm() {
   return (
     <div className="max-w-3xl">
       <GoalStagePills stage={stage} />
+      <p className={`${styles.note} mb-3`}>{LINEAR_DEST_NOTE}</p>
 
       <label className={styles.field}>
         <span className={styles.fieldLabel}>{remainingHint(goal, "Goal")}</span>
@@ -215,7 +217,7 @@ export default function GoalTicketForm() {
             {busy ? "Analyzing…" : "Analyze goal"}
           </button>
           {busy ? <span className={styles.note}>{analyzingCopy(elapsed)}</span> : (
-            <span className={styles.note}>Drafts first. Linear only after approve.</span>
+            <span className={styles.note}>{ANALYZE_STAGE_NOTE}</span>
           )}
         </div>
       ) : (
