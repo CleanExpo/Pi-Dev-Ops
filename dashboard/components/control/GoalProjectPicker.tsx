@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { readyToCreate, remainingHint } from "@/lib/control/goalBrief";
 import { TWO_PROJECTS_NOTE } from "@/lib/control/goalCopy";
 import { readGoalBriefId, writeGoalBriefId } from "@/lib/control/goalProjectStore";
 import styles from "./control-deck.module.css";
@@ -74,8 +75,10 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const canSave = readyToCreate(draft);
+
   async function save() {
-    if (saving) return;
+    if (saving || !canSave) return;
     setError("");
     setSaving(true);
     try {
@@ -152,18 +155,20 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         <div className={`${styles.card} mt-3`}>
           {(
             [
-              ["title", "Title", 1],
-              ["description", "Description", 3],
-              ["audience", "Main audience", 2],
-              ["problem", "Problem", 2],
-              ["users", "Users", 2],
-              ["outcomes", "Outcomes", 2],
-              ["constraints", "Constraints", 2],
-              ["out_of_scope", "Out of scope", 2],
+              ["title", "Title", 1, true],
+              ["description", "Description", 3, true],
+              ["audience", "Main audience", 2, true],
+              ["problem", "Problem", 2, false],
+              ["users", "Users", 2, false],
+              ["outcomes", "Outcomes", 2, false],
+              ["constraints", "Constraints", 2, false],
+              ["out_of_scope", "Out of scope", 2, false],
             ] as const
-          ).map(([key, label, rows]) => (
+          ).map(([key, label, rows, required]) => (
             <label key={key} className={styles.field}>
-              <span className={styles.fieldLabel}>{label}</span>
+              <span className={styles.fieldLabel}>
+                {required ? remainingHint(draft[key], label) : label}
+              </span>
               <textarea
                 value={draft[key]}
                 disabled={saving}
@@ -174,7 +179,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
             </label>
           ))}
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => void save()} disabled={saving} className={styles.primary}>
+            <button type="button" onClick={() => void save()} disabled={saving || !canSave} className={styles.primary}>
               {saving ? "Saving…" : "Save project"}
             </button>
             <button
