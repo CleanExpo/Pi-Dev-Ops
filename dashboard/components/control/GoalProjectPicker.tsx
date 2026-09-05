@@ -118,6 +118,11 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
           {selected.audience ? `\nAudience: ${selected.audience}` : ""}
         </p>
       ) : null}
+      {!loading && !error && projects.length === 0 && !creating ? (
+        <p className={`${styles.note} mt-2`}>
+          No project briefs yet. Create one here — title, description, and audience are required.
+        </p>
+      ) : null}
       {!creating ? (
         <button
           type="button"
