@@ -2,6 +2,7 @@ import Link from "next/link";
 import ControlHubTiles from "@/components/control/ControlHubTiles";
 import LiveActivityFeed from "@/components/control/LiveActivityFeed";
 import styles from "@/components/control/control-deck.module.css";
+import { CONTROL_GOAL_CTA } from "@/lib/control/goalCopy";
 
 export default function ControlPage() {
   return (
@@ -16,7 +17,7 @@ export default function ControlPage() {
           </p>
         </div>
         <Link href="/control/goal" className={styles.cta}>
-          File a goal →
+          {CONTROL_GOAL_CTA} →
         </Link>
       </header>
       <div className="px-5 pb-8 flex flex-col gap-5">
