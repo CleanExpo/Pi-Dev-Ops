@@ -38,6 +38,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
   const [draft, setDraft] = useState(EMPTY);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   async function reload() {
     const res = await fetch("/api/pi-ceo/api/goal-projects");
@@ -53,7 +54,9 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
   }
 
   useEffect(() => {
-    void reload().catch(() => setError("Could not load projects."));
+    void reload()
+      .catch(() => setError("Could not load projects."))
+      .finally(() => setLoading(false));
   }, []);
 
   async function save() {
@@ -91,9 +94,10 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
   return (
     <div className={styles.field}>
       <span className={styles.fieldLabel}>Project</span>
+      {loading ? <p className={styles.note}>Loading project briefs…</p> : null}
       <select
         value={selectedId}
-        disabled={disabled || creating}
+        disabled={disabled || creating || loading}
         onChange={(e) => {
           const next = projects.find((p) => p.id === e.target.value);
           if (next) onSelect(next);
