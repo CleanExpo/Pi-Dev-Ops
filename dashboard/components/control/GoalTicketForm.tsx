@@ -9,6 +9,7 @@ import GoalDraftReview, {
   type DraftTicket,
 } from "./GoalDraftReview";
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
+import { readyToAnalyze } from "@/lib/control/goalBrief";
 import type { FiledTicket } from "@/lib/control/goalErrors";
 import GoalFiledList from "./GoalFiledList";
 import GoalStagePills from "./GoalStagePills";
@@ -63,8 +64,10 @@ export default function GoalTicketForm() {
     return () => clearInterval(id);
   }, [busy]);
 
+  const canAnalyze = readyToAnalyze(goal, acceptance, project?.id || "");
+
   async function analyze() {
-    if (busy) return;
+    if (busy || !canAnalyze) return;
     setError("");
     setFiled([]);
     setConfirming(false);
@@ -201,7 +204,7 @@ export default function GoalTicketForm() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => void analyze()}
-            disabled={busy || !goal.trim() || !project || !acceptance.trim()}
+            disabled={busy || !canAnalyze}
             className={styles.primary}
           >
             {busy ? "Analyzing…" : "Analyze goal"}
