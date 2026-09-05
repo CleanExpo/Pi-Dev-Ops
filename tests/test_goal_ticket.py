@@ -733,3 +733,39 @@ def test_file_drafts_creates_parent_and_sub_tasks() -> None:
     assert fake.created[1]["parentId"] == "issue-1"
     assert "## Project" in fake.created[0]["description"]
     assert "Control Goal desk" in fake.created[0]["description"]
+
+
+class _FailSecond(_FakeLinear):
+    """First issueCreate succeeds. The next one fails so a batch can stop mid-file."""
+
+    def __call__(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+        if "issueCreate" in query and self.calls >= 1:
+            return {"errors": [{"message": "Linear down after first ticket"}]}
+        return super().__call__(query, variables)
+
+
+def test_file_drafts_returns_partial_filed_when_later_ticket_fails() -> None:
+    fake = _FailSecond()
+    out = file_drafts(
+        "CleanExpo/Pi-Dev-Ops",
+        [
+            {
+                "title": "First ticket lands",
+                "goal": "The first approved ticket exists in Linear",
+                "acceptance": "RA-8001 exists in Backlog after the first write.",
+            },
+            {
+                "title": "Second ticket fails",
+                "goal": "The second approved ticket exists in Linear",
+                "acceptance": "RA-8002 exists in Backlog after the second write.",
+            },
+        ],
+        approved=True,
+        parent_goal="File two tickets and stop if the second write fails",
+        gql=fake,
+    )
+    assert out["error"] == "create_failed"
+    assert out["failed_title"] == "Second ticket fails"
+    assert len(out["filed"]) == 1
+    assert out["filed"][0]["identifier"] == "RA-8001"
+    assert len(fake.created) == 1
