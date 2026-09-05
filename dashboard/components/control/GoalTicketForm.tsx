@@ -9,7 +9,7 @@ import GoalDraftReview, {
   type DraftTicket,
 } from "./GoalDraftReview";
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
-import { readyToAnalyze } from "@/lib/control/goalBrief";
+import { readyToAnalyze, remainingHint } from "@/lib/control/goalBrief";
 import type { FiledTicket } from "@/lib/control/goalErrors";
 import GoalFiledList from "./GoalFiledList";
 import GoalStagePills from "./GoalStagePills";
@@ -169,7 +169,7 @@ export default function GoalTicketForm() {
       <GoalStagePills stage={stage} />
 
       <label className={styles.field}>
-        <span className={styles.fieldLabel}>Goal</span>
+        <span className={styles.fieldLabel}>{remainingHint(goal, "Goal")}</span>
         <textarea
           id="goal-text"
           name="goal"
@@ -187,7 +187,7 @@ export default function GoalTicketForm() {
         onSelect={setProject}
       />
       <label className={styles.field}>
-        <span className={styles.fieldLabel}>Acceptance</span>
+        <span className={styles.fieldLabel}>{remainingHint(acceptance, "Acceptance")}</span>
         <textarea
           id="goal-acceptance"
           name="acceptance"
