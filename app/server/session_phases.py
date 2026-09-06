@@ -1746,7 +1746,13 @@ def _log_ship_gate_check(session, push_ok: bool, push_ts: float) -> None:
                 "spec_exists":    spec_exists,
                 "plan_exists":    plan_exists,
                 "build_complete": True,   # reached here only if generate succeeded
-                "tests_passed":   True,   # reached here only if sandbox succeeded
+                # RA-7433: this was the literal True, justified as "reached here
+                # only if sandbox succeeded". _phase_sandbox runs no tests — it
+                # checks the workspace directory exists, re-clones if it does
+                # not, and returns True; it also returns True when SKIPPED. So
+                # the literal recorded "tests passed" for a directory check, and
+                # could never go red. Absent evidence is not a pass.
+                "tests_passed":   getattr(session, "tests_passed", None) is True,
                 "review_passed":  review_passed,
             },
             review_score=review_score,
