@@ -68,6 +68,12 @@ def test_no_baselined_path_looks_missing_from_the_real_tree():
     ).stdout.split("\n")
     measured = {gate._key(Path(p)) for p in tracked if p}
 
+    # BASELINE_PATH is RELATIVE (`.github/file-length.baseline.txt`), so
+    # read_baseline() silently returns {} whenever the process is not standing in
+    # the repo root. Pin it. Without this the test passes locally, and on a CI
+    # runner that invokes pytest from anywhere else it fails on an empty dict --
+    # a red that says nothing about the defect it is meant to guard.
+    gate.BASELINE_PATH = _REPO / ".github" / "file-length.baseline.txt"
     baseline = gate.read_baseline()
     assert baseline, "baseline file is empty -- this control would pass vacuously"
 
