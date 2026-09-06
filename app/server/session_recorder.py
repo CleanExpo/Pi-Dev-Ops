@@ -77,6 +77,23 @@ def _classify_task_type(brief: str) -> str:
     return "add_feature"
 
 
+def _trust_verdict(session) -> tuple[bool, bool]:
+    """Return (tests_passed, verified) for the episode row.
+
+    RA-7433: this used to read `sandbox_ok` with a default of True. Nothing in
+    the tree ever set that attribute, so every episode recorded tests_passed=True
+    and `verified` reduced to "the run finished". Verified rows are eligible for
+    context injection, so unproven work fed back in as proven.
+
+    Absent or None means "no test evidence", which is not a pass. Only an
+    explicit True is a pass.
+    """
+    tests_passed = getattr(session, "sandbox_ok", None) is True
+    outcome = "complete" if session.status == "complete" else "failed"
+    verified = (outcome == "complete") and tests_passed
+    return tests_passed, verified
+
+
 async def record_episode(session, brief: str = "") -> None:
     """RA-931 — Write a build_episodes row after run_build() completes.
 
@@ -95,8 +112,7 @@ async def record_episode(session, brief: str = "") -> None:
         output_lines = getattr(session, "output_lines", [])
         eval_score = float(getattr(session, "evaluator_score", 0) or 0)
         outcome = "complete" if session.status == "complete" else "failed"
-        tests_passed = getattr(session, "sandbox_ok", True)  # sandbox phase passed = tests_passed
-        verified = (outcome == "complete") and tests_passed
+        tests_passed, verified = _trust_verdict(session)
 
         started_at = getattr(session, "started_at", None)
         duration_s: int | None = None

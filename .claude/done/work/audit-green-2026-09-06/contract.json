@@ -1,0 +1,61 @@
+{
+  "schema": "done/1",
+  "work_id": "audit-green-2026-09-06",
+  "goal": "Turn the 2026-09-06 estate audit findings green with controls that were each watched failing on the live defect first. Green with no proven red is not accepted.",
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "statement": "session_recorder no longer treats absent test evidence as a pass",
+      "recipe": {
+        "run": "python3 -m pytest tests/test_recorder_trust_anchor.py -q",
+        "expect_exit": 0,
+        "expect_stdout_contains": "5 passed",
+        "timeout_s": 300
+      }
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "statement": "the ship gate reports tests_passed from evidence, not a literal",
+      "recipe": {
+        "run": "python3 -m pytest tests/test_ship_gate_tests_passed_is_evidence.py -q",
+        "expect_exit": 0,
+        "expect_stdout_contains": "3 passed",
+        "timeout_s": 300
+      }
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "statement": "source guards: no literal gate flag and no fail-open sandbox_ok default; watched failing with both defects reintroduced",
+      "recipe": {
+        "run": "python3 -m pytest tests/test_no_literal_gate_flags.py -q",
+        "expect_exit": 0,
+        "expect_stdout_contains": "3 passed",
+        "timeout_s": 300
+      }
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "statement": "the pre-existing ra7216 acceptance suite still passes unchanged",
+      "recipe": {
+        "run": "python3 -m pytest tests/test_ra7216_acceptance_events.py -q",
+        "expect_exit": 0,
+        "expect_stdout_contains": "passed",
+        "timeout_s": 300
+      }
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "statement": "both touched modules still import cleanly",
+      "recipe": {
+        "run": "python3 -m py_compile app/server/session_recorder.py app/server/session_phases.py",
+        "expect_exit": 0,
+        "timeout_s": 120
+      }
+    }
+  ]
+}
