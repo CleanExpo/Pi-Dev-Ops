@@ -56,12 +56,34 @@ MARGOT_CASUAL_REFUSED_MARKERS = ("kimi", "moonshot", "anthropic", "claude", "son
 
 
 def _margot_casual_refusal(provider: str, model_id: str) -> str | None:
-    """The refused marker `provider:model_id` matches, or None when it is allowed."""
+    """Why margot.casual may not run `provider:model_id`, or None when it may.
+
+    An ALLOWLIST, not a denylist. A denylist was the first shape and it was
+    wrong: `openrouter:openai/gpt-4o` matches none of the five refused markers,
+    so a role the founder ruling puts on $0 models could be pointed straight at
+    a paid one. A list of forbidden names can only ever be as complete as the
+    person writing it; the set of models that cost nothing is the one that can
+    be stated exactly. Three things are permitted and nothing else:
+
+      * any (provider, model_id) on MARGOT_CASUAL_LADDER,
+      * any ollama model — it runs locally, so it costs nothing,
+      * any OpenRouter model whose id ends ":free".
+
+    The marker list still runs FIRST, because an Anthropic model served free
+    through OpenRouter is free and is still forbidden for this role by name.
+    """
     probe = f"{provider}:{model_id}".lower()
     for marker in MARGOT_CASUAL_REFUSED_MARKERS:
         if marker in probe:
-            return marker
-    return None
+            return f"matches refused marker {marker!r}"
+    if (provider, model_id) in MARGOT_CASUAL_LADDER:
+        return None
+    if provider == "ollama":
+        return None
+    if provider == "openrouter" and model_id.lower().endswith(":free"):
+        return None
+    return ("is not on the free ladder, is not an ollama model, and is not an "
+            "OpenRouter ':free' model")
 
 
 def _margot_ollama_base_url() -> str:
@@ -110,13 +132,13 @@ def _margot_casual_candidates() -> list[tuple[Provider, str, str]]:
 
 
 def _refuse_if_forbidden(provider: str, model_id: str, source: str) -> None:
-    marker = _margot_casual_refusal(provider, model_id)
-    if marker is None:
+    reason = _margot_casual_refusal(provider, model_id)
+    if reason is None:
         return
     raise RefusedModelError(
-        f"{MARGOT_CASUAL_ROLE} may not run on {provider}:{model_id} (source {source}; "
-        f"matches refused marker {marker!r}). Founder ruling RA-7434: this role runs on "
-        f"free models only — unset {MARGOT_CASUAL_ENV} or point it at a free model."
+        f"{MARGOT_CASUAL_ROLE} may not run on {provider}:{model_id} (source {source}): "
+        f"it {reason}. Founder ruling RA-7434: this role runs on free models only — "
+        f"unset {MARGOT_CASUAL_ENV} or point it at a model on the ladder."
     )
 
 
@@ -137,7 +159,17 @@ async def _call_ladder_step(prov: str, model: str, prompt: str, *, timeout_s: in
     """
     import sys as _sys  # noqa: PLC0415
 
-    mod_name = "app.server.provider_ollama" if prov == "ollama" else "app.server.provider_openrouter"
+    # Explicit, not "ollama else openrouter". The old shape sent EVERY other
+    # provider to provider_openrouter, so a claude_print or anthropic override
+    # that slipped the refusal list would have been issued to OpenRouter under a
+    # model id it never serves. _margot_casual_refusal refuses those first; this
+    # refuses them again at the point of dispatch.
+    if prov == "ollama":
+        mod_name = "app.server.provider_ollama"
+    elif prov == "openrouter":
+        mod_name = "app.server.provider_openrouter"
+    else:
+        return 1, "", 0.0, f"margot_casual_unsupported_provider: {prov}"
     try:
         provider_mod = _sys.modules.get(mod_name)
         if provider_mod is None:
