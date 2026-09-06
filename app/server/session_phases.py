@@ -1428,6 +1428,33 @@ def _route_linear_ticket_to_target_project(
 
 # ── RA-1743 — opus-adversary pre-push gate ─────────────────────────────────
 
+def _adversary_halt_reason(verdict: str, rc: int) -> str | None:
+    """Why must the push stop on this adversary verdict? None means proceed.
+
+    RA-7433 P05: the caller used to halt ONLY on BLOCK. `verdict` defaults to
+    UNKNOWN and is replaced only when `rc == 0 and output_text`, so a reviewer
+    that crashed, timed out, or returned nothing produced UNKNOWN — and UNKNOWN
+    fell through to push, behaviour indistinguishable from APPROVE.
+
+    This is the last gate before code leaves the machine. Global doctrine is
+    explicit: missing, failed or unavailable review evidence means STOP, never
+    self-certify. So this allow-lists the approvals rather than deny-listing
+    one bad value.
+
+    An exit code is not a verdict — a reviewer can exit 0 on a usage limit and
+    write no report — which is why an empty output reaches here as UNKNOWN and
+    is treated exactly like a crash.
+
+    The SKIP_NO_DIFF and SKIP_DOCS_ONLY paths return before this is called and
+    are unaffected: nothing to review is not the same as failing to review.
+    """
+    if verdict in ("APPROVE", "APPROVE_WITH_NOTES"):
+        return None
+    if verdict == "BLOCK":
+        return "Adversary BLOCK"
+    return f"Adversary review unavailable (verdict={verdict}, rc={rc})"
+
+
 async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     """RA-1743 — Pre-push opus-adversary review gate.
 
@@ -1544,26 +1571,9 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
 
     _emit_phase_metric(session, "adversary", phase_start, cost)
 
-    # ── Proceed only on an explicit approval ─────────────────────────────
-    # RA-7433 P05: this used to halt ONLY on BLOCK. `verdict` defaults to
-    # UNKNOWN and is replaced only when `rc == 0 and output_text`, so a
-    # reviewer that crashed, timed out, or returned nothing produced UNKNOWN
-    # and UNKNOWN proceeded to push - behaviour indistinguishable from
-    # APPROVE. This is the last gate before code leaves the machine, and
-    # global doctrine is explicit: missing, failed or unavailable review
-    # evidence means STOP, never self-certify.
-    #
-    # An exit code is not a verdict. A reviewer can exit 0 on a usage limit
-    # and write no report, which is why an empty output is treated the same
-    # as a crash.
-    #
-    # The SKIP_NO_DIFF and SKIP_DOCS_ONLY paths return earlier and are
-    # unaffected: nothing to review is not the same as failing to review.
-    if verdict not in ("APPROVE", "APPROVE_WITH_NOTES"):
-        reason = {
-            "BLOCK": "Adversary BLOCK",
-        }.get(verdict, f"Adversary review unavailable (verdict={verdict}, rc={rc})")
-        em(session, "error", f"  {reason} — halting push. See .harness/adversary-runs/")
+    halt = _adversary_halt_reason(verdict, rc)
+    if halt:
+        em(session, "error", f"  {halt} — halting push. See .harness/adversary-runs/")
         return False, {"verdict": verdict, "raw_output": output_text}
 
     em(
@@ -1735,6 +1745,20 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
 
+def _tests_passed(session) -> bool:
+    """Did a test suite actually pass for this session?
+
+    RA-7433: this was the literal `True`, justified as "reached here only if
+    sandbox succeeded". `_phase_sandbox` runs no tests — it checks the workspace
+    directory exists, re-clones if it does not, and returns True; it also
+    returns True when the phase is SKIPPED. So the literal recorded "tests
+    passed" on the strength of a directory check, and could never go red.
+
+    Absent evidence is not a pass, so only an explicit True counts.
+    """
+    return getattr(session, "tests_passed", None) is True
+
+
 def _log_ship_gate_check(session, push_ok: bool, push_ts: float) -> None:
     """RA-656 — write the post-push gate_check row. Fire-and-forget.
 
@@ -1763,13 +1787,7 @@ def _log_ship_gate_check(session, push_ok: bool, push_ts: float) -> None:
                 "spec_exists":    spec_exists,
                 "plan_exists":    plan_exists,
                 "build_complete": True,   # reached here only if generate succeeded
-                # RA-7433: this was the literal True, justified as "reached here
-                # only if sandbox succeeded". _phase_sandbox runs no tests — it
-                # checks the workspace directory exists, re-clones if it does
-                # not, and returns True; it also returns True when SKIPPED. So
-                # the literal recorded "tests passed" for a directory check, and
-                # could never go red. Absent evidence is not a pass.
-                "tests_passed":   getattr(session, "tests_passed", None) is True,
+                "tests_passed":   _tests_passed(session),
                 "review_passed":  review_passed,
             },
             review_score=review_score,
