@@ -1544,9 +1544,26 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
 
     _emit_phase_metric(session, "adversary", phase_start, cost)
 
-    # ── Halt on BLOCK ────────────────────────────────────────────────────
-    if verdict == "BLOCK":
-        em(session, "error", "  Adversary BLOCK — halting push. See .harness/adversary-runs/")
+    # ── Proceed only on an explicit approval ─────────────────────────────
+    # RA-7433 P05: this used to halt ONLY on BLOCK. `verdict` defaults to
+    # UNKNOWN and is replaced only when `rc == 0 and output_text`, so a
+    # reviewer that crashed, timed out, or returned nothing produced UNKNOWN
+    # and UNKNOWN proceeded to push - behaviour indistinguishable from
+    # APPROVE. This is the last gate before code leaves the machine, and
+    # global doctrine is explicit: missing, failed or unavailable review
+    # evidence means STOP, never self-certify.
+    #
+    # An exit code is not a verdict. A reviewer can exit 0 on a usage limit
+    # and write no report, which is why an empty output is treated the same
+    # as a crash.
+    #
+    # The SKIP_NO_DIFF and SKIP_DOCS_ONLY paths return earlier and are
+    # unaffected: nothing to review is not the same as failing to review.
+    if verdict not in ("APPROVE", "APPROVE_WITH_NOTES"):
+        reason = {
+            "BLOCK": "Adversary BLOCK",
+        }.get(verdict, f"Adversary review unavailable (verdict={verdict}, rc={rc})")
+        em(session, "error", f"  {reason} — halting push. See .harness/adversary-runs/")
         return False, {"verdict": verdict, "raw_output": output_text}
 
     em(
