@@ -16,8 +16,10 @@ Run once (cron/launchd/Task Scheduler) or as a loop daemon:
 from __future__ import annotations
 
 import json
+import ipaddress
 import os
 import platform
+import shutil
 import socket
 import subprocess
 import sys
@@ -74,12 +76,58 @@ def _run(cmd: list[str], timeout: int = 5) -> str:
         return ""
 
 
+def _resolved_tailscale_candidates() -> list[str]:
+    """Return executable candidates without assuming a host-specific install."""
+    candidates: list[str] = []
+    explicit = os.environ.get("TAILSCALE_BIN", "").strip()
+    discovered = shutil.which("tailscale")
+    fallback = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+    for candidate in (explicit, discovered, fallback):
+        if candidate and candidate not in candidates:
+            candidates.append(candidate)
+    return candidates
+
+
 def tailnet_ip() -> str:
-    for ts in ("/Applications/Tailscale.app/Contents/MacOS/Tailscale", "tailscale"):
+    for ts in _resolved_tailscale_candidates():
         out = _run([ts, "ip", "-4"])
-        if out:
-            return out.splitlines()[0].strip()
+        for line in out.splitlines():
+            candidate = line.strip()
+            try:
+                parsed = ipaddress.ip_address(candidate)
+            except ValueError:
+                continue
+            if parsed.version == 4:
+                return candidate
     return ""
+
+
+def _windows_cpu_mem() -> tuple[float | None, float | None]:
+    script = (
+        "$cpu=(Get-CimInstance Win32_Processor | "
+        "Measure-Object -Property LoadPercentage -Average).Average;"
+        "$os=Get-CimInstance Win32_OperatingSystem;"
+        "@{cpu=$cpu;total=$os.TotalVisibleMemorySize;"
+        "free=$os.FreePhysicalMemory}|ConvertTo-Json -Compress"
+    )
+    raw = _run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script])
+    try:
+        metrics = json.loads(raw)
+        if not isinstance(metrics, dict):
+            return None, None
+    except json.JSONDecodeError:
+        return None, None
+    try:
+        cpu = round(float(metrics["cpu"]), 1)
+    except (KeyError, TypeError, ValueError):
+        cpu = None
+    try:
+        total = int(metrics["total"])
+        free = int(metrics["free"])
+        mem = round(100 * (1 - free / total), 1) if total else None
+    except (KeyError, TypeError, ValueError):
+        mem = None
+    return cpu, mem
 
 
 def cpu_mem_load() -> tuple[float | None, float | None, float | None]:
@@ -122,20 +170,7 @@ def cpu_mem_load() -> tuple[float | None, float | None, float | None]:
         if load1 is not None:
             cpu = round(min(100.0, 100 * load1 / ncpu), 1)
     elif sysname == "Windows":
-        out = _run(["wmic", "cpu", "get", "loadpercentage", "/value"])
-        for line in out.splitlines():
-            if line.startswith("LoadPercentage="):
-                try:
-                    cpu = float(line.split("=")[1])
-                except ValueError:
-                    pass
-        mtot = _run(["wmic", "OS", "get", "TotalVisibleMemorySize", "/value"])
-        mfree = _run(["wmic", "OS", "get", "FreePhysicalMemory", "/value"])
-        try:
-            t = int(mtot.split("=")[1]); fr = int(mfree.split("=")[1])
-            mem = round(100 * (1 - fr / t), 1)
-        except Exception:
-            pass
+        cpu, mem = _windows_cpu_mem()
     return cpu, mem, load1
 
 
@@ -193,7 +228,7 @@ def running_agent_sessions() -> list[dict]:
 def collect() -> dict:
     cpu, mem, load1 = cpu_mem_load()
     agents = running_agent_sessions()
-    status = "working" if agents else "idle"
+    status = "working" if agents else "online"
     return {
         "host": socket.gethostname().split(".")[0],
         "os": f"{platform.system()} {platform.release()}",

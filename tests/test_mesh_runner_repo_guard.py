@@ -137,6 +137,21 @@ def test_a_deliberate_relocation_to_the_same_project_is_allowed(monkeypatch, tmp
     assert mod.default_repo_dir_problem() == ""
 
 
+def test_optional_dot_git_suffix_does_not_change_repository_identity(monkeypatch, tmp_path):
+    clone = _repo_with_origin(tmp_path / "relocated-dot-git", f"{OWN_ORIGIN}.git")
+    mod = _runner_with(monkeypatch, str(clone))
+    assert mod.default_repo_dir_problem() == ""
+
+
+def test_dot_git_suffix_remains_significant_for_file_remotes(monkeypatch, tmp_path):
+    own = _repo_with_origin(tmp_path / "own", "file:///srv/expected")
+    clone = _repo_with_origin(tmp_path / "other", "file:///srv/expected.git")
+    monkeypatch.setenv("MESH_REPO_DIR", str(clone))
+    mod = load_module("mesh_repo_guard_file_origin", "mesh/repo_guard.py")
+
+    assert mod.repo_dir_problem(clone, own)
+
+
 def test_main_does_not_refuse_when_the_default_is_sound(monkeypatch):
     """GREEN CONTROL for the startup gate: it must let a normal runner run.
 

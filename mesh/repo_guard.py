@@ -39,6 +39,12 @@ def git_origin(repo: Path) -> str:
     return (getattr(out, "stdout", "") or "").strip()
 
 
+def canonical_origin(value: str) -> str:
+    """Normalise Git's optional HTTPS `.git` suffix without weakening identity."""
+    hosted = value.startswith(("https://", "http://"))
+    return value[:-4] if hosted and value.endswith(".git") else value
+
+
 def repo_dir_problem(default_repo_dir: Path, own_repo: Path) -> str:
     """Why `default_repo_dir` must not be trusted, or "" when it is sound.
 
@@ -55,6 +61,6 @@ def repo_dir_problem(default_repo_dir: Path, own_repo: Path) -> str:
     if not mine:
         return f"cannot read this checkout's origin at {own}, so {target} cannot be validated"
     theirs = git_origin(target)
-    if theirs != mine:
+    if canonical_origin(theirs) != canonical_origin(mine):
         return f"MESH_REPO_DIR={target} has origin {theirs or '(none)'}, expected {mine}"
     return ""
