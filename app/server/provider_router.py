@@ -33,6 +33,11 @@ Per-role override:
 
   Provider prefix is required: ``anthropic:`` or ``openrouter:``.
 
+  Exception — ``margot.casual`` (RA-7434, founder ruling 03/09/2026): fixed
+  FREE ladder, ignores every TAO_CHEAP_* knob, refuses Kimi/Moonshot and any
+  Anthropic/Claude/Sonnet model even via TAO_MODEL_MARGOT_CASUAL. See
+  MARGOT_CASUAL_LADDER below.
+
 The router does NOT enforce model_policy.OPUS_ALLOWED_ROLES — that gate
 still fires inside session_sdk._run_claude_via_sdk for Anthropic calls.
 The router just picks; the existing policy still polices.
@@ -105,6 +110,20 @@ DEFAULT_CHEAP_LOCAL_MODEL = "qwen3.5:latest"
 # attempts (2026-08-19) — do not wire the shared free pool into an always-on
 # path. qwen/qwen3-next-80b-a3b-instruct:free now 404s; its free tier is gone.
 DEFAULT_CHEAP_REMOTE_MODEL = "z-ai/glm-4.7-flash"
+
+
+# The margot.casual ladder lives in provider_margot_casual.py (RA-7434): this
+# file was already 735 lines against a 300-line convention, so the 126-line
+# body went to its own module and only the two dispatch points stayed here.
+from .provider_router_helpers import (  # noqa: E402
+    _corrected_for_downgrade,
+    _run_tier0,
+)
+from .provider_margot_casual import (  # noqa: E402
+    MARGOT_CASUAL_ROLE,
+    _resolve_margot_casual,
+    _run_margot_casual,
+)
 
 
 # Role → tier mapping (top/mid/cheap). Roles not listed default to "mid".
@@ -346,7 +365,8 @@ def _record_tier_downgrade(role: str, provider: str, model_id: str, env_key: str
 
 
 def select_provider_model(role: str,
-                            task_class: str = "default") -> ProviderModel:
+                            task_class: str = "default",
+                            *, record_observation: bool = True) -> ProviderModel:
     """Pick the (provider, model_id) for one role.
 
     Resolution order:
@@ -358,7 +378,18 @@ def select_provider_model(role: str,
     margot.casual.classify could route differently from margot.casual.reply
     even within the same role). Today it's a no-op label that lands in
     audit + cost-tracking metadata.
+
+    record_observation=False (RA-7434, GET /api/routing) resolves without
+    appending a tier-downgrade row to model_policy.VIOLATIONS_PATH — a
+    read-only view must not manufacture a violation event on every request.
+    The correction itself still applies; only the ledger write is skipped.
     """
+    # 0. margot.casual has its own fixed free ladder (RA-7434) and never
+    #    reaches the tier machinery below. Raises RefusedModelError on a
+    #    forbidden override — run_via_provider turns that into an error tuple.
+    if role == MARGOT_CASUAL_ROLE:
+        return _resolve_margot_casual()
+
     # 1. Per-role env override
     env_key = _env_role_key(role)
     raw = os.environ.get(env_key) or ""
@@ -368,40 +399,12 @@ def select_provider_model(role: str,
             prov, model = parsed
             log.debug("provider_router: %s overridden via %s = %s:%s",
                       role, env_key, prov, model)
-            _record_tier_downgrade(role, prov, model, env_key)
+            if record_observation:
+                _record_tier_downgrade(role, prov, model, env_key)
 
-            # A per-role override may not DOWNGRADE a quality-critical role onto
-            # the cheap-tier model. The previous change made this visible; making
-            # it visible did not stop it happening, and every planner,
-            # orchestrator, board, generator and evaluator call in production was
-            # still being answered by the cheap model.
-            #
-            # Correction, not refusal: the role falls back to its tier default
-            # rather than erroring. Refusing would take production down over a
-            # config that has been live for months — the same reason the earlier
-            # change stopped at observability. Correcting keeps every call
-            # served while ending the downgrade, which is the outcome actually
-            # wanted. CLAUDE.md already records what a too-cheap planner
-            # produces: 5%-confidence plans and prose refusals.
-            #
-            # Deliberately narrow: it fires ONLY when the override names the
-            # configured cheap model for a top/mid role. Any other override —
-            # a different Anthropic model, a specific OpenRouter model, a local
-            # Ollama pin — is honoured untouched, because the operator asking
-            # for a specific capable model is a legitimate decision and this is
-            # not a general-purpose model policy.
-            if _is_tier_downgrade(role, model):
-                tier = ROLE_TIER.get(role, "mid")
-                corrected_prov, corrected_model = _tier_default(tier)
-                log.warning(
-                    "provider_router: ignoring %s — a %s-tier role may not run on the "
-                    "cheap model %s; using %s:%s instead",
-                    env_key, tier, model, corrected_prov, corrected_model,
-                )
-                return ProviderModel(
-                    provider=corrected_prov, model_id=corrected_model,
-                    tier=tier, role=role, source="tier_downgrade_corrected",
-                )
+            corrected = _corrected_for_downgrade(role, model, env_key)
+            if corrected is not None:
+                return corrected
 
             return ProviderModel(
                 provider=prov, model_id=model,
@@ -493,29 +496,19 @@ async def run_via_provider(prompt: str, *, role: str,
     Tier-0 gathering roles walk the full free→paid→local chain with failover
     via tier0_runner; ``confidential=True`` forces that walk local-only.
     """
+    # margot.casual (RA-7434): free ladder with call-time failover; a refused
+    # model returns an error tuple here and never falls through to a paid path.
+    if role == MARGOT_CASUAL_ROLE:
+        return await _run_margot_casual(prompt, timeout_s=timeout_s, session_id=session_id)
+
     pm = select_provider_model(role, task_class=task_class)
 
     # Tier-0 gathering lane (UNI-2212): the head-lane selection alone can't
     # fail over, so run the full resolved chain. Inert for every non-tier0
     # role today (no role maps to tier0 until the lane is activated).
     if pm.tier == "tier0":
-        try:
-            import sys as _sys  # noqa: PLC0415
-            tier0_runner = _sys.modules.get("app.server.tier0_runner")
-            if tier0_runner is None:
-                from . import tier0_runner  # noqa: PLC0415
-        except Exception as exc:  # noqa: BLE001
-            return 1, "", 0.0, f"tier0_runner_import_failed: {exc}"
-        r = await tier0_runner.run_tier0(
-            prompt, confidential=confidential, role=role,
-            session_id=session_id, timeout_s=timeout_s,
-        )
-        if r.ok and r.cost_usd > 0:
-            _record_cost_safe(
-                provider=r.provider or "tier0", role=role,
-                model=r.model_id or "", cost_usd=r.cost_usd,
-            )
-        return (0 if r.ok else 1), r.text, r.cost_usd, r.error
+        return await _run_tier0(prompt, role=role, session_id=session_id,
+                                timeout_s=timeout_s, confidential=confidential)
 
     # claude --print path ($0 marginal under Max plan)
     if pm.provider == "claude_print":

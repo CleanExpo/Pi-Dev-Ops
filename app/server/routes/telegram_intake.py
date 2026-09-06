@@ -20,6 +20,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from ..app_factory import app, _resilient
+from .telegram_webhook_ownership import _owned_bot_id, _webhook_ownership_error
 
 
 log = logging.getLogger("pi-ceo.telegram_intake")
@@ -140,12 +141,39 @@ def _status() -> dict[str, Any]:
         "has_chat_allowlist": _has_chat_allowlist(),
         "has_linear_api_key": bool(os.environ.get("LINEAR_API_KEY")),
         "webhook_autoconfigure": _webhook_autoconfigure_enabled(),
+        "webhook_owned_bot_id_set": bool(_owned_bot_id()),
         "webhook_mode": _should_use_webhook_mode(),
         "webhook_url": _telegram_webhook_url() if _should_use_webhook_mode() else "",
         "last_webhook_ok": _last_webhook_ok,
         "last_webhook_error": _last_webhook_error,
         "last_webhook_age_s": int(now - _last_webhook_at) if _last_webhook_at else None,
     }
+
+
+def _set_webhook(token: str, url: str, secret: str) -> None:
+    """POST setWebhook. Raises RuntimeError on anything Telegram calls not-ok.
+
+    Split out of _ensure_telegram_webhook (RA-7434): that function was already
+    42 lines against a 40-line convention and the ownership guard had to go
+    somewhere. The caller owns the _last_webhook_* state; this owns the call.
+    """
+    payload = urllib.parse.urlencode(
+        {
+            "url": url,
+            "secret_token": secret,
+            "drop_pending_updates": "false",
+            "allowed_updates": json.dumps(["message"]),
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/setWebhook",
+        data=payload,
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        body = json.loads(resp.read().decode("utf-8"))
+    if not body.get("ok"):
+        raise RuntimeError(body.get("description") or str(body))
 
 
 def _ensure_telegram_webhook() -> bool:
@@ -160,25 +188,16 @@ def _ensure_telegram_webhook() -> bool:
         _last_webhook_error = "missing TELEGRAM_BOT_TOKEN or TELEGRAM_WEBHOOK_SECRET"
         return False
 
-    payload = urllib.parse.urlencode(
-        {
-            "url": url,
-            "secret_token": secret,
-            "drop_pending_updates": "false",
-            "allowed_updates": json.dumps(["message"]),
-        }
-    ).encode("utf-8")
+    refusal = _webhook_ownership_error(token)
+    if refusal:
+        _last_webhook_ok = False
+        _last_webhook_error = refusal[:200]
+        _last_webhook_at = time.time()
+        log.warning("Telegram webhook refused: %s", refusal)
+        return False
 
     try:
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{token}/setWebhook",
-            data=payload,
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-        if not body.get("ok"):
-            raise RuntimeError(body.get("description") or str(body))
+        _set_webhook(token, url, secret)
         _last_webhook_ok = True
         _last_webhook_error = ""
         log.info("Telegram webhook ensured: %s", url)
