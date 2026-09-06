@@ -127,6 +127,33 @@ def _resolve_margot_casual() -> ProviderModel:
                          role=MARGOT_CASUAL_ROLE, source=source)
 
 
+async def _call_ladder_step(prov: str, model: str, prompt: str, *, timeout_s: int,
+                            session_id: str) -> tuple[int, str, float, str | None]:
+    """One ladder step. Any raise becomes an error tuple so the walk continues.
+
+    Looked up through sys.modules first so a test's monkeypatch.setitem wins
+    over the cached import binding, which is how the rest of this router does
+    it. Split out of _run_margot_casual to keep that under the 40-line limit.
+    """
+    import sys as _sys  # noqa: PLC0415
+
+    mod_name = "app.server.provider_ollama" if prov == "ollama" else "app.server.provider_openrouter"
+    try:
+        provider_mod = _sys.modules.get(mod_name)
+        if provider_mod is None:
+            if prov == "ollama":
+                from . import provider_ollama as provider_mod  # noqa: PLC0415
+            else:
+                from . import provider_openrouter as provider_mod  # noqa: PLC0415
+        extra = {"base_url": _margot_ollama_base_url()} if prov == "ollama" else {}
+        return await provider_mod.call(
+            prompt=prompt, model_id=model, timeout_s=timeout_s,
+            role=MARGOT_CASUAL_ROLE, session_id=session_id, **extra,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return 1, "", 0.0, f"{prov}_call_raised: {exc}"
+
+
 async def _run_margot_casual(prompt: str, *, timeout_s: int, session_id: str,
                              ) -> tuple[int, str, float, str | None]:
     """Walk the free ladder at call time.
@@ -144,27 +171,13 @@ async def _run_margot_casual(prompt: str, *, timeout_s: int, session_id: str,
         log.error("provider_router: %s", exc)
         return 1, "", 0.0, f"margot_casual_refused: {exc}"
 
-    import sys as _sys  # noqa: PLC0415
     last_error = "no candidates"
     for prov, model, source in candidates:
-        mod_name = "app.server.provider_ollama" if prov == "ollama" else "app.server.provider_openrouter"
-        try:
-            provider_mod = _sys.modules.get(mod_name)
-            if provider_mod is None:
-                if prov == "ollama":
-                    from . import provider_ollama as provider_mod  # noqa: PLC0415
-                else:
-                    from . import provider_openrouter as provider_mod  # noqa: PLC0415
-            extra = {"base_url": _margot_ollama_base_url()} if prov == "ollama" else {}
-            rc, text, cost, err = await provider_mod.call(
-                prompt=prompt, model_id=model, timeout_s=timeout_s,
-                role=MARGOT_CASUAL_ROLE, session_id=session_id, **extra,
-            )
-        except Exception as exc:  # noqa: BLE001
-            rc, text, cost, err = 1, "", 0.0, f"{prov}_call_raised: {exc}"
+        rc, text, cost, err = await _call_ladder_step(
+            prov, model, prompt, timeout_s=timeout_s, session_id=session_id)
         if int(rc) == 0:
-            _pr()._record_cost_safe(provider=prov, role=MARGOT_CASUAL_ROLE, model=model,
-                              cost_usd=float(cost or 0.0))
+            _pr()._record_cost_safe(provider=prov, role=MARGOT_CASUAL_ROLE,
+                                    model=model, cost_usd=float(cost or 0.0))
             return int(rc), text, cost, err
         last_error = f"{prov}:{model} ({source}): {err}"
         log.warning("provider_router: margot.casual %s — trying the next ladder step", last_error)
