@@ -60,7 +60,7 @@ def mesh(tmp_path: Path):
 
     clone = tmp_path / "work"
     clone.mkdir()
-    _git("init", "-q", cwd=clone)
+    _git("init", "-q", "--initial-branch=fixture-base", cwd=clone)
     _git("remote", "add", "origin", str(origin), cwd=clone)
     (clone / ".autogit.json").write_text("{}\n", encoding="utf-8")
     _git("add", "-A", cwd=clone)
