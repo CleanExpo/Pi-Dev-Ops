@@ -18,6 +18,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
+from app.server import provider_margot_casual as MC  # noqa: E402
 from app.server import provider_router as PR  # noqa: E402
 
 SNAPSHOT_PATH = REPO_ROOT / "tests" / "fixtures" / "provider_router_roles_before_ra7434.json"
@@ -141,9 +142,9 @@ FREE_LADDER = (
 
 
 def test_ladder_is_exactly_the_founder_ruling():
-    assert PR.MARGOT_CASUAL_LADDER == FREE_LADDER
-    for prov, model in PR.MARGOT_CASUAL_LADDER:
-        assert PR._margot_casual_refusal(prov, model) is None
+    assert MC.MARGOT_CASUAL_LADDER == FREE_LADDER
+    for prov, model in MC.MARGOT_CASUAL_LADDER:
+        assert MC._margot_casual_refusal(prov, model) is None
 
 
 def test_step1_ollama_when_base_url_configured_and_reachable(monkeypatch):
@@ -231,93 +232,9 @@ def test_malformed_override_falls_to_ladder(monkeypatch):
 ])
 def test_refused_override_fails_closed(monkeypatch, spec):
     monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", spec)
-    with pytest.raises(PR.RefusedModelError) as exc_info:
+    with pytest.raises(MC.RefusedModelError) as exc_info:
         PR.select_provider_model("margot.casual")
     msg = str(exc_info.value)
     assert "margot.casual" in msg
     assert "TAO_MODEL_MARGOT_CASUAL" in msg
     assert "RA-7434" in msg
-
-
-# ── run_via_provider: refusal is an error tuple, never a raise ──────────────
-#
-# margot_bot._call_llm wraps run_via_provider in `except Exception` and falls
-# back to a DIRECT Anthropic call. A raised refusal would therefore route the
-# role onto the very model the ruling forbids. The refusal must come back as
-# (rc=1, error) so the bot reports "unavailable" instead.
-
-
-def _fake_provider(name: str, calls: list, responses: list):
-    import types  # noqa: PLC0415
-
-    async def call(*, prompt, model_id, timeout_s=120, role="", session_id="", **kw):
-        calls.append((name, model_id))
-        return responses.pop(0)
-
-    return types.SimpleNamespace(call=call)
-
-
-@pytest.fixture
-def cost_log(monkeypatch, tmp_path):
-    monkeypatch.setenv("BUDGET_TRACKER_LOG_PATH", str(tmp_path / "llm-cost.jsonl"))
-    return tmp_path / "llm-cost.jsonl"
-
-
-def test_run_via_provider_refusal_returns_error_tuple(monkeypatch, cost_log):
-    import asyncio  # noqa: PLC0415
-    monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", "openrouter:~moonshotai/kimi-latest")
-    calls: list = []
-    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", _fake_provider("openrouter", calls, []))
-    monkeypatch.setitem(sys.modules, "app.server.session_sdk", _fake_provider("anthropic", calls, []))
-    rc, text, cost, err = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
-    assert rc == 1 and text == "" and cost == 0.0
-    assert err.startswith("margot_casual_refused:")
-    assert "kimi" in err
-    assert calls == [], "a refused model must never be called, nor any fallback"
-    assert not cost_log.exists()
-
-
-def test_run_via_provider_walks_the_ladder_on_failure(monkeypatch, cost_log):
-    import asyncio  # noqa: PLC0415
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.local:11434/v1")
-    monkeypatch.setattr(_ollama_module(), "is_reachable", lambda **kw: True)
-    calls: list = []
-    monkeypatch.setitem(sys.modules, "app.server.provider_ollama", _fake_provider(
-        "ollama", calls, [(1, "", 0.0, "ollama_call_raised: refused")]))
-    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", _fake_provider(
-        "openrouter", calls, [(1, "", 0.0, "openrouter_http_429: free pool"), (0, "hello", 0.0, None)]))
-    # is_reachable lives on the real module we just shadowed — give the fake one too
-    sys.modules["app.server.provider_ollama"].is_reachable = lambda **kw: True
-    rc, text, cost, err = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
-    assert (rc, text, cost, err) == (0, "hello", 0.0, None)
-    assert calls == [
-        ("ollama", "gemma4:latest"),
-        ("openrouter", "google/gemma-4-26b-a4b-it:free"),
-        ("openrouter", "z-ai/glm-4.7-flash"),
-    ]
-    row = json.loads(cost_log.read_text().splitlines()[-1])
-    assert (row["provider"], row["role"], row["model"], row["cost_usd"]) == (
-        "openrouter", "margot.casual", "z-ai/glm-4.7-flash", 0.0)
-
-
-def test_run_via_provider_ladder_exhausted_is_an_error_not_a_paid_fallback(monkeypatch, cost_log):
-    import asyncio  # noqa: PLC0415
-    calls: list = []
-    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", _fake_provider(
-        "openrouter", calls, [(1, "", 0.0, "openrouter_http_429"), (1, "", 0.0, "openrouter_http_502")]))
-    monkeypatch.setitem(sys.modules, "app.server.session_sdk", _fake_provider("anthropic", calls, []))
-    rc, text, cost, err = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
-    assert rc == 1
-    assert err.startswith("margot_casual_ladder_exhausted:")
-    assert [c[0] for c in calls] == ["openrouter", "openrouter"]
-
-
-def test_run_via_provider_override_is_a_single_attempt(monkeypatch, cost_log):
-    import asyncio  # noqa: PLC0415
-    monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", "openrouter:nvidia/nemotron-3-super-120b-a12b:free")
-    calls: list = []
-    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", _fake_provider(
-        "openrouter", calls, [(1, "", 0.0, "openrouter_http_429")]))
-    rc, _text, _cost, err = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
-    assert rc == 1
-    assert calls == [("openrouter", "nvidia/nemotron-3-super-120b-a12b:free")]

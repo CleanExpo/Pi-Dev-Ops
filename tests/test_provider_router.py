@@ -81,12 +81,7 @@ def test_evaluator_mid():
 
 
 def test_cheap_role_routes_to_cheap_remote_when_ollama_unreachable():
-    """Cheap tier with Ollama unreachable → OpenRouter remote default.
-
-    Was margot.casual until RA-7434 gave that role its own free ladder
-    (tests/test_provider_router_margot_casual_ladder.py); intent_classify
-    keeps the plain cheap-tier contract under test.
-    """
+    """Cheap tier with Ollama unreachable → OpenRouter remote default."""
     pm = PR.select_provider_model("intent_classify")
     assert pm.tier == "cheap"
     assert pm.provider == "openrouter"
@@ -195,7 +190,6 @@ def test_invalid_cheap_provider_pin_falls_through(monkeypatch):
 
 
 def test_per_role_env_override(monkeypatch):
-    # monitor, not margot.casual: RA-7434 gave that role its own override contract.
     monkeypatch.setenv(
         "TAO_MODEL_MONITOR",
         "openrouter:meta-llama/llama-3.3-70b-instruct",

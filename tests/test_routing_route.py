@@ -160,8 +160,28 @@ def test_routing_cost_is_null_when_the_page_cap_hides_rows(client, monkeypatch):
 
 
 def test_routing_is_registered_on_the_production_app():
+    """The production app must actually route /api/routing.
+
+    This used to assert `"/api/routing" in {r.path for r in app.routes}`.
+    FastAPI 0.141 stopped flattening included routers into `app.routes`: it now
+    stores one `fastapi.routing._IncludedRouter` per include, and that object has
+    no `.path` at all. The `getattr(r, "path", "")` default silently turned all
+    30 of them into the empty string, so the assertion could not pass for ANY
+    included router, registered or not. It reported a missing endpoint that had
+    been registered the whole time.
+
+    Ask the app to route a request instead, which is the thing we actually care
+    about and which survives FastAPI's internals changing again. A registered
+    endpoint answers 401 or 503 depending on config; only an absent one answers
+    404. The second assertion is the negative control: without it an app that
+    404s on everything would pass this test.
+    """
+    from fastapi.testclient import TestClient  # noqa: PLC0415
+
     from app.server.main import app  # noqa: PLC0415
-    assert "/api/routing" in {getattr(r, "path", "") for r in app.routes}
+    client = TestClient(app, raise_server_exceptions=False)
+    assert client.get("/api/routing").status_code != 404
+    assert client.get("/api/__definitely_absent__").status_code == 404
 
 
 # ── Round-1 review findings (Codex, report ra7434-review-r1.json) ───────────

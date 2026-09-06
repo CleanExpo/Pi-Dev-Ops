@@ -148,13 +148,11 @@ async def call(*, prompt: str, model_id: str,
                  timeout_s: float = HTTP_TIMEOUT_S_DEFAULT,
                  max_tokens: int = 4096,
                  role: str = "",
-                 session_id: str = "",
-                 base_url: str | None = None,
+                 session_id: str = "", base_url: str | None = None,
                  ) -> tuple[int, str, float, str | None]:
     """One Ollama call. Returns (rc, text, cost_usd, error_or_None).
 
-    cost_usd is always 0.0 — Ollama is free. base_url targets a specific
-    Ollama instead of OLLAMA_BASE_URL.
+    cost_usd is always 0.0 — Ollama is free; base_url picks a specific one.
     """
     headers = _build_headers()
     body = _build_body(prompt, model_id, max_tokens=max_tokens)

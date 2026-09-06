@@ -112,34 +112,18 @@ DEFAULT_CHEAP_LOCAL_MODEL = "qwen3.5:latest"
 DEFAULT_CHEAP_REMOTE_MODEL = "z-ai/glm-4.7-flash"
 
 
-# ── margot.casual — fixed FREE ladder (RA-7434, founder ruling 03/09/2026) ──
-#
-# The Telegram persona role answers on $0 models only. Kimi cost $2.55 in 45
-# days by riding TAO_CHEAP_REMOTE_MODEL; this role no longer reads ANY
-# TAO_CHEAP_* knob. First usable step wins; run_via_provider fails over to the
-# next step at call time (the free pool 429s):
-#   1. ollama gemma4:latest        — only when MARGOT_OLLAMA_BASE_URL (or, off
-#      Railway, OLLAMA_BASE_URL) is set AND that Ollama answers the probe. The
-#      Railway start guard (scripts/runtime_model_guard.py) strips the global
-#      OLLAMA_BASE_URL from every work lane; the Margot-only key survives it.
-#   2. openrouter google/gemma-4-26b-a4b-it:free
-#   3. openrouter z-ai/glm-4.7-flash
-# Single override: TAO_MODEL_MARGOT_CASUAL=<provider>:<model>, still subject to
-# the refusal list. A refused model fails CLOSED — the call errors rather than
-# sliding to the next paid option.
-MARGOT_CASUAL_ROLE = "margot.casual"
-MARGOT_CASUAL_ENV = "TAO_MODEL_MARGOT_CASUAL"
-MARGOT_CASUAL_OLLAMA_ENV = "MARGOT_OLLAMA_BASE_URL"
-MARGOT_CASUAL_LADDER: tuple[tuple[Provider, str], ...] = (
-    ("ollama", "gemma4:latest"),
-    ("openrouter", "google/gemma-4-26b-a4b-it:free"),
-    ("openrouter", "z-ai/glm-4.7-flash"),
+# The margot.casual ladder lives in provider_margot_casual.py (RA-7434): this
+# file was already 735 lines against a 300-line convention, so the 126-line
+# body went to its own module and only the two dispatch points stayed here.
+from .provider_router_helpers import (  # noqa: E402
+    _corrected_for_downgrade,
+    _run_tier0,
 )
-MARGOT_CASUAL_REFUSED_MARKERS = ("kimi", "moonshot", "anthropic", "claude", "sonnet")
-
-
-class RefusedModelError(RuntimeError):
-    """A model resolved for margot.casual is on the RA-7434 refusal list."""
+from .provider_margot_casual import (  # noqa: E402
+    MARGOT_CASUAL_ROLE,
+    _resolve_margot_casual,
+    _run_margot_casual,
+)
 
 
 # Role → tier mapping (top/mid/cheap). Roles not listed default to "mid".
@@ -319,125 +303,6 @@ def _resolve_cheap_tier() -> tuple[Provider, str]:
     return "openrouter", remote_model
 
 
-# ── margot.casual resolution (RA-7434) ──────────────────────────────────────
-
-
-def _margot_casual_refusal(provider: str, model_id: str) -> str | None:
-    """The refused marker `provider:model_id` matches, or None when it is allowed."""
-    probe = f"{provider}:{model_id}".lower()
-    for marker in MARGOT_CASUAL_REFUSED_MARKERS:
-        if marker in probe:
-            return marker
-    return None
-
-
-def _margot_ollama_base_url() -> str:
-    """The Ollama margot.casual may use: MARGOT_OLLAMA_BASE_URL first, else the
-    global OLLAMA_BASE_URL (only present off Railway — the start guard strips it),
-    else "" meaning step 1 is not configured."""
-    return (
-        os.environ.get(MARGOT_CASUAL_OLLAMA_ENV) or os.environ.get("OLLAMA_BASE_URL") or ""
-    ).strip()
-
-
-def _ollama_configured_and_reachable() -> bool:
-    """Ladder step 1 needs an explicit base URL — the localhost default
-    provider_ollama falls back to is never a real Ollama on Railway."""
-    base_url = _margot_ollama_base_url()
-    if not base_url:
-        return False
-    try:
-        import sys as _sys  # noqa: PLC0415
-        ollama_mod = _sys.modules.get("app.server.provider_ollama")
-        if ollama_mod is None:
-            from . import provider_ollama as ollama_mod  # noqa: PLC0415
-        return bool(ollama_mod.is_reachable(base_url=base_url))
-    except Exception as exc:  # noqa: BLE001
-        log.debug("provider_router: margot.casual ollama probe failed (%s)", exc)
-        return False
-
-
-def _margot_casual_candidates() -> list[tuple[Provider, str, str]]:
-    """Ordered (provider, model_id, source) margot.casual may use right now.
-
-    An override is a single candidate; the ladder skips step 1 when Ollama is
-    not configured+reachable. Nothing here consults TAO_CHEAP_*.
-    """
-    raw = (os.environ.get(MARGOT_CASUAL_ENV) or "").strip()
-    if raw:
-        parsed = _parse_provider_spec(raw)
-        if parsed is not None:
-            return [(parsed[0], parsed[1], f"env:{MARGOT_CASUAL_ENV}")]
-        log.warning("provider_router: %s=%r is not provider:model — using the free ladder",
-                    MARGOT_CASUAL_ENV, raw)
-    steps = list(enumerate(MARGOT_CASUAL_LADDER, start=1))
-    if not _ollama_configured_and_reachable():
-        steps = [(n, s) for n, s in steps if s[0] != "ollama"]
-    return [(prov, model, f"ladder-step-{n}") for n, (prov, model) in steps]
-
-
-def _refuse_if_forbidden(provider: str, model_id: str, source: str) -> None:
-    marker = _margot_casual_refusal(provider, model_id)
-    if marker is None:
-        return
-    raise RefusedModelError(
-        f"{MARGOT_CASUAL_ROLE} may not run on {provider}:{model_id} (source {source}; "
-        f"matches refused marker {marker!r}). Founder ruling RA-7434: this role runs on "
-        f"free models only — unset {MARGOT_CASUAL_ENV} or point it at a free model."
-    )
-
-
-def _resolve_margot_casual() -> ProviderModel:
-    prov, model, source = _margot_casual_candidates()[0]
-    _refuse_if_forbidden(prov, model, source)
-    return ProviderModel(provider=prov, model_id=model, tier="cheap",
-                         role=MARGOT_CASUAL_ROLE, source=source)
-
-
-async def _run_margot_casual(prompt: str, *, timeout_s: int, session_id: str,
-                             ) -> tuple[int, str, float, str | None]:
-    """Walk the free ladder at call time.
-
-    A refusal comes back as an error TUPLE, never a raise: margot_bot._call_llm
-    wraps run_via_provider in `except Exception` and falls back to a direct
-    Anthropic call — a raised refusal would land the role on the very model the
-    ruling forbids. rc=1 makes the bot answer "unavailable" instead.
-    """
-    try:
-        candidates = _margot_casual_candidates()
-        for prov, model, source in candidates:
-            _refuse_if_forbidden(prov, model, source)
-    except RefusedModelError as exc:
-        log.error("provider_router: %s", exc)
-        return 1, "", 0.0, f"margot_casual_refused: {exc}"
-
-    import sys as _sys  # noqa: PLC0415
-    last_error = "no candidates"
-    for prov, model, source in candidates:
-        mod_name = "app.server.provider_ollama" if prov == "ollama" else "app.server.provider_openrouter"
-        try:
-            provider_mod = _sys.modules.get(mod_name)
-            if provider_mod is None:
-                if prov == "ollama":
-                    from . import provider_ollama as provider_mod  # noqa: PLC0415
-                else:
-                    from . import provider_openrouter as provider_mod  # noqa: PLC0415
-            extra = {"base_url": _margot_ollama_base_url()} if prov == "ollama" else {}
-            rc, text, cost, err = await provider_mod.call(
-                prompt=prompt, model_id=model, timeout_s=timeout_s,
-                role=MARGOT_CASUAL_ROLE, session_id=session_id, **extra,
-            )
-        except Exception as exc:  # noqa: BLE001
-            rc, text, cost, err = 1, "", 0.0, f"{prov}_call_raised: {exc}"
-        if int(rc) == 0:
-            _record_cost_safe(provider=prov, role=MARGOT_CASUAL_ROLE, model=model,
-                              cost_usd=float(cost or 0.0))
-            return int(rc), text, cost, err
-        last_error = f"{prov}:{model} ({source}): {err}"
-        log.warning("provider_router: margot.casual %s — trying the next ladder step", last_error)
-    return 1, "", 0.0, f"margot_casual_ladder_exhausted: {last_error}"
-
-
 # ── Public API ──────────────────────────────────────────────────────────────
 
 
@@ -537,38 +402,9 @@ def select_provider_model(role: str,
             if record_observation:
                 _record_tier_downgrade(role, prov, model, env_key)
 
-            # A per-role override may not DOWNGRADE a quality-critical role onto
-            # the cheap-tier model. The previous change made this visible; making
-            # it visible did not stop it happening, and every planner,
-            # orchestrator, board, generator and evaluator call in production was
-            # still being answered by the cheap model.
-            #
-            # Correction, not refusal: the role falls back to its tier default
-            # rather than erroring. Refusing would take production down over a
-            # config that has been live for months — the same reason the earlier
-            # change stopped at observability. Correcting keeps every call
-            # served while ending the downgrade, which is the outcome actually
-            # wanted. CLAUDE.md already records what a too-cheap planner
-            # produces: 5%-confidence plans and prose refusals.
-            #
-            # Deliberately narrow: it fires ONLY when the override names the
-            # configured cheap model for a top/mid role. Any other override —
-            # a different Anthropic model, a specific OpenRouter model, a local
-            # Ollama pin — is honoured untouched, because the operator asking
-            # for a specific capable model is a legitimate decision and this is
-            # not a general-purpose model policy.
-            if _is_tier_downgrade(role, model):
-                tier = ROLE_TIER.get(role, "mid")
-                corrected_prov, corrected_model = _tier_default(tier)
-                log.warning(
-                    "provider_router: ignoring %s — a %s-tier role may not run on the "
-                    "cheap model %s; using %s:%s instead",
-                    env_key, tier, model, corrected_prov, corrected_model,
-                )
-                return ProviderModel(
-                    provider=corrected_prov, model_id=corrected_model,
-                    tier=tier, role=role, source="tier_downgrade_corrected",
-                )
+            corrected = _corrected_for_downgrade(role, model, env_key)
+            if corrected is not None:
+                return corrected
 
             return ProviderModel(
                 provider=prov, model_id=model,
@@ -671,23 +507,8 @@ async def run_via_provider(prompt: str, *, role: str,
     # fail over, so run the full resolved chain. Inert for every non-tier0
     # role today (no role maps to tier0 until the lane is activated).
     if pm.tier == "tier0":
-        try:
-            import sys as _sys  # noqa: PLC0415
-            tier0_runner = _sys.modules.get("app.server.tier0_runner")
-            if tier0_runner is None:
-                from . import tier0_runner  # noqa: PLC0415
-        except Exception as exc:  # noqa: BLE001
-            return 1, "", 0.0, f"tier0_runner_import_failed: {exc}"
-        r = await tier0_runner.run_tier0(
-            prompt, confidential=confidential, role=role,
-            session_id=session_id, timeout_s=timeout_s,
-        )
-        if r.ok and r.cost_usd > 0:
-            _record_cost_safe(
-                provider=r.provider or "tier0", role=role,
-                model=r.model_id or "", cost_usd=r.cost_usd,
-            )
-        return (0 if r.ok else 1), r.text, r.cost_usd, r.error
+        return await _run_tier0(prompt, role=role, session_id=session_id,
+                                timeout_s=timeout_s, confidential=confidential)
 
     # claude --print path ($0 marginal under Max plan)
     if pm.provider == "claude_print":
@@ -797,8 +618,6 @@ __all__ = [
     "Provider", "ProviderModel", "ROLE_TIER",
     "DEFAULT_TOP_MODEL", "DEFAULT_MID_MODEL",
     "DEFAULT_CHEAP_LOCAL_MODEL", "DEFAULT_CHEAP_REMOTE_MODEL",
-    "MARGOT_CASUAL_ROLE", "MARGOT_CASUAL_ENV", "MARGOT_CASUAL_OLLAMA_ENV", "MARGOT_CASUAL_LADDER",
-    "MARGOT_CASUAL_REFUSED_MARKERS", "RefusedModelError",
     "select_provider_model", "run_via_provider",
     "is_anthropic", "is_openrouter", "is_ollama", "is_claude_print",
     "run_secondary_research_pass",

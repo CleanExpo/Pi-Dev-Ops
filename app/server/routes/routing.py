@@ -18,6 +18,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Header, Query
 
+from .. import provider_margot_casual as MC
 from .. import provider_router as PR
 from .cost_report import _check_secret
 
@@ -75,10 +76,10 @@ def _resolve(role: str) -> dict[str, Any]:
     try:
         # Read-only: never append a tier-downgrade row to the violations ledger.
         pm = PR.select_provider_model(role, record_observation=False)
-    except PR.RefusedModelError as exc:
+    except MC.RefusedModelError as exc:
         return {
             "tier": PR.ROLE_TIER.get(role, "mid"), "provider": None, "model": None,
-            "source": f"env:{PR.MARGOT_CASUAL_ENV}", "error": str(exc),
+            "source": f"env:{MC.MARGOT_CASUAL_ENV}", "error": str(exc),
         }
     return {
         "tier": pm.tier, "provider": pm.provider, "model": pm.model_id,
@@ -143,10 +144,10 @@ async def routing(
         "cost_reason": cost_reason,
         "roles": roles,
         "margot_casual": {
-            "ladder": [f"{p}:{m}" for p, m in PR.MARGOT_CASUAL_LADDER],
-            "override_env": PR.MARGOT_CASUAL_ENV,
-            "ollama_env": PR.MARGOT_CASUAL_OLLAMA_ENV,
-            "ollama_configured": bool(PR._margot_ollama_base_url()),
-            "refused_markers": list(PR.MARGOT_CASUAL_REFUSED_MARKERS),
+            "ladder": [f"{p}:{m}" for p, m in MC.MARGOT_CASUAL_LADDER],
+            "override_env": MC.MARGOT_CASUAL_ENV,
+            "ollama_env": MC.MARGOT_CASUAL_OLLAMA_ENV,
+            "ollama_configured": bool(MC._margot_ollama_base_url()),
+            "refused_markers": list(MC.MARGOT_CASUAL_REFUSED_MARKERS),
         },
     }

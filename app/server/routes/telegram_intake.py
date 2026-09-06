@@ -20,6 +20,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from ..app_factory import app, _resilient
+from .telegram_webhook_ownership import _owned_bot_id, _webhook_ownership_error
 
 
 log = logging.getLogger("pi-ceo.telegram_intake")
@@ -149,42 +150,30 @@ def _status() -> dict[str, Any]:
     }
 
 
-def _owned_bot_id() -> str:
-    return os.environ.get("TELEGRAM_OWNED_BOT_ID", "").strip()
+def _set_webhook(token: str, url: str, secret: str) -> None:
+    """POST setWebhook. Raises RuntimeError on anything Telegram calls not-ok.
 
-
-def _telegram_get_me_id(token: str) -> str:
-    """The bot id Telegram reports for this token (``getMe``)."""
-    req = urllib.request.Request(f"https://api.telegram.org/bot{token}/getMe", method="GET")
+    Split out of _ensure_telegram_webhook (RA-7434): that function was already
+    42 lines against a 40-line convention and the ownership guard had to go
+    somewhere. The caller owns the _last_webhook_* state; this owns the call.
+    """
+    payload = urllib.parse.urlencode(
+        {
+            "url": url,
+            "secret_token": secret,
+            "drop_pending_updates": "false",
+            "allowed_updates": json.dumps(["message"]),
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/setWebhook",
+        data=payload,
+        method="POST",
+    )
     with urllib.request.urlopen(req, timeout=20) as resp:
         body = json.loads(resp.read().decode("utf-8"))
     if not body.get("ok"):
         raise RuntimeError(body.get("description") or str(body))
-    return str((body.get("result") or {}).get("id") or "")
-
-
-def _webhook_ownership_error(token: str) -> str:
-    """Why setWebhook must NOT run for this token, or "" when the bot is ours.
-
-    RA-7434: setWebhook silently converts a bot from polling to webhook mode. If
-    a token for a bot polled elsewhere (PiMargot_bot via the Hermes gateway) ever
-    lands here, an unconditional setWebhook kills that poller. So the intake loop
-    asks Telegram whose token this is and only proceeds for the allow-listed id.
-    Unset allow-list means refuse.
-    """
-    owned = _owned_bot_id()
-    if not owned:
-        return "TELEGRAM_OWNED_BOT_ID unset — refusing setWebhook (RA-7434)"
-    try:
-        bot_id = _telegram_get_me_id(token)
-    except Exception as exc:  # noqa: BLE001
-        return f"getMe failed — refusing setWebhook (RA-7434): {str(exc)[:120]}"
-    if bot_id != owned:
-        return (
-            f"token belongs to bot {bot_id or '?'}, not the owned bot {owned} — "
-            "refusing setWebhook (RA-7434)"
-        )
-    return ""
 
 
 def _ensure_telegram_webhook() -> bool:
@@ -207,25 +196,8 @@ def _ensure_telegram_webhook() -> bool:
         log.warning("Telegram webhook refused: %s", refusal)
         return False
 
-    payload = urllib.parse.urlencode(
-        {
-            "url": url,
-            "secret_token": secret,
-            "drop_pending_updates": "false",
-            "allowed_updates": json.dumps(["message"]),
-        }
-    ).encode("utf-8")
-
     try:
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{token}/setWebhook",
-            data=payload,
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-        if not body.get("ok"):
-            raise RuntimeError(body.get("description") or str(body))
+        _set_webhook(token, url, secret)
         _last_webhook_ok = True
         _last_webhook_error = ""
         log.info("Telegram webhook ensured: %s", url)
