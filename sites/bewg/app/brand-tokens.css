@@ -1,0 +1,68 @@
+/* GENERATED FILE — DO NOT EDIT.
+ * Source: packages/brand-config/src/brands/bewg.ts (spec: bewg.design.md)
+ * Regenerate: node scripts/gen-tokens.mjs
+ * Verify:     node scripts/gen-tokens.mjs --check
+ *
+ * shadcn-convention variables emitted by themeFactory, so @unite-group/ui
+ * components render in BEWG's identity without per-site overrides.
+ */
+
+:root {
+  --background: oklch(97.8% 0.003 228.8);
+  --foreground: oklch(18.5% 0.015 230.1);
+  --primary: oklch(37.5% 0.066 231.5);
+  --primary-foreground: oklch(97.8% 0.003 228.8);
+  --secondary: oklch(27.9% 0.025 232.1);
+  --secondary-foreground: oklch(97.8% 0.003 228.8);
+  --accent: oklch(77.0% 0.162 74.4);
+  --accent-foreground: oklch(18.5% 0.015 230.1);
+  --muted: oklch(93.3% 0.009 225.1);
+  --muted-foreground: oklch(57.8% 0.025 229.4);
+  --border: oklch(93.3% 0.009 225.1);
+  --input: oklch(93.3% 0.009 225.1);
+  --ring: oklch(37.5% 0.066 231.5);
+  --success: oklch(57.8% 0.133 150.5);
+  --warning: oklch(76.3% 0.157 84.4);
+  --destructive: oklch(52.0% 0.159 31.3);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: oklch(97.8% 0.003 228.8);
+  --foreground: oklch(18.5% 0.015 230.1);
+  --primary: oklch(65.2% 0.101 226.3);
+  --primary-foreground: oklch(18.5% 0.015 230.1);
+  --secondary: oklch(22.7% 0.020 232.6);
+  --secondary-foreground: oklch(18.5% 0.015 230.1);
+  --accent: oklch(77.0% 0.162 74.4);
+  --accent-foreground: oklch(97.8% 0.003 228.8);
+  --muted: oklch(72.9% 0.020 230.8);
+  --muted-foreground: oklch(22.7% 0.020 232.6);
+  --border: oklch(22.7% 0.020 232.6);
+  --input: oklch(22.7% 0.020 232.6);
+  --ring: oklch(65.2% 0.101 226.3);
+  --success: oklch(57.8% 0.133 150.5);
+  --warning: oklch(76.3% 0.157 84.4);
+  --destructive: oklch(52.0% 0.159 31.3);
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-destructive: var(--destructive);
+  --color-radius: var(--radius);
+}

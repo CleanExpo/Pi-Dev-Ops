@@ -1,0 +1,250 @@
+[
+  {
+    "slug": "mould-iaq-investigation",
+    "title": "Mould & Indoor Air Quality Investigation",
+    "nav": "Mould & IAQ",
+    "short": "Find the moisture source driving the mould, with NATA-accredited laboratory analysis behind the finding.",
+    "headline": "Killing the mould without finding the water just buys you six months.",
+    "intro": "Mould is a symptom. Something is keeping a surface wet for long enough to let it establish, and unless that source is identified the growth returns after remediation. A BEWG investigation identifies the moisture mechanism first, then quantifies the indoor air quality impact through sampling analysed by a NATA-accredited laboratory.",
+    "signs": [
+      "Visible growth returning in the same place after cleaning or remediation",
+      "A persistent musty smell with no visible growth to explain it",
+      "Occupants reporting respiratory symptoms, headaches or fatigue that ease when they leave the building",
+      "A remediation contractor recommending works without a documented moisture source",
+      "An insurer or strata manager requesting independent verification before approving scope"
+    ],
+    "method": [
+      "Site walkthrough and occupant history to establish onset, seasonality and affected zones",
+      "Moisture mapping of affected and adjacent areas to trace the water back to its source",
+      "Psychrometric readings to establish whether condensation is forming, and where",
+      "Air and surface sampling where the exposure question needs answering, analysed by a NATA-accredited laboratory",
+      "Interpretation of laboratory results against occupancy, ventilation and the moisture findings"
+    ],
+    "deliverables": [
+      "Identified moisture source and the mechanism keeping it wet",
+      "Laboratory analysis with interpretation, not just raw counts",
+      "Photographic record with moisture readings tied to locations",
+      "Remediation scope written so a contractor can price it and an insurer can assess it",
+      "Clearance criteria defining what completion actually looks like"
+    ],
+    "standards": ["NATA-accredited laboratory analysis", "IICRC S520 mould remediation principles", "AIRAH DA07 condensation guidance"],
+    "related": ["moisture-mapping", "condensation-diagnosis"]
+  },
+  {
+    "slug": "moisture-mapping",
+    "title": "Moisture Mapping & 3D Moisture Mapping",
+    "nav": "Moisture Mapping",
+    "short": "Map the true extent of water through a building, including multi-storey and major loss, before anyone opens a wall.",
+    "headline": "The wet area is almost never the size it looks.",
+    "intro": "Water travels. It runs along framing, tracks under floor coverings and drops through slab penetrations into levels nobody has inspected. Moisture mapping records the actual extent as measured data across a floor plan, so demolition scope, drying strategy and claim value rest on evidence instead of estimate. For multi-storey and major loss events the mapping is built in three dimensions, following the water between levels.",
+    "signs": [
+      "A burst pipe, storm event or flood where the affected area is not yet defined",
+      "Water on an upper level with unknown migration into levels below",
+      "A strata dispute over which lots and common property are affected",
+      "A drying contractor and an assessor disagreeing on scope",
+      "Damage suspected behind finishes that nobody wants to open speculatively"
+    ],
+    "method": [
+      "Non-invasive scanning across affected and adjacent areas to establish boundaries",
+      "Invasive metering at calibrated depths to confirm what the non-invasive readings suggest",
+      "Thermal imaging to reveal evaporative cooling patterns and thermal anomalies",
+      "Level-by-level mapping for multi-storey losses, tracing migration paths vertically",
+      "Readings plotted onto floor plans as a measured record, with reference readings from dry areas"
+    ],
+    "deliverables": [
+      "Floor plans marked with moisture readings and mapped affected boundaries",
+      "Three-dimensional migration path for multi-storey and major loss events",
+      "Thermal imagery paired with the meter readings that confirm it",
+      "Defined demolition and drying scope tied to measured data",
+      "Baseline for monitoring drying progress and verifying completion"
+    ],
+    "standards": ["IICRC S500 water damage restoration principles", "Calibrated invasive and non-invasive metering", "Thermal imaging with confirmatory metering"],
+    "related": ["major-loss-assessment", "building-defect-investigation"]
+  },
+  {
+    "slug": "condensation-diagnosis",
+    "title": "Condensation & Interstitial Moisture Diagnosis",
+    "nav": "Condensation",
+    "short": "Establish whether the water is coming in from outside or forming inside, and fix the right problem.",
+    "headline": "Half the leaks we are called to investigate are not leaks.",
+    "intro": "Condensation and water ingress present almost identically: staining, mould, damp smell, deteriorating finishes. The rectification for each is completely different, and treating one as the other wastes the entire budget. This investigation separates them using psychrometric measurement and thermal analysis, and where the moisture is forming inside the wall rather than on it, identifies the interface where it is accumulating.",
+    "signs": [
+      "Damp that appears in winter and improves in summer",
+      "Mould on cold surfaces such as window reveals, external corners and behind furniture",
+      "A building that has become damp since windows, insulation or heating were upgraded",
+      "Water damage with no identifiable leak after plumbing has been checked",
+      "Recurring damp in a bathroom, laundry or kitchen with poor or ducted-to-nowhere ventilation"
+    ],
+    "method": [
+      "Psychrometric readings across affected zones, establishing dew point against measured surface temperatures",
+      "Thermal imaging to locate thermal bridging and cold spots where condensation forms first",
+      "Ventilation assessment, including whether exhaust fans discharge outside the building",
+      "Carbon dioxide measurement as an indicator of actual air change rate under occupancy",
+      "Envelope review to identify vapour control layer position and insulation continuity"
+    ],
+    "deliverables": [
+      "Clear determination of ingress, condensation or both, with the measurement supporting it",
+      "The specific surfaces and interfaces where condensation is occurring and why",
+      "Ventilation adequacy assessment against actual occupancy",
+      "Rectification options separated into ventilation, heating, insulation and envelope work",
+      "Where relevant, referral to hygrothermal modelling for assembly-level analysis"
+    ],
+    "standards": ["AIRAH DA07 condensation in buildings", "NCC condensation management provisions", "Psychrometric and dew point analysis"],
+    "related": ["hygrothermal-modelling", "mould-iaq-investigation"]
+  },
+  {
+    "slug": "hygrothermal-modelling",
+    "title": "Hygrothermal Modelling",
+    "nav": "Hygrothermal",
+    "short": "Model condensation risk inside a wall assembly at design stage, before it is built and before the callbacks.",
+    "headline": "An assembly can meet every prescriptive requirement and still grow mould in two winters.",
+    "intro": "NCC prescriptive compliance does not assess interstitial condensation risk. Hygrothermal modelling simulates heat and moisture movement through a wall, roof or floor assembly under real hourly climate data for the specific project location, showing where moisture accumulates, whether condensation forms at critical interfaces, and whether the assembly can dry out between seasons. Engaged during design development it redirects a specification. Engaged after construction it confirms a problem that is now expensive.",
+    "signs": [
+      "A highly insulated assembly being specified for a cooler or more humid climate than it has been used in before",
+      "Uncertainty about which side of the insulation the vapour control layer belongs on",
+      "A certifier or client requiring condensation risk verification",
+      "A wall type that has performed on previous projects being reused in a different climate zone",
+      "Existing buildings where condensation is suspected inside the assembly rather than on its surface"
+    ],
+    "method": [
+      "Assembly definition layer by layer, with material properties assigned from referenced data",
+      "Climate data selected for the specific project location rather than a generic climate zone",
+      "Simulation across multiple years to capture seasonal accumulation and drying behaviour",
+      "Assessment of moisture content and relative humidity at each material interface",
+      "Where the assembly fails, modelling of the revised design to confirm the fix works"
+    ],
+    "deliverables": [
+      "Moisture and temperature profile at every layer across a full annual cycle",
+      "Identification of the critical interface and the severity of condensation risk there",
+      "Mould growth index at critical interfaces against accepted thresholds",
+      "Specific design modification where the assembly fails, with the revised model included",
+      "Documentation structured for submission to certifiers and building surveyors"
+    ],
+    "standards": ["NCC Section J and condensation management", "AIRAH DA07", "Fraunhofer IBP mould growth index", "Bureau of Meteorology hourly climate data"],
+    "related": ["condensation-diagnosis", "building-defect-investigation"]
+  },
+  {
+    "slug": "building-defect-investigation",
+    "title": "Building Defect & Water Ingress Investigation",
+    "nav": "Defect & Ingress",
+    "short": "Establish the mechanism of failure and who is responsible, with evidence that holds up in a dispute.",
+    "headline": "Knowing the building leaks is not the finding. Knowing why is.",
+    "intro": "Most building defects are not visible at the surface, and the visible damage rarely sits where the failure is. A defect investigation reverse engineers the failure: establishing the path water is taking, identifying whether the cause is design, materials or workmanship, and documenting it to a standard that survives scrutiny from the other side.",
+    "signs": [
+      "Water ingress through a facade, window, balcony or roof that previous repairs have not resolved",
+      "A defects claim during the statutory warranty period",
+      "Strata common property water ingress affecting multiple lots",
+      "Waterproofing membrane failure suspected but not proven",
+      "A builder and an owner disagreeing on the cause of a failure"
+    ],
+    "method": [
+      "Documentation review against the constructed condition where drawings are available",
+      "Targeted water testing of the suspected entry path, including hose and spray testing of facade elements",
+      "Intrusive openings at agreed locations to reveal concealed construction detail",
+      "Moisture mapping to define the extent of resulting damage",
+      "Determination of failure mechanism and its origin in design, materials or workmanship"
+    ],
+    "deliverables": [
+      "Documented failure mechanism with the evidence chain that establishes it",
+      "Photographic and measured record of intrusive findings",
+      "Attribution of cause to design, materials or workmanship where the evidence supports it",
+      "Targeted rectification strategy rather than speculative repair",
+      "Report structured to support insurance, warranty or dispute proceedings"
+    ],
+    "standards": ["Evidence-based forensic methodology", "Water testing of facade and waterproofing elements", "NCC and relevant Australian Standards as applicable"],
+    "related": ["moisture-mapping", "major-loss-assessment"]
+  },
+  {
+    "slug": "timber-floor-moisture",
+    "title": "Timber Floor Moisture Investigation & Drying",
+    "nav": "Timber Floors",
+    "short": "Determine why a floor cupped, buckled or gapped, and whether it can be dried rather than replaced.",
+    "headline": "A floor that failed usually tells you exactly what happened to it, if you read it properly.",
+    "intro": "Timber floor failures get replaced when they could often have been dried, and get dried when the subfloor moisture source is still active and will fail them again. This investigation establishes moisture content through the floor system and the subfloor beneath it, determines the source, and gives a defensible answer on whether the floor is recoverable.",
+    "signs": [
+      "Cupping, crowning, buckling or peaking in a timber or engineered floor",
+      "Excessive gapping between boards, seasonal or permanent",
+      "A new floor failing within its warranty period",
+      "A dispute between an installer, a supplier and an owner over cause",
+      "Water damage to a floor where replacement has been proposed without drying being attempted"
+    ],
+    "method": [
+      "Moisture content readings through the floor covering, underlay and subfloor",
+      "Subfloor and slab moisture assessment, including relative humidity in slab where relevant",
+      "Ambient condition monitoring to establish the service environment the floor sits in",
+      "Assessment against manufacturer installation tolerances and acclimatisation requirements",
+      "Determination of whether structured drying is viable or replacement is warranted"
+    ],
+    "deliverables": [
+      "Measured moisture profile through the floor system and substrate",
+      "Cause determination covering installation, substrate moisture, service conditions or water event",
+      "Viability assessment for drying versus replacement, with reasoning",
+      "Drying strategy and target readings where recovery is viable",
+      "Report suitable for warranty, insurance or supplier dispute"
+    ],
+    "standards": ["Manufacturer installation and acclimatisation tolerances", "IICRC S500 structured drying principles", "Calibrated timber and substrate moisture metering"],
+    "related": ["moisture-mapping", "condensation-diagnosis"]
+  },
+  {
+    "slug": "air-leakage-envelope",
+    "title": "Air Leakage & Building Envelope Assessment",
+    "nav": "Air Leakage",
+    "short": "Locate where the building envelope is losing air, and what that leakage is doing to comfort, energy and moisture.",
+    "headline": "Uncontrolled air movement carries more moisture into a wall than vapour diffusion ever will.",
+    "intro": "Air leakage is treated as an energy problem and is often a moisture problem first. Air moving through a gap in the envelope carries water vapour with it, and where that air reaches a cold surface inside the assembly the moisture is deposited there. This assessment locates the leakage paths and evaluates what they mean for comfort, running cost and condensation risk.",
+    "signs": [
+      "Draughts, cold spots or rooms that will not hold temperature",
+      "Heating and cooling costs disproportionate to the building size",
+      "Mould or damp appearing at junctions, penetrations and service entries",
+      "A new or retrofitted building not performing as its design predicted",
+      "Verification required for an airtightness target on a performance project"
+    ],
+    "method": [
+      "Building pressurisation testing to quantify the air change rate of the envelope",
+      "Thermal imaging under pressure differential to reveal leakage paths",
+      "Smoke tracing at suspected junctions, penetrations and service entries",
+      "Assessment of leakage paths against condensation risk, not energy alone",
+      "Prioritisation of sealing works by measured impact"
+    ],
+    "deliverables": [
+      "Quantified air change rate for the tested envelope",
+      "Located and photographed leakage paths, ranked by significance",
+      "Assessment of moisture risk carried by the identified leakage",
+      "Prioritised sealing scope with the reasoning for the order",
+      "Verification retest option to confirm the works achieved the target"
+    ],
+    "standards": ["Building pressurisation testing methodology", "NCC air permeability provisions", "Thermal imaging under pressure differential"],
+    "related": ["condensation-diagnosis", "hygrothermal-modelling"]
+  },
+  {
+    "slug": "major-loss-assessment",
+    "title": "Major Loss & Historical Building Assessment",
+    "nav": "Major Loss",
+    "short": "Independent building science assessment for large, complex and heritage losses where the scope is contested.",
+    "headline": "On a large loss the argument is almost never about whether there was damage.",
+    "intro": "Major losses turn on scope: how far the damage extends, what is recoverable, what is pre-existing and what the event actually caused. Heritage and historical buildings add a further constraint, because standard drying and demolition approaches can destroy fabric that cannot be replaced. This assessment provides the independent building science position that scope negotiations are settled against.",
+    "signs": [
+      "A large or multi-storey loss where affected extent is disputed",
+      "Pre-existing damp or defect complicating attribution of the current event",
+      "A heritage or historically significant building requiring a conservation-compatible approach",
+      "Multiple parties, insurers or lots requiring one independent position",
+      "A restoration scope that appears disproportionate to the event, in either direction"
+    ],
+    "method": [
+      "Full-building moisture mapping across all affected and adjacent areas and levels",
+      "Separation of event-related damage from pre-existing condition, with the evidence for each",
+      "Assessment of fabric sensitivity for heritage and historical construction",
+      "Drying strategy compatible with the materials present, including traditional fabric",
+      "Independent review of proposed restoration scope against measured findings"
+    ],
+    "deliverables": [
+      "Building-wide measured record of affected extent across all levels",
+      "Attribution separating event damage from pre-existing condition",
+      "Conservation-compatible drying and rectification strategy where fabric is sensitive",
+      "Independent scope position for negotiation between parties",
+      "Ongoing monitoring and verification through the drying programme"
+    ],
+    "standards": ["IICRC S500 structured drying principles", "Conservation-compatible drying for heritage fabric", "Independent evidence-based scope assessment"],
+    "related": ["moisture-mapping", "building-defect-investigation"]
+  }
+]

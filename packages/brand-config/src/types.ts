@@ -5,7 +5,8 @@ export type BrandSlug =
   | 'carsi'     // CARSI
   | 'ccw'       // Carpet Cleaners Warehouse (customer)
   | 'synthex'   // Synthex
-  | 'unite';    // Unite Group
+  | 'unite'     // Unite Group
+  | 'bewg';     // Building Environmental Wellness Group (customer)
 
 export type ColourFamily =
   | 'restoration'
