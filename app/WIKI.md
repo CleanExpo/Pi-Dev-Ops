@@ -1,14 +1,15 @@
 # app — Wiki
 
-_Last updated: 2026-08-27T11:27:19Z (commits 8978b3c..6b58d72)_
+_Last updated: 2026-09-06T22:58:35Z (commits 2f1ee0e..265d03f)_
 
 ## Recent changes
-- 6b58d72 — Mission Control: rolling 15-step continuation across Claude, Telegram and Margot
+- 94c30b5 — refactor(session_phases): extract the two decisions the length gate flagged
+- 853b77a — fix(adversary): an unavailable review must not read as approval
+- 9535146 — fix(gates): tests_passed must come from evidence, not a literal
 
 ## Architecture (current)
-Auto-stub: `app/` had 1 recent commits. SDK unavailable for synthesis.
+Auto-stub: `app/` had 3 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- app/server/continuation_bridge.py — touched in recent commits
-- app/server/continuation_horizon.py — touched in recent commits
-- app/server/main.py — touched in recent commits
+- app/server/session_phases.py — touched in recent commits
+- app/server/session_recorder.py — touched in recent commits
