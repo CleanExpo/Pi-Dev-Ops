@@ -8,11 +8,13 @@ import GoalAnalysisOverview, {
   type OrderStep,
 } from "./GoalAnalysisOverview";
 import { CHILD_TICKETS_NOTE, LINEAR_DEST_NOTE } from "@/lib/control/goalCopy";
+import { readyToFile } from "@/lib/control/goalBrief";
 import {
   ALWAYS_SHOW,
   DRAFT_AREAS,
   draftsFromAnalyze,
   filePayloadFromDraft,
+  patchDraft,
   type DraftTicket,
 } from "./GoalDraftFields";
 import styles from "./control-deck.module.css";
@@ -56,9 +58,10 @@ export default function GoalDraftReview({
   onApprove,
 }: Props) {
   const count = selectedCount(analysis.tickets);
+  const canFile = readyToFile(analysis.tickets);
 
   function patch(index: number, next: Partial<DraftTicket>) {
-    onChange(analysis.tickets.map((t, i) => (i === index ? { ...t, ...next } : t)));
+    onChange(analysis.tickets.map((t, i) => (i === index ? patchDraft(t, next) : t)));
   }
 
   return (
@@ -66,7 +69,7 @@ export default function GoalDraftReview({
       <GoalAnalysisOverview analysis={analysis} />
 
       <div className={styles.fieldLabel}>Draft Linear tickets</div>
-      {analysis.tickets.some((t) => t.selected && t.sub_tasks.trim()) ? (
+      {analysis.tickets.some((t) => t.selected && (t.sub_tasks.trim() || t.sub_tasks_json.trim())) ? (
         <p className={styles.note}>{CHILD_TICKETS_NOTE}</p>
       ) : null}
       {analysis.tickets.map((ticket, index) => (
@@ -143,7 +146,11 @@ export default function GoalDraftReview({
         </article>
       ))}
 
-      <p className={styles.note}>Draft only — nothing has been written to Linear.</p>
+      <p className={styles.note}>
+        {canFile
+          ? "Draft only — nothing has been written to Linear."
+          : "Each selected ticket needs a title, goal, and acceptance of 8+ characters."}
+      </p>
 
       {confirming ? (
         <div className={`${styles.card} ${styles.confirm}`}>
@@ -151,7 +158,7 @@ export default function GoalDraftReview({
             File {count} ticket{count === 1 ? "" : "s"} to Linear Backlog? {LINEAR_DEST_NOTE}
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
-            <button onClick={onApprove} disabled={filing || count === 0} className={styles.primary}>
+            <button onClick={onApprove} disabled={filing || !canFile} className={styles.primary}>
               {filing ? "Filing…" : "Approve and file"}
             </button>
             <button onClick={onCancelConfirm} disabled={filing} className={styles.ghost}>Back</button>
@@ -159,7 +166,7 @@ export default function GoalDraftReview({
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          <button onClick={onRequestFile} disabled={filing || count === 0} className={styles.primary}>
+          <button onClick={onRequestFile} disabled={filing || !canFile} className={styles.primary}>
             File {count} on Linear
           </button>
           <button onClick={onDiscard} disabled={filing} className={styles.ghost}>Discard</button>
