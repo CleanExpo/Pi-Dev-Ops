@@ -12,7 +12,7 @@ export default function ControlPage() {
           <div className={styles.kicker}>Pi CEO · Control</div>
           <h1 className={styles.title}>Command deck</h1>
           <p className={styles.lede}>
-            State a goal. Review the tickets. Approve before Linear is written.
+            Create a project brief. State the goal. Review drafts. Write to Linear.
             Everything else on this deck is a dedicated surface — not a scroll dump.
           </p>
         </div>
