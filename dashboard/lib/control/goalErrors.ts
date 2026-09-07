@@ -34,6 +34,21 @@ export function filedTickets(data: GoalErrorBody): FiledTicket[] {
   return raw.filter(isFiled);
 }
 
+export function mergeFiled(prev: FiledTicket[], next: FiledTicket[]): FiledTicket[] {
+  const seen = new Set(prev.map((ticket) => ticket.identifier));
+  return [...prev, ...next.filter((ticket) => !seen.has(ticket.identifier))];
+}
+
+export function unselectLanded<T extends { title: string; selected: boolean }>(
+  tickets: T[],
+  landed: FiledTicket[],
+): T[] {
+  const titles = new Set(landed.map((ticket) => ticket.title.trim()).filter(Boolean));
+  return tickets.map((ticket) => (
+    titles.has(ticket.title.trim()) ? { ...ticket, selected: false } : ticket
+  ));
+}
+
 export function failedTitle(data: GoalErrorBody): string {
   return (data.failed_title || data.detail?.failed_title || "").trim();
 }
