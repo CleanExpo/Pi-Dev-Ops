@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import GoalAnalysisOverview, {
   type AnalysisOverview,
   type FinalReviewBlock,
@@ -59,9 +60,18 @@ export default function GoalDraftReview({
 }: Props) {
   const count = selectedCount(analysis.tickets);
   const canFile = readyToFile(analysis.tickets);
+  const [more, setMore] = useState<Record<number, boolean>>({});
 
   function patch(index: number, next: Partial<DraftTicket>) {
     onChange(analysis.tickets.map((t, i) => (i === index ? patchDraft(t, next) : t)));
+  }
+
+  function fieldsFor(ticket: DraftTicket, index: number) {
+    return DRAFT_AREAS.filter((field) => {
+      if (ALWAYS_SHOW.includes(field.key)) return true;
+      if (!more[index]) return false;
+      return Boolean(String(ticket[field.key] ?? "").trim());
+    });
   }
 
   return (
@@ -82,11 +92,13 @@ export default function GoalDraftReview({
             <input
               type="checkbox"
               checked={ticket.selected}
-              disabled={filing}
+              disabled={filing || Boolean(ticket.landed_identifier)}
               onChange={(e) => patch(index, { selected: e.target.checked })}
               aria-label={`Include ticket ${index + 1}`}
             />
-            {ticket.ticket_id || `Ticket ${index + 1}`} of {analysis.tickets.length}
+            {ticket.landed_identifier
+              ? `${ticket.landed_identifier} already in Linear`
+              : ticket.ticket_id || `Ticket ${index + 1}`}
             {ticket.priority ? ` · ${ticket.priority}` : ""}
           </label>
           {ticket.ticket_id || ticket.priority ? (
@@ -123,10 +135,7 @@ export default function GoalDraftReview({
               aria-label={`Title ${index + 1}`}
             />
           </label>
-          {DRAFT_AREAS.filter(
-            (field) =>
-              ALWAYS_SHOW.includes(field.key) || String(ticket[field.key] ?? "").trim(),
-          ).map((field) => (
+          {fieldsFor(ticket, index).map((field) => (
             <label key={field.key} className={styles.field}>
               <span className={styles.fieldLabel}>{field.label}</span>
               <textarea
@@ -143,6 +152,14 @@ export default function GoalDraftReview({
               />
             </label>
           ))}
+          <button
+            type="button"
+            onClick={() => setMore({ ...more, [index]: !more[index] })}
+            disabled={filing}
+            className={styles.ghost}
+          >
+            {more[index] ? "Fewer fields" : "More on this ticket"}
+          </button>
         </article>
       ))}
 
@@ -155,11 +172,11 @@ export default function GoalDraftReview({
       {confirming ? (
         <div className={`${styles.card} ${styles.confirm}`}>
           <p style={{ color: "var(--text)", fontSize: 14 }}>
-            File {count} ticket{count === 1 ? "" : "s"} to Linear Backlog? {LINEAR_DEST_NOTE}
+            Write {count} ticket{count === 1 ? "" : "s"} to Linear? {LINEAR_DEST_NOTE}
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
             <button onClick={onApprove} disabled={filing || !canFile} className={styles.primary}>
-              {filing ? "Filing…" : "Approve and file"}
+              {filing ? "Writing…" : "Write to Linear"}
             </button>
             <button onClick={onCancelConfirm} disabled={filing} className={styles.ghost}>Back</button>
           </div>
@@ -167,7 +184,7 @@ export default function GoalDraftReview({
       ) : (
         <div className="flex flex-wrap gap-2">
           <button onClick={onRequestFile} disabled={filing || !canFile} className={styles.primary}>
-            File {count} on Linear
+            Write {count} to Linear
           </button>
           <button onClick={onDiscard} disabled={filing} className={styles.ghost}>Discard</button>
         </div>
