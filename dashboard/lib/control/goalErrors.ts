@@ -37,14 +37,18 @@ export function mergeFiled(prev: FiledTicket[], next: FiledTicket[]): FiledTicke
   return [...prev, ...next.filter((ticket) => !seen.has(ticket.identifier))];
 }
 
-export function unselectLanded<T extends { title: string; selected: boolean }>(
-  tickets: T[],
-  landed: FiledTicket[],
-): T[] {
-  const titles = new Set(landed.map((ticket) => ticket.title.trim()).filter(Boolean));
-  return tickets.map((ticket) => (
-    titles.has(ticket.title.trim()) ? { ...ticket, selected: false } : ticket
-  ));
+export function markLanded<T extends {
+  title: string;
+  selected: boolean;
+  landed_identifier?: string;
+}>(tickets: T[], landed: FiledTicket[]): T[] {
+  return tickets.map((ticket) => {
+    const match = landed.find((row) => (
+      row.identifier && row.title.trim() === ticket.title.trim()
+    ));
+    if (!match) return ticket;
+    return { ...ticket, selected: false, landed_identifier: match.identifier };
+  });
 }
 
 export function failedTitle(data: GoalErrorBody): string {
