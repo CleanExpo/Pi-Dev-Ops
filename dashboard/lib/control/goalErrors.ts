@@ -1,5 +1,3 @@
-/** Parse Goal API error bodies. FastAPI wraps payloads in `detail`. */
-
 export interface FiledTicket {
   identifier: string;
   url: string;
