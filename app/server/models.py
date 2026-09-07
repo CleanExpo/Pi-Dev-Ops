@@ -2,6 +2,15 @@
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+_MIN_BRIEF = 8
+
+
+def _require_brief(value: str) -> str:
+    text = (value or "").strip()
+    if len(text) < _MIN_BRIEF:
+        raise ValueError(f"must be at least {_MIN_BRIEF} characters")
+    return text
+
 
 class BuildRequest(BaseModel):
     repo_url: str
@@ -94,10 +103,7 @@ class GoalProjectCreate(BaseModel):
     @field_validator("title", "description", "audience")
     @classmethod
     def strip_required_brief(cls, v: str) -> str:
-        v = (v or "").strip()
-        if not v:
-            raise ValueError("field cannot be empty")
-        return v
+        return _require_brief(v)
 
 
 class GoalTicketRequest(BaseModel):
@@ -107,13 +113,18 @@ class GoalTicketRequest(BaseModel):
     acceptance: str
     project_id: str
 
-    @field_validator("goal", "acceptance", "project_id")
+    @field_validator("goal", "acceptance")
     @classmethod
     def strip_required(cls, v: str) -> str:
-        v = (v or "").strip()
-        if not v:
+        return _require_brief(v)
+
+    @field_validator("project_id")
+    @classmethod
+    def strip_project_id(cls, v: str) -> str:
+        text = (v or "").strip()
+        if not text:
             raise ValueError("field cannot be empty")
-        return v
+        return text
 
 
 class GoalDraft(BaseModel):
@@ -155,10 +166,7 @@ class GoalDraft(BaseModel):
     @field_validator("title", "goal", "acceptance")
     @classmethod
     def strip_draft(cls, v: str) -> str:
-        v = (v or "").strip()
-        if not v:
-            raise ValueError("field cannot be empty")
-        return v
+        return _require_brief(v)
 
 
 class GoalTicketFileRequest(GoalTicketRequest):
