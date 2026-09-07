@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   MIN_BRIEF,
+  draftReady,
   meetsMin,
   readyToAnalyze,
   readyToCreate,
+  readyToFile,
   remainingHint,
+  skipFiledTitles,
 } from "@/lib/control/goalBrief";
 
 describe("Goal brief rules", () => {
@@ -35,5 +38,31 @@ describe("Goal brief rules", () => {
     expect(remainingHint("", "Goal")).toBe("Goal · required · 8+ characters");
     expect(remainingHint("abcd", "Goal")).toBe("Goal · 4 more characters");
     expect(remainingHint("abcdefgh", "Goal")).toBe("Goal · ready");
+  });
+
+  it("blocks File until every selected draft meets the server minimum", () => {
+    const short = {
+      title: "Saved looks persist after refresh",
+      goal: "short",
+      acceptance: "acceptance long enough",
+      selected: true,
+    };
+    const ready = {
+      title: "Saved looks persist after refresh",
+      goal: "goal long enough",
+      acceptance: "acceptance long enough",
+      selected: true,
+    };
+    expect(draftReady(short)).toBe(false);
+    expect(readyToFile([short])).toBe(false);
+    expect(readyToFile([ready])).toBe(true);
+  });
+
+  it("names selected drafts that already filed so Approve can skip them", () => {
+    const tickets = [
+      { title: "First ticket lands", selected: true },
+      { title: "Second ticket fails", selected: true },
+    ];
+    expect(skipFiledTitles(tickets, ["First ticket lands"])).toEqual(["First ticket lands"]);
   });
 });
