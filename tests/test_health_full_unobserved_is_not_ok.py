@@ -86,7 +86,23 @@ def test_source_is_parseable_and_has_the_checks():
 
 
 def test_no_check_reports_ok_while_unobserved():
-    """H01, H02, H03 — ok must never be True beside observed False."""
+    """H01, H02, H03 - beside observed False, ok must be LITERALLY False.
+
+    Fails closed on a computed `ok`, and that is the whole point of the rule.
+    An earlier version asked only whether `ok` was the literal True, so a
+    non-literal True slipped straight past it:
+
+        _ok = True
+        return {"ok": _ok, "observed": False, "status": "not_observed", ...}
+
+    `_const_dict` records that as "<computed>", the offender test skipped it,
+    and the file that claims to lock this invariant stayed green with the lie
+    present. Found by the independent reviewer (cursor, P1) on head 767e445d
+    and confirmed by planting exactly that mutant: 6 passed with the defect in.
+
+    There is no legitimate reason to compute `ok` on a path that already knows
+    it never observed anything, so refusing to judge is refusing to pass.
+    """
     tree = ast.parse(HEALTH_SRC.read_text(encoding="utf-8"))
     offenders = []
     for fn in _check_functions(tree):
@@ -94,16 +110,17 @@ def test_no_check_reports_ok_while_unobserved():
             if not isinstance(node, ast.Return):
                 continue
             pairs = _const_dict(node.value)
-            if not pairs:
+            if not pairs or pairs.get("observed") is not False:
                 continue
-            if pairs.get("ok") is True and pairs.get("observed") is False:
+            if pairs.get("ok") is not False:
                 offenders.append(
-                    "%s:%d (%s)" % (fn.name, node.lineno,
-                                    pairs.get("note") or pairs.get("status") or "?")
+                    "%s:%d ok=%r (%s)" % (fn.name, node.lineno, pairs.get("ok"),
+                                          pairs.get("note") or pairs.get("status") or "?")
                 )
     assert not offenders, (
-        "a check that could not run reports the component healthy at: %s"
-        % ", ".join(offenders)
+        "a check that could not run must report ok=False, not %s, at: %s"
+        % ("a computed value" if any("<computed>" in o for o in offenders) else "ok=True",
+           ", ".join(offenders))
     )
 
 
