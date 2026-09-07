@@ -30,6 +30,7 @@ export interface DraftTicket {
   scenarios: string;
   junior_notes: string;
   selected: boolean;
+  landed_identifier: string;
 }
 
 export const DRAFT_AREAS: Array<{ key: keyof DraftTicket; label: string; rows: number }> = [
@@ -99,6 +100,7 @@ export const BLANK_DRAFT: Omit<DraftTicket, "selected"> = {
   sub_tasks_json: "",
   scenarios: "",
   junior_notes: "",
+  landed_identifier: "",
 };
 
 export function draftsFromAnalyze(raw: Array<Partial<DraftTicket>>): DraftTicket[] {
