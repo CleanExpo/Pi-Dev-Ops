@@ -11,7 +11,7 @@ describe("Goal stage pills", () => {
     expect(goalStage({ confirming: false, hasAnalysis: true, analyzing: false })).toBe(2);
   });
 
-  it("marks Approve only when the operator is confirming a write", () => {
+  it("marks Write only when the operator is confirming a write", () => {
     expect(goalStage({ confirming: true, hasAnalysis: true, analyzing: false })).toBe(3);
   });
 });

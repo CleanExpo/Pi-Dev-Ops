@@ -7,7 +7,7 @@ import {
   readyToCreate,
   readyToFile,
   remainingHint,
-  skipFiledTitles,
+  ticketsToFile,
 } from "@/lib/control/goalBrief";
 
 describe("Goal brief rules", () => {
@@ -35,9 +35,9 @@ describe("Goal brief rules", () => {
   });
 
   it("tells the operator how many characters remain", () => {
-    expect(remainingHint("", "Goal")).toBe("Goal · required · 8+ characters");
-    expect(remainingHint("abcd", "Goal")).toBe("Goal · 4 more characters");
-    expect(remainingHint("abcdefgh", "Goal")).toBe("Goal · ready");
+    expect(remainingHint("", "Goal")).toBe("Goal");
+    expect(remainingHint("abcd", "Goal")).toBe("Goal · 4 more");
+    expect(remainingHint("abcdefgh", "Goal")).toBe("Goal");
   });
 
   it("blocks File until every selected draft meets the server minimum", () => {
@@ -58,11 +58,14 @@ describe("Goal brief rules", () => {
     expect(readyToFile([ready])).toBe(true);
   });
 
-  it("names selected drafts that already filed so Approve can skip them", () => {
+  it("skips selected drafts that already have a Linear id", () => {
     const tickets = [
-      { title: "First ticket lands", selected: true },
-      { title: "Second ticket fails", selected: true },
+      { title: "First ticket lands", selected: true, landed_identifier: "RA-8001" },
+      { title: "Second ticket fails", selected: true, landed_identifier: "" },
     ];
-    expect(skipFiledTitles(tickets, ["First ticket lands"])).toEqual(["First ticket lands"]);
+    const left = ticketsToFile(tickets, [
+      { identifier: "RA-8001", title: "First ticket lands" },
+    ]);
+    expect(left.map((ticket) => ticket.title)).toEqual(["Second ticket fails"]);
   });
 });

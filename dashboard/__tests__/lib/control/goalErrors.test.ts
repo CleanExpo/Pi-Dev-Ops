@@ -3,8 +3,8 @@ import {
   errorMessage,
   failedTitle,
   filedTickets,
+  markLanded,
   mergeFiled,
-  unselectLanded,
 } from "@/lib/control/goalErrors";
 
 const TICKET = {
@@ -38,15 +38,15 @@ describe("Goal error parsers", () => {
     const first = { ...TICKET };
     const second = { ...TICKET, identifier: "RA-8002", title: "Second ticket" };
     expect(mergeFiled([first], [first, second])).toEqual([first, second]);
-    expect(unselectLanded(
+    expect(markLanded(
       [
-        { title: "Saved looks persist", selected: true },
-        { title: "Second ticket", selected: true },
+        { title: "Saved looks persist", selected: true, landed_identifier: "" },
+        { title: "Second ticket", selected: true, landed_identifier: "" },
       ],
       [TICKET],
     )).toEqual([
-      { title: "Saved looks persist", selected: false },
-      { title: "Second ticket", selected: true },
+      { title: "Saved looks persist", selected: false, landed_identifier: "RA-8001" },
+      { title: "Second ticket", selected: true, landed_identifier: "" },
     ]);
   });
 });
