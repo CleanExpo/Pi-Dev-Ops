@@ -86,8 +86,7 @@ def build_description(
         parts.append(f"## Why this ticket\n{notes.strip()}")
     parts.append(
         "---\n"
-        "Filed via Goal → Linear (dashboard). Status: Backlog. "
-        "Not authorised for autonomous pickup.\n"
+        "Filed via Goal → Linear. Status: Backlog.\n"
     )
     return "\n\n".join(parts)
 
