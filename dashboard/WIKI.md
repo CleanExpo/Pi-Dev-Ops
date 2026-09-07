@@ -1,16 +1,15 @@
 # dashboard — Wiki
 
-_Last updated: 2026-08-27T10:10:08Z (commits 797ba72..96bbce3)_
+_Last updated: 2026-09-07T06:34:04Z (commits fb0a0df..5e510a3)_
 
 ## Recent changes
-- 96bbce3 — Mission Control: governed OmniRoute model fabric (#668)
+- 5e510a3 — test(control): cover the how-to, landed ids, quiet labels, and Write stage
 
 ## Architecture (current)
 Auto-stub: `dashboard/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- dashboard/app/api/model-fabric/route.ts — touched in recent commits
-- dashboard/components/control/ControlSectionView.tsx — touched in recent commits
-- dashboard/components/control/ModelFabricPanel.tsx — touched in recent commits
-- dashboard/lib/control/nav.ts — touched in recent commits
-- dashboard/proxy.ts — touched in recent commits
+- dashboard/__tests__/lib/control/goalBrief.test.ts — touched in recent commits
+- dashboard/__tests__/lib/control/goalCopy.test.ts — touched in recent commits
+- dashboard/__tests__/lib/control/goalErrors.test.ts — touched in recent commits
+- dashboard/__tests__/lib/control/goalStage.test.ts — touched in recent commits

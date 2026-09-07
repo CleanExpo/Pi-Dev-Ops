@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import GoalAnalysisOverview, {
   type AnalysisOverview,
   type FinalReviewBlock,
@@ -7,11 +8,14 @@ import GoalAnalysisOverview, {
   type GoalAnalysisBlock,
   type OrderStep,
 } from "./GoalAnalysisOverview";
+import { CHILD_TICKETS_NOTE, LINEAR_DEST_NOTE } from "@/lib/control/goalCopy";
+import { readyToFile } from "@/lib/control/goalBrief";
 import {
   ALWAYS_SHOW,
   DRAFT_AREAS,
   draftsFromAnalyze,
   filePayloadFromDraft,
+  patchDraft,
   type DraftTicket,
 } from "./GoalDraftFields";
 import styles from "./control-deck.module.css";
@@ -55,9 +59,19 @@ export default function GoalDraftReview({
   onApprove,
 }: Props) {
   const count = selectedCount(analysis.tickets);
+  const canFile = readyToFile(analysis.tickets);
+  const [more, setMore] = useState<Record<number, boolean>>({});
 
   function patch(index: number, next: Partial<DraftTicket>) {
-    onChange(analysis.tickets.map((t, i) => (i === index ? { ...t, ...next } : t)));
+    onChange(analysis.tickets.map((t, i) => (i === index ? patchDraft(t, next) : t)));
+  }
+
+  function fieldsFor(ticket: DraftTicket, index: number) {
+    return DRAFT_AREAS.filter((field) => {
+      if (ALWAYS_SHOW.includes(field.key)) return true;
+      if (!more[index]) return false;
+      return Boolean(String(ticket[field.key] ?? "").trim());
+    });
   }
 
   return (
@@ -65,6 +79,9 @@ export default function GoalDraftReview({
       <GoalAnalysisOverview analysis={analysis} />
 
       <div className={styles.fieldLabel}>Draft Linear tickets</div>
+      {analysis.tickets.some((t) => t.selected && (t.sub_tasks.trim() || t.sub_tasks_json.trim())) ? (
+        <p className={styles.note}>{CHILD_TICKETS_NOTE}</p>
+      ) : null}
       {analysis.tickets.map((ticket, index) => (
         <article
           key={`${ticket.ticket_id || ticket.title}-${index}`}
@@ -75,11 +92,13 @@ export default function GoalDraftReview({
             <input
               type="checkbox"
               checked={ticket.selected}
-              disabled={filing}
+              disabled={filing || Boolean(ticket.landed_identifier)}
               onChange={(e) => patch(index, { selected: e.target.checked })}
               aria-label={`Include ticket ${index + 1}`}
             />
-            {ticket.ticket_id || `Ticket ${index + 1}`} of {analysis.tickets.length}
+            {ticket.landed_identifier
+              ? `${ticket.landed_identifier} already in Linear`
+              : ticket.ticket_id || `Ticket ${index + 1}`}
             {ticket.priority ? ` · ${ticket.priority}` : ""}
           </label>
           {ticket.ticket_id || ticket.priority ? (
@@ -116,10 +135,7 @@ export default function GoalDraftReview({
               aria-label={`Title ${index + 1}`}
             />
           </label>
-          {DRAFT_AREAS.filter(
-            (field) =>
-              ALWAYS_SHOW.includes(field.key) || String(ticket[field.key] ?? "").trim(),
-          ).map((field) => (
+          {fieldsFor(ticket, index).map((field) => (
             <label key={field.key} className={styles.field}>
               <span className={styles.fieldLabel}>{field.label}</span>
               <textarea
@@ -136,27 +152,39 @@ export default function GoalDraftReview({
               />
             </label>
           ))}
+          <button
+            type="button"
+            onClick={() => setMore({ ...more, [index]: !more[index] })}
+            disabled={filing}
+            className={styles.ghost}
+          >
+            {more[index] ? "Fewer fields" : "More on this ticket"}
+          </button>
         </article>
       ))}
 
-      <p className={styles.note}>Draft only — nothing has been written to Linear.</p>
+      <p className={styles.note}>
+        {canFile
+          ? "Draft only — nothing has been written to Linear."
+          : "Each selected ticket needs a title, goal, and acceptance of 8+ characters."}
+      </p>
 
       {confirming ? (
         <div className={`${styles.card} ${styles.confirm}`}>
           <p style={{ color: "var(--text)", fontSize: 14 }}>
-            File {count} ticket{count === 1 ? "" : "s"} to Linear Backlog? This writes to Linear.
+            Write {count} ticket{count === 1 ? "" : "s"} to Linear? {LINEAR_DEST_NOTE}
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
-            <button onClick={onApprove} disabled={filing || count === 0} className={styles.primary}>
-              {filing ? "Filing…" : "Approve and file"}
+            <button onClick={onApprove} disabled={filing || !canFile} className={styles.primary}>
+              {filing ? "Writing…" : "Write to Linear"}
             </button>
             <button onClick={onCancelConfirm} disabled={filing} className={styles.ghost}>Back</button>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          <button onClick={onRequestFile} disabled={filing || count === 0} className={styles.primary}>
-            File {count} on Linear
+          <button onClick={onRequestFile} disabled={filing || !canFile} className={styles.primary}>
+            Write {count} to Linear
           </button>
           <button onClick={onDiscard} disabled={filing} className={styles.ghost}>Discard</button>
         </div>

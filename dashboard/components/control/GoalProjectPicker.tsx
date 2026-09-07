@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { readyToCreate, remainingHint } from "@/lib/control/goalBrief";
+import { TWO_PROJECTS_NOTE } from "@/lib/control/goalCopy";
+import { readGoalBriefId, writeGoalBriefId } from "@/lib/control/goalProjectStore";
 import styles from "./control-deck.module.css";
 
 export interface GoalProject {
@@ -38,8 +41,15 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
   const [draft, setDraft] = useState(EMPTY);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [extra, setExtra] = useState(false);
 
-  async function reload() {
+  function choose(project: GoalProject) {
+    writeGoalBriefId(project.id);
+    onSelect(project);
+  }
+
+  async function reload(): Promise<GoalProject[]> {
     const res = await fetch("/api/pi-ceo/api/goal-projects");
     const data = (await res.json().catch(() => ({}))) as {
       projects?: GoalProject[];
@@ -47,17 +57,27 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
       detail?: { hint?: string };
     };
     if (!res.ok || !Array.isArray(data.projects)) {
-      throw new Error(data.hint || data.detail?.hint || "Could not load projects.");
+      throw new Error(data.hint || data.detail?.hint || "Could not load project briefs.");
     }
     setProjects(data.projects);
+    return data.projects;
   }
 
   useEffect(() => {
-    void reload().catch(() => setError("Could not load projects."));
+    void reload()
+      .then((list) => {
+        if (selectedId) return;
+        const found = list.find((p) => p.id === readGoalBriefId());
+        if (found) onSelect(found);
+      })
+      .catch(() => setError("Could not load project briefs."))
+      .finally(() => setLoading(false));
   }, []);
 
+  const canSave = readyToCreate(draft);
+
   async function save() {
-    if (saving) return;
+    if (saving || !canSave) return;
     setError("");
     setSaving(true);
     try {
@@ -75,10 +95,16 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         setError(data.hint || data.detail?.hint || "Project was not created.");
         return;
       }
-      onSelect(data.project);
+      const created = data.project;
+      choose(created);
+      setProjects((prev) => (prev.some((p) => p.id === created.id) ? prev : [...prev, created]));
       setDraft(EMPTY);
       setCreating(false);
-      await reload();
+      try {
+        await reload();
+      } catch {
+        setError("Saved. The list did not refresh.");
+      }
     } catch {
       setError("Network error — project was not created.");
     } finally {
@@ -90,18 +116,20 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
 
   return (
     <div className={styles.field}>
-      <span className={styles.fieldLabel}>Project</span>
+      <span className={styles.fieldLabel}>Project brief</span>
+      <p className={`${styles.note} mb-2`}>{TWO_PROJECTS_NOTE}</p>
+      {loading ? <p className={styles.note}>Loading project briefs…</p> : null}
       <select
         value={selectedId}
-        disabled={disabled || creating}
+        disabled={disabled || creating || loading}
         onChange={(e) => {
           const next = projects.find((p) => p.id === e.target.value);
-          if (next) onSelect(next);
+          if (next) choose(next);
         }}
         className={styles.input}
-        aria-label="Project"
+        aria-label="Project brief"
       >
-        <option value="">Select a project</option>
+        <option value="">Select a brief</option>
         {projects.map((project) => (
           <option key={project.id} value={project.id}>
             {project.title}
@@ -114,6 +142,11 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
           {selected.audience ? `\nAudience: ${selected.audience}` : ""}
         </p>
       ) : null}
+      {!loading && !error && projects.length === 0 && !creating ? (
+        <p className={`${styles.note} mt-2`}>
+          No project briefs yet. Create one here — title, description, and audience are required.
+        </p>
+      ) : null}
       {!creating ? (
         <button
           type="button"
@@ -121,24 +154,26 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
           disabled={disabled}
           className={`${styles.ghost} mt-2`}
         >
-          Create project
+          Create brief
         </button>
       ) : (
         <div className={`${styles.card} mt-3`}>
           {(
             [
-              ["title", "Title", 1],
-              ["description", "Description", 3],
-              ["audience", "Main audience", 2],
-              ["problem", "Problem", 2],
-              ["users", "Users", 2],
-              ["outcomes", "Outcomes", 2],
-              ["constraints", "Constraints", 2],
-              ["out_of_scope", "Out of scope", 2],
+              ["title", "Title — the product name", 1, true],
+              ["description", "What this product is", 3, true],
+              ["audience", "Who it is for", 2, true],
+              ["problem", "Problem", 2, false],
+              ["users", "Users", 2, false],
+              ["outcomes", "Outcomes", 2, false],
+              ["constraints", "Constraints", 2, false],
+              ["out_of_scope", "Out of scope", 2, false],
             ] as const
-          ).map(([key, label, rows]) => (
+          ).filter(([, , , required]) => required || extra).map(([key, label, rows, required]) => (
             <label key={key} className={styles.field}>
-              <span className={styles.fieldLabel}>{label}</span>
+              <span className={styles.fieldLabel}>
+                {required ? remainingHint(draft[key], label) : label}
+              </span>
               <textarea
                 value={draft[key]}
                 disabled={saving}
@@ -149,8 +184,11 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
             </label>
           ))}
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => void save()} disabled={saving} className={styles.primary}>
-              {saving ? "Saving…" : "Save project"}
+            <button type="button" onClick={() => setExtra(!extra)} className={styles.ghost}>
+              {extra ? "Fewer fields" : "More context"}
+            </button>
+            <button type="button" onClick={() => void save()} disabled={saving || !canSave} className={styles.primary}>
+              {saving ? "Saving…" : "Save brief"}
             </button>
             <button
               type="button"

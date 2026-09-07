@@ -1,6 +1,7 @@
 """Goal project briefs — create and list, no GitHub."""
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -58,6 +59,14 @@ def test_create_and_get_project(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) 
     assert loaded is not None
     assert loaded["title"] == "Saved looks workspace"
     assert loaded["problem"] == "Looks disappear after refresh."
+
+
+def test_route_rejects_short_brief_fields(client: TestClient) -> None:
+    resp = client.post(
+        "/api/goal-projects",
+        json={"title": "short", "description": "also short", "audience": "tiny"},
+    )
+    assert resp.status_code == 422
 
 
 def test_route_creates_and_lists_projects(client: TestClient) -> None:
@@ -173,6 +182,36 @@ def test_load_projects_reads_supabase(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(store, "_request", fake_request)
     rows = load_projects()
     assert rows[0]["id"] == "p1"
+
+
+def test_load_and_get_project_use_settings_when_table_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GOAL_PROJECTS_PATH", raising=False)
+    row = {
+        "id": "p-settings",
+        "title": "Saved looks workspace",
+        "description": "Shoppers save looks from the feed.",
+        "audience": "Shoppers on Synthex.",
+        "problem": "",
+        "users": "",
+        "outcomes": "",
+        "constraints": "",
+        "out_of_scope": "",
+        "created_at": "2026-08-27T00:00:00Z",
+    }
+
+    def fake_request(method: str, path: str, data: dict[str, Any] | None = None) -> Any:
+        if path.startswith("goal_projects"):
+            raise store._TableMissing()
+        if path.startswith("settings"):
+            return [{"key": "goal_project:p-settings", "value": json.dumps(row)}]
+        return []
+
+    monkeypatch.setattr(store, "_request", fake_request)
+    loaded = load_projects()
+    assert loaded[0]["id"] == "p-settings"
+    assert get_project("p-settings")["id"] == "p-settings"
 
 
 def test_route_returns_503_when_database_write_fails(

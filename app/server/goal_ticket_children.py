@@ -3,9 +3,22 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from .goal_analyze_fields import normalize_sub_tasks
+from .goal_analyze_fields import format_sub_tasks, normalize_sub_tasks
 
 GqlFn = Callable[..., dict[str, Any]]
+
+
+def sub_task_source(draft: dict[str, Any]) -> Any:
+    """Use the visible sub-task text when the operator edited it."""
+    text = str(draft.get("sub_tasks") or "").strip()
+    raw_json = draft.get("sub_tasks_json")
+    if text and raw_json and str(raw_json).strip():
+        rendered = format_sub_tasks(normalize_sub_tasks(raw_json)).strip()
+        if text != rendered and text != str(raw_json).strip():
+            return text
+    if raw_json and str(raw_json).strip():
+        return raw_json
+    return text
 
 
 def file_sub_tasks(
@@ -22,7 +35,7 @@ def file_sub_tasks(
         return {"tickets": []}
     created: list[dict[str, Any]] = []
     parent_acc = str(draft.get("acceptance") or "")
-    for child in normalize_sub_tasks(draft.get("sub_tasks_json") or draft.get("sub_tasks")):
+    for child in normalize_sub_tasks(sub_task_source(draft)):
         notes = "\n\n".join(
             part
             for part in (

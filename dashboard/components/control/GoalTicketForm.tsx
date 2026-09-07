@@ -1,4 +1,3 @@
-// components/control/GoalTicketForm.tsx — Goal → analyze → approve → Linear
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,43 +8,30 @@ import GoalDraftReview, {
   type DraftTicket,
 } from "./GoalDraftReview";
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
+import { readyToAnalyze, remainingHint, ticketsToFile } from "@/lib/control/goalBrief";
+import {
+  ANALYZE_STAGE_NOTE,
+  PROJECT_KEPT_NOTE,
+  analyzeProgress,
+  analyzingCopy,
+} from "@/lib/control/goalCopy";
+import {
+  errorMessage,
+  filedTickets,
+  markLanded,
+  mergeFiled,
+  type FiledTicket,
+  type GoalErrorBody,
+} from "@/lib/control/goalErrors";
+import { readGoalAnalysis, writeGoalAnalysis } from "@/lib/control/goalAnalysisStore";
+import { goalStage } from "@/lib/control/goalStage";
+import GoalFiledList from "./GoalFiledList";
+import GoalHowTo from "./GoalHowTo";
+import GoalStagePills from "./GoalStagePills";
 import styles from "./control-deck.module.css";
 
 function sanitize(s: string): string {
   return s.replace(/[<>]/g, "");
-}
-
-interface FiledTicket {
-  identifier: string;
-  url: string;
-  title: string;
-  state: string;
-  labels: string[];
-}
-
-interface ErrorBody {
-  error?: string;
-  hint?: string;
-  detail?: { error?: string; fields?: string[]; hint?: string; repo?: string };
-}
-
-function errorMessage(data: ErrorBody, status: number): string {
-  const detail = data.detail;
-  const fields = detail?.fields?.join(", ");
-  return (
-    data.hint
-    || detail?.hint
-    || (fields ? `Missing: ${fields}` : null)
-    || detail?.error
-    || data.error
-    || `Request failed (${status})`
-  );
-}
-
-function analyzingCopy(seconds: number): string {
-  if (seconds < 10) return `${seconds}s · reading the project brief. Linear is not written.`;
-  if (seconds < 35) return `${seconds}s · breaking the goal into tickets. Linear is not written.`;
-  return `${seconds}s · still analyzing. Linear is not written.`;
 }
 
 export default function GoalTicketForm() {
@@ -58,6 +44,7 @@ export default function GoalTicketForm() {
   const [analysis, setAnalysis] = useState<AnalysisPayload | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [filed, setFiled] = useState<FiledTicket[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (!busy) {
@@ -68,8 +55,29 @@ export default function GoalTicketForm() {
     return () => clearInterval(id);
   }, [busy]);
 
+  useEffect(() => {
+    const stored = readGoalAnalysis();
+    if (stored) {
+      setGoal(stored.goal);
+      setAcceptance(stored.acceptance);
+      setAnalysis(stored.analysis);
+    }
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!analysis) {
+      writeGoalAnalysis(null);
+      return;
+    }
+    writeGoalAnalysis({ goal, acceptance, analysis });
+  }, [analysis, goal, acceptance, hydrated]);
+
+  const canAnalyze = readyToAnalyze(goal, acceptance, project?.id || "");
+
   async function analyze() {
-    if (busy) return;
+    if (busy || !canAnalyze) return;
     setError("");
     setFiled([]);
     setConfirming(false);
@@ -84,8 +92,7 @@ export default function GoalTicketForm() {
           project_id: project?.id || "",
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as ErrorBody & Partial<AnalysisPayload> & {
-        filed?: boolean;
+      const data = (await res.json().catch(() => ({}))) as GoalErrorBody & Partial<AnalysisPayload> & {
         project_title?: string;
         tickets?: Array<Partial<DraftTicket>>;
       };
@@ -126,8 +133,11 @@ export default function GoalTicketForm() {
 
   async function approveAndFile() {
     if (busy || !analysis) return;
-    const chosen = analysis.tickets.filter((t) => t.selected);
-    if (chosen.length === 0) return;
+    const chosen = ticketsToFile(analysis.tickets, filed);
+    if (chosen.length === 0) {
+      setError("Those tickets are already in Linear.");
+      return;
+    }
     setError("");
     setBusy(true);
     try {
@@ -139,15 +149,19 @@ export default function GoalTicketForm() {
           acceptance: sanitize(acceptance.trim()),
           project_id: project?.id || "",
           approved: true,
-          tickets: chosen.map((t) => filePayloadFromDraft(t, sanitize)),
+          tickets: chosen.map((ticket) => filePayloadFromDraft(ticket, sanitize)),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as ErrorBody & { tickets?: FiledTicket[] };
+      const data = (await res.json().catch(() => ({}))) as GoalErrorBody;
       if (!res.ok) {
+        const partial = filedTickets(data);
+        const next = mergeFiled(filed, partial);
+        setFiled(next);
+        setAnalysis({ ...analysis, tickets: markLanded(analysis.tickets, next) });
         setError(errorMessage(data, res.status));
         return;
       }
-      const created = (data.tickets || []).filter((t) => t.identifier && t.url);
+      const created = mergeFiled(filed, filedTickets(data));
       if (created.length === 0) {
         setError("Approval returned no tickets. Linear may not have been written.");
         return;
@@ -157,6 +171,7 @@ export default function GoalTicketForm() {
       setConfirming(false);
       setGoal("");
       setAcceptance("");
+      writeGoalAnalysis(null);
     } catch {
       setError("Network error — Pi CEO backend unreachable. Linear was not written.");
     } finally {
@@ -164,25 +179,24 @@ export default function GoalTicketForm() {
     }
   }
 
-  const stage = confirming ? 3 : analysis ? 2 : 1;
+  const stage = goalStage({
+    confirming,
+    hasAnalysis: Boolean(analysis),
+    analyzing: busy && !analysis,
+  });
 
   return (
     <div className="max-w-3xl">
-      <div className={styles.stageRow} aria-label="Goal filing stages">
-        {[
-          { n: 1, label: "Compose" },
-          { n: 2, label: "Analyze" },
-          { n: 3, label: "Approve" },
-        ].map((s) => (
-          <div key={s.n} className={`${styles.stage} ${stage === s.n ? styles.stageOn : ""}`}>
-            <div className={styles.stageNum}>Stage {s.n}</div>
-            <div className={styles.stageLabel}>{s.label}</div>
-          </div>
-        ))}
-      </div>
+      <GoalStagePills stage={stage} />
+      <GoalHowTo />
 
+      <GoalProjectPicker
+        selectedId={project?.id || ""}
+        disabled={busy || Boolean(analysis)}
+        onSelect={setProject}
+      />
       <label className={styles.field}>
-        <span className={styles.fieldLabel}>Goal</span>
+        <span className={styles.fieldLabel}>{remainingHint(goal, "Goal")}</span>
         <textarea
           id="goal-text"
           name="goal"
@@ -194,13 +208,8 @@ export default function GoalTicketForm() {
           className={styles.input}
         />
       </label>
-      <GoalProjectPicker
-        selectedId={project?.id || ""}
-        disabled={busy || Boolean(analysis)}
-        onSelect={setProject}
-      />
       <label className={styles.field}>
-        <span className={styles.fieldLabel}>Acceptance</span>
+        <span className={styles.fieldLabel}>{remainingHint(acceptance, "Acceptance")}</span>
         <textarea
           id="goal-acceptance"
           name="acceptance"
@@ -217,13 +226,17 @@ export default function GoalTicketForm() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => void analyze()}
-            disabled={busy || !goal.trim() || !project || !acceptance.trim()}
+            disabled={busy || !canAnalyze}
             className={styles.primary}
           >
             {busy ? "Analyzing…" : "Analyze goal"}
           </button>
-          {busy ? <span className={styles.note}>{analyzingCopy(elapsed)}</span> : (
-            <span className={styles.note}>Drafts first. Linear only after approve.</span>
+          {busy ? (
+            <span className={styles.note}>
+              {analyzingCopy(elapsed)} {analyzeProgress(elapsed)}%
+            </span>
+          ) : (
+            <span className={styles.note}>{ANALYZE_STAGE_NOTE}</span>
           )}
         </div>
       ) : (
@@ -232,7 +245,11 @@ export default function GoalTicketForm() {
           confirming={confirming}
           filing={busy}
           onChange={(tickets) => setAnalysis({ ...analysis, tickets })}
-          onDiscard={() => { setAnalysis(null); setConfirming(false); }}
+          onDiscard={() => {
+            setAnalysis(null);
+            setConfirming(false);
+            writeGoalAnalysis(null);
+          }}
           onRequestFile={() => setConfirming(true)}
           onCancelConfirm={() => setConfirming(false)}
           onApprove={() => void approveAndFile()}
@@ -243,19 +260,19 @@ export default function GoalTicketForm() {
         <p className="mt-3 text-[13px]" style={{ color: "var(--error)" }}>{error}</p>
       ) : null}
 
-      {filed.length > 0 ? (
-        <ul className="mt-4 flex flex-col gap-2">
-          {filed.map((ticket) => (
-            <li key={ticket.identifier} className={styles.card}>
-              <a href={ticket.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>
-                {ticket.identifier}
-              </a>
-              <span className="block text-[13px] mt-1" style={{ color: "var(--text)" }}>{ticket.title}</span>
-              <span className={styles.note}>{ticket.state}{ticket.labels.length ? ` · ${ticket.labels.join(", ")}` : ""}</span>
-            </li>
-          ))}
-        </ul>
+      {filed.length > 0 && !analysis ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <p className={styles.note}>{PROJECT_KEPT_NOTE}</p>
+          <button
+            type="button"
+            onClick={() => { setFiled([]); setError(""); writeGoalAnalysis(null); }}
+            className={styles.ghost}
+          >
+            Start another goal
+          </button>
+        </div>
       ) : null}
+      <GoalFiledList tickets={filed} />
     </div>
   );
 }
