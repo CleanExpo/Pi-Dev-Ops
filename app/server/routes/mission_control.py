@@ -20,7 +20,8 @@ from pathlib import Path
 from fastapi import APIRouter, Depends
 
 from ..auth import require_auth
-from .health_full import gather_components, _is_observed
+from .health_aggregate import _is_observed, classify
+from .health_full import gather_components
 
 log = logging.getLogger("pi-ceo.mission_control")
 router = APIRouter(prefix="/api/mission-control", tags=["mission-control"])
@@ -254,10 +255,10 @@ async def _observability_snapshot() -> dict:
         return {"source": "health_full", "ok": False, "fully_observed": False, "red_components": ["health_full"], "degraded_components": [], "actions": [_observability_action("health_full", {"ok": False, "status": "red", "error": str(exc)[:120]})]}
 
     components = {**components, "railway_deploy_config": _railway_deploy_config_component()}
-    red_components = sorted(name for name, payload in components.items() if not bool(payload.get("ok")))
-    degraded_components = sorted(name for name, payload in components.items() if bool(payload.get("ok")) and not _is_observed(payload))
-    actions = [_observability_action(name, components[name]) for name in red_components + degraded_components]
-    return {"source": "health_full", "ok": not red_components, "fully_observed": not red_components and not degraded_components, "red_components": red_components, "degraded_components": degraded_components, "actions": actions}
+    verdict = classify(components)
+    ordered = verdict["red_components"] + verdict["degraded_components"]
+    actions = [_observability_action(name, components[name]) for name in ordered]
+    return {"source": "health_full", **verdict, "actions": actions}
 
 
 @router.get("/live", dependencies=[Depends(require_auth)])

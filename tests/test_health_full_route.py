@@ -96,29 +96,32 @@ def test_route_completes_under_two_seconds(monkeypatch):
 
 def test_hermes_gateway_probe_ok_when_heartbeat_file_absent(monkeypatch, tmp_path):
     """RA-1939 (rerun): Hermes runs on the Mac mini, not on Railway. The
-    heartbeat file is expected to be absent on the production FastAPI
-    host. Probe must report ok=true with a note rather than ok=false.
+    heartbeat file is expected to be absent on the production FastAPI host,
+    and that absence must not 503 the endpoint.
 
-    Without this fix, every Railway deploy returns 503 from the endpoint
-    and the smoke test goes red on every PR merge.
+    H01-H04: the component itself no longer claims ok for a check it never
+    made. The no-503 guarantee moved to the aggregator, which judges status on
+    observed components only, and is asserted in
+    tests/test_health_full_unobserved_is_not_ok.py.
     """
     monkeypatch.setattr(health_full, "_HARNESS", tmp_path)  # tmp_path has no hermes/heartbeat.jsonl
     result = asyncio.run(health_full._check_hermes_gateway())
-    assert result["ok"] is True
+    assert result["ok"] is False
     assert result["observed"] is False
     assert result["status"] == "not_observed"
     assert "no_heartbeat_file" in result.get("note", "")
 
 
 def test_hermes_gateway_probe_ok_when_heartbeat_file_empty(monkeypatch, tmp_path):
-    """An empty heartbeat file is also expected (e.g. file created by
-    log rotation but not yet appended to). Treat as ok=true with a note."""
+    """An empty heartbeat file is also expected (e.g. file created by log
+    rotation but not yet appended to). It is not observed, so it is not ok -
+    it degrades the endpoint rather than reddening it. See H01-H04."""
     hermes_dir = tmp_path / "hermes"
     hermes_dir.mkdir()
     (hermes_dir / "heartbeat.jsonl").write_text("", encoding="utf-8")
     monkeypatch.setattr(health_full, "_HARNESS", tmp_path)
     result = asyncio.run(health_full._check_hermes_gateway())
-    assert result["ok"] is True
+    assert result["ok"] is False
     assert result["observed"] is False
     assert result["status"] == "not_observed"
     assert "empty_heartbeat" in result.get("note", "")
@@ -166,7 +169,9 @@ def test_telegram_probe_pending_when_webhook_mode_not_ensured_yet(monkeypatch, t
 
     result = asyncio.run(health_full._check_telegram_polling())
 
-    assert result["ok"] is True
+    # Webhook mode is on but no ensure has happened yet, so nothing has been
+    # observed. Not ok, not red - degraded. See H01-H04.
+    assert result["ok"] is False
     assert result["observed"] is False
     assert result["status"] == "webhook_pending"
 

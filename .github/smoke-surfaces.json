@@ -285,8 +285,10 @@
       "method": "POST",
       "auth": true,
       "expected_status": 400,
-      "body_contains": ["Missing webhook signature header"],
-      "_comment": "The dispatch webhook (app/server/routes/webhooks.py). Sends no signature header, so the backend raises 400 \"Missing webhook signature header (x-hub-signature-256 or Linear-Signature)\" at webhooks.py:297 \u2014 the assertion that the signature gate runs at all. auth:true is LOAD-BEARING, not a copy-paste slip: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts) and this path matches none of the three PUBLIC_API_PREFIXES, so proxy() 401s it at line 121 before the backend is reached. scripts/smoke_test_e2e.py runs auth:false probes before login with an empty cookie jar, so as auth:false this probe asserted a 400 the architecture could never produce and was permanently red while verifying nothing. Note '-nosig' means no webhook SIGNATURE, not no session \u2014 the auth:true members of that family (this one and slack-margot-bridge-nosig) do reach the backend."
+      "body_contains": [
+        "Missing webhook signature header"
+      ],
+      "_comment": "The dispatch webhook (app/server/routes/webhooks.py). Sends no signature header, so the backend raises 400 \"Missing webhook signature header (x-hub-signature-256 or Linear-Signature)\" at webhooks.py:297 — the assertion that the signature gate runs at all. auth:true is LOAD-BEARING, not a copy-paste slip: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts) and this path matches none of the three PUBLIC_API_PREFIXES, so proxy() 401s it at line 121 before the backend is reached. scripts/smoke_test_e2e.py runs auth:false probes before login with an empty cookie jar, so as auth:false this probe asserted a 400 the architecture could never produce and was permanently red while verifying nothing. Note '-nosig' means no webhook SIGNATURE, not no session — the auth:true members of that family (this one and slack-margot-bridge-nosig) do reach the backend."
     },
     {
       "name": "cron-analyze-unauth",
@@ -579,7 +581,7 @@
       "body": {
         "host": "smoke"
       },
-      "_comment": "Nexus Mesh idle-runner self-claim (app/server/routes/mesh.py). WHAT THIS PROBE ACTUALLY PROVES, stated precisely because an earlier version of this comment overclaimed: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so proxy() answers 401 for EVERY path under that prefix before routing, the allowlist, or the backend is reached. This probe therefore proves the dashboard's session gate refuses anonymous access to this path. It does NOT prove the backend route exists, nor that the route's own X-Pi-CEO-Secret check works \u2014 deleting the route file would leave this probe green. The same holds for every other auth:false probe under this prefix. It is NOT a property of the '-nosig' name, which refers to a missing webhook SIGNATURE: the auth:true members of that family (slack-margot-bridge-nosig, webhook-dispatch-nosig) pass the session gate and do reach the backend. The claim's atomicity \u2014 the mesh_work_claims_one_open partial unique index letting exactly one concurrent claimant win \u2014 is covered by the offline mesh tests, not by this probe."
+      "_comment": "Nexus Mesh idle-runner self-claim (app/server/routes/mesh.py). WHAT THIS PROBE ACTUALLY PROVES, stated precisely because an earlier version of this comment overclaimed: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so proxy() answers 401 for EVERY path under that prefix before routing, the allowlist, or the backend is reached. This probe therefore proves the dashboard's session gate refuses anonymous access to this path. It does NOT prove the backend route exists, nor that the route's own X-Pi-CEO-Secret check works — deleting the route file would leave this probe green. The same holds for every other auth:false probe under this prefix. It is NOT a property of the '-nosig' name, which refers to a missing webhook SIGNATURE: the auth:true members of that family (slack-margot-bridge-nosig, webhook-dispatch-nosig) pass the session gate and do reach the backend. The claim's atomicity — the mesh_work_claims_one_open partial unique index letting exactly one concurrent claimant win — is covered by the offline mesh tests, not by this probe."
     },
     {
       "name": "mesh-claims-reap-nosig",
@@ -609,7 +611,7 @@
       "body": {
         "linear_ids": []
       },
-      "_comment": "Nexus Mesh P2: the dispatcher tick (app/server/routes/mesh.py dispatch) now also runs on a 5-minute cron via cron_fire_mesh, gated by MESH_DISPATCH_ENABLED \u2014 previously nothing called it, so an online fleet stayed idle. The route body moved to app/server/mesh_dispatch_service.run_dispatch_tick so the schedule and the endpoint share one implementation; the HTTP surface is unchanged. Requires X-Pi-CEO-Secret; unauthenticated POST returns 401 before any Linear query or mesh_work_claims insert, same pattern as mesh-claim-self-nosig. An authenticated probe is deliberately NOT declared \u2014 a valid secret would assign live tickets to real machines (state mutation); assignment, least-loaded ordering and the 409 race path are covered offline by tests/test_mesh_dispatch_scheduled.py."
+      "_comment": "Nexus Mesh P2: the dispatcher tick (app/server/routes/mesh.py dispatch) now also runs on a 5-minute cron via cron_fire_mesh, gated by MESH_DISPATCH_ENABLED — previously nothing called it, so an online fleet stayed idle. The route body moved to app/server/mesh_dispatch_service.run_dispatch_tick so the schedule and the endpoint share one implementation; the HTTP surface is unchanged. Requires X-Pi-CEO-Secret; unauthenticated POST returns 401 before any Linear query or mesh_work_claims insert, same pattern as mesh-claim-self-nosig. An authenticated probe is deliberately NOT declared — a valid secret would assign live tickets to real machines (state mutation); assignment, least-loaded ordering and the 409 race path are covered offline by tests/test_mesh_dispatch_scheduled.py."
     },
     {
       "name": "conversations-ingest-nosig",
@@ -621,7 +623,7 @@
         "machine": "smoke",
         "digests": []
       },
-      "_comment": "Milestone 3 shared conversation brain (app/server/routes/conversations.py ingest). A machine publishes REDACTED session digests; raw ~/.claude/projects JSONL never leaves its origin host. WHAT THIS PROBE ACTUALLY PROVES, stated precisely because an earlier version of this comment overclaimed: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so proxy() answers 401 for EVERY path under that prefix before routing, the allowlist, or the backend is reached. This probe therefore proves the dashboard's session gate refuses anonymous access to this path. It does NOT prove the backend route exists, nor that the route's own X-Pi-CEO-Secret check works \u2014 deleting the route file would leave this probe green. The same holds for every other auth:false probe under this prefix. It is NOT a property of the '-nosig' name, which refers to a missing webhook SIGNATURE: the auth:true members of that family (slack-margot-bridge-nosig, webhook-dispatch-nosig) pass the session gate and do reach the backend. An authenticated probe is deliberately NOT declared: a valid secret would upsert a real conversation_digests row, and the lane ships disabled, so it would assert a 503 that flips to 200 the day the flag is turned on. The route's auth, the second-pass redaction of EVERY stored field, the kill switch, the machine-scoped PK and partial-write reporting are covered offline by tests/test_conversations_api.py and tests/test_conversations_redaction.py, which do run in CI."
+      "_comment": "Milestone 3 shared conversation brain (app/server/routes/conversations.py ingest). A machine publishes REDACTED session digests; raw ~/.claude/projects JSONL never leaves its origin host. WHAT THIS PROBE ACTUALLY PROVES, stated precisely because an earlier version of this comment overclaimed: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so proxy() answers 401 for EVERY path under that prefix before routing, the allowlist, or the backend is reached. This probe therefore proves the dashboard's session gate refuses anonymous access to this path. It does NOT prove the backend route exists, nor that the route's own X-Pi-CEO-Secret check works — deleting the route file would leave this probe green. The same holds for every other auth:false probe under this prefix. It is NOT a property of the '-nosig' name, which refers to a missing webhook SIGNATURE: the auth:true members of that family (slack-margot-bridge-nosig, webhook-dispatch-nosig) pass the session gate and do reach the backend. An authenticated probe is deliberately NOT declared: a valid secret would upsert a real conversation_digests row, and the lane ships disabled, so it would assert a 503 that flips to 200 the day the flag is turned on. The route's auth, the second-pass redaction of EVERY stored field, the kill switch, the machine-scoped PK and partial-write reporting are covered offline by tests/test_conversations_api.py and tests/test_conversations_redaction.py, which do run in CI."
     },
     {
       "name": "conversations-search-nosig",
@@ -629,7 +631,7 @@
       "method": "GET",
       "auth": false,
       "expected_status": 401,
-      "_comment": "Milestone 3: cross-machine full-text search over conversation_digests (app/server/routes/conversations.py search). Digest bodies are private conversation content and the table is service-role only (supabase/migrations/20260830T000001_conversation_digests.sql). As with conversations-ingest-nosig, this probe proves the dashboard proxy's session gate and not the backend route \u2014 see that entry for why, and for what covers the route itself."
+      "_comment": "Milestone 3: cross-machine full-text search over conversation_digests (app/server/routes/conversations.py search). Digest bodies are private conversation content and the table is service-role only (supabase/migrations/20260830T000001_conversation_digests.sql). As with conversations-ingest-nosig, this probe proves the dashboard proxy's session gate and not the backend route — see that entry for why, and for what covers the route itself."
     },
     {
       "name": "conversations-recent-nosig",
@@ -645,7 +647,10 @@
       "method": "POST",
       "auth": false,
       "expected_status": 401,
-      "body": {"filename": "smoke.md", "body_md": "smoke"},
+      "body": {
+        "filename": "smoke.md",
+        "body_md": "smoke"
+      },
       "_comment": "Milestone 4 knowledge front door (app/server/routes/wiki_sources.py upload). Closes the estate-librarian §3 UNREACHABLE_FROM_NODE gap: sources_watcher ingests Sources/*.md from a folder on the brain host, so nothing outside that machine could reach the wiki pipeline. SCOPE, stated precisely and deliberately NOT overclaimed: '/api/pi-ceo' is in PROTECTED_API_PREFIXES (dashboard/proxy.ts), so proxy() answers 401 for every path under it before routing, the allowlist or the backend is reached. This proves the dashboard session gate refuses anonymous uploads. It does NOT prove the route exists or that its filename allowlist works — deleting the route file would leave this probe green, exactly as documented on conversations-ingest-nosig. An authenticated probe is deliberately NOT declared: a valid secret would insert a real wiki_source_staging row, and the lane ships disabled, so it would assert a 503 that flips the day WIKI_SOURCES_ENABLED is set. The hostile-filename refusal (10 traversal shapes plus index.md/log.md), the fail-closed behaviour when swarm.ingest_guard cannot load, the size cap and the content-addressed dedupe are covered offline by tests/test_wiki_sources_api.py; the drain's independent re-validation is covered by tests/test_sources_drain.py. Both run in CI."
     },
     {
@@ -759,7 +764,9 @@
       "method": "GET",
       "auth": true,
       "expected_status": 200,
-      "body_contains": ["pageCount"],
+      "body_contains": [
+        "pageCount"
+      ],
       "_comment": "#609: returns {...graph, pageCount, truncated}. pageCount is always present; truncated may legitimately be false, so it is not asserted. 200 stays the expectation on purpose — it is the correct configured end state, and this probe going red IS the signal that production lacks SUPABASE_UNITE_GROUP_URL / SUPABASE_UNITE_GROUP_SERVICE_KEY. An unconfigured deployment now answers 503 {error, missing:[...]} rather than a blank 500, so a red run names its own cause; do not relax this to accept that 503, which would turn the probe green while the feature stayed broken."
     },
     {
@@ -776,7 +783,9 @@
       "method": "GET",
       "auth": true,
       "expected_status": 200,
-      "body_contains": ["sessions"],
+      "body_contains": [
+        "sessions"
+      ],
       "_comment": "#609: GET returns NextResponse.json({ sessions })."
     },
     {
@@ -785,7 +794,11 @@
       "method": "GET",
       "auth": true,
       "expected_status": 200,
-      "body_contains": ["acceptedCount", "excludedCount", "boardUrl"],
+      "body_contains": [
+        "acceptedCount",
+        "excludedCount",
+        "boardUrl"
+      ],
       "_comment": "PR #650: intent-only UG-N YouTube catalog summary for the Knowledge deck tile and /command-centre/youtube-intent page."
     },
     {
@@ -794,7 +807,9 @@
       "method": "GET",
       "auth": true,
       "expected_status": 200,
-      "body_contains": ["UG-N Intent-Only YouTube Catalog"],
+      "body_contains": [
+        "UG-N Intent-Only YouTube Catalog"
+      ],
       "_comment": "PR #650: dedicated command-centre surface for persona/pathway output from strategic YouTube signals."
     },
     {
@@ -803,7 +818,9 @@
       "method": "GET",
       "auth": true,
       "expected_status": 200,
-      "body_contains": ["policy"],
+      "body_contains": [
+        "policy"
+      ],
       "_comment": "PR #650: FastAPI intent-policy route surfaced through dashboard proxy."
     },
     {
@@ -812,7 +829,11 @@
       "method": "GET",
       "auth": true,
       "expected_status": 200,
-      "body_contains": ["configured", "state", "scope"],
+      "body_contains": [
+        "configured",
+        "state",
+        "scope"
+      ],
       "_comment": "Direct YouTube connector bootstrap endpoint. Always responds 200 with either an auth_url or missing-config report."
     },
     {
@@ -821,7 +842,10 @@
       "method": "GET",
       "auth": true,
       "expected_status": 200,
-      "body_contains": ["connected", "scope"],
+      "body_contains": [
+        "connected",
+        "scope"
+      ],
       "_comment": "Direct YouTube connector state for dashboard/control surfaces."
     },
     {
@@ -840,6 +864,24 @@
       "auth": true,
       "expected_status": 200,
       "_comment": "RA-7401. The ONLY read-only, proxy-reachable, side-effect-free backend GET that was undeclared. Found by classifying the 64 undeclared route entries against ALLOWED_UPSTREAM (dashboard/lib/pi-ceo-proxy-allowlist.ts): only 9 are proxy-reachable at all, and 7 of those spawn work (build, scan, goal-ticket, goal-projects POST, session kill/resume) so must never be smoke-probed, while the 9th needs a live session id. The other 55 undeclared entries are deliberately not proxied and therefore cannot be undeclared DASHBOARD surfaces. No body_contains: the payload is Supabase-backed data whose keys are not a fixed envelope, and asserting on data rather than contract is what makes a manifest look thorough while asserting nothing."
+    },
+    {
+      "name": "api-routing",
+      "path": "/api/routing",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "day_iso",
+        "tenant_id",
+        "cost_source",
+        "cost_reason",
+        "roles",
+        "margot_casual",
+        "ladder",
+        "ollama_configured"
+      ],
+      "_comment": "RA-7434: read-only role -> provider -> model -> source -> cost-today view for Mission Control, so the founder can read which model answers each role without opening code. cost_source and cost_reason are asserted because the Supabase llm_costs read is allowed to fail: when it does, cost_today_usd is null with a stated reason and must never render as a fake 0. margot_casual carries the fixed free ladder this ruling pins, so a paid model reappearing in that role is visible on the surface rather than only in the bill."
     }
   ],
   "vertical": {

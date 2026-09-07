@@ -108,6 +108,23 @@ def tracked_source_files() -> list[Path]:
     ]
 
 
+def _key(path: Path) -> str:
+    """The baseline key for a path: always POSIX, never the platform separator.
+
+    This was `str(path)`. On Windows that renders backslashes, so every key came
+    out with the Windows separator while the baseline file stores
+    `app/server/session_phases.py`, and all 182 lookups missed. The gate still
+    passed on a clean tree because an unedited file matches its row by content
+    fingerprint and is forgiven as "moved" -- so the defect only surfaced once
+    somebody edited a baselined file, and then it reported a 41-line growth as a
+    brand-new 1969-line offender.
+
+    `git ls-files` always emits forward slashes; only the `Path` round-trip
+    introduced the separator, so normalising here restores what git already said.
+    """
+    return path.as_posix()
+
+
 def measure(path: Path) -> tuple[int, str]:
     """`(newline count, content fingerprint)`.
 
@@ -146,7 +163,13 @@ def write_baseline(sizes: dict[str, tuple[int, str]]) -> None:
         f"{n}\t{fp}\t{p}\n"
         for p, (n, fp) in sorted(over.items(), key=lambda kv: (-kv[1][0], kv[0]))
     )
-    BASELINE_PATH.write_text(_HEADER.format(limit=LIMIT) + body, encoding="utf-8")
+    # newline="" keeps the LF this file is stored with. Without it Python
+    # text mode translates every LF to CRLF on Windows, so --update rewrote
+    # all 201 rows with identical content and the diff looked like a
+    # wholesale baseline rewrite instead of the two rows that changed.
+    BASELINE_PATH.write_text(
+        _HEADER.format(limit=LIMIT) + body, encoding="utf-8", newline=""
+    )
     print(f"wrote {BASELINE_PATH} — {len(over)} file(s) over {LIMIT} lines")
 
 
@@ -218,7 +241,7 @@ def main() -> int:
         print("error: run from the repository root", file=sys.stderr)
         return 2
 
-    sizes = {str(p): measure(p) for p in tracked_source_files()}
+    sizes = {_key(p): measure(p) for p in tracked_source_files()}
     if "--update" in sys.argv:
         write_baseline(sizes)
         return 0

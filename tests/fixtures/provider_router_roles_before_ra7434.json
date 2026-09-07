@@ -1,0 +1,1066 @@
+{
+  "defaults_ollama_down": {
+    "board": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.drafter": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.redteam": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "evaluator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "generator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "guardian": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "intent_classify": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "margot.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "margot.truth_check": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "monitor": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "orchestrator": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "planner": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "portfolio.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "realtime_lookup": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "research": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "research.realtime": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "scribe.draft": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "senior_brief": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "some.unknown.role": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "sprinkle.board_prebrief": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.feedback": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.lessons": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.pulse": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.triage": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "suggestion": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ]
+  },
+  "defaults_ollama_up": {
+    "board": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.drafter": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.redteam": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "evaluator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "generator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "guardian": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "intent_classify": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "margot.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "margot.truth_check": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "monitor": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "orchestrator": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "planner": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "portfolio.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "realtime_lookup": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "research": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "research.realtime": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "scribe.draft": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "senior_brief": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "some.unknown.role": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "sprinkle.board_prebrief": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.feedback": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.lessons": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.pulse": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.triage": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "suggestion": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ]
+  },
+  "legacy_cheap_model_anthropic": {
+    "board": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.drafter": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.redteam": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "evaluator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "generator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "guardian": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "cheap",
+      "env_tier_default"
+    ],
+    "intent_classify": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "cheap",
+      "env_tier_default"
+    ],
+    "margot.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "margot.truth_check": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "monitor": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "cheap",
+      "env_tier_default"
+    ],
+    "orchestrator": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "planner": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "portfolio.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "realtime_lookup": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "research": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "research.realtime": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "scribe.draft": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "cheap",
+      "env_tier_default"
+    ],
+    "senior_brief": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "some.unknown.role": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "sprinkle.board_prebrief": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.feedback": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.lessons": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.pulse": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.triage": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "cheap",
+      "env_tier_default"
+    ],
+    "suggestion": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "cheap",
+      "env_tier_default"
+    ]
+  },
+  "legacy_cheap_model_openrouter": {
+    "board": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.drafter": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.redteam": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "evaluator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "generator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "guardian": [
+      "openrouter",
+      "meta-llama/llama-3.3-70b-instruct",
+      "cheap",
+      "env_tier_default"
+    ],
+    "intent_classify": [
+      "openrouter",
+      "meta-llama/llama-3.3-70b-instruct",
+      "cheap",
+      "env_tier_default"
+    ],
+    "margot.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "margot.truth_check": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "monitor": [
+      "openrouter",
+      "meta-llama/llama-3.3-70b-instruct",
+      "cheap",
+      "env_tier_default"
+    ],
+    "orchestrator": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "planner": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "portfolio.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "realtime_lookup": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "research": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "research.realtime": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "scribe.draft": [
+      "openrouter",
+      "meta-llama/llama-3.3-70b-instruct",
+      "cheap",
+      "env_tier_default"
+    ],
+    "senior_brief": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "some.unknown.role": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "sprinkle.board_prebrief": [
+      "openrouter",
+      "meta-llama/llama-3.3-70b-instruct",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.feedback": [
+      "openrouter",
+      "meta-llama/llama-3.3-70b-instruct",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.lessons": [
+      "openrouter",
+      "meta-llama/llama-3.3-70b-instruct",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.pulse": [
+      "openrouter",
+      "meta-llama/llama-3.3-70b-instruct",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.triage": [
+      "openrouter",
+      "meta-llama/llama-3.3-70b-instruct",
+      "cheap",
+      "env_tier_default"
+    ],
+    "suggestion": [
+      "openrouter",
+      "meta-llama/llama-3.3-70b-instruct",
+      "cheap",
+      "env_tier_default"
+    ]
+  },
+  "per_role_overrides_and_downgrade_correction": {
+    "board": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.drafter": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.redteam": [
+      "anthropic",
+      "claude-haiku-4-5",
+      "top",
+      "env_role_override"
+    ],
+    "evaluator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "generator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "guardian": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "intent_classify": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_role_override"
+    ],
+    "margot.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "margot.truth_check": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "monitor": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "orchestrator": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "planner": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "tier_downgrade_corrected"
+    ],
+    "portfolio.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "realtime_lookup": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "research": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "research.realtime": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "scribe.draft": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "senior_brief": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "some.unknown.role": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "sprinkle.board_prebrief": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.feedback": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.lessons": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.pulse": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.triage": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ],
+    "suggestion": [
+      "openrouter",
+      "z-ai/glm-4.7-flash",
+      "cheap",
+      "env_tier_default"
+    ]
+  },
+  "prod_like_cheap_pin_kimi": {
+    "board": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.drafter": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.redteam": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "evaluator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "generator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "guardian": [
+      "openrouter",
+      "~moonshotai/kimi-latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "intent_classify": [
+      "openrouter",
+      "~moonshotai/kimi-latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "margot.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "margot.truth_check": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "monitor": [
+      "openrouter",
+      "~moonshotai/kimi-latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "orchestrator": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "planner": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "portfolio.synthesis": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "realtime_lookup": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "research": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "research.realtime": [
+      "anthropic",
+      "claude-opus-5",
+      "top",
+      "env_tier_default"
+    ],
+    "scribe.draft": [
+      "openrouter",
+      "~moonshotai/kimi-latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "senior_brief": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "some.unknown.role": [
+      "anthropic",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "sprinkle.board_prebrief": [
+      "openrouter",
+      "~moonshotai/kimi-latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.feedback": [
+      "openrouter",
+      "~moonshotai/kimi-latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.lessons": [
+      "openrouter",
+      "~moonshotai/kimi-latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.pulse": [
+      "openrouter",
+      "~moonshotai/kimi-latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.triage": [
+      "openrouter",
+      "~moonshotai/kimi-latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "suggestion": [
+      "openrouter",
+      "~moonshotai/kimi-latest",
+      "cheap",
+      "env_tier_default"
+    ]
+  },
+  "tier_env_and_claude_print": {
+    "board": [
+      "anthropic",
+      "claude-sonnet-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.drafter": [
+      "anthropic",
+      "claude-sonnet-5",
+      "top",
+      "env_tier_default"
+    ],
+    "debate.redteam": [
+      "anthropic",
+      "claude-sonnet-5",
+      "top",
+      "env_tier_default"
+    ],
+    "evaluator": [
+      "claude_print",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "generator": [
+      "claude_print",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "guardian": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "intent_classify": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "margot.synthesis": [
+      "anthropic",
+      "claude-sonnet-5",
+      "top",
+      "env_tier_default"
+    ],
+    "margot.truth_check": [
+      "anthropic",
+      "claude-sonnet-5",
+      "top",
+      "env_tier_default"
+    ],
+    "monitor": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "orchestrator": [
+      "anthropic",
+      "claude-sonnet-5",
+      "top",
+      "env_tier_default"
+    ],
+    "planner": [
+      "anthropic",
+      "claude-sonnet-5",
+      "top",
+      "env_tier_default"
+    ],
+    "portfolio.synthesis": [
+      "anthropic",
+      "claude-sonnet-5",
+      "top",
+      "env_tier_default"
+    ],
+    "realtime_lookup": [
+      "anthropic",
+      "claude-sonnet-5",
+      "top",
+      "env_tier_default"
+    ],
+    "research": [
+      "claude_print",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "research.realtime": [
+      "anthropic",
+      "claude-sonnet-5",
+      "top",
+      "env_tier_default"
+    ],
+    "scribe.draft": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "senior_brief": [
+      "claude_print",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "some.unknown.role": [
+      "claude_print",
+      "claude-sonnet-5",
+      "mid",
+      "env_tier_default"
+    ],
+    "sprinkle.board_prebrief": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.feedback": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.lessons": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.pulse": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "sprinkle.triage": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ],
+    "suggestion": [
+      "ollama",
+      "qwen3.5:latest",
+      "cheap",
+      "env_tier_default"
+    ]
+  }
+}

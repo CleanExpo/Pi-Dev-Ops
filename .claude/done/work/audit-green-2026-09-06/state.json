@@ -1,0 +1,64 @@
+{
+  "verification_status": "PASS",
+  "criterion_evidence": "PROVEN",
+  "verified_at_utc": "2026-09-06T08:49:44Z",
+  "verified_at_head": "47750fab32c9af9d486114601593f7944d9158f4",
+  "verified_by": "donectl verify",
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "statement": "session_recorder no longer treats absent test evidence as a pass",
+      "verdict": "PROVEN",
+      "detail": {
+        "command": "python3 -m pytest tests/test_recorder_trust_anchor.py -q",
+        "exit_code": 0,
+        "output_tail": ".....                                                                    [100%]\n5 passed in 0.07s\n"
+      }
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "statement": "the ship gate reports tests_passed from evidence, not a literal",
+      "verdict": "PROVEN",
+      "detail": {
+        "command": "python3 -m pytest tests/test_ship_gate_tests_passed_is_evidence.py -q",
+        "exit_code": 0,
+        "output_tail": "...                                                                      [100%]\n3 passed in 0.33s\n"
+      }
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "statement": "source guards: no literal gate flag and no fail-open sandbox_ok default; watched failing with both defects reintroduced",
+      "verdict": "PROVEN",
+      "detail": {
+        "command": "python3 -m pytest tests/test_no_literal_gate_flags.py -q",
+        "exit_code": 0,
+        "output_tail": "...                                                                      [100%]\n3 passed in 0.07s\n"
+      }
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "statement": "the pre-existing ra7216 acceptance suite still passes unchanged",
+      "verdict": "PROVEN",
+      "detail": {
+        "command": "python3 -m pytest tests/test_ra7216_acceptance_events.py -q",
+        "exit_code": 0,
+        "output_tail": ".....................                                                    [100%]\n21 passed in 0.34s\n"
+      }
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "statement": "both touched modules still import cleanly",
+      "verdict": "PROVEN",
+      "detail": {
+        "command": "python3 -m py_compile app/server/session_recorder.py app/server/session_phases.py",
+        "exit_code": 0,
+        "output_tail": ""
+      }
+    }
+  ]
+}
