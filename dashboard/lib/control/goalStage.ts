@@ -1,5 +1,3 @@
-/** Compose → Analyze → Approve. Analyze stays on while the model runs. */
-
 export type GoalStage = 1 | 2 | 3;
 
 export function goalStage(args: {
