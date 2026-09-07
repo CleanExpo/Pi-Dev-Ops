@@ -1,4 +1,3 @@
-// components/control/GoalTicketForm.tsx — Goal → analyze → approve → Linear
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,14 +8,17 @@ import GoalDraftReview, {
   type DraftTicket,
 } from "./GoalDraftReview";
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
-import { readyToAnalyze, remainingHint } from "@/lib/control/goalBrief";
+import { readyToAnalyze, remainingHint, skipFiledTitles } from "@/lib/control/goalBrief";
 import { ANALYZE_STAGE_NOTE, LINEAR_DEST_NOTE, PROJECT_KEPT_NOTE } from "@/lib/control/goalCopy";
 import {
   errorMessage,
   filedTickets,
+  mergeFiled,
+  unselectLanded,
   type FiledTicket,
   type GoalErrorBody,
 } from "@/lib/control/goalErrors";
+import { readGoalAnalysis, writeGoalAnalysis } from "@/lib/control/goalAnalysisStore";
 import { goalStage } from "@/lib/control/goalStage";
 import GoalFiledList from "./GoalFiledList";
 import GoalStagePills from "./GoalStagePills";
@@ -42,6 +44,7 @@ export default function GoalTicketForm() {
   const [analysis, setAnalysis] = useState<AnalysisPayload | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [filed, setFiled] = useState<FiledTicket[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (!busy) {
@@ -51,6 +54,25 @@ export default function GoalTicketForm() {
     const id = setInterval(() => setElapsed((n) => n + 1), 1000);
     return () => clearInterval(id);
   }, [busy]);
+
+  useEffect(() => {
+    const stored = readGoalAnalysis();
+    if (stored) {
+      setGoal(stored.goal);
+      setAcceptance(stored.acceptance);
+      setAnalysis(stored.analysis);
+    }
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!analysis) {
+      writeGoalAnalysis(null);
+      return;
+    }
+    writeGoalAnalysis({ goal, acceptance, analysis });
+  }, [analysis, goal, acceptance, hydrated]);
 
   const canAnalyze = readyToAnalyze(goal, acceptance, project?.id || "");
 
@@ -111,8 +133,14 @@ export default function GoalTicketForm() {
 
   async function approveAndFile() {
     if (busy || !analysis) return;
-    const chosen = analysis.tickets.filter((t) => t.selected);
-    if (chosen.length === 0) return;
+    const blocked = skipFiledTitles(analysis.tickets, filed.map((ticket) => ticket.title));
+    const chosen = analysis.tickets.filter(
+      (ticket) => ticket.selected && !blocked.includes(ticket.title.trim()),
+    );
+    if (chosen.length === 0) {
+      setError("Those tickets are already in Linear.");
+      return;
+    }
     setError("");
     setBusy(true);
     try {
@@ -124,17 +152,19 @@ export default function GoalTicketForm() {
           acceptance: sanitize(acceptance.trim()),
           project_id: project?.id || "",
           approved: true,
-          tickets: chosen.map((t) => filePayloadFromDraft(t, sanitize)),
+          tickets: chosen.map((ticket) => filePayloadFromDraft(ticket, sanitize)),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as GoalErrorBody;
       if (!res.ok) {
         const partial = filedTickets(data);
-        if (partial.length) setFiled(partial);
+        const next = mergeFiled(filed, partial);
+        setFiled(next);
+        setAnalysis({ ...analysis, tickets: unselectLanded(analysis.tickets, next) });
         setError(errorMessage(data, res.status));
         return;
       }
-      const created = filedTickets(data);
+      const created = mergeFiled(filed, filedTickets(data));
       if (created.length === 0) {
         setError("Approval returned no tickets. Linear may not have been written.");
         return;
@@ -144,6 +174,7 @@ export default function GoalTicketForm() {
       setConfirming(false);
       setGoal("");
       setAcceptance("");
+      writeGoalAnalysis(null);
     } catch {
       setError("Network error — Pi CEO backend unreachable. Linear was not written.");
     } finally {
@@ -162,6 +193,11 @@ export default function GoalTicketForm() {
       <GoalStagePills stage={stage} />
       <p className={`${styles.note} mb-3`}>{LINEAR_DEST_NOTE}</p>
 
+      <GoalProjectPicker
+        selectedId={project?.id || ""}
+        disabled={busy || Boolean(analysis)}
+        onSelect={setProject}
+      />
       <label className={styles.field}>
         <span className={styles.fieldLabel}>{remainingHint(goal, "Goal")}</span>
         <textarea
@@ -175,11 +211,6 @@ export default function GoalTicketForm() {
           className={styles.input}
         />
       </label>
-      <GoalProjectPicker
-        selectedId={project?.id || ""}
-        disabled={busy || Boolean(analysis)}
-        onSelect={setProject}
-      />
       <label className={styles.field}>
         <span className={styles.fieldLabel}>{remainingHint(acceptance, "Acceptance")}</span>
         <textarea
@@ -213,7 +244,11 @@ export default function GoalTicketForm() {
           confirming={confirming}
           filing={busy}
           onChange={(tickets) => setAnalysis({ ...analysis, tickets })}
-          onDiscard={() => { setAnalysis(null); setConfirming(false); }}
+          onDiscard={() => {
+            setAnalysis(null);
+            setConfirming(false);
+            writeGoalAnalysis(null);
+          }}
           onRequestFile={() => setConfirming(true)}
           onCancelConfirm={() => setConfirming(false)}
           onApprove={() => void approveAndFile()}
@@ -229,7 +264,7 @@ export default function GoalTicketForm() {
           <p className={styles.note}>{PROJECT_KEPT_NOTE}</p>
           <button
             type="button"
-            onClick={() => { setFiled([]); setError(""); }}
+            onClick={() => { setFiled([]); setError(""); writeGoalAnalysis(null); }}
             className={styles.ghost}
           >
             Start another goal
