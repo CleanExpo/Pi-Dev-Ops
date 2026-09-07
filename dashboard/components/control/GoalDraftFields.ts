@@ -121,6 +121,17 @@ export function draftsFromAnalyze(raw: Array<Partial<DraftTicket>>): DraftTicket
   });
 }
 
+export function patchDraft(
+  ticket: DraftTicket,
+  next: Partial<DraftTicket>,
+): DraftTicket {
+  const merged = { ...ticket, ...next };
+  if ("sub_tasks" in next) {
+    merged.sub_tasks_json = "";
+  }
+  return merged;
+}
+
 export function filePayloadFromDraft(
   t: DraftTicket,
   sanitize: (value: string) => string,
