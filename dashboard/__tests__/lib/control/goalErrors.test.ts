@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { errorMessage, failedTitle, filedTickets } from "@/lib/control/goalErrors";
+import {
+  errorMessage,
+  failedTitle,
+  filedTickets,
+  mergeFiled,
+  unselectLanded,
+} from "@/lib/control/goalErrors";
 
 const TICKET = {
   identifier: "RA-8001",
@@ -26,5 +32,21 @@ describe("Goal error parsers", () => {
     const body = { hint: "Linear write failed.", detail: { failed_title: "Child B" } };
     expect(failedTitle(body)).toBe("Child B");
     expect(errorMessage(body, 502)).toBe('Linear write failed. Stopped at “Child B”.');
+  });
+
+  it("keeps already-filed tickets and unselects those titles", () => {
+    const first = { ...TICKET };
+    const second = { ...TICKET, identifier: "RA-8002", title: "Second ticket" };
+    expect(mergeFiled([first], [first, second])).toEqual([first, second]);
+    expect(unselectLanded(
+      [
+        { title: "Saved looks persist", selected: true },
+        { title: "Second ticket", selected: true },
+      ],
+      [TICKET],
+    )).toEqual([
+      { title: "Saved looks persist", selected: false },
+      { title: "Second ticket", selected: true },
+    ]);
   });
 });
