@@ -16,6 +16,10 @@ describe("Goal analysis persist", () => {
       goal: "Shopper keeps Look A after refresh",
       acceptance: "Refresh shows Look A in Saved",
       analysis: {
+        summary: "Persist the saved-looks draft across a refresh",
+        split_reason: "single ticket, no split needed",
+        code_inspected: false,
+        code_limitation: "",
         fallback: false,
         tickets: [{ ...BLANK_DRAFT, selected: true, title: "Persist saved looks" }],
       },
