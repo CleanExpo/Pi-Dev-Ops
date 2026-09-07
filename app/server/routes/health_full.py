@@ -25,6 +25,8 @@ from typing import Any
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
+from .health_aggregate import classify, run_with_timeout
+
 
 log = logging.getLogger("pi-ceo.health_full")
 
@@ -253,57 +255,18 @@ _CHECKS: dict[str, Any] = {
 }
 
 
-async def _run_with_timeout(name: str, coro_fn) -> tuple[str, dict[str, Any]]:
-    try:
-        result = await asyncio.wait_for(coro_fn(), timeout=_CHECK_TIMEOUT_S)
-        if not isinstance(result, dict):
-            return name, {"ok": False, "error": "non_dict_result"}
-        if "ok" not in result:
-            result["ok"] = False
-        return name, result
-    except asyncio.TimeoutError:
-        return name, {"ok": False, "error": "timeout"}
-    except Exception as exc:
-        return name, {"ok": False, "error": str(exc)[:120]}
-
-
 async def gather_components() -> dict[str, dict[str, Any]]:
     """Run every component probe in parallel and return name → payload map."""
     pairs = await asyncio.gather(*[
-        _run_with_timeout(name, fn) for name, fn in _CHECKS.items()
+        run_with_timeout(name, fn) for name, fn in _CHECKS.items()
     ])
     return {name: payload for name, payload in pairs}
-
-
-def _is_observed(payload: dict[str, Any]) -> bool:
-    """A component can be non-red while still not proving a live signal.
-
-    Railway and local development hosts may not run every companion process, so
-    absence should not always return 503. It must still be visible to Mission
-    Control as degraded/not fully observed.
-    """
-    return payload.get("observed") is not False and payload.get("status") != "not_observed"
 
 
 @router.get("/api/health/full")
 async def health_full() -> JSONResponse:
     components = await gather_components()
-    # A component that was never observed cannot be red and cannot be green. It is
-    # degraded, and it must not 503 a public endpoint: Hermes runs on the Mac mini,
-    # so its heartbeat is legitimately absent on the Railway host. Judging status on
-    # observed components is what lets each component payload stay honest about ok.
-    degraded_components = sorted(name for name, payload in components.items() if not _is_observed(payload))
-    red_components = sorted(name for name, payload in components.items()
-                            if _is_observed(payload) and not bool(payload.get("ok")))
-    all_ok = not red_components
-    fully_observed = all_ok and not degraded_components
-    body = {
-        "ok": all_ok,
-        "fully_observed": fully_observed,
-        "red_components": red_components,
-        "degraded_components": degraded_components,
-        "components": components,
-        "last_full_check": _now_iso(),
-    }
-    status_code = 200 if all_ok else 503
+    verdict = classify(components)
+    body = {**verdict, "components": components, "last_full_check": _now_iso()}
+    status_code = 200 if verdict["ok"] else 503
     return JSONResponse(content=body, status_code=status_code)
