@@ -1,5 +1,3 @@
-/** Shared Goal brief rules. Must match `app/server/goal_ticket.py` `_MIN_TEXT`. */
-
 export const MIN_BRIEF = 8;
 
 export function meetsMin(value: string): boolean {
