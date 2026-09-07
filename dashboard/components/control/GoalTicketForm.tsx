@@ -8,30 +8,30 @@ import GoalDraftReview, {
   type DraftTicket,
 } from "./GoalDraftReview";
 import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
-import { readyToAnalyze, remainingHint, skipFiledTitles } from "@/lib/control/goalBrief";
-import { ANALYZE_STAGE_NOTE, LINEAR_DEST_NOTE, PROJECT_KEPT_NOTE } from "@/lib/control/goalCopy";
+import { readyToAnalyze, remainingHint, ticketsToFile } from "@/lib/control/goalBrief";
+import {
+  ANALYZE_STAGE_NOTE,
+  PROJECT_KEPT_NOTE,
+  analyzeProgress,
+  analyzingCopy,
+} from "@/lib/control/goalCopy";
 import {
   errorMessage,
   filedTickets,
+  markLanded,
   mergeFiled,
-  unselectLanded,
   type FiledTicket,
   type GoalErrorBody,
 } from "@/lib/control/goalErrors";
 import { readGoalAnalysis, writeGoalAnalysis } from "@/lib/control/goalAnalysisStore";
 import { goalStage } from "@/lib/control/goalStage";
 import GoalFiledList from "./GoalFiledList";
+import GoalHowTo from "./GoalHowTo";
 import GoalStagePills from "./GoalStagePills";
 import styles from "./control-deck.module.css";
 
 function sanitize(s: string): string {
   return s.replace(/[<>]/g, "");
-}
-
-function analyzingCopy(seconds: number): string {
-  if (seconds < 10) return `${seconds}s · reading the project brief. Linear is not written.`;
-  if (seconds < 35) return `${seconds}s · breaking the goal into tickets. Linear is not written.`;
-  return `${seconds}s · still analyzing. Linear is not written.`;
 }
 
 export default function GoalTicketForm() {
@@ -133,10 +133,7 @@ export default function GoalTicketForm() {
 
   async function approveAndFile() {
     if (busy || !analysis) return;
-    const blocked = skipFiledTitles(analysis.tickets, filed.map((ticket) => ticket.title));
-    const chosen = analysis.tickets.filter(
-      (ticket) => ticket.selected && !blocked.includes(ticket.title.trim()),
-    );
+    const chosen = ticketsToFile(analysis.tickets, filed);
     if (chosen.length === 0) {
       setError("Those tickets are already in Linear.");
       return;
@@ -160,7 +157,7 @@ export default function GoalTicketForm() {
         const partial = filedTickets(data);
         const next = mergeFiled(filed, partial);
         setFiled(next);
-        setAnalysis({ ...analysis, tickets: unselectLanded(analysis.tickets, next) });
+        setAnalysis({ ...analysis, tickets: markLanded(analysis.tickets, next) });
         setError(errorMessage(data, res.status));
         return;
       }
@@ -191,7 +188,7 @@ export default function GoalTicketForm() {
   return (
     <div className="max-w-3xl">
       <GoalStagePills stage={stage} />
-      <p className={`${styles.note} mb-3`}>{LINEAR_DEST_NOTE}</p>
+      <GoalHowTo />
 
       <GoalProjectPicker
         selectedId={project?.id || ""}
@@ -234,7 +231,11 @@ export default function GoalTicketForm() {
           >
             {busy ? "Analyzing…" : "Analyze goal"}
           </button>
-          {busy ? <span className={styles.note}>{analyzingCopy(elapsed)}</span> : (
+          {busy ? (
+            <span className={styles.note}>
+              {analyzingCopy(elapsed)} {analyzeProgress(elapsed)}%
+            </span>
+          ) : (
             <span className={styles.note}>{ANALYZE_STAGE_NOTE}</span>
           )}
         </div>
