@@ -1,5 +1,3 @@
-/** Operator-facing Goal → Linear copy. Keep hub, pills, and review in sync. */
-
 export const CONTROL_GOAL_CTA = "Goal → Linear";
 
 export const LINEAR_DEST_NOTE =
