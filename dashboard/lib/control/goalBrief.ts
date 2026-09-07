@@ -50,7 +50,6 @@ export function skipFiledTitles(
 
 export function remainingHint(value: string, label: string): string {
   const n = value.trim().length;
-  if (n >= MIN_BRIEF) return `${label} · ready`;
-  if (n === 0) return `${label} · required · ${MIN_BRIEF}+ characters`;
-  return `${label} · ${MIN_BRIEF - n} more characters`;
+  if (n === 0 || n >= MIN_BRIEF) return label;
+  return `${label} · ${MIN_BRIEF - n} more`;
 }
