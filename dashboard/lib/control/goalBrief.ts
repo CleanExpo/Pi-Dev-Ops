@@ -36,16 +36,22 @@ export function readyToFile(
   return chosen.length > 0 && chosen.every(draftReady);
 }
 
-export function skipFiledTitles(
-  tickets: Array<{ title: string; selected: boolean }>,
-  filedTitles: Iterable<string>,
-): string[] {
-  const landed = new Set(
-    [...filedTitles].map((title) => title.trim()).filter(Boolean),
-  );
-  return tickets
-    .filter((ticket) => ticket.selected && landed.has(ticket.title.trim()))
-    .map((ticket) => ticket.title.trim());
+export function ticketsToFile<T extends {
+  selected: boolean;
+  title: string;
+  landed_identifier?: string;
+}>(
+  tickets: T[],
+  filed: Array<{ identifier: string; title: string }>,
+): T[] {
+  const ids = new Set(filed.map((ticket) => ticket.identifier).filter(Boolean));
+  return tickets.filter((ticket) => {
+    if (!ticket.selected) return false;
+    if (ticket.landed_identifier && ids.has(ticket.landed_identifier)) return false;
+    return !filed.some(
+      (row) => row.identifier && row.title.trim() === ticket.title.trim(),
+    );
+  });
 }
 
 export function remainingHint(value: string, label: string): string {
