@@ -6,7 +6,7 @@ import styles from "./control-deck.module.css";
 const STAGES: Array<{ n: GoalStage; label: string }> = [
   { n: 1, label: "Compose" },
   { n: 2, label: "Analyze" },
-  { n: 3, label: "Approve" },
+  { n: 3, label: "Write" },
 ];
 
 export default function GoalStagePills({ stage }: { stage: GoalStage }) {
