@@ -55,7 +55,7 @@ async def _check_hermes_gateway() -> dict[str, Any]:
             # with a note so /api/health/full returns 200 (not 503) when
             # the only "miss" is this expected-absent file.
             return {
-                "ok": True,
+                "ok": False,
                 "observed": False,
                 "status": "not_observed",
                 "note": "no_heartbeat_file_on_this_host",
@@ -67,7 +67,7 @@ async def _check_hermes_gateway() -> dict[str, Any]:
                 if line:
                     last_line = line
         if not last_line:
-            return {"ok": True, "observed": False, "status": "not_observed", "note": "empty_heartbeat_file"}
+            return {"ok": False, "observed": False, "status": "not_observed", "note": "empty_heartbeat_file"}
         rec = json.loads(last_line)
         ts = rec.get("ts") or rec.get("last_seen") or rec.get("timestamp")
         if isinstance(ts, str):
@@ -89,7 +89,7 @@ async def _check_pi_ceo_railway() -> dict[str, Any]:
     try:
         sha = os.environ.get("RAILWAY_GIT_COMMIT_SHA", "")
         uptime_s = int(time.time() - PROCESS_START_TIME)
-        return {"ok": True, "deploy_sha": sha, "uptime_s": uptime_s}
+        return {"ok": True, "observed": True, "deploy_sha": sha, "uptime_s": uptime_s}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:120]}
 
@@ -126,7 +126,7 @@ async def _check_margot_route() -> dict[str, Any]:
         pattern = str(_HARNESS / "margot" / "conversations" / "*.jsonl")
         files = glob.glob(pattern)
         if not files:
-            return {"ok": True, "observed": False, "status": "not_observed", "last_turn_at": None, "note": "no_conversations_yet"}
+            return {"ok": False, "observed": False, "status": "not_observed", "last_turn_at": None, "note": "no_conversations_yet"}
         newest = max(files, key=lambda p: os.path.getmtime(p))
         mtime = os.path.getmtime(newest)
         age_h = (time.time() - mtime) / 3600
@@ -142,16 +142,16 @@ async def _check_mcp_pi_ceo() -> dict[str, Any]:
         if candidate.exists():
             text = candidate.read_text(encoding="utf-8", errors="replace")
             tools_count = text.count("name:") if "name:" in text else None
-        return {"ok": True, "tools_count": tools_count}
+        return {"ok": True, "observed": True, "tools_count": tools_count}
     except Exception as exc:
-        return {"ok": True, "tools_count": None, "error": str(exc)[:120]}
+        return {"ok": False, "observed": False, "status": "not_observed", "tools_count": None, "error": str(exc)[:120]}
 
 
 async def _check_openrouter() -> dict[str, Any]:
     try:
         path = _HARNESS / "llm-cost.jsonl"
         if not path.exists():
-            return {"ok": True, "observed": False, "status": "not_observed", "last_call_at": None, "note": "no_log_file"}
+            return {"ok": False, "observed": False, "status": "not_observed", "last_call_at": None, "note": "no_log_file"}
         last_line = ""
         with path.open("r", encoding="utf-8") as fh:
             for line in fh:
@@ -159,7 +159,7 @@ async def _check_openrouter() -> dict[str, Any]:
                 if line:
                     last_line = line
         if not last_line:
-            return {"ok": True, "observed": False, "status": "not_observed", "last_call_at": None, "note": "empty_log"}
+            return {"ok": False, "observed": False, "status": "not_observed", "last_call_at": None, "note": "empty_log"}
         try:
             rec = json.loads(last_line)
             ts = rec.get("ts") or rec.get("timestamp")
@@ -173,7 +173,7 @@ async def _check_openrouter() -> dict[str, Any]:
             last_ts = path.stat().st_mtime
         return {"ok": True, "observed": True, "status": "live", "last_call_at": _iso(last_ts)}
     except Exception as exc:
-        return {"ok": True, "observed": False, "status": "not_observed", "last_call_at": None, "error": str(exc)[:120]}
+        return {"ok": False, "observed": False, "status": "not_observed", "last_call_at": None, "error": str(exc)[:120]}
 
 
 async def _check_supabase() -> dict[str, Any]:
@@ -182,7 +182,7 @@ async def _check_supabase() -> dict[str, Any]:
             from .. import supabase_log  # noqa: PLC0415
         except Exception as exc:
             return {
-                "ok": True,
+                "ok": False,
                 "observed": False,
                 "status": "not_observed",
                 "note": "supabase_log_import_failed",
@@ -190,7 +190,7 @@ async def _check_supabase() -> dict[str, Any]:
             }
         fn = getattr(supabase_log, "health_check", None)
         if not callable(fn):
-            return {"ok": True, "observed": False, "status": "not_observed", "note": "untested"}
+            return {"ok": False, "observed": False, "status": "not_observed", "note": "untested"}
         if asyncio.iscoroutinefunction(fn):
             ok = bool(await fn())
         else:
@@ -223,7 +223,7 @@ async def _check_telegram_polling() -> dict[str, Any]:
                         "error": intake_status.get("last_webhook_error", "webhook ensure failed"),
                     }
                 return {
-                    "ok": True,
+                    "ok": False,
                     "observed": False,
                     "status": "webhook_pending",
                     "note": "webhook_mode_enabled_waiting_for_first_ensure",
@@ -234,7 +234,7 @@ async def _check_telegram_polling() -> dict[str, Any]:
 
         path = _HARNESS / "telegram-poll-heartbeat"
         if not path.exists():
-            return {"ok": True, "observed": False, "status": "not_observed", "note": "no_heartbeat_file"}
+            return {"ok": False, "observed": False, "status": "not_observed", "note": "no_heartbeat_file"}
         mtime = path.stat().st_mtime
         age_s = time.time() - mtime
         return {"ok": age_s < 2 * 60, "observed": True, "status": "live" if age_s < 2 * 60 else "stale", "last_seen": _iso(mtime)}
@@ -288,9 +288,14 @@ def _is_observed(payload: dict[str, Any]) -> bool:
 @router.get("/api/health/full")
 async def health_full() -> JSONResponse:
     components = await gather_components()
-    all_ok = all(bool(v.get("ok")) for v in components.values())
-    degraded_components = sorted(name for name, payload in components.items() if bool(payload.get("ok")) and not _is_observed(payload))
-    red_components = sorted(name for name, payload in components.items() if not bool(payload.get("ok")))
+    # A component that was never observed cannot be red and cannot be green. It is
+    # degraded, and it must not 503 a public endpoint: Hermes runs on the Mac mini,
+    # so its heartbeat is legitimately absent on the Railway host. Judging status on
+    # observed components is what lets each component payload stay honest about ok.
+    degraded_components = sorted(name for name, payload in components.items() if not _is_observed(payload))
+    red_components = sorted(name for name, payload in components.items()
+                            if _is_observed(payload) and not bool(payload.get("ok")))
+    all_ok = not red_components
     fully_observed = all_ok and not degraded_components
     body = {
         "ok": all_ok,
