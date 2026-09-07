@@ -56,7 +56,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
       detail?: { hint?: string };
     };
     if (!res.ok || !Array.isArray(data.projects)) {
-      throw new Error(data.hint || data.detail?.hint || "Could not load projects.");
+      throw new Error(data.hint || data.detail?.hint || "Could not load project briefs.");
     }
     setProjects(data.projects);
     return data.projects;
@@ -69,7 +69,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         const found = list.find((p) => p.id === readGoalBriefId());
         if (found) onSelect(found);
       })
-      .catch(() => setError("Could not load projects."))
+      .catch(() => setError("Could not load project briefs."))
       .finally(() => setLoading(false));
     // Restore once after the first list load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,9 +128,9 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
           if (next) choose(next);
         }}
         className={styles.input}
-        aria-label="Project"
+        aria-label="Project brief"
       >
-        <option value="">Select a project</option>
+        <option value="">Select a brief</option>
         {projects.map((project) => (
           <option key={project.id} value={project.id}>
             {project.title}
