@@ -42,6 +42,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [extra, setExtra] = useState(false);
 
   function choose(project: GoalProject) {
     writeGoalBriefId(project.id);
@@ -71,8 +72,6 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
       })
       .catch(() => setError("Could not load project briefs."))
       .finally(() => setLoading(false));
-    // Restore once after the first list load.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const canSave = readyToCreate(draft);
@@ -155,22 +154,22 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
           disabled={disabled}
           className={`${styles.ghost} mt-2`}
         >
-          Create project
+          Create brief
         </button>
       ) : (
         <div className={`${styles.card} mt-3`}>
           {(
             [
-              ["title", "Title", 1, true],
-              ["description", "Description", 3, true],
-              ["audience", "Main audience", 2, true],
+              ["title", "Title — the product name", 1, true],
+              ["description", "What this product is", 3, true],
+              ["audience", "Who it is for", 2, true],
               ["problem", "Problem", 2, false],
               ["users", "Users", 2, false],
               ["outcomes", "Outcomes", 2, false],
               ["constraints", "Constraints", 2, false],
               ["out_of_scope", "Out of scope", 2, false],
             ] as const
-          ).map(([key, label, rows, required]) => (
+          ).filter(([, , , required]) => required || extra).map(([key, label, rows, required]) => (
             <label key={key} className={styles.field}>
               <span className={styles.fieldLabel}>
                 {required ? remainingHint(draft[key], label) : label}
@@ -185,8 +184,11 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
             </label>
           ))}
           <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setExtra(!extra)} className={styles.ghost}>
+              {extra ? "Fewer fields" : "More context"}
+            </button>
             <button type="button" onClick={() => void save()} disabled={saving || !canSave} className={styles.primary}>
-              {saving ? "Saving…" : "Save project"}
+              {saving ? "Saving…" : "Save brief"}
             </button>
             <button
               type="button"
