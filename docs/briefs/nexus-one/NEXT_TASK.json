@@ -1,0 +1,43 @@
+{
+  "schema_version": "nexus-one-handoff-metadata-1",
+  "task_key": "NEXUS-ONE-SLICE-A-20260908",
+  "title": "Nexus One: next-computer bootstrap and bounded pilot specification",
+  "repository": "CleanExpo/Pi-Dev-Ops",
+  "reference_branch": "docs/nexus-one-handoff-20260908",
+  "reference_base_sha": "5cc82de67baef455eadd6c6f6d7b5e4c142c5d72",
+  "original_research_sha": "2c4d346eb8d6723fe48db79c55e34eba1f33f09c",
+  "original_package_sha256": "0e0bb60c21dcedf8b477ccd69e358fdd3fdd1295c0bedbd2c72e3b2a9b07de80",
+  "handoff": "docs/session-handoffs/handoff-20260908-nexus-one.md",
+  "bundle": "docs/briefs/nexus-one",
+  "status": "READY_FOR_READ_ONLY_PICKUP",
+  "implementation_status": "NOT_ADMITTED",
+  "claimed_by": null,
+  "host_readiness": "UNKNOWN",
+  "auto_dispatch": false,
+  "authority_grant": null,
+  "current_objective": "Perform finite Slice A discovery and SPM/Judge planning for the first Nexus One vertical pilot; preserve all other work.",
+  "definition_of_done": [
+    "Current host, repository, branch, dirty state and existing task ownership reconciled without changing source work",
+    "Pilot-critical capability, data, authority, continuation and cost paths mapped from current evidence",
+    "One bounded evidence-indexed SPM specification with minimal affected paths, compatibility, acceptance cases and rollback",
+    "Independent review route and exact host/authority prerequisites stated without claiming a review was run",
+    "Durable next-step handoff through the existing approved path; no implementation or activation implied"
+  ],
+  "must_preserve": [
+    "Dirty repository roots and unrelated active tasks/PRs",
+    "Mission Control as the single continuation and authority owner",
+    "Windows review-only ceiling until its native controls are independently verified",
+    "Parent budgets across retries, diagnostic cases and resumed sessions",
+    "Current merge-gate: draft PR status is not a reliable hold",
+    "No unapproved spending, deployment, secret access, migration or remote dispatch"
+  ],
+  "first_read_only_shell_command": "git --no-optional-locks status --short --branch",
+  "next_delivery_slice_after_separate_admission": "Margot -> one canonical task -> one eligible worker -> tests -> independent review -> receipt",
+  "not_in_repository_bundle": [
+    "Original ZIP",
+    "HTML/PNG prototype and prototype QA assets"
+  ],
+  "missing_prototype_assets_block_slice_a": false,
+  "launcher_requires_original_zip": true,
+  "notes": "Static pickup metadata only; not a runtime queue record, trusted lease, enabled policy or completion receipt. Re-read current main and active work before selecting an implementation base."
+}
