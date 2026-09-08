@@ -1,0 +1,172 @@
+{
+  "checked_on": "2026-09-08",
+  "timezone": "Australia/Brisbane",
+  "status": "documentation_and_repository_evidence_not_live_runtime_proof",
+  "repository_snapshot": "2c4d346eb8d6723fe48db79c55e34eba1f33f09c",
+  "repo_sources": [
+    {
+      "id": "R00",
+      "title": "Current remote main",
+      "url": "https://api.github.com/repos/CleanExpo/Pi-Dev-Ops/branches/main",
+      "observed_sha": "2c4d346eb8d6723fe48db79c55e34eba1f33f09c"
+    },
+    {
+      "id": "R01",
+      "path": "skills/senior-harness/SKILL.md",
+      "url": "https://github.com/CleanExpo/Pi-Dev-Ops/blob/2c4d346eb8d6723fe48db79c55e34eba1f33f09c/skills/senior-harness/SKILL.md"
+    },
+    {
+      "id": "R02",
+      "path": "skills/senior-harness/references/control-contract.md",
+      "url": "https://github.com/CleanExpo/Pi-Dev-Ops/blob/2c4d346eb8d6723fe48db79c55e34eba1f33f09c/skills/senior-harness/references/control-contract.md"
+    },
+    {
+      "id": "R03",
+      "path": "skills/senior-harness/references/admission-enforcement.md",
+      "url": "https://github.com/CleanExpo/Pi-Dev-Ops/blob/2c4d346eb8d6723fe48db79c55e34eba1f33f09c/skills/senior-harness/references/admission-enforcement.md"
+    },
+    {
+      "id": "R04",
+      "path": "app/server/task_routing.py",
+      "url": "https://github.com/CleanExpo/Pi-Dev-Ops/blob/2c4d346eb8d6723fe48db79c55e34eba1f33f09c/app/server/task_routing.py"
+    },
+    {
+      "id": "R05",
+      "path": ".agents/skills/spm/SKILL.md",
+      "url": "https://github.com/CleanExpo/Pi-Dev-Ops/blob/2c4d346eb8d6723fe48db79c55e34eba1f33f09c/.agents/skills/spm/SKILL.md"
+    },
+    {
+      "id": "R06",
+      "path": "swarm/board.py",
+      "url": "https://github.com/CleanExpo/Pi-Dev-Ops/blob/2c4d346eb8d6723fe48db79c55e34eba1f33f09c/swarm/board.py"
+    },
+    {
+      "id": "R07",
+      "path": "DESIGN.md",
+      "url": "https://github.com/CleanExpo/Pi-Dev-Ops/blob/2c4d346eb8d6723fe48db79c55e34eba1f33f09c/DESIGN.md"
+    }
+  ],
+  "primary_documentation": [
+    {
+      "id": "D01",
+      "title": "Codex App Server",
+      "url": "https://developers.openai.com/codex/app-server/",
+      "resolved_url": "https://learn.chatgpt.com/docs/app-server",
+      "supports": "Native protocol, account/rateLimits/read and authenticated transport. The page also warns that app-server command/WebSocket transport are experimental and not supported for production; use only as a version-gated, non-load-bearing canary. Stable API fields do not remove the transport warning."
+    },
+    {
+      "id": "D02",
+      "title": "Use the Claude Agent SDK with your Claude plan",
+      "url": "https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan",
+      "supports": "Top-of-page pause notice supersedes the older billing change text below it."
+    },
+    {
+      "id": "D03",
+      "title": "Claude Code status line",
+      "url": "https://code.claude.com/docs/en/statusline",
+      "supports": "Subscription five-hour/seven-day quota fields; fields may be absent until after a response."
+    },
+    {
+      "id": "D04",
+      "title": "Run Claude Code programmatically",
+      "url": "https://code.claude.com/docs/en/headless",
+      "supports": "Documented programmatic execution surface."
+    },
+    {
+      "id": "D05",
+      "title": "Keep Claude working toward a goal",
+      "url": "https://code.claude.com/docs/en/goal",
+      "supports": "Native goal continuation, which must not duplicate portfolio continuation ownership."
+    },
+    {
+      "id": "D06",
+      "title": "How we built our multi-agent research system",
+      "url": "https://www.anthropic.com/engineering/multi-agent-research-system",
+      "supports": "Their measured multi-agent token amplification; not a universal ratio."
+    },
+    {
+      "id": "D07",
+      "title": "Harness design for long-running application development",
+      "url": "https://www.anthropic.com/engineering/harness-design-long-running-apps",
+      "published": "2026-03-24",
+      "supports": "Separate evaluator and reassessment of scaffolding as capabilities change."
+    },
+    {
+      "id": "D08",
+      "title": "Cursor ACP",
+      "url": "https://cursor.com/docs/cli/acp",
+      "supports": "Structured ACP server, authentication and permission handling."
+    },
+    {
+      "id": "D09",
+      "title": "Cursor Headless CLI",
+      "url": "https://cursor.com/docs/cli/headless",
+      "supports": "Structured/headless streaming; examples are not permission policy for Nexus."
+    },
+    {
+      "id": "D10",
+      "title": "Supabase Queues",
+      "url": "https://supabase.com/docs/guides/queues",
+      "supports": "Postgres durable queues and visibility windows; not exactly-once external effects."
+    },
+    {
+      "id": "D11",
+      "title": "OpenRouter Management API Keys",
+      "url": "https://openrouter.ai/docs/guides/overview/auth/management-api-keys",
+      "supports": "Per-key limits, reset periods, usage and separation of management keys."
+    },
+    {
+      "id": "D12",
+      "title": "Cursor usage-based charges",
+      "url": "https://cursor.com/help/account-and-billing/overages",
+      "supports": "Usage-based billing controls."
+    },
+    {
+      "id": "D13",
+      "title": "MCP Security Best Practices",
+      "url": "https://modelcontextprotocol.io/docs/2025-11-25/tutorials/security/security_best_practices",
+      "supports": "Audience boundaries, consent, minimal scopes and prohibition on token passthrough."
+    },
+    {
+      "id": "D14",
+      "title": "OpenAI harness engineering",
+      "url": "https://openai.com/index/harness-engineering/",
+      "published": "2026-02-11",
+      "supports": "Mechanically enforced boundaries, agent-readable context and verifiable feedback."
+    },
+    {
+      "id": "D15",
+      "title": "DeepSeek official API introduction",
+      "url": "https://api-docs.deepseek.com/",
+      "retrieval": "Exa clean-page fetch after web open errors",
+      "supports": "Official API compatibility and model aliases; do not equate with a reseller subscription."
+    },
+    {
+      "id": "D16",
+      "title": "DeepSeek official API pricing",
+      "url": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "retrieval": "Exa clean-page fetch",
+      "supports": "Current effective tariff must be selected by effective date; no static tariff activation in this package."
+    },
+    {
+      "id": "D17",
+      "title": "Cursor models and pricing",
+      "url": "https://cursor.com/docs/models-and-pricing",
+      "retrieval": "Exa clean-page fetch",
+      "supports": "Separate individual-plan model usage pools; not evidence of actual account balance."
+    },
+    {
+      "id": "D18",
+      "title": "Effective harnesses for long-running agents",
+      "url": "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents",
+      "supports": "Structured handoff and end-to-end validation as patterns, not a production guarantee."
+    }
+  ],
+  "limitations": [
+    "No active host readiness or installed versions inspected.",
+    "No live customer financial data or account quota read.",
+    "No production schema state inferred from historical drift notes.",
+    "No external independent-model review performed.",
+    "No provider or account settings changed."
+  ]
+}
