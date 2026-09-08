@@ -1,0 +1,81 @@
+{
+  "scope": "Package byte-integrity check only; not Windows execution, live-system tests or independent review",
+  "package_sha256": "0e0bb60c21dcedf8b477ccd69e358fdd3fdd1295c0bedbd2c72e3b2a9b07de80",
+  "files_checked": 12,
+  "all_match": true,
+  "separate_blueprint_matches_archive": true,
+  "files": [
+    {
+      "file": "ACCEPTANCE.md",
+      "expected_sha256": "2495dc68ba6b32c4d64b042707a0ac69cef8ea1ba0d7316f0542a1e4e98818e2",
+      "observed_sha256": "2495dc68ba6b32c4d64b042707a0ac69cef8ea1ba0d7316f0542a1e4e98818e2",
+      "matches": true
+    },
+    {
+      "file": "BUILD_PROMPT.md",
+      "expected_sha256": "8758aaa61247d0745d2b9cf543deb5f64c8cbf30a9ea88e57722e0b91d8f830f",
+      "observed_sha256": "8758aaa61247d0745d2b9cf543deb5f64c8cbf30a9ea88e57722e0b91d8f830f",
+      "matches": true
+    },
+    {
+      "file": "MASTER_BLUEPRINT.md",
+      "expected_sha256": "1ffbb5d8ed3c429ee34204227083634bcd1cb77b1c6fb38a11e3e16dfeec9809",
+      "observed_sha256": "1ffbb5d8ed3c429ee34204227083634bcd1cb77b1c6fb38a11e3e16dfeec9809",
+      "matches": true
+    },
+    {
+      "file": "PROTOTYPE_QA.json",
+      "expected_sha256": "671bce1af3ed698f75fc47412992eebc7f0dcf46126c0b01779d9b5ab4406b3a",
+      "observed_sha256": "671bce1af3ed698f75fc47412992eebc7f0dcf46126c0b01779d9b5ab4406b3a",
+      "matches": true
+    },
+    {
+      "file": "README.md",
+      "expected_sha256": "e4abd6fa78403b4d00ce0d8bd526294cb045abfa924db02235fc57874b588605",
+      "observed_sha256": "e4abd6fa78403b4d00ce0d8bd526294cb045abfa924db02235fc57874b588605",
+      "matches": true
+    },
+    {
+      "file": "cockpit-desktop.png",
+      "expected_sha256": "4bb55de47e12d15460fd1517ce54e215c0edcdb9e16fd53a6083c0eeaae99b06",
+      "observed_sha256": "4bb55de47e12d15460fd1517ce54e215c0edcdb9e16fd53a6083c0eeaae99b06",
+      "matches": true
+    },
+    {
+      "file": "cockpit-phone.png",
+      "expected_sha256": "e7b541097c5948eb0decf058208ec3f5e3c7a37b033e7f326453e7541b7527f8",
+      "observed_sha256": "e7b541097c5948eb0decf058208ec3f5e3c7a37b033e7f326453e7541b7527f8",
+      "matches": true
+    },
+    {
+      "file": "cockpit-preview.html",
+      "expected_sha256": "d8c1e91bc068c58efa6425c70863d3b146a77db59f736e29952a9bf2d912897e",
+      "observed_sha256": "d8c1e91bc068c58efa6425c70863d3b146a77db59f736e29952a9bf2d912897e",
+      "matches": true
+    },
+    {
+      "file": "cockpit-tablet.png",
+      "expected_sha256": "b4791cbaa413ec2dd5adc43eba588e0892d4ce782b171261fe2a2bcb1670e82d",
+      "observed_sha256": "b4791cbaa413ec2dd5adc43eba588e0892d4ce782b171261fe2a2bcb1670e82d",
+      "matches": true
+    },
+    {
+      "file": "policy.proposal.yaml",
+      "expected_sha256": "44a503370a760b87ae50ce3650e178f11b3158a1a136e15cd65edbfb298dea0d",
+      "observed_sha256": "44a503370a760b87ae50ce3650e178f11b3158a1a136e15cd65edbfb298dea0d",
+      "matches": true
+    },
+    {
+      "file": "prototype_qa.py",
+      "expected_sha256": "42f476874eeed6dc570127a297364615a51545789c9f8b582c8de3528b88c2a7",
+      "observed_sha256": "42f476874eeed6dc570127a297364615a51545789c9f8b582c8de3528b88c2a7",
+      "matches": true
+    },
+    {
+      "file": "sources.json",
+      "expected_sha256": "fd1c037346bae0f3a87c65e98bf85fb9818b98775757f0af32a2071692066427",
+      "observed_sha256": "fd1c037346bae0f3a87c65e98bf85fb9818b98775757f0af32a2071692066427",
+      "matches": true
+    }
+  ]
+}

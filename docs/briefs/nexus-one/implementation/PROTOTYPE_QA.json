@@ -1,0 +1,422 @@
+{
+  "scope": "Local self-contained HTML prototype and static package checks only. NOT the live Mission Control, native CLIs, user devices or the 50 proposed live acceptance cases.",
+  "independent_external_model_review": "NOT_RUN",
+  "checked_on": "2026-09-08",
+  "checks": [
+    {
+      "name": "policy disabled",
+      "pass": true
+    },
+    {
+      "name": "policy mode observe",
+      "pass": true
+    },
+    {
+      "name": "no inferred grants",
+      "pass": true
+    },
+    {
+      "name": "50 distinct acceptance cases",
+      "pass": true
+    },
+    {
+      "name": "source register parses",
+      "pass": true
+    },
+    {
+      "name": "simulation warning visible",
+      "pass": true
+    },
+    {
+      "name": "320x800 now active",
+      "pass": true
+    },
+    {
+      "name": "320x800 now no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "name": "320x800 work active",
+      "pass": true
+    },
+    {
+      "name": "320x800 work no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "name": "320x800 decisions active",
+      "pass": true
+    },
+    {
+      "name": "320x800 decisions no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "name": "320x800 explore active",
+      "pass": true
+    },
+    {
+      "name": "320x800 explore no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "name": "375x812 now active",
+      "pass": true
+    },
+    {
+      "name": "375x812 now no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "scroll": 375
+      }
+    },
+    {
+      "name": "375x812 work active",
+      "pass": true
+    },
+    {
+      "name": "375x812 work no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "scroll": 375
+      }
+    },
+    {
+      "name": "375x812 decisions active",
+      "pass": true
+    },
+    {
+      "name": "375x812 decisions no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "scroll": 375
+      }
+    },
+    {
+      "name": "375x812 explore active",
+      "pass": true
+    },
+    {
+      "name": "375x812 explore no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 375,
+        "scroll": 375
+      }
+    },
+    {
+      "name": "430x932 now active",
+      "pass": true
+    },
+    {
+      "name": "430x932 now no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 430,
+        "scroll": 430
+      }
+    },
+    {
+      "name": "430x932 work active",
+      "pass": true
+    },
+    {
+      "name": "430x932 work no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 430,
+        "scroll": 430
+      }
+    },
+    {
+      "name": "430x932 decisions active",
+      "pass": true
+    },
+    {
+      "name": "430x932 decisions no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 430,
+        "scroll": 430
+      }
+    },
+    {
+      "name": "430x932 explore active",
+      "pass": true
+    },
+    {
+      "name": "430x932 explore no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 430,
+        "scroll": 430
+      }
+    },
+    {
+      "name": "768x1024 now active",
+      "pass": true
+    },
+    {
+      "name": "768x1024 now no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 768,
+        "scroll": 768
+      }
+    },
+    {
+      "name": "768x1024 work active",
+      "pass": true
+    },
+    {
+      "name": "768x1024 work no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 768,
+        "scroll": 768
+      }
+    },
+    {
+      "name": "768x1024 decisions active",
+      "pass": true
+    },
+    {
+      "name": "768x1024 decisions no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 768,
+        "scroll": 768
+      }
+    },
+    {
+      "name": "768x1024 explore active",
+      "pass": true
+    },
+    {
+      "name": "768x1024 explore no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 768,
+        "scroll": 768
+      }
+    },
+    {
+      "name": "1024x1366 now active",
+      "pass": true
+    },
+    {
+      "name": "1024x1366 now no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 1024,
+        "scroll": 1024
+      }
+    },
+    {
+      "name": "1024x1366 work active",
+      "pass": true
+    },
+    {
+      "name": "1024x1366 work no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 1024,
+        "scroll": 1024
+      }
+    },
+    {
+      "name": "1024x1366 decisions active",
+      "pass": true
+    },
+    {
+      "name": "1024x1366 decisions no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 1024,
+        "scroll": 1024
+      }
+    },
+    {
+      "name": "1024x1366 explore active",
+      "pass": true
+    },
+    {
+      "name": "1024x1366 explore no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 1024,
+        "scroll": 1024
+      }
+    },
+    {
+      "name": "1440x900 now active",
+      "pass": true
+    },
+    {
+      "name": "1440x900 now no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 1440,
+        "scroll": 1440
+      }
+    },
+    {
+      "name": "1440x900 work active",
+      "pass": true
+    },
+    {
+      "name": "1440x900 work no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 1440,
+        "scroll": 1440
+      }
+    },
+    {
+      "name": "1440x900 decisions active",
+      "pass": true
+    },
+    {
+      "name": "1440x900 decisions no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 1440,
+        "scroll": 1440
+      }
+    },
+    {
+      "name": "1440x900 explore active",
+      "pass": true
+    },
+    {
+      "name": "1440x900 explore no horizontal overflow",
+      "pass": true,
+      "detail": {
+        "width": 1440,
+        "scroll": 1440
+      }
+    },
+    {
+      "name": "evidence dialog opens",
+      "pass": true
+    },
+    {
+      "name": "evidence explicitly not run",
+      "pass": true
+    },
+    {
+      "name": "Escape closes dialog",
+      "pass": true
+    },
+    {
+      "name": "context example opens",
+      "pass": true
+    },
+    {
+      "name": "context simulation provenance",
+      "pass": true
+    },
+    {
+      "name": "runtime example opens",
+      "pass": true
+    },
+    {
+      "name": "runtime simulation provenance",
+      "pass": true
+    },
+    {
+      "name": "horizon example opens",
+      "pass": true
+    },
+    {
+      "name": "horizon simulation provenance",
+      "pass": true
+    },
+    {
+      "name": "learning example opens",
+      "pass": true
+    },
+    {
+      "name": "learning simulation provenance",
+      "pass": true
+    },
+    {
+      "name": "pause reports no action",
+      "pass": true
+    },
+    {
+      "name": "local chat response labelled",
+      "pass": true
+    },
+    {
+      "name": "local response explains budget",
+      "pass": true
+    },
+    {
+      "name": "tabs keyboard Right",
+      "pass": true
+    },
+    {
+      "name": "tabs keyboard End",
+      "pass": true
+    },
+    {
+      "name": "tabs keyboard Home",
+      "pass": true
+    },
+    {
+      "name": "search opens work view",
+      "pass": true
+    },
+    {
+      "name": "search returns matches",
+      "pass": true
+    },
+    {
+      "name": "search hides unmatched tasks",
+      "pass": true
+    },
+    {
+      "name": "search clear restores tasks",
+      "pass": true
+    },
+    {
+      "name": "approval disabled",
+      "pass": true
+    },
+    {
+      "name": "no browser script errors",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "no network requests",
+      "pass": true,
+      "detail": []
+    }
+  ],
+  "failures": [],
+  "browser": "144.0.7559.96",
+  "checks_passed": 78,
+  "checks_total": 78,
+  "result": "PASS"
+}
