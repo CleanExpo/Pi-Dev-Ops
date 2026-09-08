@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "descriptor_type": "handoff-only-not-runtime-admission",
+  "task_id": "nexus-one-bootstrap-20260908",
+  "title": "Nexus One: current-state reconciliation and Slice A launch readiness",
+  "repository": "CleanExpo/Pi-Dev-Ops",
+  "prepared_on": "2026-09-08",
+  "observed_remote_main": "5cc82de67baef455eadd6c6f6d7b5e4c142c5d72",
+  "source_blueprint_observed_main": "2c4d346eb8d6723fe48db79c55e34eba1f33f09c",
+  "priority_intent": "next Nexus One task after already-owned work reaches a safe checkpoint",
+  "status": "prepared_for_pickup",
+  "runtime_dispatch": false,
+  "implementation_admitted": false,
+  "entrypoint": "docs/briefs/nexus-one/NEXT_TASK.md",
+  "publication_status": "not_published_by_preparation_session",
+  "assigned_host": null,
+  "owner": null,
+  "issue_number": null,
+  "pull_request_number": null,
+  "freshness_rule": "re-read actual local, remote and deployed state; do not force the historical SHA",
+  "scope": [
+    "read-only current-state audit",
+    "package integrity",
+    "task/PR ownership reconciliation",
+    "SPM/Judge pilot specification",
+    "host and authority readiness report",
+    "truthful durable handoff"
+  ],
+  "excluded": [
+    "runtime activation",
+    "estate-wide rebuild",
+    "production changes",
+    "secret values",
+    "automatic paid fallback",
+    "dirty-root changes",
+    "merge/deploy",
+    "unapproved remote dispatch"
+  ],
+  "windows_policy": "review-only until native containment, identity, fencing, checkpoint, cancellation and recovery proof",
+  "completion": [
+    "current-state report with evidence",
+    "bounded pilot spec",
+    "independent-review and test plan",
+    "exact next admitted action or named missing prerequisite"
+  ]
+}

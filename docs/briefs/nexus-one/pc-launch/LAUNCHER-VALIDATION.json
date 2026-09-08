@@ -1,0 +1,10 @@
+{
+  "scope": "Static helper review and package byte-integrity validation; no PowerShell/native Windows execution",
+  "powershell_executed": false,
+  "claude_started": false,
+  "repository_modified": false,
+  "entry_mode": "plan",
+  "source_of_package_identity": "mounted original Nexus-One-Implementation-Package.zip",
+  "launcher_sha256": "6dc2ae4adb042f22722f3907d6b3accd3eb497ba997b058ae501a8e792d6b206",
+  "bootstrap_sha256": "a5cea612318e6ab56497e4ec35466887d913c7f92f6a54d2abf90b0b86ca92d7"
+}

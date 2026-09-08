@@ -1,0 +1,125 @@
+schema_version: nexus-one-policy-proposal-1
+status: proposal_not_authority
+activation:
+  enabled: false
+  execution_mode: observe
+  trusted_issuer_required: true
+  founder_approval_required_to_activate: true
+  inferred_grants_allowed: false
+
+scope:
+  canonical_repository: CleanExpo/Pi-Dev-Ops
+  separate_personal_company_scopes: true
+  preserve_dirty_roots: true
+  preserve_existing_tasks_and_prs: true
+  windows_role_ceiling: review_only_until_native_controls_verified
+
+protected_actions:
+  - remote_dispatch_without_current_grant
+  - push_without_current_grant
+  - pull_request_creation_without_current_grant
+  - merge
+  - deploy
+  - publish
+  - external_send
+  - production_migration
+  - destructive_delete
+  - spend_increase
+  - new_subscription_or_provider
+  - automatic_recharge
+  - credential_or_permission_change
+  - control_kernel_promotion
+
+continuation:
+  owner: mission_control
+  subordinate_native_loops: only_when_registered_and_bounded
+  repeated_failed_fingerprint: deny
+  distinct_failed_methods_before_uncertainty_case: 2
+  evidence_stagnation_policy: inherit_current_senior_harness_contract
+  diagnostic_perspectives: 2
+  separate_arbiter: required
+  recursion_cannot_reset_budget: true
+  on_exhaustion: checkpoint_and_wait_with_trigger
+  unrelated_admitted_work_may_continue: true
+
+horizon:
+  applies_to: strategic_and_long_horizon_tasks
+  linked_moves_min: 15
+  linked_moves_max: 20
+  proposed_total_node_ceiling: 64
+  proposed_branch_width: 3
+  executable_frontier: only_currently_admitted_nodes
+  distant_moves: conditional_options
+  numeric_forecasts: require_resolution_contract
+  automatic_authority_from_plan: false
+
+capacity:
+  values_are_unactivated_tuning_proposals: true
+  global_active_model_jobs: 3
+  max_expensive_jobs_per_subscribed_account: 1
+  proposed_routine_reserve_fraction: 0.30
+  reserve_is_not_a_billing_guarantee: true
+  reserve_reviewer_capacity_before_build: true
+  quotas_scoped_by: account_and_provider_window
+  unknown_quota: conservative_probe_only_if_separately_authorised
+  paid_ping_for_gauge: false
+  full_council_default: false
+
+billing:
+  api_budget_authority: existing_signed_grant_only
+  atomic_request_reservation: true
+  include_nested_retries_and_tools: true
+  ambiguous_timeout: hold_reservation_and_reconcile
+  settlement_deduplication: required
+  worker_can_modify_budget: false
+  automatic_payg_fallback: false
+  automatic_recharge: false
+  proposed_deepseek_monthly_usd_cap: 25
+  proposed_openrouter_weekly_usd_cap: 10
+  listed_proposals_do_not_authorise_spend: true
+
+identity:
+  native_subscription_authentication: required
+  provider_and_model_family_recorded: true
+  unknown_model_family_satisfies_cross_vendor_review: false
+  raw_secrets_in_context_or_logs: false
+  experimental_transport_default: disabled
+  production_pilot_requires_supported_runtime_surface: true
+  leases:
+    signed: true
+    exact_contract_revision: true
+    expiry: required
+    revocation_generation: required
+    fencing_generation: required
+    resume_requires_fresh_grant: true
+
+knowledge:
+  source_lineage: required
+  currentness_before_relevance: true
+  simulation_lineage_inherited: true
+  model_claim_self_promotion: false
+  authoritative_source_hash_means_truth: false
+  fields:
+    origin: [human, connector, repository, model, simulation]
+    verification: [unchecked, supported, disputed, rejected]
+    lifecycle: [current, superseded, expired, revoked]
+    sensitivity: [public, internal, confidential, client, personal]
+    authority: [none, proposal, authenticated_grant]
+
+learning:
+  held_out_replay: required
+  fresh_independent_reviewer: required
+  scoped_canary: required
+  automatic_activation: only_if_pre_existing_learning_grant_allows
+  control_security_budget_release_changes: never_self_promote
+  grader_edit_by_candidate: false
+  failed_outcomes_retained: true
+
+ui:
+  navigation: [now, work, decisions, explore]
+  margot_always_accessible: true
+  device_handoff_model_calls: 0
+  simulated_preview_label: required
+  offline_protected_actions: denied
+  stale_data_label: required
+  cancellation_acknowledgement: required
