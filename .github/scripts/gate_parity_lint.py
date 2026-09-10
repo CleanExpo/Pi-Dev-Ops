@@ -42,6 +42,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -134,39 +135,39 @@ def key_for(wf: Path, step_name: str) -> str:
     return f"{wf.name}::{step_name}"
 
 
-def main() -> int:
-    report = "--report" in sys.argv
-    gates = local_gate_names()
-    mapping = load_map()
-    entries = mapping.get("steps", {})
+class Buckets(NamedTuple):
+    covered: list[tuple[str, str]]
+    exempt: list[tuple[str, str]]
+    dangling: list[tuple[str, str]]
+    unmapped: list[str]
 
-    unmapped: list[str] = []
-    dangling: list[tuple[str, str]] = []
-    exempt: list[tuple[str, str]] = []
-    covered: list[tuple[str, str]] = []
 
+def classify(gates: set[str], entries: dict) -> Buckets:
+    """Sort every gating CI step into one of four buckets.
+
+    An unmapped step lands in `unmapped`, never in `exempt`: silence is not an
+    exemption, or a step could be excused from local coverage by nobody writing
+    it down.
+    """
+    b = Buckets([], [], [], [])
     for wf in gating_workflows():
         for step_name, cmd in ci_steps(wf):
             key = key_for(wf, step_name)
             entry = entries.get(key)
             if entry is None:
-                unmapped.append(f"{key}\n      runs: {cmd[:90]}")
+                b.unmapped.append(f"{key}\n      runs: {cmd[:90]}")
                 continue
             local = entry.get("local_gate", "")
             if local in (_NEVER_LOCAL, _ENVIRONMENT):
-                exempt.append((key, f"{local}: {entry.get('reason', '')}"))
+                b.exempt.append((key, f"{local}: {entry.get('reason', '')}"))
             elif local in gates:
-                covered.append((key, local))
+                b.covered.append((key, local))
             else:
-                dangling.append((key, local))
+                b.dangling.append((key, local))
+    return b
 
-    if report:
-        print(f"local gates declared in handoff-loop.sh: {len(gates)}")
-        for key, local in sorted(covered):
-            print(f"  COVERED  {key}  ->  {local}")
-        for key, reason in sorted(exempt):
-            print(f"  EXEMPT   {key}  ->  {reason}")
 
+def print_failures(dangling: list[tuple[str, str]], unmapped: list[str]) -> None:
     for key, local in sorted(dangling):
         print(f"FAIL  {key}: mapped to local gate {local!r}, which handoff-loop.sh "
               f"does not declare. Either the gate was renamed or it was deleted.")
@@ -175,6 +176,21 @@ def main() -> int:
               f"{MAP_PATH.name}. Add it — either name the local gate that covers it, "
               f"or mark it {_NEVER_LOCAL!r} with a reason. An unmapped step is a "
               f"hole in the local gate, so it cannot be treated as a pass.")
+
+
+def main() -> int:
+    report = "--report" in sys.argv
+    gates = local_gate_names()
+    covered, exempt, dangling, unmapped = classify(gates, load_map().get("steps", {}))
+
+    if report:
+        print(f"local gates declared in handoff-loop.sh: {len(gates)}")
+        for key, local in sorted(covered):
+            print(f"  COVERED  {key}  ->  {local}")
+        for key, reason in sorted(exempt):
+            print(f"  EXEMPT   {key}  ->  {reason}")
+
+    print_failures(dangling, unmapped)
 
     bad = len(unmapped) + len(dangling)
     if bad:
