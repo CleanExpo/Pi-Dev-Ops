@@ -39,7 +39,10 @@ def _read_one(path: Path, now: float) -> dict | None:
     """One session's HUD entry, or None if the file is unreadable or stale."""
     try:
         raw = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError) as exc:
+        # ValueError covers json.JSONDecodeError AND UnicodeDecodeError — a
+        # session file with invalid UTF-8 bytes must be skipped like any other
+        # corrupt file, never crash the whole panel.
         log.debug("claude_session_hud: unreadable state file %s: %s", path.name, exc)
         return None
     ts = raw.get("ts")
@@ -60,6 +63,30 @@ def _read_one(path: Path, now: float) -> dict | None:
     }
 
 
+def _unavailable(reason: str) -> dict:
+    return {
+        "available": False,
+        "reason": reason,
+        "checked_dir": str(CEILING_DIR),
+        "sessions": [],
+        "counts": {"live": 0, "handoff": 0, "hard": 0},
+    }
+
+
+def _list_state_files() -> list[Path] | None:
+    """The session state files, or None if the directory cannot be listed.
+
+    A directory that exists but cannot be LISTED (permissions, a transient
+    mount issue) is "cannot see", not "zero sessions" — `glob()` failing here
+    must never be read the same as an empty, genuinely-checked directory.
+    """
+    try:
+        return list(CEILING_DIR.glob("*.json"))
+    except OSError as exc:
+        log.debug("claude_session_hud: directory unreadable: %s", exc)
+        return None
+
+
 def claude_session_hud() -> dict:
     """Live Claude Code sessions on THIS host, read from the context-ceiling state dir.
 
@@ -68,31 +95,24 @@ def claude_session_hud() -> dict:
     dashboard/lib/pi-ceo-fetch.ts) cannot mistake "cannot see" for "nothing running".
     """
     if not CEILING_DIR.is_dir():
-        return {
-            "available": False,
-            "reason": "state directory absent on this host",
-            "checked_dir": str(CEILING_DIR),
-            "sessions": [],
-            "counts": {"live": 0, "handoff": 0, "hard": 0},
-        }
+        return _unavailable("state directory absent on this host")
+
+    paths = _list_state_files()
+    if paths is None:
+        return _unavailable("state directory unreadable")
 
     now = time.time()
-    sessions = []
-    for path in CEILING_DIR.glob("*.json"):
-        entry = _read_one(path, now)
-        if entry is not None:
-            sessions.append(entry)
+    sessions = [e for e in (_read_one(p, now) for p in paths) if e is not None]
     sessions.sort(key=lambda s: s["age_s"])
 
-    counts = {
-        "live": len(sessions),
-        "handoff": sum(1 for s in sessions if s["stage"] == "handoff"),
-        "hard": sum(1 for s in sessions if s["stage"] == "hard"),
-    }
     return {
         "available": True,
         "reason": None,
         "checked_dir": str(CEILING_DIR),
         "sessions": sessions,
-        "counts": counts,
+        "counts": {
+            "live": len(sessions),
+            "handoff": sum(1 for s in sessions if s["stage"] == "handoff"),
+            "hard": sum(1 for s in sessions if s["stage"] == "hard"),
+        },
     }

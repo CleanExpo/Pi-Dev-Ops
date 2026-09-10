@@ -11,6 +11,8 @@ distinctly from a directory that genuinely holds zero live sessions.
 """
 import json
 import time
+from pathlib import Path
+from unittest.mock import patch
 
 from app.server import claude_session_hud as hud
 
@@ -74,6 +76,41 @@ def test_counts_split_by_stage(tmp_path, monkeypatch):
     _write(tmp_path, "s3", ts=now, used_tokens=1, window=1, pct=51.0, stage="hard", cwd="/c")
     result = hud.claude_session_hud()
     assert result["counts"] == {"live": 3, "handoff": 1, "hard": 1}
+
+
+def test_unreadable_directory_reports_unavailable_not_500(tmp_path, monkeypatch):
+    """P1 found by independent review: `is_dir()` is True for a directory that
+    exists but cannot be LISTED (permissions revoked, a transient mount issue),
+    and the old code let `glob()` raise straight through to a 500.
+
+    A real `chmod 000` does not reproduce this on this host — macOS/APFS lets
+    `Path.glob()` return an empty list for the owner's own 000-mode directory
+    rather than raising, confirmed by direct experiment before writing this
+    test. Patching `Path.glob` to raise is what actually exercises the guard,
+    and it is the honest way to test a condition that is filesystem-dependent
+    (a stricter POSIX filesystem, or the eventual Linux deploy host, may raise
+    PermissionError where APFS does not) rather than claiming a reproduction
+    that does not occur here.
+    """
+    monkeypatch.setattr(hud, "CEILING_DIR", tmp_path)
+    with patch.object(Path, "glob", side_effect=PermissionError("Permission denied")):
+        result = hud.claude_session_hud()
+    assert result["available"] is False
+    assert result["reason"]
+    assert result["sessions"] == []
+
+
+def test_invalid_utf8_state_file_is_skipped_not_fatal(tmp_path, monkeypatch):
+    """P1 found by independent review: `UnicodeDecodeError` is a `ValueError`,
+    not an `OSError`, so the old `except (OSError, json.JSONDecodeError)` let a
+    non-UTF-8 file crash the whole panel instead of being skipped."""
+    monkeypatch.setattr(hud, "CEILING_DIR", tmp_path)
+    (tmp_path / "badbytes.json").write_bytes(b"\xff\xfe\x00not valid utf-8")
+    _write(tmp_path, "good1", ts=int(time.time()), used_tokens=1, window=1, pct=1.0, stage="ok", cwd="/x")
+    result = hud.claude_session_hud()
+    assert result["available"] is True
+    assert result["counts"]["live"] == 1
+    assert result["sessions"][0]["session_id"] == "good1"
 
 
 def test_turn_zero_session_with_null_pct_does_not_crash(tmp_path, monkeypatch):
