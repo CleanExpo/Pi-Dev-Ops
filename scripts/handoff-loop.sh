@@ -150,6 +150,18 @@ if [ -d .github/scripts ]; then
     || skip "size-file-length" "python deps absent"
   [ "$PY_OK" = 1 ] && gate "size-function-length" "$PY" .github/scripts/function_length_lint.py \
     || skip "size-function-length" "python deps absent"
+  [ "$PY_OK" = 1 ] && gate "size-proxy-fallback" "$PY" .github/scripts/proxy_fallback_lint.py \
+    || skip "size-proxy-fallback" "python deps absent"
+  # The parity checker itself, and it must run LAST of the size gates: it is the only
+  # gate whose subject is this runner's own completeness. The comment above claimed it
+  # "now fails if that set ever diverges again, so this cannot rot back silently" — but
+  # nothing in this repo executed it. Not this runner, not ci.yml, not a hook (proven by
+  # `git grep -n gate_parity_lint`, whose positive control finds the definition). A
+  # checker nobody calls cannot fail anything, so the divergence it was written to catch
+  # happened anyway: 88423dd9 added a CI step with no map entry and the runner still
+  # printed READY. Wiring it is the fix; the comment was not.
+  [ "$PY_OK" = 1 ] && gate "gate-parity" "$PY" .github/scripts/gate_parity_lint.py \
+    || skip "gate-parity" "python deps absent"
 fi
 
 # 6. Tests (skipped by --quick).
