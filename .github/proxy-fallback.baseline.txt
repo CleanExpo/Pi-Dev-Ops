@@ -15,7 +15,6 @@ dashboard/components/brain/BrainStatusPanel.tsx
 dashboard/components/control/ActiveBuildStrip.tsx
 dashboard/components/control/AgentRolesPanel.tsx
 dashboard/components/control/GoalProjectPicker.tsx
-dashboard/components/control/GoalTicketForm.tsx
 dashboard/components/control/HealthGrid.tsx
 dashboard/components/control/LiveActivityFeed.tsx
 dashboard/components/control/MargotAssetsPanel.tsx

@@ -53,6 +53,51 @@ export const POLL_MS = 20_000;
 """
 
 
+# ── The three shapes that made an earlier version of this gate blind ────────
+# It required a literal `fetch(` within 120 chars of the URL. These three are
+# all real files in this repo, and all three were silently dropped — the count
+# fell 18 -> 14 and read as a cleaner result. Each is now a control.
+
+CONST_URL_SOURCE = """
+const API = "/api/pi-ceo/api/margot/assets";
+async function load() {
+  const res = await fetch(API);
+  return await res.json();
+}
+"""
+
+WRAPPER_HELPER_SOURCE = """
+async function fetchJson<T>(u: string): Promise<T | null> {
+  const r = await fetch(u);
+  return r.ok ? await r.json() : null;
+}
+const j = await fetchJson<SessionsResp>("/api/pi-ceo/api/terminal/sessions");
+"""
+
+COMMENT_ONLY_SOURCE = """
+// Read-only. Polls /api/pi-ceo/api/terminal/sessions every 5s.
+export const POLL_MS = 5000;
+"""
+
+POST_ONLY_SOURCE = """
+async function file() {
+  const res = await fetch("/api/pi-ceo/api/goal-ticket", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ goal: "x" }),
+  });
+  return res.ok;
+}
+"""
+
+SSE_SOURCE = """
+function openStream(sid: string) {
+  const es = new EventSource(`/api/pi-ceo/api/sessions/${sid}/logs`);
+  return es;
+}
+"""
+
+
 @pytest.fixture()
 def gate(tmp_path, monkeypatch):
     """The gate pointed at a synthetic repo, so no real file is created or deleted."""
@@ -139,6 +184,53 @@ def test_exempts_the_proxy_route_itself(gate, tmp_path, monkeypatch):
 
     monkeypatch.setattr(sys, "argv", ["proxy_fallback_lint.py"])
     assert gate.main() == 0
+
+
+@pytest.mark.parametrize(
+    "name,source",
+    [
+        ("url-held-in-a-const", CONST_URL_SOURCE),
+        ("called-via-a-wrapper-helper", WRAPPER_HELPER_SOURCE),
+    ],
+)
+def test_sees_call_sites_that_do_not_sit_next_to_a_literal_fetch(
+    gate, tmp_path, monkeypatch, name, source
+):
+    """Regression controls for the 18 -> 14 false narrowing.
+
+    Both of these are GET paths the proxy fallback CAN reach. Neither has
+    `fetch(` beside the URL. A gate that misses them reports a smaller,
+    cleaner, wrong number.
+    """
+    rel = f"dashboard/components/control/{name}.tsx"
+    _plant(tmp_path, rel, source)
+    monkeypatch.setattr(gate, "tracked_files", lambda: [rel])
+    gate.write_baseline([])
+
+    monkeypatch.setattr(sys, "argv", ["proxy_fallback_lint.py"])
+    assert gate.main() == 1, f"{name}: gate went blind on a reachable GET path"
+
+
+@pytest.mark.parametrize(
+    "name,source",
+    [
+        ("comment-prose-only", COMMENT_ONLY_SOURCE),
+        ("post-mutation-only", POST_ONLY_SOURCE),
+        ("sse-event-source", SSE_SOURCE),
+    ],
+)
+def test_exempts_shapes_the_fallback_cannot_reach(gate, tmp_path, monkeypatch, name, source):
+    """The other direction: quietFallback fires only for GET, and never for SSE.
+
+    Without these, the gate flags everything and its red stops meaning anything.
+    """
+    rel = f"dashboard/components/control/{name}.tsx"
+    _plant(tmp_path, rel, source)
+    monkeypatch.setattr(gate, "tracked_files", lambda: [rel])
+    gate.write_baseline([])
+
+    monkeypatch.setattr(sys, "argv", ["proxy_fallback_lint.py"])
+    assert gate.main() == 0, f"{name}: gate fired on a path the fallback cannot reach"
 
 
 def test_the_real_repo_baseline_is_current(capsys):

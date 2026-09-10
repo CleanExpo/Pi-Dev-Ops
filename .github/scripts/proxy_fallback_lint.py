@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -61,7 +62,43 @@ EXEMPT_SUBSTRINGS = (
 )
 
 PROXY_MARKER = "api/pi-ceo"
-HONEST_MARKERS = ("X-Upstream-Status", "pi-ceo-fetch", "fetchProxyJSON", "fetchProxy", "isProxyFallback")
+
+# Per-CALL-SITE, not per-file. The first version of this gate asked whether the
+# FILE mentioned the helper anywhere, which meant migrating one call in a file
+# marked the whole file honest while its other calls stayed raw — the gate would
+# then certify exactly the defect it exists to find. Found while migrating the
+# baselined files with it, before it had certified anything.
+#
+# A migrated call site reads `fetchProxyJSON("/api/health")` — the helper adds
+# the `/api/pi-ceo` prefix itself. So any REMAINING `/api/pi-ceo` literal in a
+# client file is a raw call, and the only question left is whether the fallback
+# can reach it.
+#
+# Two shapes genuinely cannot, and are exempt rather than baselined:
+#   * `new EventSource(...)` — SSE goes through proxySse(), which returns a real
+#     502 and never synthesises a body.
+#   * a non-GET `fetch` — quietFallback() only fires for method === "GET";
+#     mutations get a real error status.
+# EVERY `/api/pi-ceo` literal in a client file is treated as a call site. The
+# exemptions below are narrow and each names a mechanism, because the first
+# version of this rule also demanded a literal `fetch(` within 120 characters
+# and that made it BLIND on three real files:
+#
+#   MargotAssetsPanel.tsx   const API = "/api/pi-ceo/api/margot/assets"
+#   SpecPipelinePanel.tsx   const API = "/api/pi-ceo/api/spec-pipeline"
+#   TerminalPanel.tsx       fetchJson<SessionsResp>("/api/pi-ceo/...")
+#
+# A URL in a const is still fetched somewhere, and `fetchJson<T>(` does not
+# contain `fetch(`. The count dropped 18 -> 14 and looked like a cleaner
+# result; three of the four files it dropped were defects, not exemptions.
+# Caught by reading all four before trusting the narrowing.
+#
+# So the rule is now: flagged unless a MECHANISM makes the fallback
+# unreachable. Guessing wrong flags an extra file, which costs one import.
+NON_GET = re.compile(r'method:\s*["\'](POST|PUT|PATCH|DELETE)["\']', re.I)
+COMMENT_LINE = re.compile(r'^\s*(//|/\*|\*)')
+LOOKBACK = 120   # chars before the URL, enough to catch `EventSource(`
+LOOKAHEAD = 260  # chars after, enough to catch an options object's `method:`
 
 
 def tracked_files() -> list[str]:
@@ -76,6 +113,27 @@ def is_exempt(rel: str) -> bool:
     return any(s in rel for s in EXEMPT_SUBSTRINGS)
 
 
+def blind_call_sites(rel: str, text: str) -> list[int]:
+    """1-indexed line numbers of raw GET call sites against the proxy."""
+    hits = []
+    for m in re.finditer(re.escape(PROXY_MARKER), text):
+        start = m.start()
+        before = text[max(0, start - LOOKBACK):start]
+        after = text[start:start + LOOKAHEAD]
+        if "EventSource(" in before:
+            continue
+        if NON_GET.search(after):
+            continue
+        line_start = text.rfind("\n", 0, start) + 1
+        line_end = text.find("\n", start)
+        line = text[line_start:line_end if line_end != -1 else len(text)]
+        if COMMENT_LINE.match(line):
+            # Prose about the endpoint, not a call to it.
+            continue
+        hits.append(text.count("\n", 0, start) + 1)
+    return hits
+
+
 def blind_consumers() -> list[str]:
     found = []
     for rel in tracked_files():
@@ -88,9 +146,8 @@ def blind_consumers() -> list[str]:
             continue
         if PROXY_MARKER not in text:
             continue
-        if any(m in text for m in HONEST_MARKERS):
-            continue
-        found.append(rel)
+        if blind_call_sites(rel, text):
+            found.append(rel)
     return sorted(found)
 
 
@@ -148,9 +205,13 @@ def main() -> int:
         return 0
 
     if args.report:
+        total = 0
         for rel in blind:
-            print(f"BLIND    {rel}")
-        print(f"\n{len(blind)} blind consumer(s)")
+            text = (REPO / rel).read_text(encoding="utf-8", errors="replace")
+            sites = blind_call_sites(rel, text)
+            total += len(sites)
+            print(f"BLIND    {rel}:{','.join(str(n) for n in sites)}")
+        print(f"\n{len(blind)} file(s), {total} raw GET call site(s)")
         return 0
 
     baseline = read_baseline()
