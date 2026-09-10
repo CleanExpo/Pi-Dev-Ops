@@ -155,19 +155,26 @@ def test_no_terminal_path_bypasses_the_helper():
         if assignment.match(line)
     ]
     # Was 1: _fail_phase's own assignment. It now delegates to
-    # session_model.mark_terminal, which stamps completed_at alongside the
-    # status so the two cannot drift apart. So ZERO direct assignments are
-    # permitted anywhere — a strictly tighter bound than before, not a relaxed
-    # one. The guard's point is unchanged: no path may reach the terminal state
-    # without going through the helper that records WHY.
+    # session_model.mark_terminal, which stamps completed_at alongside the status
+    # so the two cannot drift apart. Zero direct assignments are permitted.
     assert offenders == [], (
         f"terminal failure(s) bypassing _fail_phase (error would persist as ''): {offenders}"
     )
-    # …and the helper must still be the thing that sets it, or the assertion
-    # above would also pass on a module that never fails a session at all.
-    assert 'mark_terminal(session, "failed")' in source, (
-        "_fail_phase no longer routes the terminal status through mark_terminal; "
-        "the check above would then be vacuously green"
+
+    # The count matters as much as the spelling. Asserting merely that
+    # mark_terminal(..., "failed") appears SOMEWHERE moved the hole rather than
+    # closing it: a second call site would bypass _fail_phase — and therefore the
+    # `session.error = reason` line — while still reading green. Caught by
+    # independent review round 2. So the original "exactly one failure path"
+    # bound is restored, now expressed against the helper.
+    helper_calls = [
+        (n, line.strip())
+        for n, line in enumerate(source.splitlines(), 1)
+        if 'mark_terminal(session, "failed")' in line
+    ]
+    assert len(helper_calls) == 1, (
+        "exactly one path may fail a session, and it must be _fail_phase (which "
+        f"records the reason). Found: {helper_calls}"
     )
 
 
