@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 
 import ThroughputSparkline from "./ThroughputSparkline";
+import ClaudeSessionsHUD, { type ClaudeHud } from "./ClaudeSessionsHUD";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { fmtElapsed, fmtAgo } from "@/lib/control/activity-format";
 
@@ -52,6 +53,7 @@ interface LiveData {
     comments_today: number;
     pulse_issue_id: string | null;
   };
+  claude_hud?: ClaudeHud;
   observability?: {
     source: string;
     ok: boolean;
@@ -88,11 +90,7 @@ function PhasePill({ phase }: { phase: string }) {
     building: "bg-amber-500/20 text-amber-300 border-amber-500/40",
     running: "bg-amber-500/20 text-amber-300 border-amber-500/40",
   }[phase] || "bg-slate-500/20 text-slate-300 border-slate-500/40";
-  return (
-    <span className={`px-2 py-0.5 text-xs font-mono rounded border ${color}`}>
-      {phase}
-    </span>
-  );
+  return <span className={`px-2 py-0.5 text-xs font-mono rounded border ${color}`}>{phase}</span>;
 }
 
 // ── Pulsing dot ───────────────────────────────────────────────────────────
@@ -196,6 +194,7 @@ export default function LiveActivityFeed() {
       {/* Stats grid */}
       {data && (
         <>
+          <ClaudeSessionsHUD data={data.claude_hud} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-b border-slate-800">
             {/* Throughput */}
             <div>
