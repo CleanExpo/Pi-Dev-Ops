@@ -39,7 +39,7 @@ from .brief import classify_intent, build_structured_brief, scan_repo_context
 from .lessons import append_lesson, load_lessons, extract_lesson_from_eval, append_lesson_dedup
 from .supabase_log import log_gate_check
 from .session_recorder import record_episode, retrieve_similar_episodes, format_episodes_as_context
-from .session_model import em
+from .session_model import em, mark_complete
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
 from .session_evaluator import (
     _parse_evaluator_dimensions,
@@ -1933,7 +1933,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     af, push_ok = await _phase_push(session, total_phases)
 
     session.last_completed_phase = "push"
-    session.status = "complete"
+    mark_complete(session)  # sets status + completed_at together
     persistence.save_session(session)
 
     # RA-656: log gate_check row — fire-and-forget, never blocks pipeline
