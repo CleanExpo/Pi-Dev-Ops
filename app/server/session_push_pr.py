@@ -69,8 +69,17 @@ def _stamp_attribution(session, pr_url: str, pr_number, branch_name: str, owner_
     nothing to match a `gate_checks` row by. These ride on the session rather than
     widening `_phase_push`'s return tuple, which several callers unpack.
     """
+    # Two try blocks, deliberately, exactly as before the extraction. Collapsing
+    # them into one looks like tidying and is a behaviour change: a raising
+    # pr_url setter would then take the three attribution keys down with it, and
+    # a merge event would have nothing to match its gate_checks row by. Caught by
+    # independent review after the extraction claimed to be behaviour-preserving;
+    # tests/test_phase_push_auto_pr.py now fails if they are merged again.
     try:
         session.pr_url = pr_url          # type: ignore[attr-defined]
+    except Exception:
+        pass
+    try:
         session.pr_number = pr_number    # type: ignore[attr-defined]
         session.head_branch = branch_name  # type: ignore[attr-defined]
         session.repo_name = owner_repo   # type: ignore[attr-defined]
