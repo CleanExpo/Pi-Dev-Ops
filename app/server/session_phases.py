@@ -33,6 +33,7 @@ import time
 import urllib.request
 from pathlib import Path
 
+from . import board_review
 from . import config
 from . import persistence
 from .brief import classify_intent, build_structured_brief, scan_repo_context
@@ -1455,6 +1456,15 @@ def _adversary_halt_reason(verdict: str, rc: int) -> str | None:
     return f"Adversary review unavailable (verdict={verdict}, rc={rc})"
 
 
+async def _write_board_review_receipt(session, verdict: str) -> None:
+    """Bind `verdict` to HEAD for the push gate to read. The reviewer writes; the pusher checks."""
+    sha = await board_review.write_for_head(
+        session.workspace, run_cmd, verdict, session_id=getattr(session, "id", ""),
+    )
+    if sha:
+        em(session, "system", f"  Board-review receipt written for {sha[:12]} ({verdict})")
+
+
 async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     """RA-1743 — Pre-push opus-adversary review gate.
 
@@ -1476,6 +1486,7 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     if not diff_out.strip():
         em(session, "system", "  No diff to review — skipping adversary phase")
         _emit_phase_metric(session, "adversary", phase_start, 0.0)
+        await _write_board_review_receipt(session, "SKIP_NO_DIFF")
         return True, {"verdict": "SKIP_NO_DIFF", "concerns": []}
 
     # ── Skip on docs-only / test-only diffs (low signal-to-cost) ────────
@@ -1496,6 +1507,7 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     if not code_files:
         em(session, "system", f"  Docs/test-only diff ({len(files_changed)} files) — skipping adversary")
         _emit_phase_metric(session, "adversary", phase_start, 0.0)
+        await _write_board_review_receipt(session, "SKIP_DOCS_ONLY")
         return True, {"verdict": "SKIP_DOCS_ONLY", "files": files_changed}
 
     # ── Build adversarial prompt (mirrors ~/.claude/skills/opus-adversary/SKILL.md) ──
@@ -1576,6 +1588,9 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
         em(session, "error", f"  {halt} — halting push. See .harness/adversary-runs/")
         return False, {"verdict": verdict, "raw_output": output_text}
 
+    # Unit 2: a BLOCK returns above, so it leaves no receipt and the gate refuses.
+    await _write_board_review_receipt(session, verdict)
+
     em(
         session, "success",
         f"  Adversary verdict: {verdict} (cost ${cost:.3f}, {round(time.monotonic() - phase_start, 1)}s)",
@@ -1593,6 +1608,11 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
         if out.strip():
             await run_cmd(session.workspace, "git", "add", "-A")
             await run_cmd(session.workspace, "git", "commit", "-m", "feat: Pi CEO build")
+
+        # Unit 2 gate, checked AFTER the commit above because that commit is what
+        # would be pushed; binding earlier would wave through whatever it added.
+        if not await board_review.allows_push(session, run_cmd, em):
+            return af, False
         _, out, _ = await run_cmd(session.workspace, "git", "log", "--oneline", "-10")
         commits = [ln.strip() for ln in out.strip().split("\n") if ln.strip()]
         push_ok = False
