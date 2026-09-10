@@ -100,6 +100,16 @@ jobs:
       - name: Function-length gate (40-line convention)
         run: python3 .github/scripts/function_length_lint.py
 
+      # The Pi-CEO proxy answers HTTP 200 with placeholder data when the backend
+      # is unreachable, so `res.ok` is true while nothing is known. A client that
+      # checks only `res.ok` renders the placeholders as measurements — that is
+      # how the Loop Cockpit announced "Autonomy poller is disabled
+      # (TAO_AUTONOMY_ENABLED=0)" during an outage it had not observed.
+      # Fails on a NEW blind consumer; the 18 existing ones are baselined.
+      # Regenerate with: python3 .github/scripts/proxy_fallback_lint.py --update
+      - name: Proxy fallback gate (a failed read is never an empty read)
+        run: python3 .github/scripts/proxy_fallback_lint.py
+
   # ── Python: unit tests + gates ──────────────────────────────────────────────
   python:
     name: Python (pytest)

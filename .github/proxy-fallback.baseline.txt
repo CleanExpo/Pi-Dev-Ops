@@ -1,0 +1,25 @@
+# Dashboard files that read the Pi-CEO proxy without reading its
+# X-Upstream-Status fallback header. See .github/scripts/proxy_fallback_lint.py.
+#
+# SHRINK-ONLY. Fix a file (route it through lib/pi-ceo-fetch.ts), then
+# run `python3 .github/scripts/proxy_fallback_lint.py --update` to drop it.
+# Never add a line here to make CI green.
+
+dashboard/app/(main)/builds/page.tsx
+dashboard/app/(main)/layout.tsx
+dashboard/app/(main)/overview/page.tsx
+dashboard/app/(main)/projects/page.tsx
+dashboard/app/(main)/routines/page.tsx
+dashboard/components/CeoHealthPanel.tsx
+dashboard/components/brain/BrainStatusPanel.tsx
+dashboard/components/control/ActiveBuildStrip.tsx
+dashboard/components/control/AgentRolesPanel.tsx
+dashboard/components/control/GoalProjectPicker.tsx
+dashboard/components/control/GoalTicketForm.tsx
+dashboard/components/control/HealthGrid.tsx
+dashboard/components/control/LiveActivityFeed.tsx
+dashboard/components/control/MargotAssetsPanel.tsx
+dashboard/components/control/ProjectSelector.tsx
+dashboard/components/control/RoutineTable.tsx
+dashboard/components/control/SpecPipelinePanel.tsx
+dashboard/components/control/TerminalPanel.tsx
