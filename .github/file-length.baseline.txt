@@ -18,7 +18,7 @@
 # baselined files repeat lengths often enough that equal length would let an
 # unrelated new file inherit a deleted one's slot.
 2612	9f16a1752b55	app/server/agents/board_meeting.py
-1969	9a0499d4a29f	app/server/session_phases.py
+1921	82548b95fd04	app/server/session_phases.py
 1770	6f09ed10d936	swarm/margot_bot.py
 1292	ffe39904cc89	app/server/routes/webhooks.py
 1219	b420cc9c57d4	scripts/unite_group_health_check.py
@@ -34,8 +34,8 @@
 746	e125b5bd4df1	app/server/pipeline.py
 746	6ebf6746aedf	dashboard/components/control/HealthGrid.tsx
 736	02fc8d0591a2	app/server/discovery.py
-735	bf94fffdf80d	app/server/provider_router.py
 735	c46d2c7837dd	tests/test_goal_ticket.py
+728	225d57e31f75	app/server/provider_router.py
 721	76196a2d5d79	app/server/agents/pi_seo_monitor.py
 720	1c3afff94df9	remotion-studio/scripts/rerender-brand-videos.ts
 715	49b5075c9597	scripts/capability_scout.py
@@ -67,7 +67,7 @@
 560	a9b598749249	tests/test_plaud_ingest.py
 557	3db9bad21f22	tests/swarm/nexus/test_api.py
 555	ff6d2b732fb1	swarm/nexus/onboarding.py
-553	5385ce6beeab	tests/test_provider_router.py
+553	87e753abf7ee	tests/test_provider_router.py
 546	3165f923b038	app/server/routes/nexus.py
 537	03ac89c21987	app/server/cron_fire_agents.py
 535	4818e6ddc778	scripts/analyse_lessons.py
@@ -92,7 +92,6 @@
 479	9bee86acd4ef	dashboard/app/(main)/builds/page.tsx
 476	e536287edb18	tests/test_gap_audit_scout_dedup.py
 472	97801133f421	swarm/bots/builder.py
-471	8eaa62707b76	dashboard/components/control/LiveActivityFeed.tsx
 467	0a286e60322a	app/server/session_sdk.py
 465	aac2ece56e4b	app/server/model_fabric.py
 463	ab302c9ddba8	swarm/debate_runner.py
@@ -107,6 +106,7 @@
 436	f5133b32e431	tests/swarm/nexus/test_approvals.py
 435	52168138611d	app/server/pi_ceo_session_fts.py
 435	566e7b7e02a7	swarm/intake/handoff.py
+434	7c9adbba8d67	dashboard/components/control/LiveActivityFeed.tsx
 430	678cdbdaf6e8	dashboard/lib/phases.ts
 430	adf5308ffb4c	swarm/fix_orchestrator.py
 430	03018cff97f9	swarm/wiki_ingest.py
@@ -169,8 +169,8 @@
 331	735306950587	tests/test_ccw_watch_runner.py
 330	ff107fa4b1f7	tests/test_pi_ceo_session_fts.py
 329	c0db24f74911	scripts/hermes_model_chain_health.py
-328	65ef3ae53184	app/server/goal_ticket.py
 328	ffa7abf79d97	tests/test_provider_openrouter.py
+327	022e5f49a00f	app/server/goal_ticket.py
 324	84a489bdab80	dashboard/components/control/MargotAssetsPanel.tsx
 324	f69118e438c2	tests/test_mesh_claim_reap.py
 322	bbd88fbf85cc	scripts/desk_voice_loop.py
@@ -193,7 +193,6 @@
 309	cc5e4753ef0f	swarm/kanban_adapter.py
 308	6d6f5ddd3b9e	dashboard/components/control/SpecPipelinePanel.tsx
 304	3482f2377a1a	app/server/pi_ceo_docparser.py
-304	e077f951ac77	app/server/routes/health_full.py
 303	9bb64138ff5f	claude-hooks-mirror/Stop/02_autonomous_continue.py
 303	3807cd860995	tests/test_tao_codebase_wiki.py
 302	4a5462a47bcc	app/server/routes/health.py

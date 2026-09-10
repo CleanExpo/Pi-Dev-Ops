@@ -34,6 +34,7 @@ import urllib.request
 from pathlib import Path
 
 from . import board_review
+from . import session_push_pr
 from . import config
 from . import persistence
 from .brief import classify_intent, build_structured_brief, scan_repo_context
@@ -1457,12 +1458,30 @@ def _adversary_halt_reason(verdict: str, rc: int) -> str | None:
 
 
 async def _write_board_review_receipt(session, verdict: str) -> None:
-    """Bind `verdict` to HEAD for the push gate to read. The reviewer writes; the pusher checks."""
+    """Bind `verdict` to HEAD for the push gate to read. The reviewer writes; the pusher checks.
+
+    Unit 2: a BLOCK verdict returns before reaching here, so it leaves no receipt
+    and `_phase_push` refuses. The refusal is the absence, which is why nothing
+    writes a receipt on the halt path.
+    """
     sha = await board_review.write_for_head(
         session.workspace, run_cmd, verdict, session_id=getattr(session, "id", ""),
     )
     if sha:
         em(session, "system", f"  Board-review receipt written for {sha[:12]} ({verdict})")
+
+
+async def _skip_adversary(session, phase_start: float, verdict: str, msg: str, **extra) -> tuple[bool, dict]:
+    """Leave the adversary phase early — with a receipt.
+
+    A skip is a review decision, not the absence of one, so it still binds a
+    receipt to HEAD. Without it the Unit 2 push gate would refuse every
+    docs-only session, which is a refusal nobody asked for.
+    """
+    em(session, "system", msg)
+    _emit_phase_metric(session, "adversary", phase_start, 0.0)
+    await _write_board_review_receipt(session, verdict)
+    return True, {"verdict": verdict, **extra}
 
 
 async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
@@ -1484,10 +1503,8 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     # ── Get diff to review ───────────────────────────────────────────────
     rc, diff_out, _ = await run_cmd(session.workspace, "git", "diff", "HEAD", "--")
     if not diff_out.strip():
-        em(session, "system", "  No diff to review — skipping adversary phase")
-        _emit_phase_metric(session, "adversary", phase_start, 0.0)
-        await _write_board_review_receipt(session, "SKIP_NO_DIFF")
-        return True, {"verdict": "SKIP_NO_DIFF", "concerns": []}
+        return await _skip_adversary(session, phase_start, "SKIP_NO_DIFF",
+                                     "  No diff to review — skipping adversary phase", concerns=[])
 
     # ── Skip on docs-only / test-only diffs (low signal-to-cost) ────────
     rc, stat_out, _ = await run_cmd(session.workspace, "git", "diff", "--stat", "HEAD")
@@ -1505,10 +1522,8 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
         )
     ]
     if not code_files:
-        em(session, "system", f"  Docs/test-only diff ({len(files_changed)} files) — skipping adversary")
-        _emit_phase_metric(session, "adversary", phase_start, 0.0)
-        await _write_board_review_receipt(session, "SKIP_DOCS_ONLY")
-        return True, {"verdict": "SKIP_DOCS_ONLY", "files": files_changed}
+        msg = f"  Docs/test-only diff ({len(files_changed)} files) — skipping adversary"
+        return await _skip_adversary(session, phase_start, "SKIP_DOCS_ONLY", msg, files=files_changed)
 
     # ── Build adversarial prompt (mirrors ~/.claude/skills/opus-adversary/SKILL.md) ──
     brief_excerpt = ""
@@ -1588,7 +1603,6 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
         em(session, "error", f"  {halt} — halting push. See .harness/adversary-runs/")
         return False, {"verdict": verdict, "raw_output": output_text}
 
-    # Unit 2: a BLOCK returns above, so it leaves no receipt and the gate refuses.
     await _write_board_review_receipt(session, verdict)
 
     em(
@@ -1654,96 +1668,14 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
             if not push_ok:
                 em(session, "error", "  Push failed — changes committed locally, push manually")
 
-            # RA-1183 — auto-open a PR from pidev/auto-<sid> → main.
-            # Only when push succeeded AND the branch has a real diff vs main
-            # (avoids empty PRs from sessions that correctly decided nothing
-            # needed fixing). Uses GitHub REST API with x-access-token auth
-            # from the embedded remote URL.
+            # RA-1183 — auto-open a PR from pidev/auto-<sid> → main. Body lives in
+            # session_push_pr so neither this file nor this function grows past its
+            # length baseline; tests/test_phase_push_auto_pr.py pins the behaviour.
             if push_ok and github_token:
-                try:
-                    # Check there's actually a diff to PR
-                    rc_diff, diff_out, _ = await run_cmd(
-                        session.workspace, "git", "diff", "--name-only", "origin/main", branch_name, timeout=10,
-                    )
-                    if rc_diff == 0 and diff_out.strip():
-                        # Derive owner/repo from remote URL
-                        _, ru, _ = await run_cmd(session.workspace, "git", "remote", "get-url", "origin", timeout=5)
-                        ru = ru.strip().rstrip("/")
-                        # Strip token auth + .git suffix
-                        ru = ru.replace(f"https://x-access-token:{github_token}@", "https://")
-                        if ru.endswith(".git"):
-                            ru = ru[:-4]
-                        owner_repo = ru.replace("https://github.com/", "")
-                        # Latest commit message for PR title
-                        _, last_msg, _ = await run_cmd(
-                            session.workspace, "git", "log", "-1", "--pretty=%s", branch_name, timeout=5,
-                        )
-                        pr_title = last_msg.strip() or f"feat: Pi CEO autonomous fix ({session.id[:8]})"
-                        pr_body = (
-                            f"Autonomous Pi-CEO session `{session.id}`.\n\n"
-                            f"Evaluator score: {getattr(session, 'evaluator_score', 'n/a')}/10 "
-                            f"@ {getattr(session, 'evaluator_confidence', 'n/a')}% confidence.\n\n"
-                            f"🤖 Generated by Pi-CEO"
-                        )
-                        import urllib.request as _ur  # noqa: PLC0415
-                        import json as _json  # noqa: PLC0415
-                        req = _ur.Request(
-                            f"https://api.github.com/repos/{owner_repo}/pulls",
-                            data=_json.dumps({
-                                "title": pr_title,
-                                "body": pr_body,
-                                "head": branch_name,
-                                "base": "main",
-                            }).encode(),
-                            headers={
-                                "Authorization": f"Bearer {github_token}",
-                                "Accept": "application/vnd.github+json",
-                                "Content-Type": "application/json",
-                            },
-                            method="POST",
-                        )
-                        try:
-                            with _ur.urlopen(req, timeout=15) as resp:
-                                pr_data = _json.loads(resp.read())
-                                pr_url = pr_data.get("html_url", "")
-                                pr_number = pr_data.get("number")
-                                em(session, "success", f"  ✨ PR opened: #{pr_number} → {pr_url}")
-                                # Persist PR URL on session for the dashboard
-                                try:
-                                    session.pr_url = pr_url  # type: ignore[attr-defined]
-                                except Exception:
-                                    pass
-                                # RA-7216 gap 2 — attribution keys. pr_number was
-                                # read here and then discarded as a local, so a
-                                # merge event had nothing to match a gate_checks
-                                # row by. Carried on the session (matching the
-                                # pr_url line above) rather than widening
-                                # _phase_push's return tuple, which several
-                                # callers unpack.
-                                try:
-                                    session.pr_number = pr_number      # type: ignore[attr-defined]
-                                    session.head_branch = branch_name  # type: ignore[attr-defined]
-                                    session.repo_name = owner_repo     # type: ignore[attr-defined]
-                                except Exception:
-                                    pass
-                                # RA-1184 — route Linear ticket to the TARGET
-                                # repo's Linear project (not Pi-Dev-Ops). Reads
-                                # projects.json for team_id + linear_project_id.
-                                # Only creates a ticket when we don't already
-                                # have one (linear_issue_id unset).
-                                if not getattr(session, "linear_issue_id", None):
-                                    try:
-                                        _route_linear_ticket_to_target_project(
-                                            session, owner_repo, pr_url, pr_number, pr_title,
-                                        )
-                                    except Exception as _lin_exc:
-                                        em(session, "system", f"  Linear auto-ticket skipped: {_lin_exc}")
-                        except Exception as _pr_exc:
-                            em(session, "system", f"  PR auto-open skipped: {_pr_exc}")
-                    else:
-                        em(session, "system", "  No diff vs main — skipping PR open")
-                except Exception as _pr_err:
-                    em(session, "system", f"  PR auto-open check failed: {_pr_err}")
+                await session_push_pr.open_pull_request(
+                    session, run_cmd, em, _route_linear_ticket_to_target_project,
+                    branch_name, github_token,
+                )
         em(session, "system", "")
         em(session, "phase", "  Project structure:")
         for r, dirs, fns in os.walk(session.workspace):

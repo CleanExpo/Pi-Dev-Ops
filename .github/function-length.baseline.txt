@@ -37,10 +37,9 @@
 162	c0b2c5c2b13e	swarm/debate_runner.py::run_debate
 161	1eeca300a67f	app/server/session_sdk.py::_run_claude_via_sdk._attempt
 160	003d27f0071a	fence/pretooluse_fence.py::main
-157	d6f632ee1fbb	app/server/session_phases.py::_phase_push
 155	9c6009db6384	app/server/autonomy.py::_process_autonomy_issue
 154	c3cdf956734d	app/server/agents/board_meeting.py::_call_claude_for_discrepancies
-152	813713f8dfbb	app/server/session_phases.py::run_build
+152	a6c13f96f01c	app/server/session_phases.py::run_build
 149	4f92904f269a	swarm/closed_loop.py::run_cycle
 148	52eb067f5812	app/server/cron_watchdogs.py::_watchdog_board_meeting_silence
 147	ea616536e16d	app/server/session_phases.py::_phase_clone
@@ -55,11 +54,10 @@
 135	7fb9f859e1a7	app/server/cron_watchdogs.py::_watchdog_notebooklm_health
 134	d42212f60209	swarm/bots/builder.py::run_cycle
 134	d3cf1923542d	swarm/tmux_validator.py::validate_command
-126	136e126d8975	app/server/session_phases.py::_phase_adversary
+126	69684be9ac24	app/server/session_phases.py::_phase_adversary
 126	5679bd08799f	scripts/unite_group_health_check.py::check_integration_sync
 125	4bab87250d13	app/server/agents/feedback_loop.py::run_feedback_cycle
 125	7ed50367bce2	swarm/inbox/intake_dispatch.py::dispatch_telegram_update
-124	8d36a663bf0c	app/server/provider_router.py::run_via_provider
 124	c8bad738abf9	app/server/spec_pipeline/liaison_loop.py::judge_with_liaison
 124	4833f230c60e	app/server/tao_loop.py::run_until_done
 123	6131367841b1	swarm/six_pager_dispatcher.py::maybe_fire_daily
@@ -69,6 +67,7 @@
 116	b95f550322fd	app/server/agents/board_meeting.py::save_board_minutes
 115	04230aed4030	swarm/bots/cs.py::run_cycle
 114	2c9f4353ecb8	app/server/brief.py::scan_repo_context
+114	5e26f16bda44	app/server/provider_router.py::run_via_provider
 112	2f47ddbde63a	app/server/agents/board_meeting.py::run_status_phase
 112	6dfc31b6906d	app/server/triage.py::TriageEngine.triage
 111	7576ca06795e	app/server/agents/board_meeting.py::_normalize_margot_to_research_brief
@@ -149,6 +148,7 @@
 80	0ef018b1e1bf	app/server/agents/notebooklm_refresh.py::refresh_all_notebooks
 80	cd2830e21605	app/server/brief.py::build_structured_brief
 80	c3c8cd51de42	app/server/lessons.py::hydrate_from_durable
+80	9d2d26c8defc	app/server/session_phases.py::_phase_push
 80	690622045868	swarm/cfo.py::detect_breaches
 80	f4c6230e1ac4	swarm/inbox/provisioner.py::_provision_one
 79	c4c3dbb9f33c	app/server/discovery_archive.py::archive_stale_discovery_tickets
@@ -185,18 +185,17 @@
 74	bd9ef83e171c	app/server/cron_watchdogs.py::_watchdog_check
 74	bfbed5d3a2e3	app/server/cron_watchdogs.py::_watchdog_health_full
 74	2d1ad1531d3b	app/server/pipeline.py::_update_linear_state_pipeline
-74	98d51728ff44	app/server/session_recorder.py::record_episode
 74	4ba784b660d1	scripts/analyse_lessons.py::build_proposal
 74	581e5b1ca4af	swarm/wiki_lint.py::lint
 73	1eef84ffd461	app/server/cron_watchdogs.py::_watchdog_escalations
 73	398e239cc81e	app/server/push_helper.py::push_files_atomic
+73	0ccc9c126ced	app/server/session_recorder.py::record_episode
 73	b70ff8663da1	swarm/analyst.py::_call_llm
 73	7a50cd70de9e	swarm/intake/cli.py::run_once
 73	75eadf6e1d5e	swarm/project_health_monitor.py::run_daily
 72	6054dd0b42e5	app/server/autonomy.py::fetch_todo_issues
 72	6e04e0f3c5c1	app/server/goal_analyze.py::analyze_goal
 72	dd1944326389	app/server/pi_ceo_docparser.py::_parse_pdf
-72	e730c573961e	app/server/provider_router.py::select_provider_model
 72	7a1a5b7f319b	scripts/validate_tao_context_mode.py::main
 72	8fe2bafe5d21	skills/forward-planner/scripts/validate_plan.py::validate
 72	8fed4d914b47	swarm/analyst.py::_collect_breaches
@@ -323,6 +322,7 @@
 56	4ae2a4c21895	app/server/gc.py::collect_garbage
 56	798998c017ad	app/server/pi_ceo_session_fts.py::build_index
 56	4ec1aa96f47d	app/server/pipeline.py::run_spec_phase
+56	867bd8ccfa1b	app/server/provider_router.py::select_provider_model
 56	444dd5d08648	scripts/reviewer_recalibration.py::compute_weights
 56	3a254f5c36f3	swarm/marketing_skill_bridge.py::run_scheduled_bridge
 56	9312f3aa07d3	tests/test_elevenlabs_margot_voice_route.py::_client
@@ -330,7 +330,6 @@
 56	4eea15214822	tests/test_margot_propose_idea.py::test_handle_turn_files_idea_and_appends_confirmation
 55	b2cef30046c7	app/server/discovery.py::load_persona_config
 55	6513d8fdcef9	app/server/youtube_intent.py::synthesize_state
-55	c235b2050316	mesh/heartbeat.py::cpu_mem_load
 55	c6ce642bd34c	scripts/marathon_watchdog.py::main
 55	712930a9ad45	scripts/run_tao_tdd.py::main
 55	5b0821918668	scripts/weekly_enhancement_loop.py::main
@@ -345,7 +344,7 @@
 55	57c128ad854c	tests/test_liaison_loop.py::test_liaison_loop_reaches_100_after_one_round
 54	12855399b4f9	app/server/goal_ticket.py::file_goal
 54	dab43056422a	app/server/routes/elevenlabs.py::margot_post_call
-54	cc71330e8288	app/server/session_phases.py::_log_ship_gate_check
+54	196abbffa2c3	app/server/session_phases.py::_log_ship_gate_check
 54	fdf258e1d301	app/server/spec_pipeline/ship_gate.py::open_pr_and_merge
 54	65b756ac95ca	app/server/tier0_runner.py::run_tier0
 54	5a3f1d1334d4	scripts/fleet_value_dryrun.py::main
@@ -403,7 +402,6 @@
 51	e8a18da0d57f	tests/test_docs_stale_watchdog_ra7027.py::test_cron_loop_total_failure_no_persistence
 50	43a8838f8313	app/server/agents/board_meeting.py::run_linear_review_phase
 50	1ded3658b185	app/server/routes/delegate.py::delegate_task._call_llm
-50	080c8c13e053	app/server/routes/goal_ticket.py::_raise_goal_error
 50	cdd494df52c4	app/server/session_recorder.py::retrieve_similar_episodes
 50	fb0d983dcf11	archive/run_parallel_board.py::run_managed_agents
 50	3dd7866a49de	scripts/test_lessons_durable_migration.py::assert_contract
@@ -497,7 +495,7 @@
 45	f67b961827cd	app/server/agents/feedback_loop.py::_write_outcome_lesson
 45	0bef10cfef23	app/server/agents/pi_seo_monitor.py::_render_digest_markdown
 45	1f9076f70ef9	app/server/cron_triggers.py::_should_catch_up
-45	bcac2e465a9a	app/server/goal_ticket_children.py::file_sub_tasks
+45	72afe9f6a937	app/server/goal_ticket_children.py::file_sub_tasks
 45	75795a66003a	app/server/lessons.py::append_lesson_dedup
 45	5be179dfe2f4	app/server/supabase_log.py::record_acceptance
 45	f66acc3e3e48	app/server/youtube_connector.py::exchange_code
@@ -521,7 +519,7 @@
 44	98fdf0faef7e	app/server/cron_fire_agents.py::_persist_board_meeting_failure
 44	5a1d22c87397	app/server/cron_triggers.py::_recently_eligible
 44	1b081081e6ee	app/server/digest.py::push_digest_to_telegram
-44	7f9105bbd7f9	app/server/provider_ollama.py::call
+44	ebab0831c8f3	app/server/provider_ollama.py::call
 44	5e653c59c175	app/server/provider_router.py::run_secondary_research_pass
 44	3c919656885f	app/server/research_sonar.py::sonar_caller
 44	6c6088885d81	app/server/routes/cost_report.py::cost_report
@@ -576,11 +574,11 @@
 42	2dddbbc58151	app/server/pi_ceo_session_fts.py::_extract_text
 42	200a97e36e28	app/server/provider_router.py::_record_tier_downgrade
 42	13891ea0894c	app/server/routes/phone.py::_progress_card_html
-42	58ca1d403c22	app/server/routes/telegram_intake.py::_ensure_telegram_webhook
 42	7614fe808394	app/server/webhook.py::parse_github_event
 42	6f49f41978ce	app/server/workspace_context.py::build_workspace_claude_md
 42	b45151e82e77	claude-hooks-mirror/phone/tier_classifier.py::classify
 42	c3df838033ea	evals/test_tmux_writer_golden.py::test_tmux_writer_matches_golden
+42	a591b5c9186f	mesh/heartbeat.py::cpu_mem_load
 42	8b0200443133	scripts/capability_scout.py::write_brain_outputs
 42	2884e7acdaa7	scripts/check_agent_registry.py::main
 42	b338f80f816b	scripts/plaud_ingest.py::main
@@ -625,5 +623,4 @@
 41	ce2510e36f78	tests/test_autonomy_priority_filter.py::test_fetch_no_filter_when_disabled
 41	51e1b64a0c0c	tests/test_karpathy_integration.py::test_karpathy_failure_appends_to_lessons_jsonl
 41	8c247f24ef39	tests/test_remotion_one_shot_schema.py::test_one_shot_dry_run_generates_packet_without_tts
-41	7b82241bc44f	tests/test_telegram_intake_route.py::test_telegram_intake_webhook_mode_sets_webhook_and_skips_poll
 41	ff90b2979e1c	tests/test_telegram_linear_intake.py::test_watchdog_queues_telegram_idea_for_linear_jsonl
