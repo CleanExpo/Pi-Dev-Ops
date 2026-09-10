@@ -216,11 +216,12 @@
       "expected_status": 200,
       "body_contains": [
         "throughput",
+        "hourly",
         "queue",
         "pulse",
         "observability"
       ],
-      "_comment": "RA-1440 Mission Control live feed — backs LiveActivityFeed's 5s poll on /control. PR #344 adds observability action-ledger payload so degraded health signals become owner/action/evidence work instead of passive status. RA-6888: LiveActivityFeed contrast tokens only (text-text-muted, --on-accent) — no new routes or behaviours; surface assertions unchanged."
+      "_comment": "RA-1440 Mission Control live feed — backs LiveActivityFeed's 5s poll on /control. PR #344 adds observability action-ledger payload so degraded health signals become owner/action/evidence work instead of passive status. RA-6888: LiveActivityFeed contrast tokens only (text-text-muted, --on-accent) — no new routes or behaviours; surface assertions unchanged. 2026-09-10: this asserted the four TOP-LEVEL key names only, and four panels shipped reading fields no code ever wrote while it stayed green. Added 'hourly' — the nested throughput key whose rename to hourly_24h is exactly what broke the sparkline — so that contract drift now fails the gate. The per-panel fields (elapsed_s, last_log_tail, completed_at, next_action, owner) are deliberately NOT asserted here: they only appear when a session is running or a component is degraded, so on an idle system they would fire with nothing wrong. HONEST LIMIT: body_contains is a substring check. It proves a key is present, never that a value is live. Asserting liveness needs a matcher in the runner; that is tracked separately and is not claimed by this entry."
     },
     {
       "name": "telegram-intake-status",

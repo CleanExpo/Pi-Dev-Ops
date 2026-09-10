@@ -7,6 +7,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { deriveNeeds, type MCAction } from "@/lib/control/loop-needs";
+
 const POLL_MS = 20_000;
 
 // ── Response shapes (partial / defensive — every field optional, fail-soft) ──
@@ -28,7 +30,14 @@ interface MissionControl {
   active_sessions?: MCSession[];
   recent_completions?: MCCompletion[];
   queue?: { urgent?: number; high?: number; next_issue_id?: string | null };
-  observability?: { fully_observed?: boolean; degraded_components?: string[]; actions?: string[] };
+  observability?: {
+    fully_observed?: boolean;
+    degraded_components?: string[];
+    // These are OBJECTS, not strings — mission_control.py builds an action
+    // ledger row per red/degraded component. Typed as string[] they were pushed
+    // straight into a rendered child and React threw.
+    actions?: MCAction[];
+  };
   ts?: string;
 }
 
@@ -118,14 +127,12 @@ export default function LoopPage() {
   }, [refresh]);
 
   // ── "Needs me" — read-only flags derived from live state ──
-  const needs: { text: string; color: string }[] = [];
-  if (swarm?.kill_switch_active) needs.push({ text: "Kill-switch is ACTIVE — autonomous work is paused", color: "var(--error)" });
-  if (swarm?.escalation_lock_active) needs.push({ text: "Escalation lock is active — awaiting approver", color: "var(--warning)" });
-  if (autonomy && autonomy.enabled && autonomy.stale) needs.push({ text: "Autonomy poller is stale (>15m since last poll)", color: "var(--warning)" });
-  if (autonomy && !autonomy.enabled) needs.push({ text: "Autonomy poller is disabled (TAO_AUTONOMY_ENABLED=0)", color: "var(--warning)" });
-  if (autonomy && autonomy.poller_iteration_errors > 0) needs.push({ text: `Poller has ${autonomy.poller_iteration_errors} iteration error(s)${autonomy.last_iteration_error ? `: ${autonomy.last_iteration_error}` : ""}`, color: "var(--error)" });
-  for (const a of mc?.observability?.actions ?? []) needs.push({ text: a, color: "var(--warning)" });
-  if (mc?.queue?.next_issue_id) needs.push({ text: `Next queued ticket: ${mc.queue.next_issue_id}`, color: "var(--text-muted)" });
+  const needs = deriveNeeds({
+    autonomy,
+    swarm,
+    actions: mc?.observability?.actions,
+    nextIssueId: mc?.queue?.next_issue_id,
+  });
 
   // All four fetches null = we never reached the backend (unauthenticated or
   // backend down). Absent data must NOT read as "healthy".

@@ -44,6 +44,10 @@ class BuildSession:
     workspace: str = ""
     process: Optional[asyncio.subprocess.Process] = None
     started_at: float = 0.0
+    # Epoch seconds, matching started_at. Mission Control's 24h throughput and
+    # "recent completions" panels both read this; before it existed they read a
+    # field nothing wrote and were empty by construction. Set by mark_complete().
+    completed_at: float | None = None
     status: str = "created"
     output_lines: list = field(default_factory=list)
     error: Optional[str] = None
@@ -71,6 +75,28 @@ class BuildSession:
     evaluator_findings: list = field(default_factory=list)  # RA-1027: structured JSON findings from persona review
     shared_workspace: str = ""                      # RA-1029: path to parent's cloned workspace (worktree source)
     phase_metrics: dict = field(default_factory=dict)  # RA-1032: per-phase {duration_s, cost_usd}
+
+
+def mark_terminal(session: "BuildSession", status: str) -> None:
+    """Move a session to a terminal state and record when it got there.
+
+    One function so status and timestamp can never drift apart — the previous
+    code set the status in one place and the timestamp nowhere, which is why
+    every throughput bucket read zero.
+
+    `completed_at` means "when this session stopped", not "when it succeeded":
+    a failed or blocked session has an end time too, and only recording it for
+    the happy path is how the drift came back. Which statuses a panel COUNTS is
+    the panel's business — Mission Control's throughput still counts complete /
+    shipped / done only.
+    """
+    session.status = status
+    session.completed_at = time.time()
+
+
+def mark_complete(session: "BuildSession") -> None:
+    """The success path. Kept as a name because it reads better at the call site."""
+    mark_terminal(session, "complete")
 
 
 # ── In-memory session store ────────────────────────────────────────────────────

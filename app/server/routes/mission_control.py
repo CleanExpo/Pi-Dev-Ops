@@ -22,6 +22,11 @@ from fastapi import APIRouter, Depends
 from ..auth import require_auth
 from .health_aggregate import _is_observed, classify
 from .health_full import gather_components
+from .mission_control_sessions import (
+    active_sessions as _active_sessions,
+    hourly_throughput_24h as _hourly_throughput_24h,
+    recent_completions as _recent_completions,
+)
 
 log = logging.getLogger("pi-ceo.mission_control")
 router = APIRouter(prefix="/api/mission-control", tags=["mission-control"])
@@ -48,91 +53,6 @@ def _linear_graphql(query: str, variables: dict | None = None) -> dict:
         return {}
 
 
-def _hourly_throughput_24h() -> list[int]:
-    try:
-        from .sessions import _sessions  # type: ignore
-
-        now = datetime.now(timezone.utc)
-        buckets = [0] * 24
-        for sess in (_sessions or {}).values():
-            status = getattr(sess, "status", None) or (sess.get("status") if isinstance(sess, dict) else None)
-            if status not in ("complete", "shipped", "done"):
-                continue
-            completed = getattr(sess, "completed_at", None) or (sess.get("completed_at") if isinstance(sess, dict) else None)
-            if not completed:
-                continue
-            try:
-                dt = completed if isinstance(completed, datetime) else datetime.fromisoformat(str(completed).replace("Z", "+00:00"))
-            except (TypeError, ValueError):
-                continue
-            hours_ago = int((now - dt).total_seconds() // 3600)
-            if 0 <= hours_ago < 24:
-                buckets[23 - hours_ago] += 1
-        return buckets
-    except Exception as exc:  # noqa: BLE001
-        log.debug("throughput read failed: %s", exc)
-        return [0] * 24
-
-
-def _active_sessions() -> list[dict]:
-    try:
-        from .sessions import _sessions  # type: ignore
-
-        out = []
-        now = datetime.now(timezone.utc)
-        for sid, sess in (_sessions or {}).items():
-            status = getattr(sess, "status", None) or (sess.get("status") if isinstance(sess, dict) else None)
-            if status not in ("created", "cloning", "building", "evaluating", "running"):
-                continue
-            started = getattr(sess, "started_at", None) or (sess.get("started_at") if isinstance(sess, dict) else None)
-            elapsed = 0
-            if started:
-                try:
-                    dt = started if isinstance(started, datetime) else datetime.fromisoformat(str(started).replace("Z", "+00:00"))
-                    elapsed = int((now - dt).total_seconds())
-                except (TypeError, ValueError):
-                    pass
-            out.append({
-                "id": sid[:12],
-                "repo": (getattr(sess, "repo_url", "") or "").split("/")[-1] or "?",
-                "phase": getattr(sess, "phase", None) or (sess.get("phase") if isinstance(sess, dict) else status),
-                "status": status,
-                "elapsed_s": elapsed,
-                "issue_id": getattr(sess, "linear_issue_id", None) or (sess.get("linear_issue_id") if isinstance(sess, dict) else None),
-                "last_log_tail": (getattr(sess, "last_log_line", "") or "")[:120],
-            })
-        return out
-    except Exception as exc:  # noqa: BLE001
-        log.debug("active sessions read failed: %s", exc)
-        return []
-
-
-def _recent_completions(limit: int = 6) -> list[dict]:
-    try:
-        from .sessions import _sessions  # type: ignore
-
-        completed = []
-        for sid, sess in (_sessions or {}).items():
-            status = getattr(sess, "status", None) or (sess.get("status") if isinstance(sess, dict) else None)
-            if status not in ("complete", "shipped", "done"):
-                continue
-            completed_at = getattr(sess, "completed_at", None) or (sess.get("completed_at") if isinstance(sess, dict) else None)
-            completed.append({
-                "id": sid[:12],
-                "repo": (getattr(sess, "repo_url", "") or "").split("/")[-1] or "?",
-                "branch": getattr(sess, "branch", None) or (sess.get("branch") if isinstance(sess, dict) else None),
-                "score": getattr(sess, "evaluator_score", None) or (sess.get("evaluator_score") if isinstance(sess, dict) else None),
-                "pr_url": getattr(sess, "pr_url", None) or (sess.get("pr_url") if isinstance(sess, dict) else None),
-                "issue_id": getattr(sess, "linear_issue_id", None) or (sess.get("linear_issue_id") if isinstance(sess, dict) else None),
-                "completed_at": str(completed_at) if completed_at else None,
-            })
-        completed.sort(key=lambda x: x.get("completed_at") or "", reverse=True)
-        return completed[:limit]
-    except Exception as exc:  # noqa: BLE001
-        log.debug("recent completions read failed: %s", exc)
-        return []
-
-
 def _queue_snapshot() -> dict:
     q = """
     {
@@ -153,7 +73,9 @@ def _queue_snapshot() -> dict:
 
 def _pulse_status() -> dict:
     try:
-        state_file = Path(__file__).resolve().parents[2] / ".harness" / "linear-pulse-state.json"
+        # This read parents[2] — <repo>/app — while linear_pulse writes to
+        # <repo>/.harness, so the heartbeat came from a path nothing ever wrote.
+        state_file = _repo_root() / ".harness" / "linear-pulse-state.json"
         state = json.loads(state_file.read_text()) if state_file.exists() else {}
     except Exception:  # noqa: BLE001
         state = {}
@@ -187,7 +109,7 @@ _OBSERVABILITY_ACTIONS = {
     "hermes_gateway": {"owner": "Hermes/Codex operator", "severity": "high", "next_action": "Start or repair the Mac Mini Hermes heartbeat writer so .harness/hermes/heartbeat.jsonl updates within five minutes.", "evidence_required": ["fresh heartbeat.jsonl row", "Mission Control fully_observed recalculation"]},
     "margot_route": {"owner": "Margot operator", "severity": "medium", "next_action": "Run a Margot turn or sync conversation evidence so .harness/margot/conversations has a fresh record.", "evidence_required": ["fresh Margot conversation JSONL", "last_turn_at within 24h"]},
     "openrouter": {"owner": "LLM routing steward", "severity": "medium", "next_action": "Generate a low-cost model-router heartbeat or restore the llm-cost log writer.", "evidence_required": ["fresh .harness/llm-cost.jsonl row"]},
-    "supabase": {"owner": "Data/CRM operator", "severity": "high", "next_action": "Implement or repair supabase_log.health_check so Mission Control proves Supabase writes are observable.", "evidence_required": ["supabase_log.health_check returns true", "integration health check evidence"]},
+    "supabase": {"owner": "Data/CRM operator", "severity": "high", "next_action": "Run supabase_health.health_check and repair whatever it reports so Mission Control proves Supabase reads are observable.", "evidence_required": ["supabase_health.health_check returns observed=true and ok=true", "integration health check evidence"]},
     "telegram_polling": {"owner": "Mobile/operator comms", "severity": "high", "next_action": "Start or repair Telegram polling heartbeat so .harness/telegram-poll-heartbeat updates within two minutes.", "evidence_required": ["fresh telegram-poll-heartbeat mtime", "operator alert route verified"]},
 }
 

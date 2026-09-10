@@ -46,7 +46,9 @@ function quietFallback(path: string, error: string, upstreamStatus = 502): Respo
     return Response.json(
       {
         ts: now,
-        throughput: { hourly_24h: Array.from({ length: 24 }, () => 0) },
+        // `hourly` is the backend's key. The fallback used to emit `hourly_24h`,
+        // and the panel followed the fallback rather than the backend.
+        throughput: { hourly: Array.from({ length: 24 }, () => 0) },
         active_sessions: [],
         recent_completions: [],
         queue: {

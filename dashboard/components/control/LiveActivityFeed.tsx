@@ -10,11 +10,17 @@
 
 import { useEffect, useState } from "react";
 
+import ThroughputSparkline from "./ThroughputSparkline";
+
 // ── Types ─────────────────────────────────────────────────────────────────
 interface LiveData {
   ts: string;
   error?: string;
-  throughput: { hourly_24h: number[] };
+  // The backend key is `hourly` (app/server/routes/mission_control.py). This read
+  // `hourly_24h`, which only the proxy's offline fallback ever produced — so the
+  // panel rendered when the backend was down and threw when it was up. Optional so
+  // a partial payload degrades instead of taking the cockpit down.
+  throughput?: { hourly?: number[] };
   active_sessions: Array<{
     id: string;
     repo: string;
@@ -79,49 +85,6 @@ function fmtAgo(iso: string | null): string {
   if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   return `${Math.floor(s / 3600)}h ago`;
-}
-
-// ── Sparkline (SVG, no deps) ──────────────────────────────────────────────
-function Sparkline({ data }: { data: number[] }) {
-  const w = 200;
-  const h = 40;
-  const max = Math.max(...data, 1);
-  const step = w / (data.length - 1 || 1);
-  const points = data
-    .map((v, i) => `${(i * step).toFixed(1)},${(h - (v / max) * h).toFixed(1)}`)
-    .join(" ");
-  const fillPoints = `0,${h} ${points} ${w},${h}`;
-  const total = data.reduce((a, b) => a + b, 0);
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-bold text-cyan-400 tabular-nums">{total}</span>
-        <span className="text-xs text-text-muted">sessions / 24h</span>
-      </div>
-      <svg width={w} height={h} className="overflow-visible">
-        <polygon points={fillPoints} fill="rgb(6 182 212 / 0.15)" />
-        <polyline
-          points={points}
-          fill="none"
-          stroke="rgb(6 182 212)"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-        {data.map((v, i) =>
-          v > 0 ? (
-            <circle
-              key={i}
-              cx={(i * step).toFixed(1)}
-              cy={(h - (v / max) * h).toFixed(1)}
-              r="2"
-              fill="rgb(6 182 212)"
-            />
-          ) : null
-        )}
-      </svg>
-    </div>
-  );
 }
 
 // ── Phase pill ────────────────────────────────────────────────────────────
@@ -251,7 +214,7 @@ export default function LiveActivityFeed() {
             {/* Throughput */}
             <div>
               <div className="text-xs uppercase text-text-muted mb-1">24h throughput</div>
-              <Sparkline data={data.throughput.hourly_24h} />
+              <ThroughputSparkline data={data.throughput?.hourly ?? []} />
             </div>
 
             {/* Queue */}
