@@ -129,6 +129,29 @@ if [ -f dashboard/package.json ]; then
     || { [ "$NODE_OK" = 1 ] || skip "lint-dashboard" "node_modules absent"; }
 fi
 
+# 5b. Size gates — the CI job "Size gates (file + function length)".
+#
+# These were absent here until 2026-09-10, and their absence produced the exact
+# failure this runner exists to prevent: a branch was green under `handoff-loop.sh`
+# and would have failed CI, because none of the 18 gates was a size check. A false
+# green is worse than a red — a red stops you, a false green ships.
+#
+# The omission was found by tripping over it, and the whole list was then compared
+# mechanically rather than patching the one that bit: CI gated on FIVE commands this
+# runner never ran, not one. `.github/scripts/gate_parity_lint.py` now fails if that
+# set ever diverges again, so this cannot rot back silently.
+#
+# baseline_ratchet.py defaults BASELINE_BASE_SHA to origin/main, which is what CI
+# passes explicitly from the PR event — so no env var is needed here.
+if [ -d .github/scripts ]; then
+  [ "$PY_OK" = 1 ] && gate "size-baseline-ratchet" "$PY" .github/scripts/baseline_ratchet.py \
+    || skip "size-baseline-ratchet" "python deps absent"
+  [ "$PY_OK" = 1 ] && gate "size-file-length" "$PY" .github/scripts/file_length_lint.py \
+    || skip "size-file-length" "python deps absent"
+  [ "$PY_OK" = 1 ] && gate "size-function-length" "$PY" .github/scripts/function_length_lint.py \
+    || skip "size-function-length" "python deps absent"
+fi
+
 # 6. Tests (skipped by --quick).
 #
 # test_sdk_phase2.py was excluded here as "needs claude_agent_sdk (CI-only)". That is not
@@ -146,6 +169,19 @@ else
   if [ -d swarm ]; then
     [ "$PY_OK" = 1 ] && gate "tests-swarm" "$PY" -m pytest swarm/ -q \
       || { [ "$PY_OK" = 1 ] || skip "tests-swarm" "python deps absent"; }
+  fi
+  # Two more CI steps this runner never stood in for, found by the same list
+  # comparison that surfaced the size gates.
+  if [ -f aip/src/mcp/test_run.sh ]; then
+    gate "tests-aip-mcp" bash aip/src/mcp/test_run.sh
+  else
+    skip "tests-aip-mcp" "aip/src/mcp/test_run.sh absent"
+  fi
+  if [ -f scripts/test_sync_claude_sessions.py ]; then
+    [ "$PY_OK" = 1 ] && gate "tests-transcript-redaction" "$PY" scripts/test_sync_claude_sessions.py \
+      || skip "tests-transcript-redaction" "python deps absent"
+  else
+    skip "tests-transcript-redaction" "scripts/test_sync_claude_sessions.py absent"
   fi
   if [ -f dashboard/package.json ]; then
     [ "$NODE_OK" = 1 ] && gate "tests-dashboard" bash -c 'cd dashboard && CI=1 npm run --silent test' \
