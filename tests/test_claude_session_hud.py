@@ -113,6 +113,30 @@ def test_invalid_utf8_state_file_is_skipped_not_fatal(tmp_path, monkeypatch):
     assert result["sessions"][0]["session_id"] == "good1"
 
 
+def test_non_object_json_state_file_is_skipped_not_fatal(tmp_path, monkeypatch):
+    """P1 found by independent review: a state file holding valid JSON that is
+    NOT an object (e.g. a bare `[]`) made `raw.get("ts")` raise AttributeError,
+    since `.get()` only exists on dicts."""
+    monkeypatch.setattr(hud, "CEILING_DIR", tmp_path)
+    (tmp_path / "notadict.json").write_text("[]")
+    _write(tmp_path, "good1", ts=int(time.time()), used_tokens=1, window=1, pct=1.0, stage="ok", cwd="/x")
+    result = hud.claude_session_hud()
+    assert result["available"] is True
+    assert result["counts"]["live"] == 1
+    assert result["sessions"][0]["session_id"] == "good1"
+
+
+def test_non_string_cwd_does_not_crash(tmp_path, monkeypatch):
+    """P1 found by independent review: `Path(cwd)` raises TypeError when `cwd`
+    is not a string (e.g. a stray integer), which crashed the whole panel."""
+    monkeypatch.setattr(hud, "CEILING_DIR", tmp_path)
+    _write(tmp_path, "weird1", ts=int(time.time()), used_tokens=1, window=1, pct=1.0, stage="ok", cwd=123)
+    result = hud.claude_session_hud()
+    assert result["available"] is True
+    assert result["counts"]["live"] == 1
+    assert result["sessions"][0]["project"] is None
+
+
 def test_turn_zero_session_with_null_pct_does_not_crash(tmp_path, monkeypatch):
     """Negative control: the hook itself writes pct=null for turn-zero /
     estimator-unavailable sessions — the reader must not assume a number."""

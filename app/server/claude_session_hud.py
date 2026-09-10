@@ -45,16 +45,22 @@ def _read_one(path: Path, now: float) -> dict | None:
         # corrupt file, never crash the whole panel.
         log.debug("claude_session_hud: unreadable state file %s: %s", path.name, exc)
         return None
+    if not isinstance(raw, dict):
+        # Valid JSON, wrong shape (e.g. a bare `[]` or `"x"`) — `.get()` below
+        # would raise AttributeError on anything that isn't a dict.
+        log.debug("claude_session_hud: non-object state file %s", path.name)
+        return None
     ts = raw.get("ts")
     if not isinstance(ts, (int, float)):
         return None
     age_s = now - ts
     if age_s > LIVE_WINDOW_S or age_s < 0:
         return None
-    cwd = raw.get("cwd") or ""
+    cwd = raw.get("cwd")
+    project = Path(cwd).name if isinstance(cwd, str) and cwd else None
     return {
         "session_id": raw.get("session_id", path.stem),
-        "project": Path(cwd).name if cwd else None,
+        "project": project,
         "stage": raw.get("stage"),
         "pct": raw.get("pct"),
         "used_tokens": raw.get("used_tokens"),
