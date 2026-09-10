@@ -370,18 +370,13 @@ export default function BuildsPage() {
 
   const fetchSessions = useCallback(async () => {
     try {
-      // The proxy answers 200 with `[]` when the backend is down. That used to
-      // render as "no builds" — a real answer — instead of an error.
-      // See lib/pi-ceo-fetch.ts.
+      // 200-with-`[]` from the proxy used to read as "no builds" — lib/pi-ceo-fetch.ts.
       const r = await fetchProxy<PiSession[]>("/api/sessions");
       if (!r.ok) {
-        setError(r.reason === "unreachable"
-          ? "Pi-CEO backend unreachable"
-          : `HTTP ${r.upstreamStatus ?? "error"}`);
+        setError(r.reason === "unreachable" ? "Pi-CEO backend unreachable" : `HTTP ${r.upstreamStatus ?? "error"}`);
         return;
       }
-      const data = r.data;
-      setSessions(data.sort((a, b) => b.started - a.started));
+      setSessions(r.data.sort((a, b) => b.started - a.started));
       setError(null);
       setLastFetch(Date.now());
     } catch (e) {

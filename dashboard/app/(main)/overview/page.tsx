@@ -4,6 +4,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import {
+  formatUptime, repoShort, skillFromPhase, statusDot,
+} from "@/lib/control/overview-format";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 //
@@ -47,45 +50,6 @@ interface PiSession {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatUptime(s: number): string {
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
-  return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
-}
-
-function repoShort(repo: string): string {
-  try {
-    const parts = new URL(repo).pathname.replace(/^\//, "").split("/");
-    return parts.slice(0, 2).join("/");
-  } catch {
-    return repo.replace(/^https?:\/\/[^/]+\//, "").slice(0, 40);
-  }
-}
-
-function skillFromPhase(phase?: string): string {
-  if (!phase) return "Initialising";
-  const map: Record<string, string> = {
-    clone: "Checkout",
-    build: "Code Review",
-    scan: "Security Scan",
-    test: "QA",
-    evaluate: "ZTE Eval",
-    ship: "Deploy",
-    push: "Git Push",
-  };
-  for (const [key, label] of Object.entries(map)) {
-    if (phase.toLowerCase().includes(key)) return label;
-  }
-  return phase;
-}
-
-function statusDot(status: string): string {
-  if (["cloning", "building", "evaluating"].includes(status)) return "var(--accent)";
-  if (status === "complete" || status === "done") return "var(--success)";
-  if (status === "failed" || status === "error") return "var(--error)";
-  return "var(--text-dim)";
-}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -200,9 +164,8 @@ export default function OverviewPage() {
   useEffect(() => {
     async function load() {
       try {
-        // null when the backend did not answer, including the proxy's 200 with
-        // placeholder data. Leaves the previous reading in place rather than
-        // overwriting it with zeros. See lib/pi-ceo-fetch.ts.
+        // null = backend silent (incl. the proxy's 200 placeholder). Keeps the
+        // last good reading rather than zeroing it — lib/pi-ceo-fetch.ts.
         const [h, s] = await Promise.all([
           fetchProxyJSON<HealthData>("/health"),
           fetchProxyJSON<PiSession[]>("/api/sessions"),

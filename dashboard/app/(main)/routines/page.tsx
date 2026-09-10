@@ -3,6 +3,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { fetchProxy } from "@/lib/pi-ceo-fetch";
+import {
+  STATUS_COLOR, STATUS_ICON, TRIGGER_LABEL, fmtDuration, fmtTs, repoShort,
+} from "@/lib/control/routine-format";
 
 interface RoutineRun {
   routine_name: string;
@@ -20,48 +23,6 @@ interface RoutineRunsResponse {
   total: number;
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  success: "#4ADE80",
-  failure: "#F87171",
-  timeout: "#FFD166",
-};
-
-const STATUS_ICON: Record<string, string> = {
-  success: "✓",
-  failure: "✗",
-  timeout: "⏱",
-};
-
-const TRIGGER_LABEL: Record<string, string> = {
-  api:      "API",
-  schedule: "Sched",
-  github:   "GitHub",
-};
-
-function fmtDuration(s: number): string {
-  if (s < 60) return `${Math.round(s)}s`;
-  const m = Math.floor(s / 60);
-  const rem = Math.round(s % 60);
-  return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
-}
-
-function fmtTs(ts: string): string {
-  if (!ts) return "—";
-  try {
-    return new Date(ts).toLocaleString(undefined, {
-      month:  "short",
-      day:    "2-digit",
-      hour:   "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return ts;
-  }
-}
-
-function repoShort(repo: string): string {
-  return repo.split("/").slice(-1)[0] ?? repo;
-}
 
 function SummaryBar({ runs }: { runs: RoutineRun[] }) {
   const today = new Date().toISOString().slice(0, 10);
@@ -229,14 +190,11 @@ export default function RoutinesPage() {
 
   const fetchRuns = useCallback(async () => {
     try {
-      // The proxy answers 200 with `{runs: [], total: 0}` when the backend is
-      // down, which rendered as "no routines have run" — a claim about the
-      // scheduler nothing had observed. See lib/pi-ceo-fetch.ts.
+      // 200-with-empty from the proxy used to read as "no routines have run",
+      // a claim about the scheduler nothing observed — lib/pi-ceo-fetch.ts.
       const r = await fetchProxy<RoutineRunsResponse>("/api/routines?limit=50");
       if (!r.ok) {
-        setError(r.reason === "unreachable"
-          ? "Pi-CEO backend unreachable"
-          : `HTTP ${r.upstreamStatus ?? "error"}`);
+        setError(r.reason === "unreachable" ? "Pi-CEO backend unreachable" : `HTTP ${r.upstreamStatus ?? "error"}`);
         return;
       }
       const data = r.data;

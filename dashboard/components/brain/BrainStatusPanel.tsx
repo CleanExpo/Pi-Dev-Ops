@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import CopyBlock from "@/components/brain/CopyBlock";
 import {
   BRAIN_STATUS,
   type BrainChecklistItem,
@@ -25,50 +26,6 @@ function Pill({ status }: { status: BrainItemStatus }) {
     >
       {s.label}
     </span>
-  );
-}
-
-function CopyBlock({ lines }: { lines: string[] }) {
-  const [copied, setCopied] = useState(false);
-  const text = lines.join("\n");
-
-  const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard denied */
-    }
-  }, [text]);
-
-  if (!lines.length) return null;
-
-  return (
-    <div className="mt-2 relative">
-      <pre
-        className="text-xs p-3 rounded overflow-x-auto font-mono"
-        style={{
-          background: "var(--background)",
-          border: "1px solid var(--border)",
-          color: "var(--text)",
-        }}
-      >
-        {text}
-      </pre>
-      <button
-        type="button"
-        onClick={() => void copy()}
-        className="absolute top-2 right-2 text-[10px] font-medium px-2 py-1 rounded"
-        style={{
-          background: "var(--panel)",
-          border: "1px solid var(--border)",
-          color: copied ? "var(--success)" : "var(--text-muted)",
-        }}
-      >
-        {copied ? "Copied" : "Copy"}
-      </button>
-    </div>
   );
 }
 
@@ -153,17 +110,11 @@ function LiveObsidianStatus() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      // This had NO status check at all: whatever the proxy returned was set as
-      // the Obsidian health reading, including the placeholder body it sends
-      // when the backend is unreachable. See lib/pi-ceo-fetch.ts.
-      const data = await fetchProxyJSON<ObsidianHealth>(
-        "/api/health/obsidian", { cache: "no-store" },
-      );
-      if (!data) {
-        setErr(true);
-        return;
-      }
-      setH(data);
+      // Had NO status check: the proxy's placeholder body was set as the
+      // Obsidian health reading — lib/pi-ceo-fetch.ts.
+      const d = await fetchProxyJSON<ObsidianHealth>("/api/health/obsidian", { cache: "no-store" });
+      if (!d) { setErr(true); return; }
+      setH(d);
       setErr(false);
     } catch {
       setErr(true);

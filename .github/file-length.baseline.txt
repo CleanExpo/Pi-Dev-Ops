@@ -75,7 +75,6 @@
 529	6ac53a6a18cf	tests/test_margot_propose_idea.py
 528	3be9e0814960	tests/test_persistent_goals.py
 527	2f12de155db0	scripts/idea_expansion.py
-525	6d34158cb982	dashboard/app/(main)/overview/page.tsx
 524	426f53c64ed2	tests/test_mesh_runner_idle_autoclaim.py
 523	27da9bf1fa11	scripts/smoke_test.py
 523	0e56be8304a3	tests/swarm/test_tmux_observer.py
@@ -88,8 +87,9 @@
 506	ce4b4287fba8	tests/test_board.py
 504	3d9681a1e148	tests/swarm/nexus/test_onboarding.py
 502	d3b2fcc37978	aip/src/mcp/server.ts
+492	2fa9dd71270a	dashboard/app/(main)/overview/page.tsx
 485	cd8b890b3644	dashboard/components/control/KillSwitchPanel.tsx
-479	9bee86acd4ef	dashboard/app/(main)/builds/page.tsx
+479	c00380eb397f	dashboard/app/(main)/builds/page.tsx
 476	e536287edb18	tests/test_gap_audit_scout_dedup.py
 472	97801133f421	swarm/bots/builder.py
 467	0a286e60322a	app/server/session_sdk.py
@@ -150,7 +150,6 @@
 351	62df4ebbf8a6	swarm/production_coordinator.py
 348	edfe25d460ea	swarm/inbox/__tests__/test_botfather_minter.py
 347	5f2e10412837	aip/src/seed/portfolio-expansion-2026-05-11.ts
-345	0b92b64e3b82	dashboard/app/(main)/routines/page.tsx
 344	6f67b5f426e8	app/server/tao_codebase_wiki.py
 344	0c15b2a671cc	swarm/research_provider.py
 343	c745e8538ebd	aip/src/seed/audit-2026-05-11.ts
@@ -162,7 +161,6 @@
 338	6894f2c70267	swarm/providers/zendesk.py
 336	e8cb54339857	swarm/wiki_lint.py
 336	9c0e810d387d	tests/test_ra6502_linear_outbound.py
-335	f25372acf685	dashboard/components/brain/BrainStatusPanel.tsx
 334	bbbf7ab1485b	app/server/provider_nex_n2.py
 333	82d65e85eb34	swarm/portfolio_pulse_synthesis.py
 333	c5d6e45a8935	tests/swarm/nexus/test_scheduler.py
@@ -191,6 +189,7 @@
 310	58b8f2a179e5	scripts/marathon_telegram_inbox.py
 310	c49bdf057efe	tests/test_workspace_verify.py
 309	cc5e4753ef0f	swarm/kanban_adapter.py
+308	d3ba67fc0ed7	dashboard/app/(main)/routines/page.tsx
 308	6d6f5ddd3b9e	dashboard/components/control/SpecPipelinePanel.tsx
 304	3482f2377a1a	app/server/pi_ceo_docparser.py
 303	9bb64138ff5f	claude-hooks-mirror/Stop/02_autonomous_continue.py
