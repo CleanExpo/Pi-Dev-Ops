@@ -101,16 +101,27 @@ def ci_steps(wf: Path) -> list[tuple[str, str]]:
     Deliberately regex rather than a YAML parser: this repo has no yaml dependency
     in its CI-time environment, and the shapes here are the two GitHub emits. A
     step whose name cannot be read is reported, never skipped.
+
+    Every list item (`- ...`) starts a NEW step, so `name` is reset there first —
+    otherwise an unnamed step inherits the PREVIOUS step's name and map exemption.
+    `name:` still requires the leading `-`, which is what tells a step's own name
+    apart from a job- or workflow-level `name:` key at the same indent (a bare
+    `name:` regex misread `jobs.<job>.name` as a step). `run:` gets an OPTIONAL
+    leading `-` so the combined one-line form (`- run: cmd`, no separate name)
+    is seen too — the old pattern needed `run:` to start the line, so that form
+    was invisible. See `tests/test_gate_parity_lint.py` for both fixtures.
     """
     steps: list[tuple[str, str]] = []
     lines = wf.read_text().split("\n")
     name = ""
     for i, ln in enumerate(lines):
+        if re.match(r"\s*-\s", ln):
+            name = ""
         m = re.match(r"\s*- name:\s*(.+?)\s*$", ln)
         if m:
             name = m.group(1)
             continue
-        m = re.match(r"\s*run:\s*(.*)$", ln)
+        m = re.match(r"\s*-?\s*run:\s*(.*)$", ln)
         if not m:
             continue
         cmd = m.group(1).strip()

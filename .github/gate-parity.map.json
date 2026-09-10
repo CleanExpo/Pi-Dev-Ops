@@ -93,6 +93,9 @@
     "ci.yml::Proxy fallback gate (a failed read is never an empty read)": {
       "local_gate": "size-proxy-fallback"
     },
+    "ci.yml::Gate parity (every CI step must be covered locally or exempted)": {
+      "local_gate": "gate-parity"
+    },
     "ci.yml::Run smoke test against production": {
       "local_gate": "not-runnable-locally",
       "reason": "probes the live Railway deployment. Runs after merge, so no local gate can predict it — and by design nothing on a laptop should be able to."
