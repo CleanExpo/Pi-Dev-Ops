@@ -116,6 +116,76 @@ def test_active_session_with_no_output_has_an_empty_tail_not_a_crash():
     assert mission_control._active_sessions()[0]["last_log_tail"] == ""
 
 
+# ── Timestamp coercion (independent review round 1, P1) ──────────────────────
+
+def test_all_digit_iso_dates_are_not_read_as_epoch_seconds():
+    """`float("20260910")` succeeds, so trying epoch-first turned the basic ISO
+    spelling into 1970-08-23. Found by independent review; reproduced before
+    this test existed."""
+    from app.server.routes.mission_control_sessions import as_datetime
+
+    assert as_datetime("20260910").date().isoformat() == "2026-09-10"
+    assert as_datetime("20260910T120000").date().isoformat() == "2026-09-10"
+    assert as_datetime("2026-09-10T12:00:00+00:00").date().isoformat() == "2026-09-10"
+
+
+def test_a_number_too_small_to_be_a_timestamp_is_unknown_not_1970():
+    """A bare "2026" is not a valid ISO date and is not a plausible epoch either.
+    Guessing 1970 puts a wrong date on the panel; None says "unknown", which is
+    what it is."""
+    from app.server.routes.mission_control_sessions import as_datetime
+
+    assert as_datetime("2026") is None
+    assert as_datetime(2026) is None
+
+
+def test_an_unset_timestamp_is_unknown_not_1970():
+    """BuildSession.started_at defaults to 0.0 meaning "never started". The old
+    code guarded this with a falsy check; coercion must keep that, or every
+    unstarted session reports ~56 years of elapsed time."""
+    from app.server.routes.mission_control_sessions import as_datetime
+
+    assert as_datetime(0.0) is None
+    assert as_datetime(0) is None
+
+
+def test_unstarted_session_reports_zero_elapsed_not_five_decades():
+    sess = BuildSession(repo_url="https://github.com/CleanExpo/Pi-Dev-Ops")
+    sess.status = "created"  # started_at is still the 0.0 default
+    _sessions["unstarted"] = sess
+    assert mission_control._active_sessions()[0]["elapsed_s"] == 0
+
+
+def test_epoch_values_still_parse_as_epochs():
+    """Negative control for the fixes above: the epoch path must still work."""
+    from app.server.routes.mission_control_sessions import as_datetime
+
+    assert as_datetime("1757483000.5").year == 2025
+    assert as_datetime(1757483000.5).year == 2025
+    assert as_datetime("not-a-time") is None
+    assert as_datetime(None) is None
+
+
+# ── Terminal statuses other than 'complete' (review round 1, P1) ─────────────
+
+def test_a_failed_session_also_records_when_it_ended():
+    """mark_complete hardcoded 'complete', so nothing else that ends a session
+    could record a timestamp without lying about its status."""
+    sess = BuildSession(repo_url="https://github.com/CleanExpo/Pi-Dev-Ops")
+    session_model.mark_terminal(sess, "failed")
+    assert sess.status == "failed"
+    assert isinstance(sess.completed_at, float)
+
+
+def test_a_failed_session_is_not_counted_as_throughput():
+    """Negative control: recording WHEN it ended must not make it look shipped."""
+    sess = BuildSession(repo_url="https://github.com/CleanExpo/Pi-Dev-Ops")
+    session_model.mark_terminal(sess, "failed")
+    _sessions["failed-one"] = sess
+    assert sum(mission_control._hourly_throughput_24h()) == 0
+    assert mission_control._recent_completions() == []
+
+
 # ── C: the pulse reader must read the file the pulse writer writes ────────────
 
 def test_pulse_reads_the_path_the_writer_writes(tmp_path, monkeypatch):

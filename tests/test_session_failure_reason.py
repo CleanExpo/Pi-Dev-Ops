@@ -154,9 +154,20 @@ def test_no_terminal_path_bypasses_the_helper():
         for n, line in enumerate(source.splitlines(), 1)
         if assignment.match(line)
     ]
-    # The only permitted assignment is the one inside _fail_phase itself.
-    assert len(offenders) == 1, (
+    # Was 1: _fail_phase's own assignment. It now delegates to
+    # session_model.mark_terminal, which stamps completed_at alongside the
+    # status so the two cannot drift apart. So ZERO direct assignments are
+    # permitted anywhere — a strictly tighter bound than before, not a relaxed
+    # one. The guard's point is unchanged: no path may reach the terminal state
+    # without going through the helper that records WHY.
+    assert offenders == [], (
         f"terminal failure(s) bypassing _fail_phase (error would persist as ''): {offenders}"
+    )
+    # …and the helper must still be the thing that sets it, or the assertion
+    # above would also pass on a module that never fails a session at all.
+    assert 'mark_terminal(session, "failed")' in source, (
+        "_fail_phase no longer routes the terminal status through mark_terminal; "
+        "the check above would then be vacuously green"
     )
 
 

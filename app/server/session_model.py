@@ -77,15 +77,26 @@ class BuildSession:
     phase_metrics: dict = field(default_factory=dict)  # RA-1032: per-phase {duration_s, cost_usd}
 
 
-def mark_complete(session: "BuildSession") -> None:
-    """Move a session to its terminal 'complete' state and record when.
+def mark_terminal(session: "BuildSession", status: str) -> None:
+    """Move a session to a terminal state and record when it got there.
 
-    One function so the status and the timestamp can never drift apart — the
-    previous code set the status in one place and the timestamp nowhere, which
-    is why every throughput bucket read zero.
+    One function so status and timestamp can never drift apart — the previous
+    code set the status in one place and the timestamp nowhere, which is why
+    every throughput bucket read zero.
+
+    `completed_at` means "when this session stopped", not "when it succeeded":
+    a failed or blocked session has an end time too, and only recording it for
+    the happy path is how the drift came back. Which statuses a panel COUNTS is
+    the panel's business — Mission Control's throughput still counts complete /
+    shipped / done only.
     """
-    session.status = "complete"
+    session.status = status
     session.completed_at = time.time()
+
+
+def mark_complete(session: "BuildSession") -> None:
+    """The success path. Kept as a name because it reads better at the call site."""
+    mark_terminal(session, "complete")
 
 
 # ── In-memory session store ────────────────────────────────────────────────────

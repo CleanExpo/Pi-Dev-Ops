@@ -31,33 +31,49 @@ def _field(sess, name, default=None):
     return default if value is None else value
 
 
+# 1973-03-03. Below this, a number is not a timestamp — it is a year, a count,
+# or the 0.0 that BuildSession.started_at defaults to when nothing has started.
+# Guessing 1970 puts a confidently wrong date on the panel; None says "unknown",
+# which is what it actually is.
+_MIN_PLAUSIBLE_EPOCH = 10**8
+
+
+def _from_epoch(number: float) -> datetime | None:
+    if abs(number) < _MIN_PLAUSIBLE_EPOCH:
+        return None
+    try:
+        return datetime.fromtimestamp(number, tz=timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
 def as_datetime(value) -> datetime | None:
     """Coerce a session timestamp to an aware datetime, or None if it is not one.
 
-    Sessions store `started_at` / `completed_at` as EPOCH FLOATS. These were fed
-    to datetime.fromisoformat() inside a bare except, so every parse failed
-    silently and every elapsed time rendered as 0. Epoch numbers are the common
-    case here, so they are handled first and explicitly.
+    Sessions store `started_at` / `completed_at` as EPOCH FLOATS. These used to
+    be fed to datetime.fromisoformat() inside a bare except, so every parse
+    failed silently and every elapsed time rendered as 0.
+
+    Strings are tried as ISO FIRST. Epoch-first reads naturally — the store
+    holds floats — but float("20260910") succeeds, so the basic ISO spelling
+    was silently read as epoch seconds and landed in 1970-08-23.
     """
     if value is None or value == "":
         return None
     if isinstance(value, datetime):
         return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
     if isinstance(value, (int, float)):
-        try:
-            return datetime.fromtimestamp(float(value), tz=timezone.utc)
-        except (OverflowError, OSError, ValueError):
-            return None
+        return _from_epoch(float(value))
     text = str(value)
     try:
-        return datetime.fromtimestamp(float(text), tz=timezone.utc)
+        dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
     except ValueError:
         pass
     try:
-        dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        return _from_epoch(float(text))
     except ValueError:
         return None
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def iso(value) -> str | None:

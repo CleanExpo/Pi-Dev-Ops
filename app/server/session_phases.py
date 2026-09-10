@@ -39,7 +39,7 @@ from .brief import classify_intent, build_structured_brief, scan_repo_context
 from .lessons import append_lesson, load_lessons, extract_lesson_from_eval, append_lesson_dedup
 from .supabase_log import log_gate_check
 from .session_recorder import record_episode, retrieve_similar_episodes, format_episodes_as_context
-from .session_model import em, mark_complete
+from .session_model import em, mark_complete, mark_terminal
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
 from .session_evaluator import (
     _parse_evaluator_dimensions,
@@ -542,7 +542,7 @@ def _fail_phase(session, reason: str) -> None:
     """
     em(session, "error", f"  {reason}")
     session.error = reason[:500]
-    session.status = "failed"
+    mark_terminal(session, "failed")
     persistence.save_session(session)
 
 
@@ -798,7 +798,7 @@ def _block_plan_phase(session, phase_start: float, reason: str) -> bool:
     em(session, "error", f"  {message}")
     session.plan = ""
     session.error = message[:500]
-    session.status = "blocked"
+    mark_terminal(session, "blocked")
     persistence.save_session(session)
     _emit_phase_metric(session, "plan", phase_start)
     return False
@@ -1923,7 +1923,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     adversary_ok, _adv_verdict = await _phase_adversary(session, total_phases)
     if not adversary_ok:
         session.last_completed_phase = "adversary_block"
-        session.status = "blocked"
+        mark_terminal(session, "blocked")
         session.adversary_verdict = _adv_verdict
         persistence.save_session(session)
         _sync_linear_on_completion(session)
