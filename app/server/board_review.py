@@ -35,7 +35,13 @@ RunCmd = Callable[..., Awaitable[tuple[int, str, str]]]
 
 log = logging.getLogger("pi-ceo.board_review")
 
-RECEIPT_RELPATH = Path(".harness") / "board-review" / "receipt.json"
+# Inside `.git/`, deliberately, and NOT in the working tree. The receipt is build
+# metadata about a sha, not source. In the tree it did two kinds of damage: `git
+# status` reported it, so the push phase's "nothing changed since the review" check
+# saw the gate's own artefact as an unreviewed change; and `git add -A` would sweep
+# it into the target repo's next commit. `git status` never reports `.git/`, and
+# nothing can commit from there. Same reasoning as `.git/pr-release-gate.json`.
+RECEIPT_RELPATH = Path(".git") / "pi-ceo-board-review.json"
 
 # Verdicts that permit a push. Anything else — BLOCK, UNKNOWN, a typo, a verdict
 # string this module has never heard of — refuses, because an unrecognised verdict
@@ -124,6 +130,54 @@ def check(workspace: str | Path, head_sha: str) -> GateResult:
     return GateResult(True, f"board-review {verdict} bound to {head_sha[:12]}")
 
 
+# git's well-known empty-tree object. A workspace with no commits has no HEAD to diff
+# against; diffing this shows the whole tree as added, which is what a first commit is.
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+
+async def _tree_dirty(workspace: str, run_cmd: RunCmd) -> bool:
+    """True when the working tree holds content the reviewer never saw.
+
+    An unreadable status counts as dirty. Absence is never a pass.
+    """
+    try:
+        rc, out, _ = await run_cmd(workspace, "git", "status", "--porcelain")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("board-review could not read status: %s", exc)
+        return True
+    return rc != 0 or bool(out.strip())
+
+
+async def commit_build_output(workspace: str, run_cmd: RunCmd) -> str:
+    """Commit what the build produced; return the sha the build started from.
+
+    THE UNIT 2 P0 LIVED IN THE ORDER OF THESE TWO STEPS. This commit used to happen
+    at the top of `_phase_push`, which is AFTER the adversary phase wrote the receipt.
+    The commit moved HEAD, so the receipt bound to the pre-commit sha and the gate
+    compared the post-commit one. They can never match when a session produced work —
+    so the gate refused every real build and passed only the ones with nothing to
+    commit. Committing before the review means one sha covers both.
+
+    It also closes a second hole: `git diff HEAD` does not show untracked files, so a
+    build made entirely of NEW files reviewed as "no diff" and was skipped. Staging
+    first puts those files inside the reviewed range.
+    """
+    rc, base, _ = await run_cmd(workspace, "git", "rev-parse", "HEAD", timeout=10)
+    base = base.strip() if rc == 0 and base.strip() else EMPTY_TREE
+    if await _tree_dirty(workspace, run_cmd):
+        await run_cmd(workspace, "git", "add", "-A")
+        await run_cmd(workspace, "git", "commit", "-m", "feat: Pi CEO build")
+    return base
+
+
+async def review_diff(workspace: str, run_cmd: RunCmd) -> tuple[str, str]:
+    """Commit the build, then return (diff, --stat) over the range it added."""
+    base = await commit_build_output(workspace, run_cmd)
+    _, diff_out, _ = await run_cmd(workspace, "git", "diff", base, "HEAD", "--")
+    _, stat_out, _ = await run_cmd(workspace, "git", "diff", "--stat", base, "HEAD")
+    return diff_out, stat_out
+
+
 async def _head(workspace: str, run_cmd: RunCmd) -> str:
     try:
         _, out, _ = await run_cmd(workspace, "git", "rev-parse", "HEAD", timeout=10)
@@ -145,6 +199,10 @@ async def allows_push(session, run_cmd: RunCmd, em) -> bool:
     line, not ten — the repo's size ratchet is a real constraint and a gate is not
     a licence to fatten a 2000-line module.
     """
+    if await _tree_dirty(session.workspace, run_cmd):
+        em(session, "error",
+           "  PUSH REFUSED — changes appeared after the review, so they are unreviewed")
+        return False
     gate = await check_head(session.workspace, run_cmd)
     em(session, "error" if not gate.allowed else "system",
        f"  PUSH REFUSED — {gate.reason}" if not gate.allowed else f"  Board-review gate: {gate.reason}")

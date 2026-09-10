@@ -1500,14 +1500,13 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     phase_start = time.monotonic()
     em(session, "phase", "[Adversary] Opus 4.7 challenging Sonnet's work...")
 
-    # ── Get diff to review ───────────────────────────────────────────────
-    rc, diff_out, _ = await run_cmd(session.workspace, "git", "diff", "HEAD", "--")
+    # ── Commit the build, then get the diff to review ────────────────────
+    diff_out, stat_out = await board_review.review_diff(session.workspace, run_cmd)
     if not diff_out.strip():
         return await _skip_adversary(session, phase_start, "SKIP_NO_DIFF",
                                      "  No diff to review — skipping adversary phase", concerns=[])
 
     # ── Skip on docs-only / test-only diffs (low signal-to-cost) ────────
-    rc, stat_out, _ = await run_cmd(session.workspace, "git", "diff", "--stat", "HEAD")
     files_changed = [
         line.split("|")[0].strip()
         for line in stat_out.strip().split("\n")
@@ -1618,13 +1617,10 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
     em(session, "phase", f"[{total_phases}/{total_phases}] Pushing to GitHub...")
     af: list[str] = []
     try:
-        rc, out, _ = await run_cmd(session.workspace, "git", "status", "--porcelain")
-        if out.strip():
-            await run_cmd(session.workspace, "git", "add", "-A")
-            await run_cmd(session.workspace, "git", "commit", "-m", "feat: Pi CEO build")
-
-        # Unit 2 gate, checked AFTER the commit above because that commit is what
-        # would be pushed; binding earlier would wave through whatever it added.
+        # Unit 2: the build was committed in `board_review.review_diff`, BEFORE the
+        # adversary reviewed it, so HEAD here is the sha the receipt binds to. This
+        # phase must not commit — doing so moved HEAD past the receipt and refused
+        # every session that produced work. The gate now also refuses a dirty tree.
         if not await board_review.allows_push(session, run_cmd, em):
             return af, False
         _, out, _ = await run_cmd(session.workspace, "git", "log", "--oneline", "-10")
