@@ -2,8 +2,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { fetchProxy } from "@/lib/pi-ceo-fetch";
+import { fmtAge, getJSON } from "@/lib/control/margot-assets-api";
 
-const API = "/api/pi-ceo/api/margot/assets";
+// Path WITHOUT the /api/pi-ceo prefix: fetchProxy adds it. The POST below
+// still spells the prefix out, because quietFallback only fires for GET.
+const API = "/api/margot/assets";
 
 interface OptionsData {
   schema_version?: number;
@@ -38,22 +42,6 @@ interface GeneratedRow {
   has_provenance: boolean;
 }
 
-function fmtAge(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  if (Number.isNaN(ms)) return "?";
-  if (ms < 60_000) return `${Math.floor(ms / 1_000)}s ago`;
-  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
-  return `${Math.floor(ms / 3_600_000)}h ago`;
-}
-
-async function getJSON<T>(path: string): Promise<T> {
-  const r = await fetch(path, { credentials: "include", cache: "no-store" });
-  const body = (await r.json().catch(() => ({}))) as T & { error?: string; detail?: string };
-  if (!r.ok && !body.error) {
-    return { ...body, error: body.detail ?? `HTTP ${r.status}` } as T;
-  }
-  return body;
-}
 
 export default function MargotAssetsPanel() {
   const [options, setOptions] = useState<OptionsData | null>(null);
@@ -107,7 +95,7 @@ export default function MargotAssetsPanel() {
     setBuildLoading(true);
     setBuildResult(null);
     try {
-      const r = await fetch(`${API}/packets`, {
+      const r = await fetch(`/api/pi-ceo${API}/packets`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

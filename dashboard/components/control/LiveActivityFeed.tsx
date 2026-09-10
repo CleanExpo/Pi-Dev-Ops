@@ -11,6 +11,8 @@
 import { useEffect, useState } from "react";
 
 import ThroughputSparkline from "./ThroughputSparkline";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { fmtElapsed, fmtAgo } from "@/lib/control/activity-format";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface LiveData {
@@ -70,22 +72,6 @@ interface LiveData {
   };
 }
 
-// ── Formatters ────────────────────────────────────────────────────────────
-function fmtElapsed(s: number): string {
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
-  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
-}
-
-function fmtAgo(iso: string | null): string {
-  if (!iso) return "never";
-  const ms = Date.now() - new Date(iso).getTime();
-  if (ms < 0) return "just now";
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  return `${Math.floor(s / 3600)}h ago`;
-}
 
 // ── Phase pill ────────────────────────────────────────────────────────────
 function PhasePill({ phase }: { phase: string }) {
@@ -143,15 +129,15 @@ export default function LiveActivityFeed() {
     let mounted = true;
     const tick = async () => {
       try {
-        const r = await fetch("/api/pi-ceo/api/mission-control/live", {
+        // See lib/pi-ceo-fetch.ts — a proxy fallback is not a live reading.
+        const j = await fetchProxyJSON<LiveData>("/api/mission-control/live", {
           credentials: "include",
           cache: "no-store",
         });
-        if (!r.ok) {
-          if (mounted) setErr(`HTTP ${r.status}`);
+        if (!j) {
+          if (mounted) setErr("Pi-CEO backend unreachable");
           return;
         }
-        const j = (await r.json()) as LiveData;
         if (mounted) {
           setData(j);
           if (j.error) {

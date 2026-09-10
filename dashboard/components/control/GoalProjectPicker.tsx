@@ -5,6 +5,7 @@ import { readyToCreate, remainingHint } from "@/lib/control/goalBrief";
 import { TWO_PROJECTS_NOTE } from "@/lib/control/goalCopy";
 import { readGoalBriefId, writeGoalBriefId } from "@/lib/control/goalProjectStore";
 import styles from "./control-deck.module.css";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 export interface GoalProject {
   id: string;
@@ -50,13 +51,15 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
   }
 
   async function reload(): Promise<GoalProject[]> {
-    const res = await fetch("/api/pi-ceo/api/goal-projects");
-    const data = (await res.json().catch(() => ({}))) as {
+    // The proxy's placeholder has no `projects` key, so this already threw —
+    // but with the generic message. Naming the real cause — lib/pi-ceo-fetch.ts.
+    const data = await fetchProxyJSON<{
       projects?: GoalProject[];
       hint?: string;
       detail?: { hint?: string };
-    };
-    if (!res.ok || !Array.isArray(data.projects)) {
+    }>("/api/goal-projects");
+    if (!data) throw new Error("Pi-CEO backend unreachable.");
+    if (!Array.isArray(data.projects)) {
       throw new Error(data.hint || data.detail?.hint || "Could not load project briefs.");
     }
     setProjects(data.projects);

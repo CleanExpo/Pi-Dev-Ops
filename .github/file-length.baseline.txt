@@ -32,7 +32,7 @@
 775	1eba526ac25a	app/server/supabase_log.py
 752	a260764ef6e7	app/server/agents/feedback_loop.py
 746	e125b5bd4df1	app/server/pipeline.py
-746	6ebf6746aedf	dashboard/components/control/HealthGrid.tsx
+746	e950d3d127e6	dashboard/components/control/HealthGrid.tsx
 736	02fc8d0591a2	app/server/discovery.py
 735	c46d2c7837dd	tests/test_goal_ticket.py
 728	225d57e31f75	app/server/provider_router.py
@@ -106,7 +106,6 @@
 436	f5133b32e431	tests/swarm/nexus/test_approvals.py
 435	52168138611d	app/server/pi_ceo_session_fts.py
 435	566e7b7e02a7	swarm/intake/handoff.py
-434	7c9adbba8d67	dashboard/components/control/LiveActivityFeed.tsx
 430	678cdbdaf6e8	dashboard/lib/phases.ts
 430	adf5308ffb4c	swarm/fix_orchestrator.py
 430	03018cff97f9	swarm/wiki_ingest.py
@@ -115,6 +114,7 @@
 425	d0c16d44af11	tests/test_sessions.py
 424	7f066bdac22e	tests/test_pipeline_routes.py
 422	45f37c58fcc1	app/server/cron_triggers.py
+420	db541eab813e	dashboard/components/control/LiveActivityFeed.tsx
 419	ef51583a2154	swarm/inbox/intake_dispatch.py
 419	a37c754b7ca5	swarm/intake/spm.py
 418	0c298d81400e	swarm/cmo.py
@@ -169,7 +169,6 @@
 329	c0db24f74911	scripts/hermes_model_chain_health.py
 328	ffa7abf79d97	tests/test_provider_openrouter.py
 327	022e5f49a00f	app/server/goal_ticket.py
-324	84a489bdab80	dashboard/components/control/MargotAssetsPanel.tsx
 324	f69118e438c2	tests/test_mesh_claim_reap.py
 322	bbd88fbf85cc	scripts/desk_voice_loop.py
 322	23ab18887d3f	tests/test_ra7216_attribution_keys.py
@@ -182,6 +181,7 @@
 315	e7bbb7010fa8	swarm/intent_router.py
 312	82f6341b9686	app/server/config_loader.py
 312	1be56d7904db	app/server/linear_pulse.py
+312	861b7b4c2616	dashboard/components/control/MargotAssetsPanel.tsx
 311	49ff799830c4	swarm/linear_tools.py
 310	c3c44c3e3652	app/server/agents/anthropic_intel_refresh.py
 310	501a41592aeb	app/server/goal_analyze_fields.py
@@ -190,7 +190,6 @@
 310	c49bdf057efe	tests/test_workspace_verify.py
 309	cc5e4753ef0f	swarm/kanban_adapter.py
 308	d3ba67fc0ed7	dashboard/app/(main)/routines/page.tsx
-308	6d6f5ddd3b9e	dashboard/components/control/SpecPipelinePanel.tsx
 304	3482f2377a1a	app/server/pi_ceo_docparser.py
 303	9bb64138ff5f	claude-hooks-mirror/Stop/02_autonomous_continue.py
 303	3807cd860995	tests/test_tao_codebase_wiki.py
