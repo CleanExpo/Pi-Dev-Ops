@@ -170,12 +170,19 @@ async def commit_build_output(workspace: str, run_cmd: RunCmd) -> str:
     return base
 
 
-async def review_diff(workspace: str, run_cmd: RunCmd) -> tuple[str, str]:
-    """Commit the build, then return (diff, --stat) over the range it added."""
+async def review_diff(workspace: str, run_cmd: RunCmd) -> tuple[str, str, int]:
+    """Commit the build, then return (diff, --stat, diff_rc) over the range it added.
+
+    `diff_rc` is the exit code of the `git diff` invocation, never conflated with
+    `--stat`'s. A caller MUST check it before reading an empty `diff` as "no diff
+    exists" — a failed `git diff` also produces empty stdout, and treating the two
+    the same is a fail-open bypass of the whole review gate (Law 3: absence is
+    never a pass, rules/truth-hacking.md).
+    """
     base = await commit_build_output(workspace, run_cmd)
-    _, diff_out, _ = await run_cmd(workspace, "git", "diff", base, "HEAD", "--")
+    diff_rc, diff_out, _ = await run_cmd(workspace, "git", "diff", base, "HEAD", "--")
     _, stat_out, _ = await run_cmd(workspace, "git", "diff", "--stat", base, "HEAD")
-    return diff_out, stat_out
+    return diff_out, stat_out, diff_rc
 
 
 async def _head(workspace: str, run_cmd: RunCmd) -> str:

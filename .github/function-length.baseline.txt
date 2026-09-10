@@ -56,8 +56,8 @@
 134	d3cf1923542d	swarm/tmux_validator.py::validate_command
 126	5679bd08799f	scripts/unite_group_health_check.py::check_integration_sync
 125	4bab87250d13	app/server/agents/feedback_loop.py::run_feedback_cycle
-125	b3381b3712d1	app/server/session_phases.py::_phase_adversary
 125	7ed50367bce2	swarm/inbox/intake_dispatch.py::dispatch_telegram_update
+124	af12578b3cb6	app/server/session_phases.py::_phase_adversary
 124	c8bad738abf9	app/server/spec_pipeline/liaison_loop.py::judge_with_liaison
 124	4833f230c60e	app/server/tao_loop.py::run_until_done
 123	6131367841b1	swarm/six_pager_dispatcher.py::maybe_fire_daily

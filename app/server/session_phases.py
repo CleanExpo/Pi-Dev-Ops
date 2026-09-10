@@ -1501,17 +1501,16 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     em(session, "phase", "[Adversary] Opus 4.7 challenging Sonnet's work...")
 
     # ── Commit the build, then get the diff to review ────────────────────
-    diff_out, stat_out = await board_review.review_diff(session.workspace, run_cmd)
+    diff_out, stat_out, diff_rc = await board_review.review_diff(session.workspace, run_cmd)
+    if diff_rc != 0:  # a failed diff is not "no diff" — see review_diff's docstring
+        em(session, "error", f"  git diff failed (rc={diff_rc}) — cannot review, halting push")
+        return False, {"verdict": "DIFF_FAILED", "raw_output": ""}
     if not diff_out.strip():
         return await _skip_adversary(session, phase_start, "SKIP_NO_DIFF",
                                      "  No diff to review — skipping adversary phase", concerns=[])
 
     # ── Skip on docs-only / test-only diffs (low signal-to-cost) ────────
-    files_changed = [
-        line.split("|")[0].strip()
-        for line in stat_out.strip().split("\n")
-        if "|" in line
-    ]
+    files_changed = [line.split("|")[0].strip() for line in stat_out.strip().split("\n") if "|" in line]
     code_files = [
         f for f in files_changed
         if not (
