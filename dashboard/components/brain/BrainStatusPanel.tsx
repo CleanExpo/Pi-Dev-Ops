@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import {
   BRAIN_STATUS,
   type BrainChecklistItem,
@@ -152,8 +153,17 @@ function LiveObsidianStatus() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/pi-ceo/api/health/obsidian", { cache: "no-store" });
-      setH((await res.json()) as ObsidianHealth);
+      // This had NO status check at all: whatever the proxy returned was set as
+      // the Obsidian health reading, including the placeholder body it sends
+      // when the backend is unreachable. See lib/pi-ceo-fetch.ts.
+      const data = await fetchProxyJSON<ObsidianHealth>(
+        "/api/health/obsidian", { cache: "no-store" },
+      );
+      if (!data) {
+        setErr(true);
+        return;
+      }
+      setH(data);
       setErr(false);
     } catch {
       setErr(true);

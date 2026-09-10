@@ -32,8 +32,8 @@ export function isProxyFallback(res: Response): boolean {
  * the proxy answered 200 on its behalf. Use when the caller only needs
  * "data or nothing".
  */
-export async function fetchProxyJSON<T>(path: string): Promise<T | null> {
-  const r = await fetchProxy<T>(path);
+export async function fetchProxyJSON<T>(path: string, init?: RequestInit): Promise<T | null> {
+  const r = await fetchProxy<T>(path, init);
   return r.ok ? r.data : null;
 }
 
@@ -41,9 +41,13 @@ export async function fetchProxyJSON<T>(path: string): Promise<T | null> {
  * As above, but says WHY there is no data, so a panel can distinguish
  * "backend down" from "you are logged out" when it wants to.
  */
-export async function fetchProxy<T>(path: string): Promise<ProxyResult<T>> {
+export async function fetchProxy<T>(path: string, init?: RequestInit): Promise<ProxyResult<T>> {
   try {
-    const res = await fetch(`/api/pi-ceo${path}`);
+    // `init` is passed through verbatim so callers keep options they already
+    // relied on — `cache: "no-store"` on live-status polls, for one. It is NOT
+    // defaulted here: silently changing every existing caller's caching while
+    // migrating them would make any behaviour change impossible to attribute.
+    const res = await fetch(`/api/pi-ceo${path}`, init);
     if (isProxyFallback(res)) {
       const raw = res.headers.get("X-Upstream-Status");
       const parsed = raw === null ? null : Number.parseInt(raw, 10);

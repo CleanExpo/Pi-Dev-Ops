@@ -5,14 +5,6 @@
 # run `python3 .github/scripts/proxy_fallback_lint.py --update` to drop it.
 # Never add a line here to make CI green.
 
-dashboard/app/(main)/builds/page.tsx
-dashboard/app/(main)/layout.tsx
-dashboard/app/(main)/overview/page.tsx
-dashboard/app/(main)/projects/page.tsx
-dashboard/app/(main)/routines/page.tsx
-dashboard/components/CeoHealthPanel.tsx
-dashboard/components/brain/BrainStatusPanel.tsx
-dashboard/components/control/ActiveBuildStrip.tsx
 dashboard/components/control/AgentRolesPanel.tsx
 dashboard/components/control/GoalProjectPicker.tsx
 dashboard/components/control/HealthGrid.tsx

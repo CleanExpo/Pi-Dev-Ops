@@ -2,6 +2,7 @@
 // app/(main)/routines/page.tsx — Routine run outcome tracker (RA-1011)
 
 import { useEffect, useState, useCallback } from "react";
+import { fetchProxy } from "@/lib/pi-ceo-fetch";
 
 interface RoutineRun {
   routine_name: string;
@@ -228,13 +229,17 @@ export default function RoutinesPage() {
 
   const fetchRuns = useCallback(async () => {
     try {
-      const res = await fetch("/api/pi-ceo/api/routines?limit=50");
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ detail: res.statusText }));
-        setError((body as { detail?: string }).detail ?? `HTTP ${res.status}`);
+      // The proxy answers 200 with `{runs: [], total: 0}` when the backend is
+      // down, which rendered as "no routines have run" — a claim about the
+      // scheduler nothing had observed. See lib/pi-ceo-fetch.ts.
+      const r = await fetchProxy<RoutineRunsResponse>("/api/routines?limit=50");
+      if (!r.ok) {
+        setError(r.reason === "unreachable"
+          ? "Pi-CEO backend unreachable"
+          : `HTTP ${r.upstreamStatus ?? "error"}`);
         return;
       }
-      const data = await res.json() as RoutineRunsResponse;
+      const data = r.data;
       setRuns(data.runs);
       setTotal(data.total);
       setError(null);

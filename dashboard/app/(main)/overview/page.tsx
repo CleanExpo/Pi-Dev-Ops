@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 //
@@ -199,12 +200,15 @@ export default function OverviewPage() {
   useEffect(() => {
     async function load() {
       try {
-        const [hRes, sRes] = await Promise.all([
-          fetch("/api/pi-ceo/health"),
-          fetch("/api/pi-ceo/api/sessions"),
+        // null when the backend did not answer, including the proxy's 200 with
+        // placeholder data. Leaves the previous reading in place rather than
+        // overwriting it with zeros. See lib/pi-ceo-fetch.ts.
+        const [h, s] = await Promise.all([
+          fetchProxyJSON<HealthData>("/health"),
+          fetchProxyJSON<PiSession[]>("/api/sessions"),
         ]);
-        if (hRes.ok) setHealth(await hRes.json() as HealthData);
-        if (sRes.ok) setSessions(await sRes.json() as PiSession[]);
+        if (h) setHealth(h);
+        if (s) setSessions(s);
       } catch { /* ignore */ }
     }
     void load();

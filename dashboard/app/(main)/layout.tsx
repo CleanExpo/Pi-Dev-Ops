@@ -7,6 +7,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import CeoHealthPanel from "@/components/CeoHealthPanel";
 import MargotBubble from "@/components/margot/MargotBubble";
 import { pathMatchesNav } from "@/lib/nav-active";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { useEffect, useState } from "react";
 
 const NAV = [
@@ -34,13 +35,9 @@ function SwarmStatus() {
   useEffect(() => {
     async function fetchHealth() {
       try {
-        const res = await fetch("/api/pi-ceo/api/health");
-        if (res.ok) {
-          const data = await res.json() as HealthData;
-          setHealth(data);
-        } else {
-          setHealth(null);
-        }
+        // null covers both "the request failed" and "the proxy answered 200 on
+        // the backend's behalf with placeholder data" — see lib/pi-ceo-fetch.ts.
+        setHealth(await fetchProxyJSON<HealthData>("/api/health"));
       } catch {
         setHealth(null);
       } finally {
