@@ -8,18 +8,34 @@ export const WATCH_BUILDS = "Builds";
 export const WATCH_SWARM = "Swarm";
 export const WATCH_LOOP = "Loop";
 
+export function asWatchInput(raw: {
+  sessionCount?: number | null;
+  urgent?: number | null;
+  high?: number | null;
+  nextIssueId?: string | null;
+}): {
+  sessionCount: number;
+  urgent: number;
+  high: number;
+  nextIssueId: string | null;
+} {
+  const next = raw.nextIssueId?.trim() || null;
+  return {
+    sessionCount: Math.max(0, Number(raw.sessionCount) || 0),
+    urgent: Math.max(0, Number(raw.urgent) || 0),
+    high: Math.max(0, Number(raw.high) || 0),
+    nextIssueId: next,
+  };
+}
+
 export function nothingAuthorized(input: {
   sessionCount: number;
   urgent: number;
   high: number;
   nextIssueId: string | null;
 }): boolean {
-  return (
-    input.sessionCount === 0 &&
-    input.urgent === 0 &&
-    input.high === 0 &&
-    !input.nextIssueId
-  );
+  const n = asWatchInput(input);
+  return n.sessionCount === 0 && n.urgent === 0 && n.high === 0 && !n.nextIssueId;
 }
 
 export function watchBuildsHref(): string {
@@ -35,11 +51,12 @@ export function watchLoopHref(): string {
 }
 
 export function idleSessionsNote(input: {
-  sessionCount: number;
-  urgent: number;
-  high: number;
-  nextIssueId: string | null;
+  sessionCount?: number | null;
+  urgent?: number | null;
+  high?: number | null;
+  nextIssueId?: string | null;
 }): string {
-  if (nothingAuthorized(input)) return WATCH_EMPTY_NOTE;
+  const n = asWatchInput(input);
+  if (nothingAuthorized(n)) return WATCH_EMPTY_NOTE;
   return WATCH_QUEUE_NOTE;
 }
