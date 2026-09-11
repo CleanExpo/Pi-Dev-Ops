@@ -3,9 +3,11 @@
 import Link from "next/link";
 import {
   WATCH_BUILDS,
+  WATCH_GOAL,
   WATCH_LOOP,
   WATCH_SWARM,
   watchBuildsHref,
+  watchGoalHref,
   watchLoopHref,
   watchSwarmHref,
 } from "@/lib/control/watchWork";
@@ -28,6 +30,10 @@ export default function LiveWatchLinks({ hasPr }: { hasPr: boolean }) {
         {WATCH_LOOP}
       </Link>
       <span>queue and poller</span>
+      <Link href={watchGoalHref()} className="text-cyan-400 hover:underline">
+        {WATCH_GOAL}
+      </Link>
+      <span>write the next outcome</span>
     </nav>
   );
 }
