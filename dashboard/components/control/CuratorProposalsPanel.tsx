@@ -85,7 +85,7 @@ export default function CuratorProposalsPanel() {
         style={{ borderBottom: "1px solid var(--border)" }}
       >
         <h2 className="text-sm font-semibold tracking-tight">
-          Skill Curator
+          Skill Curator — specialist
         </h2>
         <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>
           {pendingCount} pending · {acceptedCount} accepted · {rejectedCount} rejected
@@ -102,8 +102,8 @@ export default function CuratorProposalsPanel() {
 
         {!data?.error && proposals.length === 0 && (
           <p className="text-xs" style={{ color: "var(--text-dim)" }}>
-            No pending proposals. The curator runs weekly on lessons.jsonl
-            and daily on merged-PR diffs (≥3 evidence rows per cluster).
+            No pending proposals. Not the Goal path. The curator still
+            clusters lessons.jsonl; it does not file Linear tickets.
           </p>
         )}
 
