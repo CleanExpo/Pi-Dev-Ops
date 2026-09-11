@@ -1,15 +1,12 @@
 # dashboard — Wiki
 
-_Last updated: 2026-09-07T06:34:04Z (commits fb0a0df..5e510a3)_
+_Last updated: 2026-09-11T12:43:49Z (commits 4b461f1..f4c38fc)_
 
 ## Recent changes
-- 5e510a3 — test(control): cover the how-to, landed ids, quiet labels, and Write stage
+- f4c38fc — feat(control): show the stranger-test on Acceptance and clear a hidden brief
 
 ## Architecture (current)
 Auto-stub: `dashboard/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- dashboard/__tests__/lib/control/goalBrief.test.ts — touched in recent commits
-- dashboard/__tests__/lib/control/goalCopy.test.ts — touched in recent commits
-- dashboard/__tests__/lib/control/goalErrors.test.ts — touched in recent commits
-- dashboard/__tests__/lib/control/goalStage.test.ts — touched in recent commits
+- dashboard/components/control/GoalTicketForm.tsx — touched in recent commits
