@@ -210,15 +210,17 @@ def _load_file() -> list[dict[str, str]]:
 
 
 def load_projects() -> list[dict[str, str]]:
+    from .goal_projects_archive import visible_projects
+
     if _use_file():
-        return _load_file()
+        return visible_projects(_load_file())
     try:
         rows = _from_dedicated(_request("GET", f"{_TABLE}?select=*&order=created_at.desc"))
     except _TableMissing:
-        return _settings_list()
+        return visible_projects(_settings_list())
     seen = {row["id"] for row in rows}
     rows.extend(extra for extra in _settings_list() if extra["id"] not in seen)
-    return rows
+    return visible_projects(rows)
 
 
 def get_project(project_id: str) -> dict[str, str] | None:
@@ -247,9 +249,13 @@ def create_project(body: dict[str, Any]) -> dict[str, str]:
         raise ValueError(",".join(missing))
     row = _new_row(body)
     if _use_file():
+        from .goal_projects_archive import _file_payload
+
+        payload = _file_payload()
         rows = _load_file()
         rows.append(row)
-        _atomic_write(store_path(), {"projects": rows})
+        payload["projects"] = rows
+        _atomic_write(store_path(), payload)
         return row
     return _db_insert(row)
 
