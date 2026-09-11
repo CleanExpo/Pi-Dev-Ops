@@ -1,13 +1,20 @@
-/** Timeouts for the Pi-CEO dashboard proxy. Analyze is an LLM call; 25s 502s it. */
-
 export const PROXY_MAX_DURATION_S = 120;
 export const PROXY_DEFAULT_MS = 25_000;
 export const PROXY_ANALYZE_MS = 100_000;
+export const PROXY_GOAL_MS = PROXY_ANALYZE_MS;
 export const PROXY_LOGIN_MS = 12_000;
 
-export function proxyTimeoutMs(pathStr: string): number {
+export function isGoalTicketPath(pathStr: string): boolean {
   const bare = pathStr.split("?")[0];
-  if (bare === "/api/goal-ticket/analyze") return PROXY_ANALYZE_MS;
+  return bare === "/api/goal-ticket" || bare === "/api/goal-ticket/analyze";
+}
+
+export function isGoalWritePath(pathStr: string): boolean {
+  return pathStr.split("?")[0] === "/api/goal-ticket";
+}
+
+export function proxyTimeoutMs(pathStr: string): number {
+  if (isGoalTicketPath(pathStr)) return PROXY_GOAL_MS;
   return PROXY_DEFAULT_MS;
 }
 
@@ -17,7 +24,7 @@ export function isAbortTimeout(err: unknown): boolean {
   return name === "TimeoutError" || name === "AbortError";
 }
 
-export function proxyAbortPayload(err: unknown): {
+export function proxyAbortPayload(err: unknown, pathStr = ""): {
   error: string;
   hint: string;
   status: number;
@@ -25,7 +32,9 @@ export function proxyAbortPayload(err: unknown): {
   if (isAbortTimeout(err)) {
     return {
       error: "Pi CEO request timed out",
-      hint: "Analyze can take up to a minute. Retry. Linear was not written.",
+      hint: isGoalWritePath(pathStr)
+        ? "The write may already have started. Check Linear before writing again."
+        : "Analyze can take up to a minute. Retry. Linear was not written.",
       status: 504,
     };
   }
