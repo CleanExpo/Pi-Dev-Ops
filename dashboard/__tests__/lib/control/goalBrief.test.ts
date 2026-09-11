@@ -3,6 +3,7 @@ import {
   MIN_BRIEF,
   draftReady,
   meetsMin,
+  hasBrief,
   readyToAnalyze,
   readyToCreate,
   readyToFile,
@@ -16,6 +17,11 @@ describe("Goal brief rules", () => {
     expect(meetsMin("1234567")).toBe(false);
     expect(meetsMin("12345678")).toBe(true);
     expect(meetsMin("  12345678")).toBe(true);
+  });
+
+  it("refuses Write until a brief is selected", () => {
+    expect(hasBrief("")).toBe(false);
+    expect(hasBrief("brief-1")).toBe(true);
   });
 
   it("blocks Analyze until goal, acceptance, and a project are ready", () => {
