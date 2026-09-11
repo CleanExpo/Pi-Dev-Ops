@@ -3,6 +3,8 @@ import {
   OVERVIEW_QUICK_LINKS,
   claudeCliChip,
   overviewLede,
+  overviewServiceRows,
+  serviceMark,
   swarmChip,
 } from "@/lib/control/overview-format";
 
@@ -15,6 +17,14 @@ describe("Overview honesty", () => {
     expect(overviewLede({ status: "ok" } as { uptime_s?: number })).toContain("unknown");
     expect(overviewLede(null)).toContain("not a live reading");
     expect(claudeCliChip({}).color).toContain("text-dim");
+  });
+
+  it("marks missing service flags as unknown, not failed", () => {
+    expect(serviceMark(undefined)).toBe("unknown");
+    expect(serviceMark(false)).toBe("off");
+    expect(overviewServiceRows(null).every((row) => row.mark === "unknown")).toBe(true);
+    expect(overviewServiceRows({ claude_cli: true, anthropic_key: false })[0]?.mark).toBe("ok");
+    expect(overviewServiceRows({ claude_cli: true, anthropic_key: false })[1]?.mark).toBe("off");
   });
 
   it("points quick actions at Goal and Build, not the old Dashboard analysis path", () => {
