@@ -7,6 +7,7 @@ export const WATCH_QUEUE_NOTE =
 export const WATCH_BUILDS = "Builds";
 export const WATCH_SWARM = "Swarm";
 export const WATCH_LOOP = "Loop";
+export const WATCH_GOAL = "Goal";
 
 export function asWatchInput(raw: {
   sessionCount?: number | null;
@@ -48,6 +49,10 @@ export function watchSwarmHref(): string {
 
 export function watchLoopHref(): string {
   return "/loop";
+}
+
+export function watchGoalHref(): string {
+  return "/control/goal";
 }
 
 export function idleSessionsNote(input: {
