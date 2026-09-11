@@ -7,21 +7,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import CeoHealthPanel from "@/components/CeoHealthPanel";
 import MargotBubble from "@/components/margot/MargotBubble";
 import { pathMatchesNav } from "@/lib/nav-active";
+import { SIDEBAR_NAV } from "@/lib/sidebar-nav";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { useEffect, useState } from "react";
-
-const NAV = [
-  { href: "/overview",  label: "Overview",  icon: "◈", key: "overview"  },
-  { href: "/brain",     label: "Brain",     icon: "◎", key: "brain"     },
-  { href: "/control",   label: "Control",   icon: "⊞", key: "control"   },
-  { href: "/loop",      label: "Loop",      icon: "∞", key: "loop"      },
-  { href: "/builds",    label: "Builds",    icon: "⚙", key: "builds"   },
-  { href: "/routines",  label: "Routines",  icon: "↻", key: "routines"  },
-  { href: "/projects",  label: "Portfolio", icon: "◫", key: "projects"  },
-  { href: "/chat",      label: "Chat",      icon: "◉", key: "chat"     },
-  { href: "/history",   label: "History",   icon: "☰", key: "history"  },
-  { href: "/settings",  label: "Settings",  icon: "⊙", key: "settings" },
-];
 
 interface HealthData {
   swarm_enabled: boolean;
@@ -128,7 +116,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
         {/* Nav links */}
         <nav className="flex flex-col gap-0.5 px-2 py-3 flex-1">
-          {NAV.map(({ href, label, icon }) => {
+          {SIDEBAR_NAV.map(({ href, label, icon }) => {
             const active = pathMatchesNav(path, href);
             return (
               <Link
@@ -205,7 +193,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           borderTop: "1px solid var(--border)",
         }}
       >
-        {NAV.map(({ href, label, icon }) => {
+        {SIDEBAR_NAV.map(({ href, label, icon }) => {
           const active = pathMatchesNav(path, href);
           return (
             <Link
