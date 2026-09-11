@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CONTROL_SECTIONS, controlTileKicker } from "@/lib/control/nav";
+import { CONTROL_SECTIONS, controlTileKicker, isSpecialistControlSlug } from "@/lib/control/nav";
 import styles from "./control-deck.module.css";
 
 export default function ControlHubTiles() {
@@ -12,7 +12,7 @@ export default function ControlHubTiles() {
           <li key={item.href}>
             <Link
               href={item.href}
-              className={`${styles.tile} ${index === 0 ? styles.tileFeatured : ""}`}
+              className={`${styles.tile} ${index === 0 ? styles.tileFeatured : ""} ${isSpecialistControlSlug(item.slug) ? styles.tileSpecialist : ""}`}
             >
               <span className={styles.tileLabel}>{controlTileKicker(item.slug, item.label)}</span>
               <span className={styles.tileTitle}>{item.title}</span>
