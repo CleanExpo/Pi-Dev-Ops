@@ -47,7 +47,7 @@ export default async function HistoryPage() {
       <div className="flex flex-col flex-1 items-center justify-center px-4 text-center">
         <p className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>No analysis sessions yet.</p>
         <p className="font-mono text-[10px] mt-2" style={{ color: "var(--text-dim)" }}>
-          Run an analysis from the Dashboard to see history here.
+          This is old Dashboard analysis history — not Goal tickets. Run a build from Control to add a row.
         </p>
       </div>
     );
@@ -59,8 +59,8 @@ export default async function HistoryPage() {
       <div className="flex items-center justify-between px-3 sm:px-4 py-2 shrink-0 flex-wrap gap-2"
         style={{ borderBottom: "1px solid var(--border)" }}>
         <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
-          History
-          <span className="hidden sm:inline"> — {sessions.length} sessions</span>
+          Analysis history
+          <span className="hidden sm:inline"> — {sessions.length} repo scans, not Goal tickets</span>
           <span className="sm:hidden"> ({sessions.length})</span>
         </span>
         <ClearHistoryButton />
