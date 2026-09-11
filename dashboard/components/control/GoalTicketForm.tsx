@@ -10,10 +10,10 @@ import GoalDraftReview, {
 import GoalProjectPicker, { stubBrief, type GoalProject } from "./GoalProjectPicker";
 import { hasBrief, readyToAnalyze, remainingHint, ticketsToFile } from "@/lib/control/goalBrief";
 import {
-  ANALYZE_STAGE_NOTE,
   PROJECT_KEPT_NOTE,
   analyzeProgress,
   analyzingCopy,
+  nextAnalyzeHint,
 } from "@/lib/control/goalCopy";
 import {
   errorMessage,
@@ -247,7 +247,9 @@ export default function GoalTicketForm() {
               {analyzingCopy(elapsed)} {analyzeProgress(elapsed)}%
             </span>
           ) : (
-            <span className={styles.note}>{ANALYZE_STAGE_NOTE}</span>
+            <span className={styles.note}>
+              {nextAnalyzeHint(goal, acceptance, project?.id || "")}
+            </span>
           )}
         </div>
       ) : (
