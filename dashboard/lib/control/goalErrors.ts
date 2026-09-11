@@ -60,12 +60,16 @@ export function errorMessage(data: GoalErrorBody, status: number): string {
   const fields = detail?.fields?.join(", ");
   const failed = failedTitle(data);
   const suffix = failed ? ` Stopped at “${failed}”.` : "";
-  return (
+  const raw = (
     data.hint
     || detail?.hint
-    || (fields ? `Missing: ${fields}` : null)
+    || (fields ? `Missing: ${fields.replace("project_id", "brief")}` : null)
     || detail?.error
     || data.error
     || `Request failed (${status})`
-  ) + suffix;
+  );
+  return raw
+    .replace("Create a project first, then select it.", "Create a brief first, then select it.")
+    .replace("goal, acceptance, and project_id are required.", "Goal, acceptance, and a brief are required.")
+    + suffix;
 }
