@@ -8,7 +8,13 @@ import GoalAnalysisOverview, {
   type GoalAnalysisBlock,
   type OrderStep,
 } from "./GoalAnalysisOverview";
-import { CHILD_TICKETS_NOTE, FALLBACK_DRAFT_NOTE, LINEAR_DEST_NOTE, nextWriteHint } from "@/lib/control/goalCopy";
+import {
+  CHILD_TICKETS_NOTE,
+  FALLBACK_DRAFT_NOTE,
+  LINEAR_DEST_NOTE,
+  nextWriteHint,
+  writeActionLabel,
+} from "@/lib/control/goalCopy";
 import { readyToFile } from "@/lib/control/goalBrief";
 import {
   draftsFromAnalyze,
@@ -59,6 +65,7 @@ export default function GoalDraftReview({
 }: Props) {
   const count = selectedCount(analysis.tickets);
   const canFile = readyToFile(analysis.tickets);
+  const leftover = analysis.tickets.some((ticket) => ticket.landed_identifier);
   const [more, setMore] = useState<Record<number, boolean>>({});
 
   function patch(index: number, next: Partial<DraftTicket>) {
@@ -169,7 +176,7 @@ export default function GoalDraftReview({
           </p>
           <div className="flex flex-wrap gap-2 mt-3">
             <button onClick={onApprove} disabled={filing || !canFile} className={styles.primary}>
-              {filing ? "Writing…" : "Write to Linear"}
+              {filing ? "Writing…" : leftover ? "Write the rest" : "Write to Linear"}
             </button>
             <button onClick={onCancelConfirm} disabled={filing} className={styles.ghost}>Back</button>
           </div>
@@ -177,7 +184,7 @@ export default function GoalDraftReview({
       ) : (
         <div className="flex flex-wrap gap-2">
           <button onClick={onRequestFile} disabled={filing || !canFile} className={styles.primary}>
-            Write {count} to Linear
+            {writeActionLabel(count, leftover)}
           </button>
           <button onClick={onDiscard} disabled={filing} className={styles.ghost}>Discard</button>
         </div>
