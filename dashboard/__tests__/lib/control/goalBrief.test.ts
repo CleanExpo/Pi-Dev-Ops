@@ -7,6 +7,7 @@ import {
   readyToAnalyze,
   readyToCreate,
   readyToFile,
+  acceptanceHint,
   remainingHint,
   ticketsToFile,
 } from "@/lib/control/goalBrief";
@@ -50,18 +51,24 @@ describe("Goal brief rules", () => {
     const short = {
       title: "Saved looks persist after refresh",
       goal: "short",
-      acceptance: "acceptance long enough",
+      acceptance: "Refresh shows Look A in Saved",
       selected: true,
     };
     const ready = {
       title: "Saved looks persist after refresh",
       goal: "goal long enough",
-      acceptance: "acceptance long enough",
+      acceptance: "Refresh shows Look A in Saved",
       selected: true,
     };
     expect(draftReady(short)).toBe(false);
     expect(readyToFile([short])).toBe(false);
     expect(readyToFile([ready])).toBe(true);
+  });
+
+  it("rejects acceptance a stranger cannot test", () => {
+    expect(acceptanceHint("it works")).toContain("It works");
+    expect(acceptanceHint("The work is complete now")).toContain("sees or clicks");
+    expect(acceptanceHint("Refresh shows Look A in Saved")).toBe("");
   });
 
   it("skips selected drafts that already have a Linear id", () => {
