@@ -88,6 +88,12 @@ describe("Mission Control live feed — throughput contract", () => {
     expect((await throughputTile()).getByText("0")).toBeTruthy();
   });
 
+  it("keeps Watch the work links when the backend reports an error", async () => {
+    mockFetchOnce(backendPayload({ error: "stale lease" }));
+    render(<LiveActivityFeed />);
+    expect(await screen.findByRole("navigation", { name: "Watch the work" })).toBeTruthy();
+  });
+
   it("names Builds, Swarm, and Loop so the operator can watch work", async () => {
     mockFetchOnce(backendPayload({
       queue: { urgent: 0, high: 0, next_issue_id: null, next_issue_title: "" },
