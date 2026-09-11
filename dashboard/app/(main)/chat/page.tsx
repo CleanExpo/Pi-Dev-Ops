@@ -74,7 +74,7 @@ export default function ChatPage() {
       >
         <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
           Claude Chat
-          <span className="hidden sm:inline"> — Pi CEO Engineering Team</span>
+          <span className="hidden sm:inline"> — does not write Linear. Goal is the ticket path.</span>
         </span>
         <button
           onClick={clearChat}
@@ -91,9 +91,9 @@ export default function ChatPage() {
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-4">
         {messages.length === 0 && (
           <p className="font-mono text-xs sm:text-[11px] mt-6 sm:mt-8 leading-relaxed" style={{ color: "var(--text-dim)" }}>
-            Ask anything about the codebase, architecture, or how to proceed.
+            Ask about the codebase. This chat does not file tickets.
             <br />
-            e.g. &quot;Explain the authentication flow&quot; or &quot;Start building sprint 1&quot;
+            e.g. &quot;Explain the authentication flow&quot;
           </p>
         )}
         {messages.map((m, i) => (
