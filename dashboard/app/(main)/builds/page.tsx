@@ -408,7 +408,7 @@ export default function BuildsPage() {
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
             Builds
-            <span className="hidden sm:inline"> — {sessions.length} sessions</span>
+            <span className="hidden sm:inline"> — session logs · {sessions.length} · start from Control → Build</span>
             <span className="sm:hidden"> ({sessions.length})</span>
           </span>
           {activeCount > 0 && (
