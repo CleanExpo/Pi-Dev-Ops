@@ -38,34 +38,38 @@ def test_relay_forwards_only_authenticated_analyst_writes():
     relay = build_server("127.0.0.1", 0, upstream_url, "secret-token")
     _serve(relay)
 
-    conn = http.client.HTTPConnection("127.0.0.1", relay.server_port, timeout=5)
-    conn.request(
-        "PUT",
-        "/vault/Wiki/analyst/proof.md",
-        body=b"# Proof\n",
-        headers={"Authorization": "Bearer secret-token", "Content-Type": "text/markdown"},
-    )
-    resp = conn.getresponse()
-    resp.read()
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", relay.server_port, timeout=5)
+        conn.request(
+            "PUT",
+            "/vault/Wiki/analyst/proof.md",
+            body=b"# Proof\n",
+            headers={"Authorization": "Bearer secret-token", "Content-Type": "text/markdown"},
+        )
+        resp = conn.getresponse()
+        resp.read()
 
-    assert resp.status == 204
-    assert UpstreamHandler.seen_path == "/vault/Wiki/analyst/proof.md"
-    assert UpstreamHandler.seen_auth == "Bearer secret-token"
-    assert UpstreamHandler.seen_body == b"# Proof\n"
+        assert resp.status == 204
+        assert UpstreamHandler.seen_path == "/vault/Wiki/analyst/proof.md"
+        assert UpstreamHandler.seen_auth == "Bearer secret-token"
+        assert UpstreamHandler.seen_body == b"# Proof\n"
 
-    conn.request(
-        "PUT",
-        "/vault/Wiki/private.md",
-        body=b"# Private\n",
-        headers={"Authorization": "Bearer secret-token", "Content-Type": "text/markdown"},
-    )
-    blocked = conn.getresponse()
-    blocked.read()
-    assert blocked.status == 403
+        conn.request(
+            "PUT",
+            "/vault/Wiki/private.md",
+            body=b"# Private\n",
+            headers={"Authorization": "Bearer secret-token", "Content-Type": "text/markdown"},
+        )
+        blocked = conn.getresponse()
+        blocked.read()
+        assert blocked.status == 403
 
-    conn.close()
-    relay.shutdown()
-    upstream.shutdown()
+        conn.close()
+    finally:
+        relay.shutdown()
+        relay.server_close()
+        upstream.shutdown()
+        upstream.server_close()
 
 
 def test_relay_writes_to_vault_filesystem_without_upstream(tmp_path):
@@ -77,17 +81,20 @@ def test_relay_writes_to_vault_filesystem_without_upstream(tmp_path):
     relay = build_server("127.0.0.1", 0, "http://127.0.0.1:1", "secret-token", str(vault))
     _serve(relay)
 
-    conn = http.client.HTTPConnection("127.0.0.1", relay.server_port, timeout=5)
-    conn.request(
-        "PUT",
-        "/vault/Wiki/analyst/proof.md",
-        body=b"# Proof\n",
-        headers={"Authorization": "Bearer secret-token", "Content-Type": "text/markdown"},
-    )
-    resp = conn.getresponse()
-    resp.read()
-    assert resp.status == 204
-    assert (vault / "Wiki" / "analyst" / "proof.md").read_bytes() == b"# Proof\n"
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", relay.server_port, timeout=5)
+        conn.request(
+            "PUT",
+            "/vault/Wiki/analyst/proof.md",
+            body=b"# Proof\n",
+            headers={"Authorization": "Bearer secret-token", "Content-Type": "text/markdown"},
+        )
+        resp = conn.getresponse()
+        resp.read()
+        assert resp.status == 204
+        assert (vault / "Wiki" / "analyst" / "proof.md").read_bytes() == b"# Proof\n"
 
-    conn.close()
-    relay.shutdown()
+        conn.close()
+    finally:
+        relay.shutdown()
+        relay.server_close()
