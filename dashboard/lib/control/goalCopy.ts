@@ -2,6 +2,9 @@ import { acceptanceHint, hasBrief, meetsMin, readyToCreate, readyToFile } from "
 
 export const CONTROL_GOAL_CTA = "Goal → Linear";
 
+export const CONTROL_HUB_LEDE =
+  "Write a brief and tickets in Goal. Tickets wait in Backlog until someone in Linear sets Ready for Pi-Dev and pi-dev:autonomous. Then watch Live.";
+
 export const LINEAR_DEST_NOTE =
   "These tickets write to the CleanExpo/Pi-Dev-Ops Linear Backlog.";
 
@@ -12,13 +15,13 @@ export const TWO_PROJECTS_NOTE =
   "This list is product briefs. The repo in the top bar is a different picker.";
 
 export const PROJECT_KEPT_NOTE =
-  "Brief kept. Open each link. Then write the next goal on the same brief.";
+  "Brief kept. Open each link. Leave them in Backlog to wait, or in Linear set Ready for Pi-Dev and pi-dev:autonomous to start work. Then write the next goal on the same brief.";
 
 export const WRITE_MAYBE_STARTED =
   "The write may already have started. Check Linear before writing again.";
 
 export const LINKS_STAY_NOTE =
-  "In Linear. Open each link. If a stranger cannot test the acceptance, it is not done.";
+  "In Linear. Open each link. Goal does not start the build. Leave Backlog to wait. To start: Ready for Pi-Dev and the label pi-dev:autonomous — both. Then watch Live. If a stranger cannot test the acceptance, it is not done.";
 
 export const ANALYZE_STAGE_NOTE = "Drafts first. Linear only after you confirm.";
 
@@ -48,6 +51,7 @@ export const HOW_TO_GET_THE_GOAL = [
   "Read every draft. Uncheck anything that is not this goal. Rewrite vague titles and acceptance. Sub-tasks you edit become child tickets.",
   "Write to Linear. Confirm once. Open each link. If a stranger cannot test the acceptance, rewrite the ticket — do not treat it as done.",
   "If a write stops halfway, already-landed tickets stay marked. Write the rest. Keep the brief and start the next goal.",
+  "Work does not start from this page. In Linear, leave Backlog to wait, or set Ready for Pi-Dev and pi-dev:autonomous — both — then watch Live.",
 ];
 
 export function analyzingCopy(seconds: number): string {
