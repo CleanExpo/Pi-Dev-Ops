@@ -6,6 +6,7 @@ import {
   BRIEF_NOT_CREATED_NOTE,
   BRIEFS_EMPTY_NOTE,
   BRIEFS_LOAD_FAIL_NOTE,
+  HIDE_BRIEF_NOTE,
   TWO_PROJECTS_NOTE,
   nextSaveBriefHint,
 } from "@/lib/control/goalCopy";
@@ -30,6 +31,7 @@ interface Props {
   selectedId: string;
   disabled: boolean;
   onSelect: (project: GoalProject) => void;
+  onClear: () => void;
 }
 
 export function stubBrief(id: string, title = ""): GoalProject {
@@ -57,7 +59,7 @@ const EMPTY: Omit<GoalProject, "id"> = {
   out_of_scope: "",
 };
 
-export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Props) {
+export default function GoalProjectPicker({ selectedId, disabled, onSelect, onClear }: Props) {
   const [projects, setProjects] = useState<GoalProject[]>([]);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState(EMPTY);
@@ -65,6 +67,8 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [extra, setExtra] = useState(false);
+  const [hiding, setHiding] = useState(false);
+  const [confirmHide, setConfirmHide] = useState(false);
 
   function choose(project: GoalProject) {
     writeGoalBriefId(project.id);
@@ -103,6 +107,31 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
   useEffect(() => {
     loadAndSelect();
   }, []);
+
+  async function hideSelected() {
+    if (hiding || !selectedId) return;
+    setError("");
+    setHiding(true);
+    try {
+      const res = await fetch("/api/pi-ceo/api/goal-projects/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: selectedId }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { hint?: string; detail?: { hint?: string } };
+        setError(data.hint || data.detail?.hint || "The brief was not hidden.");
+        return;
+      }
+      setProjects((prev) => prev.filter((project) => project.id !== selectedId));
+      setConfirmHide(false);
+      onClear();
+    } catch {
+      setError("Network error — the brief was not hidden.");
+    } finally {
+      setHiding(false);
+    }
+  }
 
   const canSave = readyToCreate(draft);
 
@@ -176,14 +205,33 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         <p className={`${styles.note} mt-2`}>{BRIEFS_EMPTY_NOTE}</p>
       ) : null}
       {!creating ? (
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          disabled={disabled}
-          className={`${styles.ghost} mt-2`}
-        >
-          Create brief
-        </button>
+        <div className="flex flex-wrap gap-2 mt-2">
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            disabled={disabled}
+            className={styles.ghost}
+          >
+            Create brief
+          </button>
+          {selectedId ? (
+            confirmHide ? (
+              <>
+                <p className={styles.note}>{HIDE_BRIEF_NOTE}</p>
+                <button type="button" onClick={() => void hideSelected()} disabled={disabled || hiding} className={styles.primary}>
+                  {hiding ? "Hiding…" : "Hide brief — Linear tickets stay"}
+                </button>
+                <button type="button" onClick={() => setConfirmHide(false)} disabled={hiding} className={styles.ghost}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => setConfirmHide(true)} disabled={disabled} className={styles.ghost}>
+                Hide this brief
+              </button>
+            )
+          ) : null}
+        </div>
       ) : (
         <div className={`${styles.card} mt-3`}>
           {(
