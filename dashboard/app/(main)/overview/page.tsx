@@ -5,7 +5,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import {
-  formatUptime, repoShort, skillFromPhase, statusDot,
+  claudeCliChip,
+  formatUptime,
+  OVERVIEW_QUICK_LINKS,
+  overviewLede,
+  repoShort,
+  skillFromPhase,
+  statusDot,
+  swarmChip,
 } from "@/lib/control/overview-format";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -186,10 +193,8 @@ export default function OverviewPage() {
     (a, b) => new Date(b.started).getTime() - new Date(a.started).getTime()
   ).slice(0, 20);
 
-  const swarmOn = health?.swarm_enabled !== false;
-  const swarmShadow = health?.swarm_shadow === true;
-  const swarmLabel = !swarmOn ? "Off" : swarmShadow ? "Shadow" : "Active";
-  const swarmColor = !swarmOn ? "var(--error)" : swarmShadow ? "var(--warning)" : "var(--success)";
+  const swarm = swarmChip(health);
+  const cli = claudeCliChip(health);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -203,7 +208,7 @@ export default function OverviewPage() {
             Command Centre
           </h1>
           <p className="text-[10px] mt-0.5 leading-none" style={{ color: "var(--text-dim)" }}>
-            Live system overview · refreshes every 15s
+            {overviewLede(health)}
           </p>
         </div>
         <Link
@@ -211,7 +216,7 @@ export default function OverviewPage() {
           className="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
           style={{ background: "var(--accent)", color: "var(--on-accent)" }}
         >
-          Run Analysis ▶
+          Run a build
         </Link>
       </div>
 
@@ -240,7 +245,7 @@ export default function OverviewPage() {
                   : "var(--text)"
               }
             />
-            <StatChip label="Swarm" value={swarmLabel} color={swarmColor} />
+            <StatChip label="Swarm" value={swarm.label} color={swarm.color} />
             <StatChip
               label="Autonomy"
               value={
@@ -275,8 +280,8 @@ export default function OverviewPage() {
             )}
             <StatChip
               label="Claude CLI"
-              value={health.claude_cli ? "OK" : "—"}
-              color={health.claude_cli ? "var(--success)" : "var(--error)"}
+              value={cli.value}
+              color={cli.color}
             />
           </>
         ) : (
@@ -314,11 +319,11 @@ export default function OverviewPage() {
                     No active builds.
                   </p>
                   <Link
-                    href="/control/build"
+                    href="/control/goal"
                     className="text-xs mt-1"
                     style={{ color: "var(--accent)" }}
                   >
-                    Start analysis →
+                    Goal → Linear
                   </Link>
                 </div>
               ) : (
@@ -460,12 +465,7 @@ export default function OverviewPage() {
                   Quick Actions
                 </p>
                 <div className="flex flex-col gap-1.5">
-                  {[
-                    { label: "Run Analysis", href: "/dashboard" },
-                    { label: "Build History", href: "/history" },
-                    { label: "Active Builds", href: "/builds" },
-                    { label: "Settings", href: "/settings" },
-                  ].map(({ label, href }) => (
+                  {OVERVIEW_QUICK_LINKS.map(({ label, href }) => (
                     <Link
                       key={href}
                       href={href}
