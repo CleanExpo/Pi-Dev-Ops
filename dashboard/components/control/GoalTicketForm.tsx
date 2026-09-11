@@ -8,7 +8,8 @@ import GoalDraftReview, {
   type DraftTicket,
 } from "./GoalDraftReview";
 import GoalProjectPicker, { stubBrief, type GoalProject } from "./GoalProjectPicker";
-import { hasBrief, readyToAnalyze, remainingHint, ticketsToFile } from "@/lib/control/goalBrief";
+import { writeGoalBriefId } from "@/lib/control/goalProjectStore";
+import { acceptanceLabel, hasBrief, readyToAnalyze, remainingHint, ticketsToFile } from "@/lib/control/goalBrief";
 import {
   PROJECT_KEPT_NOTE,
   WRITE_MAYBE_STARTED,
@@ -212,6 +213,7 @@ export default function GoalTicketForm() {
         selectedId={project?.id || ""}
         disabled={busy || Boolean(analysis)}
         onSelect={setProject}
+        onClear={() => { setProject(null); writeGoalBriefId(""); }}
       />
       <label className={styles.field}>
         <span className={styles.fieldLabel}>{remainingHint(goal, "Goal")}</span>
@@ -227,7 +229,7 @@ export default function GoalTicketForm() {
         />
       </label>
       <label className={styles.field}>
-        <span className={styles.fieldLabel}>{remainingHint(acceptance, "Acceptance")}</span>
+        <span className={styles.fieldLabel}>{acceptanceLabel(acceptance)}</span>
         <textarea
           id="goal-acceptance"
           name="acceptance"
