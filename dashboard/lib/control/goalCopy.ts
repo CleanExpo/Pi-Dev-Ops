@@ -1,4 +1,4 @@
-import { hasBrief, meetsMin, readyToCreate, readyToFile } from "@/lib/control/goalBrief";
+import { acceptanceHint, hasBrief, meetsMin, readyToCreate, readyToFile } from "@/lib/control/goalBrief";
 
 export const CONTROL_GOAL_CTA = "Goal → Linear";
 
@@ -36,6 +36,9 @@ export const BRIEFS_LOAD_FAIL_NOTE =
 
 export const BRIEF_NOT_CREATED_NOTE =
   "The brief was not created. Check the three required fields and try again.";
+
+export const HIDE_BRIEF_NOTE =
+  "Hide this brief from the list. Linear tickets already written stay."
 
 export const HOW_TO_GET_THE_GOAL = [
   "Create a brief first: product name, what it is, who it is for. Add More context only when it changes the tickets.",
@@ -97,7 +100,8 @@ export function nextWriteHint(
       : "Select at least one ticket, or discard and rewrite the goal.";
   }
   if (!readyToFile(tickets)) {
-    return "Each selected ticket needs a title, goal, and acceptance of 8+ characters.";
+    const quality = chosen.map((ticket) => acceptanceHint(ticket.acceptance)).find(Boolean);
+    return quality || "Each selected ticket needs a title, goal, and acceptance of 8+ characters.";
   }
   if (leftover) {
     return "Some tickets are already in Linear. Press Write the rest for the ones that are not.";
