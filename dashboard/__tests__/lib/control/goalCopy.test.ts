@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  BRIEFS_EMPTY_NOTE,
+  BRIEFS_LOAD_FAIL_NOTE,
   CHILD_TICKETS_NOTE,
   CONTROL_GOAL_CTA,
+  FALLBACK_DRAFT_NOTE,
   HOW_TO_GET_THE_GOAL,
   LINEAR_DEST_NOTE,
   TWO_PROJECTS_NOTE,
   analyzeProgress,
   analyzingCopy,
+  nextAnalyzeHint,
+  nextSaveBriefHint,
+  nextWriteHint,
 } from "@/lib/control/goalCopy";
 
 describe("Goal copy", () => {
@@ -26,5 +32,16 @@ describe("Goal copy", () => {
     expect(HOW_TO_GET_THE_GOAL.join(" ")).toContain("stranger");
     expect(analyzingCopy(3)).toContain("Linear is not written");
     expect(analyzeProgress(35)).toBe(50);
+  });
+
+  it("names the next action when Analyze, Save brief, or Write is blocked", () => {
+    expect(nextAnalyzeHint("goal long enough", "acceptance long enough", "")).toContain("Create brief");
+    expect(nextAnalyzeHint("short", "acceptance long enough", "brief-1")).toContain("Write the goal");
+    expect(nextAnalyzeHint("goal long enough", "short", "brief-1")).toContain("Write acceptance");
+    expect(nextSaveBriefHint({ title: "", description: "", audience: "" })).toContain("product name");
+    expect(nextWriteHint([])).toContain("Select at least one ticket");
+    expect(FALLBACK_DRAFT_NOTE).toContain("fallback");
+    expect(BRIEFS_EMPTY_NOTE).toContain("Create brief");
+    expect(BRIEFS_LOAD_FAIL_NOTE).toContain("Try again");
   });
 });
