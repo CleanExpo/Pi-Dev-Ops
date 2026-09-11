@@ -58,14 +58,14 @@ describe("Goal copy", () => {
       {
         title: "First ticket lands",
         goal: "goal long enough",
-        acceptance: "acceptance long enough",
+        acceptance: "Refresh shows Look A in Saved",
         selected: true,
         landed_identifier: "",
       },
       {
         title: "Already in Linear",
         goal: "goal long enough",
-        acceptance: "acceptance long enough",
+        acceptance: "Refresh shows Look A in Saved",
         selected: false,
         landed_identifier: "RA-8001",
       },
