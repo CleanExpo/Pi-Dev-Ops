@@ -167,7 +167,7 @@ export default function SpecPipelinePanel() {
     >
       <header className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-          Spec Pipeline
+          Spec Pipeline — specialist
         </h2>
         <button
           type="button"
