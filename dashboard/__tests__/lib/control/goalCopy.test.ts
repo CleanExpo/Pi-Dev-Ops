@@ -14,7 +14,10 @@ import {
   analyzingCopy,
   nextAnalyzeHint,
   nextSaveBriefHint,
+  LINKS_STAY_NOTE,
+  WRITE_MAYBE_STARTED,
   nextWriteHint,
+  writeActionLabel,
 } from "@/lib/control/goalCopy";
 
 describe("Goal copy", () => {
@@ -47,5 +50,27 @@ describe("Goal copy", () => {
     expect(BRIEFS_LOAD_FAIL_NOTE).toContain("Try again");
     expect(MORE_ANALYSIS).toBe("More analysis");
     expect(LESS_ANALYSIS).toBe("Hide analysis");
+  });
+
+  it("names Write the rest after a partial Linear write", () => {
+    expect(writeActionLabel(2, true)).toBe("Write the rest (2)");
+    expect(nextWriteHint([
+      {
+        title: "First ticket lands",
+        goal: "goal long enough",
+        acceptance: "acceptance long enough",
+        selected: true,
+        landed_identifier: "",
+      },
+      {
+        title: "Already in Linear",
+        goal: "goal long enough",
+        acceptance: "acceptance long enough",
+        selected: false,
+        landed_identifier: "RA-8001",
+      },
+    ])).toContain("Write the rest");
+    expect(LINKS_STAY_NOTE).toContain("Open each link");
+    expect(WRITE_MAYBE_STARTED).toContain("Check Linear");
   });
 });
