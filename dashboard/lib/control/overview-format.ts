@@ -77,6 +77,35 @@ export function claudeCliChip(health: { claude_cli?: boolean } | null): { value:
   return { value: "Missing", color: "var(--error)" };
 }
 
+export type ServiceMark = "ok" | "off" | "unknown";
+
+export function serviceMark(value: boolean | undefined): ServiceMark {
+  if (value === undefined) return "unknown";
+  return value ? "ok" : "off";
+}
+
+export function serviceMarkGlyph(mark: ServiceMark): { glyph: string; color: string } {
+  if (mark === "ok") return { glyph: "✓", color: "var(--success)" };
+  if (mark === "off") return { glyph: "✗", color: "var(--error)" };
+  return { glyph: "—", color: "var(--text-dim)" };
+}
+
+export function overviewServiceRows(health: {
+  claude_cli?: boolean;
+  anthropic_key?: boolean;
+  linear_key?: boolean;
+  vercel_token?: boolean;
+  autonomy?: { armed?: boolean };
+} | null): Array<{ label: string; mark: ServiceMark }> {
+  return [
+    { label: "Claude CLI", mark: serviceMark(health?.claude_cli) },
+    { label: "Anthropic API Key", mark: serviceMark(health?.anthropic_key) },
+    { label: "Linear API Key", mark: serviceMark(health?.linear_key) },
+    { label: "Vercel Token", mark: serviceMark(health?.vercel_token) },
+    { label: "Autonomy Loop", mark: serviceMark(health?.autonomy?.armed) },
+  ];
+}
+
 export const OVERVIEW_QUICK_LINKS = [
   { label: "Goal → Linear", href: "/control/goal" },
   { label: "Run a build", href: "/control/build" },
