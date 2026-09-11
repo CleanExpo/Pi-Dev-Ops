@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CONTROL_NAV } from "@/lib/control/nav";
+import { CONTROL_NAV, isSpecialistControlSlug } from "@/lib/control/nav";
 import { controlTabActive } from "@/lib/nav-active";
 import styles from "./control-deck.module.css";
 
@@ -18,7 +18,8 @@ export default function ControlSubnav() {
             key={item.href}
             href={item.href}
             aria-current={active ? "page" : undefined}
-            className={`${styles.tab} ${active ? styles.tabActive : ""}`}
+            title={item.blurb}
+            className={`${styles.tab} ${active ? styles.tabActive : ""} ${isSpecialistControlSlug(item.slug) ? styles.tabMuted : ""}`}
           >
             {item.label}
           </Link>
