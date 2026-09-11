@@ -17,6 +17,9 @@ export const STATUS_ICON: Record<string, string> = {
   timeout: "⏱",
 };
 
+export const ROUTINES_LIST_NOTE =
+  "Cron outcomes — same list as Control → Runs.";
+
 export const TRIGGER_LABEL: Record<string, string> = {
   api:      "API",
   schedule: "Sched",
