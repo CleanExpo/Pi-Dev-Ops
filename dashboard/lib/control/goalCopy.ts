@@ -15,7 +15,7 @@ export const TWO_PROJECTS_NOTE =
   "This list is product briefs. The repo in the top bar is a different picker.";
 
 export const PROJECT_KEPT_NOTE =
-  "Brief kept. Open each link. Leave them in Backlog to wait, or in Linear set Ready for Pi-Dev and pi-dev:autonomous to start work. Then write the next goal on the same brief.";
+  "Brief kept. Write the next goal on the same brief. Pickup is on the filed list below.";
 
 export const WRITE_MAYBE_STARTED =
   "The write may already have started. Check Linear before writing again.";
