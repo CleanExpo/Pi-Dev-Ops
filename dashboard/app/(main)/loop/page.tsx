@@ -148,7 +148,7 @@ export default function LoopPage() {
         <div className="flex items-center gap-2">
           <span className="font-mono text-base" style={{ color: "var(--accent)" }}>∞</span>
           <h1 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Loop Cockpit</h1>
-          <span className="text-xs" style={{ color: "var(--text-dim)" }}>the autonomous system, live</span>
+          <span className="text-xs" style={{ color: "var(--text-dim)" }}>queue after Ready for Pi-Dev — not Goal</span>
         </div>
         <span className="text-xs tabular-nums" style={{ color: "var(--text-dim)" }}>synced {lastSync}</span>
       </header>
