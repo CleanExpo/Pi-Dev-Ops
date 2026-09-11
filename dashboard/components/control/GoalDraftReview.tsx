@@ -8,7 +8,7 @@ import GoalAnalysisOverview, {
   type GoalAnalysisBlock,
   type OrderStep,
 } from "./GoalAnalysisOverview";
-import { CHILD_TICKETS_NOTE, LINEAR_DEST_NOTE } from "@/lib/control/goalCopy";
+import { CHILD_TICKETS_NOTE, LINEAR_DEST_NOTE, nextWriteHint } from "@/lib/control/goalCopy";
 import { readyToFile } from "@/lib/control/goalBrief";
 import {
   ALWAYS_SHOW,
@@ -163,11 +163,7 @@ export default function GoalDraftReview({
         </article>
       ))}
 
-      <p className={styles.note}>
-        {canFile
-          ? "Draft only — nothing has been written to Linear."
-          : "Each selected ticket needs a title, goal, and acceptance of 8+ characters."}
-      </p>
+      <p className={styles.note}>{nextWriteHint(analysis.tickets)}</p>
 
       {confirming ? (
         <div className={`${styles.card} ${styles.confirm}`}>
