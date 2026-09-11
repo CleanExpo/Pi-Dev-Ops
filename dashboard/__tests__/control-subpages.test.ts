@@ -11,6 +11,7 @@ describe("control sub-pages", () => {
     expect(CONTROL_SECTIONS[0]?.href).toBe("/control/goal");
     expect(CONTROL_SECTIONS[0]?.title).toBe(CONTROL_GOAL_CTA);
     expect(CONTROL_SECTIONS[0]?.blurb).toContain("project brief");
+    expect(CONTROL_SECTIONS.find((item) => item.slug === "runs")?.blurb).toContain("Routines");
   });
 
   it("keeps section slugs unique and registered", () => {
