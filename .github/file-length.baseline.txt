@@ -87,10 +87,10 @@
 506	ce4b4287fba8	tests/test_board.py
 504	3d9681a1e148	tests/swarm/nexus/test_onboarding.py
 502	d3b2fcc37978	aip/src/mcp/server.ts
-492	86b8c416d12e	dashboard/app/(main)/overview/page.tsx
+488	ca5e03320023	dashboard/app/(main)/overview/page.tsx
 485	cd8b890b3644	dashboard/components/control/KillSwitchPanel.tsx
 476	e536287edb18	tests/test_gap_audit_scout_dedup.py
-473	3951c8bd722c	dashboard/app/(main)/builds/page.tsx
+473	5ee08a7ff7de	dashboard/app/(main)/builds/page.tsx
 472	97801133f421	swarm/bots/builder.py
 467	0a286e60322a	app/server/session_sdk.py
 465	aac2ece56e4b	app/server/model_fabric.py
@@ -189,7 +189,7 @@
 310	58b8f2a179e5	scripts/marathon_telegram_inbox.py
 310	c49bdf057efe	tests/test_workspace_verify.py
 309	cc5e4753ef0f	swarm/kanban_adapter.py
-308	d3ba67fc0ed7	dashboard/app/(main)/routines/page.tsx
+308	db87cec7a9ff	dashboard/app/(main)/routines/page.tsx
 304	3482f2377a1a	app/server/pi_ceo_docparser.py
 303	9bb64138ff5f	claude-hooks-mirror/Stop/02_autonomous_continue.py
 303	3807cd860995	tests/test_tao_codebase_wiki.py
