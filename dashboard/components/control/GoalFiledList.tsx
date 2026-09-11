@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { FiledTicket } from "@/lib/control/goalErrors";
 import { LINKS_STAY_NOTE } from "@/lib/control/goalCopy";
 import styles from "./control-deck.module.css";
@@ -9,6 +10,13 @@ export default function GoalFiledList({ tickets }: { tickets: FiledTicket[] }) {
   return (
     <div className="mt-4">
       <p className={`${styles.note} mb-2`}>{LINKS_STAY_NOTE}</p>
+      <p className={`${styles.note} mb-2`}>
+        <Link href="/control" style={{ color: "var(--accent)" }}>
+          Watch Live
+        </Link>
+        {" "}
+        after both pickup marks are on the ticket.
+      </p>
     <ul className="flex flex-col gap-2">
       {tickets.map((ticket) => (
         <li key={ticket.identifier} className={styles.card}>
