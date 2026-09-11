@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { CONTROL_GOAL_CTA } from "../lib/control/goalCopy";
-import { CONTROL_NAV, CONTROL_SECTIONS, isControlSectionSlug } from "../lib/control/nav";
+import {
+  CONTROL_NAV,
+  CONTROL_SECTIONS,
+  CONTROL_SECTION_SLUGS,
+  SPECIALIST_CONTROL_SLUGS,
+  SPECIALIST_TILE_NOTE,
+  isControlSectionSlug,
+} from "../lib/control/nav";
 import { controlTabActive, pathMatchesNav } from "../lib/nav-active";
 import { proxy } from "../proxy";
 
@@ -13,6 +20,14 @@ describe("control sub-pages", () => {
     expect(CONTROL_SECTIONS[0]?.blurb).toContain("project brief");
     expect(CONTROL_SECTIONS.find((item) => item.slug === "runs")?.blurb).toContain("Routines");
     expect(CONTROL_SECTIONS.find((item) => item.slug === "health")?.blurb).toContain("Portfolio");
+  });
+
+  it("freezes specialist tiles and refuses a twelfth Control section", () => {
+    expect(CONTROL_SECTION_SLUGS).toHaveLength(11);
+    expect([...SPECIALIST_CONTROL_SLUGS]).toEqual(["curator", "margot", "pipeline", "terminal"]);
+    for (const slug of SPECIALIST_CONTROL_SLUGS) {
+      expect(CONTROL_SECTIONS.find((item) => item.slug === slug)?.blurb).toContain(SPECIALIST_TILE_NOTE);
+    }
   });
 
   it("keeps section slugs unique and registered", () => {
