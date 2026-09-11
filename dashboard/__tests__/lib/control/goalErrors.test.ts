@@ -34,6 +34,13 @@ describe("Goal error parsers", () => {
     expect(errorMessage(body, 502)).toBe('Linear write failed. Stopped at “Child B”.');
   });
 
+  it("says brief, not project, when the brief is missing", () => {
+    expect(errorMessage({ hint: "Create a project first, then select it." }, 400))
+      .toBe("Create a brief first, then select it.");
+    expect(errorMessage({ detail: { fields: ["goal", "project_id"] } }, 400))
+      .toBe("Missing: goal, brief");
+  });
+
   it("keeps already-filed tickets and unselects those titles", () => {
     const first = { ...TICKET };
     const second = { ...TICKET, identifier: "RA-8002", title: "Second ticket" };
