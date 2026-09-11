@@ -8,12 +8,11 @@ import GoalAnalysisOverview, {
   type GoalAnalysisBlock,
   type OrderStep,
 } from "./GoalAnalysisOverview";
-import { CHILD_TICKETS_NOTE, LINEAR_DEST_NOTE, nextWriteHint } from "@/lib/control/goalCopy";
+import { CHILD_TICKETS_NOTE, FALLBACK_DRAFT_NOTE, LINEAR_DEST_NOTE, nextWriteHint } from "@/lib/control/goalCopy";
 import { readyToFile } from "@/lib/control/goalBrief";
 import {
-  ALWAYS_SHOW,
-  DRAFT_AREAS,
   draftsFromAnalyze,
+  fieldsForDraft,
   filePayloadFromDraft,
   patchDraft,
   type DraftTicket,
@@ -66,17 +65,13 @@ export default function GoalDraftReview({
     onChange(analysis.tickets.map((t, i) => (i === index ? patchDraft(t, next) : t)));
   }
 
-  function fieldsFor(ticket: DraftTicket, index: number) {
-    return DRAFT_AREAS.filter((field) => {
-      if (ALWAYS_SHOW.includes(field.key)) return true;
-      if (!more[index]) return false;
-      return Boolean(String(ticket[field.key] ?? "").trim());
-    });
-  }
-
   return (
     <div className="flex flex-col gap-4">
-      <GoalAnalysisOverview analysis={analysis} />
+      {analysis.fallback ? (
+        <p className="text-[13px]" style={{ color: "var(--warning)" }}>
+          {FALLBACK_DRAFT_NOTE}
+        </p>
+      ) : null}
 
       <div className={styles.fieldLabel}>Draft Linear tickets</div>
       {analysis.tickets.some((t) => t.selected && (t.sub_tasks.trim() || t.sub_tasks_json.trim())) ? (
@@ -135,7 +130,7 @@ export default function GoalDraftReview({
               aria-label={`Title ${index + 1}`}
             />
           </label>
-          {fieldsFor(ticket, index).map((field) => (
+          {fieldsForDraft(ticket, Boolean(more[index])).map((field) => (
             <label key={field.key} className={styles.field}>
               <span className={styles.fieldLabel}>{field.label}</span>
               <textarea
@@ -162,6 +157,8 @@ export default function GoalDraftReview({
           </button>
         </article>
       ))}
+
+      <GoalAnalysisOverview analysis={analysis} />
 
       <p className={styles.note}>{nextWriteHint(analysis.tickets)}</p>
 
