@@ -112,7 +112,7 @@ export default function ProjectsPage() {
           <span className="font-mono text-[11px] font-bold" style={{ color: "var(--accent)", letterSpacing: "0.1em" }}>
             PI-SEO
           </span>
-          <span className="font-mono text-[11px]" style={{ color: "var(--text-muted)" }}>PROJECT HEALTH</span>
+          <span className="font-mono text-[11px]" style={{ color: "var(--text-muted)" }}>same family as Control → Health</span>
           {avgHealth !== null && (
             <span
               className="font-mono text-[11px] px-2 py-0.5"
