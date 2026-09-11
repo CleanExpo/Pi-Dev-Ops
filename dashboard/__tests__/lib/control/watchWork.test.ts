@@ -5,6 +5,7 @@ import {
   idleSessionsNote,
   nothingAuthorized,
   watchBuildsHref,
+  watchGoalHref,
   watchLoopHref,
   watchSwarmHref,
 } from "@/lib/control/watchWork";
@@ -43,5 +44,6 @@ describe("watch the work", () => {
     expect(watchBuildsHref()).toBe("/builds");
     expect(watchSwarmHref()).toBe("/control/swarm");
     expect(watchLoopHref()).toBe("/loop");
+    expect(watchGoalHref()).toBe("/control/goal");
   });
 });
