@@ -174,7 +174,15 @@ fi
 if [ "$MODE_QUICK" = 1 ]; then skip "tests" "--quick"
 else
   if [ -d tests ]; then
-    [ "$PY_OK" = 1 ] && gate "tests-python" "$PY" -m pytest tests/ -q \
+    # RA-7528: this hung 6+ minutes on 2026-09-11 (a genuine thread-lock wait,
+    # root cause never identified) when re-run inside the pre-push hook, though
+    # the same command finished in well under 90s moments earlier in the same
+    # session. No `timeout`/`gtimeout` binary is available on this machine, so
+    # bound it with the portable perl-alarm idiom instead of a new dependency —
+    # 180s is double the observed worst-case clean run, so a legitimate slow
+    # run has headroom while a genuine hang still fails fast and loud rather
+    # than hanging indefinitely.
+    [ "$PY_OK" = 1 ] && gate "tests-python" perl -e 'alarm shift; exec @ARGV' 180 "$PY" -m pytest tests/ -q \
       || { [ "$PY_OK" = 1 ] || skip "tests-python" "python deps absent"; }
   fi
   # CI runs `pytest swarm/` as its own step; this runner never did.
