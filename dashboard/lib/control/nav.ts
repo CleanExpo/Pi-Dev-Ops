@@ -27,7 +27,7 @@ export const CONTROL_HUB: ControlNavItem = {
   slug: "",
   label: "Live",
   title: "Mission Control",
-  blurb: "Throughput, Linear queue, sessions, and observability.",
+  blurb: "Watch sessions after a ticket is Ready for Pi-Dev with pi-dev:autonomous.",
 };
 
 export const CONTROL_SECTIONS: readonly ControlNavItem[] = [
