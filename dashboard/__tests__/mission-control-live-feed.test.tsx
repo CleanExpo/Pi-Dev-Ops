@@ -88,6 +88,18 @@ describe("Mission Control live feed — throughput contract", () => {
     expect((await throughputTile()).getByText("0")).toBeTruthy();
   });
 
+  it("names Builds, Swarm, and Loop so the operator can watch work", async () => {
+    mockFetchOnce(backendPayload({
+      queue: { urgent: 0, high: 0, next_issue_id: null, next_issue_title: "" },
+    }));
+    render(<LiveActivityFeed />);
+    expect(await screen.findByRole("navigation", { name: "Watch the work" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Builds" }).getAttribute("href")).toBe("/builds");
+    expect(screen.getByRole("link", { name: "Swarm" }).getAttribute("href")).toBe("/control/swarm");
+    expect(screen.getByRole("link", { name: "Loop" }).getAttribute("href")).toBe("/loop");
+    expect(screen.getByText(/Nothing authorized is running/)).toBeTruthy();
+  });
+
   it("degrades instead of throwing when throughput is absent entirely", async () => {
     // A malformed or partial payload must not take the whole cockpit down.
     const { throughput, ...withoutThroughput } = backendPayload();
