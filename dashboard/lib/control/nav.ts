@@ -57,7 +57,7 @@ export const CONTROL_SECTIONS: readonly ControlNavItem[] = [
     slug: "health",
     label: "Health",
     title: "Portfolio health",
-    blurb: "Pi-SEO health tiles and sparklines.",
+    blurb: "Pi-SEO scores — same family as sidebar Portfolio. Not a third health page.",
   },
   {
     href: "/control/roles",
