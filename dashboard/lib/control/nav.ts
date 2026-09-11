@@ -12,6 +12,15 @@ export const CONTROL_SECTION_SLUGS = [
   "terminal",
 ] as const;
 
+export const SPECIALIST_CONTROL_SLUGS = [
+  "curator",
+  "margot",
+  "pipeline",
+  "terminal",
+] as const;
+
+export const SPECIALIST_TILE_NOTE = "Specialist. Not the Goal path.";
+
 export type ControlSectionSlug = (typeof CONTROL_SECTION_SLUGS)[number];
 
 export interface ControlNavItem {
@@ -85,28 +94,28 @@ export const CONTROL_SECTIONS: readonly ControlNavItem[] = [
     slug: "curator",
     label: "Curator",
     title: "Curator proposals",
-    blurb: "Pending curator proposals.",
+    blurb: `${SPECIALIST_TILE_NOTE} Pending curator proposals.`,
   },
   {
     href: "/control/margot",
     slug: "margot",
     label: "Margot",
     title: "Margot assets",
-    blurb: "Dry-run matrix and packets.",
+    blurb: `${SPECIALIST_TILE_NOTE} Dry-run matrix and packets.`,
   },
   {
     href: "/control/pipeline",
     slug: "pipeline",
     label: "Pipeline",
     title: "Spec pipeline",
-    blurb: "Machine spec pipeline status.",
+    blurb: `${SPECIALIST_TILE_NOTE} Machine spec pipeline status.`,
   },
   {
     href: "/control/terminal",
     slug: "terminal",
     label: "Terminal",
     title: "Terminal fleet",
-    blurb: "Live redacted tmux panes.",
+    blurb: `${SPECIALIST_TILE_NOTE} Live redacted tmux panes.`,
   },
 ];
 
