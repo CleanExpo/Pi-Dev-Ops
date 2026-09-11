@@ -106,6 +106,18 @@ class GoalProjectCreate(BaseModel):
         return _require_brief(v)
 
 
+class GoalProjectArchive(BaseModel):
+    project_id: str
+
+    @field_validator("project_id")
+    @classmethod
+    def strip_archive_id(cls, v: str) -> str:
+        text = (v or "").strip()
+        if not text:
+            raise ValueError("field cannot be empty")
+        return text
+
+
 class GoalTicketRequest(BaseModel):
     """Goal → Linear: required fields only. No autonomy markers."""
 
