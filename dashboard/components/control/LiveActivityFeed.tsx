@@ -16,7 +16,7 @@ import { LiveDot, PhasePill } from "./LiveFeedMarks";
 import LiveWatchLinks from "./LiveWatchLinks";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { fmtElapsed, fmtAgo } from "@/lib/control/activity-format";
-import { idleSessionsNote, watchBuildsHref, watchLoopHref, watchSwarmHref } from "@/lib/control/watchWork";
+import { asWatchInput, idleSessionsNote, watchBuildsHref, watchLoopHref, watchSwarmHref } from "@/lib/control/watchWork";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface LiveData {
@@ -155,11 +155,9 @@ export default function LiveActivityFeed() {
           </span>
         )}
       </div>
-      {data && !err ? (
-        <div className="px-4 py-2 border-b border-slate-800">
-          <LiveWatchLinks hasPr={data.recent_completions.some((c) => Boolean(c.pr_url))} />
-        </div>
-      ) : null}
+      <div className="px-4 py-2 border-b border-slate-800">
+        <LiveWatchLinks hasPr={Boolean(data?.recent_completions.some((c) => Boolean(c.pr_url)))} />
+      </div>
 
       {/* Stats grid */}
       {data && (
@@ -296,12 +294,12 @@ export default function LiveActivityFeed() {
             </div>
             {data.active_sessions.length === 0 ? (
               <div className="text-sm text-text-muted italic">
-                {idleSessionsNote({
+                {idleSessionsNote(asWatchInput({
                   sessionCount: 0,
-                  urgent: data.queue.urgent,
-                  high: data.queue.high,
-                  nextIssueId: data.queue.next_issue_id,
-                })}
+                  urgent: data.queue?.urgent,
+                  high: data.queue?.high,
+                  nextIssueId: data.queue?.next_issue_id,
+                }))}
               </div>
             ) : (
               <div className="space-y-2">
