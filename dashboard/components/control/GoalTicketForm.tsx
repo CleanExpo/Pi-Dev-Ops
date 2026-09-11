@@ -7,8 +7,8 @@ import GoalDraftReview, {
   type AnalysisPayload,
   type DraftTicket,
 } from "./GoalDraftReview";
-import GoalProjectPicker, { type GoalProject } from "./GoalProjectPicker";
-import { readyToAnalyze, remainingHint, ticketsToFile } from "@/lib/control/goalBrief";
+import GoalProjectPicker, { stubBrief, type GoalProject } from "./GoalProjectPicker";
+import { hasBrief, readyToAnalyze, remainingHint, ticketsToFile } from "@/lib/control/goalBrief";
 import {
   ANALYZE_STAGE_NOTE,
   PROJECT_KEPT_NOTE,
@@ -61,6 +61,7 @@ export default function GoalTicketForm() {
       setGoal(stored.goal);
       setAcceptance(stored.acceptance);
       setAnalysis(stored.analysis);
+      setProject(stubBrief(stored.project_id, stored.project_title));
     }
     setHydrated(true);
   }, []);
@@ -71,8 +72,14 @@ export default function GoalTicketForm() {
       writeGoalAnalysis(null);
       return;
     }
-    writeGoalAnalysis({ goal, acceptance, analysis });
-  }, [analysis, goal, acceptance, hydrated]);
+    writeGoalAnalysis({
+      project_id: project?.id || "",
+      project_title: project?.title || "",
+      goal,
+      acceptance,
+      analysis,
+    });
+  }, [analysis, goal, acceptance, project, hydrated]);
 
   const canAnalyze = readyToAnalyze(goal, acceptance, project?.id || "");
 
@@ -133,6 +140,10 @@ export default function GoalTicketForm() {
 
   async function approveAndFile() {
     if (busy || !analysis) return;
+    if (!hasBrief(project?.id || "")) {
+      setError("Select a brief before writing to Linear.");
+      return;
+    }
     const chosen = ticketsToFile(analysis.tickets, filed);
     if (chosen.length === 0) {
       setError("Those tickets are already in Linear.");
