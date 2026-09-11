@@ -1,12 +1,13 @@
 # tests — Wiki
 
-_Last updated: 2026-09-07T06:15:47Z (commits 6598495..24a896c)_
+_Last updated: 2026-09-11T12:53:14Z (commits c6f733d..b895059)_
 
 ## Recent changes
-- 24a896c — test(linear): load Goal briefs from settings when the table is missing
+- 01ff109 — test(gate): wire proxy_lint_sources fixtures into the lint test suite
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_goal_projects.py — touched in recent commits
+- tests/proxy_lint_sources.py — touched in recent commits
+- tests/test_proxy_fallback_lint.py — touched in recent commits
