@@ -78,7 +78,7 @@ export const CONTROL_SECTIONS: readonly ControlNavItem[] = [
     slug: "runs",
     label: "Runs",
     title: "Routine runs",
-    blurb: "Last routine executions.",
+    blurb: "Cron outcomes — same list as sidebar Routines.",
   },
   {
     href: "/control/curator",
