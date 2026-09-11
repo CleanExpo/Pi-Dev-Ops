@@ -6,6 +6,9 @@ import BrainStatusPanel from "@/components/brain/BrainStatusPanel";
 export default function BrainPage() {
   return (
     <div className="flex-1 overflow-auto p-6 md:p-8" style={{ background: "var(--background)" }}>
+      <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+        Specialist. Not the Goal path. This board does not write Linear tickets.
+      </p>
       <BrainStatusPanel />
     </div>
   );
