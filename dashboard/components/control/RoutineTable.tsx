@@ -98,7 +98,7 @@ export default function RoutineTable() {
         style={{ borderBottom: "1px solid var(--border)" }}
       >
         <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
-          Last 10 runs
+          Last 10 — same cron list as sidebar Routines
         </span>
         <button
           onClick={() => void fetchRuns()}
