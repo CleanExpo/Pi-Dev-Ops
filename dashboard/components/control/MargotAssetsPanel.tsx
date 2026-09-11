@@ -146,7 +146,7 @@ export default function MargotAssetsPanel() {
         className="flex items-center justify-between px-4 py-2.5"
         style={{ borderBottom: "1px solid var(--border)" }}
       >
-        <h2 className="text-sm font-semibold tracking-tight">Margot Assets</h2>
+        <h2 className="text-sm font-semibold tracking-tight">Margot Assets — specialist</h2>
         <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>
           {options?.model ?? "—"} · {options?.matrix_item_count ?? "?"} matrix items · dry-run default
         </span>
