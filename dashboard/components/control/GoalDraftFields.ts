@@ -38,7 +38,7 @@ export const DRAFT_AREAS: Array<{ key: keyof DraftTicket; label: string; rows: n
   { key: "context", label: "Context", rows: 3 },
   { key: "user_story", label: "User story", rows: 2 },
   { key: "current_behaviour", label: "Current behaviour", rows: 3 },
-  { key: "expected_behaviour", label: "Expected behaviour", rows: 3 },
+  { key: "expected_behaviour", label: "Goal", rows: 3 },
   { key: "scope", label: "Scope", rows: 3 },
   { key: "affected_surfaces", label: "Affected surfaces", rows: 2 },
   { key: "technical_requirements", label: "Technical requirements", rows: 4 },
@@ -52,7 +52,7 @@ export const DRAFT_AREAS: Array<{ key: keyof DraftTicket; label: string; rows: n
   { key: "sub_tasks", label: "Sub-tasks", rows: 5 },
   { key: "scenarios", label: "Scenarios", rows: 3 },
   { key: "junior_notes", label: "Junior notes", rows: 3 },
-  { key: "acceptance", label: "Acceptance criteria", rows: 4 },
+  { key: "acceptance", label: "Acceptance", rows: 4 },
   { key: "edge_cases", label: "Edge cases", rows: 3 },
   { key: "testing", label: "Testing", rows: 3 },
   { key: "dependencies", label: "Dependencies", rows: 2 },
@@ -64,10 +64,22 @@ export const DRAFT_AREAS: Array<{ key: keyof DraftTicket; label: string; rows: n
 export const ALWAYS_SHOW: Array<keyof DraftTicket> = [
   "expected_behaviour",
   "acceptance",
-  "tasks",
   "sub_tasks",
-  "scenarios",
 ];
+
+export function fieldsForDraft(
+  ticket: DraftTicket,
+  more: boolean,
+): Array<{ key: keyof DraftTicket; label: string; rows: number }> {
+  const primary = ALWAYS_SHOW
+    .map((key) => DRAFT_AREAS.find((field) => field.key === key))
+    .filter((field): field is { key: keyof DraftTicket; label: string; rows: number } => Boolean(field));
+  if (!more) return primary;
+  const extra = DRAFT_AREAS.filter(
+    (field) => !ALWAYS_SHOW.includes(field.key) && Boolean(String(ticket[field.key] ?? "").trim()),
+  );
+  return [...primary, ...extra];
+}
 
 export const BLANK_DRAFT: Omit<DraftTicket, "selected"> = {
   title: "",
