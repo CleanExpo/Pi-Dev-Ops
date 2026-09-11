@@ -11,7 +11,14 @@ export const CHILD_TICKETS_NOTE =
 export const TWO_PROJECTS_NOTE =
   "This list is product briefs. The repo in the top bar is a different picker.";
 
-export const PROJECT_KEPT_NOTE = "Brief kept. Write the next goal, or start another.";
+export const PROJECT_KEPT_NOTE =
+  "Brief kept. Open each link. Then write the next goal on the same brief.";
+
+export const WRITE_MAYBE_STARTED =
+  "The write may already have started. Check Linear before writing again.";
+
+export const LINKS_STAY_NOTE =
+  "In Linear. Open each link. If a stranger cannot test the acceptance, it is not done.";
 
 export const ANALYZE_STAGE_NOTE = "Drafts first. Linear only after you confirm.";
 
@@ -74,14 +81,31 @@ export function nextSaveBriefHint(draft: {
 }
 
 export function nextWriteHint(
-  tickets: Array<{ title: string; goal: string; acceptance: string; selected: boolean }>,
+  tickets: Array<{
+    title: string;
+    goal: string;
+    acceptance: string;
+    selected: boolean;
+    landed_identifier?: string;
+  }>,
 ): string {
   const chosen = tickets.filter((ticket) => ticket.selected);
+  const leftover = tickets.some((ticket) => ticket.landed_identifier);
   if (chosen.length === 0) {
-    return "Select at least one ticket, or discard and rewrite the goal.";
+    return leftover
+      ? "The rest are already in Linear. Discard leftovers, or write the next goal."
+      : "Select at least one ticket, or discard and rewrite the goal.";
   }
   if (!readyToFile(tickets)) {
     return "Each selected ticket needs a title, goal, and acceptance of 8+ characters.";
   }
+  if (leftover) {
+    return "Some tickets are already in Linear. Press Write the rest for the ones that are not.";
+  }
   return "Draft only — nothing has been written to Linear. Press Write to Linear when the tickets are right.";
+}
+
+export function writeActionLabel(count: number, leftover: boolean): string {
+  if (leftover) return count === 1 ? "Write the rest (1)" : `Write the rest (${count})`;
+  return `Write ${count} to Linear`;
 }
