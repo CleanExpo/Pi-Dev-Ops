@@ -1,5 +1,6 @@
 "use client";
 
+import { FALLBACK_DRAFT_NOTE } from "@/lib/control/goalCopy";
 import styles from "./control-deck.module.css";
 
 export interface GoalAnalysisBlock {
@@ -121,6 +122,11 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
 
   return (
     <>
+      {analysis.fallback ? (
+        <p className="text-[13px]" style={{ color: "var(--warning)" }}>
+          {FALLBACK_DRAFT_NOTE}
+        </p>
+      ) : null}
       <section className={styles.card}>
         <div className={styles.fieldLabel}>Goal analysis</div>
         <p className="mt-2 text-[14px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text)" }}>
@@ -138,11 +144,6 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
         ) : null}
         {risk ? (
           <p className={`${styles.note} mt-2`}>Overall risk: {risk}</p>
-        ) : null}
-        {analysis.fallback ? (
-          <p className="mt-2 text-[13px]" style={{ color: "var(--warning)" }}>
-            This is a fallback draft. The analyzer did not return a completed plan.
-          </p>
         ) : null}
         {analysis.code_limitation ? (
           <p className={`${styles.note} mt-2`}>{analysis.code_limitation}</p>
