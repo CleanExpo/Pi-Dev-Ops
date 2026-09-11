@@ -102,10 +102,11 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
     expect(allowed("/api/login?path=/api/autonomy/status")).toBe(false);
   });
 
-  it("gives goal analyze a long enough window that a 25s LLM call is not a 502", () => {
+  it("gives Goal analyze and Write a long enough window that a 25s call is not a 502", () => {
     expect(proxyTimeoutMs("/api/goal-ticket/analyze")).toBe(PROXY_ANALYZE_MS);
     expect(proxyTimeoutMs("/api/goal-ticket/analyze?x=1")).toBe(PROXY_ANALYZE_MS);
-    expect(proxyTimeoutMs("/api/goal-ticket")).toBe(PROXY_DEFAULT_MS);
+    expect(proxyTimeoutMs("/api/goal-ticket")).toBe(PROXY_ANALYZE_MS);
+    expect(proxyTimeoutMs("/api/goal-ticket?x=1")).toBe(PROXY_ANALYZE_MS);
     expect(proxyTimeoutMs("/api/health")).toBe(PROXY_DEFAULT_MS);
     expect(PROXY_ANALYZE_MS).toBeGreaterThan(25_000);
   });
@@ -114,6 +115,9 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
     const timed = proxyAbortPayload({ name: "TimeoutError" });
     expect(timed.status).toBe(504);
     expect(timed.error).toMatch(/timed out/i);
+    expect(timed.hint).toMatch(/Linear was not written/);
+    const writeTimed = proxyAbortPayload({ name: "TimeoutError" }, "/api/goal-ticket");
+    expect(writeTimed.hint).toMatch(/Check Linear/);
     const down = proxyAbortPayload(new Error("connect"));
     expect(down.status).toBe(502);
   });
