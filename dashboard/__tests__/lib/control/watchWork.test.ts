@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   WATCH_EMPTY_NOTE,
+  asWatchInput,
   idleSessionsNote,
   nothingAuthorized,
   watchBuildsHref,
@@ -21,6 +22,21 @@ describe("watch the work", () => {
     const queued = { sessionCount: 0, urgent: 0, high: 1, nextIssueId: "RA-1" };
     expect(nothingAuthorized(queued)).toBe(false);
     expect(idleSessionsNote(queued)).toContain("Loop");
+  });
+
+  it("treats blank next-issue ids and missing counts as unauthorized idle", () => {
+    expect(nothingAuthorized(asWatchInput({
+      sessionCount: undefined,
+      urgent: null,
+      high: 0,
+      nextIssueId: "   ",
+    }))).toBe(true);
+    expect(idleSessionsNote({ nextIssueId: "  RA-9  ", high: 0, urgent: 0, sessionCount: 0 }))
+      .toContain("Loop");
+  });
+
+  it("never treats a running session as unauthorized idle", () => {
+    expect(nothingAuthorized(asWatchInput({ sessionCount: 1, urgent: 0, high: 0, nextIssueId: null }))).toBe(false);
   });
 
   it("points at Builds, Swarm, and Loop — not a write action", () => {
