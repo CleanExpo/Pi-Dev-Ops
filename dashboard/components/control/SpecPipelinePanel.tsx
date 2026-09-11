@@ -1,44 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import {
+  validateProposalClient, formatApiError,
+} from "@/lib/control/spec-pipeline-validate";
 
-const API = "/api/pi-ceo/api/spec-pipeline";
+// Path WITHOUT the /api/pi-ceo prefix: fetchProxyJSON adds it. POSTs below
+// still spell the prefix out, because quietFallback only fires for GET.
+const API = "/api/spec-pipeline";
 const POLL_MS = 4000;
 
-const BARE_TYPE_TOKENS = new Set([
-  "str", "int", "bool", "float", "dict", "list", "tuple", "none", "any",
-]);
-
-function validateProposalClient(text: string): string | null {
-  const proposal = text.trim();
-  if (proposal.length < 10) {
-    return "Proposal must be at least 10 characters";
-  }
-  if (BARE_TYPE_TOKENS.has(proposal.toLowerCase())) {
-    return `Rejected before submit: bare type token "${proposal}"`;
-  }
-  if (/<[A-Za-z][\w\s-]*>/.test(proposal)) {
-    return "Rejected before submit: angle-bracket placeholder detected";
-  }
-  return null;
-}
-
-function formatApiError(data: unknown, fallback: string): string {
-  if (!data || typeof data !== "object" || !("detail" in data)) return fallback;
-  const detail = (data as { detail?: unknown }).detail;
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) {
-    return detail
-      .map((item) => {
-        if (item && typeof item === "object" && "msg" in item) {
-          return String((item as { msg: string }).msg);
-        }
-        return String(item);
-      })
-      .join("; ");
-  }
-  return fallback;
-}
 
 type StageRow = {
   stage: string;
@@ -97,9 +69,12 @@ export default function SpecPipelinePanel() {
 
   const refresh = useCallback(async () => {
     try {
-      const r = await fetch(`${API}?limit=10`, { credentials: "include" });
-      if (!r.ok) return;
-      const data = await r.json();
+      // null covers a proxy fallback too, so an outage no longer empties the
+      // pipeline list as though nothing were queued — lib/pi-ceo-fetch.ts.
+      const data = await fetchProxyJSON<{ pipelines?: PipelineRow[] }>(
+        `${API}?limit=10`, { credentials: "include" },
+      );
+      if (!data) return;
       setPipelines(data.pipelines ?? []);
     } catch {
       /* ignore */
@@ -108,9 +83,10 @@ export default function SpecPipelinePanel() {
 
   const fetchDetail = useCallback(async (pipelineId: string) => {
     try {
-      const r = await fetch(`${API}/${pipelineId}`, { credentials: "include" });
-      if (!r.ok) return;
-      const data = (await r.json()) as PipelineDetail;
+      const data = await fetchProxyJSON<PipelineDetail>(
+        `${API}/${pipelineId}`, { credentials: "include" },
+      );
+      if (!data) return;
       setLive(data);
       const terminal = data.meta.status;
       if (
@@ -147,7 +123,7 @@ export default function SpecPipelinePanel() {
     setError(null);
     setLive(null);
     try {
-      const r = await fetch(`${API}/run`, {
+      const r = await fetch(`/api/pi-ceo${API}/run`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

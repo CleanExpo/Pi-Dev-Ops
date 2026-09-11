@@ -10,6 +10,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 interface Session {
   id: string;
@@ -184,9 +185,12 @@ export default function ActiveBuildStrip() {
     let alive = true;
     async function poll() {
       try {
-        const res = await fetch("/api/pi-ceo/api/sessions", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: unknown = await res.json();
+        // `[]` from the proxy fallback used to render as "no active builds".
+        // See lib/pi-ceo-fetch.ts.
+        const data = await fetchProxyJSON<unknown>(
+          "/api/sessions", { cache: "no-store" },
+        );
+        if (data === null) throw new Error("Pi-CEO backend unreachable");
         if (!alive) return;
         const list = Array.isArray(data) ? data : [];
         const active = (list as Session[]).filter((s) =>

@@ -2,6 +2,7 @@
 // app/(main)/builds/page.tsx — Pi CEO build sessions with live log streaming
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { fetchProxy } from "@/lib/pi-ceo-fetch";
 
 interface PiSession {
   id: string;
@@ -369,14 +370,13 @@ export default function BuildsPage() {
 
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch("/api/pi-ceo/api/sessions");
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: res.statusText }));
-        setError(body.error ?? `HTTP ${res.status}`);
+      // 200-with-`[]` from the proxy used to read as "no builds" — lib/pi-ceo-fetch.ts.
+      const r = await fetchProxy<PiSession[]>("/api/sessions");
+      if (!r.ok) {
+        setError(r.reason === "unreachable" ? "Pi-CEO backend unreachable" : `HTTP ${r.upstreamStatus ?? "error"}`);
         return;
       }
-      const data: PiSession[] = await res.json();
-      setSessions(data.sort((a, b) => b.started - a.started));
+      setSessions(r.data.sort((a, b) => b.started - a.started));
       setError(null);
       setLastFetch(Date.now());
     } catch (e) {

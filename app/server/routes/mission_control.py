@@ -20,6 +20,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends
 
 from ..auth import require_auth
+from ..claude_session_hud import claude_session_hud as _claude_session_hud
 from .health_aggregate import _is_observed, classify
 from .health_full import gather_components
 from .mission_control_sessions import (
@@ -192,5 +193,6 @@ async def mission_control_live() -> dict:
         "queue": _queue_snapshot(),
         "pulse": _pulse_status(),
         "observability": await _observability_snapshot(),
+        "claude_hud": _claude_session_hud(),
         "ts": datetime.now(timezone.utc).isoformat(),
     }

@@ -69,6 +69,12 @@ BASELINES = {
     # unapplied migration by appending to that file is blocked, the same way
     # appending to the RLS baseline is.
     ".github/schema-drift.baseline.txt": (parse_names, False),
+    # Dashboard clients that read the Pi-CEO proxy without checking its
+    # X-Upstream-Status fallback header, so a 200-with-placeholders renders as
+    # data. Registered here on the day the gate was written rather than after
+    # someone appended a line to it: an unregistered ratchet is a gate with its
+    # own bypass shipped alongside.
+    ".github/proxy-fallback.baseline.txt": (parse_names, False),
     "supabase/tests/pgtap/rls_coverage.sql": (parse_rls, False),
     # RA-7402. The one that ratchets the other way — see parse_surfaces.
     ".github/smoke-surfaces.json": (parse_surfaces, True),

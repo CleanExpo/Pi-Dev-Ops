@@ -11,6 +11,9 @@
 import { useEffect, useState } from "react";
 
 import ThroughputSparkline from "./ThroughputSparkline";
+import ClaudeSessionsHUD, { type ClaudeHud } from "./ClaudeSessionsHUD";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { fmtElapsed, fmtAgo } from "@/lib/control/activity-format";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface LiveData {
@@ -50,6 +53,7 @@ interface LiveData {
     comments_today: number;
     pulse_issue_id: string | null;
   };
+  claude_hud?: ClaudeHud;
   observability?: {
     source: string;
     ok: boolean;
@@ -70,22 +74,6 @@ interface LiveData {
   };
 }
 
-// ── Formatters ────────────────────────────────────────────────────────────
-function fmtElapsed(s: number): string {
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
-  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
-}
-
-function fmtAgo(iso: string | null): string {
-  if (!iso) return "never";
-  const ms = Date.now() - new Date(iso).getTime();
-  if (ms < 0) return "just now";
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  return `${Math.floor(s / 3600)}h ago`;
-}
 
 // ── Phase pill ────────────────────────────────────────────────────────────
 function PhasePill({ phase }: { phase: string }) {
@@ -102,11 +90,7 @@ function PhasePill({ phase }: { phase: string }) {
     building: "bg-amber-500/20 text-amber-300 border-amber-500/40",
     running: "bg-amber-500/20 text-amber-300 border-amber-500/40",
   }[phase] || "bg-slate-500/20 text-slate-300 border-slate-500/40";
-  return (
-    <span className={`px-2 py-0.5 text-xs font-mono rounded border ${color}`}>
-      {phase}
-    </span>
-  );
+  return <span className={`px-2 py-0.5 text-xs font-mono rounded border ${color}`}>{phase}</span>;
 }
 
 // ── Pulsing dot ───────────────────────────────────────────────────────────
@@ -143,15 +127,15 @@ export default function LiveActivityFeed() {
     let mounted = true;
     const tick = async () => {
       try {
-        const r = await fetch("/api/pi-ceo/api/mission-control/live", {
+        // See lib/pi-ceo-fetch.ts — a proxy fallback is not a live reading.
+        const j = await fetchProxyJSON<LiveData>("/api/mission-control/live", {
           credentials: "include",
           cache: "no-store",
         });
-        if (!r.ok) {
-          if (mounted) setErr(`HTTP ${r.status}`);
+        if (!j) {
+          if (mounted) setErr("Pi-CEO backend unreachable");
           return;
         }
-        const j = (await r.json()) as LiveData;
         if (mounted) {
           setData(j);
           if (j.error) {
@@ -210,6 +194,7 @@ export default function LiveActivityFeed() {
       {/* Stats grid */}
       {data && (
         <>
+          <ClaudeSessionsHUD data={data.claude_hud} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-b border-slate-800">
             {/* Throughput */}
             <div>

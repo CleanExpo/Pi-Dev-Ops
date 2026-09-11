@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Sparkline from "./Sparkline";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 interface ProjectHealth {
   project_id: string;
@@ -83,9 +84,9 @@ export default function HealthGrid() {
 
   const fetchHealth = useCallback(async () => {
     try {
-      const res = await fetch("/api/pi-ceo/api/projects/health");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as ProjectHealth[];
+      // `[]` from the proxy fallback would read as "no projects" — lib/pi-ceo-fetch.ts.
+      const data = await fetchProxyJSON<ProjectHealth[]>("/api/projects/health");
+      if (!data) throw new Error("Pi-CEO backend unreachable");
       const arr = Array.isArray(data) ? data : [];
 
       // Append to rolling history (max 12 samples)
@@ -241,8 +242,8 @@ function ProjectDrillDown({
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/pi-ceo/api/projects/${encodeURIComponent(project.project_id)}/findings?limit=25`)
-      .then((r) => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
+    fetchProxyJSON<FindingsResponse>(`/api/projects/${encodeURIComponent(project.project_id)}/findings?limit=25`)
+      .then((d) => { if (!d) return Promise.reject("Pi-CEO backend unreachable"); return d; })
       .then((d: FindingsResponse) => { if (!cancelled) { setData(d); setError(null); } })
       .catch((e) => { if (!cancelled) setError(String(e)); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -560,9 +561,8 @@ function FixSessionLive({
     let alive = true;
     async function poll() {
       try {
-        const res = await fetch(`/api/pi-ceo/api/sessions`, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as PollSession[];
+        const data = await fetchProxyJSON<PollSession[]>("/api/sessions", { cache: "no-store" });
+        if (!data) return;
         if (!alive) return;
         const mine = data.find((s) => s.id === sessionId);
         if (mine) {

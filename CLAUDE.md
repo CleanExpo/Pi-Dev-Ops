@@ -125,7 +125,7 @@ Found by direct check on 2026-08-18. Each is real and unfixed; treat as work, no
 | # | Defect | Evidence |
 |---|---|---|
 | 1 | ~~`.harness/config.yaml` **does not exist**~~ — **RETRACTED 2026-08-30, was never a defect.** Absence is correct by design. `.harness/` is gitignored (`.gitignore:220`), so the file is absent from every fresh clone and from CI — it is per-project runtime state. The role→model map it once carried now lives in code as `config_loader.HARNESS_SPEC`; a present file only overrides it. `ls .harness/` can never show it, so the old row was a null result mistaken for evidence. Untracking `.harness/` in `#607` is what silently dropped planner/orchestrator/adversary to sonnet for four days; `config_loader.py` exists so that absence resolves to the correct models instead | `python3 -c "from app.server import config_loader; print(config_loader.harness_config()['agents'])"` |
-| 2 | ~~`projects.json` repo→project lookup is ambiguous~~ — **RETRACTED, was never a defect.** `CleanExpo/Pi-Dev-Ops` legitimately carries two Linear projects (`pi-dev-ops`, `margot`). All 12 `id` values are unique and both consumers key on `id`, never `repo`. See the routing section | ids 12/12 unique |
+| 2 | ~~`projects.json` repo→project lookup is ambiguous~~ — **RETRACTED, was never a defect.** `CleanExpo/Pi-Dev-Ops` legitimately carries two Linear projects (`pi-dev-ops`, `margot`). Every `id` value is unique and both consumers key on `id`, never `repo`. See the routing section | `python3 -c "import json;p=json.load(open('config/harness/projects.json'))['projects'];i=[x['id'] for x in p];print(len(i),len(set(i)))"` — the two numbers must match |
 | 3 | ~~Four `.claude/skills/*/SKILL.md` missing~~ — **FIXED 2026-08-18.** Added as symlinks to the `.agents/skills/` originals, matching the existing `skybridge` convention. Six routes now resolve | `ls -la .claude/skills/` |
 | 4 | ~~`HERMES.md` is **missing**, cited as Launch Crew governance~~ — **RETRACTED 2026-08-30.** The file is genuinely absent, but it is not governance and nothing depends on it: its only reference is one entry in an opportunistic inventory glob in `skills/launch-project-audit/SKILL.md`. Launch Crew governance is `skills/launch-charter/SKILL.md`, which exists | `git grep -n 'HERMES\.md'` |
 | 5 | `app/server/routes/webhooks.py` is by far the largest route module and breaches the 300-line convention, along with most of `routes/`. The old row's other two counts were wrong — `mission_control.py` has since dropped under the ceiling — and "four files" repo-wide understated it by two orders of magnitude. The ceiling is now enforced for Python as a ratchet, not a hard limit — existing files are grandfathered in `.github/file-length.baseline.txt`; CI fails on a new file over 300 or a baselined file that grows. Covers `.py`, `.ts` and `.tsx`. Count it, never read a count from here | `python3 .github/scripts/file_length_lint.py` |
@@ -472,7 +472,7 @@ process, it is not autonomous.
 ## Linear routing
 
 `config/harness/projects.json` is canonical. **Route on `id`, never on `repo`.** `id` is unique
-across all 12 entries; `repo` is not — `CleanExpo/Pi-Dev-Ops` deliberately carries two Linear
+across every entry; `repo` is not — `CleanExpo/Pi-Dev-Ops` deliberately carries two Linear
 projects (`pi-dev-ops` and `margot`), so a repo-keyed lookup would silently pick one. This is
 already how the code works, and it is correct:
 

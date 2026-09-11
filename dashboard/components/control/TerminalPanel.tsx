@@ -5,6 +5,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { fetchProxy } from "@/lib/pi-ceo-fetch";
 
 interface Pane {
   id?: string;
@@ -40,25 +41,23 @@ export default function TerminalPanel() {
   const [err, setErr] = useState<string | null>(null);
   const [fresh, setFresh] = useState<boolean>(false);
 
+  // `path` is WITHOUT the /api/pi-ceo prefix — fetchProxy adds it. Previously
+  // this checked only r.ok, so the proxy's 200-with-placeholders was rendered
+  // as a live tmux pane listing. See lib/pi-ceo-fetch.ts.
   const fetchJson = useCallback(async <T,>(path: string): Promise<T | null> => {
-    try {
-      const r = await fetch(path, { credentials: "include", cache: "no-store" });
-      if (!r.ok) {
-        setErr(`HTTP ${r.status}`);
-        return null;
-      }
-      return (await r.json()) as T;
-    } catch (e) {
-      setErr(String(e));
-      return null;
-    }
+    const r = await fetchProxy<T>(path, { credentials: "include", cache: "no-store" });
+    if (r.ok) return r.data;
+    setErr(r.reason === "unreachable"
+      ? "Pi-CEO backend unreachable"
+      : `HTTP ${r.upstreamStatus ?? "error"}`);
+    return null;
   }, []);
 
   // Poll the session list.
   useEffect(() => {
     let mounted = true;
     const tick = async () => {
-      const j = await fetchJson<SessionsResp>("/api/pi-ceo/api/terminal/sessions");
+      const j = await fetchJson<SessionsResp>("/api/terminal/sessions");
       if (!mounted || !j) return;
       const list = j.sessions ?? [];
       setSessions(list);
@@ -81,7 +80,7 @@ export default function TerminalPanel() {
     let mounted = true;
     const tick = async () => {
       const j = await fetchJson<TailResp>(
-        `/api/pi-ceo/api/terminal/tail?session=${encodeURIComponent(selected)}&lines=200`,
+        `/api/terminal/tail?session=${encodeURIComponent(selected)}&lines=200`,
       );
       if (!mounted || !j) return;
       setLines(j.lines ?? []);

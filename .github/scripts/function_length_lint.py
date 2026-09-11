@@ -59,6 +59,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Loaded by absolute path in tests, so the script's own directory is not always
+# on sys.path. Put it there before importing the shared enumeration.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import gate_sources  # noqa: E402
+
 # (lines, lineno, body fingerprint)
 Fn = tuple[int, int, str]
 
@@ -91,9 +96,8 @@ _HEADER = """\
 
 
 def tracked_python_files() -> list[str]:
-    out = subprocess.run(
-        ["git", "ls-files", "*.py"], capture_output=True, text=True, check=True,
-    ).stdout.split("\n")
+    """Every .py git knows about and is not ignoring — see gate_sources."""
+    out = gate_sources.source_paths("*.py")
     return [p for p in out if p and not any(x in f"/{p}" for x in EXCLUDE_PARTS)]
 
 
@@ -166,37 +170,6 @@ def write_baseline(sizes: dict[str, Fn]) -> None:
     print(f"wrote {BASELINE_PATH} — {len(over)} function(s) over {LIMIT} lines")
 
 
-def report() -> int:
-    """Re-derive the PLR0915 comparison in this module's docstring."""
-    sizes, _ = measure()
-    stmt_counts: dict[str, int] = {}
-    for path in tracked_python_files():
-        try:
-            tree = ast.parse(Path(path).read_text(encoding="utf-8"))
-        except (SyntaxError, OSError, UnicodeDecodeError):
-            continue
-        collected: dict[str, tuple[int, int]] = {}
-        _walk(tree, "", path, collected)
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                n = sum(1 for x in ast.walk(node) if isinstance(x, ast.stmt)) - 1
-                for key, meta in collected.items():
-                    if meta[1] == node.lineno:
-                        stmt_counts[key] = n
-    over = {k for k, v in sizes.items() if v[0] > LIMIT}
-    print(f"functions: {len(sizes)} | over {LIMIT} lines: {len(over)}")
-    for thr in (50, 40, 30, 20):
-        caught = sum(1 for k in over if stmt_counts.get(k, 0) > thr)
-        false = sum(
-            1 for k, v in sizes.items()
-            if v[0] <= LIMIT and stmt_counts.get(k, 0) > thr
-        )
-        pct = 100 * caught // len(over) if over else 0
-        print(f"  max-statements={thr:<3} catches {caught:>4}/{len(over)} = {pct:>3}%  "
-              f"| flags {false} already-compliant")
-    return 0
-
-
 def classify(sizes: dict[str, Fn], baseline: dict[str, tuple[int, str]]) -> dict[str, list]:
     """Sort every measured function into new / grown / shrunk / moved.
 
@@ -265,6 +238,8 @@ def main() -> int:
         print("error: run from the repository root", file=sys.stderr)
         return 2
     if "--report" in sys.argv:
+        from function_length_report import report  # lazy: avoids an import cycle
+
         return report()
 
     sizes, unparsed = measure()

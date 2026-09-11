@@ -1,0 +1,104 @@
+{
+  "_comment": "Maps every run: step in .github/workflows/ci.yml to the scripts/handoff-loop.sh gate that covers it locally. Read by .github/scripts/gate_parity_lint.py. An unmapped step FAILS — silence is not an exemption. Three categories: a gate name (covered), 'environment' (sets the stage, detects no defect in your code), or 'not-runnable-locally' WITH a reason (a real hole in local coverage, kept short on purpose).",
+  "_scope": "ci.yml only. The other PR-triggered workflows — design-lint, fail-open-check, pgtap-pilot, smoke_surface_gate, the drift checks — are path-filtered specialists that mostly need services a laptop lacks. They are NOT covered here, so a green handoff-loop.sh still does not predict their red. Named so it stays visible.",
+  "version": 1,
+  "steps": {
+    "ci.yml::Install ruff": {
+      "local_gate": "environment",
+      "reason": "installs the linter; the venv already has it"
+    },
+    "ci.yml::Ruff lint": {
+      "local_gate": "lint-ruff"
+    },
+    "ci.yml::Baseline ratchet (enforcement may never weaken, either direction)": {
+      "local_gate": "size-baseline-ratchet",
+      "note": "CI runs this PR-only with BASELINE_BASE_SHA from the event; the local gate resolves the same value from the merge-base with origin/main."
+    },
+    "ci.yml::File-length gate (300-line convention)": {
+      "local_gate": "size-file-length"
+    },
+    "ci.yml::Function-length gate (40-line convention)": {
+      "local_gate": "size-function-length"
+    },
+    "ci.yml::Install dependencies": {
+      "local_gate": "environment",
+      "reason": "pip install / npm ci; the local checkout is already installed"
+    },
+    "ci.yml::Pytest unit tests": {
+      "local_gate": "tests-python"
+    },
+    "ci.yml::Pytest swarm tests": {
+      "local_gate": "tests-swarm"
+    },
+    "ci.yml::AIP MCP wrapper tests": {
+      "local_gate": "tests-aip-mcp"
+    },
+    "ci.yml::Transcript redaction bank (guards the conversation ingest lane)": {
+      "local_gate": "tests-transcript-redaction"
+    },
+    "ci.yml::Provisioning gate (RA-7015 Cap 0)": {
+      "local_gate": "provisioning"
+    },
+    "ci.yml::Nexus shadow agent registry gate": {
+      "local_gate": "generated-agent-registry"
+    },
+    "ci.yml::Business charter gate": {
+      "local_gate": "business-charters"
+    },
+    "ci.yml::Agentskills manifest gate (RA-7252)": {
+      "local_gate": "generated-agentskills"
+    },
+    "ci.yml::TypeScript type check": {
+      "local_gate": "type-dashboard"
+    },
+    "ci.yml::ESLint": {
+      "local_gate": "lint-dashboard"
+    },
+    "ci.yml::Vitest": {
+      "local_gate": "tests-dashboard"
+    },
+    "ci.yml::Build": {
+      "local_gate": "build-dashboard"
+    },
+    "ci.yml::Run secrets_check.py": {
+      "local_gate": "audit-secrets"
+    },
+    "ci.yml::Start Pi CEO server locally": {
+      "local_gate": "environment",
+      "reason": "starts the server the smoke test then exercises"
+    },
+    "ci.yml::Wait for server to be ready": {
+      "local_gate": "environment",
+      "reason": "readiness poll"
+    },
+    "ci.yml::Run smoke test against local server": {
+      "local_gate": "audit-smoke"
+    },
+    "ci.yml::Show server log on failure": {
+      "local_gate": "environment",
+      "reason": "diagnostic output on an already-failed run"
+    },
+    "ci.yml::Stop server": {
+      "local_gate": "environment",
+      "reason": "teardown"
+    },
+    "ci.yml::Install minimal deps for smoke test": {
+      "local_gate": "environment",
+      "reason": "pip install requests"
+    },
+    "ci.yml::Wait for Railway deploy to settle": {
+      "local_gate": "environment",
+      "reason": "sleep before probing production"
+    },
+    "ci.yml::Proxy fallback gate (a failed read is never an empty read)": {
+      "local_gate": "size-proxy-fallback"
+    },
+    "ci.yml::Gate parity (every CI step must be covered locally or exempted)": {
+      "local_gate": "gate-parity"
+    },
+    "ci.yml::Run smoke test against production": {
+      "local_gate": "not-runnable-locally",
+      "reason": "probes the live Railway deployment. Runs after merge, so no local gate can predict it — and by design nothing on a laptop should be able to."
+    }
+  }
+}

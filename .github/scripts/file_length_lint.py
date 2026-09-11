@@ -50,6 +50,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Loaded by absolute path in tests, so the script's own directory is not always
+# on sys.path. Put it there before importing the shared enumeration.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import gate_sources  # noqa: E402
+
 LIMIT = int(os.environ.get("FILE_LENGTH_LIMIT", "300"))
 SUFFIXES = ("*.py", "*.ts", "*.tsx")
 # Two exemptions, kept apart because the reasons are not the same and merging them
@@ -96,14 +101,14 @@ _HEADER = """\
 """
 
 
+def source_paths() -> list[str]:
+    """Every source path git knows about and is not ignoring — see gate_sources."""
+    return gate_sources.source_paths(*SUFFIXES)
+
+
 def tracked_source_files() -> list[Path]:
-    """Tracked source paths, per git. Untracked scratch files are not linted."""
-    out = subprocess.run(
-        ["git", "ls-files", *SUFFIXES],
-        capture_output=True, text=True, check=True,
-    ).stdout.split("\n")
     return [
-        Path(p) for p in out
+        Path(p) for p in source_paths()
         if p and not any(part in f"/{p}" for part in EXCLUDE_PARTS)
     ]
 
@@ -260,12 +265,10 @@ def main() -> int:
         return 1
 
     exempt = sum(
-        1 for line in subprocess.run(
-            ["git", "ls-files", *SUFFIXES], capture_output=True, text=True, check=True,
-        ).stdout.split("\n")
+        1 for line in source_paths()
         if line and any(part in f"/{line}" for part in EXCLUDE_PARTS)
     )
-    print(f"file-length gate passed — {len(sizes)} tracked source files, "
+    print(f"file-length gate passed — {len(sizes)} source files, "
           f"{len(baseline)} grandfathered over {LIMIT} lines, 0 new, 0 grown.")
     if exempt:
         print(f"{exempt} file(s) exempt, not merely grandfathered: "

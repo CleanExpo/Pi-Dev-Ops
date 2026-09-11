@@ -3,6 +3,7 @@
 // Shows health scores for all 10 registered projects from /api/projects/health
 
 import { useEffect, useState, useCallback } from "react";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 interface ProjectHealth {
   project_id: string;
@@ -56,9 +57,11 @@ export default function ProjectsPage() {
 
   const fetchHealth = useCallback(async () => {
     try {
-      const res = await fetch("/api/pi-ceo/api/projects/health");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      // The proxy answers 200 with `[]` when the backend is down, which used to
+      // render as "no projects" — indistinguishable from a real empty result.
+      // See lib/pi-ceo-fetch.ts.
+      const data = await fetchProxyJSON<ProjectHealth[]>("/api/projects/health");
+      if (!data) throw new Error("Pi-CEO backend unreachable");
       setProjects(data);
       setLastUpdated(new Date());
       setError("");

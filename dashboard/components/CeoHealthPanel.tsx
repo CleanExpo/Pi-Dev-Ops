@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 // All fields except `status` are optional — Railway's /health currently only
 // returns {"status":"ok"} (the minimal liveness probe). Richer state lives on
@@ -81,9 +82,11 @@ export default function CeoHealthPanel() {
   useEffect(() => {
     async function fetchHealth() {
       try {
-        const res = await fetch("/api/pi-ceo/health");
-        if (res.ok) {
-          setHealth(await res.json() as HealthData);
+        // A proxy fallback now lands in the error branch instead of being
+        // rendered as a health reading — see lib/pi-ceo-fetch.ts.
+        const data = await fetchProxyJSON<HealthData>("/health");
+        if (data) {
+          setHealth(data);
           setError(false);
         } else {
           setError(true);

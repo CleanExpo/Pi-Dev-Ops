@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 interface RoutineRun {
   routine_name: string;
@@ -72,9 +73,9 @@ export default function RoutineTable() {
 
   const fetchRuns = useCallback(async () => {
     try {
-      const res = await fetch("/api/pi-ceo/api/routines?limit=10");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as RoutineRunsResponse;
+      // Empty runs from the proxy fallback read as "nothing scheduled ran" — lib/pi-ceo-fetch.ts.
+      const data = await fetchProxyJSON<RoutineRunsResponse>("/api/routines?limit=10");
+      if (!data) throw new Error("Pi-CEO backend unreachable");
       setRuns(Array.isArray(data.runs) ? data.runs : []);
       setError(null);
     } catch (e) {

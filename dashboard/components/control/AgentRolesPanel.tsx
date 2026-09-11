@@ -18,6 +18,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 interface PhaseMetric {
   duration_s: number;
@@ -123,9 +124,9 @@ export default function AgentRolesPanel() {
     let alive = true;
     async function poll() {
       try {
-        const res = await fetch("/api/pi-ceo/api/sessions", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: unknown = await res.json();
+        // `[]` from the proxy fallback would read as "every role idle" — lib/pi-ceo-fetch.ts.
+        const data = await fetchProxyJSON<unknown>("/api/sessions", { cache: "no-store" });
+        if (data === null) throw new Error("Pi-CEO backend unreachable");
         if (!alive) return;
         setSessions(Array.isArray(data) ? (data as Session[]) : []);
         setFetchError(null);

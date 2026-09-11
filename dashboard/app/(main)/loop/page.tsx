@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { deriveNeeds, type MCAction } from "@/lib/control/loop-needs";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 const POLL_MS = 20_000;
 
@@ -52,15 +53,10 @@ interface SwarmStatus {
 interface RoutineRun { ts?: string; name?: string; status?: string; ok?: boolean }
 interface RoutinesResp { runs?: RoutineRun[]; total?: number }
 
-async function getJSON<T>(path: string): Promise<T | null> {
-  try {
-    const res = await fetch(`/api/pi-ceo${path}`);
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null;
-  }
-}
+// Reads the proxy's fallback header, so a 200-with-placeholders returns null
+// rather than being rendered as data. See lib/pi-ceo-fetch.ts for why that
+// matters — the proxy answers 200 even when the backend is unreachable.
+const getJSON = fetchProxyJSON;
 
 function agoLabel(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined) return "never";

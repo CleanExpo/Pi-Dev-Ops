@@ -14,6 +14,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 interface ProjectOption {
   project_id: string;
@@ -70,9 +71,10 @@ export default function ProjectSelector() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/pi-ceo/api/projects/health")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: Array<{ project_id: string; repo: string }>) => {
+    // `r.ok ? json : []` turned an outage into an empty project list, silently.
+    // null now short-circuits instead — lib/pi-ceo-fetch.ts.
+    fetchProxyJSON<Array<{ project_id: string; repo: string }>>("/api/projects/health")
+      .then((data) => {
         if (cancelled || !Array.isArray(data)) return;
         setProjects(data.map((p) => ({ project_id: p.project_id, repo: p.repo })));
       })
