@@ -14,8 +14,8 @@ export default function GoalHowTo() {
       {open ? (
         <>
           <p className="mt-3 text-[13px]" style={{ color: "var(--text-muted)" }}>
-            The full requirement is in Linear only after a stranger can pass every acceptance
-            without asking the author. Analyze never writes. You decide what lands.
+            Tickets land in Backlog. This page never starts the build. A stranger must still
+            be able to pass every acceptance without asking the author. Analyze never writes.
           </p>
           <ol className="mt-3 pl-5 flex flex-col gap-2 text-[13px]" style={{ color: "var(--text)" }}>
             {HOW_TO_GET_THE_GOAL.map((step) => (
