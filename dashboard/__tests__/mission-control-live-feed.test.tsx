@@ -103,6 +103,7 @@ describe("Mission Control live feed — throughput contract", () => {
     expect(screen.getByRole("link", { name: "Builds" }).getAttribute("href")).toBe("/builds");
     expect(screen.getByRole("link", { name: "Swarm" }).getAttribute("href")).toBe("/control/swarm");
     expect(screen.getByRole("link", { name: "Loop" }).getAttribute("href")).toBe("/loop");
+    expect(screen.getByRole("link", { name: "Goal" }).getAttribute("href")).toBe("/control/goal");
     expect(screen.getByText(/Nothing authorized is running/)).toBeTruthy();
   });
 
