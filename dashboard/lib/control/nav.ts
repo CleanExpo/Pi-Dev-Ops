@@ -59,7 +59,7 @@ export const CONTROL_SECTIONS: readonly ControlNavItem[] = [
     slug: "model",
     label: "Models",
     title: "Model Fabric",
-    blurb: "Governed model routing, live provider health, failover and ZTE evidence.",
+    blurb: "Watch the machine. Not the Goal path. Governed routing and provider health.",
   },
   {
     href: "/control/health",
@@ -73,14 +73,14 @@ export const CONTROL_SECTIONS: readonly ControlNavItem[] = [
     slug: "roles",
     label: "Roles",
     title: "Pipeline roles",
-    blurb: "Real 8-phase roster status.",
+    blurb: "Watch the machine. Not the Goal path. Eight-phase roster.",
   },
   {
     href: "/control/build",
     slug: "build",
     label: "Build",
     title: "Run a build",
-    blurb: "Start a session from a repo URL and a brief.",
+    blurb: "Engineer hatch. Not Goal. Start a session from a repo URL and a brief.",
   },
   {
     href: "/control/runs",
@@ -127,4 +127,14 @@ export function controlSectionBySlug(slug: string): ControlNavItem | undefined {
 
 export function isControlSectionSlug(slug: string): slug is ControlSectionSlug {
   return (CONTROL_SECTION_SLUGS as readonly string[]).includes(slug);
+}
+
+export function isSpecialistControlSlug(slug: string): boolean {
+  return (SPECIALIST_CONTROL_SLUGS as readonly string[]).includes(slug);
+}
+
+export function controlTileKicker(slug: string, label: string): string {
+  if (slug === "goal") return "Primary";
+  if (isSpecialistControlSlug(slug)) return "Specialist";
+  return label;
 }
