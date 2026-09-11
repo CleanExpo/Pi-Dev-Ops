@@ -133,7 +133,7 @@ export default function HealthGrid() {
         style={{ borderBottom: "1px solid var(--border)" }}
       >
         <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
-          Portfolio Health
+          Portfolio — same family as sidebar Portfolio
         </h2>
         {avg !== null && (
           <span
