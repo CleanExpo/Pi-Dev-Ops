@@ -10,8 +10,9 @@ from ..goal_projects import (
     load_projects,
     validate_brief,
 )
+from ..goal_projects_archive import archive_project
 from ..goal_ticket import file_drafts
-from ..models import GoalProjectCreate, GoalTicketFileRequest, GoalTicketRequest
+from ..models import GoalProjectArchive, GoalProjectCreate, GoalTicketFileRequest, GoalTicketRequest
 
 router = APIRouter()
 
@@ -102,6 +103,20 @@ def create_goal_project(body: GoalProjectCreate) -> dict:
         return {"project": create_project(body.model_dump())}
     except GoalProjectStoreError as exc:
         raise HTTPException(503, {"error": exc.code, "hint": exc.hint}) from exc
+
+
+@router.post(
+    "/api/goal-projects/archive",
+    dependencies=[Depends(require_auth), Depends(require_rate_limit)],
+)
+def archive_goal_project(body: GoalProjectArchive) -> dict:
+    try:
+        return {"project": archive_project(body.project_id)}
+    except GoalProjectStoreError as exc:
+        raise HTTPException(
+            400 if exc.code == "unknown_project" else 503,
+            {"error": exc.code, "hint": exc.hint},
+        ) from exc
 
 
 @router.post(
