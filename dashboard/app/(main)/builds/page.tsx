@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { fetchProxy } from "@/lib/pi-ceo-fetch";
+import BuildsEmpty from "@/components/control/BuildsEmpty";
 
 interface PiSession {
   id: string;
@@ -449,14 +450,7 @@ export default function BuildsPage() {
       )}
 
       {/* Empty state */}
-      {!error && sessions.length === 0 && (
-        <div className="flex flex-col flex-1 items-center justify-center px-4 text-center">
-          <p className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>No build sessions yet.</p>
-          <p className="font-mono text-[10px] mt-2" style={{ color: "var(--text-dim)" }}>
-            Trigger a build via POST /api/build on the Pi CEO server.
-          </p>
-        </div>
-      )}
+      {!error && sessions.length === 0 && <BuildsEmpty />}
 
       {/* Session list */}
       {parents.length > 0 && (
