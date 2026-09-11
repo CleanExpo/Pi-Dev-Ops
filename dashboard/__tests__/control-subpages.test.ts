@@ -7,6 +7,7 @@ import {
   CONTROL_SECTION_SLUGS,
   SPECIALIST_CONTROL_SLUGS,
   SPECIALIST_TILE_NOTE,
+  controlTileKicker,
   isControlSectionSlug,
 } from "../lib/control/nav";
 import { controlTabActive, pathMatchesNav } from "../lib/nav-active";
@@ -27,7 +28,10 @@ describe("control sub-pages", () => {
     expect([...SPECIALIST_CONTROL_SLUGS]).toEqual(["curator", "margot", "pipeline", "terminal"]);
     for (const slug of SPECIALIST_CONTROL_SLUGS) {
       expect(CONTROL_SECTIONS.find((item) => item.slug === slug)?.blurb).toContain(SPECIALIST_TILE_NOTE);
+      expect(controlTileKicker(slug, "x")).toBe("Specialist");
     }
+    expect(controlTileKicker("goal", "Goal")).toBe("Primary");
+    expect(controlTileKicker("swarm", "Swarm")).toBe("Swarm");
   });
 
   it("keeps section slugs unique and registered", () => {
