@@ -11,6 +11,7 @@ import GoalProjectPicker, { stubBrief, type GoalProject } from "./GoalProjectPic
 import { hasBrief, readyToAnalyze, remainingHint, ticketsToFile } from "@/lib/control/goalBrief";
 import {
   PROJECT_KEPT_NOTE,
+  WRITE_MAYBE_STARTED,
   analyzeProgress,
   analyzingCopy,
   nextAnalyzeHint,
@@ -24,6 +25,7 @@ import {
   type GoalErrorBody,
 } from "@/lib/control/goalErrors";
 import { readGoalAnalysis, writeGoalAnalysis } from "@/lib/control/goalAnalysisStore";
+import { readGoalFiled, writeGoalFiled } from "@/lib/control/goalFiledStore";
 import { goalStage } from "@/lib/control/goalStage";
 import GoalFiledList from "./GoalFiledList";
 import GoalHowTo from "./GoalHowTo";
@@ -63,8 +65,14 @@ export default function GoalTicketForm() {
       setAnalysis(stored.analysis);
       setProject(stubBrief(stored.project_id, stored.project_title));
     }
+    setFiled(readGoalFiled());
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    writeGoalFiled(filed);
+  }, [filed, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -86,7 +94,6 @@ export default function GoalTicketForm() {
   async function analyze() {
     if (busy || !canAnalyze) return;
     setError("");
-    setFiled([]);
     setConfirming(false);
     setBusy(true);
     try {
@@ -174,7 +181,7 @@ export default function GoalTicketForm() {
       }
       const created = mergeFiled(filed, filedTickets(data));
       if (created.length === 0) {
-        setError("Approval returned no tickets. Linear may not have been written.");
+        setError(WRITE_MAYBE_STARTED);
         return;
       }
       setFiled(created);
@@ -184,7 +191,7 @@ export default function GoalTicketForm() {
       setAcceptance("");
       writeGoalAnalysis(null);
     } catch {
-      setError("Network error — Pi CEO backend unreachable. Linear was not written.");
+      setError(WRITE_MAYBE_STARTED);
     } finally {
       setBusy(false);
     }
@@ -278,10 +285,10 @@ export default function GoalTicketForm() {
           <p className={styles.note}>{PROJECT_KEPT_NOTE}</p>
           <button
             type="button"
-            onClick={() => { setFiled([]); setError(""); writeGoalAnalysis(null); }}
+            onClick={() => setError("")}
             className={styles.ghost}
           >
-            Start another goal
+            Write the next goal
           </button>
         </div>
       ) : null}
