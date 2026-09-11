@@ -97,8 +97,9 @@ PROXY_MARKER = "api/pi-ceo"
 # unreachable. Guessing wrong flags an extra file, which costs one import.
 NON_GET = re.compile(r'method:\s*["\'](POST|PUT|PATCH|DELETE)["\']', re.I)
 COMMENT_LINE = re.compile(r'^\s*(//|/\*|\*)')
-LOOKBACK = 120   # chars before the URL, enough to catch `EventSource(`
-LOOKAHEAD = 260  # chars after, enough to catch an options object's `method:`
+# LOOKBACK/LOOKAHEAD character windows were removed once _enclosing_call()
+# existed: proximity is not evidence, and both windows were measured excusing
+# blind GETs that merely sat near an unrelated POST or EventSource.
 
 
 def tracked_files() -> list[str]:
@@ -152,14 +153,16 @@ def blind_call_sites(rel: str, text: str) -> list[int]:
     for m in re.finditer(re.escape(PROXY_MARKER), text):
         start = m.start()
         callee, call_src = _enclosing_call(text, start)
-        if callee:
-            # Bounded to THIS call: a sibling call's method or EventSource
-            # cannot vouch for this one.
-            if callee.endswith("EventSource") or NON_GET.search(call_src):
-                continue
-        elif ("EventSource(" in text[max(0, start - LOOKBACK):start]
-              or NON_GET.search(text[start:start + LOOKAHEAD])):
-            # Outside any call (a const-held URL); the windows are all there is.
+        # Bounded to THIS call: a sibling call's method or EventSource cannot
+        # vouch for this one. A URL outside any call — held in a const, or
+        # passed to a wrapper whose name this cannot read — is BLIND, with no
+        # appeal to its neighbours. Consulting a character window there failed
+        # open twice under probe: a const URL after an `EventSource(`, and a
+        # const URL followed by a POST, were both silently excused by calls
+        # they had nothing to do with. Per this file's own rule, flagged unless
+        # a MECHANISM makes the fallback unreachable; guessing wrong costs one
+        # import, and guessing wrong the other way ships a hollow panel.
+        if callee and (callee.endswith("EventSource") or NON_GET.search(call_src)):
             continue
         line_start = text.rfind("\n", 0, start) + 1
         line_end = text.find("\n", start)

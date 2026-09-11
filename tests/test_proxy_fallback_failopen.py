@@ -58,6 +58,50 @@ def _plant(tmp_path, rel: str, source: str) -> None:
     p.write_text(source, encoding="utf-8")
 
 
+# A URL held in a const sits outside any call, so there is no call to read a
+# method off. Proximity was standing in for evidence, and it failed open both
+# ways: found by probing _enclosing_call after the first round of fixes.
+CONST_AFTER_EVENTSOURCE_SOURCE = """
+function stream(sid) {
+  const es = new EventSource(`/api/pi-ceo/api/sessions/${sid}/logs`);
+}
+const API = "/api/pi-ceo/api/margot/assets";
+"""
+
+CONST_BEFORE_POST_SOURCE = """
+const API = "/api/pi-ceo/api/margot/assets";
+async function save() {
+  await fetch(`/api/pi-ceo/api/sessions`, { method: "POST" });
+}
+"""
+
+
+@pytest.mark.parametrize(
+    "name,source",
+    [
+        ("const-url-after-an-eventsource", CONST_AFTER_EVENTSOURCE_SOURCE),
+        ("const-url-before-a-post", CONST_BEFORE_POST_SOURCE),
+    ],
+)
+def test_a_const_url_is_not_excused_by_a_neighbour(
+    gate, tmp_path, monkeypatch, name, source
+):
+    """A URL outside any call is BLIND, with no appeal to what sits near it.
+
+    The reviewer named the wrong mechanism here — `_enclosing_call` returns
+    empty for a const URL rather than grabbing a preceding call — but the
+    conclusion held: the character-window fallback excused both of these.
+    Probed before fixing, so the red was observed and not assumed.
+    """
+    rel = f"dashboard/components/control/{name}.tsx"
+    _plant(tmp_path, rel, source)
+    monkeypatch.setattr(gate, "tracked_files", lambda: [rel])
+    gate.write_baseline([])
+
+    monkeypatch.setattr(sys, "argv", ["proxy_fallback_lint.py"])
+    assert gate.main() == 1, f"{name}: a neighbouring call excused a const URL"
+
+
 # A blind GET whose NEIGHBOUR carries the POST. The GET itself has no options
 # object at all, so it is a real violation; the old lookahead window simply saw
 # a `method:` belonging to a different call and excused it.
