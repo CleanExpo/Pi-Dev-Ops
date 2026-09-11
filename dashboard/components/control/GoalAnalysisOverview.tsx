@@ -1,6 +1,7 @@
 "use client";
 
-import { FALLBACK_DRAFT_NOTE } from "@/lib/control/goalCopy";
+import { useState } from "react";
+import { LESS_ANALYSIS, MORE_ANALYSIS } from "@/lib/control/goalCopy";
 import styles from "./control-deck.module.css";
 
 export interface GoalAnalysisBlock {
@@ -120,38 +121,31 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
     })
     .join("\n");
 
+  const [open, setOpen] = useState(false);
+
   return (
     <>
-      {analysis.fallback ? (
-        <p className="text-[13px]" style={{ color: "var(--warning)" }}>
-          {FALLBACK_DRAFT_NOTE}
-        </p>
-      ) : null}
       <section className={styles.card}>
-        <div className={styles.fieldLabel}>Goal analysis</div>
+        <div className={styles.fieldLabel}>Summary</div>
         <p className="mt-2 text-[14px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text)" }}>
           {summary}
         </p>
-        {problem ? (
-          <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            {problem}
-          </p>
-        ) : null}
-        {ga.desired_outcome ? (
-          <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "var(--text)" }}>
-            {ga.desired_outcome}
-          </p>
-        ) : null}
-        {risk ? (
-          <p className={`${styles.note} mt-2`}>Overall risk: {risk}</p>
-        ) : null}
-        {analysis.code_limitation ? (
-          <p className={`${styles.note} mt-2`}>{analysis.code_limitation}</p>
-        ) : (
-          <p className={`${styles.note} mt-2`}>Tickets are grounded in the selected project brief, not a repository.</p>
-        )}
+        <button type="button" onClick={() => setOpen(!open)} className={`${styles.ghost} mt-2`}>
+          {open ? LESS_ANALYSIS : MORE_ANALYSIS}
+        </button>
       </section>
 
+      {open ? (
+        <>
+      {problem ? (
+        <Block title="Problem" body={problem} />
+      ) : null}
+      {ga.desired_outcome ? (
+        <Block title="Desired outcome" body={String(ga.desired_outcome)} />
+      ) : null}
+      {risk ? (
+        <Block title="Overall risk" body={risk} />
+      ) : null}
       <Block title="Current behaviour" body={ga.current_behaviour || ""} />
       <Block title="Users" body={users} />
       <Block
@@ -165,12 +159,10 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
       <Block title="Unknowns" body={limits} />
       <Block title="Implementation strategy" body={ga.implementation_strategy || ""} />
 
-      <section className={styles.card}>
-        <div className={styles.fieldLabel}>Implementation breakdown</div>
-        <p className="mt-2 text-[14px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text)" }}>
-          {analysis.split_reason || ga.implementation_strategy || "Implementation strategy was not returned."}
-        </p>
-      </section>
+      <Block title="Implementation breakdown" body={analysis.split_reason || ""} />
+      {analysis.code_limitation ? (
+        <Block title="Brief" body={analysis.code_limitation} />
+      ) : null}
 
       <Block title="User flow" body={String(userFlow.summary || userFlow.diagram || "")} pre={Boolean(userFlow.diagram)} />
       <Block title="Happy path" body={happy} />
@@ -185,6 +177,8 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
       <Block title="Review unknowns" body={asLines(review.unknowns || review.key_unknowns)} />
       <Block title="Main risks" body={asLines(review.main_risks)} />
       <Block title="Smallest viable path" body={review.smallest_viable_path || ""} />
+        </>
+      ) : null}
     </>
   );
 }
