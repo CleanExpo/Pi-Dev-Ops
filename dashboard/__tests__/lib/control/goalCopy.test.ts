@@ -6,6 +6,8 @@ import {
   CONTROL_GOAL_CTA,
   FALLBACK_DRAFT_NOTE,
   HOW_TO_GET_THE_GOAL,
+  LESS_ANALYSIS,
+  MORE_ANALYSIS,
   LINEAR_DEST_NOTE,
   TWO_PROJECTS_NOTE,
   analyzeProgress,
@@ -43,5 +45,7 @@ describe("Goal copy", () => {
     expect(FALLBACK_DRAFT_NOTE).toContain("fallback");
     expect(BRIEFS_EMPTY_NOTE).toContain("Create brief");
     expect(BRIEFS_LOAD_FAIL_NOTE).toContain("Try again");
+    expect(MORE_ANALYSIS).toBe("More analysis");
+    expect(LESS_ANALYSIS).toBe("Hide analysis");
   });
 });
