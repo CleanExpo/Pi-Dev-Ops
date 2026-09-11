@@ -74,6 +74,10 @@
   border: 1px solid transparent;
 }
 
+.tabMuted {
+  opacity: 0.65;
+}
+
 .tabActive {
   color: var(--accent);
   background: var(--accent-subtle);
@@ -151,6 +155,10 @@
   font-weight: 600;
   letter-spacing: -0.03em;
   color: var(--text);
+}
+
+.tileSpecialist {
+  opacity: 0.72;
 }
 
 .tileFeatured .tileTitle {
