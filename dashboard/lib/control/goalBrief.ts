@@ -24,13 +24,49 @@ export function readyToAnalyze(
   return meetsMin(goal) && meetsMin(acceptance) && hasBrief(projectId);
 }
 
+const VAGUE_ACCEPTANCE = new Set([
+  "it works",
+  "done",
+  "works",
+  "ok",
+  "looks good",
+  "as expected",
+  "finished",
+  "complete",
+  "all good",
+  "good",
+]);
+
+const OBSERVE = /see|show|click|open|refresh|appear|remain|display|visible|error|fail|save|list|return|load|stay|keep|empty|message|select|type|press/i;
+
+export function acceptanceHint(value: string): string {
+  const text = value.trim();
+  if (!meetsMin(text)) return "";
+  const bare = text.toLowerCase().replace(/[.!]+$/g, "");
+  if (VAGUE_ACCEPTANCE.has(bare)) {
+    return "Say what a stranger sees or does. “It works” is not enough.";
+  }
+  if (!OBSERVE.test(text)) {
+    return "Name what a stranger sees or clicks to know this is done.";
+  }
+  return "";
+}
+
+export function acceptanceLabel(value: string): string {
+  return acceptanceHint(value) || remainingHint(value, "Acceptance");
+}
+
+export function acceptanceReady(value: string): boolean {
+  return meetsMin(value) && !acceptanceHint(value);
+}
+
 export function draftReady(ticket: {
   title: string;
   goal: string;
   acceptance: string;
   selected?: boolean;
 }): boolean {
-  return meetsMin(ticket.title) && meetsMin(ticket.goal) && meetsMin(ticket.acceptance);
+  return meetsMin(ticket.title) && meetsMin(ticket.goal) && acceptanceReady(ticket.acceptance);
 }
 
 export function readyToFile(
