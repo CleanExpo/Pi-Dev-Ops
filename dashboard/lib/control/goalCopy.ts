@@ -15,6 +15,9 @@ export const PROJECT_KEPT_NOTE = "Brief kept. Write the next goal, or start anot
 
 export const ANALYZE_STAGE_NOTE = "Drafts first. Linear only after you confirm.";
 
+export const MORE_ANALYSIS = "More analysis";
+export const LESS_ANALYSIS = "Hide analysis";
+
 export const FALLBACK_DRAFT_NOTE =
   "This is a fallback draft. Analyze could not finish a plan. Edit the ticket so a stranger can test it, or discard and rewrite the goal. Linear is not written yet.";
 
