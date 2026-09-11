@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { fetchProxy } from "@/lib/pi-ceo-fetch";
 import {
-  STATUS_COLOR, STATUS_ICON, TRIGGER_LABEL, fmtDuration, fmtTs, repoShort,
+  ROUTINES_LIST_NOTE, STATUS_COLOR, STATUS_ICON, TRIGGER_LABEL, fmtDuration, fmtTs, repoShort,
 } from "@/lib/control/routine-format";
 
 interface RoutineRun {
@@ -225,7 +225,7 @@ export default function RoutinesPage() {
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
             Routines
-            <span className="hidden sm:inline"> — {total} total</span>
+            <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total</span>
             <span className="sm:hidden"> ({total})</span>
           </span>
         </div>
