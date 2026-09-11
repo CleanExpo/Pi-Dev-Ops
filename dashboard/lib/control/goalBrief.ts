@@ -12,12 +12,16 @@ export function readyToCreate(draft: {
   return meetsMin(draft.title) && meetsMin(draft.description) && meetsMin(draft.audience);
 }
 
+export function hasBrief(projectId: string): boolean {
+  return Boolean(projectId.trim());
+}
+
 export function readyToAnalyze(
   goal: string,
   acceptance: string,
   projectId: string,
 ): boolean {
-  return meetsMin(goal) && meetsMin(acceptance) && Boolean(projectId.trim());
+  return meetsMin(goal) && meetsMin(acceptance) && hasBrief(projectId);
 }
 
 export function draftReady(ticket: {
