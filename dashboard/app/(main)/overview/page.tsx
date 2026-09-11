@@ -9,6 +9,8 @@ import {
   formatUptime,
   OVERVIEW_QUICK_LINKS,
   overviewLede,
+  overviewServiceRows,
+  serviceMarkGlyph,
   repoShort,
   skillFromPhase,
   statusDot,
@@ -395,23 +397,17 @@ export default function OverviewPage() {
                 <p className="text-[9px] font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--text-dim)" }}>
                   Services
                 </p>
-                {[
-                  { label: "Claude CLI", ok: health?.claude_cli ?? false },
-                  { label: "Anthropic API Key", ok: health?.anthropic_key ?? false },
-                  { label: "Linear API Key", ok: health?.linear_key ?? false },
-                  { label: "Vercel Token", ok: health?.vercel_token ?? false },
-                  { label: "Autonomy Loop", ok: health?.autonomy?.armed ?? false },
-                ].map(({ label, ok }) => (
+                {overviewServiceRows(health).map(({ label, mark }) => {
+                  const shown = serviceMarkGlyph(mark);
+                  return (
                   <div key={label} className="flex items-center justify-between py-1" style={{ borderBottom: "1px solid var(--border)" }}>
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</span>
-                    <span
-                      className="text-[10px] font-mono"
-                      style={{ color: ok ? "var(--success)" : "var(--error)" }}
-                    >
-                      {ok ? "✓" : "✗"}
+                    <span className="text-[10px] font-mono" style={{ color: shown.color }}>
+                      {shown.glyph}
                     </span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Autonomy detail */}
