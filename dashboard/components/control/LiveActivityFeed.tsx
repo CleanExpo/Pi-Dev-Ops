@@ -12,8 +12,11 @@ import { useEffect, useState } from "react";
 
 import ThroughputSparkline from "./ThroughputSparkline";
 import ClaudeSessionsHUD, { type ClaudeHud } from "./ClaudeSessionsHUD";
+import { LiveDot, PhasePill } from "./LiveFeedMarks";
+import LiveWatchLinks from "./LiveWatchLinks";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { fmtElapsed, fmtAgo } from "@/lib/control/activity-format";
+import { idleSessionsNote, watchBuildsHref, watchLoopHref, watchSwarmHref } from "@/lib/control/watchWork";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface LiveData {
@@ -74,44 +77,6 @@ interface LiveData {
   };
 }
 
-
-// ── Phase pill ────────────────────────────────────────────────────────────
-function PhasePill({ phase }: { phase: string }) {
-  const color = {
-    spec: "bg-blue-500/20 text-blue-300 border-blue-500/40",
-    plan: "bg-purple-500/20 text-purple-300 border-purple-500/40",
-    build: "bg-amber-500/20 text-amber-300 border-amber-500/40",
-    test: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
-    ship: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-    review: "bg-rose-500/20 text-rose-300 border-rose-500/40",
-    evaluating: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
-    cloning: "bg-slate-500/20 text-slate-300 border-slate-500/40",
-    created: "bg-slate-500/20 text-slate-300 border-slate-500/40",
-    building: "bg-amber-500/20 text-amber-300 border-amber-500/40",
-    running: "bg-amber-500/20 text-amber-300 border-amber-500/40",
-  }[phase] || "bg-slate-500/20 text-slate-300 border-slate-500/40";
-  return <span className={`px-2 py-0.5 text-xs font-mono rounded border ${color}`}>{phase}</span>;
-}
-
-// ── Pulsing dot ───────────────────────────────────────────────────────────
-function LiveDot({ active }: { active: boolean }) {
-  return (
-    <span className="inline-flex h-2 w-2">
-      <span
-        className={`absolute inline-flex h-2 w-2 rounded-full ${
-          active ? "bg-emerald-400 animate-ping" : "bg-slate-600"
-        } opacity-75`}
-      />
-      <span
-        className={`relative inline-flex h-2 w-2 rounded-full ${
-          active ? "bg-emerald-500" : "bg-slate-600"
-        }`}
-      />
-    </span>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────
 export default function LiveActivityFeed() {
   const [data, setData] = useState<LiveData | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -190,6 +155,11 @@ export default function LiveActivityFeed() {
           </span>
         )}
       </div>
+      {data && !err ? (
+        <div className="px-4 py-2 border-b border-slate-800">
+          <LiveWatchLinks hasPr={data.recent_completions.some((c) => Boolean(c.pr_url))} />
+        </div>
+      ) : null}
 
       {/* Stats grid */}
       {data && (
@@ -222,9 +192,9 @@ export default function LiveActivityFeed() {
               {data.queue.next_issue_id && (
                 <div className="text-xs text-text-muted mt-2 truncate">
                   next:{" "}
-                  <span className="font-mono text-cyan-400">
+                  <a href={watchLoopHref()} className="font-mono text-cyan-400 hover:underline">
                     {data.queue.next_issue_id}
-                  </span>{" "}
+                  </a>{" "}
                   {data.queue.next_issue_title}
                 </div>
               )}
@@ -326,7 +296,12 @@ export default function LiveActivityFeed() {
             </div>
             {data.active_sessions.length === 0 ? (
               <div className="text-sm text-text-muted italic">
-                No active sessions — poller waits for next tick or queue empty.
+                {idleSessionsNote({
+                  sessionCount: 0,
+                  urgent: data.queue.urgent,
+                  high: data.queue.high,
+                  nextIssueId: data.queue.next_issue_id,
+                })}
               </div>
             ) : (
               <div className="space-y-2">
@@ -336,9 +311,9 @@ export default function LiveActivityFeed() {
                     className="flex items-center gap-3 py-2 px-3 rounded bg-slate-900/50 border border-slate-800"
                   >
                     <LiveDot active={true} />
-                    <span className="font-mono text-xs text-text-muted">
+                    <a href={watchBuildsHref()} className="font-mono text-xs text-cyan-400 hover:underline">
                       {s.id}
-                    </span>
+                    </a>
                     <PhasePill phase={s.phase || s.status} />
                     <span className="text-sm text-slate-200 font-medium">
                       {s.repo}
@@ -395,14 +370,19 @@ export default function LiveActivityFeed() {
                       </span>
                     )}
                     {c.pr_url && (
-                      <a
-                        href={c.pr_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-cyan-400 hover:underline ml-auto"
-                      >
-                        PR →
-                      </a>
+                      <>
+                        <a
+                          href={c.pr_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-cyan-400 hover:underline ml-auto"
+                        >
+                          PR →
+                        </a>
+                        <a href={watchSwarmHref()} className="text-cyan-400 hover:underline">
+                          Swarm
+                        </a>
+                      </>
                     )}
                     <span className="text-text-muted tabular-nums">
                       {fmtAgo(c.completed_at)}
