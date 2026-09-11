@@ -52,7 +52,7 @@ export const CONTROL_SECTIONS: readonly ControlNavItem[] = [
     slug: "swarm",
     label: "Swarm",
     title: "Swarm",
-    blurb: "Autonomous PR progress and kill switch.",
+    blurb: "Watch PRs after pickup. Kill lives here. Not where a requirement is written.",
   },
   {
     href: "/control/model",
