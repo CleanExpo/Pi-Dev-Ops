@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { readyToCreate, remainingHint } from "@/lib/control/goalBrief";
-import { TWO_PROJECTS_NOTE } from "@/lib/control/goalCopy";
+import {
+  BRIEF_NOT_CREATED_NOTE,
+  BRIEFS_EMPTY_NOTE,
+  BRIEFS_LOAD_FAIL_NOTE,
+  TWO_PROJECTS_NOTE,
+  nextSaveBriefHint,
+} from "@/lib/control/goalCopy";
 import { readGoalAnalysis } from "@/lib/control/goalAnalysisStore";
 import { readGoalBriefId, writeGoalBriefId } from "@/lib/control/goalProjectStore";
 import styles from "./control-deck.module.css";
@@ -81,15 +87,21 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
     return data.projects;
   }
 
-  useEffect(() => {
+  function loadAndSelect() {
+    setError("");
+    setLoading(true);
     void reload()
       .then((list) => {
         const wanted = selectedId || readGoalAnalysis()?.project_id || readGoalBriefId();
         const found = list.find((p) => p.id === wanted);
         if (found) onSelect(found);
       })
-      .catch(() => setError("Could not load project briefs."))
+      .catch(() => setError(BRIEFS_LOAD_FAIL_NOTE))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadAndSelect();
   }, []);
 
   const canSave = readyToCreate(draft);
@@ -110,7 +122,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         hint?: string;
       };
       if (!res.ok || !data.project) {
-        setError(data.hint || data.detail?.hint || "Project was not created.");
+        setError(data.hint || data.detail?.hint || BRIEF_NOT_CREATED_NOTE);
         return;
       }
       const created = data.project;
@@ -124,7 +136,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         setError("Saved. The list did not refresh.");
       }
     } catch {
-      setError("Network error — project was not created.");
+      setError("Network error — the brief was not created.");
     } finally {
       setSaving(false);
     }
@@ -161,9 +173,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
         </p>
       ) : null}
       {!loading && !error && projects.length === 0 && !creating ? (
-        <p className={`${styles.note} mt-2`}>
-          No project briefs yet. Create one here — title, description, and audience are required.
-        </p>
+        <p className={`${styles.note} mt-2`}>{BRIEFS_EMPTY_NOTE}</p>
       ) : null}
       {!creating ? (
         <button
@@ -201,6 +211,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
               />
             </label>
           ))}
+          <p className={`${styles.note} mb-2`}>{nextSaveBriefHint(draft)}</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setExtra(!extra)} className={styles.ghost}>
               {extra ? "Fewer fields" : "More context"}
@@ -219,7 +230,16 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
           </div>
         </div>
       )}
-      {error ? <p className="mt-2 text-[13px]" style={{ color: "var(--error)" }}>{error}</p> : null}
+      {error ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <p className="text-[13px]" style={{ color: "var(--error)" }}>{error}</p>
+          {error === BRIEFS_LOAD_FAIL_NOTE ? (
+            <button type="button" onClick={loadAndSelect} disabled={loading || disabled} className={styles.ghost}>
+              Try again
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
