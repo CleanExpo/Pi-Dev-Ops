@@ -139,11 +139,11 @@ async function proxyRequest(method: string, path: string, body?: string): Promis
 
   let timedOut: ReturnType<typeof proxyAbortPayload> | null = null;
   let res = await doFetch().catch((err: unknown) => {
-    timedOut = proxyAbortPayload(err);
+    timedOut = proxyAbortPayload(err, path);
     return null;
   });
   if (!res) {
-    const fail = timedOut ?? proxyAbortPayload(new Error("unreachable"));
+    const fail = timedOut ?? proxyAbortPayload(new Error("unreachable"), path);
     if (method === "GET") {
       return quietFallback(path, fail.error, fail.status);
     }
