@@ -38,13 +38,13 @@ def _raise_goal_error(result: dict) -> None:
         _fail(400, result, {
             "error": "validation",
             "fields": result.get("fields") or [],
-            "hint": "goal, acceptance, and project_id are required.",
+            "hint": "Goal, acceptance, and a brief are required.",
         })
     if err == "unknown_project":
         _fail(400, result, {
             "error": "unknown_project",
             "project_id": result.get("project_id"),
-            "hint": "Create a project first, then select it.",
+            "hint": "Create a brief first, then select it.",
         })
     if err == "unknown_repo":
         _fail(400, result, {
@@ -55,7 +55,7 @@ def _raise_goal_error(result: dict) -> None:
     if err == "not_approved":
         _fail(400, result, {
             "error": "not_approved",
-            "hint": "Linear is not written until the proposed tickets are approved.",
+            "hint": "Linear is not written until you confirm Write.",
         })
     if err in {
         "supabase_not_configured",
