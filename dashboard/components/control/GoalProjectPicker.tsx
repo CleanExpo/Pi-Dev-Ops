@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { readyToCreate, remainingHint } from "@/lib/control/goalBrief";
 import { TWO_PROJECTS_NOTE } from "@/lib/control/goalCopy";
+import { readGoalAnalysis } from "@/lib/control/goalAnalysisStore";
 import { readGoalBriefId, writeGoalBriefId } from "@/lib/control/goalProjectStore";
 import styles from "./control-deck.module.css";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
@@ -23,6 +24,20 @@ interface Props {
   selectedId: string;
   disabled: boolean;
   onSelect: (project: GoalProject) => void;
+}
+
+export function stubBrief(id: string, title = ""): GoalProject {
+  return {
+    id,
+    title,
+    description: "",
+    audience: "",
+    problem: "",
+    users: "",
+    outcomes: "",
+    constraints: "",
+    out_of_scope: "",
+  };
 }
 
 const EMPTY: Omit<GoalProject, "id"> = {
@@ -69,8 +84,8 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect }: Pr
   useEffect(() => {
     void reload()
       .then((list) => {
-        if (selectedId) return;
-        const found = list.find((p) => p.id === readGoalBriefId());
+        const wanted = selectedId || readGoalAnalysis()?.project_id || readGoalBriefId();
+        const found = list.find((p) => p.id === wanted);
         if (found) onSelect(found);
       })
       .catch(() => setError("Could not load project briefs."))
