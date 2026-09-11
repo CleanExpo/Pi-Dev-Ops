@@ -4,6 +4,7 @@ import {
   BRIEFS_LOAD_FAIL_NOTE,
   CHILD_TICKETS_NOTE,
   CONTROL_GOAL_CTA,
+  CONTROL_HUB_LEDE,
   FALLBACK_DRAFT_NOTE,
   HOW_TO_GET_THE_GOAL,
   LESS_ANALYSIS,
@@ -72,5 +73,14 @@ describe("Goal copy", () => {
     ])).toContain("Write the rest");
     expect(LINKS_STAY_NOTE).toContain("Open each link");
     expect(WRITE_MAYBE_STARTED).toContain("Check Linear");
+  });
+
+  it("names the company loop after Write without starting work from Goal", () => {
+    expect(CONTROL_HUB_LEDE).toContain("Ready for Pi-Dev");
+    expect(CONTROL_HUB_LEDE).toContain("pi-dev:autonomous");
+    expect(CONTROL_HUB_LEDE).toContain("watch Live");
+    expect(LINKS_STAY_NOTE).toContain("does not start the build");
+    expect(LINKS_STAY_NOTE).toContain("pi-dev:autonomous");
+    expect(HOW_TO_GET_THE_GOAL.join(" ")).toContain("Ready for Pi-Dev");
   });
 });
