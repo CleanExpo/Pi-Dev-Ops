@@ -17,6 +17,7 @@ from app.server.goal_projects import (
     load_projects,
     validate_brief,
 )
+from app.server.goal_projects_archive import archive_project
 from app.server.routes import goal_ticket as goal_ticket_route
 
 
@@ -84,6 +85,39 @@ def test_route_creates_and_lists_projects(client: TestClient) -> None:
     listed = client.get("/api/goal-projects")
     assert listed.status_code == 200
     assert listed.json()["projects"][0]["id"] == project["id"]
+
+
+def test_archive_hides_brief_and_leaves_get_intact(
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GOAL_PROJECTS_PATH", str(tmp_path / "goal-projects.json"))
+    row = create_project(
+        {
+            "title": "Saved looks workspace",
+            "description": "Shoppers save looks from the feed.",
+            "audience": "Shoppers on Synthex.",
+        }
+    )
+    assert archive_project(row["id"])["archived"] == "true"
+    assert load_projects() == []
+    assert get_project(row["id"]) is not None
+
+
+def test_route_archives_brief(client: TestClient) -> None:
+    created = client.post(
+        "/api/goal-projects",
+        json={
+            "title": "Saved looks workspace",
+            "description": "Shoppers save looks from the feed.",
+            "audience": "Shoppers on Synthex.",
+        },
+    )
+    project_id = created.json()["project"]["id"]
+    hidden = client.post("/api/goal-projects/archive", json={"project_id": project_id})
+    assert hidden.status_code == 200
+    assert hidden.json()["project"]["archived"] == "true"
+    listed = client.get("/api/goal-projects")
+    assert listed.json()["projects"] == []
 
 
 def test_create_project_writes_supabase_not_a_local_file(
