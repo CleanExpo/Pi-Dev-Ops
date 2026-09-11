@@ -113,16 +113,53 @@ def is_exempt(rel: str) -> bool:
     return any(s in rel for s in EXEMPT_SUBSTRINGS)
 
 
+def _enclosing_call(text: str, pos: int) -> tuple[str, str]:
+    """(callee, full call source) for the call expression containing `pos`.
+
+    Returns ("", "") when `pos` sits outside any call — a const-held URL, say.
+    A fixed character window cannot answer this: an unrelated `method: "POST"`
+    or `EventSource(` merely NEAR a call site was enough to skip it, so a real
+    blind GET could hide behind a neighbour it has nothing to do with.
+    """
+    depth, i = 0, pos
+    while i > 0:
+        i -= 1
+        if text[i] == ")":
+            depth += 1
+        elif text[i] == "(":
+            if depth == 0:
+                break
+            depth -= 1
+    else:
+        return "", ""
+    open_paren, j = i, i
+    while j > 0 and (text[j - 1].isalnum() or text[j - 1] in "_$."):
+        j -= 1
+    depth = 0
+    for k in range(open_paren, len(text)):
+        if text[k] == "(":
+            depth += 1
+        elif text[k] == ")":
+            depth -= 1
+            if depth == 0:
+                return text[j:open_paren], text[open_paren:k + 1]
+    return text[j:open_paren], text[open_paren:]
+
+
 def blind_call_sites(rel: str, text: str) -> list[int]:
     """1-indexed line numbers of raw GET call sites against the proxy."""
     hits = []
     for m in re.finditer(re.escape(PROXY_MARKER), text):
         start = m.start()
-        before = text[max(0, start - LOOKBACK):start]
-        after = text[start:start + LOOKAHEAD]
-        if "EventSource(" in before:
-            continue
-        if NON_GET.search(after):
+        callee, call_src = _enclosing_call(text, start)
+        if callee:
+            # Bounded to THIS call: a sibling call's method or EventSource
+            # cannot vouch for this one.
+            if callee.endswith("EventSource") or NON_GET.search(call_src):
+                continue
+        elif ("EventSource(" in text[max(0, start - LOOKBACK):start]
+              or NON_GET.search(text[start:start + LOOKAHEAD])):
+            # Outside any call (a const-held URL); the windows are all there is.
             continue
         line_start = text.rfind("\n", 0, start) + 1
         line_end = text.find("\n", start)
@@ -134,21 +171,29 @@ def blind_call_sites(rel: str, text: str) -> list[int]:
     return hits
 
 
-def blind_consumers() -> list[str]:
-    found = []
+def blind_consumers() -> tuple[list[str], list[str]]:
+    """(files with blind call sites, files that could not be read).
+
+    An unreadable file used to be skipped, so a violation the gate could not
+    SEE passed as a violation that was not there. A control that cannot
+    determine an answer must refuse, never allow.
+    """
+    found: list[str] = []
+    unreadable: list[str] = []
     for rel in tracked_files():
         if is_exempt(rel):
             continue
         path = REPO / rel
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
+        except OSError as exc:
+            unreadable.append(f"{rel}: {exc}")
             continue
         if PROXY_MARKER not in text:
             continue
         if blind_call_sites(rel, text):
             found.append(rel)
-    return sorted(found)
+    return sorted(found), sorted(unreadable)
 
 
 def read_baseline() -> set[str]:
@@ -183,6 +228,23 @@ def _report_new_blind(new_blind: list[str]) -> None:
     print("\nFix: import { fetchProxyJSON } from '@/lib/pi-ceo-fetch' and use it.")
 
 
+def _report_every_consumer(blind: list[str]) -> None:
+    total = 0
+    for rel in blind:
+        text = (REPO / rel).read_text(encoding="utf-8", errors="replace")
+        sites = blind_call_sites(rel, text)
+        total += len(sites)
+        print(f"BLIND    {rel}:{','.join(str(n) for n in sites)}")
+    print(f"\n{len(blind)} file(s), {total} raw GET call site(s)")
+
+
+def _report_unreadable(unreadable: list[str]) -> None:
+    print("FAIL — could not read these tracked file(s), so the gate cannot")
+    print("prove they are clean. A check that cannot see is not a check.\n")
+    for line in unreadable:
+        print(f"  {line}")
+
+
 def _report_silently_fixed(fixed: list[str]) -> None:
     print("FAIL — these files are no longer blind but are still in the baseline.")
     print("The baseline is shrink-only so a fixed file cannot reserve permission to regress.\n")
@@ -197,7 +259,13 @@ def main() -> int:
     ap.add_argument("--report", action="store_true", help="list every consumer and its status")
     args = ap.parse_args()
 
-    blind = blind_consumers()
+    blind, unreadable = blind_consumers()
+
+    if unreadable:
+        # Before --update too: a baseline rewritten from a partial read would
+        # record "clean" for files nobody managed to look at.
+        _report_unreadable(unreadable)
+        return 1
 
     if args.update:
         write_baseline(blind)
@@ -205,13 +273,7 @@ def main() -> int:
         return 0
 
     if args.report:
-        total = 0
-        for rel in blind:
-            text = (REPO / rel).read_text(encoding="utf-8", errors="replace")
-            sites = blind_call_sites(rel, text)
-            total += len(sites)
-            print(f"BLIND    {rel}:{','.join(str(n) for n in sites)}")
-        print(f"\n{len(blind)} file(s), {total} raw GET call site(s)")
+        _report_every_consumer(blind)
         return 0
 
     baseline = read_baseline()

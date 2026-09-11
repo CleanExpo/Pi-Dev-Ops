@@ -125,6 +125,24 @@ def test_job_level_name_is_not_read_as_a_step(tmp_path):
 CI_YML = Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
 
 
+def test_an_empty_parse_refuses_instead_of_passing(monkeypatch, capsys):
+    """Defect 3 — a parser that stops matching must FAIL this gate.
+
+    `bad = len(unmapped) + len(dangling)` cannot tell "nothing is wrong" from
+    "nothing was read": both leave every bucket empty, so a regex that quietly
+    stops matching printed `gate-parity passed`. That is the same class of
+    defect as 1 and 2 above, one level up — and by Law 5 a recurrence is a
+    hole in the harness, not bad luck.
+    """
+    monkeypatch.setattr(gate_parity_lint, "ci_steps", lambda wf: [])
+    monkeypatch.setattr(sys, "argv", ["gate_parity_lint.py"])
+
+    assert gate_parity_lint.main() == 1
+    out = capsys.readouterr().out
+    assert "REFUSED" in out
+    assert "passed" not in out
+
+
 def test_gate_parity_lint_is_wired_into_ci():
     """CI itself must invoke the checker — not rely solely on a skippable local run."""
     assert "gate_parity_lint.py" in CI_YML.read_text(), (

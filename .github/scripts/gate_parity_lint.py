@@ -194,6 +194,18 @@ def main() -> int:
     gates = local_gate_names()
     covered, exempt, dangling, unmapped = classify(gates, load_map().get("steps", {}))
 
+    seen = len(covered) + len(exempt) + len(dangling) + len(unmapped)
+    if not gates or not seen:
+        # An empty parse is indistinguishable from a clean tree at the `bad`
+        # check below: every bucket is empty, so bad is 0 and this prints
+        # "passed" having compared nothing. The regexes here have already
+        # silently stopped matching once. A parser that stops matching must
+        # FAIL this check, never satisfy it.
+        print("REFUSED — gate-parity parsed nothing, so it cannot prove parity.")
+        print(f"  gates declared in handoff-loop.sh: {len(gates)}")
+        print(f"  CI steps seen across {len(gating_workflows())} gating workflow(s): {seen}")
+        return 1
+
     if report:
         print(f"local gates declared in handoff-loop.sh: {len(gates)}")
         for key, local in sorted(covered):
