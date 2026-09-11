@@ -87,10 +87,10 @@
 506	ce4b4287fba8	tests/test_board.py
 504	3d9681a1e148	tests/swarm/nexus/test_onboarding.py
 502	d3b2fcc37978	aip/src/mcp/server.ts
-492	2fa9dd71270a	dashboard/app/(main)/overview/page.tsx
+492	86b8c416d12e	dashboard/app/(main)/overview/page.tsx
 485	cd8b890b3644	dashboard/components/control/KillSwitchPanel.tsx
-479	c00380eb397f	dashboard/app/(main)/builds/page.tsx
 476	e536287edb18	tests/test_gap_audit_scout_dedup.py
+473	3951c8bd722c	dashboard/app/(main)/builds/page.tsx
 472	97801133f421	swarm/bots/builder.py
 467	0a286e60322a	app/server/session_sdk.py
 465	aac2ece56e4b	app/server/model_fabric.py
@@ -124,7 +124,7 @@
 407	5ef12f99be37	swarm/cs.py
 405	3ffa0c343140	swarm/intake/tests/test_handoff.py
 402	e43b78fe21e9	scripts/smoke_test_e2e.py
-399	f5686e9254cf	dashboard/components/control/LiveActivityFeed.tsx
+397	bfa5db407384	dashboard/components/control/LiveActivityFeed.tsx
 397	9c6f9fe89c20	tests/test_provider_nex_n2.py
 392	bb57f41dc268	tests/test_ccw_supabase_provider.py
 389	387943972ef6	app/server/spec_pipeline/__init__.py
