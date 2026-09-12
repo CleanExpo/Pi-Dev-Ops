@@ -115,7 +115,7 @@ def test_telegram_intake_webhook_registers_callback_query_updates(monkeypatch):
 
     set_webhook_req = next(r for r in requests if _method_of(r) == "setWebhook")
     body = urllib.parse.parse_qs(set_webhook_req.data.decode())
-    assert "callback_query" in json.loads(body["allowed_updates"][0])
+    assert json.loads(body["allowed_updates"][0]) == ["message", "callback_query"]
 
 
 def test_telegram_intake_preview_deploy_never_registers_webhook(monkeypatch):
