@@ -20,7 +20,7 @@
 2612	9f16a1752b55	app/server/agents/board_meeting.py
 1916	ddccd88f0083	app/server/session_phases.py
 1770	6f09ed10d936	swarm/margot_bot.py
-1292	ffe39904cc89	app/server/routes/webhooks.py
+1264	3f5a5b679cbc	app/server/routes/webhooks.py
 1219	b420cc9c57d4	scripts/unite_group_health_check.py
 1215	8fb4b89e6a56	app/server/autonomy.py
 1139	0a1b15c4f3d5	app/server/cron_watchdogs.py
@@ -32,7 +32,7 @@
 775	1eba526ac25a	app/server/supabase_log.py
 752	a260764ef6e7	app/server/agents/feedback_loop.py
 746	e125b5bd4df1	app/server/pipeline.py
-746	e950d3d127e6	dashboard/components/control/HealthGrid.tsx
+746	a9640f1727ea	dashboard/components/control/HealthGrid.tsx
 736	02fc8d0591a2	app/server/discovery.py
 735	c46d2c7837dd	tests/test_goal_ticket.py
 728	225d57e31f75	app/server/provider_router.py
@@ -181,7 +181,7 @@
 315	e7bbb7010fa8	swarm/intent_router.py
 312	82f6341b9686	app/server/config_loader.py
 312	1be56d7904db	app/server/linear_pulse.py
-312	861b7b4c2616	dashboard/components/control/MargotAssetsPanel.tsx
+312	3cd93003f8d0	dashboard/components/control/MargotAssetsPanel.tsx
 311	49ff799830c4	swarm/linear_tools.py
 310	c3c44c3e3652	app/server/agents/anthropic_intel_refresh.py
 310	501a41592aeb	app/server/goal_analyze_fields.py

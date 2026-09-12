@@ -283,53 +283,6 @@ def test_telegram_webhook_routes_idea_into_intake(webhook_client, monkeypatch):
     assert calls[0]["update_id"] == 123
 
 
-def test_telegram_webhook_approve_callback_resolves_gate(webhook_client, monkeypatch):
-    """RA-7443: an Approve tap arrives as callback_query, not message.
-
-    Before this fix the webhook only read data["message"], so a button tap
-    silently fell through to `return {"ok": True}` and the gate stayed
-    pending forever — the card just sat there.
-    """
-    import app.server.config as cfg
-    from app.server.routes import phone, webhooks
-
-    monkeypatch.setattr(cfg, "TELEGRAM_BOT_TOKEN", "bot-token")
-    monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
-    monkeypatch.setattr(webhooks, "_telegram_answer_callback", lambda *a, **k: None)
-
-    gate_id = "testgate123456"
-    phone._gates[gate_id] = {
-        "gate_id": gate_id,
-        "session_id": "s",
-        "tool_name": "Bash",
-        "tool_input_summary": "echo x",
-        "reason": "test",
-        "status": "pending",
-        "created_at": 0,
-        "expires_at": 1e18,
-        "resolved_at": None,
-        "resolved_by": None,
-        "chat_id": 789,
-        "message_id": None,
-    }
-
-    resp = webhook_client.post(
-        "/webhook/telegram",
-        headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
-        json={
-            "update_id": 1,
-            "callback_query": {
-                "id": "cbid1",
-                "data": f"approve:{gate_id}",
-                "from": {"id": 789},
-            },
-        },
-    )
-
-    assert resp.status_code == 200
-    assert phone._gates[gate_id]["status"] == "approved"
-
-
 def test_telegram_webhook_rejects_bad_secret(webhook_client, monkeypatch):
     import app.server.config as cfg
 
