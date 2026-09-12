@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import urllib.parse
 
 import scripts
 from app.server.routes import telegram_intake
@@ -90,6 +91,31 @@ def test_telegram_intake_webhook_mode_sets_webhook_and_skips_poll(monkeypatch):
     assert telegram_intake._last_poll_exit == 0
     assert telegram_intake._last_webhook_ok is True
     assert telegram_intake._last_webhook_error == ""
+
+
+def test_telegram_intake_webhook_registers_callback_query_updates(monkeypatch):
+    """RA-7530: without callback_query in allowed_updates, Telegram never
+    forwards an Approve/Deny button tap to the webhook at all."""
+    calls: list[str] = []
+    requests: list[object] = []
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "secret")
+    monkeypatch.setenv("TELEGRAM_WEBHOOK_URL", "https://example.test/webhook/telegram")
+    monkeypatch.setenv("PHONE_COMPANION_CHAT_ID", "12345")
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
+    monkeypatch.setenv("TELEGRAM_OWNED_BOT_ID", "8720594191")
+    monkeypatch.setattr(scripts, "marathon_telegram_inbox", type("F", (), {"main": staticmethod(lambda: calls.append("poll") or 0)}), raising=False)
+    monkeypatch.setattr(
+        telegram_intake.urllib.request, "urlopen",
+        _fake_telegram(requests, bot_id=8720594191),
+    )
+
+    asyncio.run(telegram_intake._run_iteration())
+
+    set_webhook_req = next(r for r in requests if _method_of(r) == "setWebhook")
+    body = urllib.parse.parse_qs(set_webhook_req.data.decode())
+    assert "callback_query" in json.loads(body["allowed_updates"][0])
 
 
 def test_telegram_intake_preview_deploy_never_registers_webhook(monkeypatch):

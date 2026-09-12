@@ -50,3 +50,29 @@ def test_telegram_webhook_approve_callback_resolves_gate(monkeypatch):
 
     assert resp.status_code == 200
     assert phone._gates[gate_id]["status"] == "approved"
+
+
+def test_telegram_webhook_deny_callback_resolves_gate(monkeypatch):
+    """A mutant narrowing the action allow-list to ('approve',) only must fail
+    this, not just the approve test above."""
+    import app.server.config as cfg
+    from app.server.routes import phone, phone_gate_callback
+
+    monkeypatch.setattr(cfg, "TELEGRAM_BOT_TOKEN", "bot-token")
+    monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
+    monkeypatch.setattr(phone_gate_callback, "answer_callback_query", lambda *a, **k: None)
+
+    gate_id = "testgate654321"
+    phone._gates[gate_id] = _pending_gate(gate_id)
+
+    resp = _client().post(
+        "/webhook/telegram",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
+        json={
+            "update_id": 2,
+            "callback_query": {"id": "cbid2", "data": f"deny:{gate_id}", "from": {"id": 789}},
+        },
+    )
+
+    assert resp.status_code == 200
+    assert phone._gates[gate_id]["status"] == "denied"
