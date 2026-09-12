@@ -81,3 +81,59 @@ def test_telegram_webhook_deny_callback_resolves_gate(monkeypatch):
 
     assert resp.status_code == 200
     assert phone._gates[gate_id]["status"] == "denied"
+
+
+def test_telegram_webhook_foreign_chat_cannot_approve(monkeypatch):
+    """Found by independent review (codex, round 5): a gate_id is not secret
+    (the local hook prints it to stderr on every poll), so anyone who can
+    reach the webhook with a known gate_id must still be its own recipient."""
+    import app.server.config as cfg
+    from app.server.routes import phone, phone_gate_callback
+
+    monkeypatch.setattr(cfg, "TELEGRAM_BOT_TOKEN", "bot-token")
+    monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
+    monkeypatch.setattr(phone_gate_callback, "answer_callback_query", lambda *a: None)
+
+    gate_id = "testgateforeign"
+    phone._gates[gate_id] = _pending_gate(gate_id)  # chat_id=789
+
+    resp = _client().post(
+        "/webhook/telegram",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
+        json={
+            "update_id": 3,
+            "callback_query": {"id": "cbid3", "data": f"approve:{gate_id}", "from": {"id": 999}},
+        },
+    )
+
+    assert resp.status_code == 200
+    assert phone._gates[gate_id]["status"] == "pending"
+
+
+def test_telegram_webhook_expired_gate_cannot_be_approved(monkeypatch):
+    """Found by independent review (codex, round 5): resolve_gate only checked
+    status, not expires_at, so a late tap could approve a gate the local hook
+    had already given up on."""
+    import app.server.config as cfg
+    from app.server.routes import phone, phone_gate_callback
+
+    monkeypatch.setattr(cfg, "TELEGRAM_BOT_TOKEN", "bot-token")
+    monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
+    monkeypatch.setattr(phone_gate_callback, "answer_callback_query", lambda *a: None)
+
+    gate_id = "testgateexpired"
+    gate = _pending_gate(gate_id)
+    gate["expires_at"] = 1  # long past
+    phone._gates[gate_id] = gate
+
+    resp = _client().post(
+        "/webhook/telegram",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
+        json={
+            "update_id": 4,
+            "callback_query": {"id": "cbid4", "data": f"approve:{gate_id}", "from": {"id": 789}},
+        },
+    )
+
+    assert resp.status_code == 200
+    assert phone._gates[gate_id]["status"] == "expired"
