@@ -297,7 +297,6 @@
 59	4c72e91198b6	tests/test_portfolio_pulse_github.py::test_happy_path_renders_all_sections
 58	7074898cc335	app/server/agents/board_meeting.py::_read_morning_intel
 58	001bec6b6b03	app/server/linear_pulse.py::_pulse_issue_id
-58	7970e7d92a68	app/server/routes/webhooks.py::telegram_webhook
 58	2c641dc6684b	scripts/analyse_lessons.py::_claude_cluster_title
 58	c40bffceeb57	scripts/calibration_corpus_miner.py::mine_transcript
 58	92e7c105bfd0	scripts/desk_voice_loop.py::run_loop
@@ -443,6 +442,7 @@
 48	837c0582a7de	app/server/cron_watchdogs.py::_has_open_linear_issue_with_prefix
 48	8b9e1004c8f8	app/server/job_success_record.py::read_record
 48	48431ad21807	app/server/routes/utils.py::ws_build
+48	1c27a28b1214	app/server/routes/webhooks.py::telegram_webhook
 48	e75449fefd60	app/server/scanner.py::ProjectScanner.get_health_summary
 48	3dd912b073fb	app/server/tao_boomerang.py::_strip_summary_artifacts
 48	227c1bd821ff	claude-hooks-mirror/discipline/founder_voice_critique.py::_scan_transcript

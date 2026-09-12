@@ -4,11 +4,10 @@ Two surfaces the user controls from their phone:
 
   1. Authority gates — Claude Code's PreToolUse hook POSTs a gate request for
      any destructive tool call. Backend pushes a Telegram card with
-     [Approve] / [Deny] buttons, returns a gate_id. Mac hook polls
-     /status until terminal or timeout.
-
-  2. "Now Working" live card — one pinned message per session that edits
-     in place with the current project/branch/last-tool/last-file.
+     [Approve] / [Deny] buttons, returns a gate_id. Mac hook polls /status
+     until terminal or timeout.
+  2. "Now Working" live card — one pinned message per session that edits in
+     place with the current project/branch/last-tool/last-file.
 
 Endpoints (all gated by TAO_PASSWORD via require_auth mirror):
 
@@ -19,8 +18,7 @@ Endpoints (all gated by TAO_PASSWORD via require_auth mirror):
   POST /api/phone/session               start/stop session card
 
 State is in-memory only — on Railway restart, pending gates expire and
-progress cards are re-created on the next ping. That's the correct failure
-mode for an S-slice.
+progress cards regenerate on the next ping. Correct failure mode for an S-slice.
 """
 
 from __future__ import annotations
@@ -316,6 +314,8 @@ async def resolve_gate(gate_id: str, body: ResolveBody) -> dict:
         g = _gates.get(gate_id)
         if not g:
             raise HTTPException(404, "gate not found")
+        if g["status"] == "pending" and g["expires_at"] <= now:  # RA-7530: atomic w/ transition below
+            g["status"] = "expired"
         if g["status"] != "pending":
             return {"status": g["status"], "already": True}
         g["status"] = body.status

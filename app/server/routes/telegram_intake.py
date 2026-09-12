@@ -162,7 +162,10 @@ def _set_webhook(token: str, url: str, secret: str) -> None:
             "url": url,
             "secret_token": secret,
             "drop_pending_updates": "false",
-            "allowed_updates": json.dumps(["message"]),
+            # RA-7530: excluding callback_query meant Telegram never forwarded an
+            # Approve/Deny button tap to the webhook at all — the card just sat
+            # there. message stays first because more code paths depend on it.
+            "allowed_updates": json.dumps(["message", "callback_query"]),
         }
     ).encode("utf-8")
     req = urllib.request.Request(

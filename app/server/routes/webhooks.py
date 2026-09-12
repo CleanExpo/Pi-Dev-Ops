@@ -12,6 +12,8 @@ from pydantic import BaseModel, field_validator
 
 from ..auth import require_auth, require_rate_limit
 from ..sessions import create_session
+from .phone_gate_callback import handle_gate_callback
+from .telegram_drain import drain_telegram_update as _drain_telegram_update
 from ..supabase_log import (
     find_accepted_gate_check,
     find_gate_check_by_merge_sha,
@@ -67,45 +69,6 @@ def _telegram_send(token: str, chat_id: int | str, text: str) -> None:
             pass
     except Exception as exc:
         log.warning("Telegram reply failed: %s", exc)
-
-
-def _drain_telegram_update(data: dict) -> dict:
-    """Route a Telegram webhook update through the same inbox path as polling."""
-    try:
-        from scripts import marathon_telegram_inbox, marathon_watchdog  # noqa: PLC0415
-
-        _, allowed_chat_ids = marathon_telegram_inbox._resolve_config()
-        ingested_path = marathon_telegram_inbox._ingest_update(
-            data,
-            allowed_chat_ids,
-            dry_run=False,
-        )
-        ingested = 1 if ingested_path is not None else 0
-        dropped = 0 if ingested else 1
-        offset = int(data.get("update_id") or 0) + 1
-        marathon_telegram_inbox._write_heartbeat(
-            polled=1,
-            ingested=ingested,
-            dropped=dropped,
-            gc_count=0,
-            offset=offset,
-        )
-        processed = 0
-        replies: list[str] = []
-        if ingested:
-            processed, replies = marathon_watchdog._drain_inbox()
-        return {
-            "ok": True,
-            "ingested": ingested,
-            "dropped": dropped,
-            "processed": processed,
-            "replies": replies[:3],
-        }
-    except SystemExit as exc:
-        return {"ok": False, "error": f"telegram_config_exit:{exc.code}"}
-    except Exception as exc:
-        log.warning("Telegram webhook intake failed: %s", exc, exc_info=True)
-        return {"ok": False, "error": str(exc)[:160]}
 
 
 @router.post("/api/webhook", dependencies=[Depends(require_rate_limit)])
@@ -702,6 +665,25 @@ async def morning_intel_webhook(request: Request):
 
 # ── RA-657: Telegram /ack_alert webhook ───────────────────────────────────────
 
+def _handle_ack_alert(token: str, chat_id: int | str | None, alert_key: str) -> dict:
+    """RA-7530: split out of telegram_webhook to keep it under the function-length ratchet."""
+    if not alert_key:
+        if token and chat_id:
+            _telegram_send(token, chat_id, "⚠️ Usage: `/ack_alert <alert_key>`")
+        return {"ok": True}
+    try:
+        mark_alert_acked(alert_key)
+        log.info("Alert acked via Telegram: key=%s chat=%s", alert_key, chat_id)
+    except Exception as exc:
+        log.error("mark_alert_acked failed: %s", exc)
+        if token and chat_id:
+            _telegram_send(token, chat_id, f"❌ Failed to ack `{alert_key}`: {exc}")
+        return {"ok": True}
+    if token and chat_id:
+        _telegram_send(token, chat_id, f"✅ Alert `{alert_key}` acknowledged — re-paging stopped.")
+    return {"ok": True}
+
+
 @router.post("/webhook/telegram")
 async def telegram_webhook(request: Request):
     """
@@ -728,27 +710,17 @@ async def telegram_webhook(request: Request):
     except Exception:
         raise HTTPException(400, "Invalid JSON")
 
+    # RA-7530: a phone-gate button tap is a callback_query, never a message.
+    if data.get("callback_query"):
+        return await handle_gate_callback(token, data["callback_query"])
+
     message = data.get("message", {})
     text = (message.get("text") or "").strip()
     chat_id = (message.get("chat") or {}).get("id")
 
     if text.startswith("/ack_alert"):
         parts = text.split(None, 1)
-        alert_key = parts[1].strip() if len(parts) > 1 else ""
-        if not alert_key:
-            if token and chat_id:
-                _telegram_send(token, chat_id, "⚠️ Usage: `/ack_alert <alert_key>`")
-            return {"ok": True}
-        try:
-            mark_alert_acked(alert_key)
-            log.info("Alert acked via Telegram: key=%s chat=%s", alert_key, chat_id)
-        except Exception as exc:
-            log.error("mark_alert_acked failed: %s", exc)
-            if token and chat_id:
-                _telegram_send(token, chat_id, f"❌ Failed to ack `{alert_key}`: {exc}")
-            return {"ok": True}
-        if token and chat_id:
-            _telegram_send(token, chat_id, f"✅ Alert `{alert_key}` acknowledged — re-paging stopped.")
+        return _handle_ack_alert(token, chat_id, parts[1].strip() if len(parts) > 1 else "")
     elif text:
         result = _drain_telegram_update(data)
         log.info(
