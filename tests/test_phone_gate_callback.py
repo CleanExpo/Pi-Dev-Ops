@@ -29,12 +29,16 @@ def _pending_gate(gate_id: str) -> dict:
 
 
 def test_telegram_webhook_approve_callback_resolves_gate(monkeypatch):
+    """Also proves the button's loading spinner gets cleared: a mutant that
+    drops the answer_callback_query call must fail this, not just leave the
+    tap silently un-acknowledged in Telegram's UI."""
     import app.server.config as cfg
     from app.server.routes import phone, phone_gate_callback
 
     monkeypatch.setattr(cfg, "TELEGRAM_BOT_TOKEN", "bot-token")
     monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
-    monkeypatch.setattr(phone_gate_callback, "answer_callback_query", lambda *a, **k: None)
+    answered: list[tuple] = []
+    monkeypatch.setattr(phone_gate_callback, "answer_callback_query", lambda *a: answered.append(a))
 
     gate_id = "testgate123456"
     phone._gates[gate_id] = _pending_gate(gate_id)
@@ -50,6 +54,7 @@ def test_telegram_webhook_approve_callback_resolves_gate(monkeypatch):
 
     assert resp.status_code == 200
     assert phone._gates[gate_id]["status"] == "approved"
+    assert answered == [("bot-token", "cbid1")]
 
 
 def test_telegram_webhook_deny_callback_resolves_gate(monkeypatch):
