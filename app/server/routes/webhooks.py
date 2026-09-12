@@ -12,6 +12,7 @@ from pydantic import BaseModel, field_validator
 
 from ..auth import require_auth, require_rate_limit
 from ..sessions import create_session
+from .phone import ResolveBody, resolve_gate
 from ..supabase_log import (
     find_accepted_gate_check,
     find_gate_check_by_merge_sha,
@@ -67,6 +68,22 @@ def _telegram_send(token: str, chat_id: int | str, text: str) -> None:
             pass
     except Exception as exc:
         log.warning("Telegram reply failed: %s", exc)
+
+
+def _telegram_answer_callback(token: str, callback_query_id: str) -> None:
+    """Fire-and-forget — clears the loading spinner Telegram puts on a tapped button."""
+    import urllib.request as _ur
+    payload = json.dumps({"callback_query_id": callback_query_id}).encode()
+    req = _ur.Request(
+        f"https://api.telegram.org/bot{token}/answerCallbackQuery",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with _ur.urlopen(req, timeout=8):
+            pass
+    except Exception as exc:
+        log.warning("Telegram answerCallbackQuery failed: %s", exc)
 
 
 def _drain_telegram_update(data: dict) -> dict:
@@ -727,6 +744,26 @@ async def telegram_webhook(request: Request):
         data = await request.json()
     except Exception:
         raise HTTPException(400, "Invalid JSON")
+
+    # RA-7443: Approve/Deny buttons on a phone-gate card are inline callback
+    # buttons, not messages. Telegram fires a `callback_query` update for a
+    # tap, never a `message` update, so this branch is the only place that
+    # update shape reaches the server at all.
+    callback = data.get("callback_query")
+    if callback:
+        cb_id = callback.get("id", "")
+        cb_data = callback.get("data", "") or ""
+        user_id = (callback.get("from") or {}).get("id")
+        action, _, gate_id = cb_data.partition(":")
+        if action in ("approve", "deny") and gate_id:
+            status = "approved" if action == "approve" else "denied"
+            try:
+                await resolve_gate(gate_id, ResolveBody(status=status, by_user_id=user_id))
+            except HTTPException as exc:
+                log.warning("gate resolve via callback failed gid=%s: %s", gate_id, exc.detail)
+        if token and cb_id:
+            _telegram_answer_callback(token, cb_id)
+        return {"ok": True}
 
     message = data.get("message", {})
     text = (message.get("text") or "").strip()
