@@ -65,6 +65,10 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
       "/webhook/telegram",
       "/api/sessions/abc123/logs/stream",
       "/api/spec-pipeline/run",
+      "/api/idea-pipeline",
+      "/api/idea-pipeline/intake",
+      "/api/idea-pipeline/dispose",
+      "/api/idea-pipeline/go",
       "/api/sessions/abc123/kill",
       // Pre-existing routes — must not regress.
       "/health",

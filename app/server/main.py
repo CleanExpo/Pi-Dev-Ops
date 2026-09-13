@@ -10,7 +10,7 @@ Public contract (Dockerfile + Railway reference `app.server.main:app`):
 """
 from .app_factory import app  # noqa: F401  (re-exported for uvicorn / callers)
 
-from .routes import auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, telegram_proxy, telegram_intake, mission_control, phone, swarm, margot, margot_assets, cost_report, delegate, elevenlabs, spec_pipeline, goal_ticket, youtube_intent, model_fabric, slack_bridge
+from .routes import auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, telegram_proxy, telegram_intake, mission_control, phone, swarm, margot, margot_assets, cost_report, delegate, elevenlabs, spec_pipeline, idea_pipeline, goal_ticket, youtube_intent, model_fabric, slack_bridge
 from .routes import mesh  # Nexus Mesh — fleet heartbeat + Mission Control
 from .routes import terminal  # Terminal Orchestrator read API — pane-UI backend (RA-7012)
 from .routes import conversations  # Shared conversation brain — cross-machine digests
@@ -39,6 +39,7 @@ app.include_router(swarm.router)
 app.include_router(margot.router)  # RA-1871
 app.include_router(margot_assets.router)
 app.include_router(spec_pipeline.router)
+app.include_router(idea_pipeline.router)
 app.include_router(elevenlabs.router)
 app.include_router(cost_report.router)  # RA-1909
 app.include_router(routing.router)  # RA-7434 — /api/routing
