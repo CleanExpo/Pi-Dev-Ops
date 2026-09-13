@@ -1330,49 +1330,30 @@ async def _call_llm(*, prompt: str, timeout_s: int = 120,
                      ) -> tuple[int, str, float, str | None]:
     """Margot's LLM call — routed via provider_router for cost control.
 
-    Default role="margot.casual" → cheap tier (OpenRouter GLM 4.7 Flash by
-    default). Phase 2 callers pass role="margot.synthesis" → top tier
-    (Anthropic Opus) for quality on research integration.
-
-    Falls back to direct Anthropic SDK if provider_router is unavailable.
+    Default role="margot.casual" → cheap tier. Phase 2 uses
+    role="margot.synthesis" → top tier. Fail-closed (RA-7490): a router
+    import failure, a thrown router/policy exception, or a typed denial
+    all return a terminal error tuple. There is no direct Anthropic SDK
+    fallback — that path skipped lane selection and receipt accounting.
     """
     import tempfile
 
-    workspace = workspace or tempfile.mkdtemp(prefix="pi-ceo-margot-")
-
-    # Preferred path: provider_router (multi-provider, cost-aware)
     try:
         from app.server.provider_router import run_via_provider  # noqa: PLC0415
+    except ImportError as exc:
+        log.warning("margot: provider_router unavailable (%s)", exc)
+        return 1, "", 0.0, f"provider_router_unavailable: {exc}"
+
+    workspace = workspace or tempfile.mkdtemp(prefix="pi-ceo-margot-")
+    try:
         return await run_via_provider(
             prompt=prompt, role=role,
             timeout_s=timeout_s, workspace=workspace,
             session_id=turn_id, thinking="adaptive",
         )
     except Exception as exc:  # noqa: BLE001
-        log.debug("margot: provider_router unavailable (%s) — Anthropic fallback",
-                  exc)
-
-    # Fallback: direct Anthropic SDK call (Opus, role=orchestrator)
-    try:
-        from app.server.model_policy import (  # noqa: PLC0415
-            select_model, resolve_to_id,
-        )
-        from app.server.session_sdk import _run_claude_via_sdk  # noqa: PLC0415
-    except Exception as exc:  # noqa: BLE001
-        return 1, "", 0.0, f"sdk_import_failed: {exc}"
-
-    short = select_model("orchestrator")
-    model_id = resolve_to_id(short)
-
-    try:
-        rc, text, cost = await _run_claude_via_sdk(
-            prompt=prompt, model=model_id, workspace=workspace,
-            timeout=timeout_s, session_id=turn_id,
-            phase="orchestrator", thinking="adaptive",
-        )
-        return int(rc), text or "", float(cost or 0.0), None
-    except Exception as exc:  # noqa: BLE001
-        return 1, "", 0.0, f"sdk_call_raised: {exc}"
+        log.warning("margot: provider_router raised (%s) — fail closed", exc)
+        return 1, "", 0.0, f"provider_router_raised: {exc}"
 
 
 # ── Telegram delivery ───────────────────────────────────────────────────────
