@@ -16,7 +16,7 @@
       "method": "GET",
       "auth": false,
       "expected_status": 307,
-      "_comment": "RA-7012: added TerminalPanel (live redacted tmux pane view) to the /control grid. Unauth still 307-redirects to login; the panel renders only when authed, so its live output is founder-verified per RA-1109 rather than smoke-asserted here. PR #631: TopBar/SettingsForm/zte route default model bumped from Opus 4.8 to Opus 5 — no change to any route's auth requirement or status code, only the model literal returned to an already-authenticated caller. PR #632: same pattern for AgentRolesPanel (real pipeline-role status roster, sourced from the already-covered /api/pi-ceo/api/sessions proxy) — no new distinct endpoint, unauth 307 unaffected."
+      "_comment": "RA-7012: added TerminalPanel (live redacted tmux pane view) to the /control grid. Unauth still 307-redirects to login; the panel renders only when authed, so its live output is founder-verified per RA-1109 rather than smoke-asserted here. PR #631: TopBar/SettingsForm/zte route default model bumped from Opus 4.8 to Opus 5 — no change to any route's auth requirement or status code, only the model literal returned to an already-authenticated caller. PR #632: same pattern for AgentRolesPanel (real pipeline-role status roster, sourced from the already-covered /api/pi-ceo/api/sessions proxy) — no new distinct endpoint, unauth 307 unaffected. UNI-2649: FleetTile on this page polls GET /api/mesh-fleet (declared below); it is not a second HTTP surface."
     },
     {
       "name": "loop-redirect",
@@ -24,7 +24,7 @@
       "method": "GET",
       "auth": false,
       "expected_status": 307,
-      "_comment": "RA-6862 / PR #385: /loop (Loop Cockpit) added to PROTECTED_PAGE_PREFIXES in proxy.ts. It is data-only (every panel reads /api/pi-ceo/* which 401s without a session), so an unauthenticated visit is a bare shell. Protect it so unauthenticated users are redirected to login instead."
+      "_comment": "RA-6862 / PR #385: /loop (Loop Cockpit) added to PROTECTED_PAGE_PREFIXES in proxy.ts. It is data-only (every panel reads /api/pi-ceo/* which 401s without a session), so an unauthenticated visit is a bare shell. Protect it so unauthenticated users are redirected to login instead. UNI-2649: FleetTile also mounts here and reads GET /api/mesh-fleet — same tile as /control, not a new page."
     },
     {
       "name": "placecards-prototype-unauth",
@@ -100,6 +100,17 @@
         "Unauthorised"
       ],
       "_comment": "2026-08-02: was expected_status 200. That assertion recorded what the route did after it fell through proxy.ts's default-open fallthrough — never a decision. Ratified by Phill McGurk: the path is now in PROTECTED_API_PREFIXES, so an anonymous caller is refused. Its real callers are panels on /control, already a protected page. || prior: "
+    },
+    {
+      "name": "api-mesh-fleet-unauth",
+      "path": "/api/mesh-fleet",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "body_contains": [
+        "Unauthorised"
+      ],
+      "_comment": "UNI-2649: session-gated BFF for the Mission Control Fleet tile. proxy.ts lists /api/mesh-fleet in PROTECTED_API_PREFIXES, so an anonymous caller is refused before the handler can attach X-Pi-CEO-Secret. FleetTile.tsx is the client of this route, not a separate HTTP surface — it mounts on already-declared /control and /loop. An authenticated probe is not declared: a live secret would return machines, and a missing secret returns 503 unavailable, so a single expected_status would lie on one of those two deploys."
     },
     {
       "name": "curator-proposals-quiet",
