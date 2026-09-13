@@ -7,14 +7,9 @@
 // and pushed straight into a rendered child, so React threw on the one list whose
 // entire job is telling the founder what needs him.
 
-export interface MCAction {
-  component?: string;
-  status?: string;
-  owner?: string;
-  severity?: string;
-  next_action?: string;
-  detail?: string | null;
-}
+import { type MCAction } from "@/lib/control/mission-control-live";
+
+export type { MCAction };
 
 export interface NeedsInputs {
   autonomy?: {
