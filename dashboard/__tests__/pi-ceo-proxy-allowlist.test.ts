@@ -81,6 +81,7 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
       "/api/goal-projects",
       "/api/goal-projects/archive",
       "/api/routing",
+      "/api/swarm/status",
     ];
     for (const path of legitimate) {
       expect(allowed(path), `expected ${path} to be allowed`).toBe(true);
@@ -94,6 +95,10 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
       "/api/sessions/abc/kill/extra",
       "/api/autonomy/status/../../login",
       "/webhook/telegram/extra",
+      "/api/mesh/fleet",
+      "/api/mesh/heartbeat",
+      "/api/swarm/kill",
+    ];
     ];
     for (const path of hostile) {
       expect(allowed(path), `expected ${path} to be refused`).toBe(false);
@@ -103,6 +108,13 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
   it("compares the path only — a query string cannot widen what is reachable", () => {
     expect(allowed("/api/autonomy/status?x=1")).toBe(true);
     expect(allowed("/api/login?path=/api/autonomy/status")).toBe(false);
+  });
+
+  it("admits swarm status for the kill-switch row and refuses the secret-bearing fleet path", () => {
+    expect(allowed("/api/swarm/status")).toBe(true);
+    expect(allowed("/api/swarm/status?op=1")).toBe(true);
+    expect(allowed("/api/mesh/fleet")).toBe(false);
+    expect(allowed("/api/mesh/fleet?host=1")).toBe(false);
   });
 
   it("gives Goal analyze and Write a long enough window that a 25s call is not a 502", () => {

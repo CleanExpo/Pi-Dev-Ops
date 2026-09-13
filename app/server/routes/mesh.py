@@ -166,11 +166,11 @@ async def fleet(
 ):
     """Whole-fleet snapshot: the runbook's only confirmation that the fleet joined.
 
-    Read by `mesh/runner.py` and by operators following
-    docs/runbooks/fleet-operations.md. NOT by the dashboard — `/api/mesh/fleet`
-    is absent from ALLOWED_UPSTREAM (dashboard/lib/pi-ceo-proxy-allowlist.ts),
-    so the proxy 403s it; the old "for the Mission Control Panel" docstring
-    described an intention, not a caller (RA-7392).
+    Read by `mesh/runner.py`, operators following
+    docs/runbooks/fleet-operations.md, and the dashboard BFF
+    `GET /api/mesh-fleet` (server-side; secret never reaches the browser).
+    `/api/mesh/fleet` stays off ALLOWED_UPSTREAM so the catch-all proxy
+    cannot forward the secret (UNI-2649 / RA-7392).
 
     Always 200 with list-typed fields. A failed source yields an empty list AND
     an entry in `errors`, with `degraded` true, so "nobody has joined yet" and

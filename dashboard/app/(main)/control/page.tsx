@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ControlHubTiles from "@/components/control/ControlHubTiles";
+import FleetTile from "@/components/control/FleetTile";
 import LiveActivityFeed from "@/components/control/LiveActivityFeed";
 import styles from "@/components/control/control-deck.module.css";
 import { CONTROL_GOAL_CTA, CONTROL_HUB_LEDE } from "@/lib/control/goalCopy";
@@ -19,6 +20,7 @@ export default function ControlPage() {
       </header>
       <div className="px-5 pb-8 flex flex-col gap-5">
         <ControlHubTiles />
+        <FleetTile />
         <LiveActivityFeed />
       </div>
     </div>
