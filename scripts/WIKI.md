@@ -1,14 +1,14 @@
 # scripts — Wiki
 
-_Last updated: 2026-09-13T12:27:06Z (commits a60e85d..3b2a01d)_
+_Last updated: 2026-09-13T23:31:48Z (commits 6b53522..a0590c3)_
 
 ## Recent changes
-- 3b2a01d — Merge pull request #764 from CleanExpo/cursor/uni-2652-golden-journey-0ca3
+- a0590c3 — fix(smoke): RA-7546 tolerate Railway mid-session redeploy wipe (#776)
 
 ## Architecture (current)
 Auto-stub: `scripts/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- scripts/golden_journey.py — touched in recent commits
-- scripts/golden_journey_checks.py — touched in recent commits
-- scripts/golden_journey_planted.py — touched in recent commits
+- scripts/smoke_pipeline_client.py — touched in recent commits
+- scripts/smoke_pipeline_resilience.py — touched in recent commits
+- scripts/smoke_test_pipeline.py — touched in recent commits

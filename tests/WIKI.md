@@ -1,15 +1,13 @@
 # tests — Wiki
 
-_Last updated: 2026-09-13T16:24:35Z (commits b4778fd..230b5f8)_
+_Last updated: 2026-09-13T23:31:48Z (commits 6b53522..a0590c3)_
 
 ## Recent changes
-- 230b5f8 — feat(mesh): RA-7377 add POST /api/mesh/ship writer for the fleet feed (#775)
+- a0590c3 — fix(smoke): RA-7546 tolerate Railway mid-session redeploy wipe (#776)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_mesh_report_ship.py — touched in recent commits
-- tests/test_mesh_ship.py — touched in recent commits
-- tests/test_mesh_ship_endpoint.py — touched in recent commits
-- tests/test_mesh_ship_write.py — touched in recent commits
+- tests/test_smoke_pipeline_resilience.py — touched in recent commits
+- tests/test_smoke_pipeline_respawn.py — touched in recent commits
