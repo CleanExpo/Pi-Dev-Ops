@@ -112,6 +112,36 @@ def test_declared_set_reads_all_three_sources():
     assert any("migrations/" in v for v in declared.values()), "migrations/ not read"
 
 
+# Live on Pi CEO 2026-09-13 (run 34752262572) and previously undeclared.
+# A parser or glob that drops migrations/ would raise these again tomorrow.
+_DRIFT_34752262572 = (
+    "coaching_engagements",
+    "coaching_extractions",
+    "coaching_sessions",
+    "goal_card_runs",
+    "lead_verifications",
+    "placecard_artifacts",
+    "placecard_boundaries",
+    "placecard_goal_cards",
+    "placecard_grill_rounds",
+    "placecard_promises",
+    "placecard_stage_transitions",
+    "placecards",
+)
+
+
+def test_tables_that_failed_schema_drift_on_2026_09_13_are_declared():
+    """The exact live-not-declared set from Schema Drift run 34752262572.
+
+    That job has no PR trigger and no baseline on this direction. The only
+    check that a follow-up commit did not silently drop the back-fill is
+    this assertion against declared_tables().
+    """
+    declared = drift.declared_tables()
+    missing = [name for name in _DRIFT_34752262572 if name not in declared]
+    assert missing == [], missing
+
+
 def test_source_files_are_found_at_all():
     assert len(drift.source_files()) > 10
 
