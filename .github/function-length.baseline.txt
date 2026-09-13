@@ -171,7 +171,6 @@
 76	a60f0d05ec36	swarm/gap_detector.py::run_daily
 76	6bdb76dbdd7e	swarm/nexus/approvals.py::decide_approval
 76	22ad5c74c43c	swarm/portfolio_pulse_telegram.py::deliver_to_telegram
-75	5b131091fac2	app/server/session_phases.py::_phase_push
 75	9e63e0948af2	app/server/session_phases.py::_route_linear_ticket_to_target_project
 75	2b50854dd3dc	scripts/secrets_history_check.py::main
 75	1f947b5ff0c8	scripts/workspace_intel_brief_ci.py::main
@@ -185,6 +184,7 @@
 74	bd9ef83e171c	app/server/cron_watchdogs.py::_watchdog_check
 74	66369741c3a7	app/server/cron_watchdogs.py::_watchdog_health_full
 74	250a7a5f9252	app/server/pipeline.py::_update_linear_state_pipeline
+74	89cb2fcce2d4	app/server/session_phases.py::_phase_push
 74	4ba784b660d1	scripts/analyse_lessons.py::build_proposal
 74	581e5b1ca4af	swarm/wiki_lint.py::lint
 73	1eef84ffd461	app/server/cron_watchdogs.py::_watchdog_escalations

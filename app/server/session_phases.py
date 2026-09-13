@@ -1599,18 +1599,6 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     return True, {"verdict": verdict, "raw_output": output_text}
 
 
-async def _embed_push_token(session, github_token: str) -> None:
-    try:
-        _, ru, _ = await run_cmd(session.workspace, "git", "remote", "get-url", "origin", timeout=5)
-        ru = ru.strip()
-        if "github.com" in ru and "@" not in ru:
-            authed = ru.replace("https://github.com/", f"https://x-access-token:{github_token}@github.com/")
-            await run_cmd(session.workspace, "git", "remote", "set-url", "origin", authed, timeout=5)
-            em(session, "system", "  Remote: authenticated via GITHUB_TOKEN")
-    except Exception as auth_err:
-        em(session, "system", f"  Remote auth setup warning: {auth_err}")
-
-
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
     """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
     phase_start = time.monotonic()
@@ -1635,7 +1623,6 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
             except GitAuthError as exc:
                 em(session, "error", f"  Push blocked: {exc.reason}")
                 return af, False
-            await _embed_push_token(session, github_token)
             # ── Push to a feature branch (not main) ──
             sid_short = getattr(session, "id", "auto")[:8]
             branch_name = f"pidev/auto-{sid_short}"

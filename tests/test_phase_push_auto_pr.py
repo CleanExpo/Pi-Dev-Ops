@@ -108,7 +108,7 @@ async def test_attribution_keys_land_on_the_session(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_derived_repo_name_never_carries_the_token(tmp_path, monkeypatch):
-    """The remote is rewritten to embed x-access-token; owner/repo must be clean."""
+    """Auth is process-scoped now; owner/repo must stay clean even so."""
     rec = _Recorder()
     session = _make_session(tmp_path)
     _install(monkeypatch, rec)
@@ -118,6 +118,8 @@ async def test_derived_repo_name_never_carries_the_token(tmp_path, monkeypatch):
     assert TOKEN not in session.repo_name
     assert TOKEN not in rec.pr_urls[0]
     assert TOKEN not in json.dumps(rec.pr_payloads[0])
+    rewritten = [cmd for cmd in rec.cmds if cmd[:3] == ("git", "remote", "set-url")]
+    assert rewritten == [], rewritten
 
 
 # ── RA-1184: Linear routing, and only when no ticket exists ──────────────────
