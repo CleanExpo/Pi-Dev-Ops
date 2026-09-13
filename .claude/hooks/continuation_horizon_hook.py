@@ -33,7 +33,7 @@ def main() -> int:
         prompt = _prompt_text(payload)
         if prompt:
             arm_objective(objective=prompt, source="claude")
-        print(json.dumps({"hookSpecificOutput": {"additionalContext": operator_context()}}))
+        print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": operator_context()}}))
         return 0
     if "stop" in event:
         if payload.get("stop_hook_active"):
