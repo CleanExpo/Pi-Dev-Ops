@@ -1,12 +1,13 @@
 # .github — Wiki
 
-_Last updated: 2026-09-13T12:27:06Z (commits a60e85d..3b2a01d)_
+_Last updated: 2026-09-13T12:46:43Z (commits 385f7f6..055762e)_
 
 ## Recent changes
-- 3b2a01d — Merge pull request #764 from CleanExpo/cursor/uni-2652-golden-journey-0ca3
+- 055762e — Merge pull request #762 from CleanExpo/cursor/uni-2645-git-auth-env-b4ec
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .github/workflows/smoke_pipeline.yml — touched in recent commits
+- .github/file-length.baseline.txt — touched in recent commits
+- .github/function-length.baseline.txt — touched in recent commits

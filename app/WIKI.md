@@ -1,12 +1,16 @@
 # app — Wiki
 
-_Last updated: 2026-09-13T12:27:06Z (commits a60e85d..3b2a01d)_
+_Last updated: 2026-09-13T12:46:43Z (commits 385f7f6..055762e)_
 
 ## Recent changes
-- 3b2a01d — Merge pull request #764 from CleanExpo/cursor/uni-2652-golden-journey-0ca3
+- 055762e — Merge pull request #762 from CleanExpo/cursor/uni-2645-git-auth-env-b4ec
+- a035f98 — fix(git): UNI-2645 share one fail-closed GitHub auth env
 
 ## Architecture (current)
-Auto-stub: `app/` had 1 recent commits. SDK unavailable for synthesis.
+Auto-stub: `app/` had 2 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- app/server/session_push_pr.py — touched in recent commits
+- app/server/git_auth.py — touched in recent commits
+- app/server/autopr.py — touched in recent commits
+- app/server/orchestrator.py — touched in recent commits
+- app/server/session_phases.py — touched in recent commits
