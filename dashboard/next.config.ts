@@ -25,6 +25,14 @@ const nextConfig: NextConfig = {
   images: {
     qualities: [75, 85],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/placecards-prototype.html",
+        destination: "/placecards-prototype",
+      },
+    ];
+  },
   async headers() {
     return [
       {
