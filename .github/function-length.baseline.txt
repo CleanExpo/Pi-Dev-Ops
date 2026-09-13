@@ -30,7 +30,6 @@
 174	0da4a693444e	app/server/agents/board_meeting.py::run_gap_audit_phase
 171	73d78fb40997	app/server/cron_watchdogs.py::_watchdog_vercel_deploy_failures
 168	d948d49a5f23	app/server/session_phases.py::_phase_plan
-166	177e65c04d9d	scripts/smoke_test_pipeline.py::run_pipeline_smoke
 165	850eed045507	swarm/inbox/botfather_minter.py::mint_queue
 164	dd19d598c24c	scripts/weekly_enhancement_loop.py::enhance_repo
 164	c8f31284111c	swarm/margot_tools.py::propose_idea

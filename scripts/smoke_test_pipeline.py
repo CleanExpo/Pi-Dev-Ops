@@ -1,59 +1,35 @@
 #!/usr/bin/env python3
-"""
-smoke_test_pipeline.py — RA-1154 senior-level end-to-end pipeline smoke test.
-
-Fires a real autonomous build against a known repo with a known advanced-tier
-brief and watches the SSE stream to terminal state. Fails loudly on the exact
-class of regression that RA-1294 shipped silently past CI: generator phase
-timing out at 305 s because session.complexity_tier wasn't persisted.
-
-This test would have caught RA-1294 before merge. Keep it that way.
-
-Scheduled runner: `.github/workflows/smoke_pipeline.yml` invokes this nightly
-against prod. On failure, Telegram ping via scripts/send_telegram.py.
-
-Usage:
-    # Against prod (default)
-    DASHBOARD_PASSWORD=... python3 scripts/smoke_test_pipeline.py
-
-    # Against a custom backend (CI sometimes uses this against a Railway branch)
-    PI_CEO_URL=https://pi-dev-ops-branch.up.railway.app \
-    DASHBOARD_PASSWORD=... python3 scripts/smoke_test_pipeline.py
-
-Exit codes:
-    0 — pipeline reached `complete` status with files_modified > 0 and PR URL
-    1 — pipeline reached terminal failure OR any assertion failed
-    2 — config / infrastructure error (missing env, timeout, etc.)
-
-Assertions (every one would have caught RA-1294):
-    A1.  Session spawns with HTTP 200 + valid session_id.
-    A2.  Session enters `generate` phase within 90 s.
-    A3.  `generate` phase runs for ≥ 310 s OR emits success before 310 s.
-         (The 305 s regression was EXACTLY 305 s — failing at 305 s with
-         rc=1 is the signature of the tier-timeout bug. This bound catches it.)
-    A4.  Session reaches `complete` status within 20 min (generous for advanced).
-    A5.  `files_modified > 0` in the final metrics.
-    A6.  A PR URL appears in the stream (push phase emitted push_url event).
-    A7.  Linear issue (if one was created) transitioned to a non-Todo state.
-"""
+"""RA-1154 pipeline smoke. Redeploy settle/respawn: smoke_pipeline_resilience.py."""
 from __future__ import annotations
 
 import json
 import os
 import sys
 import time
-import urllib.error
-import urllib.request
 from dataclasses import dataclass, field
-from http.cookiejar import CookieJar
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from scripts.smoke_pipeline_client import Session
+from scripts.smoke_pipeline_resilience import (
+    Probe,
+    classify_session_list,
+    find_session,
+    max_respawns,
+    parse_session_list,
+    parse_uptime,
+    should_respawn,
+    wait_until_settled,
+    wall_clock_s,
+)
 
 
 PI_CEO_URL     = os.environ.get("PI_CEO_URL", "https://pi-dev-ops-production.up.railway.app").rstrip("/")
 PASSWORD       = os.environ.get("DASHBOARD_PASSWORD") or os.environ.get("TAO_PASSWORD") or ""
 TARGET_REPO    = os.environ.get("SMOKE_TARGET_REPO", "https://github.com/CleanExpo/Pi-Dev-Ops")
-# Brief is intentionally advanced-tier: the classifier will see "full feature"
-# keywords and tag it ADVANCED, forcing a 900 s generator timeout. A bug like
-# RA-1294 would collapse that back to 300 s and fail this brief.
 TEST_BRIEF     = os.environ.get(
     "SMOKE_BRIEF",
     "Add a one-line comment to scripts/send_telegram.py explaining that this "
@@ -63,55 +39,7 @@ TEST_BRIEF     = os.environ.get(
 )
 MAX_WAIT_S     = int(os.environ.get("SMOKE_MAX_WAIT_S", "1200"))  # 20 min
 GEN_MIN_DURATION_S = 310  # RA-1294 signature: died at exactly 305 s
-
-
-# ── HTTP session with cookies (re-used from existing e2e) ──────────────────
-class Session:
-    def __init__(self, base: str):
-        self.base = base
-        self.jar = CookieJar()
-        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
-        self.opener = opener
-
-    def login(self, password: str) -> bool:
-        data = json.dumps({"password": password}).encode()
-        req = urllib.request.Request(f"{self.base}/api/login", data=data,
-                                      headers={"Content-Type": "application/json"})
-        try:
-            with self.opener.open(req, timeout=10) as resp:
-                return resp.status == 200
-        except Exception as exc:
-            print(f"[login] failed: {exc}")
-            return False
-
-    def post(self, path: str, body: dict) -> tuple[int, str]:
-        data = json.dumps(body).encode()
-        req = urllib.request.Request(f"{self.base}{path}", data=data, method="POST",
-                                      headers={"Content-Type": "application/json"})
-        try:
-            with self.opener.open(req, timeout=15) as resp:
-                return resp.status, resp.read().decode("utf-8", errors="replace")
-        except urllib.error.HTTPError as exc:
-            return exc.code, exc.read().decode("utf-8", errors="replace")
-
-    def stream(self, path: str, timeout_s: int):
-        """Yield (event_type, data_dict) tuples from an SSE stream."""
-        req = urllib.request.Request(f"{self.base}{path}")
-        with self.opener.open(req, timeout=timeout_s) as resp:
-            buf = ""
-            for chunk in iter(lambda: resp.read(4096), b""):
-                buf += chunk.decode("utf-8", errors="replace")
-                while "\n\n" in buf:
-                    event_raw, buf = buf.split("\n\n", 1)
-                    data_lines = [ln[6:] for ln in event_raw.splitlines() if ln.startswith("data: ")]
-                    if not data_lines:
-                        continue
-                    raw = "\n".join(data_lines)
-                    try:
-                        payload = json.loads(raw)
-                    except json.JSONDecodeError:
-                        continue
-                    yield payload
+_TERMINAL = frozenset({"complete", "failed", "killed", "interrupted"})
 
 
 @dataclass
@@ -154,12 +82,8 @@ class PipelineAssertions:
         return "\n".join(lines)
 
     def _a3_ok(self) -> bool:
-        # A3 passes if either (a) generate ran past 310 s, or (b) generate finished
-        # successfully in less time. It fails if generate died at ~305 s with an
-        # error — that's the RA-1294 signature.
         if self.generate_duration_s is None:
             return False
-        # Specifically reject the 300-310 s failure window when session failed
         if self.last_status == "failed" and 295 <= self.generate_duration_s <= 315:
             return False
         return True
@@ -170,172 +94,187 @@ class PipelineAssertions:
                 and self.pr_url is not None and not self.errors)
 
 
-def run_pipeline_smoke() -> int:
-    if not PASSWORD:
-        print("ERROR: DASHBOARD_PASSWORD (or TAO_PASSWORD) env var required", file=sys.stderr)
-        return 2
+def probe_backend(s: Session) -> Probe:
+    health_code, health_body = s.get("/health")
+    list_code, list_body = s.get("/api/sessions")
+    return Probe(
+        http_status=list_code if list_code else health_code,
+        sessions=parse_session_list(list_body) if list_code == 200 else None,
+        uptime_s=parse_uptime(health_body) if health_code == 200 else None,
+        error="" if list_code == 200 else list_body[:120],
+    )
 
-    print(f"━━━ PIPELINE SMOKE — {PI_CEO_URL}")
-    print(f"    Target repo: {TARGET_REPO}")
-    print(f"    Max wait:    {MAX_WAIT_S} s")
-    print()
 
-    s = Session(PI_CEO_URL)
-    if not s.login(PASSWORD):
-        print("ERROR: login failed", file=sys.stderr)
-        return 2
-
-    # A1: fire the build
-    start = time.time()
+def spawn_session(s: Session, pa: PipelineAssertions) -> tuple[str | None, str]:
     code, body = s.post("/api/build", {
         "repo_url": TARGET_REPO,
         "brief":    TEST_BRIEF,
         "intent":   "smoke",
     })
-    pa = PipelineAssertions()
+    if code in {0, 401, 502, 503, 504}:
+        print(f"[A1] spawn HTTP {code} — treating as redeploy bounce")
+        return None, "bouncing" if code != 401 else "auth_stale"
     if code != 200:
         print(f"[A1 FAIL] POST /api/build → HTTP {code}: {body[:200]}")
         pa.fail(f"spawn HTTP {code}")
-        return 1
+        return None, "fail"
     try:
         resp = json.loads(body)
     except json.JSONDecodeError:
         pa.fail(f"spawn non-JSON response: {body[:200]}")
-        return 1
+        return None, "fail"
     sid = resp.get("session_id") or resp.get("id")
     if not sid:
         pa.fail(f"no session_id in response: {body[:200]}")
-        return 1
+        return None, "fail"
     pa.spawned = True
     print(f"[A1 PASS] session spawned: {sid}")
+    return sid, "ok"
 
-    # A2-A6: stream SSE
+
+def watch_stream(s: Session, sid: str, pa: PipelineAssertions, start: float) -> None:
     stream_path = f"/api/sessions/{sid}/logs"
     print(f"[stream] {stream_path}")
-
     try:
         for event in s.stream(stream_path, timeout_s=MAX_WAIT_S):
             now = time.time() - start
-            etype = event.get("type", "")
-            text = event.get("text", "")
-            diagnostic = pa.observe_event(event, now)
-            if diagnostic:
-                print(diagnostic)
-
-            # Track phase transitions
-            if etype == "phase":
-                if "[4/5]" in text or "Running Claude Code" in text:
-                    pa.entered_generate = True
-                    pa.entered_generate_at = now
-                    print(f"  [t+{now:.0f}s] ENTERED generate phase")
-                elif "[5/5]" in text:
-                    print(f"  [t+{now:.0f}s] {text}")
-
-            elif etype == "phase_metric" and event.get("phase") == "generate":
-                pa.generate_duration_s = event.get("duration_s")
-                print(f"  [t+{now:.0f}s] generate metric: dur={pa.generate_duration_s}s cost=${event.get('cost_usd')}")
-
-            elif etype == "push_url" or (etype == "success" and "PR opened" in text):
-                # session_phases.py:1536 emits em(session, "success",
-                # "  ✨ PR opened: #N → <url>") when the auto-PR opens. Nothing has ever
-                # emitted "push_url", and a GitHub PR URL is ".../pull/N" -- so the previous
-                # "pull_request" substring never matched and A6 failed even on a successful
-                # PR. Match the text that is actually emitted.
-                pa.pr_url = event.get("url") or text
-                print(f"  [t+{now:.0f}s] PR URL: {pa.pr_url}")
-
-            elif etype == "files_modified":
-                pa.files_modified = int(event.get("count", 0))
-
-            elif etype == "done":
+            _observe_stream_event(pa, event, now)
+            if event.get("type") == "done" or now > MAX_WAIT_S:
+                if now > MAX_WAIT_S:
+                    pa.fail(f"stream exceeded MAX_WAIT_S={MAX_WAIT_S}s")
                 print(f"  [t+{now:.0f}s] stream ended")
-                break
-
-            # Check overall wall-clock budget
-            if now > MAX_WAIT_S:
-                pa.fail(f"stream exceeded MAX_WAIT_S={MAX_WAIT_S}s")
-                break
-
+                return
     except Exception as exc:
-        pa.fail(f"stream error: {exc}")
+        print(f"[stream] dropped ({exc}) — will classify via /api/sessions")
 
-    # A4: reach complete — poll /api/sessions until the session hits terminal,
-    # not a one-shot. SSE can drop at the Vercel 10 s proxy while the server
-    # session continues; the one-shot check would false-fail.
-    import urllib.request as _ur
 
-    def _get_session(sid: str) -> dict | None:
-        req = _ur.Request(f"{PI_CEO_URL}/api/sessions")
-        for cookie in s.jar:
-            req.add_header("Cookie", f"{cookie.name}={cookie.value}")
-        try:
-            with _ur.urlopen(req, timeout=10) as resp:
-                data = json.loads(resp.read())
-        except Exception:
-            return None
-        ss_list = data if isinstance(data, list) else data.get("sessions", [])
-        return next((x for x in ss_list if x.get("id", "").startswith(sid[:8])), None)
+def _observe_stream_event(pa: PipelineAssertions, event: dict, now: float) -> None:
+    etype = event.get("type", "")
+    text = event.get("text", "")
+    diagnostic = pa.observe_event(event, now)
+    if diagnostic:
+        print(diagnostic)
+    if etype == "phase":
+        if "[4/5]" in text or "Running Claude Code" in text:
+            pa.entered_generate = True
+            pa.entered_generate_at = now
+            print(f"  [t+{now:.0f}s] ENTERED generate phase")
+        elif "[5/5]" in text:
+            print(f"  [t+{now:.0f}s] {text}")
+    elif etype == "phase_metric" and event.get("phase") == "generate":
+        pa.generate_duration_s = event.get("duration_s")
+        print(f"  [t+{now:.0f}s] generate metric: dur={pa.generate_duration_s}s cost=${event.get('cost_usd')}")
+    elif etype == "push_url" or (etype == "success" and "PR opened" in text):
+        pa.pr_url = event.get("url") or text
+        print(f"  [t+{now:.0f}s] PR URL: {pa.pr_url}")
+    elif etype == "files_modified":
+        pa.files_modified = int(event.get("count", 0))
 
-    # Poll up to MAX_WAIT_S total (including SSE time already elapsed).
-    budget_remaining = max(60, MAX_WAIT_S - int(time.time() - start))
-    print(f"[poll] waiting up to {budget_remaining}s for terminal state...")
-    terminal = {"complete", "failed", "killed", "interrupted"}
-    poll_deadline = time.time() + budget_remaining
-    me = None
-    while time.time() < poll_deadline:
-        me = _get_session(sid)
-        if me and me.get("status") in terminal:
-            break
-        if me is None:
-            # Session GC'd but may have succeeded just before — give it a
-            # moment and retry once; otherwise treat as lost.
-            time.sleep(5)
-            me = _get_session(sid)
-            if me is None:
-                pa.fail(f"session {sid[:8]} not in /api/sessions (lost to GC or redeploy)")
-                break
+
+def poll_terminal(s: Session, sid: str, pa: PipelineAssertions, start: float) -> str:
+    budget = max(60, MAX_WAIT_S - int(time.time() - start))
+    print(f"[poll] waiting up to {budget}s for terminal state...")
+    deadline = time.time() + budget
+    last = "unknown"
+    while time.time() < deadline:
+        probe = probe_backend(s)
+        last = classify_session_list(probe, sid)
+        if last != "found":
+            return last
+        me = find_session(probe.sessions or [], sid)
+        if me and me.get("status") in _TERMINAL:
+            _apply_terminal(pa, me)
+            return "terminal"
         time.sleep(15)
+    if last == "found":
+        pa.fail(f"session still running after {budget}s — polling budget exhausted")
+        return "timeout"
+    return last
 
-    if me and me.get("status"):
-        pa.last_status = me.get("status")
-        pa.files_modified = max(pa.files_modified, me.get("files_modified", 0) or 0)
-        if pa.last_status == "complete":
-            pa.reached_complete = True
-            print(f"[A4 PASS] session reached 'complete' with files_modified={pa.files_modified}")
-        elif pa.last_status in terminal:
-            pa.fail(f"session terminal={pa.last_status} (not complete)")
-        else:
-            pa.fail(f"session still {pa.last_status} after {budget_remaining}s — polling budget exhausted")
 
-    # A7 — ALWAYS try to kill the session if not already terminal. This keeps
-    # the smoke test from leaving zombie Claude work running on prod. Safe to
-    # call on a completed session (Pi-CEO returns 200 or 404).
+def _apply_terminal(pa: PipelineAssertions, me: dict) -> None:
+    pa.last_status = me.get("status")
+    pa.files_modified = max(pa.files_modified, me.get("files_modified", 0) or 0)
+    if pa.last_status == "complete":
+        pa.reached_complete = True
+        print(f"[A4 PASS] session reached 'complete' with files_modified={pa.files_modified}")
+    elif pa.last_status in _TERMINAL:
+        pa.fail(f"session terminal={pa.last_status} (not complete)")
+
+
+def run_attempts(s: Session) -> tuple[PipelineAssertions, str | None]:
+    wall = time.time() + wall_clock_s()
+    pa = PipelineAssertions()
+    sid: str | None = None
+    allowed = max_respawns()
+    for attempt in range(1, allowed + 2):
+        if not wait_until_settled(
+            lambda: probe_backend(s), until=wall, relogin=lambda: s.login(PASSWORD),
+        ):
+            pa.fail("backend did not settle after Railway bounce")
+            return pa, sid
+        pa = PipelineAssertions()
+        sid, kind = spawn_session(s, pa)
+        if should_respawn(kind):
+            if attempt <= allowed:
+                print(f"[redeploy] spawn {kind}; retry {attempt}/{allowed}")
+                continue
+            pa.fail(f"spawn kept bouncing after {attempt} attempt(s)")
+            return pa, sid
+        if kind != "ok" or not sid:
+            return pa, sid
+        start = time.time()
+        watch_stream(s, sid, pa, start)
+        outcome = poll_terminal(s, sid, pa, start)
+        if should_respawn(outcome) and attempt <= allowed:
+            print(f"[redeploy] session {outcome}; respawn {attempt}/{allowed}")
+            continue
+        if should_respawn(outcome):
+            pa.fail(f"session {sid[:8]} wiped by redeploy after {attempt} attempt(s)")
+        return pa, sid
+    pa.fail(f"could not hold a session through {allowed} respawn(s)")
+    return pa, sid
+
+
+def cleanup_session(s: Session, sid: str | None) -> None:
+    if not sid:
+        return
     try:
-        kill_req = _ur.Request(f"{PI_CEO_URL}/api/sessions/{sid}/kill", method="POST",
-                                data=b"")
-        for cookie in s.jar:
-            kill_req.add_header("Cookie", f"{cookie.name}={cookie.value}")
-        with _ur.urlopen(kill_req, timeout=10) as resp:
-            print(f"[cleanup] kill session → {resp.status}")
-    except _ur.HTTPError as exc:
-        # 404 is expected if session was already complete
-        print(f"[cleanup] kill session → {exc.code} (acceptable)")
+        code, _body = s.post(f"/api/sessions/{sid}/kill", {})
+        print(f"[cleanup] kill session → {code}" + (" (acceptable)" if code == 404 else ""))
     except Exception as exc:
         print(f"[cleanup] kill failed: {exc}")
 
-    # Final report
+
+def _print_report(pa: PipelineAssertions) -> int:
     print()
     print("━━━ ASSERTIONS ━━━")
     print(pa.summary())
     if pa.errors:
         print("\n━━━ ERRORS ━━━")
-        for e in pa.errors:
-            print(f"  ✗ {e}")
-
+        for err in pa.errors:
+            print(f"  ✗ {err}")
     ok = pa.all_passed()
     print()
     print(f"━━━ RESULT: {'PASS' if ok else 'FAIL'} ━━━")
     return 0 if ok else 1
+
+
+def run_pipeline_smoke() -> int:
+    if not PASSWORD:
+        print("ERROR: DASHBOARD_PASSWORD (or TAO_PASSWORD) env var required", file=sys.stderr)
+        return 2
+    print(f"━━━ PIPELINE SMOKE — {PI_CEO_URL}")
+    print(f"    Target repo: {TARGET_REPO}")
+    print(f"    Max wait:    {MAX_WAIT_S} s")
+    print()
+    s = Session(PI_CEO_URL)
+    if not s.login(PASSWORD):
+        print("ERROR: login failed", file=sys.stderr)
+        return 2
+    pa, sid = run_attempts(s)
+    cleanup_session(s, sid)
+    return _print_report(pa)
 
 
 if __name__ == "__main__":
