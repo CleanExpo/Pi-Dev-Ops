@@ -193,7 +193,6 @@
 73	b70ff8663da1	swarm/analyst.py::_call_llm
 73	7a50cd70de9e	swarm/intake/cli.py::run_once
 73	75eadf6e1d5e	swarm/project_health_monitor.py::run_daily
-72	6054dd0b42e5	app/server/autonomy.py::fetch_todo_issues
 72	6e04e0f3c5c1	app/server/goal_analyze.py::analyze_goal
 72	dd1944326389	app/server/pi_ceo_docparser.py::_parse_pdf
 72	7a1a5b7f319b	scripts/validate_tao_context_mode.py::main
@@ -384,7 +383,6 @@
 52	ec641c096722	swarm/nexus/onboarding.py::create_workspace
 52	608137924981	swarm/portfolio_pulse_github.py::ci_summary
 52	eab28ca32229	swarm/providers/synthetic_marketing.py::_synth_one
-52	b88f77203937	tests/test_autonomy_priority_filter.py::test_fetch_filters_unlabelled_issues
 52	0bc72019dcde	tests/test_ccw_watch_runner.py::test_re_evaluation_fails_closed_for_missing_malformed_stale_and_cross_run_evidence
 51	128f57ac4e77	app/server/agents/feedback_loop.py::get_feedback_summary
 51	b9a8d825359d	app/server/persistence.py::save_session
@@ -563,7 +561,6 @@
 43	cfc84f0e951c	swarm/portfolio_pulse_telegram.py::_split_at_section_boundaries
 43	a0c51f643616	swarm/providers/google_ads.py::_query_customer_spend
 43	275ca478a194	tests/test_anthropic_intel_refresh.py::test_refresh_with_delta
-43	33382e477821	tests/test_autonomy_priority_filter.py::test_fetch_filter_partial_match
 43	e9527bcf0587	tests/test_discovery_archive.py::test_archive_skips_high_severity_defence_in_depth
 42	107c905e03ff	app/server/agents/scout.py::_get_or_create_cleanup_label
 42	caa36debb23c	app/server/autonomy.py::_transition_to_in_progress
@@ -620,7 +617,6 @@
 41	608c14b82c47	swarm/portfolio_pulse_telegram.py::_send_chunk
 41	c328dfc7cda5	tests/swarm/nexus/test_scheduler.py::TestDryRun.test_dry_run_skips_loop_runner_and_bra
 41	d15bccadf72c	tests/test_autonomy_contract.py::test_fetch_todo_issues_filter_requires_status_and_label
-41	ce2510e36f78	tests/test_autonomy_priority_filter.py::test_fetch_no_filter_when_disabled
 41	51e1b64a0c0c	tests/test_karpathy_integration.py::test_karpathy_failure_appends_to_lessons_jsonl
 41	8c247f24ef39	tests/test_remotion_one_shot_schema.py::test_one_shot_dry_run_generates_packet_without_tts
 41	ff90b2979e1c	tests/test_telegram_linear_intake.py::test_watchdog_queues_telegram_idea_for_linear_jsonl

@@ -39,6 +39,12 @@ import urllib.error
 from pathlib import Path
 from typing import Any
 from app.server import config_loader, session_lease
+from app.server.autonomy_eligibility import (
+    AUTONOMY_LABEL as _AUTONOMY_LABEL,
+    MACHINE_SHIP_LABEL as _MACHINE_SHIP_LABEL,
+    READY_STATUS_NAME as _READY_STATUS_NAME,
+    filter_claimable_issues,
+)
 
 log = logging.getLogger("pi-ceo.autonomy")
 
@@ -235,19 +241,8 @@ def _log_event(event: dict) -> None:
 # Linear API calls
 # ---------------------------------------------------------------------------
 
-# RA-1369 — Linear contract compliance.
-# Per skills/pi-dev-linear-contract/SKILL.md, autonomy pickup REQUIRES
-# BOTH conditions:
-#   1. status name == "Ready for Pi-Dev"  (not just any unstarted state)
-#   2. label "pi-dev:autonomous" present  (explicit human authorisation)
-#
-# The previous filter (state.type=unstarted + priority<=2) accidentally
-# claimed any high-priority Todo across the workspace — including tickets
-# that hadn't been triaged for autonomous execution. Status-name + label
-# is the only authorised signal.
-_AUTONOMY_LABEL = "pi-dev:autonomous"
-_MACHINE_SHIP_LABEL = "pi-dev:machine-ship"
-_READY_STATUS_NAME = "Ready for Pi-Dev"
+# RA-1369 / UNI-2648 — pickup contract is issue_is_claimable (eligibility.py).
+# The old dashboard filter (state.type=unstarted + priority<=2) is retired.
 _BLOCKED_STATUS_NAME = "Pi-Dev: Blocked"
 _BLOCKED_REASON_SESSION_LOST = "pi-dev:blocked-reason:session-lost"
 
@@ -292,75 +287,39 @@ query AutonomyQueueIssues($projectId: String!, $statusName: String!, $autonomyLa
 
 
 def fetch_todo_issues(api_key: str) -> list[dict]:
-    """Fetch Urgent + High priority Todo issues across every portfolio project.
-
-    RA-1289 — iterates `config/harness/projects.json` so the poller picks up tickets
-    filed in target-repo boards (Synthex, Unite-Group, CARSI, DR-NRPG, …), not
-    just Pi-Dev-Ops. Each returned issue is annotated with `_repo_url`,
-    `_team_id`, and `_project_name` so downstream transitions / comments /
-    session creation route to the correct board.
-
-    Per-project fetch failures are logged but don't abort the full poll cycle.
-    Issues are deduped by id (should never collide, but belt-and-braces).
-    """
+    """Claimable autonomy queue across every portfolio project (UNI-2648)."""
     projects = _load_portfolio_projects()
     seen: set[str] = set()
     merged: list[dict] = []
-
     for p in projects:
         for label in (_AUTONOMY_LABEL, _MACHINE_SHIP_LABEL):
             try:
-                data = _gql(
-                    api_key,
-                    _TODO_ISSUES_QUERY,
-                    {
-                        "projectId":     p["project_id"],
-                        "statusName":    _READY_STATUS_NAME,
-                        "autonomyLabel": label,
-                    },
-                )
+                data = _gql(api_key, _TODO_ISSUES_QUERY, {
+                    "projectId": p["project_id"],
+                    "statusName": _READY_STATUS_NAME,
+                    "autonomyLabel": label,
+                })
             except Exception as exc:
                 log.warning(
                     "Autonomy: project %s label %s fetch failed: %s",
                     p["name"], label, exc,
                 )
                 continue
-
-            nodes = (data.get("project") or {}).get("issues", {}).get("nodes") or []
-            for issue in nodes:
+            for issue in (data.get("project") or {}).get("issues", {}).get("nodes") or []:
                 iid = issue.get("id")
                 if not iid or iid in seen:
                     continue
                 seen.add(iid)
-                # Annotate with mapped project context so the poller can route
-                # transitions/comments to the correct team and start the session
-                # against the right repo without a `repo:` label.
-                issue["_repo_url"]     = p["repo_url"]
-                issue["_team_id"]      = p["team_id"]
+                issue["_repo_url"] = p["repo_url"]
+                issue["_team_id"] = p["team_id"]
                 issue["_project_name"] = p["name"]
+                issue["_project_id"] = p["project_id"]
                 merged.append(issue)
-
-    # RA-2209 — apply q2-priority post-filter when env var is set.
-    # GraphQL filter approach was considered but rejected: Linear's IssueFilter
-    # syntax for "label A AND (label B OR label C)" is brittle across teams whose
-    # `q2-priority-*` labels may not exist yet. Python post-filter is robust:
-    # tickets without any priority label are skipped silently, no error.
-    if _PRIORITY_FILTER:
-        before_count = len(merged)
-        merged = [
-            i for i in merged
-            if any(
-                (lbl.get("name") or "") in _PRIORITY_FILTER
-                for lbl in (i.get("labels") or {}).get("nodes", [])
-            )
-        ]
-        if before_count != len(merged):
-            log.info(
-                "Autonomy: q2-priority filter %s applied: %d → %d issues",
-                sorted(_PRIORITY_FILTER), before_count, len(merged),
-            )
-
-    # Sort: priority asc (1=Urgent first), then updatedAt (already queried ordered)
+    merged = filter_claimable_issues(
+        merged,
+        registered_project_ids={p["project_id"] for p in projects},
+        priority_labels=_PRIORITY_FILTER,
+    )
     merged.sort(key=lambda i: i.get("priority", 3))
     return merged
 
