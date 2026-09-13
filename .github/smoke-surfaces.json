@@ -427,6 +427,19 @@
       "_comment": "RA-1910: end-to-end health snapshot. PR #460: margot_route prefers Supabase margot_conversations (source=supabase). 200 when all 7 components green, 503 when any red."
     },
     {
+      "name": "health-ready",
+      "path": "/api/pi-ceo/api/health/ready",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "ready",
+        "probe",
+        "git_ls_remote"
+      ],
+      "_comment": "UNI-2646: real clone-credential probe. FastAPI GET /api/health/ready runs a bounded git ls-remote with the configured token — 200 when GitHub accepts it, 503 when the token is missing, rejected, or the probe times out. /health stays Railway liveness and is not this surface. Presence-only github_token on /health is not enough (a set-but-expired token still reported true). Public on the FastAPI side; dashboard proxy gates with the session cookie. HONEST LIMIT: expected_status 200 assumes production GITHUB_TOKEN can still ls-remote. A dead token is supposed to fail this probe — that is the outage this surface exists to make visible, not a flake to paper over."
+    },
+    {
       "name": "kill-switch-status-nosig",
       "path": "/api/kill-switch?op=status",
       "method": "GET",

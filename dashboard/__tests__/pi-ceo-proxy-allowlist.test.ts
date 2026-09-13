@@ -59,6 +59,7 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
       "/api/integrations/health",
       "/api/telegram/intake/status",
       "/api/health/full",
+      "/api/health/ready",
       "/api/nexus/health",
       "/api/nexus/ingest/health",
       "/webhook/telegram",

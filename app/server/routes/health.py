@@ -204,7 +204,7 @@ async def health(request: Request):
     except Exception:
         payload["notebooklm"] = {"notebooks_tracked": 0, "stale_count_24h": 0, "stale_count_7d": 0, "summary": []}
 
-    return JSONResponse(payload, status_code=200 if healthy else 503)
+    return JSONResponse(payload, status_code=200)
 
 
 @app.get("/api/integrations/health")

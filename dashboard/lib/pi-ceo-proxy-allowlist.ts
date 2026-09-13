@@ -8,6 +8,7 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   /^\/api\/health$/,
   /^\/api\/health\/obsidian$/,
   /^\/api\/health\/full$/,
+  /^\/api\/health\/ready$/,
   /^\/api\/sessions$/,
   /^\/api\/sessions\/[^/]+\/(logs(?:\/stream)?|stream|resume|kill)$/,
   /^\/api\/terminal\/(sessions|tail)$/,
