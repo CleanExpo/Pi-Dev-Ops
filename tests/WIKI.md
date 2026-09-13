@@ -1,13 +1,12 @@
 # tests — Wiki
 
-_Last updated: 2026-09-11T12:53:14Z (commits c6f733d..b895059)_
+_Last updated: 2026-09-13T11:25:53Z (commits 7018a59..c4d9a06)_
 
 ## Recent changes
-- 01ff109 — test(gate): wire proxy_lint_sources fixtures into the lint test suite
+- c4d9a06 — Merge pull request #749 from CleanExpo/cursor/nexus-one-synthetic-pilot-83f2
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/proxy_lint_sources.py — touched in recent commits
-- tests/test_proxy_fallback_lint.py — touched in recent commits
+- tests/test_nexus_one_pilot.py — touched in recent commits

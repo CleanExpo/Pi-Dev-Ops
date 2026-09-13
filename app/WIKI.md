@@ -1,15 +1,17 @@
 # app — Wiki
 
-_Last updated: 2026-09-06T22:58:35Z (commits 2f1ee0e..265d03f)_
+_Last updated: 2026-09-13T11:25:53Z (commits 7018a59..c4d9a06)_
 
 ## Recent changes
-- 94c30b5 — refactor(session_phases): extract the two decisions the length gate flagged
-- 853b77a — fix(adversary): an unavailable review must not read as approval
-- 9535146 — fix(gates): tests_passed must come from evidence, not a literal
+- c4d9a06 — Merge pull request #749 from CleanExpo/cursor/nexus-one-synthetic-pilot-83f2
 
 ## Architecture (current)
-Auto-stub: `app/` had 3 recent commits. SDK unavailable for synthesis.
+Auto-stub: `app/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- app/server/session_phases.py — touched in recent commits
-- app/server/session_recorder.py — touched in recent commits
+- app/server/nexus_one/__init__.py — touched in recent commits
+- app/server/nexus_one/entry.py — touched in recent commits
+- app/server/nexus_one/journey.py — touched in recent commits
+- app/server/nexus_one/policy.py — touched in recent commits
+- app/server/nexus_one/review.py — touched in recent commits
+- app/server/nexus_one/store.py — touched in recent commits
