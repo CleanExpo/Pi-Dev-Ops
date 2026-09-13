@@ -26,23 +26,75 @@ to extract rather than baseline a new offender.
 """
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
+
+_SCP_REMOTE = re.compile(r"(?:[^/@]+@)?([^:/\s]+):(.+)")
+_HOSTED_SCHEMES = {"http", "https", "ssh", "git"}
 
 
 def git_origin(repo: Path) -> str:
-    """The `origin` URL of a checkout, or "" when there is none to read."""
-    out = subprocess.run(["git", "-C", str(repo), "remote", "get-url", "origin"],
-                         capture_output=True, text=True, check=False)
+    """The stored local `origin` URL, or "" when there is none to read.
+
+    Reads `git config --local --get remote.origin.url`, not `git remote
+    get-url`. get-url applies insteadOf, which can rewrite the spelling or
+    inject a credential before the guard sees it (UNI-2644).
+    """
+    out = subprocess.run(
+        ["git", "-C", str(repo), "config", "--local", "--get", "remote.origin.url"],
+        capture_output=True, text=True, check=False,
+    )
     if getattr(out, "returncode", 1) != 0:
         return ""
     return (getattr(out, "stdout", "") or "").strip()
 
 
 def canonical_origin(value: str) -> str:
-    """Normalise Git's optional HTTPS `.git` suffix without weakening identity."""
-    hosted = value.startswith(("https://", "http://"))
-    return value[:-4] if hosted and value.endswith(".git") else value
+    """Same hosted repository, same identity — protocol and `.git` do not count.
+
+    http(s), ssh://, and git@host:path collapse to host/owner/repo. file://
+    and other local forms stay verbatim, so `.git` remains significant there.
+    """
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    return _hosted_identity(raw) or raw
+
+
+def _strip_git_suffix(path: str) -> str:
+    """Drop a trailing `.git` after trimming slashes. Local file paths skip this."""
+    path = path.strip("/")
+    return path[:-4] if path.endswith(".git") else path
+
+
+def _hosted_identity(value: str) -> str:
+    """host/owner/repo for a hosted remote, else '' so the raw spelling is kept."""
+    return _scp_identity(value) or _url_identity(value)
+
+
+def _scp_identity(value: str) -> str:
+    """git@host:path / host:owner/repo → host/owner/repo. Else ''."""
+    if "://" in value:
+        return ""
+    match = _SCP_REMOTE.fullmatch(value)
+    if not match:
+        return ""
+    host, path = match.group(1).lower(), match.group(2)
+    if "@" not in value and "/" not in path:
+        return ""
+    path = _strip_git_suffix(path)
+    return f"{host}/{path}" if path else ""
+
+
+def _url_identity(value: str) -> str:
+    """http(s)/ssh/git URL → host/owner/repo. file:// and unknowns stay ''."""
+    parsed = urlsplit(value)
+    if parsed.scheme not in _HOSTED_SCHEMES or not parsed.hostname:
+        return ""
+    path = _strip_git_suffix(unquote(parsed.path))
+    return f"{parsed.hostname.lower()}/{path}" if path else ""
 
 
 def repo_dir_problem(default_repo_dir: Path, own_repo: Path) -> str:
