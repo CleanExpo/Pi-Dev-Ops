@@ -1,12 +1,12 @@
 # docs — Wiki
 
-_Last updated: 2026-09-13T12:27:06Z (commits a60e85d..3b2a01d)_
+_Last updated: 2026-09-13T12:56:26Z (commits 9fa9d29..f2a3e84)_
 
 ## Recent changes
-- 3b2a01d — Merge pull request #764 from CleanExpo/cursor/uni-2652-golden-journey-0ca3
+- f2a3e84 — Merge pull request #769 from CleanExpo/feat/schema-drift-db-connection
 
 ## Architecture (current)
 Auto-stub: `docs/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- docs/runbooks/golden-journey.md — touched in recent commits
+- docs/schema-drift-db.md — touched in recent commits
