@@ -1,0 +1,78 @@
+# UNI-2666 — founder Playwright suite for the Placecards prototype.
+# Path-filtered specialist: not part of ci.yml, so it does not expand
+# scripts/handoff-loop.sh or the gate-parity map.
+name: Placecards e2e
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "dashboard/app/placecards-prototype/**"
+      - "dashboard/components/placecards/**"
+      - "dashboard/lib/placecards/**"
+      - "dashboard/e2e/**"
+      - "dashboard/playwright.config.ts"
+      - "dashboard/proxy.ts"
+      - "dashboard/next.config.ts"
+      - ".github/workflows/placecards-e2e.yml"
+  push:
+    branches: [main]
+    paths:
+      - "dashboard/app/placecards-prototype/**"
+      - "dashboard/components/placecards/**"
+      - "dashboard/lib/placecards/**"
+      - "dashboard/e2e/**"
+      - "dashboard/playwright.config.ts"
+      - "dashboard/proxy.ts"
+      - "dashboard/next.config.ts"
+      - ".github/workflows/placecards-e2e.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  e2e:
+    name: Playwright 6/6
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build dashboard
+        run: npm run build
+        env:
+          PI_CEO_URL: http://127.0.0.1:7777
+          PI_CEO_PASSWORD: ci-build-stub
+          NEXT_PUBLIC_SUPABASE_URL: https://stub.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-key
+          DASHBOARD_PASSWORD: dev
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Placecards acceptance suite
+        run: npm run test:e2e
+        env:
+          CI: "1"
+          DASHBOARD_PASSWORD: dev
+          PI_CEO_URL: http://127.0.0.1:7777
+          PI_CEO_PASSWORD: ci-build-stub
+          NEXT_PUBLIC_SUPABASE_URL: https://stub.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-key
+          NEXT_TELEMETRY_DISABLED: "1"

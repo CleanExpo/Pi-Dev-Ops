@@ -27,6 +27,22 @@
       "_comment": "RA-6862 / PR #385: /loop (Loop Cockpit) added to PROTECTED_PAGE_PREFIXES in proxy.ts. It is data-only (every panel reads /api/pi-ceo/* which 401s without a session), so an unauthenticated visit is a bare shell. Protect it so unauthenticated users are redirected to login instead."
     },
     {
+      "name": "placecards-prototype-unauth",
+      "path": "/placecards-prototype",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 307,
+      "_comment": "UNI-2666: Placecards prototype is a protected Mission Control surface. Anonymous callers redirect to login. Interactive walk-through is the Playwright suite, not this probe."
+    },
+    {
+      "name": "placecards-prototype-html-unauth",
+      "path": "/placecards-prototype.html",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 307,
+      "_comment": "UNI-2666: founder suite path. Same prefix as /placecards-prototype, so proxy.ts redirects before the rewrite."
+    },
+    {
       "name": "brain-page",
       "path": "/brain",
       "method": "GET",

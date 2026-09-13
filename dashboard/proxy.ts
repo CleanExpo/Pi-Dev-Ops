@@ -52,6 +52,9 @@ const PROTECTED_PAGE_PREFIXES = [
   // here. Until this line existed, the whole knowledge base was readable without
   // one. See __tests__/command-centre-auth-coverage.test.ts.
   "/command-centre",
+  // UNI-2666: Placecards prototype is Mission Control, not a public demo.
+  // The .html alias also matches this prefix.
+  "/placecards-prototype",
 ];
 
 const PROTECTED_API_PREFIXES = [
