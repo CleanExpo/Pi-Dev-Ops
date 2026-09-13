@@ -82,6 +82,18 @@ function quietFallback(path: string, error: string, upstreamStatus = 502): Respo
             },
           ],
         },
+        // RA-7539: backend unreachable ≠ Nexus One shipped. Keep the synthetic
+        // contract visible and fail-closed so a down proxy never looks ready.
+        nexus_one: {
+          lineage: "SYNTHETIC",
+          excluded_from_real_acceptance: true,
+          registered: false,
+          ready: false,
+          shipped: false,
+          worker_enrolled: false,
+          max_subscription_only: true,
+          windows_policy: "review_only",
+        },
         error,
       },
       { status: 200, headers },

@@ -72,6 +72,16 @@ function mockProxyFallback() {
             degraded_components: [],
             actions: [],
           },
+          nexus_one: {
+            lineage: "SYNTHETIC",
+            excluded_from_real_acceptance: true,
+            registered: false,
+            ready: false,
+            shipped: false,
+            worker_enrolled: false,
+            max_subscription_only: true,
+            windows_policy: "review_only",
+          },
           error,
         };
       } else if (url.includes("/api/routines")) {

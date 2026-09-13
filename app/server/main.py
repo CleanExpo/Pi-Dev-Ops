@@ -21,6 +21,7 @@ from .routes import health  # noqa: F401
 from .routes import health_full  # RA-1910 — /api/health/full endpoint
 from .routes import health_ready  # UNI-2646 — /api/health/ready clone probe
 from .routes import nexus as nexus_routes  # Phase A — Nexus onboarding + growth OS
+from .routes import nexus_one_status  # RA-7539 — read-only synthetic status
 from . import continuation_bridge  # noqa: F401 — internal Telegram/Margot rolling-horizon hook
 
 app.include_router(auth.router)
@@ -47,6 +48,7 @@ app.include_router(health_full.router)  # RA-1910
 app.include_router(health_ready.router)  # UNI-2646
 app.include_router(delegate.router)  # RA-1631
 app.include_router(nexus_routes.router)  # Phase A — /api/nexus/*
+app.include_router(nexus_one_status.router)  # RA-7539 — /api/nexus-one/status only
 app.include_router(youtube_intent.router)  # Intent-only YouTube -> UG-N knowledge catalog
 app.include_router(mesh.router)  # Nexus Mesh — /api/mesh/*
 app.include_router(terminal.router)  # Terminal Orchestrator read API — /api/terminal/* (RA-7012)

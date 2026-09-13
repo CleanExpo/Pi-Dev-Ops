@@ -186,6 +186,7 @@ def test_backend_payload_keys_equal_the_ts_types_that_read_them():
         )
     assert types["observability"] <= backend["observability"]
     assert "actions" in backend["observability"] and "actions" in types["observability"]
+    assert "nexus_one" in backend["top"] and "nexus_one" in types["top"]
 
 
 def test_throughput_key_is_hourly_not_hourly_24h():

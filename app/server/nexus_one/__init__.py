@@ -4,8 +4,9 @@ Journey: Margot accept/resume → one canonical task → Max-subscription
 worker path (named, never billed) → deterministic checks → independent
 Judge hook → durable receipt.
 
-This package is not registered on the FastAPI app, does not enroll a
+This package is not registered as a live worker router, does not enroll a
 worker, and must not be treated as shipped Mission Control behaviour.
+GET /api/nexus-one/status reports that fact (registered=false).
 """
 from .entry import accept_or_resume, run_method
 from .journey import run_pilot
