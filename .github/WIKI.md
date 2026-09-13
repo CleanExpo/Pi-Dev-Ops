@@ -1,13 +1,12 @@
 # .github — Wiki
 
-_Last updated: 2026-09-13T12:01:22Z (commits 66c5293..c53c9fa)_
+_Last updated: 2026-09-13T12:27:06Z (commits a60e85d..3b2a01d)_
 
 ## Recent changes
-- 97e8b41 — Merge pull request #754 from CleanExpo/cursor/uni-2666-placecards-prototype-ef91
+- 3b2a01d — Merge pull request #764 from CleanExpo/cursor/uni-2652-golden-journey-0ca3
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .github/smoke-surfaces.json — touched in recent commits
-- .github/workflows/placecards-e2e.yml — touched in recent commits
+- .github/workflows/smoke_pipeline.yml — touched in recent commits

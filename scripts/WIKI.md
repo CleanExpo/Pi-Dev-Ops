@@ -1,13 +1,14 @@
 # scripts — Wiki
 
-_Last updated: 2026-08-27T11:34:56Z (commits 4e1543e..1f300b6)_
+_Last updated: 2026-09-13T12:27:06Z (commits a60e85d..3b2a01d)_
 
 ## Recent changes
-- 1f300b6 — Fix Railway Model Fabric startup
+- 3b2a01d — Merge pull request #764 from CleanExpo/cursor/uni-2652-golden-journey-0ca3
 
 ## Architecture (current)
 Auto-stub: `scripts/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- scripts/model_fabric_bootstrap.py — touched in recent commits
-- scripts/runtime_model_guard.py — touched in recent commits
+- scripts/golden_journey.py — touched in recent commits
+- scripts/golden_journey_checks.py — touched in recent commits
+- scripts/golden_journey_planted.py — touched in recent commits
