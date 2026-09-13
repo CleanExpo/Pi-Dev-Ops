@@ -1,17 +1,17 @@
 # dashboard — Wiki
 
-_Last updated: 2026-09-13T12:01:22Z (commits 66c5293..c53c9fa)_
+_Last updated: 2026-09-13T13:22:32Z (commits e679675..c137076)_
 
 ## Recent changes
-- 97e8b41 — Merge pull request #754 from CleanExpo/cursor/uni-2666-placecards-prototype-ef91
+- c137076 — feat(nexus-one): RA-7539 read-only synthetic status (registered=false) (#770)
 
 ## Architecture (current)
 Auto-stub: `dashboard/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- dashboard/__tests__/lib/placecards/model.test.ts — touched in recent commits
-- dashboard/__tests__/placecards-auth-coverage.test.ts — touched in recent commits
-- dashboard/app/placecards-prototype/page.tsx — touched in recent commits
-- dashboard/components/placecards/GateFields.tsx — touched in recent commits
-- dashboard/components/placecards/PlacecardsPrototype.tsx — touched in recent commits
-- dashboard/components/placecards/SidePanels.tsx — touched in recent commits
+- dashboard/__tests__/lib/control/mission-control-live.test.ts — touched in recent commits
+- dashboard/__tests__/loop-cockpit-backend-down.test.tsx — touched in recent commits
+- dashboard/__tests__/pi-ceo-proxy-allowlist.test.ts — touched in recent commits
+- dashboard/app/api/pi-ceo/[...path]/route.ts — touched in recent commits
+- dashboard/lib/control/mission-control-live.ts — touched in recent commits
+- dashboard/lib/pi-ceo-proxy-allowlist.ts — touched in recent commits
