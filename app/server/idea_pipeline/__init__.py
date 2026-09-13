@@ -15,7 +15,7 @@ from .dispose import (
 )
 from .intake import append_idea, default_intake_path, read_ideas
 from .packet import build_packet
-from .store import default_store_dir, list_packets, read_packet, write_packet
+from .store import default_store_dir, read_packet, write_packet
 
 __all__ = [
     "INTAKE_FILENAME",
