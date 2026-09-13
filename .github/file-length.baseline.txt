@@ -153,7 +153,6 @@
 344	0c15b2a671cc	swarm/research_provider.py
 343	c745e8538ebd	aip/src/seed/audit-2026-05-11.ts
 343	a7644bac498a	dashboard/components/control/LiveActivityFeed.tsx
-342	d1609be59b5d	scripts/smoke_test_pipeline.py
 342	6ed4c248cd7c	swarm/providers/ccw_supabase.py
 342	3bab8f09e6a5	tests/test_weekly_enhancement_loop.py
 341	0c1754f919d6	app/server/routes/margot.py

@@ -13,6 +13,19 @@ name: Pipeline Smoke (E2E)
 # Schedule: every 6 hours, so a bad deploy breaks within a quarter-day.
 # Manual: `workflow_dispatch` for pre-release gating.
 # Failure: pings Telegram via scripts/send_telegram.py.
+#
+# RA-7546 — `_sessions` is in-memory and Railway prod has no volume, so a
+# mid-run redeploy wipes the smoke session. The script waits for
+# authenticated /health uptime_s to pass SMOKE_SETTLE_UPTIME_S, then
+# respawns. Job timeout is 45 min so a deploy cascade can drain first.
+#
+# Quiet-tip planner re-check (trust #750 / RA-7546 Critic):
+# Do NOT mark planner CLEAR until a dispatch on a quiet main tip shows
+# generate entered (A2) and no planner exit 1. How:
+#   1. Railway production: no new deploy for ≥10 min (uptime_s ≥ 600,
+#      or the Railway dashboard).
+#   2. Actions → "Pipeline Smoke (E2E)" → Run workflow.
+#   3. Paste the run URL on RA-7546.
 
 on:
   schedule:
@@ -22,7 +35,7 @@ on:
 jobs:
   pipeline-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,9 +48,12 @@ jobs:
       - name: Run pipeline smoke
         id: smoke
         env:
-          PI_CEO_URL:         https://pi-dev-ops-production.up.railway.app
-          DASHBOARD_PASSWORD: ${{ secrets.TAO_PROD_PASSWORD }}
-          SMOKE_MAX_WAIT_S:   "1200"
+          PI_CEO_URL:              https://pi-dev-ops-production.up.railway.app
+          DASHBOARD_PASSWORD:      ${{ secrets.TAO_PROD_PASSWORD }}
+          SMOKE_MAX_WAIT_S:        "1200"
+          SMOKE_WALL_CLOCK_S:      "2400"
+          SMOKE_SETTLE_UPTIME_S:   "90"
+          SMOKE_MAX_RESPAWNS:      "2"
         # `shell: bash` runs this with `bash --noprofile --norc -eo pipefail`. GitHub's
         # default is `bash -e {0}` -- no pipefail -- so the step's status was tee's, not the
         # smoke test's. steps.smoke.outcome was therefore permanently 'success' and BOTH
