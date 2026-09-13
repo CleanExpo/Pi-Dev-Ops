@@ -1,10 +1,12 @@
 """
 app/server/tao_loop.py — RA-1970: judge-gated iteration loop runner.
 
-Port of pi-until-done's `/goal ... Ralph` autonomous-coding loop with a single
-metric termination gate (`tao_judge.judge`). One worker step per iteration,
-optional judge call every N iters, three independent abort axes from
-`kill_switch.LoopCounter` (MAX_ITERS, MAX_COST, HARD_STOP).
+Port of pi-until-done's `/goal ... Ralph` autonomous-coding loop. The judge
+(`tao_judge.judge`) is a progress signal, not the completion gate: a GOAL_MET
+verdict only terminates as complete when `coverage_check` reports no failed
+DoD probes (UNI-2650). One worker step per iteration, optional judge call
+every N iters, three independent abort axes from `kill_switch.LoopCounter`
+(MAX_ITERS, MAX_COST, HARD_STOP).
 
 Public API:
 
@@ -25,7 +27,6 @@ so passing 0 or None falls through to the env defaults.
 """
 from __future__ import annotations
 
-import logging
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -34,10 +35,12 @@ from typing import Callable, Final
 from . import kill_switch as _ks
 from .model_policy import select_model
 from .session_sdk import _run_claude_via_sdk
-from .tao_judge import JudgeState, JudgeVerdict, judge
+from .tao_judge import JudgeState, JudgeVerdict
+from .tao_judge import judge  # noqa: F401 — patch target for tests
+from .tao_loop_tick import abort_reason as _abort_reason
+from .tao_loop_tick import emit as _emit
+from .tao_loop_tick import judge_tick as _judge_tick
 from .tao_planner import Plan, format_step_goal, make_plan
-
-log = logging.getLogger("pi-ceo.tao_loop")
 
 GENERATOR_ROLE: Final[str] = "generator"
 EventCallback = Callable[[dict], None]
@@ -48,7 +51,8 @@ class LoopResult:
     """Outcome of a `run_until_done` invocation.
 
     `reason` is one of: kill-switch reasons (`MAX_ITERS`, `MAX_COST`,
-    `HARD_STOP`), or `GOAL_MET` / `MAX_ITERS_NO_GOAL` / `JUDGE_NEVER_SATISFIED`.
+    `HARD_STOP`), or `GOAL_MET` / `MAX_ITERS_NO_GOAL` / `JUDGE_NEVER_SATISFIED`
+    / `COVERAGE_INCOMPLETE` (judge said done, DoD probes did not).
     """
 
     done: bool
@@ -114,15 +118,6 @@ def _build_state(prev_iters: int, workspace: str) -> JudgeState:
     )
 
 
-def _emit(on_event: EventCallback | None, payload: dict) -> None:
-    if on_event is None:
-        return
-    try:
-        on_event(payload)
-    except Exception as exc:  # pragma: no cover — never let callback kill loop
-        log.warning("tao_loop on_event callback raised: %s", exc)
-
-
 async def _run_worker_step(
     goal: str, workspace: str, timeout_s: int, session_id: str,
 ) -> tuple[int, str, float]:
@@ -153,12 +148,15 @@ async def run_until_done(
     session_id: str = "",
     planner_horizon: int | None = None,
     max_replans: int = 2,
+    dod_path: str | None = None,
+    project_id: str | None = None,
 ) -> LoopResult:
-    """Drive worker iterations until judge says done or kill-switch fires.
+    """Drive worker iterations until coverage allows done or kill-switch fires.
 
-    See module docstring for the abort matrix. Returns a fully-populated
-    LoopResult; never raises KillSwitchAbort to the caller (captured into
-    the result).
+    The judge is necessary, never sufficient: GOAL_MET plus a failing
+    coverage check keeps the loop running. See module docstring for the
+    abort matrix. Returns a fully-populated LoopResult; never raises
+    KillSwitchAbort to the caller (captured into the result).
 
     When ``planner_horizon`` is set (1-20), the loop runs in *lookahead* mode:
     a plan of up to ``planner_horizon`` ordered steps is built up front via the
@@ -179,6 +177,7 @@ async def run_until_done(
     final_state: JudgeState | None = None
     reason: str = "JUDGE_NEVER_SATISFIED"
     done: bool = False
+    coverage_blocked = False
     every = max(1, int(judge_every_n_iters))
 
     plan: Plan | None = None
@@ -207,7 +206,7 @@ async def run_until_done(
         try:
             _ks.check_hard_stop()
         except _ks.KillSwitchAbort as abort:
-            reason = abort.reason
+            reason = _abort_reason(abort.reason, coverage_blocked)
             break
 
         # Lookahead: re-plan from current state once the horizon is spent.
@@ -223,28 +222,23 @@ async def run_until_done(
         try:
             counter.tick(cost_delta_usd=float(cost_iter or 0.0))
         except _ks.KillSwitchAbort as abort:
-            reason = abort.reason
+            reason = _abort_reason(abort.reason, coverage_blocked)
             break
 
         state = _build_state(counter.iters, workspace)
         final_state = state
-
-        verdict: JudgeVerdict | None = None
-        if counter.iters % every == 0:
-            verdict = await judge(
-                goal=goal, workspace=workspace, state=state,
-                timeout_s=60, session_id=session_id,
-            )
-            judge_history.append(verdict)
-            if verdict.done:
-                reason = "GOAL_MET"
-                done = True
-                _emit(on_event, {
-                    "action": "iter_complete", "iters": counter.iters,
-                    "score": verdict.score, "reason_hint": verdict.reason,
-                    "rc": rc,
-                })
-                break
+        verdict, complete, blocked = await _judge_tick(
+            goal=goal, workspace=workspace, state=state,
+            session_id=session_id, iters=counter.iters, every=every,
+            dod_path=dod_path, project_id=project_id, on_event=on_event,
+            rc=rc, judge_history=judge_history,
+        )
+        if blocked:
+            coverage_blocked = True
+        if complete:
+            reason = "GOAL_MET"
+            done = True
+            break
 
         # Lookahead progression: re-plan on a stall, else advance one step.
         if plan is not None:

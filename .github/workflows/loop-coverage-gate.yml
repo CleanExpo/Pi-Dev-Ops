@@ -1,0 +1,63 @@
+name: Loop coverage gate
+
+# UNI-2650 — proves the loop cannot finish as complete when the judge says
+# done but coverage fails. The DoD criterion `ver-loop-coverage-gated` must
+# be PASS because this test ran, not because a file greps for an import.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  prove-coverage-gates-completion:
+    name: Judge-done plus coverage-fail is not complete
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TAO_PASSWORD: ci-test-password
+      TAO_SESSION_SECRET: ci-session-secret-fixed-for-test
+      TAO_EVALUATOR_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: app/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r app/requirements.txt
+          pip install "pytest>=8"
+
+      - name: Prove the loop coverage contract
+        run: pytest tests/test_tao_loop_coverage.py -v --tb=short
+
+      - name: Prove ver-loop-coverage-gated is green
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, sys
+          from pathlib import Path
+          spec = Path("config/harness/dod/pi-dev-ops-verification.dod.yaml")
+          proc = subprocess.run(
+              [sys.executable, "scripts/coverage_check.py", str(spec), "--json"],
+              check=True, capture_output=True, text=True, timeout=90,
+          )
+          report = json.loads(proc.stdout)
+          row = next(r for r in report["results"] if r["id"] == "ver-loop-coverage-gated")
+          print(json.dumps(row, indent=2))
+          if row["status"] != "PASS":
+              raise SystemExit(f"ver-loop-coverage-gated is {row['status']}: {row['evidence']}")
+          PY

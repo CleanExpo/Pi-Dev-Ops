@@ -49,10 +49,11 @@ requirements:
   - id: ver-loop-coverage-gated
     statement: "The build loop terminates on project coverage, not a per-task self-judge."
     check: command
-    argv: [grep, -q, coverage_check, app/server/tao_loop.py]
+    argv: [python3, -m, pytest, tests/test_tao_loop_coverage.py, -q]
     note: >
-      Expected to FAIL today. tao_loop.py still terminates on the per-task judge
-      with no coverage gate; this remains an honest red.
+      Proven by tests/test_tao_loop_coverage.py. A mocked GOAL_MET verdict plus
+      a failing DoD probe must not return LoopResult.done. Grep-for-the-import
+      is not evidence.
 
   - id: ver-backend-health
     statement: "Production backend answers a health check."

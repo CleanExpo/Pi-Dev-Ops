@@ -59,7 +59,7 @@
 125	7ed50367bce2	swarm/inbox/intake_dispatch.py::dispatch_telegram_update
 124	af12578b3cb6	app/server/session_phases.py::_phase_adversary
 124	c8bad738abf9	app/server/spec_pipeline/liaison_loop.py::judge_with_liaison
-124	4833f230c60e	app/server/tao_loop.py::run_until_done
+123	fd752f939628	app/server/tao_loop.py::run_until_done
 123	6131367841b1	swarm/six_pager_dispatcher.py::maybe_fire_daily
 122	b538b832a861	app/server/agents/scout.py::run_scout_cycle
 121	7ec22284620f	app/server/cron_watchdogs.py::_watchdog_docs_staleness
