@@ -12,9 +12,9 @@ path is new every run, so it is never in `~/.claude.json`. Claude then prints
 "Ignoring N permissions.allow ... workspace has not been trusted" and the
 planner returns rc=1 (`_block_plan_phase`).
 
-Scope is the only safety: this writes trust solely for paths under
-`TAO_WORKSPACE` / `config.WORKSPACE_ROOT`. Kill switch:
-`TAO_TRUST_EPHEMERAL_WORKSPACES=0`.
+Scope is two gates (UNI-2656): the path must sit under `TAO_WORKSPACE` /
+`config.WORKSPACE_ROOT`, and the clone source must be a `repo` in
+`config/harness/projects.json`. Kill switch: `TAO_TRUST_EPHEMERAL_WORKSPACES=0`.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ import fcntl
 import json
 import logging
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -83,11 +84,101 @@ def project_trust_key(workspace: str) -> str:
     return os.path.normpath(os.path.abspath(workspace))
 
 
+def normalize_repo(value: str) -> str:
+    """Return lowercase `owner/name` from a GitHub URL, SSH remote, or slug.
+
+    Tokenised HTTPS remotes (`https://x-access-token:…@github.com/…`) and a
+    trailing `.git` are stripped. Owner + name only — a same-named repo under
+    another owner does not match.
+    """
+    raw = (value or "").strip().rstrip("/")
+    if not raw:
+        return ""
+    lower = raw.lower()
+    if lower.startswith("git@github.com:"):
+        raw = raw.split(":", 1)[1]
+    elif "@github.com/" in lower:
+        raw = raw.split("@github.com/", 1)[1]
+    elif "github.com/" in lower:
+        raw = raw.split("github.com/", 1)[1]
+    raw = raw.removesuffix(".git")
+    parts = [p for p in raw.split("/") if p]
+    if len(parts) < 2 or parts[0] in {".", ".."} or parts[1] in {".", ".."}:
+        return ""
+    return f"{parts[0]}/{parts[1]}".lower()
+
+
+def registry_slugs(projects_path: Path | None = None) -> set[str]:
+    """`owner/name` slugs from `config/harness/projects.json` `repo` fields."""
+    path = projects_path
+    if path is None:
+        from . import config_loader  # noqa: PLC0415
+
+        path = config_loader.PROJECTS_JSON
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, TypeError):
+        return set()
+    slugs: set[str] = set()
+    for entry in data.get("projects") or []:
+        if not isinstance(entry, dict):
+            continue
+        slug = normalize_repo(str(entry.get("repo") or ""))
+        if slug:
+            slugs.add(slug)
+    return slugs
+
+
+def repo_in_registry(repo_url: str, *, projects_path: Path | None = None) -> bool:
+    slug = normalize_repo(repo_url)
+    return bool(slug) and slug in registry_slugs(projects_path)
+
+
+def git_origin(workspace: str) -> str:
+    """Clone source from `git remote get-url origin`, or empty on any failure."""
+    if not workspace:
+        return ""
+    try:
+        completed = subprocess.run(
+            ["git", "-C", workspace, "remote", "get-url", "origin"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.strip()
+
+
+def allow_trust(
+    workspace: str,
+    workspace_root: str,
+    repo_url: str = "",
+    *,
+    projects_path: Path | None = None,
+) -> tuple[bool, str, str]:
+    """Return `(allowed, reason, repo_slug)`. `reason` is the rule or refusal."""
+    if not is_ephemeral_workspace(workspace, workspace_root):
+        return False, "outside_workspace_root", ""
+    source = (repo_url or "").strip() or git_origin(workspace)
+    slug = normalize_repo(source)
+    if not slug:
+        return False, "no_clone_source", ""
+    if not repo_in_registry(slug, projects_path=projects_path):
+        return False, "outside_registry", slug
+    return True, "workspace_root+registry", slug
+
+
 def ensure_workspace_trusted(
     workspace: str,
     *,
     workspace_root: str | None = None,
     config_path: Path | None = None,
+    repo_url: str = "",
+    projects_path: Path | None = None,
 ) -> bool:
     """Set hasTrustDialogAccepted for an ephemeral workspace. Never raises."""
     if not trust_enabled() or not workspace:
@@ -97,18 +188,43 @@ def ensure_workspace_trusted(
         from . import config  # noqa: PLC0415
 
         root = config.WORKSPACE_ROOT
-    if not is_ephemeral_workspace(workspace, root):
+    allowed, reason, slug = allow_trust(
+        workspace, root, repo_url, projects_path=projects_path,
+    )
+    if not allowed:
+        _log_refusal(workspace, reason, slug)
         return False
+    return _write_trust(workspace, config_path, reason, slug)
+
+
+def _log_refusal(workspace: str, reason: str, slug: str) -> None:
+    _log.info(
+        "refusing Claude trust for %s reason=%s repo=%s",
+        project_trust_key(workspace),
+        reason,
+        slug or "-",
+    )
+
+
+def _write_trust(
+    workspace: str, config_path: Path | None, reason: str, slug: str,
+) -> bool:
     path = config_path if config_path is not None else claude_json_path()
     if path is None:
         _log.warning("refusing Claude trust write: HOME is unset or '/'")
         return False
     key = project_trust_key(workspace)
     try:
-        return _locked_update(path, key)
+        ok = _locked_update(path, key)
     except OSError as exc:
         _log.warning("failed to mark workspace trusted (%s): %s", key, exc)
         return False
+    if ok:
+        _log.info(
+            "trusted ephemeral Claude workspace %s allowed_by=%s repo=%s",
+            key, reason, slug,
+        )
+    return ok
 
 
 def _locked_update(path: Path, key: str) -> bool:
@@ -128,7 +244,6 @@ def _locked_update(path: Path, key: str) -> bool:
             if merged is False:
                 return True
             _atomic_write(path, data)
-            _log.info("trusted ephemeral Claude workspace %s", key)
             return True
         finally:
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)

@@ -10,6 +10,8 @@ then the planner returns rc=1 (`_block_plan_phase`).
 from __future__ import annotations
 
 import json
+import logging
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -19,10 +21,17 @@ from app.server import claude_workspace_trust as trust
 
 ROOT = "/tmp/pi-ceo-workspaces"
 SESSION = "/tmp/pi-ceo-workspaces/4264c07a4fea"
+REGISTRY_REPO = "https://github.com/CleanExpo/Pi-Dev-Ops"
+UNKNOWN_REPO = "https://github.com/evil-org/not-in-registry"
 
 
 def _read(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _trust(workspace: str, **kwargs: object) -> bool:
+    kwargs.setdefault("repo_url", REGISTRY_REPO)
+    return trust.ensure_workspace_trusted(workspace, **kwargs)  # type: ignore[arg-type]
 
 
 def test_ephemeral_child_is_in_scope() -> None:
@@ -64,9 +73,7 @@ def test_trust_write_sets_flag_and_preserves_oauth(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    assert trust.ensure_workspace_trusted(
-        SESSION, workspace_root=ROOT, config_path=config,
-    ) is True
+    assert _trust(SESSION, workspace_root=ROOT, config_path=config) is True
 
     data = _read(config)
     assert data["oauthAccount"]["accountUuid"] == "keep-me"
@@ -80,9 +87,7 @@ def test_trust_write_merges_existing_project_entry(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    assert trust.ensure_workspace_trusted(
-        SESSION, workspace_root=ROOT, config_path=config,
-    ) is True
+    assert _trust(SESSION, workspace_root=ROOT, config_path=config) is True
 
     entry = _read(config)["projects"][SESSION]
     assert entry["allowedTools"] == ["Read"]
@@ -91,13 +96,9 @@ def test_trust_write_merges_existing_project_entry(tmp_path: Path) -> None:
 
 def test_trust_write_is_idempotent(tmp_path: Path) -> None:
     config = tmp_path / ".claude.json"
-    assert trust.ensure_workspace_trusted(
-        SESSION, workspace_root=ROOT, config_path=config,
-    ) is True
+    assert _trust(SESSION, workspace_root=ROOT, config_path=config) is True
     first = config.read_text(encoding="utf-8")
-    assert trust.ensure_workspace_trusted(
-        SESSION, workspace_root=ROOT, config_path=config,
-    ) is True
+    assert _trust(SESSION, workspace_root=ROOT, config_path=config) is True
     assert config.read_text(encoding="utf-8") == first
 
 
@@ -105,9 +106,7 @@ def test_outside_root_does_not_touch_claude_json(tmp_path: Path) -> None:
     config = tmp_path / ".claude.json"
     config.write_text("{}", encoding="utf-8")
 
-    assert trust.ensure_workspace_trusted(
-        "/etc/ssh", workspace_root=ROOT, config_path=config,
-    ) is False
+    assert _trust("/etc/ssh", workspace_root=ROOT, config_path=config) is False
     assert config.read_text(encoding="utf-8") == "{}"
 
 
@@ -115,9 +114,7 @@ def test_corrupt_claude_json_is_left_alone(tmp_path: Path) -> None:
     config = tmp_path / ".claude.json"
     config.write_text("{not-json", encoding="utf-8")
 
-    assert trust.ensure_workspace_trusted(
-        SESSION, workspace_root=ROOT, config_path=config,
-    ) is False
+    assert _trust(SESSION, workspace_root=ROOT, config_path=config) is False
     assert config.read_text(encoding="utf-8") == "{not-json"
 
 
@@ -125,9 +122,7 @@ def test_kill_switch_disables_writes(tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("TAO_TRUST_EPHEMERAL_WORKSPACES", "0")
     config = tmp_path / ".claude.json"
 
-    assert trust.ensure_workspace_trusted(
-        SESSION, workspace_root=ROOT, config_path=config,
-    ) is False
+    assert _trust(SESSION, workspace_root=ROOT, config_path=config) is False
     assert not config.exists()
 
 
@@ -139,7 +134,7 @@ def test_home_slash_skips_write_even_for_ephemeral_path(
     monkeypatch.setattr(
         trust, "_locked_update", lambda *a, **k: called.append(True) or True,
     )
-    assert trust.ensure_workspace_trusted(SESSION, workspace_root=ROOT) is False
+    assert _trust(SESSION, workspace_root=ROOT) is False
     assert called == []
 
 
@@ -148,9 +143,7 @@ def test_malformed_projects_array_is_left_alone(tmp_path: Path) -> None:
     raw = json.dumps({"oauthAccount": {"accountUuid": "keep-me"}, "projects": []})
     config.write_text(raw, encoding="utf-8")
 
-    assert trust.ensure_workspace_trusted(
-        SESSION, workspace_root=ROOT, config_path=config,
-    ) is False
+    assert _trust(SESSION, workspace_root=ROOT, config_path=config) is False
     assert config.read_text(encoding="utf-8") == raw
 
 
@@ -159,9 +152,7 @@ def test_malformed_project_entry_is_left_alone(tmp_path: Path) -> None:
     raw = json.dumps({"projects": {SESSION: "not-a-dict"}})
     config.write_text(raw, encoding="utf-8")
 
-    assert trust.ensure_workspace_trusted(
-        SESSION, workspace_root=ROOT, config_path=config,
-    ) is False
+    assert _trust(SESSION, workspace_root=ROOT, config_path=config) is False
     assert config.read_text(encoding="utf-8") == raw
 
 
@@ -204,3 +195,104 @@ def test_session_sdk_calls_prepare_before_query() -> None:
     assert "from . import claude_workspace_trust" in text
     assert "asyncio.to_thread(" in text
     assert "claude_workspace_trust.prepare_sdk_environment" in text
+
+
+def test_outside_registry_does_not_touch_claude_json(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture,
+) -> None:
+    config = tmp_path / ".claude.json"
+    config.write_text("{}", encoding="utf-8")
+
+    with caplog.at_level(logging.INFO, logger="pi-ceo.claude_workspace_trust"):
+        assert trust.ensure_workspace_trusted(
+            SESSION,
+            workspace_root=ROOT,
+            config_path=config,
+            repo_url=UNKNOWN_REPO,
+        ) is False
+
+    assert config.read_text(encoding="utf-8") == "{}"
+    assert "reason=outside_registry" in caplog.text
+    assert "evil-org/not-in-registry" in caplog.text
+
+
+def test_same_repo_name_other_owner_is_outside_registry(tmp_path: Path) -> None:
+    config = tmp_path / ".claude.json"
+    config.write_text("{}", encoding="utf-8")
+
+    assert trust.ensure_workspace_trusted(
+        SESSION,
+        workspace_root=ROOT,
+        config_path=config,
+        repo_url="https://github.com/evil-org/Pi-Dev-Ops",
+    ) is False
+    assert config.read_text(encoding="utf-8") == "{}"
+
+
+def test_missing_clone_source_does_not_trust(tmp_path: Path) -> None:
+    config = tmp_path / ".claude.json"
+    config.write_text("{}", encoding="utf-8")
+
+    assert trust.ensure_workspace_trusted(
+        SESSION, workspace_root=ROOT, config_path=config,
+    ) is False
+    assert config.read_text(encoding="utf-8") == "{}"
+
+
+def test_trust_log_names_the_allowing_rule(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture,
+) -> None:
+    config = tmp_path / ".claude.json"
+
+    with caplog.at_level(logging.INFO, logger="pi-ceo.claude_workspace_trust"):
+        assert _trust(SESSION, workspace_root=ROOT, config_path=config) is True
+
+    assert "allowed_by=workspace_root+registry" in caplog.text
+    assert "cleanexpo/pi-dev-ops" in caplog.text
+
+
+def test_tokenised_origin_of_registry_repo_is_trusted(tmp_path: Path) -> None:
+    config = tmp_path / ".claude.json"
+    tokenised = (
+        "https://x-access-token:not-a-real-token@github.com/CleanExpo/Pi-Dev-Ops.git"
+    )
+    assert trust.ensure_workspace_trusted(
+        SESSION,
+        workspace_root=ROOT,
+        config_path=config,
+        repo_url=tokenised,
+    ) is True
+    assert _read(config)["projects"][SESSION]["hasTrustDialogAccepted"] is True
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("https://github.com/CleanExpo/Pi-Dev-Ops.git", "cleanexpo/pi-dev-ops"),
+        ("git@github.com:CleanExpo/Pi-Dev-Ops.git", "cleanexpo/pi-dev-ops"),
+        ("CleanExpo/Pi-Dev-Ops", "cleanexpo/pi-dev-ops"),
+        ("https://github.com/evil-org/Pi-Dev-Ops", "evil-org/pi-dev-ops"),
+        ("", ""),
+        ("not-a-repo", ""),
+    ],
+)
+def test_normalize_repo(value: str, expected: str) -> None:
+    assert trust.normalize_repo(value) == expected
+
+
+def test_git_origin_is_enough_clone_source(tmp_path: Path) -> None:
+    ws = tmp_path / "sid"
+    ws.mkdir()
+    subprocess.run(["git", "init", str(ws)], check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-C", str(ws), "remote", "add", "origin", REGISTRY_REPO],
+        check=True,
+        capture_output=True,
+    )
+    config = tmp_path / ".claude.json"
+
+    assert trust.ensure_workspace_trusted(
+        str(ws), workspace_root=str(tmp_path), config_path=config,
+    ) is True
+    key = trust.project_trust_key(str(ws))
+    assert _read(config)["projects"][key]["hasTrustDialogAccepted"] is True
