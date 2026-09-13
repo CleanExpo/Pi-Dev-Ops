@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
+from . import claude_workspace_trust
 from . import config
 from . import model_registry
 from . import tool_gate
@@ -314,13 +315,7 @@ async def _run_claude_via_sdk(
             # iterator that terminates on ResultMessage. It's the documented
             # pattern for one-shot generation inside a request handler.
             #
-            # RA-1169-adjacent — explicitly pop ANTHROPIC_API_KEY when empty.
-            # The `claude` CLI sets it to "" in some contexts; SDK treats ""
-            # as "use API key mode, key is empty" rather than falling back to
-            # OAuth. Ensure it's genuinely absent so the SDK picks up the
-            # `claude setup-token` credentials from ~/.claude/.
-            if (_k := os.environ.get("ANTHROPIC_API_KEY", "")) == "" or _k.startswith("sk-ant-oat01-"):
-                os.environ.pop("ANTHROPIC_API_KEY", None)
+            claude_workspace_trust.prepare_sdk_environment(workspace)
 
             # RA-1172 — permission_mode='bypassPermissions' is MANDATORY for
             # autonomous sessions. Without it Claude hits tool-permission
