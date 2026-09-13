@@ -25,9 +25,10 @@ MISSING_CREDENTIAL = GitAuthReason.MISSING
 class GitAuthError(RuntimeError):
     """Named fail-closed error. `.reason` is the stable machine id."""
 
-    def __init__(self, reason: str, message: str) -> None:
+    def __init__(self, reason: str | GitAuthReason, message: str) -> None:
+        code = reason.value if isinstance(reason, GitAuthReason) else reason
         super().__init__(message)
-        self.reason = reason
+        self.reason = code
 
 
 def resolved_github_token(environ: Mapping[str, str] | None = None) -> str:

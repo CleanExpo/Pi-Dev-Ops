@@ -18,7 +18,7 @@
 # baselined files repeat lengths often enough that equal length would let an
 # unrelated new file inherit a deleted one's slot.
 2612	9f16a1752b55	app/server/agents/board_meeting.py
-1902	a6274c32de4b	app/server/session_phases.py
+1900	373528e6bed6	app/server/session_phases.py
 1770	6f09ed10d936	swarm/margot_bot.py
 1264	3f5a5b679cbc	app/server/routes/webhooks.py
 1219	b420cc9c57d4	scripts/unite_group_health_check.py
@@ -80,7 +80,7 @@
 523	0e56be8304a3	tests/swarm/test_tmux_observer.py
 518	e3996b3c7bba	dashboard/app/api/telegram/route.ts
 513	570157d4da73	tests/test_docs_stale_watchdog_ra7027.py
-512	3f0f2a35198c	app/server/routes/phone.py
+512	f62c96cf629d	app/server/routes/phone.py
 512	314bbd933534	swarm/inbox/preamble_trainer.py
 508	7dfb2ed7768b	scripts/plaud_actions.py
 507	d06881c644d6	swarm/model_router.py
@@ -133,9 +133,9 @@
 376	8984a37f386b	swarm/intake/tests/test_spm.py
 375	2ce0b69ae46e	swarm/tmux_observer.py
 371	b9f0bad56a2b	tests/test_routes_webhooks.py
-368	4a9889591684	app/server/autopr.py
 368	96e54eaa4e50	scripts/margot_generate.py
 364	65a0da907cb5	app/server/youtube_connector.py
+362	1d5afd48c354	app/server/autopr.py
 361	2792f8c24296	tests/test_ra7216_acceptance_events.py
 360	190cf0c91743	swarm/portfolio_pulse.py
 359	a9e6a87af04a	app/server/agents/plan_discovery.py
@@ -156,7 +156,6 @@
 342	d1609be59b5d	scripts/smoke_test_pipeline.py
 342	6ed4c248cd7c	swarm/providers/ccw_supabase.py
 342	3bab8f09e6a5	tests/test_weekly_enhancement_loop.py
-341	32fd4d02f35d	app/server/orchestrator.py
 341	0c1754f919d6	app/server/routes/margot.py
 338	6894f2c70267	swarm/providers/zendesk.py
 336	e8cb54339857	swarm/wiki_lint.py
@@ -174,6 +173,7 @@
 322	23ab18887d3f	tests/test_ra7216_attribution_keys.py
 322	f1f0fa3a8ffc	tests/test_ra7216_outcome_events.py
 321	e6b425c30467	swarm/flow_engine.py
+320	57b3b9706899	app/server/orchestrator.py
 317	de667bca9390	tests/test_sse_stream_ra6504.py
 316	949fb361734b	swarm/bots/chief_of_staff.py
 315	ebc46c7a6b78	app/server/agents/notebooklm_refresh.py
@@ -193,6 +193,6 @@
 304	3482f2377a1a	app/server/pi_ceo_docparser.py
 303	9bb64138ff5f	claude-hooks-mirror/Stop/02_autonomous_continue.py
 303	3807cd860995	tests/test_tao_codebase_wiki.py
-302	4a5462a47bcc	app/server/routes/health.py
+302	792c3404898b	app/server/routes/health.py
 302	f09e99c3709a	app/server/routes/telegram_proxy.py
 302	6efc5fbb45f6	app/server/tao_context_vcc.py
