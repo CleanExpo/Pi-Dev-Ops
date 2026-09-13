@@ -5,13 +5,13 @@ Canonical repository: `CleanExpo/Pi-Dev-Ops`
 Requested by: Phill  
 Prepared: 8 September 2026  
 Priority: next pending Nexus One bootstrap task after any already-owned work reaches a safe checkpoint  
-Status: prepared for pickup; not dispatched or admitted for implementation
+Status: founder admitted the **synthetic** implementation slice on 2026-09-13 (issue #739, Claude Max only, $0 API). Not shipped. Not a live worker grant.
 
 ## Outcome
 
 Use the completed Nexus One design and PC launch supplement to produce one current, bounded pilot specification and an honest host/authority/readiness report. Do not redesign the whole architecture or begin an estate-wide rebuild.
 
-The intended first delivery journey is Margot -> one canonical task -> one admitted worker -> deterministic checks -> independent review -> an evidence receipt. This pickup performs the finite discovery/SPM/Judge preparation for that journey. Implementation is separate and follows the existing admission controls.
+The intended first delivery journey is Margot -> one canonical task -> one admitted worker -> deterministic checks -> independent review -> an evidence receipt. Slice A planning is complete on issue #739. The founder later admitted the **synthetic** implementation slice only (Max subscription, no API spend, Windows still review-only). Code lives in `app/server/nexus_one/` and is labelled SYNTHETIC. That is not a SHIPPED or production-activation claim.
 
 ## Read in this order
 
