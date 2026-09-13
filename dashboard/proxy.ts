@@ -82,6 +82,10 @@ const PROTECTED_API_PREFIXES = [
   // UNI-2649: server-side mesh fleet aggregate. Attaches X-Pi-CEO-Secret
   // on the server; the browser never sees it.
   "/api/mesh-fleet",
+  // RA-7487: attachments upload. Proxy default-open returned the app shell at
+  // HTTP 200 for an anonymous POST, which a scanner reads as success. Gate the
+  // prefix so unauthenticated callers get 401 before any handler runs.
+  "/api/attachments",
 ];
 
 // Public API routes — never require session
