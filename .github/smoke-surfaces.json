@@ -700,6 +700,18 @@
       "_comment": "PR #542: heartbeat upsert fixed to target the (machine, runtime, session_id) UNIQUE constraint via on_conflict — merge-duplicates alone resolved against the uuid PK and every repeat heartbeat 409'd (~8.6k/day, the bulk of the Supabase failure rate). Requires X-Pi-CEO-Secret; unauthenticated POST with a valid minimal body returns 401 inside the handler before any Supabase write, same pattern as mesh-claim-self-nosig. An authenticated probe is deliberately NOT declared — a valid secret would upsert a phantom 'smoke' machine row (state mutation); upsert semantics are asserted post-merge by watching mesh_agents POSTs return 2xx not 409 in the Supabase API logs."
     },
     {
+      "name": "mesh-ship-nosig",
+      "path": "/api/pi-ceo/api/mesh/ship",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "machine": "smoke",
+        "repo": "CleanExpo/Pi-Dev-Ops"
+      },
+      "_comment": "RA-7377: mesh_ships writer (app/server/routes/mesh_ship.py). Same X-Pi-CEO-Secret gate as /api/mesh/heartbeat; unauthenticated POST with a valid minimal body returns 401 before any Supabase write. An authenticated probe is deliberately NOT declared — a valid secret would insert a phantom smoke row into the ship feed (state mutation). Insert validation and the post-ship hook are covered offline by tests/test_mesh_ship_endpoint.py and tests/test_mesh_ship.py."
+    },
+    {
       "name": "mesh-dispatch-nosig",
       "path": "/api/pi-ceo/api/mesh/dispatch",
       "method": "POST",

@@ -64,6 +64,10 @@ if [ -z "$root" ] || [ ! -f "$root/.autogit.json" ]; then
   exit 0
 fi
 
+# RA-7377: HEAD before autogit, so a commit+push that leaves this wrapper
+# up-to-date is still reported to the fleet ship feed.
+sha_before="$(git rev-parse HEAD 2>/dev/null || true)"
+
 # 1. autogit still owns uncommitted work and mines the payload for a subject.
 if command -v autogit >/dev/null 2>&1; then
   printf '%s' "$payload" | autogit ship >/dev/null 2>&1
@@ -90,6 +94,17 @@ if ! git rev-parse --verify -q HEAD >/dev/null 2>&1; then
   exit 0
 fi
 
+# Best-effort fleet feed write. Never fails the hook (RA-7377).
+_report_feed() {
+  local reporter
+  reporter="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../report_ship.py"
+  if [ ! -f "$reporter" ]; then
+    log "ship-feed: reporter missing"
+    return 0
+  fi
+  python3 "$reporter" >> "$LOG" 2>&1 || log "ship-feed: reporter exited $?"
+}
+
 # The push itself is the ahead-check: it is a no-op when the remote already has
 # these commits, which keeps this correct against a stale remote-tracking ref.
 # Explicit refspec, never a force.
@@ -98,8 +113,14 @@ head_sha="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 if [ $rc -eq 0 ]; then
   if printf '%s' "$out" | grep -qi 'everything up-to-date'; then
     log "up-to-date: $branch already on $remote at $head_sha"
+    sha_now="$(git rev-parse HEAD 2>/dev/null || true)"
+    # autogit already pushed this turn — HEAD moved, wrapper is a no-op.
+    if [ -n "$sha_before" ] && [ -n "$sha_now" ] && [ "$sha_before" != "$sha_now" ]; then
+      _report_feed
+    fi
   else
     log "pushed: $branch -> $remote at $head_sha"
+    _report_feed
   fi
 else
   # Loud on failure: a silent ship failure is the defect this file exists to end.

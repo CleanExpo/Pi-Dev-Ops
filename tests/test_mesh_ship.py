@@ -69,20 +69,24 @@ def mesh(tmp_path: Path):
     return {"origin": origin, "clone": clone, "log": tmp_path / "ship.log"}
 
 
-def _run(mesh: dict, *, autogit_bin: Path | None = None, cwd: Path | None = None):
+def _run(mesh: dict, *, autogit_bin: Path | None = None, cwd: Path | None = None,
+         extra_env: dict | None = None):
     """Invoke mesh_ship.sh with a controlled PATH and log destination."""
     path = "/usr/bin:/bin"
     if autogit_bin is not None:
         path = f"{autogit_bin}:{path}"
+    env = {
+        "PATH": path,
+        "HOME": str(mesh["log"].parent),
+        "MESH_SHIP_LOG": str(mesh["log"]),
+        **GIT_ENV,
+    }
+    if extra_env:
+        env.update(extra_env)
     return subprocess.run(
         ["bash", str(SHIP)],
         cwd=cwd or mesh["clone"],
-        env={
-            "PATH": path,
-            "HOME": str(mesh["log"].parent),
-            "MESH_SHIP_LOG": str(mesh["log"]),
-            **GIT_ENV,
-        },
+        env=env,
         input="", capture_output=True, text=True,
     )
 
@@ -204,3 +208,72 @@ def test_non_git_directory_is_skipped(mesh, tmp_path):
     result = _run(mesh, cwd=plain)
     assert result.returncode == 0
     assert "not a git repository" in mesh["log"].read_text(encoding="utf-8")
+
+
+class _Feed:
+    """Local POST sink so the hook's reporter can be asserted without Railway."""
+
+    def __init__(self):
+        self.posts: list[dict] = []
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        import json
+        import threading
+
+        feed = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", "0"))
+                feed.posts.append({
+                    "path": self.path,
+                    "body": json.loads(self.rfile.read(length)),
+                })
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b'{"ok":true}')
+
+            def log_message(self, *_args):
+                return
+
+        self._server = HTTPServer(("127.0.0.1", 0), Handler)
+        self.url = f"http://127.0.0.1:{self._server.server_address[1]}"
+        threading.Thread(target=self._server.serve_forever, daemon=True).start()
+
+    def close(self) -> None:
+        self._server.shutdown()
+
+
+def test_wrapper_posts_after_a_real_push(mesh, autogit_noop):
+    """RA-7377: a mesh/* push that moved origin is written to the ship feed."""
+    feed = _Feed()
+    try:
+        _commit(mesh["clone"], "turn-output.txt")
+        result = _run(mesh, autogit_bin=autogit_noop, extra_env={
+            "PI_CEO_API_URL": feed.url, "PI_CEO_API_KEY": "k", "MESH_HOST": "test-node",
+        })
+        assert result.returncode == 0
+        assert len(feed.posts) == 1
+        assert feed.posts[0]["path"] == "/api/mesh/ship"
+        body = feed.posts[0]["body"]
+        assert body["machine"] == "test-node"
+        assert body["branch"] == "mesh/test-node/ra-7376-abc123"
+        assert body["sha"] == _git("rev-parse", "HEAD", cwd=mesh["clone"])
+        assert body["files_changed"] == 1
+    finally:
+        feed.close()
+
+
+def test_up_to_date_second_run_does_not_repost(mesh, autogit_noop):
+    """A no-op second ship must not invent another feed row for the same SHA."""
+    feed = _Feed()
+    try:
+        _commit(mesh["clone"], "turn-output.txt")
+        extra = {"PI_CEO_API_URL": feed.url, "PI_CEO_API_KEY": "k"}
+        _run(mesh, autogit_bin=autogit_noop, extra_env=extra)
+        mesh["log"].write_text("", encoding="utf-8")
+        result = _run(mesh, autogit_bin=autogit_noop, extra_env=extra)
+        assert result.returncode == 0
+        assert "up-to-date:" in mesh["log"].read_text(encoding="utf-8")
+        assert len(feed.posts) == 1
+    finally:
+        feed.close()
