@@ -1,13 +1,13 @@
 # tests — Wiki
 
-_Last updated: 2026-09-13T12:27:06Z (commits a60e85d..3b2a01d)_
+_Last updated: 2026-09-13T12:45:13Z (commits 9f88627..1a8f09e)_
 
 ## Recent changes
-- 3b2a01d — Merge pull request #764 from CleanExpo/cursor/uni-2652-golden-journey-0ca3
+- 1a8f09e — Merge pull request #765 from CleanExpo/cursor/uni-2644-repo-identity-f67c
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_golden_journey.py — touched in recent commits
-- tests/test_golden_journey_planted.py — touched in recent commits
+- tests/test_mesh_repo_guard_origin_identity.py — touched in recent commits
+- tests/test_mesh_runner_repo_guard.py — touched in recent commits
