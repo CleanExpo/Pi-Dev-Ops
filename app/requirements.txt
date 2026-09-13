@@ -12,6 +12,7 @@ PyGithub>=2.0
 anthropic>=0.90
 fastmcp==3.2.4
 google-genai==1.73.1
+psycopg[binary]==3.3.5
 # Security floor-pins for transitive deps (RA-3042/3043/3044). These are pulled
 # in transitively (anthropic/PyGithub/fastmcp → cryptography+PyJWT; pip build →
 # setuptools) and were never pinned, so a resolver could regress to a vulnerable

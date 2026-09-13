@@ -107,6 +107,12 @@ def _pulse_status() -> dict:
 
 
 _OBSERVABILITY_ACTIONS = {
+    "schema_drift_db": {
+        "owner": "Deploy/infra operator",
+        "severity": "medium",
+        "next_action": "Set SUPABASE_DB_URL on the Railway Pi-Dev-Ops service to the schema_drift_ro session-pooler connection string (docs/schema-drift-db.md). Never paste the value into chat or logs.",
+        "evidence_required": ["/api/health/full components.schema_drift_db has observed=true and ok=true", "Schema Drift workflow run on main concludes success"],
+    },
     "railway_deploy_config": {
         "owner": "Deploy/infra operator",
         "severity": "high",
