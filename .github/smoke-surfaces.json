@@ -16,7 +16,7 @@
       "method": "GET",
       "auth": false,
       "expected_status": 307,
-      "_comment": "RA-7012: added TerminalPanel (live redacted tmux pane view) to the /control grid. Unauth still 307-redirects to login; the panel renders only when authed, so its live output is founder-verified per RA-1109 rather than smoke-asserted here. PR #631: TopBar/SettingsForm/zte route default model bumped from Opus 4.8 to Opus 5 — no change to any route's auth requirement or status code, only the model literal returned to an already-authenticated caller. PR #632: same pattern for AgentRolesPanel (real pipeline-role status roster, sourced from the already-covered /api/pi-ceo/api/sessions proxy) — no new distinct endpoint, unauth 307 unaffected. UNI-2649: FleetTile on this page polls GET /api/mesh-fleet (declared below); it is not a second HTTP surface."
+      "_comment": "RA-7012: added TerminalPanel (live redacted tmux pane view) to the /control grid. Unauth still 307-redirects to login; the panel renders only when authed, so its live output is founder-verified per RA-1109 rather than smoke-asserted here. UNI-2633: IdeaPipelinePanel sits on this same daily window (intake → Board packet → one-word dispose → GO). Unauth 307 is unchanged; the packet is session-gated. PR #631: TopBar/SettingsForm/zte route default model bumped from Opus 4.8 to Opus 5 — no change to any route's auth requirement or status code, only the model literal returned to an already-authenticated caller. PR #632: same pattern for AgentRolesPanel (real pipeline-role status roster, sourced from the already-covered /api/pi-ceo/api/sessions proxy) — no new distinct endpoint, unauth 307 unaffected. UNI-2649: FleetTile on this page polls GET /api/mesh-fleet (declared below); it is not a second HTTP surface."
     },
     {
       "name": "loop-redirect",
@@ -578,6 +578,49 @@
         "Session not found"
       ],
       "_comment": "RA-7407: the ORIGINAL build-log SSE route (sessions.py:104 stream_session_logs), distinct from the two entries above, which cover the RA-6504 hardened stream and its RA-6788 short alias. It was one of eight proxy-reachable routes with no smoke coverage. Status derived from a live call against a running server, not guessed: authenticated + absent sid returns 404 {\"detail\":\"Session not found\"} at sessions.py:119, raised BEFORE the StreamingResponse generator is constructed, so nothing streams and there is no side effect. auth:true is load-bearing — the same call unauthenticated returns 401 {\"detail\":\"Not authenticated\"} from require_auth, so an auth:false probe here would assert only the dashboard session gate and would stay green with the backend route deleted. The sid cannot collide with a real session: ids are uuid4().hex[:12] (session_model.py:42), and this one is 22 chars containing non-hex letters. NO QUERY STRING, deliberately: both siblings use ?after=0, so this is the only probe exercising the `$` branch of SSE_PATH_RE in the proxy (dashboard/app/api/pi-ceo/[...path]/route.ts:18); proxySse passes res.status through verbatim, so the 404 survives. DO NOT DROP body_contains — it is what makes this probe non-vacuous, and the status alone is not. Measured, not argued: with the backend route renamed away and the server restarted, this probe still returned 404 (FastAPI's own unknown-path 404) and the status assertion stayed GREEN; only body_contains caught it, because the body became {\"detail\":\"Not Found\"}. A status-only 404 probe here would be exactly the check-that-cannot-fail this entry exists to avoid. Verified end-to-end before landing, per the PR #650 caution recorded in the proxy allowlist: run against a local dashboard proxying a local backend, this probe returned 404 with the expected body in 14-18 ms, and four checksum-verified sabotages each made it fail — wrong expected_status, an unreachable body string, auth flipped to false (401 at the proxy, the webhook-dispatch-nosig failure mode), and the backend route deleted. The other seven undeclared reachable routes (POST build, scan, goal-projects, goal-ticket, goal-ticket/analyze, sessions/kill, sessions/resume) are deliberately NOT declared: their only safe probe is an auth:false 401 that proves nothing, and their strong probe runs a real build, scan, Linear ticket or session kill against production. Seven weak entries would raise the coverage count by seven while covering nothing, and RA-7402's ratchet would then lock them in permanently."
+    },
+    {
+      "name": "idea-pipeline-unauth",
+      "path": "/api/pi-ceo/api/idea-pipeline",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "UNI-2633: Board idea packet list. Anonymous callers are refused by the dashboard session gate before the FastAPI route. Production backend may not have this route until Railway deploys this PR, so this probe asserts the gate only — the intake→dispose→GO path is covered by tests/test_idea_pipeline_*.py."
+    },
+    {
+      "name": "idea-pipeline-intake-unauth",
+      "path": "/api/pi-ceo/api/idea-pipeline/intake",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "text": "Teach shop owners a short self-paced lesson.",
+        "source": "phill"
+      },
+      "_comment": "UNI-2633 intake write. 401 without a session cookie proves the path is protected before an idea can be appended."
+    },
+    {
+      "name": "idea-pipeline-dispose-unauth",
+      "path": "/api/pi-ceo/api/idea-pipeline/dispose",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "idea_id": "idea-smokeprobe",
+        "verdict": "KILL"
+      },
+      "_comment": "UNI-2633 one-word dispose. 401 without a session cookie. A real dispose against production would mutate founder packets, so this probe stays read-of-the-gate only."
+    },
+    {
+      "name": "idea-pipeline-go-unauth",
+      "path": "/api/pi-ceo/api/idea-pipeline/go",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "idea_id": "idea-smokeprobe"
+      },
+      "_comment": "UNI-2633 GO gate. 401 without a session cookie. GO must never be reachable anonymously."
     },
     {
       "name": "spec-pipeline-list",

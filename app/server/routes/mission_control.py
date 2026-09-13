@@ -23,6 +23,7 @@ from .. import autonomy
 from ..auth import require_auth
 from ..autonomy_eligibility import filter_claimable_issues, queue_snapshot_from_issues
 from ..claude_session_hud import claude_session_hud as _claude_session_hud
+from ..idea_pipeline import daily_snapshot as _idea_pipeline_snapshot
 from .health_aggregate import _is_observed, classify
 from .health_full import gather_components
 from .mission_control_sessions import (
@@ -200,5 +201,6 @@ async def mission_control_live() -> dict:
         "pulse": _pulse_status(),
         "observability": await _observability_snapshot(),
         "claude_hud": _claude_session_hud(),
+        "idea_pipeline": _idea_pipeline_snapshot(_repo_root()),
         "ts": datetime.now(timezone.utc).isoformat(),
     }

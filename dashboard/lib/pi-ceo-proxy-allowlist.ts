@@ -22,6 +22,8 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   /^\/api\/margot\/assets$/,
   /^\/api\/spec-pipeline$/,
   /^\/api\/spec-pipeline\/run$/,
+  /^\/api\/idea-pipeline$/,
+  /^\/api\/idea-pipeline\/(intake|examine|dispose|go|execute)$/,
   /^\/api\/scan$/,
   /^\/api\/build$/,
   /^\/api\/goal-ticket$/,
