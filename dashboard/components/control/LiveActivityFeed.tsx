@@ -16,66 +16,12 @@ import { LiveDot, PhasePill } from "./LiveFeedMarks";
 import LiveWatchLinks from "./LiveWatchLinks";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { fmtElapsed, fmtAgo } from "@/lib/control/activity-format";
+import { type MissionControlLive } from "@/lib/control/mission-control-live";
 import { asWatchInput, idleSessionsNote, watchBuildsHref, watchLoopHref, watchSwarmHref } from "@/lib/control/watchWork";
 
-// ── Types ─────────────────────────────────────────────────────────────────
-interface LiveData {
-  ts: string;
-  error?: string;
-  // The backend key is `hourly` (app/server/routes/mission_control.py). This read
-  // `hourly_24h`, which only the proxy's offline fallback ever produced — so the
-  // panel rendered when the backend was down and threw when it was up. Optional so
-  // a partial payload degrades instead of taking the cockpit down.
-  throughput?: { hourly?: number[] };
-  active_sessions: Array<{
-    id: string;
-    repo: string;
-    phase: string;
-    status: string;
-    elapsed_s: number;
-    issue_id: string | null;
-    last_log_tail: string;
-  }>;
-  recent_completions: Array<{
-    id: string;
-    repo: string;
-    branch: string | null;
-    score: number | null;
-    pr_url: string | null;
-    issue_id: string | null;
-    completed_at: string | null;
-  }>;
-  queue: {
-    urgent: number;
-    high: number;
-    next_issue_id: string | null;
-    next_issue_title: string;
-  };
-  pulse: {
-    last_at: string | null;
-    comments_today: number;
-    pulse_issue_id: string | null;
-  };
-  claude_hud?: ClaudeHud;
-  observability?: {
-    source: string;
-    ok: boolean;
-    fully_observed: boolean;
-    red_components: string[];
-    degraded_components: string[];
-    actions: Array<{
-      component: string;
-      status: string;
-      ok: boolean;
-      observed: boolean;
-      owner: string;
-      severity: string;
-      next_action: string;
-      evidence_required: string[];
-      detail: string | null;
-    }>;
-  };
-}
+// Backend key is `hourly` (mission_control.py). Types live in
+// mission-control-live.ts so a rename on one side fails the UNI-2647 fixture.
+type LiveData = MissionControlLive & { ts: string; claude_hud?: ClaudeHud };
 
 export default function LiveActivityFeed() {
   const [data, setData] = useState<LiveData | null>(null);
@@ -156,7 +102,7 @@ export default function LiveActivityFeed() {
         )}
       </div>
       <div className="px-4 py-2 border-b border-slate-800">
-        <LiveWatchLinks hasPr={Boolean(data?.recent_completions.some((c) => Boolean(c.pr_url)))} />
+        <LiveWatchLinks hasPr={Boolean(data?.recent_completions?.some((c) => Boolean(c.pr_url)))} />
       </div>
 
       {/* Stats grid */}
@@ -176,18 +122,18 @@ export default function LiveActivityFeed() {
               <div className="flex items-baseline gap-3">
                 <div>
                   <span className="text-3xl font-bold text-rose-400 tabular-nums">
-                    {data.queue.urgent}
+                    {data.queue?.urgent ?? 0}
                   </span>
                   <span className="text-xs text-text-muted ml-1">urgent</span>
                 </div>
                 <div>
                   <span className="text-2xl font-semibold text-amber-400 tabular-nums">
-                    {data.queue.high}
+                    {data.queue?.high ?? 0}
                   </span>
                   <span className="text-xs text-text-muted ml-1">high</span>
                 </div>
               </div>
-              {data.queue.next_issue_id && (
+              {data.queue?.next_issue_id && (
                 <div className="text-xs text-text-muted mt-2 truncate">
                   next:{" "}
                   <a href={watchLoopHref()} className="font-mono text-cyan-400 hover:underline">
@@ -203,13 +149,13 @@ export default function LiveActivityFeed() {
               <div className="text-xs uppercase text-text-muted mb-1">Pulse heartbeat</div>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-emerald-400 tabular-nums">
-                  {data.pulse.comments_today}
+                  {data.pulse?.comments_today ?? 0}
                 </span>
                 <span className="text-xs text-text-muted">comments today</span>
               </div>
               <div className="text-xs text-text-muted mt-1">
-                last: <span className="font-mono">{fmtAgo(data.pulse.last_at)}</span>
-                {data.pulse.pulse_issue_id && (
+                last: <span className="font-mono">{fmtAgo(data.pulse?.last_at ?? null)}</span>
+                {data.pulse?.pulse_issue_id && (
                   <span className="ml-2 text-text-muted">
                     → {data.pulse.pulse_issue_id}
                   </span>
@@ -241,13 +187,13 @@ export default function LiveActivityFeed() {
                       : "red"}
                 </span>
               </div>
-              {data.observability.actions.length === 0 ? (
+              {(data.observability.actions ?? []).length === 0 ? (
                 <div className="text-sm text-emerald-400">
                   All companion signals observed.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                  {data.observability.actions.map((action) => (
+                  {(data.observability.actions ?? []).map((action) => (
                     <div
                       key={action.component}
                       className="rounded border border-slate-800 bg-slate-900/40 p-3"
@@ -275,7 +221,7 @@ export default function LiveActivityFeed() {
                         {action.next_action}
                       </p>
                       <div className="text-xs text-text-muted mt-2">
-                        evidence: {action.evidence_required.join(", ")}
+                        evidence: {(action.evidence_required ?? []).join(", ")}
                       </div>
                     </div>
                   ))}
@@ -289,10 +235,10 @@ export default function LiveActivityFeed() {
             <div className="text-xs uppercase text-text-muted mb-2 flex items-center gap-2">
               Active sessions
               <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300 tabular-nums">
-                {data.active_sessions.length}
+                {(data.active_sessions ?? []).length}
               </span>
             </div>
-            {data.active_sessions.length === 0 ? (
+            {(data.active_sessions ?? []).length === 0 ? (
               <div className="text-sm text-text-muted italic">
                 {idleSessionsNote(asWatchInput({
                   sessionCount: 0,
@@ -303,7 +249,7 @@ export default function LiveActivityFeed() {
               </div>
             ) : (
               <div className="space-y-2">
-                {data.active_sessions.map((s) => (
+                {(data.active_sessions ?? []).map((s) => (
                   <div
                     key={s.id}
                     className="flex items-center gap-3 py-2 px-3 rounded bg-slate-900/50 border border-slate-800"
@@ -312,7 +258,7 @@ export default function LiveActivityFeed() {
                     <a href={watchBuildsHref()} className="font-mono text-xs text-cyan-400 hover:underline">
                       {s.id}
                     </a>
-                    <PhasePill phase={s.phase || s.status} />
+                    <PhasePill phase={s.phase || s.status || "?"} />
                     <span className="text-sm text-slate-200 font-medium">
                       {s.repo}
                     </span>
@@ -322,7 +268,7 @@ export default function LiveActivityFeed() {
                       </span>
                     )}
                     <span className="ml-auto text-xs text-text-muted tabular-nums">
-                      {fmtElapsed(s.elapsed_s)}
+                      {fmtElapsed(s.elapsed_s ?? 0)}
                     </span>
                   </div>
                 ))}
@@ -335,13 +281,13 @@ export default function LiveActivityFeed() {
             <div className="text-xs uppercase text-text-muted mb-2">
               Recent completions
             </div>
-            {data.recent_completions.length === 0 ? (
+            {(data.recent_completions ?? []).length === 0 ? (
               <div className="text-sm text-text-muted italic">
                 No completions yet — first session in flight.
               </div>
             ) : (
               <div className="space-y-1.5">
-                {data.recent_completions.map((c) => (
+                {(data.recent_completions ?? []).map((c) => (
                   <div
                     key={c.id}
                     className="flex items-center gap-3 py-1.5 px-3 rounded bg-slate-900/30 text-xs"
@@ -383,7 +329,7 @@ export default function LiveActivityFeed() {
                       </>
                     )}
                     <span className="text-text-muted tabular-nums">
-                      {fmtAgo(c.completed_at)}
+                      {fmtAgo(c.completed_at ?? null)}
                     </span>
                   </div>
                 ))}

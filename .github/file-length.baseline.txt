@@ -124,7 +124,6 @@
 407	5ef12f99be37	swarm/cs.py
 405	3ffa0c343140	swarm/intake/tests/test_handoff.py
 402	e43b78fe21e9	scripts/smoke_test_e2e.py
-397	bfa5db407384	dashboard/components/control/LiveActivityFeed.tsx
 397	9c6f9fe89c20	tests/test_provider_nex_n2.py
 392	bb57f41dc268	tests/test_ccw_supabase_provider.py
 389	387943972ef6	app/server/spec_pipeline/__init__.py
@@ -153,6 +152,7 @@
 344	6f67b5f426e8	app/server/tao_codebase_wiki.py
 344	0c15b2a671cc	swarm/research_provider.py
 343	c745e8538ebd	aip/src/seed/audit-2026-05-11.ts
+343	a7644bac498a	dashboard/components/control/LiveActivityFeed.tsx
 342	d1609be59b5d	scripts/smoke_test_pipeline.py
 342	6ed4c248cd7c	swarm/providers/ccw_supabase.py
 342	3bab8f09e6a5	tests/test_weekly_enhancement_loop.py

@@ -7,7 +7,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { deriveNeeds, type MCAction } from "@/lib/control/loop-needs";
+import { deriveNeeds } from "@/lib/control/loop-needs";
+import { completed24h, type MissionControlLive } from "@/lib/control/mission-control-live";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 const POLL_MS = 20_000;
@@ -22,24 +23,6 @@ interface AutonomyStatus {
   poll_count: number;
   poller_iteration_errors: number;
   last_iteration_error: string | null;
-}
-
-interface MCSession { id: string; repo?: string; phase?: string; elapsed_s?: number; issue_id?: string | null }
-interface MCCompletion { id: string; repo?: string; branch?: string; score?: number; pr_url?: string | null; completed_at?: string }
-interface MissionControl {
-  throughput?: { hourly?: number[] };
-  active_sessions?: MCSession[];
-  recent_completions?: MCCompletion[];
-  queue?: { urgent?: number; high?: number; next_issue_id?: string | null };
-  observability?: {
-    fully_observed?: boolean;
-    degraded_components?: string[];
-    // These are OBJECTS, not strings — mission_control.py builds an action
-    // ledger row per red/degraded component. Typed as string[] they were pushed
-    // straight into a rendered child and React threw.
-    actions?: MCAction[];
-  };
-  ts?: string;
 }
 
 interface SwarmStatus {
@@ -97,7 +80,7 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
 
 export default function LoopPage() {
   const [autonomy, setAutonomy] = useState<AutonomyStatus | null>(null);
-  const [mc, setMc] = useState<MissionControl | null>(null);
+  const [mc, setMc] = useState<MissionControlLive | null>(null);
   const [swarm, setSwarm] = useState<SwarmStatus | null>(null);
   const [routines, setRoutines] = useState<RoutinesResp | null>(null);
   const [lastSync, setLastSync] = useState<string>("—");
@@ -105,7 +88,7 @@ export default function LoopPage() {
   const refresh = useCallback(async () => {
     const [a, m, s, r] = await Promise.all([
       getJSON<AutonomyStatus>("/api/autonomy/status"),
-      getJSON<MissionControl>("/api/mission-control/live"),
+      getJSON<MissionControlLive>("/api/mission-control/live"),
       getJSON<SwarmStatus>("/api/swarm/status"),
       getJSON<RoutinesResp>("/api/routines?limit=20"),
     ]);
@@ -135,8 +118,7 @@ export default function LoopPage() {
   const disconnected = !autonomy && !mc && !swarm && !routines;
 
   const burndownRuns = (routines?.runs ?? []).filter((r) => (r.name ?? "").toLowerCase().includes("burndown"));
-  const hourly = mc?.throughput?.hourly ?? [];
-  const completed24h = hourly.reduce((acc, n) => acc + (n || 0), 0);
+  const completed = completed24h(mc?.throughput?.hourly);
 
   return (
     <div className="flex flex-col" style={{ height: "100vh", overflow: "hidden" }}>
@@ -227,7 +209,7 @@ export default function LoopPage() {
             <Row label="Urgent queued" value={String(mc?.queue?.urgent ?? 0)} color={(mc?.queue?.urgent ?? 0) > 0 ? "var(--warning)" : undefined} />
             <Row label="High queued" value={String(mc?.queue?.high ?? 0)} />
             <Row label="Next ticket" value={mc?.queue?.next_issue_id ?? "—"} />
-            <Row label="Completed (24h)" value={String(completed24h)} color={completed24h > 0 ? "var(--success)" : undefined} />
+            <Row label="Completed (24h)" value={String(completed)} color={completed > 0 ? "var(--success)" : undefined} />
             <Row label="Active sessions" value={String(mc?.active_sessions?.length ?? 0)} />
           </Panel>
 
