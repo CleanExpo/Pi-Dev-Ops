@@ -15,6 +15,9 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   /^\/api\/projects\/[^/]+\/findings$/,
   /^\/api\/routines$/,
   /^\/api\/mission-control\/live$/,
+  // RA-7434 — declared at dashboard /api/routing and also reachable through the
+  // catch-all proxy. Session-gated upstream; forwarding grants no extra capability.
+  /^\/api\/routing$/,
   /^\/api\/margot\/assets$/,
   /^\/api\/spec-pipeline$/,
   /^\/api\/spec-pipeline\/run$/,

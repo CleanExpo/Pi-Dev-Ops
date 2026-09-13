@@ -5,8 +5,8 @@ GET /api/routing → per role: provider, model, the source of the choice
 that role read from Supabase ``llm_costs``. When that read cannot happen the
 cost is ``null`` with a ``reason`` — never a fake 0.
 
-Auth: ``X-Pi-CEO-Secret`` header == ``TAO_WEBHOOK_SECRET`` — the cost_report
-scheme, reused verbatim.
+Auth: ``X-Pi-CEO-Secret`` header == ``TAO_WEBHOOK_SECRET`` (machines) **or** a
+valid ``tao_session`` cookie / Bearer token (dashboard proxy via ``piCeoFetch``).
 """
 from __future__ import annotations
 
@@ -16,10 +16,11 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Header, Query, Request
 
 from .. import provider_margot_casual as MC
 from .. import provider_router as PR
+from ..auth import require_auth
 from .cost_report import _check_secret
 
 log = logging.getLogger("pi-ceo.routes.routing")
@@ -119,12 +120,24 @@ def _cost_today_by_role(day_iso: str, tenant_id: str) -> tuple[Optional[dict[str
     return out, None
 
 
+async def _authorize(
+    request: Request,
+    x_pi_ceo_secret: Optional[str],
+) -> None:
+    """Machines send X-Pi-CEO-Secret; the dashboard proxy sends a session cookie."""
+    if x_pi_ceo_secret:
+        _check_secret(x_pi_ceo_secret)
+        return
+    await require_auth(request)
+
+
 @router.get("/api/routing")
 async def routing(
+    request: Request,
     tenant_id: str = Query(default="pi-ceo", description="Tenant filter for llm_costs"),
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
-    _check_secret(x_pi_ceo_secret)
+    await _authorize(request, x_pi_ceo_secret)
     day_iso = datetime.now(timezone.utc).date().isoformat()
     costs, cost_reason = _cost_today_by_role(day_iso, tenant_id)
 
