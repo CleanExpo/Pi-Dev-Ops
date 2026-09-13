@@ -315,7 +315,7 @@ async def _run_claude_via_sdk(
             # iterator that terminates on ResultMessage. It's the documented
             # pattern for one-shot generation inside a request handler.
             #
-            claude_workspace_trust.prepare_sdk_environment(workspace)
+            await asyncio.to_thread(claude_workspace_trust.prepare_sdk_environment, workspace)
 
             # RA-1172 — permission_mode='bypassPermissions' is MANDATORY for
             # autonomous sessions. Without it Claude hits tool-permission

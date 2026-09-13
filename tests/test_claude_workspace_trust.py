@@ -132,13 +132,51 @@ def test_kill_switch_disables_writes(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 def test_home_slash_skips_write_even_for_ephemeral_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("HOME", "/")
-    # No config_path override: the HOME=/ guard must fire first.
+    called: list[object] = []
+    monkeypatch.setattr(
+        trust, "_locked_update", lambda *a, **k: called.append(True) or True,
+    )
     assert trust.ensure_workspace_trusted(SESSION, workspace_root=ROOT) is False
-    assert not Path("/.claude.json").exists()
-    assert not (tmp_path / ".claude.json").exists()
+    assert called == []
+
+
+def test_malformed_projects_array_is_left_alone(tmp_path: Path) -> None:
+    config = tmp_path / ".claude.json"
+    raw = json.dumps({"oauthAccount": {"accountUuid": "keep-me"}, "projects": []})
+    config.write_text(raw, encoding="utf-8")
+
+    assert trust.ensure_workspace_trusted(
+        SESSION, workspace_root=ROOT, config_path=config,
+    ) is False
+    assert config.read_text(encoding="utf-8") == raw
+
+
+def test_malformed_project_entry_is_left_alone(tmp_path: Path) -> None:
+    config = tmp_path / ".claude.json"
+    raw = json.dumps({"projects": {SESSION: "not-a-dict"}})
+    config.write_text(raw, encoding="utf-8")
+
+    assert trust.ensure_workspace_trusted(
+        SESSION, workspace_root=ROOT, config_path=config,
+    ) is False
+    assert config.read_text(encoding="utf-8") == raw
+
+
+def test_prepare_sdk_environment_pops_oauth_shaped_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import os
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "s" + "k-" + "ant-oat01-" + "dead")
+    monkeypatch.setattr(trust, "ensure_workspace_trusted", lambda ws: True)
+
+    trust.prepare_sdk_environment(SESSION)
+
+    assert "ANTHROPIC_API_KEY" not in os.environ
 
 
 def test_prepare_sdk_environment_pops_empty_api_key_and_trusts(
@@ -164,4 +202,5 @@ def test_session_sdk_calls_prepare_before_query() -> None:
     source = Path(__file__).resolve().parents[1] / "app" / "server" / "session_sdk.py"
     text = source.read_text(encoding="utf-8")
     assert "from . import claude_workspace_trust" in text
-    assert "claude_workspace_trust.prepare_sdk_environment(workspace)" in text
+    assert "asyncio.to_thread(" in text
+    assert "claude_workspace_trust.prepare_sdk_environment" in text
