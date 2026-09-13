@@ -39,7 +39,7 @@
 155	24083f10623a	app/server/session_sdk.py::_run_claude_via_sdk._attempt
 155	9c6009db6384	app/server/autonomy.py::_process_autonomy_issue
 154	c3cdf956734d	app/server/agents/board_meeting.py::_call_claude_for_discrepancies
-152	a6c13f96f01c	app/server/session_phases.py::run_build
+137	7c4bc5ed7f8e	app/server/session_phases.py::run_build
 149	4f92904f269a	swarm/closed_loop.py::run_cycle
 148	52eb067f5812	app/server/cron_watchdogs.py::_watchdog_board_meeting_silence
 147	ea616536e16d	app/server/session_phases.py::_phase_clone
