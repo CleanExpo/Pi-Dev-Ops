@@ -35,6 +35,7 @@ async def test_clone_uses_process_scoped_auth_for_private_github_repo(monkeypatc
 
     auth_env = clone_kwargs["env"]
     assert isinstance(auth_env, dict)
+    assert auth_env["GIT_TERMINAL_PROMPT"] == "0"
     assert auth_env["GIT_CONFIG_COUNT"] == "1"
     assert auth_env["GIT_CONFIG_KEY_0"] == "http.https://github.com/.extraheader"
     assert auth_env["GIT_CONFIG_VALUE_0"].startswith("AUTHORIZATION: basic ")
@@ -42,13 +43,14 @@ async def test_clone_uses_process_scoped_auth_for_private_github_repo(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_clone_does_not_add_auth_env_without_token(monkeypatch, tmp_path: Path):
-    calls: list[dict[str, object]] = []
+async def test_clone_fails_closed_without_token(monkeypatch, tmp_path: Path):
+    """UNI-2645: empty token must not spawn git (that path prompts for a username)."""
+    from app.server.git_auth import MISSING_CREDENTIAL
+
+    calls: list[tuple] = []
 
     async def fake_run_cmd(cwd, *args, **kwargs):
-        calls.append(kwargs)
-        if args[1:3] == ("remote", "get-url"):
-            return 0, "https://github.com/example/public.git\n", ""
+        calls.append(args)
         return 0, "", ""
 
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
@@ -58,5 +60,6 @@ async def test_clone_does_not_add_auth_env_without_token(monkeypatch, tmp_path: 
     monkeypatch.setattr(session_phases, "_emit_phase_metric", lambda *_args, **_kwargs: None)
 
     session = BuildSession(repo_url="https://github.com/example/public")
-    assert await session_phases._phase_clone(session, "") is True
-    assert calls[0].get("env") is None
+    assert await session_phases._phase_clone(session, "") is False
+    assert calls == []
+    assert MISSING_CREDENTIAL in session.error

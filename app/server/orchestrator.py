@@ -1,17 +1,6 @@
-"""
-orchestrator.py — Multi-session fan-out parallelism (RA-464).
+"""orchestrator.py — Multi-session fan-out (RA-464, RA-1030).
 
-Implements the P3-B fan-out pattern:
-  Orchestrator decomposes a complex brief into N independent sub-tasks,
-  launches N parallel worker sessions via asyncio.gather(), then waits
-  for all to complete.
-
-RA-1030: Decomposition now returns a dependency graph with test scenarios.
-  Workers are launched in topological waves — tasks with no unmet dependencies
-  fire first; later waves wait for prior waves to complete.
-
-Usage:
-  POST /api/build/parallel  { repo_url, brief, n_workers, model, intent }
+POST /api/build/parallel  { repo_url, brief, n_workers, model, intent }
 """
 import asyncio
 import json
@@ -23,9 +12,8 @@ import uuid
 from . import config
 from .sessions import create_session, em, run_cmd, BuildSession, _sessions, _run_claude_via_sdk
 from .brief import classify_intent
+from .git_auth import GitAuthError, git_auth_env
 from .model_policy import select_model  # RA-1099: hardwired model routing policy
-# Note: _select_model (legacy harness-only selector in sessions.py) was replaced
-# by select_model from model_policy throughout this file (RA-1099 enforcement).
 
 _log = logging.getLogger("pi-ceo.orchestrator")
 
@@ -237,22 +225,7 @@ async def fan_out(
     intent: str = "",
     evaluator_enabled: bool = True,
 ) -> dict:
-    """Fan-out a brief into N parallel worker sessions, launched in dependency order.
-
-    RA-1030: Decomposition returns a dependency graph. Tasks are sorted into
-    topological waves — wave 1 fires immediately; subsequent waves wait for
-    the prior wave to reach a terminal state before launching.
-
-    Returns:
-        {
-            "parent_id": str,
-            "worker_ids": [str, ...],
-            "n_workers": int,
-            "waves": int,
-            "escalated_ids": [str, ...],
-            "status": "launched" | "failed"
-        }
-    """
+    """Fan-out a brief into N worker sessions in dependency order (RA-1030)."""
     n_workers = max(1, min(n_workers, config.MAX_CONCURRENT_SESSIONS))
     resolved_intent = intent or classify_intent(brief)
 
@@ -271,12 +244,18 @@ async def fan_out(
     em(parent, "system", f"  Workers: {n_workers}")
     em(parent, "system", f"  Intent:  {resolved_intent.upper()}")
 
-    # Clone repo once for decomposition
     shared_ws = os.path.join(config.WORKSPACE_ROOT, f"{parent_id}-shared")
     os.makedirs(shared_ws, exist_ok=True)
     em(parent, "phase", "  Cloning for decomposition...")
+    try:
+        clone_env = git_auth_env(repo_url)
+    except GitAuthError as exc:
+        em(parent, "error", f"  Clone blocked: {exc.reason}")
+        parent.status = "failed"
+        return {"parent_id": parent_id, "worker_ids": [], "n_workers": 0, "waves": 0, "status": "failed", "reason": exc.reason}
     rc, _, stderr = await run_cmd(
-        shared_ws, "git", "clone", "--depth", "1", repo_url, shared_ws, timeout=60
+        shared_ws, "git", "clone", "--depth", "1", repo_url, shared_ws,
+        timeout=60, env=clone_env,
     )
     if rc != 0:
         em(parent, "error", f"  Clone failed: {stderr[:200]}")

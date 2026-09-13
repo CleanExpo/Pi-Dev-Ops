@@ -35,6 +35,7 @@ def _no_backoff(monkeypatch):
 
 
 def _stub_phase(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "ghs_test_token_for_clone_failures")
     monkeypatch.setattr(session_phases.config, "WORKSPACE_ROOT", str(tmp_path))
     monkeypatch.setattr(session_phases.persistence, "save_session", lambda _s: None)
     monkeypatch.setattr(session_phases, "_emit_phase_metric", lambda *_a, **_k: None)
@@ -70,6 +71,7 @@ async def test_clone_failure_reason_survives_to_disk(monkeypatch, tmp_path, _no_
     async def failing_clone(cwd, *args, **kwargs):
         return 128, "", "fatal: could not read Username: No such device or address"
 
+    monkeypatch.setenv("GITHUB_TOKEN", "ghs_test_token_for_clone_failures")
     monkeypatch.setattr(session_phases.config, "WORKSPACE_ROOT", str(tmp_path))
     monkeypatch.setattr(session_phases, "_emit_phase_metric", lambda *_a, **_k: None)
     monkeypatch.setattr(session_phases, "run_cmd", failing_clone)
@@ -178,23 +180,23 @@ def test_no_terminal_path_bypasses_the_helper():
     )
 
 
-def test_missing_github_token_is_logged_not_silent(monkeypatch, caplog):
-    """A missing token must name itself, or a private repo 404 misleads.
+def test_missing_github_token_fails_closed(monkeypatch):
+    """A missing token must name itself, not spawn an unauthenticated clone.
 
-    `_git_clone_env` returning None is correct behaviour; doing it silently is
-    what turns a config error into an unexplained "repository not found".
+    UNI-2645: empty/whitespace tokens raise GitAuthError(missing_credential)
+    so git never gets a chance to prompt for a username.
     """
+    from app.server.git_auth import MISSING_CREDENTIAL, GitAuthError
+
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-    with caplog.at_level("WARNING"):
-        env = session_phases._git_clone_env("https://github.com/CleanExpo/Pi-Dev-Ops")
-    assert env is None
-    assert "GITHUB_TOKEN" in caplog.text
+    with pytest.raises(GitAuthError) as ei:
+        session_phases._git_clone_env("https://github.com/CleanExpo/Pi-Dev-Ops")
+    assert ei.value.reason == MISSING_CREDENTIAL
+    assert "GITHUB_TOKEN" in str(ei.value)
 
 
-def test_non_github_url_does_not_warn(monkeypatch, caplog):
+def test_non_github_url_does_not_require_a_token(monkeypatch):
     """Negative control: a non-github remote legitimately needs no token."""
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-    with caplog.at_level("WARNING"):
-        env = session_phases._git_clone_env("https://gitlab.com/some/repo")
+    env = session_phases._git_clone_env("https://gitlab.com/some/repo")
     assert env is None
-    assert "GITHUB_TOKEN" not in caplog.text

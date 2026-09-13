@@ -1,17 +1,4 @@
-"""
-autopr.py — Pi-SEO Auto-PR Generator (RA-537)
-
-For each project with auto_fixable findings, this module:
-  1. Reads the latest scan results from .harness/scan-results/
-  2. Applies fixes per scan type:
-       - dependencies/npm  → npm audit fix
-       - dependencies/pip  → pip-audit --fix
-       - code_quality/ruff → ruff check --fix
-  3. Creates a branch `pi-seo/auto-fix-{date}` and commits the changes
-  4. Opens a GitHub PR via the REST API
-
-Requires: GITHUB_TOKEN env var with repo + pull-request write scopes.
-"""
+"""autopr.py — Pi-SEO Auto-PR generator (RA-537). Requires GITHUB_TOKEN."""
 from __future__ import annotations
 
 import asyncio
@@ -24,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from app.server import config_loader
+from app.server.git_auth import GitAuthError, git_auth_env, resolved_github_token
 
 log = logging.getLogger("pi-ceo.autopr")
 
@@ -32,7 +20,6 @@ _RESULTS_ROOT = _HARNESS / "scan-results"
 _SCAN_WORKSPACE = Path(
     os.environ.get("SCAN_WORKSPACE_ROOT", str(Path.home() / "pi-seo-workspace"))
 )
-_GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 _GITHUB_API = "https://api.github.com"
 
 
@@ -145,12 +132,15 @@ async def _apply_ruff_fix(repo_path: Path) -> list[str]:
 
 
 async def _git(args: list[str], cwd: Path) -> tuple[int, str]:
+    env = git_auth_env()
+    env["GIT_AUTHOR_NAME"] = "Pi-SEO"
+    env["GIT_AUTHOR_EMAIL"] = "pi-seo@pi-ceo.internal"
     proc = await asyncio.create_subprocess_exec(
         "git", *args,
         cwd=str(cwd),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
-        env={**os.environ, "GIT_AUTHOR_NAME": "Pi-SEO", "GIT_AUTHOR_EMAIL": "pi-seo@pi-ceo.internal"},
+        env=env,
     )
     stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
     output = (stdout + stderr).decode("utf-8", errors="replace")
@@ -188,34 +178,38 @@ def _load_fixable_findings(project_id: str) -> dict[str, list[dict]]:
 # ─── main entry point ─────────────────────────────────────────────────────────
 
 
+def _skip(pid: str, reason: str | None = None) -> dict[str, Any]:
+    out: dict[str, Any] = {"project_id": pid, "pr_url": None, "fixes_applied": [], "skipped": True}
+    if reason:
+        out["reason"] = reason
+    return out
+
+
 async def run_autopr(
     project: dict[str, Any],
     dry_run: bool = False,
 ) -> dict[str, Any]:
-    """
-    Apply auto-fixes for a single project and open a GitHub PR.
-
-    Returns:
-        {"project_id": ..., "pr_url": ..., "fixes_applied": [...], "skipped": bool}
-    """
+    """Apply auto-fixes for a project and open a GitHub PR."""
     pid = project["id"]
     repo = project["repo"]
 
     fixable = _load_fixable_findings(pid)
     if not fixable:
         log.info("No auto-fixable findings for %s", pid)
-        return {"project_id": pid, "pr_url": None, "fixes_applied": [], "skipped": True}
+        return _skip(pid)
 
-    if not _GITHUB_TOKEN:
-        log.warning("GITHUB_TOKEN not set — cannot create PR for %s", pid)
-        return {"project_id": pid, "pr_url": None, "fixes_applied": [], "skipped": True}
+    try:
+        token = resolved_github_token()
+    except GitAuthError as exc:
+        log.warning("autopr blocked for %s: %s", pid, exc.reason)
+        return _skip(pid, exc.reason)
 
     repo_name = repo.split("/")[-1]
     repo_path = _SCAN_WORKSPACE / repo_name
 
     if not repo_path.exists():
         log.warning("Repo not cloned: %s — run scanner first", repo_path)
-        return {"project_id": pid, "pr_url": None, "fixes_applied": [], "skipped": True}
+        return _skip(pid)
 
     branch = f"pi-seo/auto-fix-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M')}"
     rc, _ = await _git(["checkout", "-b", branch], repo_path)
@@ -261,7 +255,7 @@ async def run_autopr(
     await _git(["commit", "-m", commit_msg], repo_path)
 
     rc, out = await _git(
-        ["push", f"https://x-access-token:{_GITHUB_TOKEN}@github.com/{repo}.git", branch],
+        ["push", f"https://github.com/{repo}.git", branch],
         repo_path,
     )
     if rc != 0:
@@ -269,7 +263,7 @@ async def run_autopr(
         return {"project_id": pid, "pr_url": None, "fixes_applied": fixes_applied, "skipped": False}
 
     # Create PR
-    gh = GitHubClient(_GITHUB_TOKEN)
+    gh = GitHubClient(token)
     try:
         base_branch = gh.get_default_branch(repo)
         pr_body = _build_pr_body(pid, fixable, fixes_applied)

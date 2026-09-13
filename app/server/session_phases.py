@@ -20,7 +20,6 @@ Public API (re-exported by sessions.py for backward compatibility):
 from __future__ import annotations
 
 import asyncio
-import base64
 import datetime
 import json
 import logging
@@ -36,6 +35,8 @@ from pathlib import Path
 from . import board_review
 from . import session_push_pr
 from . import config
+from .git_auth import GitAuthError, git_auth_env, resolved_github_token
+from .git_auth import github_clone_env as _git_clone_env
 from . import persistence
 from .brief import classify_intent, build_structured_brief, scan_repo_context
 from .lessons import append_lesson, load_lessons, extract_lesson_from_eval, append_lesson_dedup
@@ -412,38 +413,6 @@ async def run_cmd(cwd, *args, timeout=60, env=None):
     return proc.returncode, out.decode("utf-8",errors="replace"), err.decode("utf-8",errors="replace")
 
 
-def _git_clone_env(repo_url: str) -> dict[str, str] | None:
-    """Return process-scoped GitHub auth without putting a token in argv/remote."""
-    # .strip() matters: Vercel/Railway env values pick up a trailing newline
-    # (the same hazard CLAUDE.md records for ANTHROPIC_API_KEY). Without it a
-    # whitespace-only value is truthy here and we send a malformed AUTHORIZATION
-    # header instead of taking the unset path — a different, harder failure that
-    # also makes /health disagree with what the clone actually does.
-    token = os.environ.get("GITHUB_TOKEN", "").strip()
-    if not repo_url.startswith("https://github.com/"):
-        return None
-    if not token:
-        # Returning None here silently downgrades to an UNAUTHENTICATED clone.
-        # Observed on session bbd234abd80c (14/08/2026): a private repo does NOT
-        # answer with a bare 404 — GitHub challenges, git then tries to PROMPT
-        # for a username, and with no TTY the clone dies with
-        #   fatal: could not read Username for 'https://github.com'
-        # That message is identical whether the token is missing or merely
-        # rejected, so this warning is the only thing that tells the two apart.
-        _log.warning(
-            "GITHUB_TOKEN is unset — cloning %s unauthenticated. Expect "
-            "'could not read Username' rather than an explicit auth error.",
-            repo_url,
-        )
-        return None
-    basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
-    return {
-        **os.environ,
-        "GIT_CONFIG_COUNT": "1",
-        "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
-        "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {basic}",
-    }
-
 def parse_event(line, session):
     try:
         evt = json.loads(line)
@@ -569,6 +538,33 @@ def _should_skip(phase: str, resume_from: str) -> bool:
 # subprocess, so no need to parse its stream-json output.
 
 
+async def _try_shared_worktree(session) -> bool:
+    """RA-1029: attach a worker to the parent's clone. False means fall through."""
+    if not (session.shared_workspace and session.parent_session_id):
+        return False
+    branch_name = f"worker-{session.id[:8]}"
+    worktree_path = Path(session.shared_workspace).parent / session.id
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "-C", session.shared_workspace, "worktree", "add",
+             str(worktree_path), "-b", branch_name],
+            capture_output=True, text=True,
+        )
+    except Exception as exc:
+        _log.warning("Worktree creation raised exception, falling back to full clone: %s", exc)
+        return False
+    if result.returncode != 0:
+        _log.warning("Worktree creation failed, falling back to full clone: %s", result.stderr.strip())
+        return False
+    session.workspace = str(worktree_path)
+    session.status = "cloning"
+    session.last_completed_phase = "clone"
+    em(session, "success", "  Using git worktree (skipped network clone)")
+    persistence.save_session(session)
+    return True
+
+
 async def _phase_clone(session, resume_from: str) -> bool:
     phase_start = time.monotonic()
     if _should_skip("clone", resume_from):
@@ -577,47 +573,28 @@ async def _phase_clone(session, resume_from: str) -> bool:
             session.workspace = os.path.join(config.WORKSPACE_ROOT, session.id)
         return True
 
-    # RA-1029: use git worktree if this is a worker session with a shared parent workspace
-    if session.shared_workspace and session.parent_session_id:
-        branch_name = f"worker-{session.id[:8]}"
-        worktree_path = Path(session.shared_workspace).parent / session.id
-        try:
-            result = await asyncio.to_thread(
-                subprocess.run,
-                ["git", "-C", session.shared_workspace, "worktree", "add",
-                 str(worktree_path), "-b", branch_name],
-                capture_output=True, text=True,
-            )
-        except Exception as exc:
-            _log.warning("Worktree creation raised exception, falling back to full clone: %s", exc)
-            result = None
-        if result is not None and result.returncode == 0:
-            session.workspace = str(worktree_path)
-            session.status = "cloning"
-            session.last_completed_phase = "clone"
-            em(session, "success", "  Using git worktree (skipped network clone)")
-            persistence.save_session(session)
-            _emit_phase_metric(session, "clone", phase_start)
-            return True
-        stderr_msg = result.stderr.strip() if result is not None else "exception"
-        _log.warning("Worktree creation failed, falling back to full clone: %s", stderr_msg)
+    if await _try_shared_worktree(session):
+        _emit_phase_metric(session, "clone", phase_start)
+        return True
 
     em(session, "phase", "[1/5] Cloning repository...")
     session.status = "cloning"
     persistence.save_session(session)
     session.workspace = os.path.join(config.WORKSPACE_ROOT, session.id)
     os.makedirs(session.workspace, exist_ok=True)
-    # The stderr of the LAST attempt is the only thing that names the actual
-    # cause (auth rejection vs 404 vs DNS). It was previously emitted per-attempt
-    # to the event stream and then discarded, so the terminal failure below said
-    # only "failed after 3 attempts" with no reason attached.
     last_stderr = ""
+    try:
+        clone_env = _git_clone_env(session.repo_url)
+    except GitAuthError as exc:
+        _fail_phase(session, f"Clone blocked: {exc.reason}")
+        _emit_phase_metric(session, "clone", phase_start)
+        return False
     for attempt in range(3):
         try:
             rc, _, stderr = await run_cmd(
                 session.workspace, "git", "clone", "--depth", "1",
                 session.repo_url, session.workspace, timeout=60,
-                env=_git_clone_env(session.repo_url),
+                env=clone_env,
             )
             if rc == 0:
                 # RA-1173 — verify the cloned repo's origin matches session.repo_url.
@@ -762,6 +739,30 @@ async def _phase_claude_check(session, resume_from: str) -> bool:
         return False
 
 
+async def _reclone_sandbox(session) -> bool:
+    """Restore a missing workspace. Uses the shared auth env (UNI-2645 D3)."""
+    session.workspace = os.path.join(config.WORKSPACE_ROOT, session.id)
+    os.makedirs(session.workspace, exist_ok=True)
+    try:
+        env = git_auth_env(session.repo_url)
+        proc = await asyncio.create_subprocess_exec(
+            "git", "clone", "--depth", "1", session.repo_url, session.workspace,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=env,
+        )
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
+        if proc.returncode != 0:
+            _fail_phase(session, f"Sandbox re-clone failed: {stderr.decode().strip()[:300]}")
+            return False
+        em(session, "success", "  Sandbox restored via re-clone")
+        return True
+    except GitAuthError as exc:
+        _fail_phase(session, f"Sandbox re-clone blocked: {exc.reason}")
+        return False
+    except Exception as e:
+        _fail_phase(session, f"Sandbox regeneration error: {type(e).__name__}: {e}")
+        return False
+
+
 async def _phase_sandbox(session, resume_from: str) -> bool:
     if _should_skip("sandbox", resume_from):
         em(session, "system", "  [SKIP] Sandbox (already completed)")
@@ -769,20 +770,7 @@ async def _phase_sandbox(session, resume_from: str) -> bool:
     em(session, "phase", "[3.5/5] Verifying sandbox...")
     if not session.workspace or not os.path.isdir(session.workspace):
         em(session, "system", "  Sandbox missing — auto-regenerating workspace...")
-        session.workspace = os.path.join(config.WORKSPACE_ROOT, session.id)
-        os.makedirs(session.workspace, exist_ok=True)
-        try:
-            proc_reclone = await asyncio.create_subprocess_exec(
-                "git", "clone", "--depth", "1", session.repo_url, session.workspace,
-                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-            )
-            _, stderr = await asyncio.wait_for(proc_reclone.communicate(), timeout=60)
-            if proc_reclone.returncode != 0:
-                _fail_phase(session, f"Sandbox re-clone failed: {stderr.decode().strip()[:300]}")
-                return False
-            em(session, "success", "  Sandbox restored via re-clone")
-        except Exception as e:
-            _fail_phase(session, f"Sandbox regeneration error: {type(e).__name__}: {e}")
+        if not await _reclone_sandbox(session):
             return False
     else:
         em(session, "success", f"  Sandbox verified: {session.workspace}")
@@ -1611,6 +1599,18 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     return True, {"verdict": verdict, "raw_output": output_text}
 
 
+async def _embed_push_token(session, github_token: str) -> None:
+    try:
+        _, ru, _ = await run_cmd(session.workspace, "git", "remote", "get-url", "origin", timeout=5)
+        ru = ru.strip()
+        if "github.com" in ru and "@" not in ru:
+            authed = ru.replace("https://github.com/", f"https://x-access-token:{github_token}@github.com/")
+            await run_cmd(session.workspace, "git", "remote", "set-url", "origin", authed, timeout=5)
+            em(session, "system", "  Remote: authenticated via GITHUB_TOKEN")
+    except Exception as auth_err:
+        em(session, "system", f"  Remote auth setup warning: {auth_err}")
+
+
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
     """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
     phase_start = time.monotonic()
@@ -1629,25 +1629,23 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
         if commits:
             for c in commits:
                 em(session, "system", f"  {c}")
-            # ── Embed GITHUB_TOKEN in remote URL for authenticated push ──
-            github_token = os.environ.get("GITHUB_TOKEN", "")
-            if github_token:
-                try:
-                    _, ru, _ = await run_cmd(session.workspace, "git", "remote", "get-url", "origin", timeout=5)
-                    ru = ru.strip()
-                    if "github.com" in ru and "@" not in ru:
-                        authed = ru.replace("https://github.com/", f"https://x-access-token:{github_token}@github.com/")
-                        await run_cmd(session.workspace, "git", "remote", "set-url", "origin", authed.strip(), timeout=5)
-                        em(session, "system", "  Remote: authenticated via GITHUB_TOKEN")
-                except Exception as _auth_err:
-                    em(session, "system", f"  Remote auth setup warning: {_auth_err}")
+            try:
+                github_token = resolved_github_token()
+                git_env = git_auth_env()
+            except GitAuthError as exc:
+                em(session, "error", f"  Push blocked: {exc.reason}")
+                return af, False
+            await _embed_push_token(session, github_token)
             # ── Push to a feature branch (not main) ──
             sid_short = getattr(session, "id", "auto")[:8]
             branch_name = f"pidev/auto-{sid_short}"
             await run_cmd(session.workspace, "git", "checkout", "-b", branch_name, timeout=10)
             em(session, "system", f"  Pushing {len(commits)} commits on branch {branch_name}...")
             for push_attempt in range(3):
-                rc, _, err = await run_cmd(session.workspace, "git", "push", "origin", branch_name, timeout=30)
+                rc, _, err = await run_cmd(
+                    session.workspace, "git", "push", "origin", branch_name,
+                    timeout=30, env=git_env,
+                )
                 if rc == 0:
                     push_ok = True
                     em(session, "success", f"  Pushed to GitHub! Branch: {branch_name}")
