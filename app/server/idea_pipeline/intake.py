@@ -10,7 +10,7 @@ from pathlib import Path
 from .constants import INTAKE_FILENAME, INTAKE_SKIP_PHRASES, SOURCES
 
 _SOURCE_PREFIX = re.compile(r"^(margot|phill)\s*:\s*", re.IGNORECASE)
-_HEADING = re.compile(r"^#{1,6}\s+")
+_HEADING = re.compile(r"^#{1,6}\s+\S.*$")
 
 
 @dataclass(frozen=True)
@@ -32,8 +32,11 @@ def idea_id_for(text: str) -> str:
 
 
 def _is_boilerplate(text: str) -> bool:
-    lowered = text.lower()
-    if _HEADING.sub("", lowered).strip() == "":
+    stripped = text.strip()
+    lowered = stripped.lower()
+    if _HEADING.fullmatch(stripped) or _HEADING.sub("", lowered).strip() == "":
+        return True
+    if lowered in {"ideas", "idea"}:
         return True
     return any(phrase in lowered for phrase in INTAKE_SKIP_PHRASES)
 

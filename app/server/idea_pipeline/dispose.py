@@ -51,10 +51,10 @@ def authorize_go(packet: dict[str, Any]) -> dict[str, Any]:
 
 def try_execute(packet: dict[str, Any]) -> dict[str, Any]:
     """Record an execute request. Never starts a build. Refuses without GO."""
-    if packet.get("verdict") != "PROMOTE":
-        raise PipelineGateError("Only a PROMOTE idea can execute, and only after GO.")
     if not packet.get("go_at"):
         raise PipelineGateError("Nothing executes without GO.")
+    if packet.get("verdict") != "PROMOTE":
+        raise PipelineGateError("Only a PROMOTE idea can execute, and only after GO.")
     updated = dict(packet)
     updated["execution_requested"] = True
     updated["executed"] = False
