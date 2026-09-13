@@ -8,6 +8,9 @@ scanner CI uses exits 1 and names the plant, then removes it.
 The token is assembled at runtime so this file never contains a contiguous
 AKIA[0-9A-Z]{16} match — otherwise the scanner would fail the tree forever.
 Always --dry-run: a gate must measure, not rewrite .gitignore.
+
+First watched-red proof (UNI-2651, PR #758, commit a51100bb):
+https://github.com/CleanExpo/Pi-Dev-Ops/actions/runs/34756270470/job/103721046991
 """
 from __future__ import annotations
 
