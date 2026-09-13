@@ -447,9 +447,14 @@ does not exist (RA-7396).
 
 ## Autonomy and kill switches
 
-`app/server/autonomy.py` polls Linear for Urgent/High Todo issues and creates sessions, every
-`TAO_AUTONOMY_POLL_INTERVAL` seconds (`autonomy.py:803`, default `300` = 5 min). In-Progress issues
-are invisible to it — reset to Todo to restart a stalled session.
+`app/server/autonomy.py` polls Linear and creates sessions, every `TAO_AUTONOMY_POLL_INTERVAL`
+seconds (`autonomy.py:803`, default `300` = 5 min). **The poll filter is not priority-based.**
+`fetch_todo_issues()` (`autonomy.py:294-365`) only claims an issue when status name is exactly
+`"Ready for Pi-Dev"` **and** it carries the label `pi-dev:autonomous` or `pi-dev:machine-ship`
+(`autonomy.py:241-250,318-319`) — a prior priority-based filter (`state.type=unstarted` +
+`priority<=2`) was replaced because it accidentally claimed any high-priority Todo across the
+whole workspace. An issue in any other status, or missing either label, is invisible to the
+poller — move it to `Ready for Pi-Dev` with the label set to restart a stalled session.
 
 Three abort axes apply to every TAO loop (`app/server/kill_switch.py`):
 
