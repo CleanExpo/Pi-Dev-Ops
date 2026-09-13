@@ -54,10 +54,9 @@ def _clean_env(monkeypatch):
 
 # ── run_via_provider: refusal is an error tuple, never a raise ──────────────
 #
-# margot_bot._call_llm wraps run_via_provider in `except Exception` and falls
-# back to a DIRECT Anthropic call. A raised refusal would therefore route the
-# role onto the very model the ruling forbids. The refusal must come back as
-# (rc=1, error) so the bot reports "unavailable" instead.
+# RA-7490: _call_llm fail-closes on a router raise and never opens the
+# Anthropic SDK. The refusal must still come back as (rc=1, error) so the
+# bot reports "unavailable" and so a future fallback cannot be fed a raise.
 
 
 def _fake_provider(name: str, calls: list, responses: list):

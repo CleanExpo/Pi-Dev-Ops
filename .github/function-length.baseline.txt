@@ -406,7 +406,6 @@
 50	59233abb84b2	swarm/bots/cmo.py::request_adspend_approval
 50	89cc960f4be4	swarm/cfo.py::compute_metrics
 50	4d6c13f6060a	swarm/kill_switch.py::resume
-50	1303c3cfe553	swarm/margot_bot.py::_call_llm
 50	34551f56c2bd	swarm/nexus/ingest/linear.py::parse
 50	931e342966c0	swarm/project_health_monitor.py::_file_work_order_ticket
 50	fedb6c95ba45	swarm/research_provider.py::research

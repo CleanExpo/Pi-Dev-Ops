@@ -190,10 +190,11 @@ async def _run_margot_casual(prompt: str, *, timeout_s: int, session_id: str,
                              ) -> tuple[int, str, float, str | None]:
     """Walk the free ladder at call time.
 
-    A refusal comes back as an error TUPLE, never a raise: margot_bot._call_llm
-    wraps run_via_provider in `except Exception` and falls back to a direct
-    Anthropic call — a raised refusal would land the role on the very model the
-    ruling forbids. rc=1 makes the bot answer "unavailable" instead.
+    A refusal comes back as an error TUPLE, never a raise. RA-7490 also
+    fail-closes ``margot_bot._call_llm`` on any router raise, so a thrown
+    refusal cannot reach a paid SDK. The tuple is still the contract:
+    rc=1 makes the bot answer "unavailable" instead of treating the
+    denial as something to recover from.
     """
     try:
         candidates = _margot_casual_candidates()
