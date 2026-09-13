@@ -93,16 +93,24 @@ def test_health_is_read_at_request_time(monkeypatch):
 def test_health_and_clone_path_agree(monkeypatch, value, expected):
     """The reported flag and `_git_clone_env`'s decision must never disagree.
 
-    `_git_clone_env` returns None when it has no usable token — that is the
-    branch that produces the unauthenticated clone. If /health said True while
-    the clone path took that branch, /health would be actively misleading during
-    exactly the outage it exists to surface.
+    A usable token produces an auth env. An empty/whitespace token now raises
+    GitAuthError (UNI-2645 fail-closed) instead of returning None. If /health
+    said True while the clone path took that branch, /health would be actively
+    misleading during exactly the outage it exists to surface.
     """
+    from app.server.git_auth import MISSING_CREDENTIAL, GitAuthError
+
     monkeypatch.setenv("GITHUB_TOKEN", value)
 
     reported = _health_payload(monkeypatch)["github_token"]
-    clone_env = session_phases._git_clone_env("https://github.com/CleanExpo/Pi-Dev-Ops")
-    clone_will_authenticate = clone_env is not None
+    if expected:
+        clone_env = session_phases._git_clone_env("https://github.com/CleanExpo/Pi-Dev-Ops")
+        clone_will_authenticate = clone_env is not None
+    else:
+        with pytest.raises(GitAuthError) as ei:
+            session_phases._git_clone_env("https://github.com/CleanExpo/Pi-Dev-Ops")
+        assert ei.value.reason == MISSING_CREDENTIAL
+        clone_will_authenticate = False
 
     assert reported is expected
     assert reported == clone_will_authenticate, (

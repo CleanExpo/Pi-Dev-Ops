@@ -67,7 +67,9 @@ def _install(monkeypatch, repo: Path, messages: list[str], verdict_text: str = "
     monkeypatch.setattr(session_phases, "em",
                         lambda s, kind, msg="": messages.append(f"{kind}:{msg}"))
     monkeypatch.setattr(session_phases, "_emit_phase_metric", lambda *a, **k: None)
-    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    # A dummy credential so the shared helper does not fail-closed before the
+    # board-review gate. git push is stubbed; the value never leaves this test.
+    monkeypatch.setenv("GITHUB_TOKEN", "ghs_test_token_for_push_gate")
 
     async def fake_sdk(**kwargs):
         return 0, f"1. nothing material\n\n{verdict_text}\nreads fine", 0.0
