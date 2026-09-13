@@ -41,7 +41,8 @@ from .brief import classify_intent, build_structured_brief, scan_repo_context
 from .lessons import append_lesson, load_lessons, extract_lesson_from_eval, append_lesson_dedup
 from .supabase_log import log_gate_check
 from .session_recorder import record_episode, retrieve_similar_episodes, format_episodes_as_context
-from .session_model import em, mark_complete, mark_terminal
+from .session_finish import finish_after_push
+from .session_model import em, mark_terminal
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
 from .session_evaluator import (
     _parse_evaluator_dimensions,
@@ -1879,37 +1880,22 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     push_ts = time.time()
     af, push_ok = await _phase_push(session, total_phases)
 
-    session.last_completed_phase = "push"
-    mark_complete(session)  # sets status + completed_at together
-    persistence.save_session(session)
+    # UNI-2643 — complete / In Review / the completion marker require push_ok.
+    finish_after_push(
+        session, push_ok, push_ts,
+        emit=em,
+        persist=persistence.save_session,
+        log_ship_gate=_log_ship_gate_check,
+        update_linear_state=_update_linear_state,
+        sync_linear_on_completion=_sync_linear_on_completion,
+        record_outcome=_record_session_outcome,
+    )
+    if push_ok:
+        em(session, "system", "")
+        em(session, "phase", "  Summary")
+        em(session, "system", f"    Duration: {time.time() - session.started_at:.0f}s")
+        em(session, "system", f"    Files: {len(af)}")
 
-    # RA-656: log gate_check row — fire-and-forget, never blocks pipeline
-    _log_ship_gate_check(session, push_ok, push_ts)
-
-    # Two-way Linear sync: move issue to "In Review" now that the build is pushed
-    if session.linear_issue_id:
-        em(session, "system", f"  Updating Linear issue {session.linear_issue_id} → In Review")
-        _update_linear_state(session.linear_issue_id, "In Review")
-
-    em(session, "system", "")
-    em(session, "phase", "  Summary")
-    em(session, "system", f"    Duration: {time.time() - session.started_at:.0f}s")
-    em(session, "system", f"    Files: {len(af)}")
-    em(session, "success", "  === SESSION COMPLETE ===")
-
-    # RA-665/666 — post outcome comment to Linear now build is fully complete
-    try:
-        _sync_linear_on_completion(session)
-    except Exception:
-        pass  # Linear sync must never crash the build pipeline
-
-    # RA-672 Phase 2 — C2 data: log session outcome for ZTE v2 Section C scoring
-    try:
-        _record_session_outcome(session, push_ok, push_ts)
-    except Exception:
-        pass  # observability must never block the pipeline
-
-    # RA-931 — record this build run as an episode for future context replay
     try:
         await record_episode(session, brief)
     except Exception:
