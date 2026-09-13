@@ -97,7 +97,7 @@ describe("projectFleet", () => {
 });
 
 describe("GET /api/mesh-fleet", () => {
-  const SECRET = "super-secret-test-value";
+  const SECRET = "mesh-fleet-test-secret";
   const saved: Record<string, string | undefined> = {};
   const ENV = ["TAO_INTERNAL_WEBHOOK_SECRET", "TAO_WEBHOOK_SECRET", "RAILWAY_URL", "PI_CEO_URL"] as const;
   let fetchMock: ReturnType<typeof vi.fn>;
