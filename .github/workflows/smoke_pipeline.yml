@@ -6,6 +6,10 @@ name: Pipeline Smoke (E2E)
 # reaches `complete` with files_modified > 0 and a PR URL. Detects the
 # 305-second-generator-timeout class of regression (RA-1294 signature).
 #
+# UNI-2652 5+1 (A8–A10 + five consecutive + planted failure) is
+# scripts/golden_journey.py — see docs/runbooks/golden-journey.md.
+# This job stays one A1–A7 run; five 20-minute journeys do not fit here.
+#
 # Schedule: every 6 hours, so a bad deploy breaks within a quarter-day.
 # Manual: `workflow_dispatch` for pre-release gating.
 # Failure: pings Telegram via scripts/send_telegram.py.
