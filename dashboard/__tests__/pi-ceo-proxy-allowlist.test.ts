@@ -102,6 +102,7 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
       "/webhook/telegram/extra",
       "/api/mesh/fleet",
       "/api/mesh/heartbeat",
+      "/api/mesh/ship",
       "/api/swarm/kill",
     ];
     for (const path of hostile) {
