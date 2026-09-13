@@ -462,6 +462,17 @@
       "_comment": "2026-08-02: was expected_status 200. That assertion was written from what the route did, and the route's own comment then cited this surface ('a CI smoke surface calls it unauthenticated by design') as the reason the GET could stay public — a loop in which the test justified the code and the code justified the test, with no requirement anywhere. Observed live returning 200 to an anonymous caller with a body proving it had reached upstream, which it does with a borrowed PI_CEO_PASSWORD. The decision: an anonymous caller may not read swarm state through a credential it does not hold, so the GET now authenticates like the POST and this surface asserts the refusal. Keeping the dashboard console clean is not a reason to answer strangers."
     },
     {
+      "name": "attachments-upload-unauth",
+      "path": "/api/attachments/upload",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body_contains": [
+        "Unauthorised"
+      ],
+      "_comment": "RA-7487: fail-closed attachments upload gate. Observed live returning HTTP 200 HTML to an anonymous POST because proxy.ts is default-open and no handler existed — a scanner reads that as success. The route now 401s before reading the body and never mints Drive credentials. Authenticated probes are deliberately NOT declared: a valid session reaches 503 'Upload not configured' (auth passed, Drive upload not implemented in this gate)."
+    },
+    {
       "name": "nexus-health",
       "path": "/api/pi-ceo/api/nexus/health",
       "method": "GET",
