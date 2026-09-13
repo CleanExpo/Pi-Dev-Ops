@@ -54,6 +54,10 @@ on:
       - 'supabase/tests/pgtap/**'
       - 'mesh/schema/**'
       - '.github/workflows/pgtap-pilot.yml'
+      - 'app/requirements.txt'
+      - 'app/server/schema_drift_db.py'
+      - 'tests/test_schema_drift_db_pg.py'
+      - 'docs/schema-drift-db.md'
   push:
     branches: [main, feat/pilot-v1]
 
@@ -167,3 +171,22 @@ jobs:
         env:
           SCRATCH_DB_URL: postgres://postgres:shadow@localhost:5432/pilot_shadow
         run: bash swarm/pilot/scripts/rollback_drill.sh
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Schema Drift DB connection path (ephemeral Postgres, D19)
+        # Mission Control's schema_drift_db probe against THIS job's throwaway
+        # Postgres, through a login made from the SQL in docs/schema-drift-db.md.
+        # Never a remote database: the only URL here is the service container
+        # above, and the test refuses anything that is not localhost. REQUIRED=1
+        # turns a missing SCRATCH_DB_URL into a failure, so this step cannot go
+        # green having skipped. The psycopg pin is read from app/requirements.txt
+        # so the job and the runtime cannot drift apart.
+        env:
+          SCRATCH_DB_URL: postgres://postgres:shadow@localhost:5432/pilot_shadow
+          SCHEMA_DRIFT_DB_PG_REQUIRED: "1"
+        run: |
+          pip install "$(grep -E '^psycopg\[binary\]==' app/requirements.txt)" "pytest>=8"
+          python -m pytest tests/test_schema_drift_db_pg.py -v --tb=short -p no:cacheprovider

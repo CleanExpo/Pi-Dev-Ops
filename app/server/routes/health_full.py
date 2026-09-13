@@ -244,6 +244,21 @@ async def _check_telegram_polling() -> dict[str, Any]:
         return {"ok": False, "error": str(exc)[:120]}
 
 
+async def _check_schema_drift_db() -> dict[str, Any]:
+    """The database path Schema Drift reads (SUPABASE_DB_URL). See docs/schema-drift-db.md."""
+    try:
+        from .. import schema_drift_db  # noqa: PLC0415
+
+        result = await asyncio.to_thread(schema_drift_db.health_check)
+    except Exception as exc:
+        # The exception type only: a driver message can quote the connection string.
+        return {"ok": False, "observed": False, "status": "not_observed", "note": "probe_crashed", "error": type(exc).__name__}
+    if result.get("observed") is not True:
+        return {"ok": False, "observed": False, "status": "not_observed", "note": result.get("detail")}
+    ok = result.get("ok") is True
+    return {"ok": ok, "observed": True, "status": "live" if ok else "red", "note": result.get("detail")}
+
+
 _CHECKS: dict[str, Any] = {
     "hermes_gateway":   _check_hermes_gateway,
     "pi_ceo_railway":   _check_pi_ceo_railway,
@@ -252,6 +267,7 @@ _CHECKS: dict[str, Any] = {
     "openrouter":       _check_openrouter,
     "supabase":         _check_supabase,
     "telegram_polling": _check_telegram_polling,
+    "schema_drift_db":  _check_schema_drift_db,
 }
 
 
