@@ -40,6 +40,20 @@ async def get_autonomy_status():
     return autonomy_status()
 
 
+@router.get("/api/wiki-graph", dependencies=[Depends(require_auth)])
+async def get_wiki_graph():
+    """Read-only Unite-Group wiki graph for the dashboard Command Centre tile."""
+    from ..unite_group_wiki import empty_graph, fetch_wiki_pages, graph_payload
+
+    pages, reason = fetch_wiki_pages()
+    if pages is None:
+        payload = empty_graph(reason or "wiki_pages unavailable")
+        return payload
+    payload = graph_payload(pages)
+    payload["source"] = "unite-group"
+    return payload
+
+
 # RA-1099 Wave-3: surface the Fable-5 adversary-canary amplification so a daily
 # job can watch it (the sdk-metrics jsonl is ephemeral on the Railway container).
 _CANARY_KILL_THRESHOLD = 1100.0  # billed output tokens / 1k visible chars on adversary runs

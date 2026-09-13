@@ -177,6 +177,13 @@
       "judgment": "no-source-baseline",
       "note": "The shared pure graph builder, itself a ported file with its own provenance entry. Pure: no network, no DB, no execution."
     },
+    "app/api/command-centre/wiki-graph/route.ts :: @/lib/pi-ceo-session": {
+      "specifier": "@/lib/pi-ceo-session",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/pi-ceo-session.ts",
+      "judgment": "no-source-baseline",
+      "note": "Railway fallback when Vercel lacks Unite-Group credentials. piCeoFetch logs in with PI_CEO_PASSWORD and reads GET /api/wiki-graph. Session-gated on both sides; no service-role key crosses this hop."
+    },
     "app/(main)/command-centre/page.tsx :: next/link": {
       "specifier": "next/link",
       "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
@@ -456,7 +463,8 @@
     "components/command-centre/cost-allocation/CostAllocationTile.tsx": "Not assessed for capability 4's read-only half. Out of scope until its data sources are traced the way provider-usage's were; not omitted on a safety finding, omitted because it is unexamined."
   },
   "_target_native": {
-    "lib/supabase/unite-group-server.ts": "NEW file of THIS app, added to fix a real production bug: wiki_pages lives in the Unite-Group prod Supabase project (lksfwktwtmyznckodsau), not Pi CEO's own project (zbryrmxmgfmslqzizsto) that lib/supabase/server.ts reaches. The wiki-graph route and page were both calling the wrong client (lib/supabase/server.ts — no longer in this capability's import graph now that both call sites were repointed), so every read hit the wrong project's PostgREST endpoint, got a 404, and surfaced as an opaque 500. This file gives wiki-graph its own client scoped to the correct project. No source baseline applies; diff-relative comparison is meaningless for it."
+    "lib/supabase/unite-group-server.ts": "NEW file of THIS app, added to fix a real production bug: wiki_pages lives in the Unite-Group prod Supabase project (lksfwktwtmyznckodsau), not Pi CEO's own project (zbryrmxmgfmslqzizsto) that lib/supabase/server.ts reaches. The wiki-graph route and page were both calling the wrong client (lib/supabase/server.ts — no longer in this capability's import graph now that both call sites were repointed), so every read hit the wrong project's PostgREST endpoint, got a 404, and surfaced as an opaque 500. This file gives wiki-graph its own client scoped to the correct project. No source baseline applies; diff-relative comparison is meaningless for it.",
+    "lib/pi-ceo-session.ts": "Pre-existing dashboard helper. Pulled into the wiki-graph graph so Vercel can ask Railway for wiki_pages when Unite-Group credentials are missing on the dashboard deploy. Authenticates with PI_CEO_PASSWORD against /api/login; holds no Supabase service-role key."
   },
   "_declared_deltas": {
     "app/(main)/command-centre/wiki-graph/page.tsx": {

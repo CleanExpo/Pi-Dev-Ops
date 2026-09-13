@@ -49,6 +49,16 @@ def test_routing_401_without_secret(client):
     assert client.get("/api/routing").status_code == 401
 
 
+def test_routing_200_with_session_cookie(client):
+    from app.server.auth import create_session_token  # noqa: PLC0415
+
+    token = create_session_token()
+    resp = client.get("/api/routing", cookies={"tao_session": token})
+    assert resp.status_code == 200
+    assert "roles" in resp.json()
+    assert "margot_casual" in resp.json()
+
+
 def test_routing_401_with_wrong_secret(client):
     assert client.get("/api/routing", headers={"X-Pi-CEO-Secret": "nope"}).status_code == 401
 

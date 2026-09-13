@@ -73,6 +73,9 @@ const PROTECTED_API_PREFIXES = [
   // Mission Control Model Fabric exposes provider/model routing telemetry and
   // is consumed only by the protected /control/model surface.
   "/api/model-fabric",
+  // RA-7434: role → provider → model → cost-today. Proxies Railway /api/routing
+  // with a borrowed session, so an anonymous caller must not reach it.
+  "/api/routing",
 ];
 
 // Public API routes — never require session
