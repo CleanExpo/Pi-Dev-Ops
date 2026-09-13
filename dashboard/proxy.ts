@@ -79,6 +79,9 @@ const PROTECTED_API_PREFIXES = [
   // RA-7434: role → provider → model → cost-today. Proxies Railway /api/routing
   // with a borrowed session, so an anonymous caller must not reach it.
   "/api/routing",
+  // UNI-2649: server-side mesh fleet aggregate. Attaches X-Pi-CEO-Secret
+  // on the server; the browser never sees it.
+  "/api/mesh-fleet",
 ];
 
 // Public API routes — never require session

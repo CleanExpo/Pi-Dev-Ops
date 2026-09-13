@@ -29,6 +29,11 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   /^\/api\/goal-projects$/,
   /^\/api\/goal-projects\/archive$/,
   /^\/api\/autonomy\/status$/,
+  // UNI-2649 — Loop Cockpit fetches kill-switch state through this path.
+  // Session-gated upstream (require_auth). /api/mesh/fleet is NOT listed:
+  // that endpoint is secret-bearing; the dashboard BFF at /api/mesh-fleet
+  // aggregates it server-side instead of forwarding the secret.
+  /^\/api\/swarm\/status$/,
   /^\/api\/integrations\/health$/,
   /^\/api\/nexus\/health$/,
   /^\/api\/nexus\/ingest\/health$/,

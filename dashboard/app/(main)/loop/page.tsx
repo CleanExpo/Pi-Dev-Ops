@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import FleetTile from "@/components/control/FleetTile";
 import { deriveNeeds } from "@/lib/control/loop-needs";
 import { completed24h, type MissionControlLive } from "@/lib/control/mission-control-live";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
@@ -188,6 +189,8 @@ export default function LoopPage() {
               <p className="text-sm" style={{ color: "var(--text-dim)" }}>No autonomy data.</p>
             )}
           </Panel>
+
+          <FleetTile />
 
           {/* Swarm & kill-switch */}
           <Panel title="Swarm & Kill-Switch">
