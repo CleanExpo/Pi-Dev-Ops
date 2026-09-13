@@ -19,7 +19,7 @@
 # deleted one's slot.
 435	ab4db82f1204	swarm/orchestrator.py::run
 311	6f980e3e3451	swarm/margot_bot.py::handle_turn
-280	e59149d1872e	app/server/session_sdk.py::_run_claude_via_sdk
+274	f2cacf67f124	app/server/session_sdk.py::_run_claude_via_sdk
 250	426976381fbe	app/server/session_phases.py::_phase_evaluate
 244	0bb1af798a41	app/server/spec_pipeline/__init__.py::run_pipeline
 219	788a189b2818	app/server/agents/anthropic_intel_refresh.py::refresh_anthropic_intel
@@ -35,8 +35,8 @@
 164	dd19d598c24c	scripts/weekly_enhancement_loop.py::enhance_repo
 164	c8f31284111c	swarm/margot_tools.py::propose_idea
 162	c0b2c5c2b13e	swarm/debate_runner.py::run_debate
-161	1eeca300a67f	app/server/session_sdk.py::_run_claude_via_sdk._attempt
 160	003d27f0071a	fence/pretooluse_fence.py::main
+155	24083f10623a	app/server/session_sdk.py::_run_claude_via_sdk._attempt
 155	9c6009db6384	app/server/autonomy.py::_process_autonomy_issue
 154	c3cdf956734d	app/server/agents/board_meeting.py::_call_claude_for_discrepancies
 152	a6c13f96f01c	app/server/session_phases.py::run_build
