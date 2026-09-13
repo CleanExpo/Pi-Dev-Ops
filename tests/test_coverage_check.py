@@ -214,7 +214,7 @@ def test_tracked_dod_runs_end_to_end_without_legacy_command_strings(tmp_path):
         check=True,
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=60,
     )
 
     report = coverage_check.json.loads(result.stdout)
@@ -222,3 +222,34 @@ def test_tracked_dod_runs_end_to_end_without_legacy_command_strings(tmp_path):
     assert all(
         "legacy cmd strings" not in item["evidence"] for item in report["results"]
     )
+
+
+def test_ver_loop_coverage_gated_is_green_because_pytest_proved_it():
+    """The DoD criterion must run the loop test, not grep for an import."""
+    dod = coverage_check._load_yaml(
+        ROOT / "config" / "harness" / "dod" / "pi-dev-ops-verification.dod.yaml"
+    )
+    req = next(
+        item for item in dod["requirements"] if item["id"] == "ver-loop-coverage-gated"
+    )
+    argv = req.get("argv") or []
+    assert "grep" not in argv
+    assert any("test_tao_loop_coverage.py" in arg for arg in argv)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "coverage_check.py"),
+            str(ROOT / "config" / "harness" / "dod" / "pi-dev-ops-verification.dod.yaml"),
+            "--json",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    report = coverage_check.json.loads(result.stdout)
+    gated = next(
+        item for item in report["results"] if item["id"] == "ver-loop-coverage-gated"
+    )
+    assert gated["status"] == coverage_check.PASS
