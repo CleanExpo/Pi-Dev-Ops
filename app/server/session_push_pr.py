@@ -21,11 +21,11 @@ import urllib.request
 
 
 def derive_owner_repo(remote_url: str, github_token: str) -> str:
-    """`https://x-access-token:TOKEN@github.com/o/r.git` -> `o/r`.
+    """`https://github.com/o/r.git` -> `o/r`.
 
-    The token strip is not cosmetic: the remote is rewritten to embed the
-    credential before the push, so skipping it puts the token in the PR URL and
-    in `session.repo_name`, which is persisted and rendered on the dashboard.
+    Also strips leftover `x-access-token` userinfo. Push no longer rewrites the
+    remote; the strip stays so an old rewritten URL cannot leak the credential
+    into the PR URL or `session.repo_name`.
     """
     ru = remote_url.strip().rstrip("/")
     ru = ru.replace(f"https://x-access-token:{github_token}@", "https://")
@@ -116,7 +116,8 @@ async def open_pull_request(session, run_cmd, em, route_linear, branch_name, git
     """Open a PR from `branch_name` → main, when it carries a real diff.
 
     The diff check avoids empty PRs from sessions that correctly decided nothing
-    needed fixing. Auth is the x-access-token already embedded in the remote URL.
+    needed fixing. Git auth is process-scoped (`git_auth_env`); the token here
+    is the GitHub API Bearer header only.
     """
     try:
         rc_diff, diff_out, _ = await run_cmd(

@@ -1,6 +1,6 @@
 """UNI-2645 — one helper, every git path, empty token fails closed.
 
-The sandbox re-clone, orchestrator clone, push rewrite, and autopr push used to
+The sandbox re-clone, orchestrator clone, push, and autopr push used to
 each invent their own auth (or none). An empty or whitespace-only GITHUB_TOKEN
 then reached git, which prompted for a username and died with
 `could not read Username` — identical to a rejected credential.
@@ -80,11 +80,22 @@ def test_named_call_sites_use_the_shared_helper():
     assert "git_auth_env" in sources["sandbox"]
     assert "git_auth_env" in sources["push"]
     assert "resolved_github_token" in sources["push"]
+    assert "x-access-token" not in sources["push"]
+    assert "_embed_push_token" not in sources["push"]
+    assert "set-url" not in sources["push"]
     assert "git_auth_env" in sources["orchestrator"]
     assert "git_auth_env" in sources["autopr_git"]
     assert "resolved_github_token" in sources["autopr_run"]
     assert "_GITHUB_TOKEN" not in sources["autopr_run"]
     assert "x-access-token:{_GITHUB_TOKEN}" not in sources["autopr_run"]
+    phases_src = inspect.getsource(session_phases)
+    git_auth_src = inspect.getsource(__import__("app.server.git_auth", fromlist=["git_auth"]))
+    autopr_src = inspect.getsource(autopr)
+    assert "_embed_push_token" not in phases_src
+    assert "empty_github_token" not in phases_src
+    assert "empty_github_token" not in git_auth_src
+    assert "empty_github_token" not in autopr_src
+    assert "empty_github_token" not in inspect.getsource(orchestrator)
 
 
 @pytest.mark.asyncio

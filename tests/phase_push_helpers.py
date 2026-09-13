@@ -52,8 +52,8 @@ def _fake_run_cmd(rec: _Recorder, push_rc: int, diff_out: str):
         if args[:2] == ("git", "log") and "--oneline" in args:
             return 0, "abc1234 feat: pi ceo build", ""
         if args[:3] == ("git", "remote", "get-url"):
-            # After set-url the block must read back the AUTHED url — that is the
-            # form the token-stripping line has to cope with.
+            # Push must not rewrite origin. If a caller still does, return AUTHED
+            # so derive_owner_repo's leftover-token strip stays under test.
             seen_set = any(a[:3] == ("git", "remote", "set-url") for a in rec.cmds)
             return 0, (AUTHED if seen_set else REMOTE), ""
         if args[:3] == ("git", "remote", "set-url"):
