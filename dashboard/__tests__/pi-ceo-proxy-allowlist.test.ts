@@ -99,7 +99,6 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
       "/api/mesh/heartbeat",
       "/api/swarm/kill",
     ];
-    ];
     for (const path of hostile) {
       expect(allowed(path), `expected ${path} to be refused`).toBe(false);
     }
