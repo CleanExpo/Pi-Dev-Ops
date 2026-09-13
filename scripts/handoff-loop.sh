@@ -257,6 +257,11 @@ else skip "route-exercise" "no dashboard build to serve"; fi
 if [ -f scripts/secrets_check.py ]; then
   gate "audit-secrets" "$PY" scripts/secrets_check.py --repo-root "$ROOT" --dry-run
 else skip "audit-secrets" "scripts/secrets_check.py not present"; fi
+# UNI-2651 — prove the same scanner can fail. audit-secrets above is green on a
+# clean tree; this plants an invented AWS-shaped key, asserts exit 1, removes it.
+if [ -f scripts/secrets_scan_mutation.py ]; then
+  gate "audit-secrets-mutation" "$PY" scripts/secrets_scan_mutation.py --repo-root "$ROOT"
+else skip "audit-secrets-mutation" "scripts/secrets_scan_mutation.py not present"; fi
 # audit-smoke — the repo's only end-to-end surface check (35 assertions across auth,
 # sessions, lessons, webhook HMAC, rate limiting and autonomy status).
 #
