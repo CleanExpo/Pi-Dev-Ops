@@ -179,27 +179,18 @@ async def _check_openrouter() -> dict[str, Any]:
 
 
 async def _check_supabase() -> dict[str, Any]:
+    """REST path Mission Control uses to prove Supabase reads. See supabase_health.py."""
     try:
-        try:
-            from .. import supabase_log  # noqa: PLC0415
-        except Exception as exc:
-            return {
-                "ok": False,
-                "observed": False,
-                "status": "not_observed",
-                "note": "supabase_log_import_failed",
-                "error": str(exc)[:120],
-            }
-        fn = getattr(supabase_log, "health_check", None)
-        if not callable(fn):
-            return {"ok": False, "observed": False, "status": "not_observed", "note": "untested"}
-        if asyncio.iscoroutinefunction(fn):
-            ok = bool(await fn())
-        else:
-            ok = bool(fn())
-        return {"ok": ok, "observed": True, "status": "live" if ok else "red"}
+        from .. import supabase_health  # noqa: PLC0415
+
+        result = await asyncio.to_thread(supabase_health.health_check)
     except Exception as exc:
-        return {"ok": False, "error": str(exc)[:120]}
+        # Type name only: probe text must never become a live/green status.
+        return {"ok": False, "observed": False, "status": "not_observed", "note": "probe_crashed", "error": type(exc).__name__}
+    if result.get("observed") is not True:
+        return {"ok": False, "observed": False, "status": "not_observed", "note": result.get("detail")}
+    ok = result.get("ok") is True
+    return {"ok": ok, "observed": True, "status": "live" if ok else "red", "note": result.get("detail")}
 
 
 async def _check_telegram_polling() -> dict[str, Any]:
