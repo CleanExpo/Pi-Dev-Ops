@@ -1,12 +1,15 @@
 # tests — Wiki
 
-_Last updated: 2026-09-13T13:54:33Z (commits add45de..5268d24)_
+_Last updated: 2026-09-13T16:24:35Z (commits b4778fd..230b5f8)_
 
 ## Recent changes
-- 5268d24 — fix(health): RA-7538 wire supabase component to supabase_health (#774)
+- 230b5f8 — feat(mesh): RA-7377 add POST /api/mesh/ship writer for the fleet feed (#775)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_health_full_supabase.py — touched in recent commits
+- tests/test_mesh_report_ship.py — touched in recent commits
+- tests/test_mesh_ship.py — touched in recent commits
+- tests/test_mesh_ship_endpoint.py — touched in recent commits
+- tests/test_mesh_ship_write.py — touched in recent commits
