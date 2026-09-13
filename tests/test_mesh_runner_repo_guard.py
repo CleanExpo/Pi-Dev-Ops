@@ -143,6 +143,14 @@ def test_optional_dot_git_suffix_does_not_change_repository_identity(monkeypatch
     assert mod.default_repo_dir_problem() == ""
 
 
+def test_https_and_ssh_spellings_of_one_repository_are_accepted(monkeypatch, tmp_path):
+    """MUTATION CONTROL. HTTPS vs git@ / ssh:// of the same repo used to refuse."""
+    clone = _repo_with_origin(
+        tmp_path / "relocated-ssh", "git@github.com:CleanExpo/Pi-Dev-Ops.git")
+    mod = _runner_with(monkeypatch, str(clone))
+    assert mod.default_repo_dir_problem() == ""
+
+
 def test_dot_git_suffix_remains_significant_for_file_remotes(monkeypatch, tmp_path):
     own = _repo_with_origin(tmp_path / "own", "file:///srv/expected")
     clone = _repo_with_origin(tmp_path / "other", "file:///srv/expected.git")
