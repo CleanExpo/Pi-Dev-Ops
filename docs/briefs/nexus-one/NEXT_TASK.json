@@ -9,19 +9,24 @@
   "original_package_sha256": "0e0bb60c21dcedf8b477ccd69e358fdd3fdd1295c0bedbd2c72e3b2a9b07de80",
   "handoff": "docs/session-handoffs/handoff-20260908-nexus-one.md",
   "bundle": "docs/briefs/nexus-one",
-  "status": "READY_FOR_READ_ONLY_PICKUP",
-  "implementation_status": "NOT_ADMITTED",
-  "claimed_by": null,
+  "status": "SYNTHETIC_SLICE_ADMITTED",
+  "implementation_status": "ADMITTED_SYNTHETIC_NOT_SHIPPED",
+  "claimed_by": "cursor-cloud-agent-bc-43fc6551",
   "host_readiness": "UNKNOWN",
   "auto_dispatch": false,
-  "authority_grant": null,
-  "current_objective": "Perform finite Slice A discovery and SPM/Judge planning for the first Nexus One vertical pilot; preserve all other work.",
+  "authority_grant": "GitHub issue #739 admission comment 2026-09-13: Claude Max only, $0 API / no paid fallback, synthetic Margot→task→Max-lane worker path→tests→Judge→receipt. Windows remains review-only. Not a SHIPPED claim.",
+  "issue_number": 739,
+  "synthetic_module": "app/server/nexus_one",
+  "synthetic_tests": "tests/test_nexus_one_pilot.py",
+  "current_objective": "Land the admitted synthetic vertical slice on a scoped PR. Do not merge, deploy, migrate, spend, or claim SHIPPED.",
   "definition_of_done": [
-    "Current host, repository, branch, dirty state and existing task ownership reconciled without changing source work",
-    "Pilot-critical capability, data, authority, continuation and cost paths mapped from current evidence",
-    "One bounded evidence-indexed SPM specification with minimal affected paths, compatibility, acceptance cases and rollback",
-    "Independent review route and exact host/authority prerequisites stated without claiming a review was run",
-    "Durable next-step handoff through the existing approved path; no implementation or activation implied"
+    "Authorised bounded synthetic task completes with scoped synthetic: evidence",
+    "Duplicate input acknowledges the existing contract and does not create a second task",
+    "Failed-method fingerprint rejects a silent identical retry",
+    "Eligible path is Claude Max subscription (named claude_cli); API/paid fallback refused",
+    "Independent Judge hook invoked with a different family than the builder",
+    "Durable receipt/checkpoint written and reloadable",
+    "NEXT_TASK metadata records admitted-not-shipped; no false SHIPPED claim"
   ],
   "must_preserve": [
     "Dirty repository roots and unrelated active tasks/PRs",
@@ -32,12 +37,12 @@
     "No unapproved spending, deployment, secret access, migration or remote dispatch"
   ],
   "first_read_only_shell_command": "git --no-optional-locks status --short --branch",
-  "next_delivery_slice_after_separate_admission": "Margot -> one canonical task -> one eligible worker -> tests -> independent review -> receipt",
+  "next_delivery_slice_after_separate_admission": "Bounded real non-production task under a further grant; live Mac worker lease still not activated by this slice",
   "not_in_repository_bundle": [
     "Original ZIP",
     "HTML/PNG prototype and prototype QA assets"
   ],
   "missing_prototype_assets_block_slice_a": false,
   "launcher_requires_original_zip": true,
-  "notes": "Static pickup metadata only; not a runtime queue record, trusted lease, enabled policy or completion receipt. Re-read current main and active work before selecting an implementation base."
+  "notes": "Handoff metadata plus admitted-synthetic pointer. Not a runtime queue record, trusted lease, enabled policy or completion receipt. Re-read current main and active work before selecting an implementation base. implementation_status is ADMITTED_SYNTHETIC_NOT_SHIPPED — do not treat a green unit test as production ship."
 }
