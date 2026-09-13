@@ -19,6 +19,20 @@ from unittest.mock import patch
 from app.server import autonomy
 
 
+def _ready_issue(**kwargs: object) -> dict:
+    """A GraphQL node that survives UNI-2648 eligibility after annotation."""
+    issue: dict = {
+        "id": "x",
+        "identifier": "X-1",
+        "title": "t",
+        "priority": 2,
+        "state": {"id": "st", "name": "Ready for Pi-Dev", "type": "unstarted"},
+        "labels": {"nodes": [{"name": "pi-dev:autonomous"}]},
+    }
+    issue.update(kwargs)
+    return issue
+
+
 def _write_registry(tmp_path: Path, projects: list[dict]) -> Path:
     path = tmp_path / "projects.json"
     path.write_text(json.dumps({"version": "1.0", "projects": projects}))
@@ -98,11 +112,11 @@ def test_fetch_todo_issues_iterates_and_annotates(tmp_path):
         project_id = variables["projectId"]
         if project_id == "proj-alpha":
             return {"project": {"issues": {"nodes": [
-                {"id": "a1", "identifier": "A-1", "title": "A one", "priority": 2},
+                _ready_issue(id="a1", identifier="A-1", title="A one", priority=2),
             ]}}}
         if project_id == "proj-beta":
             return {"project": {"issues": {"nodes": [
-                {"id": "b1", "identifier": "B-1", "title": "B one", "priority": 1},
+                _ready_issue(id="b1", identifier="B-1", title="B one", priority=1),
             ]}}}
         return {"project": None}
 
@@ -134,7 +148,7 @@ def test_fetch_todo_issues_survives_single_project_failure(tmp_path):
         if variables["projectId"] == "proj-alpha":
             raise RuntimeError("Linear HTTP 500")
         return {"project": {"issues": {"nodes": [
-            {"id": "b1", "identifier": "B-1", "title": "B one", "priority": 2},
+            _ready_issue(id="b1", identifier="B-1", title="B one", priority=2),
         ]}}}
 
     with patch.object(autonomy, "_PROJECTS_JSON", registry), \
@@ -153,7 +167,7 @@ def test_fetch_todo_issues_dedupes_cross_project(tmp_path):
         {"id": "beta", "repo": "acme/beta",
          "linear_project_id": "proj-beta", "linear_team_id": "team-beta"},
     ])
-    shared = {"id": "shared-1", "identifier": "X-1", "title": "Shared", "priority": 2}
+    shared = _ready_issue(id="shared-1", identifier="X-1", title="Shared", priority=2)
 
     def fake_gql(api_key, query, variables):
         return {"project": {"issues": {"nodes": [shared]}}}

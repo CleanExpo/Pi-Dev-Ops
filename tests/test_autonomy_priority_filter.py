@@ -16,6 +16,37 @@ from unittest.mock import patch
 
 import app.server.autonomy as autonomy
 
+_ONE_PROJECT = [{
+    "project_id": "p1",
+    "team_id": "t1",
+    "repo_url": "https://github.com/x/y",
+    "name": "Test",
+}]
+
+
+def _ready(identifier: str, extra_labels: list[str], priority: int, issue_id: str) -> dict:
+    labels = [{"name": name} for name in ["pi-dev:autonomous", *extra_labels]]
+    return {
+        "id": issue_id,
+        "identifier": identifier,
+        "state": {"name": "Ready for Pi-Dev"},
+        "labels": {"nodes": labels},
+        "priority": priority,
+    }
+
+
+def _gql_nodes(nodes: list[dict]):
+    def _fake_gql(_key, _query, _vars):
+        return {"project": {"issues": {"nodes": nodes}}}
+    return _fake_gql
+
+
+def _fetch(monkeypatch, nodes: list[dict], priority_filter: set[str]) -> list[dict]:
+    monkeypatch.setattr(autonomy, "_PRIORITY_FILTER", priority_filter)
+    with patch.object(autonomy, "_gql", side_effect=_gql_nodes(nodes)), \
+         patch.object(autonomy, "_load_portfolio_projects", return_value=_ONE_PROJECT):
+        return autonomy.fetch_todo_issues("fake-key")
+
 
 def test_priority_filter_default_disabled():
     """Default (env unset) keeps _PRIORITY_FILTER empty — opt-in only.
@@ -39,141 +70,25 @@ def test_priority_filter_parses_csv_correctly(monkeypatch):
 
 def test_fetch_filters_unlabelled_issues(monkeypatch):
     """Issue with autonomy label but no q2-priority label is filtered out."""
-    monkeypatch.setattr(
-        autonomy, "_PRIORITY_FILTER", {"q2-priority-1", "q2-priority-2"}
-    )
-
-    def _fake_gql(_key, _query, _vars):
-        return {
-            "project": {
-                "issues": {
-                    "nodes": [
-                        {
-                            "id": "issue-1",
-                            "identifier": "SYN-957",
-                            "labels": {
-                                "nodes": [
-                                    {"name": "q2-priority-1"},
-                                    {"name": "pi-dev:autonomous"},
-                                ]
-                            },
-                            "priority": 1,
-                        },
-                        {
-                            "id": "issue-2",
-                            "identifier": "SYN-914",
-                            "labels": {
-                                "nodes": [{"name": "pi-dev:autonomous"}]
-                            },
-                            "priority": 2,
-                        },
-                    ]
-                }
-            }
-        }
-
-    fake_project = [{
-        "project_id": "p1",
-        "team_id": "t1",
-        "repo_url": "https://github.com/x/y",
-        "name": "Test",
-    }]
-
-    with patch.object(autonomy, "_gql", side_effect=_fake_gql):
-        with patch.object(
-            autonomy, "_load_portfolio_projects", return_value=fake_project
-        ):
-            result = autonomy.fetch_todo_issues("fake-key")
-
-    # Only SYN-957 (q2-priority-1) survives;
-    # SYN-914 (no priority label) filtered out
-    assert len(result) == 1
-    assert result[0]["identifier"] == "SYN-957"
+    result = _fetch(monkeypatch, [
+        _ready("SYN-957", ["q2-priority-1"], 1, "issue-1"),
+        _ready("SYN-914", [], 2, "issue-2"),
+    ], {"q2-priority-1", "q2-priority-2"})
+    assert [i["identifier"] for i in result] == ["SYN-957"]
 
 
 def test_fetch_no_filter_when_disabled(monkeypatch):
     """Empty filter set passes both labelled + unlabelled issues through."""
-    monkeypatch.setattr(autonomy, "_PRIORITY_FILTER", set())
-
-    def _fake_gql(_key, _query, _vars):
-        return {
-            "project": {
-                "issues": {
-                    "nodes": [
-                        {
-                            "id": "issue-1",
-                            "identifier": "SYN-957",
-                            "labels": {"nodes": [{"name": "q2-priority-1"}]},
-                            "priority": 1,
-                        },
-                        {
-                            "id": "issue-2",
-                            "identifier": "SYN-914",
-                            "labels": {"nodes": []},
-                            "priority": 2,
-                        },
-                    ]
-                }
-            }
-        }
-
-    fake_project = [{
-        "project_id": "p1",
-        "team_id": "t1",
-        "repo_url": "https://github.com/x/y",
-        "name": "Test",
-    }]
-
-    with patch.object(autonomy, "_gql", side_effect=_fake_gql):
-        with patch.object(
-            autonomy, "_load_portfolio_projects", return_value=fake_project
-        ):
-            result = autonomy.fetch_todo_issues("fake-key")
-
-    # Both issues passed through — filter is empty, no post-filtering applied
+    result = _fetch(monkeypatch, [
+        _ready("SYN-957", ["q2-priority-1"], 1, "issue-1"),
+        _ready("SYN-914", [], 2, "issue-2"),
+    ], set())
     assert len(result) == 2
 
 
 def test_fetch_filter_partial_match(monkeypatch):
     """Issue with q2-priority-3 label passes if q2-priority-3 is in the filter."""
-    monkeypatch.setattr(
-        autonomy, "_PRIORITY_FILTER", {"q2-priority-1", "q2-priority-3"}
-    )
-
-    def _fake_gql(_key, _query, _vars):
-        return {
-            "project": {
-                "issues": {
-                    "nodes": [
-                        {
-                            "id": "issue-aeo",
-                            "identifier": "SYN-822",
-                            "labels": {
-                                "nodes": [
-                                    {"name": "q2-priority-3"},
-                                    {"name": "pi-dev:autonomous"},
-                                ]
-                            },
-                            "priority": 2,
-                        },
-                    ]
-                }
-            }
-        }
-
-    fake_project = [{
-        "project_id": "p1",
-        "team_id": "t1",
-        "repo_url": "https://github.com/x/y",
-        "name": "Test",
-    }]
-
-    with patch.object(autonomy, "_gql", side_effect=_fake_gql):
-        with patch.object(
-            autonomy, "_load_portfolio_projects", return_value=fake_project
-        ):
-            result = autonomy.fetch_todo_issues("fake-key")
-
-    # SYN-822 (q2-priority-3) passes since q2-priority-3 is in filter set
-    assert len(result) == 1
-    assert result[0]["identifier"] == "SYN-822"
+    result = _fetch(monkeypatch, [
+        _ready("SYN-822", ["q2-priority-3"], 2, "issue-aeo"),
+    ], {"q2-priority-1", "q2-priority-3"})
+    assert [i["identifier"] for i in result] == ["SYN-822"]

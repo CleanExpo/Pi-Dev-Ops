@@ -19,7 +19,9 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends
 
+from .. import autonomy
 from ..auth import require_auth
+from ..autonomy_eligibility import filter_claimable_issues, queue_snapshot_from_issues
 from ..claude_session_hud import claude_session_hud as _claude_session_hud
 from .health_aggregate import _is_observed, classify
 from .health_full import gather_components
@@ -55,21 +57,21 @@ def _linear_graphql(query: str, variables: dict | None = None) -> dict:
 
 
 def _queue_snapshot() -> dict:
-    q = """
-    {
-      urgent: issues(filter: {state: {type: {eq: "unstarted"}}, priority: {eq: 1}}, first: 20, orderBy: updatedAt) {
-        nodes { identifier title }
-      }
-      high: issues(filter: {state: {type: {eq: "unstarted"}}, priority: {eq: 2}}, first: 20, orderBy: updatedAt) {
-        nodes { identifier title }
-      }
-    }
-    """
-    data = _linear_graphql(q)
-    urgent = (data.get("urgent") or {}).get("nodes") or []
-    high = (data.get("high") or {}).get("nodes") or []
-    next_issue = (urgent or high or [{}])[0]
-    return {"urgent": len(urgent), "high": len(high), "next_issue_id": next_issue.get("identifier"), "next_issue_title": (next_issue.get("title") or "")[:80]}
+    """Displayed queue is the claimable autonomy queue (UNI-2648)."""
+    key = os.environ.get("LINEAR_API_KEY", "").strip()
+    if not key:
+        return queue_snapshot_from_issues([])
+    try:
+        registry = {p["project_id"] for p in autonomy._load_portfolio_projects()}
+        issues = filter_claimable_issues(
+            autonomy.fetch_todo_issues(key),
+            registered_project_ids=registry,
+            priority_labels=autonomy._PRIORITY_FILTER,
+        )
+        return queue_snapshot_from_issues(issues)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("mission_control queue snapshot failed: %s", exc)
+        return queue_snapshot_from_issues([])
 
 
 def _pulse_status() -> dict:
