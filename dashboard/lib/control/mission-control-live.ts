@@ -63,6 +63,18 @@ export interface MCObservability {
   actions?: MCAction[];
 }
 
+/** RA-7539 — fail-closed synthetic status. Unregistered must never look ready. */
+export interface MCNexusOne {
+  lineage: "SYNTHETIC";
+  excluded_from_real_acceptance: true;
+  registered: boolean;
+  ready: false;
+  shipped: false;
+  worker_enrolled?: boolean;
+  max_subscription_only?: boolean;
+  windows_policy?: string;
+}
+
 export interface MissionControlLive {
   ts?: string;
   error?: string;
@@ -72,6 +84,7 @@ export interface MissionControlLive {
   queue?: MCQueue;
   pulse?: MCPulse;
   observability?: MCObservability;
+  nexus_one?: MCNexusOne;
 }
 
 /** Sum of the 24 hourly buckets the backend sends as `throughput.hourly`. */

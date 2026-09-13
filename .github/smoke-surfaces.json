@@ -247,9 +247,10 @@
         "queue",
         "pulse",
         "observability",
-        "claude_hud"
+        "claude_hud",
+        "nexus_one"
       ],
-      "_comment": "RA-1440 Mission Control live feed — backs LiveActivityFeed's 5s poll on /control. PR #344 adds observability action-ledger payload so degraded health signals become owner/action/evidence work instead of passive status. RA-6888: LiveActivityFeed contrast tokens only (text-text-muted, --on-accent) — no new routes or behaviours; surface assertions unchanged. 2026-09-10: this asserted the four TOP-LEVEL key names only, and four panels shipped reading fields no code ever wrote while it stayed green. Added 'hourly' — the nested throughput key whose rename to hourly_24h is exactly what broke the sparkline — so that contract drift now fails the gate. The per-panel fields (elapsed_s, last_log_tail, completed_at, next_action, owner) are deliberately NOT asserted here: they only appear when a session is running or a component is degraded, so on an idle system they would fire with nothing wrong. HONEST LIMIT: body_contains is a substring check. It proves a key is present, never that a value is live. Asserting liveness needs a matcher in the runner; that is tracked separately and is not claimed by this entry. 2026-09-11: added 'claude_hud' — the new Claude Code sessions HUD panel (ClaudeSessionsHUD.tsx) reads this same endpoint for token/context data; asserting the key here is exactly the fix the 2026-09-10 note above describes, applied before the drift, not after it."
+      "_comment": "RA-1440 Mission Control live feed — backs LiveActivityFeed's 5s poll on /control. PR #344 adds observability action-ledger payload so degraded health signals become owner/action/evidence work instead of passive status. RA-6888: LiveActivityFeed contrast tokens only (text-text-muted, --on-accent) — no new routes or behaviours; surface assertions unchanged. 2026-09-10: this asserted the four TOP-LEVEL key names only, and four panels shipped reading fields no code ever wrote while it stayed green. Added 'hourly' — the nested throughput key whose rename to hourly_24h is exactly what broke the sparkline — so that contract drift now fails the gate. The per-panel fields (elapsed_s, last_log_tail, completed_at, next_action, owner) are deliberately NOT asserted here: they only appear when a session is running or a component is degraded, so on an idle system they would fire with nothing wrong. HONEST LIMIT: body_contains is a substring check. It proves a key is present, never that a value is live. Asserting liveness needs a matcher in the runner; that is tracked separately and is not claimed by this entry. 2026-09-11: added 'claude_hud' — the new Claude Code sessions HUD panel (ClaudeSessionsHUD.tsx) reads this same endpoint for token/context data; asserting the key here is exactly the fix the 2026-09-10 note above describes, applied before the drift, not after it. RA-7539: added 'nexus_one' so the live payload must carry the fail-closed synthetic status object."
     },
     {
       "name": "telegram-intake-status",
@@ -978,6 +979,28 @@
         "ollama_configured"
       ],
       "_comment": "RA-7434: read-only role -> provider -> model -> source -> cost-today view for Mission Control, so the founder can read which model answers each role without opening code. cost_source and cost_reason are asserted because the Supabase llm_costs read is allowed to fail: when it does, cost_today_usd is null with a stated reason and must never render as a fake 0. margot_casual carries the fixed free ladder this ruling pins, so a paid model reappearing in that role is visible on the surface rather than only in the bill."
+    },
+    {
+      "name": "api-nexus-one-status-unauth",
+      "path": "/api/pi-ceo/api/nexus-one/status",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "RA-7539: /api/pi-ceo is in PROTECTED_API_PREFIXES, so this proves the dashboard session gate refuses anonymous reads. It does not prove the FastAPI route exists — the auth:true sibling below does that."
+    },
+    {
+      "name": "api-nexus-one-status",
+      "path": "/api/pi-ceo/api/nexus-one/status",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "SYNTHETIC",
+        "excluded_from_real_acceptance",
+        "\"registered\": false",
+        "review_only"
+      ],
+      "_comment": "RA-7539: read-only Nexus One synthetic status. The package is on main; a live worker router is not registered. Payload must show lineage SYNTHETIC, excluded_from_real_acceptance, and registered=false. Unregistered must never look healthy. Max-subscription / Windows review-only only — no live worker, no SHIPPED claim."
     }
   ],
   "vertical": {

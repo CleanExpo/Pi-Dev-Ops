@@ -86,6 +86,7 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
       "/api/goal-projects/archive",
       "/api/routing",
       "/api/swarm/status",
+      "/api/nexus-one/status",
     ];
     for (const path of legitimate) {
       expect(allowed(path), `expected ${path} to be allowed`).toBe(true);
