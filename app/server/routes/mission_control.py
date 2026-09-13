@@ -57,7 +57,11 @@ def _linear_graphql(query: str, variables: dict | None = None) -> dict:
 
 
 def _queue_snapshot() -> dict:
-    """Displayed queue is the claimable autonomy queue (UNI-2648)."""
+    """Displayed queue is the claimable autonomy queue (UNI-2648).
+
+    Shape lives in queue_snapshot_from_issues — urgent/high/next_issue_*.
+    The UNI-2647 contract walker follows this return; do not flatten it.
+    """
     key = os.environ.get("LINEAR_API_KEY", "").strip()
     if not key:
         return queue_snapshot_from_issues([])

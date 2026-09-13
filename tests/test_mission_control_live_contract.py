@@ -18,6 +18,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 BACKEND = REPO / "app" / "server" / "routes" / "mission_control.py"
 SESSIONS = REPO / "app" / "server" / "routes" / "mission_control_sessions.py"
+ELIGIBILITY = REPO / "app" / "server" / "autonomy_eligibility.py"
 TYPES = REPO / "dashboard" / "lib" / "control" / "mission-control-live.ts"
 READERS = (
     REPO / "dashboard" / "components" / "control" / "LiveActivityFeed.tsx",
@@ -59,6 +60,37 @@ def _return_keys(path: Path, name: str) -> set[str]:
     keys: set[str] = set()
     for node in _return_dicts(path, name):
         keys |= _const_keys(node)
+    return keys
+
+
+def _return_call_names(path: Path, name: str) -> list[str]:
+    """Names of functions a `return foo(...)` site calls — not literal dicts."""
+    names: list[str] = []
+    for node in ast.walk(_fn_node(path, name)):
+        if not isinstance(node, ast.Return) or not isinstance(node.value, ast.Call):
+            continue
+        func = node.value.func
+        if isinstance(func, ast.Name):
+            names.append(func.id)
+    return names
+
+
+def _return_keys_following(path: Path, name: str, extra: tuple[Path, ...] = ()) -> set[str]:
+    """Literal return keys, or the keys of a helper the function returns.
+
+    UNI-2648 moved the queue dict into queue_snapshot_from_issues so the
+    dashboard and the poller share one shape. `_queue_snapshot` now only
+    returns that helper; a walker that stops at the wrapper sees nothing.
+    """
+    keys = _return_keys(path, name)
+    if keys:
+        return keys
+    for callee in _return_call_names(path, name):
+        for candidate in (path, *extra):
+            try:
+                keys |= _return_keys(candidate, callee)
+            except AssertionError:
+                continue
     return keys
 
 
@@ -120,7 +152,9 @@ def _backend_keys() -> dict[str, set[str]]:
         "action": _return_keys(BACKEND, "_observability_action"),
         "session": _appended_dict_keys(SESSIONS, "active_sessions"),
         "completion": _appended_dict_keys(SESSIONS, "recent_completions"),
-        "queue": _return_keys(BACKEND, "_queue_snapshot"),
+        "queue": _return_keys_following(
+            BACKEND, "_queue_snapshot", (ELIGIBILITY,)
+        ),
         "pulse": _return_keys(BACKEND, "_pulse_status"),
         "observability": _return_keys(BACKEND, "_observability_snapshot"),
     }
@@ -199,3 +233,17 @@ def test_interface_parser_reads_the_real_types_file():
     """Null-result guard: a broken parser would report empty==empty as a match."""
     props = _interface_props(TYPES.read_text(encoding="utf-8"), "MCThroughput")
     assert props == {"hourly": "number[]"}
+
+
+def test_queue_walker_follows_the_claimable_snapshot_helper():
+    """Positive control: empty keys from a wrapper-only walk is a miss, not a match."""
+    expected = {"urgent", "high", "next_issue_id", "next_issue_title"}
+    helper = _return_keys(ELIGIBILITY, "queue_snapshot_from_issues")
+    followed = _return_keys_following(BACKEND, "_queue_snapshot", (ELIGIBILITY,))
+    assert helper == expected
+    assert followed == expected
+    assert _backend_keys()["queue"] == expected
+    # A walker that cannot see through `return queue_snapshot_from_issues(...)`
+    # would report [] and then fail the live contract. Keep that miss visible.
+    wrapper_only = _return_keys(BACKEND, "_queue_snapshot")
+    assert wrapper_only in (set(), expected)
