@@ -26,6 +26,7 @@ from scripts.smoke_pipeline_resilience import (
     parse_uptime,
     row_entered_generate,
     should_respawn,
+    terminal_fail_message,
     wait_until_settled,
     wall_clock_s,
 )
@@ -199,11 +200,10 @@ def poll_terminal(s: Session, sid: str, pa: PipelineAssertions, start: float) ->
 
 
 def _observe_row(pa: PipelineAssertions, me: dict, now: float) -> None:
-    """Recover A2 after a stream drop from the authoritative session list."""
+    """Log every poll tick; recover A2 from last_phase if the stream dropped."""
     snap = note_session_row(me)
-    if not pa.diagnostics or pa.diagnostics[-1] != snap:
-        pa.diagnostics.append(snap)
-        print(f"  [t+{now:.0f}s] {snap}")
+    pa.diagnostics.append(snap)
+    print(f"  [poll t+{now:.0f}s] {snap}")
     if pa.entered_generate or not row_entered_generate(me):
         return
     pa.entered_generate = True
@@ -218,7 +218,7 @@ def _apply_terminal(pa: PipelineAssertions, me: dict) -> None:
         pa.reached_complete = True
         print(f"[A4 PASS] session reached 'complete' with files_modified={pa.files_modified}")
     elif pa.last_status in _TERMINAL:
-        pa.fail(f"session terminal={pa.last_status} (not complete)")
+        pa.fail(terminal_fail_message(me))
 
 
 def run_attempts(s: Session) -> tuple[PipelineAssertions, str | None]:

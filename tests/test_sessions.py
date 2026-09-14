@@ -285,7 +285,7 @@ async def test_kill_session_returns_false_for_unknown_sid():
 
 
 async def test_kill_session_returns_false_when_no_process():
-    """kill_session returns False when the session has no running process (None)."""
+    """kill_session marks killed even when the session has no OS process."""
     from app.server.session_model import BuildSession, _sessions as store
     from app.server.sessions import kill_session
 
@@ -296,7 +296,7 @@ async def test_kill_session_returns_false_when_no_process():
     store["no-proc-id"] = s
     try:
         result = await kill_session("no-proc-id")
-        assert result is False
+        assert result is True and s.status == "killed"
     finally:
         store.pop("no-proc-id", None)
         store.update(saved)

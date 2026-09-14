@@ -32,7 +32,6 @@ from . import claude_workspace_trust
 from . import config
 from . import model_registry
 from . import tool_gate
-from .sdk_call_options import sdk_query_kwargs, usage_output_tokens
 
 _log = logging.getLogger("pi-ceo.session_sdk")
 
@@ -170,6 +169,23 @@ def _emit_sdk_canary_metric(session_id: str, success: bool) -> None:
 
 # ── Core SDK runner ────────────────────────────────────────────────────────────
 
+def _usage_output_tokens(usage) -> Optional[int]:  # noqa: ANN001
+    """Best-effort extract billed output_tokens from an SDK usage payload.
+
+    The agent SDK usage may be a dict (`{"output_tokens": N}`) or an object with
+    an `.output_tokens` attribute. Returns None when unavailable — amplification
+    logging is best-effort and must never raise.
+    """
+    if usage is None:
+        return None
+    try:
+        if isinstance(usage, dict):
+            return usage.get("output_tokens")
+        return getattr(usage, "output_tokens", None)
+    except Exception:
+        return None
+
+
 async def _run_claude_via_sdk(
     prompt: str,
     model: str,
@@ -182,8 +198,8 @@ async def _run_claude_via_sdk(
     """Run Claude via agent SDK. Returns (returncode, output_text, cost_usd).
 
     Uses the same API pattern as board_meeting._run_prompt_via_sdk() (the verified Phase 1
-    reference implementation). Generator keeps every Claude Code tool. Planner
-    (phase="planner") is text-only — no tools, one turn (RA-7546).
+    reference implementation). All standard Claude Code tools (Bash, Edit, Write, etc.) are
+    available by default — no allowed_tools restriction so the generator can write files.
 
     thinking: "adaptive" (default — let Claude decide when to think deeply),
               "enabled" (always think, 8k token budget),
@@ -276,19 +292,61 @@ async def _run_claude_via_sdk(
         output_text = ""
         captured = {"stop_reason": None, "output_tokens": None}
         try:
-            # query() not ClaudeSDKClient — SDK #576 hangs across FastAPI tasks.
+            # cwd=workspace so Claude edits files in the right directory.
+            # No allowed_tools restriction — generator needs Bash + Edit + Write.
+            # RA-1009 — prompt caching: pass beta flag when ENABLE_PROMPT_CACHING_1H=1.
+            # The claude CLI forwards this beta to the Anthropic API, enabling server-side
+            # cache reads on repeated sessions with the same static prompt prefix.
+            _sdk_betas: list[str] = (
+                ["prompt-caching-2024-07-31"]  # type: ignore[list-item]
+                if config.ENABLE_PROMPT_CACHING_1H
+                else []
+            )
+            # RA-1171 — Switch from ClaudeSDKClient to top-level query() per
+            # Anthropic SDK issue #576 (https://github.com/anthropics/claude-agent-sdk-python/issues/576):
+            # ClaudeSDKClient silently hangs when reused across FastAPI/ASGI
+            # request tasks because the subprocess is spawned in task A's anyio
+            # scope but subsequent receive_messages() calls run in task B whose
+            # queue is owned by a dead task. We saw this as 8+ min of silence
+            # in Phase 4 generator, zero AssistantMessage events, no error.
+            #
+            # Top-level query() is stateless — each call spawns a fresh
+            # subprocess in the CURRENT task's scope and returns an async
+            # iterator that terminates on ResultMessage. It's the documented
+            # pattern for one-shot generation inside a request handler.
+            #
             await asyncio.to_thread(claude_workspace_trust.prepare_sdk_environment, workspace)
+
+            # RA-1172 — permission_mode='bypassPermissions' is MANDATORY for
+            # autonomous sessions. Without it Claude hits tool-permission
+            # prompts and emits text like "Let me know once permission is
+            # granted and I'll handle the rest." — which looks to the evaluator
+            # like an empty diff, causing Phase 5 to score 1/10 and retry
+            # forever. CLAUDE.md documents this as the 3rd of 3 required
+            # layers (settings.json + ClaudeAgentOptions + CLI flag).
+            # RA — SDK-layer tool gate (TAO_TOOL_GATE). Default OFF keeps the proven
+            # bypassPermissions path. When ON, route every tool call through
+            # can_use_tool (requires streaming prompt + a non-bypass mode) so
+            # recognised irreversible commands are denied inside the turn. The
+            # callback decides autonomously — no human prompt — so RA-1172's
+            # "waiting for permission" failure mode does not return.
             _gate_on = config.TAO_TOOL_GATE
-            options = ClaudeAgentOptions(**sdk_query_kwargs(
-                workspace=workspace,
+            _opts: dict = dict(
+                cwd=workspace,
                 model=attempt_model,
-                thinking_cfg=_thinking_cfg,
+                thinking=_thinking_cfg,
                 effort=_effort,
-                prompt_cache=config.ENABLE_PROMPT_CACHING_1H,
-                tool_gate_on=_gate_on,
+                betas=_sdk_betas,  # type: ignore[arg-type]
+                permission_mode="default" if _gate_on else "bypassPermissions",
                 can_use_tool=_make_can_use_tool() if _gate_on else None,
-                phase=phase,
-            ))
+            )
+            if _gate_on:
+                # Pin setting_sources to [] so no filesystem allow-rule (e.g. a
+                # `Bash(*)` entry in ~/.claude/settings.json) can be consulted
+                # before can_use_tool and silently turn the gate into a no-op for
+                # exactly the commands it guards.
+                _opts["setting_sources"] = []
+            options = ClaudeAgentOptions(**_opts)
             _prompt_arg = _tool_gate_stream(prompt, session_id) if _gate_on else prompt
             text_parts: list[str] = []
 
@@ -307,14 +365,14 @@ async def _run_claude_via_sdk(
                         _sr = getattr(msg, "stop_reason", None)
                         if _sr is not None:
                             captured["stop_reason"] = _sr
-                        _ot = usage_output_tokens(getattr(msg, "usage", None))
+                        _ot = _usage_output_tokens(getattr(msg, "usage", None))
                         if _ot is not None:
                             captured["output_tokens"] = _ot
                     elif isinstance(msg, ResultMessage):
                         _sr = getattr(msg, "stop_reason", None)
                         if _sr is not None:
                             captured["stop_reason"] = _sr
-                        _ot = usage_output_tokens(getattr(msg, "usage", None))
+                        _ot = _usage_output_tokens(getattr(msg, "usage", None))
                         if _ot is not None:
                             captured["output_tokens"] = _ot
                         break
@@ -350,10 +408,10 @@ async def _run_claude_via_sdk(
 
         except asyncio.TimeoutError:
             error_msg = f"timeout after {timeout}s"
-            _log.warning("SDK %s timed out after %ds", phase or "generator", timeout)
+            _log.warning("SDK generator timed out after %ds", timeout)
         except Exception as exc:
             error_msg = f"{type(exc).__name__}: {exc}"
-            _log.warning("SDK %s failed: %s (%s)", phase or "generator", exc, type(exc).__name__)
+            _log.warning("SDK generator failed: %s (%s)", exc, type(exc).__name__)
 
         _write_sdk_metric(
             session_id=session_id, phase=phase, model=attempt_model,

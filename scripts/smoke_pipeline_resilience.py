@@ -53,10 +53,25 @@ def row_entered_generate(row: dict[str, Any]) -> bool:
 
 def note_session_row(row: dict[str, Any]) -> str:
     """One-line poll snapshot so a stream drop is still diagnosable."""
-    return (
-        f"status={row.get('status')} last_phase={row.get('last_phase') or '-'} "
-        f"lines={row.get('lines')}"
-    )
+    parts = [
+        f"status={row.get('status')}",
+        f"last_phase={row.get('last_phase') or '-'}",
+        f"lines={row.get('lines')}",
+    ]
+    err = str(row.get("error") or "").strip()
+    if err:
+        parts.append(f"error={err}")
+    return " ".join(parts)
+
+
+def terminal_fail_message(row: dict[str, Any]) -> str:
+    """Fail text for a non-complete terminal row (blocked/failed/...)."""
+    status = row.get("status") or "unknown"
+    msg = f"session terminal={status} last_phase={row.get('last_phase') or '-'}"
+    err = str(row.get("error") or "").strip()
+    if err:
+        msg += f" error={err}"
+    return msg
 
 
 def settle_uptime_s() -> int:

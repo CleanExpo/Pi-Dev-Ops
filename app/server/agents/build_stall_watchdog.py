@@ -45,9 +45,7 @@ WATCHDOG_STARTUP_DELAY = 30   # don't fire on first boot — let initial session
 WATCHDOG_ENABLED       = os.environ.get("TAO_STALL_WATCHDOG_ENABLED", "1") == "1"
 
 # Anything not in this set is considered "in flight" and watchdog-eligible
-TERMINAL_STATUSES = {
-    "complete", "failed", "killed", "interrupted", "stalled", "error", "blocked",
-}
+TERMINAL_STATUSES = {"complete", "failed", "killed", "interrupted", "stalled", "error"}
 
 
 def _last_progress_ts(session: BuildSession) -> float:

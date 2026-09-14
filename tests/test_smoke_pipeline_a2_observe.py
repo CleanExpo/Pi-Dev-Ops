@@ -9,6 +9,7 @@ from scripts.smoke_pipeline_resilience import (
     SESSION_TERMINAL,
     logs_stream_path,
     row_entered_generate,
+    terminal_fail_message,
 )
 from scripts.smoke_test_pipeline import PipelineAssertions, _observe_row, poll_terminal
 
@@ -17,13 +18,18 @@ def test_logs_stream_path_uses_heartbeat_route():
     assert logs_stream_path("b72988e2f8f4") == "/api/sessions/b72988e2f8f4/logs/stream"
 
 
-def test_blocked_and_stalled_are_terminal():
+def test_list_sessions_exposes_error_for_blocked_fail_text():
     from pathlib import Path
 
-    watchdog = Path("app/server/agents/build_stall_watchdog.py").read_text(encoding="utf-8")
+    text = Path("app/server/session_model.py").read_text(encoding="utf-8")
+    assert '"error": s.error' in text
+    kill = Path("app/server/sessions.py").read_text(encoding="utf-8")
+    assert "if not s or not s.process:" not in kill
+
+
+def test_blocked_and_stalled_are_terminal():
     assert "blocked" in SESSION_TERMINAL
     assert "stalled" in SESSION_TERMINAL
-    assert '"blocked"' in watchdog
 
 
 def test_row_entered_generate_from_last_phase_plan():
@@ -69,13 +75,35 @@ def _health(uptime: int = 200) -> tuple[int, str]:
 
 
 def test_poll_blocked_is_terminal_not_still_running():
-    row = {"id": "b72988e2f8f4", "status": "blocked", "last_phase": "sandbox", "lines": 18}
+    row = {
+        "id": "b72988e2f8f4",
+        "status": "blocked",
+        "last_phase": "sandbox",
+        "lines": 18,
+        "error": "Plan blocked: planner returned exit status 1",
+    }
     session = _PollSession(gets=[_health(), (200, json.dumps([row]))])
     pa = PipelineAssertions()
     assert poll_terminal(session, "b72988e2f8f4", pa, start=10**12) == "terminal"
     assert pa.last_status == "blocked"
     assert pa.entered_generate is False
-    assert any("terminal=blocked" in err for err in pa.errors)
+    assert any("terminal=blocked last_phase=sandbox" in err for err in pa.errors)
+    assert any("planner returned exit status 1" in err for err in pa.errors)
+
+
+def test_terminal_fail_message_includes_phase_and_error():
+    msg = terminal_fail_message({
+        "status": "blocked",
+        "last_phase": "sandbox",
+        "error": "Plan blocked: planner returned exit status 1",
+    })
+    assert msg == (
+        "session terminal=blocked last_phase=sandbox "
+        "error=Plan blocked: planner returned exit status 1"
+    )
+    assert terminal_fail_message({"status": "failed", "last_phase": "clone"}) == (
+        "session terminal=failed last_phase=clone"
+    )
 
 
 def test_poll_recovers_a2_from_last_phase_after_stream_drop():

@@ -205,19 +205,20 @@ async def create_session(
 
 async def kill_session(sid):
     s = _sessions.get(sid)
-    if not s or not s.process:
+    if not s:
         return False
-    try:
-        s.process.terminate()
-        await asyncio.sleep(2)
-        if s.process.returncode is None:
-            s.process.kill()
-        s.status = "killed"
-        persistence.save_session(s)
-        em(s, "error", "Killed by user")
-        return True
-    except Exception:
-        return False
+    if s.process:
+        try:
+            s.process.terminate()
+            await asyncio.sleep(2)
+            if s.process.returncode is None:
+                s.process.kill()
+        except Exception:
+            pass
+    s.status = "killed"
+    persistence.save_session(s)
+    em(s, "error", "Killed by user")
+    return True
 
 
 def cleanup_session(sid):
