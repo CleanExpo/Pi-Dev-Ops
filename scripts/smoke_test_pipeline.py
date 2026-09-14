@@ -16,9 +16,9 @@ if str(_ROOT) not in sys.path:
 from scripts.smoke_pipeline_client import Session
 from scripts.smoke_pipeline_resilience import (
     Probe,
-    SESSION_TERMINAL,
     classify_session_list,
     find_session,
+    is_terminal_status,
     logs_stream_path,
     max_respawns,
     note_session_row,
@@ -44,7 +44,6 @@ TEST_BRIEF     = os.environ.get(
 )
 MAX_WAIT_S     = int(os.environ.get("SMOKE_MAX_WAIT_S", "1200"))  # 20 min
 GEN_MIN_DURATION_S = 310  # RA-1294 signature: died at exactly 305 s
-_TERMINAL = SESSION_TERMINAL
 
 
 @dataclass
@@ -189,7 +188,7 @@ def poll_terminal(s: Session, sid: str, pa: PipelineAssertions, start: float) ->
         me = find_session(probe.sessions or [], sid)
         if me:
             _observe_row(pa, me, time.time() - start)
-            if me.get("status") in _TERMINAL:
+            if is_terminal_status(me.get("status")):
                 _apply_terminal(pa, me)
                 return "terminal"
         time.sleep(15)
@@ -217,7 +216,7 @@ def _apply_terminal(pa: PipelineAssertions, me: dict) -> None:
     if pa.last_status == "complete":
         pa.reached_complete = True
         print(f"[A4 PASS] session reached 'complete' with files_modified={pa.files_modified}")
-    elif pa.last_status in _TERMINAL:
+    elif is_terminal_status(pa.last_status):
         pa.fail(terminal_fail_message(me))
 
 

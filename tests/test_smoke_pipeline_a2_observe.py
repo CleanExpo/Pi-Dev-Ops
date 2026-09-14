@@ -1,17 +1,25 @@
-"""RA-7546 — A2 must survive a stream drop and treat blocked as terminal."""
+"""RA-7546 critic bar — blocked is terminal; IncompleteRead must not drop."""
 from __future__ import annotations
 
 import http.client
 import json
 
-from scripts.smoke_pipeline_client import drain_sse
+import pytest
+
+from scripts.smoke_pipeline_client import Session, drain_sse
 from scripts.smoke_pipeline_resilience import (
     SESSION_TERMINAL,
+    is_terminal_status,
     logs_stream_path,
     row_entered_generate,
     terminal_fail_message,
 )
-from scripts.smoke_test_pipeline import PipelineAssertions, _observe_row, poll_terminal
+from scripts.smoke_test_pipeline import (
+    PipelineAssertions,
+    _observe_row,
+    poll_terminal,
+    watch_stream,
+)
 
 
 def test_logs_stream_path_uses_heartbeat_route():
@@ -27,9 +35,13 @@ def test_list_sessions_exposes_error_for_blocked_fail_text():
     assert "if not s or not s.process:" not in kill
 
 
-def test_blocked_and_stalled_are_terminal():
+def test_blocked_is_terminal_for_smoke_classify():
+    """Critic bar 1: blocked must classify as terminal, not 'still running'."""
     assert "blocked" in SESSION_TERMINAL
-    assert "stalled" in SESSION_TERMINAL
+    assert is_terminal_status("blocked") is True
+    assert is_terminal_status("building") is False
+    assert is_terminal_status("cloning") is False
+    assert is_terminal_status("stalled") is True
 
 
 def test_row_entered_generate_from_last_phase_plan():
@@ -62,6 +74,46 @@ def test_incomplete_read_partial_is_not_discarded():
     assert rest == "trailing-incomplete"
 
 
+class _PartialBody:
+    """HTTP body that dies mid-SSE the way Railway dropped /logs."""
+
+    def read(self, _n: int) -> bytes:
+        raise http.client.IncompleteRead(
+            b'data: {"type":"error","text":"Plan blocked: planner returned exit status 1"}\n\n'
+        )
+
+    def __enter__(self) -> "_PartialBody":
+        return self
+
+    def __exit__(self, *_exc: object) -> bool:
+        return False
+
+
+def test_session_stream_drains_incomplete_read_partial():
+    """Critic bar 2: Session.stream yields exc.partial, then re-raises."""
+    session = Session("http://example.test")
+    session.opener = type("Opener", (), {"open": lambda *_a, **_k: _PartialBody()})()
+    events: list[dict] = []
+    with pytest.raises(http.client.IncompleteRead):
+        events.extend(session.stream("/api/sessions/b72988e2/logs/stream", timeout_s=5))
+    assert events[0]["type"] == "error"
+    assert "Plan blocked" in events[0]["text"]
+
+
+def test_watch_stream_keeps_partial_before_classify():
+    """watch_stream must observe drained events before falling back to poll."""
+    class _Drop:
+        def stream(self, path: str, timeout_s: int):
+            assert path.endswith("/logs/stream")
+            yield {"type": "error", "text": "Plan blocked: planner returned exit status 1"}
+            raise http.client.IncompleteRead(b"x")
+
+    pa = PipelineAssertions()
+    watch_stream(_Drop(), "b72988e2f8f4", pa, start=0.0)
+    assert any("Plan blocked" in line for line in pa.diagnostics)
+    assert pa.entered_generate is False
+
+
 class _PollSession:
     def __init__(self, gets: list[tuple[int, str]]):
         self._gets = list(gets)
@@ -74,7 +126,12 @@ def _health(uptime: int = 200) -> tuple[int, str]:
     return 200, json.dumps({"status": "ok", "uptime_s": uptime})
 
 
-def test_poll_blocked_is_terminal_not_still_running():
+def test_poll_blocked_is_terminal_not_still_running(monkeypatch):
+    """Critic bar 1: poll returns on blocked without sleeping the 770s budget."""
+    monkeypatch.setattr(
+        "scripts.smoke_test_pipeline.time.sleep",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("poll hung on blocked")),
+    )
     row = {
         "id": "b72988e2f8f4",
         "status": "blocked",

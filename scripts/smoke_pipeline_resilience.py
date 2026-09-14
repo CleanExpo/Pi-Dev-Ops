@@ -30,6 +30,11 @@ TRANSIENT_HTTP = frozenset({0, 502, 503, 504})
 SESSION_TERMINAL = frozenset({
     "complete", "failed", "killed", "interrupted", "blocked", "stalled",
 })
+
+
+def is_terminal_status(status: str | None) -> bool:
+    """True when smoke classify/poll must stop (not hang). ``blocked`` is in."""
+    return str(status or "") in SESSION_TERMINAL
 # last_completed_phase is set when a phase finishes. ``plan`` means generate
 # has been admitted; later names mean it already ran.
 GENERATE_ADMITTED = frozenset({
