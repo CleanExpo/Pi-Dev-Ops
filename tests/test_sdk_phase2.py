@@ -57,7 +57,8 @@ async def test_run_claude_via_sdk_exception():
     with patch("claude_agent_sdk.query", mock_query_raises):
         rc, text, cost = await _run_claude_via_sdk("test prompt", "sonnet", "/tmp/ws")
         assert rc == 1
-        assert text == ""
+        assert "RuntimeError" in text
+        assert "Query failed" in text
         assert cost == 0.0
 
 
@@ -89,7 +90,7 @@ async def test_run_claude_via_sdk_timeout():
     with patch("claude_agent_sdk.query", mock_query_hangs):
         rc, text, cost = await _run_claude_via_sdk("test", "sonnet", "/tmp", timeout=1)
         assert rc == 1
-        assert text == ""
+        assert "timeout after 1s" in text
         assert cost == 0.0
 
 
