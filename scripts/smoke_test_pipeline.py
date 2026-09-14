@@ -18,10 +18,15 @@ from scripts.smoke_pipeline_resilience import (
     Probe,
     classify_session_list,
     find_session,
+    is_terminal_status,
+    logs_stream_path,
     max_respawns,
+    note_session_row,
     parse_session_list,
     parse_uptime,
+    row_entered_generate,
     should_respawn,
+    terminal_fail_message,
     wait_until_settled,
     wall_clock_s,
 )
@@ -39,7 +44,6 @@ TEST_BRIEF     = os.environ.get(
 )
 MAX_WAIT_S     = int(os.environ.get("SMOKE_MAX_WAIT_S", "1200"))  # 20 min
 GEN_MIN_DURATION_S = 310  # RA-1294 signature: died at exactly 305 s
-_TERMINAL = frozenset({"complete", "failed", "killed", "interrupted"})
 
 
 @dataclass
@@ -133,7 +137,7 @@ def spawn_session(s: Session, pa: PipelineAssertions) -> tuple[str | None, str]:
 
 
 def watch_stream(s: Session, sid: str, pa: PipelineAssertions, start: float) -> None:
-    stream_path = f"/api/sessions/{sid}/logs"
+    stream_path = logs_stream_path(sid)
     print(f"[stream] {stream_path}")
     try:
         for event in s.stream(stream_path, timeout_s=MAX_WAIT_S):
@@ -182,14 +186,28 @@ def poll_terminal(s: Session, sid: str, pa: PipelineAssertions, start: float) ->
         if last != "found":
             return last
         me = find_session(probe.sessions or [], sid)
-        if me and me.get("status") in _TERMINAL:
-            _apply_terminal(pa, me)
-            return "terminal"
+        if me:
+            _observe_row(pa, me, time.time() - start)
+            if is_terminal_status(me.get("status")):
+                _apply_terminal(pa, me)
+                return "terminal"
         time.sleep(15)
     if last == "found":
         pa.fail(f"session still running after {budget}s — polling budget exhausted")
         return "timeout"
     return last
+
+
+def _observe_row(pa: PipelineAssertions, me: dict, now: float) -> None:
+    """Log every poll tick; recover A2 from last_phase if the stream dropped."""
+    snap = note_session_row(me)
+    pa.diagnostics.append(snap)
+    print(f"  [poll t+{now:.0f}s] {snap}")
+    if pa.entered_generate or not row_entered_generate(me):
+        return
+    pa.entered_generate = True
+    pa.entered_generate_at = now
+    print(f"  [t+{now:.0f}s] ENTERED generate (via /api/sessions last_phase)")
 
 
 def _apply_terminal(pa: PipelineAssertions, me: dict) -> None:
@@ -198,8 +216,8 @@ def _apply_terminal(pa: PipelineAssertions, me: dict) -> None:
     if pa.last_status == "complete":
         pa.reached_complete = True
         print(f"[A4 PASS] session reached 'complete' with files_modified={pa.files_modified}")
-    elif pa.last_status in _TERMINAL:
-        pa.fail(f"session terminal={pa.last_status} (not complete)")
+    elif is_terminal_status(pa.last_status):
+        pa.fail(terminal_fail_message(me))
 
 
 def run_attempts(s: Session) -> tuple[PipelineAssertions, str | None]:

@@ -1,6 +1,7 @@
 """Cookie-aware HTTP client used by Pipeline Smoke and the golden journey."""
 from __future__ import annotations
 
+import http.client
 import json
 import urllib.error
 import urllib.request
@@ -53,21 +54,38 @@ class Session:
             return 0, str(exc)
 
     def stream(self, path: str, timeout_s: int):
-        """Yield event dicts from an SSE stream."""
+        """Yield event dicts from an SSE stream.
+
+        urllib raises ``IncompleteRead`` when a proxy closes a chunked SSE
+        body. The already-received bytes live on ``exc.partial`` and are
+        otherwise discarded — that is how run 34790637141 lost the planner
+        block event (RA-7546). Drain the partial before re-raising.
+        """
         req = urllib.request.Request(f"{self.base}{path}")
-        with self.opener.open(req, timeout=timeout_s) as resp:
-            buf = ""
-            for chunk in iter(lambda: resp.read(4096), b""):
-                buf += chunk.decode("utf-8", errors="replace")
-                while "\n\n" in buf:
-                    event_raw, buf = buf.split("\n\n", 1)
-                    data_lines = [
-                        ln[6:] for ln in event_raw.splitlines() if ln.startswith("data: ")
-                    ]
-                    if not data_lines:
-                        continue
-                    raw = "\n".join(data_lines)
-                    try:
-                        yield json.loads(raw)
-                    except json.JSONDecodeError:
-                        continue
+        buf = ""
+        try:
+            with self.opener.open(req, timeout=timeout_s) as resp:
+                for chunk in iter(lambda: resp.read(4096), b""):
+                    buf += chunk.decode("utf-8", errors="replace")
+                    events, buf = drain_sse(buf)
+                    yield from events
+        except http.client.IncompleteRead as exc:
+            buf += (exc.partial or b"").decode("utf-8", errors="replace")
+            events, _rest = drain_sse(buf)
+            yield from events
+            raise
+
+
+def drain_sse(buf: str) -> tuple[list[dict], str]:
+    """Split complete SSE events out of ``buf``. Returns (events, remainder)."""
+    events: list[dict] = []
+    while "\n\n" in buf:
+        event_raw, buf = buf.split("\n\n", 1)
+        data_lines = [ln[6:] for ln in event_raw.splitlines() if ln.startswith("data: ")]
+        if not data_lines:
+            continue
+        try:
+            events.append(json.loads("\n".join(data_lines)))
+        except json.JSONDecodeError:
+            continue
+    return events, buf

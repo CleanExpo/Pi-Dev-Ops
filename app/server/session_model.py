@@ -122,6 +122,7 @@ def list_sessions() -> list[dict]:
             "lines": len(s.output_lines),
             "parent": s.parent_session_id,
             "last_phase": s.last_completed_phase,
+            "error": s.error,
             "evaluator_score": s.evaluator_score,
             "evaluator_confidence": s.evaluator_confidence,
             "evaluator_model": s.evaluator_model,

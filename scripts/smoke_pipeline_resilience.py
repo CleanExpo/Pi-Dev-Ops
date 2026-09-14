@@ -25,6 +25,58 @@ from typing import Any, Callable
 
 
 TRANSIENT_HTTP = frozenset({0, 502, 503, 504})
+# ``blocked`` is a planner/adversary terminal (RA-1026 / RA-7546). ``stalled``
+# is the RA-1104 watchdog. Smoke used to treat both as "still running".
+SESSION_TERMINAL = frozenset({
+    "complete", "failed", "killed", "interrupted", "blocked", "stalled",
+})
+
+
+def is_terminal_status(status: str | None) -> bool:
+    """True when smoke classify/poll must stop (not hang). ``blocked`` is in."""
+    return str(status or "") in SESSION_TERMINAL
+# last_completed_phase is set when a phase finishes. ``plan`` means generate
+# has been admitted; later names mean it already ran.
+GENERATE_ADMITTED = frozenset({
+    "plan", "generator", "evaluator", "adversary", "push", "push_failed",
+})
+
+
+def logs_stream_path(sid: str) -> str:
+    """Heartbeat SSE (RA-6504). The old ``/logs`` path has no keep-alive."""
+    return f"/api/sessions/{sid}/logs/stream"
+
+
+def row_entered_generate(row: dict[str, Any]) -> bool:
+    """True when /api/sessions proves generate was admitted or already ran."""
+    last = str(row.get("last_phase") or "")
+    if last in GENERATE_ADMITTED:
+        return True
+    metrics = row.get("phase_metrics")
+    return isinstance(metrics, dict) and "generate" in metrics
+
+
+def note_session_row(row: dict[str, Any]) -> str:
+    """One-line poll snapshot so a stream drop is still diagnosable."""
+    parts = [
+        f"status={row.get('status')}",
+        f"last_phase={row.get('last_phase') or '-'}",
+        f"lines={row.get('lines')}",
+    ]
+    err = str(row.get("error") or "").strip()
+    if err:
+        parts.append(f"error={err}")
+    return " ".join(parts)
+
+
+def terminal_fail_message(row: dict[str, Any]) -> str:
+    """Fail text for a non-complete terminal row (blocked/failed/...)."""
+    status = row.get("status") or "unknown"
+    msg = f"session terminal={status} last_phase={row.get('last_phase') or '-'}"
+    err = str(row.get("error") or "").strip()
+    if err:
+        msg += f" error={err}"
+    return msg
 
 
 def settle_uptime_s() -> int:
