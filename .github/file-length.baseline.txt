@@ -18,7 +18,7 @@
 # baselined files repeat lengths often enough that equal length would let an
 # unrelated new file inherit a deleted one's slot.
 2612	9f16a1752b55	app/server/agents/board_meeting.py
-1887	8dcb6869179b	app/server/session_phases.py
+1882	ebda1ba79d08	app/server/session_phases.py
 1751	407e1c536be3	swarm/margot_bot.py
 1264	3f5a5b679cbc	app/server/routes/webhooks.py
 1219	b420cc9c57d4	scripts/unite_group_health_check.py
@@ -94,15 +94,15 @@
 472	97801133f421	swarm/bots/builder.py
 465	aac2ece56e4b	app/server/model_fabric.py
 463	ab302c9ddba8	swarm/debate_runner.py
-462	bd10526921fd	app/server/session_sdk.py
 462	feb2e5383ebc	swarm/inbox/provisioner.py
 453	54c70936958c	swarm/cto.py
 453	bd0e969ed193	swarm/inbox/__tests__/test_intake_dispatch.py
 452	0203c1bb6857	swarm/tmux_validator.py
 449	898639bff71a	swarm/cfo.py
 441	99ffa5d79100	tests/swarm/nexus/test_channels.py
-438	e413e3f268cb	app/server/routes/mesh.py
+438	ae861561c0da	app/server/routes/mesh.py
 438	04af471f5300	fence/pretooluse_fence.py
+436	4a9d5f2c2a28	app/server/session_sdk.py
 436	f5133b32e431	tests/swarm/nexus/test_approvals.py
 435	52168138611d	app/server/pi_ceo_session_fts.py
 435	566e7b7e02a7	swarm/intake/handoff.py
@@ -111,7 +111,7 @@
 430	03018cff97f9	swarm/wiki_ingest.py
 429	8eaa1bfe3993	swarm/portfolio_pulse_github.py
 427	77e9b799794e	dashboard/components/command-centre/wiki-graph/WikiGraphCanvas.tsx
-425	d0c16d44af11	tests/test_sessions.py
+425	5b5d174ddea4	tests/test_sessions.py
 424	7f066bdac22e	tests/test_pipeline_routes.py
 422	45f37c58fcc1	app/server/cron_triggers.py
 419	ef51583a2154	swarm/inbox/intake_dispatch.py

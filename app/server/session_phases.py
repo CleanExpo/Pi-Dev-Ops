@@ -44,6 +44,7 @@ from .supabase_log import log_gate_check
 from .session_recorder import record_episode, retrieve_similar_episodes, format_episodes_as_context
 from .session_finish import finish_after_push
 from .session_model import em, mark_terminal
+from .planner_admission import plan_timeouts, sdk_failure_detail
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
 from .session_evaluator import (
     _parse_evaluator_dimensions,
@@ -863,12 +864,7 @@ async def _phase_plan(session, spec: str, resume_from: str) -> bool:
     _tier = (getattr(session, "complexity_tier", "") or "").lower()
     plan_model = getattr(config, "SONNET_MODEL", "sonnet")
     _model_label = "sonnet"
-    if _tier in ("detailed", "advanced"):
-        _plan_sdk_timeout = 120
-        _plan_wait_timeout = 130
-    else:
-        _plan_sdk_timeout = 60
-        _plan_wait_timeout = 70
+    _plan_sdk_timeout, _plan_wait_timeout = plan_timeouts(_tier)
     em(session, "phase", f"[3.7/5] Planning implementation ({_model_label})...")
     haiku_model = plan_model  # legacy variable name; kept for diff minimality
 
@@ -933,8 +929,7 @@ async def _phase_plan(session, spec: str, resume_from: str) -> bool:
         return _block_plan_phase(session, phase_start, f"planner error: {type(exc).__name__}: {exc}")
 
     if rc != 0 or not plan_text.strip():
-        detail = f"planner returned exit status {rc}" if rc != 0 else "planner returned empty output"
-        return _block_plan_phase(session, phase_start, detail)
+        return _block_plan_phase(session, phase_start, sdk_failure_detail(rc, plan_text))
 
     # Parse JSON — strip accidental markdown fences if the model added them
     plan_data: dict = {}

@@ -19,8 +19,8 @@
 # deleted one's slot.
 435	56451378a3f6	swarm/orchestrator.py::run
 311	a316e5b917f7	swarm/margot_bot.py::handle_turn
-274	f2cacf67f124	app/server/session_sdk.py::_run_claude_via_sdk
 250	426976381fbe	app/server/session_phases.py::_phase_evaluate
+247	b5d1cdd5540f	app/server/session_sdk.py::_run_claude_via_sdk
 244	0bb1af798a41	app/server/spec_pipeline/__init__.py::run_pipeline
 219	788a189b2818	app/server/agents/anthropic_intel_refresh.py::refresh_anthropic_intel
 211	9510e3358736	swarm/nexus/channels.py::request_provision
@@ -29,14 +29,13 @@
 186	e48e7f808ea6	app/server/routes/webhooks.py::webhook
 174	0da4a693444e	app/server/agents/board_meeting.py::run_gap_audit_phase
 171	73d78fb40997	app/server/cron_watchdogs.py::_watchdog_vercel_deploy_failures
-168	d948d49a5f23	app/server/session_phases.py::_phase_plan
 165	850eed045507	swarm/inbox/botfather_minter.py::mint_queue
 164	dd19d598c24c	scripts/weekly_enhancement_loop.py::enhance_repo
 164	c8f31284111c	swarm/margot_tools.py::propose_idea
+162	a8ceafe7f024	app/server/session_phases.py::_phase_plan
 162	c0b2c5c2b13e	swarm/debate_runner.py::run_debate
 160	003d27f0071a	fence/pretooluse_fence.py::main
 155	9c6009db6384	app/server/autonomy.py::_process_autonomy_issue
-155	24083f10623a	app/server/session_sdk.py::_run_claude_via_sdk._attempt
 154	c3cdf956734d	app/server/agents/board_meeting.py::_call_claude_for_discrepancies
 149	4f92904f269a	swarm/closed_loop.py::run_cycle
 148	52eb067f5812	app/server/cron_watchdogs.py::_watchdog_board_meeting_silence
@@ -53,6 +52,7 @@
 134	d42212f60209	swarm/bots/builder.py::run_cycle
 134	d3cf1923542d	swarm/tmux_validator.py::validate_command
 128	6065b38dbaad	app/server/session_phases.py::_phase_clone
+128	7d13cb805d1a	app/server/session_sdk.py::_run_claude_via_sdk._attempt
 126	5679bd08799f	scripts/unite_group_health_check.py::check_integration_sync
 125	4bab87250d13	app/server/agents/feedback_loop.py::run_feedback_cycle
 125	7ed50367bce2	swarm/inbox/intake_dispatch.py::dispatch_telegram_update
@@ -454,7 +454,7 @@
 47	4ed16ac33c22	app/server/grounding.py::reground
 47	6d269ccc73ce	app/server/lessons.py::search_lessons_keyword
 47	0c91cdc8b2cd	app/server/provider_nex_n2.py::research_pass
-47	49e4e99c1d28	app/server/routes/sessions.py::stream_session_logs
+47	60dc8259e75a	app/server/routes/sessions.py::stream_session_logs
 47	f56b819d69f8	scripts/sync_claude_sessions.py::main
 47	7fa3b694b270	scripts/unite_group_health_check.py::check_sandbox_drift
 47	cf443539dd62	swarm/aip_watcher.py::flush_queue
