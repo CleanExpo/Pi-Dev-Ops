@@ -26,6 +26,9 @@ name: Pipeline Smoke (E2E)
 #      or the Railway dashboard).
 #   2. Actions → "Pipeline Smoke (E2E)" → Run workflow.
 #   3. Paste the run URL on RA-7546.
+# Run 34790637141 (quiet tip, uptime=722): A2 miss was planner SDK timeout
+# at 120s mis-reported as exit 1, then /logs dropped and smoke treated
+# status=blocked as "still running". Not a wipe. Not planner CLEAR.
 
 on:
   schedule:

@@ -94,7 +94,6 @@
 472	97801133f421	swarm/bots/builder.py
 465	aac2ece56e4b	app/server/model_fabric.py
 463	ab302c9ddba8	swarm/debate_runner.py
-462	bd10526921fd	app/server/session_sdk.py
 462	feb2e5383ebc	swarm/inbox/provisioner.py
 453	54c70936958c	swarm/cto.py
 453	bd0e969ed193	swarm/inbox/__tests__/test_intake_dispatch.py
@@ -123,6 +122,7 @@
 411	80d53f890420	tests/test_lessons_seed.py
 407	5ef12f99be37	swarm/cs.py
 405	3ffa0c343140	swarm/intake/tests/test_handoff.py
+404	4e01b43a8172	app/server/session_sdk.py
 402	e43b78fe21e9	scripts/smoke_test_e2e.py
 397	9c6f9fe89c20	tests/test_provider_nex_n2.py
 392	bb57f41dc268	tests/test_ccw_supabase_provider.py

@@ -1,0 +1,100 @@
+"""RA-7546 — A2 must survive a stream drop and treat blocked as terminal."""
+from __future__ import annotations
+
+import http.client
+import json
+
+from scripts.smoke_pipeline_client import drain_sse
+from scripts.smoke_pipeline_resilience import (
+    SESSION_TERMINAL,
+    logs_stream_path,
+    row_entered_generate,
+)
+from scripts.smoke_test_pipeline import PipelineAssertions, _observe_row, poll_terminal
+
+
+def test_logs_stream_path_uses_heartbeat_route():
+    assert logs_stream_path("b72988e2f8f4") == "/api/sessions/b72988e2f8f4/logs/stream"
+
+
+def test_blocked_and_stalled_are_terminal():
+    from pathlib import Path
+
+    watchdog = Path("app/server/agents/build_stall_watchdog.py").read_text(encoding="utf-8")
+    assert "blocked" in SESSION_TERMINAL
+    assert "stalled" in SESSION_TERMINAL
+    assert '"blocked"' in watchdog
+
+
+def test_row_entered_generate_from_last_phase_plan():
+    assert row_entered_generate({"last_phase": "plan"}) is True
+    assert row_entered_generate({"last_phase": "sandbox"}) is False
+    assert row_entered_generate({"last_phase": "", "phase_metrics": {"generate": {}}}) is True
+
+
+def test_drain_sse_parses_complete_events_and_keeps_tail():
+    buf = (
+        'data: {"type":"phase","text":"[3.7/5] Planning implementation (sonnet)..."}\n\n'
+        'data: {"type":"error","text":"Plan blocked: planner returned exit status 1"}\n\n'
+        "data: {\"type\":\"partial\""
+    )
+    events, rest = drain_sse(buf)
+    assert [e["type"] for e in events] == ["phase", "error"]
+    assert "Plan blocked" in events[1]["text"]
+    assert rest.startswith("data: {")
+
+
+def test_incomplete_read_partial_is_not_discarded():
+    """urllib IncompleteRead.partial must still parse as SSE (run 34790637141)."""
+    payload = (
+        b'data: {"type":"error","text":"Plan blocked: planner returned exit status 1"}\n\n'
+        b"trailing-incomplete"
+    )
+    exc = http.client.IncompleteRead(payload)
+    events, rest = drain_sse((exc.partial or b"").decode("utf-8"))
+    assert events[0]["type"] == "error"
+    assert rest == "trailing-incomplete"
+
+
+class _PollSession:
+    def __init__(self, gets: list[tuple[int, str]]):
+        self._gets = list(gets)
+
+    def get(self, _path: str) -> tuple[int, str]:
+        return self._gets.pop(0)
+
+
+def _health(uptime: int = 200) -> tuple[int, str]:
+    return 200, json.dumps({"status": "ok", "uptime_s": uptime})
+
+
+def test_poll_blocked_is_terminal_not_still_running():
+    row = {"id": "b72988e2f8f4", "status": "blocked", "last_phase": "sandbox", "lines": 18}
+    session = _PollSession(gets=[_health(), (200, json.dumps([row]))])
+    pa = PipelineAssertions()
+    assert poll_terminal(session, "b72988e2f8f4", pa, start=10**12) == "terminal"
+    assert pa.last_status == "blocked"
+    assert pa.entered_generate is False
+    assert any("terminal=blocked" in err for err in pa.errors)
+
+
+def test_poll_recovers_a2_from_last_phase_after_stream_drop():
+    row = {
+        "id": "b72988e2f8f4",
+        "status": "complete",
+        "last_phase": "plan",
+        "lines": 22,
+        "files_modified": 1,
+    }
+    session = _PollSession(gets=[_health(), (200, json.dumps([row]))])
+    pa = PipelineAssertions()
+    assert poll_terminal(session, "b72988e2f8f4", pa, start=10**12) == "terminal"
+    assert pa.entered_generate is True
+    assert pa.reached_complete is True
+
+
+def test_observe_row_sets_a2_from_last_phase_without_stream_event():
+    pa = PipelineAssertions()
+    _observe_row(pa, {"status": "building", "last_phase": "plan", "lines": 20}, 12.0)
+    assert pa.entered_generate is True
+    assert pa.entered_generate_at == 12.0

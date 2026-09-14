@@ -120,7 +120,7 @@ async def stream_session_logs(sid: str, after: int = 0):
     if not session:
         raise HTTPException(404, "Session not found")
 
-    terminal = {"done", "complete", "failed", "killed"}
+    terminal = {"done", "complete", "failed", "killed", "blocked", "stalled", "interrupted"}
 
     async def generate():
         cursor = after
@@ -156,7 +156,9 @@ async def stream_session_logs(sid: str, after: int = 0):
 _SSE_STREAM_REPLAY_MAX = 5_000   # max lines replayed before emitting "truncated"
 _SSE_STREAM_HEARTBEAT_S = 15.0   # SSE comment heartbeat interval (proxy keep-alive)
 _SSE_STREAM_POLL_S = 0.3         # poll interval while session is active
-_SSE_STREAM_TERMINAL = frozenset({"done", "complete", "failed", "killed", "interrupted"})
+_SSE_STREAM_TERMINAL = frozenset({
+    "done", "complete", "failed", "killed", "interrupted", "blocked", "stalled",
+})
 
 
 @router.get("/api/sessions/{sid}/stream", dependencies=[Depends(require_auth)])
