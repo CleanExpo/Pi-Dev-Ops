@@ -389,25 +389,25 @@ class OllamaProvider:
 
 # Default model assignments per tier. Overridable via env or by passing
 # explicit provider lists into `get_client`.
+# COST LAW: last rung of every ladder is $0 — it fires when all else is down. See commit msg.
 _DEFAULT_FRONTIER_LADDER = (
     ("anthropic", "claude-opus-5"),
     ("anthropic", "claude-sonnet-5"),
-    ("openrouter", "anthropic/claude-sonnet-5"),
+    ("openrouter", "deepseek/deepseek-v4-flash-0731:free"),
 )
 _DEFAULT_WORKING_LADDER = (
     ("anthropic", "claude-sonnet-5"),
     ("anthropic", "claude-haiku-4-5-20251001"),
-    ("openrouter", "meta-llama/llama-3.3-70b-instruct"),
+    ("openrouter", "nex-agi/nex-n2.5-mini:free"),
 )
 _DEFAULT_REMEDIAL_LADDER = (
-    ("openrouter", "meta-llama/llama-3.3-70b-instruct"),
-    ("openrouter", "deepseek/deepseek-chat"),
-    ("ollama", "llama3.3:70b"),
-    ("anthropic", "claude-haiku-4-5-20251001"),
+    ("openrouter", "inclusionai/ling-3.0-flash-sante:free"),
+    ("openrouter", "nex-agi/nex-n2.5-mini:free"),
+    ("openrouter", "nvidia/nemotron-3.5-lightning:free"),
 )
 _DEFAULT_LOCAL_LADDER = (
-    ("ollama", "llama3.3:70b"),
-    ("openrouter", "meta-llama/llama-3.3-70b-instruct"),
+    ("openrouter", "nvidia/nemotron-3.5-lightning:free"),
+    ("openrouter", "dots-studio/dots-3-note-preview:free"),
 )
 
 
