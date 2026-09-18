@@ -19,10 +19,20 @@ from tests.test_mesh_ship import GIT_ENV, _commit, _git
 
 
 @pytest.fixture
-def reporter(monkeypatch):
+def reporter(monkeypatch, tmp_path):
     monkeypatch.delenv("PI_CEO_API_KEY", raising=False)
     monkeypatch.delenv("PI_CEO_API_URL", raising=False)
     monkeypatch.delenv("MESH_HOST", raising=False)
+    # api_key()/api_url() fall back to ~/.hermes/.env on disk, so clearing the
+    # process env is only half the isolation. On a machine that holds the estate
+    # secret store the fallback handed the module a REAL key and inverted every
+    # no-key assertion below — green on CI (which has no such file), red on the
+    # developer box. Point HOME at an empty dir so the fallback finds nothing.
+    # _git() in tests/test_mesh_ship.py passes an explicit env without HOME, so
+    # the git helpers are unaffected by this.
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
     return load_module("mesh_report_ship", "mesh/report_ship.py")
 
 
@@ -78,6 +88,33 @@ def test_publish_skips_without_a_key(reporter):
     ok, detail = reporter.publish({"machine": "h", "repo": "r"})
     assert ok is False
     assert "PI_CEO_API_KEY missing" in detail
+
+
+def test_publish_skips_when_the_env_file_holds_no_key(reporter, tmp_path):
+    """The disk fallback is the branch CI never reaches.
+
+    CI has no ~/.hermes/.env, so _from_env_file() returns "" before it parses a
+    line and the refusal is only ever proved for the env-var path. Plant a file
+    that exists but carries no PI_CEO_API_KEY and prove publish still refuses.
+    """
+    hermes = tmp_path / "home" / ".hermes"
+    hermes.mkdir(parents=True)
+    (hermes / ".env").write_text("SOME_OTHER_KEY=value\n", encoding="utf-8")
+    ok, detail = reporter.publish({"machine": "h", "repo": "r"})
+    assert ok is False
+    assert "PI_CEO_API_KEY missing" in detail
+
+
+def test_api_key_reads_the_env_file_fallback(reporter, tmp_path):
+    """The other half of the same branch: a key on disk IS picked up.
+
+    Without this, the fixture's HOME isolation could silently break the fallback
+    and every no-key test would pass for the wrong reason.
+    """
+    hermes = tmp_path / "home" / ".hermes"
+    hermes.mkdir(parents=True)
+    (hermes / ".env").write_text("PI_CEO_API_KEY=disk-key-fixture\n", encoding="utf-8")
+    assert reporter.api_key() == "disk-key-fixture"
 
 
 def test_publish_posts_to_api_mesh_ship(reporter, monkeypatch):
