@@ -1,0 +1,19 @@
+Warning: 256-color support not detected. Using a terminal with at least 256-color support is recommended for a better visual experience.
+Ripgrep is not available. Falling back to GrepTool.
+[STARTUP] Phase 'cleanup_ops' was started but never ended. Skipping metrics.
+[STARTUP] Cannot measure phase 'cleanup_ops': start mark 'startup:cleanup_ops:start' not found (likely cleared by reset).
+FINDING 1: PARTLY - "merge commit SHA is an ancestor of the deployed revision" fixes generic uptime, but leaves a gap because a reverted PR's merge commit remains an ancestor forever.
+FINDING 2: PARTLY - "rotation is restricted to the stations that hold them" prevents REDs from being hidden, but leaves a gap where a station showing entirely GREY is permanently skipped.
+FINDING 3: PARTLY - "cached snapshot endpoint" fixes SSE reconnect spam, but leaves a gap where a crashed cache-updater causes the endpoint to serve stale data indefinitely as live.
+FINDING 4: FIXED - "Prove chip requires BOTH the GitHub CI conclusion... AND the independent checker's headed-browser run."
+FINDING 5: FIXED - "Use the time GitHub received the push... which the pusher cannot set"
+FINDING 6: FIXED - "Every mesh-derived value carries a visible self-reported label... each with its own staleness clock."
+FINDING 7: PARTLY - "if any input is absent → GREY" fixes null/undefined bypasses, but leaves a gap for empty data structures (like `[]` or `""`) which evaluate as present but are semantically absent.
+
+NEW BLOCKING:
+1. **The Revert Loophole (Ancestry is Monotonic):** Git ancestry cannot detect reverts. If a shipped ticket is subsequently reverted, its original merge commit will still be an ancestor of the new deployed HEAD, allowing the Ship chip to falsely remain GREEN.
+2. **RED Rotation Hides GREYs:** By restricting the carousel solely to stations with REDs, a completely dead station that has lost all its data sources (and is thus entirely GREY) will be hidden from the wall until the RED is fixed. 
+3. **Snapshot Staleness Lie:** If the backend worker that populates the JSON snapshot crashes, the API will continue answering the wall's polls with an `HTTP 200` and the last cached payload. The wall will display this stale snapshot as perfectly healthy live data. The payload itself needs a `generated_at` timestamp that the client enforces a staleness rule against.
+4. **Empty vs. Absent:** Filtering out "absent" values assumes data is either present or null. If a source API returns an empty array `[]` for commits, or an empty string `""` for a SHA, the value is not technically absent and will slip past the check, reintroducing the vacuous truth bug.
+
+VERDICT: FAIL
