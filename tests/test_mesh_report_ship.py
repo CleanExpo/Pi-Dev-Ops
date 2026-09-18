@@ -105,6 +105,25 @@ def test_publish_skips_when_the_env_file_holds_no_key(reporter, tmp_path):
     assert "PI_CEO_API_KEY missing" in detail
 
 
+def test_api_key_survives_an_unreadable_env_file(reporter, tmp_path):
+    """The third branch of _from_env_file: the file exists but cannot be read.
+
+    The missing-file branch is covered by the fixture's empty HOME and the
+    parse branch by the two tests above, but the OSError guard was never
+    exercised — a reader that raised would have crashed the Stop hook instead
+    of degrading to "no key". Planting a DIRECTORY at ~/.hermes/.env makes
+    exists() true and read_text() raise IsADirectoryError (an OSError) for any
+    user, which chmod 000 does not guarantee when the suite runs as root.
+    """
+    hermes = tmp_path / "home" / ".hermes"
+    hermes.mkdir(parents=True)
+    (hermes / ".env").mkdir()
+    assert reporter.api_key() == ""
+    ok, detail = reporter.publish({"machine": "h", "repo": "r"})
+    assert ok is False
+    assert "PI_CEO_API_KEY missing" in detail
+
+
 def test_api_key_reads_the_env_file_fallback(reporter, tmp_path):
     """The other half of the same branch: a key on disk IS picked up.
 
