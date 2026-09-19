@@ -1,9 +1,0 @@
-{
-  "schema": "done/1",
-  "work_id": "w_9b1f7b762ac1",
-  "contract_digest": "e2675edc847b01b80839a2bdef61a1ec6e245732fb32a9b569d5dfa3b48fe243",
-  "baseline_head": "19bf27420ad5f7c3a6330eaf44181ebfc4dca6e7",
-  "identity_key": "worktree-mission-control-linear-projects@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/mission-control-linear-projects",
-  "locked_at_utc": "2026-09-19T13:37:41Z",
-  "criteria_count": 5
-}
