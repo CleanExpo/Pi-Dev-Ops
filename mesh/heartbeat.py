@@ -71,7 +71,10 @@ def runner_breadcrumb() -> dict:
 
 def _run(cmd: list[str], timeout: int = 5) -> str:
     try:
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout.strip()
+        return subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout,
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        ).stdout.strip()
     except Exception:
         return ""
 

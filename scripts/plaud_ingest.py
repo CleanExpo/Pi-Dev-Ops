@@ -140,16 +140,11 @@ def save_state(path: Path, state: dict) -> None:
 
 
 import contextlib
-import errno
 
 
 def _pid_alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except OSError as e:
-        return e.errno == errno.EPERM
-    return True
-
+    from scripts.process_liveness import pid_alive
+    return pid_alive(pid)
 
 @contextlib.contextmanager
 def pid_lock(lockfile: Path):
