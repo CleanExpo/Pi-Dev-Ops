@@ -31,3 +31,18 @@ export function parseTime(value: unknown): number | null {
   const ms = Date.parse(value);
   return Number.isNaN(ms) ? null : ms;
 }
+
+/** Clock skew tolerated before a future timestamp is treated as garbled. */
+export const FUTURE_SKEW_S = 5;
+
+/**
+ * Age in seconds, or null when the stamp is absent, unparseable, or more than
+ * FUTURE_SKEW_S in the future. A future stamp must never read as "0s old": that
+ * would keep a chip GREEN for as long as the clock stays ahead.
+ */
+export function ageSeconds(value: unknown, now: number): number | null {
+  const t = parseTime(value);
+  if (t === null) return null;
+  const age = Math.round((now - t) / 1000);
+  return age < -FUTURE_SKEW_S ? null : Math.max(0, age);
+}

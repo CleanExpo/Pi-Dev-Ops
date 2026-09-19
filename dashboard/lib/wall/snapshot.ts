@@ -9,7 +9,7 @@
  * Station chips stay GREY "NO LIVE SOURCE YET" until a reader for their outside
  * source (Linear, GitHub, production probe) is wired. No sample rows, ever.
  */
-import { isAbsent, parseTime } from "./absent";
+import { ageSeconds, isAbsent } from "./absent";
 
 export type Chip = "GREEN" | "RED" | "GREY";
 
@@ -58,13 +58,8 @@ function record(v: unknown): Record<string, unknown> | null {
   return v !== null && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 }
 
-function ageOf(ts: unknown, now: number): number | null {
-  const t = parseTime(ts);
-  return t === null ? null : Math.max(0, Math.round((now - t) / 1000));
-}
-
 function agentTile(row: Record<string, unknown>, now: number): AgentTile {
-  const age = ageOf(row.updated_at, now);
+  const age = ageSeconds(row.updated_at, now);
   const fresh = age !== null && age <= AGENT_STALE_S;
   return { runtime: String(row.runtime ?? "?"), state: String(row.state ?? "?"), chip: fresh ? "GREEN" : "GREY", ageSeconds: age };
 }
@@ -72,11 +67,11 @@ function agentTile(row: Record<string, unknown>, now: number): AgentTile {
 export function machineTile(host: string, row: Record<string, unknown> | undefined, agents: unknown[], now: number): MachineTile {
   const base = { host, load1: null, selfReported: true as const, agents: [] as AgentTile[] };
   if (!row) return { ...base, chip: "GREY", reason: "never reported", ageSeconds: null };
-  const age = ageOf(row.last_seen, now);
+  const age = ageSeconds(row.last_seen, now);
   const load = typeof row.load1 === "number" ? row.load1 : null;
   const mine = agents.map(record).filter((a): a is Record<string, unknown> => a !== null && a.machine === host);
   const tiles = mine.map((a) => agentTile(a, now));
-  if (age === null) return { ...base, load1: load, agents: tiles, chip: "GREY", reason: "no last_seen", ageSeconds: null };
+  if (age === null) return { ...base, load1: load, agents: tiles, chip: "GREY", reason: "no usable last_seen (missing, garbled or in the future)", ageSeconds: null };
   const fresh = age <= MACHINE_STALE_S;
   return { ...base, load1: load, agents: tiles, chip: fresh ? "GREEN" : "GREY", reason: fresh ? "reporting" : "no signal", ageSeconds: age };
 }

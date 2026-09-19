@@ -36,6 +36,14 @@ describe("machine tiles", () => {
   it.each([undefined, "", "not-a-date"])("last_seen %j is GREY, never green", (ls) => {
     expect(machineTile("A", { host: "A", last_seen: ls }, [], NOW).chip).toBe("GREY");
   });
+  it("a future last_seen is GREY, not 0s old (review finding 1)", () => {
+    expect(machineTile("A", { host: "A", last_seen: ago(-3600) }, [], NOW).chip).toBe("GREY");
+    const agents = [{ machine: "A", runtime: "claude", state: "working", updated_at: ago(-3600) }];
+    expect(machineTile("A", { host: "A", last_seen: ago(1) }, agents, NOW).agents[0].chip).toBe("GREY");
+  });
+  it("a few seconds of clock skew is tolerated (positive control)", () => {
+    expect(machineTile("A", { host: "A", last_seen: ago(-3) }, [], NOW).chip).toBe("GREEN");
+  });
   it("ignores upstream is_stale=false when last_seen is old", () => {
     expect(machineTile("A", { host: "A", last_seen: ago(3600), is_stale: false }, [], NOW).chip).toBe("GREY");
   });

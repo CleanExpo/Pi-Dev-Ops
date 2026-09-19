@@ -4,22 +4,23 @@
  * The browser trusts the snapshot's own `generated_at`, never the HTTP status: a
  * cache whose updater died keeps answering 200 with the last good payload.
  */
-import { parseTime } from "./absent";
-import type { Chip, Station } from "./snapshot";
+import { ageSeconds, FUTURE_SKEW_S, parseTime } from "./absent";
+import type { Chip, Station, WallSnapshot } from "./snapshot";
 
 export const POLL_MS = 5_000;
 export const STALE_AFTER_MS = POLL_MS * 3;
 
 /** Seconds since the snapshot was generated, or null when the stamp is absent/garbled. */
 export function snapshotAgeSeconds(generatedAt: unknown, now: number): number | null {
-  const t = parseTime(generatedAt);
-  return t === null ? null : Math.max(0, Math.round((now - t) / 1000));
+  return ageSeconds(generatedAt, now);
 }
 
-/** Stale when the stamp is missing, unparseable, or older than three poll intervals. */
+/** Stale when the stamp is missing, unparseable, in the future, or older than three polls. */
 export function isSnapshotStale(generatedAt: unknown, now: number): boolean {
   const t = parseTime(generatedAt);
-  return t === null || now - t > STALE_AFTER_MS;
+  if (t === null) return true;
+  const ageMs = now - t;
+  return ageMs < -FUTURE_SKEW_S * 1000 || ageMs > STALE_AFTER_MS;
 }
 
 /** A stale snapshot turns every chip GREY; a fresh one shows the chip as reported. */
@@ -50,4 +51,19 @@ export function resolveKioskMachine(param: string | null, hosts: string[]): { ho
   if (!param || !param.trim()) return { host: null, unknown: false };
   const hit = hosts.find((h) => h.toLowerCase() === param.trim().toLowerCase());
   return hit ? { host: hit, unknown: false } : { host: null, unknown: true };
+}
+
+/**
+ * Banner counts for exactly what the page shows. The server's counts describe the
+ * snapshot as built; the page can differ, because a stale snapshot greys every chip
+ * and an unknown kiosk host adds a GREY card. The banner must never disagree with
+ * the chips on screen.
+ */
+export function displayedCounts(snap: WallSnapshot, stale: boolean, unknownMachine: boolean): { red: number; grey: number } {
+  const chips: Chip[] = [
+    ...snap.fleet.machines.flatMap((m) => [m.chip, ...m.agents.map((a) => a.chip)]),
+    ...snap.stations.map((s) => s.chip),
+  ].map((c) => displayChip(c, stale));
+  const grey = chips.filter((c) => c === "GREY").length + (unknownMachine ? 1 : 0);
+  return { red: chips.filter((c) => c === "RED").length, grey };
 }

@@ -9,9 +9,9 @@ import { describe, expect, it } from "vitest";
 import { StationAccordion } from "@/components/wall/StationAccordion";
 import { WallBanner } from "@/components/wall/WallBanner";
 import {
-  displayChip, isSnapshotStale, nextStation, resolveKioskMachine, rotationOrder, STALE_AFTER_MS,
+  displayChip, displayedCounts, isSnapshotStale, nextStation, resolveKioskMachine, rotationOrder, STALE_AFTER_MS,
 } from "@/lib/wall/client";
-import type { Station } from "@/lib/wall/snapshot";
+import { buildSnapshot, fleetPanel, type Station } from "@/lib/wall/snapshot";
 
 const NOW = Date.parse("2026-09-19T00:00:00Z");
 const st = (id: string, chip: Station["chip"]): Station => ({ id, name: id, chip, reason: `${id} reason` });
@@ -27,6 +27,30 @@ describe("snapshot freshness", () => {
     expect(isSnapshotStale(new Date(NOW - STALE_AFTER_MS - 1).toISOString(), NOW)).toBe(true);
     expect(displayChip("GREEN", true)).toBe("GREY");
     expect(displayChip("GREEN", false)).toBe("GREEN");
+  });
+});
+
+describe("future stamps", () => {
+  it("a snapshot stamped in the future is stale (review finding 1)", () => {
+    expect(isSnapshotStale(new Date(NOW + 3_600_000).toISOString(), NOW)).toBe(true);
+  });
+});
+
+describe("banner matches the page (review findings 2 and 3)", () => {
+  const fresh = () => {
+    const fleet = fleetPanel({ machines: [{ host: "A", last_seen: new Date(NOW - 1000).toISOString() }] }, ["A"], NOW);
+    return buildSnapshot(fleet, NOW);
+  };
+  it("fresh snapshot: counts what the snapshot holds (positive control)", () => {
+    expect(displayedCounts(fresh(), false, false)).toEqual({ red: 0, grey: 7 });
+  });
+  it("stale snapshot: every shown chip counts GREY, none GREEN or RED", () => {
+    const snap = fresh();
+    snap.stations[0] = { ...snap.stations[0], chip: "RED" };
+    expect(displayedCounts(snap, true, false)).toEqual({ red: 0, grey: 8 });
+  });
+  it("unknown kiosk machine adds its GREY card", () => {
+    expect(displayedCounts(fresh(), false, true)).toEqual({ red: 0, grey: 8 });
   });
 });
 

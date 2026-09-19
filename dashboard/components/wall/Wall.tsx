@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import {
-  isSnapshotStale, nextStation, POLL_MS, resolveKioskMachine, rotationOrder, snapshotAgeSeconds,
+  displayedCounts, isSnapshotStale, nextStation, POLL_MS, resolveKioskMachine, rotationOrder, snapshotAgeSeconds,
 } from "@/lib/wall/client";
 import type { WallSnapshot } from "@/lib/wall/snapshot";
 import { FleetTiles } from "./FleetTiles";
@@ -67,7 +67,7 @@ export function Wall() {
   const kiosk = resolveKioskMachine(params.get("machine"), snap.fleet.machines.map((m) => m.host));
   return (
     <WallShell>
-      <WallBanner red={snap.banner.red} grey={snap.banner.grey} staleAge={stale ? (age ?? "missing") : null} />
+      <WallBanner {...displayedCounts(snap, stale, kiosk.unknown)} staleAge={stale ? (age ?? "missing") : null} />
       {kiosk.unknown && (
         <div data-testid="unknown-machine" className="rounded-md px-4 py-3 text-xl" style={{ background: "#374151", color: "#fff" }}>
           <ChipBadge chip="GREY" /> unknown machine: {params.get("machine")}
