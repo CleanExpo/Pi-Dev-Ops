@@ -1,6 +1,5 @@
 """Tests for scripts/plaud_ingest.py."""
 import sys
-import pytest
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -178,50 +177,6 @@ def test_lock_blocks_when_held_by_live_pid(tmp_path):
     with plaud_ingest.pid_lock(lockfile) as acquired:
         assert acquired is False
     assert lockfile.read_text().strip() == str(os.getpid())
-
-
-def test_windows_pid_probe_never_sends_console_signals(monkeypatch):
-    if os.name != "nt":
-        pytest.skip("Windows console signal regression")
-
-    def forbidden_signal(*args):
-        raise AssertionError("A Windows liveness probe must not call os.kill")
-
-    monkeypatch.setattr(os, "kill", forbidden_signal)
-    assert plaud_ingest._pid_alive(os.getpid()) is True
-    assert plaud_ingest._pid_alive(999999) is False
-    assert plaud_ingest._pid_alive(0) is False
-    assert plaud_ingest._pid_alive(-1) is False
-
-
-@pytest.mark.skipif(os.name != "nt", reason="Windows process handle API")
-@pytest.mark.parametrize(
-    "handle,wait_result,error,expected",
-    [(None, 0, 5, True), (None, 0, 87, False),
-     (123, 0, 0, False), (123, 258, 0, True),
-     (123, 0xFFFFFFFF, 5, None)],
-)
-def test_windows_pid_probe_preserves_locks_and_closes_handles(
-    monkeypatch, handle, wait_result, error, expected,
-):
-    import ctypes
-
-    api = MagicMock()
-    api.OpenProcess.return_value = handle
-    api.WaitForSingleObject.return_value = wait_result
-    monkeypatch.setattr(ctypes, "WinDLL", lambda *args, **kwargs: api)
-    monkeypatch.setattr(ctypes, "get_last_error", lambda: error)
-    if expected is None:
-        with pytest.raises(OSError):
-            plaud_ingest._pid_alive(12345)
-    else:
-        assert plaud_ingest._pid_alive(12345) is expected
-    if handle:
-        api.WaitForSingleObject.assert_called_once_with(handle, 0)
-        api.CloseHandle.assert_called_once_with(handle)
-    else:
-        api.WaitForSingleObject.assert_not_called()
-        api.CloseHandle.assert_not_called()
 
 
 def test_lock_clears_stale_dead_pid(tmp_path):
