@@ -113,6 +113,25 @@
       "_comment": "UNI-2649: session-gated BFF for the Mission Control Fleet tile. proxy.ts lists /api/mesh-fleet in PROTECTED_API_PREFIXES, so an anonymous caller is refused before the handler can attach X-Pi-CEO-Secret. FleetTile.tsx is the client of this route, not a separate HTTP surface — it mounts on already-declared /control and /loop. An authenticated probe is not declared: a live secret would return machines, and a missing secret returns 503 unavailable, so a single expected_status would lie on one of those two deploys."
     },
     {
+      "name": "api-mesh-fleet-wall-unauth",
+      "path": "/api/mesh-fleet/wall",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "body_contains": [
+        "Unauthorised"
+      ],
+      "_comment": "Live Wall slice 1 (docs/briefs/live-wall-v1.md): the wall snapshot sits under the /api/mesh-fleet prefix in PROTECTED_API_PREFIXES, so an anonymous caller is refused before the handler attaches X-Pi-CEO-Secret."
+    },
+    {
+      "name": "cc-wall-redirect",
+      "path": "/command-centre/wall",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 307,
+      "_comment": "Live Wall kiosk page. /command-centre is a protected page prefix, so unauth 307-redirects to login. The page is client-rendered (it polls /api/mesh-fleet/wall), so its content is founder-verified per RA-1109 rather than body-asserted here."
+    },
+    {
       "name": "curator-proposals-quiet",
       "path": "/api/curator-proposals?status=pending&limit=10",
       "method": "GET",
