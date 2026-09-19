@@ -39,4 +39,3 @@ def pid_alive(pid: int) -> bool:
     except OSError as e:
         return e.errno == errno.EPERM
     return True
-

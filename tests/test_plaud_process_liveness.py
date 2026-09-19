@@ -74,5 +74,3 @@ def test_direct_cli_help_works_from_another_directory(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert "--dry-run" in result.stdout
-
-
