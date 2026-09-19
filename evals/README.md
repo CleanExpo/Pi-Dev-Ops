@@ -12,7 +12,7 @@ versioned golden dataset. Spec: brain-1 vault `Wiki/capability-library-2026-07-0
   routing is deterministic.
 - **Where:** top-level `evals/` (kept out of the blocking `pytest tests/` run on
   purpose). CI: `.github/workflows/prove_it_evals.yml`, `continue-on-error: true`.
-- **Run locally:** `TAO_CHEAP_PROVIDER=openrouter uv run pytest evals -q`
+- **Run locally:** `uv run pytest evals -q`
 
 ## Roadmap (later slices, each its own PR)
 
