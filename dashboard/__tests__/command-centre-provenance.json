@@ -443,6 +443,153 @@
       "resolves_in_target": "file: components/command-centre/youtube-intent/IntentCatalogTile.tsx",
       "judgment": "must-change",
       "note": "Target-only addition. knowledge/page.tsx IS a ported file (app/(founder)/founder/command-centre/knowledge/page.tsx), so 'no-source-baseline' is not claimable here; the honest judgment is that the source never had this import. Added by the same commit 9100adc4 (PR #650). The tracked-construct comparison for knowledge/page.tsx still runs against its baseline and is unaffected by this addition."
+    },
+    "app/(main)/command-centre/wall/page.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: react",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "app/(main)/command-centre/wall/page.tsx :: @/components/wall/Wall": {
+      "specifier": "@/components/wall/Wall",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/wall/Wall.tsx",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/Wall.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: react",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/Wall.tsx :: next/navigation": {
+      "specifier": "next/navigation",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/navigation",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/Wall.tsx :: @/lib/wall/client": {
+      "specifier": "@/lib/wall/client",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/wall/client.ts",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/Wall.tsx :: @/lib/wall/snapshot": {
+      "specifier": "@/lib/wall/snapshot",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/wall/snapshot.ts",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/Wall.tsx :: ./FleetTiles": {
+      "specifier": "./FleetTiles",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/wall/FleetTiles.tsx",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/Wall.tsx :: ./StationAccordion": {
+      "specifier": "./StationAccordion",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/wall/StationAccordion.tsx",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/Wall.tsx :: ./WallBanner": {
+      "specifier": "./WallBanner",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/wall/WallBanner.tsx",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/Wall.tsx :: ./chips": {
+      "specifier": "./chips",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/wall/chips.tsx",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/chips.tsx :: @/lib/wall/snapshot": {
+      "specifier": "@/lib/wall/snapshot",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/wall/snapshot.ts",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/WallBanner.tsx :: ./chips": {
+      "specifier": "./chips",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/wall/chips.tsx",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/FleetTiles.tsx :: @/lib/wall/client": {
+      "specifier": "@/lib/wall/client",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/wall/client.ts",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/FleetTiles.tsx :: @/lib/wall/snapshot": {
+      "specifier": "@/lib/wall/snapshot",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/wall/snapshot.ts",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/FleetTiles.tsx :: ./chips": {
+      "specifier": "./chips",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/wall/chips.tsx",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/StationAccordion.tsx :: @/lib/wall/client": {
+      "specifier": "@/lib/wall/client",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/wall/client.ts",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/StationAccordion.tsx :: @/lib/wall/snapshot": {
+      "specifier": "@/lib/wall/snapshot",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/wall/snapshot.ts",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "components/wall/StationAccordion.tsx :: ./chips": {
+      "specifier": "./chips",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/wall/chips.tsx",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "lib/wall/client.ts :: ./absent": {
+      "specifier": "./absent",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/wall/absent.ts",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "lib/wall/client.ts :: ./snapshot": {
+      "specifier": "./snapshot",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/wall/snapshot.ts",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "lib/wall/snapshot.ts :: ./absent": {
+      "specifier": "./absent",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/wall/absent.ts",
+      "judgment": "no-source-baseline",
+      "note": "Live Wall file, new in the target; no source import to compare."
     }
   },
   "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant.",
@@ -453,7 +600,16 @@
     "app/(main)/command-centre/providers/page.tsx": "REBUILT. The source page composes ProviderAccountsTile + ProviderUsageCockpit + CostAllocationTile; only the usage cockpit is ported (KI-006 provider-test omitted as a spend path, KI-007 credential custody deferred to per-capability tokens). A verbatim port would import two components this app deliberately does not have. Written fresh over what exists. No source baseline applies.",
     "app/api/command-centre/youtube-intent/route.ts": "REBUILT, no source baseline. Introduced by commit 9100adc4 (PR #650, 2026-08-20) 'feat: add intent-only YouTube catalog for UG-N Nexus', together with its own Python backend (app/server/youtube_intent.py), route module, Supabase migration and policy config. It is new work in THIS repository, not a port: command-centre-baseline-549acbe9.json carries no youtube-intent entry, and _baseline_root has no counterpart file. That commit added capability surface under app/(main)/command-centre and app/api/command-centre — both graph roots for this suite — without touching this map, which is why the gate has been red on main since 2026-08-20. Reads .harness/ugn_intent_youtube/state.json from the local filesystem and returns a summary; it opens no database client and no outbound network connection. On any read/parse failure it returns an empty summary at HTTP 200 rather than surfacing the error.",
     "app/(main)/command-centre/youtube-intent/page.tsx": "REBUILT, no source baseline. Introduced by commit 9100adc4 (PR #650, 2026-08-20) 'feat: add intent-only YouTube catalog for UG-N Nexus', together with its own Python backend (app/server/youtube_intent.py), route module, Supabase migration and policy config. It is new work in THIS repository, not a port: command-centre-baseline-549acbe9.json carries no youtube-intent entry, and _baseline_root has no counterpart file. That commit added capability surface under app/(main)/command-centre and app/api/command-centre — both graph roots for this suite — without touching this map, which is why the gate has been red on main since 2026-08-20. A server component that reads the same local state.json directly rather than calling its own API route, and renders it. No database client, no outbound fetch; the one remote literal is a rendered link to the operator's local Excalidraw board at http://localhost:7119.",
-    "components/command-centre/youtube-intent/IntentCatalogTile.tsx": "REBUILT, no source baseline. Introduced by commit 9100adc4 (PR #650, 2026-08-20) 'feat: add intent-only YouTube catalog for UG-N Nexus', together with its own Python backend (app/server/youtube_intent.py), route module, Supabase migration and policy config. It is new work in THIS repository, not a port: command-centre-baseline-549acbe9.json carries no youtube-intent entry, and _baseline_root has no counterpart file. That commit added capability surface under app/(main)/command-centre and app/api/command-centre — both graph roots for this suite — without touching this map, which is why the gate has been red on main since 2026-08-20. Client component; its single fetch is a same-origin GET to /api/command-centre/youtube-intent, the route declared above. No database client and no cross-origin request."
+    "components/command-centre/youtube-intent/IntentCatalogTile.tsx": "REBUILT, no source baseline. Introduced by commit 9100adc4 (PR #650, 2026-08-20) 'feat: add intent-only YouTube catalog for UG-N Nexus', together with its own Python backend (app/server/youtube_intent.py), route module, Supabase migration and policy config. It is new work in THIS repository, not a port: command-centre-baseline-549acbe9.json carries no youtube-intent entry, and _baseline_root has no counterpart file. That commit added capability surface under app/(main)/command-centre and app/api/command-centre — both graph roots for this suite — without touching this map, which is why the gate has been red on main since 2026-08-20. Client component; its single fetch is a same-origin GET to /api/command-centre/youtube-intent, the route declared above. No database client and no cross-origin request.",
+    "app/(main)/command-centre/wall/page.tsx": "NEW in the target, not ported: the Live Wall kiosk (docs/briefs/live-wall-v1.md). Read-only. Renders the Wall client component, which polls the session-gated snapshot at /api/mesh-fleet/wall and writes nothing. No source baseline applies.",
+    "components/wall/Wall.tsx": "NEW, Live Wall kiosk shell. One network construct: a GET poll of /api/mesh-fleet/wall (session-gated under PROTECTED_API_PREFIXES, secret held server-side). No writes, no DB, no execution. Freshness judged from the payload's generated_at, never the HTTP status.",
+    "components/wall/chips.tsx": "NEW, presentational chip colours and age formatting for the Live Wall. No network, no DB, no execution.",
+    "components/wall/WallBanner.tsx": "NEW, the persistent RED/GREY banner (spec §5 rule 1). Presentational only.",
+    "components/wall/FleetTiles.tsx": "NEW, fleet tiles labelled self-reported (spec §3). Presentational only.",
+    "components/wall/StationAccordion.tsx": "NEW, seven-station accordion whose header colour survives collapse (spec §5 rule 3). Presentational only.",
+    "lib/wall/client.ts": "NEW, pure browser rules: snapshot staleness from generated_at, rotation order, kiosk host match. No network, no DB, no execution.",
+    "lib/wall/snapshot.ts": "NEW, pure snapshot builder: machine/agent staleness clocks, NO LIVE SOURCE station placeholders, banner counts. No network, no DB, no execution; the upstream read lives in lib/wall/source.ts, outside the page graph.",
+    "lib/wall/absent.ts": "NEW, the spec's single definition of absent (§4). Pure."
   },
   "_omitted_deliberately": {
     "components/command-centre/WikiEnhanceControl.tsx": "KI-002. Dropped from the knowledge port. It POSTs to a route that enqueues into operator_jobs on a production database and needs a per-user identity this app lacks. The route is ABSENT rather than stubbed.",

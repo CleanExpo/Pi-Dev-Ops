@@ -33,6 +33,11 @@ const DECKS = [
     blurb: "Provider usage and quota signals. Read-only — no accounts, no testing.",
   },
   {
+    href: "/command-centre/wall",
+    name: "Live Wall",
+    blurb: "Kiosk wall: fleet heartbeats and the seven stations. Grey means no live source.",
+  },
+  {
     href: "/command-centre/wiki-graph",
     name: "Wiki Graph",
     blurb: "The knowledge base as an interactive force-directed graph.",

@@ -10,25 +10,12 @@
 // PROTECTED_API_PREFIXES.
 
 import { projectFleet, unavailableFleet } from "@/lib/control/mesh-fleet";
+import { ceoBase, meshSecret, readMeshFleet } from "@/lib/control/mesh-upstream";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const NO_STORE = { "Cache-Control": "no-store" };
-
-function meshSecret(): string {
-  return (
-    process.env.TAO_INTERNAL_WEBHOOK_SECRET ||
-    process.env.TAO_WEBHOOK_SECRET ||
-    ""
-  ).trim();
-}
-
-function ceoBase(): string {
-  return (process.env.RAILWAY_URL ?? process.env.PI_CEO_URL ?? "")
-    .replace(/\/$/, "")
-    .trim();
-}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -41,23 +28,13 @@ function unavailable(reason: string): Response {
   });
 }
 
-async function readUpstream(base: string, secret: string): Promise<unknown | null> {
-  const res = await fetch(`${base}/api/mesh/fleet`, {
-    headers: { "X-Pi-CEO-Secret": secret },
-    signal: AbortSignal.timeout(8_000),
-    cache: "no-store",
-  }).catch(() => null);
-  if (!res || !res.ok) return null;
-  return res.json().catch(() => null);
-}
-
 export async function GET(): Promise<Response> {
   const secret = meshSecret();
   if (!secret) return unavailable("mesh secret not configured");
   const base = ceoBase();
   if (!base) return unavailable("Pi-CEO URL not configured");
 
-  const raw = await readUpstream(base, secret);
+  const raw = await readMeshFleet(base, secret);
   if (raw === null) return unavailable("upstream unreachable");
 
   const view = projectFleet(raw, nowIso());
