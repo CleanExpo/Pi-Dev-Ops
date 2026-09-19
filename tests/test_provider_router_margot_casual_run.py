@@ -20,7 +20,6 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from app.server import provider_margot_casual as MC  # noqa: E402
 from app.server import provider_router as PR  # noqa: E402
 
 
@@ -89,7 +88,7 @@ def test_run_via_provider_refusal_returns_error_tuple(monkeypatch, cost_log):
     assert not cost_log.exists()
 
 
-def test_run_via_provider_walks_the_ladder_on_failure(monkeypatch, cost_log):
+def test_run_via_provider_walks_the_ladder_on_failure(monkeypatch, cost_log, isolated_policy):
     import asyncio  # noqa: PLC0415
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.local:11434/v1")
     monkeypatch.setattr(_ollama_module(), "is_reachable", lambda **kw: True)
@@ -112,7 +111,7 @@ def test_run_via_provider_walks_the_ladder_on_failure(monkeypatch, cost_log):
         "openrouter", "margot.casual", "z-ai/glm-4.7-flash", 0.0)
 
 
-def test_run_via_provider_ladder_exhausted_is_an_error_not_a_paid_fallback(monkeypatch, cost_log):
+def test_run_via_provider_ladder_exhausted_is_an_error_not_a_paid_fallback(monkeypatch, cost_log, isolated_policy):
     import asyncio  # noqa: PLC0415
     calls: list = []
     monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", _fake_provider(
@@ -124,7 +123,7 @@ def test_run_via_provider_ladder_exhausted_is_an_error_not_a_paid_fallback(monke
     assert [c[0] for c in calls] == ["openrouter", "openrouter"]
 
 
-def test_run_via_provider_override_is_a_single_attempt(monkeypatch, cost_log):
+def test_run_via_provider_override_is_a_single_attempt(monkeypatch, cost_log, isolated_policy):
     import asyncio  # noqa: PLC0415
     monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", "openrouter:nvidia/nemotron-3-super-120b-a12b:free")
     calls: list = []
@@ -133,3 +132,29 @@ def test_run_via_provider_override_is_a_single_attempt(monkeypatch, cost_log):
     rc, _text, _cost, err = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
     assert rc == 1
     assert calls == [("openrouter", "nvidia/nemotron-3-super-120b-a12b:free")]
+
+
+@pytest.fixture
+def isolated_policy(monkeypatch):
+    """Isolate historical ladder control flow from the production transport policy."""
+    from app.server import provider_policy
+    monkeypatch.setattr(provider_policy, "require_transport", lambda *a, **kw: {})
+
+
+@pytest.mark.parametrize("override", [
+    "openrouter:google/gemma-4-26b-a4b-it:free",
+    "openrouter:z-ai/glm-4.7-flash",
+    "ollama:gemma4:latest",
+])
+def test_ladder_policy_blocks_remote_transports_before_adapter(monkeypatch, override):
+    import asyncio
+    monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", override)
+    monkeypatch.setenv("MARGOT_OLLAMA_BASE_URL", "https://remote.invalid/v1")
+    calls = []
+    for provider in ("openrouter", "ollama"):
+        monkeypatch.setitem(sys.modules, f"app.server.provider_{provider}",
+                            _fake_provider(provider, calls, []))
+    rc, _, _, error = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
+    assert rc == 1
+    assert "subscription_only" in error
+    assert calls == []

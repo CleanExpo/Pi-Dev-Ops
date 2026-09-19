@@ -2,20 +2,36 @@
 
 POST /api/build/parallel  { repo_url, brief, n_workers, model, intent }
 """
+from . import orchestration_run
+from .git_auth import git_auth_env
 import asyncio
 import json
 import logging
-import os
 import time
 import uuid
 
-from . import config
+from . import config, persistence
 from .sessions import create_session, em, run_cmd, BuildSession, _sessions, _run_claude_via_sdk
 from .brief import classify_intent
-from .git_auth import GitAuthError, git_auth_env
 from .model_policy import select_model  # RA-1099: hardwired model routing policy
 
 _log = logging.getLogger("pi-ceo.orchestrator")
+_fan_out_tasks: dict[str, asyncio.Task] = {}
+
+
+async def cancel_fan_out(sid: str) -> bool | None:
+    """Stop a parent through the same kill endpoint used by ordinary sessions."""
+    task = _fan_out_tasks.get(sid)
+    if task is None or task.done():
+        return None
+    parent = _sessions[sid]
+    parent.status = "killed"
+    if not task.cancelling():
+        task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+    # Cancellation before the first event-loop turn skips the runner's finally.
+    persistence.save_session(parent)
+    return parent.status == "killed"
 
 
 # ── RA-1030: Dependency-graph decomposition ───────────────────────────────────
@@ -187,7 +203,7 @@ async def _launch_wave(
     return worker_ids, escalated
 
 
-async def _wait_for_wave(session_ids: list[str], parent: BuildSession, wave_num: int) -> None:
+async def _wait_for_wave(session_ids: list[str], parent: BuildSession, wave_num: int) -> bool:
     """Poll until all sessions in a wave reach a terminal state.
 
     RA-1966 — TAO kill-switch: every poll checks TAO_HARD_STOP_FILE so an
@@ -195,7 +211,7 @@ async def _wait_for_wave(session_ids: list[str], parent: BuildSession, wave_num:
     """
     from .session_model import _sessions as _sess_store  # noqa: PLC0415
     from . import kill_switch as _ks                       # noqa: PLC0415
-    terminal = {"complete", "failed", "killed", "interrupted", "error"}
+    terminal = {"complete", "failed", "killed", "interrupted", "error", "stalled", "blocked"}
     poll_interval = 5  # seconds
     em(parent, "phase", f"  Waiting for wave {wave_num} ({len(session_ids)} workers) to finish...")
     counter = _ks.LoopCounter()
@@ -215,6 +231,7 @@ async def _wait_for_wave(session_ids: list[str], parent: BuildSession, wave_num:
             break
         await asyncio.sleep(poll_interval)
     em(parent, "system", f"  Wave {wave_num} complete.")
+    return bool(states) and all(s is not None and s.status == "complete" for s in states.values())
 
 
 async def fan_out(
@@ -225,7 +242,12 @@ async def fan_out(
     intent: str = "",
     evaluator_enabled: bool = True,
 ) -> dict:
-    """Fan-out a brief into N worker sessions in dependency order (RA-1030)."""
+    """Persist a parent and return its receipt before running background work.
+
+    Decomposition and workers may take minutes. The launch receipt therefore
+    contains no worker IDs yet; poll sessions with this parent ID for children
+    and the parent's eventual terminal outcome.
+    """
     n_workers = max(1, min(n_workers, config.MAX_CONCURRENT_SESSIONS))
     resolved_intent = intent or classify_intent(brief)
 
@@ -243,78 +265,27 @@ async def fan_out(
     em(parent, "system", f"  Parent:  {parent_id}")
     em(parent, "system", f"  Workers: {n_workers}")
     em(parent, "system", f"  Intent:  {resolved_intent.upper()}")
+    persistence.save_session(parent)
 
-    shared_ws = os.path.join(config.WORKSPACE_ROOT, f"{parent_id}-shared")
-    os.makedirs(shared_ws, exist_ok=True)
-    em(parent, "phase", "  Cloning for decomposition...")
-    try:
-        clone_env = git_auth_env(repo_url)
-    except GitAuthError as exc:
-        em(parent, "error", f"  Clone blocked: {exc.reason}")
-        parent.status = "failed"
-        return {"parent_id": parent_id, "worker_ids": [], "n_workers": 0, "waves": 0, "status": "failed", "reason": exc.reason}
-    rc, _, stderr = await run_cmd(
-        shared_ws, "git", "clone", "--depth", "1", repo_url, shared_ws,
-        timeout=60, env=clone_env,
-    )
-    if rc != 0:
-        em(parent, "error", f"  Clone failed: {stderr[:200]}")
-        parent.status = "failed"
-        return {"parent_id": parent_id, "worker_ids": [], "n_workers": 0, "waves": 0, "status": "failed"}
-
-    # Decompose brief — RA-1030: returns list[dict] or list[str] (fallback)
-    em(parent, "phase", f"  Decomposing into {n_workers} sub-tasks...")
-    decomposed = await _decompose_brief(brief, n_workers, repo_url, shared_ws)
-
-    # Build topological waves
-    if decomposed and isinstance(decomposed[0], dict):
-        waves = _topological_sort(decomposed)
-        em(parent, "system", f"  {len(decomposed)} tasks in {len(waves)} wave(s)")
-        for i, wave in enumerate(waves, 1):
-            titles = ", ".join(t.get("title", str(t.get("id", "?"))) for t in wave)
-            em(parent, "system", f"  Wave {i}: [{titles}]")
-    else:
-        # Fallback: plain strings — treat as single wave, log truncated briefs
-        waves = [decomposed]  # type: ignore[list-item]
-        for i, sb in enumerate(decomposed):
-            em(parent, "system", f"  [{i+1}] {str(sb)[:100]}")
-
-    # Launch waves sequentially; within each wave all workers fire in parallel
-    all_worker_ids: list[str] = []
-    all_escalated: list[str] = []
-
-    for wave_num, wave in enumerate(waves, 1):
-        if wave_num > 1:
-            # Wait for previous wave's workers before launching this one
-            prev_wave_ids = all_worker_ids[-(len(waves[wave_num - 2])):]  # workers from prior wave
-            await _wait_for_wave(prev_wave_ids, parent, wave_num - 1)
-
-        em(parent, "phase", f"  Launching wave {wave_num} ({len(wave)} task(s))...")
-        w_ids, w_esc = await _launch_wave(
-            wave,
-            wave_num,
-            repo_url=repo_url,
-            model=model,
-            evaluator_enabled=evaluator_enabled,
-            resolved_intent=resolved_intent,
-            parent_id=parent_id,
-            shared_ws=shared_ws,
-            parent=parent,
-        )
-        all_worker_ids.extend(w_ids)
-        all_escalated.extend(w_esc)
-
-    succeeded = len(all_worker_ids) > 0
-    parent.status = "complete" if succeeded else "failed"
-    em(parent, "success" if succeeded else "error",
-       f"  {'All workers launched' if succeeded else 'No workers started'}"
-       + (f" ({len(all_escalated)} escalated to opus)" if all_escalated else ""))
-
+    # Keep a strong reference until completion, as for background scans.
+    task = asyncio.create_task(orchestration_run.run_parent(
+        parent, brief, n_workers, model, resolved_intent, evaluator_enabled, _run_fan_out, _sessions,
+    ))
+    _fan_out_tasks[parent_id] = task
+    task.add_done_callback(lambda _: _fan_out_tasks.pop(parent_id, None))
     return {
         "parent_id": parent_id,
-        "worker_ids": all_worker_ids,
-        "n_workers": len(all_worker_ids),
-        "waves": len(waves),
-        "escalated_ids": all_escalated,
-        "status": "launched" if succeeded else "failed",
+        "worker_ids": [],
+        "n_workers": 0,
+        "waves": 0,
+        "escalated_ids": [],
+        "status": "launched",
     }
+
+
+async def _run_fan_out(parent, brief, n_workers, model, resolved_intent, evaluator_enabled):
+    return await orchestration_run._run_fan_out(
+        parent, brief, n_workers, model, resolved_intent, evaluator_enabled,
+        run_cmd=run_cmd, decompose=_decompose_brief, topological_sort=_topological_sort,
+        launch_wave=_launch_wave, wait_for_wave=_wait_for_wave, clone_env_factory=git_auth_env,
+    )

@@ -109,7 +109,7 @@ def snapshot() -> dict[str, dict[str, list[str]]]:
             ollama.is_reachable = lambda _r=reachable, **kw: _r
             out[name] = {}
             for role in OTHER_ROLES:
-                pm = PR.select_provider_model(role)
+                pm = PR.select_provider_model(role, record_observation=False)
                 out[name][role] = [pm.provider, pm.model_id, pm.tier, pm.source]
     finally:
         _clear()
@@ -157,6 +157,8 @@ def test_step1_ollama_when_base_url_configured_and_reachable(monkeypatch):
 
 
 def test_step1_prefers_margot_ollama_base_url_and_threads_it_to_the_call(monkeypatch, tmp_path):
+    from app.server import provider_policy
+    monkeypatch.setattr(provider_policy, "require_transport", lambda *a, **kw: {})
     """Round-2 P1: Railway's start guard strips OLLAMA_BASE_URL from every work
     lane, so step 1 has its own key. The probe AND the call must target it."""
     import asyncio  # noqa: PLC0415

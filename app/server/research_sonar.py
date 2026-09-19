@@ -26,6 +26,8 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
+from .provider_policy import ProviderPolicyError, require_transport
+
 log = logging.getLogger("app.server.research_sonar")
 
 _OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -90,10 +92,12 @@ def _records_from_response(query: str, data: dict[str, Any]) -> list[dict[str, A
 
 
 def sonar_caller(query: str) -> list[dict[str, Any]]:
-    """Query OpenRouter's Perplexity Sonar model for `query`.
-
-    Returns finding dicts (title/url/published_date/summary). Fails closed
-    with [] on any error so research_provider degrades gracefully."""
+    """Query OpenRouter's Perplexity Sonar model for `query`."""
+    try:
+        require_transport("openrouter")
+    except ProviderPolicyError as exc:
+        log.warning("research_sonar blocked: %s", exc)
+        return []
     headers = _headers()
     if not headers:
         log.debug("research_sonar: OPENROUTER_API_KEY missing — empty result")
@@ -105,11 +109,7 @@ def sonar_caller(query: str) -> list[dict[str, Any]]:
         log.warning("research_sonar: httpx import failed: %s", exc)
         return []
 
-    body = {
-        "model": os.environ.get("OPENROUTER_SONAR_MODEL", "perplexity/sonar"),
-        "messages": [{"role": "user", "content": query}],
-        "temperature": 0.2,
-    }
+    body = _query_body(query)
 
     try:
         with httpx.Client(timeout=_TIMEOUT_S) as client:
@@ -136,3 +136,11 @@ def sonar_caller(query: str) -> list[dict[str, Any]]:
 
 
 __all__ = ["sonar_caller"]
+
+
+def _query_body(query):
+    return {
+        "model": os.environ.get("OPENROUTER_SONAR_MODEL", "perplexity/sonar"),
+        "messages": [{"role": "user", "content": query}],
+        "temperature": 0.2,
+    }

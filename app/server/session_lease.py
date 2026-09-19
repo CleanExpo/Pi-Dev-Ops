@@ -50,6 +50,8 @@ _PLAIN_FIELDS = (
     "parent_session_id",
     "complexity_tier",
     "shared_workspace",
+    "base_sha", "candidate_sha", "verified_sha",
+    "verification", "audit_evidence", "adversary_verdict",
 )
 
 

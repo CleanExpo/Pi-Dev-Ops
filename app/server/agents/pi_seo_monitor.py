@@ -1,17 +1,4 @@
-"""
-pi_seo_monitor.py — Pi-SEO Monitor Agent (RA-541)
-
-Intelligence layer over the Pi-SEO scanner. Reads scan history, detects
-regressions, identifies systemic cross-repo patterns, generates remediation
-guidance, and routes critical alerts through TriageEngine.
-
-Dual mode:
-  Local (no ANTHROPIC_API_KEY): deltas, regressions, portfolio scoring, alerts.
-  Agent (ANTHROPIC_API_KEY set): adds AI remediation analysis and prose digest.
-
-Usage:
-    python -m app.server.agents.pi_seo_monitor [--project ID] [--dry-run] [--use-agent]
-"""
+"""pi_seo_monitor.py — Pi-SEO Monitor Agent (RA-541)"""
 from __future__ import annotations
 
 import argparse
@@ -527,6 +514,12 @@ def _run_agent_analysis(
     all_scans: dict[str, list[dict[str, Any]]],
 ) -> None:
     """Run agent mode AI analysis and mutate digest in place."""
+    from ..provider_policy import ProviderPolicyError, require_transport
+    try:
+        require_transport("anthropic")
+    except ProviderPolicyError as exc:
+        log.warning("SEO model analysis blocked: %s", exc)
+        return
     try:
         from anthropic import Anthropic
     except ImportError:
@@ -539,28 +532,7 @@ def _run_agent_analysis(
 
     client = Anthropic(api_key=api_key)
 
-    # Build a compact findings summary to stay within context limits
-    findings_summary = []
-    for pid, scans in all_scans.items():
-        for scan in scans[:1]:
-            for f in scan.get("findings", [])[:20]:
-                if f.get("severity") in ("critical", "high", "medium"):
-                    findings_summary.append({
-                        "project": pid,
-                        "scan_type": f.get("scan_type"),
-                        "severity": f.get("severity"),
-                        "title": f.get("title"),
-                        "file_path": f.get("file_path"),
-                        "auto_fixable": f.get("auto_fixable", False),
-                    })
-
-    prompt = json.dumps({
-        "portfolio_health": digest.portfolio_health,
-        "alerts": digest.alerts[:10],
-        "regressions": digest.regressions[:5],
-        "systemic_issues": digest.systemic_issues[:5],
-        "top_findings": findings_summary[:30],
-    }, indent=2)
+    prompt = _analysis_prompt(digest, all_scans)
 
     try:
         response = client.messages.create(
@@ -719,3 +691,28 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def _analysis_prompt(digest, all_scans):
+    # Build a compact findings summary to stay within context limits
+    findings_summary = []
+    for pid, scans in all_scans.items():
+        for scan in scans[:1]:
+            for f in scan.get("findings", [])[:20]:
+                if f.get("severity") in ("critical", "high", "medium"):
+                    findings_summary.append({
+                        "project": pid,
+                        "scan_type": f.get("scan_type"),
+                        "severity": f.get("severity"),
+                        "title": f.get("title"),
+                        "file_path": f.get("file_path"),
+                        "auto_fixable": f.get("auto_fixable", False),
+                    })
+
+    return json.dumps({
+        "portfolio_health": digest.portfolio_health,
+        "alerts": digest.alerts[:10],
+        "regressions": digest.regressions[:5],
+        "systemic_issues": digest.systemic_issues[:5],
+        "top_findings": findings_summary[:30],
+    }, indent=2)

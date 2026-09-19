@@ -1,32 +1,4 @@
-"""provider_nex_n2.py — nex-agi/nex-n2-pro:free secondary research/suggestion model.
-
-TRIAL MODEL — FREE UNTIL 2026-06-25.
-After that date: remove this module or re-evaluate whether a paid tier exists.
-See REMOVE_AFTER constant below.
-
-Model facts (verified 2026-06-11):
-  id:           nex-agi/nex-n2-pro:free
-  context:      262 144 tokens
-  pricing:      $0/$0 (free during trial)
-  reasoning:    supported (sends step-by-step reasoning via `reasoning` param)
-  trial end:    ~2026-06-25 (OpenRouter free trial)
-
-Role: SECONDARY only — used for research + suggestion alongside the existing
-primary model, never as the build/generator primary.  The primary model is
-never replaced.
-
-Control:
-  NEX_N2_RESEARCH_ENABLED=true (default) — set to false/0 to disable entirely.
-  Falls back gracefully on 429/5xx without crashing the research path.
-
-Reasoning contract (OpenRouter docs):
-  - Send `"reasoning": {"effort": "high"}` in the request body.
-  - The response includes a `reasoning` key on the message object containing
-    reasoning_details as a list of {"type": "thinking", "thinking": "..."} blocks.
-  - In multi-turn conversations, PRESERVE the complete reasoning_details list
-    when passing prior assistant messages back to the model (include the
-    `reasoning` field on the assistant message).  Do not strip it.
-"""
+"""provider_nex_n2.py — nex-agi/nex-n2-pro:free secondary research/suggestion model."""
 from __future__ import annotations
 
 import asyncio
@@ -171,33 +143,12 @@ async def call(
     session_id: str = "",
     history: list[dict[str, Any]] | None = None,
 ) -> tuple[int, str, float, str | None, list[dict[str, Any]]]:
-    """Call nex-n2-pro:free on OpenRouter.
-
-    Args:
-        prompt:     The new user turn.
-        role:       Pi-CEO role for logging / policy check.
-        timeout_s:  HTTP timeout.
-        max_tokens: Max completion tokens.
-        session_id: For log correlation.
-        history:    Prior turns in OpenAI chat format, including any
-                    reasoning_details on assistant messages (see
-                    build_assistant_message_with_reasoning).
-
-    Returns:
-        (rc, text, cost_usd, error_or_None, reasoning_details)
-        rc == 0 on success, 1 on failure.
-        reasoning_details is a list of {"type": "thinking", "thinking": "..."}
-        blocks — preserve these when calling again in a multi-turn conversation.
-
-    Failure modes (all return rc=1, empty text, 0.0 cost):
-        openrouter_no_api_key    — OPENROUTER_API_KEY not set
-        openrouter_httpx_import_failed — httpx not installed
-        openrouter_call_raised   — network error
-        openrouter_http_429      — rate-limited (free model limit reached)
-        openrouter_http_5xx      — server error
-        openrouter_bad_json      — response parse error
-        openrouter_empty_response — model returned empty content
-    """
+    """Call nex-n2-pro:free on OpenRouter."""
+    from app.server import provider_policy
+    try:
+        provider_policy.require_transport("openrouter")
+    except provider_policy.ProviderPolicyError as exc:
+        return 1, "", 0.0, str(exc), []
     if not is_enabled():
         log.debug("provider_nex_n2: disabled via NEX_N2_RESEARCH_ENABLED")
         return 1, "", 0.0, "nex_n2_disabled", []

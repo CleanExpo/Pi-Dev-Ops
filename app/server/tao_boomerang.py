@@ -82,7 +82,7 @@ class BoomerangResult:
 
     question: str
     summary: str = ""
-    cost_usd: float = 0.0
+    cost_usd: float | None = None
     elapsed_s: float = 0.0
     error: str | None = None
     rc: int = 0
@@ -100,8 +100,11 @@ class BoomerangBatch:
     results: list[BoomerangResult] = field(default_factory=list)
 
     @property
-    def total_cost_usd(self) -> float:
-        return round(sum(r.cost_usd for r in self.results), 4)
+    def total_cost_usd(self) -> float | None:
+        costs = [r.cost_usd for r in self.results]
+        if any(cost is None for cost in costs):
+            return None
+        return round(sum(cost for cost in costs if cost is not None), 4)
 
     @property
     def all_succeeded(self) -> bool:
@@ -228,7 +231,7 @@ async def dispatch_one(
     elapsed = round(time.monotonic() - t0, 2)
     return BoomerangResult(
         question=question, summary=summary,
-        cost_usd=round(float(cost or 0.0), 4),
+        cost_usd=round(cost, 4) if cost is not None else None,
         elapsed_s=elapsed, rc=rc,
         error=None if rc == 0 else f"rc={rc}",
     )

@@ -3,11 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import sys
-from io import StringIO
 from pathlib import Path
-
-import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -23,7 +19,7 @@ def _load_verify_module():
     return mod
 
 
-def test_verify_autonomous_mode_exit_ok(monkeypatch, capsys):
+def test_verify_autonomous_mode_requires_observed_execution(monkeypatch, capsys):
     monkeypatch.setenv("TAO_AUTONOMY_ENABLED", "1")
     monkeypatch.setenv("TAO_MACHINE_SHIP_MODE", "1")
     monkeypatch.setenv("GITHUB_TOKEN", "ghp_test")
@@ -45,9 +41,11 @@ def test_verify_autonomous_mode_exit_ok(monkeypatch, capsys):
     code = mod.main()
     out = capsys.readouterr().out
     body = json.loads(out)
-    assert code == 0
-    assert body["ok"] is True
+    assert code == 1
+    assert body["ok"] is False
     assert body["queue_depth"] == 1
+    assert body["machine_ship"]["checks"]["llm_execution_verified"] is False
+    assert any("not verified" in reason for reason in body["blockers"])
 
 
 def test_verify_autonomous_mode_exit_fail_when_autonomy_off(monkeypatch, capsys):

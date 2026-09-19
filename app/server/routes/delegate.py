@@ -69,6 +69,14 @@ def _check_secret(x_pi_ceo_secret: Optional[str]) -> None:
         raise HTTPException(401, "Invalid X-Pi-CEO-Secret")
 
 
+def _require_delegate_transport():
+    from ..provider_policy import ProviderPolicyError, require_transport
+    try:
+        require_transport("anthropic")
+    except ProviderPolicyError as exc:
+        raise HTTPException(503, str(exc)) from None
+
+
 @router.post("/api/margot/delegate", response_model=DelegateResponse)
 async def delegate_task(
     body: DelegateRequest,
@@ -80,6 +88,7 @@ async def delegate_task(
     spec to provider_router. Returns synchronously — no webhooks for v1.
     """
     _check_secret(x_pi_ceo_secret)
+    _require_delegate_transport()
 
     agent_name, role = TASK_TYPE_MAP[body.task_type]
     job_id = body.job_id or str(uuid.uuid4())
@@ -89,8 +98,7 @@ async def delegate_task(
         job_id, body.task_type, agent_name, body.chat_id,
     )
 
-    # Prefer raw Anthropic API; fall back to OpenRouter (which IS set on Railway).
-    # Both avoid session_sdk / Claude Code CLI which requires interactive login.
+    # Paid adapters are admitted only after the transport policy check above.
     anthropic_key = config.ANTHROPIC_API_KEY or os.environ.get("ANTHROPIC_API_KEY", "")
     openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
 

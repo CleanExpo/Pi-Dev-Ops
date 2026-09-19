@@ -1,4 +1,4 @@
-/** Single source of truth for 2nd Brain flywheel UI — update when milestones change. */
+/** Historical implementation record. Live connectivity is probed separately. */
 
 export type BrainItemStatus = "done" | "blocked" | "next" | "waiting";
 
@@ -35,13 +35,13 @@ export const BRAIN_STATUS: BrainStatusSnapshot = {
   title: "2nd Brain Flywheel",
   updated: "2026-06-11",
   branch: "main",
-  commit: "runtime proof 5eead06",
+  commit: "recorded proof 5eead06",
   prUrl: "https://github.com/CleanExpo/Pi-Dev-Ops/pulls?q=319+320+321+322+323+324+325+326+327+328",
   testsCommand: "python -m pytest tests/test_margot_tools_gemini.py tests/test_margot_research_voice.py tests/test_analyst.py tests/test_create_session_concurrency.py tests/test_sessions.py -q",
   testsExpected: "Main CI, production Smoke Test, production E2E, pgtap, Codebase Wiki, and DESIGN lint green after PR #328 merge",
-  headline: "Production Brain write/read and corpus-backed Margot MCP research are proven.",
+  headline: "Brain write/read and Margot research were recorded as proven in June 2026.",
   explanation:
-    "The deployed Margot path writes analyst deliverables into the Mac Mini Obsidian vault through a narrow relay. " +
+    "This historical record describes the Margot path writing analyst deliverables into the Mac Mini Obsidian vault through a narrow relay. " +
     "Proof turn mt-2853e2f248 ran direct [RESEARCH], used the packaged Margot FastMCP runtime with File Search store " +
     "fileSearchStores/margotunitegroupcore-dol7bswlfkar and model gemini-3.1-pro-preview-customtools, " +
     "returned HTTP 200 with research_called=true, and wrote Wiki/analyst/2026-06-10-what-does-the-evidence-say-about-research-topic.md. " +

@@ -216,7 +216,7 @@ async def test_intel_refresh_total_fetch_failure_raises(monkeypatch):
 
     monkeypatch.setattr(air, "refresh_anthropic_intel", _all_failed)
 
-    with pytest.raises(RuntimeError, match=r"only 0/3 doc sources"):
+    with pytest.raises(RuntimeError, match=rf"only 0/{len(air._DOCS_URLS)} doc sources"):
         await ct._fire_intel_refresh_trigger(
             {"id": "intel-refresh-daily-0200", "type": "intel_refresh"}, _LOG,
         )
@@ -237,7 +237,7 @@ async def test_intel_refresh_partial_fetch_failure_raises(monkeypatch):
 
     monkeypatch.setattr(air, "refresh_anthropic_intel", _partial)
 
-    with pytest.raises(RuntimeError, match=r"only 1/3 doc sources"):
+    with pytest.raises(RuntimeError, match=rf"only 1/{len(air._DOCS_URLS)} doc sources"):
         await ct._fire_intel_refresh_trigger(
             {"id": "intel-refresh-daily-0200", "type": "intel_refresh"}, _LOG,
         )
@@ -349,7 +349,8 @@ async def test_successful_publish_writes_all_files_atomically(monkeypatch, tmp_p
     assert len(result["fetched_urls"]) == len(air._DOCS_URLS)
     dated = [d for d in snapshot_dir.iterdir() if d.is_dir() and d.name[:4].isdigit()]
     assert len(dated) == 1
-    assert len(list(dated[0].iterdir())) == len(air._DOCS_URLS)
+    assert len(list(dated[0].glob("*.md"))) == len(air._DOCS_URLS)
+    assert (dated[0] / "manifest.json").is_file()
     leftovers = [d for d in snapshot_dir.iterdir() if d.name.startswith(".")]
     assert leftovers == [], f"temp dirs must not survive publish: {leftovers}"
 
@@ -378,7 +379,7 @@ async def test_scheduler_total_failure_advances_no_state(monkeypatch, tmp_path):
         "last_fired_at": 1234567890.0,
     }
 
-    with pytest.raises(RuntimeError, match=r"only 0/3 doc sources"):
+    with pytest.raises(RuntimeError, match=rf"only 0/{len(air._DOCS_URLS)} doc sources"):
         await ct._fire_trigger(trigger, _LOG)
 
     assert trigger["last_fired_at"] == 1234567890.0
@@ -465,8 +466,6 @@ async def test_cron_loop_total_failure_no_persistence(monkeypatch):
     last_fired_at must remain unchanged and _save_triggers must never be
     called with an advanced timestamp (locks the contract the reviewer probed
     manually)."""
-    import asyncio
-
     from app.server import cron_scheduler as cs
 
     trigger = {

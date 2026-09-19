@@ -9,15 +9,12 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 interface ZteResponse {
-  score: number;
-  model: string;
-  model_id: string;
-  sdk_mode: boolean;
-  source: "backend" | "harness" | "default";
+  score: number | null;
+  model: string | null;
+  model_id: string | null;
+  sdk_mode: boolean | null;
+  source: "backend" | "harness" | "unavailable";
 }
-
-const DEFAULT_MODEL = "Opus 5";
-const DEFAULT_MODEL_ID = "claude-opus-5";
 
 async function fromBackend(): Promise<Partial<ZteResponse> | null> {
   const base = process.env.RAILWAY_URL ?? process.env.PI_CEO_URL;
@@ -30,8 +27,9 @@ async function fromBackend(): Promise<Partial<ZteResponse> | null> {
     const res = await piCeoFetch("/api/zte/score", {}, 5_000);
     if (!res || !res.ok) return null;
     const raw = (await res.json()) as Record<string, unknown>;
-    const score = Number(raw.score ?? raw.zte_score ?? NaN);
-    if (!Number.isFinite(score)) return null;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const score = raw.score ?? raw.zte_score;
+    if (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 100) return null;
     return { score };
   } catch {
     return null;
@@ -60,16 +58,14 @@ async function fromHarness(): Promise<number | null> {
 }
 
 export async function GET(): Promise<Response> {
-  const sdkMode = process.env.TAO_USE_AGENT_SDK === "1";
-
   const backend = await fromBackend();
   if (backend?.score !== undefined) {
     return Response.json(
       {
         score: backend.score,
-        model: DEFAULT_MODEL,
-        model_id: DEFAULT_MODEL_ID,
-        sdk_mode: sdkMode,
+        model: null,
+        model_id: null,
+        sdk_mode: null,
         source: "backend",
       } satisfies ZteResponse,
       { headers: { "Cache-Control": "no-store" } },
@@ -81,9 +77,9 @@ export async function GET(): Promise<Response> {
     return Response.json(
       {
         score: harness,
-        model: DEFAULT_MODEL,
-        model_id: DEFAULT_MODEL_ID,
-        sdk_mode: sdkMode,
+        model: null,
+        model_id: null,
+        sdk_mode: null,
         source: "harness",
       } satisfies ZteResponse,
       { headers: { "Cache-Control": "no-store" } },
@@ -92,11 +88,11 @@ export async function GET(): Promise<Response> {
 
   return Response.json(
     {
-      score: 85,
-      model: DEFAULT_MODEL,
-      model_id: DEFAULT_MODEL_ID,
-      sdk_mode: sdkMode,
-      source: "default",
+      score: null,
+      model: null,
+      model_id: null,
+      sdk_mode: null,
+      source: "unavailable",
     } satisfies ZteResponse,
     { headers: { "Cache-Control": "no-store" } },
   );

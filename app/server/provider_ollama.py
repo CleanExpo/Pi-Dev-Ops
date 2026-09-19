@@ -1,33 +1,8 @@
-"""provider_ollama.py — RA-1868 Wave 5.2: local Ollama inference wrapper.
+"""Explicit local Ollama transport with per-call served-model evidence.
 
-OpenAI-compatible HTTP client for Ollama at localhost:11434/v1. Used as
-the preferred cheap-tier path when reachable — free, private, fast.
-provider_router auto-falls-back to OpenRouter when Ollama isn't
-reachable (e.g. production Railway).
-
-The OpenAI compat path on Ollama matches the OpenRouter wrapper exactly,
-so the same code shape works with a different base_url + auth header.
-
-Required env (none — works out of the box on a default Ollama install):
-  OLLAMA_BASE_URL    — override default http://localhost:11434/v1
-
-The "API key" Ollama expects is literally the string "ollama" — sent as
-a Bearer token but unverified. We send it for OpenAI-spec compliance.
-
-Cost tracking: Ollama returns tokens but no cost (it's free). We surface
-cost_usd=0.0 deterministically.
-
-Failure modes:
-  Network error / unreachable → (1, "", 0.0, "ollama_call_raised: ...")
-  HTTP error                  → (1, "", 0.0, "ollama_http_<status>: ...")
-  Empty response              → (1, "", 0.0, "ollama_empty_response")
-
-httpx imported lazily so the module loads in environments without it.
-
-Reachability probe: ``is_reachable()`` does a 1-second HEAD/GET on the
-``/api/tags`` endpoint. Used by provider_router to decide cheap-tier
-routing on each call (cached for 60s — we don't want to spam Ollama on
-every cycle).
+Only loopback endpoints pass the subscription-only policy. The legacy tuple
+API remains available; the rich result retains model metadata from the actual
+response. Selection never silently falls back to a paid provider.
 """
 from __future__ import annotations
 
@@ -35,7 +10,12 @@ import asyncio
 import logging
 import os
 import time
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+from . import provider_policy
+
+if TYPE_CHECKING:
+    from .provider_execution_types import ProviderExecution
 
 log = logging.getLogger("app.server.provider_ollama")
 
@@ -77,6 +57,10 @@ def is_reachable(*, force_refresh: bool = False, base_url: str | None = None) ->
     base_url probes a specific Ollama instead of OLLAMA_BASE_URL.
     """
     url = _tags_url(base_url)
+    try:
+        provider_policy.require_transport("ollama", endpoint_url=url)
+    except provider_policy.ProviderPolicyError:
+        return False
     now = time.time()
 
     if not force_refresh:
@@ -144,50 +128,75 @@ def _extract_text(response: dict[str, Any]) -> str:
 # ── Public entry ────────────────────────────────────────────────────────────
 
 
-async def call(*, prompt: str, model_id: str,
+async def call_with_evidence(*, prompt: str, model_id: str,
                  timeout_s: float = HTTP_TIMEOUT_S_DEFAULT,
                  max_tokens: int = 4096,
                  role: str = "",
                  session_id: str = "", base_url: str | None = None,
-                 ) -> tuple[int, str, float, str | None]:
-    """One Ollama call. Returns (rc, text, cost_usd, error_or_None).
+                 ) -> ProviderExecution:
+    """One local call with served-model metadata kept on its own result."""
+    from .provider_execution_types import ProviderExecution
 
-    cost_usd is always 0.0 — Ollama is free; base_url picks a specific one.
-    """
+    evidence = {"provider": "ollama", "transport": "ollama", "requested_model": model_id,
+                "actual_model": None, "model_verified": False, "auth_verified": False,
+                "billing_class": "unknown", "source": "provider_ollama"}
     headers = _build_headers()
     body = _build_body(prompt, model_id, max_tokens=max_tokens)
 
     try:
         import httpx  # noqa: PLC0415
     except Exception as exc:  # noqa: BLE001
-        return 1, "", 0.0, f"ollama_httpx_import_failed: {exc}"
+        return ProviderExecution(1, "", 0.0, f"ollama_httpx_import_failed: {exc}", evidence)
 
-    def _do_call() -> tuple[int, str, float, str | None]:
+    def _do_call() -> ProviderExecution:
         url = f"{_base_url(base_url)}/chat/completions"
+        try:
+            evidence.update(provider_policy.require_transport("ollama", endpoint_url=url))
+        except provider_policy.ProviderPolicyError as exc:
+            return ProviderExecution(1, "", 0.0, str(exc), evidence)
         try:
             with httpx.Client(timeout=timeout_s) as client:
                 r = client.post(url, headers=headers, json=body)
         except Exception as exc:  # noqa: BLE001
-            return 1, "", 0.0, f"ollama_call_raised: {exc}"
-        if r.status_code >= 400:
-            body_snippet = (r.text or "")[:500]
-            return 1, "", 0.0, (
-                f"ollama_http_{r.status_code}: {body_snippet}"
-            )
-        try:
-            data = r.json()
-        except Exception as exc:  # noqa: BLE001
-            return 1, "", 0.0, f"ollama_bad_json: {exc}"
-        text = _extract_text(data)
-        if not text:
-            return 1, "", 0.0, "ollama_empty_response"
-        log.info(
-            "ollama %s: %d chars, $0 (model=%s, local)",
-            role or "?", len(text), model_id,
-        )
-        return 0, text, 0.0, None
+            return ProviderExecution(1, "", 0.0, f"ollama_call_raised: {exc}", evidence)
+        return _decode_response(r, evidence, role, model_id)
 
     return await asyncio.to_thread(_do_call)
 
 
-__all__ = ["call", "is_reachable", "clear_reachability_cache"]
+async def call(*, prompt: str, model_id: str, timeout_s: float = HTTP_TIMEOUT_S_DEFAULT,
+               max_tokens: int = 4096, role: str = "", session_id: str = "", base_url: str | None = None,
+               ) -> tuple[int, str, float | None, str | None]:
+    """Legacy tuple interface; richer callers retain per-call response evidence."""
+    outcome = await call_with_evidence(prompt=prompt, model_id=model_id, timeout_s=timeout_s,
+                                       max_tokens=max_tokens, role=role, session_id=session_id, base_url=base_url)
+    return outcome.as_tuple()
+
+
+__all__ = ["call", "call_with_evidence", "is_reachable", "clear_reachability_cache"]
+
+
+def _decode_response(response, evidence, role, model_id):
+    from .provider_execution_types import ProviderExecution
+    if response.status_code >= 400:
+        body_snippet = (response.text or "")[:500]
+        return ProviderExecution(1, "", 0.0,
+            f"ollama_http_{response.status_code}: {body_snippet}", evidence)
+    try:
+        data = response.json()
+    except Exception as exc:  # noqa: BLE001
+        return ProviderExecution(1, "", 0.0, f"ollama_bad_json: {exc}", evidence)
+    if not isinstance(data, dict):
+        return ProviderExecution(1, "", 0.0, "ollama_invalid_response", evidence)
+    reported = data.get("model")
+    if isinstance(reported, str) and reported.strip():
+        evidence.update(actual_model=reported.strip(), model_verified=True,
+                        model_source="ollama_response.model")
+    text = _extract_text(data)
+    if not text:
+        return ProviderExecution(1, "", 0.0, "ollama_empty_response", evidence)
+    log.info(
+        "ollama %s: %d chars, $0 (model=%s, local)",
+        role or "?", len(text), model_id,
+    )
+    return ProviderExecution(0, text, 0.0, None, evidence)

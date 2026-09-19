@@ -4,7 +4,9 @@ export const dynamic = "force-dynamic";
 
 import { createHash, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse, after } from "next/server";
+import { getHistory, pushHistory, clearHistory, type Turn } from "@/lib/telegram-history";
 import Anthropic from "@anthropic-ai/sdk";
+import { requireApiTransport } from "@/lib/model-policy";
 import { MODELS, refusalFallback } from "@/lib/models";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -16,31 +18,6 @@ interface TelegramUpdate {
     from?: { id: number; username?: string; first_name?: string };
   };
 }
-
-type Role = "user" | "assistant";
-interface Turn { role: Role; content: string }
-
-// ── Conversation history ──────────────────────────────────────────────────────
-
-const HISTORY = new Map<number, Turn[]>();
-const MAX_HISTORY_TURNS = 20;
-
-function getHistory(chatId: number): Turn[] {
-  return HISTORY.get(chatId) ?? [];
-}
-
-function pushHistory(chatId: number, role: Role, content: string): void {
-  const h = getHistory(chatId);
-  h.push({ role, content });
-  if (h.length > MAX_HISTORY_TURNS) h.splice(0, h.length - MAX_HISTORY_TURNS);
-  HISTORY.set(chatId, h);
-}
-
-function clearHistory(chatId: number): void {
-  HISTORY.delete(chatId);
-}
-
-// ── Telegram send ─────────────────────────────────────────────────────────────
 
 async function send(chatId: number, text: string): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -259,6 +236,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
 }
 
 async function ceoAgentCall(history: Turn[]): Promise<string> {
+  requireApiTransport();
   // Trim is critical: ANTHROPIC_API_KEY may have a trailing newline from Vercel env
   // pull, or be an empty string (set by claude CLI in shell env).
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();

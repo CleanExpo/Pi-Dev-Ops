@@ -73,7 +73,7 @@ class WritePreambleTests(unittest.TestCase):
         self.assertIn("context_label: Unite-Group", content)
         self.assertIn("schema_version: preamble-v2", content)
         self.assertIn("## Vocabulary", content)
-        self.assertTrue(md_path.endswith("contexts/unite-group/preamble.md"))
+        self.assertEqual(Path(md_path).parts[-3:], ("contexts", "unite-group", "preamble.md"))
         # Entities omitted → JSON sidecar should NOT be written
         self.assertIsNone(json_path)
 
@@ -87,7 +87,7 @@ class WritePreambleTests(unittest.TestCase):
             with patch.object(pt, "WIKI_ROOT", Path(tmp)):
                 md_path, json_path = pt.write_preamble(ctx, "## Vocabulary\n", entities)
                 payload = json.loads(Path(json_path).read_text())
-        self.assertTrue(json_path.endswith("contexts/unite-group/preamble.json"))
+        self.assertEqual(Path(json_path).parts[-3:], ("contexts", "unite-group", "preamble.json"))
         self.assertEqual(payload["schema_version"], "preamble-v2")
         self.assertEqual(payload["entities"]["people"][0]["name"], "Phill")
 
@@ -246,6 +246,11 @@ class SummariseCascadeTests(unittest.TestCase):
 
 
 class ClaudePrintSummariseTests(unittest.TestCase):
+    def setUp(self):
+        policy = patch.object(pt, "require_transport", return_value={"billing_class": "subscription"})
+        policy.start()
+        self.addCleanup(policy.stop)
+
     def test_returns_stdout_on_success(self):
         fake = MagicMock(returncode=0, stdout="hello\n", stderr="")
         with patch("swarm.inbox.preamble_trainer.subprocess.run", return_value=fake):

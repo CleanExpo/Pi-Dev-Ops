@@ -47,6 +47,8 @@ def _fake_run_cmd(rec: _Recorder, push_rc: int, diff_out: str):
 
     async def run(cwd, *args, timeout=60, env=None):
         rec.cmds.append(args)
+        if args[:3] == ("git", "rev-parse", "HEAD"):
+            return 0, "b" * 40, ""
         if args[:2] == ("git", "status"):
             return 0, "", ""
         if args[:2] == ("git", "log") and "--oneline" in args:
@@ -115,7 +117,21 @@ def _install(monkeypatch, rec: _Recorder, *, push_rc: int = 0, diff_out: str = "
     monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen(rec, urlopen_raises))
 
 
+def _approved_candidate(session):
+    """Push/PR tests start after the separately tested required release reviews."""
+    session.candidate_sha = session.verified_sha = "b" * 40
+    session.evaluator_status = "passed"
+    session.verification = {"status": "passed", "candidate_sha": session.candidate_sha}
+    session.audit_evidence = [
+        {"provider": provider, "actual_model": model, "model_verified": True, "auth_verified": True, "source": "transport_response",
+         "rc": 0, "candidate_sha": session.candidate_sha}
+        for provider, model in [("anthropic", "claude-sonnet-4-6"), ("ollama", "local-reviewer")]
+    ]
+    session.adversary_verdict = {"verdict": "APPROVE", "candidate_sha": session.candidate_sha}
+
+
 async def _run(session, total_phases: int = 6):
+    _approved_candidate(session)
     return await session_phases._phase_push(session, total_phases)
 
 

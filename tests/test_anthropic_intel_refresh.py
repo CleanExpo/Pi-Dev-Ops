@@ -16,6 +16,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def legacy_sources(monkeypatch):
+    """Keep legacy snapshot migration coverage independent of source expansion."""
+    from app.server.agents import anthropic_intel_refresh as refresh
+
+    monkeypatch.setattr(refresh, "_DOCS_URLS", [
+        "https://docs.claude.com/en/release-notes/overview",
+        "https://docs.claude.com/en/api/overview",
+        "https://docs.claude.com/en/docs/claude-code/overview",
+    ])
+
+
 @pytest.fixture
 def mock_urls():
     """Mock URL content."""

@@ -12,6 +12,22 @@ import json
 import time
 from unittest.mock import MagicMock
 
+import pytest
+
+
+@pytest.mark.parametrize("revision", ["a" * 40, "not-a-sha", "", "a" * 7])
+def test_health_reports_only_full_deployment_revision(monkeypatch, revision):
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", revision)
+    monkeypatch.delenv("BUILD_REVISION", raising=False)
+    data = _call_health(monkeypatch)
+    assert data["revision"] == (revision if len(revision) == 40 else None)
+
+
+def test_health_uses_explicit_build_revision_without_railway(monkeypatch):
+    monkeypatch.delenv("RAILWAY_GIT_COMMIT_SHA", raising=False)
+    monkeypatch.setenv("BUILD_REVISION", "b" * 40)
+    assert _call_health(monkeypatch)["revision"] == "b" * 40
+
 
 def _call_health(monkeypatch, *, linear_api_key: str = "", last_poll_at: float = 0.0,
                  poll_count: int = 0) -> dict:

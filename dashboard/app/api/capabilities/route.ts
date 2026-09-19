@@ -20,8 +20,10 @@ interface CapabilitiesResponse {
   actions: string[];
   triggerTypes: string[];
   supportedModels: string[];
+  configuredModels: string[];
   metadata: {
-    zteLevel: number;
+    zteLevel: number | null;
+    modelAvailability: "unverified";
     environment: string;
   };
 }
@@ -41,22 +43,20 @@ export async function GET(): Promise<NextResponse<CapabilitiesResponse>> {
           endpoints: "Array of available endpoints",
           actions: "Array of supported action types",
           triggerTypes: "Array of trigger mechanisms",
-          supportedModels: "Array of available AI models",
+          supportedModels: "Verified available models; empty until runtime availability is observed",
+          configuredModels: "Configured model identifiers, not verified availability or subscription access",
         },
       },
       {
         name: "Analyze Repository",
         description: "Run Pi CEO analysis on a GitHub repository",
-        method: "POST",
+        method: "GET",
         path: "/api/analyze",
         inputs: {
-          repoUrl: "GitHub repository URL (format: owner/repo or full URL)",
-          analysisMode: "Optional: 'cli' or 'api' (defaults to environment setting)",
+          repo: "Required query parameter: full HTTPS GitHub repository URL",
         },
         outputs: {
-          id: "Unique analysis session ID",
-          status: "Analysis status (running, completed, failed)",
-          result: "AnalysisResult object with findings",
+          stream: "text/event-stream with line, phase_update, result_update, done, error and timeout events; each request starts work",
         },
       },
       {
@@ -137,14 +137,16 @@ export async function GET(): Promise<NextResponse<CapabilitiesResponse>> {
       "cron",
       "manual",
     ],
-    supportedModels: [
+    supportedModels: [],
+    configuredModels: [
       process.env.ORCHESTRATOR_MODEL || MODELS.ORCHESTRATOR,
       process.env.ANALYST_MODEL || MODELS.ANALYST,
       process.env.WORKER_MODEL || MODELS.WORKER,
       process.env.ANALYSIS_MODEL || MODELS.DEFAULT,
     ],
     metadata: {
-      zteLevel: 3, // Agentic layer satisfied
+      zteLevel: null,
+      modelAvailability: "unverified",
       environment: process.env.NODE_ENV || "development",
     },
   };

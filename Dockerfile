@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Claude remains the high-trust escape hatch. OmniRoute is pinned to the latest
 # published npm version reviewed for the Mission Control model-fabric build.
-RUN npm install -g @anthropic-ai/claude-code omniroute@3.8.49 \
+RUN npm install -g @anthropic-ai/claude-code@2.1.267 omniroute@3.8.49 \
     && omniroute --version
 
 # Create non-root user — claude_agent_sdk refuses --dangerously-skip-permissions
@@ -28,8 +28,8 @@ RUN useradd -m -u 1001 pidev
 
 # Python dependencies
 WORKDIR /pi-ceo
-COPY app/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY app/requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 # Application code
 COPY app/server/ ./app/server/

@@ -33,6 +33,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from .provider_policy import ProviderPolicyError, require_transport
+
 log = logging.getLogger("app.server.provider_whisper")
 
 OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
@@ -99,14 +101,7 @@ async def transcribe(audio_path: Path | str, *,
                        role: str = "margot.voice",
                        session_id: str = "",
                        ) -> tuple[int, str, float, str | None]:
-    """One Whisper transcription call.
-
-    Returns (rc, transcript, cost_usd, error_or_None) — same shape as
-    provider_openrouter.call() so callers get a consistent contract.
-
-    Async, runs the sync httpx call in a worker thread to avoid blocking
-    the event loop.
-    """
+    """One Whisper transcription call."""
     p = Path(audio_path)
     if not p.exists() or not p.is_file():
         return 1, "", 0.0, f"whisper_audio_not_found: {p}"
@@ -114,6 +109,11 @@ async def transcribe(audio_path: Path | str, *,
     headers = _build_headers()
     if not headers:
         return 1, "", 0.0, "openrouter_no_api_key"
+
+    try:
+        require_transport("openrouter")
+    except ProviderPolicyError as exc:
+        return 1, "", 0.0, str(exc)
 
     model_id = (model or _resolve_model()).strip()
     timeout = timeout_s or _resolve_timeout()

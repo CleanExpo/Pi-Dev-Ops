@@ -92,4 +92,12 @@ def session_from_checkpoint(sid: str, row: dict, checkpoint: dict) -> BuildSessi
         parent_session_id=checkpoint.get("parent_session_id"),
         complexity_tier=checkpoint.get("complexity_tier", "") or "",
         shared_workspace=checkpoint.get("shared_workspace", "") or "",
+        **_release_checkpoint(checkpoint, bool(workspace)),
     )
+
+
+def _release_checkpoint(checkpoint, same_workspace):
+    defaults = {"base_sha": "", "candidate_sha": "", "verified_sha": "",
+                "verification": {}, "audit_evidence": [], "adversary_verdict": {}}
+    return {key: (checkpoint.get(key) or value) if same_workspace else value
+            for key, value in defaults.items()}

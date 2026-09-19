@@ -75,6 +75,12 @@ class BuildSession:
     evaluator_findings: list = field(default_factory=list)  # RA-1027: structured JSON findings from persona review
     shared_workspace: str = ""                      # RA-1029: path to parent's cloned workspace (worktree source)
     phase_metrics: dict = field(default_factory=dict)  # RA-1032: per-phase {duration_s, cost_usd}
+    base_sha: str = ""
+    candidate_sha: str = ""
+    verified_sha: str = ""
+    verification: dict = field(default_factory=dict)
+    audit_evidence: list = field(default_factory=list)
+    adversary_verdict: dict = field(default_factory=dict)
 
 
 def mark_terminal(session: "BuildSession", status: str) -> None:
@@ -134,6 +140,7 @@ def list_sessions() -> list[dict]:
             "files_modified": len(s.modified_files),
             "complexity_tier": s.complexity_tier,
             "phase_metrics": s.phase_metrics,
+            **persistence.release_evidence(s),
         }
         for s in _sessions.values()
     ]
@@ -160,9 +167,19 @@ def restore_sessions() -> None:
             last_completed_phase=data.get("last_completed_phase", ""),
             retry_count=data.get("retry_count", 0),
             linear_issue_id=data.get("linear_issue_id"),
+            evaluator_status=data.get("evaluator_status", "pending"),
+            evaluator_score=data.get("evaluator_score"),
+            evaluator_model=data.get("evaluator_model", ""),
+            evaluator_consensus=data.get("evaluator_consensus", ""),
+            base_sha=data.get("base_sha", ""),
+            candidate_sha=data.get("candidate_sha", ""),
+            verified_sha=data.get("verified_sha", ""),
+            verification=data.get("verification") or {},
+            audit_evidence=data.get("audit_evidence") or [],
+            adversary_verdict=data.get("adversary_verdict") or {},
         )
         # Mark anything that was in-flight as interrupted
-        if session.status in ("created", "cloning", "building"):
+        if session.status in ("created", "cloning", "building", "evaluating", "pushing", "orchestrating"):
             session.status = "interrupted"
             persistence.save_session(session)
         _sessions[sid] = session
@@ -196,10 +213,10 @@ def recover_interrupted_sessions_from_supabase(max_concurrent: int = 0) -> int:
     try:
         from . import config, persistence, session_lease, session_recovery, supabase_log  # noqa: PLC0415
         from .session_phases import run_build  # noqa: PLC0415
+        from .sessions import register_build_task
     except Exception as exc:
         _log.warning("RA-1407 startup recovery: import failed — %s", exc)
         return 0
-
     cap = int(max_concurrent) if max_concurrent > 0 else getattr(config, "MAX_CONCURRENT_SESSIONS", 3)
     try:
         rows = supabase_log.fetch_interrupted_sessions(limit=cap * 2)
@@ -239,7 +256,7 @@ def recover_interrupted_sessions_from_supabase(max_concurrent: int = 0) -> int:
             _, resume_from = session_recovery.resume_target(checkpoint, last_phase)
             _sessions[sid] = session
             persistence.save_session(session)
-            asyncio.create_task(run_build(session, resume_from=resume_from))
+            register_build_task(session, asyncio.create_task(run_build(session, resume_from=resume_from)))
             scheduled += 1
         except Exception as exc:
             _log.warning("RA-1407 startup recovery: failed to rehydrate %s — %s", sid, exc)

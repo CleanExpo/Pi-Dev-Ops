@@ -1,7 +1,7 @@
-// hooks/useSSE.ts — SSE subscription hook with exponential-backoff reconnection
+// hooks/useSSE.ts — one analysis request with streamed results
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { TermLine, Phase, AnalysisResult, PhaseStatus } from "@/lib/types";
 import { PHASES } from "@/lib/phases";
 
@@ -27,13 +27,9 @@ interface SSEState {
 const initialPhases = (): Phase[] =>
   PHASES.map((p) => ({ ...p, status: "pending" as PhaseStatus }));
 
-const BACKOFF_MS  = [1000, 2000, 4000, 8000, 16000, 30000]; // max 30 s
-const MAX_RETRIES = 6;
-
 export function useSSE() {
   const esRef        = useRef<EventSource | null>(null);
-  const retryTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const repoRef      = useRef<string>("");
+  useEffect(() => () => { esRef.current?.close(); }, []);
 
   const [state, setState] = useState<SSEState>({
     lines:        [],
@@ -51,7 +47,7 @@ export function useSSE() {
 
   const briefRef = useRef<string>("");
 
-  const connect = useCallback((repoUrl: string, retryCount: number) => {
+  const connect = useCallback((repoUrl: string) => {
     esRef.current?.close();
 
     const params = new URLSearchParams({ repo: repoUrl });
@@ -122,7 +118,7 @@ export function useSSE() {
 
     // Server-sent "error" events — only fire when the route explicitly sends
     // `event: error\ndata: {...}`. Native connection drops have no .data and
-    // must fall through to onerror (which handles reconnection).
+    // must fall through to onerror (which reports lost observation).
     es.addEventListener("error", (e) => {
       const msgData = (e as MessageEvent).data;
       if (!msgData) return; // no data = connection drop; let onerror handle it
@@ -151,32 +147,13 @@ export function useSSE() {
       setState((s) => {
         if (s.status !== "running") return s;
 
-        const nextRetry = retryCount + 1;
-        if (nextRetry > MAX_RETRIES) {
-          return { ...s, status: "error", error: "Connection lost — please re-run the analysis." };
-        }
-
-        const delay = BACKOFF_MS[Math.min(retryCount, BACKOFF_MS.length - 1)];
-        const reconnectMsg: TermLine = {
-          type: "system",
-          text: `  Connection lost — reconnecting in ${delay / 1000}s… (attempt ${nextRetry}/${MAX_RETRIES})`,
-          ts:   Date.now() / 1000,
-        };
-
-        // Schedule reconnect — recursive useCallback is safe here (runs async, after init)
-        // eslint-disable-next-line react-hooks/immutability
-        retryTimeout.current = setTimeout(() => connect(repoRef.current, nextRetry), delay);
-
-        return { ...s, lines: [...s.lines, reconnectMsg], retries: nextRetry };
+        // GET /api/analyze creates work: repeating it would launch another run.
+        return { ...s, status: "error", retries: 0, error: "Analysis connection lost. Check History before starting another analysis." };
       });
     };
   }, []);
 
   const start = useCallback((repoUrl: string, brief?: string) => {
-    // Clear any pending retry
-    if (retryTimeout.current) { clearTimeout(retryTimeout.current); retryTimeout.current = null; }
-
-    repoRef.current = repoUrl;
     briefRef.current = brief ?? "";
     setState({
       lines:        [],
@@ -191,11 +168,10 @@ export function useSSE() {
       retries:      0,
       phaseMetrics: {},
     });
-    connect(repoUrl, 0);
+    connect(repoUrl);
   }, [connect]);
 
   const stop = useCallback(() => {
-    if (retryTimeout.current) { clearTimeout(retryTimeout.current); retryTimeout.current = null; }
     esRef.current?.close();
     setState((s) => ({ ...s, status: "idle", retries: 0 }));
   }, []);

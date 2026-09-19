@@ -12,6 +12,14 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 
+def _execution(score, model="model-a", rc=0):
+    from app.server.provider_router import ProviderExecution
+    return ProviderExecution(rc, _eval_text(score), None, None, {
+        "actual_model": model, "provider": "ollama" if model == "model-b" else "claude_print", "model_verified": True,
+        "auth_verified": True, "source": "transport_response", "billing_class": "subscription",
+    })
+
+
 def _make_session(workspace: str = "/tmp/fake-ws") -> SimpleNamespace:
     """Minimal session stub — only attributes evaluator helpers read."""
     return SimpleNamespace(
@@ -65,25 +73,22 @@ async def test_run_parallel_eval_uses_provider_router_twice_no_sdk_or_opus():
     session = _make_session()
     router_mock = AsyncMock(
         side_effect=[
-            (0, _eval_text(9.0), 0.02, None),
-            (0, _eval_text(5.0), 0.01, None),
+            _execution(9.0),
+            _execution(5.0, "model-b"),
         ]
     )
 
-    with patch("app.server.session_evaluator.run_via_provider", router_mock), patch(
+    with patch("app.server.session_evaluator.run_via_provider_with_evidence", router_mock), patch(
         "app.server.session_evaluator._run_claude_via_sdk", create=True
     ) as sdk_mock:
         score, text, label, consensus = await _run_parallel_eval(session, "eval spec")
 
-    assert score == pytest.approx(7.0)
-    assert label == "sonnet+haiku"
-    assert consensus == "sonnet=9.0 haiku=5.0 delta=4.0"
+    assert score is None
+    assert "disagreement" in consensus
     assert "OVERALL: 9.0/10" in text
     assert router_mock.await_count == 2
     assert not sdk_mock.called, "evaluator must not call Anthropic SDK directly"
-    task_classes = [c.kwargs["task_class"] for c in router_mock.await_args_list]
-    assert task_classes == ["single-sonnet", "single-haiku"]
-    assert {c.kwargs["role"] for c in router_mock.await_args_list} == {"evaluator"}
+    assert {c.kwargs["role"] for c in router_mock.await_args_list} == {"evaluator", "evaluator_secondary"}
 
 
 @pytest.mark.asyncio
@@ -91,9 +96,9 @@ async def test_run_parallel_eval_cached_uses_provider_router_not_anthropic_cache
     from app.server.session_evaluator import _run_parallel_eval_cached
 
     session = _make_session()
-    router_mock = AsyncMock(return_value=(0, _eval_text(8.0), 0.01, None))
+    router_mock = AsyncMock(side_effect=[_execution(8), _execution(8, "model-b")])
 
-    with patch("app.server.session_evaluator.run_via_provider", router_mock), patch(
+    with patch("app.server.session_evaluator.run_via_provider_with_evidence", router_mock), patch(
         "app.server.session_evaluator._write_sdk_metric"
     ):
         score, text, label, consensus = await _run_parallel_eval_cached(
@@ -106,15 +111,49 @@ async def test_run_parallel_eval_cached_uses_provider_router_not_anthropic_cache
         )
 
     assert score == pytest.approx(8.0)
-    assert label == "sonnet+haiku(cached)"
-    assert consensus == "sonnet=8.0 haiku=8.0 delta=0.0"
-    assert "OVERALL: 8.0/10" in text
+    assert "model-a" in label and "model-b" in label
+    assert "OVERALL: 8/10" in text
     assert router_mock.await_count == 2
     assert [c.kwargs["task_class"] for c in router_mock.await_args_list] == [
         "cached-sonnet",
         "cached-haiku",
     ]
-    assert {c.kwargs["role"] for c in router_mock.await_args_list} == {"evaluator"}
+    assert {c.kwargs["role"] for c in router_mock.await_args_list} == {"evaluator", "evaluator_secondary"}
+    assert len(session.audit_evidence) == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("secondary", [_execution(9), _execution(9, "model-b", rc=1)])
+async def test_review_requires_two_successful_independent_models(secondary):
+    from app.server.session_evaluator import _run_parallel_eval
+    with patch("app.server.session_evaluator.run_via_provider_with_evidence", AsyncMock(
+        side_effect=[_execution(9), secondary])), patch("app.server.session_evaluator._write_sdk_metric"):
+        score, _, _, _ = await _run_parallel_eval(_make_session(), "spec")
+    assert score is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("confidence", ["NaN", "Infinity", "-Infinity", "101", "-1", "missing"])
+async def test_review_rejects_invalid_confidence_even_when_threshold_is_zero(monkeypatch, confidence):
+    from app.server import session_evaluator
+
+    monkeypatch.setattr(session_evaluator.config, "EVAL_FLAG_CONFIDENCE", 0)
+    secondary = _execution(9, "model-b")
+    secondary.text = secondary.text.replace(
+        "CONFIDENCE: 85%\n", "" if confidence == "missing" else f"CONFIDENCE: {confidence}%\n"
+    )
+    with patch("app.server.session_evaluator.run_via_provider_with_evidence", AsyncMock(
+        side_effect=[_execution(9), secondary])), patch("app.server.session_evaluator._write_sdk_metric"):
+        score, _, _, reason = await session_evaluator._run_parallel_eval(_make_session(), "spec")
+    assert score is None
+    assert "confidence" in reason
+
+
+@pytest.mark.parametrize("confidence", [0, 85.5, 100])
+def test_valid_confidence_is_preserved(confidence):
+    from app.server.session_evaluator import _extract_eval_confidence
+
+    assert _extract_eval_confidence(f"CONFIDENCE: {confidence}%") == confidence
 
 
 @pytest.mark.asyncio

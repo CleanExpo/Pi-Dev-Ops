@@ -19,8 +19,8 @@ import pytest
 from app.server import claude_workspace_trust as trust
 
 
-ROOT = "/tmp/pi-ceo-workspaces"
-SESSION = "/tmp/pi-ceo-workspaces/4264c07a4fea"
+ROOT = str(Path("/tmp/pi-ceo-workspaces").resolve())
+SESSION = str(Path(ROOT) / "4264c07a4fea")
 REGISTRY_REPO = "https://github.com/CleanExpo/Pi-Dev-Ops"
 UNKNOWN_REPO = "https://github.com/evil-org/not-in-registry"
 
@@ -190,11 +190,11 @@ def test_prepare_sdk_environment_pops_empty_api_key_and_trusts(
 
 def test_session_sdk_calls_prepare_before_query() -> None:
     """Positive control: `_attempt` must invoke prepare on the workspace cwd."""
-    source = Path(__file__).resolve().parents[1] / "app" / "server" / "session_sdk.py"
+    source = Path(__file__).resolve().parents[1] / "app" / "server" / "sdk_attempt.py"
     text = source.read_text(encoding="utf-8")
-    assert "from . import claude_workspace_trust" in text
+    assert "from .claude_workspace_trust import ensure_workspace_trusted" in text
     assert "asyncio.to_thread(" in text
-    assert "claude_workspace_trust.prepare_sdk_environment" in text
+    assert "asyncio.to_thread(ensure_workspace_trusted, self.workspace)" in text
 
 
 def test_outside_registry_does_not_touch_claude_json(

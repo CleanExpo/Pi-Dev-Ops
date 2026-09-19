@@ -76,7 +76,7 @@ def test_routing_lists_every_role_with_provider_model_source(client):
     assert margot["source"] == "ladder-step-2"
     assert margot["error"] is None
     planner = data["roles"]["planner"]
-    assert planner["provider"] == "anthropic"
+    assert planner["provider"] == "claude_print"
     assert planner["source"] == "code-default"
     assert data["margot_casual"]["ladder"] == [
         "ollama:gemma4:latest",
@@ -235,7 +235,9 @@ def test_routing_source_is_code_default_when_cheap_provider_pin_is_invalid(clien
     TAO_CHEAP_PROVIDER and falls through; the label must not credit it."""
     monkeypatch.setenv("TAO_CHEAP_PROVIDER", "not-a-provider")
     roles = client.get("/api/routing", headers=HEADERS).json()["roles"]
-    assert roles["monitor"]["model"] == "z-ai/glm-4.7-flash"
+    from app.server.model_registry import ANTHROPIC_HAIKU
+    assert roles["monitor"]["provider"] == "claude_print"
+    assert roles["monitor"]["model"] == ANTHROPIC_HAIKU
     assert roles["monitor"]["source"] == "code-default"
 
 

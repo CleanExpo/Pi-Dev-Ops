@@ -1,44 +1,4 @@
-"""Tiered model router for the swarm.
-
-Three tiers map to four candidate providers with a fallback ladder so the
-swarm degrades gracefully when any single provider is rate-limited or down:
-
-    Tier            Primary                    Fallback ladder
-    ──────────────────────────────────────────────────────────────────────
-    FRONTIER        Anthropic Opus 4.7         → Anthropic Sonnet 5
-                                                → OpenRouter Sonnet
-                                                → raise NoProviderAvailable
-    WORKING         Anthropic Sonnet 5         → Anthropic Haiku 4.5
-                                                → OpenRouter Llama 3.3 70B
-                                                → raise NoProviderAvailable
-    REMEDIAL        OpenRouter Llama 3.3 70B   → OpenRouter DeepSeek-V3
-                                                → Ollama local (if reachable)
-                                                → Anthropic Haiku 4.5
-                                                → raise NoProviderAvailable
-    LOCAL           Ollama local               → OpenRouter Llama 3.3 70B
-                                                → raise NoProviderAvailable
-
-Env vars (read on demand, NOT at import time, so callers can rotate keys):
-    ANTHROPIC_API_KEY     — required for ANY Anthropic tier
-    OPENROUTER_API_KEY    — required for any OpenRouter fallback
-    OLLAMA_BASE_URL       — defaults to http://localhost:11434
-    TAO_OPENROUTER_ENFORCE — when 1/true/yes, strip OpenRouter from ladders for
-                             roles not listed in TAO_OPENROUTER_ALLOWED_ROLES
-                             (default off — RA-6470 phase 1)
-    TAO_OPENROUTER_ALLOWED_ROLES — comma-separated roles that may use OpenRouter
-                             when enforce is on (default: margot.casual,research,
-                             sub_agent,remedial)
-
-Public surface (the only API callers should touch):
-    Tier                     — enum, the four tiers above
-    LLMResponse              — frozen dataclass (text, model, tier, provider, latency_ms)
-    NoProviderAvailable     — raised when every fallback exhausts
-    get_client(tier, role=…) — returns a ModelClient honouring the ladder
-    ModelClient.complete()   — one synchronous text completion
-
-This module is import-side-effect-free. Tests stub providers via the
-ModelProvider Protocol (no real HTTP).
-"""
+"""Tiered model router for the swarm."""
 from __future__ import annotations
 
 import json
@@ -50,6 +10,7 @@ import urllib.request
 from dataclasses import dataclass
 from enum import Enum
 from typing import Literal, Protocol, runtime_checkable
+from app.server import provider_policy
 
 log = logging.getLogger("swarm.model_router")
 
@@ -149,6 +110,7 @@ class LLMResponse:
     provider: Literal["anthropic", "openrouter", "ollama"]
     latency_ms: int
     fell_back: bool = False
+    requested_model: str = ""
 
 
 class NoProviderAvailable(RuntimeError):
@@ -196,16 +158,11 @@ class AnthropicProvider:
         max_tokens: int = 1024,
         temperature: float = 0.3,
     ) -> LLMResponse:
+        provider_policy.require_transport("anthropic_api")
         api_key = os.environ.get(self._api_key_env)
         if not api_key:
             raise NoProviderAvailable(f"{self._api_key_env} not set")
-        body = {
-            "model": self._model,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "system": system,
-            "messages": [{"role": "user", "content": user}],
-        }
+        body = _anthropic_body(self._model, system, user, max_tokens, temperature)
         req = urllib.request.Request(
             "https://api.anthropic.com/v1/messages",
             data=json.dumps(body).encode("utf-8"),
@@ -270,18 +227,11 @@ class OpenRouterProvider:
         max_tokens: int = 1024,
         temperature: float = 0.3,
     ) -> LLMResponse:
+        provider_policy.require_transport("openrouter")
         api_key = os.environ.get(self._api_key_env)
         if not api_key:
             raise NoProviderAvailable(f"{self._api_key_env} not set")
-        body = {
-            "model": self._model,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        }
+        body = _openrouter_body(self._model, system, user, max_tokens, temperature)
         req = urllib.request.Request(
             "https://openrouter.ai/api/v1/chat/completions",
             data=json.dumps(body).encode("utf-8"),
@@ -333,7 +283,9 @@ class OllamaProvider:
         self._base_url_env = base_url_env
 
     def _base_url(self) -> str:
-        return os.environ.get(self._base_url_env, "http://localhost:11434")
+        url = os.environ.get(self._base_url_env, "http://localhost:11434")
+        provider_policy.require_transport("ollama", endpoint_url=url)
+        return url
 
     def is_available(self) -> bool:
         try:
@@ -374,12 +326,14 @@ class OllamaProvider:
         except (urllib.error.URLError, OSError, ConnectionError) as exc:
             raise NoProviderAvailable(f"ollama unreachable: {exc}") from exc
         dt_ms = int((time.monotonic() - t0) * 1000)
+        reported_model = raw.get("model")
         return LLMResponse(
             text=raw.get("response", ""),
-            model=self._model,
+            model=reported_model.strip() if isinstance(reported_model, str) else "",
             tier=Tier.LOCAL,
             provider="ollama",
             latency_ms=dt_ms,
+            requested_model=self._model,
         )
 
 
@@ -466,10 +420,8 @@ class ModelClient:
             # raising on a flaky local socket) aborts the whole ladder instead
             # of falling through to the next provider.
             try:
-                if not provider.is_available():
-                    last_exc = NoProviderAvailable(
-                        f"{provider.name} not available (env / network)"
-                    )
+                if not _provider_available(provider):
+                    last_exc = NoProviderAvailable(f"{provider.name} unavailable")
                     fell_back = True
                     continue
                 resp = provider.complete(
@@ -483,8 +435,9 @@ class ModelClient:
                     provider=resp.provider,
                     latency_ms=resp.latency_ms,
                     fell_back=fell_back or (i > 0),
+                    requested_model=resp.requested_model,
                 )
-            except NoProviderAvailable as exc:
+            except (NoProviderAvailable, provider_policy.ProviderPolicyError) as exc:
                 last_exc = exc
                 fell_back = True
                 continue
@@ -505,3 +458,30 @@ def get_client(
 ) -> ModelClient:
     """Get a tiered client. `providers` override is used by tests."""
     return ModelClient(tier=tier, role=role, providers=providers)
+
+
+def _provider_available(provider):
+    provider_policy.require_transport("anthropic_api" if provider.name == "anthropic" else provider.name)
+    return provider.is_available()
+
+
+def _anthropic_body(model, system, user, max_tokens, temperature):
+    return {
+        "model": model,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "system": system,
+        "messages": [{"role": "user", "content": user}],
+    }
+
+
+def _openrouter_body(model, system, user, max_tokens, temperature):
+    return {
+        "model": model,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    }

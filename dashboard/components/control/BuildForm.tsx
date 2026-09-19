@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSSE } from "@/hooks/useSSE";
+import { useBuildSession } from "@/hooks/useBuildSession";
 import Terminal from "@/components/Terminal";
 import { useActiveProject } from "./ProjectSelector";
 
@@ -24,7 +24,7 @@ export default function BuildForm() {
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [repoFocused, setRepoFocused] = useState(false);
   const [briefFocused, setBriefFocused] = useState(false);
-  const { lines, status, error, branch, prUrl, start, stop } = useSSE();
+  const { lines, status, error, sessionId, sessionStatus, start, stop } = useBuildSession();
   const escRef = useRef<HTMLDivElement>(null);
 
   // RA-1103 — pre-fill repo from active project when user picks one in TopBar.
@@ -57,7 +57,7 @@ export default function BuildForm() {
   function submit() {
     if (!repo.trim() || submitting) return;
     setSubmitting(true);
-    start(sanitize(repo.trim()), brief.trim() || undefined);
+    void start(repoToUrl(sanitize(repo.trim())), brief.trim());
   }
 
   const inputBase: React.CSSProperties = {
@@ -90,7 +90,7 @@ export default function BuildForm() {
           <span style={{ color: "var(--accent)" }} aria-hidden="true">
             {running ? "▸ " : "$ "}
           </span>
-          {running ? "build running…" : "run a build"}
+          {running ? sessionStatus || "Requesting build" : "run a build"}
         </span>
         <button
           onClick={() => setTerminalOpen(true)}
@@ -121,6 +121,7 @@ export default function BuildForm() {
           id="build-repo"
           name="repo"
           type="text"
+          value={repo}
           onChange={(e) => setRepo(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !running) submit(); }}
           onFocus={() => setRepoFocused(true)}
@@ -174,7 +175,7 @@ export default function BuildForm() {
       <div className="flex items-center gap-2">
         <button
           onClick={running ? stop : submit}
-          disabled={!running && !repo.trim()}
+          disabled={running ? !sessionId : !repo.trim()}
           className="h-8 px-3 rounded-md text-xs font-mono font-medium disabled:opacity-30 transition-colors"
           style={{
             background: running ? "var(--error)" : "var(--accent)",
@@ -207,25 +208,23 @@ export default function BuildForm() {
                 ▮
               </span>
             )}
-            {status}
+            {sessionStatus || status}
           </span>
         )}
 
-        {branch && (
+        {sessionId && (
           <span className="text-[10px] font-mono truncate" style={{ color: "var(--text-muted)" }}>
-            {branch}
+            session {sessionId}
           </span>
         )}
 
-        {prUrl && (
+        {sessionId && (
           <a
-            href={prUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/builds"
             className="text-[10px] font-mono"
             style={{ color: "var(--accent)" }}
           >
-            PR ↗
+            Builds and evidence ↗
           </a>
         )}
       </div>

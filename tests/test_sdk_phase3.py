@@ -16,6 +16,13 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
+@pytest.fixture(autouse=True)
+def _mock_authorized_test_transport(monkeypatch):
+    from app.server import provider_policy, pipeline
+    monkeypatch.setattr(provider_policy, "require_transport", lambda *a, **kw: {"billing_class": "subscription"})
+    monkeypatch.setattr(pipeline, "_write_pipeline_sdk_metric", lambda **kw: None)
+
+
 @pytest.mark.asyncio
 async def test_pipeline_sdk_async_success():
     """_run_claude_via_sdk_async returns (True, text) on successful SDK call."""

@@ -19,6 +19,8 @@ def test_resolve_creds_defaults_url_and_ignores_pi_ceo_key(monkeypatch):
 
 
 def test_resolve_creds_accepts_ugo_aliases(monkeypatch):
+    monkeypatch.delenv("SUPABASE_UNITE_GROUP_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_UNITE_GROUP_SERVICE_KEY", raising=False)
     monkeypatch.setenv("UGO_SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("UGO_SUPABASE_SERVICE_KEY", "ugo-key")
     url, key = UG.resolve_creds()

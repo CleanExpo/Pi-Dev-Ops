@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { fetchProxy } from "@/lib/pi-ceo-fetch";
+import { PhaseBar, ScoreBadge, type PhaseMetric } from "@/components/control/BuildPhaseMetrics";
 import BuildsEmpty from "@/components/control/BuildsEmpty";
 
 interface PiSession {
@@ -26,16 +27,11 @@ interface LogLine {
   // phase_metric extras (optional fields present only for type === "phase_metric")
   phase?: string;
   duration_s?: number;
-  cost_usd?: number;
+  cost_usd?: number | null;
+  cost_basis?: "reported_usage" | "unknown";
+  cost_verified?: boolean;
 }
 
-interface PhaseMetric {
-  duration_s: number;
-  cost_usd: number;
-}
-
-const PHASES = ["clone", "analyze", "claude_check", "sandbox", "generator", "evaluator", "push"];
-const PHASE_LABELS = ["Clone", "Analyze", "Check", "Sandbox", "Generate", "Evaluate", "Push"];
 // Map backend metric phase names to PHASES array keys
 const METRIC_PHASE_MAP: Record<string, string> = {
   clone:    "clone",
@@ -71,12 +67,6 @@ const LINE_COLOR: Record<string, string> = {
   done:    "#4ADE80",
 };
 
-const EVAL_COLOR: Record<string, string> = {
-  passed: "#4ADE80",
-  warned: "#FFD166",
-  pending: "var(--text-dim)",
-};
-
 function repoName(url: string): string {
   return url.replace(/\.git$/, "").split("/").slice(-2).join("/");
 }
@@ -86,62 +76,6 @@ function elapsed(started: number): string {
   const s = Math.floor(Date.now() / 1000 - started);
   if (s < 60) return `${s}s`;
   return `${Math.floor(s / 60)}m ${s % 60}s`;
-}
-
-function PhaseBar({
-  lastPhase,
-  status,
-  phaseMetrics,
-}: {
-  lastPhase: string;
-  status: string;
-  phaseMetrics: Record<string, PhaseMetric>;
-}) {
-  const doneIdx = PHASES.indexOf(lastPhase);
-  const isRunning = ["cloning", "building", "evaluating"].includes(status);
-  return (
-    <div className="flex gap-1 mt-1.5 flex-wrap">
-      {PHASES.map((p, i) => {
-        const done = doneIdx >= i;
-        const active = isRunning && doneIdx + 1 === i;
-        const metric = phaseMetrics[p];
-        return (
-          <div key={p} className="flex items-center gap-0.5">
-            <div
-              title={PHASE_LABELS[i]}
-              className="h-1 w-8 rounded-sm"
-              style={{
-                background: done ? "#4ADE80" : active ? "var(--accent)" : "var(--border)",
-                opacity: done || active ? 1 : 0.4,
-              }}
-            />
-            {metric && (
-              <span
-                className="font-mono text-[9px]"
-                style={{ color: "var(--text-dim)" }}
-                title={`${PHASE_LABELS[i]}: ${metric.duration_s}s · $${metric.cost_usd.toFixed(4)}`}
-              >
-                {metric.duration_s}s{metric.cost_usd > 0 ? ` · $${metric.cost_usd.toFixed(2)}` : ""}
-              </span>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function ScoreBadge({ score, evalStatus }: { score: number | null; evalStatus: string }) {
-  if (score === null) return null;
-  const color = score >= 8 ? "#4ADE80" : score >= 6 ? "#FFD166" : "#F87171";
-  return (
-    <span
-      className="font-mono text-[10px] px-1.5 py-0.5 rounded"
-      style={{ background: "var(--panel)", color, border: `1px solid ${EVAL_COLOR[evalStatus] ?? "var(--border)"}` }}
-    >
-      {score.toFixed(1)}/10
-    </span>
-  );
 }
 
 function LogPanel({
@@ -162,9 +96,13 @@ function LogPanel({
   useEffect(() => { onPhaseMetricRef.current = onPhaseMetric; });
 
   useEffect(() => {
-    const terminal = new Set(["done", "complete", "failed", "killed"]);
+    const terminal = new Set(["done", "complete", "failed", "killed", "blocked", "stalled", "interrupted", "error"]);
+    let disposed = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
 
     function openStream() {
+      if (disposed) return;
+      setStreaming(true);
       esRef.current?.close();
       const es = new EventSource(`/api/pi-ceo/api/sessions/${sid}/logs?after=${cursorRef.current}`);
       esRef.current = es;
@@ -172,7 +110,7 @@ function LogPanel({
       es.onmessage = (e) => {
         try {
           const line: LogLine = JSON.parse(e.data);
-          if (line.type === "done") {
+          if (line.type === "done" || line.type === "closed") {
             setStreaming(false);
             es.close();
             return;
@@ -183,7 +121,7 @@ function LogPanel({
             const mappedPhase = METRIC_PHASE_MAP[line.phase] ?? line.phase;
             onPhaseMetricRef.current(mappedPhase, {
               duration_s: line.duration_s,
-              cost_usd: line.cost_usd ?? 0,
+              cost_usd: typeof line.cost_usd === "number" && Number.isFinite(line.cost_usd) && line.cost_usd >= 0 && line.cost_basis !== "unknown" ? line.cost_usd : null,
             });
           }
           setLines((prev) => [...prev, line]);
@@ -193,7 +131,7 @@ function LogPanel({
       es.onerror = () => {
         es.close();
         if (!terminal.has(status)) {
-          setTimeout(openStream, 2000);
+          retry = setTimeout(openStream, 2000);
         } else {
           setStreaming(false);
         }
@@ -201,7 +139,11 @@ function LogPanel({
     }
 
     openStream();
-    return () => esRef.current?.close();
+    return () => {
+      disposed = true;
+      clearTimeout(retry);
+      esRef.current?.close();
+    };
   }, [sid, status]);
 
   // Auto-scroll

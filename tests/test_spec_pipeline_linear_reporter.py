@@ -114,6 +114,8 @@ def test_pipeline_calls_the_reporter_at_stage_boundaries() -> None:
 
     src = Path(pipeline_pkg.__file__).read_text(encoding="utf-8")
     assert "from . import linear_reporter" in src
+    for helper in ("execution.py", "execution_evidence.py"):
+        src += (Path(pipeline_pkg.__file__).parent / helper).read_text(encoding="utf-8")
     stages = [
         "spec approved", "boardroom vote", "build started", "PR opened",
         "blocked — proposal boundary", "blocked — proposal validation",

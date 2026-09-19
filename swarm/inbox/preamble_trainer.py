@@ -1,33 +1,4 @@
-"""swarm/inbox/preamble_trainer.py — daily self-training for ContextBot contexts.
-
-The point: every conversation Phill (or a client) has with a ContextBot
-is training signal. The swarm shouldn't just file messages — it should
-learn the *flavour* of each context (vocabulary, recurring concerns,
-preferred response style, urgency signals) and then use that flavour as
-grounded system context for every future agent action in that context.
-
-Runs daily at 02:00 AEST via LaunchAgent. For each context with messages
-in the last `WINDOW_HOURS` (default 24):
-
-1. Pull last N messages from `context_bot_messages` (most recent first).
-2. Build a Gemini prompt that asks for a *short operating preamble*
-   focusing on: vocabulary, recurring topics, urgency markers, preferred
-   reply tone. Keep under 600 words.
-3. Write the preamble to
-   `~/2nd Brain/2nd Brain/Wiki/contexts/<context_id>/preamble.md`
-   with a header pointing at the source context_bot.
-4. Update the wiki index so Margot/the swarm can find it.
-
-The preamble file is then loaded as system context by future agents
-acting on this context (e.g. when filing a new ticket from a new message,
-they prepend the preamble to the model prompt).
-
-Public API:
-    train(*, dry_run: bool = False, window_hours: int = 24,
-          max_messages: int = 80) -> dict
-        Run one full training cycle. Returns {contexts_seen,
-        preambles_written, errors, dry_run}.
-"""
+"""swarm/inbox/preamble_trainer.py — daily self-training for ContextBot contexts."""
 from __future__ import annotations
 
 import json
@@ -42,6 +13,8 @@ import urllib.error
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+from app.server.provider_policy import ProviderPolicyError, require_transport
 
 log = logging.getLogger("swarm.inbox.preamble_trainer")
 
@@ -166,11 +139,16 @@ class _SummariseError(RuntimeError):
 
 
 def _claude_print_summarise(prompt: str, *, timeout: int = CLAUDE_PRINT_TIMEOUT) -> str:
-    """Tier 1 — Max plan via `claude --print`. $0 marginal."""
+    """Verified subscription CLI; billed amount remains unknown."""
+    try:
+        require_transport("claude_print")
+    except ProviderPolicyError as exc:
+        raise _SummariseError(str(exc)) from None
     try:
         result = subprocess.run(
-            [CLAUDE_CLI, "--print", prompt],
+            [CLAUDE_CLI, "--print", "--tools", "", "--setting-sources", "", "--strict-mcp-config", prompt],
             capture_output=True, text=True, timeout=timeout, check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except FileNotFoundError as e:
         raise _SummariseError(f"claude CLI not found at {CLAUDE_CLI}") from e
@@ -189,6 +167,10 @@ def _claude_print_summarise(prompt: str, *, timeout: int = CLAUDE_PRINT_TIMEOUT)
 def _openrouter_summarise(prompt: str, *, model: str = OPENROUTER_MODEL,
                           max_tokens: int = 2000, timeout: int = 60) -> str:
     """Tier 2 — cheap Chinese OS model via OpenRouter."""
+    try:
+        require_transport("openrouter")
+    except ProviderPolicyError as exc:
+        raise _SummariseError(str(exc)) from None
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         raise _SummariseError("OPENROUTER_API_KEY not set")
@@ -230,6 +212,10 @@ def _gemini_api_key() -> str:
 def _gemini_summarise(prompt: str, *, model: str = GEMINI_MODEL,
                       max_tokens: int = 2000, timeout: int = 60) -> str:
     """Tier 3 — Gemini Pro paid fallback (preserves prior behaviour)."""
+    try:
+        require_transport("gemini")
+    except ProviderPolicyError as exc:
+        raise _SummariseError(str(exc)) from None
     if not os.environ.get("GEMINI_API_KEY", "").strip():
         raise _SummariseError("GEMINI_API_KEY not set")
     body = {

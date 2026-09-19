@@ -1,36 +1,25 @@
 // lib/claude.ts — Claude client: CLI mode (Max plan) or SDK mode (API key)
 
 import { spawn } from "child_process";
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { refusalFallback } from "./models";
 import type { RepoFile } from "./github";
+import { requireApiTransport, requireSubscriptionCLI } from "./model-policy";
 
 // ── Mode detection ────────────────────────────────────────────────────────────
-// Priority order:
-//   1. ANALYSIS_MODE=cli explicitly set → always CLI mode (Claude Max subscription)
-//   2. ANALYSIS_MODE=api explicitly set → always API mode
-//   3. ANTHROPIC_API_KEY present → API mode (Vercel serverless fallback)
-//   4. Fallback → CLI mode (local Claude Max subscription via `claude -p`)
-//
-// To use Claude Max plan on Vercel:
-//   1. Run `claude setup-token` locally → copies a subscription token to clipboard
-//   2. Set ANTHROPIC_API_KEY=<token> in Vercel env (replaces pay-per-use API key)
-//   3. Set ANALYSIS_MODE=api in Vercel env (explicit, survives future key changes)
+// Subscription CLI is the default; API requests are explicitly rejected by policy.
 export function getAnalysisMode(): "cli" | "api" {
   const explicit = process.env.ANALYSIS_MODE?.trim();
   if (explicit === "cli") return "cli";
   if (explicit === "api") return "api";
-  if (process.env.ANTHROPIC_API_KEY?.trim()) return "api";
   return "cli";
 }
 
-export function makeClient(apiKey?: string): Anthropic | null {
-  const key = (apiKey || (process.env.ANTHROPIC_API_KEY ?? "")).trim();
-  if (!key) return null;
-  // OAuth tokens (`claude setup-token`, sk-ant-oat*) must go in the Authorization
-  // header — the API rejects them as x-api-key, even alongside a valid Bearer.
-  if (key.startsWith("sk-ant-oat")) return new Anthropic({ authToken: key, apiKey: null });
-  return new Anthropic({ apiKey: key });
+export function makeClient(_apiKey?: string): Anthropic | null {
+  void _apiKey; // Kept for callers of the former API-client factory.
+  if (getAnalysisMode() === "cli") return null;
+  requireApiTransport();
+  return null;
 }
 
 // ── Context builder ────────────────────────────────────────────────────────────
@@ -82,25 +71,30 @@ function runPhaseCLI(
   onChunk: PhaseStreamCallback,
   signal?: AbortSignal,
 ): Promise<string> {
+  signal ??= AbortSignal.timeout(110_000);
   return new Promise((resolve, reject) => {
     if (signal?.aborted) { reject(new Error("Phase aborted before start")); return; }
 
     const fullPrompt = `${SYSTEM}\n\n${prompt}\n\n---\nREPO CONTEXT:\n${context}`;
-    const args = ["-p", fullPrompt, "--model", model, "--output-format", "text"];
+    const env = requireSubscriptionCLI();
+    const args = ["-p", fullPrompt, "--model", model, "--output-format", "text", "--tools", "", "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}'];
 
     const child = spawn("claude", args, {
-      env: { ...process.env },
+      env,
       shell: false,
+      windowsHide: true,
     });
 
     let full = "";
     let stderr = "";
 
     // Kill subprocess if abort signal fires
-    signal?.addEventListener("abort", () => {
+    const onAbort = () => {
       child.kill("SIGTERM");
       reject(new Error("Phase aborted: budget limit reached"));
-    }, { once: true });
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) onAbort();
 
     child.stdout.on("data", (data: Buffer) => {
       const chunk = data.toString();
@@ -113,6 +107,7 @@ function runPhaseCLI(
     });
 
     child.on("close", (code) => {
+      signal.removeEventListener("abort", onAbort);
       if (signal?.aborted) return; // already rejected
       if (code !== 0) {
         reject(new Error(`claude CLI exited with code ${code}: ${stderr.slice(0, 300)}`));
@@ -122,6 +117,7 @@ function runPhaseCLI(
     });
 
     child.on("error", (err) => {
+      signal.removeEventListener("abort", onAbort);
       reject(new Error(`Failed to spawn claude CLI: ${err.message}. Is Claude Code installed? Run: npm install -g @anthropic-ai/claude-code`));
     });
   });
@@ -155,6 +151,7 @@ async function runPhaseSDK(
   thinkSeed?: string,
 ): Promise<string> {
   if (signal?.aborted) throw new Error("Phase aborted before start");
+  requireApiTransport();
 
   // RA-932: prepend think seed when enabled (cold-start seeding for structured reasoning)
   const seededPrompt = (thinkSeed && THINK_SEED_ENABLED) ? `${thinkSeed}\n\n${prompt}` : prompt;
@@ -231,6 +228,7 @@ export async function chatWithClaude(
 ): Promise<string> {
   // Chat prefers SDK for speed; falls back to CLI if no API key
   if (client) {
+    requireApiTransport();
     const fallback = refusalFallback(model);
     const response = await client.messages.create(
       {

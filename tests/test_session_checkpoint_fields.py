@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
 
@@ -220,7 +220,7 @@ def _recover(rows, claim_results):
          patch("app.server.supabase_log.claim_interrupted_session", side_effect=claim_results) as claim, \
          patch("app.server.session_phases.run_build", new=AsyncMock(return_value=None)), \
          patch("app.server.session_model.asyncio.create_task") as task:
-        task.side_effect = lambda coro: coro.close() or None
+        task.side_effect = lambda coro: coro.close() or MagicMock()
         scheduled = session_model.recover_interrupted_sessions_from_supabase(max_concurrent=5)
     return scheduled, claim, task
 
@@ -265,7 +265,7 @@ def test_recovery_resume_phase_is_wound_back_for_a_foreign_checkpoint():
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=[row]), \
          patch("app.server.supabase_log.claim_interrupted_session", return_value=True), \
          patch("app.server.session_phases.run_build") as run_build, \
-         patch("app.server.session_model.asyncio.create_task", side_effect=lambda c: None):
+         patch("app.server.session_model.asyncio.create_task", side_effect=lambda c: MagicMock()):
         session_model.recover_interrupted_sessions_from_supabase(max_concurrent=5)
 
     assert run_build.call_args.kwargs["resume_from"] == session_recovery.PRE_SANDBOX_PHASE

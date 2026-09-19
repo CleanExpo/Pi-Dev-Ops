@@ -27,6 +27,9 @@ def _clear_env(monkeypatch):
     for k in list(os.environ.keys()):
         if k.startswith("TAO_MODEL_"):
             monkeypatch.delenv(k, raising=False)
+    for key in PR.provider_policy.CLAUDE_ROUTING_ENV:
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
     # Force Ollama-unreachable for deterministic tests; the Ollama-reachable
     # path is exercised in dedicated tests below.
     import sys as _sys
@@ -39,17 +42,17 @@ def _clear_env(monkeypatch):
 # ── Tier defaults ───────────────────────────────────────────────────────────
 
 
-def test_planner_routes_to_top_anthropic():
+def test_planner_routes_to_top_subscription():
     pm = PR.select_provider_model("planner")
     assert pm.tier == "top"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "claude_print"
     assert pm.model_id == PR.DEFAULT_TOP_MODEL
 
 
-def test_orchestrator_routes_to_top_anthropic():
+def test_orchestrator_routes_to_top_subscription():
     pm = PR.select_provider_model("orchestrator")
     assert pm.tier == "top"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "claude_print"
 
 
 def test_board_routes_to_top():
@@ -66,13 +69,13 @@ def test_margot_synthesis_top():
     """Phase 2 (research-integrated) gets top tier."""
     pm = PR.select_provider_model("margot.synthesis")
     assert pm.tier == "top"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "claude_print"
 
 
 def test_generator_routes_to_mid():
     pm = PR.select_provider_model("generator")
     assert pm.tier == "mid"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "claude_print"
     assert pm.model_id == PR.DEFAULT_MID_MODEL
 
 
@@ -80,22 +83,24 @@ def test_evaluator_mid():
     assert PR.select_provider_model("evaluator").tier == "mid"
 
 
-def test_cheap_role_routes_to_cheap_remote_when_ollama_unreachable():
-    """Cheap tier with Ollama unreachable → OpenRouter remote default."""
+def test_margot_casual_keeps_local_route_when_ollama_unreachable():
+    """Unavailable local models must not select paid fallback."""
     pm = PR.select_provider_model("intent_classify")
     assert pm.tier == "cheap"
-    assert pm.provider == "openrouter"
-    assert pm.model_id == PR.DEFAULT_CHEAP_REMOTE_MODEL
+    assert pm.provider == "claude_print"
+    assert pm.model_id == PR.ANTHROPIC_HAIKU
 
 
-def test_cheap_role_routes_to_ollama_when_reachable(monkeypatch):
-    """When Ollama probe returns True, cheap tier → ollama:qwen3.5:latest."""
+
+def test_margot_casual_routes_to_ollama_when_reachable(monkeypatch):
+    """When Ollama probe returns True, cheap tier → ollama:gemma4:latest."""
     from app.server import provider_ollama
     monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: True)
     pm = PR.select_provider_model("intent_classify")
     assert pm.tier == "cheap"
-    assert pm.provider == "ollama"
-    assert pm.model_id == PR.DEFAULT_CHEAP_LOCAL_MODEL
+    assert pm.provider == "claude_print"
+    assert pm.model_id == PR.ANTHROPIC_HAIKU
+
 
 
 def test_intent_classify_cheap():
@@ -162,6 +167,7 @@ def test_tao_cheap_local_model_override(monkeypatch):
     """TAO_CHEAP_LOCAL_MODEL overrides the Ollama tag."""
     from app.server import provider_ollama
     monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: True)
+    monkeypatch.setenv("TAO_CHEAP_PROVIDER", "ollama")
     monkeypatch.setenv("TAO_CHEAP_LOCAL_MODEL", "qwen3.5:latest")
     pm = PR.select_provider_model("intent_classify")
     assert pm.provider == "ollama"
@@ -169,21 +175,22 @@ def test_tao_cheap_local_model_override(monkeypatch):
 
 
 def test_tao_cheap_remote_model_override(monkeypatch):
-    """TAO_CHEAP_REMOTE_MODEL overrides the OpenRouter fallback."""
+    """An unused remote model setting never opts into a paid transport."""
     monkeypatch.setenv(
         "TAO_CHEAP_REMOTE_MODEL", "openai/gpt-4o-mini",
     )
     pm = PR.select_provider_model("intent_classify")
-    assert pm.provider == "openrouter"
-    assert pm.model_id == "openai/gpt-4o-mini"
+    assert pm.provider == "claude_print"
+    assert pm.model_id == PR.ANTHROPIC_HAIKU
+
 
 
 def test_invalid_cheap_provider_pin_falls_through(monkeypatch):
     """TAO_CHEAP_PROVIDER=bogus warns + falls through to probe path."""
     monkeypatch.setenv("TAO_CHEAP_PROVIDER", "vertex")
     pm = PR.select_provider_model("intent_classify")
-    # Probe returns False (autouse fixture) → OpenRouter
-    assert pm.provider == "openrouter"
+    assert pm.provider == "claude_print"
+
 
 
 # ── Per-role overrides ─────────────────────────────────────────────────────
@@ -191,10 +198,10 @@ def test_invalid_cheap_provider_pin_falls_through(monkeypatch):
 
 def test_per_role_env_override(monkeypatch):
     monkeypatch.setenv(
-        "TAO_MODEL_MONITOR",
+        "TAO_MODEL_INTENT_CLASSIFY",
         "openrouter:meta-llama/llama-3.3-70b-instruct",
     )
-    pm = PR.select_provider_model("monitor")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.source == "env_role_override"
     assert pm.provider == "openrouter"
     assert pm.model_id == "meta-llama/llama-3.3-70b-instruct"
@@ -202,10 +209,10 @@ def test_per_role_env_override(monkeypatch):
 
 def test_per_role_override_to_anthropic(monkeypatch):
     monkeypatch.setenv(
-        "TAO_MODEL_MONITOR",
+        "TAO_MODEL_INTENT_CLASSIFY",
         "anthropic:claude-haiku-4-5",
     )
-    pm = PR.select_provider_model("monitor")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.provider == "anthropic"
     assert pm.model_id == "claude-haiku-4-5"
 
@@ -225,26 +232,26 @@ def test_per_role_override_role_with_dot(monkeypatch):
     """Role names with dots (e.g. 'debate.redteam') become DEBATE_REDTEAM env."""
     monkeypatch.setenv(
         "TAO_MODEL_DEBATE_REDTEAM",
-        "openrouter:z-ai/glm-4.7-flash",
+        "openrouter:google/gemma-4-26b-a4b-it",
     )
     pm = PR.select_provider_model("debate.redteam")
     assert pm.source == "env_role_override"
     assert pm.provider == "openrouter"
-    assert pm.model_id == "z-ai/glm-4.7-flash"
+    assert pm.model_id == "google/gemma-4-26b-a4b-it"
 
 
 def test_per_role_override_malformed_falls_through(monkeypatch):
     """No colon in env → ignored, falls back to tier default."""
-    monkeypatch.setenv("TAO_MODEL_MONITOR", "no-colon-here")
-    pm = PR.select_provider_model("monitor")
+    monkeypatch.setenv("TAO_MODEL_INTENT_CLASSIFY", "no-colon-here")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.source == "env_tier_default"
 
 
 def test_per_role_override_unknown_provider_falls_through(monkeypatch):
     monkeypatch.setenv(
-        "TAO_MODEL_MONITOR", "google:gemini-pro",  # bogus prefix
+        "TAO_MODEL_INTENT_CLASSIFY", "google:gemini-pro",  # bogus prefix
     )
-    pm = PR.select_provider_model("monitor")
+    pm = PR.select_provider_model("intent_classify")
     assert pm.source == "env_tier_default"
 
 
@@ -268,7 +275,7 @@ def test_is_openrouter_helper():
 
 
 def test_is_ollama_helper():
-    pm = PR.ProviderModel(provider="ollama", model_id="qwen3.5:latest",
+    pm = PR.ProviderModel(provider="ollama", model_id="gemma4:latest",
                             tier="cheap", role="r", source="default")
     assert PR.is_ollama(pm) is True
     assert PR.is_anthropic(pm) is False
@@ -278,76 +285,18 @@ def test_is_ollama_helper():
 # ── run_via_provider dispatch ──────────────────────────────────────────────
 
 
-def test_run_via_provider_anthropic_path(monkeypatch):
-    """role=planner → Anthropic SDK call."""
-    captured: dict = {}
-
-    async def fake_anthropic(*, prompt, model, workspace, timeout,
-                              session_id, phase, thinking):
-        captured.update({
-            "model": model, "phase": phase, "thinking": thinking,
-        })
-        return 0, "anthropic reply", 0.05
-
-    fake_sdk = types.SimpleNamespace(_run_claude_via_sdk=fake_anthropic)
-    monkeypatch.setitem(sys.modules, "app.server.session_sdk", fake_sdk)
-
-    rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hi", role="planner", session_id="s1",
-    ))
-    assert rc == 0
-    assert text == "anthropic reply"
-    assert cost == 0.05
-    assert error is None
-    assert captured["phase"] == "planner"
-    assert captured["model"] == PR.DEFAULT_TOP_MODEL
-
-
-def test_run_via_provider_openrouter_path(monkeypatch):
-    """role=intent_classify → OpenRouter call."""
-    async def fake_or_call(*, prompt, model_id, timeout_s, max_tokens=4096,
-                            role="", session_id=""):
-        return 0, "qwen reply", 0.0001, None
-
-    fake_mod = types.SimpleNamespace(call=fake_or_call)
-    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", fake_mod)
-
-    rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hi", role="intent_classify",
-    ))
-    assert rc == 0
-    assert text == "qwen reply"
-    assert cost == 0.0001
-    assert error is None
-
-
-def test_run_via_provider_anthropic_sdk_failure(monkeypatch):
-    async def boom(*, prompt, model, workspace, timeout,
-                    session_id, phase, thinking):
-        raise RuntimeError("anthropic api down")
-
-    fake_sdk = types.SimpleNamespace(_run_claude_via_sdk=boom)
-    monkeypatch.setitem(sys.modules, "app.server.session_sdk", fake_sdk)
-
-    rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hi", role="planner",
-    ))
-    assert rc == 1
-    assert "anthropic_sdk_call_raised" in error
-
-
-def test_run_via_provider_openrouter_failure_propagates(monkeypatch):
-    async def fake_or_call(**kw):
-        return 1, "", 0.0, "openrouter_no_api_key"
-
-    fake_mod = types.SimpleNamespace(call=fake_or_call)
-    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", fake_mod)
-
-    rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hi", role="intent_classify",
-    ))
-    assert rc == 1
-    assert error == "openrouter_no_api_key"
+@pytest.mark.parametrize("role", ["planner", "intent_classify"])
+def test_metered_or_unverified_dispatch_is_blocked(monkeypatch, role):
+    monkeypatch.setenv(PR._env_role_key(role), "openrouter:paid-test-model")
+    async def forbidden(**kwargs):
+        pytest.fail("a forbidden model transport was invoked")
+    monkeypatch.setitem(sys.modules, "app.server.session_sdk",
+                        types.SimpleNamespace(_run_claude_via_sdk=forbidden))
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter",
+                        types.SimpleNamespace(call=forbidden))
+    rc, text, cost, error = asyncio.run(PR.run_via_provider("hi", role=role))
+    assert rc == 1 and text == "" and cost is None
+    assert "subscription_only" in error
 
 
 def test_run_via_provider_ollama_path(monkeypatch):
@@ -356,16 +305,16 @@ def test_run_via_provider_ollama_path(monkeypatch):
 
     async def fake_ollama_call(*, prompt, model_id, timeout_s,
                                  max_tokens=4096, role="", session_id=""):
-        return 0, "qwen reply", 0.0, None
+        return PR.ProviderExecution(0, "gemma4 reply", 0.0, None, {})
 
-    fake_mod = types.SimpleNamespace(call=fake_ollama_call)
+    fake_mod = types.SimpleNamespace(call_with_evidence=fake_ollama_call)
     monkeypatch.setitem(sys.modules, "app.server.provider_ollama", fake_mod)
 
     rc, text, cost, error = asyncio.run(PR.run_via_provider(
         prompt="hi", role="intent_classify",
     ))
     assert rc == 0
-    assert text == "qwen reply"
+    assert text == "gemma4 reply"
     assert cost == 0.0
     assert error is None
 
@@ -374,9 +323,9 @@ def test_run_via_provider_ollama_failure_propagates(monkeypatch):
     monkeypatch.setenv("TAO_CHEAP_PROVIDER", "ollama")
 
     async def fake_ollama_call(**kw):
-        return 1, "", 0.0, "ollama_call_raised: connection refused"
+        return PR.ProviderExecution(1, "", 0.0, "ollama_call_raised: connection refused", {})
 
-    fake_mod = types.SimpleNamespace(call=fake_ollama_call)
+    fake_mod = types.SimpleNamespace(call_with_evidence=fake_ollama_call)
     monkeypatch.setitem(sys.modules, "app.server.provider_ollama", fake_mod)
 
     rc, text, cost, error = asyncio.run(PR.run_via_provider(
@@ -407,7 +356,8 @@ def test_tao_mid_use_claude_print_routes_mid_via_claude_print(monkeypatch):
 
 
 def test_top_use_claude_print_flag_off_routes_anthropic(monkeypatch):
-    """Flag NOT set → top tier still goes to Anthropic (backwards compat)."""
+    """An explicit API setting stays explicit and is denied at dispatch."""
+    monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "0")
     pm = PR.select_provider_model("planner")
     assert pm.provider == "anthropic"
 
@@ -433,121 +383,46 @@ def test_is_claude_print_helper():
 
 
 def test_run_via_provider_claude_print_path(monkeypatch):
-    """role=planner with TAO_TOP_USE_CLAUDE_PRINT=1 → subprocess dispatch."""
     monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "1")
-
-    captured: dict = {}
-
-    def fake_run(argv, **kw):
-        captured["argv"] = argv
-        captured["kw"] = kw
-        return types.SimpleNamespace(returncode=0, stdout="max-output\n", stderr="")
-
+    import json
     import subprocess
+    captured = []
+    def fake_run(argv, **kw):
+        captured.append(argv)
+        payload = ({"loggedIn": True, "authMethod": "claude.ai", "subscriptionType": "max"}
+                   if "auth" in argv else {"type": "result", "is_error": False,
+                   "result": "max-output", "modelUsage": {PR.DEFAULT_TOP_MODEL: {}}})
+        return types.SimpleNamespace(returncode=0, stdout=json.dumps(payload), stderr="")
     monkeypatch.setattr(subprocess, "run", fake_run)
-
-    rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hello world", role="planner", session_id="s1",
-    ))
-    assert rc == 0
-    assert text == "max-output"
-    assert cost == 0.0  # $0 marginal under Max plan
-    assert error is None
-    # Verify the subprocess was constructed correctly
-    assert captured["argv"][1] == "--print"
-    assert captured["argv"][2] == "hello world"
+    rc, text, cost, error = asyncio.run(PR.run_via_provider("hello world", role="planner"))
+    assert (rc, text, cost, error) == (0, "max-output", None, None)
+    assert captured[0][1:] == ["auth", "status"]
+    assert captured[1][captured[1].index("--model") + 1] == PR.DEFAULT_TOP_MODEL
 
 
-def test_run_via_provider_claude_print_nonzero_exit(monkeypatch):
+@pytest.mark.parametrize("code", [1, 2, 127])
+def test_cli_auth_failure_prevents_generation(monkeypatch, code):
     monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "1")
-
-    def fake_run(argv, **kw):
-        return types.SimpleNamespace(returncode=2, stdout="", stderr="rate-limited\n")
-
     import subprocess
-    monkeypatch.setattr(subprocess, "run", fake_run)
-
-    rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hi", role="planner",
-    ))
-    assert rc == 2
-    assert text == ""
-    assert "rate-limited" in error
-
-
-def test_run_via_provider_claude_print_cli_missing(monkeypatch):
-    monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "1")
-
+    captured = []
     def fake_run(argv, **kw):
-        raise FileNotFoundError("claude")
-
-    import subprocess
+        captured.append(argv)
+        return types.SimpleNamespace(returncode=code, stdout="", stderr="private error")
     monkeypatch.setattr(subprocess, "run", fake_run)
-
-    rc, text, cost, error = asyncio.run(PR.run_via_provider(
-        prompt="hi", role="planner",
-    ))
-    assert rc == 127
-    assert "not found" in error.lower()
-
-
-# ── Tier-0 gathering-lane execution wiring (UNI-2212) ────────────────────────
+    rc, text, cost, error = asyncio.run(PR.run_via_provider("hi", role="planner"))
+    assert rc == 1 and text == "" and cost is None
+    assert "subscription_only" in error
+    assert "private error" not in error
+    assert len(captured) == 1
 
 
-def _tier0_pm():
-    return PR.ProviderModel(
-        provider="openrouter", model_id="x/y:free", tier="tier0",
-        role="gather", source="test",
-    )
-
-
-def _fake_tier0_runner(monkeypatch, *, result, seen):
-    mod = types.ModuleType("app.server.tier0_runner")
-
-    async def run_tier0(prompt, *, confidential=False, role="gather",
-                        session_id="", timeout_s=60.0, **kw):
-        seen.update(prompt=prompt, confidential=confidential, role=role)
-        return result
-
-    mod.run_tier0 = run_tier0
-    monkeypatch.setitem(sys.modules, "app.server.tier0_runner", mod)
-
-
-def test_run_via_provider_tier0_walks_runner(monkeypatch):
-    monkeypatch.setattr(PR, "select_provider_model", lambda *a, **k: _tier0_pm())
-    result = types.SimpleNamespace(
-        ok=True, text="gathered", provider="openrouter",
-        model_id="x/y:free", cost_usd=0.0, error=None)
-    seen: dict = {}
-    _fake_tier0_runner(monkeypatch, result=result, seen=seen)
-
-    rc, text, cost, err = asyncio.run(
-        PR.run_via_provider("summarise", role="gather"))
-    assert (rc, text, err) == (0, "gathered", None)
-    assert seen["confidential"] is False
-
-
-def test_run_via_provider_tier0_passes_confidential(monkeypatch):
-    monkeypatch.setattr(PR, "select_provider_model", lambda *a, **k: _tier0_pm())
-    result = types.SimpleNamespace(
-        ok=True, text="local", provider="ollama",
-        model_id="qwen3.5:latest", cost_usd=0.0, error=None)
-    seen: dict = {}
-    _fake_tier0_runner(monkeypatch, result=result, seen=seen)
-
-    rc, text, cost, err = asyncio.run(
-        PR.run_via_provider("PII", role="gather", confidential=True))
-    assert rc == 0 and text == "local"
-    assert seen["confidential"] is True
-
-
-def test_run_via_provider_tier0_failure_maps_rc1(monkeypatch):
-    monkeypatch.setattr(PR, "select_provider_model", lambda *a, **k: _tier0_pm())
-    result = types.SimpleNamespace(
-        ok=False, text="", provider=None, model_id=None,
-        cost_usd=0.0, error="all_tier0_lanes_failed")
-    _fake_tier0_runner(monkeypatch, result=result, seen={})
-
-    rc, text, cost, err = asyncio.run(
-        PR.run_via_provider("triage", role="gather"))
-    assert rc == 1 and err == "all_tier0_lanes_failed"
+@pytest.mark.parametrize("confidential", [False, True])
+def test_tier0_cannot_bypass_subscription_policy(monkeypatch, confidential):
+    pm = PR.ProviderModel(provider="openrouter", model_id="x/y:free", tier="tier0",
+                          role="gather", source="test")
+    monkeypatch.setattr(PR, "select_provider_model", lambda *a, **k: pm)
+    async def forbidden(*a, **k):
+        pytest.fail("Tier-0 fallback chain bypassed billing policy")
+    monkeypatch.setitem(sys.modules, "app.server.tier0_runner", types.SimpleNamespace(run_tier0=forbidden))
+    result = asyncio.run(PR.run_via_provider("gather", role="gather", confidential=confidential))
+    assert result[0] == 1 and "subscription_only" in result[3]

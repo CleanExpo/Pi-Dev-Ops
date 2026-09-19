@@ -5,11 +5,11 @@ import { useEffect, useState } from "react";
 import ProgressRing from "./ProgressRing";
 
 interface ZteData {
-  score: number;
-  model: string;
-  model_id: string;
-  sdk_mode: boolean;
-  source: "backend" | "harness" | "default";
+  score: number | null;
+  model: string | null;
+  model_id: string | null;
+  sdk_mode: boolean | null;
+  source: "backend" | "harness" | "unavailable";
 }
 
 function scoreColour(score: number): string {
@@ -33,10 +33,17 @@ export default function ModelBadge() {
 
   useEffect(() => {
     let cancelled = false;
+    let pending = false;
+    let controller: AbortController | null = null;
 
     async function load() {
+      if (pending) return;
+      pending = true;
+      const request = new AbortController();
+      controller = request;
+      const timeout = setTimeout(() => request.abort(), 10_000);
       try {
-        const res = await fetch("/api/zte");
+        const res = await fetch("/api/zte", { cache: "no-store", signal: request.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as ZteData;
         if (!cancelled) {
@@ -44,8 +51,10 @@ export default function ModelBadge() {
           setError(null);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load ZTE score");
+        if (!cancelled) { setData(null); setError(e instanceof Error ? e.message : "Failed to load ZTE score"); }
       } finally {
+        clearTimeout(timeout);
+        pending = false;
         if (!cancelled) setLoading(false);
       }
     }
@@ -54,6 +63,7 @@ export default function ModelBadge() {
     const t = setInterval(() => void load(), 60_000);
     return () => {
       cancelled = true;
+      controller?.abort();
       clearInterval(t);
     };
   }, []);
@@ -107,13 +117,13 @@ export default function ModelBadge() {
               style={{ borderLeft: "3px solid var(--accent)" }}
             >
               <div className="text-[10px] mb-0.5" style={{ color: "var(--text-dim)" }}>
-                Active model
+                Observed model
               </div>
               <div className="text-base font-semibold leading-tight" style={{ color: "var(--text)" }}>
-                {data.model}
+                {data.model ?? "Not observed"}
               </div>
               <div className="text-[10px] font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
-                {data.model_id}
+                {data.model_id ?? "Model identity is unverified"}
               </div>
             </div>
 
@@ -121,19 +131,19 @@ export default function ModelBadge() {
             <div className="flex items-center justify-center py-2">
               <div className="flex flex-col items-center gap-2">
                 <ProgressRing
-                  value={data.score}
+                   value={data.score ?? 0}
                   size={96}
                   strokeWidth={7}
-                  colour={scoreColour(data.score)}
-                  label={`${data.score}`}
-                  sublabel="/100"
+                   colour={data.score === null ? "var(--text-dim)" : scoreColour(data.score)}
+                   label={data.score === null ? "Unknown" : `${data.score}`}
+                   sublabel={data.source === "harness" ? "historical" : "/100"}
                 />
                 <div className="text-center">
                   <span
                     className="text-[10px] font-semibold uppercase tracking-wide"
-                    style={{ color: scoreColour(data.score) }}
+                    style={{ color: data.score === null ? "var(--text-dim)" : scoreColour(data.score) }}
                   >
-                    {scoreLabel(data.score)}
+                    {data.score === null ? "Not observed" : data.source === "harness" ? "Recorded score" : scoreLabel(data.score)}
                   </span>
                   <span className="text-[10px] ml-1" style={{ color: "var(--text-dim)" }}>
                     ZTE v2
@@ -152,7 +162,7 @@ export default function ModelBadge() {
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-mono" style={{ color: "var(--text)" }}>
-                  TAO_USE_AGENT_SDK={data.sdk_mode ? "1" : "0"}
+                  {data.sdk_mode === null ? "Not observed" : data.sdk_mode ? "Reported enabled" : "Reported disabled"}
                 </span>
                 <span
                   style={{ color: data.sdk_mode ? "var(--success)" : "var(--text-dim)", fontSize: 13 }}

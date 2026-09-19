@@ -17,6 +17,7 @@ Failures return HTTP 502 with a concise error string (never silent 200 success).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -35,7 +36,6 @@ log = logging.getLogger("pi-ceo.telegram_proxy")
 router = APIRouter(prefix="/api/telegram", tags=["telegram"])
 
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
-
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 def _linear_key() -> str:
@@ -233,7 +233,7 @@ async def ship(body: ShipBody) -> dict:
         if (s.get("linear_issue_id") or "").upper() == body.issue_id.upper():
             pid = s.get("pipeline_id")
             try:
-                state = run_ship_phase(pid)
+                state = await asyncio.to_thread(run_ship_phase, pid)
                 ship_log = getattr(state, "ship_log", None) or {}
                 return {
                     "session_id": pid,

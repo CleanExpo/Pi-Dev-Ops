@@ -15,6 +15,20 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
+@pytest.fixture(autouse=True)
+def _mock_authorized_test_transport(monkeypatch):
+    """These legacy transport tests never perform account or OS preflight."""
+    from app.server import provider_policy, session_sdk
+    monkeypatch.setattr(provider_policy, "require_transport", lambda *a, **kw: {"billing_class": "subscription"})
+    monkeypatch.setattr(session_sdk, "_execution_options", lambda *a: {"cli_path": sys.executable, "env": {}})
+    monkeypatch.setattr(session_sdk, "_write_sdk_metric", lambda **kw: None)
+    monkeypatch.setattr("swarm.budget_tracker.record_cost", lambda **kw: None)
+    async def no_live_query(**kwargs):
+        raise RuntimeError("live SDK requests are forbidden in tests")
+        yield
+    monkeypatch.setattr("claude_agent_sdk.query", no_live_query)
+
+
 @pytest.mark.asyncio
 async def test_run_claude_via_sdk_success():
     """SDK succeeds and returns (0, text, cost).
@@ -33,6 +47,7 @@ async def test_run_claude_via_sdk_success():
     assistant_msg = AssistantMessage(content=[text_block], model="sonnet")
     # Minimal ResultMessage — kwargs vary across SDK versions, so build via MagicMock
     result_msg = MagicMock(spec=ResultMessage)
+    result_msg.total_cost_usd = 0.125
 
     async def mock_query(prompt=None, options=None):  # noqa: ARG001
         yield assistant_msg
@@ -42,7 +57,7 @@ async def test_run_claude_via_sdk_success():
         rc, text, cost = await _run_claude_via_sdk("test prompt", "sonnet", "/tmp/ws")
         assert rc == 0
         assert "Generated code" in text
-        assert cost >= 0.0
+        assert cost == 0.125
 
 
 @pytest.mark.asyncio
@@ -59,7 +74,7 @@ async def test_run_claude_via_sdk_exception():
         assert rc == 1
         assert "RuntimeError" in text
         assert "Query failed" in text
-        assert cost == 0.0
+        assert cost is None
 
 
 @pytest.mark.asyncio
@@ -91,7 +106,7 @@ async def test_run_claude_via_sdk_timeout():
         rc, text, cost = await _run_claude_via_sdk("test", "sonnet", "/tmp", timeout=1)
         assert rc == 1
         assert "timeout after 1s" in text
-        assert cost == 0.0
+        assert cost is None
 
 
 @pytest.mark.asyncio

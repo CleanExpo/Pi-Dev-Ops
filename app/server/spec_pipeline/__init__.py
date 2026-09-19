@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import shutil
+import re
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -12,18 +12,18 @@ from pathlib import Path
 from typing import Any, Literal
 
 from app.server import supabase_log
-from app.server.tao_planner import resolve_planner_loop_kwargs
-from app.server.tao_loop import run_until_done
+from app.server.tao_planner import resolve_planner_loop_kwargs as resolve_planner_loop_kwargs
+from app.server.tao_loop import run_until_done as run_until_done
 
 from . import linear_reporter
 from . import persistence as persist
 from .boardroom import boardroom_query
-from .review_runner import run_review
+from .review_runner import run_review as run_review
 from .ship_gate import (
     machine_ship_enabled,
-    open_pr_and_merge,
-    run_oracles,
-    scan_diff_boundary,
+    open_pr_and_merge as open_pr_and_merge,
+    run_oracles as run_oracles,
+    scan_diff_boundary as scan_diff_boundary,
     scan_proposal_boundary,
 )
 from .spm_runner import run_spm
@@ -45,6 +45,7 @@ class PipelineResult:
     judge_score: int = 0
     boardroom_decision: str = ""
     pr_url: str = ""
+    candidate_sha: str = ""
     stages: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -55,6 +56,7 @@ class PipelineResult:
             "judge_score": self.judge_score,
             "boardroom_decision": self.boardroom_decision,
             "pr_url": self.pr_url,
+            "candidate_sha": self.candidate_sha,
             "stages": self.stages,
         }
 
@@ -139,6 +141,28 @@ def _log_machine_gate(pipeline_id: str, gate_checks: dict[str, bool], score: flo
         log.warning("gate_check log failed: %s", exc)
 
 
+def _git(workspace: str, *args: str, env: dict | None = None) -> str:
+    """Checked, bounded git execution without exposing authenticated remote URLs."""
+    from app.server.git_safety import prepare_git
+
+    command, child_env = prepare_git(workspace, args, env)
+    try:
+        result = subprocess.run(
+            command, cwd=workspace, env=child_env, capture_output=True, text=True,
+            timeout=120, check=False,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        )
+    except (subprocess.SubprocessError, OSError) as exc:
+        raise RuntimeError(f"git {args[0]} could not run ({type(exc).__name__})") from None
+    if result.returncode != 0:
+        raise RuntimeError(f"git {args[0]} failed (exit {result.returncode})")
+    return result.stdout.strip()
+
+
+def _object_id(value: str) -> bool:
+    return isinstance(value, str) and bool(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", value))
+
+
 async def run_pipeline(
     proposal: str,
     *,
@@ -149,6 +173,8 @@ async def run_pipeline(
 ) -> PipelineResult:
     """Run full machine spec pipeline."""
     pipeline_id = pipeline_id or persist.new_pipeline_id()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,100}", pipeline_id):
+        return PipelineResult(pipeline_id, "blocked", "Invalid pipeline identifier")
     stages: list[dict[str, Any]] = []
     persist.write_text(pipeline_id, "00-proposal.md", proposal + "\n")
     persist.write_json(pipeline_id, "meta.json", {
@@ -275,113 +301,11 @@ async def run_pipeline(
             judge_score=100, boardroom_decision=boardroom.decision, stages=stages,
         )
 
-    ws_root = os.environ.get("TAO_WORKSPACE", "/tmp/pi-ceo-workspaces")
-    workspace = str(Path(ws_root) / pipeline_id)
-    if Path(workspace).exists():
-        shutil.rmtree(workspace)
-    shutil.copytree(
-        REPO_ROOT, workspace,
-        ignore=shutil.ignore_patterns(".git", "node_modules", ".next", "__pycache__"),
-    )
-    subprocess.run(["git", "init"], cwd=workspace, check=False, capture_output=True)
-    subprocess.run(["git", "add", "-A"], cwd=workspace, check=False, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "init"], cwd=workspace, check=False, capture_output=True)
+    from .execution import execute
 
-    linear_reporter.report(issue_id, "build started", f"Workspace `{workspace}`. Goal: {spec.goal_command}")
-    loop_result = await run_until_done(
-        goal=spec.goal_command,
-        workspace=workspace,
-        max_iters=int(os.environ.get("TAO_MAX_ITERS", "25")),
-        judge_every_n_iters=1,
-        timeout_per_iter_s=600,
-        **resolve_planner_loop_kwargs(),
-    )
-    persist.append_jsonl(pipeline_id, "05-build-loop.jsonl", {
-        "done": loop_result.done,
-        "reason": loop_result.reason,
-        "iters": loop_result.iters,
-        "cost_usd": loop_result.cost_usd,
-    })
-    stages.append({
-        "stage": "build",
-        "status": "ok" if loop_result.done else "incomplete",
-        "reason": loop_result.reason,
-    })
-
-    diff_boundary = scan_diff_boundary(workspace)
-    if diff_boundary.tier == "blocked":
-        reason = f"diff boundary: {diff_boundary.blocked_paths}"
-        _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
-        _persist_meta(pipeline_id, status="blocked", proposal=proposal, reason=reason,
-                      stages=stages, judge_score=100)
-        linear_reporter.report(issue_id, "blocked — diff boundary", reason)
-        return PipelineResult(pipeline_id, "blocked", reason, judge_score=100, stages=stages)
-
-    oracles = run_oracles(workspace)
-    review = run_review(workspace, oracles=oracles)
-    persist.write_json(pipeline_id, "06-review-packet.json", review.to_dict())
-    stages.append({"stage": "review", "status": review.verdict})
-
-    if review.verdict == "BLOCKED":
-        reason = "; ".join(review.blockers)
-        _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
-        _persist_meta(pipeline_id, status="blocked", proposal=proposal, reason=reason,
-                      stages=stages, judge_score=100)
-        linear_reporter.report(issue_id, "blocked — review", reason)
-        return PipelineResult(pipeline_id, "blocked", reason, judge_score=100, stages=stages)
-
-    branch = f"pidev/auto-{pipeline_id[:8]}"
-    subprocess.run(["git", "checkout", "-b", branch], cwd=workspace, check=False)
-    subprocess.run(["git", "add", "-A"], cwd=workspace, check=False)
-    subprocess.run(
-        ["git", "commit", "-m", f"feat(spec-pipeline): {proposal[:72]}"],
-        cwd=workspace, check=False,
-    )
-    remote = os.environ.get("GITHUB_REPO_URL", f"https://github.com/{DEFAULT_REPO}.git")
-    token = os.environ.get("GITHUB_TOKEN", "")
-    if token:
-        remote = remote.replace("https://", f"https://x-access-token:{token}@")
-    subprocess.run(["git", "remote", "add", "origin", remote], cwd=workspace, check=False)
-    subprocess.run(["git", "push", "-u", "origin", branch], cwd=workspace, check=False)
-
-    ship = open_pr_and_merge(
-        repo=DEFAULT_REPO,
-        branch=branch,
-        title=f"feat(spec-pipeline): {proposal[:80]}",
-        body=f"Machine spec pipeline `{pipeline_id}`\n\nTrigger: {trigger}\nIssue: {issue_id or 'n/a'}",
-    )
-    persist.write_json(pipeline_id, "07-ship-result.json", ship)
-    stages.append({"stage": "ship", "status": ship.get("status", "unknown")})
-    linear_reporter.report(
-        issue_id, "PR opened", f"{ship.get('pr_url') or 'no URL'} — status {ship.get('status')}")
-
-    _log_machine_gate(pipeline_id, {
-        "spec_exists": True,
-        "plan_exists": True,
-        "build_complete": loop_result.done,
-        "tests_passed": oracles.get("pytest_ok", False),
-        "review_passed": review.verdict in ("PASS", "PASS_WITH_WARNINGS"),
-        "shipped": ship.get("status") == "merged",
-    }, float(final_judge.score))
-
-    status = "complete" if ship.get("status") == "merged" else "ship_blocked"
-    _write_handoff(pipeline_id, status=status.upper(), proposal=proposal,
-                   reason=str(ship.get("status", "")), extra={
-                       "pickup": ship.get("pr_url", ""),
-                   })
-    _persist_meta(
-        pipeline_id, status=status, proposal=proposal, reason=str(ship.get("status", "")),
-        stages=stages, pr_url=ship.get("pr_url", ""), judge_score=100,
-        boardroom_decision=boardroom.decision,
-    )
-    linear_reporter.report(issue_id, status, f"{ship.get('pr_url', '')} ({ship.get('status', '')})")
-    return PipelineResult(
-        pipeline_id, status,
-        reason=str(ship.get("status", "")),
-        judge_score=100,
-        boardroom_decision=boardroom.decision,
-        pr_url=ship.get("pr_url", ""),
-        stages=stages,
+    return await execute(
+        pipeline_id=pipeline_id, proposal=proposal, issue_id=issue_id, trigger=trigger,
+        boardroom=boardroom, spec=spec, final_judge=final_judge, stages=stages,
     )
 
 

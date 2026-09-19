@@ -95,6 +95,7 @@ from .session_phases import (  # noqa: F401
 )
 
 _log = logging.getLogger("pi-ceo.sessions")
+_build_tasks: dict[str, asyncio.Task] = {}
 
 
 # ── Session lifecycle ─────────────────────────────────────────────────────────
@@ -135,6 +136,39 @@ def _reconcile_stale_terminal_sessions() -> int:
     return reconciled
 
 
+def register_build_task(session, task):
+    """All launch paths retain the task used by the public kill endpoint."""
+    _build_tasks[session.id] = task
+    task.add_done_callback(lambda done: _forget_build_task(session.id, done))
+    return task
+
+
+def _forget_build_task(sid, task):
+    if _build_tasks.get(sid) is task:
+        _build_tasks.pop(sid, None)
+
+
+async def _run_owned_build(session, brief, resolved_model, intent):
+    try:
+        await run_build(session, brief, resolved_model, intent=intent)
+    except asyncio.CancelledError:
+        session.status = "interrupted"
+        persistence.save_session(session)
+        raise
+
+
+
+def _budget_for_session(budget_minutes, resolved_model):
+    # RA-677 — apply AUTONOMY_BUDGET if specified
+    bp: Optional[dict] = None
+    if budget_minutes and budget_minutes > 0:
+        from .budget import budget_to_params, describe_budget  # noqa: PLC0415
+        bp = budget_to_params(budget_minutes)
+        resolved_model = bp["model"]
+        _log.info("AUTONOMY_BUDGET applied: %s", describe_budget(bp))
+    return bp, resolved_model
+
+
 async def create_session(
     repo_url,
     brief="",
@@ -172,13 +206,7 @@ async def create_session(
     if _running >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
     resolved_model = _select_model("generator", model)
-    # RA-677 — apply AUTONOMY_BUDGET if specified
-    bp: Optional[dict] = None
-    if budget_minutes and budget_minutes > 0:
-        from .budget import budget_to_params, describe_budget  # noqa: PLC0415
-        bp = budget_to_params(budget_minutes)
-        resolved_model = bp["model"]
-        _log.info("AUTONOMY_BUDGET applied: %s", describe_budget(bp))
+    bp, resolved_model = _budget_for_session(budget_minutes, resolved_model)
     session = BuildSession(
         repo_url=repo_url,
         started_at=time.time(),
@@ -199,7 +227,8 @@ async def create_session(
         )
     _sessions[session.id] = session
     persistence.save_session(session)
-    asyncio.create_task(run_build(session, brief, resolved_model, intent=intent))
+    task = asyncio.create_task(_run_owned_build(session, brief, resolved_model, intent))
+    register_build_task(session, task)
     return session
 
 
@@ -207,6 +236,14 @@ async def kill_session(sid):
     s = _sessions.get(sid)
     if not s:
         return False
+    from .orchestrator import cancel_fan_out
+    fan_out_result = await cancel_fan_out(sid)
+    if fan_out_result is not None:
+        return fan_out_result
+    task = _build_tasks.get(sid)
+    if task is not None and not task.done():
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
     if s.process:
         try:
             s.process.terminate()

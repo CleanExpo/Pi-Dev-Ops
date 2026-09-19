@@ -20,18 +20,18 @@ Public API (re-exported by sessions.py for backward compatibility):
 from __future__ import annotations
 
 import asyncio
-import datetime
 import json
 import logging
 import math
 import os
 import random
+import re
 import shutil
 import subprocess
 import time
-import urllib.request
 from pathlib import Path
 
+from .session_alerts import _send_scope_violation_alert, _send_repair_exhausted_alert, _build_repair_brief
 from . import board_review
 from . import session_push_pr
 from . import config
@@ -45,6 +45,8 @@ from .session_recorder import record_episode, retrieve_similar_episodes, format_
 from .session_finish import finish_after_push
 from .session_model import em, mark_terminal
 from .planner_admission import plan_timeouts, sdk_failure_detail
+from . import session_delivery
+from .session_process import stop_process_tree
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
 from .session_evaluator import (
     _parse_evaluator_dimensions,
@@ -147,43 +149,6 @@ def _load_harness_config():
 _HARNESS_CONFIG = _load_harness_config()
 
 
-def _send_scope_violation_alert(session, modified_files: list[str], max_files: int) -> None:
-    """RA-676 — Fire-and-forget Telegram alert when scope contract is exceeded."""
-    token = config.TELEGRAM_BOT_TOKEN
-    chat_id = config.TELEGRAM_ALERT_CHAT_ID
-    if not token or not chat_id:
-        return
-    repo = (getattr(session, "repo_url", "") or "").rstrip("/").split("/")[-1] or "unknown"
-    file_list = "\n".join(f"  • `{f}`" for f in modified_files[:15])
-    tail = f"\n  _(+ {len(modified_files) - 15} more)_" if len(modified_files) > 15 else ""
-    scope = getattr(session, "scope", None) or {}
-    msg = (
-        f"🚫 *Scope Contract Violated*\n\n"
-        f"Session: `{session.id}`\n"
-        f"Repo: `{repo}`\n"
-        f"Declared max: *{max_files}* files\n"
-        f"Actual: *{len(modified_files)}* files modified\n"
-        f"Scope type: `{scope.get('type', 'unspecified')}`\n\n"
-        f"Modified files:\n{file_list}{tail}\n\n"
-        f"Build held — manual review required."
-    )
-    payload = json.dumps({
-        "chat_id": chat_id,
-        "text": msg,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True,
-    }).encode()
-    try:
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            data=payload, method="POST",
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=8):
-            pass
-        _log.info("Scope violation alert sent: session=%s files=%d", session.id, len(modified_files))
-    except Exception as exc:
-        _log.warning("Scope violation Telegram alert failed (non-fatal): %s", exc)
 
 
 def _check_scope_adherence(
@@ -307,84 +272,8 @@ async def _classify_failure(eval_text: str, diff_text: str, session) -> dict:
     return {}
 
 
-def _build_repair_brief(
-    spec: str,
-    eval_text: str,
-    classification: dict,
-    threshold: float,
-    weak_dims: list[str],
-) -> str:
-    """Build a targeted repair brief from the failure classification.
-
-    Falls back to the legacy retry format when classification is empty.
-    """
-    if not classification:
-        # Legacy format (existing behaviour preserved)
-        return (
-            spec + "\n\n--- RETRY INSTRUCTIONS ---\n"
-            f"Previous attempt scored below threshold ({threshold}/10).\n"
-            "Issues found:\n" + "\n".join(f"- {w}" for w in weak_dims) + "\n"
-            "Fix these specific issues. Do not rewrite everything.\n--- END RETRY ---"
-        )
-    failure_type = classification.get("FAILURE_TYPE", "unknown")
-    implicated = classification.get("IMPLICATED_FILES", [])
-    scope = classification.get("REPAIR_SCOPE", "minimal")
-    instructions = classification.get("REPAIR_INSTRUCTIONS", [])
-
-    files_line = ", ".join(implicated) if implicated else "see evaluator output"
-    instructions_text = "\n".join(f"  {i+1}. {step}" for i, step in enumerate(instructions))
-
-    return (
-        f"REPAIR TASK — failure type: {failure_type}, scope: {scope}\n\n"
-        f"Do NOT rewrite everything. Touch only the implicated files: {files_line}\n\n"
-        f"Original task spec:\n{spec[:1500]}\n\n"
-        f"Evaluator feedback:\n{eval_text[:1500]}\n\n"
-        f"Specific repair instructions:\n{instructions_text or '  - Fix the issues described in the evaluator feedback above'}\n\n"
-        "Verify your changes with a quick test run if tests exist.\n"
-        "Do not modify files not in the implicated list."
-    )
 
 
-def _send_repair_exhausted_alert(session, score: float, eval_text: str) -> None:
-    """RA-936 — Telegram alert when the repair loop exhausts all retries.
-
-    Lets the operator know a session needs human review rather than silently
-    being marked 'warned'. Never raises.
-    """
-    token = config.TELEGRAM_BOT_TOKEN
-    chat_id = config.TELEGRAM_ALERT_CHAT_ID
-    if not token or not chat_id:
-        return
-    repo = getattr(session, "repo_url", "?").rstrip("/").split("/")[-1]
-    issue_id = getattr(session, "linear_issue_id", None)
-    ticket = f" | {issue_id}" if issue_id else ""
-    # Pull first failing dimension from eval text for the alert
-    failing_dim = ""
-    for line in eval_text.splitlines():
-        if any(d in line for d in ("COMPLETENESS:", "CORRECTNESS:", "CONCISENESS:", "FORMAT:")):
-            if "/10" in line:
-                try:
-                    score_val = float(line.split("/10")[0].split()[-1])
-                    if score_val < 7:
-                        failing_dim = line.strip()[:80]
-                        break
-                except ValueError:
-                    pass
-    msg = (
-        f"🔄 *Repair loop exhausted:* `{repo}`\n"
-        f"Score: {score:.1f}/10 — needs human review{ticket}\n"
-        f"{failing_dim}"
-    )
-    payload = json.dumps({"chat_id": chat_id, "text": msg, "parse_mode": "Markdown",
-                          "disable_web_page_preview": True}).encode()
-    req = urllib.request.Request(
-        f"https://api.telegram.org/bot{token}/sendMessage",
-        data=payload, headers={"Content-Type": "application/json"}, method="POST",
-    )
-    try:
-        urllib.request.urlopen(req, timeout=10)
-    except Exception as exc:
-        _log.debug("RA-936: _send_repair_exhausted_alert failed (non-fatal): %s", exc)
 
 
 def _select_model(phase: str, explicit_model: str = "") -> str:
@@ -403,14 +292,29 @@ def _select_model(phase: str, explicit_model: str = "") -> str:
 
 
 async def run_cmd(cwd, *args, timeout=60, env=None):
+    if args and Path(str(args[0])).name.lower() in {"git", "git.exe"}:
+        from .git_safety import prepare_git
+        try:
+            args, env = prepare_git(cwd, args[1:], env)
+        except RuntimeError as exc:
+            return 1, "", str(exc)
+    process_options = (
+        {"creationflags": subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP}
+        if os.name == "nt" else {"start_new_session": True}
+    )
     proc = await asyncio.create_subprocess_exec(
         *args,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=cwd,
         env=env,
+        **process_options,
     )
-    out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    try:
+        out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except (asyncio.TimeoutError, asyncio.CancelledError):
+        await stop_process_tree(proc, process_options, os)
+        raise
     return proc.returncode, out.decode("utf-8",errors="replace"), err.decode("utf-8",errors="replace")
 
 
@@ -478,18 +382,25 @@ def parse_event(line, session):
 
 # ── RA-1032: Per-phase cost/duration metric helper ────────────────────────────
 
-def _emit_phase_metric(session, phase_name: str, phase_start: float, phase_cost: float = 0.0) -> None:
+def _emit_phase_metric(session, phase_name: str, phase_start: float, phase_cost: float | None = None) -> None:
     """Append a phase_metric event to session.output_lines (never raises)."""
     try:
         duration_s = round(time.monotonic() - phase_start, 1)
-        session.phase_metrics[phase_name] = {"duration_s": duration_s, "cost_usd": phase_cost}
+        cost_basis = "unknown" if phase_cost is None else "reported_usage"
+        cost_text = "usage cost unknown" if phase_cost is None else f"reported usage ${phase_cost:.4f}"
+        session.phase_metrics[phase_name] = {
+            "duration_s": duration_s, "cost_usd": phase_cost,
+            "cost_basis": cost_basis, "cost_verified": False,
+        }
         session.output_lines.append({
             "type": "phase_metric",
             "phase": phase_name,
             "duration_s": duration_s,
             "cost_usd": phase_cost,
+            "cost_basis": cost_basis,
+            "cost_verified": False,
             "ts": time.time(),
-            "text": f"  {phase_name}: {duration_s}s · ${phase_cost:.4f}",
+            "text": f"  {phase_name}: {duration_s}s · {cost_text}",
         })
     except Exception:
         pass  # metric tracking must never break a phase
@@ -546,12 +457,10 @@ async def _try_shared_worktree(session) -> bool:
     branch_name = f"worker-{session.id[:8]}"
     worktree_path = Path(session.shared_workspace).parent / session.id
     try:
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["git", "-C", session.shared_workspace, "worktree", "add",
-             str(worktree_path), "-b", branch_name],
-            capture_output=True, text=True,
+        rc, out, err = await run_cmd(
+            session.shared_workspace, "git", "worktree", "add", str(worktree_path), "-b", branch_name,
         )
+        result = subprocess.CompletedProcess([], rc, out, err)
     except Exception as exc:
         _log.warning("Worktree creation raised exception, falling back to full clone: %s", exc)
         return False
@@ -746,13 +655,12 @@ async def _reclone_sandbox(session) -> bool:
     os.makedirs(session.workspace, exist_ok=True)
     try:
         env = git_auth_env(session.repo_url)
-        proc = await asyncio.create_subprocess_exec(
-            "git", "clone", "--depth", "1", session.repo_url, session.workspace,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=env,
+        rc, _, stderr = await run_cmd(
+            session.workspace, "git", "clone", "--depth", "1", session.repo_url, session.workspace,
+            timeout=60, env=env,
         )
-        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
-        if proc.returncode != 0:
-            _fail_phase(session, f"Sandbox re-clone failed: {stderr.decode().strip()[:300]}")
+        if rc != 0:
+            _fail_phase(session, f"Sandbox re-clone failed: {stderr.strip()[:300]}")
             return False
         em(session, "success", "  Sandbox restored via re-clone")
         return True
@@ -766,15 +674,16 @@ async def _reclone_sandbox(session) -> bool:
 
 async def _phase_sandbox(session, resume_from: str) -> bool:
     if _should_skip("sandbox", resume_from):
-        em(session, "system", "  [SKIP] Sandbox (already completed)")
+        em(session, "system", "  [SKIP] Workspace check (already completed)")
         return True
-    em(session, "phase", "[3.5/5] Verifying sandbox...")
+    em(session, "phase", "[3.5/5] Checking workspace availability...")
     if not session.workspace or not os.path.isdir(session.workspace):
         em(session, "system", "  Sandbox missing — auto-regenerating workspace...")
         if not await _reclone_sandbox(session):
             return False
     else:
-        em(session, "success", f"  Sandbox verified: {session.workspace}")
+        em(session, "system", f"  Workspace available: {session.workspace}")
+    em(session, "system", "  Execution isolation is checked separately before generation")
     session.last_completed_phase = "sandbox"
     persistence.save_session(session)
     return True
@@ -997,10 +906,38 @@ async def _phase_plan(session, spec: str, resume_from: str) -> bool:
     return True
 
 
+def _block_generation(session, reason, phase_start, cost):
+    session.status = "blocked"
+    session.error = reason[:500]
+    em(session, "error", session.error)
+    persistence.save_session(session)
+    _emit_phase_metric(session, "generate", phase_start, cost)
+
+
+def _reported_cost(total, cost):
+    if total is None or type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0:
+        return None
+    return total + cost
+
+
+def _complete_generation(session, sdk_output, phase_start, cost, use_canary):
+    for line in sdk_output.split("\n"):
+        if line.strip():
+            parse_event(line, session)
+    em(session, "system", "")
+    em(session, "success", "  Claude Code completed")
+    session.last_completed_phase = "generator"
+    persistence.save_session(session)
+    _emit_phase_metric(session, "generate", phase_start, cost)
+    # RA-697: emit canary metric on successful canary run
+    if use_canary:
+        _emit_sdk_canary_metric(session.id, success=True)
+
+
 async def _phase_generate(session, spec: str, model: str, resume_from: str) -> bool:
     """Run claude CLI; retry once with simplified prompt on failure."""
     phase_start = time.monotonic()
-    _generate_cost: float = 0.0
+    _generate_cost: float | None = 0.0
     # Reason for the LAST attempt's failure, carried out of the retry loop so the
     # terminal failure records why rather than just that it happened.
     last_failure = ""
@@ -1042,26 +979,21 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
                 timeout=_gen_timeout,
                 session_id=session.id, phase="generator",
             )
-            _generate_cost += float(cost or 0.0)
+            _generate_cost = _reported_cost(_generate_cost, cost)
             if rc == 0:
-                for line in sdk_output.split("\n"):
-                    if line.strip():
-                        parse_event(line, session)
-                em(session, "system", "")
-                em(session, "success", "  Claude Code completed")
-                session.last_completed_phase = "generator"
-                persistence.save_session(session)
-                _emit_phase_metric(session, "generate", phase_start, _generate_cost)
-                # RA-697: emit canary metric on successful canary run
-                if use_canary:
-                    _emit_sdk_canary_metric(session.id, success=True)
+                _complete_generation(session, sdk_output, phase_start, _generate_cost, use_canary)
                 return True
+            reason = (sdk_output or "").strip()
+            if reason.startswith(("subscription_only:", "execution_blocked:")):
+                _block_generation(session, reason, phase_start, _generate_cost)
+                return False
             _log.warning("SDK generator failed rc=%d (attempt %d/2)", rc, attempt + 1)
             last_failure = f"SDK failed rc={rc}"
             em(session, "error", f"  SDK failed rc={rc} (attempt {attempt + 1}/2)")
             if attempt == 0:
                 em(session, "system", "  Retrying with simplified prompt...")
         except Exception as e:
+            _generate_cost = None
             # RA-1169 — capture the traceback so post-mortem debugging can
             # pinpoint the exact SDK call-site that raised. Without this the
             # log just shows `'str' object has no attribute 'get'` with no
@@ -1083,11 +1015,44 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
     return False
 
 
+async def _prepare_candidate(session):
+    return await session_delivery.prepare_candidate(session, run_cmd=run_cmd, fail_phase=_fail_phase)
+
+
+async def _release_gate(session):
+    return await session_delivery.release_gate(session, run_cmd=run_cmd, em=em)
+
+
+async def _verify_candidate(session):
+    return await session_delivery.verify_candidate(session)
+
+
+async def _required_verification(session):
+    # A model score cannot override failed or missing executable verification.
+    _verify = await _verify_candidate(session)
+    if _verify.status != workspace_verify.PASSED:
+        session.evaluator_status = "verification_failed"
+        session.status = "blocked"
+        session.error = f"Required workspace checks {_verify.status}: {_verify.reason}"
+        persistence.save_session(session)
+        return _verify
+    if _verify.ran:
+        em(session, "system", f"  Verification: {_verify.command} → {_verify.status}")
+    else:
+        em(session, "system", f"  Verification: not run ({_verify.reason})")
+
+    return _verify
+
+
 async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_intent: str) -> int:
     """Run closed-loop evaluator. Returns total_phases (6 if evaluator ran, 5 if skipped)."""
     phase_start = time.monotonic()
     _evaluate_cost: float = 0.0
     if not (session.evaluator_enabled and config.EVALUATOR_ENABLED):
+        session.evaluator_status = "disabled"
+        session.status = "blocked"
+        session.error = "Required evaluator is disabled"
+        persistence.save_session(session)
         return 5
     total_phases = 6
     # RA-677 — session-level budget params override global config
@@ -1101,17 +1066,9 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
     # RA-1027 — stash brief so _run_persona_review can include it in persona prompts
     session._brief_context_for_persona = brief_context
 
-    # Run the repo's own checks and hand the result to the evaluator as evidence. Until
-    # this existed the evaluator asked itself "any bugs ... or broken tests?" having run
-    # nothing, so CORRECTNESS was inference over a diff — a suite that does not start
-    # could still score 9/10. Evidence, not a gate: a failure informs the grade rather
-    # than halting the session, and "no runnable check" is reported as its own outcome so
-    # the evaluator is never left to assume a pass.
-    _verify = await workspace_verify.run_workspace_checks(session.workspace)
-    if _verify.ran:
-        em(session, "system", f"  Verification: {_verify.command} → {_verify.status}")
-    else:
-        em(session, "system", f"  Verification: not run ({_verify.reason})")
+    _verify = await _required_verification(session)
+    if _verify.status != workspace_verify.PASSED:
+        return total_phases
 
     _EVAL_PROMPT_BASE = (
         "You are a senior code reviewer evaluating AI-generated changes. "
@@ -1150,21 +1107,7 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
         "requirements ambiguity, borderline score, incomplete context. "
         "100% = unambiguous; 50% = borderline; <60% = genuinely uncertain>"
     )
-    # RA-676 — extract modified files and enforce scope contract before eval loop
-    try:
-        _, _files_out, _ = await run_cmd(
-            session.workspace, "git", "diff", "HEAD~1", "--name-only", timeout=10
-        )
-        session.modified_files = [
-            f.strip() for f in (_files_out or "").splitlines() if f.strip()
-        ]
-    except Exception:
-        session.modified_files = []
-    if _check_scope_adherence(session, session.modified_files, resolved_intent):
-        session.last_completed_phase = "evaluator"
-        persistence.save_session(session)
-        return total_phases
-
+    # Extract the full candidate range and recheck scope after every repair.
     for eval_attempt in range(max_retries + 1):
         em(session, "phase", f"[5/{total_phases}] Running Evaluator (attempt {eval_attempt + 1}/{max_retries + 1})...")
         session.status = "evaluating"
@@ -1172,9 +1115,19 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
         session.retry_count = eval_attempt
         persistence.save_session(session)
         try:
-            _, diff_out, _ = await run_cmd(session.workspace, "git", "diff", "HEAD~1", "--stat", timeout=10)
-            _, diff_full, _ = await run_cmd(session.workspace, "git", "diff", "HEAD~1", timeout=30)
-            diff_context = diff_full[:8000] if diff_full else "(no diff available)"
+            rc, diff_out, _ = await run_cmd(session.workspace, "git", "diff", session.base_sha, session.candidate_sha, "--stat", timeout=10)
+            diff_rc, diff_full, _ = await run_cmd(session.workspace, "git", "diff", session.base_sha, session.candidate_sha, timeout=30)
+            if rc or diff_rc:
+                session.evaluator_status = "error"
+                break
+            files_rc, files_out, _ = await run_cmd(session.workspace, "git", "diff", session.base_sha, session.candidate_sha, "--name-only", timeout=10)
+            if files_rc:
+                session.evaluator_status = "error"
+                break
+            session.modified_files = files_out.splitlines()
+            if _check_scope_adherence(session, session.modified_files, resolved_intent):
+                break
+            diff_context = diff_full if diff_full else "(no diff available)"
             sid = getattr(session, "id", "")
             # RA-655 — prefer cached direct API path; fall back to Agent SDK on failure
             final_score, eval_text, eval_model, consensus_detail = await _run_parallel_eval_cached(
@@ -1187,7 +1140,7 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
                     _EVAL_PROMPT_BASE
                     + "ORIGINAL BRIEF (what was asked for):\n" + brief_context + "\n\n"
                     + "DIFF SUMMARY:\n" + (diff_out or "(empty)") + "\n\n"
-                    + "DIFF DETAIL (truncated to 8000 chars):\n" + diff_context + "\n\n"
+                    + "CANDIDATE DIFF:\n" + diff_context + "\n\n"
                     + _EVAL_PROMPT_DIMS
                 )
                 final_score, eval_text, eval_model, consensus_detail = await _run_parallel_eval(session, eval_spec)
@@ -1307,6 +1260,13 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
                     parse_event(line, session)
             em(session, "system", "")
             em(session, "success", "  Retry generation complete")
+            if not await _prepare_candidate(session):
+                session.evaluator_status = "error"
+                break
+            _verify = await _verify_candidate(session)
+            if _verify.status != workspace_verify.PASSED:
+                session.evaluator_status = "verification_failed"
+                break
         except asyncio.TimeoutError:
             session.evaluator_status = "timeout"
             em(session, "error", "  Evaluator timed out (120s)")
@@ -1468,6 +1428,20 @@ async def _skip_adversary(session, phase_start: float, verdict: str, msg: str, *
     return True, {"verdict": verdict, **extra}
 
 
+async def _adversary_diff(session):
+    base = getattr(session, "base_sha", "")
+    candidate = getattr(session, "candidate_sha", "")
+    if not base or not candidate:
+        return None, None, "MISSING_CANDIDATE"
+    rc, diff_out, _ = await run_cmd(session.workspace, "git", "diff", base, candidate, "--")
+    if rc:
+        return None, None, "DIFF_ERROR"
+    rc, stat_out, _ = await run_cmd(session.workspace, "git", "diff", "--stat", base, candidate)
+    if rc:
+        return None, None, "DIFF_ERROR"
+    return diff_out, stat_out, ""
+
+
 async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     """RA-1743 — Pre-push opus-adversary review gate.
 
@@ -1482,19 +1456,25 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
         verdict_data: dict with verdict, concerns, raw_output for logging
     """
     phase_start = time.monotonic()
-    em(session, "phase", "[Adversary] Opus 4.7 challenging Sonnet's work...")
+    em(session, "phase", "[Adversary] Required adversarial candidate review...")
 
-    # ── Commit the build, then get the diff to review ────────────────────
-    diff_out, stat_out, diff_rc = await board_review.review_diff(session.workspace, run_cmd)
-    if diff_rc != 0:  # a failed diff is not "no diff" — see review_diff's docstring
-        em(session, "error", f"  git diff failed (rc={diff_rc}) — cannot review, halting push")
-        return False, {"verdict": "DIFF_FAILED", "raw_output": ""}
+    # ── Get diff to review ───────────────────────────────────────────────
+    candidate = getattr(session, "candidate_sha", "")
+    diff_out, stat_out, diff_error = await _adversary_diff(session)
+    if diff_error:
+        return False, {"verdict": diff_error, "candidate_sha": candidate}
     if not diff_out.strip():
-        return await _skip_adversary(session, phase_start, "SKIP_NO_DIFF",
-                                     "  No diff to review — skipping adversary phase", concerns=[])
+        em(session, "system", "  No diff to review — skipping adversary phase")
+        _emit_phase_metric(session, "adversary", phase_start, 0.0)
+        await _write_board_review_receipt(session, "SKIP_NO_DIFF")
+        return True, {"verdict": "SKIP_NO_DIFF", "concerns": [], "candidate_sha": candidate}
 
     # ── Skip on docs-only / test-only diffs (low signal-to-cost) ────────
-    files_changed = [line.split("|")[0].strip() for line in stat_out.strip().split("\n") if "|" in line]
+    files_changed = [
+        line.split("|")[0].strip()
+        for line in stat_out.strip().split("\n")
+        if "|" in line
+    ]
     code_files = [
         f for f in files_changed
         if not (
@@ -1504,8 +1484,10 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
         )
     ]
     if not code_files:
-        msg = f"  Docs/test-only diff ({len(files_changed)} files) — skipping adversary"
-        return await _skip_adversary(session, phase_start, "SKIP_DOCS_ONLY", msg, files=files_changed)
+        em(session, "system", f"  Docs/test-only diff ({len(files_changed)} files) — skipping adversary")
+        _emit_phase_metric(session, "adversary", phase_start, 0.0)
+        await _write_board_review_receipt(session, "SKIP_DOCS_ONLY")
+        return True, {"verdict": "SKIP_DOCS_ONLY", "files": files_changed, "candidate_sha": candidate}
 
     # ── Build adversarial prompt (mirrors ~/.claude/skills/opus-adversary/SKILL.md) ──
     brief_excerpt = ""
@@ -1519,7 +1501,7 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
         "You are reviewing a change Sonnet 4.6 just made. Your job is to find what "
         "I missed — not to validate. Be skeptical, not agreeable.\n\n"
         f"## What was asked for\n{brief_excerpt}\n\n"
-        f"## Diff\n```\n{diff_out[:8000]}\n```\n\n"
+        f"## Candidate {candidate}\n```\n{diff_out}\n```\n\n"
         "## Your job\n"
         "For each concern, dig into the actual code and report:\n"
         "1. Race conditions, ordering bugs, concurrency assumptions that may not hold\n"
@@ -1550,38 +1532,24 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     # ── Parse verdict from final lines ───────────────────────────────────
     verdict = "UNKNOWN"
     if rc == 0 and output_text:
-        last_block = "\n".join(output_text.strip().split("\n")[-6:]).upper()
-        if "BLOCK" in last_block:
-            verdict = "BLOCK"
-        elif "APPROVE WITH NOTES" in last_block:
-            verdict = "APPROVE_WITH_NOTES"
-        elif "APPROVE" in last_block:
-            verdict = "APPROVE"
+        verdicts = []
+        for line in output_text.strip().splitlines()[-6:]:
+            match = re.fullmatch(r"(APPROVE WITH NOTES|APPROVE|BLOCK)(?:\s*[—–-]\s*.*)?", line.strip().upper())
+            if match:
+                verdicts.append(match.group(1).replace(" ", "_"))
+        if len(verdicts) == 1:
+            verdict = verdicts[0]
 
     # ── Log to .harness/adversary-runs/YYYY-MM-DD.jsonl ──────────────────
-    try:
-        runs_dir = Path(__file__).resolve().parents[2] / ".harness" / "adversary-runs"
-        runs_dir.mkdir(parents=True, exist_ok=True)
-        today = datetime.date.today().isoformat()
-        log_path = runs_dir / f"{today}.jsonl"
-        with log_path.open("a") as f:
-            f.write(json.dumps({
-                "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-                "session_id": session.id,
-                "verdict": verdict,
-                "rc": rc,
-                "cost_usd": cost,
-                "duration_s": round(time.monotonic() - phase_start, 2),
-                "files_changed": files_changed,
-                "raw_output": output_text[:4000],
-            }) + "\n")
-    except Exception as exc:
-        _log.warning("RA-1743 adversary log write failed: %s", exc)
+    session_delivery.record_adversary(
+        Path(__file__).resolve().parents[2] / ".harness" / "adversary-runs",
+        session, candidate, verdict, rc, cost, phase_start, files_changed, output_text,
+    )
 
     _emit_phase_metric(session, "adversary", phase_start, cost)
 
     halt = _adversary_halt_reason(verdict, rc)
-    if halt:
+    if halt or verdict not in {"APPROVE", "APPROVE_WITH_NOTES"}:
         em(session, "error", f"  {halt} — halting push. See .harness/adversary-runs/")
         return False, {"verdict": verdict, "raw_output": output_text}
 
@@ -1591,19 +1559,18 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
         session, "success",
         f"  Adversary verdict: {verdict} (cost ${cost:.3f}, {round(time.monotonic() - phase_start, 1)}s)",
     )
-    return True, {"verdict": verdict, "raw_output": output_text}
+    return True, {"verdict": verdict, "raw_output": output_text, "candidate_sha": candidate}
 
 
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
-    """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
+    """Push only the verified candidate to a feature branch. Returns (all-files, push_ok)."""
     phase_start = time.monotonic()
     em(session, "phase", f"[{total_phases}/{total_phases}] Pushing to GitHub...")
     af: list[str] = []
+    if not await _release_gate(session):
+        return af, False
     try:
-        # Unit 2: the build was committed in `board_review.review_diff`, BEFORE the
-        # adversary reviewed it, so HEAD here is the sha the receipt binds to. This
-        # phase must not commit — doing so moved HEAD past the receipt and refused
-        # every session that produced work. The gate now also refuses a dirty tree.
+        # The existing review receipt must match the frozen candidate.
         if not await board_review.allows_push(session, run_cmd, em):
             return af, False
         _, out, _ = await run_cmd(session.workspace, "git", "log", "--oneline", "-10")
@@ -1625,8 +1592,8 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
             em(session, "system", f"  Pushing {len(commits)} commits on branch {branch_name}...")
             for push_attempt in range(3):
                 rc, _, err = await run_cmd(
-                    session.workspace, "git", "push", "origin", branch_name,
-                    timeout=30, env=git_env,
+                    session.workspace, "git", "push", "origin",
+                    f"{session.candidate_sha}:refs/heads/{branch_name}", timeout=30, env=git_env,
                 )
                 if rc == 0:
                     push_ok = True
@@ -1674,17 +1641,10 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
 
 
 def _tests_passed(session) -> bool:
-    """Did a test suite actually pass for this session?
-
-    RA-7433: this was the literal `True`, justified as "reached here only if
-    sandbox succeeded". `_phase_sandbox` runs no tests — it checks the workspace
-    directory exists, re-clones if it does not, and returns True; it also
-    returns True when the phase is SKIPPED. So the literal recorded "tests
-    passed" on the strength of a directory check, and could never go red.
-
-    Absent evidence is not a pass, so only an explicit True counts.
-    """
-    return getattr(session, "tests_passed", None) is True
+    """Only checks bound to this exact candidate are release evidence."""
+    return bool(getattr(session, "verification", {}).get("status") == workspace_verify.PASSED
+                and getattr(session, "candidate_sha", "")
+                and getattr(session, "verified_sha", "") == session.candidate_sha)
 
 
 def _log_ship_gate_check(session, push_ok: bool, push_ts: float) -> None:
@@ -1743,7 +1703,11 @@ def _log_ship_gate_check(session, push_ok: bool, push_ts: float) -> None:
         pass  # observability must never block the pipeline
 
 
-async def run_build(session, brief="", model="sonnet", intent="", resume_from=""):
+async def _record_base(session, resume_from):
+    return await session_delivery.record_base(session, resume_from, run_cmd, _fail_phase)
+
+
+def _start_build(session, model, resume_from):
     em(session, "phase", "  Pi CEO Solo DevOps Tool")
     em(session, "system", f"  Session: {session.id}")
     em(session, "system", f"  Repo:    {session.repo_url}")
@@ -1763,6 +1727,20 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     except Exception:
         pass  # outbound sync must never block the build pipeline
 
+
+def _review_admitted(session):
+    if session.evaluator_status != "passed":
+        session.status = "blocked"
+        session.error = f"Release blocked by evaluator: {session.evaluator_status}"
+        persistence.save_session(session)
+        _sync_linear_on_completion(session)
+        return False
+
+    return True
+
+
+async def run_build(session, brief="", model="sonnet", intent="", resume_from=""):
+    _start_build(session, model, resume_from)
     if not await _phase_clone(session, resume_from):
         _sync_linear_on_completion(session)
         return
@@ -1772,6 +1750,9 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         return
     if not await _phase_sandbox(session, resume_from):
         _sync_linear_on_completion(session)
+        return
+
+    if not await _record_base(session, resume_from):
         return
 
     if not brief:
@@ -1845,10 +1826,16 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     if not await _phase_generate(session, spec, model, resume_from):
         _sync_linear_on_completion(session)
         return
+    if not await _prepare_candidate(session):
+        _sync_linear_on_completion(session)
+        return
     total_phases = await _phase_evaluate(session, brief, model, spec, resolved_intent)
+    if not _review_admitted(session):
+        return
 
     # RA-1743 — opus-adversary pre-push gate. BLOCK halts push.
     adversary_ok, _adv_verdict = await _phase_adversary(session, total_phases)
+    session.adversary_verdict = _adv_verdict
     if not adversary_ok:
         session.last_completed_phase = "adversary_block"
         mark_terminal(session, "blocked")
@@ -1859,6 +1846,10 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
 
     push_ts = time.time()
     af, push_ok = await _phase_push(session, total_phases)
+    if not push_ok and session.status == "blocked":
+        _log_ship_gate_check(session, False, push_ts)
+        _sync_linear_on_completion(session)
+        return
 
     # UNI-2643 — complete / In Review / the completion marker require push_ok.
     finish_after_push(

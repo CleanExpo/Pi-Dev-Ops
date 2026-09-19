@@ -7,22 +7,22 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 interface SwarmStatus {
-  state: "SHADOW" | "ACTIVE" | "RATE_LIMITED" | "OFF";
-  autonomous_prs_today: number;
-  autonomous_prs_limit: number;
-  green_merges: number;
-  green_merges_target: number;
+  state: "SHADOW" | "ACTIVE" | "RATE_LIMITED" | "OFF" | "UNKNOWN";
+  autonomous_prs_today: number | null;
+  autonomous_prs_limit: number | null;
+  green_merges: number | null;
+  green_merges_target: number | null;
   last_pr_ts: string | null;
   last_pr_url: string | null;
 }
 
 function fallback(): SwarmStatus {
   return {
-    state: "OFF",
-    autonomous_prs_today: 0,
-    autonomous_prs_limit: 3,
-    green_merges: 0,
-    green_merges_target: 20,
+    state: "UNKNOWN",
+    autonomous_prs_today: null,
+    autonomous_prs_limit: null,
+    green_merges: null,
+    green_merges_target: null,
     last_pr_ts: null,
     last_pr_url: null,
   };
@@ -42,26 +42,25 @@ async function fetchUpstream(): Promise<SwarmStatus | null> {
     if (!res || !res.ok) return null;
     const raw = (await res.json()) as Record<string, unknown>;
 
-    // Normalise — accept a few field-name variants the backend might return.
-    const shadow = Boolean(raw.swarm_shadow ?? raw.shadow);
-    const enabled = Boolean(raw.swarm_enabled ?? raw.enabled);
-    const rateLimited = Boolean(raw.rate_limited);
-    const state: SwarmStatus["state"] = rateLimited
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    // `enabled` is the autonomy poller's configuration, not observed swarm work.
+    const state: SwarmStatus["state"] = raw.stale === true ? "UNKNOWN" : raw.rate_limited === true
       ? "RATE_LIMITED"
-      : !enabled
+      : raw.swarm_enabled === false
         ? "OFF"
-        : shadow
+        : raw.swarm_shadow === true
           ? "SHADOW"
-          : "ACTIVE";
+          : raw.swarm_running === true ? "ACTIVE" : "UNKNOWN";
+    const count = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
 
     return {
       state,
-      autonomous_prs_today: Number(raw.autonomous_prs_today ?? raw.prs_today ?? 0),
-      autonomous_prs_limit: Number(raw.autonomous_prs_limit ?? raw.prs_limit ?? 3),
-      green_merges: Number(raw.green_merges ?? raw.merges_green ?? 0),
-      green_merges_target: Number(raw.green_merges_target ?? raw.merges_target ?? 20),
-      last_pr_ts: (raw.last_pr_ts as string | null) ?? null,
-      last_pr_url: (raw.last_pr_url as string | null) ?? null,
+      autonomous_prs_today: count(raw.autonomous_prs_today),
+      autonomous_prs_limit: count(raw.autonomous_prs_limit),
+      green_merges: count(raw.green_merges),
+      green_merges_target: count(raw.green_merges_target),
+      last_pr_ts: typeof raw.last_pr_ts === "string" ? raw.last_pr_ts : null,
+      last_pr_url: typeof raw.last_pr_url === "string" && raw.last_pr_url.startsWith("https://") ? raw.last_pr_url : null,
     };
   } catch {
     return null;
