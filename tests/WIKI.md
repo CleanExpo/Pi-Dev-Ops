@@ -1,12 +1,13 @@
 # tests — Wiki
 
-_Last updated: 2026-09-18T10:07:59Z (commits 5bda16b..ab263e7)_
+_Last updated: 2026-09-19T12:05:54Z (commits d4dafa5..7849f43)_
 
 ## Recent changes
-- ab263e7 — test(mesh): RA-7377 cover the unreadable-env-file branch of _from_env_file (#779)
+- 7849f43 — Prevent Windows background probes from interrupting the operator (#783)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_mesh_report_ship.py — touched in recent commits
+- tests/test_mesh_heartbeat_subprocess.py — touched in recent commits
+- tests/test_plaud_process_liveness.py — touched in recent commits
