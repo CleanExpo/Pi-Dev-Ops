@@ -1,6 +1,5 @@
 {
   "schema": "done/1",
-  "by_identity": {
-    "worktree-mission-control-linear-projects@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/mission-control-linear-projects": "w_9b1f7b762ac1"
-  }
+  "by_identity": {},
+  "default": "audit-green-2026-09-06"
 }
