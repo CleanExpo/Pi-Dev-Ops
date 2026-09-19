@@ -29,9 +29,7 @@ Env:
 
 from __future__ import annotations
 
-import argparse
 import json
-import os
 import sys
 import time
 import urllib.error
@@ -41,6 +39,13 @@ from dataclasses import dataclass, field
 from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any
+
+if __package__:
+    from .deployment_revision import wait_for_revision
+    from .smoke_revision import parse_e2e_args, report_totals, verify_e2e_revisions
+else:
+    from deployment_revision import wait_for_revision
+    from smoke_revision import parse_e2e_args, report_totals, verify_e2e_revisions
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SURFACE_MAP_PATH = REPO_ROOT / ".github" / "smoke-surfaces.json"
@@ -359,11 +364,7 @@ def _probe_sse(
 
 # ── Entry point ────────────────────────────────────────────────────────────
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Full-stack smoke test (RA-1154)")
-    parser.add_argument("--mode", choices=["horizontal", "vertical", "full"], default="full")
-    parser.add_argument("--url", default=os.environ.get("DASHBOARD_URL", "https://pi-dev-ops.vercel.app"))
-    parser.add_argument("--password", default=os.environ.get("DASHBOARD_PASSWORD", ""))
-    args = parser.parse_args()
+    args = parse_e2e_args()
 
     if not args.password:
         print("[fatal] --password or DASHBOARD_PASSWORD env var required", file=sys.stderr)
@@ -374,6 +375,9 @@ def main() -> int:
 
     print(f"Target: {args.url}")
     print(f"Mode:   {args.mode}")
+
+    if not verify_e2e_revisions(session, args, wait_for_revision):
+        return 1
 
     all_runs: list[TestRun] = []
 
@@ -387,15 +391,7 @@ def main() -> int:
         if vertical:
             all_runs.append(run_vertical(session, args.password, vertical))
 
-    total_passed = sum(r.passed_count for r in all_runs)
-    total_failed = sum(r.failed_count for r in all_runs)
-
-    print()
-    print("═" * 60)
-    print(f"TOTAL: {total_passed} passed · {total_failed} failed")
-    print("═" * 60)
-
-    return 0 if total_failed == 0 else 1
+    return report_totals(all_runs)
 
 
 if __name__ == "__main__":

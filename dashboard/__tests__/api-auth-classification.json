@@ -13,6 +13,14 @@
   "_reconciliation_rule": "Never resolve a red by writing down what the route currently does. If declared posture and observed posture disagree, the route changes, not the declaration. Where the route cannot change yet, say so with accepted-exposure-pending-remediation — do not relabel it deliberately-public.",
   "_readjudication_2026_08_02": "The previous route-level file was re-adjudicated entry by entry, not merely widened to methods. Three entries were found to be DISCOVERIES presented as requirements: /api/zte, /api/swarm-status and /api/curator-proposals were never decided public — they fell through proxy.ts's default-open fallthrough and were documented afterwards as 'deliberately-public', each citing the next as precedent. All three are now adjudicated as exposures that should close, pending the proxy default-deny inversion. GET /api/kill-switch previously carried unauth_status 401 in a single per-route entry while actually answering 200, which no assertion could catch because the unit was a route and the two methods disagreed.",
   "surfaces": {
+    "GET /api/revision": {
+      "classification": "deliberately-public",
+      "unauth_status": 200,
+      "reason": "Read-only deployment identity for revision-bound smoke verification. Returns only a validated full commit SHA or null, with no-store caching; no credentials, account details, or actions.",
+      "provenance": "decision",
+      "decided_by": "Codex implementation of owner-approved Mission Control readiness plan",
+      "decided_on": "2026-09-19"
+    },
     "GET /api/kill-switch": {
       "classification": "route-self-protected",
       "unauth_status": 401,

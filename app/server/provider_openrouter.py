@@ -11,6 +11,7 @@ import asyncio
 import logging
 import os
 from typing import Any
+from app.server import provider_policy
 
 log = logging.getLogger("app.server.provider_openrouter")
 
@@ -82,27 +83,12 @@ async def call(*, prompt: str, model_id: str,
                  ) -> tuple[int, str, float, str | None]:
     """One model call with Model Fabric first for explicitly approved roles."""
     try:
-        from . import model_fabric  # noqa: PLC0415
-        if model_fabric.role_allowed(role):
-            result = await asyncio.to_thread(
-                model_fabric.complete,
-                prompt=prompt,
-                role=role,
-                session_id=session_id,
-                timeout_s=timeout_s,
-                max_tokens=max_tokens,
-            )
-            if int(result[0]) == 0:
-                return result
-            log.warning(
-                "model_fabric failed for role=%s (%s); using direct OpenRouter fallback",
-                role or "?", result[3],
-            )
-    except Exception as exc:  # noqa: BLE001
-        log.warning(
-            "model_fabric seam failed for role=%s (%s); using direct OpenRouter fallback",
-            role or "?", exc,
-        )
+        provider_policy.require_transport("openrouter")
+    except provider_policy.ProviderPolicyError as exc:
+        return 1, "", 0.0, str(exc)
+    fabric_result = await _try_model_fabric(prompt, role, session_id, timeout_s, max_tokens)
+    if fabric_result is not None:
+        return fabric_result
 
     headers = _build_headers()
     if not headers:
@@ -145,3 +131,30 @@ async def call(*, prompt: str, model_id: str,
 
 
 __all__ = ["call"]
+
+
+async def _try_model_fabric(prompt, role, session_id, timeout_s, max_tokens):
+    try:
+        from . import model_fabric  # noqa: PLC0415
+        if model_fabric.role_allowed(role):
+            result = await asyncio.to_thread(
+                model_fabric.complete,
+                prompt=prompt,
+                role=role,
+                session_id=session_id,
+                timeout_s=timeout_s,
+                max_tokens=max_tokens,
+            )
+            if int(result[0]) == 0:
+                return result
+            log.warning(
+                "model_fabric failed for role=%s (%s); using direct OpenRouter fallback",
+                role or "?", result[3],
+            )
+    except Exception as exc:  # noqa: BLE001
+        log.warning(
+            "model_fabric seam failed for role=%s (%s); using direct OpenRouter fallback",
+            role or "?", exc,
+        )
+
+    return None

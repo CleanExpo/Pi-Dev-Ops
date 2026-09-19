@@ -14,6 +14,22 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
+@pytest.mark.parametrize("cost", [None, float("nan"), float("inf"), -1, True, "0.1"])
+async def test_unknown_worker_cost_blocks_budgeted_continuation(monkeypatch, cost):
+    tl = _reload_modules(monkeypatch, TAO_MAX_COST_USD="5", TAO_HARD_STOP_FILE="/nonexistent/HARD_STOP")
+    worker = AsyncMock(return_value=(0, "done", cost))
+    judge_mock = AsyncMock(return_value=_verdict(done=True))
+    with patch.object(tl, "_run_worker_step", worker), patch.object(tl, "judge", judge_mock), \
+         patch.object(tl, "_build_state", lambda *a: None):
+        outcome = await tl.run_until_done("test", "/tmp")
+    assert outcome.done is False
+    assert outcome.reason == "COST_UNKNOWN"
+    assert outcome.cost_usd is None
+    assert outcome.iters == 1
+    worker.assert_awaited_once()
+    judge_mock.assert_not_awaited()
+
+
 def _reload_modules(monkeypatch, **env):
     """Patch env limits for LoopCounter without reloading kill_switch.
 

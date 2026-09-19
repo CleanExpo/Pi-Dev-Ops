@@ -1,29 +1,9 @@
-"""
-plan_discovery.py — RA-679: Plan variation discovery loop.
-
-Implements Karpathy-autoresearch-style plan selection: before the main
-generator runs, generate 3 alternative plan approaches and score each with a
-fast lightweight evaluator.  The winning approach is prepended to the generator
-spec so Claude has the best strategy as context.
-
-Discovery flow:
-  1. Generate 3 plan variants for the same brief (parallel, using haiku for speed)
-  2. Score each variant with a single lightweight scorer (sonnet, text-only)
-  3. Pick the highest-scoring variant (ties broken by first)
-  4. Append the winner to the generator spec
-  5. Log discovery data to .harness/plan-discoveries/<date>.jsonl
-
-After 50 discoveries, pattern_analyser() proposes updates to RESEARCH_INTENT.md.
-
-Usage (called from sessions.py _phase_generate):
-    from .agents.plan_discovery import discover_best_plan
-    enriched_spec = await discover_best_plan(session, original_spec, brief)
-"""
+"""plan_discovery.py — RA-679: Plan variation discovery loop."""
 from __future__ import annotations
+from ..provider_sdk_messages import read_sdk_text
 
 import asyncio
 import datetime
-import os
 import json
 import logging
 import time
@@ -100,36 +80,27 @@ async def _generate_plan_variant(
     session_id: str = "",
 ) -> str:
     """Generate one plan variant using haiku (fast + cheap)."""
+    from ..provider_policy import ProviderPolicyError, require_transport
+    from ..session_sdk import _child_environment
+    try:
+        require_transport("anthropic_agent_sdk")
+    except ProviderPolicyError as exc:
+        log.warning("Plan discovery blocked: %s", exc)
+        return ""
     try:
         from claude_agent_sdk import (  # noqa: PLC0415
-            AssistantMessage, ClaudeAgentOptions, ClaudeSDKClient,
-            ResultMessage, TextBlock,
+            ClaudeAgentOptions, ClaudeSDKClient,
         )
     except ImportError:
         return ""
 
-    # RA-1420 — pop ANTHROPIC_API_KEY if OAuth token
-    _k = os.environ.get("ANTHROPIC_API_KEY", "")
-    if _k == "" or _k.startswith("sk-ant-oat01-"):
-        os.environ.pop("ANTHROPIC_API_KEY", None)
     prompt = _PLAN_GEN_PROMPT_TMPL.format(brief=brief[:1500], approach=approach)
     try:
-        options = ClaudeAgentOptions(model="haiku", permission_mode="bypassPermissions")
+        options = ClaudeAgentOptions(model="haiku", tools=[], permission_mode="default",
+                                     setting_sources=[], strict_mcp_config=True,
+                                     env=_child_environment())
         client = ClaudeSDKClient(options)
-        parts: list[str] = []
-        try:
-            await client.connect()
-            await client.query(prompt)
-            async for msg in client.receive_messages():
-                if isinstance(msg, AssistantMessage):
-                    for block in msg.content:
-                        if isinstance(block, TextBlock):
-                            parts.append(block.text)
-                elif isinstance(msg, ResultMessage):
-                    break
-        finally:
-            await client.disconnect()
-        return "\n".join(parts).strip()
+        return (await read_sdk_text(client, prompt, "\n")).strip()
     except Exception as exc:
         log.warning("plan_discovery: variant generation failed: %s", exc)
         return ""
@@ -139,36 +110,27 @@ async def _score_plan(brief: str, plan: str) -> float:
     """Score a plan variant (0-10). Returns 0.0 on failure."""
     if not plan:
         return 0.0
+    from ..provider_policy import ProviderPolicyError, require_transport
+    from ..session_sdk import _child_environment
+    try:
+        require_transport("anthropic_agent_sdk")
+    except ProviderPolicyError as exc:
+        log.warning("Plan scoring blocked: %s", exc)
+        return 0.0
     try:
         from claude_agent_sdk import (  # noqa: PLC0415
-            AssistantMessage, ClaudeAgentOptions, ClaudeSDKClient,
-            ResultMessage, TextBlock,
+            ClaudeAgentOptions, ClaudeSDKClient,
         )
     except ImportError:
         return 5.0  # neutral default
 
-    # RA-1420 — pop ANTHROPIC_API_KEY if OAuth token
-    _k = os.environ.get("ANTHROPIC_API_KEY", "")
-    if _k == "" or _k.startswith("sk-ant-oat01-"):
-        os.environ.pop("ANTHROPIC_API_KEY", None)
     prompt = _PLAN_SCORE_PROMPT_TMPL.format(brief=brief[:800], plan=plan[:1200])
     try:
-        options = ClaudeAgentOptions(model="haiku", permission_mode="bypassPermissions")
+        options = ClaudeAgentOptions(model="haiku", tools=[], permission_mode="default",
+                                     setting_sources=[], strict_mcp_config=True,
+                                     env=_child_environment())
         client = ClaudeSDKClient(options)
-        parts: list[str] = []
-        try:
-            await client.connect()
-            await client.query(prompt)
-            async for msg in client.receive_messages():
-                if isinstance(msg, AssistantMessage):
-                    for block in msg.content:
-                        if isinstance(block, TextBlock):
-                            parts.append(block.text)
-                elif isinstance(msg, ResultMessage):
-                    break
-        finally:
-            await client.disconnect()
-        text = "\n".join(parts)
+        text = await read_sdk_text(client, prompt, "\n")
         for line in text.splitlines():
             if line.upper().startswith("PLAN_SCORE:"):
                 try:

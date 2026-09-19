@@ -48,7 +48,7 @@ def test_evaluator_prompt_contains_karpathy_axis():
 
     from app.server import session_evaluator, session_phases
 
-    cached_src = inspect.getsource(session_evaluator._run_eval_with_cache)
+    cached_src = session_evaluator._evaluation_criteria(8)
     assert "KARPATHY" in cached_src
     assert "5. KARPATHY" in cached_src
     assert "Surgical" in cached_src

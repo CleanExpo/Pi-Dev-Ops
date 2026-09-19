@@ -115,11 +115,28 @@ def test_wait_settled_relogins_on_stale_cookie():
     assert logins["n"] == 1
 
 
-def test_gc_source_skips_non_terminal_sessions():
-    """A seconds-old building session cannot be GC — only terminal + aged rows."""
-    from pathlib import Path
+def test_gc_preserves_active_and_young_sessions(monkeypatch, tmp_path):
+    """GC requires both a terminal state and age; blocked/stalled are terminal."""
+    from unittest.mock import Mock
+    from app.server import gc
+    from app.server.session_model import BuildSession
 
-    text = Path("app/server/gc.py").read_text(encoding="utf-8")
-    assert '_TERMINAL_STATUSES = {"complete", "failed", "killed", "interrupted"}' in text
-    assert "if session.status not in _TERMINAL_STATUSES" in text
-    assert "if age < config.GC_MAX_AGE" in text
+    monkeypatch.setattr(gc.config, "WORKSPACE_ROOT", str(tmp_path))
+    monkeypatch.setattr(gc.config, "GC_MAX_AGE", 100)
+    monkeypatch.setattr(gc.time, "time", lambda: 1000)
+    deleted = Mock()
+    monkeypatch.setattr(gc.persistence, "delete_session_file", deleted)
+    cases = {"active": ("building", 500), "young": ("complete", 950)}
+    cases.update({state: (state, 500) for state in (
+        "complete", "failed", "killed", "interrupted", "blocked", "stalled")})
+    sessions = {}
+    for sid, (status, started_at) in cases.items():
+        workspace = tmp_path / sid
+        workspace.mkdir()
+        sessions[sid] = BuildSession(id=sid, status=status, started_at=started_at,
+                                     workspace=str(workspace))
+    result = gc.collect_garbage(sessions)
+    assert result == {"removed": 6, "skipped": 2, "errors": 0}
+    assert set(sessions) == {"active", "young"}
+    assert {call.args[0] for call in deleted.call_args_list} == set(cases) - set(sessions)
+    assert {path.name for path in tmp_path.iterdir()} == {"active", "young"}

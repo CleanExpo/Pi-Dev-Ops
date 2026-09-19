@@ -8,6 +8,7 @@ Locks:
   - Each active status individually counts toward the cap.
   - Terminal statuses do NOT count toward the cap.
 """
+import asyncio
 import time
 from unittest.mock import patch
 
@@ -26,6 +27,14 @@ def _make_bs(status: str) -> BuildSession:
     return s
 
 
+def _completed_task(coro):
+    """Skip the build while preserving create_task's lifecycle interface."""
+    coro.close()
+    task = asyncio.get_running_loop().create_future()
+    task.set_result(None)
+    return task
+
+
 # ── cap-enforcement tests ─────────────────────────────────────────────────────
 
 async def test_cap_enforced_when_three_building():
@@ -39,7 +48,7 @@ async def test_cap_enforced_when_three_building():
 
         with (
             patch("app.server.sessions.persistence.save_session"),
-            patch("app.server.sessions.asyncio.create_task", side_effect=lambda coro: coro.close()),
+            patch("app.server.sessions.asyncio.create_task", side_effect=_completed_task),
             patch("app.server.sessions._select_model", return_value="claude-sonnet-4-5"),
         ):
             with pytest.raises(RuntimeError, match="Max sessions reached"):
@@ -61,7 +70,7 @@ async def test_cap_not_enforced_when_three_complete():
 
         with (
             patch("app.server.sessions.persistence.save_session"),
-            patch("app.server.sessions.asyncio.create_task", side_effect=lambda coro: coro.close()) as mock_task,
+            patch("app.server.sessions.asyncio.create_task", side_effect=_completed_task) as mock_task,
             patch("app.server.sessions._select_model", return_value="claude-sonnet-4-5"),
         ):
             from app.server.sessions import create_session
@@ -90,7 +99,7 @@ async def test_stale_active_sessions_with_terminal_logs_do_not_count():
 
         with (
             patch("app.server.sessions.persistence.save_session") as mock_save,
-            patch("app.server.sessions.asyncio.create_task", side_effect=lambda coro: coro.close()) as mock_task,
+            patch("app.server.sessions.asyncio.create_task", side_effect=_completed_task) as mock_task,
             patch("app.server.sessions._select_model", return_value="claude-sonnet-4-5"),
         ):
             from app.server.sessions import create_session
@@ -120,7 +129,7 @@ async def test_each_active_status_counts_toward_cap(status: str):
 
         with (
             patch("app.server.sessions.persistence.save_session"),
-            patch("app.server.sessions.asyncio.create_task", side_effect=lambda coro: coro.close()),
+            patch("app.server.sessions.asyncio.create_task", side_effect=_completed_task),
             patch("app.server.sessions._select_model", return_value="claude-sonnet-4-5"),
         ):
             with pytest.raises(RuntimeError, match="Max sessions reached"):
@@ -143,7 +152,7 @@ async def test_terminal_statuses_do_not_count_toward_cap(status: str):
 
         with (
             patch("app.server.sessions.persistence.save_session"),
-            patch("app.server.sessions.asyncio.create_task", side_effect=lambda coro: coro.close()) as mock_task,
+            patch("app.server.sessions.asyncio.create_task", side_effect=_completed_task) as mock_task,
             patch("app.server.sessions._select_model", return_value="claude-sonnet-4-5"),
         ):
             from app.server.sessions import create_session
@@ -172,7 +181,7 @@ async def test_cap_at_exact_boundary():
 
         with (
             patch("app.server.sessions.persistence.save_session"),
-            patch("app.server.sessions.asyncio.create_task", side_effect=lambda coro: coro.close()),
+            patch("app.server.sessions.asyncio.create_task", side_effect=_completed_task),
             patch("app.server.sessions._select_model", return_value="claude-sonnet-4-5"),
         ):
             from app.server.sessions import create_session

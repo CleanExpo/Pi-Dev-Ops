@@ -50,7 +50,7 @@ def audit_markdown(repo_root: str | Path, top: int = 40) -> list[dict[str, Any]]
         if any(part in _SKIP or part.startswith(".venv") for part in rel_path.parts):
             continue
         text = path.read_text(encoding="utf-8", errors="ignore")
-        rel = str(rel_path)
+        rel = rel_path.as_posix()
         score, reasons = _score(rel, text)
         if score <= 0:
             continue

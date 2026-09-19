@@ -34,9 +34,20 @@ def _path(sid: str) -> str:
     return os.path.join(_sessions_dir(), f"{_safe_sid(sid)}.json")
 
 
-def save_session(session) -> None:
-    """Atomically persist session metadata to disk. Excludes process and output_lines."""
-    data = {
+def release_evidence(session) -> dict:
+    """The same release receipt is exposed and persisted on both storage paths."""
+    return {
+        "base_sha": getattr(session, "base_sha", ""),
+        "candidate_sha": getattr(session, "candidate_sha", ""),
+        "verified_sha": getattr(session, "verified_sha", ""),
+        "verification": getattr(session, "verification", {}),
+        "audit_evidence": getattr(session, "audit_evidence", []),
+        "adversary_verdict": getattr(session, "adversary_verdict", {}),
+    }
+
+
+def _session_data(session):
+    return {
         "id": session.id,
         "repo_url": session.repo_url,
         "workspace": session.workspace,
@@ -52,7 +63,13 @@ def save_session(session) -> None:
         "retry_count": getattr(session, "retry_count", 0),
         "linear_issue_id": getattr(session, "linear_issue_id", None),
         "saved_at": time.time(),
+        **release_evidence(session),
     }
+
+
+def save_session(session) -> None:
+    """Atomically persist session metadata to disk. Excludes process and output_lines."""
+    data = _session_data(session)
     target = _path(session.id)
     sessions_dir = os.path.dirname(target)
     try:

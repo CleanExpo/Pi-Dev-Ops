@@ -3,17 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import json
+import math
 import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from .llm import complete
-
-from app.server.model_registry import (
-    OPENROUTER_DEEPSEEK_FLASH,
-    OPENROUTER_OPUS,
-    OPENROUTER_SONNET,
-)
+from .llm import complete_with_evidence
+from app.server.provider_policy import independent_identity
 
 log = logging.getLogger("pi-ceo.spec_pipeline.boardroom")
 
@@ -26,12 +23,12 @@ STOPWORDS = frozenset({
 })
 
 DEFAULT_PANEL = (
-    {"provider": "openrouter", "model_id": OPENROUTER_DEEPSEEK_FLASH},
-    {"provider": "openrouter", "model_id": OPENROUTER_SONNET},
+    {"role": "boardroom_panellist_primary"},
+    {"role": "boardroom_panellist_secondary"},
 )
 
-DEFAULT_SYNTHESISER = {"provider": "openrouter", "model_id": OPENROUTER_SONNET}
-DEFAULT_ESCALATION = {"provider": "openrouter", "model_id": OPENROUTER_OPUS}
+DEFAULT_SYNTHESISER = {"role": "boardroom_synthesis"}
+DEFAULT_ESCALATION = {"role": "boardroom_escalation"}
 
 
 @dataclass
@@ -40,6 +37,8 @@ class PanellistOutcome:
     response: str | None
     latency_ms: int = 0
     error: str | None = None
+    requested_model: str | None = None
+    provenance: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -93,25 +92,29 @@ def compute_min_pairwise_jaccard(responses: list[str]) -> float:
     return minimum
 
 
-async def _call_panellist(model_id: str, prompt: str, system: str, max_tokens: int) -> PanellistOutcome:
+async def _call_panellist(seat: dict[str, str], prompt: str, system: str, max_tokens: int) -> PanellistOutcome:
     import time
     t0 = time.monotonic()
     try:
-        text, _ = await complete(
+        outcome = await complete_with_evidence(
             prompt=prompt,
             system=system,
-            model_id=model_id,
+            model_id=seat.get("model_id"),
+            provider=seat.get("provider"),
             max_tokens=max_tokens,
-            role="boardroom_panellist",
+            role=seat.get("role", "boardroom_panellist"),
         )
         return PanellistOutcome(
-            model_id=model_id,
-            response=text,
+            model_id=outcome.provenance["actual_model"],
+            response=outcome.text,
             latency_ms=int((time.monotonic() - t0) * 1000),
+            requested_model=outcome.provenance.get("requested_model"),
+            provenance=outcome.provenance,
         )
     except Exception as exc:  # noqa: BLE001
         return PanellistOutcome(
-            model_id=model_id,
+            model_id="",
+            requested_model=seat.get("model_id"),
             response=None,
             latency_ms=int((time.monotonic() - t0) * 1000),
             error=str(exc),
@@ -119,19 +122,25 @@ async def _call_panellist(model_id: str, prompt: str, system: str, max_tokens: i
 
 
 def _parse_decision(answer: str) -> tuple[str, float]:
-    m = re.search(
-        r'\{"decision"\s*:\s*"(APPROVE_BUILD|REDUCE_SCOPE|REJECT)"\s*,\s*"confidence"\s*:\s*([\d.]+)\s*\}',
-        answer,
-        re.IGNORECASE,
-    )
-    if m:
-        return m.group(1).upper(), float(m.group(2))
-    upper = answer.upper()
-    if "APPROVE_BUILD" in upper or "APPROVE BUILD" in upper:
-        return "APPROVE_BUILD", 0.75
-    if "REDUCE_SCOPE" in upper:
-        return "REDUCE_SCOPE", 0.5
-    return "REJECT", 0.3
+    """Only the final structured decision can authorize a build."""
+    cleaned = answer.strip()
+    if not cleaned:
+        return "REJECT", 0.0
+    try:
+        payload = json.loads(cleaned)
+    except ValueError:
+        try:
+            payload = json.loads(cleaned.splitlines()[-1])
+        except ValueError:
+            return "REJECT", 0.0
+    if not isinstance(payload, dict):
+        return "REJECT", 0.0
+    decision, confidence = payload.get("decision"), payload.get("confidence")
+    if (decision not in ("APPROVE_BUILD", "REDUCE_SCOPE", "REJECT")
+            or isinstance(confidence, bool) or not isinstance(confidence, (float, int))
+            or not 0 <= confidence <= 1 or not math.isfinite(confidence)):
+        return "REJECT", 0.0
+    return decision, float(confidence)
 
 
 async def boardroom_query(
@@ -146,18 +155,18 @@ async def boardroom_query(
         raise ValueError("boardroom needs at least 2 panellists")
 
     outcomes = await asyncio.gather(*[
-        _call_panellist(s["model_id"], prompt, system_prompt, 800)
+        _call_panellist(s, prompt, system_prompt, 800)
         for s in seats
     ])
     successful = [o for o in outcomes if o.response]
-    if not successful:
-        raise RuntimeError("boardroom: no panellist responses")
+    if not any(independent_identity(a.provenance, b.provenance)
+               for i, a in enumerate(successful) for b in successful[i + 1:]):
+        raise RuntimeError("boardroom: independent verified model panel unavailable")
 
     min_sim = compute_min_pairwise_jaccard([o.response or "" for o in successful])
     escalated = min_sim < divergence_threshold
-    synth_model = (
-        DEFAULT_ESCALATION["model_id"] if escalated
-        else DEFAULT_SYNTHESISER["model_id"]
+    synthesiser = (
+        DEFAULT_ESCALATION if escalated else DEFAULT_SYNTHESISER
     )
 
     transcript = "\n\n---\n\n".join(
@@ -169,19 +178,19 @@ async def boardroom_query(
         '{"decision":"APPROVE_BUILD|REDUCE_SCOPE|REJECT","confidence":0.0}\n\n'
         f"Question:\n{prompt}\n\nPanel:\n{transcript}"
     )
-    answer, _ = await complete(
+    synthesis = await complete_with_evidence(
         prompt=synthesis_prompt,
-        model_id=synth_model,
         max_tokens=1200,
-        role="boardroom_synthesis",
+        role=synthesiser["role"],
     )
+    answer = synthesis.text
     decision, confidence = _parse_decision(answer)
     return BoardroomResponse(
         answer=answer,
         panel=list(outcomes),
         min_pairwise_similarity=min_sim,
         escalated=escalated,
-        synthesised_by=synth_model,
+        synthesised_by=synthesis.provenance["actual_model"],
         decision=decision,
         confidence=confidence,
     )

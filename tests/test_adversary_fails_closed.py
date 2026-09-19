@@ -16,12 +16,22 @@ case covered the reviewer failing, which is why this survived.
 """
 import asyncio
 import subprocess
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.server import session_phases
+from app.server.session_model import BuildSession
+
+
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+def _git_head(repo):
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, check=True,
+        capture_output=True, text=True, creationflags=_NO_WINDOW,
+    ).stdout.strip()
 
 
 @pytest.fixture
@@ -33,12 +43,12 @@ def sandbox(tmp_path, monkeypatch):
     """
     repo = tmp_path / "repo"
     repo.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True, creationflags=_NO_WINDOW)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True, creationflags=_NO_WINDOW)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True, creationflags=_NO_WINDOW)
     (repo / "app.py").write_text("def hello():\n    return 'hi'\n")
-    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, creationflags=_NO_WINDOW)
+    subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=repo, check=True, creationflags=_NO_WINDOW)
     (repo / "app.py").write_text(
         "def hello():\n    return 'hi'\n\n\ndef goodbye():\n    return 'bye'\n",
     )
@@ -47,13 +57,16 @@ def sandbox(tmp_path, monkeypatch):
     (runs_root / ".harness").mkdir(parents=True)
     monkeypatch.setenv("TAO_TEST_HARNESS_ROOT", str(runs_root))
 
-    return SimpleNamespace(
+    monkeypatch.setattr(session_phases.persistence, "save_session", lambda _session: None)
+    monkeypatch.setattr(session_phases.session_delivery, "record_adversary", lambda *args: None)
+    session = BuildSession(
         id="test-failclosed-001",
         workspace=str(repo),
-        brief="Add a goodbye function",
-        evaluator_enabled=True,
+        base_sha=_git_head(repo),
         output_lines=[],
     )
+    assert asyncio.run(session_phases._prepare_candidate(session))
+    return session
 
 
 def _run(session, sdk_return):

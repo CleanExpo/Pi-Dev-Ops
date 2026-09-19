@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import LiveObsidianStatus from "@/components/brain/LiveObsidianStatus";
 import CopyBlock from "@/components/brain/CopyBlock";
+import { useState } from "react";
 import {
   BRAIN_STATUS,
   type BrainChecklistItem,
@@ -11,10 +11,10 @@ import {
 } from "@/lib/brain-status";
 
 const STATUS_STYLE: Record<BrainItemStatus, { bg: string; fg: string; label: string }> = {
-  done: { bg: "color-mix(in srgb, var(--success) 18%, transparent)", fg: "var(--success)", label: "Done" },
-  next: { bg: "color-mix(in srgb, var(--accent) 18%, transparent)", fg: "var(--accent)", label: "Do this next" },
-  blocked: { bg: "color-mix(in srgb, var(--error) 18%, transparent)", fg: "var(--error)", label: "Blocked" },
-  waiting: { bg: "color-mix(in srgb, var(--text-dim) 22%, transparent)", fg: "var(--text-muted)", label: "Waiting" },
+  done: { bg: "color-mix(in srgb, var(--text-dim) 18%, transparent)", fg: "var(--text-muted)", label: "Recorded complete" },
+  next: { bg: "color-mix(in srgb, var(--text-dim) 18%, transparent)", fg: "var(--text-muted)", label: "Recorded next" },
+  blocked: { bg: "color-mix(in srgb, var(--text-dim) 18%, transparent)", fg: "var(--text-muted)", label: "Recorded blocked" },
+  waiting: { bg: "color-mix(in srgb, var(--text-dim) 22%, transparent)", fg: "var(--text-muted)", label: "Recorded waiting" },
 };
 
 function Pill({ status }: { status: BrainItemStatus }) {
@@ -59,6 +59,7 @@ function ChecklistRow({ item }: { item: BrainChecklistItem }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
         className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -91,94 +92,6 @@ function ChecklistRow({ item }: { item: BrainChecklistItem }) {
   );
 }
 
-type ObsidianHealth = {
-  ok: boolean;
-  vault_present: boolean;
-  vault_writable: boolean;
-  remote_configured: boolean;
-  remote_host: string;
-  rest_reachable: boolean;
-  detail: string;
-  checked_at: string;
-};
-
-function LiveObsidianStatus() {
-  const [h, setH] = useState<ObsidianHealth | null>(null);
-  const [err, setErr] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Had NO status check: the proxy's placeholder body was set as the
-      // Obsidian health reading — lib/pi-ceo-fetch.ts.
-      const d = await fetchProxyJSON<ObsidianHealth>("/api/health/obsidian", { cache: "no-store" });
-      if (!d) { setErr(true); return; }
-      setH(d);
-      setErr(false);
-    } catch {
-      setErr(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const ok = h?.ok === true;
-  const bg = err
-    ? "color-mix(in srgb, var(--text-dim) 22%, transparent)"
-    : ok
-      ? "color-mix(in srgb, var(--success) 18%, transparent)"
-      : "color-mix(in srgb, var(--error) 18%, transparent)";
-  const fg = err ? "var(--text-muted)" : ok ? "var(--success)" : "var(--error)";
-  const label = loading ? "Checking…" : err ? "Probe unreachable" : ok ? "Connected" : "No connection";
-
-  return (
-    <section
-      className="p-4 rounded-lg flex flex-col gap-2"
-      style={{ background: "var(--panel)", border: "1px solid var(--border)" }}
-    >
-      <div className="flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
-          Obsidian — live status
-        </h2>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="text-[11px] underline"
-          style={{ color: "var(--accent)" }}
-        >
-          Re-check
-        </button>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span
-          className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
-          style={{ background: bg, color: fg }}
-        >
-          {label}
-        </span>
-        {h && !err && (
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            vault {h.vault_writable ? "writable ✓" : h.vault_present ? "present" : "—"}
-            {" · "}REST{" "}
-            {h.remote_configured ? (h.rest_reachable ? "reachable ✓" : "unreachable ✗") : "not configured"}
-            {h.detail ? ` (${h.detail})` : ""}
-          </span>
-        )}
-      </div>
-      {h?.checked_at && !err && (
-        <p className="text-[10px]" style={{ color: "var(--text-dim)" }}>
-          checked {new Date(h.checked_at).toLocaleTimeString()}
-        </p>
-      )}
-    </section>
-  );
-}
-
 export default function BrainStatusPanel() {
   const s = BRAIN_STATUS;
   const doneCount = s.milestones.filter((m) => m.status === "done").length;
@@ -198,6 +111,9 @@ export default function BrainStatusPanel() {
             {s.commit} · {s.branch}
           </span>
         </div>
+        <p className="text-sm" style={{ color: "var(--warning)" }}>
+          Historical snapshot · {s.updated}. These recorded milestones do not establish current connectivity or delivery readiness.
+        </p>
         <p className="text-base" style={{ color: "var(--text)" }}>
           {s.headline}
         </p>
@@ -216,15 +132,15 @@ export default function BrainStatusPanel() {
       >
         <div>
           <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "var(--text-dim)" }}>
-            Milestones done
+            Recorded milestones
           </p>
-          <p className="text-2xl font-semibold mt-1" style={{ color: "var(--success)" }}>
+          <p className="text-2xl font-semibold mt-1" style={{ color: "var(--text-muted)" }}>
             {doneCount}/{s.milestones.length}
           </p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "var(--text-dim)" }}>
-            Tests (PC)
+            Historical test record
           </p>
           <p className="text-sm font-mono mt-2" style={{ color: "var(--text)" }}>
             {s.testsExpected}
@@ -267,7 +183,7 @@ export default function BrainStatusPanel() {
       {/* Milestones grid */}
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-muted)" }}>
-          Where each machine stands
+          Historical machine milestones
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {s.milestones.map((m) => (
@@ -279,7 +195,7 @@ export default function BrainStatusPanel() {
       {/* Action checklist */}
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--text-muted)" }}>
-          Step-by-step — expand each row, copy commands
+          Historical setup reference — verify before reusing commands
         </h2>
         <div className="flex flex-col gap-2">
           {s.checklist.map((item) => (
@@ -289,7 +205,7 @@ export default function BrainStatusPanel() {
       </section>
 
       <p className="text-xs" style={{ color: "var(--text-dim)" }}>
-        Last updated {s.updated}. This page is the status board — not the chat thread.
+        Snapshot recorded {s.updated}. Only the live probe above reports current connectivity.
       </p>
     </div>
   );

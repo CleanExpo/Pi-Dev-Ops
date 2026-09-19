@@ -16,14 +16,15 @@ Phase artifacts:
 from __future__ import annotations
 
 import asyncio
+from . import pipeline_receipts
 import json
 import logging
+import math
+import subprocess  # noqa: F401 - retained public process test seam
 import os
 import re
-import subprocess
+import threading
 import time
-import urllib.error
-import urllib.request
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -46,81 +47,14 @@ def _linear_issue_id_from_pipeline(pipeline_id: str) -> str | None:
     return None
 
 
-def _update_linear_state_pipeline(issue_id: str, state_name: str) -> None:
-    """Move a Linear issue to state_name.  Never raises — failures are logged only."""
-    api_key = os.environ.get("LINEAR_API_KEY", "")
-    if not api_key:
-        log.warning("LINEAR_API_KEY not set — cannot update Linear issue %s to '%s'", issue_id, state_name)
-        return
+def _update_linear_state_pipeline(issue_id: str, state_name: str) -> bool:
+    from .pipeline_linear import update_state
+    return update_state(issue_id, state_name)
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": api_key,
-    }
 
-    def _gql(query: str, variables: dict) -> dict:
-        payload = json.dumps({"query": query, "variables": variables}).encode("utf-8")
-        req = urllib.request.Request(
-            "https://api.linear.app/graphql",
-            data=payload,
-            headers=headers,
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-
-    try:
-        # Resolve team ID from issue
-        fetch_q = """
-query GetIssueTeam($id: String!) {
-  issue(id: $id) {
-    team { id }
-  }
-}"""
-        result = _gql(fetch_q, {"id": issue_id})
-        team_id = (result.get("data") or {}).get("issue", {}).get("team", {}).get("id")
-        if not team_id:
-            log.warning("Linear: could not resolve team for issue %s — skipping", issue_id)
-            return
-
-        # Find matching workflow state
-        states_q = """
-query GetTeamStates($teamId: String!) {
-  team(id: $teamId) {
-    states { nodes { id name } }
-  }
-}"""
-        result = _gql(states_q, {"teamId": team_id})
-        nodes = (result.get("data") or {}).get("team", {}).get("states", {}).get("nodes", [])
-        target_id = next((n["id"] for n in nodes if n.get("name", "").lower() == state_name.lower()), None)
-        if not target_id:
-            log.warning(
-                "Linear: state '%s' not found in team %s — available: %s",
-                state_name, team_id, [n.get("name") for n in nodes],
-            )
-            return
-
-        # Mutate
-        mutation = """
-mutation UpdateIssueState($id: String!, $stateId: String!) {
-  issueUpdate(id: $id, input: { stateId: $stateId }) {
-    success
-    issue { id title state { name } }
-  }
-}"""
-        result = _gql(mutation, {"id": issue_id, "stateId": target_id})
-        success = (result.get("data") or {}).get("issueUpdate", {}).get("success", False)
-        if success:
-            log.info("Linear: issue %s moved to '%s'", issue_id, state_name)
-        else:
-            log.warning("Linear: issueUpdate returned success=false for %s errors=%s", issue_id, result.get("errors"))
-
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")[:500]
-        log.warning("Linear HTTP %s updating issue %s to '%s': %s", exc.code, issue_id, state_name, body)
-    except Exception as exc:
-        log.warning("Linear update failed for issue %s to '%s': %s", issue_id, state_name, exc)
 _PIPELINE_ROOT = _HARNESS_ROOT / "pipeline"
+_PHASE_LOCKS: dict[str, threading.Lock] = {}
+_PHASE_LOCKS_GUARD = threading.Lock()
 
 
 # ── Data model ────────────────────────────────────────────────────────────────
@@ -220,7 +154,8 @@ def _read_json_artifact(pipeline_id: str, filename: str) -> dict | None:
     if raw is None:
         return None
     try:
-        return json.loads(raw)
+        value = json.loads(raw)
+        return value if isinstance(value, dict) else None
     except json.JSONDecodeError:
         return None
 
@@ -247,6 +182,22 @@ def _skill_prefix(skill_names: list[str]) -> str:
 # The Agent SDK is the only execution path (SDK-only mandate, RA-576).
 
 
+def _pipeline_transport_block():
+    from .provider_policy import ProviderPolicyError, require_transport
+    try:
+        require_transport("anthropic_agent_sdk")
+    except ProviderPolicyError as exc:
+        log.warning("Pipeline model execution blocked: %s", exc)
+        return str(exc)
+    return ""
+
+
+def _pipeline_sdk_options(option_type, model):
+    from .session_sdk import _child_environment
+    return option_type(model=model, tools=[], permission_mode="default",
+                       setting_sources=[], strict_mcp_config=True, env=_child_environment())
+
+
 async def _run_claude_via_sdk_async(
     prompt: str,
     model: str = "sonnet",
@@ -258,6 +209,9 @@ async def _run_claude_via_sdk_async(
     Returns (success, output_text). On any import/runtime error returns (False, "").
     Emits one row to .harness/agent-sdk-metrics/ on every invocation.
     """
+    blocked = _pipeline_transport_block()
+    if blocked:
+        return False, blocked
     try:
         from claude_agent_sdk import (  # noqa: PLC0415
             AssistantMessage,
@@ -274,11 +228,7 @@ async def _run_claude_via_sdk_async(
     error_msg: Optional[str] = None
     output_text = ""
     try:
-        # RA-1420 — pop ANTHROPIC_API_KEY if OAuth token (same as session_sdk.py)
-        _k = os.environ.get("ANTHROPIC_API_KEY", "")
-        if _k == "" or _k.startswith("sk-ant-oat01-"):
-            os.environ.pop("ANTHROPIC_API_KEY", None)
-        options = ClaudeAgentOptions(model=model, permission_mode="bypassPermissions")
+        options = _pipeline_sdk_options(ClaudeAgentOptions, model)
         client = ClaudeSDKClient(options)
         text_parts: list[str] = []
         try:
@@ -463,143 +413,154 @@ Use the technical-plan skill format (Approach, Files Changed, Effort, Dependenci
     return state
 
 
+def _delivered_session(state: PipelineState, session_id: str):
+    """Resolve delivery from the build lifecycle, never from a text artifact alone."""
+    from .session_model import get_session
+
+    session = get_session(session_id)
+    if (
+        session is None
+        or session.repo_url != state.repo_url
+        or session.status != "complete"
+        or session.last_completed_phase != "push"
+        or not isinstance(session.candidate_sha, str)
+        or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", session.candidate_sha)
+    ):
+        return None
+    return session
+
+
+def _matches_candidate(evidence: dict | None, state: PipelineState, session) -> bool:
+    return bool(
+        evidence and session
+        and evidence.get("pipeline_id") == state.pipeline_id
+        and evidence.get("session_id") == session.id
+        and evidence.get("candidate_sha") == session.candidate_sha
+    )
+
+
+def _review_passed(evidence: dict | None) -> bool:
+    score = evidence.get("overall_score") if evidence else None
+    return bool(
+        evidence and evidence.get("pass") is True
+        and type(score) in (int, float) and math.isfinite(score) and 8 <= score <= 10
+    )
+
+
+def _pipeline_lock(pipeline_id: str):
+    with _PHASE_LOCKS_GUARD:
+        return _PHASE_LOCKS.setdefault(pipeline_id, threading.Lock())
+
+
 def run_test_phase(pipeline_id: str, session_id: str) -> PipelineState:
-    """Run the /test phase: execute smoke_test.py and record results."""
+    """Serialize retest invalidation with review and shipping for this pipeline."""
+    with _pipeline_lock(pipeline_id):
+        return _run_test_phase(pipeline_id, session_id)
+
+
+def _run_test_phase(pipeline_id: str, session_id: str) -> PipelineState:
     state = load_pipeline_state(pipeline_id)
     if not state:
         raise ValueError(f"Pipeline {pipeline_id} not found")
 
+    session = _delivered_session(state, session_id)
     state.current_phase = "test"
     state.session_id = session_id
+    state.review_score = None
+    state.ship_log = None
+    state.phases_completed = [p for p in state.phases_completed if p not in {"test", "review", "ship"}]
     _write_artifact(pipeline_id, "session_id.txt", session_id)
+    _write_artifact(pipeline_id, "review-score.json", "{}")
+    _write_artifact(pipeline_id, "ship-log.json", '{"shipped": false}')
     save_pipeline_state(state)
 
-    # Run smoke test against local server
     smoke_script = Path(__file__).parent.parent.parent / "scripts" / "smoke_test.py"
     test_results: dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "pipeline_id": pipeline_id,
         "session_id": session_id,
+        "candidate_sha": session.candidate_sha if session else "",
+        "passed": False,
     }
-
-    if smoke_script.exists():
-        server_url = os.environ.get("PI_CEO_URL", "http://127.0.0.1:7777")
-        password = os.environ.get("TAO_PASSWORD", "")
-        cmd = ["python", str(smoke_script), "--url", server_url]
-        if password:
-            cmd += ["--password", password]
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-            try:
-                parsed = json.loads(result.stdout)
-                test_results.update(parsed)
-            except json.JSONDecodeError:
-                test_results["passed"] = result.returncode == 0
-                test_results["raw_output"] = result.stdout[:2000]
-        except subprocess.TimeoutExpired:
-            test_results["passed"] = False
-            test_results["error"] = "smoke_test.py timed out after 120s"
+    if session is None:
+        test_results["error"] = "No completed, delivered build session for this pipeline"
+    elif not smoke_script.is_file():
+        test_results["error"] = "smoke_test.py not found; required tests were not run"
     else:
-        test_results["passed"] = True
-        test_results["note"] = "smoke_test.py not found — skipped"
+        pipeline_receipts.run_smoke(smoke_script, session, test_results)
 
     _write_artifact(pipeline_id, "test-results.json", json.dumps(test_results, indent=2))
-
     state.test_results = test_results
-    passed = test_results.get("passed", False)
+    passed = test_results["passed"]
     state.current_phase = "review" if passed else "test"
-    if passed and "test" not in state.phases_completed:
+    if passed:
         state.phases_completed.append("test")
     save_pipeline_state(state)
-
     log.info("Test phase complete: pipeline=%s passed=%s", pipeline_id, passed)
     return state
 
 
 def run_review_phase(pipeline_id: str, session_id: str) -> PipelineState:
-    """Run the /review phase: invoke evaluator and record score."""
+    """Serialize review evidence updates with retesting and shipping."""
+    with _pipeline_lock(pipeline_id):
+        return _run_review_phase(pipeline_id, session_id)
+
+
+def _candidate_release_approved(session):
+    from .session_phases import _release_gate
+    try:
+        return asyncio.run(_release_gate(session))
+    except Exception as exc:
+        log.warning("Required pipeline release check failed: %s", exc)
+        return False
+
+
+def _run_review_phase(pipeline_id: str, session_id: str) -> PipelineState:
+    """Record the build's required review; a prompt-only score is not release evidence."""
+    from .persistence import release_evidence
     state = load_pipeline_state(pipeline_id)
     if not state:
         raise ValueError(f"Pipeline {pipeline_id} not found")
-
+    session = _delivered_session(state, session_id)
     test_results = _read_json_artifact(pipeline_id, "test-results.json")
-    if not test_results or not test_results.get("passed"):
-        raise ValueError("Tests have not passed — run /test first")
+    if (
+        state.session_id != session_id
+        or not _matches_candidate(test_results, state, session)
+        or test_results.get("passed") is not True
+    ):
+        raise ValueError("Tests have not passed for this delivered candidate; run /test first")
 
-    state.current_phase = "review"
-    state.session_id = session_id
-    save_pipeline_state(state)
-
-    # Ask evaluator to score via claude CLI
-    spec = _read_artifact(pipeline_id, "spec.md") or ""
-    plan = _read_artifact(pipeline_id, "plan.md") or ""
-    skill_ctx = _skill_prefix(["ship-chain", "ship-release"])
-
-    brief = f"""{skill_ctx}
-
-## Task: Review and score this implementation
-
-Pipeline ID: {pipeline_id}
-Session ID: {session_id}
-
-## Spec
-{spec[:3000]}
-
-## Plan
-{plan[:3000]}
-
-Score the implementation on these 5 dimensions (each 1-5):
-1. Correctness — does the code satisfy all acceptance criteria?
-2. Test coverage — are acceptance criteria covered by tests?
-3. Code quality — follows CLAUDE.md conventions?
-4. Security — no new OWASP issues introduced?
-5. Documentation — non-obvious changes commented?
-
-Output a JSON object with this exact structure:
-{{
-  "correctness": <1-5>,
-  "test_coverage": <1-5>,
-  "code_quality": <1-5>,
-  "security": <1-5>,
-  "documentation": <1-5>,
-  "overall_score": <total/40 mapped to /10, 1 decimal>,
-  "pass": <true if overall_score >= 8.0>,
-  "feedback": "<specific actionable feedback>"
-}}
-Output ONLY the JSON — no preamble.
-"""
-    try:
-        output = _run_claude(brief, model="sonnet", phase="review")
-        # Extract JSON from output
-        import re
-        json_match = re.search(r'\{.*\}', output, re.DOTALL)
-        if json_match:
-            review_score = json.loads(json_match.group())
-        else:
-            review_score = {"overall_score": 0, "pass": False, "feedback": output[:500], "raw": True}
-    except Exception as e:
-        review_score = {"overall_score": 0, "pass": False, "error": str(e)}
-
+    approved = _candidate_release_approved(session)
+    review_score = {
+        "pipeline_id": pipeline_id,
+        "session_id": session_id,
+        **release_evidence(session),
+        "overall_score": session.evaluator_score,
+        "pass": approved,
+        "feedback": session.error or "Required build review evidence recorded",
+    }
+    review_score["pass"] = _review_passed(review_score)
     _write_artifact(pipeline_id, "review-score.json", json.dumps(review_score, indent=2))
-
+    _write_artifact(pipeline_id, "ship-log.json", '{"shipped": false}')
     state.review_score = review_score
-    passed = review_score.get("pass", False) or review_score.get("overall_score", 0) >= 8.0
-    state.current_phase = "ship" if passed else "review"
-    if passed and "review" not in state.phases_completed:
+    state.ship_log = None
+    state.phases_completed = [p for p in state.phases_completed if p not in {"review", "ship"}]
+    state.current_phase = "ship" if review_score["pass"] else "review"
+    if review_score["pass"]:
         state.phases_completed.append("review")
     save_pipeline_state(state)
-
     log.info("Review phase complete: pipeline=%s score=%s pass=%s",
-             pipeline_id, review_score.get("overall_score"), passed)
+             pipeline_id, review_score.get("overall_score"), review_score["pass"])
     return state
 
 
 def run_ship_phase(pipeline_id: str) -> PipelineState:
-    """Run the /ship phase: hard gate + record ship log."""
-    state = load_pipeline_state(pipeline_id)
-    if not state:
-        raise ValueError(f"Pipeline {pipeline_id} not found")
+    """Serialize delivery receipts and their external effects for each pipeline."""
+    with _pipeline_lock(pipeline_id):
+        return _run_ship_phase(pipeline_id)
 
+
+def _ship_checks(state, pipeline_id):
     # Collect gate checks
     spec = _read_artifact(pipeline_id, "spec.md")
     plan = _read_artifact(pipeline_id, "plan.md")
@@ -607,81 +568,54 @@ def run_ship_phase(pipeline_id: str) -> PipelineState:
     test_results = _read_json_artifact(pipeline_id, "test-results.json")
     review_score = _read_json_artifact(pipeline_id, "review-score.json")
 
+    from .session_phases import _release_gate
+
+    session_id = (session_id_txt or "").strip()
+    session = _delivered_session(state, session_id) if state.session_id == session_id else None
     score = review_score.get("overall_score", 0) if review_score else 0
     gate_checks = {
         "spec_exists": bool(spec and len(spec) > 100),
         "plan_exists": bool(plan and len(plan) > 100),
-        "build_complete": bool(session_id_txt),
-        "tests_passed": bool(test_results and test_results.get("passed")),
-        "review_passed": bool(review_score and score >= 8.0),
+        "build_complete": session is not None,
+        "tests_passed": bool(
+            _matches_candidate(test_results, state, session) and test_results.get("passed") is True
+        ),
+        "review_passed": bool(
+            _matches_candidate(review_score, state, session) and _review_passed(review_score)
+            and _review_passed({"pass": session.evaluator_status == "passed", "overall_score": session.evaluator_score})
+            and score == session.evaluator_score
+        ),
+        "release_evidence": False,
     }
-    all_passed = all(gate_checks.values())
-
-    if not all_passed:
-        failing = [k for k, v in gate_checks.items() if not v]
-        ship_log: dict[str, Any] = {
-            "shipped": False,
-            "pipeline_id": pipeline_id,
-            "gate_checks": gate_checks,
-            "blocking_gate": failing[0],
-            "blocking_reason": _gate_reason(failing[0], score),
-        }
-        _write_artifact(pipeline_id, "ship-log.json", json.dumps(ship_log, indent=2))
-        state.ship_log = ship_log
-        save_pipeline_state(state)
-        log.warning("Ship gate failed: pipeline=%s blocking=%s", pipeline_id, failing[0])
-        # RA-651 — log failed gate check to Supabase
+    if session:
         try:
-            from .supabase_log import log_gate_check as _log_gate_check
-            _log_gate_check(
-                pipeline_id=pipeline_id,
-                session_id=state.session_id,
-                gate_checks=gate_checks,
-                review_score=score,
-                shipped=False,
-            )
-        except Exception as _exc:
-            log.warning("gate_check Supabase log failed (non-fatal): %s", _exc)
-        return state
+            gate_checks["release_evidence"] = asyncio.run(_release_gate(session))
+        except Exception as exc:
+            log.warning("Required pipeline release check failed: %s", exc)
+    return session, score, gate_checks
 
-    # Two-way Linear sync: move issue to "Done" if pipeline_id is a Linear ticket (e.g. RA-123)
-    linear_issue_id = _linear_issue_id_from_pipeline(pipeline_id)
-    linear_ticket_updated = False
-    if linear_issue_id:
-        log.info("Ship: updating Linear issue %s to Done", linear_issue_id)
-        _update_linear_state_pipeline(linear_issue_id, "Done")
-        linear_ticket_updated = True
 
-    ship_log = {
-        "shipped": True,
+
+def _ship_denied(state, pipeline_id, gate_checks, score):
+    failing = [k for k, v in gate_checks.items() if not v]
+    ship_log: dict[str, Any] = {
+        "shipped": False,
         "pipeline_id": pipeline_id,
-        "idea": state.idea,
-        "deployed_at": datetime.now(timezone.utc).isoformat(),
-        "session_id": state.session_id,
-        "review_score": score,
         "gate_checks": gate_checks,
-        "rollback_ref": f"git revert HEAD  # revert last commit from session {state.session_id}",
-        "linear_ticket_updated": linear_ticket_updated,
-        "post_ship_actions": [
-            "Append pattern to .harness/lessons.jsonl",
-        ],
+        "blocking_gate": failing[0],
+        "blocking_reason": _gate_reason(failing[0], score),
     }
+    _write_artifact(pipeline_id, "ship-log.json", json.dumps(ship_log, indent=2))
+    state.ship_log = ship_log
+    state.current_phase = "ship"
+    state.phases_completed = [p for p in state.phases_completed if p != "ship"]
+    save_pipeline_state(state)
+    log.warning("Ship gate failed: pipeline=%s blocking=%s", pipeline_id, failing[0])
+    pipeline_receipts.log_gate(pipeline_id, state.session_id, gate_checks, score, False)
+    return state
 
-    # Append to lessons.jsonl
-    _append_ship_lesson(pipeline_id, score)
 
-    # RA-689 — Record shipped feature for outcome feedback loop
-    try:
-        from .agents.feedback_loop import append_shipped_feature as _record_shipped
-        _record_shipped(
-            pipeline_id=pipeline_id,
-            idea=state.idea or "",
-            review_score=score,
-            linear_ticket_id=linear_issue_id,
-        )
-    except Exception as _exc:
-        log.warning("feedback_loop record failed (non-fatal): %s", _exc)
-
+def _save_shipped_receipt(state, pipeline_id, ship_log):
     _write_artifact(pipeline_id, "ship-log.json", json.dumps(ship_log, indent=2))
     state.ship_log = ship_log
     state.current_phase = "done"
@@ -689,18 +623,43 @@ def run_ship_phase(pipeline_id: str) -> PipelineState:
         state.phases_completed.append("ship")
     save_pipeline_state(state)
 
-    # RA-651 — log gate check result to Supabase for Observability dashboard
-    try:
-        from .supabase_log import log_gate_check as _log_gate_check
-        _log_gate_check(
-            pipeline_id=pipeline_id,
-            session_id=state.session_id,
-            gate_checks=gate_checks,
-            review_score=score,
-            shipped=True,
-        )
-    except Exception as _exc:
-        log.warning("gate_check Supabase log failed (non-fatal): %s", _exc)
+
+
+def _run_ship_phase(pipeline_id: str) -> PipelineState:
+    """Run the /ship phase: hard gate + record ship log."""
+    state = load_pipeline_state(pipeline_id)
+    if not state:
+        raise ValueError(f"Pipeline {pipeline_id} not found")
+
+    session, score, gate_checks = _ship_checks(state, pipeline_id)
+
+    if not all(gate_checks.values()):
+        return _ship_denied(state, pipeline_id, gate_checks, score)
+
+    # Revalidate on retries, but do not repeat external effects for this receipt.
+    if (
+        state.ship_log and state.ship_log.get("shipped") is True
+        and _matches_candidate(state.ship_log, state, session)
+    ):
+        return state
+
+    # A pushed candidate awaits review; no merge or deployment has been established.
+    linear_issue_id = _linear_issue_id_from_pipeline(pipeline_id)
+    linear_ticket_updated = False
+    if linear_issue_id:
+        log.info("Ship: updating Linear issue %s to In Review", linear_issue_id)
+        linear_ticket_updated = _update_linear_state_pipeline(linear_issue_id, "In Review")
+
+    ship_log = pipeline_receipts.success_receipt(pipeline_id, state, session, score, gate_checks, linear_ticket_updated)
+
+    # Append to lessons.jsonl
+    _append_ship_lesson(pipeline_id, score)
+
+    pipeline_receipts.record_shipped_feature(pipeline_id, state, score, linear_issue_id)
+
+    _save_shipped_receipt(state, pipeline_id, ship_log)
+
+    pipeline_receipts.log_gate(pipeline_id, state.session_id, gate_checks, score, True)
 
     log.info("Ship complete: pipeline=%s score=%s linear_updated=%s", pipeline_id, score, linear_ticket_updated)
     return state
@@ -712,7 +671,8 @@ def _gate_reason(gate: str, score: float) -> str:
         "plan_exists": "plan.md is missing — run /plan first",
         "build_complete": "No build session found — run /build first",
         "tests_passed": "Tests have not passed — run /test and fix failures",
-        "review_passed": f"Review score {score}/10 does not meet 8/10 threshold",
+        "review_passed": f"Review score {score}/10 lacks matching required candidate approval",
+        "release_evidence": "Required release evidence is missing or the candidate changed",
     }
     return reasons.get(gate, f"Gate {gate} failed")
 

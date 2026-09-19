@@ -7,18 +7,9 @@ the RA-1109 failure the repo hardwired against ("HTTP 200, types compiling, and 
 are not shipping") pointed at Pi-CEO's own generator: a session can be graded 9/10 on
 CORRECTNESS with a suite that does not start.
 
-This runs the repo's own checks in the workspace and hands the result to the evaluator as
-evidence. It is deliberately NOT a gate:
-
-  * A failing suite does not stop the session. It becomes context, so the evaluator can
-    weigh a real failure instead of inferring correctness from shape.
-  * It never fabricates a pass. "No runnable check" is reported as its own outcome,
-    distinct from "checks passed" — the same distinction that made the vendored-file and
-    git-enumeration bugs invisible when they were collapsed into one value.
-
-The trust boundary is unchanged: the generator already runs Claude Code in this same
-workspace with bypassPermissions, so executing the repo's declared test script grants no
-capability that was not already granted.
+The build pipeline requires PASSED from this runner before release review. Missing
+commands, unavailable dependencies and timeouts remain distinct outcomes. Running a
+repository's test commands executes its code, so checks require OS isolation.
 """
 
 from __future__ import annotations
@@ -27,9 +18,9 @@ import asyncio
 import json
 import logging
 import os
-import signal
-import sys
 from dataclasses import dataclass
+
+from .verification_sandbox import SandboxUnavailable, child_env, run_isolated_async
 
 log = logging.getLogger("pi-ceo.workspace_verify")
 
@@ -54,35 +45,9 @@ class VerifyResult:
         return self.status in (PASSED, FAILED, TIMED_OUT)
 
 
-# Everything the child needs to find an interpreter, resolve packages and behave as CI.
-# Nothing else. Deliberately an ALLOW-list: a deny-list of known-secret names silently
-# admits the next credential anyone adds.
-_ENV_ALLOW = (
-    "PATH", "HOME", "USER", "SHELL", "LANG", "LC_ALL", "TMPDIR", "TZ",
-    "NODE_PATH", "NVM_DIR", "NPM_CONFIG_CACHE", "NPM_CONFIG_PREFIX",
-    "PYTHONPATH", "PYTHONHASHSEED", "VIRTUAL_ENV", "SYSTEMROOT",
-)
-
-
 def _child_env() -> dict:
-    """The minimal environment handed to a cloned repo's test command.
-
-    This process holds GITHUB_TOKEN, LINEAR_API_KEY, Stripe, Supabase service-role and
-    session secrets. Passing `dict(os.environ)` handed all of them to a third-party
-    repository's declared test script on every evaluate phase. Two independent reviewers
-    flagged it; the second called it blocking, and it is: the earlier defence — that the
-    generator's Claude Code already runs in that workspace with the same exposure — argues
-    the boundary was already crossed elsewhere, not that crossing it again deterministically
-    and without any judgement in the loop is safe.
-
-    An allow-list, not a deny-list. `CI=1` is set because test runners key non-interactive
-    behaviour off it. ANTHROPIC_API_KEY is deliberately absent: the child has no business
-    calling a model, and CLAUDE.md records that the claude CLI exports it EMPTY, which
-    children then treat as "key mode, empty key" and fail auth on.
-    """
-    env = {k: os.environ[k] for k in _ENV_ALLOW if k in os.environ}
-    env["CI"] = "1"
-    return env
+    """Compatibility surface for the sandbox's static credential-free env."""
+    return child_env()
 
 
 def detect_check(workspace: str) -> tuple[list[str], str]:
@@ -109,7 +74,7 @@ def detect_check(workspace: str) -> tuple[list[str], str]:
         for f in ("pytest.ini", "pyproject.toml", "setup.cfg", "tox.ini")
     )
     if has_tests_dir and has_py_cfg:
-        return [sys.executable, "-m", "pytest", "-q", "tests/"], "pytest"
+        return ["python3", "-m", "pytest", "-q", "tests/"], "pytest"
 
     return [], "no declared test script and no pytest layout"
 
@@ -125,71 +90,14 @@ async def run_workspace_checks(
     if not argv:
         return VerifyResult(NOT_RUN, "", label, "")
 
-    env = _child_env()
-
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *argv,
-            cwd=workspace,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-            env=env,
-            # Own process group, so the timeout below can kill the whole tree. A test
-            # script routinely spawns dev servers, watchers and workers; killing only the
-            # direct child leaves those orphaned, and on the long-lived Railway container
-            # they accumulate across every session that ever timed out.
-            start_new_session=True,
-        )
-    except (OSError, ValueError) as exc:
+        proc = await run_isolated_async(workspace, argv, timeout_s=timeout_s)
+    except asyncio.TimeoutError:
+        return VerifyResult(TIMED_OUT, label, "", f"exceeded {timeout_s}s")
+    except (SandboxUnavailable, OSError, ValueError) as exc:
         return VerifyResult(NOT_RUN, label, f"could not start: {exc}", "")
 
-    async def kill_and_drain() -> None:
-        """Stop the isolated process group and finish pipe cleanup."""
-        try:
-            # start_new_session=True makes the child's PID the process-group
-            # ID. Use that stable ID directly: the leader may already have
-            # exited while a descendant still owns stdout.
-            os.killpg(proc.pid, signal.SIGKILL)
-        except OSError:
-            try:
-                proc.kill()
-            except ProcessLookupError:
-                pass
-
-        # Reap the process and drain its pipes before the caller's event loop
-        # closes. The bound prevents an escaped descendant from holding the
-        # verifier open indefinitely.
-        try:
-            await asyncio.wait_for(proc.communicate(), timeout=5)
-        except (asyncio.TimeoutError, OSError):
-            pass
-
-    timed_out = False
-    stdout = b""
-    try:
-        try:
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
-        except asyncio.TimeoutError:
-            timed_out = True
-            await kill_and_drain()
-        except asyncio.CancelledError:
-            # Session aborts and hard stops must not orphan the repo's test
-            # process tree. Clean it up, then preserve cancellation semantics.
-            await kill_and_drain()
-            raise
-    finally:
-        # `communicate()` waits for exit, but on very short-lived children
-        # CPython can retain an open subprocess transport until garbage
-        # collection. Close it while its loop is alive. asyncio's Process has
-        # no public close method on the supported Python versions.
-        transport = getattr(proc, "_transport", None)
-        if transport is not None:
-            transport.close()
-
-    if timed_out:
-        return VerifyResult(TIMED_OUT, label, "", f"exceeded {timeout_s}s")
-
-    tail = (stdout or b"").decode("utf-8", errors="replace")[-2000:]
+    tail = ((proc.stdout or b"") + (proc.stderr or b"")).decode("utf-8", errors="replace")[-2000:]
 
     # "The runner is absent" is not "the tests failed". A cloned repo need not have pytest
     # installed, and `python3 -m pytest` exits non-zero either way — so reporting FAILED

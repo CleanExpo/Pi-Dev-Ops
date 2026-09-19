@@ -1,13 +1,11 @@
-"""Tests for swarm.model_router — pure unit tests with stub providers.
-
-No real HTTP. No real env vars beyond what the test sets. No network."""
+"""Tests for swarm.model_router — pure unit tests with stub providers."""
 from __future__ import annotations
 
-import os
 import urllib.error
 from typing import Literal
 
 import pytest
+
 
 from swarm.model_router import (
     LLMResponse,
@@ -21,9 +19,13 @@ from swarm.model_router import (
 )
 
 
-# ============================================================
+@pytest.fixture(autouse=True)
+def isolate_transport_parsing_from_policy(monkeypatch):
+    """These mock-only tests cover parsing/failover; policy has its own denied-path suite."""
+    from app.server import provider_policy
+    monkeypatch.setattr(provider_policy, "require_transport", lambda *args, **kwargs: {})
+
 # Stub provider — fully controllable
-# ============================================================
 
 class StubProvider:
     def __init__(
@@ -65,9 +67,7 @@ class StubProvider:
         )
 
 
-# ============================================================
 # Happy-path tests
-# ============================================================
 
 class TestHappyPath:
     def test_first_provider_in_ladder_used_when_available(self):
@@ -95,9 +95,7 @@ class TestHappyPath:
         assert resp.latency_ms >= 0
 
 
-# ============================================================
 # Fallback ladder tests
-# ============================================================
 
 class TestFallback:
     def test_unavailable_first_provider_falls_to_second(self):
@@ -170,9 +168,7 @@ class TestFallback:
         assert resp.fell_back is True
 
 
-# ============================================================
 # Tier enum + defaults
-# ============================================================
 
 class TestTier:
     def test_all_four_tiers_have_descriptions(self):
@@ -185,9 +181,7 @@ class TestTier:
             assert tier.value == tier.value.lower()
 
 
-# ============================================================
 # Default-ladder smoke (no real HTTP; check shape only)
-# ============================================================
 
 class TestDefaultLadders:
     def test_frontier_default_ladder_has_anthropic_first(self, monkeypatch):
@@ -216,9 +210,7 @@ class TestDefaultLadders:
             client.complete(system="s", user="u")
 
 
-# ============================================================
 # Environment isolation
-# ============================================================
 
 class TestEnvIsolation:
     def test_no_keys_means_no_call(self, monkeypatch):
@@ -237,9 +229,7 @@ class TestEnvIsolation:
         assert OpenRouterProvider(model="x").is_available() is True
 
 
-# ============================================================
 # Public API smoke
-# ============================================================
 
 def test_get_client_returns_modelclient():
     client = get_client(Tier.FRONTIER, providers=[StubProvider()])
@@ -255,9 +245,7 @@ def test_llmresponse_is_frozen():
         resp.text = "mutated"  # type: ignore[misc]
 
 
-# ============================================================
 # OpenRouter enforce (RA-6470 phase 1)
-# ============================================================
 
 class TestOpenRouterEnforce:
     def test_enforce_defaults_off(self, monkeypatch):

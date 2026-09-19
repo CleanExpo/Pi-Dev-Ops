@@ -1,4 +1,5 @@
 """Ship Chain pipeline routes: spec, plan, test, ship, pipeline state (RA-937)."""
+import asyncio
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -64,7 +65,7 @@ async def run_ship(body: ShipRequest):
     """Phase 6: Hard gate + ship. Returns ship-log immediately (synchronous)."""
     from ..pipeline import run_ship_phase
     try:
-        state = run_ship_phase(body.pipeline_id)
+        state = await asyncio.to_thread(run_ship_phase, body.pipeline_id)
         ship_log = state.ship_log or {}
         return {"ok": ship_log.get("shipped", False), "pipeline_id": body.pipeline_id, "ship_log": ship_log}
     except ValueError as exc:

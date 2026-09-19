@@ -27,6 +27,7 @@ so passing 0 or None falls through to the env defaults.
 """
 from __future__ import annotations
 
+import math
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -51,14 +52,15 @@ class LoopResult:
     """Outcome of a `run_until_done` invocation.
 
     `reason` is one of: kill-switch reasons (`MAX_ITERS`, `MAX_COST`,
-    `HARD_STOP`), or `GOAL_MET` / `MAX_ITERS_NO_GOAL` / `JUDGE_NEVER_SATISFIED`
-    / `COVERAGE_INCOMPLETE` (judge said done, DoD probes did not).
+    `HARD_STOP`), or `COST_UNKNOWN` / `GOAL_MET` / `MAX_ITERS_NO_GOAL` /
+    `JUDGE_NEVER_SATISFIED`. Cost is reported usage, not invoice spend; None
+    means at least one attempt had no usable estimate.
     """
 
     done: bool
     reason: str
     iters: int
-    cost_usd: float
+    cost_usd: float | None
     judge_history: list[JudgeVerdict] = field(default_factory=list)
     final_state: JudgeState | None = None
 
@@ -120,10 +122,10 @@ def _build_state(prev_iters: int, workspace: str) -> JudgeState:
 
 async def _run_worker_step(
     goal: str, workspace: str, timeout_s: int, session_id: str,
-) -> tuple[int, str, float]:
+) -> tuple[int, str, float | None]:
     """One generator step. Returns (rc, output, cost_estimate_usd).
 
-    Cost is whatever the SDK reports — currently 0.0 (RA-1099 metrics path).
+    Cost is the SDK's reported usage estimate, or None when unavailable.
     Callers can substitute via mocks in tests.
     """
     return await _run_claude_via_sdk(
@@ -134,6 +136,27 @@ async def _run_worker_step(
         session_id=session_id,
         phase=f"{GENERATOR_ROLE}.tao_loop",
     )
+
+
+def _record_iteration_cost(counter, cost_iter, on_event, coverage_blocked):
+    """Unknown reported cost closes the budget before any judge call."""
+    if (type(cost_iter) not in (int, float) or not math.isfinite(cost_iter)
+            or cost_iter < 0):
+        # A completed attempt with unknown spend cannot safely continue a
+        # monetary-gated loop or ask the judge to declare success.
+        counter.iters += 1
+        reason = "COST_UNKNOWN"
+        _emit(on_event, {"action": "budget_blocked", "reason": reason,
+                         "iters": counter.iters, "cost_usd": None})
+        return reason
+
+    try:
+        counter.tick(cost_delta_usd=float(cost_iter))
+    except _ks.KillSwitchAbort as abort:
+        reason = _abort_reason(abort.reason, coverage_blocked)
+        return reason
+
+    return None
 
 
 async def run_until_done(
@@ -219,10 +242,9 @@ async def run_until_done(
             timeout_s=timeout_per_iter_s, session_id=session_id,
         )
 
-        try:
-            counter.tick(cost_delta_usd=float(cost_iter or 0.0))
-        except _ks.KillSwitchAbort as abort:
-            reason = _abort_reason(abort.reason, coverage_blocked)
+        cost_abort = _record_iteration_cost(counter, cost_iter, on_event, coverage_blocked)
+        if cost_abort:
+            reason = cost_abort
             break
 
         state = _build_state(counter.iters, workspace)
@@ -256,7 +278,7 @@ async def run_until_done(
 
     return LoopResult(
         done=done, reason=reason, iters=counter.iters,
-        cost_usd=round(counter.cost_usd, 4),
+        cost_usd=None if reason == "COST_UNKNOWN" else round(counter.cost_usd, 4),
         judge_history=judge_history, final_state=final_state,
     )
 

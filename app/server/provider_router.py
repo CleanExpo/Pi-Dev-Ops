@@ -1,59 +1,12 @@
-"""provider_router.py — RA-1868 Wave 5.2: multi-provider model routing.
+"""Role-based model selection with subscription-only execution boundaries.
 
-Three-tier cost-aware router that picks the right (provider, model_id)
-per role/task class. Anthropic is reserved for the highest-quality work
-(top tier — planner, orchestrator, Board deliberation, multi-agent
-debate). OpenRouter handles the cheap tier (Margot conversational
-turns, intent classification, monitor cycles).
-
-Tier mapping (defaults; all overridable via env):
-
-  TIER 1 — TOP    Anthropic Opus 5
-                  Roles: planner, orchestrator, board, debate.drafter,
-                  debate.redteam, margot.synthesis (Phase 2)
-                  Env: TAO_TOP_MODEL=claude-opus-5
-
-  TIER 2 — MID    Anthropic Sonnet 5
-                  Roles: generator, evaluator, senior-brief
-                  Env: TAO_MID_MODEL=claude-sonnet-5
-
-  TIER 3 — CHEAP  OpenRouter → GLM 4.7 Flash (default; configurable)
-                  Roles: margot.casual, intent_classify, monitor,
-                  guardian, scribe.draft
-                  Env: TAO_CHEAP_REMOTE_MODEL=z-ai/glm-4.7-flash
-
-Per-role override:
-
-  Each role can override its tier model via env:
-    TAO_MODEL_<ROLE_UPPERCASED>=<provider>:<model_id>
-
-  Example:
-    TAO_MODEL_MARGOT_CASUAL=openrouter:meta-llama/llama-3.3-70b-instruct
-    TAO_MODEL_INTENT_CLASSIFY=openrouter:mistralai/mistral-small-3.1
-
-  Provider prefix is required: ``anthropic:`` or ``openrouter:``.
-
-  Exception — ``margot.casual`` (RA-7434, founder ruling 03/09/2026): fixed
-  FREE ladder, ignores every TAO_CHEAP_* knob, refuses Kimi/Moonshot and any
-  Anthropic/Claude/Sonnet model even via TAO_MODEL_MARGOT_CASUAL. See
-  MARGOT_CASUAL_LADDER below.
-
-The router does NOT enforce model_policy.OPUS_ALLOWED_ROLES — that gate
-still fires inside session_sdk._run_claude_via_sdk for Anthropic calls.
-The router just picks; the existing policy still polices.
-
-Public API:
-  select_provider_model(role, task_class="default") -> ProviderModel
-  is_anthropic(provider_model) -> bool
-  is_openrouter(provider_model) -> bool
-
-  run_via_provider(prompt, *, role, task_class, ...)
-      -> tuple[rc, text, cost_usd, error]
-      Async unified entry that dispatches to the right SDK.
+Top, mid, and cheap defaults use Claude subscription CLI. Explicit provider
+pins remain visible to callers and are checked immediately before dispatch.
+Margot retains its separately governed ladder; each step also passes policy.
+Selection supports record_observation=False for read-only readiness checks.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
@@ -62,11 +15,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Literal
 
-from app.server.model_registry import ANTHROPIC_OPUS, ANTHROPIC_SONNET
+from app.server import provider_policy  # noqa: F401
+from app.server.model_registry import ANTHROPIC_OPUS, ANTHROPIC_SONNET, ANTHROPIC_HAIKU
 
 log = logging.getLogger("app.server.provider_router")
 
-Provider = Literal["anthropic", "openrouter", "ollama", "claude_print"]
+Provider = Literal["anthropic", "openrouter", "ollama", "claude_print", "codex"]
 
 
 # ── Defaults — all env-overridable ──────────────────────────────────────────
@@ -117,12 +71,12 @@ DEFAULT_CHEAP_REMOTE_MODEL = "z-ai/glm-4.7-flash"
 # body went to its own module and only the two dispatch points stayed here.
 from .provider_router_helpers import (  # noqa: E402
     _corrected_for_downgrade,
-    _run_tier0,
+    _run_tier0 as _run_tier0,
 )
 from .provider_margot_casual import (  # noqa: E402
     MARGOT_CASUAL_ROLE,
     _resolve_margot_casual,
-    _run_margot_casual,
+    _run_margot_casual as _run_margot_casual,
 )
 
 
@@ -192,7 +146,7 @@ def _parse_provider_spec(spec: str) -> tuple[Provider, str] | None:
     prov, model = spec.split(":", 1)
     prov = prov.strip().lower()
     model = model.strip()
-    if prov not in ("anthropic", "openrouter", "ollama", "claude_print"):
+    if prov not in ("anthropic", "openrouter", "ollama", "claude_print", "codex"):
         log.warning("provider_router: unknown provider %r in spec %r — skipping",
                     prov, spec)
         return None
@@ -202,31 +156,15 @@ def _parse_provider_spec(spec: str) -> tuple[Provider, str] | None:
 
 
 def _tier_default(tier: str) -> tuple[Provider, str]:
-    """Resolve tier → (provider, model_id) using env overrides.
-
-    Top/mid tier resolution order:
-      1. TAO_{TOP,MID}_USE_CLAUDE_PRINT=1 → route through `claude --print`
-         subprocess ($0 marginal under Claude Max plan, per
-         `[[feedback-model-routing-max-first]]`).
-      2. TAO_{TOP,MID}_MODEL env model_id (or default).
-      3. Provider: anthropic.
-
-    Cheap tier resolution order:
-      1. Legacy TAO_CHEAP_MODEL env (honoured for backwards compat;
-         routed via Anthropic if claude-*, OpenRouter if "/" in id,
-         Ollama otherwise).
-      2. TAO_CHEAP_PROVIDER=ollama|openrouter explicit pin.
-      3. Ollama reachability probe → if reachable, use local.
-      4. Otherwise → OpenRouter remote.
-    """
+    """Resolve tier defaults while preserving explicit provider overrides."""
     if tier == "top":
         model = (os.environ.get("TAO_TOP_MODEL") or DEFAULT_TOP_MODEL).strip()
-        if os.environ.get("TAO_TOP_USE_CLAUDE_PRINT", "").strip() == "1":
+        if os.environ.get("TAO_TOP_USE_CLAUDE_PRINT", "1").strip() == "1":
             return "claude_print", model
         return "anthropic", model
     if tier == "mid":
         model = (os.environ.get("TAO_MID_MODEL") or DEFAULT_MID_MODEL).strip()
-        if os.environ.get("TAO_MID_USE_CLAUDE_PRINT", "").strip() == "1":
+        if os.environ.get("TAO_MID_USE_CLAUDE_PRINT", "1").strip() == "1":
             return "claude_print", model
         return "anthropic", model
 
@@ -242,15 +180,7 @@ def _tier_default(tier: str) -> tuple[Provider, str]:
 
 
 def _resolve_cheap_tier() -> tuple[Provider, str]:
-    """Pick (provider, model_id) for the cheap tier.
-
-    Layers (most specific wins):
-      1. TAO_CHEAP_MODEL — legacy single-knob (provider auto-detected
-         from model_id shape).
-      2. TAO_CHEAP_PROVIDER=ollama|openrouter explicit pin combined with
-         TAO_CHEAP_LOCAL_MODEL / TAO_CHEAP_REMOTE_MODEL.
-      3. Ollama reachability probe → local if up, OpenRouter if not.
-    """
+    """Honor legacy and explicit pins, otherwise use the subscription CLI."""
     # Layer 1: legacy single-knob
     legacy = (os.environ.get("TAO_CHEAP_MODEL") or "").strip()
     if legacy:
@@ -277,30 +207,13 @@ def _resolve_cheap_tier() -> tuple[Provider, str]:
         return "openrouter", remote_model
     if pinned and pinned not in ("ollama", "openrouter"):
         log.warning(
-            "provider_router: unknown TAO_CHEAP_PROVIDER=%r — falling through to probe",
+            "provider_router: unknown TAO_CHEAP_PROVIDER=%r — using subscription default",
             pinned,
         )
 
-    # Layer 3: probe-based selection
-    try:
-        import sys as _sys  # noqa: PLC0415
-        ollama_mod = _sys.modules.get("app.server.provider_ollama")
-        if ollama_mod is None:
-            from . import provider_ollama as ollama_mod  # noqa: PLC0415
-        if ollama_mod.is_reachable():
-            log.debug(
-                "provider_router: cheap tier → ollama:%s (local reachable)",
-                local_model,
-            )
-            return "ollama", local_model
-    except Exception as exc:  # noqa: BLE001
-        log.debug("provider_router: ollama probe failed (%s)", exc)
-
-    log.debug(
-        "provider_router: cheap tier → openrouter:%s (local unreachable)",
-        remote_model,
-    )
-    return "openrouter", remote_model
+    # Main removed implicit local inference. Use verified subscription CLI;
+    # explicit Ollama/remote pins stay visible and are checked at dispatch.
+    return "claude_print", ANTHROPIC_HAIKU
 
 
 # ── Public API ──────────────────────────────────────────────────────────────
@@ -443,157 +356,10 @@ def is_claude_print(pm: ProviderModel) -> bool:
 CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
 
 
-async def _run_via_claude_print(
-    prompt: str, *, timeout_s: int = 120,
-) -> tuple[int, str, float, str | None]:
-    """Dispatch one prompt to `claude --print`. Returns (rc, text, cost_usd, error).
-
-    Always reports cost_usd=0.0 — `claude --print` runs under the active Claude
-    Code Max session, which has no per-call billing. Subprocess overhead is
-    ~3-5s for cold start; acceptable for the cron-launched workers that this
-    router fronts.
-
-    The model arg is intentionally NOT passed — `claude --print` uses whatever
-    model is configured in the user's Claude Code config (set via `/model` or
-    settings.json). The model_id surfaces via the ProviderModel for audit /
-    observability only.
-    """
-    def _blocking_run() -> tuple[int, str, str]:
-        import subprocess as _sp  # noqa: PLC0415
-        try:
-            r = _sp.run(
-                [CLAUDE_CLI, "--print", prompt],
-                capture_output=True, text=True, timeout=timeout_s, check=False,
-            )
-            return r.returncode, r.stdout, r.stderr
-        except FileNotFoundError:
-            return 127, "", f"claude CLI not found at {CLAUDE_CLI}"
-        except _sp.TimeoutExpired:
-            return 124, "", f"claude --print timed out after {timeout_s}s"
-
-    rc, stdout, stderr = await asyncio.to_thread(_blocking_run)
-    if rc != 0:
-        return rc, "", 0.0, stderr.strip() or f"claude --print exit {rc}"
-    return 0, stdout.strip(), 0.0, None
-
-
-# ── Unified async entry ─────────────────────────────────────────────────────
-
-
-async def run_via_provider(prompt: str, *, role: str,
-                             task_class: str = "default",
-                             timeout_s: int = 120,
-                             workspace: str | None = None,
-                             session_id: str = "",
-                             thinking: str = "adaptive",
-                             confidential: bool = False,
-                             ) -> tuple[int, str, float, str | None]:
-    """Single dispatch entry. Returns (rc, text, cost_usd, error_or_None).
-
-    Picks (provider, model_id) via select_provider_model, then routes to
-    the right SDK. Anthropic still fires through session_sdk to preserve
-    the model_policy gate; OpenRouter goes through provider_openrouter.
-    Tier-0 gathering roles walk the full free→paid→local chain with failover
-    via tier0_runner; ``confidential=True`` forces that walk local-only.
-    """
-    # margot.casual (RA-7434): free ladder with call-time failover; a refused
-    # model returns an error tuple here and never falls through to a paid path.
-    if role == MARGOT_CASUAL_ROLE:
-        return await _run_margot_casual(prompt, timeout_s=timeout_s, session_id=session_id)
-
-    pm = select_provider_model(role, task_class=task_class)
-
-    # Tier-0 gathering lane (UNI-2212): the head-lane selection alone can't
-    # fail over, so run the full resolved chain. Inert for every non-tier0
-    # role today (no role maps to tier0 until the lane is activated).
-    if pm.tier == "tier0":
-        return await _run_tier0(prompt, role=role, session_id=session_id,
-                                timeout_s=timeout_s, confidential=confidential)
-
-    # claude --print path ($0 marginal under Max plan)
-    if pm.provider == "claude_print":
-        rc, text, cost, err = await _run_via_claude_print(
-            prompt, timeout_s=timeout_s,
-        )
-        if rc == 0:
-            _record_cost_safe(
-                provider="claude_print", role=role, model=pm.model_id,
-                cost_usd=cost,
-            )
-        return rc, text, cost, err
-
-    if pm.provider == "anthropic":
-        try:
-            # Look up via sys.modules first so test monkeypatches via
-            # monkeypatch.setitem(sys.modules, "app.server.session_sdk", ...)
-            # win over the cached import binding.
-            import sys as _sys  # noqa: PLC0415
-            session_sdk = _sys.modules.get("app.server.session_sdk")
-            if session_sdk is None:
-                from . import session_sdk  # noqa: PLC0415
-            _run_claude_via_sdk = session_sdk._run_claude_via_sdk
-        except Exception as exc:  # noqa: BLE001
-            return 1, "", 0.0, f"anthropic_sdk_import_failed: {exc}"
-        try:
-            rc, text, cost = await _run_claude_via_sdk(
-                prompt=prompt,
-                model=pm.model_id,
-                workspace=workspace or "",
-                timeout=timeout_s,
-                session_id=session_id,
-                phase=role,
-                thinking=thinking,
-            )
-            rc_i = int(rc)
-            cost_f = float(cost or 0.0)
-            if rc_i == 0 and cost_f > 0:
-                _record_cost_safe(
-                    provider="anthropic", role=role, model=pm.model_id,
-                    cost_usd=cost_f,
-                )
-            return rc_i, text or "", cost_f, None
-        except Exception as exc:  # noqa: BLE001
-            return 1, "", 0.0, f"anthropic_sdk_call_raised: {exc}"
-
-    # Ollama path (local; free)
-    if pm.provider == "ollama":
-        try:
-            import sys as _sys  # noqa: PLC0415
-            provider_ollama = _sys.modules.get("app.server.provider_ollama")
-            if provider_ollama is None:
-                from . import provider_ollama  # noqa: PLC0415
-        except Exception as exc:  # noqa: BLE001
-            return 1, "", 0.0, f"ollama_import_failed: {exc}"
-        result = await provider_ollama.call(
-            prompt=prompt, model_id=pm.model_id,
-            timeout_s=timeout_s, role=role, session_id=session_id,
-        )
-        # Ollama is free (cost_usd=0.0) but we still record for completeness
-        if int(result[0]) == 0:
-            _record_cost_safe(
-                provider="ollama", role=role, model=pm.model_id,
-                cost_usd=float(result[2] or 0.0),
-            )
-        return result
-
-    # OpenRouter path (remote; paid)
-    try:
-        import sys as _sys  # noqa: PLC0415
-        provider_openrouter = _sys.modules.get("app.server.provider_openrouter")
-        if provider_openrouter is None:
-            from . import provider_openrouter  # noqa: PLC0415
-    except Exception as exc:  # noqa: BLE001
-        return 1, "", 0.0, f"openrouter_import_failed: {exc}"
-    result = await provider_openrouter.call(
-        prompt=prompt, model_id=pm.model_id,
-        timeout_s=timeout_s, role=role, session_id=session_id,
-    )
-    if int(result[0]) == 0:
-        _record_cost_safe(
-            provider="openrouter", role=role, model=pm.model_id,
-            cost_usd=float(result[2] or 0.0),
-        )
-    return result
+from .provider_execution import (  # noqa: E402
+    _run_via_claude_print as _run_via_claude_print, run_via_provider, run_via_provider_with_evidence,
+)
+from .provider_execution_types import ProviderExecution  # noqa: E402
 
 
 def _record_cost_safe(
@@ -615,7 +381,8 @@ def _record_cost_safe(
 
 
 __all__ = [
-    "Provider", "ProviderModel", "ROLE_TIER",
+    "Provider", "ProviderModel", "ProviderExecution", "ROLE_TIER",
+    "run_via_provider_with_evidence",
     "DEFAULT_TOP_MODEL", "DEFAULT_MID_MODEL",
     "DEFAULT_CHEAP_LOCAL_MODEL", "DEFAULT_CHEAP_REMOTE_MODEL",
     "select_provider_model", "run_via_provider",
@@ -681,7 +448,7 @@ def run_via_provider_blocking(
     timeout_s: int = 120,
     *,
     log=None,
-) -> tuple[int, str, float, str | None, ProviderModel]:
+) -> tuple[int, str, float | None, str | None, ProviderModel]:
     """Sync wrapper around run_via_provider — safe from any context.
 
     Detects whether an event loop is already running. If yes (e.g.
@@ -714,7 +481,7 @@ def run_via_provider_blocking(
         except Exception:  # noqa: BLE001 — log failure must not break the call
             pass
 
-    async def _go() -> tuple[int, str, float, str | None]:
+    async def _go() -> tuple[int, str, float | None, str | None]:
         return await run_via_provider(prompt=prompt, role=role, timeout_s=timeout_s)
 
     try:

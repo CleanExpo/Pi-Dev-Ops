@@ -15,7 +15,7 @@ import time
 from . import config
 from . import persistence
 
-_TERMINAL_STATUSES = {"complete", "failed", "killed", "interrupted"}
+_TERMINAL_STATUSES = {"complete", "failed", "killed", "interrupted", "blocked", "stalled"}
 _GC_LOOP_INTERVAL = 1800  # 30 minutes
 
 

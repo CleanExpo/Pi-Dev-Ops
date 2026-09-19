@@ -4,28 +4,7 @@
 import { useEffect, useState } from "react";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
-// All fields except `status` are optional — Railway's /health currently only
-// returns {"status":"ok"} (the minimal liveness probe). Richer state lives on
-// /api/autonomy/status, /api/sessions, etc. The panel renders `—` when fields
-// are missing rather than crashing. Future: enrich the backend /health to
-// return all of this so the panel doesn't have to fan out fetches.
-interface HealthData {
-  status: string;
-  uptime_s?: number;
-  sessions?: { active: number; total: number; max: number };
-  claude_cli?: boolean;
-  anthropic_key?: boolean;
-  linear_key?: boolean;
-  autonomy?: {
-    enabled: boolean;
-    armed: boolean;
-    poll_count: number;
-    seconds_since_last_poll: number | null;
-  };
-  disk_free_gb?: number | null;
-  swarm_enabled?: boolean;
-  swarm_shadow?: boolean;
-}
+import { automationLabel, parseOperatorHealth, swarmLabel, type OperatorHealth as HealthData } from "@/lib/operator-status";
 
 function formatUptime(s: number): string {
   if (s < 60) return `${s}s`;
@@ -35,7 +14,7 @@ function formatUptime(s: number): string {
 }
 
 function formatPollAge(s: number | null): string {
-  if (s === null) return "never";
+  if (s === null) return "unknown";
   if (s < 60) return `${s}s ago`;
   return `${Math.floor(s / 60)}m ago`;
 }
@@ -80,25 +59,32 @@ export default function CeoHealthPanel() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    let disposed = false;
+    let pending = false;
+    let controller: AbortController | null = null;
     async function fetchHealth() {
+      if (pending) return;
+      pending = true;
+      const request = new AbortController();
+      controller = request;
+      const timeout = setTimeout(() => request.abort(), 10_000);
       try {
-        // A proxy fallback now lands in the error branch instead of being
-        // rendered as a health reading — see lib/pi-ceo-fetch.ts.
-        const data = await fetchProxyJSON<HealthData>("/health");
-        if (data) {
+        const data = parseOperatorHealth(await fetchProxyJSON("/health", { cache: "no-store", signal: request.signal }));
+        if (!disposed) {
           setHealth(data);
-          setError(false);
-        } else {
-          setError(true);
+          setError(!data);
         }
       } catch {
-        setError(true);
+        if (!disposed) { setHealth(null); setError(true); }
+      } finally {
+        clearTimeout(timeout);
+        pending = false;
       }
     }
 
     void fetchHealth();
     const t = setInterval(() => { void fetchHealth(); }, 30_000);
-    return () => clearInterval(t);
+    return () => { disposed = true; controller?.abort(); clearInterval(t); };
   }, []);
 
   // ── Error / loading states ────────────────────────────────────────────────
@@ -122,14 +108,11 @@ export default function CeoHealthPanel() {
 
   // ── Derived values ────────────────────────────────────────────────────────
   const ok = health.status === "ok";
-  const swarmOn = health.swarm_enabled !== false;
-  const swarmShadow = health.swarm_shadow === true;
-  const autonomyArmed = health.autonomy?.armed ?? false;
+  const autonomy = automationLabel(health);
   const autonomyKnown = health.autonomy !== undefined;
 
-  const swarmLabel = !swarmOn ? "Off" : swarmShadow ? "Shadow" : "Active";
-  const swarmDot: "green" | "amber" | "red" =
-    !swarmOn ? "red" : swarmShadow ? "amber" : "green";
+  const swarm = swarmLabel(health);
+  const swarmDot = swarm === "Enabled" ? "green" : swarm === "Unknown" ? "dim" : "amber";
 
   return (
     <div
@@ -139,7 +122,7 @@ export default function CeoHealthPanel() {
       {/* Header row */}
       <div className="flex items-center justify-between mb-1">
         <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-dim)" }}>
-          System
+          Service
         </span>
         <span
           className="text-[9px] font-mono px-1.5 py-0.5 rounded"
@@ -148,7 +131,7 @@ export default function CeoHealthPanel() {
             color: ok ? "var(--success)" : "var(--error)",
           }}
         >
-          {ok ? "OK" : "DEGRADED"}
+          {ok ? "REACHABLE" : "DEGRADED"}
         </span>
       </div>
 
@@ -160,21 +143,21 @@ export default function CeoHealthPanel() {
       {health.sessions && (
         <StatRow
           label="Builds"
-          value={`${health.sessions.active} active / ${health.sessions.max} max`}
-          dot={health.sessions.active > 0 ? "green" : "dim"}
+          value={`${health.sessions.active ?? "?"} active / ${health.sessions.max ?? "?"} max`}
+          dot={(health.sessions.active ?? 0) > 0 ? "green" : "dim"}
         />
       )}
       <StatRow
         label="Swarm"
-        value={swarmLabel}
+        value={swarm}
         dot={swarmDot}
       />
       {autonomyKnown && (
         <>
           <StatRow
             label="Autonomy"
-            value={autonomyArmed ? "Armed" : "Disarmed"}
-            dot={autonomyArmed ? "green" : "amber"}
+            value={autonomy}
+            dot={autonomy === "Paused" ? "amber" : "dim"}
           />
           <StatRow
             label="Last poll"

@@ -2,71 +2,84 @@
 # Each case is a code-checkable expectation of select_provider_model(role).
 # Captures CURRENT behaviour as a regression baseline; when Cap 1 (RA-7010) extends
 # the router with the Fable-Free ladder, update these expectations in the same PR.
-# Ground-truthed 2026-07-08 against app/server/provider_router.py.
+# Updated for the approved subscription defaults; explicit API pins are policy-blocked.
 cases:
   # TOP tier — Anthropic Opus 5 (quality-critical reasoning)
   - role: planner
     tier: top
-    provider: anthropic
+    provider: claude_print
     model_id: claude-opus-5
   - role: orchestrator
     tier: top
-    provider: anthropic
+    provider: claude_print
     model_id: claude-opus-5
   - role: board
     tier: top
-    provider: anthropic
+    provider: claude_print
     model_id: claude-opus-5
   - role: debate.drafter
     tier: top
-    provider: anthropic
+    provider: claude_print
     model_id: claude-opus-5
   - role: margot.synthesis
     tier: top
-    provider: anthropic
+    provider: claude_print
     model_id: claude-opus-5
   - role: realtime_lookup
     tier: top
-    provider: anthropic
+    provider: claude_print
     model_id: claude-opus-5
   # MID tier — Anthropic Sonnet 5 (production-quality output)
   - role: generator
     tier: mid
-    provider: anthropic
+    provider: claude_print
     model_id: claude-sonnet-5
   - role: evaluator
     tier: mid
-    provider: anthropic
+    provider: claude_print
     model_id: claude-sonnet-5
   - role: senior_brief
     tier: mid
-    provider: anthropic
+    provider: claude_print
     model_id: claude-sonnet-5
   - role: research
     tier: mid
-    provider: anthropic
+    provider: claude_print
     model_id: claude-sonnet-5
   # MID by DEFAULT — an unmapped role must fall through to mid, never top (cost guard)
   - role: some_unmapped_role_xyz
     tier: mid
-    provider: anthropic
+    provider: claude_print
     model_id: claude-sonnet-5
-  # CHEAP tier — never Anthropic (provider varies ollama/openrouter by probe; assert not-anthropic)
+  # Margot keeps its named ladder selection; OpenRouter execution stays blocked.
   - role: margot.casual
     tier: cheap
+    provider: openrouter
+    model_id: google/gemma-4-26b-a4b-it:free
     not_anthropic: true
+  # Other cheap roles use the subscription CLI, without a local probe or paid fallback.
   - role: intent_classify
     tier: cheap
+    provider: claude_print
+    model_id: claude-haiku-4-5-20251001
     not_anthropic: true
   - role: monitor
     tier: cheap
+    provider: claude_print
+    model_id: claude-haiku-4-5-20251001
     not_anthropic: true
   - role: guardian
     tier: cheap
+    provider: claude_print
+    model_id: claude-haiku-4-5-20251001
     not_anthropic: true
   - role: scribe.draft
     tier: cheap
+    provider: claude_print
+    model_id: claude-haiku-4-5-20251001
     not_anthropic: true
   - role: sprinkle.triage
     tier: cheap
+    provider: claude_print
+    model_id: claude-haiku-4-5-20251001
     not_anthropic: true

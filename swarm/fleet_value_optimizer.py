@@ -1,26 +1,4 @@
-"""fleet_value_optimizer.py — RA-6908 / OM-4: quota-aware plan maximiser (dry-run first).
-
-Sits beside ``model_policy`` (correctness) and ``provider_router`` (cost
-minimisation). This module maximises monthly entitlement usage across the
-fleet's paid plans — use-it-or-lose-it budgets, not marginal-cost minimisation.
-
-Plans (env-overridable monthly token/request budgets):
-  * claude_max_1..3 — Anthropic Max workhorse lanes (default: spill to Max first)
-  * codex           — OpenAI Codex precision-only (never autonomous loops)
-  * minimax         — media / long-context overflow
-  * openrouter      — cheap / experimental overflow
-
-Default mode is **dry_run** (``TAO_FLEET_OPTIMIZER_MODE=dry_run``): emits
-recommendations + monthly utilisation reports without changing live routing.
-Set ``TAO_FLEET_OPTIMIZER_MODE=live`` only after ``scripts/fleet_value_dryrun.py``
-shows acceptable utilisation (founder gate per RA-6908).
-
-Public API:
-  is_dry_run() -> bool
-  monthly_utilization_report() -> dict
-  recommend_plan(role, *, task_class="default") -> ScheduleDecision
-  apply_if_live(decision, fallback) -> ProviderModel-like tuple
-"""
+"""fleet_value_optimizer.py — RA-6908 / OM-4: quota-aware plan maximiser (dry-run first)."""
 from __future__ import annotations
 
 import json
@@ -172,16 +150,15 @@ def default_entitlements() -> dict[PlanId, PlanEntitlement]:
 
 def _provider_to_plan(provider: str) -> PlanId | None:
     p = (provider or "").strip().lower()
-    if p == "claude_print":
-        return "claude_max_1"
-    if p == "openai" or p == "codex":
+    if p in {"claude_print", "anthropic"}:
+        # A transport name proves neither a subscription nor a particular seat.
+        return None
+    if p == "codex":
         return "codex"
     if p == "minimax":
         return "minimax"
     if p == "openrouter":
         return "openrouter"
-    if p == "anthropic":
-        return "claude_max_1"
     return None
 
 
@@ -196,7 +173,9 @@ def monthly_usage_counts(*, month_key: str | None = None) -> dict[PlanId, int]:
             ts = str(row.get("ts", ""))
             if not ts.startswith(month):
                 continue
-            plan = _provider_to_plan(str(row.get("provider", "")))
+            explicit_plan = row.get("plan_id")
+            plan = (explicit_plan if explicit_plan in counts and row.get("auth_verified") is True
+                    else _provider_to_plan(str(row.get("provider", ""))))
             if plan:
                 counts[plan] = counts.get(plan, 0) + 1
     except Exception as exc:  # noqa: BLE001
@@ -217,7 +196,10 @@ def monthly_utilization_report(*, month_key: str | None = None) -> dict[str, Any
             "plan_id": plan_id,
             "used_requests": used,
             "budget_requests": budget,
-            "utilization_pct": pct,
+            "utilization_pct": None,
+            "estimated_utilization_pct": pct,
+            "quota_source": "planning_assumption",
+            "usage_source": "attributed_ledger_rows_only",
             "provider": ent.provider,
             "model_id": ent.model_id,
             "description": ent.description,
@@ -265,7 +247,7 @@ def recommend_plan(role: str, *, task_class: str = "default") -> ScheduleDecisio
     ent = ents[chosen]
     util = _utilization_pct(chosen, usage, ents)
     reason = (
-        f"maximise monthly entitlement: {chosen} at {util}% util "
+        f"planning estimate, not verified quota: {chosen} at {util}% of assumed budget "
         f"(role={role}, task_class={task_class})"
     )
     if role in _CODEX_BLOCKED_ROLES and "codex" in _ROLE_PLAN_HINTS.get(role, ()):

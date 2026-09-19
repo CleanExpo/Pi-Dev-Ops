@@ -4,48 +4,21 @@ export const maxDuration = 300; // Vercel Pro: 5-minute max
 export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
-import { Octokit } from "@octokit/rest";
+import { fetchGitHubFile, sendTelegramMessage, persistRequired, buildSpecMd, buildExecSummary } from "@/lib/analyze-integrations";
 import {
   makeOctokit, parseRepoUrl, getDefaultBranch,
   createBranch, fetchRepoContext, fetchBranchDiffs, pushFile, createPR,
 } from "@/lib/github";
 import { makeClient, buildContext, runPhase, getAnalysisMode, THINK_SEEDS } from "@/lib/claude";
+import { isPhaseOutputValid } from "@/lib/phase-output";
 import { PHASES, PHASE_PROMPTS, applyPhaseResult } from "@/lib/phases";
 import { phaseModel, MODELS } from "@/lib/models";
-
-/** Fetch a single file from GitHub. Returns empty string if not found. */
-async function fetchGitHubFile(
-  octokit: Octokit,
-  owner: string,
-  repo: string,
-  ref: string,
-  path: string,
-): Promise<string> {
-  try {
-    const { data } = await octokit.repos.getContent({ owner, repo, path, ref });
-    if ("content" in data && typeof data.content === "string") {
-      return Buffer.from(data.content, "base64").toString("utf-8");
-    }
-  } catch { /* file not found or not a file */ }
-  return "";
-}
 
 import { buildLessonsSummary, sanitizeRepoUrl, sseEncode } from "@/lib/analyze-utils";
 import { getSettings } from "@/lib/supabase/settings";
 import { createServerClient } from "@/lib/supabase/server";
 import { createDeployment, getProjectId } from "@/lib/vercel-api";
 import type { TermLine, PhaseStatus, AnalysisResult } from "@/lib/types";
-
-async function sendTelegramMessage(botToken: string, chatId: string, text: string): Promise<void> {
-  try {
-    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown" }),
-    });
-  } catch { /* non-critical */ }
-}
-
 
 export async function GET(req: NextRequest) {
   // Detect trigger source (manual browser, GitHub webhook, or Vercel cron)
@@ -86,6 +59,9 @@ export async function GET(req: NextRequest) {
       const BUDGET_MS = 285_000;
       let budgetFired = false;
       const abortController = new AbortController();
+      const onRequestAbort = () => abortController.abort();
+      req.signal.addEventListener("abort", onRequestAbort, { once: true });
+      if (req.signal.aborted) abortController.abort();
       const abortTimer  = setTimeout(() => abortController.abort(), ABORT_MS);
       const budgetTimer = setTimeout(() => { budgetFired = true; }, BUDGET_MS);
 
@@ -109,7 +85,9 @@ export async function GET(req: NextRequest) {
           void supabase.from("terminal_lines").insert({
             session_id: resolvedSessionId,
             type, text, ts: termLine.ts, seq: lineSeq++,
-          });
+          }).then(({ error }) => {
+            if (error) logError("terminal-persistence", new Error("Terminal line could not be saved"));
+          }, err => logError("terminal-persistence", err));
         }
       };
 
@@ -127,21 +105,21 @@ export async function GET(req: NextRequest) {
 
         line("system", "PI CEO — CODE ANALYSIS ENGINE");
         line("system", `Repo:  ${owner}/${repo}`);
-        line("system", `Mode:  ${getAnalysisMode() === "cli" ? "Claude Max (CLI)" : "Anthropic API"}`);
+        line("system", `Mode:  ${getAnalysisMode() === "cli" ? "Subscription CLI (login checked before execution)" : "API (blocked by subscription-only policy)"}`);
         line("system", `Time:  ${new Date().toISOString()}`);
         line("system", `Trigger: ${trigger.toUpperCase()}`);
         line("system", "");
 
         // ── Persist session start ─────────────────────────────────
         if (supabase) {
-          await supabase.from("sessions").insert({
+          await persistRequired(supabase.from("sessions").insert({
             id: resolvedSessionId, repo_url: repoUrl, repo_name: repo,
             status: "running", trigger,
-          })
+          }), "analysis session");
 
-          await supabase.from("phase_states").insert(
+          await persistRequired(supabase.from("phase_states").insert(
             PHASES.map((p) => ({ session_id: resolvedSessionId, phase_id: p.id, status: "pending" }))
-          )
+          ), "analysis phase records");
         }
 
         // ── Branch ───────────────────────────────────────────────
@@ -152,11 +130,6 @@ export async function GET(req: NextRequest) {
         const branchName = linearTicket
           ? `pidev/analysis-${linearTicket.replace(/[^a-zA-Z0-9]/g, "")}-${_date}-${_time}`
           : `pidev/analysis-${_date}-${_time}`;
-        line("system", `Creating branch: ${branchName}`);
-        await createBranch(octokit, owner, repo, branchName, defaultBranch);
-        send("branch", { branch: branchName });
-        line("success", `Branch ready: ${branchName}`);
-        line("system", "");
 
         // ── Repo context ─────────────────────────────────────────
         line("phase", "FETCHING REPO CONTEXT...");
@@ -194,15 +167,6 @@ export async function GET(req: NextRequest) {
         if (leverageAudit)  line("system", `  Injecting leverage-audit.md into ZTE phase (${Math.round(leverageAudit.length / 1000)}KB evidence)`);
         if (claudeMd)       line("system", `  Injecting CLAUDE.md into architecture + ZTE phases`);
 
-        /** Validates that intelligence-heavy phase output contains required JSON fields. */
-        function isPhaseOutputValid(phaseId: number, output: string): boolean {
-          if (![3, 5, 6].includes(phaseId)) return true;
-          if (phaseId === 3) return output.includes('"completeness"') && output.includes('"correctness"');
-          if (phaseId === 5) return output.includes('"leveragePoints"') && output.includes('"zteScore"');
-          if (phaseId === 6) return output.includes('"sprints"');
-          return true;
-        }
-
         /** Returns context enriched with lessons + skill guides + harness evidence for a given phase. */
         const enrichedContext = (phaseId: number): string => {
           const parts: string[] = [context];
@@ -226,17 +190,18 @@ export async function GET(req: NextRequest) {
 
         // ── Run 7 analysis phases ────────────────────────────────
         let result: Partial<AnalysisResult> = { repoUrl, repoName: repo, branch: branchName };
+        const outputs: { fileName: string; output: string; message: string }[] = [];
 
         for (const phase of PHASES.slice(0, 7)) {
           // Check budget / abort before starting each phase
           if (budgetFired || abortController.signal.aborted) {
             line("system", `⚠ Analysis budget reached — skipping phase ${phase.id}+`);
-            break;
+            throw new Error("Analysis budget reached before all required phases completed");
           }
           send("phase_update", { phaseId: phase.id, status: "running" satisfies PhaseStatus });
           if (supabase) {
-            supabase.from("phase_states").update({ status: "running", started_at: new Date() })
-              .eq("session_id", resolvedSessionId).eq("phase_id", phase.id);
+            await persistRequired(supabase.from("phase_states").update({ status: "running", started_at: new Date() })
+              .eq("session_id", resolvedSessionId).eq("phase_id", phase.id), "phase start");
           }
           line("phase", `[${phase.id}/8] ${phase.name}`);
           line("system", `  Skill: ${phase.skill}`);
@@ -257,18 +222,18 @@ export async function GET(req: NextRequest) {
             if (isAbort) {
               line("system", `⚠ Phase ${phase.id} cut short — budget limit reached, saving partial results`);
               send("phase_update", { phaseId: phase.id, status: "error" satisfies PhaseStatus });
-              break; // exit loop, fall through to send done with partial results
+              throw new Error(`Required phase ${phase.id} aborted before completion`);
             }
             line("error", `  Phase ${phase.id} failed: ${err instanceof Error ? err.message : "unknown"}`);
             send("phase_update", { phaseId: phase.id, status: "error" satisfies PhaseStatus });
             if (supabase) {
-              supabase.from("phase_states").update({ status: "error", done_at: new Date() })
-                .eq("session_id", resolvedSessionId).eq("phase_id", phase.id);
+              await persistRequired(supabase.from("phase_states").update({ status: "error", done_at: new Date() })
+                .eq("session_id", resolvedSessionId).eq("phase_id", phase.id), "phase failure");
             }
-            continue;
+            throw new Error(`Required phase ${phase.id} failed: ${err instanceof Error ? err.message : "unknown"}`);
           }
 
-          // RA-741: Auto-retry once if intelligence-heavy phase output is missing required fields
+          // RA-741: Auto-retry once if any required phase output violates its JSON contract
           if (!isPhaseOutputValid(phase.id, phaseOutput)) {
             line("system", `  ⚠ Phase ${phase.id} output invalid — retrying with guidance`);
             const retryPrompt = `PREVIOUS ATTEMPT RETURNED INVALID OUTPUT — missing required JSON fields.\nFollow the output schema exactly. Return ONLY valid JSON.\n\n${PHASE_PROMPTS[phase.id]}`;
@@ -276,23 +241,35 @@ export async function GET(req: NextRequest) {
               phaseOutput = await runPhase(claude, selectedModel, retryPrompt, enrichedContext(phase.id), (chunk) => {
                 chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
               }, abortController.signal, phaseMaxTokens, THINK_SEEDS[phase.id]);
-            } catch { /* retry failed — use original output */ }
+            } catch (err) {
+              throw new Error(`Required phase ${phase.id} retry failed: ${err instanceof Error ? err.message : "unknown"}`);
+            }
+            if (!isPhaseOutputValid(phase.id, phaseOutput)) {
+              throw new Error(`Required phase ${phase.id} returned invalid output after retry`);
+            }
           }
 
           result = applyPhaseResult(result, phase.id, phaseOutput);
           send("result_update", { field: "partial", value: result });
           send("phase_update", { phaseId: phase.id, status: "done" satisfies PhaseStatus });
           if (supabase) {
-            supabase.from("phase_states").update({ status: "done", done_at: new Date() })
-              .eq("session_id", resolvedSessionId).eq("phase_id", phase.id);
+            await persistRequired(supabase.from("phase_states").update({ status: "done", done_at: new Date() })
+              .eq("session_id", resolvedSessionId).eq("phase_id", phase.id), "phase completion");
           }
           line("success", `  Phase ${phase.id} complete`);
           line("system", "");
 
           // Push phase output to GitHub branch
           const fileName = `.harness/phase${phase.id}-${phase.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
-          await pushFile(octokit, owner, repo, branchName, fileName, phaseOutput,
-            `audit: phase ${phase.id} — ${phase.name}`)
+          outputs.push({ fileName, output: phaseOutput, message: `audit: phase ${phase.id} — ${phase.name}` });
+        }
+
+        if (budgetFired || abortController.signal.aborted) throw new Error("Analysis aborted before publication");
+        await createBranch(octokit, owner, repo, branchName, defaultBranch);
+        send("branch", { branch: branchName });
+        for (const output of outputs) {
+          if (abortController.signal.aborted) throw new Error("Analysis aborted during publication");
+          await pushFile(octokit, owner, repo, branchName, output.fileName, output.output, output.message);
         }
 
         // ── Phase 8: Commit harness + create PR ──────────────────
@@ -308,21 +285,23 @@ export async function GET(req: NextRequest) {
           }))), null, 2
         );
 
-        await Promise.allSettled([
+        await Promise.all([
           pushFile(octokit, owner, repo, branchName, ".harness/spec.md", specMd, "audit: spec.md"),
           pushFile(octokit, owner, repo, branchName, ".harness/executive-summary.md", execSummaryMd, "audit: executive-summary.md"),
           pushFile(octokit, owner, repo, branchName, ".harness/feature_list.json", featureListJson, "audit: feature_list.json"),
         ]);
         line("success", "  Harness files committed");
 
+        if (abortController.signal.aborted) throw new Error("Analysis aborted before pull request creation");
         const prUrl = await createPR(
           octokit, owner, repo, branchName, defaultBranch,
           `audit: Pi CEO full analysis — ${repo}`,
           `## Pi CEO Analysis\n\nBranch: \`${branchName}\`\n\nAll 8 analysis phases complete.`
-        ).catch(() => null);
+        );
+        if (!prUrl) throw new Error("Pull request publication returned no receipt");
 
         send("phase_update", { phaseId: 8, status: "done" satisfies PhaseStatus });
-        line("success", `  PR: ${prUrl ?? "(create manually)"}`);
+        line("success", `  PR: ${prUrl}`);
 
         // RA-743: Post completion comment to Linear ticket (fire-and-forget)
         const linearCommentKey = process.env.LINEAR_API_KEY ?? "";
@@ -493,15 +472,16 @@ export async function GET(req: NextRequest) {
         }
 
         line("system", "");
-        line("phase", "=== ANALYSIS COMPLETE ===");
+        if (abortController.signal.aborted) throw new Error("Analysis aborted before completion was recorded");
 
         // ── Persist session result ────────────────────────────────
         if (supabase) {
-          supabase.from("sessions").update({
+          await persistRequired(supabase.from("sessions").update({
             status: "done", branch: branchName, pr_url: prUrl,
             completed_at: new Date(), result,
-          }).eq("id", resolvedSessionId);
+          }).eq("id", resolvedSessionId), "analysis completion receipt");
         }
+        line("phase", "=== ANALYSIS COMPLETE ===");
 
         // ── Telegram notification (optional) ─────────────────────
         if (settings.telegramBotToken && settings.telegramChatId) {
@@ -526,8 +506,10 @@ export async function GET(req: NextRequest) {
         send("line", { type: "error", text: `✗ ${msg}`, ts: Date.now() / 1000 });
         send("error", { message: msg });
         if (supabase) {
-          supabase.from("sessions").update({ status: "error", completed_at: new Date() })
-            .eq("id", resolvedSessionId);
+          try {
+            await persistRequired(supabase.from("sessions").update({ status: "error", completed_at: new Date() })
+              .eq("id", resolvedSessionId), "analysis failure receipt");
+          } catch (persistenceError) { logError("failure-persistence", persistenceError); }
         }
         // Telegram error notification
         if (settings?.telegramBotToken && settings?.telegramChatId) {
@@ -537,6 +519,7 @@ export async function GET(req: NextRequest) {
           );
         }
       } finally {
+        req.signal.removeEventListener("abort", onRequestAbort);
         clearTimeout(abortTimer);
         clearTimeout(budgetTimer);
         clearInterval(keepalive);
@@ -558,12 +541,4 @@ export async function GET(req: NextRequest) {
       Connection: "keep-alive",
     },
   });
-}
-
-function buildSpecMd(r: Partial<AnalysisResult>, repo: string, branch: string): string {
-  return `# Pi CEO Analysis — ${repo}\n\nBranch: \`${branch}\`\nDate: ${new Date().toISOString().slice(0, 10)}\n\n## Tech Stack\n${(r.techStack ?? []).join(", ")}\n\n## Quality Scores\n| Dimension | Score |\n|-----------|-------|\n| Completeness | ${r.quality?.completeness ?? "?"}/10 |\n| Correctness | ${r.quality?.correctness ?? "?"}/10 |\n| Code Quality | ${r.quality?.codeQuality ?? "?"}/10 |\n| Documentation | ${r.quality?.documentation ?? "?"}/10 |\n\n## ZTE Maturity\nLevel ${r.zteLevel ?? "?"} — Score: ${r.zteScore ?? "?"}/60\n\n## Sprint Plan\n${(r.sprints ?? []).map((s) => `### Sprint ${s.id}: ${s.name} (${s.duration})\n${s.items.map((i) => `- [${i.size}] ${i.title}`).join("\n")}`).join("\n\n")}\n`;
-}
-
-function buildExecSummary(r: Partial<AnalysisResult>): string {
-  return `# Executive Summary\n\n${r.executiveSummary ?? ""}\n\n## Strengths\n${(r.strengths ?? []).map((s) => `- ${s}`).join("\n")}\n\n## Weaknesses\n${(r.weaknesses ?? []).map((s) => `- ${s}`).join("\n")}\n\n## Next Actions\n${(r.nextActions ?? []).map((a, i) => `${i + 1}. ${a}`).join("\n")}\n`;
 }

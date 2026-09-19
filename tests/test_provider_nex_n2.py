@@ -1,15 +1,4 @@
-"""tests/test_provider_nex_n2.py — nex-agi/nex-n2-pro:free secondary model tests.
-
-Covers:
-  1. Model is registered and policy-allowed for research/suggestion roles.
-  2. reasoning parameter is sent for nex-n2-pro calls.
-  3. reasoning_details are captured and preserved across a simulated 2-turn
-     multi-turn continuation.
-  4. NEX_N2_RESEARCH_ENABLED=false → model not used (no HTTP call made).
-  5. 429 rate-limit → graceful fallback (no exception, empty reasoning_details).
-
-All tests use mock httpx — no real OpenRouter calls.
-"""
+"""tests/test_provider_nex_n2.py — nex-agi/nex-n2-pro:free secondary model tests."""
 from __future__ import annotations
 
 import asyncio
@@ -19,6 +8,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def isolate_transport_parsing_from_policy(monkeypatch):
+    """These mock-only tests cover parsing/failover; policy has its own denied-path suite."""
+    from app.server import provider_policy
+    monkeypatch.setattr(provider_policy, "require_transport", lambda *args, **kwargs: {})
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
@@ -211,7 +207,7 @@ def test_reasoning_details_round_trip_multi_turn(monkeypatch: pytest.MonkeyPatch
         content="The primary moat is switching cost.",
         reasoning=turn1_reasoning,
     )
-    client1 = _install_fake_httpx(monkeypatch, _FakeResponse(status_code=200, body=turn1_response))
+    _install_fake_httpx(monkeypatch, _FakeResponse(status_code=200, body=turn1_response))
 
     rc1, text1, _, err1, rd1 = asyncio.run(
         N2.call(prompt="What is the competitive moat?", role="research")

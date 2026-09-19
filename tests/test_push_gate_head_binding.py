@@ -17,17 +17,20 @@ an order.
 from __future__ import annotations
 
 import subprocess
-import types
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
 from app.server import board_review, session_phases
+from app.server.session_model import BuildSession
+
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def _git(repo: Path, *args: str) -> str:
     return subprocess.run(
-        ["git", "-C", str(repo), *args], capture_output=True, text=True, check=True,
+        ["git", "-C", str(repo), *args], capture_output=True, text=True, check=True, creationflags=_NO_WINDOW,
     ).stdout.strip()
 
 
@@ -56,7 +59,7 @@ def _run_cmd_over(repo: Path):
             return 0, "", ""
         if args[:2] == ("git", "checkout"):
             return 0, "", ""
-        proc = subprocess.run(list(args), cwd=str(cwd), capture_output=True, text=True)
+        proc = subprocess.run(list(args), cwd=str(cwd), capture_output=True, text=True, creationflags=_NO_WINDOW)
         return proc.returncode, proc.stdout, proc.stderr
 
     return run
@@ -67,6 +70,9 @@ def _install(monkeypatch, repo: Path, messages: list[str], verdict_text: str = "
     monkeypatch.setattr(session_phases, "em",
                         lambda s, kind, msg="": messages.append(f"{kind}:{msg}"))
     monkeypatch.setattr(session_phases, "_emit_phase_metric", lambda *a, **k: None)
+    monkeypatch.setattr(session_phases.persistence, "save_session", lambda _session: None)
+    monkeypatch.setattr(session_phases.session_delivery, "record_adversary", lambda *args: None)
+    monkeypatch.setattr(session_phases.session_push_pr, "open_pull_request", AsyncMock())
     # A dummy credential so the shared helper does not fail-closed before the
     # board-review gate. git push is stubbed; the value never leaves this test.
     monkeypatch.setenv("GITHUB_TOKEN", "ghs_test_token_for_push_gate")
@@ -78,7 +84,20 @@ def _install(monkeypatch, repo: Path, messages: list[str], verdict_text: str = "
 
 
 def _session(repo: Path):
-    return types.SimpleNamespace(id="0f1e2d3c4b5a6978", workspace=str(repo))
+    return BuildSession(id="0f1e2d3c4b5a6978", workspace=str(repo), base_sha=_git(repo, "rev-parse", "HEAD"))
+
+
+async def _prepare_reviewed_candidate(session):
+    assert await session_phases._prepare_candidate(session)
+    session.verified_sha = session.candidate_sha
+    session.verification = {"status": "passed", "candidate_sha": session.candidate_sha}
+    session.evaluator_status = "passed"
+    session.audit_evidence = [
+        {"actual_model": model, "provider": provider, "model_verified": True,
+         "auth_verified": True, "source": "transport_response", "rc": 0,
+         "candidate_sha": session.candidate_sha}
+        for model, provider in (("model-a", "claude_print"), ("model-b", "ollama"))
+    ]
 
 
 # ── The P0 itself: a session that produced work must reach the push ───────────
@@ -90,8 +109,10 @@ async def test_session_that_produced_work_is_allowed_to_push(monkeypatch, repo: 
     messages: list[str] = []
     _install(monkeypatch, repo, messages)
     session = _session(repo)
+    await _prepare_reviewed_candidate(session)
 
     ok, verdict = await session_phases._phase_adversary(session, 6)
+    session.adversary_verdict = verdict
     assert ok is True, "APPROVE must not halt the push"
     # A brand-new file is the whole of this build. `git diff HEAD` never showed
     # untracked files, so this used to skip as SKIP_NO_DIFF — reviewed by nobody.
@@ -117,8 +138,10 @@ async def test_refuses_when_code_changes_after_the_review(monkeypatch, repo: Pat
     messages: list[str] = []
     _install(monkeypatch, repo, messages)
     session = _session(repo)
+    await _prepare_reviewed_candidate(session)
 
-    ok, _ = await session_phases._phase_adversary(session, 6)
+    ok, verdict = await session_phases._phase_adversary(session, 6)
+    session.adversary_verdict = verdict
     assert ok is True
 
     # Someone slips one more small fix in after the reviewer has signed off.
@@ -128,7 +151,8 @@ async def test_refuses_when_code_changes_after_the_review(monkeypatch, repo: Pat
     _, push_ok = await session_phases._phase_push(session, 6)
 
     assert push_ok is False
-    assert any("PUSH REFUSED" in m for m in messages), messages
+    assert any("Candidate changed after verification" in m for m in messages), messages
+    assert board_review.check(repo, _git(repo, "rev-parse", "HEAD")).allowed is False
 
 
 # ── A BLOCK verdict still leaves no receipt, so the push has nothing to match ─
@@ -140,7 +164,9 @@ async def test_block_verdict_leaves_no_receipt(monkeypatch, repo: Path):
     messages: list[str] = []
     _install(monkeypatch, repo, messages, verdict_text="BLOCK")
     session = _session(repo)
+    await _prepare_reviewed_candidate(session)
 
-    ok, _ = await session_phases._phase_adversary(session, 6)
+    ok, verdict = await session_phases._phase_adversary(session, 6)
+    session.adversary_verdict = verdict
     assert ok is False
     assert board_review.receipt_path(repo).exists() is False

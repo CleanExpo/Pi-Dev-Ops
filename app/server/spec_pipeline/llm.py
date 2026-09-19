@@ -1,4 +1,4 @@
-"""Thin LLM helpers for spec pipeline (OpenRouter + optional SDK)."""
+"""Spec completions through the shared subscription policy and identity checks."""
 from __future__ import annotations
 
 import json
@@ -6,8 +6,7 @@ import logging
 import re
 from typing import Any
 
-from app.server import provider_openrouter
-from app.server.model_registry import OPENROUTER_SONNET
+from app.server import provider_router
 
 log = logging.getLogger("pi-ceo.spec_pipeline.llm")
 
@@ -66,22 +65,50 @@ def try_parse_json_object(text: str) -> dict[str, Any] | None:
     return obj if isinstance(obj, dict) else None
 
 
-async def complete(
+async def complete_with_evidence(
     *,
     prompt: str,
     system: str = "",
-    model_id: str = OPENROUTER_SONNET,
+    model_id: str | None = None,
     max_tokens: int = 4096,
     role: str = "spec_pipeline",
-) -> tuple[str, float]:
-    """OpenRouter completion; returns (text, cost_usd)."""
+    provider: str | None = None,
+) -> provider_router.ProviderExecution:
+    """Use configured roles; only observed identities can inform a build decision.
+
+    CLI transports do not expose a hard output-token limit. ``max_tokens`` is
+    retained as a prompt budget, not claimed as an enforced billing limit.
+    """
+    if provider is not None and provider not in {"claude_print", "codex", "ollama"}:
+        raise RuntimeError("subscription_only: explicit spec provider is unsupported")
+    if provider is not None or model_id is not None:
+        selected = provider_router.select_provider_model(role)
+        if provider is not None and selected.provider != provider:
+            raise RuntimeError("spec pipeline provider mismatch: configured route differs")
+        if model_id is not None and model_id.removeprefix("anthropic/") != selected.model_id:
+            raise RuntimeError("spec pipeline model mismatch: configured route differs")
     full = f"{system}\n\n{prompt}" if system else prompt
-    rc, text, cost, err = await provider_openrouter.call(
-        prompt=full,
-        model_id=model_id,
-        max_tokens=max_tokens,
-        role=role,
+    full += f"\n\nKeep the response within approximately {max_tokens} tokens."
+    outcome = await provider_router.run_via_provider_with_evidence(prompt=full, role=role)
+    if outcome.rc != 0 or not outcome.text.strip():
+        raise RuntimeError(outcome.error or "llm call failed")
+    evidence = outcome.provenance
+    actual = evidence.get("actual_model")
+    if (evidence.get("auth_verified") is not True or evidence.get("model_verified") is not True
+            or not isinstance(actual, str) or not actual.strip()
+            or not evidence.get("provider") or not evidence.get("source")):
+        raise RuntimeError("spec pipeline model identity or authorization unverified")
+    if model_id is not None and model_id.removeprefix("anthropic/") != actual:
+        raise RuntimeError("spec pipeline model mismatch: requested identity was not served")
+    return outcome
+
+
+async def complete(
+    *, prompt: str, system: str = "", model_id: str | None = None,
+    max_tokens: int = 4096, role: str = "spec_pipeline",
+) -> tuple[str, float | None]:
+    """Compatible text/cost interface; unobserved subscription cost remains None."""
+    outcome = await complete_with_evidence(
+        prompt=prompt, system=system, model_id=model_id, max_tokens=max_tokens, role=role,
     )
-    if rc != 0 or not text:
-        raise RuntimeError(err or "llm call failed")
-    return text, cost
+    return outcome.text, outcome.cost_usd

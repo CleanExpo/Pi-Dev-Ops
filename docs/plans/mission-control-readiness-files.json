@@ -1,0 +1,724 @@
+{
+  "source_head": "d0bd87ba16092ca30a7a162a7f18cec0769e62b3",
+  "integration_base": "2ca2681719b4e475e33f6a09e67c6d0ab1bf1144",
+  "source": "D:\\Pi-Dev-Ops",
+  "target": "D:\\pi-wt-readiness-integrated",
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": ".github/workflows/smoke_test_e2e.yml",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "Dockerfile",
+      "status": "integrated",
+      "evidence": "Original runtime/lock changes reconciled with Main Node24/OmniRoute/runtime guard; extra bubblewrap/socat activation packages remain a separate explicit-approval prerequisite."
+    },
+    {
+      "path": "app/server/agents/anthropic_intel_refresh.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "app/server/agents/board_meeting.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/agents/pi_seo_monitor.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/agents/plan_discovery.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/autonomy.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "app/server/gc.py",
+      "status": "integrated",
+      "evidence": "Blocked/stalled terminal lifecycle eligible for collection; Main TTL logic retained. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/machine_ship_readiness.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/model_registry.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "app/server/orchestrator.py",
+      "status": "integrated",
+      "evidence": "Immediate parent launch receipts, dependency-wave outcome checks and parent/child cancellation; Main git_auth_env preserved through injected callback. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/persistence.py",
+      "status": "integrated",
+      "evidence": "Atomic storage keeps immutable candidate, executable verification and independent audit/adversary evidence; data serialization extracted. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/pipeline.py",
+      "status": "integrated",
+      "evidence": "Serialized per-pipeline test/review/ship, complete pushed session identity, no missing-test success or repeated outward effects; extracted receipts/Linear adapter. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/provider_nex_n2.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/provider_ollama.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/provider_openrouter.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/provider_router.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/provider_whisper.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/research_sonar.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/routes/delegate.py",
+      "status": "integrated",
+      "evidence": "Paid direct adapter denied by shared transport policy; existing request interface retained. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/routes/health.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "app/server/routes/pipeline.py",
+      "status": "integrated",
+      "evidence": "Blocking serialized shipping offloaded via asyncio.to_thread. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/routes/sessions.py",
+      "status": "integrated",
+      "evidence": "Shared terminal state set for duplicate detection and SSE completion; fast parent launch receipt retained. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/routes/telegram_proxy.py",
+      "status": "integrated",
+      "evidence": "Blocking pipeline shipping offloaded via asyncio.to_thread. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/session_evaluator.py",
+      "status": "integrated",
+      "evidence": "Two observed independent reviewer identities and confidence required; no fabricated score or hidden zero cost. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/session_model.py",
+      "status": "integrated",
+      "evidence": "Release evidence added to dataclass, API and disk restore; Main recovery helper and terminal model retained. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/session_phases.py",
+      "status": "integrated",
+      "evidence": "Immutable candidate preparation, executable verification and review gates, exact-SHA push, unknown generation cost and process-tree cleanup. Main git_auth, session_push_pr, finish_after_push and planner_admission retained. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/session_sdk.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "app/server/sessions.py",
+      "status": "integrated",
+      "evidence": "Own background build tasks and cancel/await workers without requiring a legacy process object; capacity recognizes terminal sessions. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/spec_pipeline/__init__.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "app/server/spec_pipeline/boardroom.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/spec_pipeline/llm.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/spec_pipeline/ship_gate.py",
+      "status": "integrated",
+      "evidence": "Required check identity/app/pagination/latest-run success and SHA binding;108passed1skip;independent review PASS"
+    },
+    {
+      "path": "app/server/supabase_log.py",
+      "status": "superseded_by_main_helper",
+      "evidence": "Superseded by Main helper seam: file intentionally unchanged. session_lease.checkpoint_payload now carries release evidence; session_recovery restores it and clears stale cross-host proof while preserving resume_target rewind and host/lease metadata. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/tao_boomerang.py",
+      "status": "integrated",
+      "evidence": "Unknown cost preserved instead of fabricated zero. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/tao_loop.py",
+      "status": "integrated",
+      "evidence": "Unknown usage cost stops monetary-budget loop before judge; Main planner/coverage behavior retained. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "app/server/tool_gate.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "app/server/workspace_verify.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "conftest.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "dashboard/__tests__/api-auth-classification.json",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/app/(main)/builds/page.tsx",
+      "status": "integrated",
+      "evidence": "Three-way integrated current Main proxy reads/BuildsEmpty/navigation with terminal SSE cleanup and nullable cost evidence; extracted BuildPhaseMetrics. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/app/(main)/overview/page.tsx",
+      "status": "integrated",
+      "evidence": "Integrated observation/readiness behavior into current Main layout using useOperatorObservations, OperatorReadiness and extracted existing OverviewSessionRows. Preserved Goal/Build navigation and proxy-header rejection; not replaced wholesale. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/app/api/actions/route.ts",
+      "status": "integrated",
+      "evidence": "Authorized narrow transport consolidation into subscription-verified runPhase; existing action request validation and GitHub branches preserved. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/app/api/analyze/route.ts",
+      "status": "integrated",
+      "evidence": "Required phase/schema/publication/PR/persistence failure gates ported; awaited lazy receipt queries; extracted analyze-integrations without weakening behavior. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/app/api/capabilities/route.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/app/api/swarm-status/route.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/app/api/telegram/route.ts",
+      "status": "integrated",
+      "evidence": "Metered transport denied under subscription policy; existing webhook authorization untouched; extracted unchanged conversation history to meet size ratchet. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/app/api/zte/route.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/components/CeoHealthPanel.tsx",
+      "status": "integrated",
+      "evidence": "Retained Main proxy fallback rejection; added bounded refresh and validated observations without inferred readiness. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/components/brain/BrainStatusPanel.tsx",
+      "status": "integrated",
+      "evidence": "Three-way integrated historical labels and bounded probe while retaining Main CopyBlock/proxy helper; extracted LiveObsidianStatus. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/components/control/AgentRolesPanel.tsx",
+      "status": "integrated",
+      "evidence": "Three-way merged nullable reported cost handling; preserved Main proxy reads. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/components/control/BuildForm.tsx",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/components/control/HealthGrid.tsx",
+      "status": "integrated",
+      "evidence": "Three-way merged authoritative terminal status evidence; retained current Main project/control behavior and proxy reads. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/components/control/ModelBadge.tsx",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/components/control/SwarmPanel.tsx",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/hooks/useSSE.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/lib/brain-status.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/lib/claude.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "mesh/heartbeat.py",
+      "status": "already_delivered",
+      "evidence": "PR783 merged7849f434; helper extraction preserved upstream behavior"
+    },
+    {
+      "path": "scripts/consolidate_anthropic_docs.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "scripts/markdown_bloat_audit.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "scripts/plaud_ingest.py",
+      "status": "already_delivered",
+      "evidence": "PR783 merged7849f434; helper extraction preserved upstream behavior"
+    },
+    {
+      "path": "scripts/smoke_test.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "scripts/smoke_test_e2e.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "swarm/__tests__/test_pii_classify.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "swarm/fleet_value_optimizer.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "swarm/inbox/__tests__/test_preamble_trainer.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "swarm/inbox/preamble_trainer.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "swarm/model_router.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "swarm/pii_classify.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/swarm/test_model_router.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_adversary_phase.py",
+      "status": "integrated",
+      "evidence": "Regression coverage retained and ported to Main interfaces; see verification scope for exact executed files. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "tests/test_anthropic_intel_refresh.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "tests/test_boardroom.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_create_session_concurrency.py",
+      "status": "integrated",
+      "evidence": "Regression coverage retained and ported to Main interfaces; see verification scope for exact executed files. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "tests/test_docs_stale_watchdog_ra7027.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "tests/test_fable_adversary_canary.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "tests/test_health.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "tests/test_machine_ship_readiness.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_model_policy_evaluator.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_plaud_ingest.py",
+      "status": "already_delivered",
+      "evidence": "PR783 merged7849f434; helper extraction preserved upstream behavior"
+    },
+    {
+      "path": "tests/test_provider_nex_n2.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_provider_openrouter.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_provider_router.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_sdk_phase2.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "tests/test_sdk_phase3.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "tests/test_session_sdk_tool_gate.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "tests/test_tao_boomerang.py",
+      "status": "integrated",
+      "evidence": "Regression coverage retained and ported to Main interfaces; see verification scope for exact executed files. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "tests/test_tao_loop.py",
+      "status": "integrated",
+      "evidence": "Regression coverage retained and ported to Main interfaces; see verification scope for exact executed files. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "tests/test_tool_gate.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "tests/test_verify_autonomous_mode.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_workspace_verify.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": ".Codex/PROGRESS.md",
+      "status": "integrated",
+      "evidence": "Updated active Main integration checkpoint; old shelf evidence explicitly historical; next five deferred",
+      "target_path": ".codex/PROGRESS.md"
+    },
+    {
+      "path": "app/requirements-lock.md",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "app/requirements.lock",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "app/server/git_safety.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "app/server/provider_policy.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "app/server/verification_sandbox.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "dashboard/__tests__/analysis-delivery-gate.test.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/analysis-stream-lifecycle.test.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/build-launch.test.tsx",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/build-log-lifecycle.test.tsx",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/capabilities-contract.test.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/control-observation.test.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/control-telemetry-refresh.test.tsx",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/fix-session-live.test.tsx",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/model-policy.test.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/operator-readiness.test.tsx",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/phase-cost-evidence.test.tsx",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/__tests__/revision.test.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/app/api/revision/route.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/hooks/useBuildSession.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/lib/model-policy.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "dashboard/lib/operator-status.ts",
+      "status": "integrated",
+      "evidence": "Ported original approved shelf change/regression onto unchanged Main base; included in final dashboard verification. Final seven-phase schema correction:503tests,build,types,lint passed;independent review PASS."
+    },
+    {
+      "path": "docs/plans/mission-control-jev-next-five.md",
+      "status": "integrated",
+      "evidence": "Updated active Main integration checkpoint; old shelf evidence explicitly historical; next five deferred"
+    },
+    {
+      "path": "docs/plans/mission-control-readiness-continuation.md",
+      "status": "integrated",
+      "evidence": "Updated active Main integration checkpoint; old shelf evidence explicitly historical; next five deferred"
+    },
+    {
+      "path": "docs/plans/mission-control-readiness-verification.md",
+      "status": "integrated",
+      "evidence": "Updated active Main integration checkpoint; old shelf evidence explicitly historical; next five deferred"
+    },
+    {
+      "path": "docs/plans/mission-control-readiness.md",
+      "status": "integrated",
+      "evidence": "Updated active Main integration checkpoint; old shelf evidence explicitly historical; next five deferred"
+    },
+    {
+      "path": "scripts/deployment_revision.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "tests/test_autonomy_evidence_metrics.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "tests/test_config_test_isolation.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "tests/test_delivery_gate.py",
+      "status": "integrated",
+      "evidence": "Regression coverage retained and ported to Main interfaces; see verification scope for exact executed files. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "tests/test_deployment_revision.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "tests/test_generation_cost_evidence.py",
+      "status": "integrated",
+      "evidence": "Regression coverage retained and ported to Main interfaces; see verification scope for exact executed files. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "tests/test_generation_health_contract.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "tests/test_health_cli_poll.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "tests/test_mesh_heartbeat_subprocess.py",
+      "status": "already_delivered",
+      "evidence": "PR783 merged7849f434; helper extraction preserved upstream behavior"
+    },
+    {
+      "path": "tests/test_model_documentation_readiness.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "tests/test_parallel_launch_lifecycle.py",
+      "status": "integrated",
+      "evidence": "Regression coverage retained and ported to Main interfaces; see verification scope for exact executed files. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "tests/test_pipeline_delivery.py",
+      "status": "integrated",
+      "evidence": "Regression coverage retained and ported to Main interfaces; see verification scope for exact executed files. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "tests/test_privileged_git.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "tests/test_release_evidence_persistence.py",
+      "status": "integrated",
+      "evidence": "Regression coverage retained and ported to Main interfaces; see verification scope for exact executed files. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "tests/test_remaining_transport_boundaries.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_runtime_lock.py",
+      "status": "integrated",
+      "evidence": "Docs/runtime lane:73 tests;97 Linux wheels SHA256 validated; Main runtime/CI preserved"
+    },
+    {
+      "path": "tests/test_sdk_execution_evidence.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "tests/test_sdk_subscription_transport.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    },
+    {
+      "path": "tests/test_session_process_lifecycle.py",
+      "status": "integrated",
+      "evidence": "Regression coverage retained and ported to Main interfaces; see verification scope for exact executed files. 287focused tests plus75related/35compatibility/5new lifecycle regressions; independent closing review PASS."
+    },
+    {
+      "path": "tests/test_spec_pipeline_delivery.py",
+      "status": "integrated",
+      "evidence": "Parent integration64tests passed; liveness200 and Main package interfaces preserved; immutable candidate delivery verified"
+    },
+    {
+      "path": "tests/test_spec_pipeline_llm.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_subscription_defaults.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_subscription_policy.py",
+      "status": "integrated",
+      "evidence": "Behavior ported with Main interfaces preserved; focused 362 tests, Ruff, compile and unchanged size baselines pass."
+    },
+    {
+      "path": "tests/test_verification_sandbox.py",
+      "status": "integrated",
+      "evidence": "SDK/execution integration336passed7Linux-only skipped; actual WSL isolation and cancellation probes passed"
+    }
+  ]
+}

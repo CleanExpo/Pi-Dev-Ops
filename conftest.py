@@ -1,10 +1,12 @@
 """Repository-wide pytest safety boundaries."""
 
 import atexit
+import io
 import os
 import shutil
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -13,6 +15,35 @@ _KANBAN_TEST_ROOT = Path(
     tempfile.mkdtemp(prefix="pi-dev-ops-pytest-kanban-")
 ).resolve()
 _KANBAN_TEST_DATABASE = (_KANBAN_TEST_ROOT / "kanban.db").resolve()
+_APP_DATA = (Path(__file__).parent / "app" / "data").resolve()
+_LIVE_ENV_FILES = {
+    (Path(__file__).parent / name).resolve()
+    for name in (".env", ".env.local", "app/.env.local")
+}
+_CREDENTIAL_FILES = {
+    _APP_DATA / ".password-hash": _KANBAN_TEST_ROOT / "password-hash",
+    _APP_DATA / ".session-secret": _KANBAN_TEST_ROOT / "session-secret",
+}
+_PATH_OPEN = Path.open
+
+
+def _isolated_credential_open(path, *args, **kwargs):
+    """Config imports cannot read live env files or overwrite login credentials."""
+    if path.resolve() in _LIVE_ENV_FILES:
+        mode = args[0] if args else kwargs.get("mode", "r")
+        if any(flag in mode for flag in "wax+"):
+            raise PermissionError("Tests cannot write workstation environment files")
+        return io.BytesIO() if "b" in mode else io.StringIO()
+    target = _CREDENTIAL_FILES.get(path.resolve(), path)
+    return _PATH_OPEN(target, *args, **kwargs)
+
+
+# Applied before collection: config.py persists its password during import.
+_credential_open_patch = patch.object(Path, "open", _isolated_credential_open)
+_credential_open_patch.start()
+atexit.register(_credential_open_patch.stop)
+os.environ["TAO_PASSWORD"] = "test-password-ci"
+os.environ["TAO_SESSION_SECRET"] = "test-session-secret-32-chars-xxxx"
 _FORBIDDEN_KANBAN_CONTEXT = (
     "HERMES_KANBAN_BOARD",
     "HERMES_KANBAN_TASK",

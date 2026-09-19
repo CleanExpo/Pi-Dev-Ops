@@ -16,13 +16,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from ..auth import require_auth, require_rate_limit
-from ..sessions import create_session, get_session, list_sessions, kill_session, _sessions, run_build
+from ..sessions import create_session, get_session, list_sessions, kill_session, _sessions, run_build, register_build_task
 from ..orchestrator import fan_out
 from ..models import BuildRequest, ParallelBuildRequest
 from .. import config, persistence
 from ..persistence import _safe_sid
 
 router = APIRouter()
+_TERMINAL_STATUSES = frozenset({
+    "done", "complete", "failed", "killed", "interrupted", "error", "blocked", "stalled",
+})
 
 
 @router.post("/api/build", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
@@ -47,7 +50,7 @@ async def build(body: BuildRequest):
 
 @router.post("/api/build/parallel", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
 async def build_parallel(body: ParallelBuildRequest):
-    """Fan-out a complex brief across N parallel worker sessions (RA-464)."""
+    """Return a parent receipt; decomposition and workers run in the background."""
     if not body.brief:
         raise HTTPException(400, "brief required for parallel builds")
     evaluator_enabled = body.evaluator_enabled if body.evaluator_enabled is not None else config.EVALUATOR_ENABLED
@@ -63,9 +66,8 @@ async def build_parallel(body: ParallelBuildRequest):
 
 def _find_active_session_for_repo(repo_url: str) -> str | None:
     """Return the session ID of the first non-terminal session for repo_url, or None."""
-    terminal = {"done", "complete", "failed", "killed", "interrupted"}
     for s in _sessions.values():
-        if s.repo_url == repo_url and s.status not in terminal:
+        if s.repo_url == repo_url and s.status not in _TERMINAL_STATUSES:
             return s.id
     return None
 
@@ -120,8 +122,6 @@ async def stream_session_logs(sid: str, after: int = 0):
     if not session:
         raise HTTPException(404, "Session not found")
 
-    terminal = {"done", "complete", "failed", "killed", "blocked", "stalled", "interrupted"}
-
     async def generate():
         cursor = after
         terminal_since: float | None = None
@@ -131,7 +131,7 @@ async def stream_session_logs(sid: str, after: int = 0):
                 event = lines[cursor]
                 yield f"data: {json.dumps({'i': cursor, **event})}\n\n"
                 cursor += 1
-            if session.status in terminal:
+            if session.status in _TERMINAL_STATUSES:
                 # RA-1022: track when the session first entered a terminal state
                 if terminal_since is None:
                     terminal_since = time.monotonic()
@@ -156,9 +156,7 @@ async def stream_session_logs(sid: str, after: int = 0):
 _SSE_STREAM_REPLAY_MAX = 5_000   # max lines replayed before emitting "truncated"
 _SSE_STREAM_HEARTBEAT_S = 15.0   # SSE comment heartbeat interval (proxy keep-alive)
 _SSE_STREAM_POLL_S = 0.3         # poll interval while session is active
-_SSE_STREAM_TERMINAL = frozenset({
-    "done", "complete", "failed", "killed", "interrupted", "blocked", "stalled",
-})
+_SSE_STREAM_TERMINAL = _TERMINAL_STATUSES
 
 
 @router.get("/api/sessions/{sid}/stream", dependencies=[Depends(require_auth)])
@@ -276,5 +274,5 @@ async def resume_session(sid: str):
         raise HTTPException(400, "No phase checkpoint — cannot resume")
     session.status = "building"
     persistence.save_session(session)
-    asyncio.create_task(run_build(session, resume_from=last_phase))
+    register_build_task(session, asyncio.create_task(run_build(session, resume_from=last_phase)))
     return {"session_id": session.id, "resumed_from": last_phase}

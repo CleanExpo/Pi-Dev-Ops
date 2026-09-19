@@ -1,14 +1,6 @@
-"""
-board_meeting.py — Board Meeting Gap Audit
-
-Compares the Pi-CEO spec against actual source code and raises Linear tickets
-for any discrepancies found. Runs via claude_agent_sdk exclusively
-(SDK-only mandate, RA-1094B).
-
-Usage:
-    python -m app.server.agents.board_meeting [--dry-run] [--cycle N]
-"""
+"""board_meeting.py — Board Meeting Gap Audit"""
 from __future__ import annotations
+from ..provider_sdk_messages import read_sdk_text
 
 import asyncio
 import json
@@ -499,8 +491,15 @@ def _run_prompt_via_sdk(
     Falls back silently to empty string on any SDK error so the caller can
     fall through to the subprocess path.
     """
+    from ..provider_policy import ProviderPolicyError, require_transport
+    from ..session_sdk import _child_environment
     try:
-        from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ClaudeSDKClient, ResultMessage, TextBlock
+        require_transport("anthropic_agent_sdk")
+    except ProviderPolicyError as exc:
+        log.warning("Board model execution blocked: %s", exc)
+        return ""
+    try:
+        from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
         from claude_agent_sdk.types import (
             ThinkingConfigAdaptive, ThinkingConfigEnabled, ThinkingConfigDisabled,
             HookMatcher, PreToolUseHookInput, PostToolUseHookInput,
@@ -508,13 +507,6 @@ def _run_prompt_via_sdk(
     except ImportError:
         log.warning("claude_agent_sdk not installed — falling back to subprocess")
         return ""
-
-    # RA-1420 — pop ANTHROPIC_API_KEY if empty OR an OAuth token. sk-ant-oat01-*
-    # tokens belong in ~/.claude/ keychain OAuth, not the env var. When set as env,
-    # the bundled CLI rejects them with "Invalid API key · Fix external API key".
-    _k = os.environ.get("ANTHROPIC_API_KEY", "")
-    if _k == "" or _k.startswith("sk-ant-oat01-"):
-        os.environ.pop("ANTHROPIC_API_KEY", None)
 
     # RA-659 — build thinking config
     if thinking == "adaptive":
@@ -543,22 +535,12 @@ def _run_prompt_via_sdk(
             "PreToolUse": [HookMatcher(hooks=[_on_pre_tool])],
             "PostToolUse": [HookMatcher(hooks=[_on_post_tool])],
         }
-        options = ClaudeAgentOptions(model=model, max_turns=1, thinking=_thinking_cfg, hooks=hooks, permission_mode="bypassPermissions")
+        options = ClaudeAgentOptions(model=model, max_turns=1, thinking=_thinking_cfg,
+                                     hooks=hooks, tools=[], permission_mode="default",
+                                     setting_sources=[], strict_mcp_config=True,
+                                     env=_child_environment())
         client = ClaudeSDKClient(options)
-        text_parts: list[str] = []
-        try:
-            await client.connect()
-            await client.query(prompt)
-            async for msg in client.receive_messages():
-                if isinstance(msg, AssistantMessage):
-                    for block in msg.content:
-                        if isinstance(block, TextBlock):
-                            text_parts.append(block.text)
-                elif isinstance(msg, ResultMessage):
-                    break
-        finally:
-            await client.disconnect()
-        return "".join(text_parts)
+        return await read_sdk_text(client, prompt)
 
     try:
         return asyncio.run(asyncio.wait_for(_run(), timeout=timeout))
@@ -573,17 +555,13 @@ def _run_prompt_with_cache(
     model: str = "claude-sonnet-5",
     timeout: int = 120,
 ) -> str:
-    """RA-655 — Run a single-shot prompt via direct Anthropic API with prompt caching.
-
-    Passes system_text as a single cached content block (ephemeral TTL). Across the 5
-    audit category calls in run_gap_audit_phase(), the shared board context (prior minutes
-    + anthropic-docs) hits the cache on calls 2-5, reducing cost ~70%.
-
-    RA-1009 — caching is only active when ENABLE_PROMPT_CACHING_1H=1. When disabled,
-    returns empty string immediately so the caller falls through to SDK/subprocess.
-
-    Returns response text, or empty string on any error so caller falls back.
-    """
+    """RA-655 — Run a single-shot prompt via direct Anthropic API with prompt caching."""
+    from ..provider_policy import ProviderPolicyError, require_transport
+    try:
+        require_transport("anthropic")
+    except ProviderPolicyError as exc:
+        log.warning("board cache blocked: %s", exc)
+        return ""
     if not config.ENABLE_PROMPT_CACHING_1H:
         return ""
 
@@ -1134,23 +1112,22 @@ def _run_research_via_sdk(
     turns). Empty string on any SDK failure — caller treats that as
     `research_required: false` with `failure_reason` populated.
     """
+    from ..provider_policy import ProviderPolicyError, require_transport
+    from ..session_sdk import _child_environment
+    try:
+        require_transport("anthropic_agent_sdk")
+    except ProviderPolicyError as exc:
+        log.warning("Board research execution blocked: %s", exc)
+        return ""
     try:
         from claude_agent_sdk import (
-            AssistantMessage,
             ClaudeAgentOptions,
             ClaudeSDKClient,
-            ResultMessage,
-            TextBlock,
         )
         from claude_agent_sdk.types import ThinkingConfigAdaptive
     except ImportError:
         log.warning("claude_agent_sdk not installed — research phase unavailable")
         return ""
-
-    # RA-1420 hygiene — same env handling as _run_prompt_via_sdk
-    _k = os.environ.get("ANTHROPIC_API_KEY", "")
-    if _k == "" or _k.startswith("sk-ant-oat01-"):
-        os.environ.pop("ANTHROPIC_API_KEY", None)
 
     async def _run() -> str:
         options = ClaudeAgentOptions(
@@ -1158,23 +1135,12 @@ def _run_research_via_sdk(
             max_turns=max_turns,
             thinking=ThinkingConfigAdaptive(type="adaptive"),
             allowed_tools=["WebSearch", "WebFetch"],
-            permission_mode="bypassPermissions",
+            tools=["WebSearch", "WebFetch"],
+            permission_mode="default", setting_sources=[], strict_mcp_config=True,
+            env=_child_environment(),
         )
         client = ClaudeSDKClient(options)
-        text_parts: list[str] = []
-        try:
-            await client.connect()
-            await client.query(prompt)
-            async for msg in client.receive_messages():
-                if isinstance(msg, AssistantMessage):
-                    for block in msg.content:
-                        if isinstance(block, TextBlock):
-                            text_parts.append(block.text)
-                elif isinstance(msg, ResultMessage):
-                    break
-        finally:
-            await client.disconnect()
-        return "".join(text_parts)
+        return await read_sdk_text(client, prompt)
 
     try:
         return asyncio.run(asyncio.wait_for(_run(), timeout=timeout))

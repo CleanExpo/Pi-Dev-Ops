@@ -19,7 +19,6 @@ Scope is two gates (UNI-2656): the path must sit under `TAO_WORKSPACE` /
 
 from __future__ import annotations
 
-import fcntl
 import json
 import logging
 import os
@@ -74,9 +73,9 @@ def is_ephemeral_workspace(workspace: str, workspace_root: str) -> bool:
         return False
     target = os.path.normpath(os.path.abspath(workspace))
     root = os.path.normpath(os.path.abspath(workspace_root))
-    if root == "/":
+    if root == os.path.abspath(os.sep):
         return False
-    return target == root or target.startswith(root.rstrip("/") + "/")
+    return target == root or target.startswith(root.rstrip(os.sep) + os.sep)
 
 
 def project_trust_key(workspace: str) -> str:
@@ -228,25 +227,20 @@ def _write_trust(
 
 
 def _locked_update(path: Path, key: str) -> bool:
+    from .sdk_workspace_lock import trust_file_lock
     path.parent.mkdir(parents=True, exist_ok=True)
-    lock_path = path.with_name(path.name + ".lock")
-    with open(lock_path, "a+", encoding="utf-8") as lock:
-        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        try:
-            data = _load_claude_json(path)
-            if data is None:
-                _log.warning("refusing to overwrite corrupt Claude config: %s", path)
-                return False
-            merged = _merge_trust(data, key)
-            if merged is None:
-                _log.warning("refusing to overwrite malformed projects in %s", path)
-                return False
-            if merged is False:
-                return True
+    with trust_file_lock(path.with_name(path.name + ".lock")):
+        data = _load_claude_json(path)
+        if data is None:
+            _log.warning("refusing to overwrite corrupt Claude config: %s", path)
+            return False
+        merged = _merge_trust(data, key)
+        if merged is None:
+            _log.warning("refusing to overwrite malformed projects in %s", path)
+            return False
+        if merged:
             _atomic_write(path, data)
-            return True
-        finally:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+        return True
 
 
 def _load_claude_json(path: Path) -> dict | None:

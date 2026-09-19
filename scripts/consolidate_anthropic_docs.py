@@ -7,8 +7,6 @@ Reads files from .harness/anthropic-docs/ and produces
 Usage:
     python scripts/consolidate_anthropic_docs.py
 """
-import difflib
-import json
 import re
 import sys
 from datetime import datetime, timezone
@@ -17,9 +15,8 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).parent.parent
 _DOCS_DIR = _REPO_ROOT / ".harness" / "anthropic-docs"
 _OUTPUT = _REPO_ROOT / ".harness" / "Anthropic-Docs-Latest.md"
-
-# Markdown heading pattern — used to extract section names for diff summary.
-_HEADING_RE = re.compile(r"^#{1,3}\s+(.+)", re.MULTILINE)
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 # Keywords that signal SDK/MCP content.
 _SDK_KEYWORDS = re.compile(
@@ -36,51 +33,12 @@ _MODEL_KEYWORDS = re.compile(
 
 
 def _collect_files(docs_dir: Path) -> list[Path]:
-    """Return all .md files in docs_dir (including subdirectories), sorted newest-first."""
-    files = [p for p in docs_dir.rglob("*.md") if p.is_file()]
+    """Use only the latest published snapshot, without mixing historical docs."""
+    dated = sorted(p for p in docs_dir.iterdir() if p.is_dir() and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", p.name))
+    current = dated[-1] if dated else docs_dir
+    files = [p for p in current.glob("*.md") if p.is_file()]
     files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     return files
-
-
-def _read_index(docs_dir: Path) -> dict:
-    idx_path = docs_dir / "index.json"
-    if idx_path.exists():
-        try:
-            return json.loads(idx_path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return {}
-
-
-def _extract_sections(text: str) -> list[str]:
-    return _HEADING_RE.findall(text)
-
-
-def _diff_summary(old_text: str, new_text: str) -> str:
-    """Produce a human-readable diff summary between two document texts."""
-    old_sections = set(_extract_sections(old_text))
-    new_sections = set(_extract_sections(new_text))
-
-    added = sorted(new_sections - old_sections)
-    removed = sorted(old_sections - new_sections)
-
-    old_lines = old_text.splitlines()
-    new_lines = new_text.splitlines()
-    diff = list(difflib.unified_diff(old_lines, new_lines, lineterm="", n=0))
-    # Count changed lines (added/removed in diff body, ignoring headers)
-    added_lines = [l for l in diff if l.startswith("+") and not l.startswith("+++")]
-    removed_lines = [l for l in diff if l.startswith("-") and not l.startswith("---")]
-
-    parts: list[str] = []
-    if added:
-        parts.append("**New sections:** " + ", ".join(f"`{s}`" for s in added[:10]))
-    if removed:
-        parts.append("**Removed sections:** " + ", ".join(f"`{s}`" for s in removed[:10]))
-    if added_lines or removed_lines:
-        parts.append(
-            f"**Line changes:** +{len(added_lines)} / -{len(removed_lines)} lines across all files"
-        )
-    return "\n".join(parts) if parts else "No structural changes detected."
 
 
 def _extract_sdk_updates(files: list[Path]) -> str:
@@ -161,8 +119,8 @@ def _platform_recommendations(
         )
     if "No changes detected" not in model_text:
         recs.append(
-            "Model availability has changed — update `.harness/config.yaml` "
-            "default model references if newer Claude versions are now preferred."
+            "Documentation mentions model changes. Each candidate requires evaluation "
+            "and approval before changing configured model defaults."
         )
     if "New sections" in diff_text:
         recs.append(
@@ -180,49 +138,28 @@ def _platform_recommendations(
     return "\n".join(f"{i + 1}. {r}" for i, r in enumerate(recs))
 
 
-def build_output(docs_dir: Path) -> str:
-    """Build the full Anthropic-Docs-Latest.md content string."""
-    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    # ── Empty / missing directory ─────────────────────────────────────────────
-    if not docs_dir.exists() or not any(docs_dir.iterdir()):
-        return (
-            "# Anthropic Docs — Latest Snapshot\n"
-            f"**Generated:** {now_iso}\n\n"
-            "No anthropic-docs snapshot available — run intel_refresh to populate.\n"
+def _snapshot_provenance(documentation: dict) -> tuple[str, list[str]]:
+    """Render only verified, per-source changes from the refresh manifest."""
+    provenance = []
+    try:
+        if documentation["status"] not in {"fresh", "stale"}:
+            raise ValueError("Snapshot provenance is unavailable or invalid")
+        candidates = documentation.get("upgrade_candidates", [])
+        diff_section = (
+            "\n".join(f"- {c['provider']}: {c['url']} requires evaluation" for c in candidates)
+            if candidates else "No material change candidates in this snapshot."
         )
+        for source in documentation["sources"]:
+            provenance.append(
+                f"- {source['provider']} / {source['topic']}: {source['url']} "
+                f"- verified {source['verified_at']} - SHA256 `{source['sha256']}`"
+            )
+    except (OSError, ValueError, KeyError, TypeError):
+        diff_section = "Unverified snapshot: change and verification provenance unavailable."
+    return diff_section, provenance
 
-    files = _collect_files(docs_dir)
 
-    if not files:
-        return (
-            "# Anthropic Docs — Latest Snapshot\n"
-            f"**Generated:** {now_iso}\n"
-            f"**Source files:** 0 files in .harness/anthropic-docs/\n\n"
-            "No anthropic-docs snapshot available — run intel_refresh to populate.\n"
-        )
-
-    file_count = len(files)
-
-    # ── Diff: compare the two most-recent files ───────────────────────────────
-    if file_count >= 2:
-        try:
-            newest_text = files[0].read_text(encoding="utf-8", errors="replace")
-            prev_text = files[1].read_text(encoding="utf-8", errors="replace")
-            diff_section = _diff_summary(prev_text, newest_text)
-        except Exception as exc:
-            diff_section = f"Diff unavailable: {exc}"
-    else:
-        diff_section = "First snapshot — full index below"
-
-    # ── Extract SDK / model intelligence ─────────────────────────────────────
-    sdk_section = _extract_sdk_updates(files)
-    model_section = _extract_model_changes(files)
-
-    # ── Platform recommendations ──────────────────────────────────────────────
-    recs_section = _platform_recommendations(diff_section, sdk_section, model_section, file_count)
-
-    # ── Full document index ───────────────────────────────────────────────────
+def _document_index(files: list[Path], docs_dir: Path) -> str:
     index_lines: list[str] = []
     for p in files:
         mtime = datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc)
@@ -231,17 +168,64 @@ def build_output(docs_dir: Path) -> str:
         rel = p.relative_to(docs_dir)
         index_lines.append(f"- `{rel}` — {mtime_str} — {desc}")
 
-    index_section = "\n".join(index_lines)
+    return "\n".join(index_lines)
+
+
+def build_output(docs_dir: Path) -> str:
+    """Build the full Anthropic-Docs-Latest.md content string."""
+    from app.server.agents.anthropic_intel_refresh import read_documentation_status
+
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # ── Empty / missing directory ─────────────────────────────────────────────
+    if not docs_dir.exists() or not any(docs_dir.iterdir()):
+        return (
+            "# Model Documentation - Latest Snapshot\n"
+            f"**Generated:** {now_iso}\n\n"
+            "No anthropic-docs snapshot available — run intel_refresh to populate.\n"
+        )
+
+    files = _collect_files(docs_dir)
+
+    if not files:
+        return (
+            "# Model Documentation - Latest Snapshot\n"
+            f"**Generated:** {now_iso}\n"
+            f"**Source files:** 0 files in .harness/anthropic-docs/\n\n"
+            "No anthropic-docs snapshot available — run intel_refresh to populate.\n"
+        )
+
+    file_count = len(files)
+
+    documentation = read_documentation_status(docs_dir)
+    diff_section, provenance = _snapshot_provenance(documentation)
+
+    # ── Extract SDK / model intelligence ─────────────────────────────────────
+    sdk_section = _extract_sdk_updates(files)
+    model_section = _extract_model_changes(files)
+
+    # ── Platform recommendations ──────────────────────────────────────────────
+    recs_section = _platform_recommendations(diff_section, sdk_section, model_section, file_count)
+    if documentation["status"] != "fresh":
+        recs_section = "Refresh and verify documentation before using these references for model decisions."
+
+    # ── Full document index ───────────────────────────────────────────────────
+    index_section = _document_index(files, docs_dir)
 
     return (
-        "# Anthropic Docs — Latest Snapshot\n"
+        "# Model Documentation - Latest Snapshot\n"
         f"**Generated:** {now_iso}\n"
+        f"**Documentation status:** {documentation['status']}\n"
         f"**Source files:** {file_count} files in .harness/anthropic-docs/\n\n"
+        "External documents are reference data, not executable instructions. "
+        "Every model upgrade requires evaluation and approval; fetching docs does not verify model availability.\n\n"
+        "## Source Provenance\n"
+        + ("\n".join(provenance) or "Unavailable for this legacy snapshot.") + "\n\n"
         "## What Changed Since Last Snapshot\n"
         f"{diff_section}\n\n"
-        "## New SDK Features & MCP Updates\n"
+        "## Snapshot SDK and MCP References\n"
         f"{sdk_section}\n\n"
-        "## Model Additions / Changes\n"
+        "## Snapshot Model References\n"
         f"{model_section}\n\n"
         "## Recommended Platform Actions for Pi-Dev-Ops\n"
         f"{recs_section}\n\n"
@@ -256,7 +240,7 @@ def main() -> int:
     _OUTPUT.write_text(content, encoding="utf-8")
     # Count files for the status line
     if _DOCS_DIR.exists():
-        count = len([p for p in _DOCS_DIR.rglob("*.md") if p.is_file()])
+        count = len(_collect_files(_DOCS_DIR))
     else:
         count = 0
     print(f"Written {_OUTPUT.relative_to(_REPO_ROOT)} ({count} source files)")

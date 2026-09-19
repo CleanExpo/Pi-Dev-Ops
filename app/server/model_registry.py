@@ -3,7 +3,7 @@
 Official reference:
   https://platform.claude.com/docs/en/about-claude/models/overview
 
-As of Aug 09 2026 (Anthropic "Latest models comparison"):
+Configured model pins (availability must be verified separately):
   Opus   → claude-opus-5
   Sonnet → claude-sonnet-5
   Haiku  → claude-haiku-4-5-20251001  (alias: claude-haiku-4-5)
@@ -22,8 +22,34 @@ OpenRouter boardroom panellist:
 """
 from __future__ import annotations
 
-MODEL_REGISTRY_AS_OF = "July 01 2026"
+MODEL_REGISTRY_AS_OF = "2026-08-09"
+# Configuration revision is not evidence of a successful provider verification.
+MODEL_REGISTRY_VERIFIED_AT = None
 DOCS_MODELS_OVERVIEW = "https://platform.claude.com/docs/en/about-claude/models/overview"
+
+# Official sources are fetched by the existing intel refresh cron. Discovery only
+# creates evaluation candidates: it must never rewrite the model pins below.
+MODEL_DOCUMENTATION_SOURCES = {
+    "anthropic": {
+        "models": DOCS_MODELS_OVERVIEW,
+        "release-notes": "https://platform.claude.com/docs/en/release-notes/overview",
+        "authentication": "https://code.claude.com/docs/en/authentication",
+    },
+    "openai": {
+        "models": "https://developers.openai.com/codex/models",
+        "release-notes": "https://developers.openai.com/codex/changelog",
+        "authentication": "https://developers.openai.com/codex/auth",
+    },
+    "google": {
+        "models": "https://geminicli.com/docs/cli/model/",
+        "release-notes": "https://geminicli.com/docs/changelogs/",
+        "authentication": "https://geminicli.com/docs/get-started/authentication/",
+    },
+    "openrouter": {
+        "models": "https://openrouter.ai/docs/guides/overview/models",
+        "authentication": "https://openrouter.ai/docs/api/reference/authentication",
+    },
+}
 
 # ── Anthropic Messages API (direct / Agent SDK) ─────────────────────────────
 

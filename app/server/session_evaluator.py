@@ -26,9 +26,11 @@ Public API (re-exported by sessions.py for backward compatibility):
 
 from __future__ import annotations
 
+from .evaluation_prompt import _evaluation_criteria
 import asyncio
 import json
 import logging
+import math
 import os
 import time
 import urllib.request
@@ -37,7 +39,8 @@ from typing import Optional
 from . import config
 from .session_model import em, _sessions
 from .session_sdk import _write_sdk_metric
-from .provider_router import run_via_provider
+from .provider_router import run_via_provider, run_via_provider_with_evidence
+from .provider_policy import independent_identity
 
 _log = logging.getLogger("pi-ceo.session_evaluator")
 
@@ -127,7 +130,8 @@ def _extract_eval_score(text: str) -> Optional[float]:
     for line in text.split("\n"):
         if line.upper().startswith("OVERALL:"):
             try:
-                return float(line.split(":")[1].strip().split("/")[0].strip())
+                score = float(line.split(":")[1].strip().split("/")[0].strip())
+                return score if math.isfinite(score) and 0 <= score <= 10 else None
             except (ValueError, IndexError):
                 pass
     return None
@@ -144,7 +148,7 @@ def _extract_eval_confidence(text: str) -> Optional[float]:
                 rest = line.split(":", 1)[1].strip()
                 pct_str = rest.split("%")[0].strip()
                 val = float(pct_str)
-                return max(0.0, min(100.0, val))
+                return val if math.isfinite(val) and 0 <= val <= 100 else None
             except (ValueError, IndexError):
                 pass
     return None
@@ -204,6 +208,7 @@ async def _run_eval_with_cache(
     threshold: int,
     timeout: int = 120,
     session_id: str = "",
+    evidence: Optional[list] = None,
 ) -> tuple[Optional[float], str]:
     """Run one evaluator pass through the configured provider router.
 
@@ -214,43 +219,7 @@ async def _run_eval_with_cache(
     prompt through ``provider_router.run_via_provider(role="evaluator")`` so
     Railway env overrides decide the actual provider/model.
     """
-    eval_criteria = (
-        "You are a senior code reviewer evaluating AI-generated changes. "
-        "Be rigorous — your job is to catch every gap and flaw.\n\n"
-        "Grade on 4 dimensions (1-10). Scoring guide:\n"
-        "  10 = production-ready, exceeds expectations\n"
-        "   9 = complete and correct, minor style preferences only\n"
-        "   8 = solid work, 1-2 small gaps or nits\n"
-        "   7 = acceptable but missing something meaningful\n"
-        "  ≤6 = clear deficiency that must be fixed\n\n"
-        "DIMENSION CRITERIA:\n"
-        "1. COMPLETENESS — Does the diff address EVERY requirement in the brief? "
-        "List any unmet requirements. Partial = ≤6.\n"
-        "2. CORRECTNESS — Any bugs, logic errors, type issues, null refs, security "
-        "vulnerabilities, or broken tests? One confirmed bug = ≤6.\n"
-        "3. CONCISENESS — Any dead code, debug prints, TODO stubs, or over-engineered "
-        "abstractions? Tight, purposeful code = 9-10.\n"
-        "4. FORMAT — Does it match the project's existing conventions exactly? "
-        "Style violations or inconsistent naming = ≤6.\n"
-        "5. KARPATHY ADHERENCE — Score the four Karpathy principles together "
-        "(CLAUDE.md lines 184–246):\n"
-        "   • Surgical: every changed line traces to the brief\n"
-        "   • Simple: minimum code, no speculative abstractions\n"
-        "   • Goal-verified: tests/checks defined before implementation\n"
-        "   • Assumption-surfaced: assumptions stated upfront, not silently chosen\n"
-        "   10 = all four honoured; ≤5 if any principle is violated. "
-        "Soft axis: reported for learning, not a merge blocker on its own.\n\n"
-        "OUTPUT FORMAT: Respond with exactly 5 dimension lines, the overall, then a confidence line:\n"
-        "COMPLETENESS: <score>/10 — <reason>\n"
-        "CORRECTNESS: <score>/10 — <reason>\n"
-        "CONCISENESS: <score>/10 — <reason>\n"
-        "FORMAT: <score>/10 — <reason>\n"
-        "KARPATHY: <score>/10 — <reason>\n"
-        f"OVERALL: <average of first 4>/10 — PASS or FAIL (threshold: {threshold}/10)\n"
-        "CONFIDENCE: <0-100>% — <how certain are you? consider: diff clarity, "
-        "requirements ambiguity, borderline score, incomplete context. "
-        "100% = unambiguous; 50% = borderline; <60% = genuinely uncertain>"
-    )
+    eval_criteria = _evaluation_criteria(threshold)
 
     claude_md = _get_claude_md()
     prompt = (
@@ -261,30 +230,33 @@ async def _run_eval_with_cache(
         + brief_context
         + "\n\nDIFF SUMMARY:\n"
         + (diff_out or "(empty)")
-        + "\n\nDIFF DETAIL (truncated to 8000 chars):\n"
+        + "\n\nCANDIDATE DIFF:\n"
         + diff_context
     )
 
     t0 = time.monotonic()
     try:
-        rc, text, cost, error = await run_via_provider(
+        execution = await run_via_provider_with_evidence(
             prompt,
-            role="evaluator",
+            role="evaluator_secondary" if model == "haiku" else "evaluator",
             task_class=f"cached-{model}",
             timeout_s=timeout,
             session_id=session_id,
         )
+        rc, text, cost, error = execution.rc, execution.text, execution.cost_usd, execution.error
+        if evidence is not None:
+            evidence.append({**execution.provenance, "rc": rc, "score": _extract_eval_score(text) if rc == 0 else None})
         success = rc == 0 and bool((text or "").strip())
         _log.info(
-            "eval-provider model_label=%s rc=%s cost=%.6f latency=%.1fs",
+            "eval-provider role_label=%s rc=%s cost=%s latency=%.1fs",
             model,
             rc,
-            float(cost or 0.0),
+            cost if cost is not None else "unverified",
             time.monotonic() - t0,
         )
         _write_sdk_metric(
             session_id=session_id, phase=f"evaluator_provider_{model}",
-            model=model, success=success,
+            model=execution.provenance.get("actual_model") or "unverified", success=success,
             latency_s=time.monotonic() - t0, output_len=len(text or ""),
             error=error or "" if not success else "",
         )
@@ -302,6 +274,13 @@ async def _run_eval_with_cache(
         return None, ""
 
 
+def _insufficient_confidence(texts):
+    return any(
+        (confidence := _extract_eval_confidence(text)) is None
+        or confidence < config.EVAL_FLAG_CONFIDENCE for text in texts
+    )
+
+
 async def _run_parallel_eval_cached(
     session,
     brief_context: str,
@@ -310,13 +289,10 @@ async def _run_parallel_eval_cached(
     threshold: int,
     sid: str = "",
 ) -> tuple[Optional[float], str, str, str]:
-    """RA-655 — Parallel evaluator using cached direct API calls.
-
-    Same return type as _run_parallel_eval: (score, text, model_label, consensus_detail).
-    Returns ("", "", "", "cache-all-failed") tuple with None score if both evals fail,
-    so caller can fall back to the Agent SDK path.
-    """
-    em(session, "tool", "  $ anthropic.messages (cached) sonnet + haiku [parallel]")
+    """Require two independently identified reviewers; missing evidence blocks consensus."""
+    em(session, "tool", "  Independent required evaluator roles [parallel]")
+    primary_evidence: list[dict] = []
+    secondary_evidence: list[dict] = []
     kwargs = dict(
         brief_context=brief_context,
         diff_out=diff_out,
@@ -325,22 +301,26 @@ async def _run_parallel_eval_cached(
         session_id=sid,
     )
     (s_score, s_text), (h_score, h_text) = await asyncio.gather(
-        _run_eval_with_cache(model="sonnet", **kwargs),
-        _run_eval_with_cache(model="haiku", **kwargs),
+        _run_eval_with_cache(model="sonnet", evidence=primary_evidence, **kwargs),
+        _run_eval_with_cache(model="haiku", evidence=secondary_evidence, **kwargs),
     )
-    if s_score is None and h_score is None:
-        return None, "", "", "cache-all-failed"
-
-    # Same consensus logic as _run_parallel_eval
-    if s_score is None:
-        return h_score, h_text, "haiku(cached)", "sonnet-failed"
-    if h_score is None:
-        return s_score, s_text, "sonnet(cached)", "haiku-failed"
-
+    session.audit_evidence = [
+        {**item, "candidate_sha": getattr(session, "candidate_sha", "")}
+        for item in primary_evidence + secondary_evidence
+    ]
+    label = "+".join(f"{item.get('provider', 'unknown')}:{item.get('actual_model') or 'unverified'}" for item in session.audit_evidence) or "unverified"
+    if s_score is None or h_score is None:
+        return None, s_text + "\n" + h_text, label, "required reviewer failed"
+    if len(primary_evidence) != 1 or len(secondary_evidence) != 1 or not independent_identity(primary_evidence[0], secondary_evidence[0]):
+        return None, s_text + "\n" + h_text, label, "independent model identity not verified"
+    if _insufficient_confidence((s_text, h_text)):
+        return None, s_text + "\n" + h_text, label, "required reviewer confidence insufficient"
     delta = abs(s_score - h_score)
-    consensus = f"sonnet={s_score:.1f} haiku={h_score:.1f} delta={delta:.1f}"
-    # RA-1099: evaluator role cannot use Opus; average sonnet+haiku regardless of delta.
-    return (s_score + h_score) / 2, s_text, "sonnet+haiku(cached)", consensus
+    consensus = f"primary={s_score:.1f} secondary={h_score:.1f} delta={delta:.1f}"
+    if delta > 2 or (s_score >= threshold) != (h_score >= threshold):
+        return None, s_text + "\n" + h_text, label, "reviewer disagreement: " + consensus
+    lower_text = s_text if s_score <= h_score else h_text
+    return min(s_score, h_score), lower_text, label, consensus
 
 
 # ── SDK / subprocess evaluator runners ────────────────────────────────────────
@@ -562,26 +542,8 @@ async def _run_persona_review(session, workspace_path: str) -> list[dict]:
 
 
 async def _run_parallel_eval(session, eval_spec: str) -> tuple[Optional[float], str, str, str]:
-    """Run Sonnet + Haiku in parallel; escalate to Opus when |delta| > 2.
-
-    Returns (final_score, primary_eval_text, evaluator_model_label, consensus_detail).
-    Weighted average on escalation: Opus 60%, Sonnet 30%, Haiku 10%.
-    """
-    em(session, "tool", "  $ claude --model sonnet (eval-1) | claude --model haiku (eval-2) [parallel]")
-    sid = getattr(session, "id", "")
-    (s_score, s_text), (h_score, h_text) = await asyncio.gather(
-        _run_single_eval(session.workspace, eval_spec, "sonnet", session_id=sid),
-        _run_single_eval(session.workspace, eval_spec, "haiku", session_id=sid),
+    """Compatibility entry point using the same mandatory evidence contract."""
+    return await _run_parallel_eval_cached(
+        session, eval_spec, "", "", threshold=config.EVALUATOR_THRESHOLD,
+        sid=getattr(session, "id", ""),
     )
-    if s_score is None and h_score is None:
-        return None, "", "sonnet+haiku", "both evals failed"
-    if s_score is None:
-        return h_score, h_text, "haiku", "sonnet-failed"
-    if h_score is None:
-        return s_score, s_text, "sonnet", "haiku-failed"
-    delta = abs(s_score - h_score)
-    consensus = f"sonnet={s_score:.1f} haiku={h_score:.1f} delta={delta:.1f}"
-    # RA-1099: evaluator role is not in OPUS_ALLOWED_ROLES, so the prior
-    # delta>2 escalation to Opus violated model policy. Average sonnet+haiku
-    # regardless of delta; the consensus field still records the disagreement.
-    return (s_score + h_score) / 2, s_text, "sonnet+haiku", consensus

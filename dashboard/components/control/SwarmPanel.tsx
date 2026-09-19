@@ -7,11 +7,11 @@ import ProgressRing from "./ProgressRing";
 import KillSwitchPanel from "./KillSwitchPanel";
 
 interface SwarmStatus {
-  state: "SHADOW" | "ACTIVE" | "RATE_LIMITED" | "OFF";
-  autonomous_prs_today: number;
-  autonomous_prs_limit: number;
-  green_merges: number;
-  green_merges_target: number;
+  state: "SHADOW" | "ACTIVE" | "RATE_LIMITED" | "OFF" | "UNKNOWN";
+  autonomous_prs_today: number | null;
+  autonomous_prs_limit: number | null;
+  green_merges: number | null;
+  green_merges_target: number | null;
   last_pr_ts: string | null;
   last_pr_url: string | null;
 }
@@ -21,10 +21,11 @@ const STATE_COLOUR: Record<SwarmStatus["state"], string> = {
   SHADOW: "var(--warning)",
   RATE_LIMITED: "var(--error)",
   OFF: "var(--text-dim)",
+  UNKNOWN: "var(--text-dim)",
 };
 
 function fmtTs(ts: string | null): string {
-  if (!ts) return "never";
+  if (!ts) return "Not observed";
   try {
     return new Date(ts).toLocaleString(undefined, {
       month: "short",
@@ -44,10 +45,17 @@ export default function SwarmPanel() {
 
   useEffect(() => {
     let cancelled = false;
+    let pending = false;
+    let controller: AbortController | null = null;
 
     async function load() {
+      if (pending) return;
+      pending = true;
+      const request = new AbortController();
+      controller = request;
+      const timeout = setTimeout(() => request.abort(), 10_000);
       try {
-        const res = await fetch("/api/swarm-status");
+        const res = await fetch("/api/swarm-status", { cache: "no-store", signal: request.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = (await res.json()) as SwarmStatus;
         if (!cancelled) {
@@ -55,8 +63,10 @@ export default function SwarmPanel() {
           setError(null);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load swarm status");
+        if (!cancelled) { setData(null); setError(e instanceof Error ? e.message : "Failed to load swarm status"); }
       } finally {
+        clearTimeout(timeout);
+        pending = false;
         if (!cancelled) setLoading(false);
       }
     }
@@ -65,14 +75,15 @@ export default function SwarmPanel() {
     const t = setInterval(() => void load(), 30_000);
     return () => {
       cancelled = true;
+      controller?.abort();
       clearInterval(t);
     };
   }, []);
 
-  const prPct = data
+  const prPct = data && data.autonomous_prs_today !== null && data.autonomous_prs_limit !== null
     ? Math.min(100, Math.round((data.autonomous_prs_today / Math.max(1, data.autonomous_prs_limit)) * 100))
     : 0;
-  const mergePct = data
+  const mergePct = data && data.green_merges !== null && data.green_merges_target !== null
     ? Math.min(100, Math.round((data.green_merges / Math.max(1, data.green_merges_target)) * 100))
     : 0;
 
@@ -158,7 +169,7 @@ export default function SwarmPanel() {
                   value={prPct}
                   size={80}
                   colour="var(--accent)"
-                  label={`${data.autonomous_prs_today}/${data.autonomous_prs_limit}`}
+                  label={data.autonomous_prs_today === null || data.autonomous_prs_limit === null ? "Unknown" : `${data.autonomous_prs_today}/${data.autonomous_prs_limit}`}
                   sublabel="PRs today"
                 />
                 <span className="text-[10px]" style={{ color: "var(--text-dim)" }}>
@@ -173,7 +184,7 @@ export default function SwarmPanel() {
                   value={mergePct}
                   size={80}
                   colour="var(--success)"
-                  label={`${data.green_merges}/${data.green_merges_target}`}
+                  label={data.green_merges === null || data.green_merges_target === null ? "Unknown" : `${data.green_merges}/${data.green_merges_target}`}
                   sublabel="merges"
                 />
                 <span className="text-[10px]" style={{ color: "var(--text-dim)" }}>

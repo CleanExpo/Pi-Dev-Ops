@@ -118,7 +118,12 @@ def test_compose_agent_options_planner_is_json_only() -> None:
 
 
 @pytest.mark.asyncio
-async def test_planner_sdk_call_sets_no_tools_and_disabled_thinking() -> None:
+async def test_planner_sdk_call_sets_no_tools_and_disabled_thinking(monkeypatch) -> None:
+    from app.server import provider_policy, session_sdk
+    import sys
+    monkeypatch.setattr(provider_policy, "require_transport", lambda *a, **kw: {})
+    monkeypatch.setattr(session_sdk, "_execution_options", lambda _: {"cli_path": sys.executable, "env": {}})
+    monkeypatch.setattr(session_sdk, "_write_sdk_metric", lambda **kw: None)
     from app.server.session_sdk import _run_claude_via_sdk
     from claude_agent_sdk import AssistantMessage, TextBlock, ResultMessage
 

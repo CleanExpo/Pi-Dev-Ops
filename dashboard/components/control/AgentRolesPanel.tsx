@@ -22,7 +22,9 @@ import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 interface PhaseMetric {
   duration_s: number;
-  cost_usd: number;
+  cost_usd: number | null;
+  cost_basis?: "reported_usage" | "unknown";
+  cost_verified?: boolean;
 }
 
 interface Session {
@@ -93,9 +95,11 @@ function deriveRoleStatuses(sessions: Session[]): RoleStatus[] {
       .sort((a, b) => b.started - a.started)[0];
     if (withMetric) {
       const m = withMetric.phase_metrics![metricKey];
+      const cost = typeof m.cost_usd === "number" && Number.isFinite(m.cost_usd) && m.cost_usd >= 0 && m.cost_basis !== "unknown"
+        ? `reported usage $${m.cost_usd.toFixed(4)} (billing unverified)` : "cost unknown";
       return {
         key, label, state: "idle",
-        detail: `last: ${shortRepo(withMetric.repo)} · ${m.duration_s}s · $${m.cost_usd.toFixed(4)}`,
+        detail: `last: ${shortRepo(withMetric.repo)} · ${m.duration_s}s · ${cost}`,
       };
     }
     return { key, label, state: "never", detail: "no runs recorded yet" };

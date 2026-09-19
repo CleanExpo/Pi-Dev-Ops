@@ -82,7 +82,9 @@ async def test_run_build_never_starts_generator_when_planner_blocks(tmp_path):
         repo_url="https://example.test/repo",
         workspace=str(tmp_path),
         complexity_tier="basic",
+        base_sha="a" * 40,  # The mocked successful clone has a recorded base revision.
     )
+    plan = AsyncMock(return_value=False)
     generate = AsyncMock(return_value=True)
     sync_linear = MagicMock()
 
@@ -97,10 +99,11 @@ async def test_run_build_never_starts_generator_when_planner_blocks(tmp_path):
          patch.object(session_phases, "retrieve_similar_episodes", new=AsyncMock(return_value=[])), \
          patch.object(session_phases, "build_structured_brief", return_value="structured spec"), \
          patch.object(session_phases, "_write_task_memory", new=AsyncMock()), \
-         patch.object(session_phases, "_phase_plan", new=AsyncMock(return_value=False)), \
+         patch.object(session_phases, "_phase_plan", new=plan), \
          patch.object(session_phases, "_phase_generate", new=generate), \
          patch.object(session_phases, "_sync_linear_on_completion", new=sync_linear):
         await session_phases.run_build(session, brief="Implement the feature")
 
+    plan.assert_awaited_once()
     generate.assert_not_awaited()
     sync_linear.assert_called_once_with(session)

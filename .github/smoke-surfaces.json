@@ -50,9 +50,10 @@
       "expected_status": 200,
       "body_contains": [
         "Brain",
-        "Mac Mini"
+        "Mac Mini",
+        "Historical snapshot"
       ],
-      "_comment": "PR #310: persistent Brain status/checklist page for the Mac Mini Obsidian REST host setup."
+      "_comment": "PR #310: persistent Brain status/checklist page for the Mac Mini Obsidian REST host setup. PR #784: LiveObsidianStatus is extracted within this existing page and continues to read the declared obsidian-health endpoint. Historical snapshot is required so recorded checklist milestones are not presented as current connectivity evidence."
     },
     {
       "name": "api-zte",
@@ -1032,6 +1033,50 @@
         "review_only"
       ],
       "_comment": "RA-7539: read-only Nexus One synthetic status. The package is on main; a live worker router is not registered. Payload must show lineage SYNTHETIC, excluded_from_real_acceptance, and registered=false. Unregistered must never look healthy. Max-subscription / Windows review-only only — no live worker, no SHIPPED claim."
+    },
+    {
+      "name": "api-revision",
+      "path": "/api/revision",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 200,
+      "body_contains": [
+        "\"revision\":"
+      ],
+      "_comment": "PR #784: deliberately public, read-only deployment identity, classified in dashboard/__tests__/api-auth-classification.json. The response always contains revision: a validated full commit SHA or null when deployment evidence is absent. This substring assertion checks the envelope, not deployment success; scripts/deployment_revision.py separately checks the expected immutable revision. Cache-Control: no-store and invalid/missing evidence are covered by revision.test.ts."
+    },
+    {
+      "name": "overview-readiness-shell",
+      "path": "/overview",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 200,
+      "body_contains": [
+        "Command Centre",
+        "Delivery not verified",
+        "Billing not observed"
+      ],
+      "_comment": "PR #784: /overview is an intentionally public shell in proxy.ts. OperatorReadiness and OverviewSessionRows are extracted components on this page, not separate HTTP endpoints. Initial server rendering must retain unverified delivery/billing labels; authenticated health/session polling supplies later observations. These assertions do not claim live backend readiness."
+    },
+    {
+      "name": "builds-redirect",
+      "path": "/builds",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 307,
+      "_comment": "PR #784: /builds is an existing protected page prefix in proxy.ts. Anonymous requests redirect to login before session logs or phase metrics are rendered."
+    },
+    {
+      "name": "builds-page",
+      "path": "/builds",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "Builds",
+        "session logs"
+      ],
+      "_comment": "PR #784: authenticated Builds shell hosts the extracted BuildPhaseMetrics component. Metrics and logs arrive after client polling/SSE and cannot truthfully be asserted in this HTTP-only probe; phase-cost-evidence.test.tsx and build-log-lifecycle.test.tsx cover unknown costs and terminal stream behavior. Existing proxy-sessions and vertical build_lifecycle entries cover its backend routes; this probe never launches a build."
     }
   ],
   "vertical": {

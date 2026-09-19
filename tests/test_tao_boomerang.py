@@ -97,7 +97,7 @@ def test_result_defaults():
     r = tb.BoomerangResult(question="q")
     assert r.summary == ""
     assert r.error is None
-    assert r.cost_usd == 0.0
+    assert r.cost_usd is None
 
 
 # ── BoomerangBatch ───────────────────────────────────────────────────────────
@@ -109,6 +109,22 @@ def test_batch_total_cost_aggregates():
         tb.BoomerangResult(question="b", cost_usd=0.002),
     ])
     assert b.total_cost_usd == 0.003
+
+
+def test_batch_unknown_cost_is_not_omitted_from_total():
+    batch = tb.BoomerangBatch(results=[
+        tb.BoomerangResult(question="known", cost_usd=0.2),
+        tb.BoomerangResult(question="unknown", cost_usd=None),
+    ])
+    assert batch.total_cost_usd is None
+
+
+@pytest.mark.asyncio
+async def test_dispatch_unknown_sdk_cost_stays_unknown():
+    with patch.object(tb, "_run_claude_via_sdk", AsyncMock(return_value=(0, "done", None))):
+        result = await tb.dispatch_one("question")
+    assert result.cost_usd is None
+    assert result.error is None
 
 
 def test_batch_all_succeeded_true_when_no_errors():

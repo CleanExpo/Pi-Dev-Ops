@@ -5,6 +5,7 @@ import hmac
 import os
 import logging
 import time
+import subprocess
 
 from fastapi import Depends, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -32,12 +33,14 @@ async def _poll_claude_cli() -> None:
                 config.CLAUDE_CMD, "--version",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
             try:
                 await asyncio.wait_for(proc.wait(), timeout=5)
                 _claude_ok = proc.returncode == 0
             except asyncio.TimeoutError:
                 proc.kill()
+                await proc.wait()
                 _claude_ok = False
         except Exception:
             _claude_ok = False
@@ -196,13 +199,8 @@ async def health(request: Request):
         "lessons_boot":     _lessons.BOOT_SEED_SNAPSHOT,
     }
 
-    # RA-1668 — NotebookLM source freshness (weekly refresh). Fail-soft so a
-    # missing/corrupt freshness file never breaks /health.
-    try:
-        from ..agents.notebooklm_refresh import get_notebooklm_freshness_summary
-        payload["notebooklm"] = get_notebooklm_freshness_summary()
-    except Exception:
-        payload["notebooklm"] = {"notebooks_tracked": 0, "stale_count_24h": 0, "stale_count_7d": 0, "summary": []}
+    from ..health_evidence import add_health_evidence
+    add_health_evidence(payload)
 
     return JSONResponse(payload, status_code=200)
 

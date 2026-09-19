@@ -48,5 +48,17 @@ def test_explicit_failure_is_reported_as_failure():
 def test_explicit_pass_is_reported_as_pass():
     """The field must still be able to go green — a control that can only say
     False is as useless as one that can only say True."""
-    captured = _capture(_session(tests_passed=True), push_ok=True, push_ts=1700000600.0)
+    captured = _capture(_session(candidate_sha="a" * 40, verified_sha="a" * 40,
+                                verification={"status": "passed"}), push_ok=True, push_ts=1700000600.0)
     assert captured["gate_checks"]["tests_passed"] is True
+
+
+def test_legacy_boolean_cannot_substitute_for_candidate_evidence():
+    captured = _capture(_session(tests_passed=True), push_ok=True, push_ts=1700000600.0)
+    assert captured["gate_checks"]["tests_passed"] is False
+
+
+def test_other_candidate_evidence_cannot_pass():
+    session = _session(candidate_sha="a" * 40, verified_sha="b" * 40,
+                       verification={"status": "passed"})
+    assert _capture(session, push_ok=True, push_ts=1700000600.0)["gate_checks"]["tests_passed"] is False

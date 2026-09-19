@@ -72,7 +72,7 @@ def test_named_call_sites_use_the_shared_helper():
         "clone": inspect.getsource(session_phases._phase_clone),
         "sandbox": inspect.getsource(session_phases._reclone_sandbox),
         "push": inspect.getsource(session_phases._phase_push),
-        "orchestrator": inspect.getsource(orchestrator.fan_out),
+        "orchestrator": inspect.getsource(orchestrator._run_fan_out),
         "autopr_git": inspect.getsource(autopr._git),
         "autopr_run": inspect.getsource(autopr.run_autopr),
     }
@@ -134,8 +134,12 @@ async def test_orchestrator_clone_does_not_spawn_git_on_whitespace_token(
     monkeypatch.setattr(orchestrator, "em", lambda *_a, **_k: None)
 
     result = await orchestrator.fan_out(_GITHUB, "do a thing", n_workers=1)
-    assert result["status"] == "failed"
-    assert result["reason"] == MISSING_CREDENTIAL
+    assert result["status"] == "launched"
+    parent_id = result["parent_id"]
+    await orchestrator._fan_out_tasks[parent_id]
+    parent = orchestrator._sessions[parent_id]
+    assert parent.status == "failed"
+    assert parent.error == MISSING_CREDENTIAL
     assert calls == []
 
 

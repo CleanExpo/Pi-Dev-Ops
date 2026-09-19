@@ -27,6 +27,7 @@ import subprocess
 from typing import Callable
 
 from .pii_redactor import Hit  # type: ignore[import-not-found]
+from app.server.provider_policy import ProviderPolicyError, require_transport
 
 log = logging.getLogger("pi-ceo.pii_classify")
 
@@ -117,12 +118,17 @@ class _ClassifyError(RuntimeError):
 
 
 def _classify_via_claude_print(text: str) -> list[Hit]:
-    """Tier 0 — `claude --print` ($0 marginal under Max). Raises on failure."""
+    """Verified subscription CLI only; billing amount is not inferred."""
+    try:
+        require_transport("claude_print")
+    except ProviderPolicyError as exc:
+        raise _ClassifyError(str(exc)) from None
     prompt = _PROMPT.replace("{TEXT}", text)
     try:
         result = subprocess.run(
-            [CLAUDE_CLI, "--print", prompt],
+            [CLAUDE_CLI, "--print", "--tools", "", "--setting-sources", "", "--strict-mcp-config", prompt],
             capture_output=True, text=True, timeout=CLAUDE_PRINT_TIMEOUT, check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except FileNotFoundError as exc:
         raise _ClassifyError(f"claude CLI not found at {CLAUDE_CLI}") from exc
@@ -136,6 +142,11 @@ def _classify_via_claude_print(text: str) -> list[Hit]:
 def _make_classifier_with_anthropic(model: str) -> Callable[[str], list[Hit]]:
     """Tier 1 — anthropic.Anthropic().messages.create (the original path)."""
     try:
+        require_transport("anthropic")
+    except ProviderPolicyError as exc:
+        log.warning("PII model classifier unavailable: %s", exc)
+        return lambda _text: []
+    try:
         from anthropic import Anthropic  # type: ignore[import-not-found]  # noqa: PLC0415
     except Exception as exc:  # pragma: no cover — anthropic SDK guaranteed in prod
         log.warning("anthropic SDK unavailable; tier-1 disabled: %s", exc)
@@ -143,14 +154,7 @@ def _make_classifier_with_anthropic(model: str) -> Callable[[str], list[Hit]]:
 
     client = Anthropic()
 
-    fallback_kwargs: dict = {}
-    if model.startswith(("claude-fable", "claude-mythos")):
-        # Mythos-class safety classifiers can decline benign requests
-        # (HTTP 200, stop_reason="refusal"); retry on Opus server-side.
-        fallback_kwargs = {
-            "extra_headers": {"anthropic-beta": "server-side-fallback-2026-06-01"},
-            "extra_body": {"fallbacks": [{"model": "claude-opus-5"}]},
-        }
+    fallback_kwargs = _model_fallback_options(model)
 
     def _classify(text: str) -> list[Hit]:
         prompt = _PROMPT.replace("{TEXT}", text)
@@ -210,3 +214,16 @@ def default_classifier() -> Callable[[str], list[Hit]]:
 
 
 __all__ = ["default_classifier"]
+
+
+def _model_fallback_options(model):
+    fallback_kwargs: dict = {}
+    if model.startswith(("claude-fable", "claude-mythos")):
+        # Mythos-class safety classifiers can decline benign requests
+        # (HTTP 200, stop_reason="refusal"); retry on Opus server-side.
+        fallback_kwargs = {
+            "extra_headers": {"anthropic-beta": "server-side-fallback-2026-06-01"},
+            "extra_body": {"fallbacks": [{"model": "claude-opus-5"}]},
+        }
+
+    return fallback_kwargs

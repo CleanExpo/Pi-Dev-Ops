@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..verification_sandbox import SandboxUnavailable, run_isolated
+
 log = logging.getLogger("pi-ceo.spec_pipeline.ship_gate")
 
 FORBIDDEN_PATHS = (
@@ -77,12 +79,17 @@ def scan_diff_boundary(workspace: str) -> BoundaryResult:
         proc = subprocess.run(
             ["git", "-C", workspace, "diff", "--name-only", "HEAD"],
             capture_output=True, text=True, timeout=30, check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
+        if proc.returncode != 0:
+            return BoundaryResult(tier="blocked", reason="could not read git diff")
         files = [f for f in (proc.stdout or "").splitlines() if f.strip()]
     except (subprocess.SubprocessError, OSError):
-        return BoundaryResult(tier="warn", reason="could not read git diff")
+        return BoundaryResult(tier="blocked", reason="could not read git diff")
 
-    blocked = [f for f in files if any(f.startswith(p) or p in f for p in FORBIDDEN_PATHS)]
+    blocked = [f for f in files if any(f.startswith(p) or p in f for p in FORBIDDEN_PATHS)
+               or any(part.startswith(".env") for part in Path(f).parts)
+               or Path(f).suffix.lower() in {".key", ".pem"}]
     if blocked:
         return BoundaryResult(tier="blocked", blocked_paths=blocked, file_count=len(files))
     tier = "warn" if len(files) > MAX_FILES_DEFAULT else "ok"
@@ -93,39 +100,36 @@ def run_oracles(workspace: str) -> dict[str, bool]:
     """Run pytest + import check; tsc if dashboard touched."""
     results: dict[str, bool] = {"import_ok": False, "pytest_ok": False, "tsc_ok": True}
     try:
-        proc = subprocess.run(
-            ["python", "-c", "from app.server.main import app"],
-            cwd=workspace, capture_output=True, text=True, timeout=60, check=False,
-            env={**os.environ, "PYTHONPATH": workspace},
+        proc = run_isolated(
+            workspace, ["python3", "-c", "from app.server.main import app"], timeout_s=60,
         )
         results["import_ok"] = proc.returncode == 0
-    except (subprocess.SubprocessError, OSError):
+    except (SandboxUnavailable, subprocess.SubprocessError, OSError):
         results["import_ok"] = False
 
     tests = Path(workspace) / "tests"
     if tests.is_dir():
         try:
-            proc = subprocess.run(
-                ["python", "-m", "pytest", "tests/", "-x", "-q"],
-                cwd=workspace, capture_output=True, text=True, timeout=300, check=False,
-                env={**os.environ, "PYTHONPATH": workspace},
+            proc = run_isolated(
+                workspace, ["python3", "-m", "pytest", "tests/", "-x", "-q"], timeout_s=300,
             )
             results["pytest_ok"] = proc.returncode == 0
-        except (subprocess.SubprocessError, OSError):
+        except (SandboxUnavailable, subprocess.SubprocessError, OSError):
             results["pytest_ok"] = False
-    else:
-        results["pytest_ok"] = True
-
     dash = Path(workspace) / "dashboard"
-    touched = any(str(p).startswith("dashboard/") for p in _changed_files(workspace))
+    try:
+        touched = any(str(p).startswith("dashboard/") for p in _changed_files(workspace))
+    except RuntimeError:
+        results["tsc_ok"] = False
+        return results
     if dash.is_dir() and touched:
         try:
-            proc = subprocess.run(
-                ["npx", "tsc", "--noEmit"],
-                cwd=str(dash), capture_output=True, text=True, timeout=180, check=False,
+            proc = run_isolated(
+                workspace, ["npx", "--no-install", "tsc", "--noEmit"],
+                cwd=str(dash), timeout_s=180,
             )
             results["tsc_ok"] = proc.returncode == 0
-        except (subprocess.SubprocessError, OSError):
+        except (SandboxUnavailable, subprocess.SubprocessError, OSError):
             results["tsc_ok"] = False
     return results
 
@@ -135,13 +139,16 @@ def _changed_files(workspace: str) -> list[str]:
         proc = subprocess.run(
             ["git", "-C", workspace, "diff", "--name-only", "HEAD"],
             capture_output=True, text=True, timeout=30, check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
+        if proc.returncode != 0:
+            raise RuntimeError("could not determine verification scope from git diff")
         return [ln.strip() for ln in (proc.stdout or "").splitlines() if ln.strip()]
-    except (subprocess.SubprocessError, OSError):
-        return []
+    except (subprocess.SubprocessError, OSError) as exc:
+        raise RuntimeError("could not determine verification scope from git diff") from exc
 
 
-def _github_request(method: str, path: str, body: dict | None = None) -> dict:
+def _github_request(method: str, path: str, body: dict | None = None) -> dict | list:
     token = os.environ.get("GITHUB_TOKEN", "")
     if not token:
         raise RuntimeError("GITHUB_TOKEN not set")
@@ -154,10 +161,32 @@ def _github_request(method: str, path: str, body: dict | None = None) -> dict:
             "Accept": "application/vnd.github+json",
             "Content-Type": "application/json",
             "User-Agent": "Pi-CEO-SpecPipeline/1.0",
+            "X-GitHub-Api-Version": "2022-11-28",
         },
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
         return json.loads(resp.read().decode())
+
+
+def _wait_for_candidate_checks(repo, pr_number, pr_url, candidate_sha, poll_seconds, max_polls):
+    import time
+    from .github_required_checks import candidate_snapshot
+    receipt = {"pr_url": pr_url, "candidate_sha": candidate_sha}
+    try:
+        for _ in range(max_polls):
+            state, required = candidate_snapshot(_github_request, repo, pr_number, candidate_sha)
+            if state == "failed":
+                return {**receipt, "status": "blocked", "reason": "A required CI context did not succeed"}
+            if state == "passed":
+                final, final_required = candidate_snapshot(_github_request, repo, pr_number, candidate_sha)
+                if final == "passed" and final_required == required:
+                    return None
+                if final == "failed" or final_required != required:
+                    return {**receipt, "status": "blocked", "reason": "Required CI changed before merge"}
+            time.sleep(poll_seconds)
+    except (RuntimeError, OSError, ValueError) as exc:
+        return {**receipt, "status": "blocked", "reason": f"CI verification unavailable: {type(exc).__name__}"}
+    return {**receipt, "status": "timeout", "reason": "Required CI contexts are missing or pending"}
 
 
 def open_pr_and_merge(
@@ -166,12 +195,15 @@ def open_pr_and_merge(
     branch: str,
     title: str,
     body: str,
+    candidate_sha: str,
     poll_seconds: int = 30,
     max_polls: int = 40,
 ) -> dict[str, Any]:
-    """Open PR and merge when checks green. Requires machine ship mode."""
+    """Open PR; require complete successful CI for the exact reviewed candidate."""
     if not machine_ship_enabled():
         return {"status": "skipped", "reason": "TAO_MACHINE_SHIP_MODE off"}
+    if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", candidate_sha):
+        return {"status": "blocked", "reason": "reviewed candidate SHA is required"}
 
     pr = _github_request("POST", f"/repos/{repo}/pulls", {
         "title": title,
@@ -184,33 +216,17 @@ def open_pr_and_merge(
     if not pr_number:
         return {"status": "error", "reason": "pr create failed", "raw": pr}
 
-    import time
-    for _ in range(max_polls):
-        detail = _github_request("GET", f"/repos/{repo}/pulls/{pr_number}")
-        head_sha = (detail.get("head") or {}).get("sha", "")
-        checks = _github_request(
-            "GET", f"/repos/{repo}/commits/{head_sha}/check-runs?per_page=100",
-        )
-        runs = checks.get("check_runs") or []
-        if not runs:
-            time.sleep(poll_seconds)
-            continue
-        required = [r for r in runs if r.get("status") == "completed"]
-        if len(required) < len(runs):
-            time.sleep(poll_seconds)
-            continue
-        if any(r.get("conclusion") not in ("success", "skipped", "neutral") for r in required):
-            return {"status": "blocked", "pr_url": pr_url, "checks": runs}
-        break
-    else:
-        return {"status": "timeout", "pr_url": pr_url}
+    blocked = _wait_for_candidate_checks(repo, pr_number, pr_url, candidate_sha, poll_seconds, max_polls)
+    if blocked is not None:
+        return blocked
 
     merge = _github_request(
         "PUT", f"/repos/{repo}/pulls/{pr_number}/merge",
-        {"merge_method": "merge"},
+        {"merge_method": "merge", "sha": candidate_sha},
     )
     return {
         "status": "merged" if merge.get("merged") else "merge_failed",
         "pr_url": pr_url,
         "merge_sha": merge.get("sha"),
+        "candidate_sha": candidate_sha,
     }

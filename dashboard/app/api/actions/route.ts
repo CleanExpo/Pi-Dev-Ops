@@ -3,8 +3,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from "next/server";
-import { makeClient, getAnalysisMode, SYSTEM } from "@/lib/claude";
-import { MODELS, refusalFallback } from "@/lib/models";
+import { runPhase, SYSTEM } from "@/lib/claude";
+import { MODELS } from "@/lib/models";
 import { makeOctokit } from "@/lib/github";
 import type { AnalysisResult } from "@/lib/types";
 
@@ -137,52 +137,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const prompt = buildPrompt(action, result);
 
   try {
-    const client = makeClient();
-
-    if (getAnalysisMode() === "cli" || !client) {
-      // CLI fallback: run claude -p
-      const { spawn } = await import("child_process");
-      return new Promise((resolve) => {
-        // Scoped env. This previously passed { ...process.env }, so the spawned CLI
-        // inherited every credential the dashboard holds — SUPABASE_SERVICE_ROLE_KEY,
-        // GITHUB_TOKEN, VERCEL_TOKEN, TELEGRAM_BOT_TOKEN, DASHBOARD_PASSWORD and more —
-        // into a process driven by a caller-supplied prompt. The CLI needs its own auth
-        // and a working shell environment. It needs none of the rest.
-        const CHILD_ENV_ALLOWLIST = [
-          "PATH", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
-          "SystemRoot", "TEMP", "TMP", "LANG", "NODE_ENV", "ANTHROPIC_API_KEY",
-        ];
-        const childEnv = { NODE_ENV: process.env.NODE_ENV } as NodeJS.ProcessEnv;
-        for (const k of CHILD_ENV_ALLOWLIST) {
-          if (process.env[k] !== undefined) childEnv[k] = process.env[k];
-        }
-        const child = spawn("claude", ["-p", prompt, "--model", MODELS.DEFAULT, "--output-format", "text"], {
-          env: childEnv,
-        });
-        let output = "";
-        child.stdout.on("data", (d: Buffer) => { output += d.toString(); });
-        child.on("close", () => {
-          resolve(NextResponse.json({ output }));
-        });
-        child.on("error", () => {
-          resolve(NextResponse.json({ error: "claude CLI not available" }, { status: 500 }));
-        });
-      });
-    }
-
-    const fallback = refusalFallback(MODELS.DEFAULT);
-    const response = await client.messages.create(
-      {
-        model: MODELS.DEFAULT,
-        max_tokens: 4096,
-        messages: [{ role: "user", content: prompt }],
-        ...fallback.params,
-      },
-      fallback.options,
-    );
-
-    const block = response.content[0];
-    const output = block.type === "text" ? block.text : "";
+    const output = await runPhase(null, MODELS.DEFAULT, prompt, "", () => {});
     return NextResponse.json({ output });
 
   } catch (e) {

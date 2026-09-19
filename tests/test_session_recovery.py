@@ -10,7 +10,6 @@ Covers:
   - get_recovered_count returns the last scheduled count
   - rehydrated session has expected fields from checkpoint JSONB
 """
-import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
@@ -56,7 +55,7 @@ def test_recovery_schedules_resume_for_each_row():
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build), \
          patch("app.server.session_model.asyncio.create_task") as mock_task:
-        mock_task.side_effect = lambda coro: coro.close() or None  # close coroutine, return None — no event loop needed
+        mock_task.side_effect = lambda coro: coro.close() or MagicMock()  # close coroutine, return None — no event loop needed
         scheduled = session_model.recover_interrupted_sessions_from_supabase()
 
     assert scheduled == 2
@@ -76,7 +75,7 @@ def test_recovery_caps_at_max_concurrent():
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build), \
          patch("app.server.session_model.asyncio.create_task") as mock_task:
-        mock_task.side_effect = lambda coro: coro.close() or None  # close coroutine, return None — no event loop needed
+        mock_task.side_effect = lambda coro: coro.close() or MagicMock()  # close coroutine, return None — no event loop needed
         scheduled = session_model.recover_interrupted_sessions_from_supabase(max_concurrent=3)
 
     assert scheduled == 3
@@ -96,7 +95,7 @@ def test_recovery_skips_already_local():
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build), \
          patch("app.server.session_model.asyncio.create_task") as mock_task:
-        mock_task.side_effect = lambda coro: coro.close() or None  # close coroutine, return None — no event loop needed
+        mock_task.side_effect = lambda coro: coro.close() or MagicMock()  # close coroutine, return None — no event loop needed
         scheduled = session_model.recover_interrupted_sessions_from_supabase()
 
     # Only s2 should be scheduled — s1 was already local
@@ -116,7 +115,7 @@ def test_recovery_skips_rows_without_last_phase():
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build), \
          patch("app.server.session_model.asyncio.create_task") as mock_task:
-        mock_task.side_effect = lambda coro: coro.close() or None  # close coroutine, return None — no event loop needed
+        mock_task.side_effect = lambda coro: coro.close() or MagicMock()  # close coroutine, return None — no event loop needed
         scheduled = session_model.recover_interrupted_sessions_from_supabase()
 
     assert scheduled == 1
@@ -155,7 +154,7 @@ def test_get_recovered_count_reflects_last_run():
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build), \
          patch("app.server.session_model.asyncio.create_task") as mock_task:
-        mock_task.side_effect = lambda coro: coro.close() or None  # close coroutine, return None — no event loop needed
+        mock_task.side_effect = lambda coro: coro.close() or MagicMock()  # close coroutine, return None — no event loop needed
         session_model.recover_interrupted_sessions_from_supabase(max_concurrent=2)
 
     assert session_model.get_recovered_count() == 2
@@ -177,7 +176,7 @@ def test_recovery_fail_soft_on_individual_rehydrate_error():
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build), \
          patch("app.server.session_model.asyncio.create_task") as mock_task:
-        mock_task.side_effect = lambda coro: coro.close() or None  # close coroutine, return None — no event loop needed
+        mock_task.side_effect = lambda coro: coro.close() or MagicMock()  # close coroutine, return None — no event loop needed
         scheduled = session_model.recover_interrupted_sessions_from_supabase()
 
     # bad row skipped (no last_completed_phase), s1 and s2 succeed

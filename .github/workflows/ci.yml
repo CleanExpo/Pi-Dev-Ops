@@ -33,7 +33,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install ruff
         run: pip install "ruff==0.15.10"
@@ -68,7 +68,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       # RA-7400. The two gates below read their baseline as ground truth, so
       # editing the baseline was the unguarded way past both: add a key and the
@@ -138,14 +138,12 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
-          cache-dependency-path: app/requirements.txt
+          cache-dependency-path: app/requirements.lock
 
       - name: Install dependencies
-        run: |
-          pip install -r app/requirements.txt
-          pip install "pytest>=8"
+        run: pip install --require-hashes -r app/requirements.lock
 
       - name: Pytest unit tests
         run: pytest tests/ -v --tb=short
@@ -244,16 +242,6 @@ jobs:
         run: npm run lint
         continue-on-error: false
 
-      # dashboard/package.json has declared `"test": "vitest run"` all along and
-      # no workflow ever called it, so all 155 dashboard tests ran nowhere. That
-      # included the one guarding the pi-ceo proxy allowlist against surfaces
-      # declared in smoke-surfaces.json but never admitted — the drift that had
-      # `e2e` red on main with five 403s for over a week. A guard nobody runs
-      # cannot catch the recurrence it exists for.
-      # Re-derive that it is wired: grep -n "npm test" .github/workflows/ci.yml
-      - name: Vitest
-        run: npm test
-
       - name: Build
         run: npm run build
         env:
@@ -264,6 +252,36 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-key
 
   # ── Secrets exposure scan (runs on every push + PR, blocks merge) ──────────
+  # Run tests independently so a type/lint failure does not hide regressions.
+  frontend-tests:
+    name: Frontend regression tests (Vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Vitest
+        run: npm test -- --reporter=default --reporter=junit --outputFile=test-results.xml
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-tests-${{ github.sha }}
+          path: dashboard/test-results.xml
+          if-no-files-found: error
+
+  # ?? Secrets exposure scan (runs on every push + PR, blocks merge) ??????????
   secrets-scan:
     name: Secrets exposure scan
     runs-on: ubuntu-latest
@@ -278,7 +296,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Run secrets_check.py
         run: python scripts/secrets_check.py --repo-root .
@@ -286,13 +304,13 @@ jobs:
         # A non-zero exit code from secrets_check.py fails the job and blocks the merge.
 
   # ── RA-583: Post-deploy smoke test against production Railway URL ──────────
-  # Runs only on pushes to main (not PRs) after both python + frontend jobs pass.
+  # Runs only on main after source, size, and regression checks pass.
   # Requires TAO_PROD_PASSWORD secret set in GitHub → Settings → Secrets.
   smoke-prod:
     name: Smoke test (prod)
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    needs: [python, frontend, secrets-scan]
+    needs: [lint, file-length, python, frontend, frontend-tests, secrets-scan]
     # Only fire on pushes to main — not on PRs (we don't smoke prod on every PR)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
@@ -303,20 +321,13 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-
-      - name: Install minimal deps for smoke test
-        run: pip install requests
-
-      - name: Wait for Railway deploy to settle
-        # CI jobs take ~44s before this runs; Railway deploy needs ~60-90s total.
-        # 60s here + 44s CI overhead = ~104s total settle time.
-        run: sleep 60
+          python-version: "3.12"
 
       - name: Run smoke test against production
-        run: python scripts/smoke_test.py --target=prod --emit-metrics
+        run: python scripts/smoke_test.py --target=prod --emit-metrics --expected-sha "$EXPECTED_SHA"
         env:
           TAO_PASSWORD: ${{ secrets.TAO_PROD_PASSWORD }}
+          EXPECTED_SHA: ${{ github.sha }}
 
       - name: Upload smoke test metrics
         if: always()
@@ -361,12 +372,12 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
-          cache-dependency-path: app/requirements.txt
+          cache-dependency-path: app/requirements.lock
 
       - name: Install dependencies
-        run: pip install -r app/requirements.txt
+        run: pip install --require-hashes -r app/requirements.lock
 
       - name: Start Pi CEO server locally
         run: |

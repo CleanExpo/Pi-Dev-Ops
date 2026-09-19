@@ -17,10 +17,7 @@ return value).
 import asyncio
 import datetime
 import json
-import os
-import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -42,10 +39,14 @@ def sandbox(tmp_path, monkeypatch):
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=repo, check=True)
 
-    # Modify code (uncommitted) so `git diff HEAD` produces output
+    # Commit the change: review must include changes already committed by a generator.
+    base = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
     (repo / "app.py").write_text(
         "def hello():\n    return 'hi'\n\n\ndef goodbye():\n    return 'bye'\n",
     )
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "candidate"], cwd=repo, check=True)
+    candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
 
     # Place .harness/adversary-runs/ relative to a fake project root
     runs_root = tmp_path / "harness_root"
@@ -59,6 +60,8 @@ def sandbox(tmp_path, monkeypatch):
         brief="Add a goodbye function",
         evaluator_enabled=True,
         output_lines=[],
+        base_sha=base,
+        candidate_sha=candidate,
     )
     return session, runs_root
 
@@ -116,6 +119,7 @@ def test_phase_adversary_skips_no_diff(tmp_path):
     (repo / "x.py").write_text("x = 1\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=repo, check=True)
+    sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
 
     session = SimpleNamespace(
         id="test-sid-empty",
@@ -123,6 +127,8 @@ def test_phase_adversary_skips_no_diff(tmp_path):
         brief="",
         evaluator_enabled=True,
         output_lines=[],
+        base_sha=sha,
+        candidate_sha=sha,
     )
 
     sdk_mock = AsyncMock(return_value=(0, "should not be called", 0.0))
@@ -147,7 +153,11 @@ def test_phase_adversary_skips_docs_only(tmp_path):
     (repo / "README.md").write_text("# Hello\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-q", "-m", "initial"], cwd=repo, check=True)
+    base = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
     (repo / "README.md").write_text("# Hello\n\nNew section.\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "candidate"], cwd=repo, check=True)
+    candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
 
     session = SimpleNamespace(
         id="test-sid-docs",
@@ -155,6 +165,8 @@ def test_phase_adversary_skips_docs_only(tmp_path):
         brief="Docs update",
         evaluator_enabled=True,
         output_lines=[],
+        base_sha=base,
+        candidate_sha=candidate,
     )
 
     sdk_mock = AsyncMock(return_value=(0, "should not be called", 0.0))

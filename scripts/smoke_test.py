@@ -16,7 +16,6 @@ Environment variables (fallback if --password not given):
 """
 import sys
 import os
-import argparse
 import asyncio
 import datetime
 import json
@@ -25,30 +24,19 @@ import urllib.request
 import urllib.error
 import http.cookiejar
 
+if __package__:
+    from .deployment_revision import wait_for_revision
+    from .smoke_revision import parse_backend_args
+else:
+    from deployment_revision import wait_for_revision
+    from smoke_revision import parse_backend_args
+
 # Force UTF-8 output on Windows
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-# ---------------------------------------------------------------------------
-# Arg parsing
-# ---------------------------------------------------------------------------
-_PROD_URL = "https://pi-dev-ops-production.up.railway.app"
-
-parser = argparse.ArgumentParser(description="Pi CEO smoke test")
-parser.add_argument("--url", default="http://127.0.0.1:7777", help="Server base URL")
-parser.add_argument("--password", default=os.environ.get("TAO_PASSWORD", ""), help="Server password")
-parser.add_argument("--target", choices=["prod", "local"], default="local",
-                    help="'prod' hits the Railway production URL")
-parser.add_argument("--emit-metrics", action="store_true",
-                    help="Write results to .harness/post-deploy-metrics/ JSONL")
-parser.add_argument("--agent-sdk", action="store_true",
-                    help="Run SDK path verification checks (RA-575); requires server running")
-args = parser.parse_args()
-
-# --target=prod overrides --url and flags prod mode (skips local FS checks)
+args = parse_backend_args()
 PROD_MODE = args.target == "prod"
-if PROD_MODE and args.url == "http://127.0.0.1:7777":
-    args.url = _PROD_URL
 
 BASE = args.url.rstrip("/")
 PASSWORD = args.password
@@ -133,7 +121,7 @@ def _req(method: str, path: str, body=None, headers=None, use_cookie=True) -> tu
     req = urllib.request.Request(url, data=data, headers=h, method=method)
     opener = _opener if use_cookie else urllib.request.build_opener()
     try:
-        with opener.open(req) as resp:
+        with opener.open(req, timeout=10) as resp:
             raw = resp.read().decode()
             try:
                 return resp.status, json.loads(raw)
@@ -230,6 +218,17 @@ def check(name: str, ok: bool, detail: str = ""):
 # CHECKS
 # ---------------------------------------------------------------------------
 print(f"\nPi CEO Smoke Test — {BASE}\n{'=' * 50}")
+
+if args.expected_sha:
+    try:
+        revision = wait_for_revision(
+            lambda: get("/health", headers={"Cache-Control": "no-cache"}),
+            args.expected_sha, timeout=args.deployment_timeout,
+        )
+        print(f"Verified backend deployment revision: {revision}")
+    except (ValueError, TimeoutError) as exc:
+        print(f"FATAL: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 # ── 1. Server health ──────────────────────────────────────────────────────
 print("\n[1/9] Server Health")

@@ -500,7 +500,7 @@ interface PollSession {
   files_modified?: number;
 }
 
-function FixSessionLive({
+export function FixSessionLive({
   sessionId,
   findingTitle,
   onClose,
@@ -527,16 +527,11 @@ function FixSessionLive({
     es.onmessage = (e) => {
       try {
         const ev: SessionEvent = JSON.parse(e.data);
-        // RA-1181 — detect true completion from text patterns the server
-        // actually emits ("=== SESSION COMPLETE ===", phase=Summary).
-        const text = (ev.text ?? "").toString();
-        if (
-          ev.type === "closed" ||
-          ev.type === "done" ||
-          /SESSION\s+COMPLETE/i.test(text)
-        ) {
-          setStatus("done");
-          // keep events visible; don't close es here — server emits Summary events after
+        // A terminal log stream also closes for blocked and failed sessions.
+        // Only the session status poll below can establish its outcome.
+        if (ev.type === "closed" || ev.type === "done") {
+          setStatus((prev) => (prev === "done" || prev === "error" ? prev : "reconnecting"));
+          es.close();
         }
         setEvents((prev) => [...prev, ev]);
       } catch {
@@ -549,7 +544,7 @@ function FixSessionLive({
       // always keeps running server-side (Vercel proxy has a 10 s timeout
       // but Railway is happy). Mark as "reconnecting" and let the poller
       // below surface the real status.
-      setStatus((prev) => (prev === "done" ? "done" : "reconnecting"));
+      setStatus((prev) => (prev === "done" || prev === "error" ? prev : "reconnecting"));
       es.close();
     };
 
@@ -567,8 +562,8 @@ function FixSessionLive({
         const mine = data.find((s) => s.id === sessionId);
         if (mine) {
           setPollState(mine);
-          if (mine.status === "complete") setStatus("done");
-          else if (mine.status === "failed" || mine.status === "killed") {
+          if (mine.status === "complete" || mine.status === "done") setStatus("done");
+          else if (["failed", "killed", "blocked", "stalled", "interrupted", "error"].includes(mine.status)) {
             setStatus("error");
             setErr(`Session ended: ${mine.status}`);
           }
@@ -602,8 +597,8 @@ function FixSessionLive({
   const statusLabel: Record<typeof status, string> = {
     connecting:   "connecting…",
     running:      "● running",
-    reconnecting: "◌ reconnecting (backend still running)",
-    done:         "✓ Complete",
+    reconnecting: "◌ checking session status",
+    done:         "✓ Reported complete",
     error:        "⚠ session ended with error",
   };
 
@@ -661,7 +656,7 @@ function FixSessionLive({
                 className="text-[12px] font-semibold font-mono"
                 style={{ color: "var(--success)" }}
               >
-                Complete
+                Reported complete
               </div>
               <div
                 className="text-[10px] font-mono truncate"
@@ -721,7 +716,7 @@ function FixSessionLive({
         ))}
         {status === "reconnecting" && (
           <div style={{ color: "var(--warning)" }} className="mt-2">
-            ◌ SSE stream closed — polling for session status. Build continues on server.
+            ◌ SSE stream closed — polling for session status.
           </div>
         )}
         {err && status === "error" && (

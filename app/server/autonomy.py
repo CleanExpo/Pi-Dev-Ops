@@ -39,6 +39,7 @@ import urllib.error
 from pathlib import Path
 from typing import Any
 from app.server import config_loader, session_lease
+from .autonomy_evidence import calc_effective_autonomy as _calc_effective_autonomy, generation_blocked
 from app.server.autonomy_eligibility import (
     AUTONOMY_LABEL as _AUTONOMY_LABEL,
     MACHINE_SHIP_LABEL as _MACHINE_SHIP_LABEL,
@@ -64,6 +65,8 @@ _DEFAULT_REPO_URL = "https://github.com/CleanExpo/Pi-Dev-Ops"
 _PROJECTS_JSON = (
     config_loader.PROJECTS_JSON
 )
+
+
 
 
 def _load_portfolio_projects() -> list[dict]:
@@ -861,12 +864,7 @@ async def _process_autonomy_issue(
     create_session: Any,
     issue: dict,
 ) -> None:
-    """Process a single Linear issue from the autonomy queue.
-
-    Extracted from `_run_poller_iteration` for length / readability. Per-ticket
-    failures are logged + recorded to the event ring; they do not propagate
-    out (the outer iteration must keep working through the rest of the queue).
-    """
+    """Process one issue; record ticket failures without stopping the queue."""
     issue_id   = issue["id"]
     identifier = issue.get("identifier", "?")
     title      = issue.get("title", "?")
@@ -891,6 +889,9 @@ async def _process_autonomy_issue(
             "title": title,
             "reason": skip_reason,
         })
+        return
+
+    if generation_blocked(identifier, _log_event):
         return
 
     label_names = {
@@ -1095,60 +1096,12 @@ def _record_iteration_error(exc: BaseException) -> None:
 # Status (for /api/autonomy/status endpoint)
 # ---------------------------------------------------------------------------
 
-def _calc_effective_autonomy(events: list[dict]) -> dict:
-    """
-    RA-626 — Compute Effective Autonomy runtime metric from in-memory events.
-
-    Metric definition:
-      effective_autonomy_pct = poll_success_rate × session_success_rate × 100
-
-    Where:
-      poll_success_rate  = successful_polls / (successful_polls + poll_errors)
-      session_success_rate = sessions_started / (sessions_started + session_errors)
-
-    A value of 100 means every poll succeeded AND every session it attempted
-    launched without error. Partial credit is given for partially healthy runs.
-    Returns None for each sub-rate when there is no data yet.
-    """
-    polls           = sum(1 for e in events if e.get("action") == "poll")
-    poll_errors     = sum(1 for e in events if e.get("action") == "poll_error")
-    started         = sum(1 for e in events if e.get("action") == "session_started")
-    errors          = sum(1 for e in events if e.get("action") == "session_error")
-    _transitions_ok = sum(1 for e in events if e.get("action") == "transition_to_in_progress")  # noqa: F841
-    transition_errs = sum(1 for e in events if e.get("action") == "transition_error")
-    issues_found    = sum(e.get("found", 0) for e in events if e.get("action") == "poll")
-
-    total_polls    = polls + poll_errors
-    total_sessions = started + errors
-
-    poll_rate    = polls / total_polls       if total_polls    > 0 else None
-    session_rate = started / total_sessions  if total_sessions > 0 else None
-    pickup_rate  = started / issues_found    if issues_found   > 0 else None
-
-    # Composite: treat None sub-rates as 1.0 (no data = assume healthy)
-    effective_pct = round(
-        (poll_rate if poll_rate is not None else 1.0) *
-        (session_rate if session_rate is not None else 1.0) * 100,
-        1,
-    )
-
-    return {
-        "effective_autonomy_pct": effective_pct,
-        "poll_success_rate_pct": round(poll_rate * 100, 1) if poll_rate is not None else None,
-        "session_success_rate_pct": round(session_rate * 100, 1) if session_rate is not None else None,
-        "pickup_rate_pct": round(pickup_rate * 100, 1) if pickup_rate is not None else None,
-        "sessions_started": started,
-        "session_errors": errors,
-        "transition_errors": transition_errs,
-        "issues_found_window": issues_found,
-        "window_size": len(events),
-    }
-
 
 def autonomy_status() -> dict:
     """Return poller heartbeat + recent events for the status endpoint."""
     from . import config
     from .machine_ship_readiness import machine_ship_readiness
+    from .session_sdk import generation_readiness
 
     now = time.time()
     age = round(now - _last_poll_at) if _last_poll_at else None
@@ -1164,6 +1117,7 @@ def autonomy_status() -> dict:
         "last_iteration_error": _last_iteration_error,
         "effective_autonomy": _calc_effective_autonomy(_recent_events),  # RA-626
         "machine_ship": machine_ship_readiness(),  # RA-6885
+        "generation": generation_readiness(),
         "planner": _planner_runtime_status(),  # OM-1 lookahead
         "recent_events": _recent_events,
     }

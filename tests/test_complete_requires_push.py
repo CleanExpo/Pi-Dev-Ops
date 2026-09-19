@@ -204,6 +204,8 @@ def _run_build_patches(push_ok: bool, linear, capture_gate) -> list:
     return [
         patch.object(session_phases, "_TAO_AVAILABLE", False),
         patch.object(session_phases, "_notify_linear_session_started"),
+        patch.object(session_phases, "_record_base", new=AsyncMock(return_value=True)),
+        patch.object(session_phases, "_prepare_candidate", new=AsyncMock(return_value=True)),
         patch.object(session_phases, "_phase_clone", new=AsyncMock(return_value=True)),
         patch.object(session_phases, "_phase_analyze"),
         patch.object(session_phases, "_phase_claude_check", new=AsyncMock(return_value=True)),
@@ -227,6 +229,7 @@ def _run_build_patches(push_ok: bool, linear, capture_gate) -> list:
 
 
 async def _drive_run_build(session, *, push_ok: bool):
+    session.evaluator_status = "passed"
     linear = MagicMock()
     gate = {}
 

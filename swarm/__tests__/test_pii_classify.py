@@ -71,6 +71,11 @@ class ParseSpansTests(unittest.TestCase):
 
 
 class ClaudePrintTierTests(unittest.TestCase):
+    def setUp(self):
+        policy = patch.object(pc, "require_transport", return_value={"billing_class": "subscription"})
+        policy.start()
+        self.addCleanup(policy.stop)
+
     def test_returns_parsed_hits_on_success(self):
         fake = MagicMock(returncode=0, stdout=json.dumps([SAMPLE_HIT]), stderr="")
         with patch("swarm.pii_classify.subprocess.run", return_value=fake):
@@ -93,6 +98,11 @@ class ClaudePrintTierTests(unittest.TestCase):
 
 class CascadeTests(unittest.TestCase):
     """End-to-end: default_classifier wires tier 0 → tier 1 correctly."""
+
+    def setUp(self):
+        policy = patch.object(pc, "require_transport", return_value={"billing_class": "subscription"})
+        policy.start()
+        self.addCleanup(policy.stop)
 
     def test_tier_0_wins_when_claude_print_succeeds(self):
         fake = MagicMock(returncode=0, stdout=json.dumps([SAMPLE_HIT]), stderr="")

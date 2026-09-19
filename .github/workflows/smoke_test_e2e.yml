@@ -11,8 +11,7 @@
 #   - vertical:   exercises the full build-lifecycle SSE flow
 #
 # Triggers:
-#   - push to main (after Vercel finishes its own deploy — hence the initial
-#     sleep to let the deploy propagate)
+#   - push to main (wait until both runtimes report this exact commit)
 #   - manual workflow_dispatch for on-demand verification
 
 name: Smoke Test E2E (production)
@@ -38,7 +37,7 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,18 +45,14 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-
-      - name: Wait for Vercel prod deploy to propagate
-        # Only needed for push-triggered runs — Vercel auto-deploys and we
-        # want its build to finish first. 90 s matches the observed median.
-        if: github.event_name == 'push'
-        run: sleep 90
+          python-version: "3.12"
 
       - name: Run smoke test e2e
         env:
           DASHBOARD_URL:      https://pi-dev-ops.vercel.app
           DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
+          EXPECTED_SHA:       ${{ github.sha }}
         run: |
           python3 scripts/smoke_test_e2e.py \
-            --mode "${{ github.event.inputs.mode || 'full' }}"
+            --mode "${{ github.event.inputs.mode || 'full' }}" \
+            --expected-sha "$EXPECTED_SHA"

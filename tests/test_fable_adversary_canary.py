@@ -117,12 +117,21 @@ def _install_fake_sdk(monkeypatch, seen_models, seen_opts):
     return {"claude_agent_sdk": fake_sdk, "claude_agent_sdk.types": fake_types}
 
 
+def _mock_subscription_execution(monkeypatch, session_sdk):
+    from app.server import provider_policy
+    import importlib
+
+    monkeypatch.setattr(provider_policy, "require_transport", lambda *a, **kw: {"billing_class": "subscription"})
+    monkeypatch.setattr(session_sdk, "_execution_options", lambda *a: {"cli_path": sys.executable, "env": {}})
+    monkeypatch.setattr(importlib.import_module("swarm.budget_tracker"), "record_cost", lambda **kw: None)
+
+
 @pytest.mark.asyncio
 async def test_fable_refusal_falls_back_to_opus_no_silent_success(monkeypatch):
     """(iii) A fable refusal retries on opus-4-8 and returns opus's real review —
     never a silent success — and no sampling params reach the fable path."""
     from app.server import config, session_sdk
-
+    _mock_subscription_execution(monkeypatch, session_sdk)
     monkeypatch.setattr(config, "FABLE_ALLOWED_ROLES", {"adversary"})
 
     seen_models: list[str] = []

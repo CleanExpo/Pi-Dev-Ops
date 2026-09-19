@@ -238,3 +238,31 @@ def test_l3_backstop_does_not_cost_the_loop_its_ordinary_work(cmd):
     last two entries sit deliberately next to an L3 rule without being one.
     """
     assert decide("Bash", {"command": cmd}).allow is True, f"over-denied: {cmd}"
+
+
+@pytest.mark.parametrize("tool,key", [("Read", "file_path"), ("Write", "file_path"), ("Edit", "file_path"), ("NotebookEdit", "notebook_path")])
+def test_workspace_boundary_rejects_outside_paths(tmp_path, tool, key):
+    assert not decide(tool, {key: str(tmp_path.parent / "outside")}, workspace=str(tmp_path)).allow
+    assert decide(tool, {key: str(tmp_path / "module.py")}, workspace=str(tmp_path)).allow
+
+
+@pytest.mark.parametrize("path", [".env", "sub/.env.production", ".git/config", ".claude/settings.json", "app/data/.session-secret", "keys/private.pem"])
+def test_workspace_boundary_denies_credentials_and_control_files(tmp_path, path):
+    assert not decide("Read", {"file_path": str(tmp_path / path)}, workspace=str(tmp_path)).allow
+    assert not decide("Write", {"file_path": str(tmp_path / path)}, workspace=str(tmp_path)).allow
+
+
+def test_workspace_boundary_rejects_symlink_escape(tmp_path):
+    outside = tmp_path.parent / "outside-synthetic"
+    outside.mkdir(exist_ok=True)
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("OS does not permit symlink creation")
+    assert not decide("Read", {"file_path": str(link / "file")}, workspace=str(tmp_path)).allow
+
+
+@pytest.mark.parametrize("tool,inp", [("Bash", {"command": "pwd", "dangerouslyDisableSandbox": True}), ("mcp__server__get_secret", {}), ("Grep", {"pattern": "."}), ("Glob", {"pattern": "**/*"})])
+def test_workspace_boundary_does_not_allow_unconfined_surfaces(tmp_path, tool, inp):
+    assert not decide(tool, inp, workspace=str(tmp_path)).allow
