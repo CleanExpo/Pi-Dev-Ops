@@ -1,12 +1,14 @@
 # evals — Wiki
 
-_Last updated: 2026-08-09T11:15:17Z (commits 7291c1b..390da2d)_
+_Last updated: 2026-09-19T12:43:08Z (commits 2ca2681..bb23e87)_
 
 ## Recent changes
-- 390da2d — feat(models): bump default orchestrator/top-tier model from Opus 4.8 to Opus 5 (#631)
+- bb23e87 — Prevent unverified Mission Control execution and delivery
 
 ## Architecture (current)
 Auto-stub: `evals/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
+- evals/README.md — touched in recent commits
 - evals/golden/provider_router_roles.yaml — touched in recent commits
+- evals/test_provider_router_golden.py — touched in recent commits
