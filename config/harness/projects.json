@@ -253,6 +253,23 @@
       "deployments": {},
       "notes": "RA-7406 — the estate-wide skills library: pr-release-gate, /spm, swarm review, estate-sync. Checked out as ~/.claude on each machine, so it has no deployment.",
       "_comment_no_scan_priority": "Omitted deliberately, not overlooked. This repo is PRIVATE and scanner.py _clone_or_update clones a bare https://github.com/<repo>.git with no credentials, unlike the session path which injects GITHUB_TOKEN via session_phases._git_clone_env. scan_all() selects on scan_priority, and every cron in cron-triggers.json passes one, so an entry without the key is never scheduled-scanned — which is the intent. Adding scan_priority would buy up to four failed clones a day and no findings. The autonomy poller does NOT read this key and DOES cover this entry."
+    },
+    {
+      "id": "mission-control",
+      "repo": "CleanExpo/Pi-Dev-Ops",
+      "linear_project_id": "16797f9e-aca7-43d1-9090-5b134be99064",
+      "linear_project_name": "Mission Control",
+      "linear_team_id": "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b",
+      "linear_team_key": "UNI",
+      "stack": [
+        "FastAPI",
+        "Next.js",
+        "Python",
+        "TypeScript"
+      ],
+      "deployments": {},
+      "notes": "Mission Control directive 03/09/2026 (WS0 route the real work). The Linear project Mission Control holds Ready for Pi-Dev + pi-dev:autonomous work (UNI-2726, UNI-2638, UNI-2661) that could not reach the /control queue or the poller while this project had no row. Its code lives in this repo, so the row reuses repo CleanExpo/Pi-Dev-Ops and sits after pi-dev-ops so first-match repo lookups still resolve to pi-dev-ops.",
+      "_comment_no_scan_priority": "Omitted deliberately, as for skills-library. The pi-dev-ops row already schedules scans of this repo; a scan_priority here would scan it twice. The autonomy poller does NOT read this key and DOES cover this entry."
     }
   ],
   "scan_types": [

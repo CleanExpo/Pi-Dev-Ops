@@ -1,0 +1,60 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "PROVEN",
+  "verification_status": "PASS",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": "035725c47b35d6265b2d67c11ff1d7f21d43c976",
+  "updated_at_utc": "2026-09-19T13:39:10Z",
+  "last_verify": {
+    "head": "035725c47b35d6265b2d67c11ff1d7f21d43c976",
+    "at_utc": "2026-09-19T13:39:10Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "out=$(env -u FORCE_COLOR -u CLICOLOR \"$HOME/Pi-Dev-Ops/.venv/bin/python\" -m pytest -q -p no:cacheprovider tests/test_mission_control_registry_routing.py 2>&1); printf '%s\\n' \"$out\" | tail -3; printf '%s' \"$out\" | grep -qF '3 passed' && ! printf '%s' \"$out\" | grep -qE 'failed|error'",
+        "exit_code": 0,
+        "output_digest": "61c8d030da54ca5cee97cea15e2a4802a0c007db7b2dbf6b5cd2e44174537212",
+        "output_tail": "...                                                                      [100%]\n3 passed in 0.02s"
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "out=$(env -u FORCE_COLOR -u CLICOLOR \"$HOME/Pi-Dev-Ops/.venv/bin/python\" -m pytest -q -p no:cacheprovider tests/test_autonomy_contract.py tests/test_autonomy_multi_project.py tests/test_capability_scout.py tests/test_cfo_provider.py tests/test_check_business_charters.py tests/test_cmo.py tests/test_config_loader_absence.py tests/test_cs.py tests/test_cto.py tests/test_discovery.py tests/test_goal_projects.py tests/test_goal_ticket_partial.py tests/test_goal_ticket.py tests/test_plaud_actions.py tests/test_portfolio_pulse_github.py tests/test_portfolio_pulse_linear.py tests/test_run_capability_loop.py tests/test_weekly_enhancement_loop.py tests/test_wiki_sources_api.py tests/test_workspace_context.py tests/test_autonomy_queue_eligibility.py tests/test_mission_control_live_contract.py tests/test_mission_control_live_panels.py tests/test_mission_control_observability.py 2>&1); rc=$?; printf '%s\\n' \"$out\" | tail -3; [ \"$rc\" -eq 0 ]",
+        "exit_code": 0,
+        "output_digest": "539e76e9a5475faea219e8cab207faeca095b34bc21f3cd3510cfda003fb1ffb",
+        "output_tail": "........................................................................ [ 82%]\n..............................................................           [100%]\n350 passed in 2.33s"
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "python3 -c \"import json;d=json.load(open('config/harness/projects.json'));r=[p['id'] for p in d['projects'] if p.get('repo')=='CleanExpo/Pi-Dev-Ops'];print(r);assert r[0]=='pi-dev-ops'\"",
+        "exit_code": 0,
+        "output_digest": "ebe352579b165777e5e13529b3aa37ca72720942aae88e31d90cf41e7ac7f200",
+        "output_tail": "['pi-dev-ops', 'margot', 'mission-control']"
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "python3 -c \"import json;d=json.load(open('config/harness/projects.json'));m=[p for p in d['projects'] if p['id']=='mission-control'];assert len(m)==1,m;assert 'scan_priority' not in m[0] and 'scan_schedule' not in m[0];print('no-scan ok')\"",
+        "exit_code": 0,
+        "output_digest": "2adb47eb279e1d90104ea13c7b09a9f38a526f84f1b0454cb9913d134bc9b597",
+        "output_tail": "no-scan ok"
+      },
+      {
+        "id": "C5",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "! grep -nE '/Users/[A-Za-z]|/home/[A-Za-z]' config/harness/projects.json tests/test_mission_control_registry_routing.py",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      }
+    ],
+    "blockers": []
+  }
+}
