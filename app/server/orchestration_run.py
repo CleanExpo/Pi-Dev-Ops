@@ -108,25 +108,31 @@ async def run_waves(parent, waves, model, evaluator_enabled, resolved_intent, sh
        + (f" ({len(all_escalated)} retried)" if all_escalated else ""))
 
 
+async def _stop_children(parent, sessions_map):
+    """Drain only this parent's active workers on every exceptional exit."""
+    from .sessions import kill_session
+    terminal = {"complete", "failed", "killed", "interrupted", "error", "stalled", "blocked"}
+    children = [
+        child for child in list(sessions_map.values())
+        if getattr(child, "parent_session_id", None) == parent.id
+        and child.status not in terminal
+    ]
+    stopped = await asyncio.gather(
+        *(kill_session(child.id) for child in children), return_exceptions=True
+    )
+    if any(result is not True for result in stopped):
+        parent.status = "failed"
+        reason = "Orchestration stopped, but some workers could not be stopped"
+        parent.error = f"{parent.error}; {reason}" if parent.error else reason
+
+
 async def run_parent(parent, brief, n_workers, model, resolved_intent, evaluator_enabled, run_fan_out, sessions_map):
     try:
         await run_fan_out(parent, brief, n_workers, model, resolved_intent, evaluator_enabled)
     except asyncio.CancelledError:
-        from .sessions import kill_session
         if parent.status != "killed":
             parent.status = "interrupted"
-        terminal = {"complete", "failed", "killed", "interrupted", "error", "stalled", "blocked"}
-        children = [
-            child for child in list(sessions_map.values())
-            if getattr(child, "parent_session_id", None) == parent.id
-            and child.status not in terminal
-        ]
-        stopped = await asyncio.gather(
-            *(kill_session(child.id) for child in children), return_exceptions=True
-        )
-        if any(result is not True for result in stopped):
-            parent.status = "failed"
-            parent.error = "Orchestration stopped, but some workers could not be stopped"
+        await _stop_children(parent, sessions_map)
         em(parent, "error", "  Orchestration stopped before completion")
         raise
     except Exception as exc:
@@ -134,5 +140,6 @@ async def run_parent(parent, brief, n_workers, model, resolved_intent, evaluator
         parent.error = str(exc)
         em(parent, "error", f"  Orchestration failed: {exc}")
         _log.exception("Fan-out failed for %s", parent.id)
+        await _stop_children(parent, sessions_map)
     finally:
         persistence.save_session(parent)

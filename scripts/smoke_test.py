@@ -26,10 +26,10 @@ import http.cookiejar
 
 if __package__:
     from .deployment_revision import wait_for_revision
-    from .smoke_revision import parse_backend_args
+    from .smoke_revision import parse_backend_args, verify_backend_revision
 else:
     from deployment_revision import wait_for_revision
-    from smoke_revision import parse_backend_args
+    from smoke_revision import parse_backend_args, verify_backend_revision
 
 # Force UTF-8 output on Windows
 if hasattr(sys.stdout, "reconfigure"):
@@ -118,7 +118,11 @@ def _req(method: str, path: str, body=None, headers=None, use_cookie=True) -> tu
     url = BASE + path
     data = json.dumps(body).encode() if body is not None else None
     h = {"Content-Type": "application/json", **(headers or {})}
+    authorization = h.pop("Authorization", None)
     req = urllib.request.Request(url, data=data, headers=h, method=method)
+    if authorization:
+        # Revision credentials belong to this target, never a redirected host.
+        req.add_unredirected_header("Authorization", authorization)
     opener = _opener if use_cookie else urllib.request.build_opener()
     try:
         with opener.open(req, timeout=10) as resp:
@@ -219,16 +223,8 @@ def check(name: str, ok: bool, detail: str = ""):
 # ---------------------------------------------------------------------------
 print(f"\nPi CEO Smoke Test — {BASE}\n{'=' * 50}")
 
-if args.expected_sha:
-    try:
-        revision = wait_for_revision(
-            lambda: get("/health", headers={"Cache-Control": "no-cache"}),
-            args.expected_sha, timeout=args.deployment_timeout,
-        )
-        print(f"Verified backend deployment revision: {revision}")
-    except (ValueError, TimeoutError) as exc:
-        print(f"FATAL: {exc}", file=sys.stderr)
-        sys.exit(1)
+if args.expected_sha and not verify_backend_revision(get, args, wait_for_revision):
+    sys.exit(1)
 
 # ── 1. Server health ──────────────────────────────────────────────────────
 print("\n[1/9] Server Health")

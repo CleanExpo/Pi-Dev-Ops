@@ -43,6 +43,23 @@ def parse_e2e_args():
     return parser.parse_args()
 
 
+def verify_backend_revision(get, args, wait_for_revision) -> bool:
+    headers = {"Cache-Control": "no-cache"}
+    if args.password:
+        # Public health deliberately omits deployment identity until authenticated.
+        headers["Authorization"] = f"Bearer {args.password}"
+    try:
+        revision = wait_for_revision(
+            lambda: get("/health", headers=headers),
+            args.expected_sha, timeout=args.deployment_timeout,
+        )
+    except (ValueError, TimeoutError) as exc:
+        print(f"FATAL: {exc}", file=sys.stderr)
+        return False
+    print(f"Verified backend deployment revision: {revision}")
+    return True
+
+
 def verify_e2e_revisions(session, args, wait_for_revision) -> bool:
     try:
         frontend_revision = wait_for_revision(
