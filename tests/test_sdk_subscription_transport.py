@@ -85,8 +85,46 @@ def test_absent_credentials_cannot_be_inherited_later(monkeypatch):
     for name in ("CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR"):
         monkeypatch.delenv(name, raising=False)
     child = sdk._child_environment()
-    for name in (*policy.CLAUDE_ROUTING_ENV, "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR"):
+    for name in (*policy.CLAUDE_ROUTING_ENV, "CLAUDE_CODE_OAUTH_TOKEN"):
         assert child[name] == ""
+
+
+def test_config_dir_is_pinned_to_the_home_default_and_never_blanked(monkeypatch, tmp_path):
+    """An empty CLAUDE_CONFIG_DIR is not an unset one.
+
+    Blanking the path resolves the CLI's credential store to the wrong location,
+    so a correctly logged-in subscription host reports loggedIn:false and the
+    transport check refuses it. Measured on the deployed container: absent and
+    `<home>/.claude` both report claude.ai/max; `""` reports authMethod none.
+    """
+    monkeypatch.setattr(sdk.sys, "platform", "linux")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    child = sdk._child_environment()
+    assert child["CLAUDE_CONFIG_DIR"] == str(tmp_path / ".claude")
+
+
+def test_config_dir_cannot_be_redirected_by_the_parent_environment(monkeypatch, tmp_path):
+    monkeypatch.setattr(sdk.sys, "platform", "linux")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", "/tmp/parent-redirected-store")
+    child = sdk._child_environment()
+    assert child["CLAUDE_CONFIG_DIR"] == str(tmp_path / ".claude")
+
+
+@pytest.mark.parametrize("home", ["/", ""])
+def test_degenerate_home_leaves_the_config_dir_blank(monkeypatch, home):
+    monkeypatch.setattr(sdk.sys, "platform", "linux")
+    monkeypatch.setenv("HOME", home)
+    assert sdk._child_environment()["CLAUDE_CONFIG_DIR"] == ""
+
+
+def test_darwin_keeps_the_config_dir_blank_so_the_keychain_store_still_resolves(monkeypatch, tmp_path):
+    """Pinning the path on darwin switches the CLI off the keychain onto a file
+    store whose stale credentials authenticate as nobody, so darwin keeps the
+    blanked value that leaves its supported login working."""
+    monkeypatch.setattr(sdk.sys, "platform", "darwin")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert sdk._child_environment()["CLAUDE_CONFIG_DIR"] == ""
 
 
 def test_cli_replaced_during_version_check_is_rejected(monkeypatch, tmp_path):
