@@ -33,6 +33,22 @@ def _child_environment() -> dict[str, str]:
     # now, so a later parent-env update cannot redirect auth or API transport.
     for name in (*CLAUDE_ROUTING_ENV, "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR"):
         child[name] = ""
+    # CLAUDE_CONFIG_DIR is a PATH, not a credential, so blanking it is not the
+    # same as unsetting it: on Linux an empty value resolves the CLI's credential
+    # store to the wrong location, and a correctly logged-in subscription host then
+    # reports loggedIn:false and is refused by provider_policy's transport check.
+    # Pin the explicit default instead. The key stays present in the returned
+    # mapping, so the SDK overlay still cannot fall back to a parent's redirected
+    # value, and a degenerate HOME stays blank as claude_json_path also requires.
+    #
+    # Linux only, and that is measured rather than cautious. On darwin the live
+    # credential is in the keychain and setting this variable at all switches the
+    # CLI to its file store, where a stale ~/.claude/.credentials.json authenticates
+    # as nobody - so pinning breaks the supported darwin path that blanking leaves
+    # working. Deployment is Linux; darwin keeps today's behaviour.
+    home = child.get("HOME", "").strip()
+    if sys.platform == "linux" and home and home != "/":
+        child["CLAUDE_CONFIG_DIR"] = str(Path(home) / ".claude")
     return child
 
 
