@@ -1,5 +1,11 @@
 """Observed poll/launch metrics and non-mutating generation admission."""
+import logging
 from collections import Counter
+
+# Named for the operational stream an operator greps, not for this module, so the
+# admission drop lands beside the rest of the poller's output (cf. the same
+# convention in conversation_redaction.py).
+log = logging.getLogger("pi-ceo.autonomy")
 
 
 def calc_effective_autonomy(events: list[dict]) -> dict:
@@ -33,6 +39,11 @@ def generation_blocked(identifier: str, emit) -> bool:
     generation = generation_readiness()
     if generation["status"] != "blocked":
         return False
+    # `emit` reaches only the JSONL event log and an in-memory ring, so without
+    # this line a dropped ticket is indistinguishable from a quiet healthy poll
+    # in the deployment logs -- the condition that hid UNI-2742 for four sessions.
+    log.warning("Autonomy: %s dropped at admission - generation blocked: %s",
+                identifier, "; ".join(generation["blockers"]))
     emit({"action": "session_blocked", "ticket": identifier,
           "blockers": generation["blockers"]})
     return True
