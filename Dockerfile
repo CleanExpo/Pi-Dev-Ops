@@ -7,8 +7,15 @@ FROM python:3.12-slim
 # build tooling for better-sqlite3 if a prebuilt binary is unavailable.
 # OmniRoute's supported secure runtime floor is >=22.22.2 or >=24; pinning the
 # major to Node 24 avoids an ambiguous/older Node 22 patch from NodeSource.
+#
+# bubblewrap and socat are the SDK sandbox's Linux prerequisites. Without them
+# `_execution_cli()` raises "execution_blocked: required sandbox dependencies
+# are unavailable" (app/server/sdk_execution_boundary.py:65), generation_readiness
+# reports blocked, and the autonomy poller drops EVERY claimed issue at admission
+# — silently, because that path emits only to the JSONL event log (UNI-2742).
+# The package is `bubblewrap`; the binary shutil.which() looks for is `bwrap`.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git curl ca-certificates build-essential \
+        git curl ca-certificates build-essential bubblewrap socat \
     && curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/nodesource_setup.sh \
     && bash /tmp/nodesource_setup.sh \
     && rm -f /tmp/nodesource_setup.sh \
