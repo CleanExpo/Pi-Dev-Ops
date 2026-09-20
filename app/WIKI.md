@@ -1,12 +1,12 @@
 # app — Wiki
 
-_Last updated: 2026-09-19T13:03:33Z (commits 9e4df73..27c6f91)_
+_Last updated: 2026-09-20T04:22:31Z (commits 0162806..79a074e)_
 
 ## Recent changes
-- 27c6f91 — Prevent failed builds and revision probes from escaping verification
+- 79a074e — fix(autonomy): log the admission drop that silently discarded every ticket (UNI-2742) (#790)
 
 ## Architecture (current)
 Auto-stub: `app/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- app/server/orchestration_run.py — touched in recent commits
+- app/server/autonomy_evidence.py — touched in recent commits

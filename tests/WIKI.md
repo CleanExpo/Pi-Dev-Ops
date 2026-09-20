@@ -1,13 +1,12 @@
 # tests — Wiki
 
-_Last updated: 2026-09-19T13:03:33Z (commits 9e4df73..27c6f91)_
+_Last updated: 2026-09-20T04:22:31Z (commits 0162806..79a074e)_
 
 ## Recent changes
-- 27c6f91 — Prevent failed builds and revision probes from escaping verification
+- 79a074e — fix(autonomy): log the admission drop that silently discarded every ticket (UNI-2742) (#790)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_orchestration_failure_cleanup.py — touched in recent commits
-- tests/test_smoke_revision_auth.py — touched in recent commits
+- tests/test_autonomy_admission_visibility.py — touched in recent commits
