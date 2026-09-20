@@ -1,12 +1,12 @@
 # tests — Wiki
 
-_Last updated: 2026-09-20T04:22:31Z (commits 0162806..79a074e)_
+_Last updated: 2026-09-20T09:22:29Z (commits 22a61fa..bd32923)_
 
 ## Recent changes
-- 79a074e — fix(autonomy): log the admission drop that silently discarded every ticket (UNI-2742) (#790)
+- bd32923 — fix(sdk): pin CLAUDE_CONFIG_DIR instead of blanking it (UNI-2746) (#791)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_autonomy_admission_visibility.py — touched in recent commits
+- tests/test_sdk_subscription_transport.py — touched in recent commits
