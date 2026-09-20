@@ -71,7 +71,7 @@
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/continuation_horizon_hook.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/continuation_horizon_hook.py\" || exit 1"
           }
         ]
       }
@@ -101,7 +101,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/continuation_horizon_hook.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/continuation_horizon_hook.py\" || exit 1"
           }
         ]
       }
