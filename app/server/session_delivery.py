@@ -23,6 +23,36 @@ async def verify_candidate(session):
     return result
 
 
+def record_verification_failure(session, result: workspace_verify.VerifyResult) -> None:
+    """Fail-closed receipt when workspace checks are not PASSED."""
+    session.evaluator_status = "verification_failed"
+    session.status = "blocked"
+    session.error = f"Required workspace checks {result.status}: {result.reason}"
+    session.last_completed_phase = "evaluator"
+    persistence.save_session(session)
+
+
+def evaluator_block_reason(session) -> str:
+    """Name the workspace-check outcome when release dies on verification.
+
+    Quiet-tip run 35547546822 only showed ``verification_failed`` because
+    ``_review_admitted`` overwrote ``Required workspace checks …``. Product
+    still blocks; the reason has to survive so the next canary is diagnosable.
+    """
+    status = getattr(session, "evaluator_status", "") or "unknown"
+    prefix = f"Release blocked by evaluator: {status}"
+    if status != "verification_failed":
+        return prefix
+    verification = getattr(session, "verification", {}) or {}
+    check = str(verification.get("status") or "unknown")
+    reason = str(verification.get("reason") or "").strip()
+    command = str(verification.get("command") or "").strip()
+    extra = f"{check}: {reason}" if reason else check
+    if command:
+        extra = f"{extra} via {command}"
+    return f"{prefix} ({extra})"
+
+
 async def release_gate(session, *, run_cmd, em) -> bool:
     """Deny delivery unless executable checks and required review cover this commit."""
     candidate = getattr(session, "candidate_sha", "")
