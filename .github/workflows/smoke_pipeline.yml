@@ -26,6 +26,12 @@ name: Pipeline Smoke (E2E)
 #      or the Railway dashboard).
 #   2. Actions → "Pipeline Smoke (E2E)" → Run workflow.
 #   3. Paste the run URL on RA-7546.
+#
+# Run 35528063288 (quiet tip, uptime=23319s): planner returned 55% and
+# the product 70% floor blocked generate. That is expected after #778
+# (JSON-only, no tools) plus this brief's "Full feature audit first".
+# intent=smoke skips the 70% floor; product plans do not. See
+# planner_admission.plan_confidence_floor. Still not CLEAR from merge.
 
 on:
   schedule:

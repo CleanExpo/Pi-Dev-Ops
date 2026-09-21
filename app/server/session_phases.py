@@ -44,7 +44,12 @@ from .supabase_log import log_gate_check
 from .session_recorder import record_episode, retrieve_similar_episodes, format_episodes_as_context
 from .session_finish import finish_after_push
 from .session_model import em, mark_terminal
-from .planner_admission import plan_timeouts, sdk_failure_detail
+from .planner_admission import (
+    plan_below_confidence_floor,
+    plan_timeouts,
+    sdk_failure_detail,
+    smoke_admitted_below_product_floor,
+)
 from . import session_delivery
 from .session_process import stop_process_tree
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
@@ -689,9 +694,6 @@ async def _phase_sandbox(session, resume_from: str) -> bool:
     return True
 
 
-_PLAN_CONFIDENCE_FLOOR = 0.7
-
-
 def _block_plan_phase(session, phase_start: float, reason: str) -> bool:
     """Persist a planner failure as BLOCKED without advancing the checkpoint."""
     message = f"Plan blocked: {reason}"
@@ -705,7 +707,7 @@ def _block_plan_phase(session, phase_start: float, reason: str) -> bool:
     return False
 
 
-def _validate_plan_data(plan_data: object) -> tuple[float, list[dict], str] | tuple[None, None, str]:
+def _validate_plan_data(plan_data: object, *, intent: str = "") -> tuple[float, list[dict], str] | tuple[None, None, str]:
     """Return validated planner fields or a durable reason to block the build."""
     if not isinstance(plan_data, dict):
         return None, None, "planner JSON must be an object"
@@ -716,11 +718,11 @@ def _validate_plan_data(plan_data: object) -> tuple[float, list[dict], str] | tu
     confidence = float(raw_confidence)
     if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
         return None, None, "planner confidence must be a finite value between 0.0 and 1.0"
-    if confidence < _PLAN_CONFIDENCE_FLOOR:
-        return None, None, (
-            f"planner confidence {confidence:.0%} is below the required "
-            f"{_PLAN_CONFIDENCE_FLOOR:.0%} floor"
-        )
+    blocked = plan_below_confidence_floor(confidence, intent)
+    if blocked:
+        return None, None, blocked
+    if smoke_admitted_below_product_floor(confidence, intent):
+        _log.info("RA-7546: smoke plan admitted at %.0f%% (product floor 70%%)", confidence * 100)
 
     units = plan_data.get("units")
     if not isinstance(units, list) or not 3 <= len(units) <= 8:
@@ -742,7 +744,7 @@ def _validate_plan_data(plan_data: object) -> tuple[float, list[dict], str] | tu
     return confidence, units, risk_notes
 
 
-async def _phase_plan(session, spec: str, resume_from: str) -> bool:
+async def _phase_plan(session, spec: str, resume_from: str, intent: str = "") -> bool:
     """RA-1026 — Lightweight Haiku planning phase between sandbox and generator.
 
     Converts the structured brief into a JSON implementation plan with up to 8
@@ -849,7 +851,7 @@ async def _phase_plan(session, spec: str, resume_from: str) -> bool:
         _log.warning("RA-1026: plan JSON parse failed: %s — raw: %.200s", exc, plan_text)
         return _block_plan_phase(session, phase_start, "planner output is not valid JSON")
 
-    confidence, units, risk_notes = _validate_plan_data(plan_data)
+    confidence, units, risk_notes = _validate_plan_data(plan_data, intent=intent)
     if confidence is None:
         return _block_plan_phase(session, phase_start, risk_notes)
 
@@ -1811,7 +1813,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     em(session, "system", f"  Task memory prepared: .pi-ceo/{session.id}/")
 
     # RA-1026 — structured planning phase (haiku) before generator
-    if not await _phase_plan(session, spec, resume_from):
+    if not await _phase_plan(session, spec, resume_from, intent=resolved_intent):
         _sync_linear_on_completion(session)
         return
     if session.plan:

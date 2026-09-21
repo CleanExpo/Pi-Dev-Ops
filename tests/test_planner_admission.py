@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.server import planner_admission as admission
-from app.server.brief import classify_brief_complexity
+from app.server.brief import classify_brief_complexity, classify_intent
 from scripts.smoke_test_pipeline import TEST_BRIEF
 
 
@@ -151,3 +151,43 @@ async def test_planner_sdk_call_sets_no_tools_and_disabled_thinking(monkeypatch)
         else getattr(thinking, "type", None)
     )
     assert thinking_type == "disabled"
+
+
+def test_classify_intent_never_returns_smoke() -> None:
+    """Smoke floor is API-only. Keyword classification cannot reach it."""
+    assert classify_intent(TEST_BRIEF) != admission.SMOKE_INTENT
+    assert classify_intent("Add a one-line comment to scripts/send_telegram.py") != "smoke"
+    assert classify_intent("Fix the planner confidence floor") != "smoke"
+    assert classify_intent("") != "smoke"
+
+
+@pytest.mark.parametrize(
+    ("intent", "expected"),
+    [
+        ("", admission.PRODUCT_PLAN_CONFIDENCE_FLOOR),
+        ("feature", admission.PRODUCT_PLAN_CONFIDENCE_FLOOR),
+        ("bug", admission.PRODUCT_PLAN_CONFIDENCE_FLOOR),
+        ("SMOKE", admission.SMOKE_PLAN_CONFIDENCE_FLOOR),
+        (" smoke ", admission.SMOKE_PLAN_CONFIDENCE_FLOOR),
+    ],
+)
+def test_plan_confidence_floor_is_smoke_only(intent: str, expected: float) -> None:
+    assert admission.plan_confidence_floor(intent) == expected
+
+
+def test_product_floor_still_blocks_observed_smoke_score() -> None:
+    """Run 35528063288 returned 55%. Product plans must still die there."""
+    reason = admission.plan_below_confidence_floor(0.55, "feature")
+    assert reason is not None
+    assert "55%" in reason
+    assert "70%" in reason
+    assert admission.plan_below_confidence_floor(0.69, "") is not None
+    assert admission.plan_below_confidence_floor(0.70, "feature") is None
+
+
+def test_smoke_floor_admits_observed_55_percent() -> None:
+    assert admission.plan_below_confidence_floor(0.55, "smoke") is None
+    assert admission.plan_below_confidence_floor(0.0, "smoke") is None
+    assert admission.smoke_admitted_below_product_floor(0.55, "smoke") is True
+    assert admission.smoke_admitted_below_product_floor(0.55, "feature") is False
+    assert admission.smoke_admitted_below_product_floor(0.90, "smoke") is False

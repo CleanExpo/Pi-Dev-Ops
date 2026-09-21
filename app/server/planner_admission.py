@@ -19,6 +19,57 @@ from __future__ import annotations
 
 PLANNER_MAX_TURNS: int = 1
 PLANNER_ROLE: str = "planner"
+SMOKE_INTENT: str = "smoke"
+PRODUCT_PLAN_CONFIDENCE_FLOOR: float = 0.7
+SMOKE_PLAN_CONFIDENCE_FLOOR: float = 0.0
+
+
+def is_smoke_intent(intent: str) -> bool:
+    """True only for an explicit API ``intent=smoke``.
+
+    ``classify_intent()`` never returns this value. Product plans cannot
+    reach the smoke floor by keyword accident.
+    """
+    return (intent or "").strip().lower() == SMOKE_INTENT
+
+
+def plan_confidence_floor(intent: str) -> float:
+    """Planner confidence floor for this session intent.
+
+    Product stays at 70% (RA-1026). Pipeline Smoke is a generate-admission
+    canary, not a planner-calibration test.
+
+    After #778 the planner is JSON-only (``tools=[]``, ``max_turns=1``).
+    It cannot inspect ``scripts/send_telegram.py``. The smoke brief also
+    says "Full feature audit first" (load-bearing for RA-1294 A3 duration)
+    then "one-line comment". The planner prompt tells the model to lower
+    confidence when assuming. Quiet-tip run 35528063288 (uptime=23319s,
+    session 4a4a36165094) returned 55% and blocked generate. That number
+    is the model following instructions, not a parse bug. RA-7593 owns
+    the product-side 35-40% wall.
+    """
+    if is_smoke_intent(intent):
+        return SMOKE_PLAN_CONFIDENCE_FLOOR
+    return PRODUCT_PLAN_CONFIDENCE_FLOOR
+
+
+def plan_below_confidence_floor(confidence: float, intent: str) -> str | None:
+    """Block reason when confidence is under the intent's floor, else None."""
+    floor = plan_confidence_floor(intent)
+    if confidence < floor:
+        return (
+            f"planner confidence {confidence:.0%} is below the required "
+            f"{floor:.0%} floor"
+        )
+    return None
+
+
+def smoke_admitted_below_product_floor(confidence: float, intent: str) -> bool:
+    """True when smoke admits a plan the product 70% floor would have blocked."""
+    return (
+        is_smoke_intent(intent)
+        and confidence < PRODUCT_PLAN_CONFIDENCE_FLOOR
+    )
 
 
 def is_planner_phase(phase: str) -> bool:
