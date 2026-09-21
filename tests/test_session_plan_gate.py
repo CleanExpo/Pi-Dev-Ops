@@ -107,3 +107,90 @@ async def test_run_build_never_starts_generator_when_planner_blocks(tmp_path):
     plan.assert_awaited_once()
     generate.assert_not_awaited()
     sync_linear.assert_called_once_with(session)
+
+
+@pytest.mark.asyncio
+async def test_run_build_forwards_smoke_intent_to_planner(tmp_path):
+    session = BuildSession(
+        repo_url="https://example.test/repo",
+        workspace=str(tmp_path),
+        complexity_tier="basic",
+        base_sha="a" * 40,
+    )
+    plan = AsyncMock(return_value=False)
+
+    with patch.object(session_phases, "em"), \
+         patch.object(session_phases, "_TAO_AVAILABLE", False), \
+         patch.object(session_phases, "_notify_linear_session_started"), \
+         patch.object(session_phases, "_phase_clone", new=AsyncMock(return_value=True)), \
+         patch.object(session_phases, "_phase_analyze"), \
+         patch.object(session_phases, "_phase_claude_check", new=AsyncMock(return_value=True)), \
+         patch.object(session_phases, "_phase_sandbox", new=AsyncMock(return_value=True)), \
+         patch.object(session_phases, "retrieve_similar_episodes", new=AsyncMock(return_value=[])), \
+         patch.object(session_phases, "build_structured_brief", return_value="structured spec"), \
+         patch.object(session_phases, "_write_task_memory", new=AsyncMock()), \
+         patch.object(session_phases, "_phase_plan", new=plan), \
+         patch.object(session_phases, "_phase_generate", new=AsyncMock(return_value=True)), \
+         patch.object(session_phases, "_sync_linear_on_completion"):
+        await session_phases.run_build(session, brief="Add a comment", intent="smoke")
+
+    assert plan.await_args.kwargs.get("intent") == "smoke"
+
+
+@pytest.mark.asyncio
+async def test_smoke_intent_admits_plan_at_observed_55_percent(tmp_path):
+    """RA-7546 run 35528063288 — smoke canary must reach generate at 55%."""
+    session = BuildSession(repo_url="https://example.test/repo", workspace=str(tmp_path))
+    session.last_completed_phase = "sandbox"
+    sdk = AsyncMock(return_value=(0, _valid_plan(0.55), 0.0))
+
+    with patch.object(session_phases, "_run_claude_via_sdk", new=sdk), \
+         patch.object(session_phases, "em"), \
+         patch.object(session_phases.persistence, "save_session"):
+        accepted = await session_phases._phase_plan(
+            session, "Add a one-line comment", "", intent="smoke",
+        )
+
+    assert accepted is True
+    assert session.last_completed_phase == "plan"
+    assert session.status != "blocked"
+    assert (tmp_path / ".pi-ceo" / session.id / "PLAN.md").is_file()
+
+
+@pytest.mark.asyncio
+async def test_product_intent_still_blocks_55_percent(tmp_path):
+    session = BuildSession(repo_url="https://example.test/repo", workspace=str(tmp_path))
+    session.last_completed_phase = "sandbox"
+    sdk = AsyncMock(return_value=(0, _valid_plan(0.55), 0.0))
+
+    with patch.object(session_phases, "_run_claude_via_sdk", new=sdk), \
+         patch.object(session_phases, "em"), \
+         patch.object(session_phases.persistence, "save_session"):
+        accepted = await session_phases._phase_plan(
+            session, "Implement the feature", "", intent="feature",
+        )
+
+    assert accepted is False
+    assert session.status == "blocked"
+    assert "70%" in (session.error or "")
+    assert session.last_completed_phase == "sandbox"
+
+
+@pytest.mark.asyncio
+async def test_smoke_intent_still_requires_valid_units(tmp_path):
+    session = BuildSession(repo_url="https://example.test/repo", workspace=str(tmp_path))
+    session.last_completed_phase = "sandbox"
+    skinny = json.dumps({"confidence": 0.55, "risk_notes": "", "units": []})
+    sdk = AsyncMock(return_value=(0, skinny, 0.0))
+
+    with patch.object(session_phases, "_run_claude_via_sdk", new=sdk), \
+         patch.object(session_phases, "em"), \
+         patch.object(session_phases.persistence, "save_session"):
+        accepted = await session_phases._phase_plan(
+            session, "Add a one-line comment", "", intent="smoke",
+        )
+
+    assert accepted is False
+    assert session.status == "blocked"
+    assert "units" in (session.error or "")
+    assert session.last_completed_phase == "sandbox"
