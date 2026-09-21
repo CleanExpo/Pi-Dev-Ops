@@ -59,8 +59,10 @@ def test_apply_terminal_evidence_row_passes_a4_without_pr() -> None:
     assert pa.reached_complete is False
     assert pa.errors == []
     assert pa.all_passed() is True
-    assert "documented verify-terminal" in pa.summary()
-    assert "n/a (verify-terminal)" in pa.summary()
+    text = pa.summary()
+    assert "A4 verify-terminal (not complete): ✓" in text
+    assert "A4 reached complete" not in text
+    assert "n/a (verify-terminal)" in text
 
 
 def test_ship_path_still_requires_complete_files_and_pr() -> None:
@@ -71,6 +73,9 @@ def test_ship_path_still_requires_complete_files_and_pr() -> None:
     assert pa.all_passed() is False
     pa.pr_url = "https://github.com/CleanExpo/Pi-Dev-Ops/pull/1"
     assert pa.all_passed() is True
+    text = pa.summary()
+    assert "A4 reached complete:          ✓" in text
+    assert "verify-terminal" not in text
 
 
 def test_verify_terminal_still_fails_if_generate_never_entered() -> None:

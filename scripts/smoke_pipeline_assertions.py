@@ -42,14 +42,12 @@ class PipelineAssertions:
         return line
 
     def summary(self) -> str:
-        a4 = self.reached_complete or self.documented_verify_terminal
-        a4_note = " (documented verify-terminal)" if self.documented_verify_terminal else ""
         files_line, pr_line = _a5_a6_lines(self)
         lines = [
             f"A1 session spawned:           {'✓' if self.spawned else '✗'}",
             f"A2 entered generate ≤ 90 s:   {'✓' if self.entered_generate else '✗'}",
             f"A3 generate ≥ {GEN_MIN_DURATION_S}s OR ok: {'✓' if self._a3_ok() else '✗' } (dur={self.generate_duration_s})",
-            f"A4 reached complete:          {'✓' if a4 else '✗'}{a4_note}",
+            _a4_line(self),
             files_line,
             pr_line,
         ]
@@ -77,6 +75,14 @@ class PipelineAssertions:
         )
 
 
+def _a4_line(pa: PipelineAssertions) -> str:
+    """A4 complete and A4 verify-terminal are different outcomes. Never mix them."""
+    if pa.documented_verify_terminal:
+        return "A4 verify-terminal (not complete): ✓"
+    mark = "✓" if pa.reached_complete else "✗"
+    return f"A4 reached complete:          {mark}"
+
+
 def _a5_a6_lines(pa: PipelineAssertions) -> tuple[str, str]:
     if pa.documented_verify_terminal:
         return (
@@ -100,7 +106,7 @@ def apply_terminal(pa: PipelineAssertions, me: dict) -> None:
     if is_expected_smoke_verify_terminal(me):
         pa.documented_verify_terminal = True
         print(
-            "[A4 PASS] documented smoke terminal: generate reached "
+            "[A4] verify-terminal (not complete): generate reached "
             "fail-closed workspace verification"
         )
         return
