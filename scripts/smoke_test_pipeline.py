@@ -6,13 +6,18 @@ import json
 import os
 import sys
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from scripts.smoke_pipeline_assertions import (
+    PipelineAssertions,
+    apply_terminal as _apply_terminal,
+    observe_row as _observe_row,
+    observe_stream_event as _observe_stream_event,
+)
 from scripts.smoke_pipeline_client import Session
 from scripts.smoke_pipeline_resilience import (
     Probe,
@@ -21,12 +26,9 @@ from scripts.smoke_pipeline_resilience import (
     is_terminal_status,
     logs_stream_path,
     max_respawns,
-    note_session_row,
     parse_session_list,
     parse_uptime,
-    row_entered_generate,
     should_respawn,
-    terminal_fail_message,
     wait_until_settled,
     wall_clock_s,
 )
@@ -43,59 +45,6 @@ TEST_BRIEF     = os.environ.get(
     "audit first, then make the minimal edit."
 )
 MAX_WAIT_S     = int(os.environ.get("SMOKE_MAX_WAIT_S", "1200"))  # 20 min
-GEN_MIN_DURATION_S = 310  # RA-1294 signature: died at exactly 305 s
-
-
-@dataclass
-class PipelineAssertions:
-    spawned: bool = False
-    entered_generate: bool = False
-    entered_generate_at: float | None = None
-    generate_duration_s: float | None = None
-    reached_complete: bool = False
-    files_modified: int = 0
-    pr_url: str | None = None
-    last_status: str | None = None
-    errors: list[str] = field(default_factory=list)
-    diagnostics: list[str] = field(default_factory=list)
-
-    def fail(self, msg: str) -> None:
-        self.errors.append(msg)
-
-    def observe_event(self, event: dict, elapsed_s: float) -> str | None:
-        """Retain human-readable phase/error evidence from the session stream."""
-        etype = event.get("type", "")
-        text = str(event.get("text", "")).strip()
-        if etype not in {"phase", "error"} or not text:
-            return None
-        line = f"  [t+{elapsed_s:.0f}s] {etype}: {text}"
-        self.diagnostics.append(line)
-        return line
-
-    def summary(self) -> str:
-        lines = [
-            f"A1 session spawned:           {'✓' if self.spawned else '✗'}",
-            f"A2 entered generate ≤ 90 s:   {'✓' if self.entered_generate else '✗'}",
-            f"A3 generate ≥ {GEN_MIN_DURATION_S}s OR ok: {'✓' if self._a3_ok() else '✗' } (dur={self.generate_duration_s})",
-            f"A4 reached complete:          {'✓' if self.reached_complete else '✗'}",
-            f"A5 files_modified > 0:        {'✓' if self.files_modified > 0 else '✗'} ({self.files_modified})",
-            f"A6 PR URL emitted:            {'✓' if self.pr_url else '✗'} {self.pr_url or ''}",
-        ]
-        if self.diagnostics:
-            lines.extend(["", "Session diagnostics:", *self.diagnostics[-20:]])
-        return "\n".join(lines)
-
-    def _a3_ok(self) -> bool:
-        if self.generate_duration_s is None:
-            return False
-        if self.last_status == "failed" and 295 <= self.generate_duration_s <= 315:
-            return False
-        return True
-
-    def all_passed(self) -> bool:
-        return (self.spawned and self.entered_generate and self._a3_ok()
-                and self.reached_complete and self.files_modified > 0
-                and self.pr_url is not None and not self.errors)
 
 
 def probe_backend(s: Session) -> Probe:
@@ -152,29 +101,6 @@ def watch_stream(s: Session, sid: str, pa: PipelineAssertions, start: float) -> 
         print(f"[stream] dropped ({exc}) — will classify via /api/sessions")
 
 
-def _observe_stream_event(pa: PipelineAssertions, event: dict, now: float) -> None:
-    etype = event.get("type", "")
-    text = event.get("text", "")
-    diagnostic = pa.observe_event(event, now)
-    if diagnostic:
-        print(diagnostic)
-    if etype == "phase":
-        if "[4/5]" in text or "Running Claude Code" in text:
-            pa.entered_generate = True
-            pa.entered_generate_at = now
-            print(f"  [t+{now:.0f}s] ENTERED generate phase")
-        elif "[5/5]" in text:
-            print(f"  [t+{now:.0f}s] {text}")
-    elif etype == "phase_metric" and event.get("phase") == "generate":
-        pa.generate_duration_s = event.get("duration_s")
-        print(f"  [t+{now:.0f}s] generate metric: dur={pa.generate_duration_s}s cost=${event.get('cost_usd')}")
-    elif etype == "push_url" or (etype == "success" and "PR opened" in text):
-        pa.pr_url = event.get("url") or text
-        print(f"  [t+{now:.0f}s] PR URL: {pa.pr_url}")
-    elif etype == "files_modified":
-        pa.files_modified = int(event.get("count", 0))
-
-
 def poll_terminal(s: Session, sid: str, pa: PipelineAssertions, start: float) -> str:
     budget = max(60, MAX_WAIT_S - int(time.time() - start))
     print(f"[poll] waiting up to {budget}s for terminal state...")
@@ -196,28 +122,6 @@ def poll_terminal(s: Session, sid: str, pa: PipelineAssertions, start: float) ->
         pa.fail(f"session still running after {budget}s — polling budget exhausted")
         return "timeout"
     return last
-
-
-def _observe_row(pa: PipelineAssertions, me: dict, now: float) -> None:
-    """Log every poll tick; recover A2 from last_phase if the stream dropped."""
-    snap = note_session_row(me)
-    pa.diagnostics.append(snap)
-    print(f"  [poll t+{now:.0f}s] {snap}")
-    if pa.entered_generate or not row_entered_generate(me):
-        return
-    pa.entered_generate = True
-    pa.entered_generate_at = now
-    print(f"  [t+{now:.0f}s] ENTERED generate (via /api/sessions last_phase)")
-
-
-def _apply_terminal(pa: PipelineAssertions, me: dict) -> None:
-    pa.last_status = me.get("status")
-    pa.files_modified = max(pa.files_modified, me.get("files_modified", 0) or 0)
-    if pa.last_status == "complete":
-        pa.reached_complete = True
-        print(f"[A4 PASS] session reached 'complete' with files_modified={pa.files_modified}")
-    elif is_terminal_status(pa.last_status):
-        pa.fail(terminal_fail_message(me))
 
 
 def run_attempts(s: Session) -> tuple[PipelineAssertions, str | None]:

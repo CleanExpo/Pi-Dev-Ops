@@ -40,6 +40,9 @@ def is_terminal_status(status: str | None) -> bool:
 GENERATE_ADMITTED = frozenset({
     "plan", "generator", "evaluator", "adversary", "push", "push_failed",
 })
+# Run 35547546822 left last_phase=generator because evaluate returned
+# before writing last_completed_phase. The honesty fix writes evaluator.
+SMOKE_VERIFY_TERMINAL_PHASES = frozenset({"generator", "evaluator"})
 
 
 def logs_stream_path(sid: str) -> str:
@@ -63,6 +66,9 @@ def note_session_row(row: dict[str, Any]) -> str:
         f"last_phase={row.get('last_phase') or '-'}",
         f"lines={row.get('lines')}",
     ]
+    eval_status = str(row.get("evaluator_status") or "").strip()
+    if eval_status:
+        parts.append(f"evaluator_status={eval_status}")
     err = str(row.get("error") or "").strip()
     if err:
         parts.append(f"error={err}")
@@ -77,6 +83,27 @@ def terminal_fail_message(row: dict[str, Any]) -> str:
     if err:
         msg += f" error={err}"
     return msg
+
+
+def is_expected_smoke_verify_terminal(row: dict[str, Any]) -> bool:
+    """True when generate finished and product verify fail-closed.
+
+    Quiet-tip run 35547546822 (RA-7596): A2/A3 passed, generate dur=44.1s,
+    then ``status=blocked last_phase=generator error=…verification_failed``
+    within ~1s. That is ``_required_verification`` refusing a non-PASSED
+    workspace check — not a generate regression.
+
+    Pipeline Smoke is a generate-admission canary (RA-7546). Requiring
+    ``complete`` + PR here reds the job for a correctly fail-closed
+    product gate. Product sessions still block.
+    """
+    if str(row.get("status") or "") != "blocked":
+        return False
+    if str(row.get("last_phase") or "") not in SMOKE_VERIFY_TERMINAL_PHASES:
+        return False
+    err = str(row.get("error") or "")
+    eval_status = str(row.get("evaluator_status") or "")
+    return "verification_failed" in err or eval_status == "verification_failed"
 
 
 def settle_uptime_s() -> int:

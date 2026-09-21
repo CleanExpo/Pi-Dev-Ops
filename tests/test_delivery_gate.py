@@ -58,7 +58,23 @@ def test_inconclusive_checks_block_evaluation(monkeypatch, tmp_path, status):
     monkeypatch.setattr(phases, "_run_parallel_eval_cached", reviewer)
     asyncio.run(phases._phase_evaluate(session, "brief", "sonnet", "spec", "build"))
     assert session.evaluator_status == "verification_failed"
+    assert session.last_completed_phase == "evaluator"
     reviewer.assert_not_awaited()
+
+
+def test_review_block_keeps_workspace_check_reason(tmp_path):
+    session = BuildSession(workspace=str(tmp_path), evaluator_status="verification_failed")
+    session.verification = {
+        "status": "not_run",
+        "command": "pytest",
+        "reason": "could not start: verification isolation requires bubblewrap",
+    }
+    assert phases._review_admitted(session) is False
+    assert session.status == "blocked"
+    assert "verification_failed" in session.error
+    assert "not_run" in session.error
+    assert "bubblewrap" in session.error
+    assert "pytest" in session.error
 
 
 def test_disabled_required_review_blocks(monkeypatch, tmp_path):

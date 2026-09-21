@@ -1033,10 +1033,7 @@ async def _required_verification(session):
     # A model score cannot override failed or missing executable verification.
     _verify = await _verify_candidate(session)
     if _verify.status != workspace_verify.PASSED:
-        session.evaluator_status = "verification_failed"
-        session.status = "blocked"
-        session.error = f"Required workspace checks {_verify.status}: {_verify.reason}"
-        persistence.save_session(session)
+        session_delivery.record_verification_failure(session, _verify)
         return _verify
     if _verify.ran:
         em(session, "system", f"  Verification: {_verify.command} → {_verify.status}")
@@ -1733,7 +1730,7 @@ def _start_build(session, model, resume_from):
 def _review_admitted(session):
     if session.evaluator_status != "passed":
         session.status = "blocked"
-        session.error = f"Release blocked by evaluator: {session.evaluator_status}"
+        session.error = session_delivery.evaluator_block_reason(session)
         persistence.save_session(session)
         _sync_linear_on_completion(session)
         return False
