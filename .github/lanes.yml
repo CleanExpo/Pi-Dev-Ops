@@ -1,0 +1,45 @@
+# UNI-2639 — lane rules. FOUNDER list is proposed until Phill ratifies.
+# Edits to this file are FOUNDER by rule (the file lists itself).
+status: proposed
+founder:
+  definition: >-
+    money moves, anything sent to a customer or the public, secrets and keys,
+    irreversible data operations, pricing and legal copy
+  paths:
+    - ".github/lanes.yml"
+    - ".github/CODEOWNERS"
+    - ".github/workflows/audit-receipt.yml"
+    - ".github/workflows/lane-gate.yml"
+    - "**/pricing/**"
+    - "**/legal/**"
+    - "**/terms*"
+    - "**/privacy*"
+    - "**/*.env*"
+    - "**/secrets/**"
+    - "**/email/templates/**"
+    - "**/notifications/**"
+    - "supabase/migrations/**/*drop*"
+    - "supabase/migrations/**/*delete*"
+  labels:
+    - "lane:founder"
+    - "money"
+    - "public"
+    - "secrets"
+    - "legal"
+engineer:
+  paths:
+    - "**/auth/**"
+    - "**/rbac/**"
+    - "**/middleware.ts"
+    - "**/permissions/**"
+    - "**/payments/**"
+    - "**/stripe/**"
+    - "**/migrations/**"
+    - "**/*.sql"
+    - "prisma/schema.prisma"
+    - "packages/spine/**"
+    - "app/server/auth.py"
+    - "app/server/config.py"
+  labels:
+    - "lane:engineer"
+flow: everything else
