@@ -46,6 +46,24 @@ _FENCE = "ticket-content"
 _FENCE_TAG_RE = re.compile(rf"</?\s*{_FENCE}[-\w]*\s*/?>?", re.IGNORECASE)
 _REDACTED = "[fence tag removed]"
 
+# The caps live HERE, at the point of use, not only at the API boundary that happens to
+# produce a claim today. `/claim/self` caps its response too, and that is a different
+# concern — bounding an HTTP payload. This bound is the one that protects the agent, and
+# it holds for any caller: a dispatcher path, a replayed fixture, a future claim source.
+#
+# Raised by review round 4, and its reproduction was WRONG in a way worth recording.
+# Both reviewers claimed uncapped text was persisted and read back. It is not: the insert
+# body at routes/mesh.py is {linear_id, machine, state}, and mesh_work_claims has seven
+# columns and no text ones (mesh/schema/0001_nexus_mesh.sql) — so the stored-uncapped-text
+# path cannot exist. The STRUCTURAL half was right anyway: a guard enforced one caller out
+# from the thing it protects is a guard that holds by coincidence of call graph.
+#
+# routes/mesh.py duplicates these numbers because `mesh/` is not an importable package
+# (no __init__.py; runner.py reaches it by sys.path insert). test_mesh_claim_brief_caps.py
+# pins the two definitions equal, so the duplication cannot drift silently.
+_TITLE_MAX_CHARS = 500
+_BRIEF_MAX_CHARS = 6000
+
 
 def _as_data(text: str) -> str:
     """Strip tag-shaped fence tokens out of untrusted text.
@@ -56,6 +74,17 @@ def _as_data(text: str) -> str:
     encodings an LLM decodes is the enumeration contest the nonce exists to avoid.
     """
     return _FENCE_TAG_RE.sub(_REDACTED, text)
+
+
+def _bounded(text: str, cap: int) -> str:
+    """Defang first, then truncate — the order is the point.
+
+    Truncating first and defanging second would let the substitution push the result back
+    over the cap, since `_REDACTED` is longer than the shortest token it replaces. This
+    way the returned length is <= cap unconditionally. Truncation can only remove
+    characters, so it cannot manufacture a tag the defang step already cleared.
+    """
+    return _as_data(text.strip())[:cap]
 
 
 def _authority(fence: str) -> str:
@@ -86,8 +115,8 @@ def build_prompt(claim: dict, linear_id: str, branch: str, *, nonce: str | None 
     ``nonce`` exists so tests can pin the fence. Production never passes it: a caller-
     chosen nonce is a predictable nonce, which is the property being bought here.
     """
-    title = (claim.get("title") or "").strip()
-    description = (claim.get("description") or "").strip()
+    title = _bounded(claim.get("title") or "", _TITLE_MAX_CHARS)
+    description = _bounded(claim.get("description") or "", _BRIEF_MAX_CHARS)
 
     if not title and not description:
         return (
@@ -99,8 +128,8 @@ def build_prompt(claim: dict, linear_id: str, branch: str, *, nonce: str | None 
     fence = f"{_FENCE}-{nonce or secrets.token_hex(8)}"
     parts = [f"Work the Linear ticket {linear_id}.\n\n", _authority(fence), f"\n\n<{fence}>\n"]
     if title:
-        parts.append(f"Title: {_as_data(title)}\n")
+        parts.append(f"Title: {title}\n")
     if description:
-        parts.append(f"Description:\n{_as_data(description)}\n")
+        parts.append(f"Description:\n{description}\n")
     parts.append(f"</{fence}>\n\n" + _WORK_TAIL.format(branch=branch))
     return "".join(parts)

@@ -84,3 +84,21 @@ def test_under_cap_text_is_passed_through_untouched(mesh_client):
     claimed = _claim(client, mesh, title="Short title", description="Short body")
     assert claimed["title"] == "Short title"
     assert claimed["description"] == "Short body"
+
+
+@pytest.mark.parametrize("cap_name", ["_TITLE_MAX_CHARS", "_BRIEF_MAX_CHARS"])
+def test_the_route_and_the_prompt_agree_on_the_cap(mesh_client, cap_name):
+    """`mesh/` is not an importable package, so the two caps are separate literals.
+
+    That duplication is only safe while it cannot drift unnoticed. If someone raises
+    the route's cap and not the prompt's, the prompt silently keeps the old bound;
+    raise the prompt's and not the route's and the route's becomes the real limit.
+    Either way the number a reader sees stops being the number that applies.
+    """
+    _, mesh = mesh_client
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mesh"))
+    import prompt
+
+    assert getattr(prompt, cap_name) == getattr(mesh, cap_name), (
+        f"{cap_name} disagrees between mesh/prompt.py and app/server/routes/mesh.py"
+    )
