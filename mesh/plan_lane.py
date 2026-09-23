@@ -29,12 +29,27 @@ PACKET_DIR = Path(os.environ.get(
     "MESH_PACKET_DIR", str(Path.home() / ".local" / "state" / "gs" / "projects" / "ideas")))
 PACKET_MAX_CHARS = 20_000  # app/server/mesh_lanes.py caps the same field server-side
 DISALLOWED_TOOLS = ("Bash", "Edit", "Write", "NotebookEdit")
+PLAN_LABEL = "idea:plan"
 _UPDATE = "/api/mesh/claim/update"
 
 
 def agent_argv(agent_cmd: str, prompt: str) -> list[str]:
-    """``--disallowedTools`` is variadic in the claude CLI, so it must come last."""
-    return [agent_cmd, "-p", prompt, "--disallowedTools", *DISALLOWED_TOOLS]
+    """ONE ``--disallowedTools=a,b`` argument (``claude --help``: "Comma or space-
+    separated"). The flag is variadic; a single ``=`` argument means no ordering of
+    the argv can let it swallow, or be cut short by, a neighbouring argument."""
+    return [agent_cmd, "-p", prompt, "--disallowedTools=" + ",".join(DISALLOWED_TOOLS)]
+
+
+def lane_of(claim: dict) -> str:
+    """The claim's lane. An explicit ``lane`` wins; a lane-less claim (a dispatcher or
+    fleet-state path) is ``plan`` when its labels carry ``idea:plan`` — never built
+    before it is reviewed — and ``build`` otherwise. Mirrors app/server/mesh_lanes."""
+    if claim.get("lane"):
+        return str(claim["lane"])
+    labels = claim.get("labels") or []
+    if isinstance(labels, dict):
+        labels = [(n or {}).get("name") for n in labels.get("nodes") or []]
+    return "plan" if PLAN_LABEL in labels else "build"
 
 
 def _run_agent(claim: dict, plan: dict, rt) -> str:
@@ -91,7 +106,7 @@ def run_plan_claim(claim: dict, rt) -> dict:
     if plan.get("state") != "done":
         return rt._fail_claim(plan, linear_id, "", plan.get("error") or "plan lane failed")
     rt._api("POST", _UPDATE, {
-        "linear_id": linear_id, "state": "done",
+        "linear_id": linear_id, "state": "done", "host": rt.HOST,
         "packet_md": stdout[:PACKET_MAX_CHARS], "title": claim.get("title") or ""})
     rt.write_state(None, "idle")
     return plan

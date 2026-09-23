@@ -8,9 +8,10 @@ Two labels feed `/api/mesh/claim/self`:
 
 A ticket carrying both is ``plan``: an idea is never built before it is reviewed.
 
-The dispatcher still reads ``routes/mesh._MESH_AUTO_QUERY`` (mesh:auto only) and assigns
-no lane, so a dispatched claim is always build. Dispatch is off by default and its claims
-arrive briefless (see ``mesh/runner.get_work``); teaching it lanes is separate work.
+The dispatcher assigns no lane, so a dispatched claim runs as build. It therefore
+skips any ticket whose labels carry ``idea:plan`` (``mesh_dispatch_service._assign``);
+such a ticket reaches a node only through ``/claim/self``. Explicit ``linear_ids`` sent to
+``/dispatch`` carry no labels and are dispatched as the operator named them.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from typing import Iterable, Optional
 
 from pydantic import BaseModel
 
-from . import mesh_priority
+from . import mesh_fleet, mesh_priority
 
 log = logging.getLogger("pi-ceo.mesh_lanes")
 
@@ -36,11 +37,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class PlanPacketFields(BaseModel):
-    """What a plan-lane node adds to `/claim/update`. Both are untrusted ticket-derived
-    text; they are stored and rendered as text, and capped in `attach_packet`."""
+    """What a plan-lane node adds to `/claim/update`. `packet_md` and `title` are
+    untrusted ticket-derived text, stored and rendered as text and capped on attach.
+    `host` names the caller, which must be the machine holding the claim."""
 
     packet_md: Optional[str] = None
     title: Optional[str] = None
+    host: Optional[str] = None
 
 
 def lane_of(issue: dict) -> str:
@@ -57,13 +60,29 @@ def ranked(nodes: Iterable[dict], open_ids: set) -> list[dict]:
     )
 
 
-def attach_packet(linear_id: str, state: str, fields: PlanPacketFields) -> Optional[str]:
+def _holds_claim(patched_body: str, host: Optional[str]) -> bool:
+    """Whether the claim PATCH updated a row, and that row is the caller's.
+
+    Every node holds the same mesh secret, so a 2xx proves nothing: PostgREST answers
+    2xx for a filter that matched no row. `return=representation` gives the rows, and
+    only a row whose `machine` is the caller proves the caller held this claim.
+    """
+    rows, problem = mesh_fleet.parse_rows(patched_body)
+    return bool(host) and not problem and any(r.get("machine") == host for r in rows)
+
+
+def attach_packet(linear_id: str, state: str, fields: PlanPacketFields,
+                  patched_body: str) -> Optional[str]:
     """Attach a finished plan-lane packet to its idea-pipeline item; return its idea_id.
 
     Best-effort by design: the claim row has already been released when this runs, and a
     disk error here must not turn that release into a 500 that the runner cannot act on.
     """
     if state != "done" or not (fields.packet_md or "").strip():
+        return None
+    if not _holds_claim(patched_body, fields.host):
+        log.warning("plan packet for %s refused: caller %s does not hold the claim",
+                    linear_id, fields.host)
         return None
     from .idea_pipeline.mesh_packet import attach_plan_packet  # noqa: PLC0415
     try:

@@ -22,7 +22,6 @@ from mesh_helpers import load_module as _load  # noqa: E402
 
 CLAIM = {"linear_id": "UNI-77", "lane": "plan", "title": "Coach cafe owners",
          "description": "A self-paced pricing lesson."}
-DENIED = ["Bash", "Edit", "Write", "NotebookEdit"]
 
 
 class Server:
@@ -87,12 +86,13 @@ def test_plan_lane_never_creates_a_worktree(runner, monkeypatch):
     assert not any("worktree" in call for call in runner.git_calls), runner.git_calls
 
 
-def test_plan_lane_denies_code_changing_tools(runner, monkeypatch):
+def test_plan_lane_denies_code_changing_tools_in_one_argument(runner, monkeypatch):
+    """One `=`-joined argument, last: nothing after it can be read as a tool name,
+    and no later argument can be swallowed by the variadic flag."""
     agent = FakeAgent()
     _run(runner, monkeypatch, agent)
-    i = agent.argv.index("--disallowedTools")
-    assert agent.argv[i + 1:i + 1 + len(DENIED)] == DENIED
-    assert agent.argv[:2] == [runner.AGENT_CMD, "-p"]
+    assert agent.argv[-1] == "--disallowedTools=Bash,Edit,Write,NotebookEdit"
+    assert agent.argv[:2] == [runner.AGENT_CMD, "-p"] and len(agent.argv) == 4
     assert "/gs-autoplan" in agent.argv[2]
 
 
@@ -113,6 +113,7 @@ def test_plan_lane_writes_the_packet_and_reports_done_with_it(runner, monkeypatc
     assert runner.server.states() == ["working", "done"]
     done = runner.server.updates[-1]
     assert done["packet_md"].startswith("# Board packet") and done["title"] == CLAIM["title"]
+    assert done["host"] == "TESTNODE"  # the server attaches only for the claim's holder
 
 
 def test_packet_sent_to_the_server_is_capped(runner, monkeypatch):
@@ -168,3 +169,28 @@ def test_build_lane_still_makes_a_worktree_and_denies_nothing(runner, monkeypatc
     assert agent.argv[:2] == [runner.AGENT_CMD, "-p"] and len(agent.argv) == 3
     assert "--disallowedTools" not in agent.argv
     assert plan["state"] == "done" and "packet_path" not in plan
+
+
+@pytest.mark.parametrize("labels", [["idea:plan"], ["mesh:auto", "idea:plan"],
+                                    {"nodes": [{"name": "idea:plan"}]}])
+def test_lane_less_claim_carrying_idea_plan_routes_to_plan(runner, monkeypatch, labels):
+    """A claim that arrives without `lane` (a dispatcher or fleet-state path) but
+    whose labels say idea:plan must still be reviewed, never built."""
+    claim = {k: v for k, v in CLAIM.items() if k != "lane"}
+    claim["labels"] = labels
+    agent = FakeAgent()
+    monkeypatch.setattr(runner.plan_lane.subprocess, "Popen", agent)
+    monkeypatch.setattr(runner.subprocess, "Popen", agent)
+    plan = runner.run_claim(claim, dry_run=False)
+    assert plan.get("lane") == "plan"
+    assert not any("worktree" in call for call in runner.git_calls)
+
+
+def test_explicit_build_lane_wins_over_nothing_but_mesh_auto(runner, monkeypatch, tmp_path):
+    repo = tmp_path / "repo"
+    (repo / ".git").mkdir(parents=True)
+    agent = FakeAgent()
+    monkeypatch.setattr(runner.subprocess, "Popen", agent)
+    runner.run_claim({"linear_id": "UNI-5", "repo_dir": str(repo), "title": "t",
+                      "labels": ["mesh:auto"]}, dry_run=False)
+    assert any(call[3:5] == ["worktree", "add"] for call in runner.git_calls)

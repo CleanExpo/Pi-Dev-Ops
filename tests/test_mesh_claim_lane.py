@@ -24,17 +24,19 @@ HDR = {"X-Pi-CEO-Secret": "test-secret"}
 
 
 class _Sb:
-    """Claim INSERT and claim PATCH both succeed; records what was sent."""
+    """Claim INSERT and claim PATCH both succeed; records what was sent. The PATCH
+    answers with `patch_rows`, the rows PostgREST says it updated."""
 
     def __init__(self):
         self.calls: list[tuple[str, str]] = []
+        self.patch_rows = [{"linear_id": "UNI-9", "state": "done", "machine": "nodeA"}]
 
     def __call__(self, method, path, payload=None, prefer=""):
         self.calls.append((method, path))
         if method == "POST" and path.startswith("mesh_work_claims"):
             return 201, ""
         if method == "PATCH" and path.startswith("mesh_work_claims"):
-            return 200, json.dumps([{"linear_id": "UNI-9", "state": "done"}])
+            return 200, json.dumps(self.patch_rows)
         return 200, "[]"
 
 
@@ -115,7 +117,7 @@ def test_plan_lane_claim_uses_the_same_atomic_insert(mesh_client):
 
 
 def _update(client, **body) -> dict:
-    payload = {"linear_id": "UNI-9", "state": "done", **body}
+    payload = {"linear_id": "UNI-9", "state": "done", "host": "nodeA", **body}
     return client.post("/api/mesh/claim/update", json=payload, headers=HDR).json()
 
 
@@ -190,3 +192,64 @@ def test_failed_update_does_not_attach_a_packet(mesh_client, tmp_path):
     client, _ = mesh_client
     _update(client, state="failed", packet_md="partial output")
     assert _pipeline(tmp_path) == []
+
+
+# ── review round 1: who may attach, and to what ─────────────────────────────
+
+
+@pytest.mark.parametrize("rows, host", [
+    ([{"linear_id": "UNI-9", "state": "done", "machine": "nodeA"}], "nodeB"),
+    ([{"linear_id": "UNI-9", "state": "done", "machine": "nodeA"}], None),
+    ([], "nodeA"),
+])
+def test_packet_for_a_claim_the_caller_does_not_hold_is_not_attached(
+        mesh_client, tmp_path, rows, host):
+    """Every node shares the mesh secret, so a 2xx PATCH proves nothing about who
+    holds the claim. Attach only when a row matched AND it is the caller's."""
+    client, mesh = mesh_client
+    mesh._sb.patch_rows = rows
+    r = _update(client, packet_md="forged packet", title="t", host=host)
+    assert r.get("idea_id") is None
+    assert _pipeline(tmp_path) == []
+
+
+def test_title_match_never_takes_over_another_tickets_card(mesh_client, tmp_path):
+    """Two tickets with the same title are two ideas once each has its own Linear
+    id: UNI-2's review must not overwrite the card that belongs to UNI-1."""
+    client, mesh = mesh_client
+    first = _update(client, linear_id="UNI-1", packet_md="review of 1", title="Same title")
+    mesh._sb.patch_rows = [{"linear_id": "UNI-2", "state": "done", "machine": "nodeA"}]
+    second = _update(client, linear_id="UNI-2", packet_md="review of 2", title="Same title")
+    assert first["idea_id"] != second["idea_id"]
+    rows = {p["linear_id"]: p for p in _pipeline(tmp_path) if p.get("linear_id")}
+    assert set(rows) == {"UNI-1", "UNI-2"}
+    assert rows["UNI-1"]["plan_packet_md"] == "review of 1"
+    assert rows["UNI-2"]["plan_packet_md"] == "review of 2"
+
+
+def test_dispatcher_never_assigns_an_idea_plan_ticket():
+    """The dispatcher's claims carry no lane, so the runner treats them as build.
+    A ticket carrying idea:plan (alone or with mesh:auto) must therefore never be
+    dispatched: it reaches a node only through /claim/self, which says `plan`."""
+    from app.server import mesh_dispatch_service as svc
+    from app.server.routes import mesh as real_mesh
+
+    class Routes:
+        claims: list = []
+
+        def _open_claim_ids(self):
+            return set()
+
+        def _sb(self, method, path, body=None, *, prefer=""):
+            self.claims.append(body["linear_id"])
+            return 201, ""
+
+        def _mark_issue_in_progress(self, ticket):
+            return True
+
+    routes = Routes()
+    tickets = [_issue("UNI-1", ["mesh:auto"]), _issue("UNI-2", ["idea:plan"]),
+               _issue("UNI-3", ["mesh:auto", "idea:plan"])]
+    svc._assign(routes, tickets, [{"host": "nodeA"}])
+    assert routes.claims == ["UNI-1"]
+    assert "labels{nodes{name}}" in real_mesh._MESH_AUTO_QUERY

@@ -192,7 +192,7 @@ _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
 _MESH_AUTO_QUERY = (
     'query{issues(first:50,filter:{labels:{name:{eq:"mesh:auto"}},'
     'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title '
-    'description priority team{id}}}}'
+    'description priority team{id} labels{nodes{name}}}}}'
 )
 _BRIEF_MAX_CHARS = 6000
 _TITLE_MAX_CHARS = 500  # a Linear title is unbounded too; capping only the body is a gap
@@ -374,7 +374,7 @@ async def claim_update(
             _mark_issue_reaped(u.linear_id)
         except Exception:  # noqa: BLE001
             log.warning("claim_update: Linear reversal failed for %s", u.linear_id, exc_info=True)
-    idea_id = mesh_lanes.attach_packet(u.linear_id, u.state, u) if status < 300 else None
+    idea_id = mesh_lanes.attach_packet(u.linear_id, u.state, u, body) if status < 300 else None
     return {"ok": True, "linear_id": u.linear_id, "state": u.state,
             **({"idea_id": idea_id} if idea_id else {})}
 

@@ -26,6 +26,8 @@ import logging
 import os
 from typing import Any, Optional
 
+from . import mesh_lanes
+
 log = logging.getLogger("pi-ceo.mesh.dispatch")
 
 
@@ -51,8 +53,8 @@ def _assign(mesh_routes, tickets: list[dict], machines: list[dict]) -> list[dict
     idx = 0
     for ticket in tickets:
         ident = ticket.get("identifier") or ticket.get("id")
-        if not ident or ident in open_ids:
-            continue
+        if not ident or ident in open_ids or mesh_lanes.lane_of(ticket) == "plan":
+            continue  # idea:plan is reviewed via /claim/self, never dispatched to build
         host = machines[idx % len(machines)]["host"]
         status, _ = mesh_routes._sb(
             "POST", "mesh_work_claims",
