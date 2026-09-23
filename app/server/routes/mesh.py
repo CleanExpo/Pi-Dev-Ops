@@ -185,10 +185,15 @@ async def fleet(
 # online node has spare capacity. The unique partial index on mesh_work_claims
 # guarantees a ticket is claimed by exactly one machine even if dispatch races.
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
+# `description` rides with the claim so the execution node needs no Linear key at all.
+# Capped because Linear descriptions are unbounded. Why, and the measured failure that
+# forced it (a Mac-mini run that could not read its own ticket): mesh/prompt.py.
 _MESH_AUTO_QUERY = (
     'query{issues(first:50,filter:{labels:{name:{eq:"mesh:auto"}},'
-    'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title priority team{id}}}}'
+    'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title '
+    'description priority team{id}}}}'
 )
+_BRIEF_MAX_CHARS = 6000
 
 
 def _priority_rank(priority: Any) -> int:
@@ -433,6 +438,8 @@ async def claim_self(
                         prefer="return=minimal")
         if status < 300:
             _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
-            return {"claimed": {"linear_id": ident, "machine": body.host}}
+            return {"claimed": {
+                "linear_id": ident, "machine": body.host, "title": tk.get("title") or "",
+                "description": (tk.get("description") or "")[:_BRIEF_MAX_CHARS]}}
         # status 409 = raced by another node → try the next candidate
     return {"claimed": None, "reason": "queue empty or fully claimed"}

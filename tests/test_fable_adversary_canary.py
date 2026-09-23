@@ -154,11 +154,7 @@ async def test_fable_refusal_falls_back_to_opus_no_silent_success(monkeypatch):
             thinking="enabled",     # exercise the fable adaptive-only strip
         )
 
-    # Fable refused → one-shot retry on the opus tier → opus's success is returned.
-    # Bound to the registry rather than a literal id: the assertion under test is
-    # "the refusal falls back to OPUS and is not a silent success", which must
-    # survive an opus version bump. It still goes red if the retry never happens
-    # (one element) or lands on any other tier.
+    # Fable refused → one-shot retry on the opus tier. Registry-bound, not literal.
     assert seen_models == ["claude-fable-5", ANTHROPIC_OPUS]
     assert rc == 0
     assert "APPROVE" in text

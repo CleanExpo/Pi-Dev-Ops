@@ -26,6 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fleet_state import active_agent_count, my_claims  # noqa: E402
+from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
 
 
@@ -219,10 +220,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     if getattr(added, "returncode", 0) != 0:
         return _fail_claim(plan, linear_id, branch, "git worktree add failed")
 
-    prompt = (
-        f"Work the Linear ticket {linear_id}. Make a small, verifiable change, "
-        f"run the repo's gates, and stop. autogit ships each turn to {branch}."
-    )
+    prompt = build_prompt(claim, linear_id, branch)
     try:
         proc = subprocess.Popen([AGENT_CMD, "-p", prompt], cwd=str(worktree))
         _wait_for_agent(proc, plan)
