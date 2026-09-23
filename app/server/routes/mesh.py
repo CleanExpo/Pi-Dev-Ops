@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, mesh_fleet, mesh_reaper
+from .. import config, mesh_fleet, mesh_priority, mesh_reaper
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -194,16 +194,6 @@ _MESH_AUTO_QUERY = (
     'description priority team{id}}}}'
 )
 _BRIEF_MAX_CHARS = 6000
-
-
-def _priority_rank(priority: Any) -> int:
-    """Linear priority → sort key (lower = claimed first). 1=Urgent .. 4=Low;
-    0/None ("No priority") sorts last so real priorities win."""
-    try:
-        p = int(priority)
-    except (TypeError, ValueError):
-        return 99
-    return p if p > 0 else 99
 
 
 def _linear_graphql(query: str) -> dict:
@@ -429,7 +419,7 @@ async def claim_self(
     open_ids = _open_claim_ids()
     candidates = sorted(
         (n for n in nodes if n.get("identifier") and n["identifier"] not in open_ids),
-        key=lambda n: (_priority_rank(n.get("priority")), n["identifier"]),
+        key=lambda n: (mesh_priority.priority_rank(n.get("priority")), n["identifier"]),
     )
     for tk in candidates:
         ident = tk["identifier"]
