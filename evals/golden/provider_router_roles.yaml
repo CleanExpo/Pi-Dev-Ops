@@ -4,31 +4,31 @@
 # the router with the Fable-Free ladder, update these expectations in the same PR.
 # Updated for the approved subscription defaults; explicit API pins are policy-blocked.
 cases:
-  # TOP tier — Anthropic Opus 5 (quality-critical reasoning)
+  # TOP tier — Anthropic Opus 5.5 (quality-critical reasoning)
   - role: planner
     tier: top
     provider: claude_print
-    model_id: claude-opus-5
+    model_id: claude-opus-5-5
   - role: orchestrator
     tier: top
     provider: claude_print
-    model_id: claude-opus-5
+    model_id: claude-opus-5-5
   - role: board
     tier: top
     provider: claude_print
-    model_id: claude-opus-5
+    model_id: claude-opus-5-5
   - role: debate.drafter
     tier: top
     provider: claude_print
-    model_id: claude-opus-5
+    model_id: claude-opus-5-5
   - role: margot.synthesis
     tier: top
     provider: claude_print
-    model_id: claude-opus-5
+    model_id: claude-opus-5-5
   - role: realtime_lookup
     tier: top
     provider: claude_print
-    model_id: claude-opus-5
+    model_id: claude-opus-5-5
   # MID tier — Anthropic Sonnet 5 (production-quality output)
   - role: generator
     tier: mid
