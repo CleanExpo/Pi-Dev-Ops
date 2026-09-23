@@ -186,14 +186,16 @@ async def fleet(
 # guarantees a ticket is claimed by exactly one machine even if dispatch races.
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
 # `description` rides with the claim so the execution node needs no Linear key at all.
-# Capped because Linear descriptions are unbounded. Why, and the measured failure that
-# forced it (a Mac-mini run that could not read its own ticket): mesh/prompt.py.
+# BOTH fields are capped: either one is unbounded in Linear, and the text is untrusted —
+# it reaches an unattended agent. Why, and the measured failure that forced it (a Mac-mini
+# run that could not read its own ticket): mesh/prompt.py, which also fences it as data.
 _MESH_AUTO_QUERY = (
     'query{issues(first:50,filter:{labels:{name:{eq:"mesh:auto"}},'
     'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title '
     'description priority team{id}}}}'
 )
 _BRIEF_MAX_CHARS = 6000
+_TITLE_MAX_CHARS = 500  # a Linear title is unbounded too; capping only the body is a gap
 
 
 def _linear_graphql(query: str) -> dict:
@@ -429,7 +431,8 @@ async def claim_self(
         if status < 300:
             _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
             return {"claimed": {
-                "linear_id": ident, "machine": body.host, "title": tk.get("title") or "",
+                "linear_id": ident, "machine": body.host,
+                "title": (tk.get("title") or "")[:_TITLE_MAX_CHARS],
                 "description": (tk.get("description") or "")[:_BRIEF_MAX_CHARS]}}
         # status 409 = raced by another node → try the next candidate
     return {"claimed": None, "reason": "queue empty or fully claimed"}
