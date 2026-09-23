@@ -100,7 +100,7 @@
 452	0203c1bb6857	swarm/tmux_validator.py
 449	898639bff71a	swarm/cfo.py
 441	99ffa5d79100	tests/swarm/nexus/test_channels.py
-438	ae861561c0da	app/server/routes/mesh.py
+436	bb8556ff4b17	app/server/routes/mesh.py
 438	04af471f5300	fence/pretooluse_fence.py
 436	4a9d5f2c2a28	app/server/session_sdk.py
 436	f5133b32e431	tests/swarm/nexus/test_approvals.py

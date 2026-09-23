@@ -125,7 +125,7 @@ def test_claim_self_picks_top_priority(mesh_client):
     monkeypatch_linear(mesh, _tickets(("UNI-A", 3), ("UNI-B", 4), ("UNI-C", 1)))
     mesh._sb = fake.sb
     r = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
-    assert r["claimed"] == dict(linear_id="UNI-C", machine="nodeA", title="UNI-C", description="")
+    assert r["claimed"] == dict(linear_id="UNI-C", machine="nodeA", lane="build", title="UNI-C", description="")
 
 
 def test_claim_self_empty_queue_returns_null(mesh_client):

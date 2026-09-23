@@ -18,6 +18,10 @@ export interface IdeaPacket {
   displacement: { would_displace: string; rationale: string };
   judge: { score: number; decision: string; note?: string };
   spm: { problem: string; desired_outcome: string; out_of_scope: string };
+  /** Set when a mesh node reviewed this idea from an idea:plan Linear ticket. */
+  linear_id?: string;
+  /** The node's gs-autoplan Board packet, markdown shown as plain text. */
+  plan_packet_md?: string | null;
 }
 
 export interface IdeaSnapshot {

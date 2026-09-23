@@ -183,6 +183,16 @@ export default function IdeaPipelinePanel() {
             label="Board lean"
             value={`${packet.recommended_verdict} · Judge ${packet.judge.score} ${packet.judge.decision}`}
           />
+          {packet.plan_packet_md ? (
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-text-muted">
+                {`gs-autoplan review${packet.linear_id ? ` · ${packet.linear_id}` : ""}`}
+              </div>
+              <pre className="mt-0.5 max-h-96 overflow-auto whitespace-pre-wrap text-xs text-slate-100">
+                {packet.plan_packet_md}
+              </pre>
+            </div>
+          ) : null}
           <p className="text-xs text-text-muted">{packet.spm.out_of_scope}</p>
           <div className="flex flex-wrap gap-2">
             {IDEA_VERDICTS.map((word) => (

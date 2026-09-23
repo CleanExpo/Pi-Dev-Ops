@@ -41,6 +41,24 @@ _WORK_TAIL = (
     "Make a small, verifiable change, run the repo's gates, and stop. "
     "autogit ships each turn to {branch}."
 )
+_PLAN_TAIL = (
+    "Run the /gs-autoplan skill on this idea: CEO scope review, then engineering review. "
+    "Make no code changes: do not edit, create or delete files, and do not run commands. "
+    "If /gs-autoplan is unavailable on this node, say so in the first line of your "
+    "output, mark the packet DEGRADED, and still produce it from first principles.\n\n"
+    "Output exactly ONE markdown Board packet and nothing else, with these sections:\n"
+    "1. Idea (restated)\n"
+    "2. Verdict: PROMOTE, BACKLOG, PARK or KILL, with your recommendation\n"
+    "3. Reviewed plan\n"
+    "4. Decisions made (Mechanical)\n"
+    "5. Taste decisions and User challenges, for the final gate\n"
+    "6. 20-move map: numbered next moves, each with its second-order effect and what it "
+    "unlocks toward paying customers and MRR\n"
+    "7. Revenue case: who pays, how much, how fast\n"
+    "8. Guardrail check: anything needing spend, a new vendor, prod, credentials or "
+    "publishing is listed as a Board question, never planned as a build step\n"
+    "9. Open questions, each with a recommended default\n"
+)
 _FENCE = "ticket-content"
 # Matches any tag-shaped `ticket-content` token, nonce-suffixed or not.
 _FENCE_TAG_RE = re.compile(rf"</?\s*{_FENCE}[-\w]*\s*/?>?", re.IGNORECASE)
@@ -104,6 +122,32 @@ def _authority(fence: str) -> str:
     )
 
 
+def _brief(claim: dict) -> tuple[str, str]:
+    """The claim's title and description, defanged and capped."""
+    title = _bounded(claim.get("title") or "", _TITLE_MAX_CHARS)
+    return title, _bounded(claim.get("description") or "", _BRIEF_MAX_CHARS)
+
+
+def _refusal(linear_id: str) -> str:
+    return (
+        f"Ticket {linear_id} was claimed but its brief did not arrive with the "
+        f"claim. Do not guess what it asks for and do not change any code. "
+        f"Report that the brief was missing, and stop."
+    )
+
+
+def _fenced(lead: str, title: str, description: str, nonce: str | None) -> list[str]:
+    """The lead line, the authority statement, and the brief inside a fresh nonce fence."""
+    fence = f"{_FENCE}-{nonce or secrets.token_hex(8)}"
+    parts = [lead, "\n\n", _authority(fence), f"\n\n<{fence}>\n"]
+    if title:
+        parts.append(f"Title: {title}\n")
+    if description:
+        parts.append(f"Description:\n{description}\n")
+    parts.append(f"</{fence}>\n\n")
+    return parts
+
+
 def build_prompt(claim: dict, linear_id: str, branch: str, *, nonce: str | None = None) -> str:
     """Return the prompt for one claim.
 
@@ -115,21 +159,22 @@ def build_prompt(claim: dict, linear_id: str, branch: str, *, nonce: str | None 
     ``nonce`` exists so tests can pin the fence. Production never passes it: a caller-
     chosen nonce is a predictable nonce, which is the property being bought here.
     """
-    title = _bounded(claim.get("title") or "", _TITLE_MAX_CHARS)
-    description = _bounded(claim.get("description") or "", _BRIEF_MAX_CHARS)
-
+    title, description = _brief(claim)
     if not title and not description:
-        return (
-            f"Ticket {linear_id} was claimed but its brief did not arrive with the "
-            f"claim. Do not guess what it asks for and do not change any code. "
-            f"Report that the brief was missing, and stop."
-        )
+        return _refusal(linear_id)
+    lead = f"Work the Linear ticket {linear_id}."
+    parts = _fenced(lead, title, description, nonce)
+    return "".join(parts) + _WORK_TAIL.format(branch=branch)
 
-    fence = f"{_FENCE}-{nonce or secrets.token_hex(8)}"
-    parts = [f"Work the Linear ticket {linear_id}.\n\n", _authority(fence), f"\n\n<{fence}>\n"]
-    if title:
-        parts.append(f"Title: {title}\n")
-    if description:
-        parts.append(f"Description:\n{description}\n")
-    parts.append(f"</{fence}>\n\n" + _WORK_TAIL.format(branch=branch))
-    return "".join(parts)
+
+def build_plan_prompt(claim: dict, linear_id: str, *, nonce: str | None = None) -> str:
+    """Return the plan-lane prompt: review the idea, change nothing, emit a Board packet.
+
+    Same fence, caps and missing-brief refusal as ``build_prompt`` — an ``idea:plan``
+    ticket is exactly as untrusted as a ``mesh:auto`` one. Only the tail differs.
+    """
+    title, description = _brief(claim)
+    if not title and not description:
+        return _refusal(linear_id)
+    lead = f"Review the idea in Linear ticket {linear_id}. Do not build it."
+    return "".join(_fenced(lead, title, description, nonce)) + _PLAN_TAIL

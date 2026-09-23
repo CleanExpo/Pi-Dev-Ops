@@ -19,12 +19,14 @@ import socket
 import subprocess
 import sys
 import time
+import types
 import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import plan_lane  # noqa: E402
 from fleet_state import active_agent_count, my_claims  # noqa: E402
 from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
@@ -203,17 +205,16 @@ def _wait_for_agent(proc: subprocess.Popen, plan: dict) -> None:
 
 
 def run_claim(claim: dict, *, dry_run: bool) -> dict:
-    """Execute one work claim in an isolated branch/worktree and report its state."""
+    """Execute one work claim and report its state. `lane: plan` reviews an idea in
+    plan_lane.py; anything else builds in an isolated branch/worktree."""
+    if claim.get("lane") == "plan" and not dry_run:
+        return plan_lane.run_plan_claim(claim, types.SimpleNamespace(**globals()))
     linear_id = claim["linear_id"]
     repo_dir = _repo_dir_for(claim)
     run_id = uuid.uuid4().hex[:8]
     branch = f"mesh/{HOST.lower()}/{linear_id.lower()}-{run_id}"
-    plan = {
-        "linear_id": linear_id,
-        "repo_dir": str(repo_dir),
-        "branch": branch,
-        "agent": AGENT_CMD,
-    }
+    plan = {"linear_id": linear_id, "repo_dir": str(repo_dir),
+            "branch": branch, "agent": AGENT_CMD}
     if dry_run:
         plan["dry_run"] = True
         return plan
