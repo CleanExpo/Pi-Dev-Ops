@@ -255,15 +255,15 @@ def _team_unstarted_state_id(team_id: str) -> str:
 
 
 def _mark_issue_reaped(linear_id: str) -> bool:
-    """A reaped claim's Linear issue moves back to the team's first
-    unstarted-type state, so it re-enters _MESH_AUTO_QUERY and can be claimed
-    again — without this, a dead runner's ticket would sit claimable-never in
-    Linear even though the mesh_work_claims row was freed. Best-effort: looked
-    up by identifier since claim rows don't carry the Linear issue/team uuid."""
-    q = f'query{{issue(id:"{linear_id}"){{id team{{id}}}}}}'
+    """Move a reaped claim's issue back to unstarted so it re-enters _MESH_AUTO_QUERY.
+    A completed/canceled issue stays closed (UNI-2753). Best-effort, by identifier."""
+    q = f'query{{issue(id:"{linear_id}"){{id team{{id}} state{{type}}}}}}'
     issue = _linear_graphql(q).get("issue") or {}
     issue_id = issue.get("id")
     team_id = (issue.get("team") or {}).get("id")
+    if (state_type := (issue.get("state") or {}).get("type")) in ("completed", "canceled"):
+        log.info("reap: %s is %s, left closed and not reopened", linear_id, state_type)
+        return True
     if not issue_id or not team_id:
         log.warning("reap: could not resolve issue/team for %s", linear_id)
         return False
