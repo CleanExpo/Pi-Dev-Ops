@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, mesh_fleet, mesh_reaper
+from .. import config, mesh_fleet, mesh_lanes, mesh_reaper
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -185,20 +185,17 @@ async def fleet(
 # online node has spare capacity. The unique partial index on mesh_work_claims
 # guarantees a ticket is claimed by exactly one machine even if dispatch races.
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
+# `description` rides with the claim so the execution node needs no Linear key at all.
+# BOTH fields are capped: either one is unbounded in Linear, and the text is untrusted —
+# it reaches an unattended agent. Why, and the measured failure that forced it (a Mac-mini
+# run that could not read its own ticket): mesh/prompt.py, which also fences it as data.
 _MESH_AUTO_QUERY = (
     'query{issues(first:50,filter:{labels:{name:{eq:"mesh:auto"}},'
-    'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title priority team{id}}}}'
+    'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title '
+    'description priority team{id} labels{nodes{name}}}}}'
 )
-
-
-def _priority_rank(priority: Any) -> int:
-    """Linear priority → sort key (lower = claimed first). 1=Urgent .. 4=Low;
-    0/None ("No priority") sorts last so real priorities win."""
-    try:
-        p = int(priority)
-    except (TypeError, ValueError):
-        return 99
-    return p if p > 0 else 99
+_BRIEF_MAX_CHARS = 6000
+_TITLE_MAX_CHARS = 500  # a Linear title is unbounded too; capping only the body is a gap
 
 
 def _linear_graphql(query: str) -> dict:
@@ -324,7 +321,7 @@ class DispatchRequest(BaseModel):
     linear_ids: list[str] = Field(default_factory=list)  # explicit tickets; empty → query Linear mesh:auto
 
 
-class ClaimUpdate(BaseModel):
+class ClaimUpdate(mesh_lanes.PlanPacketFields):  # + packet_md, title (plan lane)
     linear_id: str
     state: str  # working | done | released | failed
     branch: Optional[str] = None
@@ -377,7 +374,9 @@ async def claim_update(
             _mark_issue_reaped(u.linear_id)
         except Exception:  # noqa: BLE001
             log.warning("claim_update: Linear reversal failed for %s", u.linear_id, exc_info=True)
-    return {"ok": True, "linear_id": u.linear_id, "state": u.state}
+    idea_id = mesh_lanes.attach_packet(u.linear_id, u.state, u, body) if status < 300 else None
+    return {"ok": True, "linear_id": u.linear_id, "state": u.state,
+            **({"idea_id": idea_id} if idea_id else {})}
 
 
 @router.post("/claims/reap")
@@ -411,8 +410,9 @@ async def claim_self(
     body: SelfClaimRequest,
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
-    """An idle runner self-claims the top-priority unclaimed `mesh:auto` ticket
-    for itself, so capacity never idles waiting on the dispatcher.
+    """An idle runner self-claims the top-priority unclaimed `mesh:auto` or `idea:plan`
+    ticket for itself, so capacity never idles waiting on the dispatcher. `lane` in the
+    response says which: see mesh_lanes (both labels -> plan).
 
     Atomic: each attempt POSTs a claim row; the `mesh_work_claims_one_open`
     partial unique index rejects a racing double-claim with 409, and we fall
@@ -420,19 +420,17 @@ async def claim_self(
     ticket. Returns the ticket claimed, or null when the queue is empty/drained."""
     _check_secret(x_pi_ceo_secret)
     _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before self-claiming
-    nodes = _linear_graphql(_MESH_AUTO_QUERY).get("issues", {}).get("nodes", [])
-    open_ids = _open_claim_ids()
-    candidates = sorted(
-        (n for n in nodes if n.get("identifier") and n["identifier"] not in open_ids),
-        key=lambda n: (_priority_rank(n.get("priority")), n["identifier"]),
-    )
-    for tk in candidates:
+    nodes = _linear_graphql(mesh_lanes.SELF_CLAIM_QUERY).get("issues", {}).get("nodes", [])
+    for tk in mesh_lanes.ranked(nodes, _open_claim_ids()):
         ident = tk["identifier"]
         status, _ = _sb("POST", "mesh_work_claims",
                         {"linear_id": ident, "machine": body.host, "state": "claimed"},
                         prefer="return=minimal")
         if status < 300:
             _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
-            return {"claimed": {"linear_id": ident, "machine": body.host}}
+            return {"claimed": {
+                "linear_id": ident, "machine": body.host, "lane": mesh_lanes.lane_of(tk),
+                "title": (tk.get("title") or "")[:_TITLE_MAX_CHARS],
+                "description": (tk.get("description") or "")[:_BRIEF_MAX_CHARS]}}
         # status 409 = raced by another node → try the next candidate
     return {"claimed": None, "reason": "queue empty or fully claimed"}

@@ -19,13 +19,16 @@ import socket
 import subprocess
 import sys
 import time
+import types
 import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import plan_lane  # noqa: E402
 from fleet_state import active_agent_count, my_claims  # noqa: E402
+from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
 
 
@@ -113,7 +116,18 @@ def write_state(current_task, state: str, session_id: str | None = None) -> None
 
 
 def get_work() -> list[dict]:
-    """Use assigned work first, otherwise atomically self-claim a mesh:auto ticket."""
+    """Use assigned work first, otherwise atomically self-claim a mesh:auto ticket.
+
+    KNOWN GAP — only the self-claim path carries the ticket's brief. `/claim/self`
+    returns title and description in its response; `my_claims` reads `mesh_work_claims`
+    rows, and that table has no such columns (mesh/schema/0001_nexus_mesh.sql), so a
+    DISPATCHER-assigned claim arrives briefless and `build_prompt` takes its refusal
+    path. That is the safe failure, not the useful one: with MESH_DISPATCH_ENABLED=1
+    every dispatched ticket would stop without working. Closing it means enriching
+    GET /api/mesh/claims server-side from Linear, which is its own change — the
+    endpoint would start returning ticket text to any node holding the mesh secret.
+    Do not enable dispatch expecting work to happen until that lands.
+    """
     claims = my_claims(_api, HOST)
     if claims is None:
         return []          # fleet unreadable: hold, never self-claim on a guess
@@ -191,17 +205,16 @@ def _wait_for_agent(proc: subprocess.Popen, plan: dict) -> None:
 
 
 def run_claim(claim: dict, *, dry_run: bool) -> dict:
-    """Execute one work claim in an isolated branch/worktree and report its state."""
+    """Execute one work claim and report its state. `lane: plan` reviews an idea in
+    plan_lane.py; anything else builds in an isolated branch/worktree."""
+    if plan_lane.lane_of(claim) == "plan" and not dry_run:
+        return plan_lane.run_plan_claim(claim, types.SimpleNamespace(**globals()))
     linear_id = claim["linear_id"]
     repo_dir = _repo_dir_for(claim)
     run_id = uuid.uuid4().hex[:8]
     branch = f"mesh/{HOST.lower()}/{linear_id.lower()}-{run_id}"
-    plan = {
-        "linear_id": linear_id,
-        "repo_dir": str(repo_dir),
-        "branch": branch,
-        "agent": AGENT_CMD,
-    }
+    plan = {"linear_id": linear_id, "repo_dir": str(repo_dir),
+            "branch": branch, "agent": AGENT_CMD}
     if dry_run:
         plan["dry_run"] = True
         return plan
@@ -219,10 +232,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     if getattr(added, "returncode", 0) != 0:
         return _fail_claim(plan, linear_id, branch, "git worktree add failed")
 
-    prompt = (
-        f"Work the Linear ticket {linear_id}. Make a small, verifiable change, "
-        f"run the repo's gates, and stop. autogit ships each turn to {branch}."
-    )
+    prompt = build_prompt(claim, linear_id, branch)
     try:
         proc = subprocess.Popen([AGENT_CMD, "-p", prompt], cwd=str(worktree))
         _wait_for_agent(proc, plan)
