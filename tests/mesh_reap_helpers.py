@@ -87,8 +87,9 @@ class FakeLinear:
     """Models the issue(id) lookup + team states + issueUpdate mutation used
     to move a reaped issue back to an unstarted state."""
 
-    def __init__(self, *, team_of=None):
+    def __init__(self, *, team_of=None, state_type_of=None):
         self.team_of = team_of or {}  # linear_id -> team_id
+        self.state_type_of = state_type_of or {}  # linear_id -> state type (default started)
         self.moved_to_unstarted: set[str] = set()
 
     def graphql(self, query: str) -> dict:
@@ -97,7 +98,8 @@ class FakeLinear:
             team_id = self.team_of.get(lid)
             if not team_id:
                 return {"issue": None}
-            return {"issue": {"id": lid, "team": {"id": team_id}}}
+            state_type = self.state_type_of.get(lid, "started")
+            return {"issue": {"id": lid, "team": {"id": team_id}, "state": {"type": state_type}}}
         if query.startswith("query{team"):
             return {"team": {"states": {"nodes": [
                 {"id": "st-todo", "type": "unstarted", "position": 0},
