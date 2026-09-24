@@ -125,7 +125,7 @@ class Heartbeat(BaseModel):
 
 
 @router.post("/heartbeat")
-async def heartbeat(
+def heartbeat(
     hb: Heartbeat,
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
@@ -161,7 +161,7 @@ async def heartbeat(
 
 
 @router.get("/fleet")
-async def fleet(
+def fleet(
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
     """Whole-fleet snapshot: the runbook's only confirmation that the fleet joined.
@@ -332,7 +332,7 @@ class SelfClaimRequest(BaseModel):
 
 
 @router.get("/claims")
-async def claims(
+def claims(
     machine: Optional[str] = None,
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
@@ -347,7 +347,7 @@ async def claims(
 
 
 @router.post("/claim/update")
-async def claim_update(
+def claim_update(
     u: ClaimUpdate,
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
@@ -380,7 +380,7 @@ async def claim_update(
 
 
 @router.post("/claims/reap")
-async def reap_claims(
+def reap_claims(
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
     """Manual/ops trigger for the stale-claim sweep (UNI-2301) — the same sweep
@@ -391,7 +391,7 @@ async def reap_claims(
 
 
 @router.post("/dispatch")
-async def dispatch(
+def dispatch(
     body: DispatchRequest,
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
@@ -406,7 +406,7 @@ async def dispatch(
 
 
 @router.post("/claim/self")
-async def claim_self(
+def claim_self(
     body: SelfClaimRequest,
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):

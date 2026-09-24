@@ -26,7 +26,7 @@ class ShipReport(BaseModel):
 
 
 @router.post("/ship")
-async def ship(
+def ship(
     body: ShipReport,
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
