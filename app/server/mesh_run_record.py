@@ -4,7 +4,8 @@ The runner (`mesh/run_record.py`) redacts its log tail with the one secret bank
 a bare node python can import. This module redacts again with the server's full
 bank before anything is written, and drops the tail when that bank is
 incomplete — the same fail-closed rule `routes/conversations.py` applies to
-transcripts.
+transcripts. `error` is free text too (`str(exc)` on the runner), so it follows
+the same rule rather than trusting that errors never carry a secret.
 
 Split out of `routes/mesh.py`, which sits on its size-gate baseline.
 
@@ -17,6 +18,7 @@ record lands once the migration does.
 """
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Callable, Optional
 
@@ -58,11 +60,31 @@ def record_patch(fields: RunRecordFields) -> dict[str, Any]:
         patch["duration_s"] = fields.duration_s
     if fields.exit_code is not None:
         patch["exit_code"] = fields.exit_code
+    if not _REDACTION_BANK_COMPLETE:
+        return patch
     if fields.error:
         patch["error"] = _redact(fields.error)[:ERROR_CHARS]
-    if fields.log_tail and _REDACTION_BANK_COMPLETE:
+    if fields.log_tail:
         patch["log_tail"] = _redact(fields.log_tail)[-TAIL_CHARS:]
     return patch
+
+
+def _missing_run_column(status: int, body: str, extra: dict[str, Any]) -> bool:
+    """True only for a 400 whose structured code is a missing-column code naming one of ours.
+
+    Matching the code anywhere in the body would retry on any error that merely
+    mentions it, silently discarding the run record for an unrelated failure.
+    """
+    if status != 400:
+        return False
+    try:
+        err = json.loads(body)
+    except ValueError:
+        return False
+    if not isinstance(err, dict) or err.get("code") not in _MISSING_COLUMN:
+        return False
+    message = str(err.get("message", ""))
+    return any(column in message for column in extra)
 
 
 def patch_claim(sb: Callable[..., tuple[int, str]], method: str, path: str,
@@ -71,7 +93,7 @@ def patch_claim(sb: Callable[..., tuple[int, str]], method: str, path: str,
     """PATCH the claim with its run record, falling back to the bare state change."""
     extra = record_patch(fields)
     status, body = sb(method, path, {**patch, **extra}, prefer=prefer)
-    if extra and status >= 400 and any(code in body for code in _MISSING_COLUMN):
+    if extra and _missing_run_column(status, body, extra):
         log.warning("claim run-record columns absent (apply mesh/schema/0002); "
                     "stored the state change only")
         status, body = sb(method, path, patch, prefer=prefer)

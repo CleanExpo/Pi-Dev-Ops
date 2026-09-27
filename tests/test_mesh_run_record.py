@@ -71,24 +71,25 @@ def test_a_real_run_records_exit_code_duration_and_output(tmp_path):
     assert stat.S_IMODE(rec.path.stat().st_mode) == 0o600
 
 
-def test_a_long_log_drops_the_line_the_read_window_cuts(tmp_path):
-    """A token sliced by the read window no longer matches its pattern, so the
-    cut line must be dropped, never redacted-and-sent."""
+def test_a_token_crossing_the_tail_boundary_leaves_no_fragment(tmp_path):
+    """The one place a slice can leak: a token straddling the 4k cut. Cut first
+    and its back half no longer matches the pattern; redact first and it cannot
+    survive. The token starts 20 characters before the tail's first character."""
     rec = rr.RunRecord("run2", tmp_path)
     rec.close()
-    rest = ("y" * 99 + "\n") * ((rr._READ_WINDOW - 10) // 100)
-    rest += "y" * (rr._READ_WINDOW - 10 - len(rest))
-    rec.path.write_text("x" * 100 + _token() + "\n" + rest)
+    tok = _token()
+    rec.path.write_text("x" * 20_000 + tok + "y" * (rr.TAIL_CHARS - (len(tok) - 20)))
     tail = rec.fields({})["log_tail"]
-    assert _token()[-10:] not in tail
-    assert tail.startswith("y")
+    assert len(tail) == rr.TAIL_CHARS
+    assert tok[20:] not in tail
+    assert tok[20:40] not in tail
 
 
-def test_a_long_log_with_no_newline_sends_nothing(tmp_path):
+def test_a_long_single_line_keeps_its_tail(tmp_path):
     rec = rr.RunRecord("run3", tmp_path)
     rec.close()
     rec.path.write_text("z" * (rr._READ_WINDOW + 500))
-    assert rec.fields({})["log_tail"] == ""
+    assert rec.fields({})["log_tail"] == "z" * rr.TAIL_CHARS
 
 
 def test_an_unopenable_log_still_runs_and_reports(tmp_path):
@@ -115,11 +116,15 @@ def test_the_server_redacts_again_and_caps():
     assert patch["exit_code"] == 1
 
 
-def test_an_incomplete_server_bank_drops_the_tail(monkeypatch):
+def test_an_incomplete_server_bank_drops_every_free_text_field(monkeypatch):
+    """`error` is free text as much as the tail is: neither is stored unredactable."""
     monkeypatch.setattr(srv, "_REDACTION_BANK_COMPLETE", False)
-    patch = srv.record_patch(srv.RunRecordFields(run_id="r", log_tail="anything"))
+    monkeypatch.setattr(srv, "_REDACTION_BANK", [])
+    patch = srv.record_patch(srv.RunRecordFields(
+        run_id="r", exit_code=2, error="boom " + _token(), log_tail="tail " + _token()))
     assert "log_tail" not in patch
-    assert patch["run_id"] == "r"
+    assert "error" not in patch
+    assert patch == {"run_id": "r", "exit_code": 2}
 
 
 def _sb_without_columns(calls):
@@ -137,6 +142,29 @@ def test_missing_columns_still_store_the_state_change():
                                 fields=srv.RunRecordFields(run_id="r"))
     assert status == 200
     assert calls == [{"state": "done", "run_id": "r"}, {"state": "done"}]
+
+
+def _single_call(status, body):
+    calls: list = []
+
+    def sb(method, path, payload, prefer=""):
+        calls.append(payload)
+        return status, body
+
+    srv.patch_claim(sb, "PATCH", "p", {"state": "done"}, fields=srv.RunRecordFields(run_id="r"))
+    return calls
+
+
+def test_a_body_merely_mentioning_the_code_is_not_retried():
+    assert len(_single_call(400, '{"code":"PGRST100","message":"diagnostic PGRST204"}')) == 1
+
+
+def test_a_missing_column_code_on_a_non_400_is_not_retried():
+    assert len(_single_call(401, '{"code":"PGRST204","message":"Could not find the \'run_id\' column"}')) == 1
+
+
+def test_a_missing_column_that_is_not_ours_is_not_retried():
+    assert len(_single_call(400, '{"code":"PGRST204","message":"Could not find the \'foo\' column"}')) == 1
 
 
 def test_other_errors_are_not_retried():

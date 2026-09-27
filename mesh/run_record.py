@@ -49,8 +49,8 @@ _BANK = _load_bank()
 def redacted_tail(text: str, bank: "Optional[list[re.Pattern[str]]]" = None) -> Optional[str]:
     """The last TAIL_CHARS of `text`, with every bank match replaced; None without a bank.
 
-    Redact first, cut second. Cutting first could slice a token in half, and a
-    half token no longer matches the pattern that would have caught it.
+    Redact first, cut second. Cutting first could slice a token at the 4k
+    boundary, and a half token no longer matches the pattern that would catch it.
     """
     bank = _BANK if bank is None else bank
     if bank is None:
@@ -91,7 +91,13 @@ class RunRecord:
             self._log.close()
 
     def _tail(self) -> Optional[str]:
-        """Read only the end of the log. The first partial line is dropped, not redacted."""
+        """Read only the end of the log.
+
+        The read window is four times the tail. A token the window's start cuts
+        in half therefore sits at least 12k characters before the returned 4k and
+        is discarded with it; the token that matters is the one crossing the 4k
+        boundary, and the window holds it whole for `redacted_tail` to catch.
+        """
         if self.path is None:
             return None
         try:
@@ -101,9 +107,6 @@ class RunRecord:
                 text = fh.read().decode("utf-8", errors="replace")
         except OSError:
             return None
-        if size > _READ_WINDOW:
-            _, newline, rest = text.partition("\n")
-            text = rest if newline else ""
         return redacted_tail(text)
 
     def fields(self, plan: dict) -> dict:
