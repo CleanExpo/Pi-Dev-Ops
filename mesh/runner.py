@@ -234,13 +234,9 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         return _fail_claim(plan, linear_id, branch, "git worktree add failed")
 
     prompt = build_prompt(claim, linear_id, branch)
-    rec = None
     try:
-        rec = run_record.RunRecord(run_id, STATE_FILE.parent)
-        _wait_for_agent(rec.popen([AGENT_CMD, "-p", prompt], cwd=str(worktree)), plan)
-    except Exception as exc:  # noqa: BLE001
-        plan["state"] = "failed"
-        plan["error"] = str(exc)
+        rec = run_record.run_agent([AGENT_CMD, "-p", prompt], str(worktree),
+                                   STATE_FILE.parent, run_id, plan, _wait_for_agent)
     finally:
         subprocess.run(
             ["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],

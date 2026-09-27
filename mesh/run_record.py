@@ -30,7 +30,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 ERROR_CHARS = 500
 
@@ -104,6 +104,24 @@ class RunRecord:
             "exit_code": getattr(self.proc, "returncode", None),
             "error": redact_error(plan.get("error")),
         }
+
+
+def run_agent(cmd: list, cwd: str, base_dir: Path, run_id: str, plan: dict,
+              wait: Callable[[subprocess.Popen, dict], None]) -> Optional[RunRecord]:
+    """Build the record and run the agent under it; return the record, or None.
+
+    Never raises. Any failure, including building the record itself, lands in
+    `plan` as a failed state with its error, so the caller always reaches its
+    terminal claim update and worktree cleanup.
+    """
+    rec = None
+    try:
+        rec = RunRecord(run_id, base_dir)
+        wait(rec.popen(cmd, cwd), plan)
+    except Exception as exc:  # noqa: BLE001 — reported as the claim's failure, never re-raised
+        plan["state"] = "failed"
+        plan["error"] = str(exc)
+    return rec
 
 
 def fields(rec: Optional[RunRecord], plan: dict) -> dict:
