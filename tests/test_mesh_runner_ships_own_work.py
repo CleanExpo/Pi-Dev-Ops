@@ -95,6 +95,25 @@ def test_a_run_that_changed_nothing_is_an_error_and_pushes_nothing(fleet):
     assert _remote_has(origin, BRANCH) == ""
 
 
+def test_an_empty_run_stays_an_error_when_the_checkout_head_moves_back(fleet):
+    """Codex review, P1: the base used to be the checkout's HEAD read at ship time.
+    Moving that HEAD behind the run's start made an unchanged worktree look ahead,
+    so an empty run pushed a branch and read as delivered. The base must be where
+    the run's branch was created, which nothing can move afterwards."""
+    repo, wt, origin = fleet
+    (repo / "README").write_text("second\n")
+    _git(repo, "commit", "-q", "-am", "second")
+    _git(repo, "worktree", "remove", "--force", str(wt))
+    _git(repo, "branch", "-D", BRANCH)
+    _git(repo, "worktree", "add", "-q", "-b", BRANCH, str(wt))
+    _git(repo, "checkout", "-q", "--detach", "HEAD~1")
+
+    error = ship_run.ship(repo, wt, BRANCH, "UNI-A", "TESTNODE")
+
+    assert error and "no commits" in error
+    assert _remote_has(origin, BRANCH) == ""
+
+
 def test_a_failed_push_is_an_error(fleet):
     """The local commit exists but the remote never got it — still not shipped."""
     repo, wt, origin = fleet

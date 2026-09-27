@@ -41,6 +41,16 @@ def _commit_leftovers(worktree: Path, linear_id: str, host: str) -> str | None:
     return None if done.returncode == 0 else f"commit failed: {done.stderr.strip()[:200]}"
 
 
+def _start_point(worktree: Path, branch: str) -> str:
+    """The commit this run's branch was created at: the oldest entry in the branch's
+    own reflog. Unlike the checkout's HEAD it cannot move after `worktree add`, so a
+    moved checkout can neither fake new work nor hide it. No reflog means no proof,
+    which the caller treats as nothing to ship."""
+    entries = _git(worktree, "reflog", "show", "--format=%H", f"refs/heads/{branch}")
+    shas = entries.stdout.split()
+    return shas[-1] if entries.returncode == 0 and shas else ""
+
+
 def ship(repo_dir: Path, worktree: Path, branch: str, linear_id: str,
          host: str) -> str | None:
     """Put this run's branch on the remote. None on success, else why not."""
@@ -49,7 +59,7 @@ def ship(repo_dir: Path, worktree: Path, branch: str, linear_id: str,
     error = _commit_leftovers(Path(worktree), linear_id, host)
     if error:
         return error
-    base = _git(Path(repo_dir), "rev-parse", "HEAD").stdout.strip()
+    base = _start_point(Path(worktree), branch)
     ahead = _git(Path(worktree), "rev-list", "--count", f"{base}..HEAD").stdout.strip()
     if not base or ahead in ("", "0"):
         return "no commits: agent exited 0 but changed nothing"
