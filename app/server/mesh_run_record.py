@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any, Callable, Optional
 
 from pydantic import BaseModel
@@ -32,6 +33,10 @@ TAIL_CHARS = 4000
 ERROR_CHARS = 500
 # PostgREST's "column not in schema cache" code, and Postgres's undefined_column.
 _MISSING_COLUMN = ("PGRST204", "42703")
+# The column a missing-column error names: PostgREST quotes it with ', Postgres
+# with " (optionally table-qualified). Compared by equality, never substring:
+# "terror" contains "error" and is not ours.
+_COLUMN_NAMED = (re.compile(r"'([^']+)' column"), re.compile(r'column "?(?:\w+\.)?(\w+)"?'))
 
 
 class RunRecordFields(BaseModel):
@@ -65,6 +70,8 @@ def record_patch(fields: RunRecordFields) -> dict[str, Any]:
     if fields.error:
         patch["error"] = _redact(fields.error)[:ERROR_CHARS]
     if fields.log_tail:
+        # Redact the runner's whole send, THEN keep the tail: the send overlaps
+        # the kept tail so a secret only this bank knows is whole when it is matched.
         patch["log_tail"] = _redact(fields.log_tail)[-TAIL_CHARS:]
     return patch
 
@@ -84,7 +91,11 @@ def _missing_run_column(status: int, body: str, extra: dict[str, Any]) -> bool:
     if not isinstance(err, dict) or err.get("code") not in _MISSING_COLUMN:
         return False
     message = str(err.get("message", ""))
-    return any(column in message for column in extra)
+    for rx in _COLUMN_NAMED:
+        found = rx.search(message)
+        if found:
+            return found.group(1) in extra
+    return False
 
 
 def patch_claim(sb: Callable[..., tuple[int, str]], method: str, path: str,

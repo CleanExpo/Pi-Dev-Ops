@@ -28,6 +28,13 @@ from pathlib import Path
 from typing import IO, Optional
 
 TAIL_CHARS = 4000
+# The runner sends more than the server keeps. The server's bank knows secret
+# shapes this one does not, and a shape this side cannot see is sliced by this
+# side's cut. The server redacts the whole send, then keeps only the last
+# TAIL_CHARS, so a server-only secret crossing this cut is dropped with the
+# overlap unless it is longer than OVERLAP_CHARS.
+OVERLAP_CHARS = 2000
+SEND_CHARS = TAIL_CHARS + OVERLAP_CHARS
 _READ_WINDOW = TAIL_CHARS * 4
 
 
@@ -47,17 +54,16 @@ _BANK = _load_bank()
 
 
 def redacted_tail(text: str, bank: "Optional[list[re.Pattern[str]]]" = None) -> Optional[str]:
-    """The last TAIL_CHARS of `text`, with every bank match replaced; None without a bank.
+    """The last SEND_CHARS of `text`, with every bank match replaced; None without a bank.
 
-    Redact first, cut second. Cutting first could slice a token at the 4k
-    boundary, and a half token no longer matches the pattern that would catch it.
+    Redact first, cut second. Cutting first could slice a token at the cut, and a half token no longer matches the pattern that would catch it.
     """
     bank = _BANK if bank is None else bank
     if bank is None:
         return None
     for rx in bank:
         text = rx.sub("[REDACTED]", text)
-    return text[-TAIL_CHARS:]
+    return text[-SEND_CHARS:]
 
 
 class RunRecord:
@@ -93,10 +99,10 @@ class RunRecord:
     def _tail(self) -> Optional[str]:
         """Read only the end of the log.
 
-        The read window is four times the tail. A token the window's start cuts
-        in half therefore sits at least 12k characters before the returned 4k and
-        is discarded with it; the token that matters is the one crossing the 4k
-        boundary, and the window holds it whole for `redacted_tail` to catch.
+        The read window is well over the send. A token the window's start cuts
+        in half therefore sits about 10k characters before the send and is
+        discarded with it; the token that matters is the one crossing the send's
+        cut, and the window holds it whole for `redacted_tail` to catch.
         """
         if self.path is None:
             return None

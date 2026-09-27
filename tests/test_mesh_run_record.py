@@ -49,7 +49,7 @@ def test_the_tail_redacts_a_key_before_it_leaves_the_machine():
 
 
 def test_the_tail_is_capped():
-    assert len(rr.redacted_tail("x" * 10_000)) == rr.TAIL_CHARS
+    assert len(rr.redacted_tail("x" * 10_000)) == rr.SEND_CHARS
 
 
 def test_no_bank_means_no_tail_rather_than_a_raw_one(monkeypatch):
@@ -72,15 +72,15 @@ def test_a_real_run_records_exit_code_duration_and_output(tmp_path):
 
 
 def test_a_token_crossing_the_tail_boundary_leaves_no_fragment(tmp_path):
-    """The one place a slice can leak: a token straddling the 4k cut. Cut first
-    and its back half no longer matches the pattern; redact first and it cannot
-    survive. The token starts 20 characters before the tail's first character."""
+    """The one place a slice can leak: a token straddling the runner's cut. Cut
+    first and its back half no longer matches the pattern; redact first and it
+    cannot survive. The token starts 20 characters before the send's first character."""
     rec = rr.RunRecord("run2", tmp_path)
     rec.close()
     tok = _token()
-    rec.path.write_text("x" * 20_000 + tok + "y" * (rr.TAIL_CHARS - (len(tok) - 20)))
+    rec.path.write_text("x" * 20_000 + tok + "y" * (rr.SEND_CHARS - (len(tok) - 20)))
     tail = rec.fields({})["log_tail"]
-    assert len(tail) == rr.TAIL_CHARS
+    assert len(tail) == rr.SEND_CHARS
     assert tok[20:] not in tail
     assert tok[20:40] not in tail
 
@@ -89,7 +89,7 @@ def test_a_long_single_line_keeps_its_tail(tmp_path):
     rec = rr.RunRecord("run3", tmp_path)
     rec.close()
     rec.path.write_text("z" * (rr._READ_WINDOW + 500))
-    assert rec.fields({})["log_tail"] == "z" * rr.TAIL_CHARS
+    assert rec.fields({})["log_tail"] == "z" * rr.SEND_CHARS
 
 
 def test_an_unopenable_log_still_runs_and_reports(tmp_path):
@@ -103,6 +103,41 @@ def test_an_unopenable_log_still_runs_and_reports(tmp_path):
 
 
 # ── server side ──────────────────────────────────────────────────────────────
+
+
+def _db_url() -> str:
+    """A secret only the SERVER bank knows: the runner's transcript bank has no DB-URL shape."""
+    return 'db_url="postgresql://user:' + "privatevalue" + '@host/db"'
+
+
+def test_the_db_url_is_a_server_only_secret():
+    """Positive control for the two tests below: they are vacuous unless this holds."""
+    assert "privatevalue" in rr.redacted_tail(_db_url())
+    assert "privatevalue" not in srv._redact(_db_url())
+
+
+def _stored_tail(tmp_path, name, text) -> str:
+    rec = rr.RunRecord(name, tmp_path)
+    rec.close()
+    rec.path.write_text(text)
+    return srv.record_patch(srv.RunRecordFields(run_id=name, log_tail=rec.fields({})["log_tail"]))["log_tail"]
+
+
+def test_a_server_only_secret_crossing_the_stored_cut_is_redacted(tmp_path):
+    """The runner cannot see it, so it must reach the server whole: the send overlaps the kept 4k."""
+    url = _db_url()
+    stored = _stored_tail(tmp_path, "srv1", "x" * 20_000 + url + "y" * (srv.TAIL_CHARS - 12))
+    assert "privatevalue" not in stored
+    assert "@host/db" not in stored
+    assert len(stored) == srv.TAIL_CHARS
+
+
+def test_a_server_only_secret_crossing_the_runner_cut_never_reaches_the_row(tmp_path):
+    """Sliced by the runner's cut, it cannot be matched — so it must fall outside what is kept."""
+    url = _db_url()
+    stored = _stored_tail(tmp_path, "srv2", "x" * 20_000 + url + "y" * (rr.SEND_CHARS - 12))
+    assert "privatevalue" not in stored
+    assert "@host/db" not in stored
 
 
 def test_the_server_redacts_again_and_caps():
@@ -165,6 +200,16 @@ def test_a_missing_column_code_on_a_non_400_is_not_retried():
 
 def test_a_missing_column_that_is_not_ours_is_not_retried():
     assert len(_single_call(400, '{"code":"PGRST204","message":"Could not find the \'foo\' column"}')) == 1
+
+
+def test_a_missing_column_whose_name_merely_contains_ours_is_not_retried():
+    assert len(_single_call(400, '{"code":"PGRST204","message":"Could not find the \'terror\' column of \'mesh_work_claims\' in the schema cache"}')) == 1
+    assert len(_single_call(400, '{"code":"42703","message":"column \\"external_run_id\\" of relation \\"mesh_work_claims\\" does not exist"}')) == 1
+
+
+def test_a_postgres_missing_column_that_is_ours_is_retried():
+    assert len(_single_call(400, '{"code":"42703","message":"column \\"run_id\\" of relation \\"mesh_work_claims\\" does not exist"}')) == 2
+    assert len(_single_call(400, '{"code":"42703","message":"column mesh_work_claims.run_id does not exist"}')) == 2
 
 
 def test_other_errors_are_not_retried():
