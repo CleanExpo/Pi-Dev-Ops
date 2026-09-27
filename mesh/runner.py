@@ -30,6 +30,7 @@ import plan_lane  # noqa: E402
 from fleet_state import active_agent_count, my_claims  # noqa: E402
 from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
+import run_record  # noqa: E402
 
 
 def _from_env_file(name: str) -> str:
@@ -165,7 +166,7 @@ def _fail_claim(plan: dict, linear_id: str, branch: str, error: str) -> dict:
     """
     plan.update(state="failed", error=error)
     _api("POST", "/api/mesh/claim/update", {
-        "linear_id": linear_id, "state": "failed", "branch": branch})
+        "linear_id": linear_id, "state": "failed", "branch": branch, "error": error})
     write_state(None, "idle")
     return plan
 
@@ -233,9 +234,9 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         return _fail_claim(plan, linear_id, branch, "git worktree add failed")
 
     prompt = build_prompt(claim, linear_id, branch)
+    rec = run_record.RunRecord(run_id, STATE_FILE.parent)
     try:
-        proc = subprocess.Popen([AGENT_CMD, "-p", prompt], cwd=str(worktree))
-        _wait_for_agent(proc, plan)
+        _wait_for_agent(rec.popen([AGENT_CMD, "-p", prompt], cwd=str(worktree)), plan)
     except Exception as exc:  # noqa: BLE001
         plan["state"] = "failed"
         plan["error"] = str(exc)
@@ -246,7 +247,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         )
         write_state(None, "idle")
     _api("POST", "/api/mesh/claim/update", {
-        "linear_id": linear_id, "state": plan["state"], "branch": branch})
+        "linear_id": linear_id, "state": plan["state"], "branch": branch, **rec.fields(plan)})
     return plan
 
 
