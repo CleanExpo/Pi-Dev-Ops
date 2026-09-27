@@ -118,7 +118,7 @@ def test_an_empty_run_stays_an_error_when_the_agent_rewrites_the_reflog(fleet):
     _repo, wt, origin, start = fleet
     _git(wt, "reflog", "expire", "--expire=now", f"refs/heads/{BRANCH}")
     _git(wt, "reset", "-q", "--hard", "HEAD~1")
-    _git(wt, "reset", "-q", "--hard", start)
+    _git(wt, "reset", "-q", "--hard", start.sha)
 
     error = ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE")
 
@@ -128,22 +128,52 @@ def test_an_empty_run_stays_an_error_when_the_agent_rewrites_the_reflog(fleet):
 
 def test_an_unreadable_start_ships_nothing(fleet):
     """No start point means no proof of new work, so it must fail closed."""
-    _repo, wt, origin, _start = fleet
+    _repo, wt, origin, start = fleet
     (wt / "marker").write_text("x\n")
 
-    error = ship_run.ship("", wt, BRANCH, "UNI-A", "TESTNODE")
+    error = ship_run.ship(start._replace(sha=""), wt, BRANCH, "UNI-A", "TESTNODE")
 
     assert error and "no commits" in error
     assert _remote_has(origin, BRANCH) == ""
 
 
+def test_an_agent_redirected_push_url_still_ships_to_the_real_origin(fleet, tmp_path):
+    """Codex review round 3, P1: `remote set-url --push origin <decoy>` inside the
+    worktree sent the run to the decoy while settle read `done`. The runner pushes
+    to the URL it read before the agent launched, so origin config cannot redirect it."""
+    _repo, wt, origin, start = fleet
+    decoy = tmp_path / "decoy.git"
+    _git(tmp_path, "init", "-q", "--bare", str(decoy))
+    _git(wt, "remote", "set-url", "--push", "origin", str(decoy))
+    (wt / "marker").write_text("x\n")
+
+    assert ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE") is None
+    assert _remote_has(origin, BRANCH) == _git(wt, "rev-parse", "HEAD")
+    assert _remote_has(decoy, BRANCH) == ""
+
+
+def test_a_ship_publishes_the_run_branch_and_nothing_else(fleet):
+    """Codex review round 3, P1: with `push.followTags` set in the worktree, the
+    explicit branch push also published an agent-created annotated tag."""
+    _repo, wt, origin, start = fleet
+    (wt / "marker").write_text("x\n")
+    _git(wt, "add", "marker")
+    _git(wt, "commit", "-q", "-m", "work")
+    _git(wt, "tag", "-a", "outside-scope", "-m", "t")
+    _git(wt, "config", "push.followTags", "true")
+
+    assert ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE") is None
+    refs = _git(origin, "for-each-ref", "--format=%(refname)").split()
+    assert refs == ["refs/heads/main", f"refs/heads/{BRANCH}"]
+
+
 def test_a_failed_push_is_an_error(fleet):
     """The local commit exists but the remote never got it — still not shipped."""
-    repo, wt, origin, start = fleet
+    _repo, wt, origin, start = fleet
     (wt / "marker").write_text("x\n")
-    _git(repo, "remote", "set-url", "origin", str(origin.parent / "gone.git"))
+    gone = start._replace(url=str(origin.parent / "gone.git"))
 
-    error = ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE")
+    error = ship_run.ship(gone, wt, BRANCH, "UNI-A", "TESTNODE")
 
     assert error and error.startswith("push failed")
 
