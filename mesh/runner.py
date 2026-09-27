@@ -166,7 +166,7 @@ def _fail_claim(plan: dict, linear_id: str, branch: str, error: str) -> dict:
     """
     plan.update(state="failed", error=error)
     _api("POST", "/api/mesh/claim/update", {
-        "linear_id": linear_id, "state": "failed", "branch": branch, "error": error})
+        "linear_id": linear_id, "state": "failed", "branch": branch, **run_record.fields(None, plan)})
     write_state(None, "idle")
     return plan
 
@@ -234,8 +234,9 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         return _fail_claim(plan, linear_id, branch, "git worktree add failed")
 
     prompt = build_prompt(claim, linear_id, branch)
-    rec = run_record.RunRecord(run_id, STATE_FILE.parent)
+    rec = None
     try:
+        rec = run_record.RunRecord(run_id, STATE_FILE.parent)
         _wait_for_agent(rec.popen([AGENT_CMD, "-p", prompt], cwd=str(worktree)), plan)
     except Exception as exc:  # noqa: BLE001
         plan["state"] = "failed"
@@ -247,7 +248,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         )
         write_state(None, "idle")
     _api("POST", "/api/mesh/claim/update", {
-        "linear_id": linear_id, "state": plan["state"], "branch": branch, **rec.fields(plan)})
+        "linear_id": linear_id, "state": plan["state"], "branch": branch, **run_record.fields(rec, plan)})
     return plan
 
 

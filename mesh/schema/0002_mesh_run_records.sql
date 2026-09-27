@@ -8,12 +8,12 @@
 -- `app/server/mesh_run_record.patch_claim` keeps storing the state change when
 -- these columns are absent, so the server can deploy before this is applied.
 --
--- `log_tail` is at most 4,000 characters, redacted twice (runner, then server)
--- before it reaches this table. RLS and the service_only policy from 0001 cover
--- the new columns: they are on the same table.
+-- `error` is redacted twice (runner, then server) before it reaches this table.
+-- The agent's transcript is NOT stored here; it stays on the node that ran it
+-- (see mesh/run_record.py). RLS and the service_only policy from 0001 cover the
+-- new columns: they are on the same table.
 
 alter table mesh_work_claims add column if not exists run_id     text;
 alter table mesh_work_claims add column if not exists duration_s double precision;
 alter table mesh_work_claims add column if not exists exit_code  integer;
 alter table mesh_work_claims add column if not exists error      text;
-alter table mesh_work_claims add column if not exists log_tail   text;

@@ -1,16 +1,19 @@
 """tests/test_mesh_run_record.py — a mesh build run keeps its transcript and reports its outcome (UNI-2796).
 
 Before this, `run_claim` started the agent with no output capture and reported
-only `done` or `failed`. These tests pin the three halves of the fix:
+only `done` or `failed`. These tests pin the fix:
 
-  * the runner keeps a local log and sends a redacted, capped tail;
-  * the server redacts again, and stores the state change even when the
-    run-record columns do not exist yet (migrations are applied by hand here);
-  * `run_claim` actually sends the record — exercised with a real child process
-    that exits 3, so the exit code is observed, not stubbed.
+  * the runner keeps the full log on its own machine (0600) and sends only the
+    outcome: run id, duration, exit code, and an error redacted before sending;
+  * no log text crosses the wire (three review rounds showed a tail cannot be
+    made safe while nodes lack the server's full secret bank);
+  * the server redacts the error again, drops it when its bank is incomplete,
+    and stores the state change even when the run-record columns do not exist
+    yet — retrying only when the error names one of OUR columns on OUR table;
+  * `run_claim` sends the record, observed with a real child process that exits 3,
+    and still reports a terminal state when the record itself cannot be built.
 
-The secret-shaped strings are built at runtime so no key-like literal sits in
-source for a scanner to flag.
+Secret-shaped strings are assembled at runtime so no key-like literal sits in source.
 """
 from __future__ import annotations
 
@@ -38,191 +41,116 @@ def _token() -> str:
 
 
 def test_the_runner_bank_loads_on_this_interpreter():
-    """Positive control: every redaction test below is vacuous without a bank."""
+    """Positive control: every runner redaction test below is vacuous without a bank."""
     assert rr._BANK, "scripts/sync_claude_sessions bank did not load"
 
 
-def test_the_tail_redacts_a_key_before_it_leaves_the_machine():
-    out = rr.redacted_tail(f"agent log {_token()} end")
+def test_the_runner_redacts_the_error_before_sending():
+    out = rr.redact_error(f"boom {_token()}")
     assert _token() not in out
     assert "[REDACTED]" in out
 
 
-def test_the_tail_is_capped():
-    assert len(rr.redacted_tail("x" * 10_000)) == rr.SEND_CHARS
+def test_the_error_is_capped():
+    assert len(rr.redact_error("x" * 2_000)) == rr.ERROR_CHARS
 
 
-def test_no_bank_means_no_tail_rather_than_a_raw_one(monkeypatch):
+def test_no_bank_withholds_the_error(monkeypatch):
     monkeypatch.setattr(rr, "_BANK", None)
-    assert rr.redacted_tail(f"leak {_token()}") is None
+    assert rr.redact_error(f"leak {_token()}") is None
 
 
-def test_a_real_run_records_exit_code_duration_and_output(tmp_path):
+def test_an_empty_bank_is_no_bank(monkeypatch):
+    """An empty list matches nothing; treating it as a bank would send text raw."""
+    monkeypatch.setattr(rr, "_BANK", [])
+    assert rr.redact_error(f"leak {_token()}") is None
+
+
+def test_no_log_text_is_sent(tmp_path):
+    rec = rr.RunRecord("run0", tmp_path)
+    rec.popen(["sh", "-c", f"echo {_token()}; echo visible-output"], cwd=str(tmp_path)).wait()
+    fields = rec.fields({})
+    assert set(fields) == {"run_id", "duration_s", "exit_code", "error"}
+    assert "visible-output" not in repr(fields)
+
+
+def test_a_real_run_records_exit_code_duration_and_keeps_its_log(tmp_path):
     rec = rr.RunRecord("run1", tmp_path)
-    proc = rec.popen(["sh", "-c", f"echo started; echo {_token()}; exit 3"], cwd=str(tmp_path))
-    proc.wait()
-    fields = rec.fields({"error": "agent exited 3"})
+    rec.popen(["sh", "-c", "echo started; exit 3"], cwd=str(tmp_path)).wait()
+    fields = rec.fields({"error": f"agent exited 3 {_token()}"})
     assert fields["run_id"] == "run1"
     assert fields["exit_code"] == 3
     assert fields["duration_s"] >= 0
-    assert fields["error"] == "agent exited 3"
-    assert "started" in fields["log_tail"]
-    assert _token() not in fields["log_tail"]
+    assert fields["error"].startswith("agent exited 3")
+    assert _token() not in fields["error"]
+    assert "started" in rec.path.read_text()
     assert stat.S_IMODE(rec.path.stat().st_mode) == 0o600
 
 
-def test_a_token_crossing_the_tail_boundary_leaves_no_fragment(tmp_path):
-    """The one place a slice can leak: a token straddling the runner's cut. Cut
-    first and its back half no longer matches the pattern; redact first and it
-    cannot survive. The token starts 20 characters before the send's first character."""
-    rec = rr.RunRecord("run2", tmp_path)
-    rec.close()
-    tok = _token()
-    rec.path.write_text("x" * 20_000 + tok + "y" * (rr.SEND_CHARS - (len(tok) - 20)))
-    tail = rec.fields({})["log_tail"]
-    assert len(tail) == rr.SEND_CHARS
-    assert tok[20:] not in tail
-    assert tok[20:40] not in tail
-
-
-def test_a_long_single_line_keeps_its_tail(tmp_path):
-    rec = rr.RunRecord("run3", tmp_path)
-    rec.close()
-    rec.path.write_text("z" * (rr._READ_WINDOW + 500))
-    assert rec.fields({})["log_tail"] == "z" * rr.SEND_CHARS
-
-
 def test_an_unopenable_log_still_runs_and_reports(tmp_path):
-    blocker = tmp_path / "mesh-runs"
-    blocker.write_text("a file where the directory should be")
+    (tmp_path / "mesh-runs").write_text("a file where the directory should be")
     rec = rr.RunRecord("run4", tmp_path)
     rec.popen(["sh", "-c", "exit 0"], cwd=str(tmp_path)).wait()
-    fields = rec.fields({})
-    assert fields["exit_code"] == 0
-    assert fields["log_tail"] is None
+    assert rec.path is None
+    assert rec.fields({})["exit_code"] == 0
+
+
+def test_a_record_that_never_existed_still_reports_its_error():
+    assert rr.fields(None, {"error": f"setup failed {_token()}"}) == {
+        "error": "setup failed [REDACTED]"}
 
 
 # ── server side ──────────────────────────────────────────────────────────────
 
 
-def _db_url() -> str:
-    """A secret only the SERVER bank knows: the runner's transcript bank has no DB-URL shape."""
-    return 'db_url="postgresql://user:' + "privatevalue" + '@host/db"'
-
-
-def test_the_db_url_is_a_server_only_secret():
-    """Positive control for the two tests below: they are vacuous unless this holds."""
-    assert "privatevalue" in rr.redacted_tail(_db_url())
-    assert "privatevalue" not in srv._redact(_db_url())
-
-
-def _stored_tail(tmp_path, name, text) -> str:
-    rec = rr.RunRecord(name, tmp_path)
-    rec.close()
-    rec.path.write_text(text)
-    return srv.record_patch(srv.RunRecordFields(run_id=name, log_tail=rec.fields({})["log_tail"]))["log_tail"]
-
-
-def test_a_server_only_secret_crossing_the_stored_cut_is_redacted(tmp_path):
-    """The runner cannot see it, so it must reach the server whole: the send overlaps the kept 4k."""
-    url = _db_url()
-    stored = _stored_tail(tmp_path, "srv1", "x" * 20_000 + url + "y" * (srv.TAIL_CHARS - 12))
-    assert "privatevalue" not in stored
-    assert "@host/db" not in stored
-    assert len(stored) == srv.TAIL_CHARS
-
-
-def test_a_server_only_secret_crossing_the_runner_cut_never_reaches_the_row(tmp_path):
-    """Sliced by the runner's cut, it cannot be matched — so it must fall outside what is kept."""
-    url = _db_url()
-    stored = _stored_tail(tmp_path, "srv2", "x" * 20_000 + url + "y" * (rr.SEND_CHARS - 12))
-    assert "privatevalue" not in stored
-    assert "@host/db" not in stored
-
-
-def test_the_server_redacts_again_and_caps():
-    assert srv._REDACTION_BANK_COMPLETE, "server bank incomplete — the test below would be vacuous"
-    patch = srv.record_patch(srv.RunRecordFields(
-        run_id="r", exit_code=1, error="boom " + _token(),
-        log_tail="head " + _token() + "x" * 5000))
+def test_the_server_redacts_the_error_again():
+    assert srv._REDACTION_BANK_COMPLETE, "server bank incomplete — this test would be vacuous"
+    patch = srv.record_patch(srv.RunRecordFields(run_id="r", exit_code=1, error="boom " + _token()))
     assert _token() not in patch["error"]
-    assert _token() not in patch["log_tail"]
-    assert len(patch["log_tail"]) <= srv.TAIL_CHARS
     assert patch["exit_code"] == 1
 
 
-def test_an_incomplete_server_bank_drops_every_free_text_field(monkeypatch):
-    """`error` is free text as much as the tail is: neither is stored unredactable."""
+def test_an_incomplete_server_bank_drops_the_error(monkeypatch):
     monkeypatch.setattr(srv, "_REDACTION_BANK_COMPLETE", False)
     monkeypatch.setattr(srv, "_REDACTION_BANK", [])
-    patch = srv.record_patch(srv.RunRecordFields(
-        run_id="r", exit_code=2, error="boom " + _token(), log_tail="tail " + _token()))
-    assert "log_tail" not in patch
-    assert "error" not in patch
+    patch = srv.record_patch(srv.RunRecordFields(run_id="r", exit_code=2, error="boom " + _token()))
     assert patch == {"run_id": "r", "exit_code": 2}
 
 
-def _sb_without_columns(calls):
-    def sb(method, path, body, prefer=""):
-        calls.append(body)
-        if "run_id" in body:
-            return 400, '{"code":"PGRST204","message":"Could not find the \'run_id\' column"}'
-        return 200, "[]"
-    return sb
-
-
-def test_missing_columns_still_store_the_state_change():
-    calls: list = []
-    status, _ = srv.patch_claim(_sb_without_columns(calls), "PATCH", "p", {"state": "done"},
-                                fields=srv.RunRecordFields(run_id="r"))
-    assert status == 200
-    assert calls == [{"state": "done", "run_id": "r"}, {"state": "done"}]
-
-
-def _single_call(status, body):
+def _calls(status, body):
+    """How many PATCHes `patch_claim` makes when the first answers (status, body)."""
     calls: list = []
 
     def sb(method, path, payload, prefer=""):
         calls.append(payload)
-        return status, body
+        return (status, body) if len(calls) == 1 else (200, "[]")
 
-    srv.patch_claim(sb, "PATCH", "p", {"state": "done"}, fields=srv.RunRecordFields(run_id="r"))
+    srv.patch_claim(sb, "PATCH", "mesh_work_claims?linear_id=eq.X", {"state": "done"},
+                    fields=srv.RunRecordFields(run_id="r", error="e"))
     return calls
 
 
-def test_a_body_merely_mentioning_the_code_is_not_retried():
-    assert len(_single_call(400, '{"code":"PGRST100","message":"diagnostic PGRST204"}')) == 1
+def test_our_missing_column_on_our_table_stores_the_state_change():
+    rest = '{"code":"PGRST204","message":"Could not find the \'run_id\' column of \'mesh_work_claims\' in the schema cache"}'
+    pg = '{"code":"42703","message":"column \\"run_id\\" of relation \\"mesh_work_claims\\" does not exist"}'
+    qualified = '{"code":"42703","message":"column mesh_work_claims.run_id does not exist"}'
+    for body in (rest, pg, qualified):
+        calls = _calls(400, body)
+        assert len(calls) == 2, body
+        assert calls[1] == {"state": "done"}
 
 
-def test_a_missing_column_code_on_a_non_400_is_not_retried():
-    assert len(_single_call(401, '{"code":"PGRST204","message":"Could not find the \'run_id\' column"}')) == 1
-
-
-def test_a_missing_column_that_is_not_ours_is_not_retried():
-    assert len(_single_call(400, '{"code":"PGRST204","message":"Could not find the \'foo\' column"}')) == 1
-
-
-def test_a_missing_column_whose_name_merely_contains_ours_is_not_retried():
-    assert len(_single_call(400, '{"code":"PGRST204","message":"Could not find the \'terror\' column of \'mesh_work_claims\' in the schema cache"}')) == 1
-    assert len(_single_call(400, '{"code":"42703","message":"column \\"external_run_id\\" of relation \\"mesh_work_claims\\" does not exist"}')) == 1
-
-
-def test_a_postgres_missing_column_that_is_ours_is_retried():
-    assert len(_single_call(400, '{"code":"42703","message":"column \\"run_id\\" of relation \\"mesh_work_claims\\" does not exist"}')) == 2
-    assert len(_single_call(400, '{"code":"42703","message":"column mesh_work_claims.run_id does not exist"}')) == 2
-
-
-def test_other_errors_are_not_retried():
-    calls: list = []
-
-    def sb(method, path, body, prefer=""):
-        calls.append(body)
-        return 500, "boom"
-
-    status, _ = srv.patch_claim(sb, "PATCH", "p", {"state": "done"},
-                                fields=srv.RunRecordFields(run_id="r"))
-    assert status == 500
-    assert len(calls) == 1
+def test_look_alike_errors_are_not_retried():
+    for status, body in (
+        (400, '{"code":"PGRST100","message":"diagnostic PGRST204"}'),
+        (401, '{"code":"PGRST204","message":"Could not find the \'run_id\' column of \'mesh_work_claims\'"}'),
+        (400, '{"code":"PGRST204","message":"Could not find the \'terror\' column of \'mesh_work_claims\'"}'),
+        (400, '{"code":"42703","message":"column \\"external_run_id\\" of relation \\"mesh_work_claims\\" does not exist"}'),
+        (400, '{"code":"42703","message":"column \\"run_id\\" of relation \\"other_table\\" does not exist"}'),
+        (400, '{"code":"42703","message":"column other_table.run_id does not exist"}'),
+        (500, "boom"),
+    ):
+        assert len(_calls(status, body)) == 1, body
 
 
 # ── run_claim end to end ─────────────────────────────────────────────────────
@@ -234,6 +162,7 @@ def _runner(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "HARD_STOP", tmp_path / "HARD_STOP")
     monkeypatch.setattr(mod, "STATE_FILE", tmp_path / "state.json")
     monkeypatch.setattr(mod, "MESH_KILL_POLL_SECONDS", 0.01)
+    removed: list = []
 
     def git(args, **_kw):
         """Stand in for `git worktree add/remove`: make or remove the directory only."""
@@ -241,40 +170,60 @@ def _runner(monkeypatch, tmp_path):
         if "add" in args:
             target.mkdir(parents=True, exist_ok=True)
         elif "remove" in args:
+            removed.append(target)
             shutil.rmtree(target, ignore_errors=True)
 
     monkeypatch.setattr(mod.subprocess, "run", git)
     calls: list = []
     monkeypatch.setattr(mod, "_api", lambda m, p, b=None: calls.append((p, b or {})) or {})
-    return mod, calls
+    repo = tmp_path / "checkout"
+    (repo / ".git").mkdir(parents=True)
+    return mod, calls, removed, repo
+
+
+def _updates(calls):
+    return [b for p, b in calls if p == "/api/mesh/claim/update"]
 
 
 def test_run_claim_reports_the_run_record_of_a_real_failing_agent(monkeypatch, tmp_path):
-    runner, calls = _runner(monkeypatch, tmp_path)
+    runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
     agent = tmp_path / "agent"
     agent.write_text("#!/bin/sh\necho agent-ran\nexit 3\n")
     agent.chmod(0o755)
     monkeypatch.setattr(runner, "AGENT_CMD", str(agent))
-    repo = tmp_path / "checkout"
-    (repo / ".git").mkdir(parents=True)
 
     plan = runner.run_claim({"linear_id": "UNI-X", "repo_dir": str(repo)}, dry_run=False)
 
-    final = [b for p, b in calls if p == "/api/mesh/claim/update"][-1]
+    final = _updates(calls)[-1]
     assert plan["state"] == "failed"
     assert final["state"] == "failed"
     assert final["exit_code"] == 3
     assert final["error"] == "agent exited 3"
-    assert "agent-ran" in final["log_tail"]
-    assert final["run_id"]
-    assert (tmp_path / "mesh-runs" / f"{final['run_id']}.log").exists()
+    assert "agent-ran" in (tmp_path / "mesh-runs" / f"{final['run_id']}.log").read_text()
 
 
-def test_a_claim_failed_before_running_sends_its_reason(monkeypatch, tmp_path):
-    runner, calls = _runner(monkeypatch, tmp_path)
-    missing = tmp_path / "not-a-checkout"
+def test_a_record_that_cannot_be_built_still_ends_the_claim(monkeypatch, tmp_path):
+    """Construction failing after `working` was reported must not strand the claim."""
+    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
+
+    def boom(*_a, **_k):
+        raise OSError("synthetic log setup failure")
+
+    monkeypatch.setattr(runner.run_record, "RunRecord", boom)
+    runner.run_claim({"linear_id": "UNI-Z", "repo_dir": str(repo)}, dry_run=False)
+
+    states = [b["state"] for b in _updates(calls)]
+    assert states == ["working", "failed"]
+    assert _updates(calls)[-1]["error"] == "synthetic log setup failure"
+    assert removed, "worktree was not cleaned up"
+
+
+def test_a_claim_failed_before_running_sends_its_reason_redacted(monkeypatch, tmp_path):
+    runner, calls, _removed, _repo = _runner(monkeypatch, tmp_path)
+    missing = tmp_path / ("not-a-checkout-" + _token())
     missing.mkdir()
     runner.run_claim({"linear_id": "UNI-Y", "repo_dir": str(missing)}, dry_run=False)
-    final = [b for p, b in calls if p == "/api/mesh/claim/update"][-1]
+    final = _updates(calls)[-1]
     assert final["state"] == "failed"
     assert final["error"].startswith("repo missing")
+    assert _token() not in final["error"]
