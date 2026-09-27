@@ -1,11 +1,11 @@
-"""Storing what a mesh build run reports: run id, duration, exit code, error (UNI-2796).
+"""Storing what a mesh build run reports: run id, duration, exit code, error code (UNI-2796).
 
-The runner (`mesh/run_record.py`) keeps the transcript on its own machine and
-sends only the outcome. `error` is free text (`str(exc)` on the runner), so the
-runner redacts it with the one bank a bare node python can import, and this
-module redacts it again with the server's full bank before storing it. When
-that bank is incomplete the error is dropped — the same fail-closed rule
-`routes/conversations.py` applies to transcripts.
+The runner (`mesh/run_record.py`) keeps the transcript and the full error text on
+its own machine and sends only facts. Four review rounds found secrets crossing
+in every free-text field tried, so nothing here accepts free text: `error_code`
+must match the runner's fixed vocabulary, `run_id` must be the runner's hex id,
+and anything else is dropped rather than stored. There is no redaction pass,
+because there is nothing left that could need one.
 
 Split out of `routes/mesh.py`, which sits on its size-gate baseline.
 
@@ -25,11 +25,14 @@ from typing import Any, Callable, Optional
 
 from pydantic import BaseModel
 
-from .conversation_redaction import _REDACTION_BANK, _REDACTION_BANK_COMPLETE
-
 log = logging.getLogger("pi-ceo.mesh_run_record")
 
-ERROR_CHARS = 500
+# Mirrors `mesh/run_record._ERROR_CODES` plus the exception form. The exception
+# suffix is a Python class name, which the runner takes from code, not data.
+_ERROR_CODE = re.compile(
+    r"(agent_exit|timeout|repo_missing|worktree_add_failed|runner_exception)"
+    r"(:[A-Za-z_][A-Za-z0-9_]{0,39})?")
+_RUN_ID = re.compile(r"[0-9a-f]{8,32}")
 # PostgREST's "column not in schema cache" code, and Postgres's undefined_column.
 _MISSING_COLUMN = ("PGRST204", "42703")
 # (column, table) as each names them: PostgREST "the 'col' column of 'table'",
@@ -47,27 +50,20 @@ class RunRecordFields(BaseModel):
     run_id: Optional[str] = None
     duration_s: Optional[float] = None
     exit_code: Optional[int] = None
-    error: Optional[str] = None
-
-
-def _redact(text: str) -> str:
-    """Replace every server-bank secret match in `text`."""
-    for rx, tag in _REDACTION_BANK:
-        text = rx.sub(f"[REDACTED:{tag}]", text)
-    return text
+    error_code: Optional[str] = None
 
 
 def record_patch(fields: RunRecordFields) -> dict[str, Any]:
-    """The claim-row columns to write for this report; empty when the runner sent none."""
+    """The claim-row columns to write for this report; anything not a known shape is dropped."""
     patch: dict[str, Any] = {}
-    if fields.run_id:
-        patch["run_id"] = fields.run_id[:64]
+    if fields.run_id and _RUN_ID.fullmatch(fields.run_id):
+        patch["run_id"] = fields.run_id
     if fields.duration_s is not None:
         patch["duration_s"] = fields.duration_s
     if fields.exit_code is not None:
         patch["exit_code"] = fields.exit_code
-    if fields.error and _REDACTION_BANK_COMPLETE:
-        patch["error"] = _redact(fields.error)[:ERROR_CHARS]
+    if fields.error_code and _ERROR_CODE.fullmatch(fields.error_code):
+        patch["error_code"] = fields.error_code
     return patch
 
 

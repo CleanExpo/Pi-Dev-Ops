@@ -3,13 +3,14 @@
 Before this, `run_claim` started the agent with no output capture and reported
 only `done` or `failed`. These tests pin the fix:
 
-  * the runner keeps the full log on its own machine (0600) and sends only the
-    outcome: run id, duration, exit code, and an error redacted before sending;
-  * no log text crosses the wire (three review rounds showed a tail cannot be
-    made safe while nodes lack the server's full secret bank);
-  * the server redacts the error again, drops it when its bank is incomplete,
-    and stores the state change even when the run-record columns do not exist
-    yet — retrying only when the error names one of OUR columns on OUR table;
+  * the runner keeps the full log on its own machine, owner-only from the first
+    byte, and sends only facts: run id, duration, exit code, and an error code
+    from a fixed vocabulary;
+  * NO free text crosses the wire — four review rounds found secrets in every
+    free-text field tried (a redacted log tail, then a redacted error string);
+  * the server stores only values of a known shape, and stores the state change
+    even when the run-record columns do not exist yet, retrying only when the
+    error names one of OUR columns on OUR table;
   * `run_claim` sends the record, observed with a real child process that exits 3,
     and still reports a terminal state when the record itself cannot be built.
 
@@ -17,6 +18,7 @@ Secret-shaped strings are assembled at runtime so no key-like literal sits in so
 """
 from __future__ import annotations
 
+import os
 import shutil
 import stat
 import sys
@@ -37,54 +39,93 @@ def _token() -> str:
     return "sk-ant-" + "api03-" + "Ab3_" * 24
 
 
-# ── runner side ──────────────────────────────────────────────────────────────
+def _server_only_secret() -> str:
+    """Round 4's reproduction: a shape the runner's transcript bank does not know."""
+    return "token='" + "qwertyuiop" + "asdfghjklz'"
 
 
-def test_the_runner_bank_loads_on_this_interpreter():
-    """Positive control: every runner redaction test below is vacuous without a bank."""
-    assert rr._BANK, "scripts/sync_claude_sessions bank did not load"
+# ── runner side: facts, not prose ────────────────────────────────────────────
 
 
-def test_the_runner_redacts_the_error_before_sending():
-    out = rr.redact_error(f"boom {_token()}")
-    assert _token() not in out
-    assert "[REDACTED]" in out
+def test_each_runner_failure_maps_to_a_fixed_code():
+    cases = {
+        "agent exited 3": "agent_exit",
+        "timed out after 3600s": "timeout",
+        "repo missing: /x/" + _token(): "repo_missing",
+        "git worktree add failed": "worktree_add_failed",
+        "something unforeseen " + _token(): "runner_exception",
+    }
+    for text, code in cases.items():
+        assert rr.error_code({"error": text}) == code, text
+    assert rr.error_code({}) is None
 
 
-def test_the_error_is_capped():
-    assert len(rr.redact_error("x" * 2_000)) == rr.ERROR_CHARS
+def test_an_exception_is_sent_as_its_class_name_only():
+    plan = {"error": "Popen setup failed: " + _server_only_secret(), "error_type": "OSError"}
+    assert rr.error_code(plan) == "runner_exception:OSError"
 
 
-def test_no_bank_withholds_the_error(monkeypatch):
-    monkeypatch.setattr(rr, "_BANK", None)
-    assert rr.redact_error(f"leak {_token()}") is None
-
-
-def test_an_empty_bank_is_no_bank(monkeypatch):
-    """An empty list matches nothing; treating it as a bank would send text raw."""
-    monkeypatch.setattr(rr, "_BANK", [])
-    assert rr.redact_error(f"leak {_token()}") is None
-
-
-def test_no_log_text_is_sent(tmp_path):
+def test_only_facts_are_sent(tmp_path):
     rec = rr.RunRecord("run0", tmp_path)
-    rec.popen(["sh", "-c", f"echo {_token()}; echo visible-output"], cwd=str(tmp_path)).wait()
-    fields = rec.fields({})
-    assert set(fields) == {"run_id", "duration_s", "exit_code", "error"}
-    assert "visible-output" not in repr(fields)
-
-
-def test_a_real_run_records_exit_code_duration_and_keeps_its_log(tmp_path):
-    rec = rr.RunRecord("run1", tmp_path)
-    rec.popen(["sh", "-c", "echo started; exit 3"], cwd=str(tmp_path)).wait()
-    fields = rec.fields({"error": f"agent exited 3 {_token()}"})
-    assert fields["run_id"] == "run1"
+    rec.popen(["sh", "-c", f"echo {_token()}; echo visible-output; exit 3"], cwd=str(tmp_path)).wait()
+    fields = rec.fields({"error": f"agent exited 3 {_server_only_secret()}"})
+    assert set(fields) == {"run_id", "duration_s", "exit_code", "error_code"}
     assert fields["exit_code"] == 3
-    assert fields["duration_s"] >= 0
-    assert fields["error"].startswith("agent exited 3")
-    assert _token() not in fields["error"]
+    assert fields["error_code"] == "agent_exit"
+    for leaked in ("visible-output", _token(), "qwertyuiop"):
+        assert leaked not in repr(fields), leaked
+
+
+def test_the_log_stays_on_the_node_owner_only(tmp_path):
+    old = os.umask(0o022)
+    try:
+        rec = rr.RunRecord("run1", tmp_path)
+    finally:
+        os.umask(old)
+    rec.popen(["sh", "-c", "echo started"], cwd=str(tmp_path)).wait()
+    rec.close()
     assert "started" in rec.path.read_text()
     assert stat.S_IMODE(rec.path.stat().st_mode) == 0o600
+
+
+def test_the_log_is_private_at_creation_not_just_afterwards(tmp_path, monkeypatch):
+    """No window with the umask's wider mode: record the mode fchmod finds on arrival."""
+    seen: list = []
+    real_fchmod = rr.os.fchmod
+
+    def spy(fd, mode):
+        seen.append(stat.S_IMODE(os.fstat(fd).st_mode))
+        real_fchmod(fd, mode)
+
+    monkeypatch.setattr(rr.os, "fchmod", spy)
+    old = os.umask(0o022)
+    try:
+        rr.RunRecord("run1b", tmp_path).close()
+    finally:
+        os.umask(old)
+    assert seen == [0o600]
+
+
+def test_a_pre_existing_wider_log_is_narrowed(tmp_path):
+    (tmp_path / "mesh-runs").mkdir()
+    stale = tmp_path / "mesh-runs" / "run2.log"
+    stale.write_text("old")
+    stale.chmod(0o644)
+    rec = rr.RunRecord("run2", tmp_path)
+    rec.close()
+    assert stat.S_IMODE(stale.stat().st_mode) == 0o600
+
+
+def test_a_log_that_cannot_be_made_private_is_removed_not_written(tmp_path, monkeypatch):
+    def refuse(_fd, _mode):
+        raise OSError("synthetic fchmod failure")
+
+    monkeypatch.setattr(rr.os, "fchmod", refuse)
+    rec = rr.RunRecord("run3", tmp_path)
+    assert rec.path is None
+    assert not (tmp_path / "mesh-runs" / "run3.log").exists()
+    rec.popen(["sh", "-c", "exit 0"], cwd=str(tmp_path)).wait()
+    assert rec.fields({})["exit_code"] == 0
 
 
 def test_an_unopenable_log_still_runs_and_reports(tmp_path):
@@ -95,26 +136,22 @@ def test_an_unopenable_log_still_runs_and_reports(tmp_path):
     assert rec.fields({})["exit_code"] == 0
 
 
-def test_a_record_that_never_existed_still_reports_its_error():
-    assert rr.fields(None, {"error": f"setup failed {_token()}"}) == {
-        "error": "setup failed [REDACTED]"}
+# ── server side: known shapes only ───────────────────────────────────────────
 
 
-# ── server side ──────────────────────────────────────────────────────────────
+def test_the_server_stores_known_shapes():
+    patch = srv.record_patch(srv.RunRecordFields(
+        run_id="0a1b2c3d", duration_s=1.5, exit_code=3, error_code="runner_exception:OSError"))
+    assert patch == {"run_id": "0a1b2c3d", "duration_s": 1.5, "exit_code": 3,
+                     "error_code": "runner_exception:OSError"}
 
 
-def test_the_server_redacts_the_error_again():
-    assert srv._REDACTION_BANK_COMPLETE, "server bank incomplete — this test would be vacuous"
-    patch = srv.record_patch(srv.RunRecordFields(run_id="r", exit_code=1, error="boom " + _token()))
-    assert _token() not in patch["error"]
-    assert patch["exit_code"] == 1
-
-
-def test_an_incomplete_server_bank_drops_the_error(monkeypatch):
-    monkeypatch.setattr(srv, "_REDACTION_BANK_COMPLETE", False)
-    monkeypatch.setattr(srv, "_REDACTION_BANK", [])
-    patch = srv.record_patch(srv.RunRecordFields(run_id="r", exit_code=2, error="boom " + _token()))
-    assert patch == {"run_id": "r", "exit_code": 2}
+def test_the_server_drops_anything_that_is_not_a_known_shape():
+    for bad in ("agent_exit " + _token(), "boom " + _token(), _server_only_secret(),
+                "runner_exception:" + "Bad-Name", "runner_exception:" + "x" * 41, "agent_exit\n"):
+        assert "error_code" not in srv.record_patch(srv.RunRecordFields(error_code=bad)), bad
+    for bad_id in (_token(), "../../etc", "ZZZZZZZZ"):
+        assert "run_id" not in srv.record_patch(srv.RunRecordFields(run_id=bad_id)), bad_id
 
 
 def _calls(status, body):
@@ -126,13 +163,13 @@ def _calls(status, body):
         return (status, body) if len(calls) == 1 else (200, "[]")
 
     srv.patch_claim(sb, "PATCH", "mesh_work_claims?linear_id=eq.X", {"state": "done"},
-                    fields=srv.RunRecordFields(run_id="r", error="e"))
+                    fields=srv.RunRecordFields(run_id="0a1b2c3d", error_code="timeout"))
     return calls
 
 
 def test_our_missing_column_on_our_table_stores_the_state_change():
     rest = '{"code":"PGRST204","message":"Could not find the \'run_id\' column of \'mesh_work_claims\' in the schema cache"}'
-    pg = '{"code":"42703","message":"column \\"run_id\\" of relation \\"mesh_work_claims\\" does not exist"}'
+    pg = '{"code":"42703","message":"column \\"error_code\\" of relation \\"mesh_work_claims\\" does not exist"}'
     qualified = '{"code":"42703","message":"column mesh_work_claims.run_id does not exist"}'
     for body in (rest, pg, qualified):
         calls = _calls(400, body)
@@ -144,7 +181,7 @@ def test_look_alike_errors_are_not_retried():
     for status, body in (
         (400, '{"code":"PGRST100","message":"diagnostic PGRST204"}'),
         (401, '{"code":"PGRST204","message":"Could not find the \'run_id\' column of \'mesh_work_claims\'"}'),
-        (400, '{"code":"PGRST204","message":"Could not find the \'terror\' column of \'mesh_work_claims\'"}'),
+        (400, '{"code":"PGRST204","message":"Could not find the \'terror_code\' column of \'mesh_work_claims\'"}'),
         (400, '{"code":"42703","message":"column \\"external_run_id\\" of relation \\"mesh_work_claims\\" does not exist"}'),
         (400, '{"code":"42703","message":"column \\"run_id\\" of relation \\"other_table\\" does not exist"}'),
         (400, '{"code":"42703","message":"column other_table.run_id does not exist"}'),
@@ -198,32 +235,33 @@ def test_run_claim_reports_the_run_record_of_a_real_failing_agent(monkeypatch, t
     assert plan["state"] == "failed"
     assert final["state"] == "failed"
     assert final["exit_code"] == 3
-    assert final["error"] == "agent exited 3"
+    assert final["error_code"] == "agent_exit"
     assert "agent-ran" in (tmp_path / "mesh-runs" / f"{final['run_id']}.log").read_text()
 
 
 def test_a_record_that_cannot_be_built_still_ends_the_claim(monkeypatch, tmp_path):
-    """Construction failing after `working` was reported must not strand the claim."""
+    """Construction failing after `working` was reported must not strand the claim,
+    and the exception's message — round 4's leak — must not be sent."""
     runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
 
     def boom(*_a, **_k):
-        raise OSError("synthetic log setup failure")
+        raise OSError("Popen setup failed: " + _server_only_secret())
 
     monkeypatch.setattr(runner.run_record, "RunRecord", boom)
     runner.run_claim({"linear_id": "UNI-Z", "repo_dir": str(repo)}, dry_run=False)
 
-    states = [b["state"] for b in _updates(calls)]
-    assert states == ["working", "failed"]
-    assert _updates(calls)[-1]["error"] == "synthetic log setup failure"
+    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
+    assert _updates(calls)[-1]["error_code"] == "runner_exception:OSError"
+    assert "qwertyuiop" not in repr(calls)
     assert removed, "worktree was not cleaned up"
 
 
-def test_a_claim_failed_before_running_sends_its_reason_redacted(monkeypatch, tmp_path):
+def test_a_claim_failed_before_running_sends_only_its_code(monkeypatch, tmp_path):
     runner, calls, _removed, _repo = _runner(monkeypatch, tmp_path)
     missing = tmp_path / ("not-a-checkout-" + _token())
     missing.mkdir()
     runner.run_claim({"linear_id": "UNI-Y", "repo_dir": str(missing)}, dry_run=False)
     final = _updates(calls)[-1]
     assert final["state"] == "failed"
-    assert final["error"].startswith("repo missing")
-    assert _token() not in final["error"]
+    assert final["error_code"] == "repo_missing"
+    assert _token() not in repr(calls)
