@@ -234,6 +234,7 @@ def _loop(monkeypatch, tmp_path, server):
     monkeypatch.setattr(mod, "IDLE_RECLAIM_DELAY", 0.01)
     monkeypatch.setattr(mod, "_api", server.api)
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: None)
+    monkeypatch.setattr(mod.ship_run, "ship", lambda *a, **k: None)  # RA-7780: shipped
     monkeypatch.setattr(mod.subprocess, "Popen", lambda *a, **k: ImmediateProc())
     sleeps: list[float] = []
 

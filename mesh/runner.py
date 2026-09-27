@@ -27,6 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import plan_lane  # noqa: E402
+import ship_run  # noqa: E402
 from fleet_state import active_agent_count, my_claims  # noqa: E402
 from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
@@ -236,9 +237,9 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     try:
         proc = subprocess.Popen([AGENT_CMD, "-p", prompt], cwd=str(worktree))
         _wait_for_agent(proc, plan)
+        ship_run.settle(plan, repo_dir, worktree, branch, linear_id, HOST)  # RA-7780
     except Exception as exc:  # noqa: BLE001
-        plan["state"] = "failed"
-        plan["error"] = str(exc)
+        plan.update(state="failed", error=str(exc))
     finally:
         subprocess.run(
             ["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],

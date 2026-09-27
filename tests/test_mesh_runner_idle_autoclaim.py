@@ -266,7 +266,7 @@ def runner(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "IDLE_RECLAIM_DELAY", 0.01)
     # Never spawn a real agent/git worktree.
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: None)
-
+    monkeypatch.setattr(mod.ship_run, "ship", lambda *a, **k: None)  # RA-7780: shipped
     monkeypatch.setattr(mod.subprocess, "Popen", lambda *a, **k: _ImmediateProc())
     # Record every sleep; only the full poll-cycle sleep ends the loop. The
     # idle-path floor sleep (IDLE_RECLAIM_DELAY) is recorded and returns, so

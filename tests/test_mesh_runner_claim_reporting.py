@@ -211,6 +211,7 @@ def test_a_working_repo_reports_the_full_working_then_done_sequence(runner, tmp_
     server.claims["UNI-A"] = "claimed"
     runner._api = server.api
     monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: _DoneProc())
+    monkeypatch.setattr(runner.ship_run, "ship", lambda *a, **k: None)  # RA-7780: shipped
 
     plan = runner.run_claim({"linear_id": "UNI-A", "repo_dir": str(repo)}, dry_run=False)
 

@@ -69,6 +69,7 @@ def runner(monkeypatch, tmp_path):
     git_calls: list[list[str]] = []
     monkeypatch.setattr(mod.subprocess, "run",
                         lambda argv, *a, **k: git_calls.append(list(argv)))
+    monkeypatch.setattr(mod.ship_run, "ship", lambda *a, **k: None)  # RA-7780: shipped
     mod.git_calls = git_calls
     mod.server = Server()
     mod._api = mod.server.api
