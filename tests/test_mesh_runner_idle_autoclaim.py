@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 
 from mesh_helpers import Break as _Break  # noqa: E402
-from mesh_helpers import ImmediateProc as _ImmediateProc  # noqa: E402
+from mesh_helpers import SHIPPED, ImmediateProc as _ImmediateProc  # noqa: E402
 from mesh_helpers import load_module as _load  # noqa: E402
 
 
@@ -266,7 +266,7 @@ def runner(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "IDLE_RECLAIM_DELAY", 0.01)
     # Never spawn a real agent/git worktree.
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: None)
-    monkeypatch.setattr(mod.ship_run, "ship", lambda *a, **k: None)  # RA-7780: shipped
+    monkeypatch.setattr(mod, "ship_run", SHIPPED)  # RA-7780: shipped
     monkeypatch.setattr(mod.subprocess, "Popen", lambda *a, **k: _ImmediateProc())
     # Record every sleep; only the full poll-cycle sleep ends the loop. The
     # idle-path floor sleep (IDLE_RECLAIM_DELAY) is recorded and returns, so
