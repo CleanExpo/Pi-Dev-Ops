@@ -164,6 +164,19 @@ def test_fields_never_raises_even_if_the_record_does(tmp_path):
     assert rr.fields(Exploding(), {"error": "agent exited 1"}) == {"error_code": "agent_exit"}
 
 
+def test_a_wait_failure_stops_the_agent_before_returning(tmp_path):
+    """Round 7: a wait that raised left the agent running while the claim was reported failed."""
+    plan: dict = {}
+
+    def broken_wait(_proc, _plan):
+        raise OSError("wait failed")
+
+    rec = rr.run_agent(lambda: ["sleep", "30"], str(tmp_path), tmp_path, "0a0a0a06", plan, broken_wait)
+    assert plan["state"] == "failed"
+    assert rec.proc.poll() is not None, "agent still running after run_agent returned"
+    assert rec._log.closed
+
+
 def test_worktree_removal_that_cannot_start_does_not_raise(tmp_path, monkeypatch):
     def no_git(*_a, **_k):
         raise OSError("remove-spawn-failed")

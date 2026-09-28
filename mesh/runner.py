@@ -233,7 +233,8 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         )
     except OSError:  # git could not even start: still a reported failure, never a stranded claim
         added = types.SimpleNamespace(returncode=-1)
-    if getattr(added, "returncode", 0) != 0:
+    if getattr(added, "returncode", 0) != 0:  # a failed add can still leave a partial worktree
+        run_record.remove_worktree(repo_dir, worktree)
         return _fail_claim(plan, linear_id, branch, "git worktree add failed")
 
     try:

@@ -127,8 +127,11 @@ def test_a_worktree_removal_failure_still_ends_the_claim(monkeypatch, tmp_path):
     runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
     real_git = runner.subprocess.run
 
+    attempts: list = []
+
     def git(args, **kw):
         if "remove" in args:
+            attempts.append(args[-1])
             raise OSError("remove-spawn-failed")
         return real_git(args, **kw)
 
@@ -139,6 +142,27 @@ def test_a_worktree_removal_failure_still_ends_the_claim(monkeypatch, tmp_path):
     monkeypatch.setattr(runner, "AGENT_CMD", str(agent))
     runner.run_claim({"linear_id": "UNI-R", "repo_dir": str(repo)}, dry_run=False)
     assert [b["state"] for b in _updates(calls)] == ["working", "done"]
+    assert attempts, "removal was never attempted"
+
+
+def test_a_failed_worktree_add_is_still_cleaned_up(monkeypatch, tmp_path):
+    """Round 7: a failed or crashed add can leave a partial worktree; removal must be attempted."""
+    for failure in ("nonzero", "raises"):
+        runner, calls, removed, repo = _runner(monkeypatch, tmp_path / failure)
+
+        def git(args, _failure=failure, _removed=removed, **_kw):
+            if "remove" in args:
+                _removed.append(args[-1])
+                return None
+            if _failure == "raises":
+                raise OSError("git died mid-add")
+            return type("Done", (), {"returncode": 1})()
+
+        monkeypatch.setattr(runner.subprocess, "run", git)
+        runner.run_claim({"linear_id": "UNI-A" + failure, "repo_dir": str(repo)}, dry_run=False)
+        assert [b["state"] for b in _updates(calls)] == ["working", "failed"], failure
+        assert _updates(calls)[-1]["error_code"] == "worktree_add_failed", failure
+        assert removed, f"{failure}: removal was never attempted"
 
 
 def test_a_record_that_fails_to_report_still_ends_the_claim(monkeypatch, tmp_path):

@@ -112,6 +112,25 @@ class RunRecord:
         self.proc = subprocess.Popen(cmd, cwd=cwd, stdout=self._log, stderr=subprocess.STDOUT)
         return self.proc
 
+    def stop(self) -> None:
+        """End a still-running agent and reap it, then close the log. Never raises.
+
+        A claim must not be reported terminal, and its worktree removed, while
+        the agent is still executing in it.
+        """
+        proc = self.proc
+        try:
+            if proc is not None and proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+        except OSError:
+            pass
+        self.close()
+
     def close(self) -> None:
         """Close the log. Never raises: a failed flush must not cost the claim its terminal update."""
         try:
@@ -147,6 +166,8 @@ def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: st
         plan["state"] = "failed"
         plan["error"] = str(exc)
         plan["error_code"] = "runner_exception_os" if isinstance(exc, OSError) else "runner_exception"
+        if rec is not None:
+            rec.stop()
     return rec
 
 
