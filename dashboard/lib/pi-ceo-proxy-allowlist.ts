@@ -22,9 +22,14 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   // RA-7434 — declared at dashboard /api/routing and also reachable through the
   // catch-all proxy. Session-gated upstream; forwarding grants no extra capability.
   /^\/api\/routing$/,
-  /^\/api\/margot\/assets$/,
+  // The Margot panel only ever calls sub-paths (options, preview, packets, generated,
+  // packets/<file>). With only the bare path listed, every panel call was refused 403.
+  // Upstream is require_auth and validates packet names (margot_assets_service.py).
+  /^\/api\/margot\/assets(?:\/(?:options|preview|generated|packets(?:\/[^/]+)?))?$/,
   /^\/api\/spec-pipeline$/,
   /^\/api\/spec-pipeline\/run$/,
+  // Pipeline detail poll (SpecPipelinePanel). Upstream rejects ids without the spec- prefix.
+  /^\/api\/spec-pipeline\/spec-[^/]+$/,
   /^\/api\/idea-pipeline$/,
   /^\/api\/idea-pipeline\/(intake|examine|dispose|go|execute)$/,
   /^\/api\/scan$/,

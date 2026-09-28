@@ -1,0 +1,21 @@
+{
+  "planning_identity": "mission-control-aaa",
+  "plan_revision": "r1",
+  "planning_status": "REVIEW_READY",
+  "session_end_state": "BLOCKED-EXTERNAL",
+  "written_at": "2026-09-28",
+  "inspected_repository": {"repo": "CleanExpo/Pi-Dev-Ops", "commit": "e3ea829"},
+  "intent_reference": "docs/plans/mission-control-jev-next-five.md:29",
+  "grade_today": "UNGRADED (no browser evidence exists)",
+  "coverage": {"surfaces": 20, "verified": 0, "partial": 13, "structural_only": 2, "conflicting": 5, "repaired_this_change": ["MC-10", "MC-11"]},
+  "done_this_change": [
+    {"wp": "WP-01", "files": ["dashboard/lib/pi-ceo-proxy-allowlist.ts", "dashboard/__tests__/pi-ceo-proxy-allowlist.test.ts"], "evidence": "new test fails on old allowlist, passes on new; vitest 504/504; tsc clean"}
+  ],
+  "blockers": [
+    {"id": "B1", "what": "DASHBOARD_PASSWORD as a GitHub Actions secret", "owner": "Phill", "kind": "secret", "unblocks": ["WP-02", "WP-04", "WP-05", "WP-06"]},
+    {"id": "B2", "what": "TYPESAFE_API_KEY as a GitHub Actions secret, or api.typesafe.ai allowed in the cloud environment network policy", "owner": "Phill", "kind": "secret/environment", "unblocks": ["WP-10"]},
+    {"id": "D0", "what": "Merge authority: cross-model audit vs human-merge-only", "owner": "Phill", "kind": "direction"}
+  ],
+  "next_action": {"wp": "WP-03", "why": "SAFE and unblocked (ZTE badge investigation); WP-08 component tests are also unblocked", "then": "WP-02 once B1 is supplied"},
+  "review_receipts": [{"kind": "cross-model", "model": "codex", "outcome": "NOT_RUN", "reason": "Codex CLI not available in this container"}]
+}

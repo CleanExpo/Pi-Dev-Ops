@@ -115,6 +115,30 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
     expect(allowed("/api/login?path=/api/autonomy/status")).toBe(false);
   });
 
+  it("admits every path the Margot and Spec pipeline panels call, and nothing beside them", () => {
+    // MargotAssetsPanel.tsx and SpecPipelinePanel.tsx: these were refused 403 while
+    // only the bare /api/margot/assets and /api/spec-pipeline were listed.
+    for (const path of [
+      "/api/margot/assets/options",
+      "/api/margot/assets/packets?limit=8",
+      "/api/margot/assets/generated?limit=6",
+      "/api/margot/assets/preview?projects=a",
+      "/api/margot/assets/packets/build-packet-1.json",
+      "/api/spec-pipeline/spec-20260928-abc",
+    ]) {
+      expect(allowed(path), `expected ${path} to be allowed`).toBe(true);
+    }
+    for (const path of [
+      "/api/margot/assets/packets/a/b",
+      "/api/margot/assets/secrets",
+      "/api/margot/assetsx",
+      "/api/spec-pipeline/other-id",
+      "/api/spec-pipeline/spec-1/extra",
+    ]) {
+      expect(allowed(path), `expected ${path} to be refused`).toBe(false);
+    }
+  });
+
   it("admits swarm status for the kill-switch row and refuses the secret-bearing fleet path", () => {
     expect(allowed("/api/swarm/status")).toBe(true);
     expect(allowed("/api/swarm/status?op=1")).toBe(true);
