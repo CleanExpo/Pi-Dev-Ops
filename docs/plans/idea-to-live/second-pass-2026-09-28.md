@@ -2,7 +2,9 @@
 
 An independent re-read of the code at `origin/main` 61210371, made in parallel with PR #808 and
 without seeing it. It adds findings to [pathway.md](pathway.md) and
-[routing-reconciliation.md](routing-reconciliation.md); it replaces nothing in them. Every row was
+[routing-reconciliation.md](routing-reconciliation.md); it replaces nothing in them. Where this pass
+and the first pass overlap (runner allocation, partial live proof, definition of done), the first pass's
+wording in pathway.md stands. Every row was
 verified by opening the cited file at that commit.
 
 Founder decision D0 (RA-7818, 28 Sept 2026) already settles the acceptance question: **Pi-Dev-Ops keeps
@@ -20,14 +22,6 @@ Lettered H onward so they do not collide with A–G in [pathway.md](pathway.md).
 | J | **Idea and autonomy state may not survive a redeploy.** `.harness/` is gitignored, the Dockerfile only `mkdir`s it and declares no VOLUME, and `IDEAS.md` is appended inside the container. Unverified: a Railway volume outside the repo would change this. | `.gitignore:220`; `Dockerfile:66` |
 | K | **Open question, not yet a break: which Vercel project the post-deploy smoke measures.** It checks `pi-dev-ops.vercel.app`. `DEPLOYMENT.md:18` calls that the canonical frontend and says a second, Git-linked project (`pi-dev-ops-unite-group.vercel.app`) auto-deploys from `main` with the same code. If the canonical alias does not follow `main`, the wait-for-SHA step cannot pass on a normal push. The doc dates from April; confirm against the live alias before acting. | `.github/workflows/smoke_test_e2e.yml:52`; `DEPLOYMENT.md:18,29` |
 | L | **The plan lane never hands off to build.** After a plan claim, the ticket stays started; no code swaps `idea:plan` for `mesh:auto`. Same dead end as A, reached from the plan side. | `app/server/routes/mesh.py:430` |
-
-## Corrections to the first pass
-
-| Topic | First pass | This pass |
-|---|---|---|
-| GitHub Actions runners | `QUEUE.md:43-46` / the 18 Aug blocker say none allocate | **Stale.** Every workflow uses `ubuntu-latest` and runs completed `success` on 28 Sept (`gh run list`). |
-| Post-deploy check | "nothing checks the live site" | **Partial.** `smoke_test_e2e.yml:19-58` waits for both runtimes to report the pushed SHA (`scripts/smoke_revision.py:63-83`) and a failure opens a new Linear ticket (`routes/webhooks.py:394-484`). It covers Pi-Dev-Ops only, for `dashboard/**` and `app/server/**`, and is never tied to the shipping ticket. |
-| Definition of done | "no DoD" | **Present but a no-op.** DoD files exist for 2 of 14 projects; `execution.py:67-74` passes no `dod_path`/`project_id`, so `coverage_gate.py:92-106` resolves nothing and skips. |
 
 ## Review and acceptance: rows the first pass did not have
 

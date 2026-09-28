@@ -65,4 +65,4 @@ writes the packet that would close A–G, it does not close them. Its relevant p
 
 Break C is a founder switch. Breaks A, B, D, E, G are code or doc work and are ticketed separately.
 
-A second, independent pass added breaks H–L and three corrections: [second-pass-2026-09-28.md](second-pass-2026-09-28.md).
+A second, independent pass added breaks H–L: [second-pass-2026-09-28.md](second-pass-2026-09-28.md).
