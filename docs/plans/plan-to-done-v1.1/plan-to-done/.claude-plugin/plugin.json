@@ -1,0 +1,5 @@
+{
+  "name": "plan-to-done",
+  "version": "1.1.0",
+  "description": "Planning-and-writing skill: research an existing project and write its complete, evidence-backed delivery packet without building. Manifest exists so `claude plugin eval` and `claude plugin validate` can run against this directory; it is not a catalogue registration."
+}
