@@ -17,7 +17,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mesh_helpers import ImmediateProc  # noqa: E402
+from mesh_helpers import SHIPPED, ImmediateProc  # noqa: E402
 from mesh_helpers import load_module as _load  # noqa: E402
 
 CLAIM = {"linear_id": "UNI-77", "lane": "plan", "title": "Coach cafe owners",
@@ -69,6 +69,7 @@ def runner(monkeypatch, tmp_path):
     git_calls: list[list[str]] = []
     monkeypatch.setattr(mod.subprocess, "run",
                         lambda argv, *a, **k: git_calls.append(list(argv)))
+    monkeypatch.setattr(mod, "ship_run", SHIPPED)  # RA-7780: shipped
     mod.git_calls = git_calls
     mod.server = Server()
     mod._api = mod.server.api

@@ -27,6 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import plan_lane  # noqa: E402
+import ship_run  # noqa: E402
 from fleet_state import active_agent_count, my_claims  # noqa: E402
 from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
@@ -225,10 +226,10 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     _api("POST", "/api/mesh/claim/update", {
         "linear_id": linear_id, "state": "working", "branch": branch})
     worktree = Path("/tmp") / f"mesh-{linear_id}-{run_id}"
+    start = ship_run.start_point(repo_dir)  # RA-7780: held where the agent cannot move it
     added = subprocess.run(
         ["git", "-C", str(repo_dir), "worktree", "add", "-b", branch, str(worktree)],
-        capture_output=True, text=True, check=False,
-    )
+        capture_output=True, text=True, check=False)
     if getattr(added, "returncode", 0) != 0:
         return _fail_claim(plan, linear_id, branch, "git worktree add failed")
 
@@ -236,9 +237,9 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     try:
         proc = subprocess.Popen([AGENT_CMD, "-p", prompt], cwd=str(worktree))
         _wait_for_agent(proc, plan)
+        ship_run.settle(plan, start, worktree, branch, linear_id, HOST)  # RA-7780
     except Exception as exc:  # noqa: BLE001
-        plan["state"] = "failed"
-        plan["error"] = str(exc)
+        plan.update(state="failed", error=str(exc))
     finally:
         subprocess.run(
             ["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],
