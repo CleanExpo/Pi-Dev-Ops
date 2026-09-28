@@ -272,7 +272,7 @@ def test_a_wait_failure_ends_the_claim_with_the_agent_dead_before_cleanup(
         calls.append((path, body or {}))
         return {}
 
-    real_remove = runner.run_record.remove_worktree
+    real_remove = runner.claim_lifecycle.remove_worktree
 
     def remove(repo_dir, worktree):
         alive_at["remove"] = started[0].poll() is None
@@ -280,7 +280,7 @@ def test_a_wait_failure_ends_the_claim_with_the_agent_dead_before_cleanup(
 
     monkeypatch.setattr(runner, "_wait_for_agent", interrupted_wait)
     monkeypatch.setattr(runner, "_api", api)
-    monkeypatch.setattr(runner.run_record, "remove_worktree", remove)
+    monkeypatch.setattr(runner.claim_lifecycle, "remove_worktree", remove)
     if escapes:
         with pytest.raises(escapes):
             runner.run_claim({"linear_id": "UNI-I", "repo_dir": str(repo)}, dry_run=False)

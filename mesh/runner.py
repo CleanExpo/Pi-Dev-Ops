@@ -30,6 +30,7 @@ import plan_lane  # noqa: E402
 from fleet_state import active_agent_count, my_claims  # noqa: E402
 from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
+import claim_lifecycle  # noqa: E402
 import run_record  # noqa: E402
 
 
@@ -222,30 +223,23 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     if not (repo_dir / ".git").exists():
         return _fail_claim(plan, linear_id, branch, f"repo missing: {repo_dir}")
 
-    write_state(linear_id, "working", session_id=run_id)
-    _api("POST", "/api/mesh/claim/update", {
-        "linear_id": linear_id, "state": "working", "branch": branch})
     worktree = Path("/tmp") / f"mesh-{linear_id}-{run_id}"
-    try:
-        added = subprocess.run(
-            ["git", "-C", str(repo_dir), "worktree", "add", "-b", branch, str(worktree)],
-            capture_output=True, text=True, check=False,
-        )
-    except Exception:  # noqa: BLE001 — git could not start (OSError) or refused the args (ValueError): report, never strand
-        added = types.SimpleNamespace(returncode=-1)
-    if getattr(added, "returncode", 0) != 0:  # a failed add can still leave a partial worktree
-        run_record.remove_worktree(repo_dir, worktree)
-        return _fail_claim(plan, linear_id, branch, "git worktree add failed")
-
     rec = None
-    try:
-        rec = run_record.run_agent(
-            lambda: [AGENT_CMD, "-p", build_prompt(claim, linear_id, branch)],
-            str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent)
-    finally:  # whatever raised above or below: the claim is never left `working`, nor the worktree behind
-        run_record.finish(lambda: _api("POST", "/api/mesh/claim/update", {
+    try:  # from `working` on, every way out — even an interrupt — ends the claim in the finally
+        write_state(linear_id, "working", session_id=run_id)
+        _api("POST", "/api/mesh/claim/update", {
+            "linear_id": linear_id, "state": "working", "branch": branch})
+        if claim_lifecycle.add_worktree(repo_dir, branch, worktree):
+            rec = run_record.run_agent(
+                lambda: [AGENT_CMD, "-p", build_prompt(claim, linear_id, branch)],
+                str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent)
+        else:  # a failed add can still leave a partial worktree; the finally removes it
+            plan.update(state="failed", error="git worktree add failed")
+    finally:
+        claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", {
             "linear_id": linear_id, "branch": branch, **run_record.terminal(rec, plan)}),
-            lambda: run_record.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"))
+            lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
+            agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS)
     return plan
 
 

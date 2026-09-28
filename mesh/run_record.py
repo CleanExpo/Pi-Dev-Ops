@@ -131,6 +131,7 @@ class RunRecord:
                 self.path = path
         self.started = time.monotonic()
         self.proc: Optional[subprocess.Popen] = None
+        self.reaped: Optional[bool] = None  # set by stop(): False = the agent may still be running
 
     def popen(self, cmd: list, cwd: str) -> subprocess.Popen:
         """Start the agent with stdout and stderr in this run's log."""
@@ -155,6 +156,9 @@ class RunRecord:
                 if not _attempt(lambda: proc.wait(timeout=10), held):
                     _attempt(proc.kill, held)
                     _attempt(proc.wait, held)
+            gone: list = []
+            _attempt(lambda: gone.append(proc.poll() is not None), held)
+            self.reaped = gone == [True]
         _attempt(self.close, held)
         if held:
             raise held[0]
@@ -210,6 +214,11 @@ def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: st
     return rec
 
 
+def unreaped(rec: Optional[RunRecord]) -> bool:
+    """True if stop() could not prove the agent exited: it may still be running in the worktree."""
+    return rec is not None and getattr(rec, "reaped", None) is False
+
+
 def fields(rec: Optional[RunRecord], plan: dict) -> dict:
     """The fields to report for `rec`, or just the error code. Never raises."""
     if rec is not None:
@@ -229,33 +238,3 @@ def terminal(rec: Optional[RunRecord], plan: dict) -> dict:
     if "state" not in plan:
         plan.update(state="failed", error_code="runner_exception")
     return {"state": plan["state"], **fields(rec, plan)}
-
-
-def finish(*steps: Callable[[], Any]) -> None:
-    """Run every step in order, even when one raises; a failure propagates only after the last step ran.
-
-    The end of a claim is three steps — report the terminal state, remove the
-    worktree, mark the runner idle — and none may be skipped because an earlier
-    one failed.
-    """
-    if not steps:
-        return
-    try:
-        steps[0]()
-    finally:
-        finish(*steps[1:])
-
-
-def remove_worktree(repo_dir: Path, worktree: Path) -> None:
-    """`git worktree remove --force`, never raising: cleanup failing must not strand the claim.
-
-    Any exception, not only OSError: a claim id with a NUL byte makes subprocess
-    raise ValueError before git ever starts.
-    """
-    try:
-        subprocess.run(
-            ["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],
-            capture_output=True, check=False,
-        )
-    except Exception:  # noqa: BLE001 — cleanup is best-effort; the terminal update is not
-        pass

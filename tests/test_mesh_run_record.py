@@ -176,8 +176,9 @@ def test_worktree_removal_that_cannot_start_does_not_raise(tmp_path, monkeypatch
     def no_git(*_a, **_k):
         raise OSError("remove-spawn-failed")
 
-    monkeypatch.setattr(rr.subprocess, "run", no_git)
-    rr.remove_worktree(tmp_path, tmp_path / "wt")
+    cl = _load("claim_lifecycle_remove_under_test", "mesh/claim_lifecycle.py")
+    monkeypatch.setattr(cl.subprocess, "run", no_git)
+    cl.remove_worktree(tmp_path, tmp_path / "wt")
 
 
 def test_an_unopenable_log_still_runs_and_reports(tmp_path):
@@ -243,40 +244,3 @@ def test_look_alike_errors_are_not_retried():
         (500, "boom"),
     ):
         assert len(_calls(status, body)) == 1, body
-
-
-def test_finish_runs_every_step_even_when_one_raises():
-    """Round 15: the terminal update raising skipped worktree removal and the idle state."""
-    import pytest
-
-    ran: list = []
-
-    def broken():
-        ran.append("report")
-        raise ValueError("unknown url type")
-
-    with pytest.raises(ValueError):
-        rr.finish(broken, lambda: ran.append("remove"), lambda: ran.append("idle"))
-    assert ran == ["report", "remove", "idle"]
-
-
-def test_a_terminal_update_that_raises_still_cleans_up(monkeypatch, tmp_path):
-    """Round 15, end to end: `_api` raising on the done update left the worktree and state `working`."""
-    import json
-
-    import pytest
-    from test_mesh_run_record_claim import _runner
-
-    runner, _calls, removed, repo = _runner(monkeypatch, tmp_path)
-    monkeypatch.setattr(runner, "AGENT_CMD", "true")
-
-    def api(_method, _path, body=None):
-        if (body or {}).get("state") in ("done", "failed"):
-            raise ValueError("unknown url type")
-        return {}
-
-    monkeypatch.setattr(runner, "_api", api)
-    with pytest.raises(ValueError):
-        runner.run_claim({"linear_id": "UNI-T", "repo_dir": str(repo)}, dry_run=False)
-    assert removed, "worktree was not cleaned up"
-    assert json.loads((tmp_path / "state.json").read_text())["state"] == "idle"

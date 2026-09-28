@@ -38,6 +38,26 @@ def test_only_the_runners_exact_run_id_shape_is_stored():
     assert _patch(run_id="deadbeef") == {"run_id": "deadbeef"}
 
 
+def test_a_claim_change_the_database_did_not_store_is_not_answered_ok(monkeypatch):
+    """Round 16: claim_update returned {ok: True} over a 500 PATCH, so the row stayed `working`."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from mesh_reap_helpers import HDR
+
+    from app.server import config as _config
+    monkeypatch.setattr(_config, "INTERNAL_WEBHOOK_SECRET", "test-secret", raising=False)
+    sys.modules.pop("app.server.routes.mesh", None)
+    from app.server.routes import mesh
+    monkeypatch.setattr(mesh.config, "INTERNAL_WEBHOOK_SECRET", "test-secret", raising=False)
+    app = FastAPI()
+    app.include_router(mesh.router)
+    for status, expected in ((500, 502), (200, 200)):
+        monkeypatch.setattr(mesh, "_sb", lambda *_a, status=status, **_k: (status, "[]"))
+        r = TestClient(app).post("/api/mesh/claim/update", headers=HDR, json={
+            "linear_id": "UNI-A", "state": "failed", "run_id": "0a1b2c3d", "error_code": "timeout"})
+        assert r.status_code == expected, (status, r.status_code)
+
+
 def test_a_nan_duration_never_reaches_the_database_payload():
     """The round-10 reproduction, end to end through patch_claim."""
     sent: list = []

@@ -361,6 +361,7 @@ def claim_update(
     status, body = mesh_run_record.patch_claim(_sb, "PATCH",
         f"mesh_work_claims?linear_id=eq.{urllib.parse.quote(u.linear_id)}&state=in.(claimed,working)",
         patch, fields=u, prefer="return=representation")
+    mesh_run_record.require_stored(status)
     # return=representation: a 0-row match (claim already done/absent — e.g. the
     # reaper released it and another runner re-claimed) still 2xxs, so gate the
     # reversal on rows actually returned or a stale runner's `released` would
@@ -375,8 +376,7 @@ def claim_update(
         except Exception:  # noqa: BLE001
             log.warning("claim_update: Linear reversal failed for %s", u.linear_id, exc_info=True)
     idea_id = mesh_lanes.attach_packet(u.linear_id, u.state, u, body) if status < 300 else None
-    return {"ok": True, "linear_id": u.linear_id, "state": u.state,
-            **({"idea_id": idea_id} if idea_id else {})}
+    return {"ok": True, "linear_id": u.linear_id, "state": u.state, **({"idea_id": idea_id} if idea_id else {})}
 
 
 @router.post("/claims/reap")

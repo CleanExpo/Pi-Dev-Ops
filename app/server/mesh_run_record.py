@@ -24,6 +24,7 @@ import math
 import re
 from typing import Any, Callable, Optional
 
+from fastapi import HTTPException
 from pydantic import BaseModel
 
 log = logging.getLogger("pi-ceo.mesh_run_record")
@@ -102,6 +103,16 @@ def _missing_run_column(status: int, body: str, extra: dict[str, Any], table: st
         return False
     named = _names_missing(str(err.get("message", "")))
     return named is not None and named[0] in extra and named[1] == table
+
+
+def require_stored(status: int) -> None:
+    """Refuse to answer `ok` for a claim change the database did not store (review round 16).
+
+    An `ok` over a failed PATCH told the runner its claim had ended while the
+    row stayed `working`; an error reply makes the runner retry instead.
+    """
+    if status >= 300:
+        raise HTTPException(502, f"claim update not stored ({status})")
 
 
 def patch_claim(sb: Callable[..., tuple[int, str]], method: str, path: str,
