@@ -7,7 +7,8 @@ to move the runtime while any listed agent is alive.
 
 Unknown counts as alive, the safe direction: a missing pid, a pid this user may not
 inspect, or a file that exists but cannot be read all block the update. An operator
-clears a stuck entry by deleting the file once the agent is known to be gone.
+clears a stuck entry by deleting the file once the agent is known to be gone, and the
+`.unrecorded` marker beside it, written when an agent could not be recorded at all.
 """
 from __future__ import annotations
 
@@ -89,6 +90,12 @@ def _locked():
 _UNRECORDED = [False]  # a record this process could not write: block for its lifetime
 
 
+def _marker() -> Path:
+    """Written when an agent could not be recorded; blocks every runner until an operator
+    deletes it, once that agent is known to be gone."""
+    return PATH.with_suffix(".unrecorded")
+
+
 def _writable() -> bool:
     """The record can be written here; if not, its absence proves nothing."""
     probe = PATH.with_suffix(".probe")
@@ -112,13 +119,17 @@ def track(rec) -> None:
             _save(_load() + [int(getattr(proc, "pid", 0) or 0)])
     except Exception:  # noqa: BLE001 — never raise in claim cleanup; block instead
         _UNRECORDED[0] = True
+        try:  # memory dies with this runner; the marker blocks its successors too
+            _marker().write_text(str(getattr(proc, "pid", "")))
+        except Exception:  # noqa: BLE001 — unwritable here: _writable() blocks the next runner
+            pass
 
 
 def any_alive() -> bool:
     """True while any recorded agent may still be running. Prunes the ones proven gone.
     An unwritable record counts as alive: a relaunched runner could not have seen it."""
     try:
-        if _UNRECORDED[0] or not _writable():
+        if _UNRECORDED[0] or os.path.lexists(_marker()) or not _writable():
             return True
         with _locked():
             pids = _load()

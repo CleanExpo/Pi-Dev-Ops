@@ -228,3 +228,21 @@ def test_a_concurrent_prune_cannot_drop_a_newly_tracked_agent(monkeypatch):
     finally:
         child.kill()
         child.wait()
+
+
+def test_an_agent_tracked_while_the_lock_fails_still_blocks_after_a_restart(monkeypatch):
+    def no_lock():
+        raise PermissionError("lock refused")
+
+    monkeypatch.setattr(left_running, "_locked", no_lock)
+    child = _sleeper()
+    try:
+        left_running.track(types.SimpleNamespace(reaped=False, proc=child))
+        probe = _REAL_RUN(  # a fresh runner process: none of this one's memory
+            [sys.executable, "-c", "import left_running, pathlib, sys; "
+             "left_running.PATH = pathlib.Path(sys.argv[1]); print(left_running.any_alive())",
+             str(left_running.PATH)], cwd=REPO_ROOT / "mesh", capture_output=True, text=True, check=True)
+        assert probe.stdout.strip() == "True"
+    finally:
+        child.kill()
+        child.wait()
