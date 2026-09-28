@@ -241,10 +241,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
             lambda: [AGENT_CMD, "-p", build_prompt(claim, linear_id, branch)],
             str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent)
     finally:
-        subprocess.run(
-            ["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],
-            capture_output=True, check=False,
-        )
+        run_record.remove_worktree(repo_dir, worktree)
         write_state(None, "idle")
     _api("POST", "/api/mesh/claim/update", {
         "linear_id": linear_id, "state": plan["state"], "branch": branch, **run_record.fields(rec, plan)})

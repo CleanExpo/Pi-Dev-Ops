@@ -120,3 +120,41 @@ def test_a_claim_failed_before_running_sends_only_its_code(monkeypatch, tmp_path
     assert final["state"] == "failed"
     assert final["error_code"] == "repo_missing"
     assert _token() not in repr(calls)
+
+
+def test_a_worktree_removal_failure_still_ends_the_claim(monkeypatch, tmp_path):
+    """Round 6: the terminal update used to sit behind an unguarded `git worktree remove`."""
+    runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
+    real_git = runner.subprocess.run
+
+    def git(args, **kw):
+        if "remove" in args:
+            raise OSError("remove-spawn-failed")
+        return real_git(args, **kw)
+
+    monkeypatch.setattr(runner.subprocess, "run", git)
+    agent = tmp_path / "agent"
+    agent.write_text("#!/bin/sh\nexit 0\n")
+    agent.chmod(0o755)
+    monkeypatch.setattr(runner, "AGENT_CMD", str(agent))
+    runner.run_claim({"linear_id": "UNI-R", "repo_dir": str(repo)}, dry_run=False)
+    assert [b["state"] for b in _updates(calls)] == ["working", "done"]
+
+
+def test_a_record_that_fails_to_report_still_ends_the_claim(monkeypatch, tmp_path):
+    """Round 6: a log close raising inside fields() used to stop the terminal update."""
+    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
+
+    class Exploding:
+        def fields(self, plan):
+            raise OSError("log flush failed")
+
+    def run_agent(_make_cmd, _cwd, _base, _run_id, plan, _wait):
+        plan["state"] = "done"
+        return Exploding()
+
+    monkeypatch.setattr(runner.run_record, "run_agent", run_agent)
+    runner.run_claim({"linear_id": "UNI-F", "repo_dir": str(repo)}, dry_run=False)
+    assert [b["state"] for b in _updates(calls)] == ["working", "done"]
+    assert removed, "worktree was not cleaned up"
+

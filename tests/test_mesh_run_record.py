@@ -58,7 +58,7 @@ def test_an_exception_sends_neither_its_message_nor_its_class_name(tmp_path):
         def raise_hostile(*_a, _base=base, **_k):
             raise _hostile(_base)("Popen setup failed: " + _server_only_secret())
 
-        rec = rr.run_agent(raise_hostile, str(tmp_path), tmp_path, "run9", plan, lambda *_: None)
+        rec = rr.run_agent(raise_hostile, str(tmp_path), tmp_path, "0a0a0a09", plan, lambda *_: None)
         sent = rr.fields(rec, plan)
         assert sent["error_code"] == code
         assert plan["state"] == "failed"
@@ -68,7 +68,7 @@ def test_an_exception_sends_neither_its_message_nor_its_class_name(tmp_path):
 
 
 def test_only_facts_are_sent(tmp_path):
-    rec = rr.RunRecord("run0", tmp_path)
+    rec = rr.RunRecord("0a0a0a00", tmp_path)
     rec.popen(["sh", "-c", f"echo {_token()}; echo visible-output; exit 3"], cwd=str(tmp_path)).wait()
     fields = rec.fields({"error": f"agent exited 3 {_server_only_secret()}"})
     assert set(fields) == {"run_id", "duration_s", "exit_code", "error_code"}
@@ -81,7 +81,7 @@ def test_only_facts_are_sent(tmp_path):
 def test_the_log_stays_on_the_node_owner_only(tmp_path):
     old = os.umask(0o022)
     try:
-        rec = rr.RunRecord("run1", tmp_path)
+        rec = rr.RunRecord("0a0a0a01", tmp_path)
     finally:
         os.umask(old)
     rec.popen(["sh", "-c", "echo started"], cwd=str(tmp_path)).wait()
@@ -102,7 +102,7 @@ def test_the_log_is_private_at_creation_not_just_afterwards(tmp_path, monkeypatc
     monkeypatch.setattr(rr.os, "fchmod", spy)
     old = os.umask(0o022)
     try:
-        rr.RunRecord("run1b", tmp_path).close()
+        rr.RunRecord("0a0a0a1b", tmp_path).close()
     finally:
         os.umask(old)
     assert seen == [0o600]
@@ -110,10 +110,10 @@ def test_the_log_is_private_at_creation_not_just_afterwards(tmp_path, monkeypatc
 
 def test_a_pre_existing_wider_log_is_narrowed(tmp_path):
     (tmp_path / "mesh-runs").mkdir()
-    stale = tmp_path / "mesh-runs" / "run2.log"
+    stale = tmp_path / "mesh-runs" / "0a0a0a02.log"
     stale.write_text("old")
     stale.chmod(0o644)
-    rec = rr.RunRecord("run2", tmp_path)
+    rec = rr.RunRecord("0a0a0a02", tmp_path)
     rec.close()
     assert stat.S_IMODE(stale.stat().st_mode) == 0o600
 
@@ -123,16 +123,58 @@ def test_a_log_that_cannot_be_made_private_is_removed_not_written(tmp_path, monk
         raise OSError("synthetic fchmod failure")
 
     monkeypatch.setattr(rr.os, "fchmod", refuse)
-    rec = rr.RunRecord("run3", tmp_path)
+    rec = rr.RunRecord("0a0a0a03", tmp_path)
     assert rec.path is None
-    assert not (tmp_path / "mesh-runs" / "run3.log").exists()
+    assert not (tmp_path / "mesh-runs" / "0a0a0a03.log").exists()
     rec.popen(["sh", "-c", "exit 0"], cwd=str(tmp_path)).wait()
     assert rec.fields({})["exit_code"] == 0
 
 
+def test_a_run_id_that_is_not_the_generated_hex_opens_nothing(tmp_path):
+    """Round 6: `../escape` used to create (and os.open would truncate) a file outside mesh-runs."""
+    victim = tmp_path / "escape.log"
+    victim.write_text("must survive")
+    for bad in ("../escape", "../../escape", "/abs/path", "ZZZZZZZZ", "0a0a0a0a/../x"):
+        rec = rr.RunRecord(bad, tmp_path)
+        assert rec.path is None, bad
+        rec.popen(["sh", "-c", "echo out"], cwd=str(tmp_path)).wait()
+        assert rec.fields({})["exit_code"] == 0
+    assert victim.read_text() == "must survive"
+    assert sorted(x.name for x in tmp_path.iterdir()) == ["escape.log"]
+
+
+def test_a_log_close_failure_never_raises(tmp_path):
+    rec = rr.RunRecord("0a0a0a05", tmp_path)
+
+    class Broken:
+        closed = False
+
+        def close(self):
+            raise OSError("log flush failed")
+
+    rec._log = Broken()
+    assert rec.fields({})["run_id"] == "0a0a0a05"
+
+
+def test_fields_never_raises_even_if_the_record_does(tmp_path):
+    class Exploding:
+        def fields(self, plan):
+            raise OSError("boom")
+
+    assert rr.fields(Exploding(), {"error": "agent exited 1"}) == {"error_code": "agent_exit"}
+
+
+def test_worktree_removal_that_cannot_start_does_not_raise(tmp_path, monkeypatch):
+    def no_git(*_a, **_k):
+        raise OSError("remove-spawn-failed")
+
+    monkeypatch.setattr(rr.subprocess, "run", no_git)
+    rr.remove_worktree(tmp_path, tmp_path / "wt")
+
+
 def test_an_unopenable_log_still_runs_and_reports(tmp_path):
     (tmp_path / "mesh-runs").write_text("a file where the directory should be")
-    rec = rr.RunRecord("run4", tmp_path)
+    rec = rr.RunRecord("0a0a0a04", tmp_path)
     rec.popen(["sh", "-c", "exit 0"], cwd=str(tmp_path)).wait()
     assert rec.path is None
     assert rec.fields({})["exit_code"] == 0

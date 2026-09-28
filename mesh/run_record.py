@@ -23,11 +23,14 @@ Shipping a log tail safely is UNI-2800.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+# run_claim's ids are uuid4().hex[:8]. Anything else never becomes a path.
+_RUN_ID = re.compile(r"[0-9a-f]{8,32}")
 # Failure reasons the runner itself writes, by prefix -> the code that is sent.
 _ERROR_CODES = (
     ("agent exited", "agent_exit"),
@@ -84,16 +87,23 @@ class RunRecord:
     """
 
     def __init__(self, run_id: str, base_dir: Path):
-        """Open `<base_dir>/mesh-runs/<run_id>.log`, owner-readable only."""
+        """Open `<base_dir>/mesh-runs/<run_id>.log`, owner-readable only.
+
+        A run id that is not the generated hex id opens nothing: it could name a
+        path outside mesh-runs, and os.open truncates what it opens.
+        """
         self.run_id = run_id
-        self.path: Optional[Path] = Path(base_dir) / "mesh-runs" / f"{run_id}.log"
-        try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            self._log: Any = _open_private(self.path)
-        except OSError:
-            self._log = subprocess.DEVNULL
-        if self._log == subprocess.DEVNULL:
-            self.path = None
+        self.path: Optional[Path] = None
+        self._log: Any = subprocess.DEVNULL
+        if _RUN_ID.fullmatch(run_id):
+            path = Path(base_dir) / "mesh-runs" / f"{run_id}.log"
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                self._log = _open_private(path)
+            except OSError:
+                pass
+            if self._log != subprocess.DEVNULL:
+                self.path = path
         self.started = time.monotonic()
         self.proc: Optional[subprocess.Popen] = None
 
@@ -103,9 +113,12 @@ class RunRecord:
         return self.proc
 
     def close(self) -> None:
-        """Close the log. Safe to call twice, and on the DEVNULL fallback."""
-        if hasattr(self._log, "close") and not self._log.closed:
-            self._log.close()
+        """Close the log. Never raises: a failed flush must not cost the claim its terminal update."""
+        try:
+            if hasattr(self._log, "close") and not self._log.closed:
+                self._log.close()
+        except OSError:
+            pass
 
     def fields(self, plan: dict) -> dict:
         """The run-record fields `/api/mesh/claim/update` stores next to the claim state."""
@@ -138,7 +151,21 @@ def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: st
 
 
 def fields(rec: Optional[RunRecord], plan: dict) -> dict:
-    """The fields to report for `rec`, or just the error code if it never existed."""
-    if rec is None:
-        return {"error_code": error_code(plan)}
-    return rec.fields(plan)
+    """The fields to report for `rec`, or just the error code. Never raises."""
+    if rec is not None:
+        try:
+            return rec.fields(plan)
+        except Exception:  # noqa: BLE001 — the terminal update must still go out
+            pass
+    return {"error_code": error_code(plan)}
+
+
+def remove_worktree(repo_dir: Path, worktree: Path) -> None:
+    """`git worktree remove --force`, never raising: cleanup failing must not strand the claim."""
+    try:
+        subprocess.run(
+            ["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],
+            capture_output=True, check=False,
+        )
+    except OSError:
+        pass
