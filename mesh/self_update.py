@@ -24,6 +24,7 @@ RESTART_EXIT = 75  # EX_TEMPFAIL — non-zero, so every supervisor relaunches th
 INTERVAL_SECONDS = float(os.environ.get("MESH_SELF_UPDATE_INTERVAL", "300"))
 ENABLED = os.environ.get("MESH_SELF_UPDATE", "1") != "0"
 RUNTIME = Path(__file__).resolve().parents[1]
+_MAIN_REF = "refs/mesh-self-update/main"  # written only by this module
 _last_check = [float("-inf")]
 
 
@@ -48,10 +49,11 @@ def fast_forward(root: Path, may_move=None) -> str | None:
             return None
         if not _clean(root):
             return None
-        if _git(root, "fetch", "-q", "origin", "main").returncode:
+        # A private ref, not FETCH_HEAD: a concurrent fetch of another branch overwrites FETCH_HEAD.
+        if _git(root, "fetch", "-q", "origin", f"+refs/heads/main:{_MAIN_REF}").returncode:
             return None
         head = _git(root, "rev-parse", "HEAD").stdout.strip()
-        target = _git(root, "rev-parse", "FETCH_HEAD").stdout.strip()
+        target = _git(root, "rev-parse", "--verify", "-q", f"{_MAIN_REF}^{{commit}}").stdout.strip()
         if not target or head == target:
             return None
         if _git(root, "merge-base", "--is-ancestor", head, target).returncode:

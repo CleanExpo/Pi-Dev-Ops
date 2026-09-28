@@ -114,6 +114,47 @@ def test_a_veto_blocks_the_move_and_is_asked_only_when_one_is_due(tmp_path):
     assert asked == []
 
 
+def test_a_concurrent_fetch_of_another_branch_cannot_redirect_the_move(tmp_path, monkeypatch):
+    """FETCH_HEAD is shared; a second fetch landing after ours must not pick the target."""
+    origin, runtime, old, new = _fleet(tmp_path)
+    _git(origin, "checkout", "-q", "-b", "other", old)
+    other = _commit(origin, "c")
+    _git(origin, "checkout", "-q", "main")
+
+    def fetch_then_race(root, *args):
+        result = _REAL_GIT(root, *args)
+        if args[:1] == ("fetch",):
+            _REAL_GIT(root, "fetch", "-q", "origin", "other")  # overwrites FETCH_HEAD
+        return result
+
+    monkeypatch.setattr(su, "_git", fetch_then_race)
+    assert su.fast_forward(runtime) == new
+    assert _git(runtime, "rev-parse", "HEAD") == new != other
+
+
+def test_a_plan_agent_left_running_after_a_wait_error_is_tracked(tmp_path, monkeypatch):
+    import types
+    monkeypatch.syspath_prepend(str(REPO_ROOT / "mesh"))  # plan_lane imports its siblings, as runner.py sets up
+    plan_lane = load_module("mesh_plan_lane_under_test", "mesh/plan_lane.py")
+    agent = tmp_path / "agent"
+    agent.write_text("#!/bin/sh\nexec sleep 30\n")
+    agent.chmod(0o755)
+    tracked: list = []
+
+    def wait_fails(proc, plan):
+        raise OSError("wait failed")
+
+    rt = types.SimpleNamespace(AGENT_CMD=str(agent), _wait_for_agent=wait_fails,
+                               run_record=types.SimpleNamespace(track=tracked.append))
+    try:
+        assert plan_lane._run_agent({"linear_id": "UNI-P", "title": "t"}, {}, rt) == ""
+        assert len(tracked) == 1 and tracked[0].proc.poll() is None
+    finally:
+        for rec in tracked:
+            rec.proc.kill()
+            rec.proc.wait()
+
+
 def test_diverged_head_is_not_moved(tmp_path):
     _, runtime, _, _ = _fleet(tmp_path)
     mine = _commit(runtime, "local-only")
