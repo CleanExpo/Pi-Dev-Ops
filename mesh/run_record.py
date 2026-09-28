@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 # run_claim's ids are uuid4().hex[:8]. Anything else never becomes a path.
-_RUN_ID = re.compile(r"[0-9a-f]{8,32}")
+_RUN_ID = re.compile(r"[0-9a-f]{8}")
 # Failure reasons the runner itself writes, by prefix -> the code that is sent.
 _ERROR_CODES = (
     ("agent exited", "agent_exit"),
@@ -146,7 +146,7 @@ class RunRecord:
         try:
             if hasattr(self._log, "close") and not self._log.closed:
                 self._log.close()
-        except OSError:
+        except Exception:  # noqa: BLE001 — any close failure, not only OSError
             pass
 
     def fields(self, plan: dict) -> dict:
@@ -189,6 +189,17 @@ def fields(rec: Optional[RunRecord], plan: dict) -> dict:
         except Exception:  # noqa: BLE001 — the terminal update must still go out
             pass
     return {"error_code": error_code(plan)}
+
+
+def terminal(rec: Optional[RunRecord], plan: dict) -> dict:
+    """The terminal claim update: state plus run record. Never raises.
+
+    A plan with no state means something escaped `run_agent`; it is reported as
+    a failure rather than left for the claim to sit `working`.
+    """
+    if "state" not in plan:
+        plan.update(state="failed", error_code="runner_exception")
+    return {"state": plan["state"], **fields(rec, plan)}
 
 
 def remove_worktree(repo_dir: Path, worktree: Path) -> None:

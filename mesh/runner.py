@@ -237,15 +237,16 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         run_record.remove_worktree(repo_dir, worktree)
         return _fail_claim(plan, linear_id, branch, "git worktree add failed")
 
+    rec = None
     try:
         rec = run_record.run_agent(
             lambda: [AGENT_CMD, "-p", build_prompt(claim, linear_id, branch)],
             str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent)
-    finally:
+    finally:  # the terminal update goes out whatever raised above — a claim is never left `working`
+        _api("POST", "/api/mesh/claim/update", {
+            "linear_id": linear_id, "branch": branch, **run_record.terminal(rec, plan)})
         run_record.remove_worktree(repo_dir, worktree)
         write_state(None, "idle")
-    _api("POST", "/api/mesh/claim/update", {
-        "linear_id": linear_id, "state": plan["state"], "branch": branch, **run_record.fields(rec, plan)})
     return plan
 
 

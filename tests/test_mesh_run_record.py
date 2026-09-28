@@ -134,7 +134,7 @@ def test_a_run_id_that_is_not_the_generated_hex_opens_nothing(tmp_path):
     """Round 6: `../escape` used to create (and os.open would truncate) a file outside mesh-runs."""
     victim = tmp_path / "escape.log"
     victim.write_text("must survive")
-    for bad in ("../escape", "../../escape", "/abs/path", "ZZZZZZZZ", "0a0a0a0a/../x"):
+    for bad in ("../escape", "../../escape", "/abs/path", "ZZZZZZZZ", "0a0a0a0a/../x", "deadbeef" * 4):
         rec = rr.RunRecord(bad, tmp_path)
         assert rec.path is None, bad
         rec.popen(["sh", "-c", "echo out"], cwd=str(tmp_path)).wait()

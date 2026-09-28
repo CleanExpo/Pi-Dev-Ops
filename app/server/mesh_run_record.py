@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
 from typing import Any, Callable, Optional
 
@@ -31,7 +32,12 @@ log = logging.getLogger("pi-ceo.mesh_run_record")
 # an exception class name is text somebody chose, and it once carried a secret.
 _ERROR_CODES = frozenset({"agent_exit", "timeout", "repo_missing", "worktree_add_failed",
                           "runner_exception", "runner_exception_os"})
-_RUN_ID = re.compile(r"[0-9a-f]{8,32}")
+# Exactly what the runner generates (uuid4().hex[:8]); a longer hex string is
+# not a run id, it is text of unknown origin. Shape cannot prove a value is not
+# a secret — it only bounds what can be stored to what the runner produces.
+_RUN_ID = re.compile(r"[0-9a-f]{8}")
+_MAX_DURATION_S = 7 * 24 * 3600  # a run is killed after an hour; a week is generous
+_EXIT_CODE_RANGE = range(-128, 256)  # negative = killed by that signal
 # PostgREST's "column not in schema cache" code, and Postgres's undefined_column.
 _MISSING_COLUMN = ("PGRST204", "42703")
 # (column, table) as each names them: PostgREST "the 'col' column of 'table'",
@@ -57,9 +63,12 @@ def record_patch(fields: RunRecordFields) -> dict[str, Any]:
     patch: dict[str, Any] = {}
     if fields.run_id and _RUN_ID.fullmatch(fields.run_id):
         patch["run_id"] = fields.run_id
-    if fields.duration_s is not None:
-        patch["duration_s"] = fields.duration_s
-    if fields.exit_code is not None:
+    # A value the column cannot hold (NaN, Infinity, out of range) would make the
+    # whole PATCH fail and strand the claim, so it is dropped rather than sent.
+    d = fields.duration_s
+    if d is not None and math.isfinite(d) and 0 <= d <= _MAX_DURATION_S:
+        patch["duration_s"] = d
+    if fields.exit_code is not None and fields.exit_code in _EXIT_CODE_RANGE:
         patch["exit_code"] = fields.exit_code
     if fields.error_code in _ERROR_CODES:
         patch["error_code"] = fields.error_code

@@ -195,3 +195,41 @@ def test_a_claim_id_git_cannot_accept_still_ends_the_claim(monkeypatch, tmp_path
     assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
     assert _updates(calls)[-1]["error_code"] == "worktree_add_failed"
 
+
+def test_a_log_close_valueerror_still_ends_the_claim(monkeypatch, tmp_path):
+    """Round 10: close() caught only OSError, so a ValueError stranded the claim."""
+    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
+
+    class BadLog:
+        closed = False
+
+        def close(self):
+            raise ValueError("close broke")
+
+    monkeypatch.setattr(runner.run_record, "_open_private", lambda _path: BadLog())
+
+    def no_popen(*_a, **_k):
+        raise OSError("popen failed")
+
+    monkeypatch.setattr(runner.run_record.subprocess, "Popen", no_popen)
+    runner.run_claim({"linear_id": "UNI-C", "repo_dir": str(repo)}, dry_run=False)
+    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
+    assert removed, "worktree was not cleaned up"
+
+
+def test_the_terminal_update_goes_out_even_if_run_agent_itself_raises(monkeypatch, tmp_path):
+    """Belt and braces for the whole class: whatever escapes, the claim still ends."""
+    import pytest
+
+    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
+
+    def exploding(*_a, **_k):
+        raise RuntimeError("unforeseen")
+
+    monkeypatch.setattr(runner.run_record, "run_agent", exploding)
+    with pytest.raises(RuntimeError):
+        runner.run_claim({"linear_id": "UNI-U", "repo_dir": str(repo)}, dry_run=False)
+    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
+    assert _updates(calls)[-1]["error_code"] == "runner_exception"
+    assert removed, "worktree was not cleaned up"
+
