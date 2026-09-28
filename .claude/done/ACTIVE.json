@@ -1,5 +1,6 @@
 {
   "schema": "done/1",
-  "by_identity": {},
-  "default": "audit-green-2026-09-06"
+  "by_identity": {
+    "claude/nifty-mayer-qemzix@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ptd-808": "w_8a69e21e87ed"
+  }
 }
