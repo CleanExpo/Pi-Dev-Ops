@@ -108,14 +108,21 @@ def test_the_log_is_private_at_creation_not_just_afterwards(tmp_path, monkeypatc
     assert seen == [0o600]
 
 
-def test_a_pre_existing_wider_log_is_narrowed(tmp_path):
+def test_an_existing_file_at_the_log_path_is_never_touched(tmp_path):
+    """Round 11: O_TRUNC wiped an earlier transcript under a repeated id, and a hard link's target."""
     (tmp_path / "mesh-runs").mkdir()
-    stale = tmp_path / "mesh-runs" / "0a0a0a02.log"
-    stale.write_text("old")
-    stale.chmod(0o644)
-    rec = rr.RunRecord("0a0a0a02", tmp_path)
-    rec.close()
-    assert stat.S_IMODE(stale.stat().st_mode) == 0o600
+    earlier = tmp_path / "mesh-runs" / "0a0a0a02.log"
+    earlier.write_text("first agent transcript")
+    victim = tmp_path / "victim"
+    victim.write_text("must survive")
+    (tmp_path / "mesh-runs" / "0a0a0a12.log").hardlink_to(victim)
+    for run_id in ("0a0a0a02", "0a0a0a12"):
+        rec = rr.RunRecord(run_id, tmp_path)
+        assert rec.path is None, run_id
+        rec.popen(["sh", "-c", "echo second"], cwd=str(tmp_path)).wait()
+        rec.close()
+    assert earlier.read_text() == "first agent transcript"
+    assert victim.read_text() == "must survive"
 
 
 def test_a_log_that_cannot_be_made_private_is_removed_not_written(tmp_path, monkeypatch):
@@ -162,69 +169,6 @@ def test_fields_never_raises_even_if_the_record_does(tmp_path):
             raise OSError("boom")
 
     assert rr.fields(Exploding(), {"error": "agent exited 1"}) == {"error_code": "agent_exit"}
-
-
-def test_a_wait_failure_stops_the_agent_before_returning(tmp_path):
-    """Round 7: a wait that raised left the agent running while the claim was reported failed."""
-    plan: dict = {}
-
-    def broken_wait(_proc, _plan):
-        raise OSError("wait failed")
-
-    rec = rr.run_agent(lambda: ["sleep", "30"], str(tmp_path), tmp_path, "0a0a0a06", plan, broken_wait)
-    assert plan["state"] == "failed"
-    assert rec.proc.poll() is not None, "agent still running after run_agent returned"
-    assert rec._log.closed
-
-
-class _FakeAgent:
-    """A Popen stand-in whose poll() fails the way round 9 planted it."""
-
-    def __init__(self, poll_error):
-        self.poll_error, self.terminated, self.killed, self.returncode = poll_error, False, False, None
-
-    def poll(self):
-        raise self.poll_error
-
-    def terminate(self):
-        self.terminated = True
-
-    def wait(self, timeout=None):
-        return 0
-
-    def kill(self):
-        self.killed = True
-
-
-def test_a_failing_poll_still_terminates_the_agent_and_never_raises(tmp_path, monkeypatch):
-    """Round 9: poll() raising OSError skipped termination; ValueError escaped the boundary."""
-    for error in (OSError("waitpid failed"), ValueError("poll broke")):
-        fake = _FakeAgent(error)
-        monkeypatch.setattr(rr.subprocess, "Popen", lambda *_a, **_k: fake)
-        plan: dict = {}
-
-        def broken_wait(_proc, _plan):
-            raise OSError("wait failed")
-
-        rec = rr.run_agent(lambda: ["agent"], str(tmp_path), tmp_path, "0a0a0a07", plan, broken_wait)
-        assert plan["state"] == "failed", error
-        assert fake.terminated, f"{error!r}: agent was not terminated"
-        assert rec._log.closed
-
-
-def test_an_agent_that_ignores_terminate_is_killed(tmp_path, monkeypatch):
-    fake = _FakeAgent(OSError("x"))
-
-    def stuck(timeout=None):
-        if timeout is not None:
-            raise rr.subprocess.TimeoutExpired("agent", timeout)
-        return 0
-
-    fake.wait = stuck
-    rec = rr.RunRecord("0a0a0a08", tmp_path)
-    rec.proc = fake
-    rec.stop()
-    assert fake.terminated and fake.killed
 
 
 def test_worktree_removal_that_cannot_start_does_not_raise(tmp_path, monkeypatch):

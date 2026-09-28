@@ -68,15 +68,17 @@ def _attempt(action: Callable[[], Any]) -> bool:
 
 
 def _open_private(path: Path) -> Any:
-    """Open `path` for writing as owner-only from the first byte, or return DEVNULL.
+    """Create `path` new, owner-only from the first byte, or return DEVNULL.
 
-    The mode is set at creation (`os.open`), not afterwards, so there is no
-    window in which the log exists with the umask's wider mode; `fchmod` covers
-    a file that somehow already existed. Any failure removes what was created.
+    O_EXCL: an existing file at this path — an earlier run's transcript under a
+    repeated id, or a hard link planted there — is never opened, let alone
+    truncated. The run then goes ahead without a log. The mode is set at
+    creation, so there is no window with the umask's wider mode. Any failure
+    after creating the file removes it.
     """
     fd = -1
     try:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
         os.fchmod(fd, 0o600)
         return os.fdopen(fd, "wb")
     except OSError:
