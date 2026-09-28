@@ -20,6 +20,8 @@ import subprocess
 import time
 from pathlib import Path
 
+import left_running
+
 RESTART_EXIT = 75  # EX_TEMPFAIL — non-zero, so every supervisor relaunches the runner
 INTERVAL_SECONDS = float(os.environ.get("MESH_SELF_UPDATE_INTERVAL", "300"))
 ENABLED = os.environ.get("MESH_SELF_UPDATE", "1") != "0"
@@ -76,7 +78,7 @@ def update_now(host: str, may_move=None) -> bool:
     if not ENABLED:
         return False
     _last_check[0] = time.monotonic()
-    head = fast_forward(RUNTIME, may_move)
+    head = fast_forward(RUNTIME, lambda: not left_running.any_alive() and (may_move is None or may_move()))
     if head:
         print(json.dumps({"runner": host, "status": "UPDATED", "head": head}), flush=True)
     return bool(head)

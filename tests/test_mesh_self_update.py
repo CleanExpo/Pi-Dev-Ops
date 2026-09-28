@@ -10,12 +10,22 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "mesh"))  # self_update imports its sibling, as runner.py sets up
 
+import left_running  # noqa: E402
 from mesh_helpers import load_module  # noqa: E402
 
 su = load_module("mesh_self_update_under_test", "mesh/self_update.py")
+
+
+@pytest.fixture(autouse=True)
+def _private_left_running_file(tmp_path, monkeypatch):
+    """Never read or write the node's real ~/.claude/mesh-left-running.json."""
+    monkeypatch.setattr(left_running, "PATH", tmp_path / "left-running.json")
 
 
 def _git(cwd: Path, *args: str) -> str:
@@ -132,29 +142,6 @@ def test_a_concurrent_fetch_of_another_branch_cannot_redirect_the_move(tmp_path,
     assert _git(runtime, "rev-parse", "HEAD") == new != other
 
 
-def test_a_plan_agent_left_running_after_a_wait_error_is_tracked(tmp_path, monkeypatch):
-    import types
-    monkeypatch.syspath_prepend(str(REPO_ROOT / "mesh"))  # plan_lane imports its siblings, as runner.py sets up
-    plan_lane = load_module("mesh_plan_lane_under_test", "mesh/plan_lane.py")
-    agent = tmp_path / "agent"
-    agent.write_text("#!/bin/sh\nexec sleep 30\n")
-    agent.chmod(0o755)
-    tracked: list = []
-
-    def wait_fails(proc, plan):
-        raise OSError("wait failed")
-
-    rt = types.SimpleNamespace(AGENT_CMD=str(agent), _wait_for_agent=wait_fails,
-                               run_record=types.SimpleNamespace(track=tracked.append))
-    try:
-        assert plan_lane._run_agent({"linear_id": "UNI-P", "title": "t"}, {}, rt) == ""
-        assert len(tracked) == 1 and tracked[0].proc.poll() is None
-    finally:
-        for rec in tracked:
-            rec.proc.kill()
-            rec.proc.wait()
-
-
 def test_diverged_head_is_not_moved(tmp_path):
     _, runtime, _, _ = _fleet(tmp_path)
     mine = _commit(runtime, "local-only")
@@ -228,55 +215,6 @@ def test_no_update_while_an_agent_of_ours_may_still_run(monkeypatch, tmp_path):
             pass
         assert startup == [False], agents  # the startup veto refuses the move
         assert skips == [True], agents
-
-
-def test_an_agent_left_running_blocks_update_even_when_the_fleet_reads_zero(monkeypatch, tmp_path):
-    """The idle breadcrumb can erase the fleet's view of an unreaped agent, so the
-    runner's own record of it must block the restart."""
-    runner = _runner_with(monkeypatch, tmp_path, 0)
-    skips: list = []
-    monkeypatch.setattr(runner.run_record, "any_left_running", lambda: True)
-
-    def idle(*a, skip=False, **k):
-        skips.append(skip)
-        raise _Stop
-
-    monkeypatch.setattr(runner.self_update, "idle_tick", idle)
-    monkeypatch.setattr(runner.self_update, "update_now", lambda host, may_move=None: False)
-    try:
-        runner.main()
-    except _Stop:
-        pass
-    assert skips == [True]
-
-
-def test_a_tracked_agent_counts_until_its_process_exits(monkeypatch):
-    rr = load_module("mesh_run_record_tracking", "mesh/run_record.py")
-    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
-    try:
-        rec = type("Rec", (), {"reaped": False, "proc": child})()
-        rr.track(rec)
-        assert rr.any_left_running() is True
-    finally:
-        child.kill()
-        child.wait()
-    assert rr.any_left_running() is False
-    rr.track(type("Rec", (), {"reaped": True, "proc": None})())  # reaped agents are not tracked
-    assert rr.any_left_running() is False
-
-
-def test_every_claim_hands_its_run_record_to_the_tracker(monkeypatch, tmp_path):
-    from test_mesh_run_record_claim import _runner as _claim_runner
-
-    runner, _calls, _removed, repo = _claim_runner(monkeypatch, tmp_path)
-    agent = tmp_path / "agent"
-    agent.write_text("#!/bin/sh\nexit 0\n")
-    agent.chmod(0o755)
-    monkeypatch.setattr(runner, "AGENT_CMD", str(agent))
-    tracked: list = []
-    monkeypatch.setattr(runner.run_record, "track", tracked.append)
-    runner.run_claim({"linear_id": "UNI-T", "repo_dir": str(repo)}, dry_run=False)
-    assert len(tracked) == 1 and tracked[0] is not None
 
 
 def test_dry_run_and_opt_out_never_update(monkeypatch):

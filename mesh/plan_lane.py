@@ -69,7 +69,7 @@ def _run_agent(claim: dict, plan: dict, rt) -> str:
         except Exception as exc:  # noqa: BLE001
             plan.update(state="failed", error=str(exc))
             if proc is not None and proc.poll() is None:  # RA-7798: never self-update away from it
-                rt.run_record.track(types.SimpleNamespace(reaped=False, proc=proc))
+                rt.left_running.track(types.SimpleNamespace(reaped=False, proc=proc))
             return ""
         out.seek(0)
         return out.read().decode("utf-8", errors="replace")
