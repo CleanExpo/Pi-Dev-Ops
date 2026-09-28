@@ -269,7 +269,7 @@ def main() -> int:
         # the node keeps announcing this and resumes once it is fixed.
         print(json.dumps({"runner": HOST, "status": "REFUSED", "reason": problem}))
         return 2
-    if not args.dry_run and self_update.update_now(HOST):  # RA-7798: never claim on stale code
+    if not args.dry_run and self_update.update_now(HOST, lambda: active_agent_count(_api, HOST) == 0):
         return self_update.RESTART_EXIT
     processed = 0
     while True:
@@ -292,8 +292,8 @@ def main() -> int:
         if work and agents is not None and agents < MAX_PARALLEL:
             time.sleep(IDLE_RECLAIM_DELAY)
             continue
-        if self_update.idle_tick(write_state, POLL_INTERVAL, HOST, skip=args.dry_run):
-            return self_update.RESTART_EXIT  # RA-7798: relaunch on the new code
+        if self_update.idle_tick(write_state, POLL_INTERVAL, HOST, skip=args.dry_run or agents != 0):
+            return self_update.RESTART_EXIT  # RA-7798: never while an agent may still run
 
 
 if __name__ == "__main__":

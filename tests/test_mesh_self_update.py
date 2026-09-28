@@ -103,6 +103,17 @@ def test_an_edit_made_during_the_fetch_blocks_the_move(tmp_path, monkeypatch):
     assert _git(runtime, "rev-parse", "HEAD") == old
 
 
+def test_a_veto_blocks_the_move_and_is_asked_only_when_one_is_due(tmp_path):
+    _, runtime, old, new = _fleet(tmp_path)
+    asked: list = []
+    assert su.fast_forward(runtime, lambda: asked.append(1) or False) is None
+    assert _git(runtime, "rev-parse", "HEAD") == old and asked == [1]
+    assert su.fast_forward(runtime, lambda: True) == new
+    asked.clear()
+    assert su.fast_forward(runtime, lambda: asked.append(1) or True) is None  # up to date
+    assert asked == []
+
+
 def test_diverged_head_is_not_moved(tmp_path):
     _, runtime, _, _ = _fleet(tmp_path)
     mine = _commit(runtime, "local-only")
@@ -115,12 +126,12 @@ def test_idle_tick_restarts_only_after_a_move(monkeypatch):
     states: list = []
     monkeypatch.setattr(su.time, "sleep", lambda s: None)
     monkeypatch.setattr(su, "_last_check", [float("-inf")])
-    monkeypatch.setattr(su, "fast_forward", lambda root: "abc123")
+    monkeypatch.setattr(su, "fast_forward", lambda root, may_move=None: "abc123")
     assert su.idle_tick(lambda *a: states.append(a), 1, "node") is True
     assert states == [(None, "idle")]
     assert su.idle_tick(lambda *a: None, 1, "node") is False  # inside the interval
     monkeypatch.setattr(su, "_last_check", [float("-inf")])
-    monkeypatch.setattr(su, "fast_forward", lambda root: None)
+    monkeypatch.setattr(su, "fast_forward", lambda root, may_move=None: None)
     assert su.idle_tick(lambda *a: None, 1, "node") is False
 
 
@@ -131,16 +142,57 @@ def test_a_relaunched_runner_updates_before_it_claims(monkeypatch, tmp_path):
     claimed: list = []
     monkeypatch.setattr(runner, "STATE_FILE", tmp_path / "state.json")
     monkeypatch.setattr(runner, "get_work", lambda: claimed.append(1) or [])
-    monkeypatch.setattr(runner.self_update, "update_now", lambda host: True)
+    monkeypatch.setattr(runner, "active_agent_count", lambda api, host: 0)
+    monkeypatch.setattr(runner.self_update, "update_now", lambda host, may_move=None: True)
     monkeypatch.setattr(sys, "argv", ["runner"])
     assert runner.main() == runner.self_update.RESTART_EXIT
     assert claimed == []
 
 
+def _runner_with(monkeypatch, tmp_path, agents):
+    monkeypatch.delenv("MESH_REPO_DIR", raising=False)
+    runner = load_module("mesh_runner_agent_guard", "mesh/runner.py")
+    monkeypatch.setattr(runner, "STATE_FILE", tmp_path / "state.json")
+    monkeypatch.setattr(runner, "get_work", lambda: [])
+    monkeypatch.setattr(runner, "active_agent_count", lambda api, host: agents)
+    monkeypatch.setattr(sys, "argv", ["runner"])
+    return runner
+
+
+class _Stop(Exception):
+    pass
+
+
+def test_no_update_while_an_agent_of_ours_may_still_run(monkeypatch, tmp_path):
+    """An agent the runner could not stop keeps its claim; exiting would orphan it."""
+    for agents in (1, None):  # running, or the fleet could not be read
+        runner = _runner_with(monkeypatch, tmp_path, agents)
+        startup: list = []
+        skips: list = []
+
+        def update_now(host, may_move=None):
+            startup.append(may_move())
+            return False
+
+        monkeypatch.setattr(runner.self_update, "update_now", update_now)
+
+        def idle(*a, skip=False, **k):
+            skips.append(skip)
+            raise _Stop
+
+        monkeypatch.setattr(runner.self_update, "idle_tick", idle)
+        try:
+            runner.main()
+        except _Stop:
+            pass
+        assert startup == [False], agents  # the startup veto refuses the move
+        assert skips == [True], agents
+
+
 def test_dry_run_and_opt_out_never_update(monkeypatch):
     monkeypatch.setattr(su.time, "sleep", lambda s: None)
     monkeypatch.setattr(su, "_last_check", [float("-inf")])
-    monkeypatch.setattr(su, "fast_forward", lambda root: "abc123")
+    monkeypatch.setattr(su, "fast_forward", lambda root, may_move=None: "abc123")
     assert su.idle_tick(lambda *a: None, 1, "node", skip=True) is False
     monkeypatch.setattr(su, "ENABLED", False)
     assert su.idle_tick(lambda *a: None, 1, "node") is False

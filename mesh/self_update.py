@@ -38,7 +38,7 @@ def _clean(root: Path) -> bool:
     return status.returncode == 0 and not status.stdout.strip()
 
 
-def fast_forward(root: Path) -> str | None:
+def fast_forward(root: Path, may_move=None) -> str | None:
     """Move a clean, detached checkout to origin/main when that is a fast-forward.
 
     Returns the new HEAD, or None when nothing moved. Cleanliness is checked again
@@ -56,7 +56,7 @@ def fast_forward(root: Path) -> str | None:
             return None
         if _git(root, "merge-base", "--is-ancestor", head, target).returncode:
             return None
-        if not _clean(root):
+        if not _clean(root) or (may_move and not may_move()):  # asked only when a move is due
             return None
         if _git(root, "checkout", "-q", "--detach", target).returncode:
             return None
@@ -65,15 +65,16 @@ def fast_forward(root: Path) -> str | None:
         return None
 
 
-def update_now(host: str) -> bool:
+def update_now(host: str, may_move=None) -> bool:
     """Fast-forward the runtime now. True means it moved and the runner must restart.
 
     Also run at startup, so a runner relaunched after its MAX_CLAIMS stop (a
-    deliberate cost cap) never claims work on stale code."""
+    deliberate cost cap) never claims work on stale code. `may_move` vetoes the
+    move, e.g. while an agent of this node may still be running."""
     if not ENABLED:
         return False
     _last_check[0] = time.monotonic()
-    head = fast_forward(RUNTIME)
+    head = fast_forward(RUNTIME, may_move)
     if head:
         print(json.dumps({"runner": host, "status": "UPDATED", "head": head}), flush=True)
     return bool(head)
