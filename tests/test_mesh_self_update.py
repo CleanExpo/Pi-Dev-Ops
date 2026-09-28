@@ -142,6 +142,21 @@ def test_a_concurrent_fetch_of_another_branch_cannot_redirect_the_move(tmp_path,
     assert _git(runtime, "rev-parse", "HEAD") == new != other
 
 
+def test_a_branch_checked_out_during_the_fetch_is_not_detached(tmp_path, monkeypatch):
+    _, runtime, old, _ = _fleet(tmp_path)
+
+    def fetch_then_operator_checkout(root, *args):
+        result = _REAL_GIT(root, *args)
+        if args[:1] == ("fetch",):
+            _REAL_GIT(root, "checkout", "-q", "-b", "operator-work", old)
+        return result
+
+    monkeypatch.setattr(su, "_git", fetch_then_operator_checkout)
+    assert su.fast_forward(runtime) is None
+    assert _git(runtime, "symbolic-ref", "--short", "HEAD") == "operator-work"
+    assert _git(runtime, "rev-parse", "HEAD") == old
+
+
 def test_diverged_head_is_not_moved(tmp_path):
     _, runtime, _, _ = _fleet(tmp_path)
     mine = _commit(runtime, "local-only")

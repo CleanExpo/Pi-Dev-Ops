@@ -62,6 +62,10 @@ def fast_forward(root: Path, may_move=None) -> str | None:
             return None
         if not _clean(root) or (may_move and not may_move()):  # asked only when a move is due
             return None
+        # Re-check the shape just before moving: someone may have checked out a branch, or moved HEAD, meanwhile.
+        if _git(root, "symbolic-ref", "-q", "HEAD").returncode != 1 or \
+                _git(root, "rev-parse", "HEAD").stdout.strip() != head:
+            return None
         if _git(root, "checkout", "-q", "--detach", target).returncode:
             return None
         return target
