@@ -231,6 +231,21 @@ def terminal(rec: Optional[RunRecord], plan: dict) -> dict:
     return {"state": plan["state"], **fields(rec, plan)}
 
 
+def finish(*steps: Callable[[], Any]) -> None:
+    """Run every step in order, even when one raises; a failure propagates only after the last step ran.
+
+    The end of a claim is three steps — report the terminal state, remove the
+    worktree, mark the runner idle — and none may be skipped because an earlier
+    one failed.
+    """
+    if not steps:
+        return
+    try:
+        steps[0]()
+    finally:
+        finish(*steps[1:])
+
+
 def remove_worktree(repo_dir: Path, worktree: Path) -> None:
     """`git worktree remove --force`, never raising: cleanup failing must not strand the claim.
 

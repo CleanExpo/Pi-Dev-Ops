@@ -242,11 +242,10 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         rec = run_record.run_agent(
             lambda: [AGENT_CMD, "-p", build_prompt(claim, linear_id, branch)],
             str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent)
-    finally:  # the terminal update goes out whatever raised above — a claim is never left `working`
-        _api("POST", "/api/mesh/claim/update", {
-            "linear_id": linear_id, "branch": branch, **run_record.terminal(rec, plan)})
-        run_record.remove_worktree(repo_dir, worktree)
-        write_state(None, "idle")
+    finally:  # whatever raised above or below: the claim is never left `working`, nor the worktree behind
+        run_record.finish(lambda: _api("POST", "/api/mesh/claim/update", {
+            "linear_id": linear_id, "branch": branch, **run_record.terminal(rec, plan)}),
+            lambda: run_record.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"))
     return plan
 
 
