@@ -231,7 +231,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
             ["git", "-C", str(repo_dir), "worktree", "add", "-b", branch, str(worktree)],
             capture_output=True, text=True, check=False,
         )
-    except OSError:  # git could not even start: still a reported failure, never a stranded claim
+    except Exception:  # noqa: BLE001 — git could not start (OSError) or refused the args (ValueError): report, never strand
         added = types.SimpleNamespace(returncode=-1)
     if getattr(added, "returncode", 0) != 0:  # a failed add can still leave a partial worktree
         run_record.remove_worktree(repo_dir, worktree)

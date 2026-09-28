@@ -9,10 +9,13 @@ removed, and only closed-set facts are sent.
 from __future__ import annotations
 
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+# The real function, captured before any test patches subprocess.run.
+_REAL_RUN = subprocess.run
 sys.path.insert(0, str(REPO_ROOT))
 
 from mesh_helpers import hostile_exception as _hostile  # noqa: E402
@@ -181,4 +184,14 @@ def test_a_record_that_fails_to_report_still_ends_the_claim(monkeypatch, tmp_pat
     runner.run_claim({"linear_id": "UNI-F", "repo_dir": str(repo)}, dry_run=False)
     assert [b["state"] for b in _updates(calls)] == ["working", "done"]
     assert removed, "worktree was not cleaned up"
+
+
+def test_a_claim_id_git_cannot_accept_still_ends_the_claim(monkeypatch, tmp_path):
+    """Round 8: a NUL in the claim id makes the REAL subprocess.run raise ValueError
+    (not OSError) on worktree add, which used to leave the claim `working`."""
+    runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
+    monkeypatch.setattr(runner.subprocess, "run", _REAL_RUN)
+    runner.run_claim({"linear_id": "UNI-\x00BAD", "repo_dir": str(repo)}, dry_run=False)
+    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
+    assert _updates(calls)[-1]["error_code"] == "worktree_add_failed"
 

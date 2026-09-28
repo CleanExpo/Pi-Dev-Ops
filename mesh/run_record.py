@@ -182,11 +182,15 @@ def fields(rec: Optional[RunRecord], plan: dict) -> dict:
 
 
 def remove_worktree(repo_dir: Path, worktree: Path) -> None:
-    """`git worktree remove --force`, never raising: cleanup failing must not strand the claim."""
+    """`git worktree remove --force`, never raising: cleanup failing must not strand the claim.
+
+    Any exception, not only OSError: a claim id with a NUL byte makes subprocess
+    raise ValueError before git ever starts.
+    """
     try:
         subprocess.run(
             ["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],
             capture_output=True, check=False,
         )
-    except OSError:
+    except Exception:  # noqa: BLE001 — cleanup is best-effort; the terminal update is not
         pass
