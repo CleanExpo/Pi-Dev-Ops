@@ -222,7 +222,7 @@ def _loop(monkeypatch, tmp_path, server):
     `time.sleep` raises on the full poll interval, so reaching it IS the
     assertion that the loop chose to back off rather than re-claim.
     """
-    from mesh_helpers import Break, ImmediateProc, load_module
+    from mesh_helpers import SHIPPED, Break, ImmediateProc, load_module
     monkeypatch.delenv("MESH_REPO_DIR", raising=False)
     monkeypatch.delenv("MESH_MAX_CLAIMS", raising=False)
     mod = load_module("mesh_runner_agent_count", "mesh/runner.py")
@@ -234,6 +234,7 @@ def _loop(monkeypatch, tmp_path, server):
     monkeypatch.setattr(mod, "IDLE_RECLAIM_DELAY", 0.01)
     monkeypatch.setattr(mod, "_api", server.api)
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: None)
+    monkeypatch.setattr(mod, "ship_run", SHIPPED)  # RA-7780: shipped
     monkeypatch.setattr(mod.subprocess, "Popen", lambda *a, **k: ImmediateProc())
     sleeps: list[float] = []
 

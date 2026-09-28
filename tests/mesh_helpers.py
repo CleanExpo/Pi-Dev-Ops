@@ -14,6 +14,7 @@ extract rather than shave prose to fit.
 from __future__ import annotations
 
 import importlib.util
+import types
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -110,3 +111,9 @@ class InterruptOnce:
             raise KeyboardInterrupt
 
         return once
+# RA-7780: stands in for `mesh/ship_run.py` in suites that fake `subprocess.run` and
+# are not about shipping. Their fake returns None, which the real module cannot read,
+# and a run must ship before it lands `done`. The module's own behaviour is proven
+# against real git in tests/test_mesh_runner_ships_own_work.py.
+SHIPPED = types.SimpleNamespace(start_point=lambda *a, **k: "0" * 40,
+                                settle=lambda *a, **k: None)

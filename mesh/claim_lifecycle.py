@@ -30,6 +30,14 @@ def add_worktree(repo_dir: Path, branch: str, worktree: Path) -> bool:
     return getattr(added, "returncode", 0) == 0
 
 
+def deliver(settle: Callable[[], None], plan: dict) -> None:
+    """Run RA-7780's ship step. One that raised (a git timeout, say) did not deliver, so the run fails."""
+    try:
+        settle()
+    except Exception:  # noqa: BLE001 — the reason stays local; the server gets the closed-set code
+        plan.update(state="failed", error_code="runner_exception")
+
+
 def remove_worktree(repo_dir: Path, worktree: Path) -> None:
     """`git worktree remove --force`, never raising: cleanup failing must not strand the claim.
 

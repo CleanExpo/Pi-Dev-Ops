@@ -43,7 +43,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 
 from mesh_helpers import Break as _Break  # noqa: E402
-from mesh_helpers import ImmediateProc as _DoneProc  # noqa: E402
+from mesh_helpers import SHIPPED, ImmediateProc as _DoneProc  # noqa: E402
 from mesh_helpers import load_module as _load  # noqa: E402
 
 
@@ -211,6 +211,7 @@ def test_a_working_repo_reports_the_full_working_then_done_sequence(runner, tmp_
     server.claims["UNI-A"] = "claimed"
     runner._api = server.api
     monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: _DoneProc())
+    monkeypatch.setattr(runner, "ship_run", SHIPPED)  # RA-7780: shipped
 
     plan = runner.run_claim({"linear_id": "UNI-A", "repo_dir": str(repo)}, dry_run=False)
 

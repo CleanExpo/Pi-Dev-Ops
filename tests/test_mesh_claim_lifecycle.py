@@ -152,3 +152,27 @@ def test_a_rejected_terminal_update_is_retried(monkeypatch, tmp_path):
         runner.run_claim({"linear_id": "UNI-R", "repo_dir": str(repo)}, dry_run=False)
         assert [b["state"] for b in _updates(calls)] == ["working"] + ["done"] * sent
         assert removed and _state(tmp_path) == "idle"
+
+
+def test_a_ship_that_raises_fails_the_run_and_ships_before_removal(monkeypatch, tmp_path):
+    """RA-7780 inside the protected block: settle() raising must not report `done`,
+    and shipping must happen while the worktree still exists."""
+    import types
+
+    runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
+    monkeypatch.setattr(runner, "AGENT_CMD", "true")
+    order: list = []
+
+    def settle(plan, *_a):
+        order.append("ship")
+        raise subprocess.TimeoutExpired("git", 120)
+
+    real_remove = runner.claim_lifecycle.remove_worktree
+    monkeypatch.setattr(runner, "ship_run", types.SimpleNamespace(
+        start_point=lambda *_a: "0" * 40, settle=settle))
+    monkeypatch.setattr(runner.claim_lifecycle, "remove_worktree",
+                        lambda *a: order.append("remove") or real_remove(*a))
+    plan = runner.run_claim({"linear_id": "UNI-S", "repo_dir": str(repo)}, dry_run=False)
+    assert plan["state"] == "failed"
+    assert _updates(calls)[-1]["state"] == "failed"
+    assert order == ["ship", "remove"]

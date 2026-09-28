@@ -21,6 +21,7 @@ sys.path.insert(0, str(REPO_ROOT))
 import pytest  # noqa: E402
 from mesh_helpers import InterruptOnce, UnprintableError  # noqa: E402
 from mesh_helpers import hostile_exception as _hostile  # noqa: E402
+from mesh_helpers import SHIPPED  # noqa: E402
 from mesh_helpers import load_module as _load  # noqa: E402
 from mesh_helpers import secret_token as _token  # noqa: E402
 from mesh_helpers import server_only_secret as _server_only_secret  # noqa: E402
@@ -32,6 +33,7 @@ def _runner(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "HARD_STOP", tmp_path / "HARD_STOP")
     monkeypatch.setattr(mod, "STATE_FILE", tmp_path / "state.json")
     monkeypatch.setattr(mod, "MESH_KILL_POLL_SECONDS", 0.01)
+    monkeypatch.setattr(mod, "ship_run", SHIPPED)  # shipping is RA-7780's own suite
     removed: list = []
 
     def git(args, **_kw):
