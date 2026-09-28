@@ -178,12 +178,18 @@ class RunRecord:
             raise held[0]
 
     def close(self) -> None:
-        """Close the log. Never raises: a failed flush must not cost the claim its terminal update."""
+        """Close the log. Never raises: a failed flush must not cost the claim its terminal update.
+
+        An interrupt here is held, not lost (review round 19): `release_interrupt`
+        re-raises it once the claim has been reported and cleaned up.
+        """
         try:
             if hasattr(self._log, "close") and not self._log.closed:
                 self._log.close()
         except Exception:  # noqa: BLE001 — any close failure, not only OSError
             pass
+        except BaseException as exc:
+            self.held_interrupt = exc
 
     def fields(self, plan: dict) -> dict:
         """The run-record fields `/api/mesh/claim/update` stores next to the claim state."""
@@ -231,6 +237,14 @@ def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: st
         if rec is not None and not finished:
             rec.stop()
     return rec
+
+
+def release_interrupt(rec: Optional[RunRecord]) -> None:
+    """Re-raise an interrupt that closing the log held, once the claim has ended."""
+    exc = getattr(rec, "held_interrupt", None)
+    if exc is not None:
+        rec.held_interrupt = None
+        raise exc
 
 
 def unreaped(rec: Optional[RunRecord]) -> bool:

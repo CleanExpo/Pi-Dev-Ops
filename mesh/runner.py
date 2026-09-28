@@ -244,7 +244,8 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", {
             "linear_id": linear_id, "branch": branch, **run_record.terminal(rec, plan)}),
             lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
-            agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS)
+            agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS,
+            then=lambda: run_record.release_interrupt(rec))
     return plan
 
 

@@ -82,8 +82,9 @@ def report(send: Callable[[], Any], pause: float) -> bool:
 
 
 def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], None],
-        *, agent_alive: bool, pause: float) -> None:
-    """End a claim: report it, remove its worktree, mark the runner idle.
+        *, agent_alive: bool, pause: float, then: Callable[[], None] = lambda: None) -> None:
+    """End a claim: report it, remove its worktree, mark the runner idle, then run `then`
+    (which re-raises an interrupt held while the claim was ending).
 
     An agent that could not be stopped keeps its claim, its worktree and the
     runner's `working` breadcrumb: reporting the claim terminal would free the
@@ -92,5 +93,5 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
     if agent_alive:
         print("mesh: the agent could not be stopped; its claim and worktree are left in place",
               file=sys.stderr)
-        return
-    finish(lambda: report(send, pause), remove, idle)
+        return then()
+    finish(lambda: report(send, pause), remove, idle, then)

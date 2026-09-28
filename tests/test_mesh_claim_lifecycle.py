@@ -206,3 +206,36 @@ def test_an_interrupt_inside_popen_keeps_the_claim_and_worktree(monkeypatch, tmp
     finally:
         children[0].kill()
         children[0].wait()
+
+
+class _LogThatInterruptsOnClose:
+    """A real log file whose first close() raises KeyboardInterrupt (round 19)."""
+
+    def __init__(self, f):
+        self.f = f
+
+    def fileno(self):
+        return self.f.fileno()
+
+    @property
+    def closed(self):
+        return self.f.closed
+
+    def close(self):
+        self.f.close()
+        raise KeyboardInterrupt
+
+
+def test_an_interrupt_while_closing_the_log_still_reports_the_run(monkeypatch, tmp_path):
+    """Round 19: KeyboardInterrupt closing a finished run's log skipped the terminal update."""
+    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
+    monkeypatch.setattr(runner, "AGENT_CMD", "true")
+    real_open = runner.run_record._open_private
+    monkeypatch.setattr(runner.run_record, "_open_private",
+                        lambda path: _LogThatInterruptsOnClose(real_open(path)))
+    with pytest.raises(KeyboardInterrupt):
+        runner.run_claim({"linear_id": "UNI-L", "repo_dir": str(repo)}, dry_run=False)
+    final = _updates(calls)[-1]
+    assert [b["state"] for b in _updates(calls)] == ["working", "done"]
+    assert final["run_id"] and final["exit_code"] == 0
+    assert removed and _state(tmp_path) == "idle"
