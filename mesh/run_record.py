@@ -134,8 +134,20 @@ class RunRecord:
         self.reaped: Optional[bool] = None  # set by stop(): False = the agent may still be running
 
     def popen(self, cmd: list, cwd: str) -> subprocess.Popen:
-        """Start the agent with stdout and stderr in this run's log."""
-        self.proc = subprocess.Popen(cmd, cwd=cwd, stdout=self._log, stderr=subprocess.STDOUT)
+        """Start the agent with stdout and stderr in this run's log.
+
+        An Exception from Popen means no agent is running: Popen reaps a child
+        that failed to exec. An interrupt can land after the child started but
+        before Popen returned its handle (review round 18), leaving an agent this
+        record cannot see; stop() then reports it as not reaped.
+        """
+        try:
+            self.proc = subprocess.Popen(cmd, cwd=cwd, stdout=self._log, stderr=subprocess.STDOUT)
+        except Exception:
+            raise
+        except BaseException:
+            self.unseen_agent = True
+            raise
         return self.proc
 
     def stop(self) -> None:
@@ -148,6 +160,8 @@ class RunRecord:
         """
         held: list = []
         proc = self.proc
+        if proc is None and getattr(self, "unseen_agent", False):
+            self.reaped = False  # an agent may be running with no handle to stop it
         if proc is not None:
             exited: list = []
             _attempt(lambda: exited.append(proc.poll() is not None), held)

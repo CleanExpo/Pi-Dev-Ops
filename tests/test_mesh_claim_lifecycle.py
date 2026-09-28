@@ -182,3 +182,27 @@ def test_a_ship_that_raises_fails_the_run_and_ships_before_removal(monkeypatch, 
     assert plan["state"] == "failed"
     assert _updates(calls)[-1]["state"] == "failed"
     assert order == ["ship", "remove"]
+
+
+def test_an_interrupt_inside_popen_keeps_the_claim_and_worktree(monkeypatch, tmp_path):
+    """Round 18: an interrupt after the child started but before Popen returned left no handle,
+    so the claim was reported failed and the worktree removed with the agent alive."""
+    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
+    _sleeping_agent(runner, monkeypatch, tmp_path)
+    real_popen = runner.run_record.subprocess.Popen
+    children: list = []
+
+    def popen(*a, **k):
+        children.append(real_popen(*a, **k))
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(runner.run_record.subprocess, "Popen", popen)
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            runner.run_claim({"linear_id": "UNI-P", "repo_dir": str(repo)}, dry_run=False)
+        assert [b["state"] for b in _updates(calls)] == ["working"]
+        assert not removed, "the worktree of an agent with no handle was removed"
+        assert _state(tmp_path) == "working"
+    finally:
+        children[0].kill()
+        children[0].wait()
