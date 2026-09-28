@@ -180,9 +180,10 @@ def test_a_record_that_fails_to_report_still_ends_the_claim(monkeypatch, tmp_pat
         def fields(self, plan):
             raise OSError("log flush failed")
 
-    def run_agent(_make_cmd, _cwd, _base, _run_id, plan, _wait):
+    def run_agent(_make_cmd, _cwd, _base, _run_id, plan, _wait, holder):
         plan["state"] = "done"
-        return Exploding()
+        holder.append(Exploding())
+        return holder[0]
 
     monkeypatch.setattr(runner.run_record, "run_agent", run_agent)
     runner.run_claim({"linear_id": "UNI-F", "repo_dir": str(repo)}, dry_run=False)

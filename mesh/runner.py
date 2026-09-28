@@ -225,21 +225,22 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         return _fail_claim(plan, linear_id, branch, f"repo missing: {repo_dir}")
 
     worktree = Path("/tmp") / f"mesh-{linear_id}-{run_id}"
-    rec = None
+    held: list = []  # the run record, kept even when an interrupt escapes run_agent
     try:  # from `working` on, every way out — even an interrupt — ends the claim in the finally
         write_state(linear_id, "working", session_id=run_id)
         _api("POST", "/api/mesh/claim/update", {
             "linear_id": linear_id, "state": "working", "branch": branch})
         start = ship_run.start_point(repo_dir)  # RA-7780: held where the agent cannot move it
         if claim_lifecycle.add_worktree(repo_dir, branch, worktree):
-            rec = run_record.run_agent(
+            run_record.run_agent(
                 lambda: [AGENT_CMD, "-p", build_prompt(claim, linear_id, branch)],
-                str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent)
+                str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent, held)
             claim_lifecycle.deliver(  # RA-7780: `done` means pushed, checked before the worktree goes
                 lambda: ship_run.settle(plan, start, worktree, branch, linear_id, HOST), plan)
         else:  # a failed add can still leave a partial worktree; the finally removes it
             plan.update(state="failed", error="git worktree add failed")
     finally:
+        rec = held[0] if held else None
         claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", {
             "linear_id": linear_id, "branch": branch, **run_record.terminal(rec, plan)}),
             lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),

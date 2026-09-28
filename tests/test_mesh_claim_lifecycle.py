@@ -106,8 +106,10 @@ class _Unkillable:
         raise OSError("wait failed")
 
 
-def test_an_agent_that_cannot_be_stopped_keeps_its_claim_and_worktree(monkeypatch, tmp_path):
-    """Round 16 P1 4: the claim was reported failed and the worktree removed with the agent alive."""
+@pytest.mark.parametrize("error", [OSError, KeyboardInterrupt])
+def test_an_agent_that_cannot_be_stopped_keeps_its_claim_and_worktree(monkeypatch, tmp_path, error):
+    """Round 16 P1 4: the claim was reported failed and the worktree removed with the agent alive.
+    Round 17: the same when the wait was interrupted, because the record was lost with the raise."""
     runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
     _sleeping_agent(runner, monkeypatch, tmp_path)
     real_popen = runner.run_record.subprocess.Popen
@@ -118,12 +120,16 @@ def test_an_agent_that_cannot_be_stopped_keeps_its_claim_and_worktree(monkeypatc
         return _Unkillable(children[-1])
 
     def broken_wait(_proc, _plan):
-        raise OSError("wait failed")
+        raise error("wait failed")
 
     monkeypatch.setattr(runner.run_record.subprocess, "Popen", popen)
     monkeypatch.setattr(runner, "_wait_for_agent", broken_wait)
     try:
-        runner.run_claim({"linear_id": "UNI-U", "repo_dir": str(repo)}, dry_run=False)
+        if error is KeyboardInterrupt:
+            with pytest.raises(KeyboardInterrupt):
+                runner.run_claim({"linear_id": "UNI-U", "repo_dir": str(repo)}, dry_run=False)
+        else:
+            runner.run_claim({"linear_id": "UNI-U", "repo_dir": str(repo)}, dry_run=False)
         assert children[0].poll() is None, "the planted agent should still be running"
         assert [b["state"] for b in _updates(calls)] == ["working"]
         assert not removed, "a live agent's worktree was removed"

@@ -183,7 +183,8 @@ class RunRecord:
 
 
 def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: str,
-              plan: dict, wait: Callable[[subprocess.Popen, dict], None]) -> Optional[RunRecord]:
+              plan: dict, wait: Callable[[subprocess.Popen, dict], None],
+              holder: Optional[list] = None) -> Optional[RunRecord]:
     """Build the record and the command, run the agent; return the record, or None.
 
     Never raises an Exception. Any failure — building the record, building the
@@ -192,12 +193,16 @@ def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: st
     cleanup. An interrupt (KeyboardInterrupt, SystemExit) is not swallowed: the
     agent is stopped and reaped first, then the interrupt propagates, so the
     caller's cleanup never runs while the agent is still executing. The stop
-    sits in `finally`, so nothing a handler does can skip it.
+    sits in `finally`, so nothing a handler does can skip it. The record is
+    appended to `holder` as soon as it exists, so a caller whose call is cut
+    short by an interrupt still learns whether the agent was reaped.
     """
     rec = None
     finished = False
     try:
         rec = RunRecord(run_id, base_dir)
+        if holder is not None:
+            holder.append(rec)
         wait(rec.popen(make_cmd(), cwd), plan)
         finished = True
     except Exception as exc:  # noqa: BLE001 — reported as the claim's failure, never re-raised
