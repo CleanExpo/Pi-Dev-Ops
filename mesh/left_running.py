@@ -61,16 +61,38 @@ def _save(pids: list) -> None:
     os.replace(tmp, PATH)
 
 
+_UNRECORDED = [False]  # a record this process could not write: block for its lifetime
+
+
+def _writable() -> bool:
+    """The record can be written here; if not, its absence proves nothing."""
+    probe = PATH.with_suffix(".probe")
+    try:
+        PATH.parent.mkdir(parents=True, exist_ok=True)
+        probe.write_text("")
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
 def track(rec) -> None:
-    """Record an agent whose stop could not be proven (`reaped is False`)."""
+    """Record an agent whose stop could not be proven (`reaped is False`). Never raises:
+    it runs in the claim's cleanup path, which must still end the claim."""
     if rec is None or getattr(rec, "reaped", None) is not False:
         return
     proc = getattr(rec, "proc", None)
-    _save(_load() + [int(getattr(proc, "pid", 0) or 0)])
+    try:
+        _save(_load() + [int(getattr(proc, "pid", 0) or 0)])
+    except (OSError, ValueError, TypeError):
+        _UNRECORDED[0] = True
 
 
 def any_alive() -> bool:
-    """True while any recorded agent may still be running. Prunes the ones proven gone."""
+    """True while any recorded agent may still be running. Prunes the ones proven gone.
+    An unwritable record counts as alive: a relaunched runner could not have seen it."""
+    if _UNRECORDED[0] or not _writable():
+        return True
     pids = _load()
     live = [p for p in pids if _alive(p)]
     if pids and len(live) != len(pids):

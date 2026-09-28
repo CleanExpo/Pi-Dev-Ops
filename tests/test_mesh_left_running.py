@@ -87,6 +87,17 @@ def test_the_record_outlives_the_runner_process(tmp_path):
         child.wait()
 
 
+def test_an_unwritable_record_never_raises_and_blocks(monkeypatch, tmp_path):
+    """track() runs in claim cleanup: it must not raise, and an unwritable record proves nothing."""
+    blocker = tmp_path / "not-a-dir"
+    blocker.write_text("")
+    monkeypatch.setattr(left_running, "PATH", blocker / "left.json")  # parent is a file: every write fails
+    monkeypatch.setattr(left_running, "_UNRECORDED", [False])
+    assert left_running.any_alive() is True  # a relaunched runner: nothing recorded, nothing writable
+    left_running.track(type("Rec", (), {"reaped": False, "proc": None})())  # must not raise
+    assert left_running._UNRECORDED[0] is True
+
+
 def test_an_unreadable_or_handle_less_record_blocks(tmp_path):
     left_running.PATH.write_text("{not json")
     assert left_running.any_alive() is True
