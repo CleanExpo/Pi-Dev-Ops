@@ -155,3 +155,17 @@ def test_a_checkout_that_claims_success_without_moving_head_is_not_an_update(tmp
         return subprocess.run(cmd, *a, **k)
     assert su.Updater(runtime, "claude", run=run).try_update() == "update failed: checkout"
     assert git(runtime, "rev-parse", "HEAD") == old
+
+
+def test_a_checkout_that_moves_head_and_then_fails_is_undone(tmp_path):
+    """A failed forward checkout can still have moved HEAD; it must go back."""
+    origin, runtime, old = origin_and_runtime(tmp_path)
+    new = commit_preflight(origin, 0, "ok")
+
+    def run(cmd, *a, **k):
+        done = subprocess.run(cmd, *a, **k)
+        if "checkout" in cmd and cmd[-1] == new:
+            return subprocess.CompletedProcess(cmd, 1, done.stdout, "planted failure after moving")
+        return done
+    assert su.Updater(runtime, "claude", run=run).try_update() == "update failed: checkout"
+    assert git(runtime, "rev-parse", "HEAD") == old

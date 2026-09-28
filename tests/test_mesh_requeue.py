@@ -33,7 +33,9 @@ class _Sb:
         params = dict(urllib.parse.parse_qsl(query))
         if params.get("linear_id") != f"eq.{row['linear_id']}":
             return False
-        return all(params[k] == f"eq.{row[k]}" for k in ("machine", "id") if k in params)
+        # Every other eq-filter applies to the row as PostgREST would, so a filter the
+        # route adds (a column this fake does not know, say) narrows the match here too.
+        return all(v == f"eq.{row.get(k)}" for k, v in params.items() if k not in ("linear_id", "state"))
 
     def __call__(self, method, path, payload=None, prefer=""):
         if method == "POST" and path.startswith("mesh_work_claims"):
