@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, mesh_fleet, mesh_lanes, mesh_reaper, mesh_run_record
+from .. import config, mesh_fleet, mesh_lanes, mesh_reaper, mesh_requeue, mesh_run_record
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -364,17 +364,13 @@ def claim_update(
     mesh_run_record.require_stored(status)
     # return=representation: a 0-row match (claim already done/absent — e.g. the
     # reaper released it and another runner re-claimed) still 2xxs, so gate the
-    # reversal on rows actually returned or a stale runner's `released` would
-    # yank a freshly re-claimed ticket back to Todo.
-    if u.state == "released" and status < 300 and mesh_fleet.parse_rows(body)[0]:
-        # A HARD_STOP-released claim must return its Linear issue to the
-        # unstarted pool, same as a reaped claim — otherwise it strands
-        # In Progress forever even though the mesh_work_claims row is freed.
-        # Best-effort: a Linear failure here must never fail the claim update.
-        try:
-            _mark_issue_reaped(u.linear_id)
-        except Exception:  # noqa: BLE001
-            log.warning("claim_update: Linear reversal failed for %s", u.linear_id, exc_info=True)
+    # reversal on rows actually returned or a stale runner's `released`/`failed`
+    # would yank a freshly re-claimed ticket back to Todo. A HARD_STOP-released
+    # or failed claim returns its issue to the pool (RA-7802: failed ones too).
+    rows = mesh_fleet.parse_rows(body)[0] if status < 300 else []
+    if u.state in ("released", "failed") and rows:
+        mesh_requeue.after_terminal(u.state, u.linear_id, rows[0], u.error_code,
+                                    _mark_issue_reaped, _linear_graphql)
     idea_id = mesh_lanes.attach_packet(u.linear_id, u.state, u, body) if status < 300 else None
     return {"ok": True, "linear_id": u.linear_id, "state": u.state, **({"idea_id": idea_id} if idea_id else {})}
 
@@ -421,7 +417,7 @@ def claim_self(
     _check_secret(x_pi_ceo_secret)
     _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before self-claiming
     nodes = _linear_graphql(mesh_lanes.SELF_CLAIM_QUERY).get("issues", {}).get("nodes", [])
-    for tk in mesh_lanes.ranked(nodes, _open_claim_ids()):
+    for tk in mesh_lanes.ranked(nodes, _open_claim_ids() | mesh_requeue.failed_here(_get, body.host)):
         ident = tk["identifier"]
         status, _ = _sb("POST", "mesh_work_claims",
                         {"linear_id": ident, "machine": body.host, "state": "claimed"},
