@@ -1,8 +1,42 @@
 {
   "schema": "done/1",
-  "criterion_evidence": "UNPROVEN",
-  "verification_status": "NOT_RUN",
+  "criterion_evidence": "PROVEN",
+  "verification_status": "PASS",
   "delivery_status": "NOT_STARTED",
-  "verified_head": null,
-  "updated_at_utc": "2026-09-28T23:00:08Z"
+  "verified_head": "8b8fd342d58e9e0971ef3f1ae3853bb1e6439c75",
+  "updated_at_utc": "2026-09-28T23:03:17Z",
+  "last_verify": {
+    "head": "8b8fd342d58e9e0971ef3f1ae3853bb1e6439c75",
+    "at_utc": "2026-09-28T23:03:17Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "python3 .claude/done/work/w_420c44626679/check_scope.py c1",
+        "exit_code": 0,
+        "output_digest": "4438f17ac09c5f914c64c03434d10926243d219a8a1cb28e3ead072f982d1a32",
+        "output_tail": "PASS: deny list has the merge rule"
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "python3 .claude/done/work/w_420c44626679/check_deny.py",
+        "exit_code": 0,
+        "output_digest": "3d348581a11658d930c566810803295b45b999bb1c4b7cd1ed9b960ef119015e",
+        "output_tail": "mission denied. The `gh pr merge` command requires explicit approval, which I don't have. This is a safety measure to prevent unauthorized merges to repositories.  If you want to allow this command, you'll need to upd\nPASS: refused by permissions: {\"command\": \"gh pr merge 999999 --repo CleanExpo/Pi-Dev-Ops --squash\", \"description\": \"Attempt to merge PR 999999 in CleanExpo/Pi-Dev-Ops using squash\"}"
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "python3 .claude/done/work/w_420c44626679/check_scope.py c3",
+        "exit_code": 0,
+        "output_digest": "14e91f850b52a667aa32d2f2145b6633e3e49939594d51fc331977070dea684b",
+        "output_tail": "PASS: added=['Bash(gh pr merge:*)'] removed=[] other_keys_equal=True"
+      }
+    ],
+    "blockers": []
+  }
 }
