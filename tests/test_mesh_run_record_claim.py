@@ -236,6 +236,13 @@ def test_the_terminal_update_goes_out_even_if_run_agent_itself_raises(monkeypatc
     assert removed, "worktree was not cleaned up"
 
 
+def _sleeping_agent(runner, monkeypatch, tmp_path):
+    agent = tmp_path / "agent"
+    agent.write_text("#!/bin/sh\nexec sleep 30\n")
+    agent.chmod(0o755)
+    monkeypatch.setattr(runner, "AGENT_CMD", str(agent))
+
+
 @pytest.mark.parametrize("error, escapes, interrupt_in", [
     (KeyboardInterrupt, KeyboardInterrupt, None),
     (UnprintableError, None, None),
@@ -243,14 +250,10 @@ def test_the_terminal_update_goes_out_even_if_run_agent_itself_raises(monkeypatc
 ])
 def test_a_wait_failure_ends_the_claim_with_the_agent_dead_before_cleanup(
         monkeypatch, tmp_path, error, escapes, interrupt_in):
-    """Rounds 12-14, end to end: an interrupt, an exception whose str() raises, or an
-    interrupt during shutdown itself must not let the terminal update or worktree
-    removal happen while the agent runs."""
+    """Rounds 12-14, end to end: an interrupt, an unprintable exception, or an interrupt
+    during shutdown must not let the claim end or the worktree go while the agent runs."""
     runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
-    agent = tmp_path / "agent"
-    agent.write_text("#!/bin/sh\nexec sleep 30\n")
-    agent.chmod(0o755)
-    monkeypatch.setattr(runner, "AGENT_CMD", str(agent))
+    _sleeping_agent(runner, monkeypatch, tmp_path)
     started: list = []
     alive_at: dict = {}
 
