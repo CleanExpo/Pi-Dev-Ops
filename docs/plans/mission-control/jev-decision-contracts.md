@@ -40,7 +40,7 @@ will do by hand across hundreds of journeys a night.
 | Freshness | A label is valid only for the run ID and deployed SHA it was computed on |
 | Fallback | Missing, invalid or low-confidence output → label `NOT_EVALUATED`; the run's grade is unaffected |
 | Retention | JSONL alongside the run receipt: run ID, SHA, surface, contract, model ID returned, probabilities, confidence |
-| Budget | Hard stop at $4.00/day computed from input tokens sent (leaves $1 of the $5 ceiling); counted before each call |
+| Budget | **No daily cap** — founder decision 28 Sept 2026 ("lift the cap on JEV … while we are using the system heavy"). Spend is still recorded per UTC day in the ledger and printed after every run; `JEV_DAILY_CAP_USD` (or `--daily-cap`) reinstates a stop without a code change |
 | Mode | Shadow first: labels recorded, nobody acts on them, for 7 nightly runs; then compared against human/Claude review of the same snapshots before labels drive the triage order |
 
 ## J1 — What did the user actually see? (Choice)
@@ -83,7 +83,7 @@ Use: weekly ranking of which surfaces need more checks. Advisory input to the pl
 
 A nightly run of ≈200 journeys × J1 + failures × J2 + 7 × J3 ≈ 220–600 calls. At a typical
 8k-token state: 600 × 8,000 = 4.8M input tokens × $0.042/M ≈ **$0.20 per night**. Scaling to
-"thousands" (5,000 calls/day at 8k) ≈ $1.68/day, inside the ceiling. Rate limit (1,200/min) is not
+"thousands" (5,000 calls/day at 8k) ≈ $1.68/day. The cap is lifted (see Budget), so volume is limited only by the rate limit. Rate limit (1,200/min) is not
 a constraint at these volumes.
 
 ## Where it runs

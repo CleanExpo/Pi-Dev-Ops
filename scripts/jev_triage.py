@@ -11,7 +11,8 @@ instructions, criteria}}} -> {model, answers:{id:{...}}, usage:{input_tokens}}.
 Safety rails, all enforced before any byte leaves the machine:
   * secrets and PII are redacted (swarm.tmux_validator + swarm.pii_redactor);
   * state is truncated to MAX_STATE_TOKENS (Jev allows 32k for state + longest question);
-  * a per-UTC-day ledger stops calls once DAILY_CAP_USD would be exceeded;
+  * a per-UTC-day ledger records spend, and stops calls only if a cap is set
+    (JEV_DAILY_CAP_USD or --daily-cap; uncapped by founder decision 2026-09-28);
   * --dry-run (the default) prints request bodies and sends nothing.
 
 Usage:
@@ -41,7 +42,9 @@ log = logging.getLogger("jev_triage")
 ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
 PRICE_PER_MTOK_INPUT = 0.042  # docs.typesafe.ai/models, 2026-09-28; output tokens are free
-DAILY_CAP_USD = 4.00          # leaves $1 of the standing $5/day metered ceiling
+# Founder decision 2026-09-28: no daily cap on Jev while the system is used heavily.
+# Spend is still recorded per day; set JEV_DAILY_CAP_USD to reinstate a cap.
+DAILY_CAP_USD: float | None = None
 MAX_STATE_TOKENS = 24_000
 
 Transport = Callable[[dict, str], dict]
@@ -108,13 +111,15 @@ def build_body(snap: dict) -> dict:
 class Ledger:
     """Per-UTC-day spend, persisted so separate runs on one day share the cap."""
 
-    def __init__(self, path: Path, today: str) -> None:
-        self.path, self.today = path, today
+    def __init__(self, path: Path, today: str, cap: float | None = DAILY_CAP_USD) -> None:
+        self.path, self.today, self.cap = path, today, cap
         data = json.loads(path.read_text()) if path.exists() else {}
         self.spent = float(data.get(today, 0.0))
 
     def allows(self, tokens: int) -> bool:
-        return self.spent + tokens * PRICE_PER_MTOK_INPUT / 1e6 <= DAILY_CAP_USD
+        if self.cap is None:
+            return True
+        return self.spent + tokens * PRICE_PER_MTOK_INPUT / 1e6 <= self.cap
 
     def record(self, tokens: int) -> None:
         self.spent += tokens * PRICE_PER_MTOK_INPUT / 1e6
@@ -175,6 +180,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--out", type=Path, default=Path("jev-labels.jsonl"))
     p.add_argument("--ledger", type=Path, default=Path(".harness/jev-spend.json"))
     p.add_argument("--live", action="store_true", help="send requests (default: dry run)")
+    p.add_argument("--daily-cap", type=float, default=None,
+                   help="USD/day stop; default JEV_DAILY_CAP_USD env, else no cap")
     a = p.parse_args(argv)
     snaps = [json.loads(line) for line in a.snapshots.read_text().splitlines() if line.strip()]
     key = os.environ.get("TYPESAFE_API_KEY", "").strip()
@@ -182,10 +189,12 @@ def main(argv: list[str] | None = None) -> int:
         print("TYPESAFE_API_KEY is not set; refusing a live run.", file=sys.stderr)
         return 2
     a.ledger.parent.mkdir(parents=True, exist_ok=True)
-    ledger = Ledger(a.ledger, datetime.now(UTC).date().isoformat())
+    env_cap = os.environ.get("JEV_DAILY_CAP_USD", "").strip()
+    cap = a.daily_cap if a.daily_cap is not None else (float(env_cap) if env_cap else DAILY_CAP_USD)
+    ledger = Ledger(a.ledger, datetime.now(UTC).date().isoformat(), cap)
     n = run(snaps, a.out, ledger, http_transport if a.live else None, key)
-    print(f"wrote {n} advisory labels; spent today ${ledger.spent:.4f} of ${DAILY_CAP_USD:.2f}",
-          file=sys.stderr)
+    cap_txt = "no cap" if cap is None else f"cap ${cap:.2f}"
+    print(f"wrote {n} advisory labels; spent today ${ledger.spent:.4f} ({cap_txt})", file=sys.stderr)
     return 0
 
 

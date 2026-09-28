@@ -57,9 +57,15 @@ def test_live_label_is_advisory_and_spend_is_recorded(tmp_path):
     assert saved["2026-09-28"] == round(1000 * jt.PRICE_PER_MTOK_INPUT / 1e6, 6)
 
 
-def test_budget_stop_prevents_the_call(tmp_path):
-    (tmp_path / "spend.json").write_text(json.dumps({"2026-09-28": jt.DAILY_CAP_USD}))
+def test_uncapped_by_default_still_records_spend(tmp_path):
+    (tmp_path / "spend.json").write_text(json.dumps({"2026-09-28": 1000.0}))
     ledger = jt.Ledger(tmp_path / "spend.json", "2026-09-28")
+    assert jt.DAILY_CAP_USD is None and ledger.allows(10_000_000)
+
+
+def test_an_explicit_cap_stops_the_call(tmp_path):
+    (tmp_path / "spend.json").write_text(json.dumps({"2026-09-28": 4.0}))
+    ledger = jt.Ledger(tmp_path / "spend.json", "2026-09-28", cap=4.0)
     transport, calls = _fake({"choice": "REAL_DATA"})
     assert jt.evaluate(_snap(), ledger, transport, "k")["status"] == "BUDGET_STOP"
     assert calls == []
