@@ -8,8 +8,8 @@
 -- `app/server/mesh_run_record.patch_claim` keeps storing the state change when
 -- these columns are absent, so the server can deploy before this is applied.
 --
--- No free text is stored: `error_code` is a fixed vocabulary (agent_exit,
--- timeout, repo_missing, worktree_add_failed, runner_exception[:ClassName]),
+-- No free text is stored: `error_code` is one of six literals (agent_exit,
+-- timeout, repo_missing, worktree_add_failed, runner_exception, runner_exception_os),
 -- validated by app/server/mesh_run_record.py. The agent's transcript and the
 -- full error text stay on the node that ran it (see mesh/run_record.py).
 -- RLS and the service_only policy from 0001 cover the new columns: they are

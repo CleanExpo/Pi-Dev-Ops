@@ -226,17 +226,20 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     _api("POST", "/api/mesh/claim/update", {
         "linear_id": linear_id, "state": "working", "branch": branch})
     worktree = Path("/tmp") / f"mesh-{linear_id}-{run_id}"
-    added = subprocess.run(
-        ["git", "-C", str(repo_dir), "worktree", "add", "-b", branch, str(worktree)],
-        capture_output=True, text=True, check=False,
-    )
+    try:
+        added = subprocess.run(
+            ["git", "-C", str(repo_dir), "worktree", "add", "-b", branch, str(worktree)],
+            capture_output=True, text=True, check=False,
+        )
+    except OSError:  # git could not even start: still a reported failure, never a stranded claim
+        added = types.SimpleNamespace(returncode=-1)
     if getattr(added, "returncode", 0) != 0:
         return _fail_claim(plan, linear_id, branch, "git worktree add failed")
 
-    prompt = build_prompt(claim, linear_id, branch)
     try:
-        rec = run_record.run_agent([AGENT_CMD, "-p", prompt], str(worktree),
-                                   STATE_FILE.parent, run_id, plan, _wait_for_agent)
+        rec = run_record.run_agent(
+            lambda: [AGENT_CMD, "-p", build_prompt(claim, linear_id, branch)],
+            str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent)
     finally:
         subprocess.run(
             ["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],

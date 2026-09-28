@@ -15,7 +15,8 @@ the wire in every free-text field tried: first a redacted log tail, then a
 redacted error string. The cause is structural — a node can only load the
 transcript secret bank, the server knows more shapes, and text the node cannot
 recognise goes out raw. So the node sends facts, not prose: run id, duration,
-exit code, and an `error_code` from the fixed vocabulary below. The full log and
+exit code, and an `error_code` from the closed set below. Not even an
+exception's class name is sent: a class can be named anything. The full log and
 the full error text stay here, at `~/.claude/mesh-runs/<run_id>.log` (0600).
 Shipping a log tail safely is UNI-2800.
 """
@@ -37,13 +38,13 @@ _ERROR_CODES = (
 
 
 def error_code(plan: dict) -> Optional[str]:
-    """The fixed-vocabulary code for this plan's failure, or None when it did not fail.
+    """The closed-set code for this plan's failure, or None when it did not fail.
 
-    An exception is sent as its class name only (`runner_exception:OSError`),
-    never its message, which is where paths and secrets live.
+    An exception is sent as `runner_exception_os` or `runner_exception`, never
+    its message or its class name: both are free text somebody else chose.
     """
-    if plan.get("error_type"):
-        return f"runner_exception:{plan['error_type']}"
+    if plan.get("error_code"):
+        return plan["error_code"]
     text = plan.get("error")
     if not text:
         return None
@@ -117,22 +118,22 @@ class RunRecord:
         }
 
 
-def run_agent(cmd: list, cwd: str, base_dir: Path, run_id: str, plan: dict,
-              wait: Callable[[subprocess.Popen, dict], None]) -> Optional[RunRecord]:
-    """Build the record and run the agent under it; return the record, or None.
+def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: str,
+              plan: dict, wait: Callable[[subprocess.Popen, dict], None]) -> Optional[RunRecord]:
+    """Build the record and the command, run the agent; return the record, or None.
 
-    Never raises. Any failure, including building the record itself, lands in
-    `plan` as a failed state with its error, so the caller always reaches its
-    terminal claim update and worktree cleanup.
+    Never raises. Any failure — building the record, building the command (the
+    prompt), starting or waiting on the agent — lands in `plan` as a failed
+    state, so the caller always reaches its terminal claim update and cleanup.
     """
     rec = None
     try:
         rec = RunRecord(run_id, base_dir)
-        wait(rec.popen(cmd, cwd), plan)
+        wait(rec.popen(make_cmd(), cwd), plan)
     except Exception as exc:  # noqa: BLE001 — reported as the claim's failure, never re-raised
         plan["state"] = "failed"
         plan["error"] = str(exc)
-        plan["error_type"] = type(exc).__name__
+        plan["error_code"] = "runner_exception_os" if isinstance(exc, OSError) else "runner_exception"
     return rec
 
 

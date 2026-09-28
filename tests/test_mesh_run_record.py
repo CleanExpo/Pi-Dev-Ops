@@ -60,9 +60,25 @@ def test_each_runner_failure_maps_to_a_fixed_code():
     assert rr.error_code({}) is None
 
 
-def test_an_exception_is_sent_as_its_class_name_only():
-    plan = {"error": "Popen setup failed: " + _server_only_secret(), "error_type": "OSError"}
-    assert rr.error_code(plan) == "runner_exception:OSError"
+def _hostile(base):
+    """An exception class whose NAME is the secret (round 5's reproduction)."""
+    return type("SECRET_QWERTY_12345", (base,), {})
+
+
+def test_an_exception_sends_neither_its_message_nor_its_class_name(tmp_path):
+    for base, code in ((OSError, "runner_exception_os"), (Exception, "runner_exception")):
+        plan: dict = {}
+
+        def raise_hostile(*_a, _base=base, **_k):
+            raise _hostile(_base)("Popen setup failed: " + _server_only_secret())
+
+        rec = rr.run_agent(raise_hostile, str(tmp_path), tmp_path, "run9", plan, lambda *_: None)
+        sent = rr.fields(rec, plan)
+        assert sent["error_code"] == code
+        assert plan["state"] == "failed"
+        for leaked in ("SECRET_QWERTY", "qwertyuiop"):
+            assert leaked not in repr(sent), leaked
+        assert "error_code" in srv.record_patch(srv.RunRecordFields(error_code=sent["error_code"]))
 
 
 def test_only_facts_are_sent(tmp_path):
@@ -140,15 +156,18 @@ def test_an_unopenable_log_still_runs_and_reports(tmp_path):
 
 
 def test_the_server_stores_known_shapes():
-    patch = srv.record_patch(srv.RunRecordFields(
-        run_id="0a1b2c3d", duration_s=1.5, exit_code=3, error_code="runner_exception:OSError"))
-    assert patch == {"run_id": "0a1b2c3d", "duration_s": 1.5, "exit_code": 3,
-                     "error_code": "runner_exception:OSError"}
+    for code in ("agent_exit", "timeout", "repo_missing", "worktree_add_failed",
+                 "runner_exception", "runner_exception_os"):
+        patch = srv.record_patch(srv.RunRecordFields(
+            run_id="0a1b2c3d", duration_s=1.5, exit_code=3, error_code=code))
+        assert patch == {"run_id": "0a1b2c3d", "duration_s": 1.5, "exit_code": 3,
+                         "error_code": code}
 
 
 def test_the_server_drops_anything_that_is_not_a_known_shape():
     for bad in ("agent_exit " + _token(), "boom " + _token(), _server_only_secret(),
-                "runner_exception:" + "Bad-Name", "runner_exception:" + "x" * 41, "agent_exit\n"):
+                "runner_exception:" + "SECRET_QWERTY_12345", "agent_exit:" + "SECRET_QWERTY_12345",
+                "runner_exception:OSError", "agent_exit\n", "AGENT_EXIT"):
         assert "error_code" not in srv.record_patch(srv.RunRecordFields(error_code=bad)), bad
     for bad_id in (_token(), "../../etc", "ZZZZZZZZ"):
         assert "run_id" not in srv.record_patch(srv.RunRecordFields(run_id=bad_id)), bad_id
@@ -251,8 +270,35 @@ def test_a_record_that_cannot_be_built_still_ends_the_claim(monkeypatch, tmp_pat
     runner.run_claim({"linear_id": "UNI-Z", "repo_dir": str(repo)}, dry_run=False)
 
     assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
-    assert _updates(calls)[-1]["error_code"] == "runner_exception:OSError"
+    assert _updates(calls)[-1]["error_code"] == "runner_exception_os"
     assert "qwertyuiop" not in repr(calls)
+    assert removed, "worktree was not cleaned up"
+
+
+def test_git_that_cannot_start_still_ends_the_claim(monkeypatch, tmp_path):
+    """Round 5: an OSError spawning `git worktree add` used to leave the claim `working`."""
+    runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
+
+    def no_git(args, **_kw):
+        raise OSError("git spawn failed")
+
+    monkeypatch.setattr(runner.subprocess, "run", no_git)
+    runner.run_claim({"linear_id": "UNI-G", "repo_dir": str(repo)}, dry_run=False)
+    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
+    assert _updates(calls)[-1]["error_code"] == "worktree_add_failed"
+
+
+def test_a_prompt_that_cannot_be_built_still_ends_the_claim(monkeypatch, tmp_path):
+    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
+
+    def bad_prompt(*_a, **_k):
+        raise _hostile(ValueError)("brief carried " + _server_only_secret())
+
+    monkeypatch.setattr(runner, "build_prompt", bad_prompt)
+    runner.run_claim({"linear_id": "UNI-P", "repo_dir": str(repo)}, dry_run=False)
+    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
+    assert _updates(calls)[-1]["error_code"] == "runner_exception"
+    assert "qwertyuiop" not in repr(calls) and "SECRET_QWERTY" not in repr(calls)
     assert removed, "worktree was not cleaned up"
 
 

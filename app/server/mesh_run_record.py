@@ -3,7 +3,7 @@
 The runner (`mesh/run_record.py`) keeps the transcript and the full error text on
 its own machine and sends only facts. Four review rounds found secrets crossing
 in every free-text field tried, so nothing here accepts free text: `error_code`
-must match the runner's fixed vocabulary, `run_id` must be the runner's hex id,
+must be one of the runner's six literal codes, `run_id` must be the runner's hex id,
 and anything else is dropped rather than stored. There is no redaction pass,
 because there is nothing left that could need one.
 
@@ -27,11 +27,10 @@ from pydantic import BaseModel
 
 log = logging.getLogger("pi-ceo.mesh_run_record")
 
-# Mirrors `mesh/run_record._ERROR_CODES` plus the exception form. The exception
-# suffix is a Python class name, which the runner takes from code, not data.
-_ERROR_CODE = re.compile(
-    r"(agent_exit|timeout|repo_missing|worktree_add_failed|runner_exception)"
-    r"(:[A-Za-z_][A-Za-z0-9_]{0,39})?")
+# Mirrors `mesh/run_record`: a closed set of literals. No suffix, no pattern —
+# an exception class name is text somebody chose, and it once carried a secret.
+_ERROR_CODES = frozenset({"agent_exit", "timeout", "repo_missing", "worktree_add_failed",
+                          "runner_exception", "runner_exception_os"})
 _RUN_ID = re.compile(r"[0-9a-f]{8,32}")
 # PostgREST's "column not in schema cache" code, and Postgres's undefined_column.
 _MISSING_COLUMN = ("PGRST204", "42703")
@@ -62,7 +61,7 @@ def record_patch(fields: RunRecordFields) -> dict[str, Any]:
         patch["duration_s"] = fields.duration_s
     if fields.exit_code is not None:
         patch["exit_code"] = fields.exit_code
-    if fields.error_code and _ERROR_CODE.fullmatch(fields.error_code):
+    if fields.error_code in _ERROR_CODES:
         patch["error_code"] = fields.error_code
     return patch
 
