@@ -86,3 +86,43 @@ def test_the_heartbeat_reports_the_runner_version_and_its_gate():
     assert hb.node_status([], crumb) == "quarantined"
     assert hb.node_status([{"runtime": "claude"}], {"state": "idle"}) == "working"
     assert hb.node_version({}) == "nexus-mesh/0.1"
+
+
+def _failing(target: str, *, raises: type[Exception] | None = None):
+    """A real `subprocess.run`, except a `git checkout` of `target`, or running the
+    program `target`, fails the way a locked index or a missing file would."""
+    def run(cmd, *a, **k):
+        hit = cmd[-1] == target and "checkout" in cmd or cmd[0] == target
+        if hit and raises:
+            raise raises("planted")
+        if hit:
+            return subprocess.CompletedProcess(cmd, 1, "", "planted")
+        return subprocess.run(cmd, *a, **k)
+    return run
+
+
+def test_a_rollback_that_fails_says_stuck_never_rolled_back(tmp_path):
+    """Codex round 1: the rollback exit was ignored, so a runtime left on the
+    rejected commit still reported "rolled back"."""
+    origin, runtime, old = origin_and_runtime(tmp_path)
+    commit_preflight(origin, 1, "agent could not write a file")
+    outcome = su.Updater(runtime, "claude", run=_failing(old)).try_update()
+    assert outcome.startswith("stuck:"), outcome
+    assert git(runtime, "rev-parse", "HEAD") != old  # the planted fault really held
+
+
+def test_a_failed_forward_checkout_returns_to_the_old_commit(tmp_path):
+    origin, runtime, old = origin_and_runtime(tmp_path)
+    new = commit_preflight(origin, 0, "ok")
+    assert su.Updater(runtime, "claude", run=_failing(new)).try_update() == "update failed: checkout"
+    assert git(runtime, "rev-parse", "HEAD") == old
+
+
+def test_a_preflight_that_cannot_start_rolls_back(tmp_path):
+    """An OSError starting the new preflight escaped to try_update, which said
+    "update failed" while HEAD stayed on the unproven commit."""
+    origin, runtime, old = origin_and_runtime(tmp_path)
+    commit_preflight(origin, 0, "ok")
+    outcome = su.Updater(runtime, "claude", run=_failing(sys.executable, raises=OSError)).try_update()
+    assert outcome.startswith("rolled back:"), outcome
+    assert git(runtime, "rev-parse", "HEAD") == old

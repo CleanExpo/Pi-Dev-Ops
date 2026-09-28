@@ -359,7 +359,7 @@ def claim_update(
     if u.state in ("done", "released", "failed"):
         patch["released_at"] = datetime.now(timezone.utc).isoformat()
     status, body = mesh_run_record.patch_claim(_sb, "PATCH",
-        f"mesh_work_claims?linear_id=eq.{urllib.parse.quote(u.linear_id)}&state=in.(claimed,working)",
+        mesh_requeue.claim_filter(u.linear_id, u.state, u.host, u.branch),
         patch, fields=u, prefer="return=representation")
     mesh_run_record.require_stored(status)
     # return=representation: a 0-row match (claim already done/absent — e.g. the
@@ -368,7 +368,7 @@ def claim_update(
     # would yank a freshly re-claimed ticket back to Todo. A HARD_STOP-released
     # or failed claim returns its issue to the pool (RA-7802: failed ones too).
     rows = mesh_fleet.parse_rows(body)[0] if status < 300 else []
-    if u.state in ("released", "failed") and rows:
+    if u.state in ("released", "failed") and rows and mesh_requeue.owns(rows[0], u.host):
         mesh_requeue.after_terminal(u.state, u.linear_id, rows[0], u.error_code,
                                     _mark_issue_reaped, _linear_graphql)
     idea_id = mesh_lanes.attach_packet(u.linear_id, u.state, u, body) if status < 300 else None

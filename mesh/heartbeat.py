@@ -230,7 +230,7 @@ def running_agent_sessions() -> list[dict]:
 
 def node_status(agents: list, crumb: dict) -> str:
     """A runner that has gated itself says so, above working/online (RA-7802)."""
-    if crumb.get("state") in ("blocked", "quarantined"):
+    if crumb.get("state") in ("blocked", "quarantined", "stuck"):
         return crumb["state"]
     return "working" if agents else "online"
 

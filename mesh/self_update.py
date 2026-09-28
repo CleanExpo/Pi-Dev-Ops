@@ -12,6 +12,9 @@ claim while the Macs ran another. Now, every CHECK_SECONDS while idle:
      must import and pass on this machine's OS;
   5. pass: the caller exits non-zero and launchd / the Windows watchdog restarts
      it on the new code. Fail: check the old commit back out and say why.
+  6. every checkout is proven by reading HEAD back. If the old commit cannot be
+     restored the outcome is "stuck" and the runner stops instead of restarting
+     on code whose preflight failed.
 """
 from __future__ import annotations
 
@@ -69,13 +72,25 @@ class Updater:
             return "current"
         if _git(self._run, self._repo, "merge-base", "--is-ancestor", old, new).returncode != 0:
             return "update refused: origin/main is not a fast-forward of this runtime"
-        if _git(self._run, self._repo, "checkout", "--quiet", "--detach", new).returncode != 0:
-            return "update failed: checkout"
+        if not self._checkout(new):
+            return self._back_to(old, "update failed: checkout")
         problem = self._new_code_preflight()
         if problem:
-            _git(self._run, self._repo, "checkout", "--quiet", "--detach", old)
-            return f"rolled back: {problem}"
+            return self._back_to(old, f"rolled back: {problem}")
         return "updated"
+
+    def _checkout(self, sha: str) -> bool:
+        """Check `sha` out, and prove HEAD is now `sha`: an exit code alone is not proof."""
+        if _git(self._run, self._repo, "checkout", "--quiet", "--detach", sha).returncode != 0:
+            return False
+        return runtime_version(self._repo, self._run) == sha
+
+    def _back_to(self, old: str, outcome: str) -> str:
+        """Return to the old commit. If even that fails the runtime is on code that
+        was never proven here, so say "stuck": the runner stops rather than restart on it."""
+        if self._checkout(old):
+            return outcome
+        return f"stuck: could not return to {old[:12]} ({outcome})"
 
     def _new_code_preflight(self) -> str:
         """Run the checked-out commit's own preflight, in a fresh interpreter."""
@@ -85,6 +100,8 @@ class Updater:
                              capture_output=True, text=True, check=False, timeout=PREFLIGHT_TIMEOUT)
         except subprocess.TimeoutExpired:
             return "new code's preflight timed out"
+        except (OSError, subprocess.SubprocessError) as exc:
+            return f"new code's preflight could not start: {type(exc).__name__}"
         if done.returncode == 0:
             return ""
         lines = (done.stdout or "").strip().splitlines()

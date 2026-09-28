@@ -66,6 +66,20 @@ class NodeHealth:
             self.reason = f"{self.failures} failed claims in a row, last: {self.reason}"
             self._checked_at = self._clock()
 
+    def run_batch(self, work: list[dict], run: Callable[[dict], dict],
+                  release: Callable[[dict], object]) -> list[dict]:
+        """Run claims one at a time, counting each as it ends. Once the node is
+        quarantined, the rest of the batch is handed back unrun, not failed one by one."""
+        results: list[dict] = []
+        for n, claim in enumerate(work):
+            if self.state == "quarantined":
+                for rest in work[n:]:
+                    release(rest)
+                break
+            results.append(run(claim))
+            self.record(results[-1:])
+        return results
+
     def _run_preflight(self) -> str:
         """A preflight that raises is a failed preflight, never a pass."""
         try:

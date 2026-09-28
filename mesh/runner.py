@@ -145,7 +145,8 @@ def _fail_claim(plan: dict, linear_id: str, branch: str, error: str) -> dict:
     """
     plan.update(state="failed", error=error)
     _api("POST", "/api/mesh/claim/update", {
-        "linear_id": linear_id, "state": "failed", "branch": branch, **run_record.fields(None, plan)})
+        "linear_id": linear_id, "state": "failed", "branch": branch, "host": HOST,
+        **run_record.fields(None, plan)})
     write_state(None, "idle")
     return plan
 
@@ -196,7 +197,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     try:  # from `working` on, every way out — even an interrupt — ends the claim in the finally
         write_state(linear_id, "working", session_id=run_id)
         _api("POST", "/api/mesh/claim/update", {
-            "linear_id": linear_id, "state": "working", "branch": branch})
+            "linear_id": linear_id, "state": "working", "branch": branch, "host": HOST})
         start = ship_run.start_point(repo_dir)  # RA-7780: held where the agent cannot move it
         if claim_lifecycle.add_worktree(repo_dir, branch, worktree):
             run_record.run_agent(
@@ -209,7 +210,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     finally:
         rec = held[0] if held else None
         claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", {
-            "linear_id": linear_id, "branch": branch, **run_record.terminal(rec, plan)}),
+            "linear_id": linear_id, "branch": branch, "host": HOST, **run_record.terminal(rec, plan)}),
             lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
             agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS,
             then=lambda: run_record.release_interrupt(rec))
@@ -235,13 +236,18 @@ def _hold(health: node_health.NodeHealth, once: bool) -> int | None:
     return None
 
 
-def _updated(updater: self_update.Updater | None, health: node_health.NodeHealth, work: list) -> bool:
-    """Idle and healthy: look for new runner code (RA-7802). True means restart on it."""
-    if updater is None or work or health.state != "healthy" or not updater.due():
-        return False
-    outcome = updater.try_update()
-    print(json.dumps({"runner": HOST, "status": "SELF_UPDATE", "outcome": outcome}))
-    return outcome == "updated"
+def _idle(updater: self_update.Updater | None, health: node_health.NodeHealth, work: list) -> int | None:
+    """Idle and healthy: move to new runner code (RA-7802). An exit code (3: restart on it), or None."""
+    if updater is not None and not work and health.state == "healthy" and updater.due():
+        outcome = updater.try_update()
+        print(json.dumps({"runner": HOST, "status": "SELF_UPDATE", "outcome": outcome}))
+        if outcome == "updated":
+            return 3
+        if outcome.startswith("stuck"):  # exit 0: KeepAlive{SuccessfulExit:false} never restarts onto it
+            write_state(None, "stuck")
+            return 0
+    write_state(None, "idle" if health.state == "healthy" else health.state)
+    return None
 
 
 def _parse_args() -> argparse.Namespace:
@@ -275,9 +281,9 @@ def main() -> int:
                 return code
             continue
         work = get_work()
-        results = [run_claim(claim, dry_run=args.dry_run) for claim in work]
-        health.record(results)
-        processed += len(work)
+        results = health.run_batch(work, lambda claim: run_claim(claim, dry_run=args.dry_run), lambda c: _api(
+            "POST", "/api/mesh/claim/update", {"linear_id": c["linear_id"], "state": "released", "host": HOST}))
+        processed += len(results)
         print(json.dumps({"runner": HOST, "claims": len(work), "results": results, "processed": processed}))
         if args.once:
             return 0
@@ -285,9 +291,8 @@ def main() -> int:
         if work and health.state == "healthy" and agents is not None and agents < MAX_PARALLEL:
             time.sleep(IDLE_RECLAIM_DELAY)
             continue
-        if _updated(updater, health, work):
-            return 3  # non-zero: launchd / the Windows watchdog restarts it on the new code
-        write_state(None, "idle" if health.state == "healthy" else health.state)
+        if (code := _idle(updater, health, work)) is not None:
+            return code
         time.sleep(POLL_INTERVAL)
 
 

@@ -96,10 +96,10 @@ def run_plan_claim(claim: dict, rt) -> dict:
     linear_id = claim["linear_id"]
     plan = {"linear_id": linear_id, "lane": "plan", "agent": rt.AGENT_CMD}
     rt.write_state(linear_id, "working", session_id=uuid.uuid4().hex[:8])
-    rt._api("POST", _UPDATE, {"linear_id": linear_id, "state": "working"})
+    rt._api("POST", _UPDATE, {"linear_id": linear_id, "state": "working", "host": rt.HOST})
     stdout = _run_agent(claim, plan, rt)
     if plan.get("state") == "released":  # HARD_STOP: hand the ticket back, as build does
-        rt._api("POST", _UPDATE, {"linear_id": linear_id, "state": "released"})
+        rt._api("POST", _UPDATE, {"linear_id": linear_id, "state": "released", "host": rt.HOST})
         rt.write_state(None, "idle")
         return plan
     _settle(plan, linear_id, stdout)

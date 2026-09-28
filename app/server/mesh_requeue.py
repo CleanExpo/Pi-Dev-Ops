@@ -33,6 +33,27 @@ log = logging.getLogger(__name__)
 FAILED_SKIP_HOURS = float(os.environ.get("MESH_FAILED_SKIP_HOURS", "24"))
 
 
+def claim_filter(linear_id: str, state: str, host: str | None, branch: str | None) -> str:
+    """The PATCH filter for a claim update: the ticket's open claim, and only the
+    caller's own. A report naming its host matches that machine's row alone, and a
+    terminal report naming its branch matches only that run's row (or one whose
+    branch was never stored). Without these, a stale `failed` from one node closed
+    another node's live claim and put its ticket back in the queue."""
+    q = f"mesh_work_claims?linear_id=eq.{urllib.parse.quote(linear_id)}&state=in.(claimed,working)"
+    if host:
+        q += f"&machine=eq.{urllib.parse.quote(host)}"
+    if branch and state in ("done", "released", "failed"):
+        q += f"&or=(branch.is.null,branch.eq.{urllib.parse.quote(branch)})"
+    return q
+
+
+def owns(row: dict, host: str | None) -> bool:
+    """A report naming a host requeues only that machine's claim. A runner from
+    before RA-7802 names none: its PATCH has already closed the row, so requeue
+    as main always did, or the ticket strands In Progress with no claim."""
+    return host is None or row.get("machine") == host
+
+
 def after_terminal(state: str, linear_id: str, row: dict, error_code: str | None,
                    mark_reaped: Callable[[str], bool], graphql: Callable[[str], dict]) -> None:
     """Return a released or failed claim's issue to the pool; comment on a failure.

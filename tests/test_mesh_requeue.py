@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.parse
 from pathlib import Path
 
 import pytest
@@ -19,19 +20,34 @@ HDR = {"X-Pi-CEO-Secret": "test-secret"}
 
 
 class _Sb:
-    """PATCH answers with `patch_rows`; GET of failed claims answers with `failed_rows`."""
+    """PATCH answers with the `open_rows` its filter matches, as PostgREST would;
+    GET of failed claims answers with `failed_rows`."""
 
     def __init__(self):
-        self.patch_rows = [{"linear_id": "RA-1", "state": "failed", "machine": "Phill_Desktop"}]
+        self.open_rows = [{"linear_id": "RA-1", "state": "working", "machine": "Phill_Desktop",
+                           "branch": "mesh/phill_desktop/ra-1-aaaaaaaa"}]
         self.failed_rows: list[dict] = []
         self.claimed: list[tuple[str, str]] = []
+
+    def _matches(self, row: dict, query: str) -> bool:
+        params = dict(urllib.parse.parse_qsl(query))
+        if params.get("linear_id") != f"eq.{row['linear_id']}":
+            return False
+        if "machine" in params and params["machine"] != f"eq.{row['machine']}":
+            return False
+        if "or" in params:
+            branch = row.get("branch")
+            allowed = params["or"].strip("()").split(",")
+            return (branch is None and "branch.is.null" in allowed) or f"branch.eq.{branch}" in allowed
+        return True
 
     def __call__(self, method, path, payload=None, prefer=""):
         if method == "POST" and path.startswith("mesh_work_claims"):
             self.claimed.append((payload["linear_id"], payload["machine"]))
             return 201, ""
         if method == "PATCH" and path.startswith("mesh_work_claims"):
-            return 200, json.dumps(self.patch_rows)
+            query = path.split("?", 1)[1]
+            return 200, json.dumps([{**r, **payload} for r in self.open_rows if self._matches(r, query)])
         if method == "GET" and "state=eq.failed" in path:
             return 200, json.dumps(self.failed_rows)
         return 200, "[]"
@@ -69,7 +85,9 @@ def mesh_client(monkeypatch):
 
 
 def _update(client, **body):
-    return client.post("/api/mesh/claim/update", json={"linear_id": "RA-1", "state": "failed", **body}, headers=HDR)
+    report = {"linear_id": "RA-1", "state": "failed", "host": "Phill_Desktop",
+              "branch": "mesh/phill_desktop/ra-1-aaaaaaaa", **body}
+    return client.post("/api/mesh/claim/update", json=report, headers=HDR)
 
 
 def test_a_failed_claim_returns_to_the_queue_with_the_reason(mesh_client):
@@ -89,9 +107,31 @@ def test_free_text_never_reaches_the_comment(mesh_client):
 
 def test_a_stale_failed_report_matching_no_open_claim_changes_nothing(mesh_client):
     client, mesh, sb = mesh_client
-    sb.patch_rows = []
+    sb.open_rows = []
     _update(client, error_code="runner_exception")
     assert mesh.reaped == [] and not any("commentCreate" in q for q in mesh.gql)
+
+
+def test_a_stale_failed_report_cannot_close_another_nodes_claim(mesh_client):
+    client, mesh, sb = mesh_client
+    sb.open_rows = [{"linear_id": "RA-1", "state": "working", "machine": "Mini",
+                     "branch": "mesh/mini/ra-1-bbbbbbbb"}]
+    _update(client, error_code="runner_exception")
+    assert mesh.reaped == [] and not any("commentCreate" in q for q in mesh.gql)
+
+
+def test_an_old_run_on_the_same_node_cannot_close_its_new_claim(mesh_client):
+    client, mesh, sb = mesh_client
+    sb.open_rows[0]["branch"] = "mesh/phill_desktop/ra-1-cccccccc"
+    _update(client, error_code="runner_exception")
+    assert mesh.reaped == []
+
+
+def test_a_failure_before_the_branch_was_stored_still_requeues(mesh_client):
+    client, mesh, sb = mesh_client
+    sb.open_rows[0].update(state="claimed", branch=None)
+    _update(client, error_code="repo_missing")
+    assert mesh.reaped == ["RA-1"]
 
 
 def _issue(ident: str) -> dict:

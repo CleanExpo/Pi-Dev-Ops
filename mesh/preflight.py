@@ -19,13 +19,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Callable
 
 import run_record
 
-PROBE_FILE = "MESH_PREFLIGHT.txt"
-PROBE_PROMPT = (f"Create a file named {PROBE_FILE} in the current directory containing "
+PROBE_PROMPT = ("Create a file named {name} in the current directory containing "
                 "the single word ok. Do not do anything else. Do not commit.")
 UNTRUSTED = "has not been trusted"
 AGENT_TIMEOUT = 300
@@ -54,11 +54,18 @@ def agent_writes(repo_dir: Path, agent_cmd: str,
                     capture_output=True, text=True, check=False)
         if added.returncode != 0:
             return "scratch worktree could not be created"
-        agent = run([agent_cmd, "-p", PROBE_PROMPT], cwd=str(worktree),
+        # A fresh name each time, proven absent first: a file the repo already
+        # tracks, or one left by an earlier probe, must never pass for the agent's.
+        probe = worktree / f"mesh-preflight-{uuid.uuid4().hex}.txt"
+        if probe.exists():
+            return "scratch worktree already holds the probe file"
+        agent = run([agent_cmd, "-p", PROBE_PROMPT.format(name=probe.name)], cwd=str(worktree),
                     capture_output=True, text=True, check=False, timeout=AGENT_TIMEOUT)
         if UNTRUSTED in f"{agent.stdout or ''}{agent.stderr or ''}":
             return f"agent workspace not trusted: run `{agent_cmd}` once in {repo_dir} and accept"
-        if not (worktree / PROBE_FILE).is_file():
+        if agent.returncode != 0:
+            return f"agent exited {agent.returncode}"
+        if not probe.is_file() or probe.read_text(errors="replace").strip().lower() != "ok":
             return "agent could not write a file"
         return ""
     except subprocess.TimeoutExpired:

@@ -113,3 +113,41 @@ def test_a_node_failing_preflight_claims_nothing(runner, monkeypatch):
         runner.main()
     assert runner.claims == []
     assert '"state": "blocked"' in runner.STATE_FILE.read_text()
+
+
+def test_a_batch_stops_at_the_failure_limit_and_hands_back_the_rest(runner, monkeypatch):
+    """Codex round 1: the breaker counted only after the whole batch ran, so a node
+    assigned four tickets failed all four before it noticed."""
+    monkeypatch.setattr(runner.preflight, "check", lambda repo, agent: "")
+    batch = [{"linear_id": f"RA-{n}"} for n in range(1, 5)]
+    monkeypatch.setattr(runner, "get_work", lambda: batch)
+    ran, sent = [], []
+    monkeypatch.setattr(runner, "run_claim", lambda claim, dry_run: ran.append(claim["linear_id"]) or {
+        "linear_id": claim["linear_id"], "state": "failed", "error_code": "runner_exception"})
+    monkeypatch.setattr(runner, "_api", lambda method, path, body=None: sent.append((path, body)) or {})
+    monkeypatch.setattr(sys, "argv", ["runner", "--once"])
+    runner.main()
+    assert ran == ["RA-1", "RA-2"]
+    assert sent == [("/api/mesh/claim/update", {"linear_id": lid, "state": "released", "host": runner.HOST})
+                    for lid in ("RA-3", "RA-4")]
+
+
+class _StuckUpdater:
+    def due(self):
+        return True
+
+    def try_update(self):
+        return "stuck: could not return to 0123456789ab (rolled back: agent could not write a file)"
+
+
+def test_a_stuck_update_stops_the_runner_and_says_so(runner, monkeypatch):
+    """A runtime that could not return to its old commit must not restart onto
+    the rejected one: exit 0 so KeepAlive{SuccessfulExit:false} leaves it down."""
+    monkeypatch.setattr(runner.preflight, "check", lambda repo, agent: "")
+    monkeypatch.setattr(runner, "get_work", lambda: [])
+    monkeypatch.setattr(runner, "SELF_UPDATE_ENABLED", True)
+    monkeypatch.setattr(runner.self_update, "Updater", lambda *a, **k: _StuckUpdater())
+    assert runner.main() == 0
+    assert '"state": "stuck"' in runner.STATE_FILE.read_text()
+    hb = _load("mesh_heartbeat_stuck", "mesh/heartbeat.py")
+    assert hb.node_status([], {"state": "stuck"}) == "stuck"
