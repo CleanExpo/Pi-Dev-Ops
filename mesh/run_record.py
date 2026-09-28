@@ -57,6 +57,16 @@ def error_code(plan: dict) -> Optional[str]:
     return "runner_exception"
 
 
+def _attempt(action: Callable[[], Any]) -> bool:
+    """Run one shutdown step; True if it completed. Each step is attempted even
+    when the one before it failed, and none of them can raise."""
+    try:
+        action()
+        return True
+    except Exception:  # noqa: BLE001 — shutdown is best-effort, step by step
+        return False
+
+
 def _open_private(path: Path) -> Any:
     """Open `path` for writing as owner-only from the first byte, or return DEVNULL.
 
@@ -119,16 +129,16 @@ class RunRecord:
         the agent is still executing in it.
         """
         proc = self.proc
-        try:
-            if proc is not None and proc.poll() is None:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                    proc.wait()
-        except OSError:
-            pass
+        if proc is not None:
+            try:
+                running = proc.poll() is None
+            except Exception:  # noqa: BLE001 — cannot tell, so treat it as still running
+                running = True
+            if running:
+                _attempt(proc.terminate)
+                if not _attempt(lambda: proc.wait(timeout=10)):
+                    _attempt(proc.kill)
+                    _attempt(proc.wait)
         self.close()
 
     def close(self) -> None:

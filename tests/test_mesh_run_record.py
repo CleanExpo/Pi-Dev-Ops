@@ -177,6 +177,56 @@ def test_a_wait_failure_stops_the_agent_before_returning(tmp_path):
     assert rec._log.closed
 
 
+class _FakeAgent:
+    """A Popen stand-in whose poll() fails the way round 9 planted it."""
+
+    def __init__(self, poll_error):
+        self.poll_error, self.terminated, self.killed, self.returncode = poll_error, False, False, None
+
+    def poll(self):
+        raise self.poll_error
+
+    def terminate(self):
+        self.terminated = True
+
+    def wait(self, timeout=None):
+        return 0
+
+    def kill(self):
+        self.killed = True
+
+
+def test_a_failing_poll_still_terminates_the_agent_and_never_raises(tmp_path, monkeypatch):
+    """Round 9: poll() raising OSError skipped termination; ValueError escaped the boundary."""
+    for error in (OSError("waitpid failed"), ValueError("poll broke")):
+        fake = _FakeAgent(error)
+        monkeypatch.setattr(rr.subprocess, "Popen", lambda *_a, **_k: fake)
+        plan: dict = {}
+
+        def broken_wait(_proc, _plan):
+            raise OSError("wait failed")
+
+        rec = rr.run_agent(lambda: ["agent"], str(tmp_path), tmp_path, "0a0a0a07", plan, broken_wait)
+        assert plan["state"] == "failed", error
+        assert fake.terminated, f"{error!r}: agent was not terminated"
+        assert rec._log.closed
+
+
+def test_an_agent_that_ignores_terminate_is_killed(tmp_path, monkeypatch):
+    fake = _FakeAgent(OSError("x"))
+
+    def stuck(timeout=None):
+        if timeout is not None:
+            raise rr.subprocess.TimeoutExpired("agent", timeout)
+        return 0
+
+    fake.wait = stuck
+    rec = rr.RunRecord("0a0a0a08", tmp_path)
+    rec.proc = fake
+    rec.stop()
+    assert fake.terminated and fake.killed
+
+
 def test_worktree_removal_that_cannot_start_does_not_raise(tmp_path, monkeypatch):
     def no_git(*_a, **_k):
         raise OSError("remove-spawn-failed")
