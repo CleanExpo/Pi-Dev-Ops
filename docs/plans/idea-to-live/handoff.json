@@ -26,7 +26,7 @@
     {"id": "PKG-2", "finding": "planning-boundary.sh substring path match allows ../ traversal and nested docs/plans/ paths", "evidence": "routing-reconciliation.md, 'Defect found in the package's boundary hook'"}
   ],
   "decisions": [
-    {"id": "D0", "question": "Pi-Dev-Ops acceptance: cross-model audit (10 Sept decision) or human-merge-only (docs/session-handoffs/20260911-1230-0eca2639.md:212)?", "owner": "Phill", "kind": "direction"},
+    {"id": "D0", "question": "Pi-Dev-Ops acceptance: cross-model audit (10 Sept decision) or human-merge-only (docs/session-handoffs/20260911-1230-0eca2639.md:212)?", "owner": "Phill", "kind": "direction", "status": "DECIDED", "decided_at": "2026-09-28", "answer": "Keep human merge for Pi-Dev-Ops. Cross-model audit is review evidence, not acceptance.", "ticket": "RA-7818"},
     {"id": "D1", "question": "Frontmatter policy: Claude Code fields vs spec-only + skillOverrides", "owner": "skills-library maintainer"},
     {"id": "D2", "question": "TypeSafe intake: vendor marketplace vs pinned vault", "owner": "skills-library maintainer"},
     {"id": "D3", "question": "Does plan-review workflow count toward the two-round cap?", "owner": "skills-library maintainer"}
@@ -37,6 +37,7 @@
   "next_action": {
     "action": "Fix PKG-1 and PKG-2 in plan-to-done v1.2, run `claude plugin eval` on it, then promote through CleanExpo/skills-library",
     "owner": "skills-library",
-    "blocked_by": ["D0"]
+    "blocked_by": [],
+    "ticket": "RA-7819"
   }
 }
