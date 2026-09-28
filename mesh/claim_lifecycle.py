@@ -31,11 +31,15 @@ def add_worktree(repo_dir: Path, branch: str, worktree: Path) -> bool:
 
 
 def deliver(settle: Callable[[], None], plan: dict) -> None:
-    """Run RA-7780's ship step. One that raised (a git timeout, say) did not deliver, so the run fails."""
+    """Run RA-7780's ship step. One that raised (a git timeout, an interrupt mid-push) did not
+    deliver, so the run fails; an interrupt still propagates after the plan says so."""
     try:
         settle()
     except Exception:  # noqa: BLE001 — the reason stays local; the server gets the closed-set code
         plan.update(state="failed", error_code="runner_exception")
+    except BaseException:
+        plan.update(state="failed", error_code="runner_exception")
+        raise
 
 
 def remove_worktree(repo_dir: Path, worktree: Path) -> None:
