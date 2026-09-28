@@ -18,7 +18,6 @@ import os
 import socket
 import subprocess
 import sys
-import tempfile
 import time
 import types
 import urllib.error
@@ -33,22 +32,10 @@ from fleet_state import active_agent_count, my_claims  # noqa: E402
 from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
 import claim_lifecycle  # noqa: E402
+import node_health  # noqa: E402
+import preflight  # noqa: E402
 import run_record  # noqa: E402
-
-
-def _from_env_file(name: str) -> str:
-    """Read one key from the protected Hermes env file without executing it."""
-    envf = Path.home() / ".hermes" / ".env"
-    if not envf.exists():
-        return ""
-    try:
-        for raw in envf.read_text(encoding="utf-8").splitlines():
-            line = raw.strip()
-            if line.startswith(f"{name}="):
-                return line.split("=", 1)[1].strip().strip("'\"")
-    except OSError:
-        return ""
-    return ""
+from env_file import from_env_file as _from_env_file  # noqa: E402
 
 
 PI_CEO_API_URL = (
@@ -64,6 +51,8 @@ POLL_INTERVAL = int(os.environ.get("MESH_POLL_INTERVAL", "30"))
 MAX_PARALLEL = int(os.environ.get("MESH_MAX_PARALLEL", "1"))
 MAX_CLAIMS = int(os.environ.get("MESH_MAX_CLAIMS", "25"))
 IDLE_RECLAIM_DELAY = float(os.environ.get("MESH_IDLE_RECLAIM_DELAY", "3"))
+# RA-7802: preflight before claiming; tests/conftest.py turns it off
+PREFLIGHT_ENABLED = os.environ.get("MESH_PREFLIGHT", "1") != "0"
 STATE_FILE = Path(os.environ.get(
     "MESH_RUNNER_STATE", str(Path.home() / ".claude" / "mesh-runner-state.json")))
 MESH_KILL_POLL_SECONDS = float(os.environ.get("MESH_KILL_POLL_SECONDS", "5"))
@@ -174,16 +163,6 @@ def _fail_claim(plan: dict, linear_id: str, branch: str, error: str) -> dict:
     return plan
 
 
-def _terminate_for_stop(proc: subprocess.Popen) -> None:
-    """Terminate an in-flight agent cleanly, escalating only after the grace period."""
-    proc.terminate()
-    try:
-        proc.wait(timeout=MESH_KILL_GRACE_SECONDS)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait()
-
-
 def _wait_for_agent(proc: subprocess.Popen, plan: dict) -> None:
     """Poll an agent for completion, hard stop, or timeout."""
     deadline = time.monotonic() + AGENT_TIMEOUT_SECONDS
@@ -196,7 +175,7 @@ def _wait_for_agent(proc: subprocess.Popen, plan: dict) -> None:
                 plan["error"] = f"agent exited {returncode}"
             return
         if killed():
-            _terminate_for_stop(proc)
+            claim_lifecycle.terminate(proc, MESH_KILL_GRACE_SECONDS)
             plan["state"] = "released"
             return
         if time.monotonic() >= deadline:
@@ -225,7 +204,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     if not (repo_dir / ".git").exists():
         return _fail_claim(plan, linear_id, branch, f"repo missing: {repo_dir}")
 
-    worktree = worktree_path(linear_id, run_id)
+    worktree = claim_lifecycle.worktree_path(linear_id, run_id)
     held: list = []  # the run record, kept even when an interrupt escapes run_agent
     try:  # from `working` on, every way out — even an interrupt — ends the claim in the finally
         write_state(linear_id, "working", session_id=run_id)
@@ -250,12 +229,23 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     return plan
 
 
-def worktree_path(linear_id: str, run_id: str) -> Path:
-    """Where a run's worktree goes: the platform temp dir, not `/tmp` (RA-7801).
+def _stop_status(processed: int) -> dict | None:
+    """The status line that ends the loop, or None to keep going."""
+    if killed():
+        return {"runner": HOST, "status": "HARD_STOP"}
+    if MAX_CLAIMS and processed >= MAX_CLAIMS:
+        return {"runner": HOST, "status": "MAX_CLAIMS", "processed": processed}
+    return None
 
-    `/tmp` does not exist on Windows, so the PC's worktree landed in `\\tmp` on
-    whatever drive the runner started from."""
-    return Path(tempfile.gettempdir()) / f"mesh-{linear_id}-{run_id}"
+
+def _hold(health: node_health.NodeHealth, once: bool) -> int | None:
+    """Report a node that may not claim. An exit code for --once, else None after the poll wait."""
+    write_state(None, health.state)  # the heartbeat reports blocked/quarantined
+    print(json.dumps({"runner": HOST, "status": health.state.upper(), "reason": health.reason}))
+    if once:
+        return 1
+    time.sleep(POLL_INTERVAL)
+    return None
 
 
 def main() -> int:
@@ -270,33 +260,31 @@ def main() -> int:
         # the node keeps announcing this and resumes once it is fixed.
         print(json.dumps({"runner": HOST, "status": "REFUSED", "reason": problem}))
         return 2
-    processed = 0
+    check = (lambda: preflight.check(DEFAULT_REPO_DIR, AGENT_CMD)) if PREFLIGHT_ENABLED else (lambda: "")
+    health, processed = node_health.NodeHealth(check), 0
     while True:
-        if killed():
+        stop = _stop_status(processed)
+        if stop:
             write_state(None, "idle")
-            print(json.dumps({"runner": HOST, "status": "HARD_STOP"}))
+            print(json.dumps(stop))
             return 0
-        if MAX_CLAIMS and processed >= MAX_CLAIMS:
-            write_state(None, "idle")
-            print(json.dumps({
-                "runner": HOST, "status": "MAX_CLAIMS", "processed": processed}))
-            return 0
+        if not args.dry_run and not health.may_claim():
+            code = _hold(health, args.once)
+            if code is not None:
+                return code
+            continue
         work = get_work()
         results = [run_claim(claim, dry_run=args.dry_run) for claim in work]
+        health.record(results)
         processed += len(work)
-        print(json.dumps({
-            "runner": HOST,
-            "claims": len(work),
-            "results": results,
-            "processed": processed,
-        }))
+        print(json.dumps({"runner": HOST, "claims": len(work), "results": results, "processed": processed}))
         if args.once:
             return 0
         agents = active_agent_count(_api, HOST)
-        if work and agents is not None and agents < MAX_PARALLEL:
+        if work and health.state == "healthy" and agents is not None and agents < MAX_PARALLEL:
             time.sleep(IDLE_RECLAIM_DELAY)
             continue
-        write_state(None, "idle")
+        write_state(None, "idle" if health.state == "healthy" else health.state)
         time.sleep(POLL_INTERVAL)
 
 

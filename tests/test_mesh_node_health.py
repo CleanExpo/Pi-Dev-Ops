@@ -1,0 +1,115 @@
+"""tests/test_mesh_node_health.py — a node proves it can work, and stops when it can't (RA-7802).
+
+On 28/09 two nodes failed every claim and kept claiming: the PC raised before
+its agent started (RA-7801), the Mini's agent could not write files. Each took
+a ticket every few seconds, up to MESH_MAX_CLAIMS (25). These tests pin:
+
+  * no claim until preflight passes, and a failed or crashed preflight blocks;
+  * FAILURE_LIMIT failed claims in a row quarantine the node, and a delivered
+    claim resets the count;
+  * the runner's loop honours both: a node that fails every claim takes exactly
+    FAILURE_LIMIT tickets, not 25, and a node that fails preflight takes none.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "tests"))
+
+from mesh_helpers import Break as _Break  # noqa: E402
+from mesh_helpers import load_module as _load  # noqa: E402
+
+nh = _load("mesh_node_health_under_test", "mesh/node_health.py")
+
+
+class Clock:
+    """A clock the test moves by hand."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+
+def test_a_failed_preflight_blocks_and_is_rechecked_only_when_due():
+    results, clock = ["agent could not write a file", ""], Clock()
+    calls = []
+
+    def preflight():
+        calls.append(1)
+        return results[len(calls) - 1]
+
+    health = nh.NodeHealth(preflight, clock=clock, limit=2, recheck=600)
+    assert health.may_claim() is False
+    assert (health.state, health.reason) == ("blocked", "agent could not write a file")
+    clock.now = 599
+    assert health.may_claim() is False and len(calls) == 1   # not due: no re-run
+    clock.now = 600
+    assert health.may_claim() is True and health.state == "healthy"
+
+
+def test_a_preflight_that_raises_blocks_rather_than_passes():
+    def preflight():
+        raise RuntimeError("boom")
+
+    health = nh.NodeHealth(preflight, clock=Clock())
+    assert health.may_claim() is False
+    assert health.reason == "preflight raised RuntimeError"
+
+
+def test_consecutive_failures_quarantine_and_a_delivery_resets_the_count():
+    health = nh.NodeHealth(lambda: "", clock=Clock(), limit=2)
+    assert health.may_claim()
+    health.record([{"state": "failed", "error_code": "runner_exception"}])
+    health.record([{"state": "done"}])
+    health.record([{"state": "failed", "error_code": "agent_failed"}])
+    assert health.state == "healthy"          # reset by the delivered claim in between
+    health.record([{"state": "failed", "error_code": "agent_failed"}])
+    assert health.state == "quarantined"
+    assert health.reason == "2 failed claims in a row, last: agent_failed"
+    assert health.may_claim() is False        # quarantine holds until the recheck is due
+
+
+@pytest.fixture
+def runner(monkeypatch, tmp_path):
+    """The real loop, preflight ON, with claiming and running faked."""
+    monkeypatch.delenv("MESH_REPO_DIR", raising=False)
+    mod = _load("mesh_runner_health", "mesh/runner.py")
+    monkeypatch.setattr(mod, "PREFLIGHT_ENABLED", True)
+    monkeypatch.setattr(mod, "HARD_STOP", tmp_path / "HARD_STOP")
+    monkeypatch.setattr(mod, "STATE_FILE", tmp_path / "state.json")
+    monkeypatch.setattr(mod, "IDLE_RECLAIM_DELAY", 0.01)
+    monkeypatch.setattr(mod, "active_agent_count", lambda *a, **k: 0)
+    mod.claims = []
+    monkeypatch.setattr(mod, "get_work", lambda: mod.claims.append(1) or [{"linear_id": "RA-1"}])
+    monkeypatch.setattr(mod, "run_claim", lambda claim, dry_run: {
+        "linear_id": claim["linear_id"], "state": "failed", "error_code": "runner_exception"})
+
+    def sleep(secs):
+        if secs == mod.POLL_INTERVAL:
+            raise _Break()
+
+    monkeypatch.setattr(mod.time, "sleep", sleep)
+    monkeypatch.setattr(sys, "argv", ["runner"])
+    return mod
+
+
+def test_a_node_failing_every_claim_stops_at_the_failure_limit(runner, monkeypatch):
+    monkeypatch.setattr(runner.preflight, "check", lambda repo, agent: "")
+    with pytest.raises(_Break):
+        runner.main()
+    assert len(runner.claims) == nh.FAILURE_LIMIT      # not MESH_MAX_CLAIMS (25)
+    assert '"state": "quarantined"' in (runner.STATE_FILE.read_text())
+
+
+def test_a_node_failing_preflight_claims_nothing(runner, monkeypatch):
+    monkeypatch.setattr(runner.preflight, "check", lambda repo, agent: "agent could not write a file")
+    with pytest.raises(_Break):
+        runner.main()
+    assert runner.claims == []
+    assert '"state": "blocked"' in runner.STATE_FILE.read_text()

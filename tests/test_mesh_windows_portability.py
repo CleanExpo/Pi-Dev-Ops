@@ -50,5 +50,5 @@ def test_run_record_still_refuses_an_existing_file_without_o_nofollow(tmp_path, 
 def test_worktree_goes_under_the_platform_temp_dir(tmp_path, monkeypatch):
     """`/tmp` does not exist on Windows; the worktree follows tempfile.gettempdir()."""
     monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
-    runner = _load("mesh_runner_windows", "mesh/runner.py")
-    assert runner.worktree_path("RA-1", "abcd") == tmp_path / "mesh-RA-1-abcd"
+    lifecycle = _load("mesh_claim_lifecycle_windows", "mesh/claim_lifecycle.py")
+    assert lifecycle.worktree_path("RA-1", "abcd") == tmp_path / "mesh-RA-1-abcd"
