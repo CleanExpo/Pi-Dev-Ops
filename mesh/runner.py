@@ -250,6 +250,13 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     return plan
 
 
+def _stop_status(processed: int) -> str:
+    """HARD_STOP or MAX_CLAIMS when the loop must end, else ""."""
+    if killed():
+        return "HARD_STOP"
+    return "MAX_CLAIMS" if MAX_CLAIMS and processed >= MAX_CLAIMS else ""
+
+
 def main() -> int:
     """Run the persistent per-machine claim loop."""
     parser = argparse.ArgumentParser(description="Nexus Mesh runner")
@@ -262,16 +269,13 @@ def main() -> int:
         # the node keeps announcing this and resumes once it is fixed.
         print(json.dumps({"runner": HOST, "status": "REFUSED", "reason": problem}))
         return 2
+    if not args.dry_run and self_update.update_now(HOST):  # RA-7798: never claim on stale code
+        return self_update.RESTART_EXIT
     processed = 0
     while True:
-        if killed():
+        if stop := _stop_status(processed):
             write_state(None, "idle")
-            print(json.dumps({"runner": HOST, "status": "HARD_STOP"}))
-            return 0
-        if MAX_CLAIMS and processed >= MAX_CLAIMS:
-            write_state(None, "idle")
-            print(json.dumps({
-                "runner": HOST, "status": "MAX_CLAIMS", "processed": processed}))
+            print(json.dumps({"runner": HOST, "status": stop, "processed": processed}))
             return 0
         work = get_work()
         results = [run_claim(claim, dry_run=args.dry_run) for claim in work]

@@ -111,6 +111,19 @@ def test_idle_tick_restarts_only_after_a_move(monkeypatch):
     assert su.idle_tick(lambda *a: None, 1, "node") is False
 
 
+def test_a_relaunched_runner_updates_before_it_claims(monkeypatch, tmp_path):
+    """After a MAX_CLAIMS stop the next launch must not claim on stale code."""
+    monkeypatch.delenv("MESH_REPO_DIR", raising=False)
+    runner = load_module("mesh_runner_startup_update", "mesh/runner.py")
+    claimed: list = []
+    monkeypatch.setattr(runner, "STATE_FILE", tmp_path / "state.json")
+    monkeypatch.setattr(runner, "get_work", lambda: claimed.append(1) or [])
+    monkeypatch.setattr(runner.self_update, "update_now", lambda host: True)
+    monkeypatch.setattr(sys, "argv", ["runner"])
+    assert runner.main() == runner.self_update.RESTART_EXIT
+    assert claimed == []
+
+
 def test_dry_run_and_opt_out_never_update(monkeypatch):
     monkeypatch.setattr(su.time, "sleep", lambda s: None)
     monkeypatch.setattr(su, "_last_check", [float("-inf")])

@@ -53,18 +53,28 @@ def fast_forward(root: Path) -> str | None:
         if _git(root, "checkout", "-q", "--detach", target).returncode:
             return None
         return target
-    except (OSError, subprocess.SubprocessError):
+    except Exception:  # noqa: BLE001 — an update attempt must never take the runner down
         return None
 
 
-def idle_tick(write_state, poll_seconds: float, host: str, *, skip: bool = False) -> bool:
-    """Mark the node idle, wait one poll, then update when due. True means restart now."""
-    write_state(None, "idle")
-    time.sleep(poll_seconds)
-    if skip or not ENABLED or time.monotonic() - _last_check[0] < INTERVAL_SECONDS:
+def update_now(host: str) -> bool:
+    """Fast-forward the runtime now. True means it moved and the runner must restart.
+
+    Also run at startup, so a runner relaunched after its MAX_CLAIMS stop (a
+    deliberate cost cap) never claims work on stale code."""
+    if not ENABLED:
         return False
     _last_check[0] = time.monotonic()
     head = fast_forward(RUNTIME)
     if head:
         print(json.dumps({"runner": host, "status": "UPDATED", "head": head}), flush=True)
     return bool(head)
+
+
+def idle_tick(write_state, poll_seconds: float, host: str, *, skip: bool = False) -> bool:
+    """Mark the node idle, wait one poll, then update when due. True means restart now."""
+    write_state(None, "idle")
+    time.sleep(poll_seconds)
+    if skip or time.monotonic() - _last_check[0] < INTERVAL_SECONDS:
+        return False
+    return update_now(host)
