@@ -19,6 +19,7 @@ import os
 import re
 import subprocess
 import tempfile
+import types
 import uuid
 from datetime import date
 from pathlib import Path
@@ -61,11 +62,14 @@ def _run_agent(claim: dict, plan: dict, rt) -> str:
     prompt = build_plan_prompt(claim, claim["linear_id"])
     with tempfile.TemporaryDirectory(prefix="mesh-plan-") as cwd, \
             tempfile.TemporaryFile("w+b") as out:
+        proc = None
         try:
             proc = subprocess.Popen(agent_argv(rt.AGENT_CMD, prompt), cwd=cwd, stdout=out)
             rt._wait_for_agent(proc, plan)
         except Exception as exc:  # noqa: BLE001
             plan.update(state="failed", error=str(exc))
+            if proc is not None and proc.poll() is None:  # RA-7798: never self-update away from it
+                rt.left_running.track(types.SimpleNamespace(reaped=False, proc=proc))
             return ""
         out.seek(0)
         return out.read().decode("utf-8", errors="replace")

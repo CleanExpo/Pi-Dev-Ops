@@ -32,6 +32,7 @@ from fleet_state import active_agent_count, next_work  # noqa: E402
 from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
 import claim_lifecycle  # noqa: E402
+import left_running  # noqa: E402
 import node_health  # noqa: E402
 import preflight  # noqa: E402
 import run_record  # noqa: E402
@@ -216,6 +217,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
             plan.update(state="failed", error="git worktree add failed")
     finally:
         rec = held[0] if held else None
+        left_running.track(rec)  # RA-7798: never self-update away from an unstopped agent
         claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", {
             "linear_id": linear_id, "branch": branch, "host": HOST, "claim_id": plan["claim_id"],
             **run_record.terminal(rec, plan)}),

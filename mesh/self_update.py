@@ -25,7 +25,11 @@ import time
 from pathlib import Path
 from typing import Callable
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # siblings, as runner.py sets up
+import left_running  # noqa: E402
+
 CHECK_SECONDS = float(os.environ.get("MESH_UPDATE_SECONDS", "900"))
+MAIN_REF = "refs/mesh-self-update/main"  # written only by this module (RA-7798)
 PREFLIGHT_TIMEOUT = 600
 Run = Callable[..., subprocess.CompletedProcess]
 
@@ -79,15 +83,36 @@ class Updater:
         except (OSError, subprocess.SubprocessError) as exc:
             return f"update failed: {type(exc).__name__}"
 
+    def _refusal(self, old: str) -> str:
+        """Why the runtime must not move now, or "" (RA-7798). Checked before the fetch and
+        again just before the checkout, since either can change while the fetch runs."""
+        if _git(self._run, self._repo, "symbolic-ref", "-q", "HEAD").returncode != 1:
+            return "update refused: runtime is on a branch (or HEAD unreadable)"
+        if old and runtime_version(self._repo, self._run) != old:
+            return "update refused: HEAD moved during the update"
+        status = _git(self._run, self._repo, "status", "--porcelain", "--untracked-files=no")
+        if status.returncode != 0 or status.stdout.strip():
+            return "update refused: runtime has local edits (or status failed)"
+        if left_running.any_alive():
+            return "update refused: an agent this node could not stop may still be running"
+        return ""
+
     def _attempt(self) -> str:
-        if _git(self._run, self._repo, "fetch", "--quiet", "origin", "main").returncode != 0:
+        refusal = self._refusal("")
+        if refusal:
+            return refusal
+        # A private ref, not FETCH_HEAD: a concurrent fetch of another branch overwrites FETCH_HEAD.
+        if _git(self._run, self._repo, "fetch", "--quiet", "origin", f"+refs/heads/main:{MAIN_REF}").returncode != 0:
             return "update failed: fetch"
         old = runtime_version(self._repo, self._run)
-        new = _git(self._run, self._repo, "rev-parse", "FETCH_HEAD").stdout.strip()
+        new = _git(self._run, self._repo, "rev-parse", "--verify", "-q", f"{MAIN_REF}^{{commit}}").stdout.strip()
         if not new or new == old:
             return "current"
         if _git(self._run, self._repo, "merge-base", "--is-ancestor", old, new).returncode != 0:
             return "update refused: origin/main is not a fast-forward of this runtime"
+        refusal = self._refusal(old)
+        if refusal:
+            return refusal
         if not self._checkout(new):
             return self._back_to(old, "update failed: checkout")
         problem = self._new_code_preflight()

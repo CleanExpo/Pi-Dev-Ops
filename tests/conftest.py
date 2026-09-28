@@ -11,3 +11,5 @@ os.environ.setdefault("TAO_EVALUATOR_ENABLED", "false")
 # fake the agent, so the gate is off here; test_mesh_node_health turns it back on.
 os.environ.setdefault("MESH_PREFLIGHT", "0")
 os.environ.setdefault("MESH_SELF_UPDATE", "0")  # never fetch or check out code from a unit test
+# RA-7798: runner tests leave agents unstoppable on purpose; never record them in the node's real file.
+os.environ["MESH_LEFT_RUNNING"] = os.path.join(__import__("tempfile").mkdtemp(prefix="mesh-left-"), "left.json")
