@@ -32,26 +32,28 @@ def _alive_windows(pid: int) -> bool:
 
 
 def _alive(pid: int) -> bool:
+    """False only when the process is proven gone. Anything else, including a pid the OS
+    cannot even represent, is unknown and counts as alive."""
     if pid <= 0:
         return True
-    if os.name == "nt":
-        return _alive_windows(pid)
     try:
+        if os.name == "nt":
+            return _alive_windows(pid)
         os.kill(pid, 0)
     except ProcessLookupError:
         return False
-    except OSError:
-        return True  # e.g. EPERM: it exists, owned by someone else
+    except Exception:  # noqa: BLE001 — EPERM (someone else's), OverflowError, anything
+        return True
     return True
 
 
 def _load() -> list:
-    if not PATH.exists():
+    if not os.path.lexists(PATH):  # lexists: a dangling link is present, not absent
         return []
     try:
         return [int(e["pid"]) for e in json.loads(PATH.read_text())]
-    except (OSError, ValueError, KeyError, TypeError):
-        return [0]  # present but unreadable: unknown, so it blocks
+    except Exception:  # noqa: BLE001 — present but unreadable: unknown, so it blocks
+        return [0]
 
 
 def _save(pids: list) -> None:
@@ -84,20 +86,23 @@ def track(rec) -> None:
     proc = getattr(rec, "proc", None)
     try:
         _save(_load() + [int(getattr(proc, "pid", 0) or 0)])
-    except (OSError, ValueError, TypeError):
+    except Exception:  # noqa: BLE001 — never raise in claim cleanup; block instead
         _UNRECORDED[0] = True
 
 
 def any_alive() -> bool:
     """True while any recorded agent may still be running. Prunes the ones proven gone.
     An unwritable record counts as alive: a relaunched runner could not have seen it."""
-    if _UNRECORDED[0] or not _writable():
+    try:
+        if _UNRECORDED[0] or not _writable():
+            return True
+        pids = _load()
+        live = [p for p in pids if _alive(p)]
+        if pids and len(live) != len(pids):
+            try:
+                _save(live)
+            except OSError:
+                pass
+        return bool(live)
+    except Exception:  # noqa: BLE001 — an error here proves nothing gone
         return True
-    pids = _load()
-    live = [p for p in pids if _alive(p)]
-    if pids and len(live) != len(pids):
-        try:
-            _save(live)
-        except OSError:
-            pass
-    return bool(live)

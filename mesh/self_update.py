@@ -98,13 +98,13 @@ class Updater:
         return ""
 
     def _attempt(self) -> str:
-        refusal = self._refusal("")
+        old = runtime_version(self._repo, self._run)  # before the fetch: a move during it must be caught
+        refusal = self._refusal(old)
         if refusal:
             return refusal
         # A private ref, not FETCH_HEAD: a concurrent fetch of another branch overwrites FETCH_HEAD.
         if _git(self._run, self._repo, "fetch", "--quiet", "origin", f"+refs/heads/main:{MAIN_REF}").returncode != 0:
             return "update failed: fetch"
-        old = runtime_version(self._repo, self._run)
         new = _git(self._run, self._repo, "rev-parse", "--verify", "-q", f"{MAIN_REF}^{{commit}}").stdout.strip()
         if not new or new == old:
             return "current"

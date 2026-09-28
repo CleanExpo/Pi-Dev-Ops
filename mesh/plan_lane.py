@@ -68,7 +68,10 @@ def _run_agent(claim: dict, plan: dict, rt) -> str:
             rt._wait_for_agent(proc, plan)
         except Exception as exc:  # noqa: BLE001
             plan.update(state="failed", error=str(exc))
-            if proc is not None and proc.poll() is None:  # RA-7798: never self-update away from it
+            try:  # RA-7798: never self-update away from a live child; this handler must not raise
+                if proc is not None and proc.poll() is None:
+                    rt.left_running.track(types.SimpleNamespace(reaped=False, proc=proc))
+            except Exception:  # noqa: BLE001 — cannot tell: record it as left running
                 rt.left_running.track(types.SimpleNamespace(reaped=False, proc=proc))
             return ""
         out.seek(0)

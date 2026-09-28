@@ -153,3 +153,43 @@ def test_a_plan_agent_left_running_after_a_wait_error_is_tracked(tmp_path, monke
         for rec in tracked:
             rec.proc.kill()
             rec.proc.wait()
+
+
+def test_a_detached_head_move_during_the_fetch_is_not_overwritten(tmp_path):
+    origin, runtime, old, _ = _with_new_code(tmp_path)
+    middle = git(origin, "rev-parse", "HEAD~0")
+    newest = commit_preflight(origin, 0, "ok")
+    _REAL_RUN(["git", "-C", str(runtime), "fetch", "-q", "origin"], check=True)
+    run = _racing(runtime, lambda: _REAL_RUN(["git", "-C", str(runtime), "checkout", "-q", "--detach", middle]))
+    assert su.Updater(runtime, "claude", run=run).try_update() == "update refused: HEAD moved during the update"
+    assert git(runtime, "rev-parse", "HEAD") == middle != newest != old
+
+
+def test_a_dangling_or_oversized_record_counts_as_running(tmp_path):
+    left_running.PATH.symlink_to(tmp_path / "missing-target.json")  # present, unreadable
+    assert left_running.any_alive() is True
+    left_running.PATH.unlink()
+    left_running.PATH.write_text('[{"pid": 999999999999999999999999999999}]')  # no C long holds it
+    assert left_running.any_alive() is True
+    assert left_running._alive(999999999999999999999999999999) is True  # itself, not only via any_alive
+
+
+def test_the_plan_error_handler_never_raises(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(REPO_ROOT / "mesh"))
+    from mesh_helpers import load_module
+    plan_lane = load_module("mesh_plan_lane_guard_poll", "mesh/plan_lane.py")
+
+    class Proc:
+        def poll(self):
+            raise OSError("poll failed")
+
+    monkeypatch.setattr(plan_lane.subprocess, "Popen", lambda *a, **k: Proc())
+    tracked: list = []
+
+    def wait_fails(proc, plan):
+        raise OSError("wait failed")
+
+    rt = types.SimpleNamespace(AGENT_CMD="claude", _wait_for_agent=wait_fails,
+                               left_running=types.SimpleNamespace(track=tracked.append))
+    assert plan_lane._run_agent({"linear_id": "UNI-P", "title": "t"}, {}, rt) == ""
+    assert len(tracked) == 1  # cannot tell whether it runs: recorded as left running
