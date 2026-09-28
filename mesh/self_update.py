@@ -32,15 +32,21 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
                           capture_output=True, text=True, timeout=120)
 
 
+def _clean(root: Path) -> bool:
+    """Tracked tree unmodified. A status that failed proves nothing clean."""
+    status = _git(root, "status", "--porcelain", "--untracked-files=no")
+    return status.returncode == 0 and not status.stdout.strip()
+
+
 def fast_forward(root: Path) -> str | None:
     """Move a clean, detached checkout to origin/main when that is a fast-forward.
 
-    Returns the new HEAD, or None when nothing moved."""
+    Returns the new HEAD, or None when nothing moved. Cleanliness is checked again
+    after the fetch, which can take seconds, so an edit made meanwhile blocks the move."""
     try:
         if _git(root, "symbolic-ref", "-q", "HEAD").returncode != 1:  # 0 = on a branch, other = error
             return None
-        status = _git(root, "status", "--porcelain", "--untracked-files=no")
-        if status.returncode or status.stdout.strip():  # a status that failed proves nothing clean
+        if not _clean(root):
             return None
         if _git(root, "fetch", "-q", "origin", "main").returncode:
             return None
@@ -49,6 +55,8 @@ def fast_forward(root: Path) -> str | None:
         if not target or head == target:
             return None
         if _git(root, "merge-base", "--is-ancestor", head, target).returncode:
+            return None
+        if not _clean(root):
             return None
         if _git(root, "checkout", "-q", "--detach", target).returncode:
             return None

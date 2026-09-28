@@ -90,6 +90,19 @@ def test_a_failed_guard_check_blocks_the_move(tmp_path, monkeypatch):
         assert _git(runtime, "rev-parse", "HEAD") == old
 
 
+def test_an_edit_made_during_the_fetch_blocks_the_move(tmp_path, monkeypatch):
+    _, runtime, old, _ = _fleet(tmp_path)
+
+    def edit_while_fetching(root, *args):
+        if args[:1] == ("fetch",):
+            (runtime / "a").write_text("edited mid-fetch")
+        return _REAL_GIT(root, *args)
+
+    monkeypatch.setattr(su, "_git", edit_while_fetching)
+    assert su.fast_forward(runtime) is None
+    assert _git(runtime, "rev-parse", "HEAD") == old
+
+
 def test_diverged_head_is_not_moved(tmp_path):
     _, runtime, _, _ = _fleet(tmp_path)
     mine = _commit(runtime, "local-only")
