@@ -78,3 +78,5 @@ would break its `MANIFEST.sha256`; it belongs in the package's next revision in 
 The last four rows come from `claudelog.com`, which the reference already labels third-party; the
 page fetched on 28 Sept was last updated 24 Jul 2026 and predates Opus 5.5. The first-party model
 page does confirm Opus 5.5's 22 Sept 2026 release (VERIFIED above).
+
+Six more review-and-acceptance rows and three vendor notes from a second pass: [second-pass-2026-09-28.md](second-pass-2026-09-28.md).
