@@ -1,6 +1,7 @@
 {
   "schema": "done/1",
   "by_identity": {
-    "claude/nifty-mayer-qemzix@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ptd-808": "w_a6e16da5fc98"
+    "claude/nifty-mayer-qemzix@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ptd-808": "w_a6e16da5fc98",
+    "fix/deny-agent-pr-merge@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/deny-pr-merge": "w_420c44626679"
   }
 }

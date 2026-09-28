@@ -1,0 +1,9 @@
+{
+  "schema": "done/1",
+  "work_id": "w_420c44626679",
+  "contract_digest": "adce0d2420cdb0522d4270f6340028726fe1f0c8bcdb846a4892a924915dfede",
+  "baseline_head": "155877e94bd4847676b3615b25cf28a398d1956d",
+  "identity_key": "fix/deny-agent-pr-merge@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/deny-pr-merge",
+  "locked_at_utc": "2026-09-28T23:02:45Z",
+  "criteria_count": 3
+}

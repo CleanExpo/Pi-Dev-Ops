@@ -47,7 +47,8 @@
       "Bash(mkfs:*)",
       "WebFetch(domain:localhost)",
       "Bash(curl * | sh:*)",
-      "Bash(wget * | sh:*)"
+      "Bash(wget * | sh:*)",
+      "Bash(gh pr merge:*)"
     ]
   },
   "hooks": {
