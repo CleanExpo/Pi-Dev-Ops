@@ -252,6 +252,21 @@ def unreaped(rec: Optional[RunRecord]) -> bool:
     return rec is not None and getattr(rec, "reaped", None) is False
 
 
+_LEFT_RUNNING: list = []  # RA-7798: agents this process could not stop
+
+
+def track(rec: Optional[RunRecord]) -> None:
+    """Remember an agent that may outlive its claim, so the runner never restarts away from it."""
+    if unreaped(rec):
+        _LEFT_RUNNING.append(rec)
+
+
+def any_left_running() -> bool:
+    """True while a tracked agent is alive, or has no handle to prove it exited."""
+    proc_alive = [getattr(r, "proc", None) is None or r.proc.poll() is None for r in _LEFT_RUNNING]
+    return any(proc_alive)
+
+
 def fields(rec: Optional[RunRecord], plan: dict) -> dict:
     """The fields to report for `rec`, or just the error code. Never raises."""
     if rec is not None:

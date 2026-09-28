@@ -189,6 +189,55 @@ def test_no_update_while_an_agent_of_ours_may_still_run(monkeypatch, tmp_path):
         assert skips == [True], agents
 
 
+def test_an_agent_left_running_blocks_update_even_when_the_fleet_reads_zero(monkeypatch, tmp_path):
+    """The idle breadcrumb can erase the fleet's view of an unreaped agent, so the
+    runner's own record of it must block the restart."""
+    runner = _runner_with(monkeypatch, tmp_path, 0)
+    skips: list = []
+    monkeypatch.setattr(runner.run_record, "any_left_running", lambda: True)
+
+    def idle(*a, skip=False, **k):
+        skips.append(skip)
+        raise _Stop
+
+    monkeypatch.setattr(runner.self_update, "idle_tick", idle)
+    monkeypatch.setattr(runner.self_update, "update_now", lambda host, may_move=None: False)
+    try:
+        runner.main()
+    except _Stop:
+        pass
+    assert skips == [True]
+
+
+def test_a_tracked_agent_counts_until_its_process_exits(monkeypatch):
+    rr = load_module("mesh_run_record_tracking", "mesh/run_record.py")
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        rec = type("Rec", (), {"reaped": False, "proc": child})()
+        rr.track(rec)
+        assert rr.any_left_running() is True
+    finally:
+        child.kill()
+        child.wait()
+    assert rr.any_left_running() is False
+    rr.track(type("Rec", (), {"reaped": True, "proc": None})())  # reaped agents are not tracked
+    assert rr.any_left_running() is False
+
+
+def test_every_claim_hands_its_run_record_to_the_tracker(monkeypatch, tmp_path):
+    from test_mesh_run_record_claim import _runner as _claim_runner
+
+    runner, _calls, _removed, repo = _claim_runner(monkeypatch, tmp_path)
+    agent = tmp_path / "agent"
+    agent.write_text("#!/bin/sh\nexit 0\n")
+    agent.chmod(0o755)
+    monkeypatch.setattr(runner, "AGENT_CMD", str(agent))
+    tracked: list = []
+    monkeypatch.setattr(runner.run_record, "track", tracked.append)
+    runner.run_claim({"linear_id": "UNI-T", "repo_dir": str(repo)}, dry_run=False)
+    assert len(tracked) == 1 and tracked[0] is not None
+
+
 def test_dry_run_and_opt_out_never_update(monkeypatch):
     monkeypatch.setattr(su.time, "sleep", lambda s: None)
     monkeypatch.setattr(su, "_last_check", [float("-inf")])

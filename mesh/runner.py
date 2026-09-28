@@ -242,6 +242,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
             plan.update(state="failed", error="git worktree add failed")
     finally:
         rec = held[0] if held else None
+        run_record.track(rec)  # RA-7798: an agent left running blocks self-update
         claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", {
             "linear_id": linear_id, "branch": branch, **run_record.terminal(rec, plan)}),
             lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
@@ -280,20 +281,18 @@ def main() -> int:
         work = get_work()
         results = [run_claim(claim, dry_run=args.dry_run) for claim in work]
         processed += len(work)
-        print(json.dumps({
-            "runner": HOST,
-            "claims": len(work),
-            "results": results,
-            "processed": processed,
-        }))
+        print(json.dumps({"runner": HOST, "claims": len(work), "results": results,
+                          "processed": processed}))
         if args.once:
             return 0
         agents = active_agent_count(_api, HOST)
         if work and agents is not None and agents < MAX_PARALLEL:
             time.sleep(IDLE_RECLAIM_DELAY)
             continue
-        if self_update.idle_tick(write_state, POLL_INTERVAL, HOST, skip=args.dry_run or agents != 0):
-            return self_update.RESTART_EXIT  # RA-7798: never while an agent may still run
+        # RA-7798: never restart while an agent may still run — ours, per the fleet, or unknown.
+        busy = agents != 0 or run_record.any_left_running()
+        if self_update.idle_tick(write_state, POLL_INTERVAL, HOST, skip=args.dry_run or busy):
+            return self_update.RESTART_EXIT
 
 
 if __name__ == "__main__":
