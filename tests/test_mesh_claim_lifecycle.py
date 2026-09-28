@@ -243,3 +243,38 @@ def test_an_interrupt_while_closing_the_log_still_reports_the_run(monkeypatch, t
     assert [b["state"] for b in _updates(calls)] == ["working", "done"]
     assert final["run_id"] and final["exit_code"] == 0
     assert removed and _state(tmp_path) == "idle"
+
+
+def test_ctrl_c_while_a_claim_ends_waits_until_every_step_ran():
+    """Rounds 12-20: a real SIGINT during the ending is held until report, removal and idle ran."""
+    import os
+    import signal
+
+    ran: list = []
+
+    def report_and_get_interrupted():
+        ran.append("report")
+        os.kill(os.getpid(), signal.SIGINT)
+        ran.append("report finished")
+        return {}
+
+    with pytest.raises(KeyboardInterrupt):
+        cl.end(report_and_get_interrupted, lambda: ran.append("remove"), lambda: ran.append("idle"),
+               agent_alive=False, pause=0)
+    assert ran == ["report", "report finished", "remove", "idle"]
+    assert signal.getsignal(signal.SIGINT) is signal.default_int_handler
+
+
+def test_an_interrupt_building_the_terminal_fields_still_reports(monkeypatch, tmp_path):
+    """Round 20: KeyboardInterrupt inside RunRecord.fields() skipped the terminal update."""
+    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
+    monkeypatch.setattr(runner, "AGENT_CMD", "true")
+
+    def interrupted(self, plan):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(runner.run_record.RunRecord, "fields", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        runner.run_claim({"linear_id": "UNI-B", "repo_dir": str(repo)}, dry_run=False)
+    assert [b["state"] for b in _updates(calls)] == ["working", "done"]
+    assert removed and _state(tmp_path) == "idle"

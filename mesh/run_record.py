@@ -259,6 +259,8 @@ def fields(rec: Optional[RunRecord], plan: dict) -> dict:
             return rec.fields(plan)
         except Exception:  # noqa: BLE001 — the terminal update must still go out
             pass
+        except BaseException as exc:  # held: release_interrupt re-raises it once the claim ended
+            rec.held_interrupt = exc
     return {"error_code": error_code(plan)}
 
 

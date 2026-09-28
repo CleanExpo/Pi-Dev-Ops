@@ -9,6 +9,8 @@ its claim and its worktree are left in place, because the agent is still in it.
 """
 from __future__ import annotations
 
+import contextlib
+import signal
 import subprocess
 import sys
 import time
@@ -85,6 +87,30 @@ def report(send: Callable[[], Any], pause: float) -> bool:
     return False
 
 
+@contextlib.contextmanager
+def _sigint_deferred():
+    """Hold a Ctrl-C (SIGINT) that arrives while a claim is ending, then raise it.
+
+    Review rounds 12-20 each found one more point where a KeyboardInterrupt cut
+    the end of a claim short. A real KeyboardInterrupt only comes from SIGINT, so
+    catching the signal for the length of the ending closes the whole class: the
+    report, the removal and the idle state all run, then the interrupt is raised.
+    Off the main thread a handler cannot be installed, and the ending runs as before.
+    """
+    caught: list = []
+    try:
+        previous = signal.signal(signal.SIGINT, lambda *_: caught.append(True))
+    except ValueError:
+        yield
+        return
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGINT, previous)
+    if caught:
+        raise KeyboardInterrupt
+
+
 def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], None],
         *, agent_alive: bool, pause: float, then: Callable[[], None] = lambda: None) -> None:
     """End a claim: report it, remove its worktree, mark the runner idle, then run `then`
@@ -94,8 +120,9 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
     runner's `working` breadcrumb: reporting the claim terminal would free the
     ticket for another node while this agent still writes to that worktree.
     """
-    if agent_alive:
-        print("mesh: the agent could not be stopped; its claim and worktree are left in place",
-              file=sys.stderr)
-        return then()
-    finish(lambda: report(send, pause), remove, idle, then)
+    with _sigint_deferred():
+        if agent_alive:
+            print("mesh: the agent could not be stopped; its claim and worktree are left in place",
+                  file=sys.stderr)
+            return then()
+        finish(lambda: report(send, pause), remove, idle, then)
