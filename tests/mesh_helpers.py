@@ -86,3 +86,27 @@ class UnprintableError(Exception):
 
     def __str__(self):
         raise ValueError("cannot print")
+
+
+class InterruptOnce:
+    """A real Popen whose first call to `step` raises KeyboardInterrupt (UNI-2796 review round 14).
+
+    For `terminate` the interrupt lands after the signal is sent, so the agent
+    still exits promptly; for every other step it lands before the call.
+    """
+
+    def __init__(self, proc, step):
+        self._proc, self._step = proc, step
+
+    def __getattr__(self, name):
+        attr = getattr(self._proc, name)
+        if name != self._step or not callable(attr):
+            return attr
+
+        def once(*args, **kwargs):
+            self._step = None
+            if name == "terminate":
+                attr(*args, **kwargs)
+            raise KeyboardInterrupt
+
+        return once

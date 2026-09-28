@@ -8,13 +8,16 @@ whatever it cannot prove has exited, and never raise.
 """
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from mesh_helpers import UnprintableError  # noqa: E402
+from mesh_helpers import InterruptOnce, UnprintableError  # noqa: E402
 from mesh_helpers import load_module as _load  # noqa: E402
 
 rr = _load("mesh_run_record_stop_under_test", "mesh/run_record.py")
@@ -64,6 +67,22 @@ def test_an_unprintable_exception_still_stops_the_agent(tmp_path):
     assert started[0].poll() is not None, "agent still running after run_agent returned"
     assert (plan["state"], plan["error_code"], plan["error"]) == (
         "failed", "runner_exception", "unprintable exception")
+
+
+@pytest.mark.parametrize("step", ["poll", "terminate", "wait"])
+def test_an_interrupt_during_shutdown_is_held_until_the_agent_is_reaped(tmp_path, step):
+    """Round 14: KeyboardInterrupt inside stop() cut shutdown short with the agent alive."""
+    real = subprocess.Popen(["sleep", "30"])
+    try:
+        rec = rr.RunRecord("0a0a0a0a", tmp_path)
+        rec.proc = InterruptOnce(real, step)
+        with pytest.raises(KeyboardInterrupt):
+            rec.stop()
+        assert real.poll() is not None, "agent still running as the interrupt propagated"
+        assert rec._log.closed
+    finally:
+        real.kill()
+        real.wait()
 
 
 class _FakeAgent:

@@ -65,13 +65,18 @@ def _describe(exc: BaseException) -> str:
         return "unprintable exception"
 
 
-def _attempt(action: Callable[[], Any]) -> bool:
+def _attempt(action: Callable[[], Any], held: list) -> bool:
     """Run one shutdown step; True if it completed. Each step is attempted even
-    when the one before it failed, and none of them can raise."""
+    when the one before it failed. An Exception is absorbed; an interrupt
+    (KeyboardInterrupt, SystemExit) is appended to `held`, for the caller to
+    re-raise once every step has been attempted."""
     try:
         action()
         return True
     except Exception:  # noqa: BLE001 — shutdown is best-effort, step by step
+        return False
+    except BaseException as exc:  # held, not lost: re-raised after the agent is reaped
+        held.append(exc)
         return False
 
 
@@ -133,23 +138,26 @@ class RunRecord:
         return self.proc
 
     def stop(self) -> None:
-        """End a still-running agent and reap it, then close the log. Never raises.
+        """End a still-running agent and reap it, then close the log.
 
         A claim must not be reported terminal, and its worktree removed, while
-        the agent is still executing in it.
+        the agent is still executing in it. Never raises an Exception. An
+        interrupt arriving during any step does not cut shutdown short: it is
+        held until every step has been attempted, then re-raised.
         """
+        held: list = []
         proc = self.proc
         if proc is not None:
-            try:
-                running = proc.poll() is None
-            except Exception:  # noqa: BLE001 — cannot tell, so treat it as still running
-                running = True
-            if running:
-                _attempt(proc.terminate)
-                if not _attempt(lambda: proc.wait(timeout=10)):
-                    _attempt(proc.kill)
-                    _attempt(proc.wait)
-        self.close()
+            exited: list = []
+            _attempt(lambda: exited.append(proc.poll() is not None), held)
+            if exited != [True]:  # still running, or cannot tell
+                _attempt(proc.terminate, held)
+                if not _attempt(lambda: proc.wait(timeout=10), held):
+                    _attempt(proc.kill, held)
+                    _attempt(proc.wait, held)
+        _attempt(self.close, held)
+        if held:
+            raise held[0]
 
     def close(self) -> None:
         """Close the log. Never raises: a failed flush must not cost the claim its terminal update."""

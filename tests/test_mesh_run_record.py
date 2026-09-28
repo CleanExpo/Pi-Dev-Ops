@@ -151,16 +151,17 @@ def test_a_run_id_that_is_not_the_generated_hex_opens_nothing(tmp_path):
 
 
 def test_a_log_close_failure_never_raises(tmp_path):
-    rec = rr.RunRecord("0a0a0a05", tmp_path)
+    for run_id, error in (("0a0a0a05", OSError("log flush failed")), ("0a0a0a15", ValueError("close broke"))):
+        rec = rr.RunRecord(run_id, tmp_path)
 
-    class Broken:
-        closed = False
+        class Broken:
+            closed = False
 
-        def close(self):
-            raise OSError("log flush failed")
+            def close(self, error=error):
+                raise error
 
-    rec._log = Broken()
-    assert rec.fields({})["run_id"] == "0a0a0a05"
+        rec._log = Broken()
+        assert rec.fields({})["run_id"] == run_id
 
 
 def test_fields_never_raises_even_if_the_record_does(tmp_path):
