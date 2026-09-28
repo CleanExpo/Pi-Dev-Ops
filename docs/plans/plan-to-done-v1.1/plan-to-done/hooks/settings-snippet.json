@@ -1,0 +1,14 @@
+{
+  "_comment": "Merge into the settings file that governs plan-to-done sessions (managed settings preferred so Claude cannot edit it). Path below assumes the Library checkout at ~/.claude; adjust per host — never embed one user's home directory in the Library itself.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}/.claude/skills/plan-to-done/hooks/planning-boundary.sh\"" }
+        ]
+      }
+    ]
+  },
+  "skillOverrides": { "plan-to-done": "user-invocable-only" }
+}

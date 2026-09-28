@@ -1,0 +1,42 @@
+{
+  "planning_identity": "idea-to-live",
+  "intent_revision": "r1",
+  "planning_status": "DRAFT",
+  "session_end_state": "BLOCKED-EXTERNAL",
+  "written_at": "2026-09-28",
+  "inspected_repository": {"repo": "CleanExpo/Pi-Dev-Ops", "commit": "6121037"},
+  "written": [
+    "docs/plans/idea-to-live/intent.md",
+    "docs/plans/idea-to-live/pathway.md",
+    "docs/plans/idea-to-live/routing-reconciliation.md",
+    "docs/plans/idea-to-live/routing-verification-2026-09-28.json",
+    "docs/plans/plan-to-done-v1.1/ (package imported unmodified; MANIFEST.sha256 154/154 OK)"
+  ],
+  "coverage_gaps": [
+    {"id": "A", "gap": "GO never starts a build", "evidence": "app/server/idea_pipeline/dispose.py:53-66"},
+    {"id": "B", "gap": "No code promotes a GO'd idea to an eligible Linear ticket", "evidence": "app/server/goal_ticket.py; app/server/autonomy.py"},
+    {"id": "C", "gap": "Autonomy poller possibly off in production", "evidence": "QUEUE.md (2026-08-18 Railway log); not re-checked"},
+    {"id": "D", "gap": "Deploy leaves no receipt", "evidence": "no deploy step in .github/workflows"},
+    {"id": "E", "gap": "complete == merged, not verified live", "evidence": "app/server/spec_pipeline/execution.py:234"},
+    {"id": "F", "gap": "No whole-project definition of done", "evidence": "docs/DIAGNOSIS-autonomous-completion-gap-2026-06-07.md"},
+    {"id": "G", "gap": "Ship-chain docs end at ship", "evidence": "docs/ship-chain/01-the-algorithm.md"}
+  ],
+  "package_findings": [
+    {"id": "PKG-1", "finding": "gpt-6-sol does not exist on OpenAI's Codex models page; current family is gpt-5.6-sol/terra/luna", "evidence": "routing-verification-2026-09-28.json"},
+    {"id": "PKG-2", "finding": "planning-boundary.sh substring path match allows ../ traversal and nested docs/plans/ paths", "evidence": "routing-reconciliation.md, 'Defect found in the package's boundary hook'"}
+  ],
+  "decisions": [
+    {"id": "D0", "question": "Pi-Dev-Ops acceptance: cross-model audit (10 Sept decision) or human-merge-only (docs/session-handoffs/20260911-1230-0eca2639.md:212)?", "owner": "Phill", "kind": "direction"},
+    {"id": "D1", "question": "Frontmatter policy: Claude Code fields vs spec-only + skillOverrides", "owner": "skills-library maintainer"},
+    {"id": "D2", "question": "TypeSafe intake: vendor marketplace vs pinned vault", "owner": "skills-library maintainer"},
+    {"id": "D3", "question": "Does plan-review workflow count toward the two-round cap?", "owner": "skills-library maintainer"}
+  ],
+  "review_receipts": [
+    {"kind": "cross-model", "model": "codex", "outcome": "NOT_RUN", "reason": "Codex CLI not available in this container"}
+  ],
+  "next_action": {
+    "action": "Fix PKG-1 and PKG-2 in plan-to-done v1.2, run `claude plugin eval` on it, then promote through CleanExpo/skills-library",
+    "owner": "skills-library",
+    "blocked_by": ["D0"]
+  }
+}

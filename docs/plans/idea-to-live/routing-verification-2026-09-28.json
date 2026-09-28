@@ -1,0 +1,751 @@
+{
+ "fetched": "2026-09-28",
+ "reference": "../plan-to-done-v1.1/plan-to-done/references/model-and-plan-routing.md",
+ "method": "8 read-only agents, WebFetch (Exa fallback); status per figure",
+ "rows": [
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Fable 5.1 price $10/$50 per MTok",
+   "status": "VERIFIED",
+   "evidence": "| Claude Fable 5.1 | 1M | 128K | $10 / $50 | Slower | Adaptive (always on) | `high` | Jun 2026 |"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Fable 5.1 context 1M, max output 128K",
+   "status": "VERIFIED",
+   "evidence": "| Claude Fable 5.1 | 1M | 128K | $10 / $50 |"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Fable 5.1 adaptive thinking always on",
+   "status": "VERIFIED",
+   "evidence": "Claude Fable 5.1 ... Adaptive (always on)"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Fable 5.1 default effort high",
+   "status": "VERIFIED",
+   "evidence": "Claude Fable 5.1 ... Adaptive (always on) | `high` | Jun 2026"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Opus 5.5 price $4/$20 per MTok",
+   "status": "VERIFIED",
+   "evidence": "Input pricing: $4 / MTok · Output pricing: $20 / MTok"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Opus 5.5 context 1M, max output 128K",
+   "status": "VERIFIED",
+   "evidence": "Context window: 1M tokens · Max output: 128K tokens"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Opus 5.5 always-on thinking",
+   "status": "VERIFIED",
+   "evidence": "Adaptive thinking is always on and can't be turned off."
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Opus 5.5 default effort medium",
+   "status": "VERIFIED",
+   "evidence": "| Default effort | `medium` |"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Opus 5.5 cache read $0.20/MTok",
+   "status": "VERIFIED",
+   "evidence": "| Cache read | $0.20 / MTok |"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Opus 5.5 released 22 Sept 2026",
+   "status": "VERIFIED",
+   "evidence": "**Latest.** Released September 22, 2026."
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Sonnet 5 price $2/$10 per MTok",
+   "status": "VERIFIED",
+   "evidence": "| Claude Sonnet 5 | 1M | 128K | $2 / $10 | Fast | Adaptive | `high` | Jan 2026 |"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Sonnet 5 context 1M, max output 128K",
+   "status": "VERIFIED",
+   "evidence": "| Claude Sonnet 5 | 1M | 128K | $2 / $10 |"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Haiku 4.5 price $1/$5 per MTok",
+   "status": "VERIFIED",
+   "evidence": "| Claude Haiku 4.5 | 200K | 64K | $1 / $5 | Fastest | Extended | — | Feb 2025 |"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Haiku 4.5 context 200K, max output 64K",
+   "status": "VERIFIED",
+   "evidence": "| Claude Haiku 4.5 | 200K | 64K | $1 / $5 |"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Batch API 50% off",
+   "status": "VERIFIED",
+   "evidence": "Batch API requests are 50% off; ... | Batch API | 50% discount on input and output |"
+  },
+  {
+   "url": "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+   "claim": "Model id claude-opus-5-5 (implied by source URL / Opus 5.5 lineup)",
+   "status": "VERIFIED",
+   "evidence": "Model ID: `claude-opus-5-5`"
+  },
+  {
+   "url": "https://support.claude.com/en/articles/15424964-claude-fable-models-on-your-plan",
+   "claim": "On Max, Fable 5 and Fable 5.1 are a standard part of the plan",
+   "status": "VERIFIED",
+   "evidence": "Fable 5 and Fable 5.1 are included as a standard part of your plan (on Max plans, premium Team seats, and premium Enterprise seats)"
+  },
+  {
+   "url": "https://support.claude.com/en/articles/15424964-claude-fable-models-on-your-plan",
+   "claim": "Up to 50% of the weekly limit may go to Fable",
+   "status": "VERIFIED",
+   "evidence": "You can use up to 50% of your weekly usage limits on Fable models at no extra cost."
+  },
+  {
+   "url": "https://support.claude.com/en/articles/15424964-claude-fable-models-on-your-plan",
+   "claim": "Fable draws the limit faster than other models",
+   "status": "VERIFIED",
+   "evidence": "use them faster than other Claude models"
+  },
+  {
+   "url": "https://support.claude.com/en/articles/15424964-claude-fable-models-on-your-plan",
+   "claim": "Fable 5.1 needs Claude Code >= 2.1.255",
+   "status": "VERIFIED",
+   "evidence": "Fable 5.1 requires version 2.1.255 or later"
+  },
+  {
+   "url": "https://support.claude.com/en/articles/11049741-what-is-the-max-plan",
+   "claim": "Max 5x tier = 5x the Pro allowance",
+   "status": "VERIFIED",
+   "evidence": "Max 5x: five times the Pro plan's per-session usage allowance."
+  },
+  {
+   "url": "https://support.claude.com/en/articles/11049741-what-is-the-max-plan",
+   "claim": "Max 20x tier = 20x the Pro allowance",
+   "status": "VERIFIED",
+   "evidence": "Max 20x: 20 times the Pro plan's per-session usage allowance."
+  },
+  {
+   "url": "https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan",
+   "claim": "Agent SDK, claude -p and third-party apps still draw from subscription usage limits",
+   "status": "VERIFIED",
+   "evidence": "For now, nothing has changed: Claude Agent SDK, `claude -p`, and third-party app usage still draw from your subscription's usage limits."
+  },
+  {
+   "url": "https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan",
+   "claim": "Announced separate credit was paused on 15 June 2026",
+   "status": "VERIFIED",
+   "evidence": "Update June 15: We're pausing the changes to Claude Agent SDK usage described below. ... The previously announced monthly credit ... isn't available."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Dynamic workflow is a JavaScript script Claude writes",
+   "status": "VERIFIED",
+   "evidence": "A dynamic workflow is a JavaScript script that orchestrates many subagents at once. Claude writes the script for the task you describe"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Script primitives agent(), pipeline(), parallel(), phase(), log(), args",
+   "status": "VERIFIED",
+   "evidence": "besides `agent()`, `pipeline()`, and `parallel()`, you can call `phase()` to group the agents ... call `log()` to show a message above the phases, and read the `args` global"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Schema-validated agent output",
+   "status": "VERIFIED",
+   "evidence": "If you pass a `schema` on an `agent()` call, that subagent returns JSON matching the shape instead of prose."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "16 concurrent agents by default",
+   "status": "VERIFIED",
+   "evidence": "Up to 16 concurrent agents by default, fewer when Claude Code has fewer CPUs available"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "1,000 agents per run cap",
+   "status": "VERIFIED",
+   "evidence": "1,000 agents total per run"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "4,096 items per parallel()/pipeline() call",
+   "status": "VERIFIED",
+   "evidence": "Up to 4,096 items in a single `parallel()` or `pipeline()` call: the runtime rejects a longer list with an error"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Large workflow warning at 25 agents (page says 'more than 25')",
+   "status": "VERIFIED",
+   "evidence": "When a workflow schedules more than 25 agents, or its projected token total passes 1.5 million, its progress line ... shows a `Large workflow` warning."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Large workflow warning at 1.5M projected tokens",
+   "status": "VERIFIED",
+   "evidence": "or its projected token total passes 1.5 million"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Saved to .claude/workflows/ and run as /<name>",
+   "status": "VERIFIED",
+   "evidence": "`.claude/workflows/` in your project: shared with everyone who clones the repo ... The workflow runs as `/<name>` in future sessions from either location."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Date.now()/Math.random() throw so relaunches are deterministic",
+   "status": "VERIFIED",
+   "evidence": "Claude Code makes `Date.now()`, `Math.random()`, and a no-argument `new Date()` throw inside the script, so that a relaunched run repeats the same `agent()` calls."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Available on all paid plans",
+   "status": "VERIFIED",
+   "evidence": "Dynamic workflows are available on all paid plans, with Anthropic API access, and on Amazon Bedrock... On Pro, turn them on from the Dynamic workflows row in `/config`."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "ultracode = xhigh effort + automatic workflow orchestration",
+   "status": "VERIFIED",
+   "evidence": "Ultracode is a Claude Code setting that combines `xhigh` reasoning effort with automatic workflow orchestration."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "ultracode keyword inert from -p, un-stamped Agent SDK, scheduled tasks, webhooks",
+   "status": "VERIFIED",
+   "evidence": "It doesn't start a workflow when it reaches the session another way: a prompt passed with `-p`; a prompt an Agent SDK application sends without stamping it as human input; a scheduled task prompt; a webhook payload"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Keyword inertness applies from v2.1.210+",
+   "status": "VERIFIED",
+   "evidence": "Before v2.1.210, the keyword started a workflow from any of these routes too, including a webhook payload or pull request comment relayed into the conversation."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Use claude --effort ultracode or the ultracode setting",
+   "status": "VERIFIED",
+   "evidence": "To start a session with ultracode already on, launch with `claude --effort ultracode`... to have every session start with it, set the `ultracode` setting."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Ultracode draws subscription limits faster than high",
+   "status": "VERIFIED",
+   "evidence": "On a subscription plan those tokens draw on your usage limits, so a session with ultracode on reaches a session or weekly limit sooner than the same work at `high`."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "Workflow pauses at usage limit only in interactive claude.ai-subscription session with autoContinueAtUsageLimit on",
+   "status": "VERIFIED",
+   "evidence": "The session is interactive and signed in with a claude.ai subscription... `autoContinueAtUsageLimit` is on"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/workflows",
+   "claim": "In claude -p, SDK, background sessions and agent-team teammates the affected agent fails",
+   "status": "VERIFIED",
+   "evidence": "when one doesn't, the affected agent fails instead: ... A run doesn't pause in non-interactive mode with `claude -p` or the Agent SDK, in a background session, or in a Remote Control or agent team teammate session."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/skills",
+   "claim": "Claude Code skill frontmatter accepts disable-model-invocation, argument-hint, effort, model, context: fork, agent, disallowed-tools, hooks, paths",
+   "status": "VERIFIED",
+   "evidence": "The example below adds `context: fork`, which runs the skill in its own subagent context ... | `agent` | No | Which subagent type to use when `context: fork` is set."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/skills",
+   "claim": "claude.ai uploads, Skills API and package_skill.py accept only name, description, license, compatibility, metadata, allowed-tools",
+   "status": "VERIFIED",
+   "evidence": "| claude.ai skill uploads, the Skills API, and packaging with `package_skill.py` from anthropics/skills | `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools` |"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/skills",
+   "claim": "Those surfaces fail hard on any other frontmatter field",
+   "status": "VERIFIED",
+   "evidence": "If you include any field the spec doesn't allow, packaging or upload fails with a hard error instead of ignoring the field"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/skills",
+   "claim": "allowed-tools grants permission for one turn and does not restrict tools",
+   "status": "VERIFIED",
+   "evidence": "grants permission for the listed tools during the turn that invokes the skill ... It does not restrict which tools are available: every tool remains callable"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/skills",
+   "claim": "Skills doc points to hooks: 'use hooks to enforce behavior deterministically'",
+   "status": "VERIFIED",
+   "evidence": "or use [hooks](/docs/en/hooks) to enforce behavior deterministically."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/plugin-evals",
+   "claim": "claude plugin eval requires v2.1.269+",
+   "status": "VERIFIED",
+   "evidence": "Claude Code v2.1.269 or later. Run `claude --version` to check and `claude update` to upgrade."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/plugin-evals",
+   "claim": "Each case runs 3x with and 3x without the plugin",
+   "status": "VERIFIED",
+   "evidence": "Each case runs three times with your plugin and three times without it, so one case is six runs."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/plugin-evals",
+   "claim": "Graders regex, tool_used, tool_order, file_exists are free; llm and baseline use judge calls",
+   "status": "VERIFIED",
+   "evidence": "Of the six types, `regex`, `tool_used`, `tool_order`, and `file_exists` are computed from the transcript and files and cost nothing, while `llm` and `baseline` call"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/plugin-evals",
+   "claim": "Flags --threshold, --max-cost-usd, --model, --judge-model, --json",
+   "status": "VERIFIED",
+   "evidence": "| `--model <model>` ... | `--judge-model <model>` ... | `--threshold <0..1>` | `1.0` ... | `--max-cost-usd <usd>` | No ceiling ... | `--json [path]` | Off"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/plugin-evals",
+   "claim": "Exit codes 0/1/2",
+   "status": "VERIFIED",
+   "evidence": "0 | Every case scored at or above `--threshold` ... Any case below it makes the command exit 1 ... 2 | Partial run: the `--max-cost-usd` ceiling was hit, or your credential was rejected"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/plugin-evals",
+   "claim": "Runs are isolated claude -p children with read-only tools unless granted",
+   "status": "VERIFIED",
+   "evidence": "the agent under test runs there as a `claude -p` child process with only your plugin loaded ... grant any tools the cases need beyond the read-only set with `--allow-tools`"
+  },
+  {
+   "url": "https://code.claude.com/docs/en/plugin-evals",
+   "claim": "Eval runs count against plan usage",
+   "status": "VERIFIED",
+   "evidence": "call the model with your credentials, so they count against your plan's usage limits or your API bill."
+  },
+  {
+   "url": "https://code.claude.com/docs/en/hooks",
+   "claim": "PreToolUse hooks return hookSpecificOutput.permissionDecision of allow/deny/ask",
+   "status": "VERIFIED",
+   "evidence": "PreToolUse | `hookSpecificOutput` | `permissionDecision` (allow/deny/ask/defer), `permissionDecisionReason` -- note page also lists a fourth value, defer, which the row omits"
+  },
+  {
+   "url": "https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan",
+   "claim": "Codex is included across ChatGPT plans (line 50)",
+   "status": "VERIFIED",
+   "evidence": "Codex is included across ChatGPT plans, including Free and Go. Usage limits vary by plan. (WebFetch EGRESS_BLOCKED; fetched via mcp__Exa__web_fetch_exa)"
+  },
+  {
+   "url": "https://learn.chatgpt.com/docs/pricing",
+   "claim": "Codex included across ChatGPT plans (line 50)",
+   "status": "VERIFIED",
+   "evidence": "ChatGPT Work and Codex are included in your ChatGPT Free, Go, Plus, Pro, Business, Edu, or Enterprise plan"
+  },
+  {
+   "url": "https://learn.chatgpt.com/docs/pricing",
+   "claim": "Pro offers 5x or 20x higher rate limits than Plus (line 50)",
+   "status": "VERIFIED",
+   "evidence": "Pro: Choose 5x or 20x higher rate limits than Plus. ... 5x or 20x more Codex usage than Plus*"
+  },
+  {
+   "url": "https://learn.chatgpt.com/docs/pricing",
+   "claim": "Usage across CLI, app, web and IDE draws one allowance (line 50)",
+   "status": "NOT_ON_PAGE",
+   "evidence": "Closest text: \"Local messages and cloud chats share your plan's usage allowance.\" / \"ChatGPT Work and Codex share usage.\" No explicit CLI/app/web/IDE single-allowance statement."
+  },
+  {
+   "url": "https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan",
+   "claim": "Usage across CLI, app, web and IDE draws one allowance (line 50)",
+   "status": "NOT_ON_PAGE",
+   "evidence": "Closest text: \"Codex, ChatGPT Work, ChatGPT for Excel, and Workspace Agents use a shared allowance and credit pool\" - no per-surface CLI/app/web/IDE statement."
+  },
+  {
+   "url": "https://learn.chatgpt.com/docs/pricing",
+   "claim": "/status shows the allowance in the CLI (line 50)",
+   "status": "VERIFIED",
+   "evidence": "If you want to see your remaining limits during an active Codex CLI session, you can use `/status`."
+  },
+  {
+   "url": "https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan",
+   "claim": "/status shows the allowance in the CLI (line 50)",
+   "status": "VERIFIED",
+   "evidence": "In an active Codex CLI session, enter /status."
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "Recommended model GPT-6 Astra (most capable) (line 51)",
+   "status": "MISMATCH",
+   "evidence": "Recommended models listed are 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.3 Codex Spark; Astra not on models page. \"5.6 Sol - Flagship GPT-5.6 model with the strongest capability\""
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "GPT-6 Sol, model id gpt-6-sol, for complex coding/agentic (line 51)",
+   "status": "MISMATCH",
+   "evidence": "5.6 Sol: Flagship GPT-5.6 model with the strongest capability for complex coding, computer use, research, and cybersecurity. codex -m gpt-5.6-sol"
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "GPT-6 Luna, model id gpt-6-luna, for focused repeatable tasks (line 51)",
+   "status": "MISMATCH",
+   "evidence": "codex -m gpt-5.6-luna ... Luna, for clear, repeatable tasks. (version is GPT-5.6, not GPT-6; description matches)"
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "Recommended set omits a middle model (only Astra/Sol/Luna listed in file) (line 51)",
+   "status": "MISMATCH",
+   "evidence": "Codex offers three GPT-5.6 models: Sol for detail and polish, Terra as the everyday workhorse, and Luna for clear, repeatable work."
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "Non-interactive example: codex exec -m gpt-6-sol (line 51)",
+   "status": "MISMATCH",
+   "evidence": "Page gives \"codex -m gpt-5.6-sol\"; no gpt-6-sol id anywhere on page."
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "Ultra mode uses subagents (line 51)",
+   "status": "VERIFIED",
+   "evidence": "Ultra mode goes beyond a single-agent run. It uses subagents to accelerate complex work"
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "Luna has no Ultra (line 51)",
+   "status": "NOT_ON_PAGE",
+   "evidence": "No statement restricting Ultra by model; page only says \"Ultra uses subagents to handle separate parts of a complex task in parallel.\""
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "GPT-5.5 retires from Codex with ChatGPT sign-in on 14 October 2026 (line 52)",
+   "status": "NOT_ON_PAGE",
+   "evidence": "GPT-5.5 listed under Other models with no retirement date: \"5.5 Previous-generation frontier model for complex coding...\"; only GPT-5.4/5.4-mini retirement is stated."
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "GPT-5.4 and GPT-5.4-mini retired 31 August 2026 (line 52)",
+   "status": "VERIFIED",
+   "evidence": "The gpt-5.4 and gpt-5.4-mini models retire from Codex with ChatGPT sign-in on August 31, 2026."
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "Pin gpt-6-sol in saved config (line 52)",
+   "status": "MISMATCH",
+   "evidence": "Page's replacement guidance: \"replace gpt-5.4 with gpt-5.6-terra and gpt-5.4-mini with gpt-5.6-luna\"; default \"uses gpt-5.6-sol\". No gpt-6-sol."
+  },
+  {
+   "url": "https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan",
+   "claim": "Restrictive config: sandbox_mode = \"read-only\" with approval_policy = \"on-request\" (line 53)",
+   "status": "VERIFIED",
+   "evidence": "For a restrictive alternative, set `sandbox_mode = \"read-only\"` and `approval_policy = \"on-request\"`."
+  },
+  {
+   "url": "https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan",
+   "claim": "Config lives in ~/.codex/config.toml (line 53)",
+   "status": "VERIFIED",
+   "evidence": "open `~/.codex/config.toml` on macOS or Linux, or `%USERPROFILE%\\.codex\\config.toml` on Windows"
+  },
+  {
+   "url": "https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan",
+   "claim": "approval_policy untrusted no longer supported from CLI >= 0.149.0 (line 53)",
+   "status": "VERIFIED",
+   "evidence": "Codex no longer supports the `untrusted` approval policy. ... This change applies to Codex CLI version 0.149.0 and later"
+  },
+  {
+   "url": "https://learn.chatgpt.com/codex/models",
+   "claim": "Codex can point at any provider supporting the Responses API; Chat Completions support deprecated (line 54)",
+   "status": "VERIFIED",
+   "evidence": "point Codex at any model and provider that supports either the Chat Completions or Responses APIs ... Support for the Chat Completions API is deprecated and will be removed"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/api-reference/text-anthropic-api",
+   "claim": "MiniMax-M3 has a 1,000,000-token context window",
+   "status": "VERIFIED",
+   "evidence": "| MiniMax-M3 | 1,000,000 | Latest M-series language model for agentic reasoning, tool use, coding, and long-context tasks |"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/api-reference/text-anthropic-api",
+   "claim": "Model id MiniMax-M3 is supported via the Anthropic-compatible API",
+   "status": "VERIFIED",
+   "evidence": "When using the Anthropic SDK, the `MiniMax-M3` `MiniMax-M2.7` ... model is supported"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/api-reference/text-anthropic-api",
+   "claim": "Anthropic-compatible base URL is https://api.minimax.io/anthropic",
+   "status": "VERIFIED",
+   "evidence": "export ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/api-reference/text-anthropic-api",
+   "claim": "The Anthropic-compatible base URL is the \"recommended\" one",
+   "status": "NOT_ON_PAGE",
+   "evidence": "Page gives only the Anthropic base URL in its Quick Start; the word \"recommended\" appears only for temperature (\"recommended value: 1\"), never for a base URL."
+  },
+  {
+   "url": "https://platform.minimax.io/docs/api-reference/text-anthropic-api",
+   "claim": "OpenAI-compatible base URL is https://api.minimax.io/v1",
+   "status": "NOT_ON_PAGE",
+   "evidence": "No OpenAI-compatible URL on the page; it only says \"For other models, please use the standard MiniMax API interface.\""
+  },
+  {
+   "url": "https://platform.minimax.io/docs/api-reference/text-anthropic-api",
+   "claim": "Works with the Anthropic SDK by setting ANTHROPIC_BASE_URL and ANTHROPIC_API_KEY",
+   "status": "VERIFIED",
+   "evidence": "export ANTHROPIC_BASE_URL=https://api.minimax.io/anthropic\nexport ANTHROPIC_API_KEY=${YOUR_API_KEY}"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/guides/pricing-paygo",
+   "claim": "M3 pay-as-you-go, up to 512K input: $0.30 per million input tokens",
+   "status": "VERIFIED",
+   "evidence": "| ≤ 512k input tokens Permanent 50% off | $0.60 $0.30 / M tokens |"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/guides/pricing-paygo",
+   "claim": "M3, up to 512K input: $1.20 per million output tokens",
+   "status": "VERIFIED",
+   "evidence": "| $2.40 $1.20 / M tokens |"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/guides/pricing-paygo",
+   "claim": "M3, up to 512K input: $0.06 per million cache-read tokens",
+   "status": "VERIFIED",
+   "evidence": "| $0.12 $0.06 / M tokens |"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/guides/pricing-paygo",
+   "claim": "M3 prices are listed as a permanent 50% discount",
+   "status": "VERIFIED",
+   "evidence": "≤ 512k input tokens Permanent 50% off"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/guides/pricing-paygo",
+   "claim": "M3 over 512K input: $0.60 per million input tokens",
+   "status": "VERIFIED",
+   "evidence": "> 512k input tokens* Permanent 50% off | $1.20 $0.60 / M tokens"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/guides/pricing-paygo",
+   "claim": "M3 over 512K input: $2.40 per million output tokens",
+   "status": "VERIFIED",
+   "evidence": "| $4.80 $2.40 / M tokens | $0.24 $0.12 / M tokens |"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/guides/pricing-paygo",
+   "claim": "The Priority tier costs 1.5x the standard price",
+   "status": "VERIFIED",
+   "evidence": "Set `service_tier` to `priority` to enable it. Pricing is 1.5x standard."
+  },
+  {
+   "url": "https://platform.minimax.io/docs/guides/pricing-paygo",
+   "claim": "M2.7 costs $0.30 input per million tokens",
+   "status": "VERIFIED",
+   "evidence": "| MiniMax-M2.7 | $0.3 / M tokens | $1.2 / M tokens | $0.06 / M tokens | $0.375 / M tokens |"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/guides/pricing-paygo",
+   "claim": "M2.7 costs $1.20 output per million tokens",
+   "status": "VERIFIED",
+   "evidence": "| MiniMax-M2.7 | $0.3 / M tokens | $1.2 / M tokens |"
+  },
+  {
+   "url": "https://platform.minimax.io/docs/guides/pricing-paygo",
+   "claim": "A Token Plan subscription exists as an alternative to pay-as-you-go",
+   "status": "VERIFIED",
+   "evidence": "Credits are a separate prepaid balance used through a Subscription Key with the same resource coverage as Token Plan. For Credits pricing and usage behavior, see Token Plan pricing."
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Current model version id is jev-1.13.0",
+   "status": "VERIFIED",
+   "evidence": "| Jev 1.13 | `jev-1.13.0` |"
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Alias jev-latest points to jev-1.13.0",
+   "status": "VERIFIED",
+   "evidence": "| `jev-latest` | `jev-1.13.0` | The most recent stable, official release."
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Alias jev-preview points to jev-1.13.0 today",
+   "status": "VERIFIED",
+   "evidence": "`jev-preview` currently points to the same model as `jev-latest`. There is no preview build available right now."
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Endpoint POST /v1/systemone",
+   "status": "VERIFIED",
+   "evidence": "Every model on this page is served by the same endpoint, `POST /v1/systemone`."
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "GET /v1/models lists models",
+   "status": "VERIFIED",
+   "evidence": "`GET /v1/models` returns the names your account can send in the `model` field"
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Price $0.042 per MTok input",
+   "status": "VERIFIED",
+   "evidence": "| Price (per Btok / per Mtok) | $42 / $0.042 | ... Price: Charged per input token."
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Output tokens are free",
+   "status": "VERIFIED",
+   "evidence": "Charged per input token. Output tokens are free."
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Rate limit 250,000 tokens/s",
+   "status": "VERIFIED",
+   "evidence": "| Rate limits | 250,000 tokens per second / 1,200 requests per minute |"
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Rate limit 1,200 requests/min",
+   "status": "VERIFIED",
+   "evidence": "| Rate limits | 250,000 tokens per second / 1,200 requests per minute |"
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Rate limits adjust dynamically",
+   "status": "VERIFIED",
+   "evidence": "Rate limits are adjusting dynamically. ... the limits above can change without notice"
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Context 64k tokens per request",
+   "status": "VERIFIED",
+   "evidence": "| Context length | 64k tokens per request; 32k tokens for `state` plus the longest question |"
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "32k tokens for state plus the longest question",
+   "status": "VERIFIED",
+   "evidence": "the 32k budget applies to the `state` plus the single longest question."
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Text-only input",
+   "status": "VERIFIED",
+   "evidence": "| Input | Text only. String, JSON object, or array of text values. No image, audio, or video input. |"
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "Not trained on customer requests",
+   "status": "VERIFIED",
+   "evidence": "Jev is not trained on customer requests or responses."
+  },
+  {
+   "url": "https://docs.typesafe.ai/models",
+   "claim": "ZDR available for enterprise",
+   "status": "VERIFIED",
+   "evidence": "details on zero data retention (ZDR) for enterprise customers."
+  },
+  {
+   "url": "https://docs.typesafe.ai/agent-skill",
+   "claim": "Claude Code install step 1: claude plugin marketplace add typesafe-ai/skills",
+   "status": "VERIFIED",
+   "evidence": "claude plugin marketplace add typesafe-ai/skills"
+  },
+  {
+   "url": "https://docs.typesafe.ai/agent-skill",
+   "claim": "Claude Code install step 2: claude plugin install typesafe@typesafe-ai",
+   "status": "VERIFIED",
+   "evidence": "claude plugin install typesafe@typesafe-ai"
+  },
+  {
+   "url": "https://docs.typesafe.ai/agent-skill",
+   "claim": "Invoke with /typesafe:typesafe-ai",
+   "status": "VERIFIED",
+   "evidence": "With the Claude Code plugin, you can also invoke `/typesafe:typesafe-ai` directly."
+  },
+  {
+   "url": "https://docs.typesafe.ai/agent-skill",
+   "claim": "Other agents: npx skills add typesafe-ai/skills --skill typesafe-ai",
+   "status": "VERIFIED",
+   "evidence": "npx skills add typesafe-ai/skills --skill typesafe-ai"
+  },
+  {
+   "url": "https://docs.typesafe.ai/introduction/coding-agents",
+   "claim": "Jev is not a coding-agent LLM and cannot replace the model behind Claude Code",
+   "status": "VERIFIED",
+   "evidence": "Jev is not a drop-in replacement for the LLM behind Claude Code, Cursor, opencode, Copilot, Muse Spark, Grok Bot, or similar tools."
+  },
+  {
+   "url": "https://docs.typesafe.ai/introduction/coding-agents",
+   "claim": "Jev cannot replace the model behind Codex (Codex named explicitly)",
+   "status": "NOT_ON_PAGE",
+   "evidence": "Codex is not in the named list ('Claude Code, Cursor, opencode, Copilot, Muse Spark, Grok Bot, or similar tools'); Codex appears only re the agent skill. Covered only by 'similar tools'."
+  },
+  {
+   "url": "https://docs.typesafe.ai/introduction/coding-agents",
+   "claim": "Use Jev for routing, scoring and true/false checks in your own code",
+   "status": "VERIFIED",
+   "evidence": "Route a request to one of a fixed set of destinations... Score something on a rubric... Check whether a statement is true of a document"
+  },
+  {
+   "url": "https://docs.typesafe.ai/cookbooks/skill_suggestion",
+   "claim": "Picks at most one skill per agent turn",
+   "status": "VERIFIED",
+   "evidence": "Picks at most one skill for an agent turn out of the 182 in Nous Research's Hermes catalog"
+  },
+  {
+   "url": "https://docs.typesafe.ai/cookbooks/skill_suggestion",
+   "claim": "Catalog has 182 skills",
+   "status": "VERIFIED",
+   "evidence": "182 skills in 33 categories"
+  },
+  {
+   "url": "https://docs.typesafe.ai/cookbooks/skill_suggestion",
+   "claim": "Catalog is Nous Research's Hermes",
+   "status": "VERIFIED",
+   "evidence": "out of the 182 in Nous Research's Hermes catalog"
+  },
+  {
+   "url": "https://docs.typesafe.ai/cookbooks/skill_suggestion",
+   "claim": "Uses two requests: rank, then re-check",
+   "status": "VERIFIED",
+   "evidence": "using two TypeSafe requests to rank and re-check the top candidates."
+  },
+  {
+   "url": "https://claudelog.com/claude-code-limits/",
+   "claim": "Opus 5.5 is Claude Code's default Opus model",
+   "status": "MISMATCH",
+   "evidence": "\"With Claude Opus 5 now the current Opus tier\" ... \"Model:`Claude Opus 5` - succeeds Opus 4.8 as the current Opus tier\" (page 'Last updated on Jul 24, 2026'; no mention of Opus 5.5). Fetched via Exa; WebFetch returned EGRESS_BLOCKED."
+  },
+  {
+   "url": "https://claudelog.com/claude-code-limits/",
+   "claim": "Opus 5.5 became default from Claude Code v2.1.280",
+   "status": "NOT_ON_PAGE",
+   "evidence": "No mention of v2.1.280 or any 2.1.x version; only version cited is \"/context (v1.0.86+)\"."
+  },
+  {
+   "url": "https://claudelog.com/claude-code-limits/",
+   "claim": "Launch date 22 Sept 2026",
+   "status": "NOT_ON_PAGE",
+   "evidence": "No 22 Sept 2026 date on page; page footer reads \"Last updated on Jul 24, 2026\"."
+  },
+  {
+   "url": "https://claudelog.com/claude-code-limits/",
+   "claim": "Anthropic raised five-hour limits at the Opus 5.5 launch without publishing figures",
+   "status": "NOT_ON_PAGE",
+   "evidence": "Page covers 5-hour cycles (\"All plans reset every `5 hours`\") and Max \"increased limits\" for Opus, but says nothing about a raise at an Opus 5.5 launch or unpublished figures."
+  },
+  {
+   "url": "https://www.morphllm.com/codex-pricing",
+   "claim": "Codex/ChatGPT Pro is $100/month for 5x",
+   "status": "VERIFIED",
+   "evidence": "\"Pro 5x, $100/mo: 50-500 GPT-5.6 Sol local messages per window\"; \"Pro $100 (5x) or $200 (20x)\" (fetched via Exa; WebFetch EGRESS_BLOCKED)"
+  },
+  {
+   "url": "https://www.morphllm.com/codex-pricing",
+   "claim": "Codex/ChatGPT Pro is $200/month for 20x",
+   "status": "VERIFIED",
+   "evidence": "\"Pro 20x, $200/mo: 200-2,000 on Sol, 500-4,000 on Terra, 5,000-40,000 on Luna.\""
+  }
+ ]
+}

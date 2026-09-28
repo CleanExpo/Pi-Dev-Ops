@@ -1,0 +1,76 @@
+{
+  "package": "plan-to-done",
+  "design_version": "1.1",
+  "date": "2026-09-28",
+  "validation_scope": "LOCAL_STATIC_PACKAGE_CHECKS_ONLY",
+  "checks": [
+    {
+      "check": "entry_under_200_lines",
+      "result": "PASS",
+      "details": 182
+    },
+    {
+      "check": "frontmatter_keys",
+      "result": "PASS",
+      "details": [
+        "name",
+        "description",
+        "argument-hint",
+        "disable-model-invocation",
+        "allowed-tools",
+        "effort"
+      ]
+    },
+    {
+      "check": "frontmatter_spec_only_for_claude_ai_upload",
+      "result": "FAIL",
+      "details": "argument-hint, disable-model-invocation are Claude Code extensions; claude.ai upload / Skills API / package_skill.py reject them (verified with skill-creator quick_validate.py). Deliberate \u2014 see ENHANCEMENT-REVIEW.md D1."
+    },
+    {
+      "check": "relative_markdown_links_resolve",
+      "result": "PASS",
+      "details": {
+        "links_checked": 14,
+        "missing": []
+      }
+    },
+    {
+      "check": "v1_0_references_unchanged",
+      "result": "PASS",
+      "details": "11 reference files byte-identical to v1.0 (see MANIFEST.v1.0.sha256)"
+    },
+    {
+      "check": "eval_suite_present",
+      "result": "PASS",
+      "details": {
+        "cases": 30,
+        "format": "claude plugin eval (Claude Code v2.1.269+)",
+        "executed": false
+      }
+    },
+    {
+      "check": "boundary_hook_local_test",
+      "result": "PASS",
+      "details": "6 synthetic PreToolUse inputs behaved as specified using a Python jq shim; real jq and in-session enforcement not tested"
+    },
+    {
+      "check": "workflow_script_executed",
+      "result": "NOT_RUN",
+      "details": "workflows/plan-review.js is DRAFT_UNTESTED"
+    }
+  ],
+  "not_performed": [
+    "Independent model review",
+    "Baseline or with-skill behavioural trials (claude plugin eval)",
+    "Existing engineering gate execution",
+    "Jev API calls",
+    "GitHub commit/push/PR/merge",
+    "Library catalogue registration",
+    "Host installation or hook enforcement inside Claude Code"
+  ],
+  "limitations": [
+    "Structural checks cannot establish requirement sufficiency or model compliance.",
+    "Design candidate, not an active or proven harness.",
+    "Hashes identify content; they are not approvals."
+  ]
+}
