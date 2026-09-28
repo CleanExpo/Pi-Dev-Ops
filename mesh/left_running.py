@@ -129,7 +129,7 @@ def any_alive() -> bool:
     """True while any recorded agent may still be running. Prunes the ones proven gone.
     An unwritable record counts as alive: a relaunched runner could not have seen it."""
     try:
-        if _UNRECORDED[0] or os.path.lexists(_marker()) or not _writable():
+        if _UNRECORDED[0] or not _writable():
             return True
         with _locked():
             pids = _load()
@@ -139,6 +139,7 @@ def any_alive() -> bool:
                     _save(live)
                 except OSError:
                     pass
-            return bool(live)
+            # again last: a track() that failed while this scan ran published only these
+            return bool(live) or _UNRECORDED[0] or os.path.lexists(_marker())
     except Exception:  # noqa: BLE001 — an error here proves nothing gone
         return True

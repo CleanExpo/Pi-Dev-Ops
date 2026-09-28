@@ -246,3 +246,17 @@ def test_an_agent_tracked_while_the_lock_fails_still_blocks_after_a_restart(monk
     finally:
         child.kill()
         child.wait()
+
+
+def test_a_marker_written_during_the_scan_still_blocks(monkeypatch):
+    dead = subprocess.Popen([sys.executable, "-c", ""])
+    dead.wait()
+    left_running.PATH.write_text(json.dumps([{"pid": dead.pid}]))
+    real_alive = left_running._alive
+
+    def alive_then_marker(pid):  # a failed track() publishes its marker mid-scan
+        left_running._marker().write_text("12345")
+        return real_alive(pid)
+
+    monkeypatch.setattr(left_running, "_alive", alive_then_marker)
+    assert left_running.any_alive() is True
