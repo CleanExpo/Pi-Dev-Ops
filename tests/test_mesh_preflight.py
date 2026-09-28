@@ -106,3 +106,20 @@ def test_a_probe_name_already_present_is_refused(monkeypatch):
     monkeypatch.setattr(pf.uuid, "uuid4", lambda: type("U", (), {"hex": "fixed"})())
     run = fake_run(agent_writes=False, tracked={"mesh-preflight-fixed.txt": "ok"})
     assert pf.agent_writes(REPO, "claude", run=run) == "scratch worktree already holds the probe file"
+
+
+def test_a_candidate_whose_runner_cannot_load_fails_its_own_preflight(tmp_path):
+    """Codex round 4: the candidate's preflight never loaded runner.py, so a commit
+    with a syntax error in it passed, and the runner restarted onto code that died."""
+    import shutil
+    mesh = tmp_path / "mesh"
+    shutil.copytree(REPO_ROOT / "mesh", mesh, ignore=shutil.ignore_patterns("__pycache__"))
+    (mesh / "runner.py").write_text((mesh / "runner.py").read_text() + "\ndef broken(:\n")
+    done = subprocess.run([sys.executable, str(mesh / "preflight.py"), str(tmp_path / "no-repo"), "claude"],
+                          capture_output=True, text=True, timeout=60)
+    assert done.returncode == 1
+    assert done.stdout.strip().splitlines()[-1] == "runner.py does not compile"
+
+
+def test_the_runner_in_this_checkout_loads():
+    assert pf.runner_loads(REPO_ROOT / "mesh") == ""

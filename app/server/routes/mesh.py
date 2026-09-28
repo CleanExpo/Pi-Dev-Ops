@@ -422,13 +422,12 @@ def claim_self(
     nodes = _linear_graphql(mesh_lanes.SELF_CLAIM_QUERY).get("issues", {}).get("nodes", [])
     for tk in mesh_lanes.ranked(nodes, _open_claim_ids() | mesh_requeue.failed_here(_get, body.host)):
         ident = tk["identifier"]
-        status, made = _sb("POST", "mesh_work_claims",
-                           {"linear_id": ident, "machine": body.host, "state": "claimed"},
-                           prefer="return=representation")
-        if status < 300 and (claim_id := mesh_requeue.new_claim_id(_sb, made, ident, body.host)):
+        row = mesh_requeue.claim_row(ident, body.host)
+        status, _ = _sb("POST", "mesh_work_claims", row, prefer="return=minimal")
+        if status < 300:
             _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
             return {"claimed": {
-                "linear_id": ident, "id": claim_id, "machine": body.host, "lane": mesh_lanes.lane_of(tk),
+                "linear_id": ident, "id": row["id"], "machine": body.host, "lane": mesh_lanes.lane_of(tk),
                 "title": (tk.get("title") or "")[:_TITLE_MAX_CHARS],
                 "description": (tk.get("description") or "")[:_BRIEF_MAX_CHARS]}}
         # status 409 = raced by another node → try the next candidate

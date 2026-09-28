@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import sys
 import urllib.parse
+import uuid
 from pathlib import Path
 
 import pytest
@@ -29,7 +30,7 @@ class _Sb:
         self.failed_rows: list[dict] = []
         self.claimed: list[tuple[str, str]] = []
         self.patches: list[tuple[str, dict]] = []
-        self.insert_body = None  # None: return the inserted row, as return=representation does
+        self.inserted: list[dict] = []
 
     def _matches(self, row: dict, query: str) -> bool:
         params = dict(urllib.parse.parse_qsl(query))
@@ -42,9 +43,8 @@ class _Sb:
     def __call__(self, method, path, payload=None, prefer=""):
         if method == "POST" and path.startswith("mesh_work_claims"):
             self.claimed.append((payload["linear_id"], payload["machine"]))
-            if self.insert_body is not None:
-                return 201, self.insert_body
-            return 201, json.dumps([{"id": f"c-{payload['linear_id']}", **payload}])
+            self.inserted.append(payload)
+            return 201, ""  # return=minimal: the route must already know the row's id
         if method == "PATCH" and path.startswith("mesh_work_claims"):
             query = path.split("?", 1)[1]
             self.patches.append((query, payload))
@@ -155,10 +155,11 @@ def test_ending_a_claim_without_naming_node_and_row_changes_nothing(mesh_client,
 
 def test_a_self_claim_hands_back_its_claim_row_id(mesh_client):
     """The runner can only name its claim row if claiming told it which one it got."""
-    client, mesh, _ = mesh_client
+    client, mesh, sb = mesh_client
     mesh.queue = [_issue("RA-2")]
     got = client.post("/api/mesh/claim/self", json={"host": "Phill_Desktop"}, headers=HDR).json()
-    assert got["claimed"]["id"] == "c-RA-2"
+    assert got["claimed"]["id"] == sb.inserted[-1]["id"]
+    assert str(uuid.UUID(got["claimed"]["id"])) == got["claimed"]["id"]
 
 
 def _issue(ident: str) -> dict:
@@ -179,15 +180,13 @@ def test_an_unreadable_failure_table_skips_nothing():
     assert mesh_requeue.failed_here(lambda path: (401, '{"message":"JWT expired"}'), "Mini") == set()
 
 
-def test_a_claim_whose_row_id_did_not_come_back_is_released_not_handed_out(mesh_client):
-    """Codex round 3: a 2xx insert with an empty representation handed the runner a
-    claim with id None. Ending a claim needs its id, so that claim could never end,
-    and the reaper leaves a live node's claims alone."""
+
+def test_the_claim_id_is_chosen_before_the_insert_so_nothing_depends_on_its_reply(mesh_client):
+    """Codex rounds 3-4: an id read back from the insert could be missing, and the
+    release fallback could fail too, stranding the ticket. The id is now chosen first."""
     client, mesh, sb = mesh_client
-    mesh.queue, sb.insert_body = [_issue("RA-2")], "[]"
-    got = client.post("/api/mesh/claim/self", json={"host": "Phill_Desktop"}, headers=HDR).json()
-    assert got["claimed"] is None
-    query, payload = sb.patches[-1]
-    assert "linear_id=eq.RA-2" in query and "machine=eq.Phill_Desktop" in query and "state=eq.claimed" in query
-    assert payload["state"] == "released"
-    assert not any(q.startswith("mutation") and "issueUpdate" in q for q in mesh.gql)  # never moved In Progress
+    mesh.queue = [_issue("RA-2"), _issue("RA-3")]
+    first = client.post("/api/mesh/claim/self", json={"host": "Phill_Desktop"}, headers=HDR).json()
+    second = client.post("/api/mesh/claim/self", json={"host": "Mini"}, headers=HDR).json()
+    assert first["claimed"]["id"] == sb.inserted[0]["id"] != second["claimed"]["id"] == sb.inserted[1]["id"]
+    assert sb.patches == []  # nothing to release

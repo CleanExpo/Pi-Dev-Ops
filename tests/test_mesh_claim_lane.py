@@ -34,7 +34,7 @@ class _Sb:
     def __call__(self, method, path, payload=None, prefer=""):
         self.calls.append((method, path))
         if method == "POST" and path.startswith("mesh_work_claims"):
-            return 201, json.dumps([{"id": "c-1", **(payload or {})}])  # return=representation
+            return 201, ""
         if method == "PATCH" and path.startswith("mesh_work_claims"):
             return 200, json.dumps(self.patch_rows)
         return 200, "[]"

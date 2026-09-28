@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import urllib.parse
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
@@ -56,18 +57,11 @@ def claim_filter(linear_id: str, host: str | None, claim_id: str | None) -> str:
     return q
 
 
-def new_claim_id(sb: Callable[..., "tuple[int, str]"], inserted: str, linear_id: str, host: str) -> str | None:
-    """The id of the claim row just inserted, or None once that row is released again.
-    A claim handed out without its id could never be ended, and the reaper leaves a
-    live node's claims alone, so it would hold its ticket for good (Codex round 3)."""
-    rows = mesh_fleet.parse_rows(inserted)[0] or [{}]
-    if rows[0].get("id"):
-        return str(rows[0]["id"])
-    q = urllib.parse.quote
-    sb("PATCH", f"mesh_work_claims?linear_id=eq.{q(linear_id)}&machine=eq.{q(host)}&state=eq.claimed",
-       {"state": "released", "released_at": datetime.now(timezone.utc).isoformat()}, prefer="return=minimal")
-    log.warning("claim_self: insert for %s returned no row id; released it", linear_id)
-    return None
+def claim_row(linear_id: str, host: str) -> dict:
+    """The claim row to insert, with its id chosen here. Reading the id back from the
+    insert could come back empty, and releasing that row could then fail too, holding
+    the ticket for good (Codex rounds 3-4). Chosen first, it is never unknown."""
+    return {"id": str(uuid.uuid4()), "linear_id": linear_id, "machine": host, "state": "claimed"}
 
 
 def owns(row: dict, host: str | None) -> bool:

@@ -15,6 +15,7 @@ put in a heartbeat.
 """
 from __future__ import annotations
 
+import importlib
 import shutil
 import subprocess
 import sys
@@ -78,12 +79,31 @@ def agent_writes(repo_dir: Path, agent_cmd: str,
         shutil.rmtree(worktree.parent, ignore_errors=True)
 
 
+def runner_loads(mesh_dir: Path) -> str:
+    """Every module in this checkout's mesh/ compiles, and runner.py imports.
+
+    self_update runs a candidate commit's preflight.py in a fresh interpreter, so
+    this is the only place the NEW runner code is loaded before the runner restarts
+    onto it. Without it, a syntax error in runner.py passed (Codex round 4).
+    """
+    for module in sorted(mesh_dir.glob("*.py")):
+        try:
+            compile(module.read_text(encoding="utf-8"), str(module), "exec")  # no .pyc written
+        except (SyntaxError, ValueError, OSError):
+            return f"{module.name} does not compile"
+    try:
+        importlib.import_module("runner")
+    except Exception as exc:  # noqa: BLE001 — any failure to load is a failure to run
+        return f"runner does not import: {type(exc).__name__}"
+    return ""
+
+
 def check(repo_dir: Path, agent_cmd: str) -> str:
     """Every preflight check, first problem wins."""
     return run_log() or agent_writes(repo_dir, agent_cmd)
 
 
 if __name__ == "__main__":  # self_update runs a NEW commit's preflight this way
-    problem = check(Path(sys.argv[1]), sys.argv[2])
+    problem = runner_loads(Path(__file__).resolve().parent) or check(Path(sys.argv[1]), sys.argv[2])
     print(problem or "ok")
     sys.exit(1 if problem else 0)
