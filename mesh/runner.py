@@ -18,6 +18,7 @@ import os
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import types
 import urllib.error
@@ -224,7 +225,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     if not (repo_dir / ".git").exists():
         return _fail_claim(plan, linear_id, branch, f"repo missing: {repo_dir}")
 
-    worktree = Path("/tmp") / f"mesh-{linear_id}-{run_id}"
+    worktree = worktree_path(linear_id, run_id)
     held: list = []  # the run record, kept even when an interrupt escapes run_agent
     try:  # from `working` on, every way out — even an interrupt — ends the claim in the finally
         write_state(linear_id, "working", session_id=run_id)
@@ -247,6 +248,14 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
             agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS,
             then=lambda: run_record.release_interrupt(rec))
     return plan
+
+
+def worktree_path(linear_id: str, run_id: str) -> Path:
+    """Where a run's worktree goes: the platform temp dir, not `/tmp` (RA-7801).
+
+    `/tmp` does not exist on Windows, so the PC's worktree landed in `\\tmp` on
+    whatever drive the runner started from."""
+    return Path(tempfile.gettempdir()) / f"mesh-{linear_id}-{run_id}"
 
 
 def main() -> int:
