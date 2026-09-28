@@ -33,6 +33,7 @@ from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
 import claim_lifecycle  # noqa: E402
 import run_record  # noqa: E402
+import self_update  # noqa: E402
 
 
 def _from_env_file(name: str) -> str:
@@ -287,8 +288,8 @@ def main() -> int:
         if work and agents is not None and agents < MAX_PARALLEL:
             time.sleep(IDLE_RECLAIM_DELAY)
             continue
-        write_state(None, "idle")
-        time.sleep(POLL_INTERVAL)
+        if self_update.idle_tick(write_state, POLL_INTERVAL, HOST, skip=args.dry_run):
+            return self_update.RESTART_EXIT  # RA-7798: relaunch on the new code
 
 
 if __name__ == "__main__":
