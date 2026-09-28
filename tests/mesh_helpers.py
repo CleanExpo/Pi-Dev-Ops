@@ -67,6 +67,50 @@ class ImmediateProc:
         """No-op: there is no real process to signal."""
 
 
+def secret_token() -> str:
+    """An Anthropic-API-key-shaped string, assembled at runtime so no key-like literal sits in source."""
+    return "sk-ant-" + "api03-" + "Ab3_" * 24
+
+
+def server_only_secret() -> str:
+    """A secret shape the runner's transcript bank does not recognise (UNI-2796 review round 4)."""
+    return "token='" + "qwertyuiop" + "asdfghjklz'"
+
+
+def hostile_exception(base):
+    """An exception class whose NAME is the secret (UNI-2796 review round 5)."""
+    return type("SECRET_QWERTY_12345", (base,), {})
+
+
+class UnprintableError(Exception):
+    """An exception whose `__str__` raises (UNI-2796 review round 13)."""
+
+    def __str__(self):
+        raise ValueError("cannot print")
+
+
+class InterruptOnce:
+    """A real Popen whose first call to `step` raises KeyboardInterrupt (UNI-2796 review round 14).
+
+    For `terminate` the interrupt lands after the signal is sent, so the agent
+    still exits promptly; for every other step it lands before the call.
+    """
+
+    def __init__(self, proc, step):
+        self._proc, self._step = proc, step
+
+    def __getattr__(self, name):
+        attr = getattr(self._proc, name)
+        if name != self._step or not callable(attr):
+            return attr
+
+        def once(*args, **kwargs):
+            self._step = None
+            if name == "terminate":
+                attr(*args, **kwargs)
+            raise KeyboardInterrupt
+
+        return once
 # RA-7780: stands in for `mesh/ship_run.py` in suites that fake `subprocess.run` and
 # are not about shipping. Their fake returns None, which the real module cannot read,
 # and a run must ship before it lands `done`. The module's own behaviour is proven

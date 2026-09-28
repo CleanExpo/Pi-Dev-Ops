@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, mesh_fleet, mesh_lanes, mesh_reaper
+from .. import config, mesh_fleet, mesh_lanes, mesh_reaper, mesh_run_record
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -321,7 +321,7 @@ class DispatchRequest(BaseModel):
     linear_ids: list[str] = Field(default_factory=list)  # explicit tickets; empty → query Linear mesh:auto
 
 
-class ClaimUpdate(mesh_lanes.PlanPacketFields):  # + packet_md, title (plan lane)
+class ClaimUpdate(mesh_lanes.PlanPacketFields, mesh_run_record.RunRecordFields):
     linear_id: str
     state: str  # working | done | released | failed
     branch: Optional[str] = None
@@ -358,9 +358,10 @@ def claim_update(
         patch["branch"] = u.branch
     if u.state in ("done", "released", "failed"):
         patch["released_at"] = datetime.now(timezone.utc).isoformat()
-    status, body = _sb("PATCH",
+    status, body = mesh_run_record.patch_claim(_sb, "PATCH",
         f"mesh_work_claims?linear_id=eq.{urllib.parse.quote(u.linear_id)}&state=in.(claimed,working)",
-        patch, prefer="return=representation")
+        patch, fields=u, prefer="return=representation")
+    mesh_run_record.require_stored(status)
     # return=representation: a 0-row match (claim already done/absent — e.g. the
     # reaper released it and another runner re-claimed) still 2xxs, so gate the
     # reversal on rows actually returned or a stale runner's `released` would
@@ -375,8 +376,7 @@ def claim_update(
         except Exception:  # noqa: BLE001
             log.warning("claim_update: Linear reversal failed for %s", u.linear_id, exc_info=True)
     idea_id = mesh_lanes.attach_packet(u.linear_id, u.state, u, body) if status < 300 else None
-    return {"ok": True, "linear_id": u.linear_id, "state": u.state,
-            **({"idea_id": idea_id} if idea_id else {})}
+    return {"ok": True, "linear_id": u.linear_id, "state": u.state, **({"idea_id": idea_id} if idea_id else {})}
 
 
 @router.post("/claims/reap")
