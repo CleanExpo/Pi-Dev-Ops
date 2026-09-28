@@ -15,10 +15,12 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import time
 from pathlib import Path
 
 PATH = Path(os.environ.get("MESH_LEFT_RUNNING", str(Path.home() / ".claude" / "mesh-left-running.json")))
 _STILL_ACTIVE = 259  # Windows GetExitCodeProcess value for a running process
+LOCK_SECONDS = 10.0  # a lock held longer than this fails closed, as msvcrt.LK_LOCK does
 
 
 def _alive_windows(pid: int) -> bool:
@@ -78,7 +80,15 @@ def _locked():
             msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)  # retries ~10 s, then raises
         else:
             import fcntl
-            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+            deadline = time.monotonic() + LOCK_SECONDS
+            while True:  # bounded: a holder that never lets go must not hang claim cleanup
+                try:
+                    fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError("left-running record lock held elsewhere") from None
+                    time.sleep(0.05)
         try:
             yield
         finally:

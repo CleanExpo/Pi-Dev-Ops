@@ -216,3 +216,26 @@ def test_a_marker_written_during_the_scan_still_blocks(monkeypatch):
 
     monkeypatch.setattr(left_running, "_alive", alive_then_marker)
     assert left_running.any_alive() is True
+
+
+def test_a_lock_held_elsewhere_fails_closed_instead_of_hanging(monkeypatch):
+    left_running.PATH.parent.mkdir(parents=True, exist_ok=True)
+    holder = subprocess.Popen(  # another process keeps the record locked
+        [sys.executable, "-c", "import fcntl, sys, time; f = open(sys.argv[1], 'a+'); "
+         "fcntl.flock(f.fileno(), fcntl.LOCK_EX); print('held', flush=True); time.sleep(30)",
+         str(left_running.PATH.with_suffix(".lock"))], stdout=subprocess.PIPE, text=True)
+    assert holder.stdout.readline().strip() == "held"
+    monkeypatch.setattr(left_running, "LOCK_SECONDS", 0.3)
+    child = _sleeper()
+    try:
+        done = threading.Thread(target=left_running.track,
+                                args=(types.SimpleNamespace(reaped=False, proc=child),))
+        done.start()
+        done.join(5)
+        assert not done.is_alive(), "track() hung on a lock held by another process"
+        assert left_running._marker().exists()  # recorded the only way it could be
+        assert left_running.any_alive() is True
+    finally:
+        for p in (child, holder):
+            p.kill()
+            p.wait()
