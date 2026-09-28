@@ -10,3 +10,4 @@ os.environ.setdefault("TAO_EVALUATOR_ENABLED", "false")
 # RA-7802: a real runner starts its agent once to prove it can work. Unit tests
 # fake the agent, so the gate is off here; test_mesh_node_health turns it back on.
 os.environ.setdefault("MESH_PREFLIGHT", "0")
+os.environ.setdefault("MESH_SELF_UPDATE", "0")  # never fetch or check out code from a unit test

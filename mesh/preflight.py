@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Callable
@@ -73,3 +74,9 @@ def agent_writes(repo_dir: Path, agent_cmd: str,
 def check(repo_dir: Path, agent_cmd: str) -> str:
     """Every preflight check, first problem wins."""
     return run_log() or agent_writes(repo_dir, agent_cmd)
+
+
+if __name__ == "__main__":  # self_update runs a NEW commit's preflight this way
+    problem = check(Path(sys.argv[1]), sys.argv[2])
+    print(problem or "ok")
+    sys.exit(1 if problem else 0)

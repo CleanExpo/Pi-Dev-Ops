@@ -28,13 +28,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import plan_lane  # noqa: E402
 import ship_run  # noqa: E402
-from fleet_state import active_agent_count, my_claims  # noqa: E402
+from fleet_state import active_agent_count, next_work  # noqa: E402
 from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
 import claim_lifecycle  # noqa: E402
 import node_health  # noqa: E402
 import preflight  # noqa: E402
 import run_record  # noqa: E402
+import self_update  # noqa: E402
 from env_file import from_env_file as _from_env_file  # noqa: E402
 
 
@@ -53,6 +54,9 @@ MAX_CLAIMS = int(os.environ.get("MESH_MAX_CLAIMS", "25"))
 IDLE_RECLAIM_DELAY = float(os.environ.get("MESH_IDLE_RECLAIM_DELAY", "3"))
 # RA-7802: preflight before claiming; tests/conftest.py turns it off
 PREFLIGHT_ENABLED = os.environ.get("MESH_PREFLIGHT", "1") != "0"
+SELF_UPDATE_ENABLED = os.environ.get("MESH_SELF_UPDATE", "1") != "0"
+CODE_DIR = Path(__file__).resolve().parents[1]
+RUNTIME_VERSION = self_update.runtime_version(CODE_DIR)  # reported in every breadcrumb
 STATE_FILE = Path(os.environ.get(
     "MESH_RUNNER_STATE", str(Path.home() / ".claude" / "mesh-runner-state.json")))
 MESH_KILL_POLL_SECONDS = float(os.environ.get("MESH_KILL_POLL_SECONDS", "5"))
@@ -102,6 +106,7 @@ def write_state(current_task, state: str, session_id: str | None = None) -> None
             "current_task": current_task,
             "session_id": session_id,
             "state": state,
+            "version": RUNTIME_VERSION,
             "ts": int(time.time()),
         }))
     except OSError:
@@ -109,26 +114,8 @@ def write_state(current_task, state: str, session_id: str | None = None) -> None
 
 
 def get_work() -> list[dict]:
-    """Use assigned work first, otherwise atomically self-claim a mesh:auto ticket.
-
-    KNOWN GAP — only the self-claim path carries the ticket's brief. `/claim/self`
-    returns title and description in its response; `my_claims` reads `mesh_work_claims`
-    rows, and that table has no such columns (mesh/schema/0001_nexus_mesh.sql), so a
-    DISPATCHER-assigned claim arrives briefless and `build_prompt` takes its refusal
-    path. That is the safe failure, not the useful one: with MESH_DISPATCH_ENABLED=1
-    every dispatched ticket would stop without working. Closing it means enriching
-    GET /api/mesh/claims server-side from Linear, which is its own change — the
-    endpoint would start returning ticket text to any node holding the mesh secret.
-    Do not enable dispatch expecting work to happen until that lands.
-    """
-    claims = my_claims(_api, HOST)
-    if claims is None:
-        return []          # fleet unreadable: hold, never self-claim on a guess
-    if claims:
-        return claims
-    response = _api("POST", "/api/mesh/claim/self", {"host": HOST})
-    claimed = response.get("claimed")
-    return [claimed] if claimed else []
+    """Assigned work first, else a self-claimed mesh:auto ticket (fleet_state.next_work)."""
+    return next_work(_api, HOST)
 
 
 def default_repo_dir_problem() -> str:
@@ -248,12 +235,25 @@ def _hold(health: node_health.NodeHealth, once: bool) -> int | None:
     return None
 
 
-def main() -> int:
-    """Run the persistent per-machine claim loop."""
+def _updated(updater: self_update.Updater | None, health: node_health.NodeHealth, work: list) -> bool:
+    """Idle and healthy: look for new runner code (RA-7802). True means restart on it."""
+    if updater is None or work or health.state != "healthy" or not updater.due():
+        return False
+    outcome = updater.try_update()
+    print(json.dumps({"runner": HOST, "status": "SELF_UPDATE", "outcome": outcome}))
+    return outcome == "updated"
+
+
+def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Nexus Mesh runner")
     parser.add_argument("--once", action="store_true", help="process current claims once and exit")
     parser.add_argument("--dry-run", action="store_true", help="plan only; no worktrees, no agent runs")
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def main() -> int:
+    """Run the persistent per-machine claim loop."""
+    args = _parse_args()
     problem = default_repo_dir_problem()
     if problem:
         # Non-zero on purpose: KeepAlive{SuccessfulExit:false} retries it, so
@@ -262,6 +262,7 @@ def main() -> int:
         return 2
     check = (lambda: preflight.check(DEFAULT_REPO_DIR, AGENT_CMD)) if PREFLIGHT_ENABLED else (lambda: "")
     health, processed = node_health.NodeHealth(check), 0
+    updater = self_update.Updater(CODE_DIR, AGENT_CMD) if SELF_UPDATE_ENABLED else None
     while True:
         stop = _stop_status(processed)
         if stop:
@@ -284,6 +285,8 @@ def main() -> int:
         if work and health.state == "healthy" and agents is not None and agents < MAX_PARALLEL:
             time.sleep(IDLE_RECLAIM_DELAY)
             continue
+        if _updated(updater, health, work):
+            return 3  # non-zero: launchd / the Windows watchdog restarts it on the new code
         write_state(None, "idle" if health.state == "healthy" else health.state)
         time.sleep(POLL_INTERVAL)
 
