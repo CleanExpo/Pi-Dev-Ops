@@ -71,9 +71,14 @@ def _commit_leftovers(worktree: Path, linear_id: str, host: str) -> str | None:
 def start_point(repo_dir: Path) -> Start:
     """The checkout's HEAD, which `worktree add -b` branches the run from, and the
     URL `origin` pushes to. Call it BEFORE the agent launches and keep the value.
-    Either field is "" when unreadable, which ship() treats as nothing proven."""
-    head = _git(Path(repo_dir), "rev-parse", "HEAD")
-    url = _git(Path(repo_dir), "remote", "get-url", "--push", REMOTE)
+    Either field is "" when unreadable, which ship() treats as nothing proven.
+    It never raises: run_claim calls it before its try/finally, so an escaping git
+    timeout would leave the claim `working` and lock the ticket from every node."""
+    try:
+        head = _git(Path(repo_dir), "rev-parse", "HEAD")
+        url = _git(Path(repo_dir), "remote", "get-url", "--push", REMOTE)
+    except (OSError, subprocess.SubprocessError):
+        return Start("", "")
     return Start(head.stdout.strip() if head.returncode == 0 else "",
                  url.stdout.strip() if url.returncode == 0 else "")
 
