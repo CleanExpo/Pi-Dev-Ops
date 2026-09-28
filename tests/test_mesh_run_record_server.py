@@ -54,7 +54,8 @@ def test_a_claim_change_the_database_did_not_store_is_not_answered_ok(monkeypatc
     for status, expected in ((500, 502), (200, 200)):
         monkeypatch.setattr(mesh, "_sb", lambda *_a, status=status, **_k: (status, "[]"))
         r = TestClient(app).post("/api/mesh/claim/update", headers=HDR, json={
-            "linear_id": "UNI-A", "state": "failed", "run_id": "0a1b2c3d", "error_code": "timeout"})
+            "linear_id": "UNI-A", "state": "failed", "host": "nodeA", "claim_id": "c-1",
+            "run_id": "0a1b2c3d", "error_code": "timeout"})
         assert r.status_code == expected, (status, r.status_code)
 
 

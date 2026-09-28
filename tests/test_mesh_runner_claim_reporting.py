@@ -230,9 +230,10 @@ def test_every_claim_update_names_this_node(runner, tmp_path, monkeypatch):
     monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: _DoneProc())
     monkeypatch.setattr(runner, "ship_run", SHIPPED)
 
-    runner.run_claim({"linear_id": "UNI-A", "repo_dir": str(repo)}, dry_run=False)
-    runner.run_claim({"linear_id": "UNI-B", "repo_dir": _no_git(tmp_path)}, dry_run=False)
+    runner.run_claim({"linear_id": "UNI-A", "id": "c-a", "repo_dir": str(repo)}, dry_run=False)
+    runner.run_claim({"linear_id": "UNI-B", "id": "c-b", "repo_dir": _no_git(tmp_path)}, dry_run=False)
 
     updates = [b for _, p, b in server.calls if p == "/api/mesh/claim/update"]
     assert [u["state"] for u in updates] == ["working", "done", "failed"]
     assert all(u.get("host") == "TESTNODE" for u in updates), updates
+    assert [u.get("claim_id") for u in updates] == ["c-a", "c-a", "c-b"], updates

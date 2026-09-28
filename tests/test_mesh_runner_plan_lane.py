@@ -195,3 +195,12 @@ def test_explicit_build_lane_wins_over_nothing_but_mesh_auto(runner, monkeypatch
     runner.run_claim({"linear_id": "UNI-5", "repo_dir": str(repo), "title": "t",
                       "labels": ["mesh:auto"]}, dry_run=False)
     assert any(call[3:5] == ["worktree", "add"] for call in runner.git_calls)
+
+
+def test_every_plan_lane_update_names_its_node_and_claim_row(runner, monkeypatch):
+    """RA-7802: the server ends a claim only for the node and claim row that hold it."""
+    monkeypatch.setattr(runner.plan_lane.subprocess, "Popen", FakeAgent())
+    monkeypatch.setattr(runner.subprocess, "Popen", FakeAgent())
+    runner.run_claim({**CLAIM, "id": "c-77"}, dry_run=False)
+    assert runner.server.updates, "no update was sent"
+    assert all((u.get("host"), u.get("claim_id")) == ("TESTNODE", "c-77") for u in runner.server.updates)

@@ -99,3 +99,10 @@ def test_each_preflight_asks_for_a_different_file():
     pf.agent_writes(REPO, "claude", run=second)
     prompts = [c[-1] for r in (first, second) for c in r.calls if c[0] == "claude"]
     assert len(prompts) == 2 and prompts[0] != prompts[1]
+
+
+def test_a_probe_name_already_present_is_refused(monkeypatch):
+    """The random name makes a collision near impossible; the absence check makes it harmless."""
+    monkeypatch.setattr(pf.uuid, "uuid4", lambda: type("U", (), {"hex": "fixed"})())
+    run = fake_run(agent_writes=False, tracked={"mesh-preflight-fixed.txt": "ok"})
+    assert pf.agent_writes(REPO, "claude", run=run) == "scratch worktree already holds the probe file"

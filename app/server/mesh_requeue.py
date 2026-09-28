@@ -33,25 +33,32 @@ log = logging.getLogger(__name__)
 FAILED_SKIP_HOURS = float(os.environ.get("MESH_FAILED_SKIP_HOURS", "24"))
 
 
-def claim_filter(linear_id: str, state: str, host: str | None, branch: str | None) -> str:
-    """The PATCH filter for a claim update: the ticket's open claim, and only the
-    caller's own. A report naming its host matches that machine's row alone, and a
-    terminal report naming its branch matches only that run's row (or one whose
-    branch was never stored). Without these, a stale `failed` from one node closed
-    another node's live claim and put its ticket back in the queue."""
+TERMINAL = ("done", "released", "failed")
+
+
+def identity_problem(state: str, host: str | None, claim_id: str | None) -> str:
+    """Why a claim update may not end a claim, or "". Ending one needs the reporting
+    node AND the claim row's own id: a ticket id alone matched whichever claim was
+    open, so a late report from an old run, or from another node, closed a live
+    claim and put its ticket back in the queue (Codex rounds 1-2)."""
+    if state in TERMINAL and not (host and claim_id):
+        return "a terminal claim update must name its host and claim_id (RA-7802)"
+    return ""
+
+
+def claim_filter(linear_id: str, host: str | None, claim_id: str | None) -> str:
+    """The PATCH filter: the ticket's open claim, narrowed to this node and this claim row."""
     q = f"mesh_work_claims?linear_id=eq.{urllib.parse.quote(linear_id)}&state=in.(claimed,working)"
     if host:
         q += f"&machine=eq.{urllib.parse.quote(host)}"
-    if branch and state in ("done", "released", "failed"):
-        q += f"&or=(branch.is.null,branch.eq.{urllib.parse.quote(branch)})"
+    if claim_id:
+        q += f"&id=eq.{urllib.parse.quote(claim_id)}"
     return q
 
 
 def owns(row: dict, host: str | None) -> bool:
-    """A report naming a host requeues only that machine's claim. A runner from
-    before RA-7802 names none: its PATCH has already closed the row, so requeue
-    as main always did, or the ticket strands In Progress with no claim."""
-    return host is None or row.get("machine") == host
+    """Only a report naming the machine that held the claim may requeue it."""
+    return bool(host) and row.get("machine") == host
 
 
 def after_terminal(state: str, linear_id: str, row: dict, error_code: str | None,

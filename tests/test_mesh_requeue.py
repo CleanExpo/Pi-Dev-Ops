@@ -24,8 +24,8 @@ class _Sb:
     GET of failed claims answers with `failed_rows`."""
 
     def __init__(self):
-        self.open_rows = [{"linear_id": "RA-1", "state": "working", "machine": "Phill_Desktop",
-                           "branch": "mesh/phill_desktop/ra-1-aaaaaaaa"}]
+        self.open_rows = [{"id": "c-new", "linear_id": "RA-1", "state": "working",
+                           "machine": "Phill_Desktop"}]
         self.failed_rows: list[dict] = []
         self.claimed: list[tuple[str, str]] = []
 
@@ -33,18 +33,12 @@ class _Sb:
         params = dict(urllib.parse.parse_qsl(query))
         if params.get("linear_id") != f"eq.{row['linear_id']}":
             return False
-        if "machine" in params and params["machine"] != f"eq.{row['machine']}":
-            return False
-        if "or" in params:
-            branch = row.get("branch")
-            allowed = params["or"].strip("()").split(",")
-            return (branch is None and "branch.is.null" in allowed) or f"branch.eq.{branch}" in allowed
-        return True
+        return all(params[k] == f"eq.{row[k]}" for k in ("machine", "id") if k in params)
 
     def __call__(self, method, path, payload=None, prefer=""):
         if method == "POST" and path.startswith("mesh_work_claims"):
             self.claimed.append((payload["linear_id"], payload["machine"]))
-            return 201, ""
+            return 201, json.dumps([{"id": f"c-{payload['linear_id']}", **payload}])
         if method == "PATCH" and path.startswith("mesh_work_claims"):
             query = path.split("?", 1)[1]
             return 200, json.dumps([{**r, **payload} for r in self.open_rows if self._matches(r, query)])
@@ -85,8 +79,7 @@ def mesh_client(monkeypatch):
 
 
 def _update(client, **body):
-    report = {"linear_id": "RA-1", "state": "failed", "host": "Phill_Desktop",
-              "branch": "mesh/phill_desktop/ra-1-aaaaaaaa", **body}
+    report = {"linear_id": "RA-1", "state": "failed", "host": "Phill_Desktop", "claim_id": "c-new", **body}
     return client.post("/api/mesh/claim/update", json=report, headers=HDR)
 
 
@@ -114,24 +107,51 @@ def test_a_stale_failed_report_matching_no_open_claim_changes_nothing(mesh_clien
 
 def test_a_stale_failed_report_cannot_close_another_nodes_claim(mesh_client):
     client, mesh, sb = mesh_client
-    sb.open_rows = [{"linear_id": "RA-1", "state": "working", "machine": "Mini",
-                     "branch": "mesh/mini/ra-1-bbbbbbbb"}]
-    _update(client, error_code="runner_exception")
+    sb.open_rows = [{"id": "c-mini", "linear_id": "RA-1", "state": "working", "machine": "Mini"}]
+    _update(client, claim_id="c-mini", error_code="runner_exception")  # even citing Mini's own row
     assert mesh.reaped == [] and not any("commentCreate" in q for q in mesh.gql)
+    assert sb.open_rows[0]["state"] == "working"
 
 
-def test_an_old_run_on_the_same_node_cannot_close_its_new_claim(mesh_client):
-    client, mesh, sb = mesh_client
-    sb.open_rows[0]["branch"] = "mesh/phill_desktop/ra-1-cccccccc"
-    _update(client, error_code="runner_exception")
+def test_only_the_node_that_held_a_claim_may_requeue_it():
+    """Behind the PATCH filter, in case a filter ever matches wider than it should."""
+    from app.server import mesh_requeue
+    assert mesh_requeue.owns({"machine": "Mini"}, "Mini")
+    assert not mesh_requeue.owns({"machine": "Mini"}, "Phill_Desktop")
+    assert not mesh_requeue.owns({"machine": "Mini"}, None)
+
+
+def test_a_late_report_from_an_old_run_cannot_close_the_new_claim(mesh_client):
+    """Codex round 2: the new claim on the same node had no branch yet, and a
+    branch-null exception let the old run's report close it."""
+    client, mesh, _ = mesh_client
+    _update(client, claim_id="c-old", error_code="runner_exception")
     assert mesh.reaped == []
 
 
-def test_a_failure_before_the_branch_was_stored_still_requeues(mesh_client):
+def test_a_failure_before_any_branch_was_stored_still_requeues(mesh_client):
     client, mesh, sb = mesh_client
-    sb.open_rows[0].update(state="claimed", branch=None)
+    sb.open_rows[0]["state"] = "claimed"
     _update(client, error_code="repo_missing")
     assert mesh.reaped == ["RA-1"]
+
+
+@pytest.mark.parametrize("missing", ["host", "claim_id"])
+def test_ending_a_claim_without_naming_node_and_row_changes_nothing(mesh_client, missing):
+    """Codex round 2: a report with no host (a runner from before RA-7802) PATCHed
+    whatever claim the ticket had open, another node's included."""
+    client, mesh, sb = mesh_client
+    sb.open_rows = [{"id": "c-mini", "linear_id": "RA-1", "state": "working", "machine": "Mini"}]
+    assert _update(client, **{missing: None}).status_code == 422
+    assert mesh.reaped == [] and sb.open_rows[0]["state"] == "working"
+
+
+def test_a_self_claim_hands_back_its_claim_row_id(mesh_client):
+    """The runner can only name its claim row if claiming told it which one it got."""
+    client, mesh, _ = mesh_client
+    mesh.queue = [_issue("RA-2")]
+    got = client.post("/api/mesh/claim/self", json={"host": "Phill_Desktop"}, headers=HDR).json()
+    assert got["claimed"]["id"] == "c-RA-2"
 
 
 def _issue(ident: str) -> dict:

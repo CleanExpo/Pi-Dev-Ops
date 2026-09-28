@@ -94,19 +94,20 @@ def _settle(plan: dict, linear_id: str, stdout: str) -> None:
 def run_plan_claim(claim: dict, rt) -> dict:
     """Review one idea without touching a repository, then report the claim."""
     linear_id = claim["linear_id"]
-    plan = {"linear_id": linear_id, "lane": "plan", "agent": rt.AGENT_CMD}
+    plan = {"linear_id": linear_id, "claim_id": claim.get("id"), "lane": "plan", "agent": rt.AGENT_CMD}
+    who = {"linear_id": linear_id, "host": rt.HOST, "claim_id": plan["claim_id"]}
     rt.write_state(linear_id, "working", session_id=uuid.uuid4().hex[:8])
-    rt._api("POST", _UPDATE, {"linear_id": linear_id, "state": "working", "host": rt.HOST})
+    rt._api("POST", _UPDATE, {**who, "state": "working"})
     stdout = _run_agent(claim, plan, rt)
     if plan.get("state") == "released":  # HARD_STOP: hand the ticket back, as build does
-        rt._api("POST", _UPDATE, {"linear_id": linear_id, "state": "released", "host": rt.HOST})
+        rt._api("POST", _UPDATE, {**who, "state": "released"})
         rt.write_state(None, "idle")
         return plan
     _settle(plan, linear_id, stdout)
     if plan.get("state") != "done":
         return rt._fail_claim(plan, linear_id, "", plan.get("error") or "plan lane failed")
     rt._api("POST", _UPDATE, {
-        "linear_id": linear_id, "state": "done", "host": rt.HOST,
+        **who, "state": "done",
         "packet_md": stdout[:PACKET_MAX_CHARS], "title": claim.get("title") or ""})
     rt.write_state(None, "idle")
     return plan

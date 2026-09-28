@@ -119,7 +119,7 @@ def test_a_batch_stops_at_the_failure_limit_and_hands_back_the_rest(runner, monk
     """Codex round 1: the breaker counted only after the whole batch ran, so a node
     assigned four tickets failed all four before it noticed."""
     monkeypatch.setattr(runner.preflight, "check", lambda repo, agent: "")
-    batch = [{"linear_id": f"RA-{n}"} for n in range(1, 5)]
+    batch = [{"linear_id": f"RA-{n}", "id": f"c-RA-{n}"} for n in range(1, 5)]
     monkeypatch.setattr(runner, "get_work", lambda: batch)
     ran, sent = [], []
     monkeypatch.setattr(runner, "run_claim", lambda claim, dry_run: ran.append(claim["linear_id"]) or {
@@ -128,8 +128,8 @@ def test_a_batch_stops_at_the_failure_limit_and_hands_back_the_rest(runner, monk
     monkeypatch.setattr(sys, "argv", ["runner", "--once"])
     runner.main()
     assert ran == ["RA-1", "RA-2"]
-    assert sent == [("/api/mesh/claim/update", {"linear_id": lid, "state": "released", "host": runner.HOST})
-                    for lid in ("RA-3", "RA-4")]
+    assert sent == [("/api/mesh/claim/update", {"linear_id": lid, "state": "released", "host": runner.HOST,
+                                                "claim_id": f"c-{lid}"}) for lid in ("RA-3", "RA-4")]
 
 
 class _StuckUpdater:
@@ -147,6 +147,12 @@ def test_a_stuck_update_stops_the_runner_and_says_so(runner, monkeypatch):
     monkeypatch.setattr(runner, "get_work", lambda: [])
     monkeypatch.setattr(runner, "SELF_UPDATE_ENABLED", True)
     monkeypatch.setattr(runner.self_update, "Updater", lambda *a, **k: _StuckUpdater())
+    assert runner.main() == 0
+    assert '"state": "stuck"' in runner.STATE_FILE.read_text()
+    # Codex round 2: exit 0 is not "stays down" — the PC's task restarts every 5 min,
+    # and a reboot restarts any node. The next start must refuse without claiming.
+    monkeypatch.setattr(runner, "get_work", lambda: pytest.fail("a stuck node claimed work"))
+    runner.STATE_FILE.unlink()
     assert runner.main() == 0
     assert '"state": "stuck"' in runner.STATE_FILE.read_text()
     hb = _load("mesh_heartbeat_stuck", "mesh/heartbeat.py")

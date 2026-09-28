@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           cd mesh
-          python -c "import runner, heartbeat, preflight, self_update, node_health, run_record, claim_lifecycle, ship_run, fleet_state, env_file; print('imports ok')"
+          python -c "import runner, heartbeat, preflight, self_update, node_health, run_record, claim_lifecycle, ship_run, fleet_state, env_file, runner_idle; print('imports ok')"
 
       - name: Runner suites that must hold on any OS
         env:

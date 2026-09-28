@@ -43,6 +43,22 @@ def runtime_version(repo: Path, run: Run = subprocess.run) -> str:
     return head.stdout.strip() if head.returncode == 0 and head.stdout.strip() else "unknown"
 
 
+def mark_stuck(marker: Path, outcome: str) -> None:
+    """Record a stuck update where no checkout can remove it. Every later start obeys it."""
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(outcome + "\n", encoding="utf-8")
+
+
+def stuck_reason(marker: Path) -> str:
+    """Why this runtime must not claim, or "". A person deletes the marker once HEAD is proven."""
+    try:
+        return marker.read_text(encoding="utf-8").strip() or "stuck"
+    except FileNotFoundError:
+        return ""
+    except OSError:
+        return "stuck marker unreadable"
+
+
 class Updater:
     """Decides when to look for new code, and moves to it safely."""
 
@@ -80,8 +96,12 @@ class Updater:
         return "updated"
 
     def _checkout(self, sha: str) -> bool:
-        """Check `sha` out, and prove HEAD is now `sha`: an exit code alone is not proof."""
-        if _git(self._run, self._repo, "checkout", "--quiet", "--detach", sha).returncode != 0:
+        """Check `sha` out, and prove HEAD is now `sha`: an exit code alone is not proof,
+        and a checkout that raises is a failed one (Codex round 2), never an escape."""
+        try:
+            if _git(self._run, self._repo, "checkout", "--quiet", "--detach", sha).returncode != 0:
+                return False
+        except (OSError, subprocess.SubprocessError):
             return False
         return runtime_version(self._repo, self._run) == sha
 

@@ -125,7 +125,7 @@ def test_claim_self_picks_top_priority(mesh_client):
     monkeypatch_linear(mesh, _tickets(("UNI-A", 3), ("UNI-B", 4), ("UNI-C", 1)))
     mesh._sb = fake.sb
     r = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
-    assert r["claimed"] == dict(linear_id="UNI-C", machine="nodeA", lane="build", title="UNI-C", description="")
+    assert r["claimed"] == dict(linear_id="UNI-C", id=None, machine="nodeA", lane="build", title="UNI-C", description="")
 
 
 def test_claim_self_empty_queue_returns_null(mesh_client):
@@ -193,7 +193,7 @@ def test_completed_ticket_is_not_reclaimed(mesh_client):
     assert r1["claimed"]["linear_id"] == "UNI-A"
     # runner finishes the ticket: open claim released by the partial-index rules
     client.post("/api/mesh/claim/update",
-                json={"linear_id": "UNI-A", "state": "done"}, headers=HDR)
+                json={"linear_id": "UNI-A", "state": "done", "host": "nodeA", "claim_id": "c-1"}, headers=HDR)
     assert "UNI-A" not in fake.open  # claim row is closed — old bug's precondition
     r2 = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
     assert r2["claimed"] is None            # NOT re-served

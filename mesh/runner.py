@@ -35,6 +35,7 @@ import claim_lifecycle  # noqa: E402
 import node_health  # noqa: E402
 import preflight  # noqa: E402
 import run_record  # noqa: E402
+import runner_idle  # noqa: E402
 import self_update  # noqa: E402
 from env_file import from_env_file as _from_env_file  # noqa: E402
 
@@ -84,6 +85,11 @@ def _api(method: str, path: str, body=None) -> dict:
         }
     except Exception as exc:  # noqa: BLE001
         return {"error": str(exc)}
+
+
+def stuck_file() -> Path:
+    """Beside the state file, outside the repo, so no checkout can remove it."""
+    return STATE_FILE.with_name("mesh-runner-STUCK")
 
 
 def killed() -> bool:
@@ -146,7 +152,7 @@ def _fail_claim(plan: dict, linear_id: str, branch: str, error: str) -> dict:
     plan.update(state="failed", error=error)
     _api("POST", "/api/mesh/claim/update", {
         "linear_id": linear_id, "state": "failed", "branch": branch, "host": HOST,
-        **run_record.fields(None, plan)})
+        "claim_id": plan.get("claim_id"), **run_record.fields(None, plan)})
     write_state(None, "idle")
     return plan
 
@@ -184,7 +190,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     repo_dir = _repo_dir_for(claim)
     run_id = uuid.uuid4().hex[:8]
     branch = f"mesh/{HOST.lower()}/{linear_id.lower()}-{run_id}"
-    plan = {"linear_id": linear_id, "repo_dir": str(repo_dir),
+    plan = {"linear_id": linear_id, "claim_id": claim.get("id"), "repo_dir": str(repo_dir),
             "branch": branch, "agent": AGENT_CMD}
     if dry_run:
         plan["dry_run"] = True
@@ -197,7 +203,8 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     try:  # from `working` on, every way out — even an interrupt — ends the claim in the finally
         write_state(linear_id, "working", session_id=run_id)
         _api("POST", "/api/mesh/claim/update", {
-            "linear_id": linear_id, "state": "working", "branch": branch, "host": HOST})
+            "linear_id": linear_id, "state": "working", "branch": branch, "host": HOST,
+            "claim_id": plan["claim_id"]})
         start = ship_run.start_point(repo_dir)  # RA-7780: held where the agent cannot move it
         if claim_lifecycle.add_worktree(repo_dir, branch, worktree):
             run_record.run_agent(
@@ -210,7 +217,8 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     finally:
         rec = held[0] if held else None
         claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", {
-            "linear_id": linear_id, "branch": branch, "host": HOST, **run_record.terminal(rec, plan)}),
+            "linear_id": linear_id, "branch": branch, "host": HOST, "claim_id": plan["claim_id"],
+            **run_record.terminal(rec, plan)}),
             lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
             agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS,
             then=lambda: run_record.release_interrupt(rec))
@@ -221,32 +229,10 @@ def _stop_status(processed: int) -> dict | None:
     """The status line that ends the loop, or None to keep going."""
     if killed():
         return {"runner": HOST, "status": "HARD_STOP"}
+    if stuck := self_update.stuck_reason(stuck_file()):  # delete the file once HEAD is proven code
+        return {"runner": HOST, "status": "STUCK", "state": "stuck", "reason": stuck}
     if MAX_CLAIMS and processed >= MAX_CLAIMS:
         return {"runner": HOST, "status": "MAX_CLAIMS", "processed": processed}
-    return None
-
-
-def _hold(health: node_health.NodeHealth, once: bool) -> int | None:
-    """Report a node that may not claim. An exit code for --once, else None after the poll wait."""
-    write_state(None, health.state)  # the heartbeat reports blocked/quarantined
-    print(json.dumps({"runner": HOST, "status": health.state.upper(), "reason": health.reason}))
-    if once:
-        return 1
-    time.sleep(POLL_INTERVAL)
-    return None
-
-
-def _idle(updater: self_update.Updater | None, health: node_health.NodeHealth, work: list) -> int | None:
-    """Idle and healthy: move to new runner code (RA-7802). An exit code (3: restart on it), or None."""
-    if updater is not None and not work and health.state == "healthy" and updater.due():
-        outcome = updater.try_update()
-        print(json.dumps({"runner": HOST, "status": "SELF_UPDATE", "outcome": outcome}))
-        if outcome == "updated":
-            return 3
-        if outcome.startswith("stuck"):  # exit 0: KeepAlive{SuccessfulExit:false} never restarts onto it
-            write_state(None, "stuck")
-            return 0
-    write_state(None, "idle" if health.state == "healthy" else health.state)
     return None
 
 
@@ -272,17 +258,18 @@ def main() -> int:
     while True:
         stop = _stop_status(processed)
         if stop:
-            write_state(None, "idle")
+            write_state(None, stop.get("state", "idle"))
             print(json.dumps(stop))
             return 0
         if not args.dry_run and not health.may_claim():
-            code = _hold(health, args.once)
+            code = runner_idle.hold(types.SimpleNamespace(**globals()), health, args.once)
             if code is not None:
                 return code
             continue
         work = get_work()
         results = health.run_batch(work, lambda claim: run_claim(claim, dry_run=args.dry_run), lambda c: _api(
-            "POST", "/api/mesh/claim/update", {"linear_id": c["linear_id"], "state": "released", "host": HOST}))
+            "POST", "/api/mesh/claim/update",
+            {"linear_id": c["linear_id"], "state": "released", "host": HOST, "claim_id": c.get("id")}))
         processed += len(results)
         print(json.dumps({"runner": HOST, "claims": len(work), "results": results, "processed": processed}))
         if args.once:
@@ -291,7 +278,7 @@ def main() -> int:
         if work and health.state == "healthy" and agents is not None and agents < MAX_PARALLEL:
             time.sleep(IDLE_RECLAIM_DELAY)
             continue
-        if (code := _idle(updater, health, work)) is not None:
+        if (code := runner_idle.idle(types.SimpleNamespace(**globals()), updater, health, work)) is not None:
             return code
         time.sleep(POLL_INTERVAL)
 

@@ -126,3 +126,32 @@ def test_a_preflight_that_cannot_start_rolls_back(tmp_path):
     outcome = su.Updater(runtime, "claude", run=_failing(sys.executable, raises=OSError)).try_update()
     assert outcome.startswith("rolled back:"), outcome
     assert git(runtime, "rev-parse", "HEAD") == old
+
+
+def test_a_rollback_that_raises_is_stuck_too(tmp_path):
+    """Codex round 2: an OSError starting the rollback checkout escaped as
+    "update failed: OSError" while HEAD stayed on the rejected commit."""
+    origin, runtime, old = origin_and_runtime(tmp_path)
+    commit_preflight(origin, 1, "agent could not write a file")
+    outcome = su.Updater(runtime, "claude", run=_failing(old, raises=OSError)).try_update()
+    assert outcome.startswith("stuck:"), outcome
+
+
+def test_a_stuck_marker_is_read_back_and_absent_means_clear(tmp_path):
+    marker = tmp_path / "mesh-runner-STUCK"
+    assert su.stuck_reason(marker) == ""
+    su.mark_stuck(marker, "stuck: could not return to 0123456789ab")
+    assert su.stuck_reason(marker).startswith("stuck: could not return")
+
+
+def test_a_checkout_that_claims_success_without_moving_head_is_not_an_update(tmp_path):
+    """An exit code is not proof: HEAD is read back after every checkout."""
+    origin, runtime, old = origin_and_runtime(tmp_path)
+    new = commit_preflight(origin, 0, "ok")
+
+    def run(cmd, *a, **k):
+        if "checkout" in cmd and cmd[-1] == new:
+            return subprocess.CompletedProcess(cmd, 0, "", "")  # "succeeded", did nothing
+        return subprocess.run(cmd, *a, **k)
+    assert su.Updater(runtime, "claude", run=run).try_update() == "update failed: checkout"
+    assert git(runtime, "rev-parse", "HEAD") == old
