@@ -233,3 +233,39 @@ def test_the_terminal_update_goes_out_even_if_run_agent_itself_raises(monkeypatc
     assert _updates(calls)[-1]["error_code"] == "runner_exception"
     assert removed, "worktree was not cleaned up"
 
+
+def test_an_interrupt_ends_the_claim_with_the_agent_dead_before_cleanup(monkeypatch, tmp_path):
+    """Round 12, end to end: no terminal update or worktree removal while the agent runs."""
+    import pytest
+
+    runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
+    agent = tmp_path / "agent"
+    agent.write_text("#!/bin/sh\nexec sleep 30\n")
+    agent.chmod(0o755)
+    monkeypatch.setattr(runner, "AGENT_CMD", str(agent))
+    started: list = []
+    alive_at: dict = {}
+
+    def interrupted_wait(proc, _plan):
+        started.append(proc)
+        raise KeyboardInterrupt
+
+    def api(method, path, body=None):
+        if path == "/api/mesh/claim/update" and started:
+            alive_at.setdefault("update", started[0].poll() is None)
+        calls.append((path, body or {}))
+        return {}
+
+    real_remove = runner.run_record.remove_worktree
+
+    def remove(repo_dir, worktree):
+        alive_at["remove"] = started[0].poll() is None
+        real_remove(repo_dir, worktree)
+
+    monkeypatch.setattr(runner, "_wait_for_agent", interrupted_wait)
+    monkeypatch.setattr(runner, "_api", api)
+    monkeypatch.setattr(runner.run_record, "remove_worktree", remove)
+    with pytest.raises(KeyboardInterrupt):
+        runner.run_claim({"linear_id": "UNI-I", "repo_dir": str(repo)}, dry_run=False)
+    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
+    assert alive_at == {"update": False, "remove": False}

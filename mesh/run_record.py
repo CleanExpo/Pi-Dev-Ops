@@ -166,9 +166,12 @@ def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: st
               plan: dict, wait: Callable[[subprocess.Popen, dict], None]) -> Optional[RunRecord]:
     """Build the record and the command, run the agent; return the record, or None.
 
-    Never raises. Any failure — building the record, building the command (the
-    prompt), starting or waiting on the agent — lands in `plan` as a failed
-    state, so the caller always reaches its terminal claim update and cleanup.
+    Never raises an Exception. Any failure — building the record, building the
+    command (the prompt), starting or waiting on the agent — lands in `plan` as
+    a failed state, so the caller always reaches its terminal claim update and
+    cleanup. An interrupt (KeyboardInterrupt, SystemExit) is not swallowed: the
+    agent is stopped and reaped first, then the interrupt propagates, so the
+    caller's cleanup never runs while the agent is still executing.
     """
     rec = None
     try:
@@ -180,6 +183,12 @@ def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: st
         plan["error_code"] = "runner_exception_os" if isinstance(exc, OSError) else "runner_exception"
         if rec is not None:
             rec.stop()
+    except BaseException:
+        plan["state"] = "failed"
+        plan["error_code"] = "runner_exception"
+        if rec is not None:
+            rec.stop()
+        raise
     return rec
 
 

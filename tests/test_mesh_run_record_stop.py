@@ -32,6 +32,24 @@ def test_a_wait_failure_stops_the_agent_before_returning(tmp_path):
     assert rec._log.closed
 
 
+def test_an_interrupt_stops_the_agent_then_propagates(tmp_path):
+    """Round 12: KeyboardInterrupt skipped `except Exception`, leaving the agent running."""
+    import pytest
+
+    for run_id, interrupt in (("0a0a0a08", KeyboardInterrupt), ("0a0a0a18", SystemExit)):
+        plan: dict = {}
+        started: list = []
+
+        def interrupted_wait(proc, _plan, interrupt=interrupt, started=started):
+            started.append(proc)
+            raise interrupt()
+
+        with pytest.raises(interrupt):
+            rr.run_agent(lambda: ["sleep", "30"], str(tmp_path), tmp_path, run_id, plan, interrupted_wait)
+        assert started[0].poll() is not None, "agent still running as the interrupt propagated"
+        assert plan["state"] == "failed" and plan["error_code"] == "runner_exception"
+
+
 class _FakeAgent:
     """A Popen stand-in whose poll() fails the way round 9 planted it."""
 
