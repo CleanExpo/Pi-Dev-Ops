@@ -70,6 +70,26 @@ def test_local_edits_block_the_move(tmp_path):
     assert _git(runtime, "rev-parse", "HEAD") == old
 
 
+_REAL_GIT = su._git
+
+
+def _failing(command: str):
+    def git(root, *args):
+        if args[:1] == (command,):
+            return subprocess.CompletedProcess(args, 128, "", "fatal: injected")
+        return _REAL_GIT(root, *args)
+    return git
+
+
+def test_a_failed_guard_check_blocks_the_move(tmp_path, monkeypatch):
+    """A guard that errored proved nothing, so the runtime stays put."""
+    _, runtime, old, _ = _fleet(tmp_path)
+    for command in ("status", "symbolic-ref"):
+        monkeypatch.setattr(su, "_git", _failing(command))
+        assert su.fast_forward(runtime) is None, command
+        assert _git(runtime, "rev-parse", "HEAD") == old
+
+
 def test_diverged_head_is_not_moved(tmp_path):
     _, runtime, _, _ = _fleet(tmp_path)
     mine = _commit(runtime, "local-only")

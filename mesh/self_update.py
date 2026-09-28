@@ -37,9 +37,10 @@ def fast_forward(root: Path) -> str | None:
 
     Returns the new HEAD, or None when nothing moved."""
     try:
-        if _git(root, "symbolic-ref", "-q", "HEAD").returncode == 0:
+        if _git(root, "symbolic-ref", "-q", "HEAD").returncode != 1:  # 0 = on a branch, other = error
             return None
-        if _git(root, "status", "--porcelain", "--untracked-files=no").stdout.strip():
+        status = _git(root, "status", "--porcelain", "--untracked-files=no")
+        if status.returncode or status.stdout.strip():  # a status that failed proves nothing clean
             return None
         if _git(root, "fetch", "-q", "origin", "main").returncode:
             return None
