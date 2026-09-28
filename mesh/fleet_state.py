@@ -72,3 +72,26 @@ def active_agent_count(api: Api, host: str) -> "int | None":
     if fleet is None:
         return None
     return sum(1 for a in _rows(fleet, "agents") if a.get("machine") == host)
+
+
+def next_work(api: Api, host: str) -> list[dict]:
+    """Use assigned work first, otherwise atomically self-claim a mesh:auto ticket.
+
+    KNOWN GAP — only the self-claim path carries the ticket's brief. `/claim/self`
+    returns title and description in its response; `my_claims` reads `mesh_work_claims`
+    rows, and that table has no such columns (mesh/schema/0001_nexus_mesh.sql), so a
+    DISPATCHER-assigned claim arrives briefless and `build_prompt` takes its refusal
+    path. That is the safe failure, not the useful one: with MESH_DISPATCH_ENABLED=1
+    every dispatched ticket would stop without working. Closing it means enriching
+    GET /api/mesh/claims server-side from Linear, which is its own change — the
+    endpoint would start returning ticket text to any node holding the mesh secret.
+    Do not enable dispatch expecting work to happen until that lands.
+    """
+    claims = my_claims(api, host)
+    if claims is None:
+        return []          # fleet unreadable: hold, never self-claim on a guess
+    if claims:
+        return claims
+    response = api("POST", "/api/mesh/claim/self", {"host": host})
+    claimed = response.get("claimed")
+    return [claimed] if claimed else []

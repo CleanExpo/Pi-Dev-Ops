@@ -13,11 +13,20 @@ import contextlib
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, Callable
 
 REPORT_ATTEMPTS = 3
+
+
+def worktree_path(linear_id: str, run_id: str) -> Path:
+    """Where a run's worktree goes: the platform temp dir, not `/tmp` (RA-7801).
+
+    `/tmp` does not exist on Windows, so the PC's worktree landed in `\\tmp` on
+    whatever drive the runner started from."""
+    return Path(tempfile.gettempdir()) / f"mesh-{linear_id}-{run_id}"
 
 
 def add_worktree(repo_dir: Path, branch: str, worktree: Path) -> bool:
@@ -30,6 +39,16 @@ def add_worktree(repo_dir: Path, branch: str, worktree: Path) -> bool:
     except Exception:  # noqa: BLE001 — git could not start (OSError) or refused the args (ValueError)
         return False
     return getattr(added, "returncode", 0) == 0
+
+
+def terminate(proc: subprocess.Popen, grace: float) -> None:
+    """Terminate an in-flight agent cleanly, escalating to kill only after `grace` seconds."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=grace)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
 
 
 def deliver(settle: Callable[[], None], plan: dict) -> None:

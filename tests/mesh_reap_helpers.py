@@ -78,9 +78,13 @@ class FakeSupabase:
             if lid in self.claims and self.claims[lid]["state"] in ("claimed", "working"):
                 self.claims[lid]["state"] = (body or {}).get("state", self.claims[lid]["state"])
                 self.patched.append(lid)
-                return 200, json.dumps([{"linear_id": lid, "state": self.claims[lid]["state"]}])
+                return 200, json.dumps([{"linear_id": lid, "machine": self.claims[lid]["machine"],
+                                         "state": self.claims[lid]["state"]}])
             return 200, json.dumps([])
         return 200, "[]"
+
+
+ID = {"host": "nodeA", "claim_id": "c-1"}  # RA-7802: ending a claim names its node and row
 
 
 class FakeLinear:

@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, mesh_fleet, mesh_lanes, mesh_reaper, mesh_run_record
+from .. import config, mesh_fleet, mesh_lanes, mesh_reaper, mesh_requeue, mesh_run_record
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -325,6 +325,7 @@ class ClaimUpdate(mesh_lanes.PlanPacketFields, mesh_run_record.RunRecordFields):
     linear_id: str
     state: str  # working | done | released | failed
     branch: Optional[str] = None
+    claim_id: Optional[str] = None  # the mesh_work_claims row; required to end a claim
 
 
 class SelfClaimRequest(BaseModel):
@@ -353,28 +354,26 @@ def claim_update(
 ):
     """A runner reports a claim transition: claimed → working → done/failed/released."""
     _check_secret(x_pi_ceo_secret)
+    if problem := mesh_requeue.identity_problem(u.state, u.host, u.claim_id):
+        raise HTTPException(422, problem)
     patch: dict[str, Any] = {"state": u.state}
     if u.branch:
         patch["branch"] = u.branch
     if u.state in ("done", "released", "failed"):
         patch["released_at"] = datetime.now(timezone.utc).isoformat()
     status, body = mesh_run_record.patch_claim(_sb, "PATCH",
-        f"mesh_work_claims?linear_id=eq.{urllib.parse.quote(u.linear_id)}&state=in.(claimed,working)",
+        mesh_requeue.claim_filter(u.linear_id, u.host, u.claim_id),
         patch, fields=u, prefer="return=representation")
     mesh_run_record.require_stored(status)
     # return=representation: a 0-row match (claim already done/absent — e.g. the
     # reaper released it and another runner re-claimed) still 2xxs, so gate the
-    # reversal on rows actually returned or a stale runner's `released` would
-    # yank a freshly re-claimed ticket back to Todo.
-    if u.state == "released" and status < 300 and mesh_fleet.parse_rows(body)[0]:
-        # A HARD_STOP-released claim must return its Linear issue to the
-        # unstarted pool, same as a reaped claim — otherwise it strands
-        # In Progress forever even though the mesh_work_claims row is freed.
-        # Best-effort: a Linear failure here must never fail the claim update.
-        try:
-            _mark_issue_reaped(u.linear_id)
-        except Exception:  # noqa: BLE001
-            log.warning("claim_update: Linear reversal failed for %s", u.linear_id, exc_info=True)
+    # reversal on rows actually returned or a stale runner's `released`/`failed`
+    # would yank a freshly re-claimed ticket back to Todo. A HARD_STOP-released
+    # or failed claim returns its issue to the pool (RA-7802: failed ones too).
+    rows = mesh_fleet.parse_rows(body)[0] if status < 300 else []
+    if u.state in ("released", "failed") and rows and mesh_requeue.owns(rows[0], u.host):
+        mesh_requeue.after_terminal(u.state, u.linear_id, rows[0], u.error_code,
+                                    _mark_issue_reaped, _linear_graphql)
     idea_id = mesh_lanes.attach_packet(u.linear_id, u.state, u, body) if status < 300 else None
     return {"ok": True, "linear_id": u.linear_id, "state": u.state, **({"idea_id": idea_id} if idea_id else {})}
 
@@ -421,15 +420,14 @@ def claim_self(
     _check_secret(x_pi_ceo_secret)
     _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before self-claiming
     nodes = _linear_graphql(mesh_lanes.SELF_CLAIM_QUERY).get("issues", {}).get("nodes", [])
-    for tk in mesh_lanes.ranked(nodes, _open_claim_ids()):
+    for tk in mesh_lanes.ranked(nodes, _open_claim_ids() | mesh_requeue.failed_here(_get, body.host)):
         ident = tk["identifier"]
-        status, _ = _sb("POST", "mesh_work_claims",
-                        {"linear_id": ident, "machine": body.host, "state": "claimed"},
-                        prefer="return=minimal")
+        row = mesh_requeue.claim_row(ident, body.host)
+        status, _ = _sb("POST", "mesh_work_claims", row, prefer="return=minimal")
         if status < 300:
             _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
             return {"claimed": {
-                "linear_id": ident, "machine": body.host, "lane": mesh_lanes.lane_of(tk),
+                "linear_id": ident, "id": row["id"], "machine": body.host, "lane": mesh_lanes.lane_of(tk),
                 "title": (tk.get("title") or "")[:_TITLE_MAX_CHARS],
                 "description": (tk.get("description") or "")[:_BRIEF_MAX_CHARS]}}
         # status 409 = raced by another node → try the next candidate

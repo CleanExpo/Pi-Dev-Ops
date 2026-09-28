@@ -28,7 +28,7 @@ from fastapi.testclient import TestClient
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from mesh_reap_helpers import HDR, FakeLinear, FakeSupabase  # noqa: E402
+from mesh_reap_helpers import HDR, ID, FakeLinear, FakeSupabase  # noqa: E402
 
 
 @pytest.fixture
@@ -162,7 +162,7 @@ def test_released_claim_update_reverses_linear_issue(mesh_client):
     mesh._sb = fake.sb
     mesh._linear_graphql = fl.graphql
     r = client.post("/api/mesh/claim/update",
-                     json={"linear_id": "UNI-A", "state": "released"}, headers=HDR)
+                     json={"linear_id": "UNI-A", "state": "released", **ID}, headers=HDR)
     assert r.status_code == 200
     assert r.json() == {"ok": True, "linear_id": "UNI-A", "state": "released"}
     assert fl.moved_to_unstarted == {"UNI-A"}
@@ -180,7 +180,7 @@ def test_released_claim_update_succeeds_when_linear_errors(mesh_client):
 
     mesh._linear_graphql = _boom
     r = client.post("/api/mesh/claim/update",
-                     json={"linear_id": "UNI-A", "state": "released"}, headers=HDR)
+                     json={"linear_id": "UNI-A", "state": "released", **ID}, headers=HDR)
     assert r.status_code == 200
     assert r.json() == {"ok": True, "linear_id": "UNI-A", "state": "released"}
 
@@ -193,7 +193,7 @@ def test_non_released_claim_update_does_not_touch_linear(mesh_client):
     mesh._sb = fake.sb
     mesh._linear_graphql = lambda q: pytest.fail("Linear should not be touched for a non-released transition")
     r = client.post("/api/mesh/claim/update",
-                     json={"linear_id": "UNI-A", "state": "done"}, headers=HDR)
+                     json={"linear_id": "UNI-A", "state": "done", **ID}, headers=HDR)
     assert r.status_code == 200
 
 
@@ -210,12 +210,12 @@ def test_released_update_zero_row_does_not_touch_linear(mesh_client):
     mesh._linear_graphql = lambda q: pytest.fail("Linear must not be touched on a 0-row released update")
     # already-done claim
     r = client.post("/api/mesh/claim/update",
-                     json={"linear_id": "UNI-A", "state": "released"}, headers=HDR)
+                     json={"linear_id": "UNI-A", "state": "released", **ID}, headers=HDR)
     assert r.status_code == 200
     assert fake.claims["UNI-A"]["state"] == "done"  # untouched
     # claim absent entirely
     r = client.post("/api/mesh/claim/update",
-                     json={"linear_id": "UNI-GHOST", "state": "released"}, headers=HDR)
+                     json={"linear_id": "UNI-GHOST", "state": "released", **ID}, headers=HDR)
     assert r.status_code == 200
 
 

@@ -1,0 +1,57 @@
+name: Mesh runner on Windows
+
+# RA-7802. The mesh runner runs on a Windows PC as well as two Macs, but every
+# other workflow runs on ubuntu-latest. #800 used os.O_NOFOLLOW, which Windows
+# does not have, and every PC build claim then failed before its agent started
+# (RA-7801) — green on Linux the whole time. This job imports every runner
+# module on Windows and runs the runner-side suites written to hold on any OS.
+# Most older mesh suites assert POSIX file modes, so they stay Linux-only in ci.yml.
+
+on:
+  push:
+    branches: [main]
+    paths: ["mesh/**", "tests/test_mesh_*.py", "tests/mesh_helpers.py", ".github/workflows/mesh-windows.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["mesh/**", "tests/test_mesh_*.py", "tests/mesh_helpers.py", ".github/workflows/mesh-windows.yml"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Mesh runner (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pytest
+        run: pip install "pytest==8.3.4"
+
+      - name: Every runner module imports on Windows
+        shell: bash
+        run: |
+          cd mesh
+          python -c "import runner, heartbeat, preflight, self_update, node_health, run_record, claim_lifecycle, ship_run, fleet_state, env_file, runner_idle; print('imports ok')"
+
+      - name: Runner suites that must hold on any OS
+        env:
+          MESH_PREFLIGHT: "0"
+          MESH_SELF_UPDATE: "0"
+        run: >-
+          pytest -v --tb=short -p no:cacheprovider
+          tests/test_mesh_windows_portability.py
+          tests/test_mesh_node_health.py
+          tests/test_mesh_preflight.py
+          tests/test_mesh_self_update.py

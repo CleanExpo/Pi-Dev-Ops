@@ -228,10 +228,24 @@ def running_agent_sessions() -> list[dict]:
     return uniq
 
 
+def node_status(agents: list, crumb: dict) -> str:
+    """A runner that has gated itself says so, above working/online (RA-7802)."""
+    if crumb.get("state") in ("blocked", "quarantined", "stuck"):
+        return crumb["state"]
+    return "working" if agents else "online"
+
+
+def node_version(crumb: dict) -> str:
+    """The runner's commit, so the fleet view shows which code each node runs (RA-7802)."""
+    sha = str(crumb.get("version") or "")
+    return f"nexus-mesh/{sha[:12]}" if sha and sha != "unknown" else "nexus-mesh/0.1"
+
+
 def collect() -> dict:
     cpu, mem, load1 = cpu_mem_load()
     agents = running_agent_sessions()
-    status = "working" if agents else "online"
+    crumb = runner_breadcrumb()
+    status = node_status(agents, crumb)
     return {
         "host": socket.gethostname().split(".")[0],
         "os": f"{platform.system()} {platform.release()}",
@@ -241,7 +255,7 @@ def collect() -> dict:
         "mem_pct": mem,
         "load1": load1,
         "agent_runtimes": runtimes_present(),
-        "version": "nexus-mesh/0.1",
+        "version": node_version(crumb),
         "agents": agents,
     }
 

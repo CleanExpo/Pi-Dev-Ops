@@ -42,7 +42,7 @@ class FakeSupabase:
 
     def __init__(self, open_ids=()):
         self.open = set(open_ids)
-        self.inserts: list[str] = []
+        self.inserts: list[str] = []; self.inserted_ids: list = []  # noqa: E702
 
     def sb(self, method, path, body=None, *, prefer=""):
         if method == "POST" and path == "mesh_work_claims":
@@ -50,7 +50,7 @@ class FakeSupabase:
             if lid in self.open:
                 return 409, '{"code":"23505","message":"duplicate key"}'
             self.open.add(lid)
-            self.inserts.append(lid)
+            self.inserts.append(lid), self.inserted_ids.append(body.get("id"))
             return 201, ""
         if method == "GET" and path.startswith("mesh_work_claims?select=linear_id"):
             return 200, json.dumps([{"linear_id": lid} for lid in sorted(self.open)])
@@ -125,7 +125,7 @@ def test_claim_self_picks_top_priority(mesh_client):
     monkeypatch_linear(mesh, _tickets(("UNI-A", 3), ("UNI-B", 4), ("UNI-C", 1)))
     mesh._sb = fake.sb
     r = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
-    assert r["claimed"] == dict(linear_id="UNI-C", machine="nodeA", lane="build", title="UNI-C", description="")
+    assert r["claimed"] == dict(linear_id="UNI-C", id=fake.inserted_ids[-1], machine="nodeA", lane="build", title="UNI-C", description="")
 
 
 def test_claim_self_empty_queue_returns_null(mesh_client):
@@ -193,7 +193,7 @@ def test_completed_ticket_is_not_reclaimed(mesh_client):
     assert r1["claimed"]["linear_id"] == "UNI-A"
     # runner finishes the ticket: open claim released by the partial-index rules
     client.post("/api/mesh/claim/update",
-                json={"linear_id": "UNI-A", "state": "done"}, headers=HDR)
+                json={"linear_id": "UNI-A", "state": "done", "host": "nodeA", "claim_id": "c-1"}, headers=HDR)
     assert "UNI-A" not in fake.open  # claim row is closed — old bug's precondition
     r2 = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
     assert r2["claimed"] is None            # NOT re-served

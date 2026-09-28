@@ -117,7 +117,7 @@ def test_plan_lane_claim_uses_the_same_atomic_insert(mesh_client):
 
 
 def _update(client, **body) -> dict:
-    payload = {"linear_id": "UNI-9", "state": "done", "host": "nodeA", **body}
+    payload = {"linear_id": "UNI-9", "state": "done", "host": "nodeA", "claim_id": "c-9", **body}
     return client.post("/api/mesh/claim/update", json=payload, headers=HDR).json()
 
 
