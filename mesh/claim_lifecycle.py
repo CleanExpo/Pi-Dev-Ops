@@ -10,6 +10,7 @@ its claim and its worktree are left in place, because the agent is still in it.
 from __future__ import annotations
 
 import contextlib
+import os
 import signal
 import subprocess
 import sys
@@ -21,12 +22,21 @@ from typing import Any, Callable
 REPORT_ATTEMPTS = 3
 
 
+def temp_root() -> Path:
+    """The platform temp dir under its long, real name (RA-7801).
+
+    A scheduled task on Windows can get TEMP as an 8.3 short path
+    (`C:\\Users\\DISAST~1\\...`). Claude matches workspace trust on the long
+    path, so an agent started under the short one reads as untrusted."""
+    return Path(os.path.realpath(tempfile.gettempdir()))
+
+
 def worktree_path(linear_id: str, run_id: str) -> Path:
     """Where a run's worktree goes: the platform temp dir, not `/tmp` (RA-7801).
 
     `/tmp` does not exist on Windows, so the PC's worktree landed in `\\tmp` on
     whatever drive the runner started from."""
-    return Path(tempfile.gettempdir()) / f"mesh-{linear_id}-{run_id}"
+    return temp_root() / f"mesh-{linear_id}-{run_id}"
 
 
 def add_worktree(repo_dir: Path, branch: str, worktree: Path) -> bool:

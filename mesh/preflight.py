@@ -24,6 +24,7 @@ import uuid
 from pathlib import Path
 from typing import Callable
 
+import claim_lifecycle
 import run_record
 
 PROBE_PROMPT = ("Create a file named {name} in the current directory containing "
@@ -49,7 +50,7 @@ def run_log() -> str:
 def agent_writes(repo_dir: Path, agent_cmd: str,
                  run: Callable[..., subprocess.CompletedProcess] = subprocess.run) -> str:
     """The agent writes a file in a scratch worktree, and is not in an untrusted workspace."""
-    worktree = Path(tempfile.mkdtemp(prefix="mesh-preflight-wt-")) / "wt"
+    worktree = Path(tempfile.mkdtemp(prefix="mesh-preflight-wt-", dir=claim_lifecycle.temp_root())) / "wt"
     try:
         added = run(["git", "-C", str(repo_dir), "worktree", "add", "--detach", str(worktree), "HEAD"],
                     capture_output=True, text=True, check=False)
