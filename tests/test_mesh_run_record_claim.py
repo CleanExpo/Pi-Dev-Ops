@@ -18,6 +18,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 _REAL_RUN = subprocess.run
 sys.path.insert(0, str(REPO_ROOT))
 
+import pytest  # noqa: E402
+from mesh_helpers import UnprintableError  # noqa: E402
 from mesh_helpers import hostile_exception as _hostile  # noqa: E402
 from mesh_helpers import load_module as _load  # noqa: E402
 from mesh_helpers import secret_token as _token  # noqa: E402
@@ -234,10 +236,10 @@ def test_the_terminal_update_goes_out_even_if_run_agent_itself_raises(monkeypatc
     assert removed, "worktree was not cleaned up"
 
 
-def test_an_interrupt_ends_the_claim_with_the_agent_dead_before_cleanup(monkeypatch, tmp_path):
-    """Round 12, end to end: no terminal update or worktree removal while the agent runs."""
-    import pytest
-
+@pytest.mark.parametrize("error, escapes", [(KeyboardInterrupt, True), (UnprintableError, False)])
+def test_a_wait_failure_ends_the_claim_with_the_agent_dead_before_cleanup(monkeypatch, tmp_path, error, escapes):
+    """Rounds 12 and 13, end to end: an interrupt, or an exception whose str() raises,
+    must not let the terminal update or worktree removal happen while the agent runs."""
     runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
     agent = tmp_path / "agent"
     agent.write_text("#!/bin/sh\nexec sleep 30\n")
@@ -248,7 +250,7 @@ def test_an_interrupt_ends_the_claim_with_the_agent_dead_before_cleanup(monkeypa
 
     def interrupted_wait(proc, _plan):
         started.append(proc)
-        raise KeyboardInterrupt
+        raise error()
 
     def api(method, path, body=None):
         if path == "/api/mesh/claim/update" and started:
@@ -265,7 +267,10 @@ def test_an_interrupt_ends_the_claim_with_the_agent_dead_before_cleanup(monkeypa
     monkeypatch.setattr(runner, "_wait_for_agent", interrupted_wait)
     monkeypatch.setattr(runner, "_api", api)
     monkeypatch.setattr(runner.run_record, "remove_worktree", remove)
-    with pytest.raises(KeyboardInterrupt):
+    if escapes:
+        with pytest.raises(error):
+            runner.run_claim({"linear_id": "UNI-I", "repo_dir": str(repo)}, dry_run=False)
+    else:
         runner.run_claim({"linear_id": "UNI-I", "repo_dir": str(repo)}, dry_run=False)
     assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
     assert alive_at == {"update": False, "remove": False}

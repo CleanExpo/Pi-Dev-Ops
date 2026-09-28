@@ -57,6 +57,14 @@ def error_code(plan: dict) -> Optional[str]:
     return "runner_exception"
 
 
+def _describe(exc: BaseException) -> str:
+    """The exception's message for local diagnostics. Never raises: its `__str__` is somebody else's code."""
+    try:
+        return str(exc)
+    except Exception:  # noqa: BLE001 — an unprintable exception is still a failure to record
+        return "unprintable exception"
+
+
 def _attempt(action: Callable[[], Any]) -> bool:
     """Run one shutdown step; True if it completed. Each step is attempted even
     when the one before it failed, and none of them can raise."""
@@ -171,24 +179,26 @@ def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: st
     a failed state, so the caller always reaches its terminal claim update and
     cleanup. An interrupt (KeyboardInterrupt, SystemExit) is not swallowed: the
     agent is stopped and reaped first, then the interrupt propagates, so the
-    caller's cleanup never runs while the agent is still executing.
+    caller's cleanup never runs while the agent is still executing. The stop
+    sits in `finally`, so nothing a handler does can skip it.
     """
     rec = None
+    finished = False
     try:
         rec = RunRecord(run_id, base_dir)
         wait(rec.popen(make_cmd(), cwd), plan)
+        finished = True
     except Exception as exc:  # noqa: BLE001 — reported as the claim's failure, never re-raised
         plan["state"] = "failed"
-        plan["error"] = str(exc)
         plan["error_code"] = "runner_exception_os" if isinstance(exc, OSError) else "runner_exception"
-        if rec is not None:
-            rec.stop()
+        plan["error"] = _describe(exc)
     except BaseException:
         plan["state"] = "failed"
         plan["error_code"] = "runner_exception"
-        if rec is not None:
-            rec.stop()
         raise
+    finally:
+        if rec is not None and not finished:
+            rec.stop()
     return rec
 
 

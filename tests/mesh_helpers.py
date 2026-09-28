@@ -79,3 +79,10 @@ def server_only_secret() -> str:
 def hostile_exception(base):
     """An exception class whose NAME is the secret (UNI-2796 review round 5)."""
     return type("SECRET_QWERTY_12345", (base,), {})
+
+
+class UnprintableError(Exception):
+    """An exception whose `__str__` raises (UNI-2796 review round 13)."""
+
+    def __str__(self):
+        raise ValueError("cannot print")

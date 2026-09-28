@@ -14,6 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
+from mesh_helpers import UnprintableError  # noqa: E402
 from mesh_helpers import load_module as _load  # noqa: E402
 
 rr = _load("mesh_run_record_stop_under_test", "mesh/run_record.py")
@@ -48,6 +49,21 @@ def test_an_interrupt_stops_the_agent_then_propagates(tmp_path):
             rr.run_agent(lambda: ["sleep", "30"], str(tmp_path), tmp_path, run_id, plan, interrupted_wait)
         assert started[0].poll() is not None, "agent still running as the interrupt propagated"
         assert plan["state"] == "failed" and plan["error_code"] == "runner_exception"
+
+
+def test_an_unprintable_exception_still_stops_the_agent(tmp_path):
+    """Round 13: str(exc) raising inside the handler skipped the stop and escaped."""
+    plan: dict = {}
+    started: list = []
+
+    def wait(proc, _plan):
+        started.append(proc)
+        raise UnprintableError()
+
+    rr.run_agent(lambda: ["sleep", "30"], str(tmp_path), tmp_path, "0a0a0a09", plan, wait)
+    assert started[0].poll() is not None, "agent still running after run_agent returned"
+    assert (plan["state"], plan["error_code"], plan["error"]) == (
+        "failed", "runner_exception", "unprintable exception")
 
 
 class _FakeAgent:
