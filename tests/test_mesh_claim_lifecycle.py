@@ -278,3 +278,21 @@ def test_an_interrupt_building_the_terminal_fields_still_reports(monkeypatch, tm
         runner.run_claim({"linear_id": "UNI-B", "repo_dir": str(repo)}, dry_run=False)
     assert [b["state"] for b in _updates(calls)] == ["working", "done"]
     assert removed and _state(tmp_path) == "idle"
+
+
+def _short_temp(tmp_path, monkeypatch):
+    """A temp dir reached through another name, as Windows hands a scheduled task
+    `C:\\Users\\DISAST~1\\...` for a user name with a space (RA-7801, 28/09)."""
+    real = tmp_path / "Disaster Recovery 4"
+    real.mkdir()
+    short = tmp_path / "DISAST~1"
+    short.symlink_to(real, target_is_directory=True)
+    monkeypatch.setattr(cl.tempfile, "tempdir", str(short))
+    return real.resolve()
+
+
+def test_a_run_worktree_is_made_under_the_long_temp_path(tmp_path, monkeypatch):
+    """Claude matches workspace trust on the long path; under the short one the
+    agent reads as untrusted, ignores the repo's permissions and cannot write."""
+    real = _short_temp(tmp_path, monkeypatch)
+    assert cl.worktree_path("RA-1", "abc").parent == real

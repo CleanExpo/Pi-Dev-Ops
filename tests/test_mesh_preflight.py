@@ -130,3 +130,16 @@ def test_a_candidate_runner_that_exits_on_import_is_named(tmp_path, monkeypatch)
     monkeypatch.syspath_prepend(str(tmp_path))
     monkeypatch.delitem(sys.modules, "runner", raising=False)
     assert pf.runner_loads(tmp_path) == "runner does not import: SystemExit"
+
+
+def test_the_scratch_worktree_is_made_under_the_long_temp_path(tmp_path, monkeypatch):
+    """RA-7801: the PC's runner got a short TEMP, so preflight's worktree read as
+    untrusted and the node stayed blocked after its folder was trusted."""
+    real = tmp_path / "Disaster Recovery 4"
+    real.mkdir()
+    (tmp_path / "DISAST~1").symlink_to(real, target_is_directory=True)
+    monkeypatch.setattr(pf.tempfile, "tempdir", str(tmp_path / "DISAST~1"))
+    run = fake_run(agent_writes=True)
+    assert pf.agent_writes(REPO, "claude", run=run) == ""
+    added = next(c for c in run.calls if c[:2] == ["git", "-C"] and c[3:5] == ["worktree", "add"])
+    assert Path(added[6]).parent.parent == real.resolve()
