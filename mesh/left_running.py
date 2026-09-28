@@ -11,6 +11,7 @@ clears a stuck entry by deleting the file once the agent is known to be gone.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from pathlib import Path
@@ -63,6 +64,28 @@ def _save(pids: list) -> None:
     os.replace(tmp, PATH)
 
 
+@contextlib.contextmanager
+def _locked():
+    """Serialise every read-modify-write of the record across runner processes: an old and
+    a replacement runner can overlap, and an unlocked prune erases a pid tracked meanwhile.
+    A lock that cannot be taken raises, and every caller fails closed."""
+    PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(PATH.with_suffix(".lock"), "a+") as fh:
+        if os.name == "nt":
+            import msvcrt
+            fh.seek(0)
+            msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)  # retries ~10 s, then raises
+        else:
+            import fcntl
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                fh.seek(0)
+                msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)  # POSIX: released on close
+
+
 _UNRECORDED = [False]  # a record this process could not write: block for its lifetime
 
 
@@ -85,7 +108,8 @@ def track(rec) -> None:
         return
     proc = getattr(rec, "proc", None)
     try:
-        _save(_load() + [int(getattr(proc, "pid", 0) or 0)])
+        with _locked():
+            _save(_load() + [int(getattr(proc, "pid", 0) or 0)])
     except Exception:  # noqa: BLE001 — never raise in claim cleanup; block instead
         _UNRECORDED[0] = True
 
@@ -96,13 +120,14 @@ def any_alive() -> bool:
     try:
         if _UNRECORDED[0] or not _writable():
             return True
-        pids = _load()
-        live = [p for p in pids if _alive(p)]
-        if pids and len(live) != len(pids):
-            try:
-                _save(live)
-            except OSError:
-                pass
-        return bool(live)
+        with _locked():
+            pids = _load()
+            live = [p for p in pids if _alive(p)]
+            if pids and len(live) != len(pids):
+                try:
+                    _save(live)
+                except OSError:
+                    pass
+            return bool(live)
     except Exception:  # noqa: BLE001 — an error here proves nothing gone
         return True

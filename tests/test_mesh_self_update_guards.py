@@ -7,8 +7,10 @@ concurrent fetch or checkout during the update cannot redirect it. REAL git repo
 """
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
+import threading
 import types
 
 import pytest
@@ -193,3 +195,36 @@ def test_the_plan_error_handler_never_raises(tmp_path, monkeypatch):
                                left_running=types.SimpleNamespace(track=tracked.append))
     assert plan_lane._run_agent({"linear_id": "UNI-P", "title": "t"}, {}, rt) == ""
     assert len(tracked) == 1  # cannot tell whether it runs: recorded as left running
+
+
+def test_a_concurrent_prune_cannot_drop_a_newly_tracked_agent(monkeypatch):
+    dead = subprocess.Popen([sys.executable, "-c", ""])
+    dead.wait()
+    left_running.PATH.write_text(json.dumps([{"pid": dead.pid}]))
+    paused, resume = threading.Event(), threading.Event()
+    real_alive = left_running._alive
+
+    def slow_alive(pid):  # the pruner has read the record and is still deciding
+        paused.set()
+        resume.wait(5)
+        return real_alive(pid)
+
+    monkeypatch.setattr(left_running, "_alive", slow_alive)
+    pruner = threading.Thread(target=left_running.any_alive)
+    pruner.start()
+    assert paused.wait(5)
+    child = _sleeper()
+    try:
+        tracker = threading.Thread(target=left_running.track,
+                                   args=(types.SimpleNamespace(reaped=False, proc=child),))
+        tracker.start()
+        tracker.join(0.3)  # unserialised, it has written by now and the prune overwrites it
+        resume.set()
+        pruner.join(5)
+        tracker.join(5)
+        monkeypatch.setattr(left_running, "_alive", real_alive)
+        assert [e["pid"] for e in json.loads(left_running.PATH.read_text())] == [child.pid]
+        assert left_running.any_alive() is True
+    finally:
+        child.kill()
+        child.wait()
