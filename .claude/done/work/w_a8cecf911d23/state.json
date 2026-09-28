@@ -1,0 +1,87 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "FAILED",
+  "verification_status": "FAIL",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": "524ca23f7a8efea130831f2ad1e088cce7720353",
+  "updated_at_utc": "2026-09-28T11:47:49Z",
+  "last_verify": {
+    "head": "524ca23f7a8efea130831f2ad1e088cce7720353",
+    "at_utc": "2026-09-28T11:47:49Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "cd docs/plans/plan-to-done-v1.1 && sha256sum -c --quiet MANIFEST.sha256 && test \"$(sha256sum -c MANIFEST.sha256 | grep -c ': OK$')\" -eq 154",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "python3 -m swarm.agentskills_manifest >/dev/null && git diff --exit-code agentskills.json agentskills.yaml",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "python3 .github/scripts/file_length_lint.py >/dev/null && python3 .github/scripts/function_length_lint.py >/dev/null",
+        "exit_code": 0,
+        "output_digest": "11dcc4ebdcb746b562c7e8ff816bb0681081be9c30dea9b9c0591eda950c19f4",
+        "output_tail": "<unknown>:59: SyntaxWarning: \"\\ \" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\ \"? A raw string is also an option."
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "node --check docs/plans/plan-to-done-v1.1/plan-to-done/workflows/plan-review.js && python3 -m json.tool docs/plans/idea-to-live/handoff.json >/dev/null && python3 -m json.tool docs/plans/idea-to-live/routing-verification-2026-09-28.json >/dev/null",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C5",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "python3 .claude/done/work/w_8a69e21e87ed/check_links.py && ! python3 .claude/done/work/w_8a69e21e87ed/check_links.py --canary >/dev/null",
+        "exit_code": 0,
+        "output_digest": "1ee79f6e7eac0410f5885e27c98513ec0458d0a41682349edd8a3eae485c43e5",
+        "output_tail": "links scanned: 15; dead: 0"
+      },
+      {
+        "id": "C6",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "bash .claude/done/work/w_8a69e21e87ed/check_hook.sh",
+        "exit_code": 0,
+        "output_digest": "fb8c72c2631298830bda2681f43bc8064329e196417eb4330188e5a0bf085c39",
+        "output_tail": "ok   1 write outside planning path -> deny\nok   2 write inside docs/plans/ -> allow\nok   3 write SKILL.md inside plans -> deny\nok   4 write with no file_path -> deny\nok   5 bash git push -> deny\nok   6 bash read-only ls -> allow\nok   7 PKG-2 ../ traversal (defect) -> allow\nok   8 PKG-2 nested docs/plans (defect) -> allow"
+      },
+      {
+        "id": "C7",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_subscription_policy.py -q -p no:cacheprovider",
+        "exit_code": 0,
+        "output_digest": "b57e9aef4977fe1fcb53fd593481043c6a3387d52b2fa74da42703405e39a3db",
+        "output_tail": "32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m.\u001b[0m\u001b[32m                           [100%]\u001b[0m\n\u001b[32m\u001b[32m\u001b[1m46 passed\u001b[0m\u001b[32m in 0.08s\u001b[0m\u001b[0m"
+      },
+      {
+        "id": "C8",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "python3 /Users/phill-mac/.claude/skills/pr-release-gate/scripts/pr_release_gate.py verify 2>&1 | grep -q PR_RELEASE_GATE_PASS",
+        "exit_code": 1,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      }
+    ],
+    "blockers": []
+  }
+}

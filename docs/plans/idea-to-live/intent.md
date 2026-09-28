@@ -70,7 +70,7 @@ Observable signs the outcome is reached (none are true today):
 
 | ID | Question | Kind | Owner | How it resolves |
 |---|---|---|---|---|
-| D0 | Is Pi-Dev-Ops under "acceptance by cross-model audit" (10 Sept decision) or "human-merge-only, no UG-AUTONOMY-001 exception" (`docs/session-handoffs/20260911-1230-0eca2639.md:212`)? | Owner decision (direction) | Phill | One sentence from Phill; then update whichever record is wrong |
+| D0 | Is Pi-Dev-Ops under "acceptance by cross-model audit" (10 Sept decision) or "human-merge-only, no UG-AUTONOMY-001 exception" (`docs/session-handoffs/20260911-1230-0eca2639.md:212`)? | Owner decision (direction) | Phill | **Decided 28 Sept 2026 (RA-7818): human merge only.** Cross-model audit is review evidence, not acceptance |
 | D1 | Keep Claude-Code-only frontmatter (no claude.ai sync) or go spec-only + `skillOverrides`? | Owner decision | skills-library maintainer | Package `ENHANCEMENT-REVIEW.md` §6 |
 | D2 | TypeSafe intake: vendor plugin marketplace or pinned vault? | Owner decision | skills-library maintainer | Same |
 | D3 | Does the `plan-review` workflow count toward the two-round review cap? | Owner decision | skills-library maintainer | Same |
