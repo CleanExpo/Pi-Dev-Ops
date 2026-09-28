@@ -61,7 +61,7 @@ Tickets: 1 = UNI-2796, 2 = UNI-2797 (blocked by UNI-2796), 3 = UNI-2798, 4 = UNI
 
 | # | Warp pattern | Our gap (at 9eca38cb) | Where it lands |
 |---|---|---|---|
-| 1 | Run list with state, logs and a session link | `mesh/runner.py` `run_claim` starts the agent with no output capture, and `mesh_work_claims` has no run id, duration, exit code or error | `mesh/run_record.py` (new), `mesh/runner.py`, `mesh/schema/0002_*.sql`, `app/server/routes/mesh.py` claim/update |
+| 1 | Run list with state, logs and a session link | `mesh/runner.py` `run_claim` starts the agent with no output capture, and `mesh_work_claims` has no run id, duration, exit code or error | `mesh/run_record.py` (new), `mesh/runner.py`, `mesh/schema/0003_mesh_run_records.sql`, `app/server/routes/mesh.py` claim/update |
 | 2 | Linear: activity on the ticket, PR link back | A claimed ticket moves to In Progress and nothing else is said | the claim/update handler posts a Linear comment through the existing server Linear client |
 | 3 | build.warp.dev stage counts plus "waiting on agent / human" | Neither the Live Wall nor `/control` shows the queue that way | a new `/control/factory` section inside the existing dashboard, behind login |
 | 4 | Launch a run with a prompt | A dispatched claim arrives without a brief, and the runner refuses it (`runner.py:121-129`) | dispatch attaches the Linear title and description |

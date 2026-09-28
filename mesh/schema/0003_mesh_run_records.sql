@@ -1,4 +1,9 @@
--- Nexus Mesh 0002 — run records on work claims (UNI-2796).
+-- Nexus Mesh 0003 — run records on work claims (UNI-2796).
+--
+-- Numbered 0003, not 0002: production's migration ledger already holds
+-- `nexus_mesh_0002_rls` (applied 2026-06-11, no file in this repo), so a
+-- second 0002 would make the ledger and this directory disagree on what
+-- 0002 means.
 --
 -- A build run used to report only its state, so a failure's reason and the
 -- agent's output stayed on the machine that ran it. These columns carry what

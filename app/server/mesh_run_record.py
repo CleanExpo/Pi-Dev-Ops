@@ -9,7 +9,7 @@ because there is nothing left that could need one.
 
 Split out of `routes/mesh.py`, which sits on its size-gate baseline.
 
-The columns come from `mesh/schema/0002_mesh_run_records.sql`. Nothing in this
+The columns come from `mesh/schema/0003_mesh_run_records.sql`. Nothing in this
 repo applies a migration to production, so they may not exist yet. A PATCH
 naming a missing column is refused whole by PostgREST, which would lose the
 state transition the runner is reporting. `patch_claim` therefore retries
@@ -111,7 +111,7 @@ def patch_claim(sb: Callable[..., tuple[int, str]], method: str, path: str,
     extra = record_patch(fields)
     status, body = sb(method, path, {**patch, **extra}, prefer=prefer)
     if extra and _missing_run_column(status, body, extra, path.split("?", 1)[0]):
-        log.warning("claim run-record columns absent (apply mesh/schema/0002); "
+        log.warning("claim run-record columns absent (apply mesh/schema/0003); "
                     "stored the state change only")
         status, body = sb(method, path, patch, prefer=prefer)
     return status, body
