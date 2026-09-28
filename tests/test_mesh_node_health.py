@@ -157,3 +157,25 @@ def test_a_stuck_update_stops_the_runner_and_says_so(runner, monkeypatch):
     assert '"state": "stuck"' in runner.STATE_FILE.read_text()
     hb = _load("mesh_heartbeat_stuck", "mesh/heartbeat.py")
     assert hb.node_status([], {"state": "stuck"}) == "stuck"
+
+
+def test_a_stuck_marker_that_cannot_be_written_never_lets_the_runner_exit(tmp_path, monkeypatch):
+    """Codex round 3: a failed marker write escaped, the runner exited, and a restart
+    found no marker. Unmarked, it must hold, not exit, until the marker is written."""
+    import types
+    ri = _load("mesh_runner_idle_under_test", "mesh/runner_idle.py")
+    tries, sleeps, states = [], [], []
+
+    def mark(path, outcome):
+        tries.append(path)
+        if len(tries) < 3:
+            raise PermissionError("planted")
+        path.write_text(outcome)
+    monkeypatch.setattr(ri.self_update, "mark_stuck", mark)
+    rt = types.SimpleNamespace(HOST="n", POLL_INTERVAL=30, stuck_file=lambda: tmp_path / "STUCK",
+                               write_state=lambda lid, state: states.append(state),
+                               time=types.SimpleNamespace(sleep=sleeps.append))
+    health = types.SimpleNamespace(state="healthy")
+    assert ri.idle(rt, _StuckUpdater(), health, []) == 0
+    assert len(tries) == 3 and sleeps == [30, 30] and (tmp_path / "STUCK").is_file()
+    assert set(states) == {"stuck"}

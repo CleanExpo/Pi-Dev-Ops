@@ -34,7 +34,7 @@ class _Sb:
             return 200, json.dumps([{"host": "nodeA", "is_stale": False,
                                      "active_agents": 0, "load1": 0.1}])
         if method == "POST" and path.startswith("mesh_work_claims"):
-            return 201, ""
+            return 201, json.dumps([{"id": "c-1", **(payload or {})}])  # return=representation
         return 200, "[]"
 
 

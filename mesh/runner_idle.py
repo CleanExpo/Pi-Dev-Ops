@@ -34,9 +34,14 @@ def idle(rt: SimpleNamespace, updater: self_update.Updater | None,
         if outcome.startswith("stuck"):
             # HEAD could not return to proven code. Exit 0 alone does not keep a node
             # down (the PC's task restarts it every 5 min; any node restarts on reboot),
-            # so leave a marker outside the repo that every later start obeys.
-            self_update.mark_stuck(rt.stuck_file(), outcome)
+            # so leave a marker outside the repo that every later start obeys. Until it
+            # is written, never exit: a restart with no marker would claim on that code.
             rt.write_state(None, "stuck")
-            return 0
+            while True:
+                try:
+                    self_update.mark_stuck(rt.stuck_file(), outcome)
+                    return 0
+                except OSError:
+                    rt.time.sleep(rt.POLL_INTERVAL)
     rt.write_state(None, "idle" if health.state == "healthy" else health.state)
     return None

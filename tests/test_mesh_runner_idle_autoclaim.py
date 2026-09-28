@@ -51,7 +51,7 @@ class FakeSupabase:
                 return 409, '{"code":"23505","message":"duplicate key"}'
             self.open.add(lid)
             self.inserts.append(lid)
-            return 201, ""
+            return 201, json.dumps([{"id": f"c-{lid}", "linear_id": lid}])
         if method == "GET" and path.startswith("mesh_work_claims?select=linear_id"):
             return 200, json.dumps([{"linear_id": lid} for lid in sorted(self.open)])
         if method == "PATCH" and path.startswith("mesh_work_claims?linear_id=eq."):
@@ -125,7 +125,7 @@ def test_claim_self_picks_top_priority(mesh_client):
     monkeypatch_linear(mesh, _tickets(("UNI-A", 3), ("UNI-B", 4), ("UNI-C", 1)))
     mesh._sb = fake.sb
     r = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
-    assert r["claimed"] == dict(linear_id="UNI-C", id=None, machine="nodeA", lane="build", title="UNI-C", description="")
+    assert r["claimed"] == dict(linear_id="UNI-C", id="c-UNI-C", machine="nodeA", lane="build", title="UNI-C", description="")
 
 
 def test_claim_self_empty_queue_returns_null(mesh_client):

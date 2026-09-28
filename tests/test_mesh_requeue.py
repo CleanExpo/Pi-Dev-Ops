@@ -28,6 +28,8 @@ class _Sb:
                            "machine": "Phill_Desktop"}]
         self.failed_rows: list[dict] = []
         self.claimed: list[tuple[str, str]] = []
+        self.patches: list[tuple[str, dict]] = []
+        self.insert_body = None  # None: return the inserted row, as return=representation does
 
     def _matches(self, row: dict, query: str) -> bool:
         params = dict(urllib.parse.parse_qsl(query))
@@ -40,9 +42,12 @@ class _Sb:
     def __call__(self, method, path, payload=None, prefer=""):
         if method == "POST" and path.startswith("mesh_work_claims"):
             self.claimed.append((payload["linear_id"], payload["machine"]))
+            if self.insert_body is not None:
+                return 201, self.insert_body
             return 201, json.dumps([{"id": f"c-{payload['linear_id']}", **payload}])
         if method == "PATCH" and path.startswith("mesh_work_claims"):
             query = path.split("?", 1)[1]
+            self.patches.append((query, payload))
             return 200, json.dumps([{**r, **payload} for r in self.open_rows if self._matches(r, query)])
         if method == "GET" and "state=eq.failed" in path:
             return 200, json.dumps(self.failed_rows)
@@ -172,3 +177,17 @@ def test_the_node_that_failed_a_ticket_is_offered_the_next_one_instead(mesh_clie
 def test_an_unreadable_failure_table_skips_nothing():
     from app.server import mesh_requeue
     assert mesh_requeue.failed_here(lambda path: (401, '{"message":"JWT expired"}'), "Mini") == set()
+
+
+def test_a_claim_whose_row_id_did_not_come_back_is_released_not_handed_out(mesh_client):
+    """Codex round 3: a 2xx insert with an empty representation handed the runner a
+    claim with id None. Ending a claim needs its id, so that claim could never end,
+    and the reaper leaves a live node's claims alone."""
+    client, mesh, sb = mesh_client
+    mesh.queue, sb.insert_body = [_issue("RA-2")], "[]"
+    got = client.post("/api/mesh/claim/self", json={"host": "Phill_Desktop"}, headers=HDR).json()
+    assert got["claimed"] is None
+    query, payload = sb.patches[-1]
+    assert "linear_id=eq.RA-2" in query and "machine=eq.Phill_Desktop" in query and "state=eq.claimed" in query
+    assert payload["state"] == "released"
+    assert not any(q.startswith("mutation") and "issueUpdate" in q for q in mesh.gql)  # never moved In Progress

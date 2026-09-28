@@ -425,11 +425,10 @@ def claim_self(
         status, made = _sb("POST", "mesh_work_claims",
                            {"linear_id": ident, "machine": body.host, "state": "claimed"},
                            prefer="return=representation")
-        if status < 300:
+        if status < 300 and (claim_id := mesh_requeue.new_claim_id(_sb, made, ident, body.host)):
             _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
-            row = (mesh_fleet.parse_rows(made)[0] or [{}])[0]
             return {"claimed": {
-                "linear_id": ident, "id": row.get("id"), "machine": body.host, "lane": mesh_lanes.lane_of(tk),
+                "linear_id": ident, "id": claim_id, "machine": body.host, "lane": mesh_lanes.lane_of(tk),
                 "title": (tk.get("title") or "")[:_TITLE_MAX_CHARS],
                 "description": (tk.get("description") or "")[:_BRIEF_MAX_CHARS]}}
         # status 409 = raced by another node → try the next candidate
