@@ -165,8 +165,8 @@ async def test_malformed_timestamp_does_not_abort_watchdog(monkeypatch, tmp_path
 async def test_board_overlay_ignores_future_timestamp(monkeypatch, tmp_path):
     """RA-7030 board overlay has the identical weakness — a future
     last_fired_at must not suppress the board-silence alert."""
-    from app.server import config
-
+    from app.server import config, job_success_record as jsr
+    monkeypatch.setattr(jsr, "_job_success_dir", lambda: tmp_path / "job-success")  # RA-7795
     meetings = tmp_path / ".harness" / "board-meetings"
     meetings.mkdir(parents=True, exist_ok=True)
     stale_file = meetings / "2026-07-02-minutes.md"

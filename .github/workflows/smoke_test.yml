@@ -25,6 +25,13 @@ jobs:
       TAO_SESSION_SECRET: ci-session-secret-fixed-for-test
       TAO_EVALUATOR_ENABLED: "false"
       TAO_GC_MAX_AGE: "3600"
+      TAO_SWARM_ENABLED: "0"
+      TAO_AUTONOMY_ENABLED: "0"
+      # Same guard as ci.yml's smoke job (RA-7795): without it the startup catch-up
+      # in cron_loop runs a real board meeting and real script triggers, and the
+      # release gate's local CI replay writes a genuine success record into the
+      # developer's .harness/job-success/, which turns the next local run red.
+      TAO_CRON_ENABLED: "0"
       PYTHONPATH: ${{ github.workspace }}
 
     steps:

@@ -200,8 +200,10 @@ that have both burned this repo:
    Never dress a failure as "still running" and never retry silently.
 5. **Skill-injection hooks are advisory.** They fire on patterns, not task context. When off-task,
    say so in one line and ignore. Never let them drive scope creep.
-6. **Finishing the requested task is the stop signal.** Report and hand back. Do not auto-chain
-   into the next backlog item or open new scope without a fresh instruction.
+6. **POLICY — Finishing one item is not a stop signal (founder directive, 28/09/2026).** Carry
+   straight on to the next safe item already on the handoff, ticket or backlog you were given, and
+   stop only when that backlog is exhausted, a gate blocks every remaining thread, or Phill says
+   stop. This does not license new scope nobody asked for, and the pause list below still binds.
 
 Pause immediately for an explicit stop word, or for any decision requiring a human: branch-strategy
 change, secret rotation, destructive migration, new service provisioning.
