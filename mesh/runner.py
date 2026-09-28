@@ -217,13 +217,13 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
             plan.update(state="failed", error="git worktree add failed")
     finally:
         rec = held[0] if held else None
-        left_running.track(rec)  # RA-7798: never self-update away from an unstopped agent
         claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", {
             "linear_id": linear_id, "branch": branch, "host": HOST, "claim_id": plan["claim_id"],
             **run_record.terminal(rec, plan)}),
             lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
             agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS,
-            then=lambda: run_record.release_interrupt(rec))
+            then=lambda: run_record.release_interrupt(rec),
+            first=lambda: left_running.track(rec))  # RA-7798: never self-update away from an unstopped agent
     return plan
 
 

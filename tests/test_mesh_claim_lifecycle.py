@@ -278,3 +278,15 @@ def test_an_interrupt_building_the_terminal_fields_still_reports(monkeypatch, tm
         runner.run_claim({"linear_id": "UNI-B", "repo_dir": str(repo)}, dry_run=False)
     assert [b["state"] for b in _updates(calls)] == ["working", "done"]
     assert removed and _state(tmp_path) == "idle"
+
+
+def test_a_real_sigint_while_tracking_still_ends_the_claim(monkeypatch, tmp_path):
+    """RA-7798 round 5: SIGINT inside left_running.track() came before the ending's deferral."""
+    import signal
+    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
+    monkeypatch.setattr(runner, "AGENT_CMD", "true")
+    monkeypatch.setattr(runner.left_running, "track", lambda rec: signal.raise_signal(signal.SIGINT))
+    with pytest.raises(KeyboardInterrupt):
+        runner.run_claim({"linear_id": "UNI-S", "repo_dir": str(repo)}, dry_run=False)
+    assert [b["state"] for b in _updates(calls)] == ["working", "done"]
+    assert removed and _state(tmp_path) == "idle"

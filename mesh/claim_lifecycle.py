@@ -131,7 +131,8 @@ def _sigint_deferred():
 
 
 def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], None],
-        *, agent_alive: bool, pause: float, then: Callable[[], None] = lambda: None) -> None:
+        *, agent_alive: bool, pause: float, then: Callable[[], None] = lambda: None,
+        first: Callable[[], None] = lambda: None) -> None:
     """End a claim: report it, remove its worktree, mark the runner idle, then run `then`
     (which re-raises an interrupt held while the claim was ending).
 
@@ -140,6 +141,7 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
     ticket for another node while this agent still writes to that worktree.
     """
     with _sigint_deferred():
+        first()  # RA-7798: recording an unstopped agent is part of the ending, never before it
         if agent_alive:
             print("mesh: the agent could not be stopped; its claim and worktree are left in place",
                   file=sys.stderr)
