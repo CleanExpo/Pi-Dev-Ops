@@ -122,7 +122,9 @@ class Updater:
             return "new code's preflight timed out"
         except (OSError, subprocess.SubprocessError) as exc:
             return f"new code's preflight could not start: {type(exc).__name__}"
-        if done.returncode == 0:
-            return ""
         lines = (done.stdout or "").strip().splitlines()
+        if done.returncode == 0 and lines[-1:] == ["ok"]:  # exit 0 alone: an import can sys.exit(0)
+            return ""
+        if done.returncode == 0:
+            return "new code's preflight exited 0 without reporting ok"
         return lines[-1][:200] if lines else f"new code's preflight exited {done.returncode}"

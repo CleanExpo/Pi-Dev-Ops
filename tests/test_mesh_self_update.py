@@ -32,7 +32,7 @@ def commit_preflight(repo: Path, exit_code: int, message: str) -> str:
     (repo / "mesh" / "preflight.py").write_text(
         f"import sys\n# {commit_preflight.n}\nprint({message!r})\nsys.exit({exit_code})\n")
     git(repo, "add", "-A")
-    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", message)
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", message or "silent preflight")
     return git(repo, "rev-parse", "HEAD")
 
 
@@ -168,4 +168,13 @@ def test_a_checkout_that_moves_head_and_then_fails_is_undone(tmp_path):
             return subprocess.CompletedProcess(cmd, 1, done.stdout, "planted failure after moving")
         return done
     assert su.Updater(runtime, "claude", run=run).try_update() == "update failed: checkout"
+    assert git(runtime, "rev-parse", "HEAD") == old
+
+
+def test_a_candidate_preflight_that_exits_0_without_saying_ok_is_rolled_back(tmp_path):
+    """Codex round 5: a candidate runner.py that called sys.exit(0) on import ended the
+    preflight process with status 0 before any check ran, and that read as a pass."""
+    origin, runtime, old = origin_and_runtime(tmp_path)
+    commit_preflight(origin, 0, "")
+    assert su.Updater(runtime, "claude").try_update().startswith("rolled back:")
     assert git(runtime, "rev-parse", "HEAD") == old

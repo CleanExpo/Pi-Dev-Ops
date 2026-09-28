@@ -123,3 +123,10 @@ def test_a_candidate_whose_runner_cannot_load_fails_its_own_preflight(tmp_path):
 
 def test_the_runner_in_this_checkout_loads():
     assert pf.runner_loads(REPO_ROOT / "mesh") == ""
+
+
+def test_a_candidate_runner_that_exits_on_import_is_named(tmp_path, monkeypatch):
+    (tmp_path / "runner.py").write_text("import sys\nsys.exit(0)\n")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.delitem(sys.modules, "runner", raising=False)
+    assert pf.runner_loads(tmp_path) == "runner does not import: SystemExit"

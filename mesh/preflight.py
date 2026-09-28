@@ -93,7 +93,7 @@ def runner_loads(mesh_dir: Path) -> str:
             return f"{module.name} does not compile"
     try:
         importlib.import_module("runner")
-    except Exception as exc:  # noqa: BLE001 — any failure to load is a failure to run
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 — any failure to load is a failure to run
         return f"runner does not import: {type(exc).__name__}"
     return ""
 
