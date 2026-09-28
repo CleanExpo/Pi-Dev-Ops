@@ -17,7 +17,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from mesh_helpers import load_module as _load  # noqa: E402
+from mesh_helpers import load_module as _load, short_temp_alias  # noqa: E402
 from test_mesh_run_record_claim import _runner, _sleeping_agent, _updates  # noqa: E402
 
 cl = _load("claim_lifecycle_under_test", "mesh/claim_lifecycle.py")
@@ -280,19 +280,9 @@ def test_an_interrupt_building_the_terminal_fields_still_reports(monkeypatch, tm
     assert removed and _state(tmp_path) == "idle"
 
 
-def _short_temp(tmp_path, monkeypatch):
-    """A temp dir reached through another name, as Windows hands a scheduled task
-    `C:\\Users\\DISAST~1\\...` for a user name with a space (RA-7801, 28/09)."""
-    real = tmp_path / "Disaster Recovery 4"
-    real.mkdir()
-    short = tmp_path / "DISAST~1"
-    short.symlink_to(real, target_is_directory=True)
-    monkeypatch.setattr(cl.tempfile, "tempdir", str(short))
-    return real.resolve()
-
-
 def test_a_run_worktree_is_made_under_the_long_temp_path(tmp_path, monkeypatch):
     """Claude matches workspace trust on the long path; under the short one the
     agent reads as untrusted, ignores the repo's permissions and cannot write."""
-    real = _short_temp(tmp_path, monkeypatch)
+    alias, real = short_temp_alias(tmp_path)
+    monkeypatch.setattr(cl.tempfile, "tempdir", str(alias))
     assert cl.worktree_path("RA-1", "abc").parent == real

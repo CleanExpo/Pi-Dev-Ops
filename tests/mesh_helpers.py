@@ -14,6 +14,7 @@ extract rather than shave prose to fit.
 from __future__ import annotations
 
 import importlib.util
+import sys
 import types
 from pathlib import Path
 
@@ -117,3 +118,21 @@ class InterruptOnce:
 # against real git in tests/test_mesh_runner_ships_own_work.py.
 SHIPPED = types.SimpleNamespace(start_point=lambda *a, **k: "0" * 40,
                                 settle=lambda *a, **k: None)
+
+
+def short_temp_alias(tmp_path: Path) -> tuple[Path, Path]:
+    """(alias, real): a temp dir and another name for it (RA-7801).
+
+    On Windows, creating a folder with a space makes a real 8.3 short name
+    (`DISAST~1`), exactly what the PC's scheduled task was handed as TEMP.
+    Elsewhere a symlink stands in for it."""
+    real = tmp_path / "Disaster Recovery 4"
+    real.mkdir()
+    if sys.platform == "win32":
+        import ctypes
+        buf = ctypes.create_unicode_buffer(32768)
+        if ctypes.windll.kernel32.GetShortPathNameW(str(real), buf, len(buf)) and buf.value != str(real):
+            return Path(buf.value), real.resolve()
+    alias = tmp_path / "short-alias"
+    alias.symlink_to(real, target_is_directory=True)
+    return alias, real.resolve()
