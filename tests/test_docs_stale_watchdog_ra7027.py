@@ -166,6 +166,11 @@ async def test_board_overlay_ignores_future_timestamp(monkeypatch, tmp_path):
     """RA-7030 board overlay has the identical weakness — a future
     last_fired_at must not suppress the board-silence alert."""
     from app.server import config
+    from app.server import job_success_record as jsr
+
+    # RA-7795: read an empty success-record store, not the checkout's
+    # .harness/job-success/ — a fresh local record there returns early.
+    monkeypatch.setattr(jsr, "_job_success_dir", lambda: tmp_path / "job-success")
 
     meetings = tmp_path / ".harness" / "board-meetings"
     meetings.mkdir(parents=True, exist_ok=True)
