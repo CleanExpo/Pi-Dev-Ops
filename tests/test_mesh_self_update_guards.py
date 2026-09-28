@@ -260,3 +260,44 @@ def test_a_marker_written_during_the_scan_still_blocks(monkeypatch):
 
     monkeypatch.setattr(left_running, "_alive", alive_then_marker)
     assert left_running.any_alive() is True
+
+
+def test_a_real_sigint_while_tracking_a_plan_agent_still_ends_the_claim(tmp_path, monkeypatch):
+    import signal
+    monkeypatch.syspath_prepend(str(REPO_ROOT / "mesh"))
+    from mesh_helpers import load_module
+    plan_lane = load_module("mesh_plan_lane_sigint", "mesh/plan_lane.py")
+    agent = tmp_path / "agent"
+    agent.write_text("#!/bin/sh\nexec sleep 30\n")
+    agent.chmod(0o755)
+    updates: list = []
+    states: list = []
+    tracked: list = []
+
+    def wait_fails(proc, plan):
+        raise OSError("wait failed")
+
+    def track(rec):
+        tracked.append(rec)
+        signal.raise_signal(signal.SIGINT)
+
+    def fail(plan, _linear_id, _branch, error):
+        plan.update(state="failed", error=error)
+        updates.append("failed")
+        states.append("idle")
+        return plan
+
+    rt = types.SimpleNamespace(
+        AGENT_CMD=str(agent), HOST="h", _wait_for_agent=wait_fails, _fail_claim=fail,
+        left_running=types.SimpleNamespace(track=track),
+        write_state=lambda _id, state, **_k: states.append(state),
+        _api=lambda _m, _p, body=None: updates.append(body["state"]))
+    try:
+        with pytest.raises(KeyboardInterrupt):  # still delivered, but only after the claim ends
+            plan_lane.run_plan_claim({"linear_id": "UNI-P", "title": "t"}, rt)
+        assert updates == ["working", "failed"] and states[-1] == "idle"
+        assert len(tracked) == 1 and tracked[0].proc.poll() is None
+    finally:
+        for rec in tracked:
+            rec.proc.kill()
+            rec.proc.wait()
