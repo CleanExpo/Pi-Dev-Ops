@@ -20,6 +20,7 @@ sys.path.insert(0, str(REPO_ROOT / "mesh"))
 from mesh_helpers import load_module as _load  # noqa: E402
 
 pf = _load("mesh_preflight_under_test", "mesh/preflight.py")
+REPO = Path("/repo")  # str() of it is "\\repo" on Windows: never compare it as a literal
 UNTRUSTED_WARNING = ("Ignoring 37 permissions.allow entries from .claude/settings.json: "
                      "this workspace has not been trusted.")
 
@@ -30,7 +31,7 @@ def fake_run(agent_writes: bool, stderr: str = ""):
 
     def run(cmd, cwd=None, **kwargs):
         calls.append(cmd)
-        if cmd[:4] == ["git", "-C", "/repo", "worktree"] and cmd[4] == "add":
+        if cmd[:4] == ["git", "-C", str(REPO), "worktree"] and cmd[4] == "add":
             Path(cmd[6]).mkdir(parents=True)
         elif cmd[0] == "claude" and agent_writes:
             (Path(cwd) / pf.PROBE_FILE).write_text("ok")
@@ -42,17 +43,17 @@ def fake_run(agent_writes: bool, stderr: str = ""):
 
 def test_an_agent_that_writes_passes_and_the_worktree_is_removed():
     run = fake_run(agent_writes=True)
-    assert pf.agent_writes(Path("/repo"), "claude", run=run) == ""
+    assert pf.agent_writes(REPO, "claude", run=run) == ""
     assert run.calls[-1][4:6] == ["remove", "--force"]
 
 
 def test_an_agent_that_cannot_write_is_caught():
-    assert pf.agent_writes(Path("/repo"), "claude", run=fake_run(agent_writes=False)) \
+    assert pf.agent_writes(REPO, "claude", run=fake_run(agent_writes=False)) \
         == "agent could not write a file"
 
 
 def test_an_untrusted_workspace_is_named_even_if_a_file_appears():
-    problem = pf.agent_writes(Path("/repo"), "claude",
+    problem = pf.agent_writes(REPO, "claude",
                               run=fake_run(agent_writes=True, stderr=UNTRUSTED_WARNING))
     assert problem.startswith("agent workspace not trusted")
 
