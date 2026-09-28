@@ -125,14 +125,17 @@ def short_temp_alias(tmp_path: Path) -> tuple[Path, Path]:
 
     On Windows, creating a folder with a space makes a real 8.3 short name
     (`DISAST~1`), exactly what the PC's scheduled task was handed as TEMP.
-    Elsewhere a symlink stands in for it."""
+    Elsewhere a symlink stands in for it. On Windows there is no fallback: a
+    missing short name fails the test, so a green run always exercised one."""
     real = tmp_path / "Disaster Recovery 4"
     real.mkdir()
     if sys.platform == "win32":
         import ctypes
         buf = ctypes.create_unicode_buffer(32768)
-        if ctypes.windll.kernel32.GetShortPathNameW(str(real), buf, len(buf)) and buf.value != str(real):
-            return Path(buf.value), real.resolve()
+        got = ctypes.windll.kernel32.GetShortPathNameW(str(real), buf, len(buf))
+        assert got and "~" in Path(buf.value).name, f"no 8.3 short name for {real}: {buf.value!r}"
+        assert Path(buf.value).resolve() == real.resolve()
+        return Path(buf.value), real.resolve()
     alias = tmp_path / "short-alias"
     alias.symlink_to(real, target_is_directory=True)
     return alias, real.resolve()
