@@ -64,3 +64,18 @@ class ImmediateProc:
 
     def kill(self):
         """No-op: there is no real process to signal."""
+
+
+def secret_token() -> str:
+    """An Anthropic-API-key-shaped string, assembled at runtime so no key-like literal sits in source."""
+    return "sk-ant-" + "api03-" + "Ab3_" * 24
+
+
+def server_only_secret() -> str:
+    """A secret shape the runner's transcript bank does not recognise (UNI-2796 review round 4)."""
+    return "token='" + "qwertyuiop" + "asdfghjklz'"
+
+
+def hostile_exception(base):
+    """An exception class whose NAME is the secret (UNI-2796 review round 5)."""
+    return type("SECRET_QWERTY_12345", (base,), {})

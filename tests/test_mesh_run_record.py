@@ -11,15 +11,13 @@ only `done` or `failed`. These tests pin the fix:
   * the server stores only values of a known shape, and stores the state change
     even when the run-record columns do not exist yet, retrying only when the
     error names one of OUR columns on OUR table;
-  * `run_claim` sends the record, observed with a real child process that exits 3,
-    and still reports a terminal state when the record itself cannot be built.
+  * `run_claim` end to end lives in tests/test_mesh_run_record_claim.py (size gate).
 
 Secret-shaped strings are assembled at runtime so no key-like literal sits in source.
 """
 from __future__ import annotations
 
 import os
-import shutil
 import stat
 import sys
 from pathlib import Path
@@ -27,21 +25,14 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
+from mesh_helpers import hostile_exception as _hostile  # noqa: E402
 from mesh_helpers import load_module as _load  # noqa: E402
+from mesh_helpers import secret_token as _token  # noqa: E402
+from mesh_helpers import server_only_secret as _server_only_secret  # noqa: E402
 
 from app.server import mesh_run_record as srv  # noqa: E402
 
 rr = _load("mesh_run_record_under_test", "mesh/run_record.py")
-
-
-def _token() -> str:
-    """An Anthropic-API-key-shaped string, assembled at runtime."""
-    return "sk-ant-" + "api03-" + "Ab3_" * 24
-
-
-def _server_only_secret() -> str:
-    """Round 4's reproduction: a shape the runner's transcript bank does not know."""
-    return "token='" + "qwertyuiop" + "asdfghjklz'"
 
 
 # ── runner side: facts, not prose ────────────────────────────────────────────
@@ -58,11 +49,6 @@ def test_each_runner_failure_maps_to_a_fixed_code():
     for text, code in cases.items():
         assert rr.error_code({"error": text}) == code, text
     assert rr.error_code({}) is None
-
-
-def _hostile(base):
-    """An exception class whose NAME is the secret (round 5's reproduction)."""
-    return type("SECRET_QWERTY_12345", (base,), {})
 
 
 def test_an_exception_sends_neither_its_message_nor_its_class_name(tmp_path):
@@ -207,107 +193,3 @@ def test_look_alike_errors_are_not_retried():
         (500, "boom"),
     ):
         assert len(_calls(status, body)) == 1, body
-
-
-# ── run_claim end to end ─────────────────────────────────────────────────────
-
-
-def _runner(monkeypatch, tmp_path):
-    monkeypatch.delenv("MESH_REPO_DIR", raising=False)
-    mod = _load("mesh_runner_run_record", "mesh/runner.py")
-    monkeypatch.setattr(mod, "HARD_STOP", tmp_path / "HARD_STOP")
-    monkeypatch.setattr(mod, "STATE_FILE", tmp_path / "state.json")
-    monkeypatch.setattr(mod, "MESH_KILL_POLL_SECONDS", 0.01)
-    removed: list = []
-
-    def git(args, **_kw):
-        """Stand in for `git worktree add/remove`: make or remove the directory only."""
-        target = Path(args[-1])
-        if "add" in args:
-            target.mkdir(parents=True, exist_ok=True)
-        elif "remove" in args:
-            removed.append(target)
-            shutil.rmtree(target, ignore_errors=True)
-
-    monkeypatch.setattr(mod.subprocess, "run", git)
-    calls: list = []
-    monkeypatch.setattr(mod, "_api", lambda m, p, b=None: calls.append((p, b or {})) or {})
-    repo = tmp_path / "checkout"
-    (repo / ".git").mkdir(parents=True)
-    return mod, calls, removed, repo
-
-
-def _updates(calls):
-    return [b for p, b in calls if p == "/api/mesh/claim/update"]
-
-
-def test_run_claim_reports_the_run_record_of_a_real_failing_agent(monkeypatch, tmp_path):
-    runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
-    agent = tmp_path / "agent"
-    agent.write_text("#!/bin/sh\necho agent-ran\nexit 3\n")
-    agent.chmod(0o755)
-    monkeypatch.setattr(runner, "AGENT_CMD", str(agent))
-
-    plan = runner.run_claim({"linear_id": "UNI-X", "repo_dir": str(repo)}, dry_run=False)
-
-    final = _updates(calls)[-1]
-    assert plan["state"] == "failed"
-    assert final["state"] == "failed"
-    assert final["exit_code"] == 3
-    assert final["error_code"] == "agent_exit"
-    assert "agent-ran" in (tmp_path / "mesh-runs" / f"{final['run_id']}.log").read_text()
-
-
-def test_a_record_that_cannot_be_built_still_ends_the_claim(monkeypatch, tmp_path):
-    """Construction failing after `working` was reported must not strand the claim,
-    and the exception's message — round 4's leak — must not be sent."""
-    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
-
-    def boom(*_a, **_k):
-        raise OSError("Popen setup failed: " + _server_only_secret())
-
-    monkeypatch.setattr(runner.run_record, "RunRecord", boom)
-    runner.run_claim({"linear_id": "UNI-Z", "repo_dir": str(repo)}, dry_run=False)
-
-    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
-    assert _updates(calls)[-1]["error_code"] == "runner_exception_os"
-    assert "qwertyuiop" not in repr(calls)
-    assert removed, "worktree was not cleaned up"
-
-
-def test_git_that_cannot_start_still_ends_the_claim(monkeypatch, tmp_path):
-    """Round 5: an OSError spawning `git worktree add` used to leave the claim `working`."""
-    runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
-
-    def no_git(args, **_kw):
-        raise OSError("git spawn failed")
-
-    monkeypatch.setattr(runner.subprocess, "run", no_git)
-    runner.run_claim({"linear_id": "UNI-G", "repo_dir": str(repo)}, dry_run=False)
-    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
-    assert _updates(calls)[-1]["error_code"] == "worktree_add_failed"
-
-
-def test_a_prompt_that_cannot_be_built_still_ends_the_claim(monkeypatch, tmp_path):
-    runner, calls, removed, repo = _runner(monkeypatch, tmp_path)
-
-    def bad_prompt(*_a, **_k):
-        raise _hostile(ValueError)("brief carried " + _server_only_secret())
-
-    monkeypatch.setattr(runner, "build_prompt", bad_prompt)
-    runner.run_claim({"linear_id": "UNI-P", "repo_dir": str(repo)}, dry_run=False)
-    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
-    assert _updates(calls)[-1]["error_code"] == "runner_exception"
-    assert "qwertyuiop" not in repr(calls) and "SECRET_QWERTY" not in repr(calls)
-    assert removed, "worktree was not cleaned up"
-
-
-def test_a_claim_failed_before_running_sends_only_its_code(monkeypatch, tmp_path):
-    runner, calls, _removed, _repo = _runner(monkeypatch, tmp_path)
-    missing = tmp_path / ("not-a-checkout-" + _token())
-    missing.mkdir()
-    runner.run_claim({"linear_id": "UNI-Y", "repo_dir": str(missing)}, dry_run=False)
-    final = _updates(calls)[-1]
-    assert final["state"] == "failed"
-    assert final["error_code"] == "repo_missing"
-    assert _token() not in repr(calls)
