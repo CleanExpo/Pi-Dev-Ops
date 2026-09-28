@@ -45,6 +45,8 @@ export default function ModelFabricPanel() {
       try {
         const res = await fetch("/api/model-fabric", { cache: "no-store" });
         const body = (await res.json()) as FabricStatus;
+        // A non-2xx without an `error` field would otherwise render as "DISABLED".
+        if (!res.ok && !body.error) body.error = `HTTP ${res.status}`;
         if (!cancelled) setData(body);
       } catch (error) {
         if (!cancelled) {
