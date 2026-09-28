@@ -167,6 +167,41 @@ def test_a_ship_publishes_the_run_branch_and_nothing_else(fleet):
     assert refs == ["refs/heads/main", f"refs/heads/{BRANCH}"]
 
 
+def test_an_unreadable_worktree_status_is_an_error_not_a_clean_tree(fleet):
+    """Codex review round 4, P1: `git status` failing (here, a corrupt index) printed
+    nothing, which read as "nothing left to commit". The committed half shipped, the
+    rest was lost, and the run read `done`."""
+    _repo, wt, origin, start = fleet
+    (wt / "a").write_text("a\n")
+    _git(wt, "add", "a")
+    _git(wt, "commit", "-q", "-m", "a")
+    (wt / "leftover").write_text("x\n")
+    Path(_git(wt, "rev-parse", "--git-path", "index")).write_bytes(b"not an index")
+
+    error = ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE")
+
+    assert error and error.startswith("status failed")
+    assert _remote_has(origin, BRANCH) == ""
+
+
+def test_a_failed_stage_is_an_error_not_a_partial_commit(fleet):
+    """Codex review round 4, P1: `git add -A` failing on an unreadable file still let
+    the commit run, shipping only what had been staged before."""
+    _repo, wt, origin, start = fleet
+    (wt / "staged").write_text("s\n")
+    _git(wt, "add", "staged")
+    locked = wt / "unreadable"
+    locked.write_text("u\n")
+    locked.chmod(0)
+    try:
+        error = ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE")
+    finally:
+        locked.chmod(0o644)
+
+    assert error and error.startswith("stage failed")
+    assert _remote_has(origin, BRANCH) == ""
+
+
 def test_a_failed_push_is_an_error(fleet):
     """The local commit exists but the remote never got it — still not shipped."""
     _repo, wt, origin, start = fleet
@@ -205,18 +240,28 @@ def runner(monkeypatch, tmp_path):
 
 
 def _run(runner, monkeypatch, tmp_path, ship_result):
-    """Run one claim with the agent stubbed to exit 0; record what ship() was given."""
+    """Run one claim with the agent stubbed to exit 0. Every start_point() read gets a
+    fresh value and every step lands in `events`, so a re-read after the agent shows."""
     from mesh_helpers import ImmediateProc
-    reported, shipped_from = [], []
+    reported, events = [], []
+
+    def _read_start(repo_dir):
+        events.append(f"start-read-{sum(e.startswith('start-read') for e in events) + 1}")
+        return events[-1]
+
+    def _agent(*a, **k):
+        events.append("agent")
+        return ImmediateProc()
+
     runner._api = lambda m, p, b=None: reported.append((b or {}).get("state")) or {}
-    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: ImmediateProc())
-    monkeypatch.setattr(runner.ship_run, "start_point", lambda repo_dir: "held-start")
+    monkeypatch.setattr(runner.subprocess, "Popen", _agent)
+    monkeypatch.setattr(runner.ship_run, "start_point", _read_start)
     monkeypatch.setattr(runner.ship_run, "ship",
-                        lambda start, *a: shipped_from.append(start) or ship_result)
+                        lambda start, *a: events.append(f"ship:{start}") or ship_result)
     repo = tmp_path / "checkout"
     (repo / ".git").mkdir(parents=True)
     plan = runner.run_claim({"linear_id": "UNI-A", "repo_dir": str(repo)}, dry_run=False)
-    return plan, [s for s in reported if s], shipped_from
+    return plan, [s for s in reported if s], events
 
 
 def test_run_claim_reports_failed_when_nothing_shipped(runner, monkeypatch, tmp_path):
@@ -236,7 +281,8 @@ def test_run_claim_reports_done_only_after_a_ship(runner, monkeypatch, tmp_path)
 
 
 def test_run_claim_ships_from_the_start_it_read_before_the_agent(runner, monkeypatch, tmp_path):
-    """The start ship() measures from must be the one run_claim held, not a re-read."""
-    _plan, _reported, shipped_from = _run(runner, monkeypatch, tmp_path, None)
+    """Codex review round 4, P0: a constant stub let a re-read AFTER the agent pass.
+    The start must be read exactly once, before the agent, and that read is shipped."""
+    _plan, _reported, events = _run(runner, monkeypatch, tmp_path, None)
 
-    assert shipped_from == ["held-start"]
+    assert events == ["start-read-1", "agent", "ship:start-read-1"]

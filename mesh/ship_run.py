@@ -51,10 +51,17 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
 
 def _commit_leftovers(worktree: Path, linear_id: str, host: str) -> str | None:
     """Commit uncommitted agent output. The identity is set only for this commit,
-    so a node with no git identity configured still ships."""
-    if not _git(worktree, "status", "--porcelain").stdout.strip():
+    so a node with no git identity configured still ships. A failed status or stage
+    is an error, never "nothing to commit": either one left work behind that the
+    worktree removal would then destroy."""
+    status = _git(worktree, "status", "--porcelain")
+    if status.returncode != 0:
+        return f"status failed: {status.stderr.strip()[:200]}"
+    if not status.stdout.strip():
         return None
-    _git(worktree, "add", "-A")
+    staged = _git(worktree, "add", "-A")
+    if staged.returncode != 0:
+        return f"stage failed: {staged.stderr.strip()[:200]}"
     done = _git(worktree, "-c", f"user.name=Nexus Mesh ({host})",
                 "-c", "user.email=mesh@unite-group.invalid",
                 "commit", "-q", "-m", f"{linear_id}: mesh run output from {host}")
