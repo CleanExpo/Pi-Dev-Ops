@@ -163,6 +163,24 @@ def test_target_scan_reads_session_marker_on_later_comment_page(monkeypatch):
                for node in scenario.issue["comments"]["nodes"]) == 1
 
 
+def test_started_scan_checks_live_session_beyond_first_comment_page():
+    issue = {"id": "issue-1", "comments": {"nodes": [
+        {"body": "Session ID: `abc12345abcd`"}],
+        "pageInfo": {"hasNextPage": True, "endCursor": "comment-5"}}}
+
+    def gql(_key, query, variables):
+        if "OrphanCommentPage" in query:
+            assert variables["after"] == "comment-5"
+            return {"issue": {"comments": {"nodes": [
+                {"body": "Session ID: `fedcba987654`"}],
+                "pageInfo": {"hasNextPage": False}}}}
+        return {"project": {"issues": {"nodes": [issue]}}}
+
+    pages = list(autonomy.issue_pages(gql, "test-key", autonomy._IN_PROGRESS_QUERY,
+                                      {"projectId": "p1"}, paginate=False))
+    assert not autonomy._is_pi_ceo_orphan(pages[0][0], {"fedcba987654"})
+
+
 def test_target_scan_finds_partial_ticket_on_second_page(monkeypatch):
     scenario = OrphanScenario("never")
     scenario.issue["state"] = {"name": scenario.target, "type": "unstarted"}
@@ -224,7 +242,8 @@ def test_ambiguous_comment_success_reconciles_after_restart(monkeypatch, tmp_pat
     monkeypatch.setattr(autonomy, "_log_event", persist_and_capture)
     with pytest.raises(autonomy.LinearRateLimitError):
         autonomy._orphan_recovery_sync("test-key")
-    assert [e["action"] for e in scenario.events] == ["orphan_recovery_error"]
+    assert [e["action"] for e in scenario.events] == [
+        "orphan_recovery_attempt", "orphan_recovery_error"]
     monkeypatch.setattr(autonomy, "_logged_orphan_recoveries", set())
     monkeypatch.setattr(autonomy_linear_rate, "_rate_limited_until", 0.0)
     autonomy._orphan_recovery_sync("test-key")
@@ -234,5 +253,45 @@ def test_ambiguous_comment_success_reconciles_after_restart(monkeypatch, tmp_pat
     autonomy._orphan_recovery_sync("test-key")
     persisted = [json.loads(line) for line in autonomy._AUTONOMY_LOG.read_text().splitlines()]
     assert [e["action"] for e in persisted] == [
-        "orphan_recovery_error", "orphan_recovered"]
+        "orphan_recovery_attempt", "orphan_recovery_error", "orphan_recovered"]
     assert scenario.calls == ["label", "transition", "comment"]
+
+
+def test_second_recovery_after_restart_records_its_own_success(monkeypatch):
+    scenario = OrphanScenario("never")
+    real_log_event = autonomy._log_event
+    scenario.install(monkeypatch)
+
+    def persist(event):
+        real_log_event(event)
+        scenario.events.append(event)
+
+    monkeypatch.setattr(autonomy, "_log_event", persist)
+    autonomy._orphan_recovery_sync("test-key")
+    assert [event["action"] for event in scenario.events].count("orphan_recovered") == 1
+
+    scenario.issue["state"] = {"name": "In Progress", "type": "started"}
+    scenario.issue["comments"]["nodes"].append(
+        {"body": "Session ID: `fedcba987654`"})
+    original_transition = scenario.transition
+
+    def interrupted_transition(*args, **kwargs):
+        original_transition(*args, **kwargs)
+        raise SystemExit("process stopped before the success event")
+
+    monkeypatch.setattr(autonomy, "transition_issue", interrupted_transition)
+    with pytest.raises(SystemExit):
+        autonomy._orphan_recovery_sync("test-key")
+    monkeypatch.setattr(autonomy, "transition_issue", original_transition)
+    monkeypatch.setattr(autonomy, "_logged_orphan_recoveries", set())
+    calls_before_restart = scenario.calls[:]
+    autonomy._orphan_recovery_sync("test-key")
+    assert scenario.calls == calls_before_restart
+    assert [event["action"] for event in scenario.events].count("orphan_recovered") == 2
+    monkeypatch.setattr(autonomy, "_logged_orphan_recoveries", set())
+    autonomy._orphan_recovery_sync("test-key")
+    persisted = [json.loads(line) for line in autonomy._AUTONOMY_LOG.read_text().splitlines()]
+    assert [event["action"] for event in persisted] == [
+        "orphan_recovery_attempt", "orphan_recovered",
+        "orphan_recovery_attempt", "orphan_recovered"]
+    assert scenario.calls == calls_before_restart

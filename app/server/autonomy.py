@@ -49,7 +49,7 @@ from app.server.autonomy_eligibility import (
 from .autonomy_orphan_queries import _IN_PROGRESS_QUERY, _RECOVERY_TARGET_QUERY
 from .autonomy_orphan_support import (
     issue_pages, needs_recovery_success, orphan_completion, recovery_comment_present,
-    record_recovery_success, transition_orphan_issue,
+    record_recovery_attempt, record_recovery_success, transition_orphan_issue,
 )
 from .autonomy_linear_rate import (
     LinearRateLimitError,
@@ -624,11 +624,7 @@ def _live_session_ids(sessions: dict) -> set[str]:
 
 
 def _is_pi_ceo_orphan(issue: dict, live_session_ids: set[str]) -> bool:
-    """True iff the issue was claimed by Pi-CEO but its session is gone.
-
-    Scan the supplied comments for `Session ID: `<id>`` markers. A ticket is
-    orphaned when none of its referenced sessions remains live.
-    """
+    """True when no referenced Pi-CEO session remains live."""
     comments = (issue.get("comments") or {}).get("nodes", [])
     referenced_ids: list[str] = []
     for c in comments:
@@ -687,6 +683,9 @@ def _recover_orphan_issue(api_key: str, project: dict, issue: dict) -> int:
             return 1
         return 0
     try:
+        if not already_target:
+            record_recovery_attempt(_log_event, _logged_orphan_recoveries,
+                                    iid, ident, target_state)
         labelled, _ = _orphan_completion(issue)
         label_ok = labelled or add_label_to_issue(api_key, iid, team_id,
                                                   _BLOCKED_REASON_SESSION_LOST)

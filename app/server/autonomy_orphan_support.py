@@ -60,7 +60,7 @@ def issue_pages(gql, api_key: str, query: str, variables: dict,
         seen_cursors.add(cursor)
         variables = {**variables, "after": cursor}
     for page in pages:
-        yield [issue_with_all_comments(issue, gql, api_key) for issue in page] if paginate else page
+        yield [issue_with_all_comments(issue, gql, api_key) for issue in page]
 
 
 def orphan_completion(issue: dict, label_name: str, marker: str) -> tuple[bool, bool]:
@@ -69,6 +69,13 @@ def orphan_completion(issue: dict, label_name: str, marker: str) -> tuple[bool, 
     labelled = any(n.get("name") == label_name for n in labels)
     commented = any(marker in (n.get("body") or "") for n in comments)
     return labelled, commented
+
+
+def record_recovery_attempt(log_event, logged: set[str], iid: str, ident: str,
+                            target: str) -> None:
+    logged.discard(iid)
+    log_event({"action": "orphan_recovery_attempt", "ticket": ident,
+               "transition": target})
 
 
 def record_recovery_success(log_event, logged: set[str], iid: str, ident: str,
@@ -108,7 +115,8 @@ def recovery_success_recorded(path: Path, ident: str) -> bool:
                     continue
                 if event.get("action") == "orphan_recovered":
                     recorded = True
-                elif event.get("action") == "orphan_recovery_error":
+                elif event.get("action") in ("orphan_recovery_attempt",
+                                              "orphan_recovery_error"):
                     recorded = False
     except FileNotFoundError:
         pass
