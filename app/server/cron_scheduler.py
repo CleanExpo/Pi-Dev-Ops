@@ -12,7 +12,8 @@ import logging
 import time
 
 from .cron_store import _load_triggers, _save_triggers
-from .cron_triggers import _fire_trigger, _matches, _should_catch_up
+from .cron_outputs import should_fire_on_boot
+from .cron_triggers import _fire_trigger, _matches
 from .cron_watchdogs import (
     _watchdog_board_meeting_silence,
     _watchdog_check,
@@ -70,7 +71,7 @@ async def cron_loop() -> None:
         triggers = _load_triggers()
         fired = False
         for trigger in triggers:
-            if _should_catch_up(trigger):
+            if should_fire_on_boot(trigger):
                 _log.info("Catch-up: trigger %s is overdue — firing now", trigger["id"])
                 try:
                     await _fire_trigger(trigger, _log)
