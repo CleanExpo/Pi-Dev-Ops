@@ -55,6 +55,24 @@ def test_a_skill_in_both_places_links_to_this_repos_copy(tmp_path):
     assert (home / "ceo-board").resolve() == (COPY / "ceo-board").resolve()
 
 
+def test_the_script_refuses_a_symlinked_source_or_a_real_entry_in_the_way(tmp_path):
+    """Review round 5 P1-LINK-SKILL-SYMLINK-ESCAPES-REPO: skills/bad -> outside/ was linked into
+    the skills home, so the image exposed a directory outside both skill roots."""
+    root, outside = tmp_path / "root", tmp_path / "outside"
+    (root / "skills-library" / "skills" / "good").mkdir(parents=True)
+    (root / "skills").mkdir()
+    outside.mkdir()
+    (root / "skills" / "bad").symlink_to(outside, target_is_directory=True)
+    script = str(ROOT / "scripts" / "link_skills_home.sh")
+    run = subprocess.run(["sh", script, str(tmp_path / "home"), str(root)], capture_output=True, text=True)
+    assert run.returncode != 0 and "symlink" in run.stderr and not (tmp_path / "home" / "bad").exists()
+    (root / "skills" / "bad").unlink()
+    (tmp_path / "home2" / "good").mkdir(parents=True)
+    run = subprocess.run(["sh", script, str(tmp_path / "home2"), str(root)], capture_output=True, text=True)
+    assert run.returncode != 0 and "already there" in run.stderr
+    assert not (tmp_path / "home2" / "good" / "good").exists()
+
+
 def test_the_image_runs_the_link_script_after_copying_both_trees():
     lines = (ROOT / "Dockerfile").read_text().splitlines()
     run = next(i for i, ln in enumerate(lines) if "scripts/link_skills_home.sh /home/pidev/.claude/skills" in ln)
