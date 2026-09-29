@@ -1,4 +1,6 @@
-"""CLI: python -m jev_platform {decide,calibrate,verify-calibration,ratings,ask,approve}. Shadow/advisory only.
+"""CLI: python -m jev_platform {decide,calibrate,verify-calibration,ratings,ask,approve,scout,pick-first,ask-jev}.
+
+Shadow/advisory only.
 
 The key is read from TYPESAFE_API_KEY at call time (inject with `vercel env run`); it is never logged.
 """
@@ -12,7 +14,8 @@ import sys
 import urllib.error
 import urllib.request
 
-from jev_platform import ask, client, engine
+from jev_platform import ask, cli_scale, client, engine
+from jev_platform import manifest as mf
 
 URL = "https://api.typesafe.ai/v1/systemone"
 
@@ -79,7 +82,7 @@ def cmd_ratings(a) -> int:
 
 def _repo(path: str | None) -> str:
     cmd = ["git", *(["-C", path] if path else []), "rev-parse", "--show-toplevel"]
-    return subprocess.run(cmd, capture_output=True, text=True).stdout.strip()
+    return subprocess.run(cmd, capture_output=True, text=True, env=ask.git_env()).stdout.strip()
 
 
 def cmd_ask(a) -> int:
@@ -91,10 +94,19 @@ def cmd_ask(a) -> int:
 
 
 def cmd_approve(a) -> int:
-    print(json.dumps(ask.approve_entry(_repo(a.repo), a.path), indent=1))
-    print("Paste into .jev-approved.json under \"files\" and commit it; this tool never writes the manifest.",
+    if sum(x is not None for x in (a.path, a.glob, a.prompt_file)) != 1 or (a.prompt_file is None) != (a.id is None):
+        print("REFUSED: give exactly one of PATH, --glob G, or --prompt-file F --id ID", file=sys.stderr)
+        return 2
+    if a.prompt_file is not None:
+        out = mf.approve_prompt(a.prompt_file, a.id)
+    elif a.glob is not None:
+        out = mf.approve_glob(_repo(a.repo), a.glob)
+    else:
+        out = ask.approve_entry(_repo(a.repo), a.path)
+    print(json.dumps(out, indent=1))
+    print("Review, paste into .jev-approved.json and commit it; this tool never writes the manifest.",
           file=sys.stderr)
-    return 0
+    return 2 if a.path is None and "files" not in out and "prompts" not in out else 0
 
 
 def main(argv=None) -> int:
@@ -121,16 +133,20 @@ def main(argv=None) -> int:
     k.add_argument("--max-usd", type=float, default=0.14)
     k.add_argument("--max-seconds", type=float, default=120)
     k.add_argument("--repo", help="repository root (default: the current directory's repo)")
-    pr = sub.add_parser("approve", help="print a manifest entry for a file (never writes it)")
-    pr.add_argument("path")
+    pr = sub.add_parser("approve", help="print manifest entries (never writes them)")
+    pr.add_argument("path", nargs="?")
+    pr.add_argument("--glob")
+    pr.add_argument("--prompt-file")
+    pr.add_argument("--id")
     pr.add_argument("--repo")
+    cli_scale.register(sub, http_post)
     a = p.parse_args(argv)
     if a.cmd == "ask" and len(a.file) > 50:
         print("REFUSED: at most 50 files per run", file=sys.stderr)
         return 2
     return {"decide": cmd_decide, "calibrate": cmd_calibrate,
             "verify-calibration": cmd_verify, "ratings": cmd_ratings,
-            "ask": cmd_ask, "approve": cmd_approve}[a.cmd](a)
+            "ask": cmd_ask, "approve": cmd_approve}.get(a.cmd, getattr(a, "func", None))(a)
 
 
 if __name__ == "__main__":

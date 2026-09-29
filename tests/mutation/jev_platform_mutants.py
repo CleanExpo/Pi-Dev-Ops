@@ -38,11 +38,30 @@ MUTANTS = [
     ("ask.py", "if not isinstance(answers, dict) or set(answers) != set(questions):", "if not isinstance(answers, dict):"),
     ("ask.py", "if a.get(\"choice\") not in allowed or ", "if "),
     ("ask.py", "if len(set(template_ids)) != len(template_ids):", "if False:"),
+    # Levels 9 and 10 (PLAN-scale.md rev 5)
+    ("scout.py", 'matched = mf.expand(manifest["files"], patterns)',
+     'matched = mf.expand([__import__("os").path.relpath(__import__("os").path.join(d, f), repo) '
+     'for d, _, fs in __import__("os").walk(repo) for f in fs], patterns)'),
+    ("manifest.py", 'text = manifest["prompts"].get(prompt_id)', 'text = manifest["prompts"].get(prompt_id, prompt_id)'),
+    ("scout.py", 'body = {"state": _state(task, content), "model": MODEL, "questions": questions}',
+     'body = {"state": {**_state(task, content), "note": " ".join(patterns)}, "model": MODEL, "questions": questions}'),
+    ("ask.py", "env=git_env())", "env=dict(os.environ))"),
+    ("scout.py", 'if a.get("choice") not in allowed or not set(probs) <= allowed:', "if False:"),
+    ("scout.py", 'return {"outcome": "unavailable", "reason": "signal_unavailable:invalid_response"}',
+     'return {"outcome": "none", "reason": "signal_unavailable:invalid_response"}'),
+    ("scout.py", 'return {"outcome": "unavailable", "reason": sent.get("error", "signal_unavailable")}',
+     'return {"outcome": "unavailable", "reason": sent.get("error", "signal_unavailable"), "confidence": 0.0, '
+     '"probabilities": {}}'),
+    ("scout.py", "if len(admitted) > MAX_SCOUT_FILES:", "if False:"),
+    ("scout.py", "if len(json.dumps(body).encode()) > client.MAX_REQUEST_BYTES:", "if False:"),
+    ("scout.py", "if ask.sensitive(json.dumps(body)):", "if False:"),
+    ("manifest.py", "if reads not in ACCEPTS[tool]:", "if False:"),
+    ("manifest.py", "    if missing:\n", "    if False:\n"),
 ]
 env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
 killed = 0
 for fname, old, new in MUTANTS:
-    path = ROOT / "jev_platform" / fname
+    path = ROOT / fname if "/" in fname else ROOT / "jev_platform" / fname
     src = path.read_text()
     assert src.count(old) == 1, (fname, old)
     path.write_text(src.replace(old, new))

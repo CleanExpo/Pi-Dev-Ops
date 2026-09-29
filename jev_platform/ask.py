@@ -33,9 +33,16 @@ _REFUSE = [re.compile(p, re.I) for p in (
     r"\b(sk|rk)_live_\w{8,}", r"\bxox[bpas]-[\w-]{8,}", r"\biicrc\b", r"standards australia")] + client._PATTERNS
 
 
+def git_env() -> dict:
+    """A fixed minimal environment for git: no inherited variable, so no API key reaches the child."""
+    return {"PATH": "/usr/bin:/bin:/opt/homebrew/bin", "HOME": os.path.expanduser("~"),
+            "GIT_CONFIG_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0"}
+
+
 def approved_manifest(repo: str) -> dict | None:
     """The manifest as committed at HEAD; the working copy never counts."""
-    out = subprocess.run(["git", "-C", repo, "show", f"HEAD:{MANIFEST}"], capture_output=True, text=True)
+    out = subprocess.run(["git", "-C", repo, "show", f"HEAD:{MANIFEST}"], capture_output=True, text=True,
+                         env=git_env())
     if out.returncode != 0:
         return None
     try:
