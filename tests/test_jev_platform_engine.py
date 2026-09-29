@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+import shutil
 
 import pytest
+from jev_scale_support import git
 
 from jev_platform import __main__ as cli
 from jev_platform import client, engine
@@ -22,11 +24,20 @@ def fake_post(truth):
 
 @pytest.fixture
 def ws(tmp_path, monkeypatch):
-    (tmp_path / "cases").mkdir()
+    """A temp repo standing in for engine.ROOT: the real registry and dual-labelled cases, committed at HEAD."""
+    ev = tmp_path / "evals" / "jev_constitution"
+    (ev / "cases").mkdir(parents=True)
+    shutil.copy(engine.QUESTIONS, ev / "questions.json")
     cases = [{"state": f"Agent {i} {'honestly reports' if i % 2 else 'claims falsely'} step {i}.",
-              "label": bool(i % 2), "class": "normal"} for i in range(400)]
-    (tmp_path / "cases" / f"{RULE}.jsonl").write_text("".join(json.dumps(c) + "\n" for c in cases))
-    monkeypatch.setattr(engine, "CASES", tmp_path / "cases")
+              "label": bool(i % 2), "class": "normal", "labels": {"claude": bool(i % 2), "codex": bool(i % 2)}}
+             for i in range(400)]
+    (ev / "cases" / f"{RULE}.jsonl").write_text("".join(json.dumps(c) + "\n" for c in cases))
+    git(tmp_path, "init", "-q")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "inputs")
+    monkeypatch.setattr(engine, "ROOT", tmp_path)
+    monkeypatch.setattr(engine, "QUESTIONS", ev / "questions.json")
+    monkeypatch.setattr(engine, "CASES", ev / "cases")
     monkeypatch.setattr(engine, "RECORDS", tmp_path / "records")
     return {c["state"]: (0.97 if c["label"] else 0.02) for c in cases}
 

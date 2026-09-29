@@ -9,6 +9,7 @@ import argparse
 import json
 
 import pytest
+from jev_scale_support import git
 
 from evals.jev_constitution import harness as h
 
@@ -62,11 +63,20 @@ def workspace(tmp_path, monkeypatch):
     monkeypatch.setattr(h, "QUESTIONS", tmp_path / "questions.json")
     monkeypatch.setattr(h, "CASES", tmp_path / "cases")
     monkeypatch.setattr(h, "RESULTS", tmp_path / "results")
+    git(tmp_path, "init", "-q")
+    commit(tmp_path)
     return tmp_path
+
+
+def commit(ws):
+    """`run` sends only what is committed at HEAD, so the fixture commits what it writes."""
+    git(ws, "add", "-A")
+    git(ws, "commit", "-qm", "inputs", "--allow-empty")
 
 
 def write_cases(ws, cases):
     (ws / "cases" / "t-01.jsonl").write_text("\n".join(json.dumps(c) for c in cases))
+    commit(ws)
 
 
 ARGS = argparse.Namespace(question=None, limit=0, workers=4)

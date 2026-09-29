@@ -27,8 +27,53 @@ def _sha(obj) -> str:
     return hashlib.sha256(json.dumps(obj, sort_keys=True).encode()).hexdigest()
 
 
+def _committed(path: Path) -> tuple[str, str] | None:
+    """(blob id, text) of `path` as committed at HEAD, or None. Round 10 P1s: whatever reaches Jev, or is
+    named as a record's lineage, is the reviewed HEAD blob — never the working copy. The blob id is resolved
+    once and the bytes are read BY that id, so a HEAD move between the two calls cannot split them."""
+    try:
+        rel = path.relative_to(ROOT)
+    except ValueError:
+        return None
+    blob = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--verify", "--quiet", f"HEAD:{rel}"],
+                          capture_output=True, text=True)
+    text = _blob_text(blob.stdout.strip()) if blob.returncode == 0 else None
+    return None if text is None else (blob.stdout.strip(), text)
+
+
+def _blob_text(blob: str) -> str | None:
+    out = subprocess.run(["git", "-C", str(ROOT), "cat-file", "blob", blob], capture_output=True, text=True)
+    return out.stdout if out.returncode == 0 and blob else None
+
+
 def registry() -> dict[str, dict]:
-    return {q["id"]: q for q in json.loads(QUESTIONS.read_text())["questions"]}
+    """The committed registry. Not committed or unreadable -> empty, so every rule id is unknown and nothing is sent."""
+    committed = _committed(QUESTIONS)
+    try:
+        return {q["id"]: q for q in json.loads(committed[1])["questions"]} if committed else {}
+    except (ValueError, KeyError, TypeError):
+        return {}
+
+
+def _dual_labelled(case: dict) -> bool:
+    labels = case.get("labels")
+    return isinstance(labels, dict) and labels.get("claude") is not None and \
+        labels.get("claude") == labels.get("codex") == case.get("label")
+
+
+def _lineage_problems(record: dict, scored: list[dict]) -> list[str]:
+    """The stored scores must be exactly the cases in the blob the record names, each with two agreeing labels.
+    calibration.verify only proves the record is self-consistent; this proves where its inputs came from."""
+    blob = (record.get("label_provenance") or {}).get("cases_blob") if isinstance(record, dict) else None
+    text = _blob_text(blob) if isinstance(blob, str) else None
+    if text is None:
+        return ["cases_blob is not a readable committed blob"]
+    cases = [json.loads(line) for line in text.splitlines() if line.strip()]
+    if not all(_dual_labelled(c) for c in cases):
+        return ["cases_blob has cases without two agreeing labels"]
+    want = sorted((calibration.case_hash(c["state"]), c["label"], c.get("class", "normal")) for c in cases)
+    have = sorted((s["hash"], s["label"], s["class"]) for s in scored)
+    return [] if want == have else ["stored scores do not come from cases_blob"]
 
 
 def bindings(rule: dict, model: str) -> dict:
@@ -57,7 +102,8 @@ def _decision_state(rule: dict, record: dict | None, model: str) -> str:
     if state != policy.USABLE_STATE:
         return state
     try:
-        problems = calibration.verify(record, load_scored(rule["id"]))
+        scored = load_scored(rule["id"])
+        problems = calibration.verify(record, scored) or _lineage_problems(record, scored)
     except (OSError, ValueError, KeyError, TypeError):
         return "corrupt"
     return "corrupt" if problems else state
@@ -104,7 +150,13 @@ def _score_case(case, rule, post, budget):
 
 def calibrate(rule_id: str, post, budget, workers: int = 8) -> dict:
     rule = registry()[rule_id]
-    cases = [json.loads(line) for line in (CASES / f"{rule_id}.jsonl").read_text().splitlines() if line.strip()]
+    committed = _committed(CASES / f"{rule_id}.jsonl")
+    cases = [json.loads(line) for line in committed[1].splitlines() if line.strip()] if committed else []
+    refusal = "cases_not_committed" if not committed else \
+        None if cases and all(_dual_labelled(c) for c in cases) else "cases_lack_two_agreeing_labels"
+    if refusal:
+        return {"rule": rule_id, "state": "incomplete", "errors": 0, "models": [], "first_error": refusal,
+                "spent_usd": round(budget.spent, 6)}
     with ThreadPoolExecutor(max_workers=workers) as pool:
         results = list(pool.map(lambda c: _score_case(c, rule, post, budget), cases))
     errors = [a["error"] for _, a in results if "error" in a]
@@ -115,7 +167,7 @@ def calibrate(rule_id: str, post, budget, workers: int = 8) -> dict:
     scored = [{"hash": calibration.case_hash(c["state"]), "label": c["label"], "class": c.get("class", "normal"),
                "noul": a["nouls"][rule_id]} for c, a in results]
     provenance = {**PROVENANCE, "generate_py_blob": _git("rev-parse", "HEAD:evals/jev_constitution/generate.py"),
-                  "cases_blob": _git("rev-parse", f"HEAD:evals/jev_constitution/cases/{rule_id}.jsonl")}
+                  "cases_blob": committed[0]}  # the blob actually scored, not a fresh HEAD lookup
     record = calibration.build_record(rule_id, scored, bindings(rule, models.pop()), provenance)
     record["eval_sha"] = _git("rev-parse", "HEAD")
     RECORDS.mkdir(exist_ok=True)
@@ -130,7 +182,8 @@ def artifact_rating(rule_id: str) -> tuple[str, list[str]]:
     record = load_record(rule_id)
     if record is None:
         return "FAIL", ["absent"]
-    problems = calibration.verify(record, load_scored(rule_id))
+    scored = load_scored(rule_id)
+    problems = calibration.verify(record, scored) or _lineage_problems(record, scored)
     if problems:
         return "FAIL", problems
     paths = [RECORDS / f"{rule_id}.json", RECORDS / f"{rule_id}.scored.jsonl"]

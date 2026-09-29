@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.error
@@ -74,8 +75,29 @@ def validate_question(qid: str, cases: list[dict]) -> list[str]:
     return problems
 
 
-def question_problems(q: dict, cases_dir: Path | None = None) -> list[str]:
-    problems = validate_question(q["id"], load_cases(q["id"], cases_dir))
+def _at_head(path: Path) -> str | None:
+    """`path` as committed at HEAD of its repository, or None. `run` sends only this, never the working copy."""
+    blob = subprocess.run(["git", "-C", str(path.parent), "rev-parse", "--verify", "--quiet", f"HEAD:./{path.name}"],
+                          capture_output=True, text=True)
+    if blob.returncode != 0:
+        return None
+    out = subprocess.run(["git", "-C", str(path.parent), "cat-file", "blob", blob.stdout.strip()],
+                         capture_output=True, text=True)
+    return out.stdout if out.returncode == 0 else None
+
+
+def committed_questions() -> list[dict]:
+    text = _at_head(QUESTIONS)
+    return json.loads(text)["questions"] if text else []
+
+
+def committed_cases(qid: str) -> list[dict]:
+    text = _at_head(CASES / f"{qid}.jsonl")
+    return [json.loads(line) for line in text.splitlines() if line.strip()] if text else []
+
+
+def question_problems(q: dict, cases_dir: Path | None = None, cases: list[dict] | None = None) -> list[str]:
+    problems = validate_question(q["id"], load_cases(q["id"], cases_dir) if cases is None else cases)
     if not q.get("quote_verbatim"):
         problems.append("rule quote is not verbatim in the Constitution")
     return problems
@@ -154,7 +176,7 @@ def score(cases: list[dict], nouls: list[float | None]) -> dict:
 
 
 def run(args, env=os.environ, post=_post) -> int:
-    questions = load_questions()
+    questions = committed_questions()  # round 10 P1: what is sent is what was reviewed at HEAD
     if args.question:
         questions = [q for q in questions if q["id"] == args.question]
     key = env.get("TYPESAFE_API_KEY", "")
@@ -169,8 +191,8 @@ def run(args, env=os.environ, post=_post) -> int:
         return EXIT_CONTROL
     report, refused = {}, {}
     for q in questions:
-        cases = load_cases(q["id"])
-        problems = question_problems(q)
+        cases = committed_cases(q["id"])
+        problems = question_problems(q, cases=cases)  # validate exactly the cases that will be sent
         if problems:
             refused[q["id"]] = problems
             continue
