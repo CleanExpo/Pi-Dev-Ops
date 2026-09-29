@@ -42,29 +42,30 @@ interface GeneratedRow {
   has_provenance: boolean;
 }
 
-
 export default function MargotAssetsPanel() {
   const [options, setOptions] = useState<OptionsData | null>(null);
   const [project, setProject] = useState("unite-group");
   const [variant, setVariant] = useState("avatar");
   const [notes, setNotes] = useState("");
   const [preview, setPreview] = useState<PreviewData | null>(null);
-  const [packets, setPackets] = useState<PacketRow[]>([]);
+  const [packets, setPackets] = useState<PacketRow[] | null>(null); // null = not loaded yet
+  const [packetsError, setPacketsError] = useState<string | undefined>(undefined);
   const [generated, setGenerated] = useState<GeneratedRow[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [buildLoading, setBuildLoading] = useState(false);
   const [buildResult, setBuildResult] = useState<{ filename?: string; item_count?: number; error?: string } | null>(null);
   const [expandedPacket, setExpandedPacket] = useState<string | null>(null);
-  const [packetDetail, setPacketDetail] = useState<{ item_count?: number; items?: Array<{ project: string; variant: string }> } | null>(null);
+  const [packetDetail, setPacketDetail] = useState<{ item_count?: number; items?: Array<{ project: string; variant: string }>; error?: string } | null>(null);
 
   const refreshMeta = useCallback(async () => {
     const [opts, pkt, gen] = await Promise.all([
       getJSON<OptionsData>(`${API}/options`),
-      getJSON<{ packets?: PacketRow[] }>(`${API}/packets?limit=8`),
+      getJSON<{ packets?: PacketRow[]; error?: string }>(`${API}/packets?limit=8`),
       getJSON<{ assets?: GeneratedRow[] }>(`${API}/generated?limit=6`),
     ]);
     setOptions(opts);
     setPackets(pkt.packets ?? []);
+    setPacketsError(pkt.error);
     setGenerated(gen.assets ?? []);
   }, []);
 
@@ -126,7 +127,7 @@ export default function MargotAssetsPanel() {
       return;
     }
     setExpandedPacket(filename);
-    const data = await getJSON<{ item_count?: number; items?: Array<{ project: string; variant: string }> }>(
+    const data = await getJSON<{ item_count?: number; items?: Array<{ project: string; variant: string }>; error?: string }>(
       `${API}/packets/${encodeURIComponent(filename)}`,
     );
     setPacketDetail(data);
@@ -135,11 +136,7 @@ export default function MargotAssetsPanel() {
   return (
     <section
       className="flex flex-col h-full min-h-0"
-      style={{
-        background: "var(--panel)",
-        border: "1px solid var(--border)",
-        borderRadius: 8,
-      }}
+      style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8 }}
       aria-label="Margot asset preview"
     >
       <header
@@ -153,9 +150,7 @@ export default function MargotAssetsPanel() {
       </header>
 
       <div className="flex-1 overflow-auto p-4 flex flex-col gap-4 text-xs">
-        {options?.error && (
-          <p style={{ color: "var(--error)" }}>⚠ {options.error}</p>
-        )}
+        {options?.error && <p style={{ color: "var(--error)" }}>⚠ {options.error}</p>}
 
         {options && !options.error && (
           <p style={{ color: "var(--text-dim)" }}>
@@ -240,6 +235,7 @@ export default function MargotAssetsPanel() {
           </p>
         )}
 
+        {preview?.error && <p style={{ color: "var(--error)" }}>Preview failed: {preview.error}</p>}
         {preview?.payload?.prompt && (
           <div
             className="rounded border p-3 font-mono text-[11px] whitespace-pre-wrap max-h-48 overflow-auto"
@@ -253,7 +249,9 @@ export default function MargotAssetsPanel() {
           </div>
         )}
 
-        {packets.length > 0 && (
+        {packetsError && <p style={{ color: "var(--error)" }}>Build packets unavailable: {packetsError}</p>}
+        {packets?.length === 0 && !packetsError && <p style={{ color: "var(--text-dim)" }}>No build packets yet.</p>}
+        {packets && packets.length > 0 && (
           <div>
             <h3 className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--text-muted)" }}>
               Build packets
@@ -272,6 +270,7 @@ export default function MargotAssetsPanel() {
                       {p.item_count} items · {fmtAge(p.modified_at)}
                     </span>
                   </button>
+                  {expandedPacket === p.filename && packetDetail?.error && <p style={{ color: "var(--error)" }}>Packet unavailable: {packetDetail.error}</p>}
                   {expandedPacket === p.filename && packetDetail?.items && (
                     <div className="mt-1 ml-2 flex flex-wrap gap-1">
                       {packetDetail.items.map((item) => (
