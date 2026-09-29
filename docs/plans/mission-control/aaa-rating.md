@@ -127,4 +127,15 @@ so check 10 reads "not measured" until three nightly runs have run with it. Chec
 [coverage-register.md](coverage-register.md) is CONFLICTING or STRUCTURAL_ONLY or missing, or when
 an open Linear issue labelled `mc-defect` names it as `MC-xx` (an issue naming no surface counts
 against all of them). Without `LINEAR_API_KEY` the ticket half is unread and check 11 reads "not
-measured".
+measured". Check 12 is measured for MC-03 from 30 Sept
+(`dashboard/e2e-writes/`, a receipt named `MC-03-W.json`): the real dashboard build runs on the test
+machine against a recording stand-in backend, and five journeys assert that what each swarm
+button sends matches its label: Halt sends one kill and no resume, Resume the reverse, Cancel and
+an invalid form send nothing, and a refused halt is shown and never looks halted. Each journey was
+mutation-checked against the real panel code. It proves what the dashboard sends, not that the real
+backend accepts it. Every other write surface (MC-01, 02, 05, 07, 10, 11) reads "not measured" for check 12 until
+its own journeys exist. **Check 3 stays unmet on all seven write surfaces**: it is defined as running
+against a PR preview (Railway `Pi-Dev-Ops-pr-<n>` + Vercel preview), and Vercel's sign-in
+protection (`ssoProtection: all_except_custom_domains`, read from the project on 29 Sept) blocks
+the browser from previews until an owner creates a protection-bypass secret and stores it in GitHub
+Actions.
