@@ -44,7 +44,7 @@
   "bound": 0.010036,
   "assumes": "independent cases and correct labels; neither holds here"
  },
- "cases_sha256": "05df381dd5009f4bce02de7dc79dd53492f518bd4f208c0abb94ca65b2dab131",
- "created_utc": "2026-09-29T06:33:58.454085+00:00",
- "eval_sha": "73698a8db1bb5e457267a7b36bf7e1482181a374"
+ "cases_sha256": "36d41ae4d66c5278127a0db3cd1851e32ce7b65a94647eb178c5f19f2eb8b312",
+ "created_utc": "2026-09-29T07:31:54.926933+00:00",
+ "eval_sha": "40822241aa191ab32a3b2b8bc2dcc2f6b8acbea1"
 }
