@@ -2,7 +2,7 @@
 
 Covers every held-out case, both homes: the library's own skills are in skills-library/
 (scripts/sync_skills_library.py), so the catalogue here is the one production routes over
-(348 skills; four library skills are held back). The live Jev score comes from
+(347 skills; five library skills are held back). The live Jev score comes from
 .github/workflows/skill-routing-eval.yml. Floors sit just under the 29/09/2026 measurement on that
 catalogue (736 held-out cases: top-1 0.273, recall@254 0.969), so a scoring change that makes the free shortlist worse
 fails here. Before the library was synced, only this repo's 175 skills were scored (0.305 /

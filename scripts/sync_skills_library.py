@@ -7,12 +7,12 @@ usage:
 One home per skill (CleanExpo/skills-library skills/HOMES.json): a skill whose home is
 "library" is edited only there. `sync` copies each such skill's whole folder (its SKILL.md
 names sibling references, scripts and tests it needs), less caches, plus the library's
-skills/index.md (router phrases) and HOMES.json, into skills-library/skills/, replacing what
-was there. It pins the library commit in skills-library.lock and writes
-skills-library/MANIFEST.json: that commit plus a sha256 for every copied file. The checkout
-must be clean and at exactly <sha>. A symlink anywhere on the way, a source that resolves
-outside the checkout, a name that is not a plain folder name, or a SKILL.md whose frontmatter
-name differs from its folder stops the sync before anything is replaced.
+skills/index.md (router phrases), HOMES.json and the other _EXTRAS, into skills-library/skills/,
+replacing what was there. Files are read from commit <sha>'s objects in the checkout, never its
+working tree. It pins that commit in skills-library.lock and writes skills-library/MANIFEST.json:
+the commit plus a sha256 for every copied file. A symlink or submodule in a copied folder, a name
+that is not a plain folder name, or a SKILL.md that is missing or whose frontmatter name differs
+from its folder stops the sync before anything is replaced.
 
 Run by hand, like any other change: sync, check, then the normal release gate (tests and an
 independent review of the exact commit) before the branch is pushed. Nothing syncs on a timer.
@@ -27,6 +27,8 @@ own files by that path.
   repo's secrets gate (handoff-loop's audit-secrets) on example values, or run a held-back
   skill's files; it ships once the library rewrites them. Mission Control could not load it
   before this copy existed, so nothing regresses.
+- every copied file, Markdown included, passes this repo's secrets scanner's patterns and
+  placeholder rule (the scanner itself skips .md);
 - a skill in this repo's skills/ whose home is the library or a single machine is listed in
   OVERLAP_BASELINE, which must exist and only shrinks: a listed skill with no PDO copy left
   fails too. While a name is listed, the skills/ copy is the one Mission Control loads
@@ -35,8 +37,8 @@ own files by that path.
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -63,57 +65,68 @@ def _homes(skills_dir: Path) -> dict[str, str]:
     return json.loads((skills_dir / "HOMES.json").read_text("utf-8"))["homes"]
 
 
-def _frontmatter_name(skill_md: Path) -> str:
+def _frontmatter_name(text: str, default: str) -> str:
     from src.tao.skills import _parse_frontmatter  # the loader's own reading of a name
 
-    meta, _ = _parse_frontmatter(skill_md.read_text("utf-8"))
-    return str(meta.get("name", skill_md.parent.name))
+    meta, _ = _parse_frontmatter(text)
+    return str(meta.get("name", default))
 
 
-def _files_under(src: Path, root: Path) -> list[Path]:
-    """Every file under src, refusing any symlink and anything that resolves outside root."""
-    if src.is_symlink() or not src.resolve().is_relative_to(root):
-        raise ValueError(f"refusing {src}: a symlink or outside the checkout")
-    if src.is_file():
-        return [src]
-    found = []
-    for base, dirs, files in os.walk(src):
-        for entry in dirs + files:
-            if (Path(base) / entry).is_symlink():
-                raise ValueError(f"refusing symlink {Path(base) / entry}")
-        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
-        found += [Path(base) / f for f in files if not _SKIP_FILES.match(f)]
-    return found
+def _git(library: Path, *args: str) -> bytes:
+    try:
+        return subprocess.run(["git", "-C", str(library), *args], capture_output=True, check=True).stdout
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(f"git {args[0]} failed in {library}: {exc.stderr.decode(errors='replace').strip()}")
 
 
-def _git(library: Path, *args: str) -> str:
-    return subprocess.run(["git", "-C", str(library), *args], capture_output=True, text=True,
-                          check=True).stdout.strip()
+def _tree(library: Path, sha: str) -> dict[str, tuple[str, str]]:
+    """Every entry under skills/ in the pinned commit: path below skills/ -> (mode, object id).
+    Read from git's objects, never the working tree, so an edited, untracked or ignored file in
+    the checkout cannot reach the copy (review round 3)."""
+    _git(library, "cat-file", "-e", f"{sha}^{{commit}}")
+    entries = {}
+    for record in _git(library, "ls-tree", "-r", "-z", "--full-tree", sha, "--", "skills/").split(b"\0"):
+        if record:
+            meta, path = record.split(b"\t", 1)
+            mode, _, oid = meta.decode().split()
+            entries[path.decode()[len("skills/"):]] = (mode, oid)
+    return entries
 
 
-def _plan(library: Path, sha: str) -> list[tuple[Path, str]]:
-    """(source file, path relative to the copy) for everything sync will write."""
-    if _git(library, "rev-parse", "HEAD") != sha or _git(library, "status", "--porcelain"):
-        raise ValueError(f"{library} must be a clean checkout of {sha}")
-    src = library / "skills"
-    root = src.resolve()
-    if library.is_symlink() or src.is_symlink():
-        raise ValueError("refusing a symlinked checkout or skills/ folder")
+def _entries(tree: dict[str, tuple[str, str]], top: str) -> list[tuple[str, str]]:
+    """(path, object id) of each file of one skill or shared entry; a symlink or submodule stops it."""
+    found = [(path, mo) for path, mo in tree.items() if path == top or path.startswith(top + "/")]
+    if not found:
+        raise ValueError(f"the commit has no skills/{top}")
+    for path, (mode, _) in found:
+        if mode not in ("100644", "100755"):
+            raise ValueError(f"refusing skills/{path}: a symlink or submodule (mode {mode})")
+    return [(p, oid) for p, (_, oid) in found
+            if not (_SKIP_DIRS & set(p.split("/")[:-1]) or _SKIP_FILES.match(p.rsplit("/", 1)[-1]))]
+
+
+def _plan(library: Path, sha: str) -> list[tuple[str, str]]:
+    """(path relative to the copy, object id) for everything sync will write."""
+    tree = _tree(library, sha)
+
+    def blob(path: str) -> str:
+        return _git(library, "cat-file", "blob", tree[path][1]).decode("utf-8")
+
+    if "HOMES.json" not in tree:
+        raise ValueError("the commit has no skills/HOMES.json")
     held = _baseline(HELD_BACK) or set()
-    names = sorted(n for n, home in _homes(src).items() if home == "library" and n not in held)
+    names = sorted(n for n, home in json.loads(blob("HOMES.json"))["homes"].items()
+                   if home == "library" and n not in held)
     if not names:
         raise ValueError("HOMES.json names no library skills; refusing to sync an empty copy")
-    absent = [extra for extra in _EXTRAS if not (src / extra).exists()]
-    if absent:
-        raise ValueError(f"the checkout has no skills/{absent[0]}")
     plan = []
     for name in names:
         if not _NAME.match(name):
             raise ValueError(f"refusing skill name {name!r}: not a plain folder name")
-        if _frontmatter_name(src / name / "SKILL.md") != name:
-            raise ValueError(f"refusing {name}: its SKILL.md names a different skill")
-        plan += [(f, f.relative_to(src).as_posix()) for f in _files_under(src / name, root)]
-    return plan + [(f, f.relative_to(src).as_posix()) for extra in _EXTRAS for f in _files_under(src / extra, root)]
+        plan += _entries(tree, name)
+        if f"{name}/SKILL.md" not in tree or _frontmatter_name(blob(f"{name}/SKILL.md"), name) != name:
+            raise ValueError(f"refusing {name}: no SKILL.md, or its SKILL.md names a different skill")
+    return plan + [entry for extra in _EXTRAS for entry in _entries(tree, extra)]
 
 
 def _digest(path: Path) -> str:
@@ -121,21 +134,21 @@ def _digest(path: Path) -> str:
 
 
 def sync(library: Path, sha: str, dest: Path = DEST, lock: Path = LOCK) -> int:
-    """Replace dest with the library's home=library skills; pin sha. Returns the skill count."""
+    """Replace dest with the library's home=library skills at commit sha; pin sha. Returns the skill count."""
     if not _SHA.match(sha):
         raise ValueError(f"sha must be 40 lower-case hex characters, got {sha!r}")
     plan = _plan(library, sha)
     staged = dest.with_name(dest.name + ".new")
     shutil.rmtree(staged, ignore_errors=True)
-    for src, rel in plan:
+    for rel, oid in plan:
         (staged / rel).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(src, staged / rel)
-    manifest = {"sha": sha, "files": {rel: _digest(staged / rel) for _, rel in sorted(plan, key=lambda p: p[1])}}
+        (staged / rel).write_bytes(_git(library, "cat-file", "blob", oid))
+    manifest = {"sha": sha, "files": {rel: _digest(staged / rel) for rel, _ in sorted(plan)}}
     shutil.rmtree(dest, ignore_errors=True)
     staged.rename(dest)
     (dest.parent / "MANIFEST.json").write_text(json.dumps(manifest, indent=1) + "\n", "utf-8")
     lock.write_text(sha + "\n", "utf-8")
-    return len({rel.split("/", 1)[0] for _, rel in plan}) - len(_EXTRAS)
+    return len({rel.split("/", 1)[0] for rel, _ in plan}) - len(_EXTRAS)
 
 
 def _baseline(path: Path) -> set[str] | None:
@@ -184,7 +197,7 @@ def _home_problems(dest: Path, pdo_skills: Path, baseline: Path) -> list[str]:
         skill_md = dest / n / "SKILL.md"
         if not skill_md.is_file():
             problems.append(f"copied folder without SKILL.md: {n}")
-        elif _frontmatter_name(skill_md) != n:
+        elif _frontmatter_name(skill_md.read_text("utf-8"), n) != n:
             problems.append(f"{n}: its SKILL.md names a different skill")
     listed = _baseline(baseline)
     if listed is None:
@@ -198,12 +211,43 @@ def _home_problems(dest: Path, pdo_skills: Path, baseline: Path) -> list[str]:
     return problems
 
 
+def _scanner_rules():
+    """This repo's secrets scanner (handoff-loop audit-secrets), loaded for its patterns and its
+    placeholder rule. It parses argv at import, so it is given its own dry-run arguments."""
+    spec = importlib.util.spec_from_file_location("_secrets_rules", ROOT / "scripts" / "secrets_check.py")
+    rules = importlib.util.module_from_spec(spec)
+    argv, sys.argv = sys.argv, ["secrets_check", "--repo-root", str(ROOT), "--dry-run"]
+    try:
+        spec.loader.exec_module(rules)
+    finally:
+        sys.argv = argv
+    return rules
+
+
+def _secret_problems(dest: Path) -> list[str]:
+    """The scanner's own rules over every copied file, Markdown included: the scanner skips .md
+    for convenience, and skills are mostly Markdown (review round 3)."""
+    rules, problems = _scanner_rules(), []
+    for path in sorted(p for p in dest.rglob("*") if p.is_file() and not p.is_symlink()):
+        text = path.read_text("utf-8", errors="replace")
+        lines = text.split("\n")
+        for pattern, title, _ in rules._COMPILED:
+            for match in pattern.finditer(text):
+                number = text.count("\n", 0, match.start()) + 1
+                if ((title.startswith("JWT (") and rules._is_public_anon_jwt(match.group(0)))
+                        or rules._PLACEHOLDER_RE.search(match.group(0))
+                        or rules._PLACEHOLDER_RE.search(lines[number - 1])):
+                    continue
+                problems.append(f"secret-shaped value in the copy: {path.relative_to(dest)}:{number} ({title})")
+    return problems
+
+
 def check(dest: Path = DEST, pdo_skills: Path = ROOT / "skills", baseline: Path = OVERLAP_BASELINE,
           lock: Path = LOCK) -> list[str]:
     """Every problem with the copy, as one line each. Empty means clean."""
     if not dest.is_dir():
         return [f"{dest} does not exist"]
-    return _copy_problems(dest, lock) + _home_problems(dest, pdo_skills, baseline)
+    return _copy_problems(dest, lock) + _home_problems(dest, pdo_skills, baseline) + _secret_problems(dest)
 
 
 def main(argv: list[str]) -> int:

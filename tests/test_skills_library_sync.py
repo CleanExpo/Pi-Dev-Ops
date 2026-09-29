@@ -112,17 +112,34 @@ def test_sync_replaces_what_was_there(layout):
     assert not (layout["dest"] / "stale").exists()
 
 
-def test_sync_refuses_a_checkout_that_is_not_the_pinned_commit(layout):
-    """With no workflow checking out <sha>, the script itself must: the lock would otherwise name
-    a commit the copy was not taken from."""
-    lib, before = layout["library"], layout["sha"]
-    (lib / "skills" / "alpha" / "SKILL.md").write_text("---\nname: alpha\ndescription: x\n---\nEdited.\n")
-    with pytest.raises(ValueError, match="clean checkout"):
-        sync.sync(lib, before, dest=layout["dest"], lock=layout["lock"])
-    _commit(lib)
-    with pytest.raises(ValueError, match="clean checkout"):
-        sync.sync(lib, before, dest=layout["dest"], lock=layout["lock"])
-    assert layout["lock"].read_text() == before + "\n"
+def test_sync_copies_the_commit_not_the_working_tree(layout):
+    """Review round 3 P1-SYNC-COPIES-IGNORED-UNCOMMITTED-FILES: a clean status still let an
+    ignored file into the copy. Files now come from the pinned commit's objects."""
+    lib, skills = layout["library"], layout["library"] / "skills"
+    (lib / ".gitignore").write_text("*.secret\n")
+    sha = _commit(lib)
+    (skills / "alpha" / "private.secret").write_text("ignored")
+    (skills / "alpha" / "untracked.md").write_text("untracked")
+    (skills / "alpha" / "SKILL.md").write_text("---\nname: alpha\ndescription: x\n---\nEdited.\n")
+    sync.sync(lib, sha, dest=layout["dest"], lock=layout["lock"])
+    alpha = layout["dest"] / "alpha"
+    assert not (alpha / "private.secret").exists() and not (alpha / "untracked.md").exists()
+    assert "Body." in (alpha / "SKILL.md").read_text() and _check(layout) == []
+    with pytest.raises(ValueError, match="cat-file"):
+        sync.sync(lib, "f" * 40, dest=layout["dest"], lock=layout["lock"])
+    assert layout["lock"].read_text() == sha + "\n"
+
+
+def test_check_scans_copied_markdown_with_the_repo_scanners_rules(layout):
+    """Review round 3 P1-MARKDOWN-SECRETS-BYPASS: the repo scanner skips .md, and skills are
+    mostly Markdown. The key is built at run time so this file carries none."""
+    notes = layout["dest"] / "alpha" / "references" / "contract.md"
+    key = "AKIA" + "Q7XK2M9RT4WP8ZL3"
+    notes.write_text("Example: AWS_KEY=" + key + "\n")
+    assert any(p.startswith("secret-shaped value in the copy: alpha/references/contract.md:1")
+               for p in _check(layout))
+    notes.write_text("Example (placeholder, not a real key): AWS_KEY=" + key + "\n")
+    assert not any(p.startswith("secret-shaped") for p in _check(layout)), "the scanner's own placeholder rule"
 
 
 def test_sync_refuses_a_bad_sha_and_symlinks_at_any_level(layout, tmp_path):
