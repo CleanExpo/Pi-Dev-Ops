@@ -55,15 +55,36 @@ def ask_claude(prompt: str, cache: Path) -> object | None:
     if hit.exists():
         return json.loads(hit.read_text("utf-8"))
     for _ in range(3):
-        out = subprocess.run(["claude", "-p", "--model", MODEL, prompt], capture_output=True, text=True,
-                             stdin=subprocess.DEVNULL, timeout=600).stdout
-        starts = [i for i in (out.find("{"), out.find("[")) if i >= 0]
+        # stream-json keeps every assistant message: a Stop hook on the host can add a later
+        # message after the JSON answer, so the final text alone is not the answer.
+        out = subprocess.run(["claude", "-p", "--model", MODEL, "--output-format", "stream-json", "--verbose", prompt],
+                             capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=600,
+                             cwd=tempfile.gettempdir()).stdout
+        answer = first_json(out)
+        if answer is not None:
+            hit.write_text(json.dumps(answer, ensure_ascii=False), "utf-8")
+            return answer
+    return None
+
+
+def first_json(stream: str) -> object | None:
+    """The first assistant text block in a stream-json transcript that parses as JSON."""
+    for line in stream.splitlines():
         try:
-            answer = json.loads(out[min(starts): max(out.rfind("}"), out.rfind("]")) + 1])
-        except (ValueError, json.JSONDecodeError):
+            event = json.loads(line)
+        except json.JSONDecodeError:
             continue
-        hit.write_text(json.dumps(answer, ensure_ascii=False), "utf-8")
-        return answer
+        if event.get("type") != "assistant":
+            continue
+        for block in event.get("message", {}).get("content", []):
+            text = block.get("text", "") if block.get("type") == "text" else ""
+            starts = [i for i in (text.find("{"), text.find("[")) if i >= 0]
+            if not starts:
+                continue
+            try:
+                return json.loads(text[min(starts): max(text.rfind("}"), text.rfind("]")) + 1])
+            except json.JSONDecodeError:
+                continue
     return None
 
 
@@ -100,6 +121,8 @@ def main() -> int:
         else:
             rows += [{"text": t, "expected": None, "kind": "negative", "split": "tune" if i % 10 < 7 else "heldout"}
                      for i, t in enumerate(answer)]
+    seen: set[str] = set()  # one label per text: the same request under two skills cannot be scored
+    rows = [r for r in rows if not (r["text"].strip().lower() in seen or seen.add(r["text"].strip().lower()))]
     with args.out.open("w", encoding="utf-8") as fh:
         for i, row in enumerate(rows):
             fh.write(json.dumps({"id": i, **row}, ensure_ascii=False) + "\n")

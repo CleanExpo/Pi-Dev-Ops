@@ -27,6 +27,8 @@ NO_MATCH = "NO_MATCH"
 CUT_MARK = "\n[... cut to the skill budget]"
 CHARS_PER_TOKEN = 4
 SHORTLIST = 20
+MAX_OPTIONS = 254  # Jev allows 255 options per Choice; one is NO_MATCH
+DESC_CHARS = 160  # per option in the Jev question; keeps a 254-option question near 11k tokens
 MIN_CONFIDENCE = 0.5
 DEFAULT_BUDGET = 2000
 
@@ -117,7 +119,7 @@ def _load(decision: RouteDecision, name: str, skills: dict[str, dict], budget_to
 def jev_payload(text: str, options: list[tuple[str, str]]) -> dict:
     from scripts.mission_control_jev_shadow import MODEL, redact
 
-    criteria = {name: desc[:300] or name for name, desc in options}
+    criteria = {name: desc[:DESC_CHARS] or name for name, desc in options[:MAX_OPTIONS]}
     criteria[NO_MATCH] = "None of these skills fits the request."
     return {
         "model": MODEL,
@@ -142,7 +144,7 @@ def route(
     if pinned and pinned in skills:
         return _load(RouteDecision(source="pin", reason="router_phrase"), pinned, skills, budget_tokens)
 
-    short = shortlist(text, catalogue, k)
+    short = shortlist(text, catalogue, min(k, MAX_OPTIONS))
     decision = RouteDecision(shortlist=[n for n, _ in short])
     if not short:
         decision.reason = "nothing_scored"

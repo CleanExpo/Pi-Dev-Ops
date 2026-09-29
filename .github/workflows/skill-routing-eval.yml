@@ -1,0 +1,88 @@
+name: Skill routing eval (Jev)
+
+# Scores the skill router on the labelled corpus (evals/skill_routing/corpus.jsonl) with live
+# Jev calls. Metered, so it never runs on an ordinary push: only when a PR carries the
+# `run-jev-bench` label, or by hand. Every call is reserved against a dollar cap first.
+#
+# 1. tune split: shortlist sizes 20, 100 and 254 (Jev's per-question option limit)
+# 2. the size with the best tune top-1 is then scored ONCE on the held-out split; that
+#    held-out number is the one reported. Nothing is tuned on held-out.
+# The library's skills come from CleanExpo/skills-library at the SHA in skills-library.lock.
+
+on:
+  pull_request:
+    types: [labeled, synchronize]
+  workflow_dispatch:
+    inputs:
+      cap_usd:
+        description: "Dollar cap for this run"
+        default: "5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jev-bench:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-jev-bench')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CAP_USD: ${{ github.event.inputs.cap_usd || '5' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Read the pinned skills-library SHA
+        id: lib
+        run: echo "sha=$(head -1 skills-library.lock)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: CleanExpo/skills-library
+          ref: ${{ steps.lib.outputs.sha }}
+          token: ${{ secrets.SKILLS_LIBRARY_READ_TOKEN }}
+          path: _skills-library
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --require-hashes -r app/requirements.lock
+
+      - name: Tune split, three shortlist sizes
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          mkdir -p reports
+          for k in 20 100 254; do
+            python -m evals.skill_routing.run --library _skills-library --split tune --jev \
+              --ledger reports/ledger.sqlite --cap-usd "$CAP_USD" --k "$k" \
+              --out "reports/tune-k$k.json" --rows-out "reports/tune-k$k.rows.jsonl" > /dev/null
+          done
+
+      - name: Held-out split, best tune size only
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          best=$(python -c "import json;print(max((20,100,254),key=lambda k:json.load(open(f'reports/tune-k{k}.json'))['jev']['top1_accuracy']))")
+          echo "best tune shortlist size: $best"
+          python -m evals.skill_routing.run --library _skills-library --split heldout --jev \
+            --ledger reports/ledger.sqlite --cap-usd "$CAP_USD" --k "$best" \
+            --out reports/heldout.json --rows-out reports/heldout.rows.jsonl > /dev/null
+
+      - name: Summary
+        if: always()
+        run: python -m evals.skill_routing.summary reports >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: skill-routing-reports
+          path: reports/

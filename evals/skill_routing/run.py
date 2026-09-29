@@ -20,7 +20,7 @@ from evals.skill_routing.generate_corpus import catalogue as inventory
 from src.tao import skill_router as sr
 from src.tao import skills as tao_skills
 
-BATCH = 10  # requests per Jev call (many questions, one call)
+CALL_TOKENS = 48_000  # pack questions into one Jev call up to this estimate (model max 64k)
 
 
 def load_skills(library: Path) -> dict[str, dict]:
@@ -50,7 +50,7 @@ def jev_batch(batch: list[tuple[int, str, list[tuple[str, str]]]], key: str) -> 
     state, questions = {}, {}
     for i, text, options in batch:
         state[f"r{i}"] = redact(text)[:2000]
-        criteria = {n: d[:300] or n for n, d in options} | {sr.NO_MATCH: "None of these skills fits the request."}
+        criteria = {n: d[:sr.DESC_CHARS] or n for n, d in options} | {sr.NO_MATCH: "None of these skills fits the request."}
         questions[f"q{i}"] = {"type": "choice", "instructions": f"Which skill does `r{i}` need?", "criteria": criteria}
     body = json.dumps({"model": MODEL, "state": state, "questions": questions}).encode()
     req = request.Request("https://api.typesafe.ai/v1/systemone", data=body, method="POST",
@@ -87,9 +87,8 @@ def jev_rows(cases: list[dict], cat: list, skills: dict, args, key: str) -> tupl
     pending = [(i, c, sr.shortlist(c["text"], cat, args.k)) for i, c in enumerate(cases)]
     rows += [{**c, "picked": [], "shortlist": [], "tokens": 0} for _, c, s in pending if not s]
     pending = [p for p in pending if p[2]]
-    for start in range(0, len(pending), BATCH):
-        chunk = pending[start:start + BATCH]
-        call_id = reserve_call(args.ledger, 20_000, args.cap_usd)
+    for chunk, estimate in packed(pending, by_name):
+        call_id = reserve_call(args.ledger, estimate, args.cap_usd)
         if call_id is None:
             raise SystemExit(f"cost cap ${args.cap_usd} reached after {cost['calls']} calls; nothing further sent")
         t0 = time.monotonic()
@@ -111,6 +110,25 @@ def jev_rows(cases: list[dict], cat: list, skills: dict, args, key: str) -> tupl
     cost["p50_s"] = round(latencies[len(latencies) // 2], 2) if latencies else None
     cost["p95_s"] = round(latencies[int(len(latencies) * 0.95) - 1], 2) if latencies else None
     return rows, cost
+
+
+def estimate_tokens(text: str, names: list[str], by_name: dict) -> int:
+    chars = len(text) + sum(len(n) + len(by_name[n].description[:sr.DESC_CHARS]) + 8 for n in names)
+    return chars // 4 + 60
+
+
+def packed(pending: list, by_name: dict):
+    """Yield (chunk, estimated_tokens): as many questions per Jev call as fit CALL_TOKENS."""
+    chunk, total = [], 0
+    for item in pending:
+        cost = estimate_tokens(item[1]["text"], [n for n, _ in item[2]], by_name)
+        if chunk and total + cost > CALL_TOKENS:
+            yield chunk, total
+            chunk, total = [], 0
+        chunk.append(item)
+        total += cost
+    if chunk:
+        yield chunk, total
 
 
 def chunk_rows(out: dict, chunk: list, skills: dict, args, cost: dict) -> list[dict]:
@@ -145,6 +163,7 @@ def main() -> int:
     ap.add_argument("--budget", type=int, default=sr.DEFAULT_BUDGET)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--out", type=Path)
+    ap.add_argument("--rows-out", type=Path, help="write every Jev row (with confidence) as JSONL")
     args = ap.parse_args()
     cases = [json.loads(line) for line in args.corpus.read_text("utf-8").splitlines() if line.strip()]
     cases = [c for c in cases if args.split == "all" or c["split"] == args.split][: args.limit or None]
@@ -158,6 +177,8 @@ def main() -> int:
     if args.jev and key and args.ledger:
         rows, cost = jev_rows(cases, cat, skills, args, key)
         report["jev"] = {**score(rows), **cost}
+        if args.rows_out:
+            args.rows_out.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), "utf-8")
     else:
         report["jev"] = "NOT RUN: needs --jev, --ledger and TYPESAFE_API_KEY in the environment"
     text = json.dumps(report, indent=1)
