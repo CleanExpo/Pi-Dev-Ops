@@ -36,6 +36,11 @@ jobs:
       DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
     steps:
       - name: Require the sign-in secret
+        # Runs before checkout, so the job's default working directory
+        # (dashboard/) does not exist yet; without this the step died with
+        # "No such file or directory" whether or not the secret was set, and
+        # every run read as NOT_RUN (found 29 Sept, runs 36527100226..36527630700).
+        working-directory: .
         run: |
           if [ -z "${DASHBOARD_PASSWORD}" ]; then
             echo "## Mission Control live: NOT_RUN" >> "$GITHUB_STEP_SUMMARY"
