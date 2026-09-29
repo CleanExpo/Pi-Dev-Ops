@@ -9,7 +9,11 @@ type IntentSummary = {
   acceptedCount: number
   excludedCount: number
   topics: Array<{ topic: string; frequency_score: number }>
-  boardUrl: string
+  boardUrl: string | null
+  // false when the catalogue is not on this host (the deployed dashboard): a
+  // missing catalogue must not render as a live zero.
+  available?: boolean
+  warning?: string
 }
 
 export function IntentCatalogTile() {
@@ -40,7 +44,8 @@ export function IntentCatalogTile() {
     }
   }, [])
 
-  const mode: SourceMode = loading ? 'loading' : error || !summary ? 'degraded' : 'live'
+  const unavailable = summary?.available === false
+  const mode: SourceMode = loading ? 'loading' : error || !summary || unavailable ? 'degraded' : 'live'
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -53,6 +58,8 @@ export function IntentCatalogTile() {
         <p style={{ color: 'var(--deck-abort-text)', fontSize: 12, margin: 0 }}>
           Could not load intent catalog: {error}
         </p>
+      ) : unavailable ? (
+        <p style={{ color: 'var(--deck-muted)', fontSize: 12, margin: 0 }}>{summary?.warning}</p>
       ) : (
         <p style={{ color: 'var(--deck-muted)', fontSize: 12, margin: 0 }}>
           <b style={{ color: 'var(--deck-text)' }}>{summary?.acceptedCount ?? 0}</b> strategic signals ·{' '}
@@ -78,8 +85,9 @@ export function IntentCatalogTile() {
         >
           Open catalog →
         </Link>
+        {summary?.boardUrl ? (
         <a
-          href={summary?.boardUrl ?? 'http://localhost:7119'}
+          href={summary.boardUrl}
           target="_blank"
           rel="noreferrer"
           style={{
@@ -93,6 +101,7 @@ export function IntentCatalogTile() {
         >
           Open Excalidraw board
         </a>
+        ) : null}
       </div>
     </section>
   )
