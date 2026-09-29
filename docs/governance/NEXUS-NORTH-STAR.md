@@ -39,6 +39,21 @@ The group exists to improve outcomes for restoration businesses, technicians and
 - **Hiring and partners** use fair, documented checks of conduct and fit. No private relationship, health or loyalty scoring.
 - **Incident reviews** measure detection, escalation, verified recovery and recurrence. Learning does not excuse avoidable harm.
 
+## Checks used in the work
+
+| Moment | Record before the decision | Check afterwards |
+| --- | --- | --- |
+| Team induction and senior hiring | The relevant promise, role ownership, a fair reference or work sample, and how bad news reaches a person who can act. | A real feedback and repair example; never a private-life or loyalty rating. |
+| Partner selection and renewal | References, material terms, conflicts, a bounded trial and a named escalation route. | Promises kept, issues raised early and repairs verified with the partner. |
+| Product and release review | Who benefits, the hard-day failure, evidence and unknowns, alternatives, owner, authority and rollback. | Working release evidence and customer or team outcome, not a merged PR alone. |
+| Customer or operational incident | What happened, affected people, containment, owner, next update and dissenting facts. | Recovery evidence, recurrence check and a shared lesson with accountable follow-up. |
+
+### Hard-day exercise: a damaged home job fails
+
+A family is waiting for a restoration update and the first repair fails. The safe response is to contact the family promptly with verified facts and uncertainty, name an owner, contain further harm, agree the next update, and verify the second repair with the affected people. The review records when the failure was detected and escalated, what evidence proves recovery, and what prevents recurrence. If any of those facts are missing, say **unknown** and assign the next check; do not mark the job recovered because a ticket closed.
+
+This is a tabletop decision example, not a claim that a real customer incident occurred or recovered. The idea-pipeline regression exercise checks that a proposal about this case cannot receive an automatic approval or rejection from keyword overlap. An operational recovery still requires observed evidence.
+
 ## Authority and implementation
 
 This North Star states purpose. Existing governance determines *who may act and how*. In particular, [UNI-2432](https://linear.app/unite-group/issue/UNI-2432/decide-reconcile-the-two-constitutional-lifecycles-which-one-wins) and [UNI-2427](https://linear.app/unite-group/issue/UNI-2427/decide-who-approves-constitutional-changes-and-which-decisions-require) record unresolved lifecycle and decision-rights conflicts. Do not infer a new approval from this document or silently create another lifecycle.
