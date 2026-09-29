@@ -12,7 +12,7 @@ this run: this runs as its own script.
 
 | File | What it holds |
 |---|---|
-| `questions.json` | One Noul question per binding constitutional rule, with the exact quote and `source` (file:line) at Unite-Group `origin/main` `8eb9491b8` |
+| `questions.json` | One Noul question per binding constitutional rule, with its quote and `source` (file:line) at Unite-Group `origin/main` `8eb9491b8`. `quote_verbatim` is true when the quote was found word-for-word in that file (488 of 538 on 2026-09-29); the other 50 were paraphrased by the extraction agents |
 | `cases/<question-id>.jsonl` | The labelled scenarios for that question |
 | `generate.py` | Writes cases with Claude (Max plan), has Codex (Pro plan) label them blind, keeps only agreements |
 | `harness.py` | `validate` checks every case set; `run` asks Jev and scores it |
@@ -26,7 +26,8 @@ this run: this runs as its own script.
 - at least 50 cases in each of Jev's documented weak spots: arithmetic, dates,
   indirection, irrelevant context, adversarial wording
 
-A question that misses any of these is reported as REFUSED, never scored.
+A question that misses any of these, or whose quote is not verbatim, is reported as
+REFUSED, never scored.
 
 ## Running it
 

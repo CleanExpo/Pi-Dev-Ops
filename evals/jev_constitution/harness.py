@@ -74,8 +74,15 @@ def validate_question(qid: str, cases: list[dict]) -> list[str]:
     return problems
 
 
+def question_problems(q: dict, cases_dir: Path | None = None) -> list[str]:
+    problems = validate_question(q["id"], load_cases(q["id"], cases_dir))
+    if not q.get("quote_verbatim"):
+        problems.append("rule quote is not verbatim in the Constitution")
+    return problems
+
+
 def validate_all(questions: list[dict], cases_dir: Path | None = None) -> dict[str, list[str]]:
-    return {q["id"]: validate_question(q["id"], load_cases(q["id"], cases_dir)) for q in questions}
+    return {q["id"]: question_problems(q, cases_dir) for q in questions}
 
 
 def _post(body: dict, key: str, timeout: int = 60) -> tuple[int, dict | str]:
@@ -152,7 +159,7 @@ def run(args, env=os.environ, post=_post) -> int:
     report, refused = {}, {}
     for q in questions:
         cases = load_cases(q["id"])
-        problems = validate_question(q["id"], cases)
+        problems = question_problems(q)
         if problems:
             refused[q["id"]] = problems
             continue

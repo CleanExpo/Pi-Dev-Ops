@@ -12,7 +12,8 @@ import pytest
 
 from evals.jev_constitution import harness as h
 
-Q = {"id": "t-01", "quote": "q", "question": "Does it comply?", "criteria_true": "yes", "criteria_false": "no"}
+Q = {"id": "t-01", "quote": "q", "question": "Does it comply?", "criteria_true": "yes", "criteria_false": "no",
+     "quote_verbatim": True}
 
 
 def make_cases(n: int = 1000, comply_share: float = 0.5) -> list[dict]:
@@ -107,3 +108,9 @@ def test_full_run_scores_every_case(workspace):
     assert h.run(ARGS, env={"TYPESAFE_API_KEY": "real"}, post=post) == h.EXIT_OK
     scored = json.loads(next((workspace / "results").iterdir()).read_text())["scored"]["t-01"]
     assert scored["n"] == 1000 and scored["accuracy"] == 1.0 and scored["missed_violations"] == 0
+
+
+def test_paraphrased_rule_is_refused(workspace):
+    (workspace / "questions.json").write_text(json.dumps({"questions": [{**Q, "quote_verbatim": False}]}))
+    write_cases(workspace, make_cases())
+    assert h.validate_all(h.load_questions())["t-01"] == ["rule quote is not verbatim in the Constitution"]
