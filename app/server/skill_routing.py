@@ -13,6 +13,7 @@ problem is a logged lexical fallback, and any router error falls back to today's
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import logging
 import math
@@ -88,28 +89,62 @@ def live_jev() -> Callable[[dict], dict] | None:
     return call
 
 
-def _abort(resp) -> None:
-    """End an in-flight read now. resp.close() waits on the buffer lock the reading thread
-    holds, so it cannot interrupt that read; shutting the socket down does, and the ordinary
-    close then runs off to the side so the caller never waits on it."""
+def _tracking_opener(sockets: list) -> request.OpenerDirector:
+    """A urllib opener whose connections record their raw TCP socket the moment it is created,
+    before the TLS handshake or any header is read. urlopen() does not return until the headers
+    are in, so a server trickling its headers would otherwise leave nothing to cut (review
+    round 6)."""
+
+    def record(*args, **kwargs):
+        sock = socket.create_connection(*args, **kwargs)
+        sockets.append(sock)
+        return sock
+
+    class TrackedHTTP(http.client.HTTPConnection):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._create_connection = record
+
+    class TrackedHTTPS(http.client.HTTPSConnection):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._create_connection = record
+
+    class HTTPHandler(request.HTTPHandler):
+        def http_open(self, req):
+            return self.do_open(TrackedHTTP, req)
+
+    class HTTPSHandler(request.HTTPSHandler):
+        def https_open(self, req):
+            return self.do_open(TrackedHTTPS, req, context=self._context)
+
+    return request.build_opener(HTTPHandler, HTTPSHandler)
+
+
+def _cut(sock) -> None:
+    """End any read on this socket now. Closing the response would wait on the buffer lock the
+    reading thread holds; shutting the raw socket down interrupts the read itself."""
     try:
-        resp.fp.raw._sock.shutdown(socket.SHUT_RDWR)
-    except Exception:
+        sock.shutdown(socket.SHUT_RDWR)
+    except OSError:
         pass
-    threading.Thread(target=resp.close, name="skill-router-jev-close", daemon=True).start()
+    try:
+        sock.close()
+    except OSError:
+        pass
 
 
 def _within_deadline(run: Callable[[Callable], dict]) -> dict:
     """Run one Jev call with a WALL-CLOCK deadline. urlopen's timeout only bounds silence
     between bytes, so a server trickling a byte at a time could hold the call indefinitely
-    (review round 5). At the deadline every response the call opened is closed, which ends the
-    worker thread's read, and the caller gets TimeoutError."""
-    opened: list = []
+    (review round 5). At the deadline every socket the call opened is shut down, whether it is
+    still reading headers or the body (review round 6), which ends the worker thread's read,
+    and the caller gets TimeoutError."""
+    sockets: list = []
+    tracked = _tracking_opener(sockets)
 
     def opener(req, timeout=None):
-        resp = request.urlopen(req, timeout=JEV_DEADLINE_S)
-        opened.append(resp)
-        return resp
+        return tracked.open(req, timeout=JEV_DEADLINE_S)
 
     box: dict = {}
 
@@ -123,8 +158,8 @@ def _within_deadline(run: Callable[[Callable], dict]) -> dict:
     worker.start()
     worker.join(JEV_DEADLINE_S)
     if worker.is_alive():
-        for resp in opened:
-            _abort(resp)
+        for sock in sockets:
+            _cut(sock)
         raise TimeoutError(f"Jev gave no complete answer within {JEV_DEADLINE_S}s")
     if "error" in box:
         raise box["error"]
