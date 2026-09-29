@@ -177,7 +177,7 @@ def _kill(proc) -> None:
     with contextlib.suppress(ProcessLookupError, PermissionError):
         os.killpg(proc.pid, signal.SIGKILL)
 def suite(clone: Path, basetemp: str, timeout: float) -> tuple[int | None, str]:  # rc None = timed out
-    tests = sorted(map(str, (clone / "tests").glob("test_jev_platform_*.py")))
+    tests = sorted(f"tests/{p.name}" for p in (clone / "tests").glob("test_jev_platform_*.py"))  # ids match WALL_CLOCK
     proc = subprocess.Popen([PY, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", f"--basetemp={basetemp}", *tests],
                             cwd=clone, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
     _running[proc.pid] = proc
@@ -218,9 +218,9 @@ def mutate(i: int, clone: Path, basetemp: str, timeout: float) -> tuple:  # (out
         path.write_text(src)
     if not clean(clone):
         raise Refusal(f"DIRTY CLONE after mutant {i}: {clone}\n{git('status', '--porcelain', '--ignored', cwd=clone).stdout}")
-    if rc not in (None, 0, 1):
-        raise Refusal(f"RUNNER ERROR: mutant {i} ({fname}) pytest rc={rc}\n{out[-2000:]}")
-    killer = re.search(r"^FAILED (\S+)", out, re.M) if rc == 1 else None
+    killer = re.search(r"^(?:FAILED|ERROR) (tests/\S+)", out, re.M) if rc == 1 else None
+    if rc not in (None, 0, 1) or (rc == 1 and not killer):  # a kill must name its test, or WALL_CLOCK is blind
+        raise Refusal(f"RUNNER ERROR: mutant {i} ({fname}) pytest rc={rc} (unexpected rc, or rc=1 naming no tests/ id)\n{out[-2000:]}")
     outcome = "timeout" if rc is None else "killed" if rc == 1 else "survived"
     return outcome, rc, killer.group(1) if killer else None, time.monotonic() - start
 def emit(results: dict, printed: int, hold: set) -> int:  # result lines in index order, once each is final
