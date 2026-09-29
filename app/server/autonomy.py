@@ -48,8 +48,8 @@ from app.server.autonomy_eligibility import (
 )
 from .autonomy_orphan_queries import _IN_PROGRESS_QUERY, _RECOVERY_TARGET_QUERY
 from .autonomy_orphan_support import (
-    issue_pages, orphan_completion, recovery_comment_present, record_recovery_success,
-    transition_orphan_issue,
+    issue_pages, needs_recovery_success, orphan_completion, recovery_comment_present,
+    record_recovery_success, transition_orphan_issue,
 )
 from .autonomy_linear_rate import (
     LinearRateLimitError,
@@ -650,7 +650,7 @@ def _orphan_recovery_blocking(api_key: str) -> None:
 
 
 _ORPHAN_COMMENT_MARKER = "Pi-CEO orphan recovery — session lost."
-_pending_orphan_recoveries: set[str] = set()
+_logged_orphan_recoveries: set[str] = set()
 
 
 def _orphan_completion(issue: dict) -> tuple[bool, bool]:
@@ -682,8 +682,8 @@ def _recover_orphan_issue(api_key: str, project: dict, issue: dict) -> int:
     target_state = _recovery_state_for(team_id)
     already_target = (issue.get("state") or {}).get("name", "").lower() == target_state.lower()
     if already_target and all(_orphan_completion(issue)):
-        if iid in _pending_orphan_recoveries:
-            record_recovery_success(_log_event, _pending_orphan_recoveries, iid, ident,
+        if needs_recovery_success(_AUTONOMY_LOG, _logged_orphan_recoveries, iid, ident):
+            record_recovery_success(_log_event, _logged_orphan_recoveries, iid, ident,
                                     target_state, _BLOCKED_REASON_SESSION_LOST, True)
             return 1
         return 0
@@ -695,14 +695,15 @@ def _recover_orphan_issue(api_key: str, project: dict, issue: dict) -> int:
                 transition_issue, _log_event, log, api_key, iid, ident, team_id, target_state):
             return 0
         changed = _comment_on_orphan(api_key, iid, target_state, issue, label_ok)
-        if not already_target or not labelled or changed or iid in _pending_orphan_recoveries:
+        if (not already_target or (not labelled and label_ok) or changed
+                or needs_recovery_success(_AUTONOMY_LOG, _logged_orphan_recoveries, iid, ident)):
             log.info("orphan-recovery: transitioned %s to %s (session-lost)", ident, target_state)
-            record_recovery_success(_log_event, _pending_orphan_recoveries, iid, ident,
+            record_recovery_success(_log_event, _logged_orphan_recoveries, iid, ident,
                                     target_state, _BLOCKED_REASON_SESSION_LOST, label_ok)
             return 1
         return 0
     except LinearRateLimitError as exc:
-        _pending_orphan_recoveries.add(iid)
+        _logged_orphan_recoveries.discard(iid)
         _log_event({"action": "orphan_recovery_error", "ticket": ident,
                     "error": str(exc), "transition": target_state})
         raise

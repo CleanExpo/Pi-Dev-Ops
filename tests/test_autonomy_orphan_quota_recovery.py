@@ -1,5 +1,6 @@
 """Recovery after quota at each orphan mutation step."""
 
+import json
 import sys
 
 import pytest
@@ -8,9 +9,10 @@ from app.server import autonomy, autonomy_linear_rate
 
 
 @pytest.fixture(autouse=True)
-def clear_cooldown(monkeypatch):
+def clear_cooldown(monkeypatch, tmp_path):
     monkeypatch.setattr(autonomy_linear_rate, "_rate_limited_until", 0.0)
-    monkeypatch.setattr(autonomy, "_pending_orphan_recoveries", set())
+    monkeypatch.setattr(autonomy, "_logged_orphan_recoveries", set())
+    monkeypatch.setattr(autonomy, "_AUTONOMY_LOG", tmp_path / "autonomy.jsonl")
 
 
 class OrphanScenario:
@@ -156,6 +158,9 @@ def test_target_scan_finds_partial_ticket_on_second_page(monkeypatch):
                          "endCursor": "issue-30" if not second else None}}}}
 
     monkeypatch.setattr(autonomy, "_gql", gql)
+    autonomy._AUTONOMY_LOG.write_text("\n".join(
+        json.dumps({"action": "orphan_recovered", "ticket": item["identifier"]})
+        for item in complete) + "\n")
     autonomy._orphan_recovery_sync("test-key")
     assert cursors == [None, "issue-30"]
     assert scenario.calls == ["comment"]
@@ -173,3 +178,31 @@ def test_manual_target_state_with_old_session_is_not_recovered(monkeypatch):
     assert scenario.calls == []
     assert scenario.issue["labels"]["nodes"] == [{"name": "manual-reset"}]
     assert scenario.events == []
+
+
+def test_ambiguous_comment_success_reconciles_after_restart(monkeypatch, tmp_path):
+    scenario = OrphanScenario("comment")
+    real_log_event = autonomy._log_event
+    monkeypatch.setattr(autonomy, "_AUTONOMY_LOG", tmp_path / "autonomy.jsonl")
+    monkeypatch.setattr(autonomy, "_recent_events", [])
+    scenario.install(monkeypatch)
+
+    def persist_and_capture(event):
+        real_log_event(event)
+        scenario.events.append(event)
+
+    monkeypatch.setattr(autonomy, "_log_event", persist_and_capture)
+    with pytest.raises(autonomy.LinearRateLimitError):
+        autonomy._orphan_recovery_sync("test-key")
+    assert [e["action"] for e in scenario.events] == ["orphan_recovery_error"]
+    monkeypatch.setattr(autonomy, "_logged_orphan_recoveries", set())
+    monkeypatch.setattr(autonomy_linear_rate, "_rate_limited_until", 0.0)
+    autonomy._orphan_recovery_sync("test-key")
+    assert [e["action"] for e in scenario.events].count("orphan_recovered") == 1
+    assert scenario.calls == ["label", "transition", "comment"]
+    monkeypatch.setattr(autonomy, "_logged_orphan_recoveries", set())
+    autonomy._orphan_recovery_sync("test-key")
+    persisted = [json.loads(line) for line in autonomy._AUTONOMY_LOG.read_text().splitlines()]
+    assert [e["action"] for e in persisted] == [
+        "orphan_recovery_error", "orphan_recovered"]
+    assert scenario.calls == ["label", "transition", "comment"]

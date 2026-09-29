@@ -1,4 +1,7 @@
-"""Pagination helpers for safe orphan-recovery retries."""
+"""Pagination and event helpers for safe orphan-recovery retries."""
+
+import json
+from pathlib import Path
 
 from .autonomy_orphan_queries import _COMMENT_PAGE_QUERY
 
@@ -51,12 +54,12 @@ def orphan_completion(issue: dict, label_name: str, marker: str) -> tuple[bool, 
     return labelled, commented
 
 
-def record_recovery_success(log_event, pending: set[str], iid: str, ident: str,
+def record_recovery_success(log_event, logged: set[str], iid: str, ident: str,
                             target: str, reason: str, label_ok: bool) -> None:
     log_event({"action": "orphan_recovered", "ticket": ident,
                "transition": target, "reason_label": reason,
                "label_attached": label_ok})
-    pending.discard(iid)
+    logged.add(iid)
 
 
 def transition_orphan_issue(transition_issue, log_event, log, api_key: str,
@@ -72,3 +75,28 @@ def transition_orphan_issue(transition_issue, log_event, log, api_key: str,
                    "team_id": team_id, "target_state": target, "error": str(exc)})
         return False
     return True
+
+
+def recovery_success_recorded(path: Path, ident: str) -> bool:
+    """Use the append-only event log to reconcile an ambiguous comment result."""
+    recorded = False
+    try:
+        with path.open(encoding="utf-8") as stream:
+            for line in stream:
+                try:
+                    event = json.loads(line)
+                except ValueError:
+                    continue
+                if event.get("ticket") != ident:
+                    continue
+                if event.get("action") == "orphan_recovered":
+                    recorded = True
+                elif event.get("action") == "orphan_recovery_error":
+                    recorded = False
+    except FileNotFoundError:
+        pass
+    return recorded
+
+
+def needs_recovery_success(path: Path, logged: set[str], iid: str, ident: str) -> bool:
+    return iid not in logged and not recovery_success_recorded(path, ident)
