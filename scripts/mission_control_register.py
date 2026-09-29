@@ -9,8 +9,9 @@ Control surface as a defect." Two halves, two receipt checks:
   no row fails too, since an unlisted surface is undocumented, not clean.
 - 11-tickets reads Linear: open issues (not completed or cancelled) carrying
   the label `mc-defect`. A ticket names its surfaces as MC-00..MC-19 in its
-  title or description. One that names none counts against every surface,
-  because an unplaced defect cannot be ruled out anywhere.
+  title or description. One that names none fails no surface, because it
+  cannot be placed; it is listed in each surface's detail and printed as a
+  warning so it stays visible until someone names a surface on it.
 
 Without LINEAR_API_KEY, or when Linear does not answer, 11-tickets is UNKNOWN
 and the scorer reports check 11 "not measured" — never a pass.
@@ -69,26 +70,33 @@ def linear_fetch(api_key: str) -> Fetch:
     return fetch
 
 
-def open_defects(fetch: Fetch | None) -> tuple[dict[str, list[str]] | None, str]:
-    """Surface -> open mc-defect ticket ids; None with a reason when unread."""
+def open_defects(fetch: Fetch | None) -> tuple[dict[str, list[str]] | None, str, list[str]]:
+    """Surface -> open mc-defect ticket ids, plus ids that name no surface.
+
+    The map is None with a reason when Linear was unread.
+    """
     if fetch is None:
-        return None, "LINEAR_API_KEY not set; open defect tickets not read"
+        return None, "LINEAR_API_KEY not set; open defect tickets not read", []
     try:
         body = fetch(QUERY, {"label": LABEL})
         nodes = body["data"]["issues"]["nodes"]
     except Exception as exc:  # noqa: BLE001 — any failure means "not read"
-        return None, f"Linear did not answer ({type(exc).__name__}); open defect tickets not read"
+        return None, f"Linear did not answer ({type(exc).__name__}); open defect tickets not read", []
     found: dict[str, list[str]] = {s: [] for s in SURFACES}
+    unplaced: list[str] = []
     for node in nodes:
         text = f"{node.get('title') or ''}\n{node.get('description') or ''}"
-        named = {f"MC-{m}" for m in SURFACE_RE.findall(text)} or set(SURFACES)
+        named = {f"MC-{m}" for m in SURFACE_RE.findall(text)} & set(SURFACES)
+        if not named:
+            unplaced.append(str(node.get("identifier")))
         for surface in sorted(named):
             found[surface].append(str(node.get("identifier")))
-    return found, ""
+    return found, "", unplaced
 
 
 def surface_checks(surface: str, states: dict[str, str],
-                   defects: dict[str, list[str]] | None, why: str) -> list[dict]:
+                   defects: dict[str, list[str]] | None, why: str,
+                   unplaced: list[str] | None = None) -> list[dict]:
     state = states.get(surface)
     if state is None:
         reg = {"result": "FAIL", "detail": "no row in coverage-register.md"}
@@ -101,18 +109,19 @@ def surface_checks(surface: str, states: dict[str, str],
     elif defects[surface]:
         tix = {"result": "FAIL", "detail": f"open {LABEL} tickets: {', '.join(defects[surface])}"}
     else:
-        tix = {"result": "PASS", "detail": f"no open {LABEL} ticket names this surface"}
+        note = f"; not placed on any surface, so not counted: {', '.join(unplaced)}" if unplaced else ""
+        tix = {"result": "PASS", "detail": f"no open {LABEL} ticket names this surface{note}"}
     return [{"check": "11-register", **reg}, {"check": "11-tickets", **tix}]
 
 
 def write_receipts(out_dir: Path, register_text: str, fetch: Fetch | None) -> dict[str, list[dict]]:
     out_dir.mkdir(parents=True, exist_ok=True)
     states = register_states(register_text)
-    defects, why = open_defects(fetch)
+    defects, why, unplaced = open_defects(fetch)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     written: dict[str, list[dict]] = {}
     for surface in SURFACES:
-        checks = surface_checks(surface, states, defects, why)
+        checks = surface_checks(surface, states, defects, why, unplaced)
         body = {"surface": f"{surface}-C11", "run_at": now, "checks": checks}
         (out_dir / f"{surface}-C11.json").write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
         written[surface] = checks
@@ -129,6 +138,10 @@ def main(argv: list[str] | None = None) -> int:
                              linear_fetch(key) if key else None)
     ok = sum(all(c["result"] == "PASS" for c in checks) for checks in written.values())
     print(f"check 11: {ok}/{len(written)} surfaces pass")
+    unplaced = next((c["detail"].split("counted: ")[1] for cs in written.values() for c in cs
+                     if c["check"] == "11-tickets" and "counted: " in c["detail"]), "")
+    if unplaced:
+        print(f"::warning::{LABEL} tickets name no surface (MC-nn); not counted: {unplaced}")
     return 0
 
 
