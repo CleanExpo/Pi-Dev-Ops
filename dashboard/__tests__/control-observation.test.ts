@@ -15,6 +15,22 @@ describe("control observation truth", () => {
     mocks.piCeoFetch.mockResolvedValue(null);
     expect(await (await swarm()).json()).toMatchObject({ state: "UNKNOWN", autonomous_prs_limit: null });
   });
+  it("RA-7849: reads the swarm's own status endpoint, not the autonomy poller's", async () => {
+    upstream({ swarm_enabled_env: false, swarm_shadow_env: true, kill_switch_active: false, pr_quota: { used: 0, limit: 5 } });
+    expect(await (await swarm()).json()).toMatchObject({ state: "OFF", autonomous_prs_today: 0, autonomous_prs_limit: 5 });
+    expect(mocks.piCeoFetch.mock.calls[0][0]).toBe("/api/swarm/status");
+  });
+  it("RA-7849: an enabled swarm reports shadow, active, rate-limited or killed from its own flags", async () => {
+    const base = { swarm_enabled_env: true, kill_switch_active: false, pr_quota: { used: 1, limit: 5 } };
+    upstream({ ...base, swarm_shadow_env: true });
+    expect((await (await swarm()).json()).state).toBe("SHADOW");
+    upstream({ ...base, swarm_shadow_env: false });
+    expect((await (await swarm()).json()).state).toBe("ACTIVE");
+    upstream({ ...base, swarm_shadow_env: false, pr_quota: { used: 5, limit: 5 } });
+    expect((await (await swarm()).json()).state).toBe("RATE_LIMITED");
+    upstream({ ...base, swarm_shadow_env: false, kill_switch_active: true });
+    expect((await (await swarm()).json()).state).toBe("OFF");
+  });
   it("does not invent a score or active model when telemetry is absent", async () => {
     mocks.piCeoFetch.mockResolvedValue(null);
     expect(await (await zte()).json()).toMatchObject({ score: null, model: null, model_id: null, source: "unavailable" });

@@ -135,8 +135,8 @@ async def health(request: Request):
     # Swarm state — read env at request time (not module load) so Railway
     # restart-for-env-change takes effect immediately. The dashboard Overview
     # reads these as optional fields and falls back to "Active" when absent.
-    swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "1") not in ("0", "false", "False", "")
-    swarm_shadow = os.environ.get("TAO_SWARM_SHADOW", "0") not in ("0", "false", "False", "")
+    swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "0") == "1"  # app_factory gate (RA-7849)
+    swarm_shadow = os.environ.get("TAO_SWARM_SHADOW", "1") == "1"    # swarm/config.SHADOW_MODE
 
     # Pi-SEO scheduler gate — RA-1469. The cron loop fires every 60s but
     # `cron_triggers._fire_scan_trigger` and `_fire_monitor_trigger` skip
