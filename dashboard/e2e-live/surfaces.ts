@@ -49,7 +49,9 @@ export const LIVE_SURFACES: readonly LiveSurface[] = [
   { id: "MC-15", path: "/command-centre/knowledge", landmark: heading("Wiki Knowledge Base") },
   { id: "MC-16", path: "/command-centre/providers", landmark: heading("Providers") },
   { id: "MC-17", path: "/command-centre/wall", landmark: { kind: "testid", id: "wall-banner" } },
-  { id: "MC-18", path: "/command-centre/wiki-graph", landmark: heading("Wiki Graph") },
+  // MC-18 reads wiki_pages on the server; WikiGraphCanvas only draws its props.
+  // Its check-5 pass came from the missing-key error, gone once the key landed.
+  { id: "MC-18", path: "/command-centre/wiki-graph", landmark: heading("Wiki Graph"), serverRendered: true },
   {
     id: "MC-19",
     path: "/command-centre/youtube-intent",
