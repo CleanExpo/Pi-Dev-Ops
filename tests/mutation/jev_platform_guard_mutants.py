@@ -204,24 +204,38 @@ GUARD_MUTANTS = [
     ("manifest.py", "    if not text.strip() or ask.sensitive(text):", "    if ask.sensitive(text):"),
     ("manifest.py", "    if not text.strip() or ask.sensitive(text):", "    if not text.strip():"),
     # round 10 P1s: committed inputs only (tests/test_jev_platform_committed_inputs.py)
-    ('engine.py', '    committed = _committed(QUESTIONS)\n',
+    ('engine.py', '    committed = _committed(QUESTIONS, rev)\n',
      '    committed = ("", QUESTIONS.read_text()) if QUESTIONS.exists() else None\n'),  # en-registry-head
-    ('engine.py', '    committed = _committed(CASES / f"{rule_id}.jsonl") if rule else None\n',
-     '    committed = ((_committed(CASES / f"{rule_id}.jsonl") or ("", ""))[0], '
+    ('engine.py', '    committed = _committed(CASES / f"{rule_id}.jsonl", commit) if rule else None\n',
+     '    committed = ((_committed(CASES / f"{rule_id}.jsonl", commit) or ("", ""))[0], '
      '(CASES / f"{rule_id}.jsonl").read_text()) if rule else None\n'),  # en-cases-head
     ('engine.py', '"cases_blob": committed[0]}',
      '"cases_blob": _git("rev-parse", "HEAD")}'),  # en-cases-blob
     ('engine.py', 'None if cases and all(_dual_labelled(c) for c in cases) else',
      'None if cases else'),  # en-calib-dual
-    ('engine.py', '        problems = calibration.verify(record, scored) or _lineage_problems(record, scored)\n',
+    ('engine.py', '        problems = calibration.verify(record, scored) or _lineage_problems(rule["id"], record, scored)\n',
      '        problems = calibration.verify(record, scored)\n'),  # en-state-lineage
-    ('engine.py', '    problems = calibration.verify(record, scored) or _lineage_problems(record, scored)\n    if problems:',
+    ('engine.py', '    problems = calibration.verify(record, scored) or _lineage_problems(rule_id, record, scored)\n    if problems:',
      '    problems = calibration.verify(record, scored)\n    if problems:'),  # en-rating-lineage
     ('engine.py', '    if text is None:\n        return ["cases_blob is not a readable committed blob"]',
      '    if text is None:\n        return []'),  # en-lineage-blob
     ('engine.py', '    if not all(_dual_labelled(c) for c in cases):\n        return ["cases_blob',
      '    if False:\n        return ["cases_blob'),  # en-lineage-dual
     ('engine.py', 'return [] if want == have else', 'return [] if True else'),  # en-lineage-match
+    # round 11 P1s: reviewed ids name reviewed bytes; lineage is a commit in HEAD's history
+    # (tests/test_jev_platform_git_integrity.py)
+    ('engine.py', '["git", "--no-replace-objects", "-C", str(ROOT)', '["git", "-C", str(ROOT)'),  # en-no-replace
+    ('engine.py', 'return out.stdout.decode() if digest.hexdigest() == blob else None',
+     'return out.stdout.decode()'),  # en-blob-hash
+    ('engine.py', '    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", sha):\n        return',
+     '    if False:\n        return'),  # en-lineage-sha
+    ('engine.py', ' != blob:\n        return ["cases_blob is not the cases file',
+     ' != blob and False:\n        return ["cases_blob is not the cases file'),  # en-lineage-at-sha
+    ('engine.py', '.returncode != 0:\n        return ["eval_sha is not in the history',
+     '.returncode != 0 and False:\n        return ["eval_sha is not in the history'),  # en-lineage-ancestor
+    ('evals/jev_constitution/harness.py', 'git = ["git", "--no-replace-objects", "-C"', 'git = ["git", "-C"'),  # ha-no-replace
+    ('evals/jev_constitution/harness.py', 'return out.stdout.decode() if digest.hexdigest() == blob else None',
+     'return out.stdout.decode()'),  # ha-blob-hash
     ('evals/jev_constitution/harness.py', '    questions = committed_questions()',
      '    questions = load_questions()'),  # ha-questions-head
     ('evals/jev_constitution/harness.py', '        cases = committed_cases(q["id"])',

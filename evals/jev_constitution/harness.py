@@ -14,6 +14,7 @@ refused (401) before any real result counts.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -77,13 +78,14 @@ def validate_question(qid: str, cases: list[dict]) -> list[str]:
 
 def _at_head(path: Path) -> str | None:
     """`path` as committed at HEAD of its repository, or None. `run` sends only this, never the working copy."""
-    blob = subprocess.run(["git", "-C", str(path.parent), "rev-parse", "--verify", "--quiet", f"HEAD:./{path.name}"],
-                          capture_output=True, text=True)
-    if blob.returncode != 0:
+    git = ["git", "--no-replace-objects", "-C", str(path.parent)]  # round 11: refs/replace cannot re-point HEAD
+    blob = subprocess.run([*git, "rev-parse", "--verify", "--quiet", f"HEAD:./{path.name}"],
+                          capture_output=True, text=True).stdout.strip()
+    out = subprocess.run([*git, "cat-file", "blob", blob], capture_output=True) if blob else None
+    if out is None or out.returncode != 0:
         return None
-    out = subprocess.run(["git", "-C", str(path.parent), "cat-file", "blob", blob.stdout.strip()],
-                         capture_output=True, text=True)
-    return out.stdout if out.returncode == 0 else None
+    digest = hashlib.new("sha1" if len(blob) == 40 else "sha256", b"blob %d\0" % len(out.stdout) + out.stdout)
+    return out.stdout.decode() if digest.hexdigest() == blob else None  # cat-file serves a loose object unchecked
 
 
 def committed_questions() -> list[dict]:
