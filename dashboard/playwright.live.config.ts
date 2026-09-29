@@ -17,9 +17,7 @@ export default defineConfig({
   retries: 0,
   reporter: isCI ? [["github"], ["list"]] : "list",
   use: {
-    ...devices["Desktop Chrome"],
     baseURL,
-    viewport: { width: 1440, height: 900 },
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     // Local containers may ship a different Chromium build than this
@@ -28,4 +26,24 @@ export default defineConfig({
       ? { executablePath: process.env.PW_CHROMIUM_PATH }
       : {},
   },
+  // MC check 9 (WP-09): checks 1-2 must pass at both sizes, so the read
+  // journeys run twice. Level 2 checks and the MC-00 nav check stay desktop
+  // only: a phone layout may fold the nav into a menu by design.
+  projects: [
+    {
+      name: "desktop",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+    },
+    {
+      name: "phone",
+      testMatch: "**/read-journeys.spec.ts",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 3,
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+  ],
 });

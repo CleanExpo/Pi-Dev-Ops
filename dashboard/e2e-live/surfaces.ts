@@ -30,7 +30,9 @@ const heading = (text: string): LiveSurface["landmark"] => ({ kind: "heading", t
 
 export const LIVE_SURFACES: readonly LiveSurface[] = [
   // MC-00 (the shell) is proved by control-hub.spec.ts: all nav labels visible.
-  { id: "MC-01", path: "/control", landmark: heading("Command deck") },
+  // #828 replaced the "Command deck" hero with PortfolioFocus; its h2 renders in
+  // loading, error and loaded states alike (components/control/PortfolioFocus.tsx).
+  { id: "MC-01", path: "/control", landmark: heading("Choose a project. See the work.") },
   ...CONTROL_SECTIONS.map((item) => ({
     id: CONTROL_IDS[item.slug],
     path: item.href,

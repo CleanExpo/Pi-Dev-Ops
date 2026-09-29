@@ -56,7 +56,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
 
       {/* Toast container — bottom-right */}
+      {/* role="region": aria-label is prohibited on a div with no role (axe
+          aria-prohibited-attr, serious), found on every page by the WP-09 scan. */}
       <div
+        role="region"
         aria-live="polite"
         aria-label="Notifications"
         className="fixed bottom-4 right-4 flex flex-col gap-2 z-50"

@@ -1,6 +1,7 @@
 # WP-02 — Mission Control browser suite against the DEPLOYED dashboard.
 # docs/plans/mission-control/work-packages.md. Signs in with the real login
-# route and writes one JSON receipt per surface (MC control-set checks 1, 2, 4).
+# route and writes one JSON receipt per surface: MC checks 1, 2, 4 (WP-06) at
+# desktop and phone size (check 9), plus Level 2 checks 5, 6, 8 (WP-09).
 # Without DASHBOARD_PASSWORD it reports NOT_RUN and fails loudly — a missing
 # secret must never look like a passing suite (RA-7832).
 name: Mission Control live

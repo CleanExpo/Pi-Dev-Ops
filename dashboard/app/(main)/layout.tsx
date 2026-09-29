@@ -181,7 +181,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {/* ══════════════════════════════════════════════════════════════
           PAGE CONTENT
       ══════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col min-w-0 sm:mt-0 mt-[52px] pb-16 sm:pb-0">
+      {/* data-mc-page: the page's own content, excluding the sidebar health light.
+          The live suite (dashboard/e2e-live/level2-checks.ts) reads only inside it. */}
+      <div data-mc-page="" className="flex-1 flex flex-col min-w-0 sm:mt-0 mt-[52px] pb-16 sm:pb-0">
         {children}
         <MargotBubble />
       </div>
