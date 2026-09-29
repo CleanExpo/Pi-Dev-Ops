@@ -85,11 +85,10 @@ def _point_jev_at(monkeypatch, url):
     monkeypatch.setenv("SKILL_ROUTER_REAL_DATA_EGRESS", "approved")
 
 
-def _jev_workers_stop_within(seconds):
-    deadline = time.monotonic() + seconds
-    while time.monotonic() < deadline and any(t.name == "skill-router-jev" for t in threading.enumerate()):
-        time.sleep(0.05)
-    return not any(t.name == "skill-router-jev" for t in threading.enumerate())
+def _jev_child_is_gone():
+    """The call has returned; its child process must already be killed and reaped."""
+    from app.server import jev_transport
+    return not jev_transport._CHILDREN
 
 
 def test_trickled_headers_are_cut_off_and_the_worker_stops(monkeypatch, header_trickle_server):
@@ -102,7 +101,7 @@ def test_trickled_headers_are_cut_off_and_the_worker_stops(monkeypatch, header_t
     elapsed = time.monotonic() - started
     assert elapsed < skill_routing.JEV_DEADLINE_S + 0.8, f"Jev held the route for {elapsed:.2f}s"
     assert d.reason == "jev_error:TimeoutError"
-    assert _jev_workers_stop_within(1.0), "the Jev worker is still reading after the deadline"
+    assert _jev_child_is_gone(), "the Jev worker is still reading after the deadline"
     with sqlite3.connect(skill_routing.LEDGER) as db:
         assert [r[0] for r in db.execute("SELECT status FROM calls")] == ["error"]
 
@@ -116,7 +115,7 @@ def test_a_trickling_jev_is_cut_off_at_the_wall_clock_deadline(monkeypatch, tric
     assert elapsed < skill_routing.JEV_DEADLINE_S + 0.8, f"Jev held the route for {elapsed:.2f}s"
     assert d.source == "lexical_fallback" and d.reason == "jev_error:TimeoutError"
     # The abandoned reader must actually stop, not trickle on in the background.
-    assert _jev_workers_stop_within(1.0)
+    assert _jev_child_is_gone()
 
 
 def test_a_trickling_jev_does_not_hold_the_shadow_lock(monkeypatch, trickle_server):
@@ -128,7 +127,7 @@ def test_a_trickling_jev_does_not_hold_the_shadow_lock(monkeypatch, trickle_serv
 
 
 def _self_signed(tmp_path):
-    """A throwaway certificate for 127.0.0.1, trusted only by this test's client context."""
+    """A throwaway certificate for 127.0.0.1, trusted only through this test's SSL_CERT_FILE."""
     import datetime
     import ipaddress
 
@@ -162,8 +161,7 @@ def tls_header_trickle_server(tmp_path, monkeypatch):
     cert, key = _self_signed(tmp_path)
     server_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     server_ctx.load_cert_chain(cert, key)
-    client_ctx = ssl.create_default_context(cafile=str(cert))
-    monkeypatch.setattr("app.server.jev_transport.jev_ssl_context", lambda: client_ctx)
+    monkeypatch.setenv("SSL_CERT_FILE", str(cert))  # the Jev child inherits this trust, nothing else does
     srv = sk.socket()
     srv.bind(("127.0.0.1", 0))
     srv.listen()
@@ -200,7 +198,7 @@ def test_trickled_https_headers_are_cut_off_and_the_worker_stops(monkeypatch, tl
     d = skill_routing._decide(BRIEF)
     assert time.monotonic() - started < skill_routing.JEV_DEADLINE_S + 0.8
     assert d.reason == "jev_error:TimeoutError"
-    assert _jev_workers_stop_within(1.0), "the HTTPS Jev worker is still reading after the deadline"
+    assert _jev_child_is_gone(), "the HTTPS Jev worker is still reading after the deadline"
 
 
 def test_a_redirect_never_carries_the_key_anywhere(monkeypatch):

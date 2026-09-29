@@ -1,64 +1,97 @@
-"""The Jev transport never piles up workers and never carries the key through a redirect."""
+"""The Jev transport never outlives its deadline, never sends late, never carries the key through a
+redirect, and a call that gets stuck never blocks the next one."""
+import json
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib import request
 
 import pytest
 
-from app.server import jev_transport, skill_routing
+from app.server import jev_transport
 
-BRIEF = "write a session handoff before I stop for the day"
-
-
-@pytest.fixture(autouse=True)
-def isolated(monkeypatch, tmp_path):
-    monkeypatch.setenv("TYPESAFE_API_KEY", "not-a-real-key")
-    monkeypatch.setenv("SKILL_ROUTER_REAL_DATA_EGRESS", "approved")
-    monkeypatch.setattr(skill_routing, "LEDGER", tmp_path / "ledger.sqlite")
-    monkeypatch.setattr(skill_routing, "_CATALOGUE", None)
-    monkeypatch.setattr(skill_routing, "_PINS", None)
+KEY = "Bearer LOCAL-DUMMY-KEY"
 
 
-def _workers():
-    return sum(t.name == "skill-router-jev" for t in threading.enumerate())
+@pytest.fixture()
+def recorder():
+    """A local server that answers {"ok": true} and records every Authorization it receives."""
+    seen = []
+
+    class Record(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            seen.append(self.headers.get("Authorization"))
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'{"ok": true}')
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Record)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_port}/", seen
+    server.shutdown()
 
 
-def test_a_stalled_connect_never_leaves_more_than_one_worker(monkeypatch):
-    """Review round 8 P1-JEV-CONNECT-STALL-LEAKS-WORKERS: three calls left three live workers."""
-    release = threading.Event()
-
-    def stalled_lookup(*args, **kwargs):
-        release.wait(12)
-        raise OSError("lookup abandoned")
-
-    monkeypatch.setattr(jev_transport.socket, "getaddrinfo", stalled_lookup)
-    monkeypatch.setattr("scripts.mission_control_jev_shadow.API_URL", "http://jev.invalid/")
-    try:
-        reasons = []
-        for _ in range(3):
-            started = time.monotonic()
-            reasons.append(skill_routing._decide(BRIEF).reason)
-            assert time.monotonic() - started < jev_transport.JEV_DEADLINE_S + 0.8
-            assert _workers() <= 1, f"{_workers()} Jev workers alive"
-        assert reasons[0] == "jev_error:TimeoutError"
-        assert reasons[1:] == ["jev_error:JevBusy", "jev_error:JevBusy"]
-    finally:
-        release.set()
-    deadline = time.monotonic() + 2
-    while _workers() and time.monotonic() < deadline:
-        time.sleep(0.05)
-    assert _workers() == 0
-    # Once the stuck worker has gone, Jev is usable again (the slot was released).
-    assert not jev_transport._IN_FLIGHT.locked()
+def _call(url):
+    def run(opener):
+        req = request.Request(url, data=b"{}", headers={"Authorization": KEY}, method="POST")
+        with opener(req, timeout=15) as resp:
+            return json.loads(resp.read(128_000))
+    return jev_transport.within_deadline(run)
 
 
-def test_a_worker_that_cannot_start_does_not_hold_the_slot(monkeypatch):
-    def refuse(self):
-        raise RuntimeError("thread unavailable")
+def _delayed_child(monkeypatch, seconds):
+    """Stand in for an uncancellable DNS lookup: the child sleeps before it does anything."""
+    path = jev_transport._CHILD[-1]
+    code = (f"import time,runpy,sys; time.sleep({seconds}); sys.argv=[{path!r}]; "
+            f"runpy.run_path({path!r}, run_name='__main__')")
+    monkeypatch.setattr(jev_transport, "_CHILD", [sys.executable, "-I", "-S", "-c", code])
 
-    monkeypatch.setattr(threading.Thread, "start", refuse)
-    with pytest.raises(RuntimeError):
-        jev_transport.within_deadline(lambda opener: {})
+
+def test_the_transport_returns_a_real_answer(recorder):
+    url, seen = recorder
+    assert _call(url) == {"ok": True}
+    assert seen == [KEY] and not jev_transport._CHILDREN
+
+
+def test_nothing_is_sent_after_the_deadline(monkeypatch, recorder):
+    """Review round 9 P1-JEV-POST-DEADLINE-EGRESS: a worker sent the brief and key after timing out."""
+    url, seen = recorder
+    monkeypatch.setattr(jev_transport, "JEV_DEADLINE_S", 0.3)
+    _delayed_child(monkeypatch, 0.8)
+    with pytest.raises(TimeoutError):
+        _call(url)
+    time.sleep(1.5)  # long past the moment the stalled child would have sent
+    assert seen == [], f"the server received {seen} after the caller timed out"
+    assert not jev_transport._CHILDREN
+
+
+def test_a_permanently_stuck_call_never_blocks_the_next(monkeypatch, recorder):
+    """Review round 9 P1-JEV-DNS-PERMANENT-STARVATION: a lookup that never returned held the slot."""
+    url, _ = recorder
+    monkeypatch.setattr(jev_transport, "JEV_DEADLINE_S", 0.3)
+    real_child = jev_transport._CHILD
+    _delayed_child(monkeypatch, 3600)
+    started = time.monotonic()
+    with pytest.raises(TimeoutError):
+        _call(url)
+    assert time.monotonic() - started < 0.3 + 1.2
+    assert not jev_transport._IN_FLIGHT.locked() and not jev_transport._CHILDREN
+    monkeypatch.setattr(jev_transport, "_CHILD", real_child)
+    assert _call(url) == {"ok": True}, "the next call must reach Jev, not fail with JevBusy"
+
+
+def test_a_child_that_cannot_start_does_not_hold_the_slot(monkeypatch, recorder):
+    def refuse(*args, **kwargs):
+        raise OSError("no processes left")
+
+    monkeypatch.setattr(jev_transport.subprocess, "Popen", refuse)
+    with pytest.raises(OSError):
+        _call(recorder[0])
     assert not jev_transport._IN_FLIGHT.locked()
 
 

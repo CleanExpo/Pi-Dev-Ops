@@ -1,83 +1,40 @@
 """The HTTP transport for live Jev calls: a wall-clock deadline, no redirects.
 
-urlopen's timeout only bounds silence between bytes, so a server trickling a byte at a time could
-hold a call indefinitely. Every call here runs on a worker thread and ends at JEV_DEADLINE_S of
-wall-clock time: each socket the call opened is recorded the moment it exists (raw TCP before
-TLS, and the TLS socket before its handshake) and shut down at the deadline, which ends the read
-wherever it is (skill-router review rounds 5, 6 and 7).
+Each call's HTTP exchange runs in its own short-lived child process, killed at JEV_DEADLINE_S.
+Killing the process ends whatever it was doing (a DNS lookup, a stalled connect, a TLS
+handshake, a trickled header or body), and a dead process can send nothing after the deadline.
+Review rounds 5 to 9 each found one more way a thread-and-socket version outlived its deadline
+(body trickle, header trickle, TLS detach, connect stall, uncancellable DNS); a process has no
+such corners. The request, Bearer key included, reaches the child on stdin, never argv or env.
+
+This file is also the child: run by path with `python -I -S`, it imports only the standard
+library, so nothing from the app loads in the process that holds the key.
 """
 from __future__ import annotations
 
-import functools
-import http.client
-import socket
-import ssl
+import base64
+import io
+import json
+import os
+import subprocess
+import sys
 import threading
+import time
 from typing import Callable
-from urllib import request
+from urllib import error, request
 
 JEV_DEADLINE_S = 3.0
+_MAX_BODY = 1_000_000
+_CHILD = [sys.executable, "-I", "-S", os.path.abspath(__file__)]
 
-# One live Jev call at a time. A worker that outlives its deadline (a DNS lookup cannot be
-# interrupted) keeps the slot until it ends, and every call meanwhile fails fast with JevBusy,
-# so abandoned workers can never pile up (review round 8).
+# One live Jev call at a time. The caller always frees the slot before it returns, because the
+# child is dead by then; a stuck lookup can no longer hold it (review round 9).
 _IN_FLIGHT = threading.Lock()
+_CHILDREN: set = set()  # children not yet reaped; empty whenever no call is running
 
 
 class JevBusy(RuntimeError):
-    """An earlier Jev call is still running past its deadline; route without Jev."""
-
-
-def _open_tracked(sockets: list, address, timeout=None, source_address=None, **_ignored):
-    """socket.create_connection, except each socket is recorded BEFORE it connects, so a stalled
-    connect can be cut at the deadline too (review round 8)."""
-    host, port = address
-    last_error: OSError | None = None
-    for family, kind, proto, _name, target in socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM):
-        sock = socket.socket(family, kind, proto)
-        sockets.append(sock)
-        try:
-            sock.settimeout(timeout if timeout is not None else JEV_DEADLINE_S)
-            if source_address:
-                sock.bind(source_address)
-            sock.connect(target)
-            return sock
-        except OSError as exc:
-            last_error = exc
-            sock.close()
-    raise last_error or OSError(f"no address found for {host}")
-
-
-def jev_ssl_context() -> ssl.SSLContext:
-    """The TLS settings for Jev calls: the system trust store. Tests swap in a local CA."""
-    return ssl.create_default_context()
-
-
-class _TrackedHTTP(http.client.HTTPConnection):
-    """Records its raw TCP socket before it connects, and so before any header is read."""
-
-    def __init__(self, *args, sockets: list, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._sockets = sockets
-        self._create_connection = functools.partial(_open_tracked, sockets)
-
-
-class _TrackedHTTPS(http.client.HTTPSConnection):
-    """Records the raw socket, then the TLS socket BEFORE its handshake. wrap_socket detaches the
-    raw socket it is given (its fd becomes -1), so the raw socket alone cannot be cut once TLS
-    begins (review round 7)."""
-
-    def __init__(self, *args, sockets: list, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._sockets = sockets
-        self._create_connection = functools.partial(_open_tracked, sockets)
-
-    def connect(self):
-        http.client.HTTPConnection.connect(self)
-        host = self._tunnel_host or self.host
-        self.sock = self._context.wrap_socket(self.sock, server_hostname=host, do_handshake_on_connect=False)
-        self._sockets.append(self.sock)
-        self.sock.do_handshake()
+    """Another Jev call is running right now; route without Jev."""
 
 
 class _NoRedirect(request.HTTPRedirectHandler):
@@ -94,66 +51,78 @@ def no_redirect_opener() -> request.OpenerDirector:
     return request.build_opener(_NoRedirect)
 
 
-def tracking_opener(sockets: list) -> request.OpenerDirector:
-    """A urllib opener whose connections record every socket they open into `sockets`."""
-
-    class HTTPHandler(request.HTTPHandler):
-        def http_open(self, req):
-            return self.do_open(functools.partial(_TrackedHTTP, sockets=sockets), req)
-
-    class HTTPSHandler(request.HTTPSHandler):
-        def https_open(self, req):
-            return self.do_open(functools.partial(_TrackedHTTPS, sockets=sockets), req,
-                                context=jev_ssl_context())
-
-    return request.build_opener(HTTPHandler, HTTPSHandler, _NoRedirect)
+def _spec(req: request.Request) -> bytes:
+    return json.dumps({
+        "url": req.full_url,
+        "method": req.get_method(),
+        "headers": dict(req.header_items()),
+        "data": base64.b64encode(req.data or b"").decode("ascii"),
+    }).encode("utf-8")
 
 
-def _cut(sock) -> None:
-    """End any read on this socket now. Closing the response would wait on the buffer lock the
-    reading thread holds; shutting the socket down interrupts the read itself."""
+def _run_child(req: request.Request, deadline: float) -> dict:
+    """Run one exchange in a child process; kill it at the deadline. Never starts one late."""
+    if time.monotonic() >= deadline:
+        raise TimeoutError("Jev deadline passed before the request could start")
+    proc = subprocess.Popen(_CHILD, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL)
+    _CHILDREN.add(proc)
     try:
-        sock.shutdown(socket.SHUT_RDWR)
-    except OSError:
-        pass
-    try:
-        sock.close()
-    except OSError:
-        pass
+        out, _ = proc.communicate(_spec(req), timeout=max(0.0, deadline - time.monotonic()))
+    except subprocess.TimeoutExpired:
+        raise TimeoutError(f"Jev gave no complete answer within {JEV_DEADLINE_S}s") from None
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+        try:
+            proc.communicate(timeout=1.0)  # reap it and close its pipes
+            _CHILDREN.discard(proc)
+        except (subprocess.TimeoutExpired, ValueError, OSError):
+            pass
+    return json.loads(out or b'{"error": "URLError: the Jev child produced no reply"}')
+
+
+def _exchange(req: request.Request, deadline: float) -> io.BytesIO:
+    """What urlopen would return or raise, from the child's reply."""
+    reply = _run_child(req, deadline)
+    if "error" in reply:
+        raise error.URLError(reply["error"])
+    body = base64.b64decode(reply["body"])
+    if not 200 <= reply["status"] < 300:
+        raise error.HTTPError(req.full_url, reply["status"], reply.get("reason", ""), None,
+                              io.BytesIO(body))
+    return io.BytesIO(body)
 
 
 def within_deadline(run: Callable[[Callable], dict]) -> dict:
     """Run one Jev call, `run(opener)`, and return its result, or raise TimeoutError at the
-    deadline, or JevBusy at once while an earlier call still holds the slot."""
-    sockets: list = []
-    tracked = tracking_opener(sockets)
-
-    def opener(req, timeout=None):
-        return tracked.open(req, timeout=JEV_DEADLINE_S)
-
-    box: dict = {}
-
-    def work():
-        try:
-            box["value"] = run(opener)
-        except BaseException as exc:  # handed to the caller below
-            box["error"] = exc
-        finally:
-            _IN_FLIGHT.release()  # the worker, not the caller, frees the slot when it truly ends
-
-    worker = threading.Thread(target=work, name="skill-router-jev", daemon=True)
+    deadline, or JevBusy at once while another call is running."""
     if not _IN_FLIGHT.acquire(blocking=False):
-        raise JevBusy("an earlier Jev call is still running past its deadline")
+        raise JevBusy("another Jev call is running")
+    deadline = time.monotonic() + JEV_DEADLINE_S
     try:
-        worker.start()
-    except BaseException:
-        _IN_FLIGHT.release()  # no worker will ever run to release it
-        raise
-    worker.join(JEV_DEADLINE_S)
-    if worker.is_alive():
-        for sock in sockets:
-            _cut(sock)
-        raise TimeoutError(f"Jev gave no complete answer within {JEV_DEADLINE_S}s")
-    if "error" in box:
-        raise box["error"]
-    return box["value"]
+        return run(lambda req, timeout=None: _exchange(req, deadline))
+    finally:
+        _IN_FLIGHT.release()
+
+
+def _child_main() -> int:
+    """The child: read one request on stdin, make it without following redirects, print a reply."""
+    spec = json.loads(sys.stdin.buffer.read())
+    req = request.Request(spec["url"], data=base64.b64decode(spec["data"]) or None,
+                          headers=spec["headers"], method=spec["method"])
+    try:
+        with no_redirect_opener().open(req, timeout=JEV_DEADLINE_S) as resp:
+            reply = {"status": resp.status, "reason": resp.reason, "body": resp.read(_MAX_BODY)}
+    except error.HTTPError as exc:
+        reply = {"status": exc.code, "reason": str(exc.reason), "body": exc.read(_MAX_BODY)}
+    except Exception as exc:  # reported to the parent as a URLError
+        reply = {"error": f"{type(exc).__name__}: {exc}"}
+    if "body" in reply:
+        reply["body"] = base64.b64encode(reply["body"]).decode("ascii")
+    sys.stdout.write(json.dumps(reply))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_child_main())
