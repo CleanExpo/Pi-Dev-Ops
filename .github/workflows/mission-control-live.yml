@@ -60,7 +60,21 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run live suite
+        id: suite
         run: npx playwright test --config playwright.live.config.ts
+
+      # WP-11: grade this run by docs/plans/mission-control/aaa-rating.md and
+      # publish one row per surface (level + what blocks the next level) on the
+      # run's summary page. Runs even when the suite fails — that is when the
+      # scorecard matters. Not a gate: the grade is the output.
+      - name: Score the run
+        # Not when the secret check stopped the job: then nothing was checked
+        # out or run, and NOT_RUN in the summary is the whole story.
+        if: always() && steps.suite.outcome != 'skipped'
+        working-directory: .
+        run: |
+          python3 scripts/mission_control_scorecard.py dashboard/e2e-live-receipts \
+            --json dashboard/e2e-live-receipts/scorecard.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload receipts
         if: always()
