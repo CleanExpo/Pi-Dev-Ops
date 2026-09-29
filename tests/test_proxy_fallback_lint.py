@@ -78,6 +78,16 @@ def test_passes_when_the_client_uses_the_honest_reader(gate, tmp_path, monkeypat
     assert gate.main() == 0
 
 
+def test_live_suite_naming_proxy_paths_is_not_a_proxy_consumer(gate, tmp_path, monkeypatch):
+    rel = "dashboard/e2e-live/level2-checks.ts"
+    _plant(tmp_path, rel, 'const SHELL = new Set(["/api/pi-ceo/health"]);')
+    monkeypatch.setattr(gate, "tracked_files", lambda: [rel])
+    gate.write_baseline([])
+
+    monkeypatch.setattr(sys, "argv", ["proxy_fallback_lint.py"])
+    assert gate.main() == 0
+
+
 def test_browser_route_interception_is_not_a_proxy_consumer(gate, tmp_path, monkeypatch):
     rel = "dashboard/e2e/receipt.spec.ts"
     _plant(tmp_path, rel, 'page.route("**/api/pi-ceo/**", handler)')
