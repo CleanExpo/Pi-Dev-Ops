@@ -627,6 +627,18 @@ def _is_pi_ceo_orphan(issue: dict, live_session_ids: set[str]) -> bool:
     return not any(sid in live_session_ids for sid in referenced_ids)
 
 
+def _orphan_recovery_blocking(api_key: str) -> None:
+    """Run _orphan_recovery to completion on the calling (worker) thread.
+
+    RA-7845: _orphan_recovery is async in name only. Its Linear calls are
+    blocking urllib, one per portfolio project, and they ran on the event loop:
+    production logged a 5.7 s whole-server stall inside _gql from here at
+    09:45:22 UTC, 29 Sept 2026. The poller now awaits this through
+    asyncio.to_thread. It stays a coroutine for its existing callers and tests.
+    """
+    asyncio.run(_orphan_recovery(api_key))
+
+
 async def _orphan_recovery(api_key: str) -> None:
     """RA-1369 — reconcile tickets left In Progress with live sessions.
 
@@ -812,7 +824,7 @@ async def _run_poller_iteration(
     # comment, so the next poll reclaims it instead of it sitting stuck.
     if not orphan_recovery_done and config.AUTONOMY_ENABLED and config.LINEAR_API_KEY:
         try:
-            await _orphan_recovery(config.LINEAR_API_KEY)
+            await asyncio.to_thread(_orphan_recovery_blocking, config.LINEAR_API_KEY)
         except Exception as exc:
             log.error("orphan-recovery crashed: %s", exc)
         orphan_recovery_done = True

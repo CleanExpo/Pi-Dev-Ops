@@ -68,7 +68,7 @@ async def cron_loop() -> None:
     # --- Startup catch-up: fire overdue scan/monitor triggers immediately ---
     await asyncio.sleep(10)  # brief delay so server is fully ready
     try:
-        triggers = _load_triggers()
+        triggers = await asyncio.to_thread(_load_triggers)
         fired = False
         for trigger in triggers:
             if should_fire_on_boot(trigger):
@@ -80,7 +80,7 @@ async def cron_loop() -> None:
                 except Exception as exc:
                     _log.error("Catch-up: trigger %s failed: %s", trigger["id"], exc)
         if fired:
-            _save_triggers(triggers)
+            await asyncio.to_thread(_save_triggers, triggers)
     except Exception as exc:
         _log.error("Catch-up startup error: %s", exc)
 
@@ -92,7 +92,7 @@ async def cron_loop() -> None:
         await asyncio.sleep(60)
         try:
             now = datetime.datetime.utcnow()
-            triggers = _load_triggers()
+            triggers = await asyncio.to_thread(_load_triggers)
             fired = False
             for trigger in triggers:
                 if _matches(trigger, now.hour, now.minute, now.weekday(), now.day, now.month):
@@ -130,7 +130,7 @@ async def cron_loop() -> None:
                             exc_info=True,
                         )
             if fired:
-                _save_triggers(triggers)
+                await asyncio.to_thread(_save_triggers, triggers)
 
             # Watchdog checks every 30 minutes
             _watchdog_interval += 1
