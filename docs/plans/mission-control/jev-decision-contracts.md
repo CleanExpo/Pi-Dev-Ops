@@ -113,6 +113,7 @@ These contracts already sit inside that boundary; the mapping is:
 | A Choice option other than `NO_MATCH`, with the provider's confidence at or above the threshold set by the held-out evaluation | `PROPOSE(option)` |
 | `NO_MATCH`, confidence below threshold, invalid output, vendor error, or no evaluation yet | `ABSTAIN` |
 | J3 Noul probability | `PROPOSE(flag)` only when < 0.5 and above threshold; otherwise `ABSTAIN` |
+| J4 Score (1–5) | `PROPOSE(surface)` for the lowest-scored surfaces in the weekly ranking, only once the held-out evaluation shows the scores track human judgement; otherwise `ABSTAIN`. A score is never a coverage measurement |
 
 `scripts/jev_triage.py` today records the raw typed answer (status `OK`), or `NOT_EVALUATED` on a vendor error or missing answer, or `BUDGET_STOP` when a cap is set. The PROPOSE/ABSTAIN mapping and the confidence threshold are applied by the triage step that reads those labels. That step is not built yet, and its threshold comes from the held-out evaluation.
 

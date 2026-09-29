@@ -77,18 +77,29 @@ NEXUS-RELEASE-HARNESS v1.0 names UNI-2517's earned lifecycle as canonical
 ([adoption decision O4](../nexus-release-harness/adoption.md)). The stages above map onto it. The
 evidence for each stage stays in the table above.
 
-| Stage here | UNI-2517 state it can earn | Harness package |
+Two different things are being mapped, and they must not be merged. The stages above move **one
+idea or change**; the harness chain `P-DISCOVER → P-PROMISE → P-VERIFY → P-REPAIR → P-AUDIT →
+P-RELEASE → P-OBSERVE` moves **one release of a product** and runs over many changes. So the
+table maps each stage to the UNI-2517 state it earns and to the portfolio control that governs it,
+not to a P-step.
+
+| Stage here | UNI-2517 state it can earn | Portfolio control that governs it |
 |---|---|---|
-| 1a, 1b Capture | `IDEA` | per-track P-DISCOVER |
-| 2 Board packet → GO | `DISCOVERED` → `PLANNED` | P-PROMISE |
+| 1a, 1b Capture | `IDEA` | — |
+| 2 Board packet → GO | `DISCOVERED` → `PLANNED` | — (a GO is not build authority) |
 | 3 Ticket made eligible | `BUILD_AUTHORISED` (needs signed scope, not just a label) | CP-00 / CP-03 admission |
-| 4 Poller claims · 5a/5b Build | `EXECUTING` → `LOCALLY_VERIFIED` | P-REPAIR |
-| 6 Pre-push review + PR | `PR_OPEN` → `REVIEWING` | P-AUDIT (the two non-author audits) |
+| 4 Poller claims · 5a/5b Build | `EXECUTING` → `LOCALLY_VERIFIED` | CP-04 receipts |
+| 6 Pre-push review + PR | `PR_OPEN` → `REVIEWING` | Change review only. **Not** P-AUDIT, which audits the final release candidate |
 | 8 CI gates | `CI_GREEN` | CP-04 evidence adapter |
-| — (no stage here today) | `STAGING_VERIFIED` → `RELEASE_READY` | P-VERIFY on preview (MC: WP-06/07) |
-| 7 Merge to main | `SHIP_AUTHORISED` (human merge, decision D0 / RA-7818) | P-RELEASE |
-| 9 Deploy | `PRODUCTION` | P-RELEASE |
-| 10 Prove it works live | `POST_DEPLOY_VERIFIED` → `COMPLETE` | P-OBSERVE; CP-07 |
+| — (no stage here today) | `STAGING_VERIFIED` → `RELEASE_READY` | Release gates (for MC: WP-06/07 browser suite) |
+| 7 Merge to main | `SHIP_AUTHORISED` (human merge, decision D0 / RA-7818) | Release authority |
+| 9 Deploy | `PRODUCTION` | CP-07 staged release |
+| 10 Prove it works live | `POST_DEPLOY_VERIFIED` → `COMPLETE` | CP-07 live proof; CP-09 monitoring |
+
+Per release, the P-chain wraps these stages: P-DISCOVER and P-PROMISE run before any change is
+chosen; P-VERIFY tests the candidate; P-REPAIR fixes only "the set of confirmed blockers for that release, not every historical
+backlog item" (packet `:692-694`); P-AUDIT is the two non-author audits of the final candidate;
+P-RELEASE and P-OBSERVE cover stages 7–10.
 
 Break E ("complete" means merged, not verified live) is the same gap as the harness rule that a
 deploy alone earns `PRODUCTION`, never `POST_DEPLOY_VERIFIED`. There is no `STAGING_VERIFIED` stage

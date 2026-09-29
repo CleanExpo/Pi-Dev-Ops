@@ -1,6 +1,6 @@
-# Mission Control control set (MC track) — the checks behind its AAA grade
+# Mission Control control set (MC track) — Levels 1–3
 
-**Status:** PROPOSED (r2, 29 Sept 2026). **Grade authority:** the portfolio AAA rubric in
+**Status:** PROPOSED (r3, 29 Sept 2026). **Grade authority:** the portfolio AAA rubric in
 NEXUS-RELEASE-HARNESS v1.0 `scoring.md` ([adoption decision O1](../nexus-release-harness/adoption.md)).
 This file no longer defines its own AAA: it defines the MC track's **control set** — the checks
 that the portfolio rubric scores — grouped in Levels 1–3 (formerly tiers A/AA/AAA, renamed so
@@ -12,8 +12,9 @@ and "never manufacture a readiness score" (`docs/plans/mission-control-readiness
 definition keeps that rule — every grade below is a set of pass/fail checks run against a named
 deployment, never a model's opinion or a percentage.
 
-"AAA" here is a Mission Control grade. It is **not** WCAG AAA, which the repo uses elsewhere for
-contrast and touch targets; WCAG is one input to Level 2 below.
+The only "AAA" is the portfolio grade. Levels 1–3 here are necessary for it, not sufficient (see
+below). Neither is WCAG AAA, which the repo uses elsewhere for contrast and touch targets; WCAG 2.2
+AA is one input to Level 2.
 
 ## How these checks feed the portfolio AAA rubric
 
@@ -25,7 +26,8 @@ contrast and touch targets; WCAG is one input to Level 2 below.
 | 5 Failure path · 10 Stable | Reliability, recovery and operational support (15) | — |
 | 8 Accessibility · 9 Two viewports | Usability and accessibility (10) | — |
 | 4 Receipt · 7 Component test · 13 Live-deploy linkage | Evidence provenance, reproducibility, release discipline (10) | T03 (evidence for a different SHA is stale) |
-| 11 Nothing documented broken | Mandatory blocker — outside the score | T13 |
+| 11 Nothing documented broken | Mandatory blocker — outside the score | — |
+| The level rule below (every check must pass; no evidence = not passed) | Mandatory blocker | T13 (a required unknown cannot become PASS or AAA) |
 
 **Required by the portfolio rubric but not yet in this control set** (added as MC control groups,
 each currently NOT_RUN): tenant/object access and OWASP ASVS-selected controls beyond the auth

@@ -66,7 +66,6 @@
       "unblocks": [
         "WP-02",
         "WP-04",
-        "WP-05",
         "WP-06"
       ],
       "ticket": "RA-7832"
