@@ -109,7 +109,7 @@
 94	4aa32241b748	app/server/session_linear.py::_update_linear_state
 93	8656323d312e	swarm/intent_router.py::classify
 92	9b487de8199a	swarm/margot_bot.py::build_prompt_with_research
-91	c117e8f0449a	app/server/linear_pulse.py::run_pulse
+75	8b6f3c60c549	app/server/linear_pulse.py::run_pulse
 91	7db4410bb69b	scripts/validate_tao_context_vcc.py::main
 91	8c658903f454	swarm/margot_inflight.py::harvest_completed_for_chat
 90	d62e0a2b78cf	app/server/routes/webhooks.py::_handle_workflow_run
@@ -294,7 +294,6 @@
 59	981f97696c18	tests/swarm/nexus/test_workspace_lookup.py::TestWebhookPassesLookup.test_stripe_webhook_uses_lookup_when_metadata_missing
 59	4c72e91198b6	tests/test_portfolio_pulse_github.py::test_happy_path_renders_all_sections
 58	7074898cc335	app/server/agents/board_meeting.py::_read_morning_intel
-58	001bec6b6b03	app/server/linear_pulse.py::_pulse_issue_id
 58	2c641dc6684b	scripts/analyse_lessons.py::_claude_cluster_title
 58	c40bffceeb57	scripts/calibration_corpus_miner.py::mine_transcript
 58	92e7c105bfd0	scripts/desk_voice_loop.py::run_loop
