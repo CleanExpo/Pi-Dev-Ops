@@ -131,7 +131,7 @@ def _is_public_anon_jwt(value: str) -> bool:
 _PLACEHOLDER_RE = re.compile(
     r"<redacted>|<your-|<paste|<configured>|your-password|example\.com"
     r"|\$\{[A-Z_]+|process\.env\.|os\.environ"
-    r"|AKIAIOSFODNN7EXAMPLE|REPLACE_ME|INSERT_YOUR|YOUR_.*_HERE|PASTE_YOUR"
+    r"|AKIAIOSFODNN7EXAMPLE|REPLACE_ME|INSERT_YOUR|YOUR[_-].*[_-]HERE|PASTE_YOUR"
     r"|fake[_-]?(?:key|token|secret|password|api)"
     r"|dummy[_-]?(?:key|token|secret|password)"
     r"|sample[_-]?(?:key|token|secret|password)"
