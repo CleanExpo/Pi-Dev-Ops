@@ -1,4 +1,4 @@
-"""CLI: python -m jev_platform {decide,calibrate,verify-calibration,ratings,ask,approve,scout,pick-first,ask-jev}.
+"""CLI: python -m jev_platform {decide,calibrate,verify-calibration,ratings,ask,approve,scout,pick-first,ask-jev,agent}.
 
 Shadow/advisory only.
 
@@ -14,7 +14,7 @@ import sys
 import urllib.error
 import urllib.request
 
-from jev_platform import ask, cli_scale, client, engine
+from jev_platform import agent, ask, cli_scale, client, engine
 from jev_platform import manifest as mf
 
 URL = "https://api.typesafe.ai/v1/systemone"
@@ -140,6 +140,7 @@ def main(argv=None) -> int:
     pr.add_argument("--id")
     pr.add_argument("--repo")
     cli_scale.register(sub, http_post)
+    agent.register(sub, http_post)
     a = p.parse_args(argv)
     if a.cmd == "ask" and len(a.file) > 50:
         print("REFUSED: at most 50 files per run", file=sys.stderr)

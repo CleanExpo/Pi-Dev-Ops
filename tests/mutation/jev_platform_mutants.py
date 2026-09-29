@@ -57,6 +57,25 @@ MUTANTS = [
     ("scout.py", "if ask.sensitive(json.dumps(body)):", "if False:"),
     ("manifest.py", "if reads not in ACCEPTS[tool]:", "if False:"),
     ("manifest.py", "    if missing:\n", "    if False:\n"),
+    # Gemini runner (PLAN-scale.md rev 5)
+    ("agent_tools.py", '    run.proposals.append(args)\n    return {"result": PROPOSED}',
+     '    run.proposals.append(args)\n    run.jev_post({"state": {"task": str(args)}, "model": "jev-latest", '
+     '"questions": {}}, 30)\n    return {"result": PROPOSED}'),
+    ("agent_tools.py", 'base = {"path": r["path"]}', 'base = {"path": r["path"], "sha256": r["sha256"]}'),
+    ("agent_tools.py", "    if extra:\n", "    if False:\n"),
+    ("gemini.py", "        counted, problem, retry = _count(payload, headers, budget, http_post)\n",
+     "        counted, problem, retry = len(payload) // 4, None, False\n"),
+    ("gemini.py", "if self.batch_count_calls >= self.max_count_calls:", "if False:"),
+    ("gemini.py", 'cost = nbytes * self.price["count"]', "cost = 0.0"),
+    ("gemini.py", "        counted, problem, retry = _count(payload, headers, budget, http_post)\n",
+     "        budget.reserve_generate(len(payload) // 4)\n"
+     "        counted, problem, retry = _count(payload, headers, budget, http_post)\n"),
+    ("gemini.py", "        if prompt is None:\n            return\n",
+     "        if prompt is None:\n            self.spent -= reserved\n            return\n"),
+    ("gemini.py", "if isinstance(prompt, int) and prompt > counted:", "if False:"),
+    ("gemini.py", 'if p is None or on > dt.date.fromisoformat(p["valid_until"]):', "if p is None:"),
+    ("agent.py", 'ledger.update({"jev_calls": len(run.sends),',
+     'ledger.update({"jev_calls": sum(run.tool_calls.get(t, 0) for t in agent_tools.JEV_TOOLS),'),
 ]
 env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
 killed = 0

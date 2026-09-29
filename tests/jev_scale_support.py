@@ -6,7 +6,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from jev_platform import ask, client
+from jev_platform import ask, client, gemini
 
 GOOD = "export function prorate(a, d) { return Math.round(a * d) / 100; } // TODO rounding\n"
 PROMPTS = {"p3": "The proration test fails because of rounding. Find the file to open first.",
@@ -79,3 +79,38 @@ class Recorder:
 
 def budget(usd: float = 0.75) -> client.Budget:
     return client.Budget(usd, 600)
+
+
+USAGE = {"promptTokenCount": 100, "candidatesTokenCount": 20, "thoughtsTokenCount": 10}
+
+
+def fcall(*calls, usage=USAGE) -> dict:
+    """A Gemini reply holding function calls, each given as (name, args)."""
+    parts = [{"functionCall": {"name": n, "args": a}} for n, a in calls]
+    return {"candidates": [{"content": {"role": "model", "parts": parts}, "finishReason": "STOP"}],
+            "usageMetadata": usage}
+
+
+def ftext(text: str, usage=USAGE) -> dict:
+    return {"candidates": [{"content": {"role": "model", "parts": [{"text": text}]}, "finishReason": "STOP"}],
+            "usageMetadata": usage}
+
+
+class FakeGemini:
+    """A fake Gemini `http_post`. `replies` feed generateContent in order as (status, data) or data;
+    `counts` feed countTokens the same way and repeat the last one."""
+
+    def __init__(self, replies=(), counts=((200, {"totalTokens": 100}),)):
+        self.calls, self.replies, self.counts = [], list(replies), list(counts)
+
+    def __call__(self, url, payload, headers, timeout):
+        self.calls.append((url, payload, headers))
+        queue = self.counts if url == gemini.COUNT_URL else self.replies
+        item = queue.pop(0) if len(queue) > 1 or url != gemini.COUNT_URL else queue[0]
+        return item if isinstance(item, tuple) else (200, item)
+
+    def urls(self) -> list[str]:
+        return ["count" if u.endswith(":countTokens") else "generate" for u, _, _ in self.calls]
+
+    def generate_bodies(self) -> list[dict]:
+        return [json.loads(p) for u, p, _ in self.calls if u.endswith(":generateContent")]
