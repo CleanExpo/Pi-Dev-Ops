@@ -54,6 +54,7 @@ def test_router_error_falls_back_to_todays_context(monkeypatch, caplog):
 
 def test_daily_cap_blocks_the_call_and_is_visible(monkeypatch):
     monkeypatch.setenv("TYPESAFE_API_KEY", "not-a-real-key")
+    monkeypatch.setenv("SKILL_ROUTER_REAL_DATA_EGRESS", "approved")
     monkeypatch.setenv("SKILL_ROUTER_DAILY_CAP_USD", "0")
     called = []
     monkeypatch.setattr("scripts.mission_control_jev_shadow.evaluate", lambda *a, **k: called.append(1))
@@ -65,6 +66,7 @@ def test_shadow_never_waits_for_a_slow_jev(monkeypatch):
     """Review P1-SHADOW-BLOCKS-BRIEF: a keyed shadow brief blocked 0.33 s on a 0.25 s Jev."""
     monkeypatch.setenv("SKILL_ROUTER", "shadow")
     monkeypatch.setenv("TYPESAFE_API_KEY", "not-a-real-key")
+    monkeypatch.setenv("SKILL_ROUTER_REAL_DATA_EGRESS", "approved")
     release = threading.Event()
 
     def slow(*_a, **_k):
@@ -121,6 +123,7 @@ def test_each_call_reserves_the_worst_case_before_it_is_sent(monkeypatch):
 
     worst = RESERVED_INPUT_TOKENS_PER_CALL * USD_PER_MILLION_INPUT / 1_000_000
     monkeypatch.setenv("TYPESAFE_API_KEY", "not-a-real-key")
+    monkeypatch.setenv("SKILL_ROUTER_REAL_DATA_EGRESS", "approved")
     monkeypatch.setenv("SKILL_ROUTER_DAILY_CAP_USD", str(worst * 0.99))
     called = []
     monkeypatch.setattr("scripts.mission_control_jev_shadow.evaluate", lambda *a, **k: called.append(1))
@@ -132,6 +135,7 @@ def test_each_call_reserves_the_worst_case_before_it_is_sent(monkeypatch):
 def test_a_cap_that_is_not_a_finite_amount_means_no_jev(monkeypatch, cap):
     """Review P1-DISPATCH-NAN-BYPASSES-SPEND-CAP: NaN makes every `spent + charge > cap` false."""
     monkeypatch.setenv("TYPESAFE_API_KEY", "not-a-real-key")
+    monkeypatch.setenv("SKILL_ROUTER_REAL_DATA_EGRESS", "approved")
     monkeypatch.setenv("SKILL_ROUTER_DAILY_CAP_USD", cap)
     called = []
     monkeypatch.setattr("scripts.mission_control_jev_shadow.evaluate", lambda *a, **k: called.append(1))
@@ -151,6 +155,40 @@ def test_production_pins_an_exact_router_phrase(monkeypatch, tmp_path):
 def test_no_router_index_means_no_pins_not_an_error(monkeypatch, tmp_path):
     monkeypatch.setenv("SKILL_ROUTER_INDEX", str(tmp_path / "absent.md"))
     assert skill_routing._decide("wrap up for today").source != "pin"
+
+
+REAL_BRIEF = "Write a session handoff for client Alice Brown at 15 Queen Street, Brisbane, claim 987654."
+
+
+def test_a_real_brief_never_reaches_jev_without_founder_approval(monkeypatch):
+    """Review P1-REAL-BRIEF-EGRESS-BYPASSES-SYNTHETIC-GATE: a key alone sent the brief to TypeSafe."""
+    monkeypatch.setenv("TYPESAFE_API_KEY", "not-a-real-key")
+    monkeypatch.delenv("SKILL_ROUTER_REAL_DATA_EGRESS", raising=False)
+    sent = []
+    monkeypatch.setattr("scripts.mission_control_jev_shadow.evaluate", lambda payload, *a, **k: sent.append(payload))
+    d = skill_routing._decide(REAL_BRIEF)
+    assert sent == [] and d.source == "lexical_fallback" and d.reason == "jev_unavailable"
+
+
+@pytest.mark.parametrize("value", ["", "yes", "true", "1", "Approved "])
+def test_only_the_exact_approval_value_opens_egress(monkeypatch, value):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "not-a-real-key")
+    monkeypatch.setenv("SKILL_ROUTER_REAL_DATA_EGRESS", value)
+    assert skill_routing.live_jev() is None
+
+
+def test_approved_egress_reaches_jev(monkeypatch):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "not-a-real-key")
+    monkeypatch.setenv("SKILL_ROUTER_REAL_DATA_EGRESS", "approved")
+    sent = []
+
+    def fake(payload, *a, **k):
+        sent.append(payload)
+        raise TimeoutError("offline")
+
+    monkeypatch.setattr("scripts.mission_control_jev_shadow.evaluate", fake)
+    skill_routing._decide(REAL_BRIEF)
+    assert len(sent) == 1
 
 
 def test_unknown_mode_means_shadow(monkeypatch):

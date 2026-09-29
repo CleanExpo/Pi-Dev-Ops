@@ -5,7 +5,8 @@ shadow  (default) the router decides and logs what it would load, on a backgroun
         brief never waits; today's context is still used.
 on      the router's pick is the context: one skill body under a token budget, or nothing.
 
-Live Jev only with TYPESAFE_API_KEY in this process, a 3 s timeout and a daily dollar cap
+Live Jev only with TYPESAFE_API_KEY in this process AND SKILL_ROUTER_REAL_DATA_EGRESS=approved
+(real briefs leave for TypeSafe only on the founder's say-so), a 3 s timeout and a daily dollar cap
 (SKILL_ROUTER_DAILY_CAP_USD, default 1.0) reserved in a ledger before each call. Any Jev
 problem is a logged lexical fallback, and any router error falls back to today's context.
 """
@@ -48,10 +49,20 @@ def daily_cap() -> float | None:
     return cap if math.isfinite(cap) and cap >= 0 else None
 
 
+def real_data_egress_approved() -> bool:
+    """Sending a real brief to TypeSafe is a founder decision, not a consequence of a key being
+    present. The reused Jev client refuses non-synthetic data (REAL_DATA_EGRESS_NOT_APPROVED);
+    this path matches it until SKILL_ROUTER_REAL_DATA_EGRESS is set to exactly "approved"."""
+    return os.environ.get("SKILL_ROUTER_REAL_DATA_EGRESS", "") == "approved"
+
+
 def live_jev() -> Callable[[dict], dict] | None:
     key = os.environ.get("TYPESAFE_API_KEY", "").strip()
     cap = daily_cap()
     if not key:
+        return None
+    if not real_data_egress_approved():
+        log.info("skill_router: real-brief egress to Jev not approved; routing locally")
         return None
     if cap is None:
         log.warning("skill_router: SKILL_ROUTER_DAILY_CAP_USD is not a finite amount; Jev disabled")
