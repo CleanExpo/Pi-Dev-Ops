@@ -163,8 +163,10 @@ def chunk_rows(out: dict, chunk: list, skills: dict, args, cost: dict) -> list[d
             rows.append({**c, "picked": ["<malformed>"], "shortlist": d.shortlist, "tokens": 0})
             continue
         d = sr.apply_answer(d, ans["label"], ans["confidence"], skills, args.budget, args.min_confidence)
+        # jev_label is Jev's own answer even when the rule loads nothing, so the confidence
+        # cut-off can be tuned from saved rows without paying for another run.
         rows.append({**c, "picked": d.skills, "shortlist": d.shortlist, "tokens": d.tokens,
-                     "confidence": ans["confidence"]})
+                     "confidence": ans["confidence"], "jev_label": ans["label"]})
     return rows
 
 
