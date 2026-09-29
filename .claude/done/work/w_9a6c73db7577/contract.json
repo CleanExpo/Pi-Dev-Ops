@@ -1,0 +1,112 @@
+{
+ "schema": "done/1",
+ "work_id": "w_9a6c73db7577",
+ "version": 7,
+ "supersedes": "w_6d1ca1d5553a",
+ "goal": "v7: Jev scale \u2014 Level 9 (ask_jev_files over globs/recursive with prune + 255 cap, pick_first_file keyed by path), Level 10 (agent-written questions over approved paths + state; NO command execution, that stays under RA-7841), and a Gemini 3.8 Flash agent runner that drives those tools as in the video's lab (founder 29/09 screenshots), plus Gemini 3.8 Flash as the cheaper case writer measured against the Claude writer. Per docs/plans/jev-platform/PLAN-scale.md once Codex approves it 100/100. Carries v6 C2-C10.",
+ "created_at_utc": "2026-09-29T04:21:41Z",
+ "identity_key": "feat/jev-constitution-eval@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-constitution",
+ "baseline_observed": {
+  "head": "39f07bd38e27212e5360002a5624ad52d96ebaa6",
+  "branch": "feat/jev-constitution-eval",
+  "dirty_count": 1
+ },
+ "criteria": [
+  {
+   "id": "C1",
+   "required": true,
+   "text": "Every Jev test file passes with zero failures and at least 129 tests (v6 floor)",
+   "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_constitution_eval.py tests/test_jev_constitution_quotes.py tests/test_jev_platform_*.py -q -p no:cacheprovider > /tmp/jev_c1.txt; test $? -eq 0 && python3 -c \"import re;n=int(re.search(r'(\\d+) passed',open('/tmp/jev_c1.txt').read()).group(1));assert n>=129,n\""
+  },
+  {
+   "id": "C2",
+   "required": true,
+   "text": "questions.json holds all 538 extracted rules, each with source file:line and quote",
+   "recipe": "python3 -c \"import json;q=json.load(open('evals/jev_constitution/questions.json'))['questions'];assert len(q)==538 and all(x['source'] and x['quote'] for x in q)\""
+  },
+  {
+   "id": "C3",
+   "required": true,
+   "text": "a run with no TYPESAFE_API_KEY reports BLOCKED and exits 2",
+   "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 > /tmp/jev_c3.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c3.txt"
+  },
+  {
+   "id": "C4",
+   "required": true,
+   "text": "the metered-lane refusal in app/server/provider_policy.py is untouched vs origin/main",
+   "recipe": "git diff --quiet origin/main -- app/server/provider_policy.py"
+  },
+  {
+   "id": "C5",
+   "required": true,
+   "text": "pilot ch3-4-27 (no fabricating evidence, approvals or completed actions) has a scoreable set of >=1000 Claude+Codex-agreed cases",
+   "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness validate | grep -qE '^VALID +ch3-4-27$'"
+  },
+  {
+   "id": "C6",
+   "required": true,
+   "text": "The committed live calibration record for ch3-4-27 recomputes from its stored per-case scores and is bound to HEAD (AAA artifact rating)",
+   "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform verify-calibration --rule ch3-4-27 | grep -qE '^ch3-4-27: AAA @ [0-9a-f]{40}$'"
+  },
+  {
+   "id": "C7",
+   "required": true,
+   "text": "Every question's quote_verbatim flag matches the pinned Constitution text, and all 538 quotes are verbatim",
+   "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.quotes --repo /Users/phill-mac/Unite-Group | grep -q '^verbatim 538/538; stored flags wrong: 0$'"
+  },
+  {
+   "id": "C8",
+   "required": true,
+   "text": "Shadow mode is structurally isolated: nothing under app/ or swarm/ references jev_platform",
+   "recipe": "! git grep -q jev_platform -- app swarm"
+  },
+  {
+   "id": "C9",
+   "required": true,
+   "text": "Level 8 refuses a denied .env path (even when approved) and escaping/denied paths with zero requests sent",
+   "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_platform_ask.py -q -p no:cacheprovider -k 'denied_name_refused_even_when_approved or denied_or_escaping' | grep -qE '^9 passed'"
+  },
+  {
+   "id": "C10",
+   "required": true,
+   "text": "Level 8 with no TYPESAFE_API_KEY prints BLOCKED and exits 2",
+   "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform ask --file jev_platform/policy.py --q arch-layer 2>/tmp/jev_c10.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c10.txt"
+  },
+  {
+   "id": "C11",
+   "required": true,
+   "text": "Every guard has a mutant that a test kills: all killed, at least 28",
+   "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python tests/mutation/jev_platform_mutants.py | python3 -c \"import re,sys;m=re.search(r'^(\\d+)/(\\d+) mutants killed$',sys.stdin.read(),re.M);assert m and m.group(1)==m.group(2) and int(m.group(2))>=28\""
+  },
+  {
+   "id": "C12",
+   "required": true,
+   "text": "PLAN-scale.md is approved 100/100 by an independent Codex judge (latest judge-scale round)",
+   "recipe": "f=$(ls docs/plans/jev-platform/judge-scale-r*.md | sort -V | tail -1) && grep -q '\\*\\*100/100\\*\\*' \"$f\""
+  },
+  {
+   "id": "C13",
+   "required": true,
+   "text": "Level 9: a recursive expand over more than 255 eligible files is capped at 255 with zero sends over the cap, and pick_first returns only a path that was asked",
+   "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_platform_scale.py -q -p no:cacheprovider -k 'cap_255 or pick_first_only_real_path' | grep -qE '^[2-9][0-9]* passed|^[2-9] passed'"
+  },
+  {
+   "id": "C14",
+   "required": true,
+   "text": "The Gemini agent runner with no GEMINI_API_KEY prints BLOCKED and exits 2",
+   "recipe": "env -u GEMINI_API_KEY PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform agent --prompt 'x' 2>/tmp/jev_c14.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c14.txt"
+  },
+  {
+   "id": "C15",
+   "required": true,
+   "text": "Live Level 9 run of the three founder screenshot prompts on gemini-3.8-flash: each made >=1 Jev call; prompts 1-2 read zero files into the agent; prompt 3 opened exactly one file",
+   "recipe": "python3 -c \"import json;d=json.load(open('docs/plans/jev-platform/level9-live.json'));r=d['runs'];assert len(r)==3;assert all(x['agent_model']=='gemini-3.8-flash' and x['jev_calls']>=1 for x in r);assert r[0]['files_read']==0 and r[1]['files_read']==0 and r[2]['files_read']==1\""
+  },
+  {
+   "id": "C16",
+   "required": true,
+   "text": "Gemini writer control: a measured Codex blind-agreement rate for Gemini-written cases vs Claude-written cases on the same rule, with observed token usage (not estimated)",
+   "recipe": "python3 -c \"import json;d=json.load(open('docs/plans/jev-platform/gemini-writer-control.json'));assert d['writer_model']=='gemini-3.8-flash' and d['gemini']['proposed']>=50 and d['claude']['proposed']>=50;assert d['gemini']['usage_tokens']>0 and 0<=d['gemini']['agreement']<=1 and 'verdict' in d\""
+  }
+ ]
+}
