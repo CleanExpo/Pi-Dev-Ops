@@ -96,11 +96,19 @@ def test_a_name_instead_of_an_object_id_is_refused(tmp_path):
 
 
 def test_an_id_carrying_a_newline_cannot_desynchronise_later_reads(tmp_path):
-    new_repo(tmp_path, {"f.txt": "reviewed\n"})
-    oid = out(tmp_path, "rev-parse", "HEAD:f.txt")
+    new_repo(tmp_path, {"a.txt": "first\n", "b.txt": "second\n"})
+    a, b = out(tmp_path, "rev-parse", "HEAD:a.txt"), out(tmp_path, "rev-parse", "HEAD:b.txt")
     with committed.Objects(tmp_path) as objects:
-        assert objects.get(f"{oid}\n{oid}", b"blob") is None
-        assert objects.get(oid, b"blob") == b"reviewed\n"
+        assert objects.get(f"{a}\n{b}", b"blob") is None
+        assert objects.get(a, b"blob") == b"first\n"  # not b's reply left behind in the pipe
+
+
+def test_an_object_of_another_type_is_refused(tmp_path):
+    commit = new_repo(tmp_path, {"f.txt": "reviewed\n"})
+    with committed.Objects(tmp_path) as objects:
+        assert objects.get(out(tmp_path, "rev-parse", "HEAD:f.txt"), b"tree") is None
+        assert objects.get(commit, b"blob") is None
+    assert committed.read(tmp_path, "f.txt/inner", commit) is None  # a blob is never walked as a tree
 
 
 def test_ancestry_is_walked_through_verified_commits_only(tmp_path):
