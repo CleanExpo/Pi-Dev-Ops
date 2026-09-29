@@ -51,6 +51,12 @@ def query_tokens(text: str) -> set[str]:
     return kept or all_tokens
 
 
+def js_prefix(text: str, units: int) -> str:
+    """JavaScript's text.slice(0, units): counted in UTF-16 code units, so an emoji is 2 and a
+    cut can split its surrogate pair. Python's text[:units] counts code points and reads further."""
+    return text.encode("utf-16-le", "surrogatepass")[: units * 2].decode("utf-16-le", "surrogatepass")
+
+
 @dataclass(frozen=True)
 class Candidate:
     name: str
@@ -60,7 +66,7 @@ class Candidate:
 
     @classmethod
     def from_parts(cls, name: str, description: str, body: str) -> "Candidate":
-        hay = "\n".join([name, description, body[:BODY_SCORE_CHARS]]).lower()
+        hay = "\n".join([name, description, js_prefix(body, BODY_SCORE_CHARS)]).lower()
         return cls(name, description, hay, frozenset(tokens(hay)))
 
 
@@ -188,6 +194,10 @@ def route(
     pinned = (pins or {}).get(text.lower().strip())
     if pinned and pinned in skills:
         return _load(RouteDecision(source="pin", reason="router_phrase"), pinned, skills, budget_tokens)
+    if pinned:
+        # The router names a skill this process does not carry. A lexical guess would load the
+        # wrong one with confidence; load nothing and say which skill was missing.
+        return RouteDecision(reason=f"pin_target_unavailable:{pinned}")
 
     short = shortlist(text, catalogue, min(k, MAX_OPTIONS))
     decision = RouteDecision(shortlist=[n for n, _ in short])

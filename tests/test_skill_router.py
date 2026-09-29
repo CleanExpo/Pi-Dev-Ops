@@ -128,6 +128,26 @@ def test_router_pins_read_the_one_table_like_the_library_does():
     assert sr.router_pins("no table here") == {}
 
 
+@pytest.mark.parametrize("body,js_score", [
+    ("\U0001F600" * 4000 + " target" + "\U0001F600" * 1000, 0),
+    ("\U0001F600" * 3999 + " target" + " tail", 0),
+    ("a" * 7990 + " target", 6.447213595499958),
+    ("\U0001F600" * 3997 + "x target", 0),
+])
+def test_body_prefix_is_cut_in_utf16_units_like_lib_mjs(body, js_score):
+    """Review P1-SCORER-UTF16-PREFIX-DIVERGENCE. js_score is lib.mjs scoreItem's output for the same
+    item under Node 22 (body.slice(0, 8000) counts UTF-16 units, so an emoji is 2)."""
+    c = sr.Candidate.from_parts("demo", "A demo skill.", body)
+    assert sr.score(c, sr.query_tokens("target"), "target") == pytest.approx(js_score)
+
+
+def test_a_pin_whose_skill_is_not_loaded_here_loads_nothing_and_says_so():
+    """Review P1-PRODUCTION-CATALOGUE-DROPS-LOCKED-PIN-TARGETS: it fell through to a lexical guess."""
+    d = sr.route("quality checks failed", catalogue=_cat(), skills=SKILLS, jev=_jev_picking("seo"),
+                 pins={"quality checks failed": "ci-quality-parity"})
+    assert d.skills == [] and d.source == "none" and d.reason == "pin_target_unavailable:ci-quality-parity"
+
+
 @pytest.mark.parametrize("budget", [0, 1, 2, 3, 5, 7, 8, 9, 20])
 def test_a_budget_too_small_for_the_cut_mark_is_never_exceeded(budget):
     d = sr.route("hand off this session now", catalogue=_cat(), skills=SKILLS, jev=_jev_picking("session-handoff"),
