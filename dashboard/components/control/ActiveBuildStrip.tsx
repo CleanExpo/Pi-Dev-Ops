@@ -107,9 +107,11 @@ function BuildRow({ s }: { s: Session }) {
       }}
     >
       <div className="flex items-center gap-3 text-[11px] font-mono">
-        {/* Pulsing amber dot = live */}
+        {/* Pulsing amber dot = live. Decorative: the phase text beside it
+            says the same thing, and aria-label on a role-less span is
+            prohibited (axe aria-prohibited-attr, RA-7843). */}
         <span
-          aria-label="building"
+          aria-hidden="true"
           style={{
             width: 8,
             height: 8,
@@ -137,7 +139,12 @@ function BuildRow({ s }: { s: Session }) {
             signals "working, phase unknown" without faking a percentage.
           - determinate mode: filled to pct% based on last-known phase. */}
       <div
-        aria-label={indeterminate ? "building — working" : `${phaseLabel(s.last_phase)} — ${pct}%`}
+        role="progressbar"
+        aria-label="Build progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={indeterminate ? undefined : pct}
+        aria-valuetext={indeterminate ? "working" : `${phaseLabel(s.last_phase)} — ${pct}%`}
         style={{
           height: 6,
           borderRadius: 3,
