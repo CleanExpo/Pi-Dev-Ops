@@ -50,8 +50,9 @@ COUNT_CAP = 2 * TURN_CAP
 MAX_RETRIES = 2
 RETRY_STATUSES = (429, 503)
 # An agent turn after the first reserves the provider input ceiling (below), about US$0.79 at the dearest
-# row, so a run cap must hold one such reservation. Unused reservation settles back after each reply.
-RUN_CAP_USD = 1.00
+# row. A failed attempt keeps its reservation, so the cap holds every attempt one turn may make
+# (1 + MAX_RETRIES). Unused reservation settles back after each reply.
+RUN_CAP_USD = 2.50
 WRITER_CAP_USD = 1.00
 REQUEST_TIMEOUT = 60.0
 KEY_ROUTE = "cd ~/Pi-Dev-Ops/dashboard && vercel env run -e production -- <command>"

@@ -85,6 +85,7 @@ MUTANTS = [
     ("gemini.py", "            return expired\n        counted, problem, status", "            pass\n        counted, problem, status"),
     ("gemini.py", "            return expired\n        reserved = ", "            pass\n        reserved = "),
     ("gemini.py", "for v in (prompt, cands, thoughts))", "for v in (prompt, cands))"),
+    ("gemini.py", "RUN_CAP_USD = 2.50", "RUN_CAP_USD = 1.00"),
     ("gemini.py", "                budget.lock_model(model, price_table(on, model))\n", "                pass\n"),
     ("gemini.py", 'payload = json.dumps({**body, "model": f"models/{model}"}).encode()',
      "payload = json.dumps(body).encode()"),

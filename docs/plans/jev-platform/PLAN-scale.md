@@ -645,3 +645,27 @@ The duplicate lock guard, which had made two mutants unkillable, was removed.
 - the reservation uses the estimate instead of the ceiling
 - each of the two per-send price checks removed
 - malformed thinking treated as readable
+
+## Rev 6e change: the run cap holds one turn's full retry allowance (live evidence, 29/09 17:07)
+
+This change follows judge-scale-rev6b-r3 (100/100), which noted that "an uncertain multi-turn
+attempt can consume enough reservation to prevent retry". The first live runs on the chain showed
+it.
+
+- **What happened.** `scr1-known-issues` (locked to 3.8-flash) and `scr2-auth-layer` (locked to
+  3.7-flash) each had a multi-turn generate attempt return no usage.
+  - The attempt kept its ceiling reservation (US$0.794), as rev 5 requires.
+  - The retry could not fit under the US$1.00 cap, so the run ended `incomplete: cap:
+    reservation over the run cap`.
+  - `scr3-proration` (locked to 3.6-flash) completed: 4 turns, 14 Jev calls, 1 file read.
+- **Change.**
+  - `RUN_CAP_USD` goes from 1.00 to **2.50**, which holds `(1 + MAX_RETRIES) x ceiling` =
+    3 x US$0.794 = US$2.382.
+  - It remains a hard pre-send ceiling, not an expected spend. Settled spend on the completed
+    live run was about US$0.06.
+  - Every other rule is unchanged: a failed attempt still keeps its reservation.
+- **Tests:**
+  - the cap covers every ceiling attempt one turn may make, at the dearest chain row
+  - a 503 on a multi-turn attempt keeps its reservation and the retry still fits. This fails
+    under the old US$1.00 cap.
+- **Mutant:** the cap back at 1.00.

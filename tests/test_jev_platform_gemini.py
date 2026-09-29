@@ -339,3 +339,15 @@ def test_malformed_thinking_refuses_the_next_multi_turn_call():
     fake = FakeGemini([ftext("done")])
     assert gemini.call(two, KEY, b, fake, **NO_SLEEP) == {"error": "thinking tokens unreported: input cannot be bounded"}
     assert fake.calls == []
+
+
+def test_run_cap_holds_every_ceiling_attempt_one_turn_may_make():
+    ceiling = max(gemini.INPUT_TOKEN_LIMIT[m] * gemini.PRICES[m]["in"] + gemini.MAX_OUTPUT_TOKENS * gemini.PRICES[m]["out"]
+                  for m in gemini.CHAIN)
+    assert gemini.RUN_CAP_USD >= (1 + gemini.MAX_RETRIES) * ceiling
+
+
+def test_a_failed_multi_turn_attempt_keeps_its_reservation_and_the_retry_still_fits():
+    b, two = _turn2({"promptTokenCount": 100, "candidatesTokenCount": 10})
+    fake = FakeGemini([(503, None), ftext("done", usage={"promptTokenCount": 100, "candidatesTokenCount": 5})])
+    assert "data" in gemini.call(two, KEY, b, fake, **NO_SLEEP) and fake.urls() == ["count", "generate"] * 2
