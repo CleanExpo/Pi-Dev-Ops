@@ -51,7 +51,9 @@ describe("RoutineTable", () => {
   it("EMPTY: shows the explicit no-runs copy", async () => {
     fetchProxyJSON.mockResolvedValue({ runs: [], total: 0 });
     render(<RoutineTable />);
-    expect(await screen.findByText("No runs recorded yet.")).toBeTruthy();
+    const empty = await screen.findByText("No runs recorded yet.");
+    expect(empty.closest("[data-mc-empty]")?.getAttribute("data-mc-empty")).toBe("no-routine-reports");
+    expect(screen.getByText(/built-in\s+scheduler.s jobs do not/)).toBeTruthy();
     expect(screen.queryByText("Loading…")).toBeNull();
   });
 
@@ -60,6 +62,7 @@ describe("RoutineTable", () => {
     render(<RoutineTable />);
     expect(await screen.findByText("Pi-CEO backend unreachable")).toBeTruthy();
     expect(screen.queryByText("No runs recorded yet.")).toBeNull();
+    expect(document.querySelector("[data-mc-empty], [data-mc-data]")).toBeNull();
     expect(screen.queryByText("Loading…")).toBeNull();
   });
 

@@ -95,11 +95,11 @@ def save_session(session) -> None:
     # RA-1407 — dual-write to Supabase for cross-deploy persistence (Option B).
     # Local JSON above remains the canonical local cache; Supabase is the
     # cross-deploy source of truth so a fresh Railway container can resume
-    # interrupted sessions. Both writes are fire-and-forget so a Supabase
-    # outage cannot block the build pipeline (RA-1109).
+    # interrupted sessions. On the event loop the network write is queued to a
+    # worker thread, so a slow Supabase cannot freeze the server (RA-7845).
     try:
-        from . import supabase_log
-        supabase_log.save_session_checkpoint(session)
+        from . import checkpoint_queue
+        checkpoint_queue.save_checkpoint(session)
     except Exception:
         pass
 
