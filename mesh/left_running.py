@@ -28,6 +28,10 @@ def _alive_windows(pid: int) -> bool:
         return True
     import ctypes
     k32 = ctypes.windll.kernel32
+    k32.OpenProcess.restype = ctypes.c_void_p  # a HANDLE is pointer-sized; the default int truncates it
+    k32.OpenProcess.argtypes = (ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32)
+    k32.GetExitCodeProcess.argtypes = (ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong))
+    k32.CloseHandle.argtypes = (ctypes.c_void_p,)
     handle = k32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
     if not handle:
         return k32.GetLastError() != 87  # ERROR_INVALID_PARAMETER: no such process
