@@ -98,7 +98,7 @@ def test_hub_receipt_maps_to_mc00_and_its_level_two_is_not_measured(tmp_path: Pa
 
 def test_mission_control_level_is_the_lowest_surface(monkeypatch: pytest.MonkeyPatch) -> None:
     levels = iter([3] * 19 + [1])
-    monkeypatch.setattr(sc, "score_surface", lambda s, r: {"surface": s, "level": next(levels)})
+    monkeypatch.setattr(sc, "score_surface", lambda s, r, *_: {"surface": s, "level": next(levels)})
     assert sc.build_scorecard({})["mission_control_level"] == 1
 
 
