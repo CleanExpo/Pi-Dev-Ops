@@ -13,7 +13,9 @@ export default function ControlPageFrame({
   children: ReactNode;
 }) {
   return (
-    <div className="flex-1 overflow-auto min-h-0">
+    // tabIndex: a scrolling region must be keyboard-reachable when its content
+    // has no focusable element (axe scrollable-region-focusable, RA-7843).
+    <div className="flex-1 overflow-auto min-h-0" role="region" aria-label={title} tabIndex={0}>
       <header className={styles.hero}>
         <div>
           <div className={styles.kicker}>{kicker}</div>

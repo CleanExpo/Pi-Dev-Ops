@@ -95,7 +95,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {/* Logo */}
         <Link
           href="/"
-          className="flex items-center justify-center lg:justify-start gap-2.5 px-0 lg:px-4 h-[52px] shrink-0 hover:opacity-80 transition-opacity"
+          className="flex items-center justify-center lg:justify-start gap-2.5 px-0 lg:px-4 h-[52px] shrink-0 hover:bg-[var(--panel-hover)] transition-colors"
           style={{ borderBottom: "1px solid var(--border)" }}
         >
           <span
