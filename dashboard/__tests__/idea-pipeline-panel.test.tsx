@@ -31,7 +31,7 @@ function snapshot(overrides: Record<string, unknown> = {}) {
   return {
     snapshot: {
       intake: "IDEAS.md",
-      north_star: "empower small business owners to grow, self-paced, all learning styles",
+      north_star: "Build a group of businesses, people and systems that earn trust when conditions are hardest.",
       awaiting: 1,
       packet: packet(),
       verdicts: ["BACKLOG", "KILL", "PARK", "PROMOTE"],
@@ -73,6 +73,14 @@ describe("Idea pipeline Board packet", () => {
     expect(screen.getByRole("button", { name: "PARK" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "KILL" })).toBeTruthy();
     expect((screen.getByRole("button", { name: "GO" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("marks an earlier North Star packet as requiring re-examination", async () => {
+    mockFetch(() => snapshot());
+    render(<IdeaPipelinePanel />);
+    fireEvent.click(await screen.findByText(/Board packet · awaiting_dispose/));
+    expect(await screen.findByText(/Legacy packet under an earlier North Star/)).toBeTruthy();
+    expect(screen.queryByText(/Judge 78 APPROVE_EXPERIMENT/)).toBeNull();
   });
 
   it("EMPTY: empty intake shows the direct idea composer", async () => {
