@@ -2,13 +2,22 @@
 it loads today (scripts/sync_skills_library.py, src/tao/skills.py)."""
 import json
 import os
+import subprocess
 
 import pytest
 
 from scripts import sync_skills_library as sync
 from src.tao import skills as tao_skills
 
-SHA = "a" * 40
+
+
+def _commit(lib):
+    """Commit the library checkout as it stands; return the commit."""
+    def git(*args):
+        return subprocess.run(["git", "-C", str(lib), *args], capture_output=True, text=True, check=True).stdout
+    git("add", "-A")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x")
+    return git("rev-parse", "HEAD").strip()
 
 
 def _skill(root, name, body="Body.", description="Does a thing.", fm_name=None):
@@ -28,19 +37,33 @@ def library(tmp_path):
     (skills / "alpha" / "tests" / "fixture.py").write_text("FAKE_KEY = 'sk-not-real'")
     (skills / "alpha" / "test_alpha.py").write_text("def test(): pass")
     (skills / "index.md").write_text("| \"say alpha\" | `alpha` |\n")
+    for shared in ("README.md", "CLAUDE.md", "library/connections.md"):
+        (skills / shared).parent.mkdir(exist_ok=True)
+        (skills / shared).write_text("Shared.")
     homes = {"alpha": "library", "beta": "library", "vendored": "pi-dev-ops", "local-only": "machine-local"}
     (skills / "HOMES.json").write_text(json.dumps({"homes": homes, "aliases": {}}))
+    subprocess.run(["git", "init", "-q", str(tmp_path / "lib")], check=True)
     return tmp_path / "lib"
 
 
 @pytest.fixture()
-def layout(tmp_path, library):
+def held_back(tmp_path, monkeypatch):
+    """The test layout's own held-back list, empty unless a test writes one."""
+    path = tmp_path / "held-back.txt"
+    path.write_text("")
+    monkeypatch.setattr(sync, "HELD_BACK", path)
+    return path
+
+
+@pytest.fixture()
+def layout(tmp_path, library, held_back):
     dest, lock, pdo = tmp_path / "pdo" / "skills-library" / "skills", tmp_path / "pdo" / "lock", tmp_path / "pdo" / "skills"
     _skill(pdo, "vendored")
-    sync.sync(library, SHA, dest=dest, lock=lock)
+    sha = _commit(library)
+    sync.sync(library, sha, dest=dest, lock=lock)
     baseline = tmp_path / "baseline.txt"
     baseline.write_text("")
-    return {"dest": dest, "lock": lock, "pdo": pdo, "baseline": baseline, "library": library}
+    return {"dest": dest, "lock": lock, "pdo": pdo, "baseline": baseline, "library": library, "sha": sha}
 
 
 def _check(lay):
@@ -48,7 +71,7 @@ def _check(lay):
 
 
 def _resync(lay):
-    sync.sync(lay["library"], SHA, dest=lay["dest"], lock=lay["lock"])
+    sync.sync(lay["library"], _commit(lay["library"]), dest=lay["dest"], lock=lay["lock"])
 
 
 def test_this_repos_copy_is_clean():
@@ -56,22 +79,50 @@ def test_this_repos_copy_is_clean():
     assert sync.check() == []
 
 
-def test_sync_copies_whole_library_skills_without_their_tests(layout):
-    """Review round 1 P1-DEPENDENT-FILES-OMITTED: SKILL.md alone left out files the body requires."""
+def test_sync_copies_whole_library_skills_with_their_tests(layout):
+    """Review round 1 P1-DEPENDENT-FILES-OMITTED: SKILL.md alone left out files the body requires.
+    Round 2 P1-REQUIRED-SKILL-CONTROLS-OMITTED: so did leaving out the tests a body says to run."""
     dest = layout["dest"]
-    assert sorted(p.name for p in dest.iterdir()) == ["HOMES.json", "alpha", "beta", "index.md"]
+    assert sorted(p.name for p in dest.iterdir()) == ["CLAUDE.md", "HOMES.json", "README.md", "alpha", "beta",
+                                                      "index.md", "library"]
+    assert (dest / "library" / "connections.md").is_file()
     assert (dest / "alpha" / "references" / "contract.md").read_text() == "Read me first."
-    assert not (dest / "alpha" / "tests").exists() and not (dest / "alpha" / "test_alpha.py").exists()
+    assert (dest / "alpha" / "tests" / "fixture.py").is_file() and (dest / "alpha" / "test_alpha.py").is_file()
     manifest = json.loads((dest.parent / "MANIFEST.json").read_text())
-    assert manifest["sha"] == SHA and "alpha/references/contract.md" in manifest["files"]
-    assert layout["lock"].read_text() == SHA + "\n"
+    assert manifest["sha"] == layout["sha"] and "alpha/references/contract.md" in manifest["files"]
+    assert layout["lock"].read_text() == layout["sha"] + "\n"
     assert _check(layout) == []
+
+
+def test_a_held_back_skill_is_not_copied_and_must_be_a_library_skill(layout, held_back):
+    """Review round 2 P1-REPO-SECRETS-GATE-FAILS: a skill whose files fail the repo's secrets gate
+    stays out of the copy; the gate itself is not touched."""
+    held_back.write_text("beta  # example values\n")
+    _resync(layout)
+    assert not (layout["dest"] / "beta").exists() and _check(layout) == []
+    held_back.write_text("beta\nvendored  # not a library skill\n")
+    assert "vendored: listed in held-back.txt but its home is not library; remove the line" in _check(layout)
+    held_back.write_text("")
+    assert "home=library but not copied: beta" in _check(layout)
 
 
 def test_sync_replaces_what_was_there(layout):
     (layout["dest"] / "stale").mkdir()
     _resync(layout)
     assert not (layout["dest"] / "stale").exists()
+
+
+def test_sync_refuses_a_checkout_that_is_not_the_pinned_commit(layout):
+    """With no workflow checking out <sha>, the script itself must: the lock would otherwise name
+    a commit the copy was not taken from."""
+    lib, before = layout["library"], layout["sha"]
+    (lib / "skills" / "alpha" / "SKILL.md").write_text("---\nname: alpha\ndescription: x\n---\nEdited.\n")
+    with pytest.raises(ValueError, match="clean checkout"):
+        sync.sync(lib, before, dest=layout["dest"], lock=layout["lock"])
+    _commit(lib)
+    with pytest.raises(ValueError, match="clean checkout"):
+        sync.sync(lib, before, dest=layout["dest"], lock=layout["lock"])
+    assert layout["lock"].read_text() == before + "\n"
 
 
 def test_sync_refuses_a_bad_sha_and_symlinks_at_any_level(layout, tmp_path):
@@ -178,9 +229,9 @@ def test_mission_control_now_sees_the_library():
 
 
 def test_a_routed_library_skill_can_reach_the_files_its_body_names(monkeypatch, tmp_path):
-    """Review round 1 P1-DEPENDENT-FILES-OMITTED: "run overnight" pins shipyard, whose body says to
-    read references/autonomous-run-contract.md first. The loaded context names the skill's folder,
-    and the file is there."""
+    """Review round 1 P1-DEPENDENT-FILES-OMITTED: "board review" pins ceo-board, whose body names
+    references/board-members.md. The loaded context names the skill's folder, and the file is there.
+    (It was shipyard until round 2 held that skill back; see .github/skills-library-held-back.txt.)"""
     import re
     from pathlib import Path
 
@@ -192,8 +243,8 @@ def test_a_routed_library_skill_can_reach_the_files_its_body_names(monkeypatch, 
     monkeypatch.setattr(skill_routing, "_CATALOGUE", None)
     monkeypatch.setattr(skill_routing, "_PINS", None)
     tao_skills.invalidate_cache()
-    context = skill_routing.skill_context("run overnight", "feature")
-    assert "### Skill: shipyard" in context
+    context = skill_routing.skill_context("board review", "feature")
+    assert "### Skill: ceo-board" in context
     folder = re.search(r"This skill's files are in (.+?); paths", context).group(1)
-    assert "references/autonomous-run-contract.md" in context
-    assert (Path(folder) / "references" / "autonomous-run-contract.md").is_file()
+    assert "references/board-members.md" in context
+    assert (Path(folder) / "references" / "board-members.md").is_file()

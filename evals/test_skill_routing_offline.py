@@ -2,9 +2,9 @@
 
 Covers every held-out case, both homes: the library's own skills are in skills-library/
 (scripts/sync_skills_library.py), so the catalogue here is the one production routes over
-(352 skills). The live Jev score comes from .github/workflows/skill-routing-eval.yml.
-Floors sit just under the 29/09/2026 measurement on that catalogue (744 held-out cases:
-top-1 0.273, recall@254 0.968), so a scoring change that makes the free shortlist worse
+(348 skills; four library skills are held back). The live Jev score comes from
+.github/workflows/skill-routing-eval.yml. Floors sit just under the 29/09/2026 measurement on that
+catalogue (736 held-out cases: top-1 0.273, recall@254 0.969), so a scoring change that makes the free shortlist worse
 fails here. Before the library was synced, only this repo's 175 skills were scored (0.305 /
 0.980 over 440 cases); more lookalike skills make the same cases harder, not the scorer worse.
 """
@@ -14,11 +14,16 @@ from pathlib import Path
 
 import pytest
 
+from scripts import sync_skills_library as library_sync
 from src.tao import skill_router as sr
 from src.tao import skills as tao_skills
 
 CORPUS = Path(__file__).parent / "skill_routing" / "corpus.jsonl"
 ROWS = [json.loads(line) for line in CORPUS.read_text("utf-8").splitlines() if line.strip()]
+# Library skills kept out of this image (.github/skills-library-held-back.txt) are still in the
+# corpus, which the Jev bench scores against the full library; this free check scores what loads.
+HELD_BACK = library_sync._baseline(library_sync.HELD_BACK) or set()
+LOADABLE = [r for r in ROWS if r["expected"] not in HELD_BACK]
 
 
 @pytest.fixture(scope="module")
@@ -37,12 +42,12 @@ def test_corpus_is_well_formed():
 
 def test_every_skill_label_exists(catalogue):
     names = {c.name for c in catalogue}
-    missing = {r["expected"] for r in ROWS if r["expected"]} - names
+    missing = {r["expected"] for r in LOADABLE if r["expected"]} - names
     assert missing == set(), f"corpus labels skills Mission Control cannot load: {sorted(missing)}"
 
 
 def test_free_shortlist_holds_the_right_skill(catalogue):
-    held = [r for r in ROWS if r["split"] == "heldout" and r["expected"]]
+    held = [r for r in LOADABLE if r["split"] == "heldout" and r["expected"]]
     assert len(held) >= 700, "the held-out set shrank; re-measure before trusting the floors"
     top1 = recall = 0
     for r in held:
