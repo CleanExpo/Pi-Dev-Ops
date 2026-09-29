@@ -235,11 +235,16 @@ def _gql(api_key: str, query: str, variables: dict | None = None, *, timeout: in
     except urllib.error.HTTPError as exc:
         if exc.code == 429:
             raise _mark_linear_rate_limited() from None
-        body = exc.read(4096).decode("utf-8", errors="replace")
+        # GraphQL can return quota errors as HTTP 400 with earlier, long errors.
+        # Read a bounded complete envelope; an oversized response is unknown, so
+        # stop further Linear requests instead of treating truncation as nonquota.
+        raw = exc.read(65537)
+        if len(raw) > 65536:
+            raise _mark_linear_rate_limited() from None
         try:
-            if _has_linear_rate_limit_error(json.loads(body)):
+            if _has_linear_rate_limit_error(json.loads(raw)):
                 raise _mark_linear_rate_limited() from None
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             pass
         raise RuntimeError(f"Linear HTTP {exc.code}") from None
     if _has_linear_rate_limit_error(data):

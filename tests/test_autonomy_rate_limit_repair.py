@@ -59,6 +59,38 @@ def test_graphql_400_quota_stops_without_response_body(monkeypatch):
     assert autonomy.linear_rate_limited()
 
 
+def test_long_graphql_400_quota_stops_portfolio_after_first_request(monkeypatch):
+    payload = json.dumps({"errors": [
+        {"message": "x" * 4200},
+        {"message": "customer@example.com", "extensions": {"code": "RATELIMITED"}},
+    ]}).encode()
+    calls = []
+    def reject(*_args, **_kwargs):
+        calls.append(1)
+        raise _http_error(400, payload)
+    monkeypatch.setattr(autonomy.urllib.request, "urlopen", reject)
+    monkeypatch.setattr(autonomy, "_load_portfolio_projects", lambda: [{
+        "project_id": "a", "repo_url": "https://example.test/a", "team_id": "t", "name": "A",
+    }])
+
+    with pytest.raises(autonomy.LinearRateLimitError) as caught:
+        autonomy.fetch_todo_issues("test-key")
+    assert calls == [1]
+    assert "customer@example.com" not in str(caught.value)
+    assert autonomy.linear_rate_limited()
+
+
+def test_oversized_http_error_stops_without_logging_body(monkeypatch):
+    payload = b"customer@example.com" + b"x" * 65537
+    def reject(*_args, **_kwargs):
+        raise _http_error(400, payload)
+    monkeypatch.setattr(autonomy.urllib.request, "urlopen", reject)
+    with pytest.raises(autonomy.LinearRateLimitError) as caught:
+        autonomy._gql("test-key", "query { viewer { id } }")
+    assert "customer@example.com" not in str(caught.value)
+    assert autonomy.linear_rate_limited()
+
+
 def test_nonquota_vendor_errors_do_not_expose_response_bodies(monkeypatch):
     secret = b"customer@example.com Bearer secret-private-token"
     monkeypatch.setattr(autonomy.urllib.request, "urlopen", lambda *_a, **_kw: (
