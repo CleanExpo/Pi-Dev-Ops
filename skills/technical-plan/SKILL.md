@@ -1,6 +1,6 @@
 ---
 name: technical-plan
-description: Technical planner. Reads a spec.md and produces a concrete implementation plan: files to change, approach, effort sizing, dependency order, risk flags, and test plan stub. Output is a plan.md ready for the /build phase.
+description: Technical planner. Reads a spec.md and produces a concrete implementation plan — files to change, approach, effort sizing, dependency order, risk flags, and test plan stub. Output is a plan.md ready for the /build phase.
 ---
 
 # Technical Plan Skill
