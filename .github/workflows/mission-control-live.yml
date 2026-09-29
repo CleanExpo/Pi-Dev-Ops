@@ -2,7 +2,8 @@
 # docs/plans/mission-control/work-packages.md. Signs in with the real login
 # route and writes one JSON receipt per surface: MC checks 1, 2, 4 (WP-06) at
 # desktop and phone size (check 9), plus Level 2 checks 5, 6, 8 (WP-09), and
-# check 7 from the panel tests (scripts/mission_control_panel_coverage.py).
+# check 7 from the panel tests (scripts/mission_control_panel_coverage.py) and
+# check 11 from the register and open Linear defect tickets.
 # Without DASHBOARD_PASSWORD it reports NOT_RUN and fails loudly — a missing
 # secret must never look like a passing suite (RA-7832).
 name: Mission Control live
@@ -98,6 +99,17 @@ jobs:
             || echo "some vitest tests failed; failing tests do not count toward check 7"
           python3 ../scripts/mission_control_panel_coverage.py vitest-panels.json e2e-live-receipts \
             --registry e2e-live/panel-coverage.json --dashboard .
+
+      # AAA check 11: nothing documented broken. Reads the coverage register
+      # and open Linear issues labelled mc-defect; writes MC-xx-C11.json.
+      # Without LINEAR_API_KEY the ticket half is UNKNOWN and check 11 reads
+      # "not measured" (scripts/mission_control_register.py).
+      - name: Read the register and open defect tickets (check 11)
+        if: always() && steps.suite.outcome != 'skipped'
+        working-directory: .
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: python3 scripts/mission_control_register.py dashboard/e2e-live-receipts
 
       # AAA check 10: stable over three consecutive scheduled (nightly) runs.
       # Downloads the scorecards of the last three completed scheduled runs,

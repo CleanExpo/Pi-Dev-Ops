@@ -122,4 +122,9 @@ run downloads the last three scheduled runs' scorecards and a surface meets chec
 last three scheduled runs all passed for it on their first attempt
 (`scripts/mission_control_stability.py`). A scheduled run that left no scorecard breaks the streak,
 and a manual run never counts toward it. Scheduled runs before this change recorded no scorecard,
-so check 10 reads "not measured" until three nightly runs have run with it.
+so check 10 reads "not measured" until three nightly runs have run with it. Check 11 is measured too
+(`scripts/mission_control_register.py`): a surface fails when its row in
+[coverage-register.md](coverage-register.md) is CONFLICTING or STRUCTURAL_ONLY or missing, or when
+an open Linear issue labelled `mc-defect` names it as `MC-xx` (an issue naming no surface counts
+against all of them). Without `LINEAR_API_KEY` the ticket half is unread and check 11 reads "not
+measured".
