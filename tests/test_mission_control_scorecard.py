@@ -137,3 +137,10 @@ def test_write_surface_with_real_data_is_still_blocked_by_write_journeys(tmp_pat
     row = sc.score_surface("MC-02", sc.load_receipts(tmp_path))
     assert row["checks"]["1"]["met"] is True
     assert row["blocked_by"].startswith("check 3: not measured")
+
+
+def test_hub_real_data_result_measures_mc00_check_one(tmp_path: Path) -> None:
+    _receipt(tmp_path, "control-hub", {"1-signed-in-hub": "PASS", "1-nav-labels": "PASS",
+                                       "1-real-data": "PASS", "2-no-hidden-refusals": "PASS"})
+    row = sc.score_surface("MC-00", sc.load_receipts(tmp_path))
+    assert row["checks"]["1"]["met"] is True

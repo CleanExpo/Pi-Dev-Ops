@@ -8,6 +8,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import AgentRolesPanel from "@/components/control/AgentRolesPanel";
 import CuratorProposalsPanel from "@/components/control/CuratorProposalsPanel";
 import HealthGrid from "@/components/control/HealthGrid";
 import SwarmPanel from "@/components/control/SwarmPanel";
@@ -126,5 +127,22 @@ describe("check 1 markers", () => {
     render(<TerminalPanel />);
     await screen.findByText(/No sessions —/);
     expect(marks("data-mc-empty")).toHaveLength(0);
+  });
+
+  it("roles: live sessions stop counting once a refresh fails (rows stay on screen)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let calls = 0;
+    stubFetch(() => {
+      calls += 1;
+      return calls === 1
+        ? jsonResponse([{ id: "s1", repo: "CleanExpo/Pi-Dev-Ops", status: "building", started: Date.now() / 1000 }])
+        : jsonResponse({ detail: "down" }, 503);
+    });
+    render(<AgentRolesPanel />);
+    await waitFor(() => expect(marks("data-mc-data")).toHaveLength(1));
+    await vi.advanceTimersByTimeAsync(5_100);
+    await screen.findByText(/retrying every 5s/);
+    expect(marks("data-mc-data")).toHaveLength(0);
+    vi.useRealTimers();
   });
 });

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { MISSION_HOME_LINKS } from "../lib/control/mission-home-links";
 import { collectFailures, signIn, writeReceipt, type CheckResult } from "./live-session";
 import { settle } from "./page-state";
+import { checkRealData } from "./real-data";
 
 // Register row MC-00 / promise P01: the signed-in hub renders its real
 // navigation, and nothing the page asks for is refused. Since #828 the hub's
@@ -36,6 +37,11 @@ test("Mission Control hub renders for a signed-in user with no refused requests"
     result: missing.length === 0 ? "PASS" : "FAIL",
     detail: missing.length === 0 ? `${MISSION_HOME_LINKS.length} labels visible` : `missing: ${missing.join(", ")}`,
   });
+
+  // The hub is /control, where PortfolioFocus renders the portfolio from the
+  // projects source. Without this result the scorer leaves MC-00, and so all of
+  // Mission Control, unmeasured on check 1.
+  checks.push(await checkRealData(page));
 
   checks.push({
     check: "2-no-hidden-refusals",
