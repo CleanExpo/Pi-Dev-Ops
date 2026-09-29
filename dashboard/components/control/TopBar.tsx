@@ -4,20 +4,21 @@
 import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import ProjectSelector from "./ProjectSelector";
+import { BRISBANE_LABEL, brisbaneTime } from "@/lib/brisbane-time";
 
 interface ZteData {
   model: string;
   model_id: string;
 }
 
+// Empty until mounted: the server's render and the browser's first render
+// would otherwise differ by the seconds between them (hydration mismatch).
 function useLiveClock(): string {
-  const [time, setTime] = useState(() =>
-    new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-  );
+  const [time, setTime] = useState("");
   useEffect(() => {
-    const t = setInterval(() => {
-      setTime(new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-    }, 1000);
+    const tick = () => setTime(`${brisbaneTime(new Date(), true)} ${BRISBANE_LABEL}`);
+    tick();
+    const t = setInterval(tick, 1000);
     return () => clearInterval(t);
   }, []);
   return time;
@@ -91,8 +92,7 @@ export default function TopBar() {
         <span
           className="hidden sm:inline text-[11px] font-mono tabular-nums"
           style={{ color: "var(--text-dim)" }}
-          aria-live="polite"
-          aria-atomic="true"
+          title="Brisbane time"
         >
           {clock}
         </span>

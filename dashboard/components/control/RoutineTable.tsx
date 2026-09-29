@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { brisbaneDateTime } from "@/lib/brisbane-time";
 
 interface RoutineRun {
   routine_name: string;
@@ -39,12 +40,7 @@ const STATUS_ICON: Record<string, string> = {
 function fmtTs(ts: string): string {
   if (!ts) return "—";
   try {
-    return new Date(ts).toLocaleString(undefined, {
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return brisbaneDateTime(ts);
   } catch {
     return ts;
   }

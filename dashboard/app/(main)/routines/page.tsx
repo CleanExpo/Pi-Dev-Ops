@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { fetchProxy } from "@/lib/pi-ceo-fetch";
 import {
-  ROUTINES_LIST_NOTE, STATUS_COLOR, STATUS_ICON, TRIGGER_LABEL, fmtDuration, fmtTs, repoShort,
+  ROUTINES_LIST_NOTE, STATUS_COLOR, STATUS_ICON, TRIGGER_LABEL, fmtClock, fmtDuration, fmtTs, repoShort,
 } from "@/lib/control/routine-format";
 
 interface RoutineRun {
@@ -232,7 +232,7 @@ export default function RoutinesPage() {
         <div className="flex items-center gap-3">
           {lastFetch > 0 && (
             <span className="font-mono text-[10px] hidden sm:inline" style={{ color: "var(--text-dim)" }}>
-              {new Date(lastFetch).toLocaleTimeString()}
+              {fmtClock(lastFetch)}
             </span>
           )}
           <button

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { repoShort } from "@/lib/control/overview-format";
 import { automationLabel, needsAttention, sessionTime, type OperatorHealth, type OperatorSession } from "@/lib/operator-status";
+import { brisbaneDateTime } from "@/lib/brisbane-time";
 
 function StatChip({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
   return (
@@ -19,7 +20,7 @@ function SessionRow({ session }: { session: OperatorSession }) {
       <div className="min-w-0 flex-1">
         <p className="text-sm break-words" style={{ color: "var(--text)" }}>{repoShort(session.repo)}</p>
         <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-          {session.last_phase ?? "Phase unknown"} · {session.id.slice(0, 8)} · {Number.isFinite(time) ? new Date(time).toLocaleString() : "Time unknown"}
+          {session.last_phase ?? "Phase unknown"} · {session.id.slice(0, 8)} · {Number.isFinite(time) ? brisbaneDateTime(time) : "Time unknown"}
         </p>
       </div>
       <span className="text-xs" style={{ color: needsAttention(session.status) ? "var(--warning)" : "var(--text-muted)" }}>
