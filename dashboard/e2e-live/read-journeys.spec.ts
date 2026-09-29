@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { landmarkLocator, outageTexts, SETTLE_MS, stuckLoadingTexts } from "./page-state";
+import { landmarkLocator, outageTexts, settle, SETTLE_MS, stuckLoadingTexts } from "./page-state";
 import { collectFailures, receiptName, signIn, writeReceipt, type CheckResult, type FailedRequest } from "./live-session";
 import { LIVE_SURFACES, type LiveSurface } from "./surfaces";
 
@@ -8,7 +8,7 @@ import { LIVE_SURFACES, type LiveSurface } from "./surfaces";
 // both config projects, desktop and phone, which is MC check 9 (WP-09).
 async function runChecks(page: Page, surface: LiveSurface, checks: CheckResult[], failures: FailedRequest[]): Promise<void> {
   const nav = await page.goto(surface.path);
-  await page.waitForLoadState("networkidle");
+  await settle(page);
 
   const landed = new URL(page.url()).pathname;
   checks.push({

@@ -27,7 +27,9 @@ jobs:
   live:
     name: Live browser suite
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 58 tests, one at a time, against the live site. 20 was cut off after
+    # 11 tests on the first live run (36527748153); public-repo minutes are free.
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: dashboard

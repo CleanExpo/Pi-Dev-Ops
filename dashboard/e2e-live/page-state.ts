@@ -11,6 +11,19 @@ export function landmarkLocator(page: Page, surface: LiveSurface) {
     : page.getByTestId(mark.id).first();
 }
 
+// Wait for the page to load, then give its first data calls a bounded chance
+// to finish. Never wait for "networkidle" without a cap: 16 control panels
+// poll or stream, so on the live site the network is never idle and the wait
+// ran to the test timeout (run 36527748153, 29 Sept: the hub and MC-07..MC-10
+// each burned 90-180 s and the job hit its 20-minute limit after 11 of 58
+// tests). Whether data actually arrived is judged by the checks that follow.
+export const QUIET_CAP_MS = 10_000;
+
+export async function settle(page: Page): Promise<void> {
+  await page.waitForLoadState("load");
+  await page.waitForLoadState("networkidle", { timeout: QUIET_CAP_MS }).catch(() => undefined);
+}
+
 // A panel still saying "Loading…" after the page has had time to settle never
 // got its data. Without this, a page whose client code never ran passes
 // checks 1 and 2 — observed on 29 Sept against a dev server whose panels made
