@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { fetchProxy, type ProxyResult } from "@/lib/pi-ceo-fetch";
 import {
   validateProposalClient, formatApiError,
 } from "@/lib/control/spec-pipeline-validate";
@@ -11,6 +11,11 @@ import {
 const API = "/api/spec-pipeline";
 const POLL_MS = 4000;
 
+function failureText(r: ProxyResult<unknown>): string {
+  if (r.ok) return "";
+  if (r.reason === "unreachable") return "Pi-CEO backend unreachable";
+  return r.reason === "network" ? "network error" : `HTTP ${r.upstreamStatus ?? "error"}`;
+}
 
 type StageRow = {
   stage: string;
@@ -63,40 +68,33 @@ export default function SpecPipelinePanel() {
   const [error, setError] = useState<string | null>(null);
   const [lastId, setLastId] = useState<string | null>(null);
   const [live, setLive] = useState<PipelineDetail | null>(null);
-  const [pipelines, setPipelines] = useState<PipelineRow[]>([]);
+  // null until the first list read lands, so "no pipelines" is never shown for "not loaded".
+  const [pipelines, setPipelines] = useState<PipelineRow[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
-    try {
-      // null covers a proxy fallback too, so an outage no longer empties the
-      // pipeline list as though nothing were queued — lib/pi-ceo-fetch.ts.
-      const data = await fetchProxyJSON<{ pipelines?: PipelineRow[] }>(
-        `${API}?limit=10`, { credentials: "include" },
-      );
-      if (!data) return;
-      setPipelines(data.pipelines ?? []);
-    } catch {
-      /* ignore */
-    }
+    // A failed read (proxy fallback included) is shown, never rendered as an empty list.
+    const r = await fetchProxy<{ pipelines?: PipelineRow[] }>(`${API}?limit=10`, { credentials: "include" });
+    if (!r.ok) return setLoadError(`Pipeline list unavailable — ${failureText(r)}`);
+    setLoadError(null);
+    setPipelines(r.data.pipelines ?? []);
   }, []);
 
   const fetchDetail = useCallback(async (pipelineId: string) => {
-    try {
-      const data = await fetchProxyJSON<PipelineDetail>(
-        `${API}/${pipelineId}`, { credentials: "include" },
-      );
-      if (!data) return;
-      setLive(data);
-      const terminal = data.meta.status;
-      if (
-        terminal !== "running" &&
-        (!data.running || !["running", "queued"].includes(data.running))
-      ) {
-        await refresh();
-      }
-    } catch {
-      /* ignore */
+    const r = await fetchProxy<PipelineDetail>(`${API}/${pipelineId}`, { credentials: "include" });
+    if (!r.ok) return setDetailError(`Pipeline detail unavailable — ${failureText(r)}`);
+    setDetailError(null);
+    const data = r.data;
+    setLive(data);
+    const terminal = data.meta.status;
+    if (
+      terminal !== "running" &&
+      (!data.running || !["running", "queued"].includes(data.running))
+    ) {
+      await refresh();
     }
   }, [refresh]);
 
@@ -213,6 +211,8 @@ export default function SpecPipelinePanel() {
         {busy ? "Running…" : "Run pipeline"}
       </button>
       {error && <p className="text-xs text-red-500">{error}</p>}
+      {loadError && <p className="text-xs text-red-500" role="alert">{loadError}</p>}
+      {detailError && <p className="text-xs text-red-500" role="alert">{detailError}</p>}
       {lastId && (
         <div className="text-xs space-y-2" style={{ color: "var(--text-muted)" }}>
           <p className="flex items-center gap-2 flex-wrap">
@@ -267,7 +267,9 @@ export default function SpecPipelinePanel() {
         </div>
       )}
       <ul className="text-xs flex-1 overflow-auto space-y-1" style={{ color: "var(--text-muted)" }}>
-        {pipelines.map((p) => (
+        {pipelines === null && !loadError && <li>Loading pipelines…</li>}
+        {pipelines?.length === 0 && <li>No pipelines yet.</li>}
+        {(pipelines ?? []).map((p) => (
           <li key={p.pipeline_id}>
             <button
               type="button"

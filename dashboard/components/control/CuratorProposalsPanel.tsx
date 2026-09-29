@@ -51,6 +51,8 @@ export default function CuratorProposalsPanel() {
         { cache: "no-store" },
       );
       const json = (await r.json().catch(() => ({}))) as ProposalsResponse;
+      // A failed read must never render as "No pending proposals".
+      if (!r.ok && !json.error) json.error = `HTTP ${r.status}`;
       setData(json);
     } catch (exc) {
       setData({ error: String(exc) });
@@ -100,7 +102,13 @@ export default function CuratorProposalsPanel() {
           </p>
         )}
 
-        {!data?.error && proposals.length === 0 && (
+        {data === null && (
+          <p className="text-xs" style={{ color: "var(--text-dim)" }}>
+            Loading…
+          </p>
+        )}
+
+        {data !== null && !data.error && proposals.length === 0 && (
           <p className="text-xs" style={{ color: "var(--text-dim)" }}>
             No pending proposals. Not the Goal path. The curator still
             clusters lessons.jsonl; it does not file Linear tickets.
