@@ -45,7 +45,7 @@ MUTANTS = [
     ("ask.py", "    if wrong_state:", "    if False:"),
     ("ask.py", "if not isinstance(approved, str):", "if False:"),
     ("ask.py", "q = _question(tid, t) if isinstance(t, dict) else None", "q = _question(tid, t or {'type': 'noul', 'question': 'x', 'true': 'y', 'false': 'z'})"),
-    ("ask.py", '["git", "-C", repo, "show", f"HEAD:{MANIFEST}"]', '["cat", f"{repo}/{MANIFEST}"]'),
+    ("ask.py", 'found = verified.at_head(repo, MANIFEST, env=git_env())', 'found = ("", "", open(f"{repo}/{MANIFEST}", "rb").read())'),
     ("ask.py", "nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)", "nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NONBLOCK, dir_fd=fd)"),
     ("ask.py", "leaf = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)", "leaf = os.open(parts[-1], os.O_RDONLY | os.O_NONBLOCK, dir_fd=fd)"),
     ("ask.py", "leaf = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)", "leaf = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)"),  # r7 FIFO
@@ -152,7 +152,7 @@ MUTANTS = [
     ("gemini_shape.py", '    if "model" in body and not isinstance(body["model"], str):', "    if False:"),
     # release review r9: the traversal guard reached directly, and live decide on the committed fixture only
     ("ask.py", 'if rel.startswith("/") or any(p in ("", ".", "..") for p in parts):', "if False:"),
-    ("evals/jev_constitution/generate.py", "json.loads(shown.stdout) if shown.returncode == 0 else {}",
+    ("evals/jev_constitution/generate.py", "json.loads(shown) if shown is not None else {}",
      "json.loads(WRITER_CONTROL.read_text())"),  # the writer control counts only as committed
     ("__main__.py", "    actions = _committed_actions() if a.live else",
      '    actions = json.loads(engine.FIXTURES.read_text())["actions"] if a.live else'),

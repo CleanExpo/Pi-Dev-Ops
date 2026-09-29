@@ -27,6 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from evals.jev_constitution.harness import CASES, FAILURE_CLASSES, committed_questions, load_cases
+from jev_platform import committed as verified
 from jev_platform import gemini
 
 BATCH = 50
@@ -185,10 +186,9 @@ def _writer(args):
     """(write function, writer name, output path) or None after printing BLOCKED. Claude stays the default."""
     if args.writer == "claude":
         return claude_write, "claude", CASES / f"{args.question}.jsonl"
-    shown = subprocess.run(["git", "-C", str(WRITER_CONTROL.parent), "show", f"HEAD:./{WRITER_CONTROL.name}"],
-                           capture_output=True, text=True, env={"PATH": os.environ.get("PATH", "")})
-    try:  # the control as COMMITTED: an uncommitted edit can never flip it to `use`
-        control = json.loads(shown.stdout) if shown.returncode == 0 else {}
+    shown = verified.file_at_head(WRITER_CONTROL, env={"PATH": os.environ.get("PATH", "")})
+    try:  # the control as COMMITTED and rehashed (round 12): no edit, replacement or rewrite can flip it to `use`
+        control = json.loads(shown) if shown is not None else {}
     except ValueError:
         control = {}
     if not isinstance(control, dict) or (control.get("status"), control.get("verdict")) != ("run", "use"):

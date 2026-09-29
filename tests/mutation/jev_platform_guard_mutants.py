@@ -116,7 +116,7 @@ GUARD_MUTANTS = [
      'return 2 if out.get("outcome") == "refused" else 0'),  # cs-rc-blocked
     # guard sweep 29/09: evals
     ('evals/jev_constitution/quotes.py',
-     '        if mode != "120000":',
+     '        if found[2] != b"120000":',
      '        if True:'),
     ('evals/jev_constitution/quotes.py',
      '    return 1 if drift else 0',
@@ -204,8 +204,8 @@ GUARD_MUTANTS = [
     ("manifest.py", "    if not text.strip() or ask.sensitive(text):", "    if ask.sensitive(text):"),
     ("manifest.py", "    if not text.strip() or ask.sensitive(text):", "    if not text.strip():"),
     # round 10 P1s: committed inputs only (tests/test_jev_platform_committed_inputs.py)
-    ('engine.py', '    committed = _committed(QUESTIONS, rev)\n',
-     '    committed = ("", QUESTIONS.read_text()) if QUESTIONS.exists() else None\n'),  # en-registry-head
+    ('engine.py', '    found = _committed(QUESTIONS, rev)\n',
+     '    found = ("", QUESTIONS.read_text()) if QUESTIONS.exists() else None\n'),  # en-registry-head
     ('engine.py', '    committed = _committed(CASES / f"{rule_id}.jsonl", commit) if rule else None\n',
      '    committed = ((_committed(CASES / f"{rule_id}.jsonl", commit) or ("", ""))[0], '
      '(CASES / f"{rule_id}.jsonl").read_text()) if rule else None\n'),  # en-cases-head
@@ -217,25 +217,35 @@ GUARD_MUTANTS = [
      '        problems = calibration.verify(record, scored)\n'),  # en-state-lineage
     ('engine.py', '    problems = calibration.verify(record, scored) or _lineage_problems(rule_id, record, scored)\n    if problems:',
      '    problems = calibration.verify(record, scored)\n    if problems:'),  # en-rating-lineage
-    ('engine.py', '    if text is None:\n        return ["cases_blob is not a readable committed blob"]',
-     '    if text is None:\n        return []'),  # en-lineage-blob
     ('engine.py', '    if not all(_dual_labelled(c) for c in cases):\n        return ["cases_blob',
      '    if False:\n        return ["cases_blob'),  # en-lineage-dual
     ('engine.py', 'return [] if want == have else', 'return [] if True else'),  # en-lineage-match
     # round 11 P1s: reviewed ids name reviewed bytes; lineage is a commit in HEAD's history
     # (tests/test_jev_platform_git_integrity.py)
-    ('engine.py', '["git", "--no-replace-objects", "-C", str(ROOT)', '["git", "-C", str(ROOT)'),  # en-no-replace
-    ('engine.py', 'return out.stdout.decode() if digest.hexdigest() == blob else None',
-     'return out.stdout.decode()'),  # en-blob-hash
-    ('engine.py', '    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", sha):\n        return',
-     '    if False:\n        return'),  # en-lineage-sha
+    ('committed.py', '["git", "--no-replace-objects", "-C", str(repo), "cat-file", "--batch"]',
+     '["git", "-C", str(repo), "cat-file", "--batch"]'),  # co-no-replace
+    ('committed.py', 'return data if header[1] == kind and _hash_ok(oid, kind, data) else None',
+     'return data'),  # co-rehash
+    ('committed.py', 'return data if header[1] == kind and _hash_ok(oid, kind, data) else None',
+     'return data if _hash_ok(oid, header[1], data) else None'),  # co-type
+    ('committed.py', '        if not is_oid(oid):  # a name', '        if False:  # a name'),  # co-oid-only
+    ('committed.py', '            if oid == ancestor:\n                return True',
+     '            if True:\n                return True'),  # co-ancestor
+    ('engine.py', '    if not verified.is_oid(sha):\n        return', '    if False:\n        return'),  # en-lineage-sha
     ('engine.py', ' != blob:\n        return ["cases_blob is not the cases file',
      ' != blob and False:\n        return ["cases_blob is not the cases file'),  # en-lineage-at-sha
-    ('engine.py', '.returncode != 0:\n        return ["eval_sha is not in the history',
-     '.returncode != 0 and False:\n        return ["eval_sha is not in the history'),  # en-lineage-ancestor
-    ('evals/jev_constitution/harness.py', 'git = ["git", "--no-replace-objects", "-C"', 'git = ["git", "-C"'),  # ha-no-replace
-    ('evals/jev_constitution/harness.py', 'return out.stdout.decode() if digest.hexdigest() == blob else None',
-     'return out.stdout.decode()'),  # ha-blob-hash
+    ('engine.py', '    if not verified.is_ancestor(ROOT, sha, verified.resolve(ROOT) or ""):\n',
+     '    if False:\n'),  # en-lineage-ancestor
+    ('evals/jev_constitution/harness.py', '    data = verified.file_at_head(path)',
+     '    data = __import__("subprocess").run(["git", "-C", str(path.parent), "show", f"HEAD:./{path.name}"], '
+     'capture_output=True).stdout or None'),  # ha-verified
+    ('__main__.py', 'json.loads(verified.at_head(engine.ROOT, FIXTURE_AT_HEAD)[2])',
+     'json.loads(engine._git("show", f"HEAD:{FIXTURE_AT_HEAD}"))'),  # cli-fixture-verified
+    ('evals/jev_constitution/generate.py', 'shown = verified.file_at_head(WRITER_CONTROL, env={"PATH": os.environ.get("PATH", "")})',
+     'shown = subprocess.run(["git", "-C", str(WRITER_CONTROL.parent), "show", f"HEAD:./{WRITER_CONTROL.name}"], '
+     'capture_output=True).stdout or None'),  # ge-control-verified
+    ('evals/jev_constitution/quotes.py', '        if found is None:\n            raise ValueError',
+     '        if found is None:\n            return ""\n            raise ValueError'),  # qu-refuse
     ('evals/jev_constitution/harness.py', '    questions = committed_questions()',
      '    questions = load_questions()'),  # ha-questions-head
     ('evals/jev_constitution/harness.py', '        cases = committed_cases(q["id"])',

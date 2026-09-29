@@ -153,7 +153,7 @@ def test_a_record_whose_cases_blob_bytes_were_tampered_is_corrupt(repo):
     engine.calibrate(RULE, recording([]), budget())
     overwrite_loose(repo, head_blob(repo, REL_CASES), alt_text())
     forge(repo, engine.load_record(RULE)["eval_sha"], ALT, head_blob(repo, REL_CASES))
-    state_and_rating("cases_blob is not a readable committed blob")
+    state_and_rating("cases_blob is not the cases file committed at eval_sha")  # the blob fails its rehash
 
 
 def test_calibrate_records_the_commit_whose_cases_it_scored(repo):

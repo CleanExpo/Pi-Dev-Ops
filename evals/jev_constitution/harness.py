@@ -14,16 +14,16 @@ refused (401) before any real result counts.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
-import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+from jev_platform import committed as verified
 
 ROOT = Path(__file__).parent
 QUESTIONS = ROOT / "questions.json"
@@ -78,14 +78,11 @@ def validate_question(qid: str, cases: list[dict]) -> list[str]:
 
 def _at_head(path: Path) -> str | None:
     """`path` as committed at HEAD of its repository, or None. `run` sends only this, never the working copy."""
-    git = ["git", "--no-replace-objects", "-C", str(path.parent)]  # round 11: refs/replace cannot re-point HEAD
-    blob = subprocess.run([*git, "rev-parse", "--verify", "--quiet", f"HEAD:./{path.name}"],
-                          capture_output=True, text=True).stdout.strip()
-    out = subprocess.run([*git, "cat-file", "blob", blob], capture_output=True) if blob else None
-    if out is None or out.returncode != 0:
+    data = verified.file_at_head(path)  # round 12: commit, trees and blob each rehashed against their ids
+    try:
+        return None if data is None else data.decode()
+    except UnicodeDecodeError:
         return None
-    digest = hashlib.new("sha1" if len(blob) == 40 else "sha256", b"blob %d\0" % len(out.stdout) + out.stdout)
-    return out.stdout.decode() if digest.hexdigest() == blob else None  # cat-file serves a loose object unchecked
 
 
 def committed_questions() -> list[dict]:

@@ -16,9 +16,9 @@ import json
 import os
 import re
 import stat
-import subprocess
 
 from jev_platform import client, policy
+from jev_platform import committed as verified
 
 MANIFEST = ".jev-approved.json"
 MAX_FILE_BYTES = 32_000
@@ -41,12 +41,11 @@ def git_env() -> dict:
 
 def approved_manifest(repo: str) -> dict | None:
     """The manifest as committed at HEAD; the working copy never counts."""
-    out = subprocess.run(["git", "-C", repo, "show", f"HEAD:{MANIFEST}"], capture_output=True, text=True,
-                         env=git_env())
-    if out.returncode != 0:
+    found = verified.at_head(repo, MANIFEST, env=git_env())  # round 12: every object on the path rehashed
+    if found is None:
         return None
     try:
-        data = json.loads(out.stdout)
+        data = json.loads(found[2])
     except ValueError:
         return None
     if not isinstance(data, dict):  # a list, string, number or null manifest is refused, not a crash

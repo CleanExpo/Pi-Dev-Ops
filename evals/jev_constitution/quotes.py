@@ -16,9 +16,9 @@ import argparse
 import json
 import posixpath
 import re
-import subprocess
 
 from evals.jev_constitution import harness
+from jev_platform import committed as verified
 
 _SPLIT = re.compile(r"\.\.\.|…| \* ")
 
@@ -47,12 +47,13 @@ def missing_fragment(quote: str, source: str) -> str | None:
 
 def read_source(repo: str, rev: str, name: str) -> str:
     path = name if name == "CONSTITUTION.md" else f"docs/constitution/{name}"
+    commit = verified.resolve(repo, rev)
     for _ in range(5):  # CONSTITUTION.md is a symlink to EPIC-000
-        mode = subprocess.run(["git", "-C", repo, "ls-tree", rev, path],
-                              capture_output=True, text=True, check=True).stdout.split(" ", 1)[0]
-        body = subprocess.run(["git", "-C", repo, "show", f"{rev}:{path}"],
-                              capture_output=True, text=True, check=True).stdout
-        if mode != "120000":
+        found = verified.read(repo, path, commit) if commit else None  # round 12: every object rehashed
+        if found is None:
+            raise ValueError(f"{path} is not committed at {rev}, or its objects do not match their ids")
+        body = found[1].decode()
+        if found[2] != b"120000":
             return body
         path = posixpath.normpath(posixpath.join(posixpath.dirname(path), body.strip()))
     raise ValueError(f"symlink loop at {name}")

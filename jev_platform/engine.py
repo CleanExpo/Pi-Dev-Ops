@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from jev_platform import calibration, client, policy
+from jev_platform import committed as verified
 
 ROOT = Path(__file__).resolve().parent.parent
 QUESTIONS = ROOT / "evals" / "jev_constitution" / "questions.json"
@@ -34,32 +34,30 @@ def _run_git(*args, **kw) -> subprocess.CompletedProcess:
 
 
 def _committed(path: Path, rev: str = "HEAD") -> tuple[str, str] | None:
-    """(blob id, text) of `path` as committed at `rev`, or None. Round 10 P1s: whatever reaches Jev, or is
-    named as a record's lineage, is the reviewed committed blob — never the working copy. The blob id is resolved
-    once and the bytes are read BY that id, so a HEAD move between the two calls cannot split them."""
+    """(blob id, text) of regular file `path` as committed at `rev`, or None. Round 10 P1s: whatever reaches Jev,
+    or is named as a record's lineage, is the reviewed committed blob — never the working copy. Round 12: the
+    commit, every tree on the path and the blob are each rehashed against their ids (jev_platform.committed)."""
     try:
         rel = path.relative_to(ROOT)
     except ValueError:
         return None
-    blob = _git("rev-parse", "--verify", "--quiet", f"{rev}:{rel}")
-    text = _blob_text(blob)
-    return None if text is None else (blob, text)
+    commit = rev if verified.is_oid(rev) else verified.resolve(ROOT, rev)
+    found = verified.read(ROOT, str(rel), commit) if commit else None
+    return _decoded(found[0], found[1]) if found else None
 
 
-def _blob_text(blob: str) -> str | None:
-    """The bytes stored under `blob`, only if they hash to `blob`: cat-file serves a loose object unchecked."""
-    out = _run_git("cat-file", "blob", blob) if blob else None
-    if out is None or out.returncode != 0:
+def _decoded(oid: str, data: bytes | None) -> tuple[str, str] | None:
+    try:
+        return None if data is None else (oid, data.decode())
+    except UnicodeDecodeError:
         return None
-    digest = hashlib.new("sha1" if len(blob) == 40 else "sha256", b"blob %d\0" % len(out.stdout) + out.stdout)
-    return out.stdout.decode() if digest.hexdigest() == blob else None
 
 
 def registry(rev: str = "HEAD") -> dict[str, dict]:
     """The committed registry. Not committed or unreadable -> empty, so every rule id is unknown and nothing is sent."""
-    committed = _committed(QUESTIONS, rev)
+    found = _committed(QUESTIONS, rev)
     try:
-        return {q["id"]: q for q in json.loads(committed[1])["questions"]} if committed else {}
+        return {q["id"]: q for q in json.loads(found[1])["questions"]} if found else {}
     except (ValueError, KeyError, TypeError):
         return {}
 
@@ -76,16 +74,14 @@ def _lineage_problems(rule_id: str, record: dict, scored: list[dict]) -> list[st
     calibration.verify only proves the record is self-consistent; this proves where its inputs came from."""
     blob = (record.get("label_provenance") or {}).get("cases_blob")
     sha = record.get("eval_sha")
-    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", sha):
+    if not verified.is_oid(sha):
         return ["eval_sha is not a full commit id"]
-    if _git("rev-parse", "--verify", "--quiet", f"{sha}:{(CASES / f'{rule_id}.jsonl').relative_to(ROOT)}") != blob:
+    at_sha = verified.read(ROOT, str((CASES / f"{rule_id}.jsonl").relative_to(ROOT)), sha)
+    if at_sha is None or at_sha[0] != blob:
         return ["cases_blob is not the cases file committed at eval_sha"]
-    if _run_git("merge-base", "--is-ancestor", sha, "HEAD").returncode != 0:
+    if not verified.is_ancestor(ROOT, sha, verified.resolve(ROOT) or ""):
         return ["eval_sha is not in the history of HEAD"]
-    text = _blob_text(blob)
-    if text is None:
-        return ["cases_blob is not a readable committed blob"]
-    cases = [json.loads(line) for line in text.splitlines() if line.strip()]
+    cases = [json.loads(line) for line in at_sha[1].decode(errors="replace").splitlines() if line.strip()]
     if not all(_dual_labelled(c) for c in cases):
         return ["cases_blob has cases without two agreeing labels"]
     want = sorted((calibration.case_hash(c["state"]), c["label"], c.get("class", "normal")) for c in cases)
@@ -166,7 +162,7 @@ def _score_case(case, rule, post, budget):
 
 
 def calibrate(rule_id: str, post, budget, workers: int = 8) -> dict:
-    commit = _git("rev-parse", "--verify", "--quiet", "HEAD^{commit}")  # resolved once: every read below is at it
+    commit = verified.resolve(ROOT)  # resolved once: every read below is at it
     rule = registry(commit).get(rule_id) if commit else None
     committed = _committed(CASES / f"{rule_id}.jsonl", commit) if rule else None
     cases = [json.loads(line) for line in committed[1].splitlines() if line.strip()] if committed else []
@@ -184,7 +180,7 @@ def calibrate(rule_id: str, post, budget, workers: int = 8) -> dict:
                 "first_error": errors[0] if errors else None, "spent_usd": round(budget.spent, 6)}
     scored = [{"hash": calibration.case_hash(c["state"]), "label": c["label"], "class": c.get("class", "normal"),
                "noul": a["nouls"][rule_id]} for c, a in results]
-    provenance = {**PROVENANCE, "generate_py_blob": _git("rev-parse", f"{commit}:evals/jev_constitution/generate.py"),
+    provenance = {**PROVENANCE, "generate_py_blob": (verified.read(ROOT, "evals/jev_constitution/generate.py", commit) or ("",))[0],
                   "cases_blob": committed[0]}  # the blob actually scored, not a fresh HEAD lookup
     record = calibration.build_record(rule_id, scored, bindings(rule, models.pop()), provenance)
     record["eval_sha"] = commit

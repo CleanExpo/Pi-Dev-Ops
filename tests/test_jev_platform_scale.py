@@ -11,7 +11,7 @@ import subprocess
 import pytest
 from jev_scale_support import GOOD, PROMPTS, TEMPLATES, Recorder, answer_all, budget, make_repo, sha
 
-from jev_platform import ask, client, scout
+from jev_platform import ask, client, committed, scout
 
 
 @pytest.fixture
@@ -149,14 +149,17 @@ def test_pick_first_caps_at_250_and_empty_is_none_with_zero_requests(big_repo):
 def test_git_subprocess_gets_a_minimal_env_without_keys(repo, monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "g-fake-value")
     monkeypatch.setenv("TYPESAFE_API_KEY", "t-fake-value")
-    seen, real = [], subprocess.run
+    seen, real_run, real_popen = [], subprocess.run, subprocess.Popen
 
-    def spy(*args, **kwargs):
-        seen.append(kwargs.get("env"))
-        return real(*args, **kwargs)
-    monkeypatch.setattr(ask.subprocess, "run", spy)
+    def spy(real):
+        def call(*args, **kwargs):
+            seen.append(kwargs.get("env"))
+            return real(*args, **kwargs)
+        return call
+    monkeypatch.setattr(committed.subprocess, "run", spy(real_run))  # the manifest is read through committed.py
+    monkeypatch.setattr(committed.subprocess, "Popen", spy(real_popen))
     assert ask.approved_manifest(repo) is not None
-    assert seen and all(e is not None and not any(re.search("KEY|TOKEN|SECRET", k) for k in e) for e in seen)
+    assert len(seen) >= 2 and all(e is not None and not any(re.search("KEY|TOKEN|SECRET", k) for k in e) for e in seen)
 
 
 def test_planted_secret_with_refreshed_digest_is_still_refused(tmp_path):

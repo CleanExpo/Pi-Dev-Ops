@@ -15,6 +15,7 @@ import urllib.error
 import urllib.request
 
 from jev_platform import agent, ask, cli_scale, client, engine
+from jev_platform import committed as verified
 from jev_platform import manifest as mf
 
 URL = "https://api.typesafe.ai/v1/systemone"
@@ -45,7 +46,7 @@ FIXTURE_AT_HEAD = "jev_platform/fixtures/synthetic_actions.json"
 
 def _committed_actions() -> dict:
     try:
-        return json.loads(engine._git("show", f"HEAD:{FIXTURE_AT_HEAD}"))["actions"]
+        return json.loads(verified.at_head(engine.ROOT, FIXTURE_AT_HEAD)[2])["actions"]  # round 12: rehashed
     except (ValueError, KeyError, TypeError):
         return {}
 
