@@ -1,6 +1,6 @@
 ---
 name: remotion-direction
-description: Use when a Remotion video needs creative direction: hook, visual sequence, scene purpose, motion restraint, and CTA direction before render.
+description: Use when a Remotion video needs creative direction — hook, visual sequence, scene purpose, motion restraint, and CTA direction before render.
 owner_role: Creative Director
 status: remotion-wave-1
 intents: remotion-direction, video-direction, creative-direction

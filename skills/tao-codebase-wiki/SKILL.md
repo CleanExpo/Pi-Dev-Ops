@@ -1,6 +1,6 @@
 ---
 name: tao-codebase-wiki
-description: Self-updating per-directory WIKI.md files driven by post-merge git history. Port of @0xkobold/pi-codebase-wiki. Compounds: every merge refreshes context for the next TAO session.
+description: Self-updating per-directory WIKI.md files driven by post-merge git history. Port of @0xkobold/pi-codebase-wiki. Compounds — every merge refreshes context for the next TAO session.
 ---
 
 # tao-codebase-wiki

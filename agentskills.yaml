@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.24.0
-  generated_at: "2026-08-31T00:28:54.097876+00:00"
+  version: 1.24.1
+  generated_at: "2026-09-29T02:47:12.496809+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -1640,11 +1640,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: remotion-brand-codify
-    description: "Converts a BrandResearch dossier into THREE artifacts — (1) typed BrandConfig TypeScript at Synthex/packages/brand-config/src/brands/{slug}.ts (runtime/behaviour: voice, voiceover, motion, audience, channel, forbiddenWords); (2) spec-conformant {slug}.design.md at Synthex/packages/brand-config/src/brands/{slug}.design.md (visual tokens: colour, typography, spacing, components, layout, elevation); (3) human-readable 9-section .md projection at Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md derived from BOTH. Boundary contract at Pi-Dev-Ops/remotion-studio/src/brands/CONTRACT.md. Triggered after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false — a human reviews before merge."
+    description: "Converts a BrandResearch dossier into THREE artifacts — (1) typed BrandConfig TypeScript at Synthex/packages/brand-config/src/brands/{slug}.ts (runtime/behaviour — voice, voiceover, motion, audience, channel, forbiddenWords); (2) spec-conformant {slug}.design.md at Synthex/packages/brand-config/src/brands/{slug}.design.md (visual tokens — colour, typography, spacing, components, layout, elevation); (3) human-readable 9-section .md projection at Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md derived from BOTH. Boundary contract at Pi-Dev-Ops/remotion-studio/src/brands/CONTRACT.md. Triggered after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false — a human reviews before merge."
     owner_role: (unset)
     status: (unset)
     path: skills/remotion-brand-codify/SKILL.md
-    sha256: 165866eb9be760580f282958df5b39c22839693917e6f8fbff303de4573d90b3
+    sha256: e5438f5c3bea8533f560944b5c90c496abe518a85f57d3e9af418d2dc0e9cf35
     dependencies:
       tools: []
       skills: []
@@ -1715,11 +1715,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: remotion-direction
-    description: "Use when a Remotion video needs creative direction: hook, visual sequence, scene purpose, motion restraint, and CTA direction before render."
+    description: Use when a Remotion video needs creative direction — hook, visual sequence, scene purpose, motion restraint, and CTA direction before render.
     owner_role: Creative Director
     status: remotion-wave-1
     path: skills/remotion-direction/SKILL.md
-    sha256: c72d9736f4166745ce93ca310f7bfae421c95e9eb4d00fea8007d9634ee1a5fd
+    sha256: 5b076c57964d342bf0b8b79fed947e0cb7999727770385d652e25039ae8e1bd9
     dependencies:
       tools: []
       skills: []
@@ -2164,11 +2164,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: tao-codebase-wiki
-    description: "Self-updating per-directory WIKI.md files driven by post-merge git history. Port of @0xkobold/pi-codebase-wiki. Compounds: every merge refreshes context for the next TAO session."
+    description: Self-updating per-directory WIKI.md files driven by post-merge git history. Port of @0xkobold/pi-codebase-wiki. Compounds — every merge refreshes context for the next TAO session.
     owner_role: (unset)
     status: (unset)
     path: skills/tao-codebase-wiki/SKILL.md
-    sha256: 5d6b489fb02232f1633dd88158f44fdc4a90c18bd34e6b1ce8699fcf16c86d79
+    sha256: e938e967f63bd55c1692c2dd80bd5c906c5cfef09e45798b3acc1358f0a5dce5
     dependencies:
       tools: []
       skills: []
@@ -2269,11 +2269,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: technical-plan
-    description: "Technical planner. Reads a spec.md and produces a concrete implementation plan: files to change, approach, effort sizing, dependency order, risk flags, and test plan stub. Output is a plan.md ready for the /build phase."
+    description: Technical planner. Reads a spec.md and produces a concrete implementation plan — files to change, approach, effort sizing, dependency order, risk flags, and test plan stub. Output is a plan.md ready for the /build phase.
     owner_role: (unset)
     status: (unset)
     path: skills/technical-plan/SKILL.md
-    sha256: 4de087a6e17524ca5c8c15b23bdcc63840bced710586cdd1641f7e284c5cf694
+    sha256: eac4e4e4803999b4b723d3a8973a641a86e2d0a561f0773c36955baa62087abe
     dependencies:
       tools: []
       skills: []
