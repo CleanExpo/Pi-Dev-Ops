@@ -13,23 +13,21 @@ problem is a logged lexical fallback, and any router error falls back to today's
 from __future__ import annotations
 
 import hashlib
-import http.client
 import json
 import logging
 import math
 import os
-import socket
 import threading
 from pathlib import Path
 from typing import Callable
-from urllib import request
+
+from app.server.jev_transport import JEV_DEADLINE_S, within_deadline  # noqa: F401
 
 log = logging.getLogger(__name__)
 _CATALOGUE: list | None = None
 _PINS: dict[str, str] | None = None
 LEDGER = Path(os.environ.get("SKILL_ROUTER_LEDGER", ".harness/skill-router-ledger.sqlite"))
 INDEX = Path(__file__).resolve().parents[2] / "skills-library" / "skills" / "index.md"
-JEV_DEADLINE_S = 3.0
 
 
 class CapReached(RuntimeError):
@@ -79,7 +77,7 @@ def live_jev() -> Callable[[dict], dict] | None:
         if call_id is None:
             raise CapReached(f"daily Jev cap ${cap} reached")
         try:
-            result = _within_deadline(lambda opener: evaluate(payload, key, opener=opener))
+            result = within_deadline(lambda opener: evaluate(payload, key, opener=opener))
         except Exception:
             finish_call(LEDGER, call_id, "error")
             raise
@@ -87,83 +85,6 @@ def live_jev() -> Callable[[dict], dict] | None:
         return result
 
     return call
-
-
-def _tracking_opener(sockets: list) -> request.OpenerDirector:
-    """A urllib opener whose connections record their raw TCP socket the moment it is created,
-    before the TLS handshake or any header is read. urlopen() does not return until the headers
-    are in, so a server trickling its headers would otherwise leave nothing to cut (review
-    round 6)."""
-
-    def record(*args, **kwargs):
-        sock = socket.create_connection(*args, **kwargs)
-        sockets.append(sock)
-        return sock
-
-    class TrackedHTTP(http.client.HTTPConnection):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self._create_connection = record
-
-    class TrackedHTTPS(http.client.HTTPSConnection):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self._create_connection = record
-
-    class HTTPHandler(request.HTTPHandler):
-        def http_open(self, req):
-            return self.do_open(TrackedHTTP, req)
-
-    class HTTPSHandler(request.HTTPSHandler):
-        def https_open(self, req):
-            return self.do_open(TrackedHTTPS, req, context=self._context)
-
-    return request.build_opener(HTTPHandler, HTTPSHandler)
-
-
-def _cut(sock) -> None:
-    """End any read on this socket now. Closing the response would wait on the buffer lock the
-    reading thread holds; shutting the raw socket down interrupts the read itself."""
-    try:
-        sock.shutdown(socket.SHUT_RDWR)
-    except OSError:
-        pass
-    try:
-        sock.close()
-    except OSError:
-        pass
-
-
-def _within_deadline(run: Callable[[Callable], dict]) -> dict:
-    """Run one Jev call with a WALL-CLOCK deadline. urlopen's timeout only bounds silence
-    between bytes, so a server trickling a byte at a time could hold the call indefinitely
-    (review round 5). At the deadline every socket the call opened is shut down, whether it is
-    still reading headers or the body (review round 6), which ends the worker thread's read,
-    and the caller gets TimeoutError."""
-    sockets: list = []
-    tracked = _tracking_opener(sockets)
-
-    def opener(req, timeout=None):
-        return tracked.open(req, timeout=JEV_DEADLINE_S)
-
-    box: dict = {}
-
-    def work():
-        try:
-            box["value"] = run(opener)
-        except BaseException as exc:  # handed to the caller below
-            box["error"] = exc
-
-    worker = threading.Thread(target=work, name="skill-router-jev", daemon=True)
-    worker.start()
-    worker.join(JEV_DEADLINE_S)
-    if worker.is_alive():
-        for sock in sockets:
-            _cut(sock)
-        raise TimeoutError(f"Jev gave no complete answer within {JEV_DEADLINE_S}s")
-    if "error" in box:
-        raise box["error"]
-    return box["value"]
 
 
 def _decide(raw_brief: str):
