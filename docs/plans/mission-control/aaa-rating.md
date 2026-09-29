@@ -137,5 +137,10 @@ backend accepts it. Every other write surface (MC-01, 02, 05, 07, 10, 11) reads 
 its own journeys exist. **Check 3 stays unmet on all seven write surfaces**: it is defined as running
 against a PR preview (Railway `Pi-Dev-Ops-pr-<n>` + Vercel preview), and Vercel's sign-in
 protection (`ssoProtection: all_except_custom_domains`, read from the project on 29 Sept) blocks
-the browser from previews until an owner creates a protection-bypass secret and stores it in GitHub
-Actions.
+the browser from previews. **A bypass secret alone is not enough, and by itself it would be unsafe:**
+the Vercel variable `PI_CEO_URL` is set to the production Railway URL for the `preview` scope as
+well as `production` (a plain, non-secret value, read 29 Sept), so a preview talks to the real
+backend, not to the Railway `Pi-Dev-Ops-pr-<n>` copy. `PI_CEO_PASSWORD`, `DASHBOARD_PASSWORD` and
+`KILL_SWITCH_SECRET` are production-only, so a preview today would mostly fail closed by accident.
+No write journey may be pointed at a preview until previews have their own backend URL and
+credentials. That is a founder decision (secrets, and a Railway PR environment per preview).
