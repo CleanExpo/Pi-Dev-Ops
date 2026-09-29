@@ -27,6 +27,10 @@ MUTANTS = [
     ("engine.py", "if altered and result != policy.UNCERTAIN:", "if False:"),
     ("engine.py", "if errors or len(models) != 1:", "if len(models) > 1:"),
     ("engine.py", "if not all(p.resolve().is_relative_to(ROOT) for p in paths):", "if False:"),
+    # release review r2 P1: a decision never relies on evidence that fails verification
+    ("engine.py", 'return "corrupt" if problems else state', "return state"),
+    ("engine.py", '    except (OSError, ValueError, KeyError, TypeError):\n        return "corrupt"',
+     "    except (OSError, ValueError, KeyError, TypeError):\n        return state"),
     ("ask.py", "if digest != approved:", "if False:"),
     ("ask.py", "    if wrong_state:", "    if False:"),
     ("ask.py", "if not isinstance(approved, str):", "if False:"),

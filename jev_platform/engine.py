@@ -51,13 +51,25 @@ def load_scored(rule_id: str) -> list[dict]:
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
 
 
+def _decision_state(rule: dict, record: dict | None, model: str) -> str:
+    """evaluate_state, plus: a usable record must recompute from its stored cases (PLAN.md `corrupt`)."""
+    state = calibration.evaluate_state(record, bindings(rule, model))
+    if state != policy.USABLE_STATE:
+        return state
+    try:
+        problems = calibration.verify(record, load_scored(rule["id"]))
+    except (OSError, ValueError, KeyError, TypeError):
+        return "corrupt"
+    return "corrupt" if problems else state
+
+
 def _rule_findings(rules, answer, altered) -> list[dict]:
     findings = []
     for rule in rules:
         noul = answer.get("nouls", {}).get(rule["id"])
-        state = calibration.evaluate_state(load_record(rule["id"]), bindings(rule, answer.get("model", "none")))
-        result, reason = policy.classify_rule(noul, (load_record(rule["id"]) or {}).get("threshold"),
-                                              state, "error" not in answer)
+        record = load_record(rule["id"])
+        state = _decision_state(rule, record, answer.get("model", "none"))
+        result, reason = policy.classify_rule(noul, (record or {}).get("threshold"), state, "error" not in answer)
         if altered and result != policy.UNCERTAIN:
             result, reason = policy.UNCERTAIN, "altered_input"
         findings.append({"rule": rule["id"], "result": result, "reason": reason, "noul": noul,

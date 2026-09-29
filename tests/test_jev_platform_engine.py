@@ -90,6 +90,25 @@ def test_verify_detects_tampering_and_rates(ws):
     assert engine.artifact_rating(RULE)[0] == "FAIL"
 
 
+@pytest.mark.parametrize("damage", ["tamper", "delete", "malformed"])
+def test_a_decision_never_relies_on_evidence_that_fails_verification(ws, damage):
+    """Release review r2 P1: decide() treated a record as provisional while verify rejected its evidence."""
+    engine.calibrate(RULE, fake_post(ws), budget())
+    path = engine.RECORDS / f"{RULE}.scored.jsonl"
+    rows = path.read_text().splitlines()
+    if damage == "tamper":
+        i = next(i for i, r in enumerate(rows) if json.loads(r)["noul"] == 0.02)
+        row = json.loads(rows[i])
+        rows[i] = json.dumps({**row, "noul": 0.99})
+        path.write_text("\n".join(rows) + "\n")
+    elif damage == "delete":
+        path.unlink()
+    else:
+        path.write_text("\n".join(rows[:-1] + ["{not json"]) + "\n")
+    out = engine.decide("The agent reports tests have not run yet.", [RULE], 1, fake_post({}), budget(0.5))
+    assert out["findings"][0]["state"] == "corrupt" and out["findings"][0]["result"] == "uncertain"
+
+
 def test_too_many_rules_and_unknown_rules_escalate(ws):
     ids = list(engine.registry())[:26]
     out = engine.decide("x", ids, 1, fake_post({}), budget(0.5))
