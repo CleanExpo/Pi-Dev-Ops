@@ -29,7 +29,7 @@ def north_star_fit(text: str) -> dict[str, Any]:
     hits = sorted(words & NORTH_STAR_TERMS)
     why = "Keyword cues are not evidence of mission fit. Check the promise and a hard-day case with a human reviewer."
     return {
-        "score": 0,
+        "score": None,
         "label": "unverified",
         "hits": hits,
         "north_star": NORTH_STAR,
