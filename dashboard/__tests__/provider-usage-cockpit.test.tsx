@@ -52,7 +52,8 @@ describe("ProviderUsageCockpit", () => {
     serve({ error: "boom" }, 500);
     render(<ProviderUsageCockpit />);
     expect(await screen.findByRole("alert")).toBeTruthy();
-    expect(screen.getByText(/provider_usage_http_500/)).toBeTruthy();
+    expect(screen.getByText(/provider_usage_http_500/).textContent).toContain("last successful read, not current");
+    expect(screen.queryByText(/static seed/)).toBeNull();
     expect(document.querySelector("[data-mc-data]")).toBeNull();
   });
 
