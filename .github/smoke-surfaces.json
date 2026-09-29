@@ -1041,7 +1041,7 @@
       "body_contains": [
         "SYNTHETIC",
         "excluded_from_real_acceptance",
-        "\"registered\": false",
+        "\"registered\":false",
         "review_only"
       ],
       "_comment": "RA-7539: read-only Nexus One synthetic status. The package is on main; a live worker router is not registered. Payload must show lineage SYNTHETIC, excluded_from_real_acceptance, and registered=false. Unregistered must never look healthy. Max-subscription / Windows review-only only — no live worker, no SHIPPED claim."
