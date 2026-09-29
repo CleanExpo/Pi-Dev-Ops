@@ -33,6 +33,7 @@ import asyncio
 import json
 import logging
 import os
+import threading
 import time
 import urllib.request
 import urllib.error
@@ -50,6 +51,43 @@ from app.server.autonomy_eligibility import (
 log = logging.getLogger("pi-ceo.autonomy")
 
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
+_LINEAR_RATE_LIMIT_SECONDS = 3600
+_linear_rate_limited_until = 0.0
+_linear_rate_limit_lock = threading.Lock()
+
+
+class LinearRateLimitError(RuntimeError):
+    """A sanitized, process-wide signal to stop reading the exhausted Linear key."""
+
+
+def linear_rate_limited() -> bool:
+    with _linear_rate_limit_lock:
+        return time.monotonic() < _linear_rate_limited_until
+
+
+def _mark_linear_rate_limited() -> LinearRateLimitError:
+    global _linear_rate_limited_until
+    with _linear_rate_limit_lock:
+        _linear_rate_limited_until = max(
+            _linear_rate_limited_until, time.monotonic() + _LINEAR_RATE_LIMIT_SECONDS,
+        )
+    return LinearRateLimitError("Linear rate limited; retry after cooldown")
+
+
+def _has_linear_rate_limit_error(payload: object) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    errors = payload.get("errors")
+    if not isinstance(errors, list):
+        return False
+    return any(
+        isinstance(error, dict)
+        and isinstance(error.get("extensions"), dict)
+        and error["extensions"].get("code") == "RATELIMITED"
+        for error in errors
+    )
+
+
 _AUTONOMY_LOG = (
     Path(os.path.dirname(__file__)).parents[1] / ".harness" / "autonomy.jsonl"
 )
@@ -208,7 +246,9 @@ def _send_watchdog_telegram(message: str) -> None:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _gql(api_key: str, query: str, variables: dict | None = None) -> dict[str, Any]:
+def _gql(api_key: str, query: str, variables: dict | None = None, *, timeout: int = 15) -> dict[str, Any]:
+    if linear_rate_limited():
+        raise LinearRateLimitError("Linear rate limited; retry after cooldown")
     payload = json.dumps({"query": query, "variables": variables or {}}).encode()
     req = urllib.request.Request(
         _LINEAR_ENDPOINT,
@@ -220,13 +260,22 @@ def _gql(api_key: str, query: str, variables: dict | None = None) -> dict[str, A
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read())
     except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")[:300]
-        raise RuntimeError(f"Linear HTTP {exc.code}: {body}") from exc
+        if exc.code == 429:
+            raise _mark_linear_rate_limited() from None
+        body = exc.read(4096).decode("utf-8", errors="replace")
+        try:
+            if _has_linear_rate_limit_error(json.loads(body)):
+                raise _mark_linear_rate_limited() from None
+        except json.JSONDecodeError:
+            pass
+        raise RuntimeError(f"Linear HTTP {exc.code}") from None
+    if _has_linear_rate_limit_error(data):
+        raise _mark_linear_rate_limited()
     if "errors" in data:
-        raise RuntimeError(f"Linear GQL errors: {data['errors']}")
+        raise RuntimeError("Linear GQL errors")
     return data.get("data", {})
 
 
@@ -302,6 +351,8 @@ def fetch_todo_issues(api_key: str) -> list[dict]:
                     "statusName": _READY_STATUS_NAME,
                     "autonomyLabel": label,
                 })
+            except LinearRateLimitError:
+                raise
             except Exception as exc:
                 log.warning(
                     "Autonomy: project %s label %s fetch failed: %s",
@@ -628,18 +679,11 @@ def _is_pi_ceo_orphan(issue: dict, live_session_ids: set[str]) -> bool:
 
 
 def _orphan_recovery_blocking(api_key: str) -> None:
-    """Run _orphan_recovery to completion on the calling (worker) thread.
-
-    RA-7845: _orphan_recovery is async in name only. Its Linear calls are
-    blocking urllib, one per portfolio project, and they ran on the event loop:
-    production logged a 5.7 s whole-server stall inside _gql from here at
-    09:45:22 UTC, 29 Sept 2026. The poller now awaits this through
-    asyncio.to_thread. It stays a coroutine for its existing callers and tests.
-    """
+    """Keep the poller's recovery entry point on a worker thread (RA-7845)."""
     asyncio.run(_orphan_recovery(api_key))
 
 
-async def _orphan_recovery(api_key: str) -> None:
+def _orphan_recovery_sync(api_key: str) -> None:
     """RA-1369 — reconcile tickets left In Progress with live sessions.
 
     Railway restarts, platform scale-downs, and process crashes all leave
@@ -668,6 +712,8 @@ async def _orphan_recovery(api_key: str) -> None:
     for p in projects:
         try:
             data = _gql(api_key, _IN_PROGRESS_QUERY, {"projectId": p["project_id"]})
+        except LinearRateLimitError:
+            raise
         except Exception as exc:
             log.warning("orphan-recovery: project %s fetch failed: %s", p["name"], exc)
             continue
@@ -726,6 +772,8 @@ async def _orphan_recovery(api_key: str) -> None:
                     "reason_label": _BLOCKED_REASON_SESSION_LOST,
                     "label_attached": label_ok,
                 })
+            except LinearRateLimitError:
+                raise
             except Exception as exc:
                 log.warning("orphan-recovery: block %s failed: %s", ident, exc)
                 _log_event({
@@ -736,6 +784,11 @@ async def _orphan_recovery(api_key: str) -> None:
 
     log.info("orphan-recovery complete: checked=%d blocked=%d live_sessions=%d",
              checked, reverted, len(live_ids))
+
+
+async def _orphan_recovery(api_key: str) -> None:
+    """Keep startup Linear reconciliation off the ASGI event loop."""
+    await asyncio.to_thread(_orphan_recovery_sync, api_key)
 
 
 def _infer_scope(issue: dict) -> dict:
@@ -822,9 +875,14 @@ async def _run_poller_iteration(
     # left In Progress by a previous process instance (Railway restart /
     # crash) with no live session gets reverted to Todo + explanatory
     # comment, so the next poll reclaims it instead of it sitting stuck.
-    if not orphan_recovery_done and config.AUTONOMY_ENABLED and config.LINEAR_API_KEY:
+    if (not orphan_recovery_done and config.AUTONOMY_ENABLED
+            and config.LINEAR_API_KEY and not linear_rate_limited()):
         try:
             await asyncio.to_thread(_orphan_recovery_blocking, config.LINEAR_API_KEY)
+        except LinearRateLimitError as exc:
+            log.warning("orphan-recovery rate limited; pausing Linear reads")
+            _log_event({"action": "poll_error", "error": str(exc)})
+            return orphan_recovery_done
         except Exception as exc:
             log.error("orphan-recovery crashed: %s", exc)
         orphan_recovery_done = True
@@ -841,6 +899,9 @@ async def _run_poller_iteration(
         _ks.check_hard_stop()
     except _ks.KillSwitchAbort as abort:
         log.warning("Autonomy poller: hard-stop file detected — pausing (%s)", abort.snapshot)
+        return orphan_recovery_done
+
+    if linear_rate_limited():
         return orphan_recovery_done
 
     if not config.LINEAR_API_KEY:
