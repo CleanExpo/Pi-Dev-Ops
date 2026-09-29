@@ -150,10 +150,6 @@ def test_check_scans_copied_markdown_with_the_repo_scanners_rules(layout):
     for tail in ('MYSQLPASSWORDx7Qk2"', "MYSQLPASSWORD'", '{MYSQLPASSWORD"', 'MYSQLPASSWORD}"', 'OTHER_PASSWORD"'):
         notes.write_text("MYSQL_PWD=" + ("'$" if tail.endswith("'") else '"$') + tail + "\n")
         assert any(p.startswith("secret-shaped") for p in _check(layout)), tail
-    notes.write_text('MYSQL_PWD="$' + 'MYSQLPASSWORD"\n')
-    assert not any(p.startswith("secret-shaped") for p in _check(layout)), "the listed shell variable"
-    notes.write_text("Example: AWS_KEY=" + "AKIA" + "IOSFODNN7EXAMPLE" + "\n")
-    assert not any(p.startswith("secret-shaped") for p in _check(layout)), "the value itself is a placeholder"
 
 
 def test_a_stale_staging_symlink_cannot_redirect_the_copy(layout, tmp_path):

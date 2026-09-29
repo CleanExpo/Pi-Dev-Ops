@@ -60,10 +60,10 @@ _EXTRAS = ("index.md", "HOMES.json", "README.md", "CLAUDE.md", "library")
 # agent to run them (review round 2).
 _SKIP_DIRS = {"__pycache__", "node_modules", ".pytest_cache"}
 _SKIP_FILES = re.compile(r"^.*\.pyc$")
-# The exact whole matched texts the secrets check waives, and nothing else: a vendor's published
-# example key, and use-railway's shell variable reference. Rules that waived by pattern were
-# bypassed in review rounds 7-10, so each entry here is one reviewed string.
-_EXAMPLE_VALUES = frozenset({"AKIA" + "IOSFODNN7EXAMPLE", 'PWD="$' + 'MYSQLPASSWORD"'})
+# The secrets check waives only these reviewed (file in the copy, line, whole matched text)
+# triples. Waivers by pattern (review rounds 7-10) and by text alone (round 12) were each
+# bypassed; a re-sync that moves or changes a waived line fails check until it is re-reviewed.
+_WAIVED = frozenset({("use-railway/scripts/analyze-mysql.py", 102, 'PWD="$' + 'MYSQLPASSWORD"')})
 
 
 def _homes(skills_dir: Path) -> dict[str, str]:
@@ -244,9 +244,8 @@ def _scanner_rules():
 
 def _secret_problems(dest: Path) -> list[str]:
     """The scanner's own rules over every copied file, Markdown included: the scanner skips .md
-    for convenience, and skills are mostly Markdown (review round 3). Only an exact documented
-    example value is waived: a placeholder word on the line (round 7) or inside the matched
-    value (round 8) waives nothing."""
+    for convenience, and skills are mostly Markdown (review round 3). Only a _WAIVED triple is
+    skipped: no placeholder word, on the line (round 7) or in the value (round 8), waives anything."""
     rules, problems = _scanner_rules(), []
     for path in sorted(p for p in dest.rglob("*") if p.is_file() and not p.is_symlink()):
         text = path.read_text("utf-8", errors="replace")
@@ -254,7 +253,7 @@ def _secret_problems(dest: Path) -> list[str]:
             for match in pattern.finditer(text):
                 number = text.count("\n", 0, match.start()) + 1
                 if ((title.startswith("JWT (") and rules._is_public_anon_jwt(match.group(0)))
-                        or match.group(0) in _EXAMPLE_VALUES):
+                        or (path.relative_to(dest).as_posix(), number, match.group(0)) in _WAIVED):
                     continue
                 problems.append(f"secret-shaped value in the copy: {path.relative_to(dest)}:{number} ({title})")
     return problems
