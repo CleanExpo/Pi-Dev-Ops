@@ -86,8 +86,13 @@ MUTANTS = [
     ("gemini.py", "    budget.add_thoughts(usage)\n", "\n"),
     # rev 6d: provider input ceiling for multi-turn, price check before every send, malformed thinking
     ("gemini.py", "reserve_generate(INPUT_TOKEN_LIMIT[model] if multi_turn else counted, price)", "reserve_generate(bound, price)"),
-    ("gemini.py", "            return expired\n        counted, problem, status", "            pass\n        counted, problem, status"),
-    ("gemini.py", "            return expired\n        reserved = ", "            pass\n        reserved = "),
+    ("gemini.py", "        if halt := _halt(model, budget):\n            return halt\n", "        if False:\n            return halt\n"),
+    ("gemini.py", "        if halt := _halt(model, budget):  # the lock", "        if False:  # the lock"),
+    ("gemini.py", "return ({\"error\": \"price table expired\"}, None) if price_table(today(), model) is None else None",
+     "return None"),
+    # release review r4 P1: a lock landing during count or between retries stops this model at once
+    ("gemini.py", "    if budget.model not in (None, model):", "    if False:"),
+    ("gemini.py", "if status not in ADVANCE_STATUSES and budget.model in (None, model):", "if status not in ADVANCE_STATUSES:"),
     ("gemini.py", "for v in (prompt, cands, thoughts))", "for v in (prompt, cands))"),
     ("gemini.py", "RUN_CAP_USD = 2.50", "RUN_CAP_USD = 1.00"),
     # release review P1s: per-model pricing, first-lock-wins, writer termination

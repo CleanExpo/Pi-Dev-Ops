@@ -222,17 +222,21 @@ def _settled(data, reserved: float, counted: int, budget: GeminiBudget, price: d
     return {"data": data, "counted": counted}
 
 
+def _halt(model: str, budget: GeminiBudget) -> tuple[dict, None] | None:
+    """Checked before EVERY outbound request: the price is current and no other model holds the run's lock."""
+    if budget.model not in (None, model):
+        return {"error": f"run locked to {budget.model}"}, None
+    return ({"error": "price table expired"}, None) if price_table(today(), model) is None else None
+
+
 def _call_one(model: str, body: dict, headers: dict, budget: GeminiBudget, http_post, sleep, carry: int = 0,
               multi_turn: bool = False) -> tuple[dict, int | None]:
-    """(result, final http status) for one model. Count, reserve, send; 429/503 retried at most twice.
-
-    Every outbound request is preceded by a price check, so expiry mid-call sends nothing further."""
+    """(result, final http status) for one model. Count, reserve, send; 429/503 retried at most twice."""
     payload = json.dumps({**body, "model": f"models/{model}"}).encode()
     generate_url, count_url = urls(model)
-    expired = {"error": "price table expired"}, None
     for attempt in range(MAX_RETRIES + 1):
-        if price_table(today(), model) is None:
-            return expired
+        if halt := _halt(model, budget):
+            return halt
         counted, problem, status = _count(count_url, payload, headers, budget, http_post)
         if problem:
             if status in RETRY_STATUSES and attempt < MAX_RETRIES:
@@ -240,9 +244,9 @@ def _call_one(model: str, body: dict, headers: dict, budget: GeminiBudget, http_
                 continue
             return {"error": problem}, status
         bound = counted + carry  # provider count plus provider-reported earlier thinking
-        price = price_table(today(), model)
-        if price is None:
-            return expired
+        if halt := _halt(model, budget):  # the lock may have landed, or the price expired, while counting
+            return halt
+        price = dict(PRICES[model])  # _halt has just proved this row current
         reserved = budget.reserve_generate(INPUT_TOKEN_LIMIT[model] if multi_turn else counted, price)
         if reserved is None:
             return {"error": "cap: reservation over the run cap"}, None
@@ -258,10 +262,8 @@ def _call_one(model: str, body: dict, headers: dict, budget: GeminiBudget, http_
 
 
 def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep) -> dict:
-    """{'data': reply, 'counted': n} or {'error': reason}.
-
-    Before the run has a model, CHAIN is walked in order and a 404/429/503 that outlasts the retries moves
-    to the next priced model; the first model that answers is locked for the rest of the run."""
+    """{'data': reply, 'counted': n} or {'error': reason}. Before the run has a model, CHAIN is walked in order
+    and a 404/429/503 that outlasts the retries moves on; the first model that answers is locked for the run."""
     if ask.sensitive(json.dumps(body)):
         return {"error": "refused: sensitive payload"}
     headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
@@ -272,9 +274,7 @@ def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep
     if multi_turn and not budget.thoughts_known:
         return {"error": "thinking tokens unreported: input cannot be bounded"}
     carry = budget.thoughts if multi_turn else 0
-    out: dict = {"error": "no chain model has a current price"}
-    tried: list[str] = []
-    # Re-read the lock before every attempt: another thread may have locked the run since this call began.
+    out, tried = {"error": "no chain model has a current price"}, []  # the lock is re-read per attempt
     while (model := budget.model or next((m for m in CHAIN if m not in tried and price_table(on, m)), None)) \
             and model not in tried:
         tried.append(model)
@@ -284,7 +284,7 @@ def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep
             if budget.model != model:  # a reply from a model the run did not lock is never used
                 return {"error": f"reply from {model} discarded: run locked to {budget.model}"}
             return out
-        if status not in ADVANCE_STATUSES:  # a locked model is in `tried`, so the loop never re-sends
+        if status not in ADVANCE_STATUSES and budget.model in (None, model):  # else: go to the locked model
             return out
     return out
 

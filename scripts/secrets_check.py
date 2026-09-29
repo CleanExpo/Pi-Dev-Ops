@@ -405,7 +405,7 @@ def _scan_file(rel_path: str) -> list[dict]:
             if title.startswith("JWT (") and _is_public_anon_jwt(matched_text):
                 continue
             # Skip placeholders / example values
-            if _PLACEHOLDER_RE.search(matched_text) or re.search(r"your-[a-z0-9-]*-here", matched_text, re.I):
+            if _PLACEHOLDER_RE.search(matched_text) or re.fullmatch(r"[^=:]*[=:]\s*[\"']?your(-[a-z]{2,12}){1,3}-here[\"']?", matched_text):
                 continue
             line_num = text[: match.start()].count("\n") + 1
             line_text = lines[line_num - 1] if line_num <= len(lines) else ""

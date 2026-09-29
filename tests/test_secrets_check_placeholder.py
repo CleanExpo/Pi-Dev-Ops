@@ -43,3 +43,12 @@ def test_unquoted_hyphenated_placeholder_is_suppressed(tmp_path: Path) -> None:
 def test_realistic_value_followed_by_a_placeholder_comment_still_fires(tmp_path: Path) -> None:
     out = _scan_line(tmp_path, f'export TYPESAFE_API_KEY="{REALISTIC}"  # replace your-key-here')
     assert out.returncode != 0, out.stdout[-400:]
+
+
+def test_a_real_value_containing_the_placeholder_still_fires(tmp_path: Path) -> None:
+    """Release review r4 P1: an unanchored search exempted any match that merely contained your-...-here."""
+    for i, value in enumerate((f"{REALISTIC}-your-key-here", f"your-key-here-{REALISTIC}", f"{REALISTIC[:14]}-your-key-here-{REALISTIC[14:]}",
+                               f"your-{REALISTIC.lower()}-here")):
+        (tmp_path / str(i)).mkdir()
+        out = _scan_line(tmp_path / str(i), f'export TYPESAFE_API_KEY="{value}"')
+        assert out.returncode != 0, (value, out.stdout[-400:])
