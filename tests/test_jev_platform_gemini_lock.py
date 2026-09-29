@@ -81,3 +81,13 @@ def test_the_body_is_copied_before_its_checks_so_a_later_change_is_never_sent():
     assert "data" in gemini.call(body, KEY, b, fake, sleep=lambda s: None)
     sent = [json.loads(p)["generationConfig"]["maxOutputTokens"] for u, p, _ in inner.calls if ":generate" in u]
     assert sent == [gemini.MAX_OUTPUT_TOKENS]
+
+
+@pytest.mark.parametrize("extra", [{"candidateCount": 8}, {"candidateCount": 1}, {"responseLogprobs": True},
+                                   {"responseModalities": ["AUDIO"]}])
+def test_a_generation_setting_the_reservation_never_priced_sends_nothing(extra):
+    """Release review r8 P1: candidateCount=8 was sent under a reservation priced for one 2,048-token reply."""
+    body = dict(BODY, generationConfig={**BODY["generationConfig"], **extra})
+    b, fake = gemini.GeminiBudget(0.10, dict(gemini.PRICES[gemini.MODEL])), FakeGemini([ftext("hi")])
+    assert gemini.call(body, KEY, b, fake, sleep=lambda s: None)["error"].startswith("refused: maxOutputTokens")
+    assert fake.calls == [] and b.spent == 0

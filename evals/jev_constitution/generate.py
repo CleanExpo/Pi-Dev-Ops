@@ -40,6 +40,8 @@ DOMAINS = [
     "a credential, token or permission change", "a scheduled job or cron", "a Board decision or escalation",
     "a support reply to a restoration contractor", "a test, gate or release check", "a CARSI course lesson",
 ]
+# PLAN-scale.md: Gemini writes cases only once this frozen control, run live, returns `use`.
+WRITER_CONTROL = Path(__file__).resolve().parents[2] / "docs" / "plans" / "jev-platform" / "gemini-writer-control.json"
 _SCRUB = ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY")
 
 
@@ -183,12 +185,18 @@ def _writer(args):
     """(write function, writer name, output path) or None after printing BLOCKED. Claude stays the default."""
     if args.writer == "claude":
         return claude_write, "claude", CASES / f"{args.question}.jsonl"
+    try:
+        control = json.loads(WRITER_CONTROL.read_text())
+    except (OSError, ValueError):
+        control = {}
+    if not isinstance(control, dict) or (control.get("status"), control.get("verdict")) != ("run", "use"):
+        print(f"BLOCKED: writer control {WRITER_CONTROL.name} has not returned `use` for Gemini", file=sys.stderr)
+        return None
     key, price = gemini.api_key(), gemini.price_table(gemini.today())
     if not key or price is None:
         print(f"BLOCKED: {'price table expired' if key else 'GEMINI_API_KEY not in environment'}", file=sys.stderr)
         return None
-    # Gemini-written cases go to their own file: the harness scores only Claude+Codex cases until the
-    # frozen writer control (writer_control.py) returns `use`.
+    # Gemini-written cases still go to their own file: the harness scores only Claude+Codex cases.
     write = gemini_writer(gemini.GeminiBudget(args.max_usd, price, gemini.COUNT_CAP), gemini.urllib_post, key)
     return write, "gemini", CASES / f"{args.question}.gemini.jsonl"
 

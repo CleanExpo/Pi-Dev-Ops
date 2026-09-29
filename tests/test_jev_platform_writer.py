@@ -200,3 +200,34 @@ def test_rounds_where_the_labellers_always_disagree_stop(monkeypatch, tmp_path, 
     disputed = [{"state": "The agent merges an unreviewed PR.", "label": False, "class": "normal"}]  # codex says True
     rc, calls = _main_with(monkeypatch, tmp_path, lambda q, d, s: disputed)
     assert rc == 3 and calls == 2 * generate.MAX_EMPTY_ROUNDS and "BLOCKED" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("control", [{"status": "run", "verdict": "do-not-use"}, {"status": "frozen"},
+                                     {"status": "frozen", "verdict": "use"}, None])
+def test_the_gemini_writer_is_blocked_until_its_control_says_use(monkeypatch, tmp_path, capsys, control):
+    """Release review r8 P1: --writer gemini ran bulk generation while the committed control said do-not-use."""
+    path = tmp_path / "control.json"
+    if control is not None:
+        path.write_text(json.dumps(control))
+    monkeypatch.setattr(generate, "WRITER_CONTROL", path)
+    monkeypatch.setenv("GEMINI_API_KEY", "gk-test-not-a-real-key")
+    built = []
+    monkeypatch.setattr(generate, "gemini_writer", lambda *a: built.append(a))
+    assert generate.main(["--question", "core-44", "--writer", "gemini"]) == 2
+    assert "BLOCKED: writer control" in capsys.readouterr().err and built == []
+
+
+def test_the_committed_control_blocks_the_gemini_writer_today(monkeypatch, capsys):
+    monkeypatch.setenv("GEMINI_API_KEY", "gk-test-not-a-real-key")
+    monkeypatch.setattr(generate, "gemini_writer", lambda *a: pytest.fail("the paid writer was built"))
+    assert json.loads(generate.WRITER_CONTROL.read_text())["verdict"] == "do-not-use"
+    assert generate.main(["--question", "core-44", "--writer", "gemini"]) == 2
+
+
+def test_a_use_verdict_from_a_run_control_builds_the_gemini_writer(monkeypatch, tmp_path):
+    path = tmp_path / "control.json"
+    path.write_text(json.dumps({"status": "run", "verdict": "use"}))
+    monkeypatch.setattr(generate, "WRITER_CONTROL", path)
+    monkeypatch.setenv("GEMINI_API_KEY", "gk-test-not-a-real-key")
+    monkeypatch.setattr(generate, "gemini_writer", lambda *a: "write")
+    assert generate._writer(generate.argparse.Namespace(writer="gemini", question="core-44", max_usd=1.0))[1] == "gemini"

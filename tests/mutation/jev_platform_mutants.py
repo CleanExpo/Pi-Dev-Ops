@@ -130,6 +130,11 @@ MUTANTS = [
      'if not (gem["anchor_accuracy"] >= ANCHOR_FLOOR - 1e-9 and gem["anchor_accuracy"] >= claude["anchor_accuracy"]):',
      "if False:"),
     ("evals/jev_constitution/writer_control.py", "round(num / den * 100, 1) == round(claim, 1)", "True"),
+    # release review r8 P1s: unpriced generation settings, and the writer control enforced at the CLI
+    ("gemini.py", 'or set(cfg) - {"maxOutputTokens", "thinkingConfig"}', "or set()"),
+    ("evals/jev_constitution/generate.py", '!= ("run", "use"):', '!= ("run", "use") and False:'),
+    ("evals/jev_constitution/generate.py", '(control.get("status"), control.get("verdict")) != ("run", "use")',
+     'control.get("verdict") != "use"'),
 ]
 env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
 killed = 0
