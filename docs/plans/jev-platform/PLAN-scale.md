@@ -1,9 +1,9 @@
 # Jev Platform: Levels 9 and 10, a Gemini Flash agent, and a cheaper case writer — plan
 
-Status: DRAFT rev 4 · 29/09/2026. It builds on PLAN.md rev 5 and PLAN-ask.md rev 4, both approved
+Status: DRAFT rev 5 · 29/09/2026. It builds on PLAN.md rev 5 and PLAN-ask.md rev 4, both approved
 100/100. Done contract v7 (`w_9a6c73db7577`, criteria C12–C16) is locked against this plan.
 Rev 1 scored 72/100 (`judge-scale-r1.md`) and rev 2 scored 84/100 (`judge-scale-r2.md`). Rev 3
-scored 94/100 (`judge-scale-r3.md`). Rev 4 answers its three items; see "Rev 4 changes" at the end.
+scored 94/100 (`judge-scale-r3.md`). Rev 4 scored 99/100 (`judge-scale-r4.md`); rev 5 corrects its one test contract.
 
 ## Why
 
@@ -309,7 +309,12 @@ A Python loop over Gemini `generateContent` with function calling.
   - More than 250 candidates are capped.
   - Empty candidates → `none`, with zero requests.
 - **Compatibility**
-  - Each tool with a compatible template → sends, and the body holds exactly the declared fields.
+  - Each tool with a compatible template → sends. The body's state keys equal **the tool's documented
+    state shape** (the table above), and each selected template's declared fields are a **subset**
+    of those keys.
+  - `ask_jev_files` with a prompt id and a content-only template → state `{task, content}`; sends.
+  - `ask_jev_files` with a prompt id and a mixed batch (`["content"]` plus `["task", "content"]`)
+    → one body with state `{task, content}` holding both questions; sends.
   - Each tool with an incompatible template → refused, with zero requests.
   - A template whose text omits a declared field → rejected at manifest load.
 - **Level 10**
@@ -450,3 +455,10 @@ A Python loop over Gemini `generateContent` with function calling.
 3. **Template/state compatibility.** There is one state shape per tool, a declared `state` on every
    template, refusal before send on a mismatch, and a load-time check that the template text names
    its fields. Tests cover both paths.
+
+## Rev 5 change (answers to judge-scale-r4)
+
+The compatibility test now asserts that the state keys match the tool's documented shape and that
+each template's declared fields are a subset of them. It covers a content-only template sent with
+a prompt id, and a mixed batch. The zero-request refusal tests for incompatible selections are
+kept.
