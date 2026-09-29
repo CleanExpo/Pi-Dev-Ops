@@ -56,10 +56,13 @@ def _graphql(query: str, variables: dict | None = None) -> dict:
     )
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
-            return (json.loads(resp.read()) or {}).get("data", {}) or {}
+            body = json.loads(resp.read()) or {}
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         log.warning("linear_pulse: graphql error: %s", exc)
         return {}
+    if body.get("errors"):  # Linear refuses with HTTP 200 + errors; say why
+        log.warning("linear_pulse: graphql errors: %s", body["errors"])
+    return body.get("data", {}) or {}
 
 
 def _load_state() -> dict:
@@ -142,11 +145,7 @@ def _pulse_issue_id(state: dict) -> str | None:
 def _post_comment(issue_id: str, body: str) -> bool:
     if not issue_id or not body:
         return False
-    mutation = """
-    mutation($input: CommentCreateInput!) {
-      commentCreate(input: $input) { success comment { id } }
-    }
-    """
+    mutation = "mutation($input: CommentCreateInput!) { commentCreate(input: $input) { success comment { id } } }"
     data = _graphql(mutation, {"input": {"issueId": issue_id, "body": body}})
     return bool(((data or {}).get("commentCreate") or {}).get("success"))
 
