@@ -5,6 +5,7 @@ out/
 # Dependencies
 node_modules/
 test-results/
+test-results-writes/
 playwright-report/
 
 # Build info

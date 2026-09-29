@@ -2,8 +2,9 @@
 # docs/plans/mission-control/work-packages.md. Signs in with the real login
 # route and writes one JSON receipt per surface: MC checks 1, 2, 4 (WP-06) at
 # desktop and phone size (check 9), plus Level 2 checks 5, 6, 8 (WP-09), and
-# check 7 from the panel tests (scripts/mission_control_panel_coverage.py) and
-# check 11 from the register and open Linear defect tickets.
+# check 7 from the panel tests (scripts/mission_control_panel_coverage.py),
+# check 11 from the register and open Linear defect tickets, and check 12 from
+# the write journeys on a local stack (dashboard/e2e-writes/).
 # Without DASHBOARD_PASSWORD it reports NOT_RUN and fails loudly — a missing
 # secret must never look like a passing suite (RA-7832).
 name: Mission Control live
@@ -100,6 +101,28 @@ jobs:
           python3 ../scripts/mission_control_panel_coverage.py vitest-panels.json e2e-live-receipts \
             --registry e2e-live/panel-coverage.json --dashboard .
 
+      # AAA check 12: label honesty. The real dashboard build against a
+      # recording stand-in backend, on the runner only: nothing here can reach
+      # production (dashboard/playwright.writes.config.ts). For each write button
+      # it asserts the requests received match the label, then writes MC-xx-W.json.
+      # Check 3 (writes survive a reload on a PR preview) is a separate suite.
+      - name: Build the dashboard for the write journeys (check 12)
+        if: always() && steps.suite.outcome != 'skipped'
+        env:
+          DASHBOARD_PASSWORD: dev
+          PI_CEO_URL: http://127.0.0.1:7778
+          PI_CEO_PASSWORD: writes-suite-stub
+          NEXT_PUBLIC_SUPABASE_URL: https://stub.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-key
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build
+
+      - name: Run the write journeys (check 12)
+        if: always() && steps.suite.outcome != 'skipped'
+        env:
+          DASHBOARD_PASSWORD: dev
+        run: npx playwright test --config playwright.writes.config.ts
+
       # AAA check 11: nothing documented broken. Reads the coverage register
       # and open Linear issues labelled mc-defect; writes MC-xx-C11.json.
       # Without LINEAR_API_KEY the ticket half is UNKNOWN and check 11 reads
@@ -167,5 +190,6 @@ jobs:
           path: |
             dashboard/e2e-live-receipts/
             dashboard/test-results/
+            dashboard/test-results-writes/
           if-no-files-found: warn
           retention-days: 30

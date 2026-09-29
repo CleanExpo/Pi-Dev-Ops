@@ -33,7 +33,7 @@ export default defineConfig({
     // Two workers preserve file isolation and every assertion while keeping startup bounded.
     maxWorkers: 2,
     include: ["**/__tests__/**/*.{test,spec}.{ts,tsx}", "**/*.{test,spec}.{ts,tsx}"],
-    exclude: ["node_modules", ".next", "e2e", "e2e-live"],
+    exclude: ["node_modules", ".next", "e2e", "e2e-live", "e2e-writes"],
   },
   resolve: {
     alias: {

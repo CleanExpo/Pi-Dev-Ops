@@ -35,6 +35,11 @@ from scripts.mission_control_stability import judge_stable, load_history  # noqa
 # Surfaces with write actions (work-packages.md WP-07). Checks 3 and 12 apply
 # only to these; for every other surface they are N/A.
 WRITE_SURFACES = {"MC-01", "MC-02", "MC-03", "MC-05", "MC-07", "MC-10", "MC-11"}
+# Surfaces that have write journeys (dashboard/e2e-writes/). Their -W receipt is
+# part of the night's suite: a journey run that died before writing it (a failed
+# build, a dead server, the step skipped) must not count as a passing night.
+# Add a surface here in the same change that adds its journeys.
+WRITE_JOURNEY_SURFACES = {"MC-03"}
 SURFACES = [f"MC-{n:02d}" for n in range(20)]
 
 LEVELS: dict[int, list[str]] = {1: ["1", "2", "3", "4"], 2: ["5", "6", "7", "8", "9"], 3: ["10", "11", "12", "13"]}
@@ -42,8 +47,7 @@ LEVELS: dict[int, list[str]] = {1: ["1", "2", "3", "4"], 2: ["5", "6", "7", "8",
 # Checks the suite does not measure yet, and why. Each is UNMET until a
 # receipt carries it; the reason is what the scorecard prints.
 NOT_MEASURED = {
-    "3": "write journeys not built (WP-07)",
-    "12": "label-honesty assertions not built (WP-07)",
+    "3": "write journeys against a PR preview not built (WP-07; Vercel sign-in protection blocks previews until a bypass secret is set)",
 }
 
 
@@ -71,7 +75,7 @@ def receipts_for(surface: str, receipts: dict[str, dict]) -> dict[str, dict]:
         sid = "MC-00" if stem.startswith("control-hub") else stem[:5]
         if sid != surface:
             continue
-        kind = ("c7" if stem.endswith("-C7") else "c11" if stem.endswith("-C11") else "phone" if "@phone" in stem
+        kind = ("c7" if stem.endswith("-C7") else "c11" if stem.endswith("-C11") else "w" if stem.endswith("-W") else "phone" if "@phone" in stem
                 else "l2" if re.search(r"-L2($|@)", stem) else "desktop")
         found[kind] = body
     return found
@@ -99,11 +103,16 @@ def suite_passed(surface: str, got: dict[str, dict]) -> bool:
 
     Every live receipt the surface should have must exist (a test that died
     before writing one is a failure), and every check in them is PASS or N/A.
-    The panel-coverage (-C7) receipt is not part of the live suite.
+    The panel-coverage (-C7) and register (-C11) receipts are not part of the live
+    suite. A write-journey (-W) receipt is required for surfaces in
+    WRITE_JOURNEY_SURFACES and counts whenever a surface has one.
     """
     kinds = ("desktop",) if surface == "MC-00" else ("desktop", "phone", "l2")
     if any(not got.get(k) for k in kinds):
         return False
+    if surface in WRITE_JOURNEY_SURFACES and not got.get("w"):
+        return False
+    kinds += ("w",) if got.get("w") else ()  # a write journey that failed breaks the night too
     return all(c.get("result") in ("PASS", "N/A") for k in kinds for c in got[k].get("checks", []))
 
 
@@ -123,6 +132,18 @@ def _judge_register(receipt: dict | None) -> Verdict:
     if unknown:
         return Verdict(False, f"not measured: {str(unknown[0].get('detail', ''))[:120]}")
     return Verdict(True)
+
+
+def _judge_label_honesty(receipt: dict | None) -> Verdict:
+    """Check 12 from the write-journey receipt (dashboard/e2e-writes/, MC-xx-W.json).
+
+    Every 12-* result must PASS. No receipt means this surface's write actions
+    have no label-honesty journey yet: not measured, never a pass.
+    """
+    checks = _checks(receipt, "12-")
+    if not checks:
+        return Verdict(False, "not measured: no write-journey receipt for this surface yet")
+    return _all_pass(checks, "check 12")
 
 
 def judge(check: str, surface: str, got: dict[str, dict], deployed_sha: str | None) -> Verdict:
@@ -157,6 +178,8 @@ def judge(check: str, surface: str, got: dict[str, dict], deployed_sha: str | No
         return _all_pass(_checks(got.get("c7"), "7-"), "check 7")
     if check == "11":
         return _judge_register(got.get("c11"))
+    if check == "12":
+        return _judge_label_honesty(got.get("w"))
     if check == "13":
         if not deployed_sha:
             return Verdict(False, "receipt names no deployed SHA (MC_LIVE_SHA unset)")
