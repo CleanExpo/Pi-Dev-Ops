@@ -156,6 +156,10 @@ def ask_files(repo: str, paths: list[str], template_ids: list[str], post, budget
     questions, problem = build_questions(manifest, template_ids)
     if problem:
         return {"blocked": problem, "results": []}
+    wrong_state = [t for t in template_ids if manifest["questions"][t].get("state", ["content"]) != ["content"]]
+    if wrong_state:
+        return {"blocked": f"template refused: {', '.join(wrong_state)} reads more than content, "
+                           "ask sends content", "results": []}
     results = []
     for rel in paths:
         content, digest, refusal = admit(repo, manifest, rel)

@@ -28,6 +28,7 @@ MUTANTS = [
     ("engine.py", "if errors or len(models) != 1:", "if len(models) > 1:"),
     ("engine.py", "if not all(p.resolve().is_relative_to(ROOT) for p in paths):", "if False:"),
     ("ask.py", "if digest != approved:", "if False:"),
+    ("ask.py", "    if wrong_state:", "    if False:"),
     ("ask.py", "if not isinstance(approved, str):", "if False:"),
     ("ask.py", "q = _question(tid, t) if isinstance(t, dict) else None", "q = _question(tid, t or {'type': 'noul', 'question': 'x', 'true': 'y', 'false': 'z'})"),
     ("ask.py", '["git", "-C", repo, "show", f"HEAD:{MANIFEST}"]', '["cat", f"{repo}/{MANIFEST}"]'),
