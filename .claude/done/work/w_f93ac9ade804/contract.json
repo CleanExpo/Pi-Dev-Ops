@@ -15,68 +15,68 @@
     {
       "id": "C1",
       "required": true,
-      "statement": "offline harness controls pass (validation, BLOCKED, fake-key control, scoring); each guard watched failing under a mutant on 2026-09-29",
       "recipe": {
         "run": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_constitution_eval.py -q -p no:cacheprovider",
         "expect_exit": 0,
         "expect_stdout_contains": "11 passed",
         "timeout_s": 120
-      }
+      },
+      "text": "offline harness controls pass (validation, BLOCKED, fake-key control, scoring); each guard watched failing under a mutant on 2026-09-29"
     },
     {
       "id": "C2",
       "required": true,
-      "statement": "questions.json holds all 538 extracted rules, every one with a source file:line and quote",
       "recipe": {
         "run": "python3 -c \"import json;q=json.load(open('evals/jev_constitution/questions.json'))['questions'];assert len(q)==538 and all(x['source'] and x['quote'] for x in q);print('OK',len(q))\"",
         "expect_exit": 0,
         "expect_stdout_contains": "OK 538",
         "timeout_s": 30
-      }
+      },
+      "text": "questions.json holds all 538 extracted rules, every one with a source file:line and quote"
     },
     {
       "id": "C3",
       "required": true,
-      "statement": "a run with no TYPESAFE_API_KEY reports BLOCKED and exits 2",
       "recipe": {
         "run": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27",
         "expect_exit": 2,
         "expect_stdout_contains": "BLOCKED",
         "timeout_s": 60
-      }
+      },
+      "text": "a run with no TYPESAFE_API_KEY reports BLOCKED and exits 2"
     },
     {
       "id": "C4",
       "required": true,
-      "statement": "the metered-lane refusal in provider_policy.py is untouched",
       "recipe": {
         "run": "git diff --quiet origin/main -- app/server/provider_policy.py && echo UNTOUCHED",
         "expect_exit": 0,
         "expect_stdout_contains": "UNTOUCHED",
         "timeout_s": 30
-      }
+      },
+      "text": "the metered-lane refusal in provider_policy.py is untouched"
     },
     {
       "id": "C5",
       "required": true,
-      "statement": "pilot question ch3-4-27 (no fabricating evidence, approvals or completed actions) has a scoreable set of >=1000 Claude+Codex-agreed cases",
       "recipe": {
         "run": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness validate | grep -E '^VALID +ch3-4-27$'",
         "expect_exit": 0,
         "expect_stdout_contains": "ch3-4-27",
         "timeout_s": 60
-      }
+      },
+      "text": "pilot question ch3-4-27 (no fabricating evidence, approvals or completed actions) has a scoreable set of >=1000 Claude+Codex-agreed cases"
     },
     {
       "id": "C6",
       "required": true,
-      "statement": "Jev scored on the full ch3-4-27 set with the fake-key control refused (needs TYPESAFE_API_KEY from the founder)",
       "recipe": {
         "run": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27",
         "expect_exit": 0,
         "expect_stdout_contains": "ch3-4-27: accuracy",
         "timeout_s": 1800
-      }
+      },
+      "text": "Jev scored on the full ch3-4-27 set with the fake-key control refused (needs TYPESAFE_API_KEY from the founder)"
     }
   ]
 }
