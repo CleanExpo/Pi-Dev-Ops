@@ -60,11 +60,10 @@ _EXTRAS = ("index.md", "HOMES.json", "README.md", "CLAUDE.md", "library")
 # agent to run them (review round 2).
 _SKIP_DIRS = {"__pycache__", "node_modules", ".pytest_cache"}
 _SKIP_FILES = re.compile(r"^.*\.pyc$")
-# Whole matched values the secrets check waives: vendors' published example keys only.
-_EXAMPLE_VALUES = frozenset({"AKIA" + "IOSFODNN7EXAMPLE"})
-# ...and an assignment whose whole value is one shell variable reference, such as "$DB_PASSWORD".
-# Double quotes or none only: single quotes keep "$" literal (review round 9).
-_VARIABLE_ONLY = re.compile(r"""[^=:]*[=:]\s*("?)\$\{?[A-Z_][A-Z0-9_]*\}?\1""")
+# The exact whole matched texts the secrets check waives, and nothing else: a vendor's published
+# example key, and use-railway's shell variable reference. Rules that waived by pattern were
+# bypassed in review rounds 7-10, so each entry here is one reviewed string.
+_EXAMPLE_VALUES = frozenset({"AKIA" + "IOSFODNN7EXAMPLE", 'PWD="$' + 'MYSQLPASSWORD"'})
 
 
 def _homes(skills_dir: Path) -> dict[str, str]:
@@ -226,7 +225,7 @@ def _home_problems(dest: Path, pdo_skills: Path, baseline: Path) -> list[str]:
 
 def _scanner_rules():
     """This repo's secrets scanner (handoff-loop audit-secrets), loaded for its patterns and its
-    placeholder rule. It parses argv at import, so it is given its own dry-run arguments."""
+    public-JWT rule. It parses argv at import, so it is given its own dry-run arguments."""
     spec = importlib.util.spec_from_file_location("_secrets_rules", ROOT / "scripts" / "secrets_check.py")
     rules = importlib.util.module_from_spec(spec)
     argv, sys.argv = sys.argv, ["secrets_check", "--repo-root", str(ROOT), "--dry-run"]
@@ -249,8 +248,7 @@ def _secret_problems(dest: Path) -> list[str]:
             for match in pattern.finditer(text):
                 number = text.count("\n", 0, match.start()) + 1
                 if ((title.startswith("JWT (") and rules._is_public_anon_jwt(match.group(0)))
-                        or match.group(0) in _EXAMPLE_VALUES
-                        or _VARIABLE_ONLY.fullmatch(match.group(0))):
+                        or match.group(0) in _EXAMPLE_VALUES):
                     continue
                 problems.append(f"secret-shaped value in the copy: {path.relative_to(dest)}:{number} ({title})")
     return problems

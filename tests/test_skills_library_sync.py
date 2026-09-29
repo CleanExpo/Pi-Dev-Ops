@@ -146,12 +146,12 @@ def test_check_scans_copied_markdown_with_the_repo_scanners_rules(layout):
     # inside a key-shaped value waives nothing either.
     notes.write_text('API_KEY = "' + "k7Qx2Lm9Rt4Wp8Zn" + "placeholder" + "3Vb6Yc1Hd5Jf0Gs" + '"\n')
     assert any(p.startswith("secret-shaped") for p in _check(layout)), "a word inside the value hid it"
-    notes.write_text('MYSQL_PWD="$' + 'MYSQLPASSWORD' + 'x7Qk2"\n')
-    assert any(p.startswith("secret-shaped") for p in _check(layout)), "only a whole $NAME is a reference"
-    notes.write_text("MYSQL_PWD='$" + "MYSQLPASSWORD'\n")
-    assert any(p.startswith("secret-shaped") for p in _check(layout)), "round 9: single-quoted $ is literal"
+    # Rounds 9-10: only the exact listed reference is waived; no near-miss spelling is.
+    for tail in ('MYSQLPASSWORDx7Qk2"', "MYSQLPASSWORD'", '{MYSQLPASSWORD"', 'MYSQLPASSWORD}"', 'OTHER_PASSWORD"'):
+        notes.write_text("MYSQL_PWD=" + ("'$" if tail.endswith("'") else '"$') + tail + "\n")
+        assert any(p.startswith("secret-shaped") for p in _check(layout)), tail
     notes.write_text('MYSQL_PWD="$' + 'MYSQLPASSWORD"\n')
-    assert not any(p.startswith("secret-shaped") for p in _check(layout)), "a shell variable, not a value"
+    assert not any(p.startswith("secret-shaped") for p in _check(layout)), "the listed shell variable"
     notes.write_text("Example: AWS_KEY=" + "AKIA" + "IOSFODNN7EXAMPLE" + "\n")
     assert not any(p.startswith("secret-shaped") for p in _check(layout)), "the value itself is a placeholder"
 
