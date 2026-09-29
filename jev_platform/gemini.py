@@ -113,9 +113,11 @@ class GeminiBudget:
             self.count_ok += 1
             self.tokens["counted"] += total
 
-    def reserve_generate(self, counted: int) -> float | None:
-        """Reserve `counted` input tokens (the caller passes the ceiling it can prove) plus the output bound."""
-        cost = counted * self.price["in"] + MAX_OUTPUT_TOKENS * self.price["out"]
+    def reserve_generate(self, counted: int, price: dict | None = None) -> float | None:
+        """Reserve `counted` input tokens (the caller passes the ceiling it can prove) plus the output bound,
+        at `price`: the row of the model this request goes to, never a price another thread locked."""
+        p = price or self.price
+        cost = counted * p["in"] + MAX_OUTPUT_TOKENS * p["out"]
         with self._lock:
             if self.attempts >= self.max_attempts or self.spent + cost > self.max_usd + 1e-12:
                 return None
@@ -124,14 +126,15 @@ class GeminiBudget:
             self.tokens["reserved_out"] += MAX_OUTPUT_TOKENS
             return cost
 
-    def settle(self, reserved: float, usage, counted: int) -> None:
+    def settle(self, reserved: float, usage, counted: int, price: dict | None = None) -> None:
         """Reported usage settles the spend down; missing usage keeps the full reservation.
 
         On an overrun (reported prompt above the counted total) the larger of the two figures is kept."""
         prompt, output = _usage(usage)
         if prompt is None:
             return
-        actual = prompt * self.price["in"] + output * self.price["out"]
+        p = price or self.price
+        actual = prompt * p["in"] + output * p["out"]
         with self._lock:
             self.tokens["reported_prompt"] += prompt
             self.tokens["reported_output"] += output
@@ -152,8 +155,10 @@ class GeminiBudget:
                 self.thoughts += t
 
     def lock_model(self, model: str, price: dict) -> None:
+        """The first model to answer wins; a concurrent thread can never re-lock the run."""
         with self._lock:
-            self.model, self.price = model, price
+            if self.model is None:
+                self.model, self.price = model, price
 
     def snapshot(self) -> dict:
         with self._lock:
@@ -207,9 +212,9 @@ def _count(url: str, payload: bytes, headers: dict, budget: GeminiBudget, http_p
     return total, None, None
 
 
-def _settled(data, reserved: float, counted: int, budget: GeminiBudget) -> dict:
+def _settled(data, reserved: float, counted: int, budget: GeminiBudget, price: dict | None = None) -> dict:
     usage = data.get("usageMetadata") if isinstance(data, dict) else None
-    budget.settle(reserved, usage, counted)
+    budget.settle(reserved, usage, counted, price)
     budget.add_thoughts(usage)
     prompt = usage.get("promptTokenCount") if isinstance(usage, dict) else None
     if isinstance(prompt, int) and prompt > counted:
@@ -235,15 +240,16 @@ def _call_one(model: str, body: dict, headers: dict, budget: GeminiBudget, http_
                 continue
             return {"error": problem}, status
         bound = counted + carry  # provider count plus provider-reported earlier thinking
-        if price_table(today(), model) is None:
+        price = price_table(today(), model)
+        if price is None:
             return expired
-        reserved = budget.reserve_generate(INPUT_TOKEN_LIMIT[model] if multi_turn else counted)
+        reserved = budget.reserve_generate(INPUT_TOKEN_LIMIT[model] if multi_turn else counted, price)
         if reserved is None:
             return {"error": "cap: reservation over the run cap"}, None
         budget.note_carry(carry)
         status, data = _post(http_post, generate_url, payload, headers)
         if status == 200:
-            return _settled(data, reserved, bound, budget), status
+            return _settled(data, reserved, bound, budget, price), status
         if status in RETRY_STATUSES and attempt < MAX_RETRIES:
             sleep(2.0 * (attempt + 1))
             continue

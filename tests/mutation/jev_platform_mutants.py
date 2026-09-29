@@ -86,6 +86,13 @@ MUTANTS = [
     ("gemini.py", "            return expired\n        reserved = ", "            pass\n        reserved = "),
     ("gemini.py", "for v in (prompt, cands, thoughts))", "for v in (prompt, cands))"),
     ("gemini.py", "RUN_CAP_USD = 2.50", "RUN_CAP_USD = 1.00"),
+    # release review P1s: per-model pricing, first-lock-wins, writer termination
+    ("gemini.py", "INPUT_TOKEN_LIMIT[model] if multi_turn else counted, price)", "INPUT_TOKEN_LIMIT[model] if multi_turn else counted)"),
+    ("gemini.py", "    budget.settle(reserved, usage, counted, price)", "    budget.settle(reserved, usage, counted)"),
+    ("gemini.py", "            if self.model is None:\n                self.model, self.price", "            if True:\n                self.model, self.price"),
+    ("evals/jev_constitution/generate.py", "            raise WriterExhausted(f\"gemini: {sent['error']}\")", "            raise ValueError(f\"gemini: {sent['error']}\")"),
+    ("evals/jev_constitution/generate.py", "        if empty >= MAX_EMPTY_ROUNDS:", "        if False:"),
+    ("scripts/secrets_check.py", " or _VALUE_PLACEHOLDER_RE.search(matched_text):", ":"),
     ("gemini.py", "                budget.lock_model(model, price_table(on, model))\n", "                pass\n"),
     ("gemini.py", 'payload = json.dumps({**body, "model": f"models/{model}"}).encode()',
      "payload = json.dumps(body).encode()"),

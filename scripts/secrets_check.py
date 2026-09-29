@@ -131,7 +131,7 @@ def _is_public_anon_jwt(value: str) -> bool:
 _PLACEHOLDER_RE = re.compile(
     r"<redacted>|<your-|<paste|<configured>|your-password|example\.com"
     r"|\$\{[A-Z_]+|process\.env\.|os\.environ"
-    r"|AKIAIOSFODNN7EXAMPLE|REPLACE_ME|INSERT_YOUR|YOUR[_-].*[_-]HERE|PASTE_YOUR"
+    r"|AKIAIOSFODNN7EXAMPLE|REPLACE_ME|INSERT_YOUR|YOUR_.*_HERE|PASTE_YOUR"
     r"|fake[_-]?(?:key|token|secret|password|api)"
     r"|dummy[_-]?(?:key|token|secret|password)"
     r"|sample[_-]?(?:key|token|secret|password)"
@@ -144,6 +144,10 @@ _PLACEHOLDER_RE = re.compile(
     r"|\{\{[^}]+\}\}",
     re.IGNORECASE,
 )
+
+# A hyphenated `your-key-here` placeholder, as in vendored docs. Tested against the MATCHED value
+# only, never the whole line, so a real key followed by `# replace your-key-here` still fires.
+_VALUE_PLACEHOLDER_RE = re.compile(r"your-[a-z0-9-]*-here", re.IGNORECASE)
 
 # File extensions / names never scanned (docs, env templates by design)
 _SKIP_EXTS = {".md", ".rst", ".lock", ".png", ".jpg", ".jpeg", ".gif", ".svg",
@@ -405,7 +409,7 @@ def _scan_file(rel_path: str) -> list[dict]:
             if title.startswith("JWT (") and _is_public_anon_jwt(matched_text):
                 continue
             # Skip placeholders / example values
-            if _PLACEHOLDER_RE.search(matched_text):
+            if _PLACEHOLDER_RE.search(matched_text) or _VALUE_PLACEHOLDER_RE.search(matched_text):
                 continue
             line_num = text[: match.start()].count("\n") + 1
             line_text = lines[line_num - 1] if line_num <= len(lines) else ""

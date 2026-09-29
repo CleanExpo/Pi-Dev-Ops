@@ -38,3 +38,8 @@ def test_hyphenated_your_key_here_placeholder_is_suppressed(tmp_path: Path) -> N
 def test_unquoted_hyphenated_placeholder_is_suppressed(tmp_path: Path) -> None:
     out = _scan_line(tmp_path, "export ANTHROPIC_API_KEY=your-key-here")
     assert out.returncode == 0, out.stdout[-400:]
+
+
+def test_realistic_value_followed_by_a_placeholder_comment_still_fires(tmp_path: Path) -> None:
+    out = _scan_line(tmp_path, f'export TYPESAFE_API_KEY="{REALISTIC}"  # replace your-key-here')
+    assert out.returncode != 0, out.stdout[-400:]

@@ -151,3 +151,37 @@ def test_live_entry_points_are_blocked_without_a_key(monkeypatch, tmp_path, caps
     assert wc.main(tmp_path / "out.json") == 2 and not (tmp_path / "out.json").exists()
     assert generate.main(["--question", "core-44", "--writer", "gemini"]) == 2
     assert capsys.readouterr().err.count("BLOCKED") == 2
+
+
+
+def test_a_spent_writer_budget_is_terminal_not_an_empty_batch():
+    tiny = gemini.GeminiBudget(0.0001, gemini.price_table(dt.date(2026, 10, 1)))
+    with pytest.raises(generate.WriterExhausted):
+        generate.gemini_text("write cases", tiny, FakeGemini([ftext("hi")]), "gk-test-not-a-real-key")
+
+
+def _main_with(monkeypatch, tmp_path, write):
+    calls = []
+
+    def counted(q, d, s):
+        calls.append(1)
+        return write(q, d, s)
+    monkeypatch.setattr(generate, "_writer", lambda a: (counted, "gemini", tmp_path / "x.jsonl"))
+    monkeypatch.setattr(generate, "load_questions", lambda: [QUESTION])
+    monkeypatch.setattr(generate, "load_cases", lambda q: [])
+    monkeypatch.setattr(generate, "CASES", tmp_path)
+    monkeypatch.setattr(generate, "codex_label", lambda q, states: [True] * len(states))
+    rc = generate.main(["--question", "core-44", "--target", "10", "--parallel", "2"])
+    return rc, len(calls)
+
+
+def test_generation_stops_on_a_terminal_writer_refusal(monkeypatch, tmp_path, capsys):
+    def spent(q, d, s):
+        raise generate.WriterExhausted("gemini: cap: reservation over the run cap")
+    rc, calls = _main_with(monkeypatch, tmp_path, spent)
+    assert rc == 3 and 1 <= calls <= 2 and "BLOCKED" in capsys.readouterr().err  # one round at most
+
+
+def test_generation_stops_after_rounds_that_propose_nothing(monkeypatch, tmp_path, capsys):
+    rc, calls = _main_with(monkeypatch, tmp_path, lambda q, d, s: [])
+    assert rc == 3 and calls == 2 * generate.MAX_EMPTY_ROUNDS and "BLOCKED" in capsys.readouterr().err

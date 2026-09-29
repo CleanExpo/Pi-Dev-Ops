@@ -237,3 +237,33 @@ def test_a_failed_multi_turn_attempt_keeps_its_reservation_and_the_retry_still_f
     b, two = _turn2({"promptTokenCount": 100, "candidatesTokenCount": 10})
     fake = FakeGemini([(503, None), ftext("done", usage={"promptTokenCount": 100, "candidatesTokenCount": 5})])
     assert "data" in gemini.call(two, KEY, b, fake, **NO_SLEEP) and fake.urls() == ["count", "generate"] * 2
+
+
+# ── release review P1: every request is priced at the model it goes to ─────────────────────────────
+
+def test_a_fallback_call_is_reserved_and_settled_at_its_own_models_price():
+    cheap = gemini.CHAIN[3]
+    fake = FakeGemini([ftext("hi")], counts=[(404, None)] * 3 + [(200, {"totalTokens": 100})])
+    b = budget()
+    assert "data" in gemini.call(BODY, KEY, b, fake, **NO_SLEEP) and b.model == cheap
+    p = gemini.PRICES[cheap]
+    assert b.spent == pytest.approx(100 * p["in"] + 30 * p["out"])
+
+
+def test_a_concurrent_cheaper_lock_does_not_reprice_a_call_already_in_flight():
+    b, cheap = budget(), gemini.CHAIN[-1]
+    inner = FakeGemini([ftext("hi")])
+
+    def fake(url, payload, headers, timeout):
+        if url.endswith(":generateContent"):
+            b.lock_model(cheap, gemini.PRICES[cheap])  # another writer thread locks first
+        return inner(url, payload, headers, timeout)
+    assert "data" in gemini.call(BODY, KEY, b, fake, **NO_SLEEP)
+    assert b.spent == pytest.approx(100 * PRICE["in"] + 30 * PRICE["out"]) and b.model == cheap
+
+
+def test_the_first_lock_wins():
+    b = budget()
+    b.lock_model(gemini.CHAIN[1], gemini.PRICES[gemini.CHAIN[1]])
+    b.lock_model(gemini.CHAIN[2], gemini.PRICES[gemini.CHAIN[2]])
+    assert b.model == gemini.CHAIN[1] and b.price == gemini.PRICES[gemini.CHAIN[1]]

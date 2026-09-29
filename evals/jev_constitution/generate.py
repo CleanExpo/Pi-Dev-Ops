@@ -102,11 +102,21 @@ def claude_write(question: dict, domain: str, seed: int) -> list[dict]:
     return parse_cases(claude_text(writer_prompt(question, domain, seed)))[0]
 
 
+class WriterExhausted(RuntimeError):
+    """A terminal writer refusal (run cap spent, price expired): no later batch can succeed."""
+
+
+TERMINAL_ERRORS = ("cap", "price table expired", "no chain model has a current price")
+MAX_EMPTY_ROUNDS = 3
+
+
 def gemini_text(prompt: str, budget: gemini.GeminiBudget, http_post, key: str) -> str:
     """One Gemini call under the writer's own GeminiBudget. Sends the fixed prompt and the rule's quote only."""
     budget.start_batch()
     sent = gemini.call(gemini.request_body([{"role": "user", "parts": [{"text": prompt}]}]), key, budget, http_post)
     if "error" in sent:
+        if sent["error"].startswith(TERMINAL_ERRORS):
+            raise WriterExhausted(f"gemini: {sent['error']}")
         raise ValueError(f"gemini: {sent['error']}")
     cands = sent["data"].get("candidates") if isinstance(sent["data"], dict) else None
     first = cands[0] if isinstance(cands, list) and cands and isinstance(cands[0], dict) else {}
@@ -183,6 +193,16 @@ def _writer(args):
     return write, "gemini", CASES / f"{args.question}.gemini.jsonl"
 
 
+def _round(question: dict, write, writer: str, n: int, parallel: int) -> list | None:
+    """One parallel round of batches, or None after printing BLOCKED on a terminal writer refusal."""
+    try:
+        with ThreadPoolExecutor(max_workers=parallel) as pool:
+            return list(pool.map(lambda i: one_batch(question, i, write, writer), range(n, n + parallel)))
+    except WriterExhausted as e:
+        print(f"BLOCKED: {e}", file=sys.stderr)
+        return None
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--question", required=True)
@@ -200,10 +220,12 @@ def main(argv=None) -> int:
     own = [json.loads(x) for x in path.read_text().splitlines() if x.strip()] if path.exists() else []
     seen = {c["state"].lower() for c in load_cases(args.question) + own}
     have = len({c["state"].lower() for c in own})
-    n, written, proposed = have // BATCH, 0, 0
+    n, written, proposed, empty = have // BATCH, 0, 0, 0
     while have < args.target:
-        with ThreadPoolExecutor(max_workers=args.parallel) as pool:
-            batches = list(pool.map(lambda i: one_batch(question, i, write, writer), range(n, n + args.parallel)))
+        batches = _round(question, write, writer, n, args.parallel)
+        if batches is None:
+            return 3
+        empty = 0 if any(total for _, total in batches) else empty + 1
         n += args.parallel
         with path.open("a") as f:
             for kept, total in batches:
@@ -214,6 +236,9 @@ def main(argv=None) -> int:
                         f.write(json.dumps(c) + "\n")
                         written, have = written + 1, have + 1
         print(f"{args.question}: {have} agreed cases ({written} new of {proposed} proposed)", flush=True)
+        if empty >= MAX_EMPTY_ROUNDS:
+            print(f"BLOCKED: {MAX_EMPTY_ROUNDS} rounds in a row proposed no case", file=sys.stderr)
+            return 3
     return 0
 
 
