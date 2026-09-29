@@ -74,13 +74,17 @@ MUTANTS = [
     # model chain: a quota refusal must advance; a locked run must never switch model
     ("gemini.py", "ADVANCE_STATUSES = (404, 429, 503)", "ADVANCE_STATUSES = ()"),
     ("gemini.py", "models = (budget.model,) if budget.model else", "models = () if False else"),
-    ("gemini.py", "    if budget.model and price_table(on, budget.model) is None:", "    if False:"),
     # carried thinking: the pre-send bound must include earlier thoughtsTokenCount
     ("gemini.py", "        bound = counted + carry  #", "        bound = counted  #"),
     ("gemini.py", "    carry = budget.thoughts if multi_turn else 0", "    carry = 0"),
     ("gemini.py", "    if multi_turn and not budget.thoughts_known:", "    if False:"),
     ("gemini.py", "                self.thoughts += t", "                self.thoughts += 0"),
     ("gemini.py", "    budget.add_thoughts(usage)\n", "\n"),
+    # rev 6d: provider input ceiling for multi-turn, price check before every send, malformed thinking
+    ("gemini.py", "reserve_generate(INPUT_TOKEN_LIMIT[model] if multi_turn else counted)", "reserve_generate(bound)"),
+    ("gemini.py", "            return expired\n        counted, problem, status", "            pass\n        counted, problem, status"),
+    ("gemini.py", "            return expired\n        reserved = ", "            pass\n        reserved = "),
+    ("gemini.py", "for v in (prompt, cands, thoughts))", "for v in (prompt, cands))"),
     ("gemini.py", "                budget.lock_model(model, price_table(on, model))\n", "                pass\n"),
     ("gemini.py", 'payload = json.dumps({**body, "model": f"models/{model}"}).encode()',
      "payload = json.dumps(body).encode()"),

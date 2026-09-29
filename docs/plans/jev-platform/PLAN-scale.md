@@ -605,3 +605,43 @@ rev 6 margin (`proposals/`) stays rejected; rev 6b adds no margin.
 - the locked-price guard removed
 
 The duplicate lock guard, which had made two mutants unkillable, was removed.
+
+## Rev 6d changes (answers to judge-scale-rev6b-r2, 91/100)
+
+1. **A provider-backed pre-send ceiling on billable input.**
+   - **Rule.** A body containing a `model` turn is multi-turn. For such a body the generate
+     reservation is `inputTokenLimit x in + 2048 x out`.
+   - **Why it is provider-backed.**
+     - `inputTokenLimit` is the provider's published maximum prompt size for the model:
+       `models.get`, fetched 29/09/2026, gives 1,048,576 for every chain model.
+     - A request whose prompt exceeds it is refused, so billable input can never exceed it.
+     - Carried thinking is part of the prompt, as the rev 6c measurements show.
+   - **Single-turn bodies** (every writer call, and an agent's first turn) contain no model
+     turn, no thought signature and so no carried thinking. They keep rev 5's approved
+     reservation, `countTokens x in`.
+   - **What `countTokens + carried thinking` is now.** It is the expected prompt: recorded in
+     the ledger and used by the overrun tripwire. It is no longer the reservation.
+   - **Cap.**
+     - One ceiling reservation costs about US$0.794 at the dearest row, so the agent run cap
+       rises from US$0.10 to **US$1.00** and holds one in-flight ceiling reservation.
+     - Settlement returns the unused part after every reply. A run whose cap cannot hold the
+       ceiling sends no multi-turn generate and ends `cap`.
+     - Observed live spend was about US$0.01 per run.
+     - The writer cap (US$1.00) is unchanged, because the writer is single-turn.
+   - **Bounded outcome.** Spend is at most the run cap, pre-send, for every request mode, with
+     no empirical term.
+2. **A price check before every outbound request.** Before each countTokens and each
+   generateContent send, including retries and each chain advance, `price_table(today(), model)`
+   is re-read. Expiry returns `price table expired` with no further request and no model switch.
+   Tests cover rollover during the count, during a retry sleep, and before advancing.
+3. **Malformed thinking keeps the full reservation.**
+   - A `thoughtsTokenCount` that is present but not a non-negative integer now makes the usage
+     unreadable, so `settle()` keeps the whole reservation and the carry becomes unknown.
+   - An absent `thoughtsTokenCount` still means no thinking.
+   - Tests cover the single-turn path (reservation kept) and the multi-turn path (next call
+     refused, zero requests).
+
+**Mutants added in 6d:**
+- the reservation uses the estimate instead of the ceiling
+- each of the two per-send price checks removed
+- malformed thinking treated as readable

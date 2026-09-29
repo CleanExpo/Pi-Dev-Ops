@@ -32,6 +32,10 @@ def urls(model: str) -> tuple[str, str]:
 
 
 GENERATE_URL, COUNT_URL = urls(MODEL)
+# models.get inputTokenLimit, fetched 29/09/2026: Google refuses a request whose prompt exceeds it, so it
+# is the provider-backed ceiling on billable input for a multi-turn body, whose carried thinking
+# countTokens does not report.
+INPUT_TOKEN_LIMIT = {m: 1_048_576 for m in CHAIN}
 # ai.google.dev/gemini-api/docs/pricing, fetched 29/09/2026 (3.8/3.7/3.6 double on 01/01/2027).
 # countTokens is documented as free by Firebase AI Logic; the pricing page does not list it.
 # MODEL must stay the dearest row: a budget reserves at it until the run has locked a model.
@@ -45,7 +49,9 @@ TURN_CAP = 12
 COUNT_CAP = 2 * TURN_CAP
 MAX_RETRIES = 2
 RETRY_STATUSES = (429, 503)
-RUN_CAP_USD = 0.10
+# An agent turn after the first reserves the provider input ceiling (below), about US$0.79 at the dearest
+# row, so a run cap must hold one such reservation. Unused reservation settles back after each reply.
+RUN_CAP_USD = 1.00
 WRITER_CAP_USD = 1.00
 REQUEST_TIMEOUT = 60.0
 KEY_ROUTE = "cd ~/Pi-Dev-Ops/dashboard && vercel env run -e production -- <command>"
@@ -107,6 +113,7 @@ class GeminiBudget:
             self.tokens["counted"] += total
 
     def reserve_generate(self, counted: int) -> float | None:
+        """Reserve `counted` input tokens (the caller passes the ceiling it can prove) plus the output bound."""
         cost = counted * self.price["in"] + MAX_OUTPUT_TOKENS * self.price["out"]
         with self._lock:
             if self.attempts >= self.max_attempts or self.spent + cost > self.max_usd + 1e-12:
@@ -157,9 +164,9 @@ class GeminiBudget:
 def _usage(usage) -> tuple[int | None, int]:
     if not isinstance(usage, dict):
         return None, 0
-    prompt, cands, thoughts = (usage.get(k) for k in ("promptTokenCount", "candidatesTokenCount", "thoughtsTokenCount"))
-    ok = all(isinstance(v, int) and not isinstance(v, bool) and v >= 0 for v in (prompt, cands))
-    thoughts = thoughts if isinstance(thoughts, int) and not isinstance(thoughts, bool) and thoughts >= 0 else 0
+    prompt, cands = usage.get("promptTokenCount"), usage.get("candidatesTokenCount")
+    thoughts = usage.get("thoughtsTokenCount", 0)  # absent means no thinking; malformed means unknown
+    ok = all(isinstance(v, int) and not isinstance(v, bool) and v >= 0 for v in (prompt, cands, thoughts))
     return (prompt, cands + thoughts) if ok else (None, 0)
 
 
@@ -209,12 +216,17 @@ def _settled(data, reserved: float, counted: int, budget: GeminiBudget) -> dict:
     return {"data": data, "counted": counted}
 
 
-def _call_one(model: str, body: dict, headers: dict, budget: GeminiBudget, http_post, sleep, carry: int = 0
-              ) -> tuple[dict, int | None]:
-    """(result, final http status) for one model. Count, reserve, send; 429/503 retried at most twice."""
+def _call_one(model: str, body: dict, headers: dict, budget: GeminiBudget, http_post, sleep, carry: int = 0,
+              multi_turn: bool = False) -> tuple[dict, int | None]:
+    """(result, final http status) for one model. Count, reserve, send; 429/503 retried at most twice.
+
+    Every outbound request is preceded by a price check, so expiry mid-call sends nothing further."""
     payload = json.dumps({**body, "model": f"models/{model}"}).encode()
     generate_url, count_url = urls(model)
+    expired = {"error": "price table expired"}, None
     for attempt in range(MAX_RETRIES + 1):
+        if price_table(today(), model) is None:
+            return expired
         counted, problem, status = _count(count_url, payload, headers, budget, http_post)
         if problem:
             if status in RETRY_STATUSES and attempt < MAX_RETRIES:
@@ -222,7 +234,9 @@ def _call_one(model: str, body: dict, headers: dict, budget: GeminiBudget, http_
                 continue
             return {"error": problem}, status
         bound = counted + carry  # provider count plus provider-reported earlier thinking
-        reserved = budget.reserve_generate(bound)
+        if price_table(today(), model) is None:
+            return expired
+        reserved = budget.reserve_generate(INPUT_TOKEN_LIMIT[model] if multi_turn else counted)
         if reserved is None:
             return {"error": "cap: reservation over the run cap"}, None
         budget.note_carry(carry)
@@ -245,8 +259,6 @@ def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep
         return {"error": "refused: sensitive payload"}
     headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
     on = today()
-    if budget.model and price_table(on, budget.model) is None:
-        return {"error": "price table expired"}  # a signed conversation is never moved to another model
     # A budget whose bodies carry model turns is one conversation (an agent run), so every earlier
     # thought is in context. Single-turn bodies (the writer) carry none.
     multi_turn = any(c.get("role") == "model" for c in body.get("contents", []))
@@ -256,7 +268,7 @@ def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep
     models = (budget.model,) if budget.model else tuple(m for m in CHAIN if price_table(on, m))
     out: dict = {"error": "no chain model has a current price"}
     for model in models:
-        out, status = _call_one(model, body, headers, budget, http_post, sleep, carry)
+        out, status = _call_one(model, body, headers, budget, http_post, sleep, carry, multi_turn)
         if "error" not in out:
             if budget.model is None:
                 budget.lock_model(model, price_table(on, model))

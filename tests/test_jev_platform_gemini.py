@@ -224,9 +224,9 @@ def test_an_unlocked_run_after_expiry_sends_nothing(monkeypatch):
 
 # ── carried thinking: the pre-send input bound is countTokens + earlier thoughtsTokenCount ─────────
 
-def _turn2(first_usage):
+def _turn2(first_usage, usd=gemini.RUN_CAP_USD):
     """Turn 1 on a fresh budget with `first_usage`, then the body a second turn would send."""
-    b = budget()
+    b = budget(usd)
     b.lock_model(gemini.MODEL, dict(PRICE))
     gemini.call(BODY, KEY, b, FakeGemini([ftext("step one", usage=first_usage)]), **NO_SLEEP)
     two = gemini.request_body(BODY["contents"] + [{"role": "model", "parts": [{"text": "step one"}]},
@@ -240,7 +240,8 @@ def test_second_turn_reserves_for_the_thinking_carried_in_and_is_not_an_overrun(
     fake = FakeGemini([ftext("done", usage={"promptTokenCount": 400, "candidatesTokenCount": 5})])
     out = gemini.call(two, KEY, b, fake, **NO_SLEEP)
     assert "data" in out and out["counted"] == 400
-    assert b.tokens["reserved_in"] - before == 400 and b.tokens["carried"] == 300
+    ceiling = gemini.INPUT_TOKEN_LIMIT[gemini.MODEL]
+    assert b.tokens["reserved_in"] - before == ceiling and b.tokens["carried"] == 300
 
 
 def test_billed_prompt_above_count_plus_carried_thinking_is_still_an_overrun():
@@ -261,3 +262,80 @@ def test_a_single_turn_body_carries_no_thinking_even_after_earlier_calls():
     before = b.tokens["reserved_in"]
     out = gemini.call(BODY, KEY, b, FakeGemini([ftext("hi")]), **NO_SLEEP)
     assert "data" in out and b.tokens["reserved_in"] - before == 100 and b.tokens["carried"] == 0
+
+
+# ── rev 6d: provider input ceiling for multi-turn, price check before every send, malformed thinking ──
+
+def test_a_multi_turn_body_reserves_the_provider_input_ceiling_not_the_estimate():
+    b, two = _turn2({"promptTokenCount": 100, "candidatesTokenCount": 10})
+    spent = b.spent
+    fake = FakeGemini([ftext("done", usage={"promptTokenCount": 100, "candidatesTokenCount": 5})])
+    assert "data" in gemini.call(two, KEY, b, fake, **NO_SLEEP)
+    ceiling = gemini.INPUT_TOKEN_LIMIT[gemini.MODEL] * PRICE["in"] + gemini.MAX_OUTPUT_TOKENS * PRICE["out"]
+    assert ceiling < gemini.RUN_CAP_USD and b.spent - spent == pytest.approx(100 * PRICE["in"] + 5 * PRICE["out"])
+
+
+def test_a_cap_that_cannot_hold_the_ceiling_sends_no_multi_turn_generate():
+    b, two = _turn2({"promptTokenCount": 100, "candidatesTokenCount": 10}, usd=0.10)
+    fake = FakeGemini([ftext("done")])
+    assert gemini.call(two, KEY, b, fake, **NO_SLEEP) == {"error": "cap: reservation over the run cap"}
+    assert fake.urls() == ["count"]
+
+
+class _Clock:
+    def __init__(self):
+        self.day = dt.date(2026, 10, 1)
+
+    def expire(self, *a, **k):
+        self.day = dt.date(2027, 1, 1)
+
+
+def test_expiry_during_the_count_call_sends_no_generate(monkeypatch):
+    clock = _Clock()
+    monkeypatch.setattr(gemini, "today", lambda: clock.day)
+    inner = FakeGemini([ftext("hi")])
+
+    def fake(url, payload, headers, timeout):
+        out = inner(url, payload, headers, timeout)
+        clock.expire()
+        return out
+    assert gemini.call(BODY, KEY, budget(), fake, **NO_SLEEP) == {"error": "price table expired"}
+    assert inner.urls() == ["count"]
+
+
+def test_expiry_during_a_retry_sleep_sends_nothing_more(monkeypatch):
+    clock = _Clock()
+    monkeypatch.setattr(gemini, "today", lambda: clock.day)
+    fake = FakeGemini([(503, None), ftext("hi")])
+    assert gemini.call(BODY, KEY, budget(), fake, sleep=clock.expire) == {"error": "price table expired"}
+    assert fake.urls() == ["count", "generate"]
+
+
+def test_expiry_before_advancing_sends_nothing_to_the_next_model(monkeypatch):
+    clock = _Clock()
+    monkeypatch.setattr(gemini, "today", lambda: clock.day)
+    inner = FakeGemini([(404, None), ftext("hi")])
+
+    def fake(url, payload, headers, timeout):
+        out = inner(url, payload, headers, timeout)
+        if url.endswith(":generateContent"):
+            clock.expire()
+        return out
+    b = budget()
+    assert gemini.call(BODY, KEY, b, fake, **NO_SLEEP) == {"error": "price table expired"}
+    assert set(_models(inner)) == {gemini.MODEL} and b.model is None
+
+
+@pytest.mark.parametrize("bad", [-1, "12", 1.5, True])
+def test_malformed_thinking_keeps_the_full_reservation_on_a_single_turn(bad):
+    b = budget()
+    usage = {"promptTokenCount": 100, "candidatesTokenCount": 5, "thoughtsTokenCount": bad}
+    gemini.call(BODY, KEY, b, FakeGemini([ftext("hi", usage=usage)]), **NO_SLEEP)
+    assert b.spent == pytest.approx(reservation(100)) and b.thoughts_known is False
+
+
+def test_malformed_thinking_refuses_the_next_multi_turn_call():
+    b, two = _turn2({"promptTokenCount": 100, "candidatesTokenCount": 10, "thoughtsTokenCount": "x"})
+    fake = FakeGemini([ftext("done")])
+    assert gemini.call(two, KEY, b, fake, **NO_SLEEP) == {"error": "thinking tokens unreported: input cannot be bounded"}
+    assert fake.calls == []
