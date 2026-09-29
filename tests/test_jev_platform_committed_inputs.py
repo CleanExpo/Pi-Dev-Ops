@@ -123,14 +123,14 @@ def test_a_record_whose_scores_did_not_come_from_its_cases_blob_is_corrupt(repo)
     assert engine.artifact_rating(RULE)[0] == "FAIL"
 
 
-def forge_lineage(repo, cases_blob):
-    """Rewrite the stored record so it names `cases_blob` and still recomputes (verify alone accepts it)."""
+def forge_lineage(repo, cases_blob, eval_sha=None):
+    """Rewrite the stored record so it names `cases_blob` (at `eval_sha`) and still recomputes (verify alone accepts it)."""
     record, scored = engine.load_record(RULE), engine.load_scored(RULE)
     prov = {**record["label_provenance"], "cases_blob": cases_blob}
     forged = calibration.build_record(RULE, scored, record["bindings"], prov,
                                       now=datetime.fromisoformat(record["created_utc"]))
     assert calibration.verify(forged, scored) == []
-    (engine.RECORDS / f"{RULE}.json").write_text(json.dumps({**forged, "eval_sha": record["eval_sha"]}) + "\n")
+    (engine.RECORDS / f"{RULE}.json").write_text(json.dumps({**forged, "eval_sha": eval_sha or record["eval_sha"]}) + "\n")
 
 
 def test_a_record_naming_an_unreadable_blob_is_corrupt(repo):
@@ -146,9 +146,11 @@ def test_a_record_whose_blob_lacks_two_agreeing_labels_is_corrupt(repo):
     unlabelled = "".join(json.dumps({k: v for k, v in dual(i).items() if k != "labels"}) + "\n" for i in range(400))
     (engine.CASES / f"{RULE}.jsonl").write_text(unlabelled)
     git(repo, "commit", "-qam", "strip labels")
-    forge_lineage(repo, head_blob(repo, REL_CASES))
+    head = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    forge_lineage(repo, head_blob(repo, REL_CASES), head)  # the commit holding the stripped cases, so only labels fail
     out = engine.decide("x", [RULE], 1, recording([]), budget(0.5))
-    assert out["findings"][0]["state"] == "corrupt" and engine.artifact_rating(RULE)[0] == "FAIL"
+    assert out["findings"][0]["state"] == "corrupt"
+    assert engine.artifact_rating(RULE) == ("FAIL", ["cases_blob has cases without two agreeing labels"])
 
 
 def test_records_outside_the_repository_are_capped_at_aa(repo, tmp_path_factory, monkeypatch):
