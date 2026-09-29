@@ -24,8 +24,8 @@ How it fits, and what the packet replaced here, is in
 - **Grade today:** ungraded — below Level 1 of the MC control set. Not because pages are known broken, but because no test has
   ever opened one in a browser and checked what a user sees.
 - **Blocked on Phill:** add `DASHBOARD_PASSWORD` and `TYPESAFE_API_KEY` as GitHub Actions secrets,
-  and/or allow `api.typesafe.ai` in this cloud environment; decide whether "no Jev cap" overrides
-  the packet's budget rule (adoption.md O5).
+  and/or allow `api.typesafe.ai` in this cloud environment. The Jev budget is decided: no daily cap,
+  every call ledgered (29 Sept, adoption.md O5).
 - **Next:** WP-02 (browser sign-in to the deployed dashboard), then WP-06 (read journeys, 20 screens).
 
 ## Intent (Capture Intent contract)
@@ -43,7 +43,7 @@ when relevant to a mission."* (`docs/plans/mission-control-jev-next-five.md:29`)
 - **Affected users and systems.** Phill (sole operator); `dashboard/` (Vercel), `app/server/`
   (Railway), `.github/workflows/`, `.github/smoke-surfaces.json`.
 - **Constraints.** Jev daily cap lifted by founder decision 28 Sept (spend still ledgered; estimate $0.20–$1.70/day) —
-  conflicts with the packet's recorded-budget rule, open (adoption.md O5), so Jev runs dry until settled;
+  confirmed 29 Sept as the recorded budget decision (adoption.md O5);
   write-action tests run against PR previews, not production; Jev never decides a grade; CLAUDE.md
   surface-treatment rule (RA-1109).
 - **Open questions.** Whether RA-7264 is fixed (evidence gap, WP-04). *Resolved since r1:* D0 merge

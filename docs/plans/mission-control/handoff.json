@@ -109,7 +109,8 @@
       "id": "JEV-CAP",
       "status": "DECIDED",
       "decided_at": "2026-09-28",
-      "answer": "No daily cap on Jev while the system is used heavily; spend still ledgered"
+      "answer": "No daily cap on Jev; every call ledgered. Recorded as the budget required by NEXUS-RELEASE-HARNESS admission (adoption.md O5). Overrides the $5/day routing ceiling for Jev only.",
+      "confirmed_at": "2026-09-29"
     }
   ],
   "parent_packet": {
