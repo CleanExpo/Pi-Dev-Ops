@@ -31,6 +31,20 @@
       "_comment": "PR #828: authenticated landing page declares the project selector and idea inbox. This HTML assertion proves the surface renders; the synthetic browser receipt checks selection and unknown scan evidence separately."
     },
     {
+      "name": "control-founder-five-answers-auth",
+      "path": "/control",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "The founder’s five answers",
+        "Where are we?",
+        "What was truly shipped?",
+        "Release evidence missing"
+      ],
+      "_comment": "UNI-2805: the server render shows all five questions and unknown release evidence before live telemetry arrives. Client tests cover fresh, stale and missing evidence; production claims still require a founder-session check."
+    },
+    {
       "name": "loop-redirect",
       "path": "/loop",
       "method": "GET",
