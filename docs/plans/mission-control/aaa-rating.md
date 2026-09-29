@@ -110,6 +110,9 @@ the text snapshot that Jev contracts J1–J3 read, so a nightly run yields rough
 or an honest empty state with `data-mc-empty` and the reason, and `dashboard/e2e-live/real-data.ts`
 asserts one is visible. Three surfaces show no backend data by design, so they fail check 1 until
 that is decided: MC-07 (the build form fetches nothing until a run starts), MC-13 (a static index
-of links) and MC-14 (a static design-target registry). The scorer
+of links) and MC-14 (a static design-target registry). Check 7 is measured too: each page's data
+panels are listed in `dashboard/e2e-live/panel-coverage.json`, and a page passes only when every
+panel has passing tests named for its loaded, empty and error states (a page with no data panels
+is N/A, which does not count as met). The scorer
 (`scripts/mission_control_scorecard.py`) reads the result from the nightly receipts; run the live
 suite for today's per-surface levels rather than trusting a count here.

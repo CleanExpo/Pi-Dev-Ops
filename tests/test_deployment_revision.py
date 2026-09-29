@@ -156,3 +156,35 @@ def test_backend_production_args_preserve_explicit_url(monkeypatch):
     monkeypatch.setattr("sys.argv", ["smoke", "--target", "prod", "--expected-sha", SHA,
                                     "--url", "https://example.invalid"])
     assert parse_backend_args().url == "https://example.invalid"
+
+
+# ── current_revision: one read for the live suite's receipts (AAA check 13) ──
+
+from scripts.deployment_revision import current_revision, main  # noqa: E402
+
+FULL = "a" * 40
+
+
+def test_current_revision_returns_a_full_lowercase_sha() -> None:
+    assert current_revision(lambda: (200, {"revision": FULL.upper()})) == FULL
+
+
+@pytest.mark.parametrize("status,payload", [
+    (200, {"revision": None}),
+    (200, {"revision": "abc123"}),
+    (503, {"revision": FULL}),
+    (200, "not json"),
+    (200, ["revision", FULL]),
+])
+def test_current_revision_is_none_when_not_observed(status, payload) -> None:
+    assert current_revision(lambda: (status, payload)) is None
+
+
+def test_current_revision_is_none_when_the_request_fails() -> None:
+    def boom():
+        raise OSError("unreachable")
+    assert current_revision(boom) is None
+
+
+def test_main_rejects_bad_usage() -> None:
+    assert main(["--current"]) == 2

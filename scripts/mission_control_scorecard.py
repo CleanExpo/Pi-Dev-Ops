@@ -33,7 +33,6 @@ LEVELS: dict[int, list[str]] = {1: ["1", "2", "3", "4"], 2: ["5", "6", "7", "8",
 # receipt carries it; the reason is what the scorecard prints.
 NOT_MEASURED = {
     "3": "write journeys not built (WP-07)",
-    "7": "component-test coverage is not read into receipts yet",
     "10": "needs three consecutive scheduled runs; one run is scored here",
     "11": "register / ticket state is not read into receipts yet",
     "12": "label-honesty assertions not built (WP-07)",
@@ -64,7 +63,8 @@ def receipts_for(surface: str, receipts: dict[str, dict]) -> dict[str, dict]:
         sid = "MC-00" if stem.startswith("control-hub") else stem[:5]
         if sid != surface:
             continue
-        kind = "phone" if "@phone" in stem else "l2" if re.search(r"-L2($|@)", stem) else "desktop"
+        kind = ("c7" if stem.endswith("-C7") else "phone" if "@phone" in stem
+                else "l2" if re.search(r"-L2($|@)", stem) else "desktop")
         found[kind] = body
     return found
 
@@ -111,6 +111,11 @@ def judge(check: str, surface: str, got: dict[str, dict], deployed_sha: str | No
         if surface == "MC-00":
             return Verdict(False, "not measured: phone run excludes the hub nav check")
         return _all_pass(_checks(phone, "1-") + _checks(phone, "2-"), "check 9 (phone)")
+    if check == "7":
+        # scripts/mission_control_panel_coverage.py; N/A (no data panels) is not met.
+        if not got.get("c7"):
+            return Verdict(False, "not measured: no panel-coverage receipt for this surface")
+        return _all_pass(_checks(got.get("c7"), "7-"), "check 7")
     if check == "13":
         if not deployed_sha:
             return Verdict(False, "receipt names no deployed SHA (MC_LIVE_SHA unset)")

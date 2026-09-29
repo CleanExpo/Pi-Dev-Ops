@@ -7,7 +7,7 @@
  * not allowed on an element with no role. The strip only renders while a
  * build is active, which is why it passed on quiet runs.
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,11 +39,13 @@ async function prohibitedAttrViolations(container: HTMLElement) {
   return result.violations.flatMap((v) => v.nodes.map((n) => n.html));
 }
 
-beforeEach(() => fetchProxyJSON.mockReset());
+beforeEach(() => {
+  fetchProxyJSON.mockReset();
+});
 afterEach(() => cleanup());
 
 describe("ActiveBuildStrip accessibility", () => {
-  it("a determinate build has no prohibited aria-label and reports its progress", async () => {
+  it("LOADED: a determinate build has no prohibited aria-label and reports its progress", async () => {
     fetchProxyJSON.mockResolvedValue([session("evaluating")]);
     const { container } = render(<ActiveBuildStrip />);
     const bar = await screen.findByRole("progressbar");
@@ -52,11 +54,25 @@ describe("ActiveBuildStrip accessibility", () => {
     expect(await prohibitedAttrViolations(container)).toEqual([]);
   });
 
-  it("an indeterminate build is a progressbar with no value", async () => {
+  it("LOADED: an indeterminate build is a progressbar with no value", async () => {
     fetchProxyJSON.mockResolvedValue([session("building")]);
     const { container } = render(<ActiveBuildStrip />);
     const bar = await screen.findByRole("progressbar");
     expect(bar.hasAttribute("aria-valuenow")).toBe(false);
     expect(await prohibitedAttrViolations(container)).toEqual([]);
+  });
+
+  it("EMPTY: no active build renders nothing, not an empty strip", async () => {
+    fetchProxyJSON.mockResolvedValue([{ ...session("building"), status: "complete" }]);
+    const { container } = render(<ActiveBuildStrip />);
+    await waitFor(() => expect(fetchProxyJSON).toHaveBeenCalled());
+    expect(container.querySelector('[aria-label="Active builds"]')).toBeNull();
+  });
+
+  it("ERROR: backend unreachable (null) shows the poll error, not an idle strip", async () => {
+    fetchProxyJSON.mockResolvedValue(null);
+    render(<ActiveBuildStrip />);
+    expect(await screen.findByText(/build-strip poll error: Pi-CEO backend unreachable/)).toBeTruthy();
+    expect(screen.queryByRole("progressbar")).toBeNull();
   });
 });

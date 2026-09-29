@@ -1,7 +1,8 @@
 # WP-02 — Mission Control browser suite against the DEPLOYED dashboard.
 # docs/plans/mission-control/work-packages.md. Signs in with the real login
 # route and writes one JSON receipt per surface: MC checks 1, 2, 4 (WP-06) at
-# desktop and phone size (check 9), plus Level 2 checks 5, 6, 8 (WP-09).
+# desktop and phone size (check 9), plus Level 2 checks 5, 6, 8 (WP-09), and
+# check 7 from the panel tests (scripts/mission_control_panel_coverage.py).
 # Without DASHBOARD_PASSWORD it reports NOT_RUN and fails loudly — a missing
 # secret must never look like a passing suite (RA-7832).
 name: Mission Control live
@@ -66,9 +67,36 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      # AAA check 13: each receipt names the production revision it tested.
+      # /api/revision is deliberately public (api-auth-classification.json)
+      # and returns only a validated full SHA or null. Unobserved leaves
+      # MC_LIVE_SHA unset, and the scorer then reports check 13 unmet.
+      - name: Read the deployed revision (check 13)
+        working-directory: .
+        run: |
+          sha=$(python3 scripts/deployment_revision.py --current "$MC_LIVE_URL")
+          if [ -n "$sha" ]; then
+            echo "MC_LIVE_SHA=$sha" >> "$GITHUB_ENV"
+            echo "Deployed revision: \`$sha\` (panel tests run against checkout \`$GITHUB_SHA\`)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Deployed revision not observed at $MC_LIVE_URL/api/revision; check 13 stays unmet." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Run live suite
         id: suite
         run: npx playwright test --config playwright.live.config.ts
+
+      # AAA check 7: every data panel needs passing LOADED/EMPTY/ERROR vitest
+      # tests (e2e-live/panel-coverage.json lists the panels per page). Tests
+      # run against the checked-out commit, not the deploy; a failing test just
+      # does not count. Writes MC-xx-C7.json receipts the scorer reads.
+      - name: Measure panel test coverage (check 7)
+        if: always() && steps.suite.outcome != 'skipped'
+        run: |
+          npm test -- --reporter=json --outputFile=vitest-panels.json \
+            || echo "some vitest tests failed; failing tests do not count toward check 7"
+          python3 ../scripts/mission_control_panel_coverage.py vitest-panels.json e2e-live-receipts \
+            --registry e2e-live/panel-coverage.json --dashboard .
 
       # WP-11: grade this run by docs/plans/mission-control/aaa-rating.md and
       # publish one row per surface (level + what blocks the next level) on the
