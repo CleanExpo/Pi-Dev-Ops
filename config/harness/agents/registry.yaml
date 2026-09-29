@@ -70,6 +70,6 @@ accepted_projection_drift:
     canonical_sha256: d1f6611756d2ca64955d979c9a1282bff392a2a406075c3a5a2c154a15197aa9
     rationale: The canonical skill contains newer completion classification and fork-slice policy; detect projection drift without treating it as source.
   - id: spm
-    agents_sha256: c234d2ce7c63078d6e249c9bf7669b489389003341f8bafbc33cd80b0d7ef1ad
-    canonical_sha256: 8593aea14e9febdf7506c0c37605422bccc6e1f5a6f5fc9032c87ce212322207
-    rationale: The canonical skill contains newer self-leveling bench and closed-loop policy; detect projection drift without treating it as source.
+    agents_sha256: 2981f21e84083ab0189ae2dab06c38313bc2f48c9799c8dac495ceb8a9c7dfb3
+    canonical_sha256: cb49c44f6a45ef4dc3ae4d9db461ff44935e6214d048c690e666896050821561
+    rationale: The canonical skill contains newer self-leveling bench and closed-loop policy; both projections now include the Nexus North Star check, and remaining drift is detected without treating the projection as source.
