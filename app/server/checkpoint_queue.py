@@ -94,3 +94,7 @@ async def flush(timeout: float) -> None:
     next container resumes from, so they must land before the process exits."""
     if not await asyncio.to_thread(wait_idle, timeout):
         log.warning("queued Supabase checkpoints did not finish within %.0fs", timeout)
+    # Queued LLM cost rows share this one shutdown wait; bounded, and the local
+    # JSONL keeps every row either way.
+    from swarm import cost_mirror
+    await cost_mirror.flush(min(timeout, 5.0))

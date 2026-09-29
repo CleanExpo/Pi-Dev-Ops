@@ -123,3 +123,81 @@ def test_scorer_reports_unknown_as_not_measured_but_a_fail_as_measured(tmp_path:
 def test_scorer_without_a_register_receipt_is_not_measured(tmp_path: Path) -> None:
     row = sc.score_surface("MC-04", sc.load_receipts(tmp_path))
     assert row["checks"]["11"]["reason"].startswith("not measured")
+
+
+def test_a_graphql_error_reply_is_unknown_and_says_why(tmp_path: Path) -> None:
+    reply = {"errors": [{"message": "Field \"labels\" is not defined by type IssueFilter"}]}
+    got = _by_surface(tmp_path, _register(ALL_PARTIAL), lambda q, v: reply)
+    tix = got["MC-04"]["11-tickets"]
+    assert tix["result"] == "UNKNOWN"
+    assert "not defined by type IssueFilter" in tix["detail"]
+
+
+def test_a_reply_without_data_is_unknown(tmp_path: Path) -> None:
+    got = _by_surface(tmp_path, _register(ALL_PARTIAL), lambda q, v: {"data": None})
+    assert got["MC-04"]["11-tickets"]["result"] == "UNKNOWN"
+
+
+def test_a_transport_error_keeps_its_message(tmp_path: Path) -> None:
+    def broken(q, v):
+        raise OSError("no route to host")
+    detail = _by_surface(tmp_path, _register(ALL_PARTIAL), broken)["MC-04"]["11-tickets"]["detail"]
+    assert "OSError" in detail and "no route to host" in detail
+
+
+def test_a_4xx_with_a_graphql_body_keeps_linears_message(monkeypatch) -> None:
+    import io
+    import urllib.error
+
+    body = io.BytesIO(json.dumps({"errors": [{"message": "Authentication required"}]}).encode())
+
+    def refuse(req, timeout=0):
+        raise urllib.error.HTTPError(req.full_url, 401, "Unauthorized", {}, body)
+
+    monkeypatch.setattr(mr.urllib.request, "urlopen", refuse)
+    reply = mr.linear_fetch("secret-key")(mr.QUERY, {"label": mr.LABEL})
+    assert "Authentication required" in mr.linear_error(reply)
+    assert "secret-key" not in mr.linear_error(reply)
+
+
+def test_a_4xx_without_a_readable_body_names_the_status(monkeypatch, tmp_path: Path) -> None:
+    import io
+    import urllib.error
+
+    def refuse(req, timeout=0):
+        raise urllib.error.HTTPError(req.full_url, 502, "Bad Gateway", {}, io.BytesIO(b"<html>"))
+
+    monkeypatch.setattr(mr.urllib.request, "urlopen", refuse)
+    fetch = mr.linear_fetch("k")
+    got = _by_surface(tmp_path, _register(ALL_PARTIAL), fetch)
+    assert "HTTP 502" in got["MC-04"]["11-tickets"]["detail"]
+
+
+def test_unplaced_tickets_are_on_failing_pages_too(tmp_path: Path) -> None:
+    nodes = [{"identifier": "RA-2", "title": "Theme wrong", "description": None},
+             {"identifier": "RA-3", "title": "MC-03 halts nothing", "description": ""}]
+    got = _by_surface(tmp_path, _register(ALL_PARTIAL), _fetch(nodes))
+    assert got["MC-03"]["11-tickets"]["result"] == "FAIL"
+    assert "RA-2" in got["MC-03"]["11-tickets"]["detail"]
+
+
+def test_main_prints_why_linear_was_not_read(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.delenv("LINEAR_API_KEY", raising=False)
+    reg = tmp_path / "register.md"
+    reg.write_text(_register(ALL_PARTIAL), encoding="utf-8")
+    assert mr.main([str(tmp_path / "out"), "--register", str(reg)]) == 0
+    out = capsys.readouterr().out
+    assert "::warning::check 11 tickets not read: LINEAR_API_KEY not set" in out
+
+
+def test_main_warns_about_unplaced_tickets_even_when_every_page_fails(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("LINEAR_API_KEY", "k")
+    nodes = [{"identifier": "RA-2", "title": "Theme wrong", "description": None},
+             {"identifier": "RA-3", "title": " ".join(mr.SURFACES), "description": ""}]
+    monkeypatch.setattr(mr, "linear_fetch", lambda key: _fetch(nodes))
+    reg = tmp_path / "register.md"
+    reg.write_text(_register(ALL_PARTIAL), encoding="utf-8")
+    mr.main([str(tmp_path / "out"), "--register", str(reg)])
+    out = capsys.readouterr().out
+    assert "check 11: 0/20 surfaces pass" in out
+    assert "not counted: RA-2" in out
