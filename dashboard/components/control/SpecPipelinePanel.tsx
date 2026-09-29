@@ -210,9 +210,9 @@ export default function SpecPipelinePanel() {
       >
         {busy ? "Running…" : "Run pipeline"}
       </button>
-      {error && <p className="text-xs text-red-500">{error}</p>}
-      {loadError && <p className="text-xs text-red-500" role="alert">{loadError}</p>}
-      {detailError && <p className="text-xs text-red-500" role="alert">{detailError}</p>}
+      {error && <p className="text-xs text-error">{error}</p>}
+      {loadError && <p className="text-xs text-error" role="alert">{loadError}</p>}
+      {detailError && <p className="text-xs text-error" role="alert">{detailError}</p>}
       {lastId && (
         <div className="text-xs space-y-2" style={{ color: "var(--text-muted)" }}>
           <p className="flex items-center gap-2 flex-wrap">

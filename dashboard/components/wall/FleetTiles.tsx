@@ -24,7 +24,7 @@ function Tile({ m, stale, mine }: { m: MachineTile; stale: boolean; mine: boolea
           <ChipBadge chip={displayChip(a.chip, stale)} label={a.runtime} /> {a.state} · {fmtAge(a.ageSeconds)}
         </span>
       ))}
-      <span className="text-xs uppercase tracking-widest" style={{ color: "#6b7280" }}>self-reported</span>
+      <span className="text-xs uppercase tracking-widest" style={{ color: "#9ca3af" }}>self-reported</span>
     </div>
   );
 }
@@ -42,7 +42,7 @@ export function FleetTiles({ fleet, stale, kioskHost }: { fleet: FleetPanel; sta
         {fleet.machines.map((m) => <Tile key={m.host} m={m} stale={stale} mine={m.host === kioskHost} />)}
       </div>
       {fleet.others.length > 0 && (
-        <p className="text-sm" style={{ color: "#6b7280" }}>Also reporting, not in the fleet: {fleet.others.join(", ")}</p>
+        <p className="text-sm" style={{ color: "#9ca3af" }}>Also reporting, not in the fleet: {fleet.others.join(", ")}</p>
       )}
     </section>
   );
