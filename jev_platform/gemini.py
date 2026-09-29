@@ -36,8 +36,8 @@ GENERATE_URL, COUNT_URL = urls(MODEL)
 # models.get inputTokenLimit, fetched 29/09/2026: Google refuses a prompt above it, so it bounds billable input
 # for a multi-turn body, whose carried thinking countTokens does not report.
 INPUT_TOKEN_LIMIT = {m: 1_048_576 for m in CHAIN}
-# ai.google.dev/gemini-api/docs/pricing, fetched 29/09/2026 (3.8/3.7/3.6 double on 01/01/2027).
-# countTokens is documented as free by Firebase AI Logic; the pricing page does not list it.
+# ai.google.dev/gemini-api/docs/pricing, fetched 29/09/2026 (3.8/3.7/3.6 double on 01/01/2027). countTokens:
+# free per Firebase AI Logic docs; the pricing page does not list it.
 # MODEL must stay the dearest row: a budget reserves at it until the run has locked a model.
 _FLASH = {"in": 0.75e-6, "out": 3.75e-6, "count": 0.0, "valid_until": "2026-12-31"}
 PRICES = {MODEL: dict(_FLASH), "gemini-3.7-flash": dict(_FLASH), "gemini-3.6-flash": dict(_FLASH),
@@ -83,8 +83,7 @@ class GeminiBudget:
         self.attempts = self.count_calls = self.count_ok = self.batch_count_calls = 0
         self.tokens = {"counted": 0, "carried": 0, "reserved_in": 0, "reserved_out": 0, "reported_prompt": 0,
                        "reported_output": 0}
-        # Thinking re-enters later turns through thought signatures and is billed as prompt, but countTokens
-        # omits it. Measured 29/09: the turn-N gap equals the sum of earlier thoughtsTokenCount exactly.
+        # Thinking re-enters later turns (thought signatures), billed as prompt but not counted: measured 29/09.
         self.thoughts, self.thoughts_known = 0, True
         # Fixed at start: settling a cheap reply down never buys extra attempts.
         self.max_attempts = int((max_usd + 1e-12) // (MAX_OUTPUT_TOKENS * price["out"]))
@@ -175,11 +174,10 @@ def _usage(usage) -> tuple[int | None, int]:
     return (prompt, cands + thoughts) if ok else (None, 0)
 
 
-def request_body(contents: list, system: str | None = None, tools: list | None = None,
-                 max_output_tokens: int = MAX_OUTPUT_TOKENS) -> dict:
+def request_body(contents: list, system: str | None = None, tools: list | None = None) -> dict:
     """One dict serves both calls; `model` is required inside countTokens' generateContentRequest."""
     body = {"model": f"models/{MODEL}", "contents": contents,
-            "generationConfig": {"maxOutputTokens": max_output_tokens,
+            "generationConfig": {"maxOutputTokens": MAX_OUTPUT_TOKENS,
                                  "thinkingConfig": {"thinkingLevel": THINKING_LEVEL}}}
     if system:
         body["systemInstruction"] = {"parts": [{"text": system}]}
@@ -265,6 +263,9 @@ def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep
     and a 404/429/503 that outlasts the retries moves on; the first model that answers is locked for the run."""
     if ask.sensitive(json.dumps(body)):
         return {"error": "refused: sensitive payload"}
+    cfg = body.get("generationConfig")  # every reservation prices exactly MAX_OUTPUT_TOKENS of output
+    if not isinstance(cfg, dict) or cfg.get("maxOutputTokens") not in range(1, MAX_OUTPUT_TOKENS + 1):
+        return {"error": f"refused: maxOutputTokens must be 1..{MAX_OUTPUT_TOKENS}"}
     headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
     on = today()
     # Bodies carrying model turns are one conversation (an agent run): every earlier thought is in context.

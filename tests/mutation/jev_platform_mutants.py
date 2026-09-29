@@ -94,6 +94,7 @@ MUTANTS = [
     ("gemini.py", "    if budget.model not in (None, model):", "    if False:"),
     ("gemini.py", "with budget.selecting if budget.model is None else contextlib.nullcontext():",
      "with contextlib.nullcontext():"),  # r5 P1: one call at a time until a model is locked
+    ("gemini.py", 'not in range(1, MAX_OUTPUT_TOKENS + 1):', "not in range(1, 10**6):"),  # r6 P1: output bound
     ("gemini.py", "if status not in ADVANCE_STATUSES and budget.model in (None, model):", "if status not in ADVANCE_STATUSES:"),
     ("gemini.py", "for v in (prompt, cands, thoughts))", "for v in (prompt, cands))"),
     ("gemini.py", "RUN_CAP_USD = 2.50", "RUN_CAP_USD = 1.00"),

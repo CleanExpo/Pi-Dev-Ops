@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import threading
 
+import pytest
 from jev_scale_support import FakeGemini, ftext
 
 from jev_platform import gemini
@@ -55,3 +56,13 @@ def test_while_no_model_is_locked_a_second_call_sends_nothing_until_the_first_se
     assert "data" in gemini.call(BODY, KEY, b, fake, sleep=lambda s: None)
     second.join(5)
     assert "data" in out["b"] and {m for _, m in sends} == {gemini.MODEL} == {b.model}
+
+
+
+@pytest.mark.parametrize("bound", [gemini.MAX_OUTPUT_TOKENS + 1, 8192, 0, -1, None, "2048"])
+def test_a_body_asking_for_more_output_than_is_reserved_sends_nothing(bound):
+    """Release review r6 P1: a caller-set maxOutputTokens above the priced 2,048 was sent under-reserved."""
+    body = dict(BODY, generationConfig={**BODY["generationConfig"], "maxOutputTokens": bound})
+    b, fake = gemini.GeminiBudget(0.10, dict(gemini.PRICES[gemini.MODEL])), FakeGemini([ftext("hi")])
+    assert gemini.call(body, KEY, b, fake, sleep=lambda s: None)["error"].startswith("refused: maxOutputTokens")
+    assert fake.calls == [] and b.spent == 0

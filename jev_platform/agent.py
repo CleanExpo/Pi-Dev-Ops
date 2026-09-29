@@ -3,7 +3,7 @@
 A function-calling loop over generateContent (gemini.CHAIN, one model locked per run, thinking low).
 The operator prompt is an approved prompt id, never free text. Tools: ask_jev_files,
 pick_first_file, ask_jev, read_file, propose_template; nothing writes, edits, runs commands or
-approves. Caps: US$0.10 per run, 12 turns, 24 count calls. Any outage, safety block, empty
+approves. Caps: gemini.RUN_CAP_USD (US$2.50) per run, 12 turns, 24 count calls. Any outage, safety block, empty
 candidate, malformed call, overrun or cap ends the run `incomplete: <reason>`. The report is
 rendered by code from the ledger; the model's closing prose is shown as unverified.
 """
