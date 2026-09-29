@@ -212,11 +212,15 @@ change, secret rotation, destructive migration, new service provisioning.
 
 | Command | Purpose | Claude Code | Codex | Shared docs |
 |---|---|---|---|---|
-| `/judge` | Read-only challenge gate — decides *whether to build*. Scores out of 100. Never implements. | **missing** (defect 3) | `.agents/skills/judge/SKILL.md` | `.judge/` |
-| `/spm` | Decision-grade spec before implementation. Read-only by default. | **missing** (defect 3) | `.agents/skills/spm/SKILL.md` | `.spm/` |
-| `/session-handoff` | Gates the tree via `scripts/handoff-loop.sh`, then writes `docs/session-handoffs/handoff-<ts>.md`. Non-zero exit ⇒ write a BLOCKED handoff naming the failing gate. | **missing** (defect 3) | `.agents/skills/session-handoff/SKILL.md` | `.session-handoff/` |
-| `/resume-from-handoff` | Re-runs the same gate, reconciles drift, then resumes. Verification is read-only and mandatory first. | **missing** (defect 3) | `.agents/skills/resume-from-handoff/SKILL.md` | `.resume-from-handoff/` |
+| `/judge` | Read-only challenge gate — decides *whether to build*. Scores out of 100. Never implements. | `.claude/skills/judge` → symlink to `.agents/skills/judge` (defect 3 fixed) | `.agents/skills/judge/SKILL.md` | `.judge/` |
+| `/spm` | Decision-grade spec before implementation. Read-only by default. | `.claude/skills/spm` → symlink to `.agents/skills/spm` (defect 3 fixed) | `.agents/skills/spm/SKILL.md` | `.spm/` |
+| `/session-handoff` | Gates the tree via `scripts/handoff-loop.sh`, then writes `docs/session-handoffs/handoff-<ts>.md`. Non-zero exit ⇒ write a BLOCKED handoff naming the failing gate. | `.claude/skills/session-handoff` → symlink to `.agents/skills/session-handoff` (defect 3 fixed) | `.agents/skills/session-handoff/SKILL.md` | `.session-handoff/` |
+| `/resume-from-handoff` | Re-runs the same gate, reconciles drift, then resumes. Verification is read-only and mandatory first. | `.claude/skills/resume-from-handoff` → symlink to `.agents/skills/resume-from-handoff` (defect 3 fixed) | `.agents/skills/resume-from-handoff/SKILL.md` | `.resume-from-handoff/` |
 | `/plan-to-done` | Writes the whole-project delivery packet (intent → coverage → work packages → release and live checks). Planning only; never builds. **Candidate, quarantined** — not invocable until its evals run and it is promoted via `skills-library`. Routing it uses: `references/model-and-plan-routing.md` (reconciled against code in `docs/plans/idea-to-live/routing-reconciliation.md`). | **not installed** (by design) | package at `docs/plans/plan-to-done-v1.1/plan-to-done/SKILL.md` | `docs/plans/idea-to-live/` |
+
+Planning inputs are layered, not stacked side by side: method (plan-to-done, `/spm`) → portfolio
+(NEXUS-RELEASE-HARNESS) → track (e.g. `docs/plans/mission-control/`) → pathway (`docs/plans/idea-to-live/`).
+Classify every new planning input in `docs/plans/nexus-release-harness/adoption.md` before adding files.
 
 `/judge` decides whether to build. `/spm` specifies what to build. `/session-handoff` records what
 happened. `/resume-from-handoff` picks it back up. Distinct from `tao-judge`, which scores

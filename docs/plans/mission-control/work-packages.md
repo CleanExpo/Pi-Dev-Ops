@@ -1,4 +1,4 @@
-# Mission Control — work packages to reach AAA
+# Mission Control — work packages to reach AAA (MC track)
 
 Dependency-ordered. Each package names the register rows it moves, its evidence of completion,
 and its authority class: **SAFE** (reversible code/test change, agent may do it), **SECRET**
@@ -11,13 +11,13 @@ and its authority class: **SAFE** (reversible code/test change, agent may do it)
 | WP-03 | ZTE badge reads a real score or says honestly that none exists | MC-00 | — | SAFE | Investigation first: `dashboard/app/api/zte/route.ts` calls `/api/zte/score`, which no backend route serves. Decide: add the route (reusing the tested ZTE score library) or remove the backend branch. Test that the badge's source label matches reality |
 | WP-04 | wiki-graph status settled | MC-18 | WP-02 | SAFE | Browser test on production opens `/command-centre/wiki-graph` and records 200 + rendered graph or an explicit error; close or re-open RA-7264 with that receipt |
 | WP-05 | Deploy-only pages behave honestly on Vercel | MC-14, MC-19 | WP-02 | SAFE | `hermes` reads a local config file; `youtube-intent` reads `.harness/…/state.json` and links `http://localhost:7119`. On a deployed host these must show an explicit "not available on this host" state, not a broken or empty page. Browser assertion per page |
-| WP-06 | Tier A read journeys for all 20 rows | all | WP-02 | SAFE | One spec per surface: real-data assertion (check 1) + zero unexpected 4xx/5xx (check 2) + receipt (check 4) |
-| WP-07 | Tier A write journeys against PR preview | MC-01, 02, 03, 05, 07, 10, 11 | WP-02 | SAFE for preview; **FOUNDER** for any that would file to the real Linear workspace or start a paid build | Each write completes and survives reload on the Railway `Pi-Dev-Ops-pr-<n>` + Vercel preview pair; side effects cleaned up |
+| WP-06 | Level 1 read journeys for all 20 rows | all | WP-02 | SAFE | One spec per surface: real-data assertion (check 1) + zero unexpected 4xx/5xx (check 2) + receipt (check 4) |
+| WP-07 | Level 1 write journeys against PR preview | MC-01, 02, 03, 05, 07, 10, 11 | WP-02 | SAFE for preview; **FOUNDER** for any that would file to the real Linear workspace or start a paid build | Each write completes and survives reload on the Railway `Pi-Dev-Ops-pr-<n>` + Vercel preview pair; side effects cleaned up |
 | WP-08 | Component tests for the 8 untested panels | MC-02, 04, 08, 09, 10, 11, 12 | — | SAFE | vitest loaded/empty/error cases for `GoalTicketForm`, `GoalProjectPicker`, `ModelFabricPanel`, `RoutineTable`, `CuratorProposalsPanel`, `MargotAssetsPanel`, `SpecPipelinePanel`, `TerminalPanel` |
-| WP-09 | Tier AA failure-path, auth, a11y and phone viewport | all | WP-06 | SAFE | Checks 5, 6, 8, 9 per surface. Adds `@axe-core/playwright` (new dev dependency, no cost) |
+| WP-09 | Level 2 failure-path, auth, a11y and phone viewport | all | WP-06 | SAFE | Checks 5, 6, 8, 9 per surface. Adds `@axe-core/playwright` (new dev dependency, no cost) |
 | WP-10 | Jev evaluator (shadow) | all | WP-06; **SECRET** (`TYPESAFE_API_KEY` in GitHub Actions) or environment allowlist | SECRET | Script reads run snapshots, redacts, calls J1–J4, writes JSONL; budget guard stops at $4/day; 60-snapshot labelled set reports held-out accuracy |
 | WP-11 | Nightly production run + scorecard | all | WP-06, WP-09 | SAFE | Scheduled workflow runs the suite against production, uploads receipts, computes per-surface tier by the rules in [aaa-rating.md](aaa-rating.md), publishes the scorecard |
-| WP-12 | AAA reached | all | WP-01…11 | — | Three consecutive nightly runs meet every AAA check; register has no CONFLICTING/STRUCTURAL_ONLY row |
+| WP-12 | Level 3 reached | all | WP-01…11 | — | Three consecutive nightly runs meet every Level 1–3 check; register has no CONFLICTING/STRUCTURAL_ONLY row |
 
 ## Founder items that sit outside these packages
 
@@ -35,3 +35,24 @@ These affect "finished" for the wider system, not the AAA grade of the screens t
 
 After WP-06's first run, re-open this plan: the register rows move from PARTIAL to VERIFIED or to
 CONFLICTING based on what the browser actually saw, and WP-07+ are re-sized from those results.
+
+## Place in the portfolio harness (NEXUS-RELEASE-HARNESS v1.0)
+
+These packages are the MC track's instance of the packet's per-product chain
+`P-DISCOVER → P-PROMISE → P-VERIFY → P-REPAIR → P-AUDIT → P-RELEASE → P-OBSERVE`
+([adoption decision O3](../nexus-release-harness/adoption.md)). They keep their numbers; nothing is
+re-ticketed.
+
+| Chain step | MC packages | State |
+|---|---|---|
+| MC-DISCOVER | [coverage-register.md](coverage-register.md) (20 rows) | Shallow pass done; deep runtime pass needs WP-02 |
+| MC-PROMISE | *new:* MC Customer Promise Register — every nav blurb, tile label and button label in `dashboard/lib/control/nav.ts` and the panels, as a promise to the founder | NOT_STARTED; safe to do next (read-only) |
+| MC-VERIFY | WP-02, WP-04, WP-06, WP-07, WP-09 | Blocked on `DASHBOARD_PASSWORD` (RA-7832) |
+| MC-REPAIR | WP-01, WP-03, WP-05, WP-08 | Done (#809 merged; #818 awaiting merge) |
+| MC-AUDIT | *new:* two non-author audits of the final candidate (Claude + Codex lanes) | NOT_RUN; Codex lane unavailable in this container |
+| MC-RELEASE | WP-12 + packet release stages R0–R4 and support readiness (RANA) | NOT_STARTED |
+| MC-OBSERVE | WP-11 nightly run and scorecard; WP-10 Jev triage as the CP-04 advisory adapter | WP-10 prep done; rest blocked |
+
+Portfolio packages this track depends on: **CP-00** (authority/identity reconcile), **CP-03**
+(test environment and provider-lane admission — covers both RA-7832 secrets), **CP-04** (evidence
+adapter; the idea-to-live gaps RA-7811–RA-7822 feed it), **CP-07** (staged release + RANA handover).

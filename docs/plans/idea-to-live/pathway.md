@@ -70,3 +70,26 @@ writes the packet that would close A–G, it does not close them. Its relevant p
 Break C is a founder switch. Breaks A, B, D, E, G are code or doc work and are ticketed separately.
 
 A second, independent pass added breaks H–L: [second-pass-2026-09-28.md](second-pass-2026-09-28.md).
+
+## Crosswalk to the canonical lifecycle (UNI-2517) and the portfolio harness
+
+NEXUS-RELEASE-HARNESS v1.0 names UNI-2517's earned lifecycle as canonical
+([adoption decision O4](../nexus-release-harness/adoption.md)). The stages above map onto it. The
+evidence for each stage stays in the table above.
+
+| Stage here | UNI-2517 state it can earn | Harness package |
+|---|---|---|
+| 1a, 1b Capture | `IDEA` | per-track P-DISCOVER |
+| 2 Board packet → GO | `DISCOVERED` → `PLANNED` | P-PROMISE |
+| 3 Ticket made eligible | `BUILD_AUTHORISED` (needs signed scope, not just a label) | CP-00 / CP-03 admission |
+| 4 Poller claims · 5a/5b Build | `EXECUTING` → `LOCALLY_VERIFIED` | P-REPAIR |
+| 6 Pre-push review + PR | `PR_OPEN` → `REVIEWING` | P-AUDIT (the two non-author audits) |
+| 8 CI gates | `CI_GREEN` | CP-04 evidence adapter |
+| — (no stage here today) | `STAGING_VERIFIED` → `RELEASE_READY` | P-VERIFY on preview (MC: WP-06/07) |
+| 7 Merge to main | `SHIP_AUTHORISED` (human merge, decision D0 / RA-7818) | P-RELEASE |
+| 9 Deploy | `PRODUCTION` | P-RELEASE |
+| 10 Prove it works live | `POST_DEPLOY_VERIFIED` → `COMPLETE` | P-OBSERVE; CP-07 |
+
+Break E ("complete" means merged, not verified live) is the same gap as the harness rule that a
+deploy alone earns `PRODUCTION`, never `POST_DEPLOY_VERIFIED`. There is no `STAGING_VERIFIED` stage
+today; that is what the MC browser suite (WP-06/07) adds for Mission Control.

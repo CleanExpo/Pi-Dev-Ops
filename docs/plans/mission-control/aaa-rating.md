@@ -1,26 +1,53 @@
-# Mission Control AAA rating — definition
+# Mission Control control set (MC track) — the checks behind its AAA grade
 
-**Status:** PROPOSED (r1, 28 Sept 2026). Written because no rating scheme for Mission Control
+**Status:** PROPOSED (r2, 29 Sept 2026). **Grade authority:** the portfolio AAA rubric in
+NEXUS-RELEASE-HARNESS v1.0 `scoring.md` ([adoption decision O1](../nexus-release-harness/adoption.md)).
+This file no longer defines its own AAA: it defines the MC track's **control set** — the checks
+that the portfolio rubric scores — grouped in Levels 1–3 (formerly tiers A/AA/AAA, renamed so
+"AAA" has one meaning).
+
+r1 background (28 Sept 2026). Written because no rating scheme for Mission Control
 exists: the 19 Sept readiness plan says "No honest production-ready 100/100 score is supportable"
 and "never manufacture a readiness score" (`docs/plans/mission-control-readiness.md:32,85`). This
 definition keeps that rule — every grade below is a set of pass/fail checks run against a named
 deployment, never a model's opinion or a percentage.
 
 "AAA" here is a Mission Control grade. It is **not** WCAG AAA, which the repo uses elsewhere for
-contrast and touch targets; WCAG is one input to tier AA below.
+contrast and touch targets; WCAG is one input to Level 2 below.
+
+## How these checks feed the portfolio AAA rubric
+
+| MC check | Portfolio dimension (weight) | Harness test |
+|---|---|---|
+| 1 Renders real data · 3 Write actions complete · 12 Label honesty | Customer promises and end-to-end outcomes (25) | T06 (success reply without the intended effect fails) |
+| 2 No hidden refusals | Integrations and data integrity (20) | T06 |
+| 6 Auth boundary | Security, access and privacy (20) | — (T05 covers mandates at side effects, not page auth) |
+| 5 Failure path · 10 Stable | Reliability, recovery and operational support (15) | — |
+| 8 Accessibility · 9 Two viewports | Usability and accessibility (10) | — |
+| 4 Receipt · 7 Component test · 13 Live-deploy linkage | Evidence provenance, reproducibility, release discipline (10) | T03 (evidence for a different SHA is stale) |
+| 11 Nothing documented broken | Mandatory blocker — outside the score | T13 |
+
+**Required by the portfolio rubric but not yet in this control set** (added as MC control groups,
+each currently NOT_RUN): tenant/object access and OWASP ASVS-selected controls beyond the auth
+redirect; two separate non-author audits of the same final candidate (Claude lane + OpenAI/Codex
+lane, with provider/model/session receipts); support ownership (RANA identity, rota, backup);
+a tested recovery path; the MC Customer Promise Register (each nav blurb and button label is a
+promise to the founder). Until these exist, MC cannot score 100/100 and cannot be AAA-RELEASE-READY,
+whatever Levels 1–3 show. AAA-LIVE-VERIFIED additionally needs authorised promotion and
+deployed-artifact readback (check 13 is the MC part of that).
 
 ## The rule that makes it honest
 
-A surface earns a tier only when **every** check in that tier passes for it, on the **deployed**
+A surface reaches a level only when **every** check in that level passes for it, on the **deployed**
 site, on the **current production revision**, in the **latest scheduled run**. One failing check
-drops that surface to the tier below. Mission Control's grade is the **lowest** grade of any of its
+drops that surface to the level below. Mission Control's level is the **lowest** level of any of its
 20 register rows ([coverage-register.md](coverage-register.md)) — one broken page cannot be averaged
 away by nineteen good ones.
 
-Jev results never count toward a grade (see [jev-decision-contracts.md](jev-decision-contracts.md)).
+Jev results never count toward a level or the portfolio score (see [jev-decision-contracts.md](jev-decision-contracts.md)).
 They are advisory triage that tells the repair loop where to look.
 
-## Tier A — it works for a user
+## Level 1 — it works for a user
 
 For each surface:
 
@@ -36,9 +63,9 @@ For each surface:
    build) run against preview only, with the side effect asserted and cleaned up.
 4. **Receipt.** The run records deployed SHA, URL, time, and pass/fail per check as a JSON artifact.
 
-## Tier AA — it fails honestly and is built to last
+## Level 2 — it fails honestly and is built to last
 
-Tier A, plus:
+Level 1, plus:
 
 5. **Failure path.** With the backend forced unreachable (route intercepted in the browser), the
    page shows an explicit, actionable error — never a spinner that never ends, never stale data
@@ -52,9 +79,9 @@ Tier A, plus:
    violations at WCAG 2.2 AA.
 9. **Two viewports.** Checks 1–2 pass at desktop (1440×900) and phone (390×844) sizes.
 
-## Tier AAA — it stays working without anyone watching
+## Level 3 — it stays working without anyone watching
 
-Tier AA, plus:
+Level 2, plus:
 
 10. **Stable.** The full suite has passed on production on **three consecutive scheduled runs**
     (nightly), with zero retries used.
@@ -65,7 +92,7 @@ Tier AA, plus:
     deterministic assertion on the recorded requests; Jev contract J3 only pre-screens.
 13. **Live-deploy linkage.** The run's receipt names the same SHA as the production deployment it
     tested, and the scorecard is published where Phill can see it (one row per surface, with the
-    tier and the failing check if any).
+    level and the failing check if any).
 
 ## Size of the suite this implies
 
@@ -76,6 +103,6 @@ the text snapshot that Jev contracts J1–J3 read, so a nightly run yields rough
 
 ## What today's grade is
 
-**Ungraded — below A.** Check 1 cannot pass on any surface because no browser test exists
+**Ungraded — below Level 1**, so not scoreable under the portfolio rubric. Check 1 cannot pass on any surface because no browser test exists
 (coverage-register.md: "Browser tests touching any surface: 0"). This is a statement that the
 evidence does not exist, not that the pages are broken.
