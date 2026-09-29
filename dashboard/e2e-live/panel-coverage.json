@@ -1,5 +1,9 @@
 {
   "_about": "AAA check 7 (docs/plans/mission-control/aaa-rating.md): every data panel on a page needs passing vitest tests for its LOADED, EMPTY and ERROR states. Each entry is a module path relative to dashboard/, without extension. Scored by scripts/mission_control_panel_coverage.py. A page with no data panels lists none and scores N/A, which the scorer does not count as met. Shell panels (MC-00) are the layout's own data components, listed once rather than on every page.",
+  "_notes": {
+    "MC-15": "The page's own tool catalogue is not a data panel: getToolCatalogue() returns the static KNOWN_TOOLS list plus any MCP names found in a local Hermes config, and a missing or unreadable config silently leaves the static list (lib/command-centre/tools/catalogue.ts). It has no loading, empty or error state to test. Its data panels are the two tiles.",
+    "MC-13, MC-14": "Static pages: the index is links, and Hermes renders getControlPanelView(), which has no imports, fetch, file or env reads (lib/command-centre/control-panel.ts)."
+  },
   "surfaces": {
     "MC-00": [
       "components/control/TopBar",
@@ -14,27 +18,59 @@
       "components/control/FleetTile",
       "components/control/LiveActivityFeed"
     ],
-    "MC-02": ["components/control/GoalTicketForm", "components/control/GoalProjectPicker"],
-    "MC-03": ["components/control/SwarmPanel", "components/control/KillSwitchPanel"],
-    "MC-04": ["components/control/ModelFabricPanel", "components/control/ModelBadge"],
-    "MC-05": ["components/control/HealthGrid"],
-    "MC-06": ["components/control/AgentRolesPanel"],
-    "MC-07": ["components/control/BuildForm"],
-    "MC-08": ["components/control/RoutineTable"],
-    "MC-09": ["components/control/CuratorProposalsPanel"],
-    "MC-10": ["components/control/MargotAssetsPanel"],
-    "MC-11": ["components/control/SpecPipelinePanel"],
-    "MC-12": ["components/control/TerminalPanel"],
+    "MC-02": [
+      "components/control/GoalTicketForm",
+      "components/control/GoalProjectPicker"
+    ],
+    "MC-03": [
+      "components/control/SwarmPanel",
+      "components/control/KillSwitchPanel"
+    ],
+    "MC-04": [
+      "components/control/ModelFabricPanel",
+      "components/control/ModelBadge"
+    ],
+    "MC-05": [
+      "components/control/HealthGrid"
+    ],
+    "MC-06": [
+      "components/control/AgentRolesPanel"
+    ],
+    "MC-07": [
+      "components/control/BuildForm"
+    ],
+    "MC-08": [
+      "components/control/RoutineTable"
+    ],
+    "MC-09": [
+      "components/control/CuratorProposalsPanel"
+    ],
+    "MC-10": [
+      "components/control/MargotAssetsPanel"
+    ],
+    "MC-11": [
+      "components/control/SpecPipelinePanel"
+    ],
+    "MC-12": [
+      "components/control/TerminalPanel"
+    ],
     "MC-13": [],
     "MC-14": [],
     "MC-15": [
-      "app/(main)/command-centre/knowledge/page",
       "components/command-centre/wiki-graph/WikiGraphTile",
       "components/command-centre/youtube-intent/IntentCatalogTile"
     ],
-    "MC-16": ["components/command-centre/provider-usage/ProviderUsageCockpit"],
-    "MC-17": ["components/wall/Wall"],
-    "MC-18": ["app/(main)/command-centre/wiki-graph/page"],
-    "MC-19": ["app/(main)/command-centre/youtube-intent/page"]
+    "MC-16": [
+      "components/command-centre/provider-usage/ProviderUsageCockpit"
+    ],
+    "MC-17": [
+      "components/wall/Wall"
+    ],
+    "MC-18": [
+      "app/(main)/command-centre/wiki-graph/page"
+    ],
+    "MC-19": [
+      "app/(main)/command-centre/youtube-intent/page"
+    ]
   }
 }
