@@ -6,7 +6,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import ProjectSelector, { PROJECTS_UNAVAILABLE } from "@/components/control/ProjectSelector";
+import ProjectSelector, { PROJECTS_NONE, PROJECTS_UNAVAILABLE } from "@/components/control/ProjectSelector";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 vi.mock("@/lib/pi-ceo-fetch", () => ({
@@ -30,23 +30,31 @@ afterEach(() => {
 });
 
 describe("ProjectSelector", () => {
-  it("says the projects are unavailable when the proxy reports an outage", async () => {
+  it("ERROR: says the projects are unavailable when the proxy reports an outage", async () => {
     mockedProxy.mockResolvedValue(null);
     await openMenu();
     expect(await screen.findByRole("alert")).toHaveTextContent(PROJECTS_UNAVAILABLE);
     expect(screen.queryByText("Loading projects…")).toBeNull();
   });
 
-  it("says the projects are unavailable when the request itself fails", async () => {
+  it("ERROR: says the projects are unavailable when the request itself fails", async () => {
     mockedProxy.mockRejectedValue(new TypeError("Failed to fetch"));
     await openMenu();
     expect(await screen.findByRole("alert")).toHaveTextContent(PROJECTS_UNAVAILABLE);
   });
 
-  it("lists the projects the source returns", async () => {
+  it("LOADED: lists the projects the source returns", async () => {
     mockedProxy.mockResolvedValue([{ project_id: "pi-dev-ops", repo: "CleanExpo/Pi-Dev-Ops" }]);
     await openMenu();
     expect(await screen.findByText("pi-dev-ops")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("EMPTY: a successful empty read says there are none, not that it is still loading", async () => {
+    mockedProxy.mockResolvedValue([]);
+    await openMenu();
+    expect(await screen.findByRole("status")).toHaveTextContent(PROJECTS_NONE);
+    expect(screen.queryByText("Loading projects…")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
   });
 

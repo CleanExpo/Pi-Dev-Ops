@@ -65,10 +65,13 @@ export function useActiveProject(): { project_id: string; repo: string } | null 
 // Shown instead of the list when the project source cannot be read. Before
 // RA-7844 a failed read left the menu on "Loading projects…" forever.
 export const PROJECTS_UNAVAILABLE = "Projects unavailable — the project source did not respond.";
+// A successful empty read used to stay on "Loading projects…" for ever.
+export const PROJECTS_NONE = "No projects returned by the project source.";
 
 export default function ProjectSelector() {
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [active, setActive] = useState<{ project_id: string; repo: string } | null>(
     () => getActiveProject(),
   );
@@ -86,6 +89,7 @@ export default function ProjectSelector() {
           return;
         }
         setProjects(data.map((p) => ({ project_id: p.project_id, repo: p.repo })));
+        setLoaded(true);
       })
       .catch(() => {
         if (!cancelled) setLoadFailed(true);
@@ -188,7 +192,7 @@ export default function ProjectSelector() {
               style={{ color: loadFailed ? "var(--error)" : "var(--text-dim)" }}
               role={loadFailed ? "alert" : "status"}
             >
-              {loadFailed ? PROJECTS_UNAVAILABLE : "Loading projects…"}
+              {loadFailed ? PROJECTS_UNAVAILABLE : loaded ? PROJECTS_NONE : "Loading projects…"}
             </div>
           )}
         </div>
