@@ -45,7 +45,8 @@ def catalogue(library: Path) -> dict[str, dict]:
         meta, _ = tao_skills._parse_frontmatter(path.read_text(encoding="utf-8"))
         name = str(meta.get("name", path.parent.name))
         if name not in items and meta.get("description"):
-            items[name] = {"name": name, "description": str(meta["description"]), "home": "library"}
+            items[name] = {"name": name, "description": str(meta["description"]), "home": "library",
+                           "path": str(path)}
     return items
 
 

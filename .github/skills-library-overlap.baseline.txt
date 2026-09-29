@@ -1,0 +1,47 @@
+# Skills this repo still carries in skills/ although their home is the skills library
+# (skills-library skills/HOMES.json). Shrink-only: scripts/sync_skills_library.py check fails on
+# an overlap missing from this list AND on a listed name that no longer overlaps.
+#
+# While a name is listed, Mission Control loads the skills/ copy, not skills-library/, so
+# nothing it loads today changes. To remove a line: merge any PDO-only content into the
+# library copy, then delete skills/<name>/ here and sync.
+#
+# "identical" = every file matches the library at the synced commit; safe to delete once any
+# path reference to skills/<name>/ in this repo is checked. "diverged" = content differs.
+adversarial-review  # diverged
+agent-browser  # diverged
+artlist-mcp  # identical
+autonomy-ladder  # diverged
+chrome-browser  # identical
+classify  # identical
+contain  # identical
+context-cockpit  # identical
+control-design  # diverged
+control-scope  # diverged
+creative-director  # diverged
+diagnose  # identical
+eeat  # diverged
+heygen-director  # diverged
+immunise  # identical
+incident-memory  # identical
+judge  # diverged
+merge-gate  # diverged
+model-router  # diverged
+output-tournament  # identical
+pi-dev-ops-model-farm  # identical
+proof-discipline  # diverged
+propose-fix  # identical
+prove-the-failure  # identical
+readiness-architect  # diverged
+resume-from-handoff  # diverged
+session-handoff  # diverged
+skill-authoring-standard  # diverged
+specialist-council  # diverged
+spm  # diverged
+tao  # identical
+unlazy  # diverged
+verify  # identical
+wayfinder  # diverged
+weekly-enhancement-loop  # identical
+wiki-growth  # identical
+wiki-ingest  # diverged

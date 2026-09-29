@@ -194,4 +194,13 @@ def skill_context(raw_brief: str, intent: str) -> str:
         return today
     if not d.skills:
         return ""
-    return f"--- RELEVANT SKILL ---\n### Skill: {d.skills[0]}\n{d.bodies[0]}\n--- END SKILL ---\n\n"
+    return f"--- RELEVANT SKILL ---\n### Skill: {d.skills[0]}\n{_folder_line(d.skills[0])}{d.bodies[0]}\n--- END SKILL ---\n\n"
+
+
+def _folder_line(name: str) -> str:
+    """Where the skill's own files are: its body names references and scripts relative to its
+    folder, which the agent cannot otherwise find (skill-library sync review round 1)."""
+    from src.tao.skills import get_skill
+
+    path = (get_skill(name) or {}).get("path", "")
+    return f"(This skill's files are in {Path(path).parent}; paths it names are relative to that folder.)\n" if path else ""

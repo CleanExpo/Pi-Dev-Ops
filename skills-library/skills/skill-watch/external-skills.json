@@ -1,0 +1,166 @@
+{
+  "_about": "Everything in this estate that came from outside Claude Code itself. skill_watch.py checks each entry daily. Update a pin ONLY after a human-reviewed upgrade, with `skill_watch.py pin <name>`.",
+  "cli": {
+    "name": "claude-code",
+    "npm": "@anthropic-ai/claude-code",
+    "reviewed_version": "2.1.274"
+  },
+  "skills": [
+    {
+      "name": "mattpocock",
+      "repo": "https://github.com/mattpocock/skills",
+      "path": "skills",
+      "pinned_sha": "74ca5fe077456a0b3b2f5310cf9430999fd0b5fd",
+      "installed": "2026-09-18",
+      "vault": true,
+      "exclude": [
+        "in-progress",
+        "misc/git-guardrails-claude-code",
+        "engineering/wizard"
+      ],
+      "review": "Subagent read all 38 SKILL.md, references, agents/openai.yaml, 4 scripts, plugin manifests (18/09/2026): no prompt injection, no hooks, no permission bypass. Excluded: in-progress/ (drafts), git-guardrails (edits settings.json + installs a hook), wizard (pastes secrets into plaintext .env, breaks credential-custody). NEVER run scripts/link-skills.sh (rm -rf over same-name local skills, line 56). 9 names collide with local adapted copies (grill-me, grilling, wayfinder, domain-modeling, grill-with-docs, implement, prototype, research, setup-matt-pocock-skills): local wins, checkout is refused for those."
+    },
+    {
+      "name": "skill-router-lib",
+      "repo": "https://github.com/sorcerai/skill-router",
+      "path": "lib.mjs",
+      "pinned_sha": "4d999f8983c9b763cf8e921780d77492cc95dc85",
+      "installed": "2026-09-18",
+      "review": "Vendored unchanged as skills/skill-selector/scripts/vendor/skill-router/lib.mjs (MIT, sha256 72fc3a01...). Read in full 18/09/2026: filesystem reads only, no network, no exec. Its server.mjs / install.mjs are NOT vendored.",
+      "installed_path": "skills/skill-selector/scripts/vendor/skill-router/lib.mjs"
+    },
+    {
+      "name": "swiftui-liquid-glass",
+      "repo": "https://github.com/FloWritesCode/fwc-swiftui-skills",
+      "path": "skills/swiftui-liquid-glass",
+      "pinned_sha": "c2454e6948175e25e61c107c6dc7ebf03e291dfe",
+      "installed": "2026-09-17",
+      "review": "Markdown only, no scripts or hooks (subagent review 17/09/2026)"
+    },
+    {
+      "name": "swiftui-iphone-duo",
+      "repo": "https://github.com/FloWritesCode/fwc-swiftui-skills",
+      "path": "skills/swiftui-iphone-duo",
+      "pinned_sha": "c2454e6948175e25e61c107c6dc7ebf03e291dfe",
+      "installed": "2026-09-17",
+      "review": "Markdown only, no scripts or hooks (subagent review 17/09/2026)"
+    },
+    {
+      "name": "impeccable",
+      "repo": "https://github.com/pbakaus/impeccable",
+      "path": null,
+      "pinned_sha": "f2049c2b76383b444bf30cd6184f7d49a6c580d1",
+      "installed": "2026-07-14",
+      "review": "v3.9.1, provenance in its SKILL.md; local copy is adapted, so upstream changes need a manual merge"
+    },
+    {
+      "name": "agent-browser",
+      "npm": "agent-browser",
+      "pinned_version": "0.38.1",
+      "installed": "unknown",
+      "review": "stub skill; real content is served by the CLI and matches the installed version"
+    },
+    {
+      "name": "reticle-verify",
+      "npm": "@reticlehq/server",
+      "pinned_version": "2.14.0",
+      "installed": "2026-09-17",
+      "review": "our skill; depends on this Reticle version (flow format, unadvertised tools). Re-run the gate self-test after any upgrade"
+    },
+    {
+      "name": "playwright-cli",
+      "repo": "https://github.com/microsoft/playwright-cli",
+      "path": "skills/playwright-cli",
+      "pinned_sha": "74354ecc7a43da16d91a9bc54fa8db8283a3fcf5",
+      "installed": "2026-09-24",
+      "installed_path": "skills/playwright-cli",
+      "review": "Subagent read SKILL.md, all 10 references and the install code (24/09/2026). No hooks, no settings/MCP/shell-profile edits, no postinstall scripts. Vendored by hand, NOT via `playwright-cli install --skills`: that silently cp -r overwrites ~/.claude/skills/playwright-cli, and its skillCheck.js nags on any local edit. Local changes: allowed-tools narrowed to Bash(playwright-cli:*) (upstream also allows npm/npx); an estate-rules block bans state-save/--persistent/--profile/cookie-get on real accounts, attach --cdp/--extension, package installs, and GitHub PR attachment uploads. Upstream SKILL.md is 484 lines (over the 200 cap), accepted as vendored. Duplicates agent-browser (same CLI+skill shape); retiring agent-browser is a founder call."
+    },
+    {
+      "name": "playwright-cli-npm",
+      "npm": "@playwright/cli",
+      "pinned_version": "0.1.21",
+      "installed": "2026-09-24",
+      "review": "Global CLI backing the playwright-cli skill. No postinstall scripts; installs no browsers (only `install` / `install-browser` do). Checks registry.npmjs.org once a day for an update notice; NO_UPDATE_NOTIFIER=1 disables it."
+    },
+    {
+      "name": "playwright-mcp",
+      "npm": "@playwright/mcp",
+      "pinned_version": "0.0.82",
+      "installed": "2026-09-24",
+      "review": "User-scope MCP server: npx -y @playwright/mcp@0.0.82 --isolated --headless --output-dir ~/.local/state/playwright-mcp. Pinned rather than the README's @latest. --isolated keeps the browser profile in memory (the default persists logins under ~/Library/Caches/ms-playwright/mcp-*). Never add --save-session, --user-data-dir, --storage-state or --caps=storage. README: 'Playwright MCP is not a security boundary.' Microsoft recommends the CLI+skill for coding agents and MCP for long exploratory loops."
+    },
+    {
+      "name": "archify",
+      "repo": "https://github.com/tt-a1i/archify",
+      "path": "archify",
+      "pinned_sha": "9e35d2b0b39b155553ba9fcfe0b4f2a5198dd993",
+      "installed": "2026-09-24",
+      "installed_path": "skills/archify",
+      "review": "Subagent read-only review 24/09/2026: MIT, no hooks/postinstall/settings/MCP edits, no telemetry or API keys, zero runtime npm deps, Node>=18. Vendored by hand (not `npx skills add`, which pulls unpinned main). Removed the per-run update check (scripts/check-update.mjs, update-contract.mjs, SKILL.md 'Update awareness' body): it fetched tt-a1i.github.io on every use and wrote ~/Library/Caches/archify-skill. Excluded test/, package-lock.json, generate-*.mjs and the maintainer-only archify-review skill. `brands capture` fetches a user-given URL (private IPs blocked); only on explicit request."
+    },
+    {
+      "name": "gstack",
+      "repo": "https://github.com/garrytan/gstack",
+      "path": ".",
+      "pinned_sha": "b9706f3635b6a545f46fae607ae9d6bcbfb69b91",
+      "installed": "2026-09-24",
+      "installed_path": "~/.local/share/gstack-vendor/b9706f36 (quarantine, never loaded)",
+      "review": "Read-only review 24/09/2026. NOT installed: ./setup writes settings.json hooks, team mode auto-pulls unpinned main hourly, telemetry payload exceeds README claim, design daemon uses metered OpenAI, every skill runs gstack-skill-start (update check + consent). Adapted instead: gs-* skills rebuilt without runtime calls; decision classes, four statuses, 3 strikes, handoff files and learnings step moved into shipyard/references/autonomous-run-contract.md; freeze rebuilt as gs-freeze with per-session state. On upstream move: diff the adopted sources (autoplan, office-hours, plan-*-review, freeze, preamble/generate-completion-status.ts) only."
+    }
+  ],
+  "watchlist": [
+    {
+      "repo": "https://github.com/edonadei/caliper",
+      "why": "skill context-cost and redundancy measurement (review 17/09/2026 in progress)"
+    },
+    {
+      "repo": "https://github.com/dmmulroy/anti-slop",
+      "why": "declined for ~/.claude 17/09/2026: TS/JS Oxlint rules, not writing. Candidate per-repo linter via PR"
+    },
+    {
+      "repo": "https://github.com/JayPokale/Chisle",
+      "why": "declined 17/09/2026: do not install its hooks"
+    },
+    {
+      "repo": "https://github.com/chrisbanes/skills",
+      "why": "Android skills candidate"
+    },
+    {
+      "repo": "https://github.com/skydoves/compose-performance-skills",
+      "why": "Jetpack Compose performance candidate"
+    },
+    {
+      "repo": "https://github.com/reticlehq/reticle",
+      "why": "upstream of reticle-verify"
+    },
+    {
+      "repo": "https://github.com/anthropics/skills",
+      "why": "official skills; a new official skill can make one of ours redundant"
+    },
+    {
+      "repo": "https://github.com/block/buzz",
+      "why": "reviewed 24/09/2026 @ d01e5f8: a Nostr team-chat server for people and agents, not a fleet monitor. Method only: 'unknown, never offline' presence rule, per-turn token metric schema, TTL=3x heartbeat, activity-feed render classes -> Mission Control design input. Do not install."
+    },
+    {
+      "repo": "https://github.com/thedotmack/claude-mem",
+      "why": "DECLINED 24/09/2026 @ c4bfa45: 7 hooks incl. every PostToolUse, a background worker on a local port, PostHog telemetry ON by default, model calls per tool use. Duplicates memory/ + nexus-recall."
+    },
+    {
+      "repo": "https://github.com/JuliusBrussee/caveman",
+      "why": "DECLINED 24/09/2026 @ 2fd153c: SessionStart+UserPromptSubmit hooks, writes settings.json and statusLine, unpinned npx MCP, parts under BSL-1.1, own docs publish no savings figure. Conflicts with the plain-words communication rule."
+    },
+    {
+      "repo": "https://github.com/ctxr-dev/llm-wiki-memory",
+      "why": "WATCHLIST 24/09/2026 @ 4e7f98f: method reference only. Installing it adds ~8 global hooks, an MCP server and an hourly launchd job, and its PreToolUse hook DENIES writes to ~/.claude/projects/*/memory/. Read docs/write-gate.md for ideas."
+    },
+    {
+      "repo": "https://github.com/blader/humanizer",
+      "why": "METHOD ADOPTED 24/09/2026 @ 9862685 (MIT): patterns 33-40 and 'When not to act' folded into skills/unslop/SKILL.md. Not vendored."
+    },
+    {
+      "repo": "https://github.com/ayghri/i-have-adhd",
+      "why": "METHOD ONLY 24/09/2026 @ 839872f (MIT): 'step N of M' state line and the first-and-last-line check proposed for communication-contract.md (unratified; Board Q17). Its SessionStart hook is not installed; its example 'Want me to handle that next?' is a banned phrase here."
+    }
+  ]
+}

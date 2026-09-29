@@ -50,6 +50,8 @@ COPY swarm/ ./swarm/
 # Committed config / skills
 COPY config/harness/ ./config/harness/
 COPY skills/ ./skills/
+# The skills library's own skills (whole folders), synced by scripts/sync_skills_library.py
+COPY skills-library/ ./skills-library/
 
 # Board governance corpus
 COPY docs/governance/board-meetings/ ./docs/governance/board-meetings/
@@ -65,6 +67,10 @@ COPY vendor/margot-deep-research/ ./vendor/margot-deep-research/
 # OmniRoute as its source of memory or authority.
 RUN mkdir -p app/workspaces app/logs/.sessions app/data .harness /pi-ceo/.omniroute && \
     chown -R pidev:pidev /pi-ceo
+
+# Skills name their own files as ~/.claude/skills/<name>/...; link every shipped skill there.
+RUN sh scripts/link_skills_home.sh /home/pidev/.claude/skills /pi-ceo && \
+    chown -R -h pidev:pidev /home/pidev/.claude
 
 USER pidev
 
