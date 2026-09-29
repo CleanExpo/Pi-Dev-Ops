@@ -145,10 +145,6 @@ _PLACEHOLDER_RE = re.compile(
     re.IGNORECASE,
 )
 
-# A hyphenated `your-key-here` placeholder, as in vendored docs. Tested against the MATCHED value
-# only, never the whole line, so a real key followed by `# replace your-key-here` still fires.
-_VALUE_PLACEHOLDER_RE = re.compile(r"your-[a-z0-9-]*-here", re.IGNORECASE)
-
 # File extensions / names never scanned (docs, env templates by design)
 _SKIP_EXTS = {".md", ".rst", ".lock", ".png", ".jpg", ".jpeg", ".gif", ".svg",
               ".ico", ".woff", ".woff2", ".ttf", ".eot", ".pdf", ".zip",
@@ -409,7 +405,7 @@ def _scan_file(rel_path: str) -> list[dict]:
             if title.startswith("JWT (") and _is_public_anon_jwt(matched_text):
                 continue
             # Skip placeholders / example values
-            if _PLACEHOLDER_RE.search(matched_text) or _VALUE_PLACEHOLDER_RE.search(matched_text):
+            if _PLACEHOLDER_RE.search(matched_text) or re.search(r"your-[a-z0-9-]*-here", matched_text, re.I):
                 continue
             line_num = text[: match.start()].count("\n") + 1
             line_text = lines[line_num - 1] if line_num <= len(lines) else ""
