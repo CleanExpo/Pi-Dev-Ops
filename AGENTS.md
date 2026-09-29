@@ -2,6 +2,10 @@
 
 What an autonomous agent (Claude Code, Pi-CEO generator, board agent) may modify freely, modify with care, or never touch without explicit human approval. The more specific scope wins on conflict (e.g. `app/server/config.py` 🚫 overrides the default ✅ for `app/server/`).
 
+## Founder-approved company North Star
+
+Read [Built for the Hard Day](docs/governance/NEXUS-NORTH-STAR.md) before planning, judging or building Nexus and Mission Control work. State how the change supports its customer, team, partner or truth-in-delivery promise, and surface evidence or uncertainty. This purpose does not grant an agent authority to cross an existing approval, release or constitutional boundary. Product-specific missions still apply.
+
 ---
 
 ## Root Boundary Matrix
