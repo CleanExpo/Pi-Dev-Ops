@@ -140,6 +140,10 @@ MUTANTS = [
     ("gemini_shape.py", ' or isinstance(cfg["maxOutputTokens"], bool)', ""),
     ("gemini_shape.py", '_parts_ok(body["systemInstruction"]["parts"], {"text"})', "True"),
     ("gemini_shape.py", '    if "model" in body and not isinstance(body["model"], str):', "    if False:"),
+    # release review r9: the traversal guard reached directly, and live decide on the committed fixture only
+    ("ask.py", 'if rel.startswith("/") or any(p in ("", ".", "..") for p in parts):', "if False:"),
+    ("__main__.py", "    actions = _committed_actions() if a.live else",
+     '    actions = json.loads(engine.FIXTURES.read_text())["actions"] if a.live else'),
     ("evals/jev_constitution/generate.py", '!= ("run", "use"):', '!= ("run", "use") and False:'),
     ("evals/jev_constitution/generate.py", '(control.get("status"), control.get("verdict")) != ("run", "use")',
      'control.get("verdict") != "use"'),

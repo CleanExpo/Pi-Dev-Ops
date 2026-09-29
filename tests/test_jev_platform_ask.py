@@ -265,3 +265,15 @@ def test_a_fifo_at_an_admitted_path_is_refused_without_blocking(tmp_path):
         os.close(os.open(tmp_path / "policy.py", os.O_WRONLY | os.O_NONBLOCK))
         pytest.fail("read_confined blocked on a FIFO")
     assert out == {"refused": "not a regular file"}
+
+
+@pytest.mark.parametrize("rel", ["../outside.txt", "./../outside.txt", "sub/../../outside.txt", "sub//x.txt", "/abs"])
+def test_read_confined_itself_refuses_escaping_paths(tmp_path, rel):
+    """Release review r9 P0: the escaping-path test was shadowed by the manifest; this reaches read_confined directly.
+    `outside.txt` really exists one level up, so without the guard the read would succeed."""
+    repo = tmp_path / "repo"
+    (repo / "sub").mkdir(parents=True)
+    (repo / "sub" / "x.txt").write_text("inside")
+    (tmp_path / "outside.txt").write_text("outside the repo")
+    with pytest.raises(ValueError, match="relative, without"):
+        ask.read_confined(str(repo), rel.replace("/abs", str(tmp_path / "outside.txt")))

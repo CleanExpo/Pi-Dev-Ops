@@ -125,3 +125,23 @@ def test_live_without_key_is_blocked(monkeypatch, capsys):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     assert cli.main(["decide", "planted-fabrication", "--rules", RULE, "--live"]) == 2
     assert "BLOCKED" in capsys.readouterr().err
+
+
+def test_live_decide_admits_only_the_committed_fixture(monkeypatch, tmp_path, capsys):
+    """Release review r9 P1: live decide read the working-copy fixture, so a local edit reached TypeSafe."""
+    committed = json.loads(engine._git("show", f"HEAD:{cli.FIXTURE_AT_HEAD}"))["actions"]
+    forged = {**committed, "local-id": {"text": "unreviewed local text"}}
+    forged["planted-fabrication"] = {**committed["planted-fabrication"], "text": "replaced local text"}
+    (tmp_path / "fx.json").write_text(json.dumps({"actions": forged}))
+    monkeypatch.setattr(engine, "FIXTURES", tmp_path / "fx.json")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test-value-0000")
+    sent = []
+    monkeypatch.setattr(engine, "decide", lambda text, *a, **k: sent.append(text) or {"verdict": "escalate"})
+    assert cli.main(["decide", "local-id", "--rules", RULE, "--live"]) == 2
+    assert "synthetic action ids only" in capsys.readouterr().err and sent == []
+    assert cli.main(["decide", "planted-fabrication", "--rules", RULE, "--live"]) == 0
+    assert sent == [committed["planted-fabrication"]["text"]]
+
+
+def test_the_committed_fixture_path_is_the_fixture_engine_loads():
+    assert engine.FIXTURES == engine.ROOT / cli.FIXTURE_AT_HEAD

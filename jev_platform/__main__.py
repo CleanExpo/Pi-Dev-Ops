@@ -39,8 +39,19 @@ def _live_ready() -> bool:
     return True
 
 
+# PLAN.md rev 4: a live decision sends only a synthetic action as COMMITTED; a working-copy edit is never admitted.
+FIXTURE_AT_HEAD = "jev_platform/fixtures/synthetic_actions.json"
+
+
+def _committed_actions() -> dict:
+    try:
+        return json.loads(engine._git("show", f"HEAD:{FIXTURE_AT_HEAD}"))["actions"]
+    except (ValueError, KeyError, TypeError):
+        return {}
+
+
 def cmd_decide(a) -> int:
-    actions = json.loads(engine.FIXTURES.read_text())["actions"]
+    actions = _committed_actions() if a.live else json.loads(engine.FIXTURES.read_text())["actions"]
     if a.live and a.action not in actions:
         print(f"REFUSED: live decide takes synthetic action ids only: {sorted(actions)}", file=sys.stderr)
         return 2
