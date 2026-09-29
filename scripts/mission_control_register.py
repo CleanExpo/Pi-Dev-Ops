@@ -14,7 +14,9 @@ Control surface as a defect." Two halves, two receipt checks:
   warning so it stays visible until someone names a surface on it.
 
 Without LINEAR_API_KEY, or when Linear does not answer, 11-tickets is UNKNOWN
-and the scorer reports check 11 "not measured" — never a pass.
+and the scorer reports check 11 "not measured" — never a pass. The reason
+(Linear's own error text, never the key) is in every receipt and printed as a
+workflow warning, so the job log says why without opening the artifact.
 
 Usage:
     python3 scripts/mission_control_register.py <out-dir> [--register PATH]
@@ -27,6 +29,7 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -65,9 +68,37 @@ def linear_fetch(api_key: str) -> Fetch:
             data=json.dumps({"query": query, "variables": variables}).encode(),
             headers={"Authorization": api_key, "Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read())
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as exc:
+            # Linear sends its GraphQL error text with a 4xx; keep it.
+            try:
+                body = json.loads(exc.read())
+            except Exception:  # noqa: BLE001
+                body = None
+            if isinstance(body, dict) and body.get("errors"):
+                return body
+            raise RuntimeError(f"HTTP {exc.code}") from None
     return fetch
+
+
+def _unread(reason: str) -> str:
+    return f"{reason[:200]}; open defect tickets not read"
+
+
+def linear_error(body: object) -> str:
+    """First GraphQL error message in a Linear reply, or "" when it is a good answer."""
+    if not isinstance(body, dict):
+        return "reply was not a JSON object"
+    errors = body.get("errors")
+    if errors:
+        first = errors[0] if isinstance(errors, list) and errors else errors
+        message = first.get("message") if isinstance(first, dict) else first
+        return f"Linear replied with an error: {message}"
+    if not isinstance(body.get("data"), dict):
+        return "Linear reply had no data"
+    return ""
 
 
 def open_defects(fetch: Fetch | None) -> tuple[dict[str, list[str]] | None, str, list[str]]:
@@ -76,12 +107,15 @@ def open_defects(fetch: Fetch | None) -> tuple[dict[str, list[str]] | None, str,
     The map is None with a reason when Linear was unread.
     """
     if fetch is None:
-        return None, "LINEAR_API_KEY not set; open defect tickets not read", []
+        return None, _unread("LINEAR_API_KEY not set"), []
     try:
         body = fetch(QUERY, {"label": LABEL})
+        bad = linear_error(body)
+        if bad:
+            return None, _unread(bad), []
         nodes = body["data"]["issues"]["nodes"]
     except Exception as exc:  # noqa: BLE001 — any failure means "not read"
-        return None, f"Linear did not answer ({type(exc).__name__}); open defect tickets not read", []
+        return None, _unread(f"Linear did not answer ({type(exc).__name__}: {exc})"), []
     found: dict[str, list[str]] = {s: [] for s in SURFACES}
     unplaced: list[str] = []
     for node in nodes:
@@ -104,20 +138,22 @@ def surface_checks(surface: str, states: dict[str, str],
         reg = {"result": "FAIL", "detail": f"register row is {state}"}
     else:
         reg = {"result": "PASS", "detail": f"register row is {state}"}
+    note = f"; not placed on any surface, so not counted: {', '.join(unplaced)}" if unplaced else ""
     if defects is None:
         tix = {"result": "UNKNOWN", "detail": why}
     elif defects[surface]:
-        tix = {"result": "FAIL", "detail": f"open {LABEL} tickets: {', '.join(defects[surface])}"}
+        tix = {"result": "FAIL", "detail": f"open {LABEL} tickets: {', '.join(defects[surface])}{note}"}
     else:
-        note = f"; not placed on any surface, so not counted: {', '.join(unplaced)}" if unplaced else ""
         tix = {"result": "PASS", "detail": f"no open {LABEL} ticket names this surface{note}"}
     return [{"check": "11-register", **reg}, {"check": "11-tickets", **tix}]
 
 
-def write_receipts(out_dir: Path, register_text: str, fetch: Fetch | None) -> dict[str, list[dict]]:
+def write_receipts(out_dir: Path, register_text: str, fetch: Fetch | None,
+                   read: tuple[dict[str, list[str]] | None, str, list[str]] | None = None,
+                   ) -> dict[str, list[dict]]:
     out_dir.mkdir(parents=True, exist_ok=True)
     states = register_states(register_text)
-    defects, why, unplaced = open_defects(fetch)
+    defects, why, unplaced = read if read is not None else open_defects(fetch)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     written: dict[str, list[dict]] = {}
     for surface in SURFACES:
@@ -134,14 +170,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--register", type=Path, default=REGISTER)
     args = ap.parse_args(argv)
     key = (os.environ.get("LINEAR_API_KEY") or "").strip()
-    written = write_receipts(args.out_dir, args.register.read_text(encoding="utf-8"),
-                             linear_fetch(key) if key else None)
+    fetch = linear_fetch(key) if key else None
+    read = open_defects(fetch)
+    written = write_receipts(args.out_dir, args.register.read_text(encoding="utf-8"), fetch, read)
     ok = sum(all(c["result"] == "PASS" for c in checks) for checks in written.values())
     print(f"check 11: {ok}/{len(written)} surfaces pass")
-    unplaced = next((c["detail"].split("counted: ")[1] for cs in written.values() for c in cs
-                     if c["check"] == "11-tickets" and "counted: " in c["detail"]), "")
+    defects, why, unplaced = read
+    if defects is None:
+        print(f"::warning::check 11 tickets not read: {why}")
     if unplaced:
-        print(f"::warning::{LABEL} tickets name no surface (MC-nn); not counted: {unplaced}")
+        print(f"::warning::{LABEL} tickets name no surface (MC-nn); not counted: {', '.join(unplaced)}")
     return 0
 
 
