@@ -39,7 +39,9 @@ async function prohibitedAttrViolations(container: HTMLElement) {
   return result.violations.flatMap((v) => v.nodes.map((n) => n.html));
 }
 
-beforeEach(() => fetchProxyJSON.mockReset());
+beforeEach(() => {
+  fetchProxyJSON.mockReset();
+});
 afterEach(() => cleanup());
 
 describe("ActiveBuildStrip accessibility", () => {
