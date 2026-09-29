@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { landmarkLocator, outageTexts, settle, SETTLE_MS, stuckLoadingTexts } from "./page-state";
 import { collectFailures, receiptName, signIn, writeReceipt, type CheckResult, type FailedRequest } from "./live-session";
+import { checkRealData } from "./real-data";
 import { LIVE_SURFACES, type LiveSurface } from "./surfaces";
 
 // WP-06: one Level 1 read journey per register row. Each surface gets its own
@@ -38,6 +39,8 @@ async function runChecks(page: Page, surface: LiveSurface, checks: CheckResult[]
     result: outages.length === 0 ? "PASS" : "FAIL",
     detail: outages.length === 0 ? "no outage text visible" : outages.join(" | "),
   });
+
+  checks.push(await checkRealData(page));
 
   checks.push({
     check: "2-no-hidden-refusals",

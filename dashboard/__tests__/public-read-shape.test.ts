@@ -31,7 +31,7 @@ const WIDE = {
   // upstream could widen the objects INSIDE `proposals` and every new field reached anonymous
   // callers. The interesting payload was entirely below the level being checked.
   proposals: [
-    { id: 1, skill: "x", status: "pending", [NESTED_LEAK]: "must not be published" },
+    { proposal_id: "p1", proposed_skill_name: "x", status: "pending", [NESTED_LEAK]: "must not be published" },
   ],
   count: 0,
   [LEAK]: "should never reach an anonymous caller",
@@ -128,7 +128,7 @@ describe("protected reads cannot widen silently", () => {
     // can only pass if the check actually descends.
     stubUpstream({
       count: 1,
-      proposals: [{ id: 1, skill: "x", status: "pending", [NESTED_LEAK]: "leaked" }],
+      proposals: [{ proposal_id: "p1", proposed_skill_name: "x", status: "pending", [NESTED_LEAK]: "leaked" }],
     });
     vi.resetModules();
     const { json } = await bodyOf(
@@ -147,7 +147,7 @@ describe("protected reads cannot widen silently", () => {
     // Without this, "withholds everything" would pass the assertion above — the route could be
     // broken rather than guarded.
     stubUpstream({
-      proposals: [{ id: 1, skill: "x", status: "pending" }],
+      proposals: [{ proposal_id: "p1", proposed_skill_name: "x", status: "pending" }],
       count: 1,
     });
     vi.resetModules();

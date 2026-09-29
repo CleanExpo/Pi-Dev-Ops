@@ -112,3 +112,28 @@ def test_cli_writes_markdown_and_json(tmp_path: Path, capsys: pytest.CaptureFixt
 
 def test_cli_rejects_a_missing_folder(tmp_path: Path) -> None:
     assert sc.main([str(tmp_path / "nope")]) == 2
+
+
+def test_real_data_pass_lifts_a_read_only_surface_to_level_one(tmp_path: Path) -> None:
+    ok = {**READ_OK, "1-real-data": "PASS"}
+    _receipt(tmp_path, "MC-13_command-centre", ok)
+    _receipt(tmp_path, "MC-13_command-centre@phone", ok)
+    _receipt(tmp_path, "MC-13_command-centre-L2", L2_OK)
+    row = sc.score_surface("MC-13", sc.load_receipts(tmp_path))
+    assert row["checks"]["1"]["met"] is True
+    assert row["level"] == 1
+    assert row["blocked_by"].startswith("check 7: not measured")
+
+
+def test_real_data_failure_is_a_measured_check_one_failure(tmp_path: Path) -> None:
+    _receipt(tmp_path, "MC-13_command-centre", {**READ_OK, "1-real-data": "FAIL"})
+    row = sc.score_surface("MC-13", sc.load_receipts(tmp_path))
+    assert row["level"] == 0
+    assert any(f.startswith("1: 1-real-data FAIL") for f in row["measured_failures"])
+
+
+def test_write_surface_with_real_data_is_still_blocked_by_write_journeys(tmp_path: Path) -> None:
+    _receipt(tmp_path, "MC-02_control_goal", {**READ_OK, "1-real-data": "PASS"})
+    row = sc.score_surface("MC-02", sc.load_receipts(tmp_path))
+    assert row["checks"]["1"]["met"] is True
+    assert row["blocked_by"].startswith("check 3: not measured")

@@ -112,7 +112,7 @@ export default function ModelFabricPanel() {
             <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--text-dim)" }}>Routing lanes</div>
             <div className="grid gap-2 sm:grid-cols-2">
               {lanes.map(([name, lane]) => (
-                <div key={name} className="rounded p-3" style={{ background: "var(--panel-hover)", border: "1px solid var(--border)" }}>
+                <div key={name} data-mc-data="model-lane" className="rounded p-3" style={{ background: "var(--panel-hover)", border: "1px solid var(--border)" }}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-xs font-semibold" style={{ color: "var(--text)" }}>{name}</span>
                     <span className="text-[10px] font-mono" style={{ color: lane.banned ? "var(--error)" : "var(--success)" }}>
@@ -139,7 +139,7 @@ export default function ModelFabricPanel() {
             <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--text-dim)" }}>Latest route</div>
             <div className="rounded p-3" style={{ background: "var(--panel-hover)", border: "1px solid var(--border)" }}>
               {last ? (
-                <div className="grid gap-1 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                <div data-mc-data="last-routed-call" className="grid gap-1 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
                   <div><strong style={{ color: "var(--text)" }}>{last.role}</strong> → {last.lane}</div>
                   <div>requested: {last.requested_model}</div>
                   <div>served: {last.served_model || "unknown"}</div>

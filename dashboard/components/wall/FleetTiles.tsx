@@ -20,7 +20,7 @@ function Tile({ m, stale, mine }: { m: MachineTile; stale: boolean; mine: boolea
         {m.load1 !== null && ` · load ${m.load1.toFixed(1)}`}
       </span>
       {m.agents.map((a) => (
-        <span key={a.runtime} className="text-base" style={{ color: "#9ca3af" }}>
+        <span key={a.runtime} data-mc-data="fleet-heartbeat" className="text-base" style={{ color: "#9ca3af" }}>
           <ChipBadge chip={displayChip(a.chip, stale)} label={a.runtime} /> {a.state} · {fmtAge(a.ageSeconds)}
         </span>
       ))}

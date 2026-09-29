@@ -126,7 +126,7 @@ export default async function WikiGraphPage() {
           detail="0 pages found in the knowledge base. Once the Obsidian 2nd Brain sync populates wiki_pages, the graph will render here."
         />
       ) : (
-        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        <div data-mc-data="wiki-graph" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <WikiGraphCanvas nodes={graph.nodes} edges={graph.edges} />
           <p style={{ margin: '0.5rem 0 0', fontSize: 11, color: '#5a6b62' }}>
             {/* "· click to open the page" removed with the click handler — KI-005. A

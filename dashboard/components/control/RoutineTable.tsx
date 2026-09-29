@@ -148,6 +148,7 @@ export default function RoutineTable() {
                 const isHovered = hovered === i;
                 return (
                   <tr
+                    data-mc-data="routine-run"
                     key={`${sid}-${r.ts}-${i}`}
                     onMouseEnter={() => setHovered(i)}
                     onMouseLeave={() => setHovered(null)}

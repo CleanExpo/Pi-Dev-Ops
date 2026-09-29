@@ -105,6 +105,11 @@ the text snapshot that Jev contracts J1–J3 read, so a nightly run yields rough
 
 ## What today's grade is
 
-**Ungraded — below Level 1**, so not scoreable under the portfolio rubric. Check 1 cannot pass on any surface because no browser test exists
-(coverage-register.md: "Browser tests touching any surface: 0"). This is a statement that the
-evidence does not exist, not that the pages are broken.
+**Ungraded — below Level 1**, so not scoreable under the portfolio rubric. Check 1 is now measured
+(29 Sept): components mark the element they render only from backend data with `data-mc-data`,
+or an honest empty state with `data-mc-empty` and the reason, and `dashboard/e2e-live/real-data.ts`
+asserts one is visible. Three surfaces show no backend data by design, so they fail check 1 until
+that is decided: MC-07 (the build form fetches nothing until a run starts), MC-13 (a static index
+of links) and MC-14 (a static design-target registry). The scorer
+(`scripts/mission_control_scorecard.py`) reads the result from the nightly receipts; run the live
+suite for today's per-surface levels rather than trusting a count here.

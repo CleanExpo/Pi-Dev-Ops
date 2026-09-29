@@ -3,9 +3,9 @@ import { CONTROL_SECTIONS } from "../lib/control/nav";
 // WP-06 (docs/plans/mission-control/work-packages.md): the 20 register rows in
 // docs/plans/mission-control/coverage-register.md, each with the element that
 // proves the page rendered itself rather than the login page or app/error.tsx.
-// This is a landmark, NOT a real-data assertion: a page showing its own empty
-// state still passes check 1. Per-surface data assertions are sized from the
-// first live run's receipts, as the plan says.
+// The landmark alone passes on an empty or placeholder page; the real-data half
+// of check 1 is real-data.ts, which reads data-mc-data / data-mc-empty marks the
+// components put on their loaded (or honestly empty) output.
 export interface LiveSurface {
   id: string;
   path: string;

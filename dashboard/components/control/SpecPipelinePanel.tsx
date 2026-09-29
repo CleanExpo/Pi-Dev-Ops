@@ -268,9 +268,11 @@ export default function SpecPipelinePanel() {
       )}
       <ul className="text-xs flex-1 overflow-auto space-y-1" style={{ color: "var(--text-muted)" }}>
         {pipelines === null && !loadError && <li>Loading pipelines…</li>}
-        {pipelines?.length === 0 && <li>No pipelines yet.</li>}
+        {pipelines?.length === 0 && (
+          <li data-mc-empty={loadError ? undefined : "no spec pipelines have been started yet"}>No pipelines yet.</li>
+        )}
         {(pipelines ?? []).map((p) => (
-          <li key={p.pipeline_id}>
+          <li key={p.pipeline_id} data-mc-data={loadError ? undefined : "spec-pipeline"}>
             <button
               type="button"
               className="text-left hover:underline"
