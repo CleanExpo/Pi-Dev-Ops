@@ -74,4 +74,12 @@ describe("GET /api/curator-proposals", () => {
     expect(body.error).toBe("upstream payload shape changed");
     expect(body.proposals).toEqual([]);
   });
+
+  it("withholds anything nested under a status count", async () => {
+    piCeoFetch.mockResolvedValue(upstream({ ...BACKEND_PAYLOAD, by_status: { pending: { note: "internal" } } }));
+    const { GET } = await import("../app/api/curator-proposals/route");
+    const body = await (await GET(new Request("http://dash.test/api/curator-proposals"))).json();
+    expect(body.error).toBe("upstream payload shape changed");
+    expect(JSON.stringify(body)).not.toContain("internal");
+  });
 });

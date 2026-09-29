@@ -81,10 +81,10 @@ export async function GET(request: Request): Promise<Response> {
     }
     const body = await upstream.json().catch(() => ({}));
     const payload = upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body };
-    // by_status is keyed by status name (pending, accepted, rejected_dedup, ...), and each count
-    // is a plain number, so any key under it is expected.
+    // by_status is keyed by status name (pending, accepted, rejected_dedup, ...), one level deep
+    // with a plain number each; anything nested under a status is still withheld.
     const unexpected = [...new Set(keyPaths(payload))].filter(
-      (key) => !ALLOWED_PATHS.has(key) && !key.startsWith("by_status."),
+      (key) => !ALLOWED_PATHS.has(key) && !/^by_status\.[^.[\]]+$/.test(key),
     );
     if (unexpected.length > 0) {
       console.error("[curator-proposals] upstream returned unexpected key paths:", unexpected);

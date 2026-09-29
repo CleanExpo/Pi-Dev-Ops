@@ -195,7 +195,7 @@ export default function AgentRolesPanel() {
           <div className="flex flex-col gap-1 mb-1">
             {active.map((s) => (
               <div
-                data-mc-data="active-session"
+                data-mc-data={fetchError ? undefined : "active-session"}
                 key={s.id}
                 className="flex items-center gap-2.5 px-2.5 py-1.5"
                 style={{ background: "var(--panel-hover)", border: "1px solid var(--accent)", borderRadius: 6 }}
