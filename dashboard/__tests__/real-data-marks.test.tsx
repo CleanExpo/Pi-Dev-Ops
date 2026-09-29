@@ -145,4 +145,25 @@ describe("check 1 markers", () => {
     expect(marks("data-mc-data")).toHaveLength(0);
     vi.useRealTimers();
   });
+
+  it("terminal: a host without tmux is an honest empty state, not an error", async () => {
+    stubFetch(() => jsonResponse({ sessions: [], available: false, reason: "tmux is not installed on this host" }));
+    render(<TerminalPanel />);
+    await screen.findByText(/Not available on this host: tmux is not installed on this host/);
+    expect(marks("data-mc-empty")).toHaveLength(1);
+    expect(screen.queryByText(/No sessions —/)).toBeNull();
+  });
+
+  it("roles: nothing running is an honest empty state; a failed read is not", async () => {
+    stubFetch(() => jsonResponse([]));
+    render(<AgentRolesPanel />);
+    await waitFor(() => expect(marks("data-mc-empty")).toHaveLength(1));
+    expect(marks("data-mc-data")).toHaveLength(0);
+    cleanup();
+
+    stubFetch(() => jsonResponse({ detail: "down" }, 503));
+    render(<AgentRolesPanel />);
+    await screen.findByText(/retrying every 5s/);
+    expect(marks("data-mc-empty")).toHaveLength(0);
+  });
 });

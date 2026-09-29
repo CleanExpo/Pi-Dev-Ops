@@ -175,6 +175,7 @@ export default function AgentRolesPanel() {
           className="text-[10px] font-mono uppercase px-2 py-0.5 rounded"
           style={{ color: "var(--text-dim)", background: "var(--panel-hover)", border: "1px solid var(--border)" }}
           title="Each build session runs through these 8 real phases — this is not a roster of independently-running agents."
+          data-mc-empty={!loading && !fetchError && active.length === 0 ? "no build session is running right now" : undefined}
         >
           {active.length > 0 ? `${active.length} active` : "idle"}
         </span>
