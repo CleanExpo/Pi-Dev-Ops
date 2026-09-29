@@ -102,6 +102,32 @@ def test_body_is_cut_to_the_token_budget():
     assert d.tokens <= 100 and d.bodies[0].endswith(sr.CUT_MARK)
 
 
+ROUTER_INDEX = """# Skills Index
+
+| Intent / trigger phrase | Skill |
+|---|---|
+| "hand off this session" / "/session-handoff" | `session-handoff` |
+| "SEO" / "keyword research" · "site speed" | `seo` · `web-perf` |
+| "one" / "two" | `seo` · `web-perf` |
+| "audit\\|critique" | `seo` |
+
+| Intent | Skill |
+|---|---|
+| "late table" | `web-perf` |
+"""
+
+
+def test_router_pins_read_the_one_table_like_the_library_does():
+    """Port of skill_shelf.mjs routerTable/rowGroups/routerExact (rounds 4 and 10 of the library review)."""
+    pins = sr.router_pins(ROUTER_INDEX)
+    assert pins["hand off this session"] == "session-handoff" and pins["/session-handoff"] == "session-handoff"
+    assert pins["seo"] == "seo" and pins["keyword research"] == "seo" and pins["site speed"] == "web-perf"
+    assert "one" not in pins and "two" not in pins  # groups do not pair: pin nothing
+    assert pins["audit|critique"] == "seo"  # an escaped pipe stays inside its cell
+    assert "late table" not in pins  # only the first table routes
+    assert sr.router_pins("no table here") == {}
+
+
 @pytest.mark.parametrize("budget", [0, 1, 2, 3, 5, 7, 8, 9, 20])
 def test_a_budget_too_small_for_the_cut_mark_is_never_exceeded(budget):
     d = sr.route("hand off this session now", catalogue=_cat(), skills=SKILLS, jev=_jev_picking("session-handoff"),

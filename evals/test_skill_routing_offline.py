@@ -47,3 +47,15 @@ def test_free_shortlist_holds_the_right_skill(catalogue):
         recall += r["expected"] in names
     assert top1 / len(held) >= 0.28, f"lexical top-1 fell to {top1 / len(held):.3f}"
     assert recall / len(held) >= 0.96, f"shortlist recall@{sr.MAX_OPTIONS} fell to {recall / len(held):.3f}"
+
+
+@pytest.mark.parametrize("cap", ["nan", "inf", "-inf", "-1", "lots"])
+def test_the_bench_refuses_a_cap_that_is_not_a_finite_amount(cap):
+    """Review P1-DISPATCH-NAN-BYPASSES-SPEND-CAP: a NaN cap made every reservation pass."""
+    import argparse
+
+    from evals.skill_routing.run import usd
+
+    with pytest.raises(argparse.ArgumentTypeError):
+        usd(cap)
+    assert usd("5") == 5.0 and usd("0") == 0.0

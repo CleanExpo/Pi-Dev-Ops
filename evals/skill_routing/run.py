@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import time
 from pathlib import Path
@@ -21,6 +22,17 @@ from src.tao import skill_router as sr
 from src.tao import skills as tao_skills
 
 CALL_TOKENS = 48_000  # pack questions into one Jev call up to this estimate (model max 64k)
+
+
+def usd(text: str) -> float:
+    """A finite, non-negative dollar amount. NaN would make every cap comparison false."""
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a dollar amount: {text!r}") from None
+    if not math.isfinite(value) or value < 0:
+        raise argparse.ArgumentTypeError(f"cap must be a finite amount >= 0, got {text!r}")
+    return value
 
 
 def load_skills(library: Path) -> dict[str, dict]:
@@ -80,15 +92,16 @@ def lexical_rows(cases: list[dict], cat: list, skills: dict, args) -> list[dict]
 
 
 def jev_rows(cases: list[dict], cat: list, skills: dict, args, key: str) -> tuple[list[dict], dict]:
-    from scripts.mission_control_jev_shadow import finish_call, reserve_call
+    from scripts.mission_control_jev_shadow import RESERVED_INPUT_TOKENS_PER_CALL, finish_call, reserve_call
 
     by_name = {c.name: c for c in cat}
     rows, cost, latencies = [], {"input_tokens": 0, "calls": 0, "errors": 0}, []
     pending = [(i, c, sr.shortlist(c["text"], cat, args.k)) for i, c in enumerate(cases)]
     rows += [{**c, "picked": [], "shortlist": [], "tokens": 0} for _, c, s in pending if not s]
     pending = [p for p in pending if p[2]]
-    for chunk, estimate in packed(pending, by_name):
-        call_id = reserve_call(args.ledger, estimate, args.cap_usd)
+    for chunk, _estimate in packed(pending, by_name):
+        # Reserve the most one answer can bill, not the packing estimate the answer may exceed.
+        call_id = reserve_call(args.ledger, RESERVED_INPUT_TOKENS_PER_CALL, args.cap_usd)
         if call_id is None:
             raise SystemExit(f"cost cap ${args.cap_usd} reached after {cost['calls']} calls; nothing further sent")
         t0 = time.monotonic()
@@ -157,7 +170,7 @@ def main() -> int:
     ap.add_argument("--split", default="heldout", choices=["heldout", "tune", "all"])
     ap.add_argument("--jev", action="store_true")
     ap.add_argument("--ledger", type=Path)
-    ap.add_argument("--cap-usd", type=float, default=5.0)
+    ap.add_argument("--cap-usd", type=usd, default=5.0)
     ap.add_argument("--k", type=int, default=sr.SHORTLIST)
     ap.add_argument("--min-confidence", type=float, default=sr.MIN_CONFIDENCE)
     ap.add_argument("--budget", type=int, default=sr.DEFAULT_BUDGET)

@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import os
 import threading
 from pathlib import Path
@@ -22,7 +23,9 @@ from urllib import request
 
 log = logging.getLogger(__name__)
 _CATALOGUE: list | None = None
+_PINS: dict[str, str] | None = None
 LEDGER = Path(os.environ.get("SKILL_ROUTER_LEDGER", ".harness/skill-router-ledger.sqlite"))
+INDEX = Path(__file__).resolve().parents[2] / "skills-library" / "skills" / "index.md"
 
 
 class CapReached(RuntimeError):
@@ -34,16 +37,31 @@ def mode() -> str:
     return value if value in ("off", "shadow", "on") else "shadow"
 
 
+def daily_cap() -> float | None:
+    """SKILL_ROUTER_DAILY_CAP_USD as a finite, non-negative amount, else None (no Jev).
+
+    NaN would make every `spent + charge > cap` comparison false, i.e. no cap at all."""
+    try:
+        cap = float(os.environ.get("SKILL_ROUTER_DAILY_CAP_USD", "1.0"))
+    except ValueError:
+        return None
+    return cap if math.isfinite(cap) and cap >= 0 else None
+
+
 def live_jev() -> Callable[[dict], dict] | None:
     key = os.environ.get("TYPESAFE_API_KEY", "").strip()
+    cap = daily_cap()
     if not key:
         return None
-    from scripts.mission_control_jev_shadow import evaluate, finish_call, reserve_call
-
-    cap = float(os.environ.get("SKILL_ROUTER_DAILY_CAP_USD", "1.0"))
+    if cap is None:
+        log.warning("skill_router: SKILL_ROUTER_DAILY_CAP_USD is not a finite amount; Jev disabled")
+        return None
+    from scripts.mission_control_jev_shadow import (
+        RESERVED_INPUT_TOKENS_PER_CALL, evaluate, finish_call, reserve_call)
 
     def call(payload: dict) -> dict:
-        call_id = reserve_call(LEDGER, 20_000, cap)
+        # Reserve the most one answer can bill (the validator's ceiling), never an estimate.
+        call_id = reserve_call(LEDGER, RESERVED_INPUT_TOKENS_PER_CALL, cap)
         if call_id is None:
             raise CapReached(f"daily Jev cap ${cap} reached")
         try:
@@ -65,7 +83,21 @@ def _decide(raw_brief: str):
     skills = load_all_skills()
     if _CATALOGUE is None:
         _CATALOGUE = sr.build_catalogue(skills)
-    return sr.route(raw_brief, catalogue=_CATALOGUE, skills=skills, jev=live_jev())
+    return sr.route(raw_brief, catalogue=_CATALOGUE, skills=skills, jev=live_jev(), pins=_router_pins())
+
+
+def _router_pins() -> dict[str, str]:
+    """Exact phrases from the library's router table (synced into skills-library/), read once."""
+    global _PINS
+    if _PINS is None:
+        path = Path(os.environ.get("SKILL_ROUTER_INDEX") or INDEX)
+        try:
+            from src.tao import skill_router as sr
+            _PINS = sr.router_pins(path.read_text("utf-8"))
+        except OSError:
+            log.info("skill_router: no router index at %s; routing without exact-phrase pins", path)
+            _PINS = {}
+    return _PINS
 
 
 def legacy_context(intent: str, max_chars: int = 4000) -> str:
@@ -122,8 +154,13 @@ def _shadow(raw_brief: str, intent: str, today: str) -> None:
         finally:
             _SHADOW_BUSY.release()
 
-    _shadow_thread = threading.Thread(target=run, name="skill-router-shadow", daemon=True)
-    _shadow_thread.start()
+    try:
+        _shadow_thread = threading.Thread(target=run, name="skill-router-shadow", daemon=True)
+        _shadow_thread.start()
+    except Exception as exc:  # a thread that never ran must not keep shadow busy forever
+        _SHADOW_BUSY.release()
+        _shadow_thread = None
+        log.warning("skill_router shadow could not start: %s", type(exc).__name__)
 
 
 def wait_for_shadow(timeout: float = 10.0) -> None:

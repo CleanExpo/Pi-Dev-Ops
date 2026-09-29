@@ -94,6 +94,50 @@ def shortlist(text: str, catalogue: list[Candidate], k: int = SHORTLIST) -> list
     return sorted([x for x in scored if x[1] > 0], key=lambda x: -x[1])[:k]
 
 
+# Exact router phrases, read from the skills library's skills/index.md exactly as
+# skill_shelf.mjs routerTable/rowGroups/routerExact read it: only the first table's body,
+# an escaped `\|` stays in its cell, and a multi-skill row whose " · " groups do not pair
+# pins nothing (library review rounds 4 and 10, 29/09/2026).
+_ROUTER_NAME = re.compile(r"`([a-z0-9][a-z0-9:_-]*)`")
+_DELIMITER = re.compile(r"^\|(\s*:?-+:?\s*\|)+$")
+
+
+def _router_table(text: str) -> list[str]:
+    lines = text.split("\n")
+    start = next((i for i, line in enumerate(lines) if line.startswith("| Intent")), -1)
+    if start < 0:
+        return []
+    delim = start + 1 < len(lines) and bool(_DELIMITER.match(lines[start + 1].strip()))
+    rest = lines[start + (2 if delim else 1):]
+    end = next((i for i, line in enumerate(rest) if not line.strip()), len(rest))
+    return rest[:end]
+
+
+def _row_groups(cells: list[str]) -> list[tuple[str, str]]:
+    phrases, names = cells[1].split(" · "), cells[2].split(" · ")
+    if len(phrases) == len(names) and len(names) > 1:
+        return list(zip(phrases, names))
+    return [(cells[1], cells[2])]
+
+
+def router_pins(index_text: str) -> dict[str, str]:
+    """Exact router phrase (lower-cased) -> the canonical skill its row names."""
+    out: dict[str, str] = {}
+    for line in _router_table(index_text):
+        cells = [c.replace("\0", "|").strip() for c in line.replace("\\|", "\0").split("|")]
+        if len(cells) < 4:
+            continue
+        if len(cells[2].split(" · ")) > 1 and len(_row_groups(cells)) == 1:
+            continue
+        for phrase_cell, name_cell in _row_groups(cells):
+            names = _ROUTER_NAME.findall(name_cell)
+            if not names:
+                continue
+            for phrase in re.findall(r'"([^"]+)"', phrase_cell):
+                out.setdefault(phrase.lower().strip(), names[0])
+    return out
+
+
 @dataclass
 class RouteDecision:
     skills: list[str] = field(default_factory=list)
