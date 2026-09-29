@@ -61,13 +61,13 @@ def read_confined(repo: str, rel: str) -> bytes:
     parts = rel.split("/")
     if rel.startswith("/") or any(p in ("", ".", "..") for p in parts):
         raise ValueError("path must be relative, without . or ..")
-    fd = os.open(repo, os.O_RDONLY | os.O_DIRECTORY)
+    fd = os.open(repo, os.O_RDONLY | os.O_DIRECTORY | os.O_NONBLOCK)  # NONBLOCK: a FIFO never hangs the open
     try:
         for part in parts[:-1]:
-            nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
             os.close(fd)
             fd = nxt
-        leaf = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)
+        leaf = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
     finally:
         os.close(fd)
     try:

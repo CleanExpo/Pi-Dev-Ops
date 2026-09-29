@@ -261,13 +261,13 @@ def _call_one(model: str, body: dict, headers: dict, budget: GeminiBudget, http_
 def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep) -> dict:
     """{'data': reply, 'counted': n} or {'error': reason}. Before the run has a model, CHAIN is walked in order
     and a 404/429/503 that outlasts the retries moves on; the first model that answers is locked for the run."""
-    if ask.sensitive(json.dumps(body)):
+    body = json.loads(raw := json.dumps(body))  # a private copy: the caller cannot change it after the checks
+    if ask.sensitive(raw):
         return {"error": "refused: sensitive payload"}
     cfg = body.get("generationConfig")  # every reservation prices exactly MAX_OUTPUT_TOKENS of output
     if not isinstance(cfg, dict) or cfg.get("maxOutputTokens") not in range(1, MAX_OUTPUT_TOKENS + 1):
         return {"error": f"refused: maxOutputTokens must be 1..{MAX_OUTPUT_TOKENS}"}
-    headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
-    on = today()
+    headers, on = {"x-goog-api-key": key, "Content-Type": "application/json"}, today()
     # Bodies carrying model turns are one conversation (an agent run): every earlier thought is in context.
     multi_turn = any(c.get("role") == "model" for c in body.get("contents", []))
     if multi_turn and not budget.thoughts_known:

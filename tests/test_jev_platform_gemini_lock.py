@@ -4,6 +4,7 @@ Split from test_jev_platform_gemini_chain.py to keep each file under 300 lines. 
 """
 from __future__ import annotations
 
+import json
 import threading
 
 import pytest
@@ -66,3 +67,17 @@ def test_a_body_asking_for_more_output_than_is_reserved_sends_nothing(bound):
     b, fake = gemini.GeminiBudget(0.10, dict(gemini.PRICES[gemini.MODEL])), FakeGemini([ftext("hi")])
     assert gemini.call(body, KEY, b, fake, sleep=lambda s: None)["error"].startswith("refused: maxOutputTokens")
     assert fake.calls == [] and b.spent == 0
+
+
+def test_the_body_is_copied_before_its_checks_so_a_later_change_is_never_sent():
+    """Release review r7 P1: the caller's body changed after the output-bound check reached Google."""
+    body = gemini.request_body([{"role": "user", "parts": [{"text": "hello"}]}])
+    inner = FakeGemini([ftext("hi")], counts=[(404, None), (200, {"totalTokens": 100})])
+
+    def fake(url, payload, headers, timeout):
+        body["generationConfig"]["maxOutputTokens"] = 8192  # the caller mutates its dict mid-call
+        return inner(url, payload, headers, timeout)
+    b = gemini.GeminiBudget(0.10, dict(gemini.PRICES[gemini.MODEL]))
+    assert "data" in gemini.call(body, KEY, b, fake, sleep=lambda s: None)
+    sent = [json.loads(p)["generationConfig"]["maxOutputTokens"] for u, p, _ in inner.calls if ":generate" in u]
+    assert sent == [gemini.MAX_OUTPUT_TOKENS]

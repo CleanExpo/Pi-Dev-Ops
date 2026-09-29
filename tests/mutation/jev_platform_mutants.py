@@ -36,8 +36,9 @@ MUTANTS = [
     ("ask.py", "if not isinstance(approved, str):", "if False:"),
     ("ask.py", "q = _question(tid, t) if isinstance(t, dict) else None", "q = _question(tid, t or {'type': 'noul', 'question': 'x', 'true': 'y', 'false': 'z'})"),
     ("ask.py", '["git", "-C", repo, "show", f"HEAD:{MANIFEST}"]', '["cat", f"{repo}/{MANIFEST}"]'),
-    ("ask.py", "nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)", "nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY, dir_fd=fd)"),
-    ("ask.py", "leaf = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)", "leaf = os.open(parts[-1], os.O_RDONLY, dir_fd=fd)"),
+    ("ask.py", "nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)", "nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NONBLOCK, dir_fd=fd)"),
+    ("ask.py", "leaf = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)", "leaf = os.open(parts[-1], os.O_RDONLY | os.O_NONBLOCK, dir_fd=fd)"),
+    ("ask.py", "leaf = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)", "leaf = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)"),  # r7 FIFO
     ("ask.py", "    if sensitive(text):\n        return None, digest, \"sensitive content\"", "    if False:\n        return None, digest, \"sensitive content\""),
     ("ask.py", "if _DENY_NAMES.search(rel) or sensitive(rel):", "if False:"),
     ("ask.py", "if not isinstance(answers, dict) or set(answers) != set(questions):", "if not isinstance(answers, dict):"),
@@ -95,6 +96,7 @@ MUTANTS = [
     ("gemini.py", "with budget.selecting if budget.model is None else contextlib.nullcontext():",
      "with contextlib.nullcontext():"),  # r5 P1: one call at a time until a model is locked
     ("gemini.py", 'not in range(1, MAX_OUTPUT_TOKENS + 1):', "not in range(1, 10**6):"),  # r6 P1: output bound
+    ("gemini.py", "    body = json.loads(raw := json.dumps(body))", "    raw = json.dumps(body)"),  # r7 P1: private copy
     ("gemini.py", "if status not in ADVANCE_STATUSES and budget.model in (None, model):", "if status not in ADVANCE_STATUSES:"),
     ("gemini.py", "for v in (prompt, cands, thoughts))", "for v in (prompt, cands))"),
     ("gemini.py", "RUN_CAP_USD = 2.50", "RUN_CAP_USD = 1.00"),

@@ -245,3 +245,23 @@ def test_choice_outside_options_is_unavailable(repo):
         return d
     r = run(repo, ["src/auth/session.ts"], ["arch-layer"], Recorder(resp))["results"][0]
     assert r["unavailable"] == "signal_unavailable:invalid_response"
+
+
+def test_a_fifo_at_an_admitted_path_is_refused_without_blocking(tmp_path):
+    """Release review r7 P1: os.open on a FIFO blocked forever before the regular-file check ran."""
+    import threading
+    os.mkfifo(tmp_path / "policy.py")
+    out = {}
+
+    def read():
+        try:
+            ask.read_confined(str(tmp_path), "policy.py")
+        except ValueError as e:
+            out["refused"] = str(e)
+    reader = threading.Thread(target=read, daemon=True)
+    reader.start()
+    reader.join(2)
+    if reader.is_alive():  # release the blocked open so the process can exit, then fail
+        os.close(os.open(tmp_path / "policy.py", os.O_WRONLY | os.O_NONBLOCK))
+        pytest.fail("read_confined blocked on a FIFO")
+    assert out == {"refused": "not a regular file"}
