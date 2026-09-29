@@ -118,7 +118,9 @@ These contracts already sit inside that boundary; the mapping is:
 `scripts/jev_triage.py` today records the raw typed answer (status `OK`), or `NOT_EVALUATED` on a vendor error or missing answer, or `BUDGET_STOP` when a cap is set. The PROPOSE/ABSTAIN mapping and the confidence threshold are applied by the triage step that reads those labels. That step is not built yet, and its threshold comes from the held-out evaluation.
 
 **Admission record for Mission Control test triage:**
-- **Money:** founder decision, 28 Sept 2026, lifting the daily cap.
+- **Money:** founder decision, 28 Sept 2026, lifting the daily cap; confirmed 29 Sept 2026 as the
+  recorded budget ("no cap stands, record it as the budget decision"). No daily cap; every call's cost
+  is ledgered. Overrides the $5/day routing ceiling for Jev only.
 - **Data egress:** founder request, 28 Sept 2026, to use Jev over Mission Control tests. Redaction is enforced before any call.
 - **Still required before labels steer anything:** the 60-snapshot held-out evaluation (J1 above) and a reachable runner (RA-7832).
 

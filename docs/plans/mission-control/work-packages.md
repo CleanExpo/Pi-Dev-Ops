@@ -15,7 +15,7 @@ and its authority class: **SAFE** (reversible code/test change, agent may do it)
 | WP-07 | Level 1 write journeys against PR preview | MC-01, 02, 03, 05, 07, 10, 11 | WP-02 | SAFE for preview; **FOUNDER** for any that would file to the real Linear workspace or start a paid build | Each write completes and survives reload on the Railway `Pi-Dev-Ops-pr-<n>` + Vercel preview pair; side effects cleaned up |
 | WP-08 | Component tests for the 8 untested panels | MC-02, 04, 08, 09, 10, 11, 12 | — | SAFE | vitest loaded/empty/error cases for `GoalTicketForm`, `GoalProjectPicker`, `ModelFabricPanel`, `RoutineTable`, `CuratorProposalsPanel`, `MargotAssetsPanel`, `SpecPipelinePanel`, `TerminalPanel` |
 | WP-09 | Level 2 failure-path, auth, a11y and phone viewport | all | WP-06 | SAFE | Checks 5, 6, 8, 9 per surface. Adds `@axe-core/playwright` (new dev dependency, no cost) |
-| WP-10 | Jev evaluator (shadow) | all | WP-06; **SECRET** (`TYPESAFE_API_KEY` in GitHub Actions) or environment allowlist | SECRET | Script reads run snapshots, redacts, calls J1–J4, writes JSONL; spend ledgered per call, no daily cap (founder, 28 Sept; conflicts with the packet's budget rule — adoption.md O5, open); 60-snapshot labelled set reports held-out accuracy |
+| WP-10 | Jev evaluator (shadow) | all | WP-06; **SECRET** (`TYPESAFE_API_KEY` in GitHub Actions) or environment allowlist | SECRET | Script reads run snapshots, redacts, calls J1–J4, writes JSONL; spend ledgered per call, no daily cap (founder decision 28 Sept, recorded as the budget 29 Sept — adoption.md O5); 60-snapshot labelled set reports held-out accuracy |
 | WP-11 | Nightly production run + scorecard | all | WP-06, WP-09 | SAFE | Scheduled workflow runs the suite against production, uploads receipts, computes each surface's level by the rules in [aaa-rating.md](aaa-rating.md), publishes the scorecard |
 | WP-12 | Level 3 reached | all | WP-01…11 | — | Three consecutive nightly runs meet every Level 1–3 check; register has no CONFLICTING/STRUCTURAL_ONLY row. **Not AAA on its own:** the portfolio rubric also needs the items listed in aaa-rating.md (two non-author audits, promise register, support, recovery) |
 
@@ -25,8 +25,9 @@ These affect "finished" for the wider system, not the MC levels of the screens t
 
 - **D0 — merge authority. Decided 28 Sept 2026 (RA-7818): human merge only.** A cross-model audit
   is review evidence, not acceptance.
-- **Jev budget.** Whether "no daily cap" overrides the packet's recorded-budget rule
-  ([adoption.md O5](../nexus-release-harness/adoption.md)). Until decided, Jev runs dry only.
+- **Jev budget. Decided 29 Sept 2026: no daily cap, every call ledgered**
+  ([adoption.md O5](../nexus-release-harness/adoption.md)). Live use still needs `TYPESAFE_API_KEY` and a
+  reachable runner (RA-7832).
 - **Autonomy switch.** `TAO_AUTONOMY_ENABLED` was `0` in production on 2026-08-18 (QUEUE.md:24-34);
   current value not re-checked.
 - **Secrets.** `DASHBOARD_PASSWORD` and `TYPESAFE_API_KEY` as GitHub Actions secrets (WP-02, WP-10).
