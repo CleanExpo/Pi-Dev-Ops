@@ -17,11 +17,13 @@ import time
 from pathlib import Path
 from urllib import request
 
+from app.server.jev_transport import no_redirect_opener
 from evals.skill_routing.generate_corpus import catalogue as inventory
 from src.tao import skill_router as sr
 from src.tao import skills as tao_skills
 
 CALL_TOKENS = 48_000  # pack questions into one Jev call up to this estimate (model max 64k)
+JEV_URL = "https://api.typesafe.ai/v1/systemone"
 
 
 def usd(text: str) -> float:
@@ -65,9 +67,10 @@ def jev_batch(batch: list[tuple[int, str, list[tuple[str, str]]]], key: str) -> 
         criteria = {n: d[:sr.DESC_CHARS] or n for n, d in options} | {sr.NO_MATCH: "None of these skills fits the request."}
         questions[f"q{i}"] = {"type": "choice", "instructions": f"Which skill does `r{i}` need?", "criteria": criteria}
     body = json.dumps({"model": MODEL, "state": state, "questions": questions}).encode()
-    req = request.Request("https://api.typesafe.ai/v1/systemone", data=body, method="POST",
+    req = request.Request(JEV_URL, data=body, method="POST",
                           headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
-    with request.urlopen(req, timeout=60) as resp:
+    # No redirects: the request carries the Bearer key (skill-router review round 8).
+    with no_redirect_opener().open(req, timeout=60) as resp:
         return {"questions": questions, "result": json.loads(resp.read())}
 
 

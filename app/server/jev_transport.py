@@ -18,6 +18,35 @@ from urllib import request
 
 JEV_DEADLINE_S = 3.0
 
+# One live Jev call at a time. A worker that outlives its deadline (a DNS lookup cannot be
+# interrupted) keeps the slot until it ends, and every call meanwhile fails fast with JevBusy,
+# so abandoned workers can never pile up (review round 8).
+_IN_FLIGHT = threading.Lock()
+
+
+class JevBusy(RuntimeError):
+    """An earlier Jev call is still running past its deadline; route without Jev."""
+
+
+def _open_tracked(sockets: list, address, timeout=None, source_address=None, **_ignored):
+    """socket.create_connection, except each socket is recorded BEFORE it connects, so a stalled
+    connect can be cut at the deadline too (review round 8)."""
+    host, port = address
+    last_error: OSError | None = None
+    for family, kind, proto, _name, target in socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM):
+        sock = socket.socket(family, kind, proto)
+        sockets.append(sock)
+        try:
+            sock.settimeout(timeout if timeout is not None else JEV_DEADLINE_S)
+            if source_address:
+                sock.bind(source_address)
+            sock.connect(target)
+            return sock
+        except OSError as exc:
+            last_error = exc
+            sock.close()
+    raise last_error or OSError(f"no address found for {host}")
+
 
 def jev_ssl_context() -> ssl.SSLContext:
     """The TLS settings for Jev calls: the system trust store. Tests swap in a local CA."""
@@ -25,17 +54,12 @@ def jev_ssl_context() -> ssl.SSLContext:
 
 
 class _TrackedHTTP(http.client.HTTPConnection):
-    """Records its raw TCP socket at creation, before any header is read."""
+    """Records its raw TCP socket before it connects, and so before any header is read."""
 
     def __init__(self, *args, sockets: list, **kwargs):
         super().__init__(*args, **kwargs)
         self._sockets = sockets
-        self._create_connection = self._record
-
-    def _record(self, *args, **kwargs):
-        sock = socket.create_connection(*args, **kwargs)
-        self._sockets.append(sock)
-        return sock
+        self._create_connection = functools.partial(_open_tracked, sockets)
 
 
 class _TrackedHTTPS(http.client.HTTPSConnection):
@@ -46,12 +70,7 @@ class _TrackedHTTPS(http.client.HTTPSConnection):
     def __init__(self, *args, sockets: list, **kwargs):
         super().__init__(*args, **kwargs)
         self._sockets = sockets
-        self._create_connection = self._record
-
-    def _record(self, *args, **kwargs):
-        sock = socket.create_connection(*args, **kwargs)
-        self._sockets.append(sock)
-        return sock
+        self._create_connection = functools.partial(_open_tracked, sockets)
 
     def connect(self):
         http.client.HTTPConnection.connect(self)
@@ -68,6 +87,11 @@ class _NoRedirect(request.HTTPRedirectHandler):
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
+
+
+def no_redirect_opener() -> request.OpenerDirector:
+    """For callers without a deadline (the bench): the key still never follows a 3xx."""
+    return request.build_opener(_NoRedirect)
 
 
 def tracking_opener(sockets: list) -> request.OpenerDirector:
@@ -99,7 +123,8 @@ def _cut(sock) -> None:
 
 
 def within_deadline(run: Callable[[Callable], dict]) -> dict:
-    """Run one Jev call, `run(opener)`, and return its result or raise TimeoutError at the deadline."""
+    """Run one Jev call, `run(opener)`, and return its result, or raise TimeoutError at the
+    deadline, or JevBusy at once while an earlier call still holds the slot."""
     sockets: list = []
     tracked = tracking_opener(sockets)
 
@@ -113,9 +138,17 @@ def within_deadline(run: Callable[[Callable], dict]) -> dict:
             box["value"] = run(opener)
         except BaseException as exc:  # handed to the caller below
             box["error"] = exc
+        finally:
+            _IN_FLIGHT.release()  # the worker, not the caller, frees the slot when it truly ends
 
     worker = threading.Thread(target=work, name="skill-router-jev", daemon=True)
-    worker.start()
+    if not _IN_FLIGHT.acquire(blocking=False):
+        raise JevBusy("an earlier Jev call is still running past its deadline")
+    try:
+        worker.start()
+    except BaseException:
+        _IN_FLIGHT.release()  # no worker will ever run to release it
+        raise
     worker.join(JEV_DEADLINE_S)
     if worker.is_alive():
         for sock in sockets:
