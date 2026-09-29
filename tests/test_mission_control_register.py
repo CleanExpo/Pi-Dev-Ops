@@ -65,10 +65,19 @@ def test_an_open_ticket_fails_only_the_surfaces_it_names(tmp_path: Path) -> None
     assert got["MC-04"]["11-tickets"]["result"] == "PASS"
 
 
-def test_a_ticket_naming_no_surface_counts_against_every_surface(tmp_path: Path) -> None:
+def test_a_ticket_naming_no_surface_fails_none_but_stays_visible(tmp_path: Path) -> None:
     nodes = [{"identifier": "RA-2", "title": "Dashboard theme wrong", "description": None}]
     got = _by_surface(tmp_path, _register(ALL_PARTIAL), _fetch(nodes))
-    assert all(c["11-tickets"]["result"] == "FAIL" for c in got.values())
+    assert all(c["11-tickets"]["result"] == "PASS" for c in got.values())
+    assert all("RA-2" in c["11-tickets"]["detail"] for c in got.values())
+
+
+def test_an_unplaced_ticket_does_not_hide_a_placed_one(tmp_path: Path) -> None:
+    nodes = [{"identifier": "RA-2", "title": "Theme wrong", "description": None},
+             {"identifier": "RA-3", "title": "MC-03 halts nothing", "description": ""}]
+    got = _by_surface(tmp_path, _register(ALL_PARTIAL), _fetch(nodes))
+    assert got["MC-03"]["11-tickets"]["result"] == "FAIL"
+    assert got["MC-04"]["11-tickets"]["result"] == "PASS"
 
 
 def test_linear_unread_is_unknown_not_pass(tmp_path: Path) -> None:
