@@ -8,7 +8,7 @@ export interface FounderAnswer {
   href: string;
 }
 
-const LIVE_SOURCE = "/api/pi-ceo/api/mission-control/live";
+const LIVE_SOURCE = "#mission-control-live";
 const UNKNOWN = "Unknown — current evidence is unavailable.";
 const row = (question: string, answer: string, detail: string, source: string, href = LIVE_SOURCE): FounderAnswer =>
   ({ question, answer, detail, source, href });
