@@ -106,19 +106,21 @@ def test_live_synthetic_response_is_advisory_and_redacted(tmp_path):
     assert "synthetic@example.com" not in json.dumps(receipt)
 
 
+class FakeResponse:
+    def __init__(self, body):
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def read(self, _limit):
+        return json.dumps(self.body).encode()
+
+
 def test_1000_varied_shadow_calls_are_each_ledgered_without_a_default_cap(tmp_path):
-    class Response:
-        def __init__(self, body):
-            self.body = body
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return False
-
-        def read(self, _limit):
-            return json.dumps(self.body).encode()
 
     seen = 0
 
@@ -129,7 +131,7 @@ def test_1000_varied_shadow_calls_are_each_ledgered_without_a_default_cap(tmp_pa
         state = json.loads(req.data)["state"]
         assert state["visible_text"] == f"Project {seen - 1}: synthetic state"
         label = "REAL_DATA" if seen % 2 else "EXPLICIT_EMPTY_STATE"
-        return Response({
+        return FakeResponse({
             "model": "jev-1.13.0",
             "answers": {"J1": {"type": "choice", "choice": label, "confidence": 0.9,
                                 "probabilities": {name: 1 if name == label else 0 for name in shadow.J1_OPTIONS}}},

@@ -64,19 +64,8 @@ def redact(value: str) -> str:
     )
 
 
-def prepare(snapshot: dict) -> tuple[dict, dict]:
-    """Allowlist fields so browser headers, cookies and request bodies never enter state."""
-    if not isinstance(snapshot, dict):
-        raise TypeError("snapshot must be an object")
-    for field in ("run_id", "sha", "surface", "visible_text"):
-        if not isinstance(snapshot.get(field), str) or not snapshot[field]:
-            raise ValueError(f"missing or invalid {field}")
-    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", snapshot["run_id"]):
-        raise ValueError("invalid run_id")
-    if not re.fullmatch(r"[a-fA-F0-9]{7,40}", snapshot["sha"]):
-        raise ValueError("invalid sha")
-    if not re.fullmatch(r"/(?:[A-Za-z0-9_-]+/?)*", snapshot["surface"]) or len(snapshot["surface"]) > 150:
-        raise ValueError("invalid surface")
+def clean_network_calls(snapshot: dict) -> list[dict]:
+    """Keep only method, path without query, and status from observed calls."""
     calls = snapshot.get("network_calls", [])
     if not isinstance(calls, list) or len(calls) > 200:
         raise ValueError("invalid network_calls")
@@ -88,7 +77,11 @@ def prepare(snapshot: dict) -> tuple[dict, dict]:
         if not isinstance(path, str) or not path.startswith("/") or type(status) is not int or not 100 <= status <= 599:
             raise ValueError("invalid network call")
         clean_calls.append({"method": call["method"], "path": redact(path.split("?", 1)[0])[:200], "status": status})
-    state = {"visible_text": redact(snapshot["visible_text"][:MAX_TEXT]), "network_calls": clean_calls}
+    return clean_calls
+
+
+def build_questions(snapshot: dict, state: dict) -> dict:
+    """Select typed advisory questions from allowlisted snapshot fields."""
     questions = {
         "J1": {"type": "choice", "instructions": "What does the signed-in user visibly see?", "criteria": J1_OPTIONS}
     }
@@ -123,6 +116,24 @@ def prepare(snapshot: dict) -> tuple[dict, dict]:
                 "All visible features and important failure paths have meaningful assertions.",
             ],
         }
+    return questions
+
+
+def prepare(snapshot: dict) -> tuple[dict, dict]:
+    """Allowlist fields so browser headers, cookies and request bodies never enter state."""
+    if not isinstance(snapshot, dict):
+        raise TypeError("snapshot must be an object")
+    for field in ("run_id", "sha", "surface", "visible_text"):
+        if not isinstance(snapshot.get(field), str) or not snapshot[field]:
+            raise ValueError(f"missing or invalid {field}")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}", snapshot["run_id"]):
+        raise ValueError("invalid run_id")
+    if not re.fullmatch(r"[a-fA-F0-9]{7,40}", snapshot["sha"]):
+        raise ValueError("invalid sha")
+    if not re.fullmatch(r"/(?:[A-Za-z0-9_-]+/?)*", snapshot["surface"]) or len(snapshot["surface"]) > 150:
+        raise ValueError("invalid surface")
+    state = {"visible_text": redact(snapshot["visible_text"][:MAX_TEXT]), "network_calls": clean_network_calls(snapshot)}
+    questions = build_questions(snapshot, state)
     payload = {"model": MODEL, "state": state, "questions": questions}
     if len(json.dumps(payload, ensure_ascii=False).encode()) > MAX_REQUEST_BYTES:
         raise ValueError("redacted request exceeds size limit")
