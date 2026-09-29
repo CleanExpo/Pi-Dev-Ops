@@ -483,7 +483,7 @@ async def test_cron_loop_total_failure_no_persistence(monkeypatch):
     from app.server.agents import anthropic_intel_refresh as air
     monkeypatch.setattr(air, "refresh_anthropic_intel", _failed_refresh)
     monkeypatch.setattr(cs, "_load_triggers", lambda: [trigger])
-    monkeypatch.setattr(cs, "_should_catch_up", lambda t: True)
+    monkeypatch.setattr(cs, "should_fire_on_boot", lambda t: True)
 
     saves: list[float] = []
     monkeypatch.setattr(
