@@ -32,6 +32,7 @@ from fleet_state import active_agent_count, next_work  # noqa: E402
 from prompt import build_prompt  # noqa: E402
 from repo_guard import repo_dir_problem  # noqa: E402
 import claim_lifecycle  # noqa: E402
+import left_running  # noqa: E402
 import node_health  # noqa: E402
 import preflight  # noqa: E402
 import run_record  # noqa: E402
@@ -221,7 +222,8 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
             **run_record.terminal(rec, plan)}),
             lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
             agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS,
-            then=lambda: run_record.release_interrupt(rec))
+            then=lambda: run_record.release_interrupt(rec),
+            first=lambda: left_running.track(rec))  # RA-7798: never self-update away from an unstopped agent
     return plan
 
 

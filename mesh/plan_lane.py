@@ -19,10 +19,12 @@ import os
 import re
 import subprocess
 import tempfile
+import types
 import uuid
 from datetime import date
 from pathlib import Path
 
+import claim_lifecycle
 from prompt import build_plan_prompt
 
 PACKET_DIR = Path(os.environ.get(
@@ -61,11 +63,20 @@ def _run_agent(claim: dict, plan: dict, rt) -> str:
     prompt = build_plan_prompt(claim, claim["linear_id"])
     with tempfile.TemporaryDirectory(prefix="mesh-plan-") as cwd, \
             tempfile.TemporaryFile("w+b") as out:
+        proc = None
         try:
             proc = subprocess.Popen(agent_argv(rt.AGENT_CMD, prompt), cwd=cwd, stdout=out)
             rt._wait_for_agent(proc, plan)
         except Exception as exc:  # noqa: BLE001
             plan.update(state="failed", error=str(exc))
+            caught: list = []
+            with claim_lifecycle.sigint_held(caught):  # a Ctrl-C waits until the claim has ended
+                try:  # RA-7798: never self-update away from a live child; this handler must not raise
+                    if proc is not None and proc.poll() is None:
+                        rt.left_running.track(types.SimpleNamespace(reaped=False, proc=proc))
+                except Exception:  # noqa: BLE001 — cannot tell: record it as left running
+                    rt.left_running.track(types.SimpleNamespace(reaped=False, proc=proc))
+            plan["interrupted"] = bool(caught)
             return ""
         out.seek(0)
         return out.read().decode("utf-8", errors="replace")
@@ -99,13 +110,17 @@ def run_plan_claim(claim: dict, rt) -> dict:
     rt.write_state(linear_id, "working", session_id=uuid.uuid4().hex[:8])
     rt._api("POST", _UPDATE, {**who, "state": "working"})
     stdout = _run_agent(claim, plan, rt)
+    interrupted = plan.pop("interrupted", False)
     if plan.get("state") == "released":  # HARD_STOP: hand the ticket back, as build does
         rt._api("POST", _UPDATE, {**who, "state": "released"})
         rt.write_state(None, "idle")
         return plan
     _settle(plan, linear_id, stdout)
     if plan.get("state") != "done":
-        return rt._fail_claim(plan, linear_id, "", plan.get("error") or "plan lane failed")
+        failed = rt._fail_claim(plan, linear_id, "", plan.get("error") or "plan lane failed")
+        if interrupted:  # held while the agent was recorded; delivered now the claim has ended
+            raise KeyboardInterrupt
+        return failed
     rt._api("POST", _UPDATE, {
         **who, "state": "done",
         "packet_md": stdout[:PACKET_MAX_CHARS], "title": claim.get("title") or ""})

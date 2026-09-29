@@ -127,6 +127,17 @@ def _sigint_deferred():
     Off the main thread a handler cannot be installed, and the ending runs as before.
     """
     caught: list = []
+    with sigint_held(caught):
+        yield
+    if caught:
+        raise KeyboardInterrupt
+
+
+@contextlib.contextmanager
+def sigint_held(caught: list):
+    """Hold a Ctrl-C (SIGINT) for the block and note it in `caught` instead of raising,
+    so the caller can end its claim first and raise after (RA-7798, plan lane).
+    Off the main thread a handler cannot be installed, and the block runs unshielded."""
     try:
         previous = signal.signal(signal.SIGINT, lambda *_: caught.append(True))
     except ValueError:
@@ -136,12 +147,11 @@ def _sigint_deferred():
         yield
     finally:
         signal.signal(signal.SIGINT, previous)
-    if caught:
-        raise KeyboardInterrupt
 
 
 def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], None],
-        *, agent_alive: bool, pause: float, then: Callable[[], None] = lambda: None) -> None:
+        *, agent_alive: bool, pause: float, then: Callable[[], None] = lambda: None,
+        first: Callable[[], None] = lambda: None) -> None:
     """End a claim: report it, remove its worktree, mark the runner idle, then run `then`
     (which re-raises an interrupt held while the claim was ending).
 
@@ -150,6 +160,7 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
     ticket for another node while this agent still writes to that worktree.
     """
     with _sigint_deferred():
+        first()  # RA-7798: recording an unstopped agent is part of the ending, never before it
         if agent_alive:
             print("mesh: the agent could not be stopped; its claim and worktree are left in place",
                   file=sys.stderr)
