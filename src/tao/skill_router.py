@@ -110,7 +110,8 @@ def _load(decision: RouteDecision, name: str, skills: dict[str, dict], budget_to
     body = skills[name].get("body", "")
     limit = budget_tokens * CHARS_PER_TOKEN
     if len(body) > limit:
-        body = body[: max(limit - len(CUT_MARK), 0)] + CUT_MARK
+        # A budget too small to hold the mark gets nothing, never a body over budget.
+        body = body[: limit - len(CUT_MARK)] + CUT_MARK if limit >= len(CUT_MARK) else ""
     decision.skills, decision.bodies = [name], [body]
     decision.tokens = math.ceil(len(body) / CHARS_PER_TOKEN)
     return decision

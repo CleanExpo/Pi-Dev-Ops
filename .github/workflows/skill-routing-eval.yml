@@ -1,8 +1,12 @@
 name: Skill routing eval (Jev)
 
 # Scores the skill router on the labelled corpus (evals/skill_routing/corpus.jsonl) with live
-# Jev calls. Metered, so it never runs on an ordinary push: only when a PR carries the
-# `run-jev-bench` label, or by hand. Every call is reserved against a dollar cap first.
+# Jev calls. Metered and secret-bearing, so it runs ONLY by hand, and only on the exact
+# commit the person dispatching it names. Every call is reserved against a dollar cap first.
+#
+# Why no pull_request trigger: a label survives new pushes, so a labelled PR re-ran every
+# later head with TYPESAFE_API_KEY, code nobody had looked at (review P1-PR-SECRET-TO-HEAD-CODE).
+# A dispatch names one reviewed SHA; any other checkout stops before the secret is used.
 #
 # 1. tune split: shortlist sizes 20, 100 and 254 (Jev's per-question option limit)
 # 2. the size with the best tune top-1 is then scored ONCE on the held-out split; that
@@ -10,10 +14,11 @@ name: Skill routing eval (Jev)
 # The library's skills come from CleanExpo/skills-library at the SHA in skills-library.lock.
 
 on:
-  pull_request:
-    types: [labeled, synchronize]
   workflow_dispatch:
     inputs:
+      expected_sha:
+        description: "Full 40-char commit SHA you reviewed; the run stops if the branch head differs"
+        required: true
       cap_usd:
         description: "Dollar cap for this run"
         default: "5"
@@ -27,15 +32,21 @@ concurrency:
 
 jobs:
   jev-bench:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-jev-bench')
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      CAP_USD: ${{ github.event.inputs.cap_usd || '5' }}
+      CAP_USD: ${{ inputs.cap_usd }}
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.expected_sha }}
           persist-credentials: false
+
+      - name: Stop unless this is exactly the reviewed commit
+        run: |
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "expected_sha must be a full 40-char SHA"; exit 1; }
+          [ "$(git rev-parse HEAD)" = "$EXPECTED_SHA" ] || { echo "checked out $(git rev-parse HEAD), not $EXPECTED_SHA"; exit 1; }
 
       - name: Read the pinned skills-library SHA
         id: lib

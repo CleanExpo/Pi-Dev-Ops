@@ -102,6 +102,13 @@ def test_body_is_cut_to_the_token_budget():
     assert d.tokens <= 100 and d.bodies[0].endswith(sr.CUT_MARK)
 
 
+@pytest.mark.parametrize("budget", [0, 1, 2, 3, 5, 7, 8, 9, 20])
+def test_a_budget_too_small_for_the_cut_mark_is_never_exceeded(budget):
+    d = sr.route("hand off this session now", catalogue=_cat(), skills=SKILLS, jev=_jev_picking("session-handoff"),
+                 budget_tokens=budget)
+    assert d.tokens <= budget
+
+
 def test_nothing_scores_means_no_call_and_no_skill():
     jev = _jev_picking("seo")
     d = sr.route("zzzz qqqq", catalogue=_cat(), skills=SKILLS, jev=jev)
