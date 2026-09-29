@@ -13,13 +13,19 @@
   "coverage": {
     "surfaces": 20,
     "verified": 0,
-    "partial": 13,
-    "structural_only": 2,
-    "conflicting": 5,
-    "repaired_this_change": [
+    "partial": 18,
+    "structural_only": 1,
+    "conflicting": 1,
+    "conflicting_rows": [
+      "MC-18"
+    ],
+    "repaired_pending_live_check": [
+      "MC-00",
       "MC-10",
-      "MC-11"
-    ]
+      "MC-11",
+      "MC-19"
+    ],
+    "counted_at": "2026-09-29"
   },
   "done_this_change": [
     {

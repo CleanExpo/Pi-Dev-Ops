@@ -51,9 +51,9 @@ Counts reported separately, per the coverage rules:
 |---|---|
 | Surfaces accounted for | 20 of 20 (19 pages + shell) |
 | VERIFIED (observed user outcome on a named deploy) | **0** |
-| PARTIAL | 13 |
-| STRUCTURAL_ONLY | 2 |
-| CONFLICTING | 5 (2 repaired in this change, pending live check) |
+| PARTIAL | 18 (round 1: 13) |
+| STRUCTURAL_ONLY | 1 — MC-13 (round 1: 2; MC-14 was mis-classified) |
+| CONFLICTING | 1 — MC-18 wiki-graph (round 1: 5; MC-00, 10, 11, 19 repaired, pending live check) |
 | Surfaces with a write action | 7 (MC-01, 02, 03, 05, 07, 10, 11) |
 | Browser tests touching any surface | 0 |
 | Unit tests in the Mission Control subset | ≈226 pytest (288 matched, 62 loosely related) + 214 vitest cases — all mocked |
