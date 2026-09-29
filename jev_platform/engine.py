@@ -149,10 +149,10 @@ def _score_case(case, rule, post, budget):
 
 
 def calibrate(rule_id: str, post, budget, workers: int = 8) -> dict:
-    rule = registry()[rule_id]
-    committed = _committed(CASES / f"{rule_id}.jsonl")
+    rule = registry().get(rule_id)
+    committed = _committed(CASES / f"{rule_id}.jsonl") if rule else None
     cases = [json.loads(line) for line in committed[1].splitlines() if line.strip()] if committed else []
-    refusal = "cases_not_committed" if not committed else \
+    refusal = "rule_not_committed" if not rule else "cases_not_committed" if not committed else \
         None if cases and all(_dual_labelled(c) for c in cases) else "cases_lack_two_agreeing_labels"
     if refusal:
         return {"rule": rule_id, "state": "incomplete", "errors": 0, "models": [], "first_error": refusal,

@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 from evals.jev_constitution import generate
-from evals.jev_constitution.harness import FAILURE_CLASSES, load_questions
+from evals.jev_constitution.harness import FAILURE_CLASSES, committed_questions
 from jev_platform import gemini
 
 QUESTION_ID = "core-44"
@@ -165,7 +165,7 @@ def main(out: Path = OUT) -> int:
     if not key or price is None:
         print(f"BLOCKED: {'price table expired' if key else 'GEMINI_API_KEY not in environment'}", file=sys.stderr)
         return 2
-    question = next(q for q in load_questions() if q["id"] == QUESTION_ID)
+    question = next(q for q in committed_questions() if q["id"] == QUESTION_ID)  # its text is sent: HEAD only
     out.write_text(json.dumps(frozen_document(), indent=1) + "\n")
     budget = gemini.GeminiBudget(gemini.WRITER_CAP_USD, price)
     writers = {"claude": lambda e: generate.claude_text(control_prompt(question, e)),

@@ -191,7 +191,7 @@ def test_the_live_control_runs_under_the_writer_cap(monkeypatch, tmp_path):
         raise Stop
     monkeypatch.setenv("GEMINI_API_KEY", "gk-test-not-a-real-key")
     monkeypatch.setattr(gemini, "today", lambda: dt.date(2026, 10, 1))
-    monkeypatch.setattr(wc, "load_questions", lambda: [QUESTION])
+    monkeypatch.setattr(wc, "committed_questions", lambda: [QUESTION])
     monkeypatch.setattr(gemini, "GeminiBudget", budget)
     with pytest.raises(Stop):
         wc.main(tmp_path / "out.json")

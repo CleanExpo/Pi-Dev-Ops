@@ -26,7 +26,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from evals.jev_constitution.harness import CASES, FAILURE_CLASSES, load_cases, load_questions
+from evals.jev_constitution.harness import CASES, FAILURE_CLASSES, committed_questions, load_cases
 from jev_platform import gemini
 
 BATCH = 50
@@ -225,7 +225,7 @@ def main(argv=None) -> int:
     if chosen is None:
         return 2
     write, writer, path = chosen
-    question = next(q for q in load_questions() if q["id"] == args.question)
+    question = next(q for q in committed_questions() if q["id"] == args.question)  # its text is sent: HEAD only
     CASES.mkdir(exist_ok=True)
     own = [json.loads(x) for x in path.read_text().splitlines() if x.strip()] if path.exists() else []
     seen = {c["state"].lower() for c in load_cases(args.question) + own}

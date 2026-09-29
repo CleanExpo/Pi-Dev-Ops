@@ -228,4 +228,12 @@ GUARD_MUTANTS = [
      '        cases = load_cases(q["id"])'),  # ha-cases-head
     ('evals/jev_constitution/harness.py', 'problems = question_problems(q, cases=cases)',
      'problems = question_problems(q)'),  # ha-validate-sent
+    ('evals/jev_constitution/generate.py', 'for q in committed_questions() if q["id"] == args.question',
+     'for q in __import__("evals.jev_constitution.harness", fromlist=["h"]).load_questions() '
+     'if q["id"] == args.question'),  # ge-question-head
+    ('evals/jev_constitution/writer_control.py', 'for q in committed_questions() if q["id"] == QUESTION_ID',
+     'for q in __import__("evals.jev_constitution.harness", fromlist=["h"]).load_questions() '
+     'if q["id"] == QUESTION_ID'),  # wc-question-head
+    ('engine.py', '    refusal = "rule_not_committed" if not rule else',
+     '    rule = rule or registry()[rule_id]\n    refusal = "rule_not_committed" if not rule else'),  # en-calib-rule
 ]

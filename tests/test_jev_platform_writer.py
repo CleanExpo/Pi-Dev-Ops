@@ -170,7 +170,7 @@ def _main_with(monkeypatch, tmp_path, write):
             raise generate.WriterExhausted("test: runaway generation loop")
         return write(q, d, s)
     monkeypatch.setattr(generate, "_writer", lambda a: (counted, "gemini", tmp_path / "x.jsonl"))
-    monkeypatch.setattr(generate, "load_questions", lambda: [QUESTION])
+    monkeypatch.setattr(generate, "committed_questions", lambda: [QUESTION])
     monkeypatch.setattr(generate, "load_cases", lambda q: [])
     monkeypatch.setattr(generate, "CASES", tmp_path)
     monkeypatch.setattr(generate, "codex_label", lambda q, states: [True] * len(states))

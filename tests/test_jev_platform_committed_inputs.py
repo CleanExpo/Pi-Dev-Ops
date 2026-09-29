@@ -15,8 +15,10 @@ import pytest
 from jev_scale_support import git
 from test_jev_constitution_eval import Q, make_cases
 
+from evals.jev_constitution import generate
 from evals.jev_constitution import harness as h
-from jev_platform import calibration, client, engine
+from evals.jev_constitution import writer_control as wc
+from jev_platform import calibration, client, engine, gemini
 
 RULE = "ch3-4-27"
 MARKER = "UNREVIEWED_INTERNAL_PROJECT_CONTENT"
@@ -197,6 +199,53 @@ def test_harness_run_sends_the_committed_cases_not_a_working_copy_edit(eval_repo
     run_recording(sent)
     assert len(sent) == 1000
     assert not any(MARKER in json.dumps(b) for b in sent)
+
+
+class Stop(Exception):
+    pass
+
+
+def test_the_case_writer_sends_the_committed_question(eval_repo, monkeypatch):
+    """generate.py sends the question text to Gemini or `claude -p`: it must be HEAD's, not a working-copy edit."""
+    (eval_repo / "questions.json").write_text(json.dumps({"questions": [{**Q, "question": MARKER}]}))
+    seen = []
+
+    def first_round(question, *rest):
+        seen.append(question)
+        raise Stop
+    monkeypatch.setattr(generate, "_writer", lambda a: (None, "gemini", eval_repo / "x.jsonl"))
+    monkeypatch.setattr(generate, "CASES", eval_repo / "cases")
+    monkeypatch.setattr(generate, "_round", first_round)
+    with pytest.raises(Stop):
+        generate.main(["--question", "t-01", "--target", "10"])
+    assert seen and seen[0]["question"] == Q["question"]
+
+
+def test_the_writer_control_sends_the_committed_question(eval_repo, monkeypatch, tmp_path):
+    (eval_repo / "questions.json").write_text(json.dumps({"questions": [{**Q, "id": wc.QUESTION_ID}]}))
+    git(eval_repo, "commit", "-qam", "control question")
+    (eval_repo / "questions.json").write_text(json.dumps({"questions": [{**Q, "id": wc.QUESTION_ID, "question": MARKER}]}))
+    seen = []
+
+    def prompt(question, example):
+        seen.append(question)
+        raise Stop
+    monkeypatch.setattr(gemini, "api_key", lambda: "gk-test-not-a-real-key")
+    monkeypatch.setattr(gemini, "price_table", lambda day: {"any": 1})
+    monkeypatch.setattr(gemini, "GeminiBudget", lambda *a: None)
+    monkeypatch.setattr(wc, "control_prompt", prompt)
+    monkeypatch.setattr(wc, "run_control", lambda writers, label: writers["claude"]("e"))
+    with pytest.raises(Stop):
+        wc.main(tmp_path / "out.json")
+    assert seen and seen[0]["question"] == Q["question"]
+
+
+def test_calibrating_a_rule_absent_from_the_committed_registry_sends_nothing(repo):
+    git(repo, "rm", "-q", "--cached", "evals/jev_constitution/questions.json")
+    git(repo, "commit", "-qm", "untrack registry")
+    sent = []
+    rec = engine.calibrate(RULE, recording(sent), budget())
+    assert sent == [] and rec["state"] == "incomplete" and rec["first_error"] == "rule_not_committed"
 
 
 def test_harness_run_validates_the_cases_it_sends(eval_repo):
