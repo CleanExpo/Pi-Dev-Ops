@@ -124,3 +124,49 @@ def test_a_normal_exit_does_not_wait_for_queued_mirrors():
     started = time.monotonic()
     subprocess.run([sys.executable, "-c", script], cwd=REPO_ROOT, check=True, timeout=30)
     assert time.monotonic() - started < 3.0     # draining six 1 s writes would take 6 s+
+
+
+def test_flush_waits_for_a_queued_write_and_is_bounded(isolated_log, monkeypatch):
+    import asyncio
+    import threading
+    import time
+
+    from swarm import cost_mirror
+
+    bt, _ = isolated_log
+    release, landed = threading.Event(), []
+
+    def slow_insert(table, row):
+        release.wait(5)
+        landed.append(table)
+        return True
+
+    monkeypatch.setattr("app.server.supabase_log._insert", slow_insert, raising=False)
+
+    async def go():
+        bt.record_cost(**_cost_kwargs())
+        started = time.monotonic()
+        await cost_mirror.flush(0.3)           # the write is still blocked: flush gives up
+        assert time.monotonic() - started < 2.0
+        assert not landed
+        release.set()
+        await cost_mirror.flush(5.0)           # now it can finish
+        assert landed == ["llm_costs"]
+
+    asyncio.run(go())
+
+
+def test_the_checkpoint_shutdown_flush_also_waits_for_cost_mirrors(isolated_log, monkeypatch):
+    import asyncio
+
+    from app.server import checkpoint_queue
+    from swarm import cost_mirror
+
+    seen = []
+
+    async def fake_flush(timeout):
+        seen.append(timeout)
+
+    monkeypatch.setattr(cost_mirror, "flush", fake_flush)
+    asyncio.run(checkpoint_queue.flush(10.0))
+    assert seen == [5.0]

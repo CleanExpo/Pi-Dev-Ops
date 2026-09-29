@@ -87,3 +87,13 @@ def wait_idle(timeout: float = 5.0) -> bool:
         return False
     _ensure_worker()
     return done.wait(timeout)
+
+
+async def flush(timeout: float) -> None:
+    """Await queued writes at shutdown, for at most `timeout` seconds.
+
+    Queued rows that outlast the wait are lost from Supabase only; the local
+    JSONL has them. Nothing here can block an exit for longer than `timeout`.
+    """
+    if not await asyncio.to_thread(wait_idle, timeout):
+        log.warning("queued cost mirrors did not finish within %.0fs", timeout)
