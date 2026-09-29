@@ -232,6 +232,8 @@ GUARD_MUTANTS = [
     ('committed.py', '            if oid == ancestor:\n                return True',
      '            if True:\n                return True'),  # co-ancestor
     ('engine.py', '    if not verified.is_oid(sha):\n        return', '    if False:\n        return'),  # en-lineage-sha
+    ('committed.py', '        if here.is_symlink():\n            return None',
+     '        if False:\n            return None'),  # co-no-symlink (round 13)
     ('engine.py', ' != blob:\n        return ["cases_blob is not the cases file',
      ' != blob and False:\n        return ["cases_blob is not the cases file'),  # en-lineage-at-sha
     ('engine.py', '    if not verified.is_ancestor(ROOT, sha, verified.resolve(ROOT) or ""):\n',

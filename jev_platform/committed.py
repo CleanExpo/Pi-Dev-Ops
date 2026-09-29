@@ -8,6 +8,7 @@ reader of reviewed content (registry, cases, approval manifest, live fixture, wr
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -103,14 +104,24 @@ def at_head(repo, path: str, env: dict | None = None) -> tuple[str, str, bytes] 
 
 
 def file_at_head(path: Path, env: dict | None = None) -> bytes | None:
-    """Bytes of `path` as committed at HEAD of the repository containing it, or None."""
+    """Bytes of `path` as committed at HEAD of the repository containing it, or None.
+
+    The repository path is built from `path`'s own names, never by resolving it: a working-copy symlink at the file
+    or at any directory inside the repository is refused, so an uncommitted link cannot pick another committed file
+    (round 13 P1-COMMITTED-PATH-WORKTREE-SYMLINK)."""
     top = subprocess.run(["git", "-C", str(path.parent), "rev-parse", "--show-toplevel"],
                          capture_output=True, text=True, env=env).stdout.strip()
-    try:
-        rel = path.resolve().relative_to(Path(top).resolve()) if top else None
-    except ValueError:
-        return None
-    found = at_head(top, str(rel), env) if rel else None
+    names, here = [], Path(os.path.abspath(path))
+    while top:
+        if here.is_symlink():
+            return None
+        if here.resolve() == Path(top).resolve():
+            break
+        if here.parent == here:
+            return None  # walked past the filesystem root without meeting the repository
+        names.insert(0, here.name)
+        here = here.parent
+    found = at_head(top, "/".join(names), env) if top and names else None
     return found[2] if found else None
 
 

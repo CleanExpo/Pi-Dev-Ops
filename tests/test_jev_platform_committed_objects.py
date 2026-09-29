@@ -17,11 +17,11 @@ import test_jev_platform_committed_inputs as ci
 from jev_scale_support import git
 from test_jev_platform_committed_inputs import MARKER, RULE, budget, recording
 
-from evals.jev_constitution import generate, quotes
+from evals.jev_constitution import generate, harness, quotes
 from jev_platform import __main__ as cli
 from jev_platform import ask, committed, engine
 
-repo = ci.repo  # the temp registry repo standing in for engine.ROOT
+repo, eval_repo = ci.repo, ci.eval_repo  # temp repos standing in for engine.ROOT and the eval harness
 
 
 def out(root, *args, stdin=None) -> str:
@@ -163,6 +163,39 @@ def test_the_writer_control_is_read_through_verified_objects(tmp_path, monkeypat
     args = argparse.Namespace(writer="gemini", question=RULE, max_usd=1.0)
     assert generate._writer(args) is None
     assert "writer control" in capsys.readouterr().err
+
+
+def test_a_working_copy_symlink_cannot_pick_another_committed_control(tmp_path, monkeypatch, capsys):
+    """Round 13 P1-COMMITTED-PATH-WORKTREE-SYMLINK, the reviewer's reproduction."""
+    new_repo(tmp_path, {"control.json": json.dumps({"status": "run", "verdict": "do-not-use"}),
+                        "other.json": json.dumps({"status": "run", "verdict": "use"})})
+    control = tmp_path / "control.json"
+    monkeypatch.setattr(generate, "WRITER_CONTROL", control)
+    assert committed.file_at_head(control) is not None  # positive control: the committed control reads back
+    control.unlink()
+    control.symlink_to("other.json")
+    assert committed.file_at_head(control) is None
+    args = argparse.Namespace(writer="gemini", question=RULE, max_usd=1.0)
+    assert generate._writer(args) is None and "writer control" in capsys.readouterr().err
+
+
+def test_a_symlinked_directory_on_the_path_is_refused(tmp_path):
+    new_repo(tmp_path, {"real/q.json": "reviewed", "other/q.json": MARKER})
+    assert committed.file_at_head(tmp_path / "real" / "q.json") == b"reviewed"
+    (tmp_path / "real" / "q.json").unlink()
+    (tmp_path / "real").rmdir()
+    (tmp_path / "real").symlink_to("other")
+    assert committed.file_at_head(tmp_path / "real" / "q.json") is None
+
+
+def test_the_eval_harness_refuses_a_symlinked_registry(eval_repo):
+    (eval_repo / "alt.json").write_text(json.dumps({"questions": [{"id": "alt", "question": MARKER}]}))
+    git(eval_repo, "add", "alt.json")
+    git(eval_repo, "commit", "-qm", "alt")
+    assert harness.committed_questions() != []  # positive control
+    (eval_repo / "questions.json").unlink()
+    (eval_repo / "questions.json").symlink_to("alt.json")
+    assert harness.committed_questions() == []
 
 
 def test_a_rewritten_root_tree_sends_nothing(repo):
