@@ -76,11 +76,12 @@ export async function checkFailurePath(page: Page, surface: LiveSurface, origin:
   const said = await content.getByText(FAILURE_TEXT).filter({ visible: true }).allInnerTexts();
   const shown = [...new Set(said.map((t) => t.trim().slice(0, 120)).filter((t) => t.length > 0))];
   const scoped = (await content.count()) > 0;
-  // Shell-only cuts with a silent page: the page's own data never went through
-  // the browser, so there was nothing of its own to fail. A page that DID speak
-  // (MC-05 and MC-06 share /api/sessions with the shell) is judged normally.
+  // N/A only for a page DECLARED server-rendered (surfaces.ts) whose cut calls
+  // were all the shell's and which stayed quiet. A path match alone is not
+  // enough: MC-05 and MC-06 call /api/sessions themselves, the same path as the
+  // shell, so a silent failure there must FAIL, not pass as N/A.
   const quiet = scoped && shown.length === 0 && stuck.length === 0 && !errorBoundary;
-  if (quiet && [...cut].every((p) => SHELL_DATA_CALLS.has(p))) {
+  if (surface.serverRendered && quiet && [...cut].every((p) => SHELL_DATA_CALLS.has(p))) {
     const note = cut.size === 0 ? "no browser data calls" : `only shell calls (${blocked})`;
     return { check: "5-failure-path", result: "N/A", detail: `${note}; page data is server-rendered` };
   }
@@ -103,11 +104,15 @@ export async function checkAuthBoundary(
   anon: APIRequestContext,
   surface: LiveSurface,
   dataCalls: Set<string>,
+  origin: string,
 ): Promise<CheckResult> {
   const problems: string[] = [];
   const page = await anon.get(surface.path, { maxRedirects: 0 });
   const location = page.headers()["location"] ?? "";
-  const toLogin = location.length > 0 && new URL(location, "http://x").pathname === "/";
+  // Resolved against the dashboard itself, and the origin must match: a 307 to
+  // https://elsewhere.example/ is not this dashboard's login page.
+  const target = location.length > 0 ? new URL(location, `${origin}${surface.path}`) : null;
+  const toLogin = target !== null && target.origin === origin && target.pathname === "/";
   if (page.status() !== 307 || !toLogin) {
     problems.push(`page answered ${page.status()}${location ? ` → ${location}` : ""}, expected 307 to login`);
   }

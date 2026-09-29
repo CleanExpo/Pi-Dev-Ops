@@ -24,7 +24,7 @@ for (const surface of LIVE_SURFACES) {
       await page.waitForLoadState("networkidle");
       await stuckLoadingTexts(page);
       checks.push(await checkAccessibility(page));
-      checks.push(await checkAuthBoundary(anon, surface, dataCalls));
+      checks.push(await checkAuthBoundary(anon, surface, dataCalls, origin));
       checks.push(await checkFailurePath(page, surface, origin));
     } catch (err) {
       checks.push({ check: "0-journey-completed", result: "FAIL", detail: String(err).slice(0, 500) });
