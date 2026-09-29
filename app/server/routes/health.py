@@ -17,6 +17,7 @@ from ..sessions import _sessions
 from ..vercel_monitor import check_deployment_drift
 from .. import config
 from .. import lessons as _lessons
+from ..loop_lag import start_loop_lag_monitor  # RA-7845
 
 log = logging.getLogger("pi-ceo.main")
 
@@ -50,6 +51,7 @@ async def _poll_claude_cli() -> None:
 @app.on_event("startup")
 async def _start_claude_poll():
     asyncio.create_task(_resilient(_poll_claude_cli, "claude_cli_poll"))
+    start_loop_lag_monitor()
 
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "static")
