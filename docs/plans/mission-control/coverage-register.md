@@ -11,9 +11,9 @@ Paths: `D` = `dashboard/`, `CC` = `dashboard/components/control/`, `R` = `app/se
 ## What "evidence" means in this table
 
 - **VERIFIED** — a named check passed against a named environment and revision. Nothing in this
-  table reaches VERIFIED today: no browser test opens any Mission Control page (`D/e2e/` covers only
-  `placecards-prototype.html`), and live smoke checks status codes and JSON key names, not what a
-  user sees.
+  table reaches VERIFIED today: browser tests now exist for all 20 surfaces (`D/e2e-live/`), but none
+  has yet run against a named deployment (blocked on `DASHBOARD_PASSWORD`, RA-7832), and live smoke
+  checks status codes and JSON key names, not what a user sees.
 - **PARTIAL** — unit tests with mocks, or a live status-code smoke, but no observed user outcome.
 - **STRUCTURAL_ONLY** — the page and route exist; nothing exercises them.
 - **CONFLICTING** — a check failed on the current revision, or code reading says it cannot work.
@@ -57,7 +57,7 @@ Counts reported separately, per the coverage rules:
 | STRUCTURAL_ONLY | 1 — MC-13 (round 1: 2; MC-14 was mis-classified) |
 | CONFLICTING | 1 — MC-18 wiki-graph (round 1: 5; MC-00, 10, 11, 19 repaired, pending live check) |
 | Surfaces with a write action | 7 (MC-01, 02, 03, 05, 07, 10, 11) |
-| Browser tests touching any surface | 1 spec built (`dashboard/e2e-live/control-hub.spec.ts`, MC-00); 0 live runs yet — needs `DASHBOARD_PASSWORD` in GitHub Actions |
+| Browser tests touching any surface | 20 of 20 built: `control-hub.spec.ts` (MC-00) + `read-journeys.spec.ts` (MC-01…19, WP-06); 0 live runs yet — needs `DASHBOARD_PASSWORD` in GitHub Actions (RA-7832) |
 | Unit tests in the Mission Control subset | ≈226 pytest (288 matched, 62 loosely related) + 214 vitest cases — all mocked |
 
 A 100% accounting rate here coexists with zero verified user outcomes. That is the finding.
