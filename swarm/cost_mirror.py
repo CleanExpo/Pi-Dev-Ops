@@ -6,25 +6,27 @@ request: the loop-lag monitor caught a 2.3 s stall in record_cost at 14:23 UTC
 on 29 Sept 2026 (same class as RA-7845, which only covered the session
 checkpoint).
 
-On a running event loop the write goes to one worker thread; one worker keeps
-rows in order. Off the loop it stays synchronous, exactly as before. The local
-JSONL is the source of truth, so when Supabase is slow and writes pile up, the
-extra mirrors are dropped rather than queued without limit.
+On a running event loop the write goes to one daemon worker thread; one worker
+keeps rows in order. Off the loop it stays synchronous, exactly as before. The
+local JSONL is the source of truth, so the mirror is allowed to lose rows: when
+Supabase is slow the bounded queue drops the extras, and because the worker is
+a daemon a normal shutdown does not wait for the queue (a ThreadPoolExecutor
+would join and drain it, up to 200 x 8 s).
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+import queue
 import threading
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 log = logging.getLogger("swarm.cost_mirror")
 
 MAX_PENDING = 200
-_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="cost-mirror")
-_lock = threading.Lock()
-_pending = 0
+_queue: queue.Queue[Any] = queue.Queue(maxsize=MAX_PENDING)
+_start_lock = threading.Lock()
+_worker: threading.Thread | None = None
 
 
 def _on_event_loop() -> bool:
@@ -43,38 +45,45 @@ def _write(row: dict[str, Any]) -> None:
         log.debug("cost_mirror: supabase mirror failed (non-fatal): %s", exc)
 
 
-def _write_queued(row: dict[str, Any]) -> None:
-    global _pending
-    try:
-        _write(row)
-    finally:
-        with _lock:
-            _pending -= 1
+def _run() -> None:
+    while True:
+        item = _queue.get()
+        try:
+            if isinstance(item, threading.Event):
+                item.set()
+            else:
+                _write(item)
+        finally:
+            _queue.task_done()
+
+
+def _ensure_worker() -> None:
+    global _worker
+    with _start_lock:
+        if _worker is None or not _worker.is_alive():
+            _worker = threading.Thread(target=_run, name="cost-mirror", daemon=True)
+            _worker.start()
 
 
 def mirror(row: dict[str, Any]) -> None:
     """Mirror one cost row to Supabase without blocking a running event loop."""
-    global _pending
     if not _on_event_loop():
         _write(row)
         return
-    with _lock:
-        if _pending >= MAX_PENDING:
-            log.debug("cost_mirror: backlog full, row kept in JSONL only")
-            return
-        _pending += 1
     try:
-        _pool.submit(_write_queued, row)
-    except Exception as exc:  # noqa: BLE001
-        with _lock:
-            _pending -= 1
-        log.debug("cost_mirror: not queued (non-fatal): %s", exc)
+        _queue.put_nowait(row)
+    except queue.Full:
+        log.debug("cost_mirror: backlog full, row kept in JSONL only")
+        return
+    _ensure_worker()
 
 
 def wait_idle(timeout: float = 5.0) -> bool:
     """Block until queued writes have run; False if they outlast the timeout."""
+    done = threading.Event()
     try:
-        _pool.submit(lambda: None).result(timeout=timeout)
-    except Exception:
+        _queue.put(done, timeout=timeout)
+    except queue.Full:
         return False
-    return True
+    _ensure_worker()
+    return done.wait(timeout)
