@@ -95,3 +95,38 @@ def test_a_failed_queued_write_is_swallowed() -> None:
     with patch.object(supabase_log, "_upsert", side_effect=RuntimeError("supabase down")):
         asyncio.run(save())
         assert checkpoint_queue.wait_idle()
+
+
+def test_queued_row_does_not_share_nested_state_with_the_session() -> None:
+    rows: list[dict] = []
+    session = _session()
+    session.repo_context = {"files": ["a.py"]}
+
+    async def save_then_mutate_nested() -> None:
+        checkpoint_queue.save_checkpoint(session)
+        session.repo_context["files"].append("b.py")
+
+    with patch.object(supabase_log, "_upsert", side_effect=lambda t, r: rows.append(r) or True):
+        asyncio.run(save_then_mutate_nested())
+        assert checkpoint_queue.wait_idle()
+    assert rows[0]["checkpoint"]["repo_context"] == {"files": ["a.py"]}
+
+
+def test_shutdown_waits_for_queued_checkpoints(monkeypatch) -> None:
+    from app.server import app_factory
+
+    waited: list[float] = []
+    monkeypatch.setattr(app_factory, "_sessions", {})
+    monkeypatch.setattr(checkpoint_queue, "wait_idle", lambda timeout=5.0: waited.append(timeout) or True)
+    asyncio.run(app_factory.on_shutdown())
+    assert waited == [10.0]
+
+
+def test_wait_idle_reports_a_write_that_outlasts_the_timeout() -> None:
+    release = threading.Event()
+    checkpoint_queue._pool.submit(release.wait, 5)
+    try:
+        assert checkpoint_queue.wait_idle(timeout=0.1) is False
+    finally:
+        release.set()
+    assert checkpoint_queue.wait_idle()

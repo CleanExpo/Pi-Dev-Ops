@@ -21,6 +21,7 @@ from .agents.build_stall_watchdog import stall_watchdog_loop  # RA-1104
 from .integration_health import integration_health_loop      # RA-1293
 from . import config
 from . import persistence
+from . import checkpoint_queue
 
 log = logging.getLogger("pi-ceo.main")
 
@@ -295,4 +296,5 @@ async def on_shutdown():
             # cloning/building/evaluating that will never resume.
             persistence.save_session(session)
         await asyncio.sleep(2)
+    await checkpoint_queue.flush(10.0)  # RA-7845: queued "interrupted" rows land before exit
     log.info("Shutdown complete")
