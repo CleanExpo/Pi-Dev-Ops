@@ -1,0 +1,108 @@
+{
+  "schema": 2,
+  "implementation_agent": "claude",
+  "reviewer_agent": "codex",
+  "reviewer_session_id": "codex-deny-merge-a667d0bf-review",
+  "base_sha": "4005e412ac5ee6ed706209cf6bc7693ff0288185",
+  "head_sha": "a667d0bf7ab58af219752e624b45437bc561f9a7",
+  "verdict": "FAIL",
+  "blocking_findings": [
+    {
+      "id": "P1-C2-UNRELATED-DENIAL-FALSE-PASS",
+      "severity": "P1",
+      "title": "C2 accepts unrelated denials even when the merge ran",
+      "file": ".claude/done/work/w_420c44626679/check_deny.py",
+      "line": 37,
+      "quoted_line": "           if MERGE in json.dumps(d.get('tool_input', {}))]",
+      "finding": "The required merge-refusal check treats any denied tool input containing the substring gh pr merge as proof. It neither checks tool_name nor requires the attempted CMD, and exits 0 before inspecting evidence that execution occurred. Controlled subprocess responses demonstrated PASS for an unrelated denied Bash echo and a denied Read pathname while result explicitly said Could not resolve to a PullRequest. donectl.verify converts this exit 0 into PROVEN, so C2 can certify a failed guard. This finding concerns the acceptance test, not a demonstrated bypass of the deny rule.",
+      "reproduction": "Executed the unchanged script using runpy.run_path with subprocess.run patched to CompletedProcess([], 0, json.dumps({\"permission_denials\":[{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"echo 'gh pr merge'\"}}],\"result\":\"Could not resolve to a PullRequest\"}), \"\"). Observed SystemExit(0) and PASS. Replacing that denial with tool_name=Read and file_path=/tmp/gh pr merge notes also returned 0. Positive control with no denial and the same result returned 1; no tool evidence returned 2. No real merge or model request was executed.",
+      "suggested_fix": "Require a Bash denial for the exact requested command; reject contradictory execution evidence before accepting a denial. Prefer structured tool execution evidence over narrative output. Add negative fixtures for unrelated denials and mixed executed/denied attempts, then re-run the real rule-present/rule-removed control."
+    }
+  ],
+  "checklist": [
+    {
+      "id": "coverage-ledger",
+      "verdict": "PASS",
+      "evidence": "Read all seven files in the exact base..head diff; coverage lists exactly that changed set."
+    },
+    {
+      "id": "plan-conformance",
+      "verdict": "PASS",
+      "evidence": "Removing the single added Bash(gh pr merge:*) entry from candidate settings yields JSON identical to base. Remaining six files are the declared Done artifacts and ACTIVE.json. No adjacent product changes."
+    },
+    {
+      "id": "weakened-checks",
+      "verdict": "PASS",
+      "evidence": "Named search: git diff BASE HEAD | rg -n '^[+-].*(assert|skip|noqa|ignore|except|exit|return|pass|deny)'. Read all hits and both new scripts. No assertions removed, skips added or lint suppression introduced. False-positive C2 acceptance is separately blocking."
+    },
+    {
+      "id": "mutation-control",
+      "verdict": "N/A",
+      "evidence": "C1/C3 pass on head and both exit 1 after removing the rule. C3 exits 1 for altered attribution, added root key, altered allow list and removed existing deny. Settings restored byte-identical; SHA256 db3de2c37c238186bb15937cca3ce59ad24facd2690658338bec71247db1f399. C2 response controls returned 0/1/2, but unrelated-denial mutants incorrectly returned 0.",
+      "reason": "The complete obligation is not discharged: C2 has the blocking false-positive finding, and its live rule-removal control requires networked Claude execution unavailable for this restricted-sandbox review."
+    },
+    {
+      "id": "guard-falsification",
+      "verdict": "N/A",
+      "evidence": "Planted and ran C1/C3 settings mutants and C2 response mutants. Did not run gh pr merge 12 --auto, gh pr merge --squash 12, or cd x && gh pr merge 12 through Claude. No claim that these forms were verified. Supplied prior C2 evidence is acknowledged, not represented as this reviewer running it.",
+      "reason": "Live Claude permission enforcement needs network/authenticated CLI execution. This sandbox restricts network and Claude runtime writes outside writable roots. No live matcher proof was obtained; this is neither a pass nor a failure of the rule."
+    },
+    {
+      "id": "clean-environment-suite",
+      "verdict": "N/A",
+      "evidence": "Each attempted suite ran once under env -i HOME=\"$HOME\" PATH=\"$PATH\" TERM=dumb, with no preliminary exports. pytest tests/ -v --tb=short: collected 6475, stopped with 1 collection error (missing psycopg), 1 skipped, 8 warnings. pytest swarm/ -v --tb=short: 351 passed, 1 skipped. Dashboard npm test with CI reporter flags: 55 files/504 tests passed; only outputFile changed to /private/tmp/deny-review-vitest.xml. bash aip/src/mcp/test_run.sh: exit 0, wrapper token tests passed (no numeric count emitted). python3 scripts/test_sync_claude_sessions.py: 23 PASS lines, exit 0. Logs: /private/tmp/deny-review-{pytest,swarm,vitest,aip,redaction}.log.",
+      "reason": "Full clean CI-equivalent validation is incomplete: missing psycopg, local pytest uses Python 3.13 rather than CI 3.12, Node is 26 rather than CI 20, and the dashboard output artifact path differs. Did not rerun suites or invoke the full handoff gate; recorder owns the requested exact-head full gate."
+    },
+    {
+      "id": "blast-radius",
+      "verdict": "PASS",
+      "evidence": "Read settings hook wiring, autonomy_gate_hook.py and autonomy_rules.py merge classification. Read donectl.py ACTIVE/lock/status/verify consumers: contract digest matches, stale verified_head is invalidated, recipe exit 0 becomes PROVEN. Contract recipes directly invoke the two added scripts. Existing agent permissions for PR review/view/checks are unchanged; actual Claude matching for those operations was not tested. Human terminal permissions are not edited."
+    },
+    {
+      "id": "outbound-actions",
+      "verdict": "PASS",
+      "evidence": "Product diff only adds a deny rule. No account creation, messaging, publishing, purchase or push added. C2 is an explicit network probe attempting a merge of the supplied known-nonexistent sentinel PR 999999; it was not executed live in this review. All reviewer falsification used local settings or controlled subprocess responses."
+    }
+  ],
+  "coverage": {
+    "reviewed": [
+      ".claude/done/ACTIVE.json",
+      ".claude/done/work/w_420c44626679/check_deny.py",
+      ".claude/done/work/w_420c44626679/check_scope.py",
+      ".claude/done/work/w_420c44626679/contract.json",
+      ".claude/done/work/w_420c44626679/lock.json",
+      ".claude/done/work/w_420c44626679/state.json",
+      ".claude/settings.json"
+    ],
+    "not_reviewed": []
+  },
+  "coverage_declared": [
+    "All seven changed files; exact approved settings delta; Done identity, digest and stale-state consumers; new-check failure branches; clean-environment suite attempts.",
+    "Review-only handoff: no implementation fix, commit, push or release. All seven tracked files match HEAD byte-for-byte; only reviewer-report.json is untracked. Next owner should fix C2 and repeat its controls. First pickup command: cat reviewer-report.json."
+  ],
+  "attack_evidence": [
+    "Removed the added deny rule: C1 and C3 both failed (exit 1); restored settings byte-identical.",
+    "Changed attribution.sessionUrl, added an unrelated root key, changed permissions.allow, and removed an existing deny entry: C3 rejected each. Therefore tested other-key changes do not evade C3.",
+    "Duplicated an existing deny entry: C3 returned PASS, demonstrating a multiplicity blind spot; documented as nonblocking because duplicate rules do not change deny semantics.",
+    "Injected unrelated Bash echo and Read permission denials alongside explicit command-executed output: unchanged C2 returned PASS in both cases. A matching denial plus an earlier execution report also returned PASS.",
+    "The requested --auto, --squash-before-number and leading-cd forms were not verified in a live Claude session. No synthetic matcher was substituted for Claude enforcement."
+  ],
+  "documented_warnings": [
+    {
+      "severity": "P2",
+      "file": ".claude/done/work/w_420c44626679/check_scope.py",
+      "note": "Lines 16-17 use membership differences, allowing an added duplicate of an existing deny rule while C3 says only one rule changed. Planted duplicate Bash(sudo:*) passed. Nonblocking semantic no-op; track the stricter exact-list scope assertion under the existing task.",
+      "ticket": "RA-7818"
+    }
+  ],
+  "reviewed_dimensions": [
+    "architecture",
+    "correctness",
+    "security",
+    "tests",
+    "error-handling",
+    "duplication",
+    "conventions"
+  ],
+  "reviewed_at": "2026-09-29T00:01:38.492466+00:00"
+}
