@@ -4,7 +4,9 @@ import type { APIRequestContext, Page, Response } from "@playwright/test";
 
 export interface CheckResult {
   check: string;
-  result: "PASS" | "FAIL";
+  // N/A: the check cannot apply to this page (e.g. a page that makes no
+  // browser data requests has no failure path to exercise). Never a pass.
+  result: "PASS" | "FAIL" | "N/A";
   detail: string;
 }
 
@@ -57,4 +59,11 @@ export function writeReceipt(name: string, target: string, checks: CheckResult[]
   };
   fs.writeFileSync(file, `${JSON.stringify(receipt, null, 2)}\n`);
   return file;
+}
+
+// One receipt per surface per viewport, so the phone run (check 9) never
+// overwrites the desktop one. Desktop keeps its WP-06 name unchanged.
+export function receiptName(surface: { id: string; path: string }, project: string, kind = ""): string {
+  const base = `${surface.id}${surface.path.replaceAll("/", "_")}${kind}`;
+  return project === "desktop" || project === "" ? base : `${base}@${project}`;
 }

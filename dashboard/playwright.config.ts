@@ -16,6 +16,12 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     baseURL: `http://${HOST}:${PORT}`,
+    ...(process.env.MISSION_CONTROL_CHROMIUM_PATH ? {
+      launchOptions: {
+        executablePath: process.env.MISSION_CONTROL_CHROMIUM_PATH,
+        args: ["--no-sandbox", "--single-process", "--no-zygote", "--disable-gpu", "--disable-software-rasterizer", "--use-gl=disabled"],
+      },
+    } : {}),
     viewport: { width: 1280, height: 900 },
     screenshot: "only-on-failure",
     trace: "on-first-retry",

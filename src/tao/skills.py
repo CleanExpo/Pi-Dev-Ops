@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 import re
 
+import yaml
+
 _SKILLS_CACHE: dict | None = None
 
 # ── YAML frontmatter parser ──────────────────────────────────────────────────
@@ -23,6 +25,14 @@ def _parse_frontmatter(content: str) -> tuple[dict, str]:
     if not m:
         return {}, content
     meta_block, body = m.group(1), m.group(2)
+    # Real YAML first: a folded/literal description (">", "|") otherwise loads as that
+    # single character. Line-by-line stays as the fallback for frontmatter YAML rejects.
+    try:
+        parsed = yaml.safe_load(meta_block)
+    except yaml.YAMLError:
+        parsed = None
+    if isinstance(parsed, dict):
+        return parsed, body.strip()
     meta = {}
     for line in meta_block.split("\n"):
         line = line.strip()

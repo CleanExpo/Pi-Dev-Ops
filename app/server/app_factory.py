@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
+from starlette.requests import ClientDisconnect, Request
 
 from .sessions import restore_sessions, _sessions
 from .gc import gc_loop
@@ -116,6 +116,13 @@ app.add_middleware(
 )
 # NOTE: TrustedHostMiddleware removed — Railway terminates TLS and proxies requests;
 # restricting to 127.0.0.1 would block all cloud traffic.
+
+
+@app.exception_handler(ClientDisconnect)
+async def _client_disconnected(request: Request, exc: ClientDisconnect) -> JSONResponse:
+    # A caller (e.g. a webhook sender) hung up before its body arrived; nothing to do.
+    log.warning("client disconnected before request body arrived: %s", request.url.path)
+    return JSONResponse({"error": "client disconnected"}, status_code=400)
 
 
 @app.on_event("startup")

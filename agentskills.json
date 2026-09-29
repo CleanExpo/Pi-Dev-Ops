@@ -3,7 +3,7 @@
   "package": {
     "name": "pi-ceo-skills",
     "version": "1.25.0",
-    "generated_at": "2026-09-29T05:37:37.588875+00:00",
+    "generated_at": "2026-09-29T07:32:15.651839+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -157,11 +157,11 @@
     },
     {
       "id": "agentskills-manifest",
-      "description": "Export Pi-CEO's skill registry as an agentskills.io-format manifest. Closes Hermes RA-1838 SWARM-009 (open question #5 from the original Hermes brief \u2014 answered yes). Future-proofs Pi-CEO if/when it adopts the Hermes runtime via Path C.",
+      "description": "Export Pi-CEO's skill registry as an agentskills.io-format manifest. Closes Hermes RA-1838 SWARM-009 (open question 5 from the original Hermes brief \u2014 answered yes). Future-proofs Pi-CEO if/when it adopts the Hermes runtime via Path C.",
       "owner_role": "Curator",
       "status": "wave-3",
       "path": "skills/agentskills-manifest/SKILL.md",
-      "sha256": "79a788386fe7490be475a4f5e4d51e3e6786d9f37f4dcc7bbd5b3af291fecd74",
+      "sha256": "a4ed39be06d2bfb280cd0d906f5525036c873b3d7ea8b4b4d1baf048dce17f44",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1499,11 +1499,11 @@
     },
     {
       "id": "margot-sandcastle-bridge",
-      "description": "After a Margot Deep Research finding completes, classify \"action-shaped vs informational\" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On \ud83d\udc4d, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 #4 (RA-1856 epic). This is what makes Margot autonomous.",
+      "description": "After a Margot Deep Research finding completes, classify \"action-shaped vs informational\" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On \ud83d\udc4d, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 item 4 (RA-1856 epic). This is what makes Margot autonomous.",
       "owner_role": "Margot (research) \u2192 Chief of Staff (HITL) \u2192 Builder (execution)",
       "status": "wave-5",
       "path": "skills/margot-sandcastle-bridge/SKILL.md",
-      "sha256": "7ef0908a79b2b975abebcd3da61a7fe21584ccccab7051740cf9224c17afcb73",
+      "sha256": "75ab4395201d0714ce9eab06451c8274d309da22f95c01c275d330e606ef8c9d",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2103,11 +2103,11 @@
     },
     {
       "id": "remotion-brand-codify",
-      "description": "Converts a BrandResearch dossier into THREE artifacts \u2014 (1) typed BrandConfig TypeScript at Synthex/packages/brand-config/src/brands/{slug}.ts (runtime/behaviour: voice, voiceover, motion, audience, channel, forbiddenWords); (2) spec-conformant {slug}.design.md at Synthex/packages/brand-config/src/brands/{slug}.design.md (visual tokens: colour, typography, spacing, components, layout, elevation); (3) human-readable 9-section .md projection at Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md derived from BOTH. Boundary contract at Pi-Dev-Ops/remotion-studio/src/brands/CONTRACT.md. Triggered after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false \u2014 a human reviews before merge.",
+      "description": "Converts a BrandResearch dossier into THREE artifacts \u2014 (1) typed BrandConfig TypeScript at Synthex/packages/brand-config/src/brands/{slug}.ts (runtime/behaviour \u2014 voice, voiceover, motion, audience, channel, forbiddenWords); (2) spec-conformant {slug}.design.md at Synthex/packages/brand-config/src/brands/{slug}.design.md (visual tokens \u2014 colour, typography, spacing, components, layout, elevation); (3) human-readable 9-section .md projection at Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md derived from BOTH. Boundary contract at Pi-Dev-Ops/remotion-studio/src/brands/CONTRACT.md. Triggered after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false \u2014 a human reviews before merge.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/remotion-brand-codify/SKILL.md",
-      "sha256": "165866eb9be760580f282958df5b39c22839693917e6f8fbff303de4573d90b3",
+      "sha256": "e5438f5c3bea8533f560944b5c90c496abe518a85f57d3e9af418d2dc0e9cf35",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2198,11 +2198,11 @@
     },
     {
       "id": "remotion-direction",
-      "description": "Use when a Remotion video needs creative direction: hook, visual sequence, scene purpose, motion restraint, and CTA direction before render.",
+      "description": "Use when a Remotion video needs creative direction \u2014 hook, visual sequence, scene purpose, motion restraint, and CTA direction before render.",
       "owner_role": "Creative Director",
       "status": "remotion-wave-1",
       "path": "skills/remotion-direction/SKILL.md",
-      "sha256": "c72d9736f4166745ce93ca310f7bfae421c95e9eb4d00fea8007d9634ee1a5fd",
+      "sha256": "5b076c57964d342bf0b8b79fed947e0cb7999727770385d652e25039ae8e1bd9",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2445,11 +2445,11 @@
     },
     {
       "id": "sandcastle-runner",
-      "description": "The primitive. Wraps a single Sandcastle invocation (`npx sandcastle run`) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 #1 (RA-1856 epic).",
+      "description": "The primitive. Wraps a single Sandcastle invocation (`npx sandcastle run`) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 item 1 (RA-1856 epic).",
       "owner_role": "Builder",
       "status": "wave-5",
       "path": "skills/sandcastle-runner/SKILL.md",
-      "sha256": "910a6529c95d0859c85d086bc761469b02292ce78b44414f67b87219103fc856",
+      "sha256": "46193a79ee801df1d05dcad00452b9b97de47ba09c0a8674a74ca414b1a878d2",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2769,11 +2769,11 @@
     },
     {
       "id": "tao-codebase-wiki",
-      "description": "Self-updating per-directory WIKI.md files driven by post-merge git history. Port of @0xkobold/pi-codebase-wiki. Compounds: every merge refreshes context for the next TAO session.",
+      "description": "Self-updating per-directory WIKI.md files driven by post-merge git history. Port of @0xkobold/pi-codebase-wiki. Compounds \u2014 every merge refreshes context for the next TAO session.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/tao-codebase-wiki/SKILL.md",
-      "sha256": "5d6b489fb02232f1633dd88158f44fdc4a90c18bd34e6b1ce8699fcf16c86d79",
+      "sha256": "e938e967f63bd55c1692c2dd80bd5c906c5cfef09e45798b3acc1358f0a5dce5",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2902,11 +2902,11 @@
     },
     {
       "id": "technical-plan",
-      "description": "Technical planner. Reads a spec.md and produces a concrete implementation plan: files to change, approach, effort sizing, dependency order, risk flags, and test plan stub. Output is a plan.md ready for the /build phase.",
+      "description": "Technical planner. Reads a spec.md and produces a concrete implementation plan \u2014 files to change, approach, effort sizing, dependency order, risk flags, and test plan stub. Output is a plan.md ready for the /build phase.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/technical-plan/SKILL.md",
-      "sha256": "4de087a6e17524ca5c8c15b23bdcc63840bced710586cdd1641f7e284c5cf694",
+      "sha256": "eac4e4e4803999b4b723d3a8973a641a86e2d0a561f0773c36955baa62087abe",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -3086,11 +3086,11 @@
     },
     {
       "id": "unite-group-ci-recovery",
-      "description": "How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG, RestoreAssist, ATO, CARSI, CCW-CRM, Unite-Hub, synthex-mcp-app) without falling into the same CI / Vercel / Supabase / convention traps every session. Captures the recurring failure modes I hit 2026-05-25 across PRs #295\u2013#299 so future agents don't relearn them.",
+      "description": "How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG, RestoreAssist, ATO, CARSI, CCW-CRM, Unite-Hub, synthex-mcp-app) without falling into the same CI / Vercel / Supabase / convention traps every session. Captures the recurring failure modes I hit 2026-05-25 across PRs 295\u2013299 so future agents don't relearn them.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/unite-group-ci-recovery/SKILL.md",
-      "sha256": "90177cc198a6b8e25e5cb294f5a7ea164ed3bbb7e8e7c21315d1cd6337d61066",
+      "sha256": "5c8a1e31c081c35fed2ac81eb0ce9fde1581603c59ed9e6a680e7efe08f3caf0",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -3124,11 +3124,11 @@
     },
     {
       "id": "vercel-env-puller",
-      "description": "Per-project Vercel env-var manifests (NAMES + targets only \u2014 never values). At Sandcastle launch time, resolves the named vars in-memory via `vercel env pull`, injects into the sandbox via Sandcastle's `agent.env`+`sandbox.env`, and never writes a secret to disk inside Pi-CEO. Closes Wave 5 #2 (RA-1856 epic).",
+      "description": "Per-project Vercel env-var manifests (NAMES + targets only \u2014 never values). At Sandcastle launch time, resolves the named vars in-memory via `vercel env pull`, injects into the sandbox via Sandcastle's `agent.env`+`sandbox.env`, and never writes a secret to disk inside Pi-CEO. Closes Wave 5 item 2 (RA-1856 epic).",
       "owner_role": "CISO (binds in front of every Sandcastle launch)",
       "status": "wave-5",
       "path": "skills/vercel-env-puller/SKILL.md",
-      "sha256": "c1da905e66fa364e488fa15a225b7699d3256a2ed069e83b8cd04819fbfd32ee",
+      "sha256": "47881fee84d2ea3396771292fbfa2547c862e1e08f0a1f6db208f020c3e5fb77",
       "dependencies": {
         "tools": [],
         "skills": []

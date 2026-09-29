@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { CONTROL_NAV } from "../lib/control/nav";
+import { MISSION_HOME_LINKS } from "../lib/control/mission-home-links";
 import { collectFailures, signIn, writeReceipt, type CheckResult } from "./live-session";
+import { settle } from "./page-state";
 
 // Register row MC-00 / promise P01: the signed-in hub renders its real
-// navigation, and nothing the page asks for is refused.
+// navigation, and nothing the page asks for is refused. Since #828 the hub's
+// navigation is MissionHomeShell's sidebar, not the CONTROL_NAV section list.
 test("Mission Control hub renders for a signed-in user with no refused requests", async ({
   page,
   baseURL,
@@ -13,7 +15,7 @@ test("Mission Control hub renders for a signed-in user with no refused requests"
   const failures = collectFailures(page, origin);
 
   await page.goto("/control");
-  await page.waitForLoadState("networkidle");
+  await settle(page);
 
   const checks: CheckResult[] = [];
   const onControl = new URL(page.url()).pathname.startsWith("/control");
@@ -24,14 +26,15 @@ test("Mission Control hub renders for a signed-in user with no refused requests"
   });
 
   const missing: string[] = [];
-  for (const item of CONTROL_NAV) {
-    const visible = await page.getByText(item.label, { exact: true }).first().isVisible();
+  const nav = page.getByRole("navigation", { name: "Mission Control views" });
+  for (const item of MISSION_HOME_LINKS) {
+    const visible = await nav.getByRole("link", { name: item.label }).first().isVisible();
     if (!visible) missing.push(item.label);
   }
   checks.push({
     check: "1-nav-labels",
     result: missing.length === 0 ? "PASS" : "FAIL",
-    detail: missing.length === 0 ? `${CONTROL_NAV.length} labels visible` : `missing: ${missing.join(", ")}`,
+    detail: missing.length === 0 ? `${MISSION_HOME_LINKS.length} labels visible` : `missing: ${missing.join(", ")}`,
   });
 
   checks.push({

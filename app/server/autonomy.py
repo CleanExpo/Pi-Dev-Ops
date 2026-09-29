@@ -845,7 +845,7 @@ async def _run_poller_iteration(
     log.info("Autonomy poll #%d", _poll_count)
 
     try:
-        issues = fetch_todo_issues(config.LINEAR_API_KEY)
+        issues = await asyncio.to_thread(fetch_todo_issues, config.LINEAR_API_KEY)
     except Exception as exc:
         log.error("Autonomy poll #%d: fetch failed: %s", _poll_count, exc)
         _log_event({"action": "poll_error", "poll": _poll_count, "error": str(exc)})

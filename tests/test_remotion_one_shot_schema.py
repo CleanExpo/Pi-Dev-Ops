@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REMOTION = ROOT / "remotion-studio"
+TSX_COMMAND = ["node", "--import", "tsx"] if (REMOTION / "node_modules" / "tsx").is_dir() else ["npx", "tsx"]
 
 
 def test_one_shot_brief_schema_defines_required_fields():
@@ -39,8 +40,7 @@ def test_one_shot_dry_run_generates_packet_without_tts(tmp_path):
 
     result = subprocess.run(
         [
-            "npx",
-            "tsx",
+            *TSX_COMMAND,
             "render/one-shot.ts",
             f"--brief={json.dumps(brief)}",
             "--jobId=test-synthex-one-shot",
@@ -49,8 +49,7 @@ def test_one_shot_dry_run_generates_packet_without_tts(tmp_path):
         ],
         cwd=REMOTION,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         timeout=60,
         check=False,
     )

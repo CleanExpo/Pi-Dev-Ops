@@ -1,6 +1,7 @@
 # WP-02 — Mission Control browser suite against the DEPLOYED dashboard.
 # docs/plans/mission-control/work-packages.md. Signs in with the real login
-# route and writes one JSON receipt per surface (MC control-set checks 1, 2, 4).
+# route and writes one JSON receipt per surface: MC checks 1, 2, 4 (WP-06) at
+# desktop and phone size (check 9), plus Level 2 checks 5, 6, 8 (WP-09).
 # Without DASHBOARD_PASSWORD it reports NOT_RUN and fails loudly — a missing
 # secret must never look like a passing suite (RA-7832).
 name: Mission Control live
@@ -26,7 +27,9 @@ jobs:
   live:
     name: Live browser suite
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 58 tests, one at a time, against the live site. 20 was cut off after
+    # 11 tests on the first live run (36527748153); public-repo minutes are free.
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: dashboard
@@ -35,6 +38,11 @@ jobs:
       DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
     steps:
       - name: Require the sign-in secret
+        # Runs before checkout, so the job's default working directory
+        # (dashboard/) does not exist yet; without this the step died with
+        # "No such file or directory" whether or not the secret was set, and
+        # every run read as NOT_RUN (found 29 Sept, runs 36527100226..36527630700).
+        working-directory: .
         run: |
           if [ -z "${DASHBOARD_PASSWORD}" ]; then
             echo "## Mission Control live: NOT_RUN" >> "$GITHUB_STEP_SUMMARY"
@@ -59,7 +67,21 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run live suite
+        id: suite
         run: npx playwright test --config playwright.live.config.ts
+
+      # WP-11: grade this run by docs/plans/mission-control/aaa-rating.md and
+      # publish one row per surface (level + what blocks the next level) on the
+      # run's summary page. Runs even when the suite fails — that is when the
+      # scorecard matters. Not a gate: the grade is the output.
+      - name: Score the run
+        # Not when the secret check stopped the job: then nothing was checked
+        # out or run, and NOT_RUN in the summary is the whole story.
+        if: always() && steps.suite.outcome != 'skipped'
+        working-directory: .
+        run: |
+          python3 scripts/mission_control_scorecard.py dashboard/e2e-live-receipts \
+            --json dashboard/e2e-live-receipts/scorecard.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload receipts
         if: always()

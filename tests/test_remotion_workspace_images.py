@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REMOTION = ROOT / "remotion-studio"
+TSX_COMMAND = ["node", "--import", "tsx"] if (REMOTION / "node_modules" / "tsx").is_dir() else ["npx", "tsx"]
 
 
 def test_one_shot_accepts_image_provider_and_scene_assets(tmp_path):
@@ -32,8 +33,7 @@ def test_one_shot_accepts_image_provider_and_scene_assets(tmp_path):
 
     result = subprocess.run(
         [
-            "npx",
-            "tsx",
+            *TSX_COMMAND,
             "render/one-shot.ts",
             f"--brief={json.dumps(brief)}",
             "--jobId=test-image-workspace",
@@ -42,8 +42,7 @@ def test_one_shot_accepts_image_provider_and_scene_assets(tmp_path):
         ],
         cwd=REMOTION,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         timeout=60,
         check=False,
     )

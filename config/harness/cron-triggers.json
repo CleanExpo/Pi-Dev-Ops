@@ -199,6 +199,7 @@
     "type": "zte_v2_score",
     "name": "ZTE v2 Section C scorer \u2014 daily 03:00 UTC",
     "script": "scripts/zte_v2_score.py",
+    "output": ".harness/zte-v2-score.json",
     "hour": 3,
     "minute": 0,
     "enabled": true,

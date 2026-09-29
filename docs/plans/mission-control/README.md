@@ -19,6 +19,7 @@ How it fits, and what the packet replaced here, is in
   [promise-register.md](promise-register.md) (33 promises the screens make, 0 proven yet),
   [handoff.json](handoff.json). The /spm v2.0 mission design is adopted as this track's entry
   point in [adoption.md O10–O17](../nexus-release-harness/adoption.md).
+- **Local candidate after this plan:** [jev-shadow-runner.md](jev-shadow-runner.md) documents a synthetic `/control` browser receipt, offline replay and synthetic-only shadow script. It does not complete WP-10 or provide production evidence.
 - **Fixed in this change:** two screens that could never have worked — `/control/margot` and the
   live detail on `/control/pipeline` — because the dashboard's proxy refused every call they made.
 - **Grade today:** ungraded — below Level 1 of the MC control set. Not because pages are known broken, but because no test has
