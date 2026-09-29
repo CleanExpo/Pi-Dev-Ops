@@ -1,6 +1,6 @@
 ---
 name: unite-group-ci-recovery
-description: How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG, RestoreAssist, ATO, CARSI, CCW-CRM, Unite-Hub, synthex-mcp-app) without falling into the same CI / Vercel / Supabase / convention traps every session. Captures the recurring failure modes I hit 2026-05-25 across PRs #295–#299 so future agents don't relearn them.
+description: How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG, RestoreAssist, ATO, CARSI, CCW-CRM, Unite-Hub, synthex-mcp-app) without falling into the same CI / Vercel / Supabase / convention traps every session. Captures the recurring failure modes I hit 2026-05-25 across PRs 295–299 so future agents don't relearn them.
 ---
 
 # Unite-Group CI Recovery Playbook
