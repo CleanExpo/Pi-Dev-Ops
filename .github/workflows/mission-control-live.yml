@@ -36,6 +36,11 @@ jobs:
       DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
     steps:
       - name: Require the sign-in secret
+        # Runs before checkout, so the job's default working directory
+        # (dashboard/) does not exist yet; without this the step died with
+        # "No such file or directory" whether or not the secret was set, and
+        # every run read as NOT_RUN (found 29 Sept, runs 36527100226..36527630700).
+        working-directory: .
         run: |
           if [ -z "${DASHBOARD_PASSWORD}" ]; then
             echo "## Mission Control live: NOT_RUN" >> "$GITHUB_STEP_SUMMARY"
@@ -60,7 +65,21 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run live suite
+        id: suite
         run: npx playwright test --config playwright.live.config.ts
+
+      # WP-11: grade this run by docs/plans/mission-control/aaa-rating.md and
+      # publish one row per surface (level + what blocks the next level) on the
+      # run's summary page. Runs even when the suite fails — that is when the
+      # scorecard matters. Not a gate: the grade is the output.
+      - name: Score the run
+        # Not when the secret check stopped the job: then nothing was checked
+        # out or run, and NOT_RUN in the summary is the whole story.
+        if: always() && steps.suite.outcome != 'skipped'
+        working-directory: .
+        run: |
+          python3 scripts/mission_control_scorecard.py dashboard/e2e-live-receipts \
+            --json dashboard/e2e-live-receipts/scorecard.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload receipts
         if: always()

@@ -1,0 +1,180 @@
+"""WP-11 — Mission Control scorecard from one live-suite run's receipts.
+
+Applies docs/plans/mission-control/aaa-rating.md to the JSON receipts written by
+dashboard/e2e-live/ (WP-02, WP-06, WP-09): each surface gets the highest level
+whose every check is met, and Mission Control gets the LOWEST surface level.
+
+A check is met only on evidence. A check the suite does not measure yet, or a
+receipt that is missing, is UNMET ("not measured") — never a pass. N/A (a
+check that cannot apply, e.g. check 5 on a server-rendered page) counts as met.
+
+Usage:
+    python3 scripts/mission_control_scorecard.py <receipts-dir> [--json out.json]
+Prints a Markdown table (for $GITHUB_STEP_SUMMARY). Exit code is always 0 when
+the receipts were read: the grade is the output, not a pass/fail gate.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+# Surfaces with write actions (work-packages.md WP-07). Checks 3 and 12 apply
+# only to these; for every other surface they are N/A.
+WRITE_SURFACES = {"MC-01", "MC-02", "MC-03", "MC-05", "MC-07", "MC-10", "MC-11"}
+SURFACES = [f"MC-{n:02d}" for n in range(20)]
+
+LEVELS: dict[int, list[str]] = {1: ["1", "2", "3", "4"], 2: ["5", "6", "7", "8", "9"], 3: ["10", "11", "12", "13"]}
+
+# Checks the suite does not measure yet, and why. Each is UNMET until a
+# receipt carries it; the reason is what the scorecard prints.
+NOT_MEASURED = {
+    "1": "real-data assertion not built (WP-06 checks the landmark only)",
+    "3": "write journeys not built (WP-07)",
+    "7": "component-test coverage is not read into receipts yet",
+    "10": "needs three consecutive scheduled runs; one run is scored here",
+    "11": "register / ticket state is not read into receipts yet",
+    "12": "label-honesty assertions not built (WP-07)",
+}
+
+
+@dataclass
+class Verdict:
+    met: bool
+    reason: str = ""
+
+
+def load_receipts(folder: Path) -> dict[str, dict]:
+    """Receipt file stem -> parsed receipt. Unreadable files are skipped loudly."""
+    out: dict[str, dict] = {}
+    for path in sorted(folder.glob("*.json")):
+        try:
+            out[path.stem] = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"warning: unreadable receipt {path.name}: {exc}", file=sys.stderr)
+    return out
+
+
+def receipts_for(surface: str, receipts: dict[str, dict]) -> dict[str, dict]:
+    """Split one surface's receipts into desktop / phone / l2."""
+    found: dict[str, dict] = {}
+    for stem, body in receipts.items():
+        sid = "MC-00" if stem.startswith("control-hub") else stem[:5]
+        if sid != surface:
+            continue
+        kind = "phone" if "@phone" in stem else "l2" if re.search(r"-L2($|@)", stem) else "desktop"
+        found[kind] = body
+    return found
+
+
+def _checks(receipt: dict | None, prefix: str) -> list[dict]:
+    if not receipt:
+        return []
+    return [c for c in receipt.get("checks", []) if str(c.get("check", "")).startswith(prefix)]
+
+
+def _all_pass(checks: list[dict], what: str, allow_na: bool = False) -> Verdict:
+    if not checks:
+        return Verdict(False, f"{what}: no result in receipt")
+    ok = {"PASS", "N/A"} if allow_na else {"PASS"}
+    bad = [c for c in checks if c.get("result") not in ok]
+    if bad:
+        first = bad[0]
+        return Verdict(False, f"{first.get('check')} {first.get('result')}: {str(first.get('detail', ''))[:120]}")
+    return Verdict(True)
+
+
+def judge(check: str, surface: str, got: dict[str, dict], deployed_sha: str | None) -> Verdict:
+    """Is aaa-rating.md check <check> met for <surface>, on this run's receipts?"""
+    if check in ("3", "12") and surface not in WRITE_SURFACES:
+        return Verdict(True, "N/A — no write actions")
+    if check in NOT_MEASURED:
+        return Verdict(False, f"not measured: {NOT_MEASURED[check]}")
+    desktop, phone, l2 = got.get("desktop"), got.get("phone"), got.get("l2")
+    if check == "2":
+        return _all_pass(_checks(desktop, "2-"), "check 2")
+    if check == "4":
+        return Verdict(bool(desktop), "" if desktop else "no receipt for this surface")
+    if check in ("5", "6", "8"):
+        if surface == "MC-00":
+            return Verdict(False, "not measured: the hub has no Level 2 run (level2.spec.ts covers MC-01..19)")
+        return _all_pass(_checks(l2, f"{check}-"), f"check {check}", allow_na=(check == "5"))
+    if check == "9":
+        if surface == "MC-00":
+            return Verdict(False, "not measured: phone run excludes the hub nav check")
+        return _all_pass(_checks(phone, "1-") + _checks(phone, "2-"), "check 9 (phone)")
+    if check == "13":
+        if not deployed_sha:
+            return Verdict(False, "receipt names no deployed SHA (MC_LIVE_SHA unset)")
+        return Verdict(True)
+    return Verdict(False, f"unknown check {check}")
+
+
+def score_surface(surface: str, receipts: dict[str, dict]) -> dict:
+    """Highest level whose every check (and every lower level's) is met."""
+    got = receipts_for(surface, receipts)
+    sha = (got.get("desktop") or {}).get("deployed_sha")
+    verdicts = {c: judge(c, surface, got, sha) for lvl in (1, 2, 3) for c in LEVELS[lvl]}
+    level, blocker = 0, ""
+    for lvl in (1, 2, 3):
+        misses = [c for c in LEVELS[lvl] if not verdicts[c].met]
+        if misses:
+            blocker = f"check {misses[0]}: {verdicts[misses[0]].reason}"
+            break
+        level = lvl
+    # Measured failures are reported even above the blocking level, so a check
+    # that is not measured yet cannot hide one that ran and failed.
+    failed = [f"{c}: {v.reason}" for c, v in verdicts.items() if not v.met and not v.reason.startswith("not measured")]
+    return {
+        "surface": surface,
+        "level": level,
+        "blocked_by": blocker,
+        "measured_failures": failed,
+        "checks": {c: {"met": v.met, "reason": v.reason} for c, v in verdicts.items()},
+        "receipts": sorted(got),
+    }
+
+
+def build_scorecard(receipts: dict[str, dict]) -> dict:
+    rows = [score_surface(s, receipts) for s in SURFACES]
+    return {"mission_control_level": min(r["level"] for r in rows), "surfaces": rows}
+
+
+def to_markdown(card: dict) -> str:
+    lvl = card["mission_control_level"]
+    grade = f"Level {lvl}" if lvl else "below Level 1 (ungraded)"
+    lines = [
+        f"## Mission Control scorecard — {grade}",
+        "",
+        "Mission Control's level is its lowest surface (aaa-rating.md). "
+        "A check with no evidence is not met.",
+        "",
+        "| Surface | Level | Blocking the next level | Measured failures |",
+        "|---|---|---|---|",
+    ]
+    for r in card["surfaces"]:
+        failed = "<br>".join(r["measured_failures"]) or "—"
+        lines.append(f"| {r['surface']} | {r['level']} | {r['blocked_by'] or '—'} | {failed} |")
+    return "\n".join(lines) + "\n"
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("receipts", type=Path)
+    ap.add_argument("--json", type=Path, help="also write the scorecard as JSON here")
+    args = ap.parse_args(argv)
+    if not args.receipts.is_dir():
+        print(f"error: {args.receipts} is not a directory", file=sys.stderr)
+        return 2
+    card = build_scorecard(load_receipts(args.receipts))
+    if args.json:
+        args.json.write_text(json.dumps(card, indent=2) + "\n", encoding="utf-8")
+    sys.stdout.write(to_markdown(card))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
