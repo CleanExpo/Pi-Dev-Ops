@@ -110,6 +110,7 @@ export default function SwarmPanel() {
         </h2>
         {data && (
           <span
+            data-mc-data={data.state && data.state !== "UNKNOWN" ? "swarm-state" : undefined}
             className="text-[10px] font-mono uppercase px-2 py-0.5 rounded"
             style={{
               color: STATE_COLOUR[data.state],
@@ -196,6 +197,7 @@ export default function SwarmPanel() {
               </div>
               {data.last_pr_url ? (
                 <a
+                  data-mc-data="last-autonomous-pr"
                   href={data.last_pr_url}
                   target="_blank"
                   rel="noopener noreferrer"

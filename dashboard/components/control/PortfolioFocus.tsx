@@ -96,6 +96,7 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
               const activityLabel = activityError ? "activity unknown" : active ? "work observed" : "no active work observed";
               return (
                 <button
+                  data-mc-data="project"
                   type="button"
                   key={`${project.project_id}-${index}`}
                   className={`${styles.card} ${raised ? styles.raised : ""}`}

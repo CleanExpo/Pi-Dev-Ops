@@ -188,7 +188,7 @@ export function ProviderUsageCockpit() {
             <span>{payload.summary.unknown} unknown</span>
           </div>
 
-          <div>
+          <div data-mc-data={error ? undefined : "provider-usage"}>
             {payload.providers.map((p) => (
               <ProviderMeter key={p.id} provider={p} />
             ))}

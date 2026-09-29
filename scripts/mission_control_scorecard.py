@@ -32,7 +32,6 @@ LEVELS: dict[int, list[str]] = {1: ["1", "2", "3", "4"], 2: ["5", "6", "7", "8",
 # Checks the suite does not measure yet, and why. Each is UNMET until a
 # receipt carries it; the reason is what the scorecard prints.
 NOT_MEASURED = {
-    "1": "real-data assertion not built (WP-06 checks the landmark only)",
     "3": "write journeys not built (WP-07)",
     "7": "component-test coverage is not read into receipts yet",
     "10": "needs three consecutive scheduled runs; one run is scored here",
@@ -94,6 +93,12 @@ def judge(check: str, surface: str, got: dict[str, dict], deployed_sha: str | No
     if check in NOT_MEASURED:
         return Verdict(False, f"not measured: {NOT_MEASURED[check]}")
     desktop, phone, l2 = got.get("desktop"), got.get("phone"), got.get("l2")
+    if check == "1":
+        # Only a receipt carrying the real-data assertion measures check 1; the
+        # landmark and settled checks alone pass on an empty or placeholder page.
+        if not any(c.get("check") == "1-real-data" for c in _checks(desktop, "1-")):
+            return Verdict(False, "not measured: receipt has no 1-real-data result")
+        return _all_pass(_checks(desktop, "1-"), "check 1")
     if check == "2":
         return _all_pass(_checks(desktop, "2-"), "check 2")
     if check == "4":

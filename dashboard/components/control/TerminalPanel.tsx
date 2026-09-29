@@ -117,7 +117,7 @@ export default function TerminalPanel() {
       </div>
 
       {sessions.length === 0 ? (
-        <p className="text-xs text-neutral-400">
+        <p className="text-xs text-neutral-400" data-mc-empty={err ? undefined : "the Railway node runs no tmux sessions"}>
           {err ? `No sessions — ${err}` : "No tmux sessions on this node."}
         </p>
       ) : (
@@ -125,6 +125,7 @@ export default function TerminalPanel() {
           <div className="mb-3 flex flex-wrap gap-2">
             {sessions.map((s) => (
               <button
+                data-mc-data={err ? undefined : "tmux-session"}
                 key={s.name}
                 onClick={() => {
                   setSelected(s.name);
