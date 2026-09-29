@@ -626,9 +626,8 @@ def _live_session_ids(sessions: dict) -> set[str]:
 def _is_pi_ceo_orphan(issue: dict, live_session_ids: set[str]) -> bool:
     """True iff the issue was claimed by Pi-CEO but its session is gone.
 
-    Detection: scan last 5 comments for the Pi-CEO session-start marker
-    `Session ID: `<id>``. If any session_id referenced is NOT in live_session_ids,
-    the ticket is orphaned (previous session died; nothing is working on it now).
+    Scan the supplied comments for `Session ID: `<id>`` markers. A ticket is
+    orphaned when none of its referenced sessions remains live.
     """
     comments = (issue.get("comments") or {}).get("nodes", [])
     referenced_ids: list[str] = []

@@ -25,6 +25,23 @@ def recovery_comment_present(issue: dict, gql, api_key: str, marker: str) -> boo
         connection = (data.get("issue") or {}).get("comments") or {}
 
 
+def issue_with_all_comments(issue: dict, gql, api_key: str) -> dict:
+    """Load target-ticket comments before deciding whether its session is gone."""
+    connection = issue.get("comments") or {}
+    comments = list(connection.get("nodes") or [])
+    seen_cursors: set[str] = set()
+    while (connection.get("pageInfo") or {}).get("hasNextPage"):
+        cursor = connection["pageInfo"].get("endCursor")
+        if not cursor or cursor in seen_cursors:
+            raise RuntimeError("Linear comment pagination did not advance")
+        seen_cursors.add(cursor)
+        data = gql(api_key, _COMMENT_PAGE_QUERY,
+                   {"issueId": issue["id"], "after": cursor})
+        connection = (data.get("issue") or {}).get("comments") or {}
+        comments.extend(connection.get("nodes") or [])
+    return {**issue, "comments": {"nodes": comments}}
+
+
 def issue_pages(gql, api_key: str, query: str, variables: dict,
                 *, paginate: bool):
     """Yield target-state pages; started-state scans retain their original bound."""
@@ -43,7 +60,7 @@ def issue_pages(gql, api_key: str, query: str, variables: dict,
         seen_cursors.add(cursor)
         variables = {**variables, "after": cursor}
     for page in pages:
-        yield page
+        yield [issue_with_all_comments(issue, gql, api_key) for issue in page] if paginate else page
 
 
 def orphan_completion(issue: dict, label_name: str, marker: str) -> tuple[bool, bool]:

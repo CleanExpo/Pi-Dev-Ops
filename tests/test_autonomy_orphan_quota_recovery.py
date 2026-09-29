@@ -133,6 +133,36 @@ def test_retry_finds_recovery_comment_after_first_five(monkeypatch):
     assert [e["action"] for e in scenario.events].count("orphan_recovered") == 1
 
 
+def test_target_scan_reads_session_marker_on_later_comment_page(monkeypatch):
+    scenario = OrphanScenario("never")
+    scenario.issue["state"] = {"name": scenario.target, "type": "unstarted"}
+    scenario.issue["labels"]["nodes"] = [{"name": autonomy._BLOCKED_REASON_SESSION_LOST}]
+    scenario.issue["comments"]["nodes"] = [
+        {"body": f"older comment {i}"} for i in range(5)
+    ] + [{"body": "Session ID: `abc12345abcd`"}]
+    scenario.install(monkeypatch)
+    cursors = []
+
+    def gql(_key, query, variables):
+        if "OrphanCommentPage" in query:
+            cursors.append(variables["after"])
+            return {"issue": {"comments": {"nodes": scenario.issue["comments"]["nodes"][5:],
+                    "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
+        nodes = [scenario.issue] if "RecoveryTargetPiCeoIssues" in query else []
+        item = {**scenario.issue, "comments": {
+            "nodes": scenario.issue["comments"]["nodes"][:5],
+            "pageInfo": {"hasNextPage": True, "endCursor": "comment-5"}}}
+        return {"project": {"issues": {"nodes": [item] if nodes else []}}}
+
+    monkeypatch.setattr(autonomy, "_gql", gql)
+    autonomy._orphan_recovery_sync("test-key")
+    assert cursors == ["comment-5"]
+    assert scenario.calls == ["comment"]
+    assert [event["action"] for event in scenario.events] == ["orphan_recovered"]
+    assert sum(autonomy._ORPHAN_COMMENT_MARKER in node["body"]
+               for node in scenario.issue["comments"]["nodes"]) == 1
+
+
 def test_target_scan_finds_partial_ticket_on_second_page(monkeypatch):
     scenario = OrphanScenario("never")
     scenario.issue["state"] = {"name": scenario.target, "type": "unstarted"}
