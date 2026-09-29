@@ -243,10 +243,16 @@ def test_a_failed_multi_turn_attempt_keeps_its_reservation_and_the_retry_still_f
 
 def test_a_fallback_call_is_reserved_and_settled_at_its_own_models_price():
     cheap = gemini.CHAIN[3]
-    fake = FakeGemini([ftext("hi")], counts=[(404, None)] * 3 + [(200, {"totalTokens": 100})])
-    b = budget()
+    inner = FakeGemini([ftext("hi")], counts=[(404, None)] * 3 + [(200, {"totalTokens": 100})])
+    b, in_flight = budget(), []
+
+    def fake(url, payload, headers, timeout):
+        if url.endswith(":generateContent"):
+            in_flight.append(b.spent)  # settle reprices afterwards, so the reservation is only visible here
+        return inner(url, payload, headers, timeout)
     assert "data" in gemini.call(BODY, KEY, b, fake, **NO_SLEEP) and b.model == cheap
     p = gemini.PRICES[cheap]
+    assert in_flight == [pytest.approx(100 * p["in"] + gemini.MAX_OUTPUT_TOKENS * p["out"])]
     assert b.spent == pytest.approx(100 * p["in"] + 30 * p["out"])
 
 
