@@ -43,7 +43,6 @@ LEVELS: dict[int, list[str]] = {1: ["1", "2", "3", "4"], 2: ["5", "6", "7", "8",
 # receipt carries it; the reason is what the scorecard prints.
 NOT_MEASURED = {
     "3": "write journeys not built (WP-07)",
-    "11": "register / ticket state is not read into receipts yet",
     "12": "label-honesty assertions not built (WP-07)",
 }
 
@@ -72,7 +71,7 @@ def receipts_for(surface: str, receipts: dict[str, dict]) -> dict[str, dict]:
         sid = "MC-00" if stem.startswith("control-hub") else stem[:5]
         if sid != surface:
             continue
-        kind = ("c7" if stem.endswith("-C7") else "phone" if "@phone" in stem
+        kind = ("c7" if stem.endswith("-C7") else "c11" if stem.endswith("-C11") else "phone" if "@phone" in stem
                 else "l2" if re.search(r"-L2($|@)", stem) else "desktop")
         found[kind] = body
     return found
@@ -108,6 +107,24 @@ def suite_passed(surface: str, got: dict[str, dict]) -> bool:
     return all(c.get("result") in ("PASS", "N/A") for k in kinds for c in got[k].get("checks", []))
 
 
+def _judge_register(receipt: dict | None) -> Verdict:
+    """Check 11 from scripts/mission_control_register.py receipts.
+
+    A measured FAIL is reported even when the other half is UNKNOWN; UNKNOWN
+    alone (Linear not read) is "not measured", never a pass.
+    """
+    checks = _checks(receipt, "11-")
+    if {c.get("check") for c in checks} != {"11-register", "11-tickets"}:
+        return Verdict(False, "not measured: no complete register receipt for this surface")
+    failed = [c for c in checks if c.get("result") == "FAIL"]
+    if failed:
+        return Verdict(False, f"{failed[0]['check']} FAIL: {str(failed[0].get('detail', ''))[:120]}")
+    unknown = [c for c in checks if c.get("result") != "PASS"]
+    if unknown:
+        return Verdict(False, f"not measured: {str(unknown[0].get('detail', ''))[:120]}")
+    return Verdict(True)
+
+
 def judge(check: str, surface: str, got: dict[str, dict], deployed_sha: str | None) -> Verdict:
     """Is aaa-rating.md check <check> met for <surface>, on this run's receipts?"""
     if check in ("3", "12") and surface not in WRITE_SURFACES:
@@ -138,6 +155,8 @@ def judge(check: str, surface: str, got: dict[str, dict], deployed_sha: str | No
         if not got.get("c7"):
             return Verdict(False, "not measured: no panel-coverage receipt for this surface")
         return _all_pass(_checks(got.get("c7"), "7-"), "check 7")
+    if check == "11":
+        return _judge_register(got.get("c11"))
     if check == "13":
         if not deployed_sha:
             return Verdict(False, "receipt names no deployed SHA (MC_LIVE_SHA unset)")
