@@ -57,3 +57,18 @@ def record_recovery_success(log_event, pending: set[str], iid: str, ident: str,
                "transition": target, "reason_label": reason,
                "label_attached": label_ok})
     pending.discard(iid)
+
+
+def transition_orphan_issue(transition_issue, log_event, log, api_key: str,
+                            iid: str, ident: str, team_id: str, target: str) -> bool:
+    try:
+        transition_issue(api_key, iid, target, team_id=team_id)
+    except RuntimeError as exc:
+        if "not found" not in str(exc).lower():
+            raise
+        log.warning("orphan-recovery: state '%s' missing on team %s for %s — skipping",
+                    target, team_id, ident)
+        log_event({"action": "orphan_recovery_state_missing", "ticket": ident,
+                   "team_id": team_id, "target_state": target, "error": str(exc)})
+        return False
+    return True

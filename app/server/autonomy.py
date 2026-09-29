@@ -49,6 +49,7 @@ from app.server.autonomy_eligibility import (
 from .autonomy_orphan_queries import _IN_PROGRESS_QUERY, _RECOVERY_TARGET_QUERY
 from .autonomy_orphan_support import (
     issue_pages, orphan_completion, recovery_comment_present, record_recovery_success,
+    transition_orphan_issue,
 )
 from .autonomy_linear_rate import (
     LinearRateLimitError,
@@ -656,11 +657,9 @@ def _orphan_completion(issue: dict) -> tuple[bool, bool]:
     return orphan_completion(issue, _BLOCKED_REASON_SESSION_LOST, _ORPHAN_COMMENT_MARKER)
 
 
-def _comment_on_orphan(api_key: str, iid: str, team_id: str, target_state: str,
-                       issue: dict) -> tuple[bool, bool]:
-    labelled, _ = _orphan_completion(issue)
-    label_ok = labelled or add_label_to_issue(api_key, iid, team_id, _BLOCKED_REASON_SESSION_LOST)
-    changed = not labelled and label_ok
+def _comment_on_orphan(api_key: str, iid: str, target_state: str,
+                       issue: dict, label_ok: bool) -> bool:
+    changed = False
     if not recovery_comment_present(issue, _gql, api_key, _ORPHAN_COMMENT_MARKER):
         comment_on_issue(
             api_key, iid,
@@ -675,7 +674,7 @@ def _comment_on_orphan(api_key: str, iid: str, team_id: str, target_state: str,
             "state, then move back to `Ready for Pi-Dev` to re-queue.",
         )
         changed = True
-    return label_ok, changed
+    return changed
 
 
 def _recover_orphan_issue(api_key: str, project: dict, issue: dict) -> int:
@@ -689,19 +688,14 @@ def _recover_orphan_issue(api_key: str, project: dict, issue: dict) -> int:
             return 1
         return 0
     try:
-        try:
-            if not already_target:
-                transition_issue(api_key, iid, target_state, team_id=team_id)
-        except RuntimeError as exc:
-            if "not found" not in str(exc).lower():
-                raise
-            log.warning("orphan-recovery: state '%s' missing on team %s for %s — skipping",
-                        target_state, team_id, ident)
-            _log_event({"action": "orphan_recovery_state_missing", "ticket": ident,
-                        "team_id": team_id, "target_state": target_state, "error": str(exc)})
+        labelled, _ = _orphan_completion(issue)
+        label_ok = labelled or add_label_to_issue(api_key, iid, team_id,
+                                                  _BLOCKED_REASON_SESSION_LOST)
+        if not already_target and not transition_orphan_issue(
+                transition_issue, _log_event, log, api_key, iid, ident, team_id, target_state):
             return 0
-        label_ok, changed = _comment_on_orphan(api_key, iid, team_id, target_state, issue)
-        if not already_target or changed or iid in _pending_orphan_recoveries:
+        changed = _comment_on_orphan(api_key, iid, target_state, issue, label_ok)
+        if not already_target or not labelled or changed or iid in _pending_orphan_recoveries:
             log.info("orphan-recovery: transitioned %s to %s (session-lost)", ident, target_state)
             record_recovery_success(_log_event, _pending_orphan_recoveries, iid, ident,
                                     target_state, _BLOCKED_REASON_SESSION_LOST, label_ok)
@@ -741,10 +735,15 @@ def _orphan_recovery_sync(api_key: str) -> None:
                     for issue in nodes:
                         if issue["id"] in seen:
                             continue
-                        seen.add(issue["id"])
                         checked += 1
                         if not _is_pi_ceo_orphan(issue, live_ids):
                             continue
+                        if (query == _RECOVERY_TARGET_QUERY
+                                and not _orphan_completion(issue)[0]
+                                and not recovery_comment_present(
+                                    issue, _gql, api_key, _ORPHAN_COMMENT_MARKER)):
+                            continue
+                        seen.add(issue["id"])
                         reverted += _recover_orphan_issue(api_key, p, issue)
             except LinearRateLimitError:
                 raise

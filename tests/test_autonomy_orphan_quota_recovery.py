@@ -134,6 +134,7 @@ def test_retry_finds_recovery_comment_after_first_five(monkeypatch):
 def test_target_scan_finds_partial_ticket_on_second_page(monkeypatch):
     scenario = OrphanScenario("never")
     scenario.issue["state"] = {"name": scenario.target, "type": "unstarted"}
+    scenario.issue["labels"]["nodes"] = [{"name": autonomy._BLOCKED_REASON_SESSION_LOST}]
     scenario.install(monkeypatch)
     complete = [{"id": f"done-{i}", "identifier": f"RA-{i + 2}",
                  "state": {"name": scenario.target},
@@ -157,7 +158,18 @@ def test_target_scan_finds_partial_ticket_on_second_page(monkeypatch):
     monkeypatch.setattr(autonomy, "_gql", gql)
     autonomy._orphan_recovery_sync("test-key")
     assert cursors == [None, "issue-30"]
-    assert scenario.calls == ["label", "comment"]
+    assert scenario.calls == ["comment"]
     assert [n["name"] for n in scenario.issue["labels"]["nodes"]] == [
         autonomy._BLOCKED_REASON_SESSION_LOST]
     assert [e["action"] for e in scenario.events] == ["orphan_recovered"]
+
+
+def test_manual_target_state_with_old_session_is_not_recovered(monkeypatch):
+    scenario = OrphanScenario("never")
+    scenario.issue["state"] = {"name": scenario.target, "type": "unstarted"}
+    scenario.issue["labels"]["nodes"] = [{"name": "manual-reset"}]
+    scenario.install(monkeypatch)
+    autonomy._orphan_recovery_sync("test-key")
+    assert scenario.calls == []
+    assert scenario.issue["labels"]["nodes"] == [{"name": "manual-reset"}]
+    assert scenario.events == []
