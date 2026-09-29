@@ -16,7 +16,9 @@ How it fits, and what the packet replaced here, is in
   [aaa-rating.md](aaa-rating.md) (the MC control set — the pass/fail checks the portfolio AAA rubric scores),
   [work-packages.md](work-packages.md) (12 ordered steps, plus the packet's P-chain),
   [jev-decision-contracts.md](jev-decision-contracts.md) (exactly what Jev is asked),
-  [handoff.json](handoff.json).
+  [promise-register.md](promise-register.md) (33 promises the screens make, 0 proven yet),
+  [handoff.json](handoff.json). The /spm v2.0 mission design is adopted as this track's entry
+  point in [adoption.md O10–O17](../nexus-release-harness/adoption.md).
 - **Fixed in this change:** two screens that could never have worked — `/control/margot` and the
   live detail on `/control/pipeline` — because the dashboard's proxy refused every call they made.
 - **Grade today:** ungraded — below Level 1 of the MC control set. Not because pages are known broken, but because no test has
