@@ -19,7 +19,7 @@ export const STATUS_ICON: Record<string, string> = {
 };
 
 export const ROUTINES_LIST_NOTE =
-  "Cron outcomes — same list as Control → Runs.";
+  "Runs reported to the routine-complete webhook — same list as Control → Runs.";
 
 export const TRIGGER_LABEL: Record<string, string> = {
   api:      "API",
