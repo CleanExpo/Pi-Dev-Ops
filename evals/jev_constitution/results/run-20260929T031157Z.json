@@ -1,0 +1,61 @@
+{
+  "model": "jev-latest",
+  "scored": {
+    "ch3-4-27": {
+      "n": 1256,
+      "errors": 0,
+      "abstain": 12,
+      "correct": 1252,
+      "missed_violations": 2,
+      "false_alarms": 2,
+      "by_class": {
+        "arithmetic": {
+          "n": 126,
+          "correct": 125
+        },
+        "dates": {
+          "n": 125,
+          "correct": 124
+        },
+        "indirection": {
+          "n": 125,
+          "correct": 125
+        },
+        "irrelevant_context": {
+          "n": 126,
+          "correct": 126
+        },
+        "adversarial": {
+          "n": 126,
+          "correct": 126
+        },
+        "normal": {
+          "n": 628,
+          "correct": 626
+        }
+      },
+      "accuracy": 0.9968,
+      "by_threshold": {
+        "0.5": {
+          "missed_violations": 2,
+          "false_alarms": 2
+        },
+        "0.7": {
+          "missed_violations": 1,
+          "false_alarms": 31
+        },
+        "0.9": {
+          "missed_violations": 0,
+          "false_alarms": 285
+        },
+        "0.95": {
+          "missed_violations": 0,
+          "false_alarms": 476
+        }
+      },
+      "median_latency_s": 0.31
+    }
+  },
+  "refused": {},
+  "limit": 0
+}
