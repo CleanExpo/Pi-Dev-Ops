@@ -81,7 +81,7 @@ MUTANTS = [
     ("gemini.py", "                self.thoughts += t", "                self.thoughts += 0"),
     ("gemini.py", "    budget.add_thoughts(usage)\n", "\n"),
     # rev 6d: provider input ceiling for multi-turn, price check before every send, malformed thinking
-    ("gemini.py", "reserve_generate(INPUT_TOKEN_LIMIT[model] if multi_turn else counted)", "reserve_generate(bound)"),
+    ("gemini.py", "reserve_generate(INPUT_TOKEN_LIMIT[model] if multi_turn else counted, price)", "reserve_generate(bound, price)"),
     ("gemini.py", "            return expired\n        counted, problem, status", "            pass\n        counted, problem, status"),
     ("gemini.py", "            return expired\n        reserved = ", "            pass\n        reserved = "),
     ("gemini.py", "for v in (prompt, cands, thoughts))", "for v in (prompt, cands))"),
