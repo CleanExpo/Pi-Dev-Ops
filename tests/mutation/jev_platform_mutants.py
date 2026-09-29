@@ -77,7 +77,7 @@ MUTANTS = [
      "        counted, problem, status = _count(count_url, payload, headers, budget, http_post)\n"),
     # model chain: a quota refusal must advance; a locked run must never switch model
     ("gemini.py", "ADVANCE_STATUSES = (404, 429, 503)", "ADVANCE_STATUSES = ()"),
-    ("gemini.py", "models = (budget.model,) if budget.model else", "models = () if False else"),
+    ("gemini.py", "while (model := budget.model or next(", "while (model := None or next("),
     # carried thinking: the pre-send bound must include earlier thoughtsTokenCount
     ("gemini.py", "        bound = counted + carry  #", "        bound = counted  #"),
     ("gemini.py", "    carry = budget.thoughts if multi_turn else 0", "    carry = 0"),
@@ -96,7 +96,11 @@ MUTANTS = [
     ("gemini.py", "            if self.model is None:\n                self.model, self.price", "            if True:\n                self.model, self.price"),
     ("evals/jev_constitution/generate.py", "            raise WriterExhausted(f\"gemini: {sent['error']}\")", "            raise ValueError(f\"gemini: {sent['error']}\")"),
     ("evals/jev_constitution/generate.py", "        if empty >= MAX_EMPTY_ROUNDS:", "        if False:"),
-    ("gemini.py", "                budget.lock_model(model, price_table(on, model))\n", "                pass\n"),
+    ("gemini.py", "            budget.lock_model(model, price_table(on, model))\n", "            pass\n"),
+    # release review r3 P1s: a lock landing mid-call, and no-progress writer rounds
+    ("gemini.py", "            if budget.model != model:  #", "            if False:  #"),
+    ("evals/jev_constitution/generate.py", "empty = 0 if have > before else empty + 1",
+     "empty = 0 if any(t for _, t in batches) else empty + 1"),
     ("gemini.py", 'payload = json.dumps({**body, "model": f"models/{model}"}).encode()',
      "payload = json.dumps(body).encode()"),
     ("agent.py", '    ledger["agent_model"] = gem.model', '    ledger["agent_model"] = gemini.MODEL'),

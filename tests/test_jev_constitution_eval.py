@@ -88,7 +88,7 @@ def test_control_accepting_a_fake_key_stops_the_run(workspace):
 def test_under_1000_cases_is_refused_even_with_a_working_key(workspace):
     write_cases(workspace, make_cases(999 + 1)[:999])
     def post(body, key):
-        return (401, "") if key != "real" else (200, {"answers": {"q": {"noul": 1.0}}})
+        return (401, "") if key != "real" else (200, {"answers": {"q": {"type": "noul", "noul": 1.0}}})
 
     assert h.run(ARGS, env={"TYPESAFE_API_KEY": "real"}, post=post) == h.EXIT_INVALID
     report = json.loads(next((workspace / "results").iterdir()).read_text())
@@ -114,3 +114,15 @@ def test_paraphrased_rule_is_refused(workspace):
     (workspace / "questions.json").write_text(json.dumps({"questions": [{**Q, "quote_verbatim": False}]}))
     write_cases(workspace, make_cases())
     assert h.validate_all(h.load_questions())["t-01"] == ["rule quote is not verbatim in the Constitution"]
+
+
+@pytest.mark.parametrize("answer", [
+    {"type": "noul", "noul": 2.0}, {"type": "noul", "noul": -1.0}, {"type": "noul", "noul": float("nan")},
+    {"type": "noul", "noul": True}, {"type": "noul", "noul": "0.9"}, {"type": "choice", "noul": 1.0}, {"noul": 1.0},
+])
+def test_a_malformed_noul_is_an_error_never_a_judgment(answer):
+    """Release review r3 P1: out-of-range Nouls produced a perfect report instead of errors."""
+    status, noul, _ = h.ask_jev({"question": "q", "criteria_true": "t", "criteria_false": "f"}, "s", "k",
+                                post=lambda body, key: (200, {"answers": {"q": answer}}))
+    assert status == 200 and noul is None
+    assert h.score([{"label": True}], [noul])["errors"] == 1

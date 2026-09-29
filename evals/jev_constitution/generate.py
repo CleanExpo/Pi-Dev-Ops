@@ -225,8 +225,7 @@ def main(argv=None) -> int:
         batches = _round(question, write, writer, n, args.parallel)
         if batches is None:
             return 3
-        empty = 0 if any(total for _, total in batches) else empty + 1
-        n += args.parallel
+        n, before = n + args.parallel, have
         with path.open("a") as f:
             for kept, total in batches:
                 proposed += total
@@ -236,8 +235,9 @@ def main(argv=None) -> int:
                         f.write(json.dumps(c) + "\n")
                         written, have = written + 1, have + 1
         print(f"{args.question}: {have} agreed cases ({written} new of {proposed} proposed)", flush=True)
+        empty = 0 if have > before else empty + 1  # empty, duplicate-only and disagreement-only rounds all count
         if empty >= MAX_EMPTY_ROUNDS:
-            print(f"BLOCKED: {MAX_EMPTY_ROUNDS} rounds in a row proposed no case", file=sys.stderr)
+            print(f"BLOCKED: {MAX_EMPTY_ROUNDS} rounds in a row added no new case", file=sys.stderr)
             return 3
     return 0
 

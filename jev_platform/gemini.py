@@ -272,15 +272,19 @@ def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep
     if multi_turn and not budget.thoughts_known:
         return {"error": "thinking tokens unreported: input cannot be bounded"}
     carry = budget.thoughts if multi_turn else 0
-    models = (budget.model,) if budget.model else tuple(m for m in CHAIN if price_table(on, m))
     out: dict = {"error": "no chain model has a current price"}
-    for model in models:
+    tried: list[str] = []
+    # Re-read the lock before every attempt: another thread may have locked the run since this call began.
+    while (model := budget.model or next((m for m in CHAIN if m not in tried and price_table(on, m)), None)) \
+            and model not in tried:
+        tried.append(model)
         out, status = _call_one(model, body, headers, budget, http_post, sleep, carry, multi_turn)
         if "error" not in out:
-            if budget.model is None:
-                budget.lock_model(model, price_table(on, model))
+            budget.lock_model(model, price_table(on, model))
+            if budget.model != model:  # a reply from a model the run did not lock is never used
+                return {"error": f"reply from {model} discarded: run locked to {budget.model}"}
             return out
-        if status not in ADVANCE_STATUSES:
+        if status not in ADVANCE_STATUSES:  # a locked model is in `tried`, so the loop never re-sends
             return out
     return out
 

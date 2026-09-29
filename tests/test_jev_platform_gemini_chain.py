@@ -264,7 +264,8 @@ def test_a_concurrent_cheaper_lock_does_not_reprice_a_call_already_in_flight():
         if url.endswith(":generateContent"):
             b.lock_model(cheap, gemini.PRICES[cheap])  # another writer thread locks first
         return inner(url, payload, headers, timeout)
-    assert "data" in gemini.call(BODY, KEY, b, fake, **NO_SLEEP)
+    out = gemini.call(BODY, KEY, b, fake, **NO_SLEEP)  # r3 P1: the unlocked model's reply is never used
+    assert out == {"error": f"reply from {gemini.MODEL} discarded: run locked to {cheap}"}
     assert b.spent == pytest.approx(100 * PRICE["in"] + 30 * PRICE["out"]) and b.model == cheap
 
 
@@ -273,3 +274,15 @@ def test_the_first_lock_wins():
     b.lock_model(gemini.CHAIN[1], gemini.PRICES[gemini.CHAIN[1]])
     b.lock_model(gemini.CHAIN[2], gemini.PRICES[gemini.CHAIN[2]])
     assert b.model == gemini.CHAIN[1] and b.price == gemini.PRICES[gemini.CHAIN[1]]
+
+
+def test_a_call_whose_model_is_locked_mid_flight_never_advances_to_another_model():
+    """Release review r3 P1: a concurrent lock landed while this call's attempt failed; it then sent elsewhere."""
+    b, inner = budget(), FakeGemini([(404, None), ftext("hi")])
+
+    def fake(url, payload, headers, timeout):
+        if url.endswith(":generateContent") and not b.model:
+            b.lock_model(gemini.MODEL, dict(PRICE))  # another writer thread succeeds on the same model
+        return inner(url, payload, headers, timeout)
+    assert "error" in gemini.call(BODY, KEY, b, fake, **NO_SLEEP)
+    assert set(_models(inner)) == {gemini.MODEL} and b.model == gemini.MODEL

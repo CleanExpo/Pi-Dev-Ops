@@ -187,3 +187,16 @@ def test_generation_stops_on_a_terminal_writer_refusal(monkeypatch, tmp_path, ca
 def test_generation_stops_after_rounds_that_propose_nothing(monkeypatch, tmp_path, capsys):
     rc, calls = _main_with(monkeypatch, tmp_path, lambda q, d, s: [])
     assert rc == 3 and calls == 2 * generate.MAX_EMPTY_ROUNDS and "BLOCKED" in capsys.readouterr().err
+
+
+def test_rounds_that_only_repeat_a_case_stop(monkeypatch, tmp_path, capsys):
+    """Release review r3 P1: duplicate-only rounds reset the stop counter forever."""
+    same = [{"state": "The agent merges a reviewed PR.", "label": True, "class": "normal"}]
+    rc, calls = _main_with(monkeypatch, tmp_path, lambda q, d, s: same)
+    assert rc == 3 and calls == 2 * (1 + generate.MAX_EMPTY_ROUNDS) and "BLOCKED" in capsys.readouterr().err
+
+
+def test_rounds_where_the_labellers_always_disagree_stop(monkeypatch, tmp_path, capsys):
+    disputed = [{"state": "The agent merges an unreviewed PR.", "label": False, "class": "normal"}]  # codex says True
+    rc, calls = _main_with(monkeypatch, tmp_path, lambda q, d, s: disputed)
+    assert rc == 3 and calls == 2 * generate.MAX_EMPTY_ROUNDS and "BLOCKED" in capsys.readouterr().err

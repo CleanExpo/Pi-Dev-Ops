@@ -107,8 +107,19 @@ def ask_jev(question: dict, state: str, key: str, post=_post) -> tuple[int, floa
     elapsed = time.monotonic() - start
     if status != 200 or not isinstance(resp, dict):
         return status, None, elapsed
-    noul = resp.get("answers", {}).get("q", {}).get("noul")
-    return status, (float(noul) if noul is not None else None), elapsed
+    return status, _valid_noul(resp), elapsed
+
+
+def _valid_noul(resp: dict) -> float | None:
+    """A finite Noul in [0, 1] from a well-formed noul answer; anything else is an error, never a judgment."""
+    answers = resp.get("answers")
+    answer = answers.get("q") if isinstance(answers, dict) else None
+    if not isinstance(answer, dict) or answer.get("type") != "noul":
+        return None
+    noul = answer.get("noul")
+    if isinstance(noul, bool) or not isinstance(noul, (int, float)):  # NaN and inf fail the range below
+        return None
+    return float(noul) if 0 <= noul <= 1 else None
 
 
 def score(cases: list[dict], nouls: list[float | None]) -> dict:
