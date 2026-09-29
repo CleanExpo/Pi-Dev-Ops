@@ -1,5 +1,8 @@
 import { expect, it } from "vitest";
 import { founderReadout } from "@/lib/control/founder-readout";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import FounderNorthStarReadout from "@/components/control/FounderNorthStarReadout";
 
 const NOW = Date.parse("2026-09-29T13:00:00Z");
 
@@ -32,5 +35,12 @@ it("marks unavailable, stale and incomplete signals unknown", () => {
       expect(answers[0].answer).toContain("0 active Pi build sessions observed");
       expect(answers.slice(1).every((row) => row.answer.startsWith("Unknown"))).toBe(true);
     }
+  }
+});
+
+it("server renders the founder questions before the client feed arrives", () => {
+  const html = renderToStaticMarkup(createElement(FounderNorthStarReadout, { live: null }));
+  for (const phrase of ["The founder’s five answers", "Where are we?", "What was truly shipped?", "Release evidence missing"]) {
+    expect(html).toContain(phrase);
   }
 });
