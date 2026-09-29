@@ -67,6 +67,21 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      # AAA check 13: each receipt names the production revision it tested.
+      # /api/revision is deliberately public (api-auth-classification.json)
+      # and returns only a validated full SHA or null. Unobserved leaves
+      # MC_LIVE_SHA unset, and the scorer then reports check 13 unmet.
+      - name: Read the deployed revision (check 13)
+        working-directory: .
+        run: |
+          sha=$(python3 scripts/deployment_revision.py --current "$MC_LIVE_URL")
+          if [ -n "$sha" ]; then
+            echo "MC_LIVE_SHA=$sha" >> "$GITHUB_ENV"
+            echo "Deployed revision: \`$sha\` (panel tests run against checkout \`$GITHUB_SHA\`)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Deployed revision not observed at $MC_LIVE_URL/api/revision; check 13 stays unmet." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Run live suite
         id: suite
         run: npx playwright test --config playwright.live.config.ts
