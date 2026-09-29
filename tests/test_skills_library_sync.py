@@ -2,6 +2,7 @@
 it loads today (scripts/sync_skills_library.py, src/tao/skills.py)."""
 import json
 import os
+import shutil
 import subprocess
 
 import pytest
@@ -140,6 +141,25 @@ def test_check_scans_copied_markdown_with_the_repo_scanners_rules(layout):
                for p in _check(layout))
     notes.write_text("Example (placeholder, not a real key): AWS_KEY=" + key + "\n")
     assert not any(p.startswith("secret-shaped") for p in _check(layout)), "the scanner's own placeholder rule"
+
+
+def test_a_stale_staging_symlink_cannot_redirect_the_copy(layout, tmp_path):
+    """Review round 4 P1-STAGED-SYMLINK-ESCAPES-COPY: a leftover skills.new symlink sent the sync's
+    writes outside the repo and was installed as skills/, and check reported clean."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    dest = layout["dest"]
+    (dest.parent / "skills.new").symlink_to(outside, target_is_directory=True)
+    _resync(layout)
+    assert list(outside.iterdir()) == [] and not dest.is_symlink()
+    assert "not part of the copy (left by an interrupted sync?): skills.new" in _check(layout)
+    (dest.parent / "skills.new").unlink()
+    shutil.rmtree(dest)
+    dest.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match="through a symlink"):
+        _resync(layout)
+    assert list(outside.iterdir()) == []
+    assert any(p.startswith("symlink where the copy should be") for p in _check(layout))
 
 
 def test_sync_refuses_a_bad_sha_and_symlinks_at_any_level(layout, tmp_path):

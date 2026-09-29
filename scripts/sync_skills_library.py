@@ -43,6 +43,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -138,14 +139,21 @@ def sync(library: Path, sha: str, dest: Path = DEST, lock: Path = LOCK) -> int:
     if not _SHA.match(sha):
         raise ValueError(f"sha must be 40 lower-case hex characters, got {sha!r}")
     plan = _plan(library, sha)
-    staged = dest.with_name(dest.name + ".new")
-    shutil.rmtree(staged, ignore_errors=True)
-    for rel, oid in plan:
-        (staged / rel).parent.mkdir(parents=True, exist_ok=True)
-        (staged / rel).write_bytes(_git(library, "cat-file", "blob", oid))
-    manifest = {"sha": sha, "files": {rel: _digest(staged / rel) for rel, _ in sorted(plan)}}
-    shutil.rmtree(dest, ignore_errors=True)
-    staged.rename(dest)
+    linked = [p for p in (dest.parent, dest, dest.parent / "MANIFEST.json", lock) if p.is_symlink()]
+    if linked:
+        raise ValueError(f"refusing to write through a symlink: {linked[0]}")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    # A fresh private directory, never a fixed name a stale symlink could already occupy (round 4).
+    staged = Path(tempfile.mkdtemp(prefix=".skills-sync-", dir=dest.parent))
+    try:
+        for rel, oid in plan:
+            (staged / rel).parent.mkdir(parents=True, exist_ok=True)
+            (staged / rel).write_bytes(_git(library, "cat-file", "blob", oid))
+        manifest = {"sha": sha, "files": {rel: _digest(staged / rel) for rel, _ in sorted(plan)}}
+        shutil.rmtree(dest, ignore_errors=True)
+        staged.rename(dest)
+    finally:
+        shutil.rmtree(staged, ignore_errors=True)
     (dest.parent / "MANIFEST.json").write_text(json.dumps(manifest, indent=1) + "\n", "utf-8")
     lock.write_text(sha + "\n", "utf-8")
     return len({rel.split("/", 1)[0] for rel, _ in plan}) - len(_EXTRAS)
@@ -245,9 +253,13 @@ def _secret_problems(dest: Path) -> list[str]:
 def check(dest: Path = DEST, pdo_skills: Path = ROOT / "skills", baseline: Path = OVERLAP_BASELINE,
           lock: Path = LOCK) -> list[str]:
     """Every problem with the copy, as one line each. Empty means clean."""
+    linked = [p for p in (dest.parent, dest, dest.parent / "MANIFEST.json", lock) if p.is_symlink()]
+    if linked:
+        return [f"symlink where the copy should be: {p}" for p in linked]
     if not dest.is_dir():
         return [f"{dest} does not exist"]
-    return _copy_problems(dest, lock) + _home_problems(dest, pdo_skills, baseline) + _secret_problems(dest)
+    strays = sorted(p.name for p in dest.parent.iterdir() if p.name not in (dest.name, "MANIFEST.json"))
+    return [f"not part of the copy (left by an interrupted sync?): {name}" for name in strays] + _copy_problems(dest, lock) + _home_problems(dest, pdo_skills, baseline) + _secret_problems(dest)
 
 
 def main(argv: list[str]) -> int:
