@@ -60,6 +60,10 @@ _EXTRAS = ("index.md", "HOMES.json", "README.md", "CLAUDE.md", "library")
 # agent to run them (review round 2).
 _SKIP_DIRS = {"__pycache__", "node_modules", ".pytest_cache"}
 _SKIP_FILES = re.compile(r"^.*\.pyc$")
+# Whole matched values the secrets check waives: vendors' published example keys only.
+_EXAMPLE_VALUES = frozenset({"AKIA" + "IOSFODNN7EXAMPLE"})
+# ...and an assignment whose whole value is one shell variable reference, such as "$DB_PASSWORD".
+_VARIABLE_ONLY = re.compile(r"""[^=:]*[=:]\s*(["']?)\$\{?[A-Z_][A-Z0-9_]*\}?\1""")
 
 
 def _homes(skills_dir: Path) -> dict[str, str]:
@@ -234,8 +238,9 @@ def _scanner_rules():
 
 def _secret_problems(dest: Path) -> list[str]:
     """The scanner's own rules over every copied file, Markdown included: the scanner skips .md
-    for convenience, and skills are mostly Markdown (review round 3). Only a matched value that
-    is itself a placeholder is waived; a label elsewhere on the line is not (review round 7)."""
+    for convenience, and skills are mostly Markdown (review round 3). Only an exact documented
+    example value is waived: a placeholder word on the line (round 7) or inside the matched
+    value (round 8) waives nothing."""
     rules, problems = _scanner_rules(), []
     for path in sorted(p for p in dest.rglob("*") if p.is_file() and not p.is_symlink()):
         text = path.read_text("utf-8", errors="replace")
@@ -243,7 +248,8 @@ def _secret_problems(dest: Path) -> list[str]:
             for match in pattern.finditer(text):
                 number = text.count("\n", 0, match.start()) + 1
                 if ((title.startswith("JWT (") and rules._is_public_anon_jwt(match.group(0)))
-                        or rules._PLACEHOLDER_RE.search(match.group(0))):
+                        or match.group(0) in _EXAMPLE_VALUES
+                        or _VARIABLE_ONLY.fullmatch(match.group(0))):
                     continue
                 problems.append(f"secret-shaped value in the copy: {path.relative_to(dest)}:{number} ({title})")
     return problems

@@ -142,6 +142,14 @@ def test_check_scans_copied_markdown_with_the_repo_scanners_rules(layout):
     # Review round 7 P1-MARKDOWN-PLACEHOLDER-LINE-BYPASS: a label on the line waives nothing.
     notes.write_text("Example (placeholder, not a real key): AWS_KEY=" + key + "\n")
     assert any(p.startswith("secret-shaped") for p in _check(layout)), "a label hid a real-shaped key"
+    # Review round 8 P1-PLACEHOLDER-SUBSTRING-BYPASSES-COPIED-SECRET-GATE: a placeholder word
+    # inside a key-shaped value waives nothing either.
+    notes.write_text('API_KEY = "' + "k7Qx2Lm9Rt4Wp8Zn" + "placeholder" + "3Vb6Yc1Hd5Jf0Gs" + '"\n')
+    assert any(p.startswith("secret-shaped") for p in _check(layout)), "a word inside the value hid it"
+    notes.write_text('MYSQL_PWD="$' + 'MYSQLPASSWORD' + 'x7Qk2"\n')
+    assert any(p.startswith("secret-shaped") for p in _check(layout)), "only a whole $NAME is a reference"
+    notes.write_text('MYSQL_PWD="$' + 'MYSQLPASSWORD"\n')
+    assert not any(p.startswith("secret-shaped") for p in _check(layout)), "a shell variable, not a value"
     notes.write_text("Example: AWS_KEY=" + "AKIA" + "IOSFODNN7EXAMPLE" + "\n")
     assert not any(p.startswith("secret-shaped") for p in _check(layout)), "the value itself is a placeholder"
 
