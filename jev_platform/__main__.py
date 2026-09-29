@@ -77,20 +77,21 @@ def cmd_ratings(a) -> int:
     return 0
 
 
-def _repo() -> str:
-    return subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip()
+def _repo(path: str | None) -> str:
+    cmd = ["git", *(["-C", path] if path else []), "rev-parse", "--show-toplevel"]
+    return subprocess.run(cmd, capture_output=True, text=True).stdout.strip()
 
 
 def cmd_ask(a) -> int:
     if not _live_ready():
         return 2
-    out = ask.ask_files(_repo(), a.file, a.q, http_post, client.Budget(a.max_usd, a.max_seconds))
+    out = ask.ask_files(_repo(a.repo), a.file, a.q, http_post, client.Budget(a.max_usd, a.max_seconds))
     print(json.dumps(out, indent=1))
     return 2 if "blocked" in out else 0
 
 
 def cmd_approve(a) -> int:
-    print(json.dumps(ask.approve_entry(_repo(), a.path), indent=1))
+    print(json.dumps(ask.approve_entry(_repo(a.repo), a.path), indent=1))
     print("Paste into .jev-approved.json under \"files\" and commit it; this tool never writes the manifest.",
           file=sys.stderr)
     return 0
@@ -119,8 +120,10 @@ def main(argv=None) -> int:
     k.add_argument("--q", action="append", required=True, help="template id from .jev-approved.json")
     k.add_argument("--max-usd", type=float, default=0.14)
     k.add_argument("--max-seconds", type=float, default=120)
+    k.add_argument("--repo", help="repository root (default: the current directory's repo)")
     pr = sub.add_parser("approve", help="print a manifest entry for a file (never writes it)")
     pr.add_argument("path")
+    pr.add_argument("--repo")
     a = p.parse_args(argv)
     if a.cmd == "ask" and len(a.file) > 50:
         print("REFUSED: at most 50 files per run", file=sys.stderr)
