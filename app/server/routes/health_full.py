@@ -101,7 +101,8 @@ async def _check_margot_route() -> dict[str, Any]:
         # Supabase is the durable source of truth (RA-1905); JSONL is hot cache.
         try:
             from app.server import supabase_log  # noqa: PLC0415
-            rows = supabase_log._select(  # type: ignore[attr-defined]
+            rows = await asyncio.to_thread(
+                supabase_log._select,  # type: ignore[attr-defined]
                 "margot_conversations",
                 "order=started_at.desc&limit=1&select=started_at",
             )
