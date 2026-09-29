@@ -19,6 +19,7 @@ import asyncio
 import logging
 import queue
 import threading
+import time
 from typing import Any
 
 log = logging.getLogger("swarm.cost_mirror")
@@ -80,13 +81,14 @@ def mirror(row: dict[str, Any]) -> None:
 
 def wait_idle(timeout: float = 5.0) -> bool:
     """Block until queued writes have run; False if they outlast the timeout."""
+    deadline = time.monotonic() + timeout
     done = threading.Event()
     try:
         _queue.put(done, timeout=timeout)
     except queue.Full:
         return False
     _ensure_worker()
-    return done.wait(timeout)
+    return done.wait(max(0.0, deadline - time.monotonic()))
 
 
 async def flush(timeout: float) -> None:
