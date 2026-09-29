@@ -63,7 +63,8 @@ _SKIP_FILES = re.compile(r"^.*\.pyc$")
 # Whole matched values the secrets check waives: vendors' published example keys only.
 _EXAMPLE_VALUES = frozenset({"AKIA" + "IOSFODNN7EXAMPLE"})
 # ...and an assignment whose whole value is one shell variable reference, such as "$DB_PASSWORD".
-_VARIABLE_ONLY = re.compile(r"""[^=:]*[=:]\s*(["']?)\$\{?[A-Z_][A-Z0-9_]*\}?\1""")
+# Double quotes or none only: single quotes keep "$" literal (review round 9).
+_VARIABLE_ONLY = re.compile(r"""[^=:]*[=:]\s*("?)\$\{?[A-Z_][A-Z0-9_]*\}?\1""")
 
 
 def _homes(skills_dir: Path) -> dict[str, str]:

@@ -148,6 +148,8 @@ def test_check_scans_copied_markdown_with_the_repo_scanners_rules(layout):
     assert any(p.startswith("secret-shaped") for p in _check(layout)), "a word inside the value hid it"
     notes.write_text('MYSQL_PWD="$' + 'MYSQLPASSWORD' + 'x7Qk2"\n')
     assert any(p.startswith("secret-shaped") for p in _check(layout)), "only a whole $NAME is a reference"
+    notes.write_text("MYSQL_PWD='$" + "MYSQLPASSWORD'\n")
+    assert any(p.startswith("secret-shaped") for p in _check(layout)), "round 9: single-quoted $ is literal"
     notes.write_text('MYSQL_PWD="$' + 'MYSQLPASSWORD"\n')
     assert not any(p.startswith("secret-shaped") for p in _check(layout)), "a shell variable, not a value"
     notes.write_text("Example: AWS_KEY=" + "AKIA" + "IOSFODNN7EXAMPLE" + "\n")
