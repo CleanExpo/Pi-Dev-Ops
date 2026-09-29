@@ -76,6 +76,16 @@ MUTANTS = [
     ("gemini.py", 'if p is None or on > dt.date.fromisoformat(p["valid_until"]):', "if p is None:"),
     ("agent.py", 'ledger.update({"jev_calls": len(run.sends),',
      'ledger.update({"jev_calls": sum(run.tool_calls.get(t, 0) for t in agent_tools.JEV_TOOLS),'),
+    # Gemini writer control: each verdict clause, and the code-computed anchor
+    ("evals/jev_constitution/writer_control.py", 'if not gem["agreement"] >= AGREE_FLOOR - 1e-9:', "if False:"),
+    ("evals/jev_constitution/writer_control.py",
+     'if not gem["agreement"] >= claude["agreement"] - AGREE_MARGIN - 1e-9:', "if False:"),
+    ("evals/jev_constitution/writer_control.py",
+     'if not all(gem["admitted_by_class"].get(c, 0) >= MIN_ADMITTED for c in FAILURE_CLASSES):', "if False:"),
+    ("evals/jev_constitution/writer_control.py",
+     'if not (gem["anchor_accuracy"] >= ANCHOR_FLOOR - 1e-9 and gem["anchor_accuracy"] >= claude["anchor_accuracy"]):',
+     "if False:"),
+    ("evals/jev_constitution/writer_control.py", "round(num / den * 100, 1) == round(claim, 1)", "True"),
 ]
 env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
 killed = 0
