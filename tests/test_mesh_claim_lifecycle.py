@@ -17,7 +17,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from mesh_helpers import load_module as _load  # noqa: E402
+from mesh_helpers import load_module as _load, short_temp_alias  # noqa: E402
 from test_mesh_run_record_claim import _runner, _sleeping_agent, _updates  # noqa: E402
 
 cl = _load("claim_lifecycle_under_test", "mesh/claim_lifecycle.py")
@@ -290,3 +290,11 @@ def test_a_real_sigint_while_tracking_still_ends_the_claim(monkeypatch, tmp_path
         runner.run_claim({"linear_id": "UNI-S", "repo_dir": str(repo)}, dry_run=False)
     assert [b["state"] for b in _updates(calls)] == ["working", "done"]
     assert removed and _state(tmp_path) == "idle"
+
+
+def test_a_run_worktree_is_made_under_the_long_temp_path(tmp_path, monkeypatch):
+    """Claude matches workspace trust on the long path; under the short one the
+    agent reads as untrusted, ignores the repo's permissions and cannot write."""
+    alias, real = short_temp_alias(tmp_path)
+    monkeypatch.setattr(cl.tempfile, "tempdir", str(alias))
+    assert cl.worktree_path("RA-1", "abc").parent == real

@@ -51,6 +51,10 @@ no `UG-AUTONOMY-001` exception applies to Pi-Dev-Ops"*
 (`docs/session-handoffs/20260911-1230-0eca2639.md:212`). Both cannot be live. This is a
 **direction** decision (Phill's), recorded in [`handoff.json`](handoff.json) as D0.
 
+**Decided 28 Sept 2026 (RA-7818): Pi-Dev-Ops stays human-merge-only.** A cross-model audit is
+review evidence here, not acceptance; `plan-to-done`'s acceptance step defers to this repo's
+merge lane.
+
 ## What the plan-to-done package contributes to closing these
 
 The package ([`../plan-to-done-v1.1/`](../plan-to-done-v1.1/README.md)) is a *planning* skill: it
@@ -64,3 +68,5 @@ writes the packet that would close A–G, it does not close them. Its relevant p
 | Review receipts | Step 7/9 — receipts bound to `git patch-id`, two review rounds max |
 
 Break C is a founder switch. Breaks A, B, D, E, G are code or doc work and are ticketed separately.
+
+A second, independent pass added breaks H–L: [second-pass-2026-09-28.md](second-pass-2026-09-28.md).

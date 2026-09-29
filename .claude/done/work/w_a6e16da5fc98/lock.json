@@ -1,0 +1,9 @@
+{
+  "schema": "done/1",
+  "work_id": "w_a6e16da5fc98",
+  "contract_digest": "cd869a493fe747ad7d24c2358dbdd0af69115b471e5a1d1789a0ee9ac3741ab6",
+  "baseline_head": "4e5a0bb36ba9f821fb41b5b14eb7ba36b0693370",
+  "identity_key": "claude/nifty-mayer-qemzix@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ptd-808",
+  "locked_at_utc": "2026-09-28T12:32:41Z",
+  "criteria_count": 8
+}

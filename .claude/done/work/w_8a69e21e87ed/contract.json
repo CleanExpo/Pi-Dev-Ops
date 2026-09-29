@@ -1,0 +1,64 @@
+{
+  "schema": "done/1",
+  "work_id": "w_8a69e21e87ed",
+  "version": 1,
+  "supersedes": null,
+  "goal": "PR 808: plan-to-done v1.1 candidate imported intact and unactivated, idea-to-live docs gated, independently reviewed, receipt bound to final HEAD",
+  "created_at_utc": "2026-09-28T11:26:28Z",
+  "identity_key": "claude/nifty-mayer-qemzix@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ptd-808",
+  "baseline_observed": {
+    "head": "36ee76728d6dacb757669df151c9ffe2ba52c3c5",
+    "branch": "claude/nifty-mayer-qemzix",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "text": "plan-to-done v1.1 package is byte-identical to its manifest (154 files)",
+      "recipe": {"run": "cd docs/plans/plan-to-done-v1.1 && sha256sum -c MANIFEST.sha256 | grep -c ': OK$'", "expect_exit": 0, "expect_stdout_contains": "154", "timeout_s": 120}
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "text": "candidate is not activated: regenerating the agentskills manifest changes nothing",
+      "recipe": {"run": "python3 -m swarm.agentskills_manifest >/dev/null && git diff --exit-code agentskills.json agentskills.yaml", "expect_exit": 0, "timeout_s": 120}
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "text": "repo size gates pass (0 new, 0 grown)",
+      "recipe": {"run": "python3 .github/scripts/file_length_lint.py && python3 .github/scripts/function_length_lint.py", "expect_exit": 0, "expect_stdout_contains": "0 new, 0 grown", "timeout_s": 300}
+    },
+    {
+      "id": "C4",
+      "required": true,
+      "text": "package workflow parses and the PR's JSON files are valid",
+      "recipe": {"run": "node --check docs/plans/plan-to-done-v1.1/plan-to-done/workflows/plan-review.js && python3 -m json.tool docs/plans/idea-to-live/handoff.json >/dev/null && python3 -m json.tool docs/plans/idea-to-live/routing-verification-2026-09-28.json >/dev/null && echo parsed", "expect_exit": 0, "expect_stdout_contains": "parsed", "timeout_s": 60}
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "text": "every relative link in the authored docs resolves (checker proven able to fail with --canary)",
+      "recipe": {"run": "python3 .claude/done/work/w_8a69e21e87ed/check_links.py", "expect_exit": 0, "expect_stdout_contains": "dead: 0", "timeout_s": 60}
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "text": "boundary hook denies out-of-scope writes and git push; the PKG-2 traversal defect is pinned, not hidden",
+      "recipe": {"run": "bash .claude/done/work/w_8a69e21e87ed/check_hook.sh", "expect_exit": 0, "timeout_s": 60}
+    },
+    {
+      "id": "C7",
+      "required": true,
+      "text": "subscription policy tests still pass (the routing text did not change live policy)",
+      "recipe": {"run": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_subscription_policy.py -q -p no:cacheprovider", "expect_exit": 0, "expect_stdout_contains": "passed", "timeout_s": 300}
+    },
+    {
+      "id": "C8",
+      "required": true,
+      "text": "release-gate receipt with an independent SHA-bound review verifies for the final HEAD",
+      "recipe": {"run": "python3 /Users/phill-mac/.claude/skills/pr-release-gate/scripts/pr_release_gate.py verify", "expect_exit": 0, "expect_stdout_contains": "PR_RELEASE_GATE_PASS", "timeout_s": 900}
+    }
+  ]
+}
