@@ -98,20 +98,20 @@ def _tree(library: Path, sha: str) -> dict[str, tuple[str, str]]:
     return entries
 
 
-def _entries(tree: dict[str, tuple[str, str]], top: str) -> list[tuple[str, str]]:
-    """(path, object id) of each file of one skill or shared entry; a symlink or submodule stops it."""
+def _entries(tree: dict[str, tuple[str, str]], top: str) -> list[tuple[str, str, str]]:
+    """(path, object id, mode) of each file of one skill or shared entry; a symlink or submodule stops it."""
     found = [(path, mo) for path, mo in tree.items() if path == top or path.startswith(top + "/")]
     if not found:
         raise ValueError(f"the commit has no skills/{top}")
     for path, (mode, _) in found:
         if mode not in ("100644", "100755"):
             raise ValueError(f"refusing skills/{path}: a symlink or submodule (mode {mode})")
-    return [(p, oid) for p, (_, oid) in found
+    return [(p, oid, mode) for p, (mode, oid) in found
             if not (_SKIP_DIRS & set(p.split("/")[:-1]) or _SKIP_FILES.match(p.rsplit("/", 1)[-1]))]
 
 
-def _plan(library: Path, sha: str) -> list[tuple[str, str]]:
-    """(path relative to the copy, object id) for everything sync will write."""
+def _plan(library: Path, sha: str) -> list[tuple[str, str, str]]:
+    """(path relative to the copy, object id, mode) for everything sync will write."""
     tree = _tree(library, sha)
 
     def blob(path: str) -> str:
@@ -150,17 +150,20 @@ def sync(library: Path, sha: str, dest: Path = DEST, lock: Path = LOCK) -> int:
     # A fresh private directory, never a fixed name a stale symlink could already occupy (round 4).
     staged = Path(tempfile.mkdtemp(prefix=".skills-sync-", dir=dest.parent))
     try:
-        for rel, oid in plan:
+        for rel, oid, mode in plan:
             (staged / rel).parent.mkdir(parents=True, exist_ok=True)
             (staged / rel).write_bytes(_git(library, "cat-file", "blob", oid))
-        manifest = {"sha": sha, "files": {rel: _digest(staged / rel) for rel, _ in sorted(plan)}}
+            # Keep the commit's executable bit: skills run their scripts directly (review round 11).
+            (staged / rel).chmod(0o755 if mode == "100755" else 0o644)
+        manifest = {"sha": sha, "files": {rel: _digest(staged / rel) for rel, _, _ in sorted(plan)},
+                    "executable": sorted(rel for rel, _, mode in plan if mode == "100755")}
         shutil.rmtree(dest, ignore_errors=True)
         staged.rename(dest)
     finally:
         shutil.rmtree(staged, ignore_errors=True)
     (dest.parent / "MANIFEST.json").write_text(json.dumps(manifest, indent=1) + "\n", "utf-8")
     lock.write_text(sha + "\n", "utf-8")
-    return len({rel.split("/", 1)[0] for rel, _ in plan}) - len(_EXTRAS)
+    return len({rel.split("/", 1)[0] for rel, _, _ in plan}) - len(_EXTRAS)
 
 
 def _baseline(path: Path) -> set[str] | None:
@@ -188,6 +191,9 @@ def _copy_problems(dest: Path, lock: Path) -> list[str]:
     problems += [f"missing from the copy: {rel}" for rel in sorted(set(expected) - on_disk)]
     problems += [f"changed since sync: {rel}" for rel in sorted(on_disk & set(expected))
                  if _digest(dest / rel) != expected[rel]]
+    executable = set(manifest.get("executable", []))
+    problems += [f"executable bit differs from the library commit: {rel}" for rel in sorted(on_disk & set(expected))
+                 if bool((dest / rel).stat().st_mode & 0o111) != (rel in executable)]
     return problems
 
 

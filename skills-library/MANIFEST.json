@@ -658,5 +658,34 @@
   "wiki-growth/references/review-rubric.md": "bfa058703dd7507f2da7b4b59648eccd7bb4120159898f51ac8dc185649ececd",
   "wiki-growth/references/routing-table.md": "0e0c8bda0bd4963725d7ef11765c8d70f5f853870f7be440a62e28a1802caf8d",
   "wiki-ingest/SKILL.md": "e087e99c1a9be47df1f356b902f0c0b4db499885a1bdbe137362e6dce3f296b1"
- }
+ },
+ "executable": [
+  "adopt-gstack/install/test-check-gstack.sh",
+  "adopt-gstack/install/test-install-gstack.sh",
+  "archify/bin/archify.mjs",
+  "cloud-node/scripts/cloud-pull.sh",
+  "estate-mailbox/scripts/mailbox.py",
+  "estate-sync/scripts/repair_prettier_hooks.py",
+  "fleet-compute/scripts/fleet.py",
+  "fleet-compute/scripts/test_fleet.py",
+  "frontend-slides/scripts/deploy.sh",
+  "frontend-slides/scripts/export-pdf.sh",
+  "gauntlet-pair/claim.mjs",
+  "github-actions-quota-guard/scripts/audit-workflows.sh",
+  "gs-freeze/bin/check_freeze.py",
+  "seo/scripts/backlinks.py",
+  "seo/scripts/dataforseo_client.py",
+  "seo/scripts/domain_overview.py",
+  "seo/scripts/generate_pdf_report.py",
+  "seo/scripts/keyword_research.py",
+  "seo/scripts/on_page_audit.py",
+  "seo/scripts/preflight.sh",
+  "seo/scripts/serp_check.py",
+  "supabase-write-gate/scripts/install_supabase_write_gate.py",
+  "supabase-write-gate/scripts/test_supabase_gate.sh",
+  "waterline/scripts/anchor.py",
+  "waterline/scripts/challenge.sh",
+  "waterline/scripts/ground.sh",
+  "waterline/scripts/validate_report.py"
+ ]
 }
