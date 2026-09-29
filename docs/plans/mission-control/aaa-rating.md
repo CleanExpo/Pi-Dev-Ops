@@ -115,4 +115,11 @@ panels are listed in `dashboard/e2e-live/panel-coverage.json`, and a page passes
 panel has passing tests named for its loaded, empty and error states (a page with no data panels
 is N/A, which does not count as met). The scorer
 (`scripts/mission_control_scorecard.py`) reads the result from the nightly receipts; run the live
-suite for today's per-surface levels rather than trusting a count here.
+suite for today's per-surface levels rather than trusting a count here. Check 10 is measured from
+30 Sept: each run's `scorecard.json` records, per surface, whether every live receipt it should
+have exists and passed, and is kept 90 days as the `mission-control-scorecard` artifact. The next
+run downloads the last three scheduled runs' scorecards and a surface meets check 10 only when the
+last three scheduled runs all passed for it on their first attempt
+(`scripts/mission_control_stability.py`). A scheduled run that left no scorecard breaks the streak,
+and a manual run never counts toward it. Scheduled runs before this change recorded no scorecard,
+so check 10 reads "not measured" until three nightly runs have run with it.

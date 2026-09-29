@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  actions: read # check 10 downloads earlier scheduled runs' scorecards
 
 concurrency:
   group: mission-control-live
@@ -98,6 +99,29 @@ jobs:
           python3 ../scripts/mission_control_panel_coverage.py vitest-panels.json e2e-live-receipts \
             --registry e2e-live/panel-coverage.json --dashboard .
 
+      # AAA check 10: stable over three consecutive scheduled (nightly) runs.
+      # Downloads the scorecards of the last three completed scheduled runs,
+      # one folder per run id. A run whose scorecard is missing (cancelled,
+      # secret missing, artifact expired) keeps an empty folder, which breaks
+      # the streak (scripts/mission_control_stability.py). A failed listing
+      # leaves no history, and check 10 then reads "not measured".
+      - name: Fetch earlier scheduled scorecards (check 10)
+        if: always() && steps.suite.outcome != 'skipped'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p mc-history
+          ids=$(gh run list --workflow mission-control-live.yml --event schedule --status completed \
+                  --limit 3 --json databaseId --jq '.[].databaseId') \
+            || { echo "::warning::could not list scheduled runs; check 10 stays not measured"; ids=""; }
+          for id in $ids; do
+            [ "$id" = "$GITHUB_RUN_ID" ] && continue
+            mkdir -p "mc-history/$id"
+            gh run download "$id" -n mission-control-scorecard -D "mc-history/$id" \
+              || echo "run $id left no scorecard; it breaks the check-10 streak"
+          done
+
       # WP-11: grade this run by docs/plans/mission-control/aaa-rating.md and
       # publish one row per surface (level + what blocks the next level) on the
       # run's summary page. Runs even when the suite fails — that is when the
@@ -109,7 +133,19 @@ jobs:
         working-directory: .
         run: |
           python3 scripts/mission_control_scorecard.py dashboard/e2e-live-receipts \
-            --json dashboard/e2e-live-receipts/scorecard.json >> "$GITHUB_STEP_SUMMARY"
+            --json dashboard/e2e-live-receipts/scorecard.json \
+            --event "$GITHUB_EVENT_NAME" --run-id "$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT" --history mc-history >> "$GITHUB_STEP_SUMMARY"
+
+      # Small and long-lived on purpose: tomorrow's run reads it for check 10.
+      - name: Upload scorecard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mission-control-scorecard
+          path: dashboard/e2e-live-receipts/scorecard.json
+          if-no-files-found: ignore
+          retention-days: 90
 
       - name: Upload receipts
         if: always()

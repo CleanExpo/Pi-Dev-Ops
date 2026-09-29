@@ -8,8 +8,12 @@ A check is met only on evidence. A check the suite does not measure yet, or a
 receipt that is missing, is UNMET ("not measured") — never a pass. N/A (a
 check that cannot apply, e.g. check 5 on a server-rendered page) counts as met.
 
+Check 10 (three consecutive scheduled runs) reads earlier runs' scorecards
+from --history; see scripts/mission_control_stability.py.
+
 Usage:
     python3 scripts/mission_control_scorecard.py <receipts-dir> [--json out.json]
+        [--event schedule --run-id N --run-attempt 1 --history DIR]
 Prints a Markdown table (for $GITHUB_STEP_SUMMARY). Exit code is always 0 when
 the receipts were read: the grade is the output, not a pass/fail gate.
 """
@@ -22,6 +26,12 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.mission_control_stability import judge_stable, load_history  # noqa: E402
+
 # Surfaces with write actions (work-packages.md WP-07). Checks 3 and 12 apply
 # only to these; for every other surface they are N/A.
 WRITE_SURFACES = {"MC-01", "MC-02", "MC-03", "MC-05", "MC-07", "MC-10", "MC-11"}
@@ -33,7 +43,6 @@ LEVELS: dict[int, list[str]] = {1: ["1", "2", "3", "4"], 2: ["5", "6", "7", "8",
 # receipt carries it; the reason is what the scorecard prints.
 NOT_MEASURED = {
     "3": "write journeys not built (WP-07)",
-    "10": "needs three consecutive scheduled runs; one run is scored here",
     "11": "register / ticket state is not read into receipts yet",
     "12": "label-honesty assertions not built (WP-07)",
 }
@@ -86,6 +95,19 @@ def _all_pass(checks: list[dict], what: str, allow_na: bool = False) -> Verdict:
     return Verdict(True)
 
 
+def suite_passed(surface: str, got: dict[str, dict]) -> bool:
+    """Did this run's live suite pass for <surface>? The input to check 10.
+
+    Every live receipt the surface should have must exist (a test that died
+    before writing one is a failure), and every check in them is PASS or N/A.
+    The panel-coverage (-C7) receipt is not part of the live suite.
+    """
+    kinds = ("desktop",) if surface == "MC-00" else ("desktop", "phone", "l2")
+    if any(not got.get(k) for k in kinds):
+        return False
+    return all(c.get("result") in ("PASS", "N/A") for k in kinds for c in got[k].get("checks", []))
+
+
 def judge(check: str, surface: str, got: dict[str, dict], deployed_sha: str | None) -> Verdict:
     """Is aaa-rating.md check <check> met for <surface>, on this run's receipts?"""
     if check in ("3", "12") and surface not in WRITE_SURFACES:
@@ -123,11 +145,20 @@ def judge(check: str, surface: str, got: dict[str, dict], deployed_sha: str | No
     return Verdict(False, f"unknown check {check}")
 
 
-def score_surface(surface: str, receipts: dict[str, dict]) -> dict:
-    """Highest level whose every check (and every lower level's) is met."""
+def score_surface(surface: str, receipts: dict[str, dict], run: dict | None = None,
+                  history: list[dict] | None = None) -> dict:
+    """Highest level whose every check (and every lower level's) is met.
+
+    <run> is this run's metadata (event, run_id, run_attempt); <history> is
+    earlier scheduled runs' scorecards (mission_control_stability.load_history).
+    """
     got = receipts_for(surface, receipts)
     sha = (got.get("desktop") or {}).get("deployed_sha")
-    verdicts = {c: judge(c, surface, got, sha) for lvl in (1, 2, 3) for c in LEVELS[lvl]}
+    verdicts = {c: judge(c, surface, got, sha) for lvl in (1, 2, 3) for c in LEVELS[lvl] if c != "10"}
+    passed = suite_passed(surface, got)
+    current = {"run_id": (run or {}).get("run_id"),
+               "card": {"run": run or {}, "surfaces": [{"surface": surface, "suite_passed": passed}]}}
+    verdicts["10"] = Verdict(*judge_stable(surface, current, history or []))
     level, blocker = 0, ""
     for lvl in (1, 2, 3):
         misses = [c for c in LEVELS[lvl] if not verdicts[c].met]
@@ -141,6 +172,7 @@ def score_surface(surface: str, receipts: dict[str, dict]) -> dict:
     return {
         "surface": surface,
         "level": level,
+        "suite_passed": passed,
         "blocked_by": blocker,
         "measured_failures": failed,
         "checks": {c: {"met": v.met, "reason": v.reason} for c, v in verdicts.items()},
@@ -148,9 +180,10 @@ def score_surface(surface: str, receipts: dict[str, dict]) -> dict:
     }
 
 
-def build_scorecard(receipts: dict[str, dict]) -> dict:
-    rows = [score_surface(s, receipts) for s in SURFACES]
-    return {"mission_control_level": min(r["level"] for r in rows), "surfaces": rows}
+def build_scorecard(receipts: dict[str, dict], run: dict | None = None,
+                    history: list[dict] | None = None) -> dict:
+    rows = [score_surface(s, receipts, run, history) for s in SURFACES]
+    return {"mission_control_level": min(r["level"] for r in rows), "run": run or {}, "surfaces": rows}
 
 
 def to_markdown(card: dict) -> str:
@@ -175,11 +208,16 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("receipts", type=Path)
     ap.add_argument("--json", type=Path, help="also write the scorecard as JSON here")
+    ap.add_argument("--event", default="", help="GitHub event that started this run (check 10)")
+    ap.add_argument("--run-id", type=int, default=None)
+    ap.add_argument("--run-attempt", type=int, default=None)
+    ap.add_argument("--history", type=Path, help="earlier scheduled runs' scorecards, one folder per run id")
     args = ap.parse_args(argv)
     if not args.receipts.is_dir():
         print(f"error: {args.receipts} is not a directory", file=sys.stderr)
         return 2
-    card = build_scorecard(load_receipts(args.receipts))
+    run = {"event": args.event, "run_id": args.run_id, "run_attempt": args.run_attempt}
+    card = build_scorecard(load_receipts(args.receipts), run, load_history(args.history))
     if args.json:
         args.json.write_text(json.dumps(card, indent=2) + "\n", encoding="utf-8")
     sys.stdout.write(to_markdown(card))
