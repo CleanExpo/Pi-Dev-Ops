@@ -1,4 +1,4 @@
-"""CLI: python -m jev_platform {decide,calibrate,verify-calibration,ratings}. Shadow mode only.
+"""CLI: python -m jev_platform {decide,calibrate,verify-calibration,ratings,ask,approve}. Shadow/advisory only.
 
 The key is read from TYPESAFE_API_KEY at call time (inject with `vercel env run`); it is never logged.
 """
@@ -12,7 +12,7 @@ import sys
 import urllib.error
 import urllib.request
 
-from jev_platform import client, engine
+from jev_platform import ask, client, engine
 
 URL = "https://api.typesafe.ai/v1/systemone"
 
@@ -77,6 +77,25 @@ def cmd_ratings(a) -> int:
     return 0
 
 
+def _repo() -> str:
+    return subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip()
+
+
+def cmd_ask(a) -> int:
+    if not _live_ready():
+        return 2
+    out = ask.ask_files(_repo(), a.file, a.q, http_post, client.Budget(a.max_usd, a.max_seconds))
+    print(json.dumps(out, indent=1))
+    return 2 if "blocked" in out else 0
+
+
+def cmd_approve(a) -> int:
+    print(json.dumps(ask.approve_entry(_repo(), a.path), indent=1))
+    print("Paste into .jev-approved.json under \"files\" and commit it; this tool never writes the manifest.",
+          file=sys.stderr)
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="jev_platform")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -95,9 +114,20 @@ def main(argv=None) -> int:
     v.add_argument("--rule", required=True)
     r = sub.add_parser("ratings")
     r.add_argument("--all", action="store_true")
+    k = sub.add_parser("ask", help="Level 8: ask approved question templates about approved files")
+    k.add_argument("--file", action="append", required=True)
+    k.add_argument("--q", action="append", required=True, help="template id from .jev-approved.json")
+    k.add_argument("--max-usd", type=float, default=0.14)
+    k.add_argument("--max-seconds", type=float, default=120)
+    pr = sub.add_parser("approve", help="print a manifest entry for a file (never writes it)")
+    pr.add_argument("path")
     a = p.parse_args(argv)
+    if a.cmd == "ask" and len(a.file) > 50:
+        print("REFUSED: at most 50 files per run", file=sys.stderr)
+        return 2
     return {"decide": cmd_decide, "calibrate": cmd_calibrate,
-            "verify-calibration": cmd_verify, "ratings": cmd_ratings}[a.cmd](a)
+            "verify-calibration": cmd_verify, "ratings": cmd_ratings,
+            "ask": cmd_ask, "approve": cmd_approve}[a.cmd](a)
 
 
 if __name__ == "__main__":

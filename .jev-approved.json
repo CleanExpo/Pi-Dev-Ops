@@ -1,0 +1,26 @@
+{
+ "_note": "Level 8 approval manifest (docs/plans/jev-platform/PLAN-ask.md rev 4). Only these exact bytes and these question templates may be sent to TypeSafe Jev. Add entries via `python -m jev_platform approve <path>` and a reviewed commit; the tool never writes this file.",
+ "files": {
+  "jev_platform/policy.py": "f096cf2c24b9425981833727b126b87c235e5d4f5c36aff7ca7ed16d14dcf693",
+  "jev_platform/client.py": "498b616053734fc694658917dd0cd5d63d61a5a81c0c81ec3372bfa15a599161",
+  "jev_platform/calibration.py": "6a102ae6c3451048b4f12b105fa162c5c298c192c9e4e8c7b4b1548aa9e8f54c",
+  "jev_platform/engine.py": "d76fef84cdc3d15e5c1d4a0d5f1b24641e2161f72d12a0bc05c1fdef5d54b081"
+ },
+ "questions": {
+  "makes-network-calls": {
+   "type": "noul",
+   "question": "Does `content` make network calls to an external service?",
+   "true": "The code opens HTTP or socket connections, or calls a remote API",
+   "false": "The code only computes locally, reads local files, or calls injected functions without doing network I/O itself"
+  },
+  "arch-layer": {
+   "type": "choice",
+   "question": "Which architectural layer does `content` belong to?",
+   "options": {
+    "transport": "Network client, HTTP requests, retries, rate limits, budgets for remote calls",
+    "domain_logic": "Core decision rules, policy, thresholds, pure business logic",
+    "orchestration": "Glue that wires components together, file I/O, registries, command runners"
+   }
+  }
+ }
+}

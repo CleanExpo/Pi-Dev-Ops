@@ -27,6 +27,17 @@ MUTANTS = [
     ("engine.py", "if altered and result != policy.UNCERTAIN:", "if False:"),
     ("engine.py", "if errors or len(models) != 1:", "if len(models) > 1:"),
     ("engine.py", "if not all(p.resolve().is_relative_to(ROOT) for p in paths):", "if False:"),
+    ("ask.py", "if digest != approved:", "if False:"),
+    ("ask.py", "if not isinstance(approved, str):", "if False:"),
+    ("ask.py", "q = _question(tid, t) if isinstance(t, dict) else None", "q = _question(tid, t or {'type': 'noul', 'question': 'x', 'true': 'y', 'false': 'z'})"),
+    ("ask.py", '["git", "-C", repo, "show", f"HEAD:{MANIFEST}"]', '["cat", f"{repo}/{MANIFEST}"]'),
+    ("ask.py", "nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)", "nxt = os.open(part, os.O_RDONLY | os.O_DIRECTORY, dir_fd=fd)"),
+    ("ask.py", "leaf = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)", "leaf = os.open(parts[-1], os.O_RDONLY, dir_fd=fd)"),
+    ("ask.py", "    if sensitive(text):\n        return None, digest, \"sensitive content\"", "    if False:\n        return None, digest, \"sensitive content\""),
+    ("ask.py", "if _DENY_NAMES.search(rel) or sensitive(rel):", "if False:"),
+    ("ask.py", "if not isinstance(answers, dict) or set(answers) != set(questions):", "if not isinstance(answers, dict):"),
+    ("ask.py", "if a.get(\"choice\") not in allowed or ", "if "),
+    ("ask.py", "if len(set(template_ids)) != len(template_ids):", "if False:"),
 ]
 env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
 killed = 0

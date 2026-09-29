@@ -1,0 +1,82 @@
+{
+  "schema": "done/1",
+  "work_id": "w_6d1ca1d5553a",
+  "version": 6,
+  "supersedes": "w_a1a81de48bc1",
+  "goal": "v6: Level 8 ask tool (file bool + file choice) per docs/plans/jev-platform/PLAN-ask.md rev 4, approved 100/100 by Codex (judge-ask-r3.md); founder asked 29/09 to add the level-8 read tools. C1 now 129 passed; adds C9 denied .env refused with zero requests, C10 no key -> BLOCKED exit 2, C11 28/28 mutants killed",
+  "created_at_utc": "2026-09-29T04:10:56Z",
+  "identity_key": "feat/jev-constitution-eval@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-constitution",
+  "baseline_observed": {
+    "head": "179121705c3d96731a7200e8259c0920bc24443d",
+    "branch": "feat/jev-constitution-eval",
+    "dirty_count": 9
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "text": "All Jev eval, quote, platform and Level 8 offline tests pass: 129 passed",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_constitution_eval.py tests/test_jev_constitution_quotes.py tests/test_jev_platform_policy.py tests/test_jev_platform_calibration.py tests/test_jev_platform_client.py tests/test_jev_platform_engine.py tests/test_jev_platform_ask.py -q -p no:cacheprovider | grep -q '129 passed'"
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "text": "questions.json holds all 538 extracted rules, each with source file:line and quote",
+      "recipe": "python3 -c \"import json;q=json.load(open('evals/jev_constitution/questions.json'))['questions'];assert len(q)==538 and all(x['source'] and x['quote'] for x in q)\""
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "text": "a run with no TYPESAFE_API_KEY reports BLOCKED and exits 2",
+      "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 > /tmp/jev_c3.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c3.txt"
+    },
+    {
+      "id": "C4",
+      "required": true,
+      "text": "the metered-lane refusal in app/server/provider_policy.py is untouched vs origin/main",
+      "recipe": "git diff --quiet origin/main -- app/server/provider_policy.py"
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "text": "pilot ch3-4-27 (no fabricating evidence, approvals or completed actions) has a scoreable set of >=1000 Claude+Codex-agreed cases",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness validate | grep -qE '^VALID +ch3-4-27$'"
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "text": "The committed live calibration record for ch3-4-27 recomputes from its stored per-case scores and is bound to HEAD (AAA artifact rating)",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform verify-calibration --rule ch3-4-27 | grep -qE '^ch3-4-27: AAA @ [0-9a-f]{40}$'"
+    },
+    {
+      "id": "C7",
+      "required": true,
+      "text": "Every question's quote_verbatim flag matches the pinned Constitution text, and all 538 quotes are verbatim",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.quotes --repo /Users/phill-mac/Unite-Group | grep -q '^verbatim 538/538; stored flags wrong: 0$'"
+    },
+    {
+      "id": "C8",
+      "required": true,
+      "text": "Shadow mode is structurally isolated: nothing under app/ or swarm/ references jev_platform",
+      "recipe": "! git grep -q jev_platform -- app swarm"
+    },
+    {
+      "id": "C9",
+      "required": true,
+      "text": "Level 8 refuses a denied .env path (even when approved) and escaping/denied paths with zero requests sent",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_platform_ask.py -q -p no:cacheprovider -k 'denied_name_refused_even_when_approved or denied_or_escaping' | grep -qE '^9 passed'"
+    },
+    {
+      "id": "C10",
+      "required": true,
+      "text": "Level 8 with no TYPESAFE_API_KEY prints BLOCKED and exits 2",
+      "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform ask --file jev_platform/policy.py --q arch-layer 2>/tmp/jev_c10.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c10.txt"
+    },
+    {
+      "id": "C11",
+      "required": true,
+      "text": "Every guard has a mutant that fails a test: 28/28 killed",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python tests/mutation/jev_platform_mutants.py | grep -q '^28/28 mutants killed$'"
+    }
+  ]
+}

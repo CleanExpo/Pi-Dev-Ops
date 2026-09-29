@@ -89,12 +89,10 @@ def validate(data, rule_ids: list[str]) -> dict | None:
     return out
 
 
-def ask(state: str, rules: list[dict], post, budget: Budget, sleep=time.sleep) -> dict:
-    """{'nouls': {...}, 'model': str} or {'error': reason}. Redaction happens before sending."""
-    body = build_request(state, rules)
+def send(body: dict, post, budget: Budget, sleep=time.sleep) -> dict:
+    """{'data': json} on HTTP 200, else {'error': reason}. Budget reserved before every attempt."""
     if len(json.dumps(body).encode()) > MAX_REQUEST_BYTES:
         return {"error": "request_too_large"}
-    ids = [r["id"] for r in rules]
     for attempt in range(MAX_RETRIES + 1):
         if not budget.reserve():
             return {"error": "budget_exhausted"}
@@ -104,12 +102,20 @@ def ask(state: str, rules: list[dict], post, budget: Budget, sleep=time.sleep) -
             return {"error": "signal_unavailable:transport"}
         if status == 200:
             budget.settle(data)
-            nouls = validate(data, ids)
-            if nouls is None:
-                return {"error": "signal_unavailable:invalid_response"}
-            return {"nouls": nouls, "model": str(data.get("model", "unknown"))}
+            return {"data": data}
         wait = retry_after if isinstance(retry_after, (int, float)) else None
         if status != 429 or attempt == MAX_RETRIES or wait is None or wait >= budget.remaining_seconds():
             return {"error": f"signal_unavailable:http_{status}"}
         sleep(wait)
     return {"error": "signal_unavailable:retries"}
+
+
+def ask(state: str, rules: list[dict], post, budget: Budget, sleep=time.sleep) -> dict:
+    """{'nouls': {...}, 'model': str} or {'error': reason}. Redaction happens before sending."""
+    sent = send(build_request(state, rules), post, budget, sleep)
+    if "error" in sent:
+        return sent
+    nouls = validate(sent["data"], [r["id"] for r in rules])
+    if nouls is None:
+        return {"error": "signal_unavailable:invalid_response"}
+    return {"nouls": nouls, "model": str(sent["data"].get("model", "unknown"))}
