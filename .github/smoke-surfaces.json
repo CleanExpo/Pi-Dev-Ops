@@ -19,6 +19,18 @@
       "_comment": "RA-7012: added TerminalPanel (live redacted tmux pane view) to the /control grid. Unauth still 307-redirects to login; the panel renders only when authed, so its live output is founder-verified per RA-1109 rather than smoke-asserted here. UNI-2633: IdeaPipelinePanel sits on this same daily window (intake → Board packet → one-word dispose → GO). Unauth 307 is unchanged; the packet is session-gated. PR #631: TopBar/SettingsForm/zte route default model bumped from Opus 4.8 to Opus 5 — no change to any route's auth requirement or status code, only the model literal returned to an already-authenticated caller. PR #632: same pattern for AgentRolesPanel (real pipeline-role status roster, sourced from the already-covered /api/pi-ceo/api/sessions proxy) — no new distinct endpoint, unauth 307 unaffected. UNI-2649: FleetTile on this page polls GET /api/mesh-fleet (declared below); it is not a second HTTP surface."
     },
     {
+      "name": "control-portfolio-auth",
+      "path": "/control",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "Choose a project. See the work.",
+        "Tell Mission Control your idea"
+      ],
+      "_comment": "PR #828: authenticated landing page declares the project selector and idea inbox. This HTML assertion proves the surface renders; the synthetic browser receipt checks selection and unknown scan evidence separately."
+    },
+    {
       "name": "loop-redirect",
       "path": "/loop",
       "method": "GET",

@@ -10,6 +10,7 @@ import { pathMatchesNav } from "@/lib/nav-active";
 import { SIDEBAR_NAV } from "@/lib/sidebar-nav";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { useEffect, useState } from "react";
+import MissionHomeShell from "@/components/control/MissionHomeShell";
 
 interface HealthData {
   swarm_enabled: boolean;
@@ -75,6 +76,8 @@ function SwarmStatus() {
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+
+  if (path === "/control") return <MissionHomeShell>{children}</MissionHomeShell>;
 
   return (
     <div className="flex min-h-screen bg-background text-text">

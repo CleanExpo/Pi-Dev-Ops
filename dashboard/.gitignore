@@ -4,6 +4,8 @@ out/
 
 # Dependencies
 node_modules/
+test-results/
+playwright-report/
 
 # Build info
 *.tsbuildinfo
