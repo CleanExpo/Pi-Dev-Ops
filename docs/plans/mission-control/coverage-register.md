@@ -59,3 +59,7 @@ Counts reported separately, per the coverage rules:
 | Unit tests in the Mission Control subset | ≈226 pytest (288 matched, 62 loosely related) + 214 vitest cases — all mocked |
 
 A 100% accounting rate here coexists with zero verified user outcomes. That is the finding.
+
+## Round 2 (29 Sept 2026, PR #818)
+
+Component tests now exist for every panel the register listed as untested (WP-08): Goal picker and form (MC-02), Model Fabric (MC-04), Routines (MC-08), Curator (MC-09), Margot (MC-10), Spec pipeline (MC-11), Terminal (MC-12) — 59 cases. Four of those panels showed a failure as a normal state and were fixed, each with a test shown failing first: Model Fabric (500 → "DISABLED"), Curator (failed read → "No pending proposals"), Spec pipeline (outage → empty list), Margot (failed preview, packet list and packet expand did nothing). These rows stay PARTIAL: component tests use mocked responses, and tier A still needs the browser check on the deployed site (WP-02, blocked on `DASHBOARD_PASSWORD`, RA-7832).

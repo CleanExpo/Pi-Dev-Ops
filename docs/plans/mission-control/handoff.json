@@ -1,21 +1,109 @@
 {
   "planning_identity": "mission-control-aaa",
-  "plan_revision": "r1",
+  "plan_revision": "r2",
   "planning_status": "REVIEW_READY",
   "session_end_state": "BLOCKED-EXTERNAL",
-  "written_at": "2026-09-28",
-  "inspected_repository": {"repo": "CleanExpo/Pi-Dev-Ops", "commit": "e3ea829"},
+  "written_at": "2026-09-29",
+  "inspected_repository": {
+    "repo": "CleanExpo/Pi-Dev-Ops",
+    "commit": "e3ea829"
+  },
   "intent_reference": "docs/plans/mission-control-jev-next-five.md:29",
   "grade_today": "UNGRADED (no browser evidence exists)",
-  "coverage": {"surfaces": 20, "verified": 0, "partial": 13, "structural_only": 2, "conflicting": 5, "repaired_this_change": ["MC-10", "MC-11"]},
+  "coverage": {
+    "surfaces": 20,
+    "verified": 0,
+    "partial": 13,
+    "structural_only": 2,
+    "conflicting": 5,
+    "repaired_this_change": [
+      "MC-10",
+      "MC-11"
+    ]
+  },
   "done_this_change": [
-    {"wp": "WP-01", "files": ["dashboard/lib/pi-ceo-proxy-allowlist.ts", "dashboard/__tests__/pi-ceo-proxy-allowlist.test.ts"], "evidence": "new test fails on old allowlist, passes on new; vitest 504/504; tsc clean"}
+    {
+      "wp": "WP-01",
+      "files": [
+        "dashboard/lib/pi-ceo-proxy-allowlist.ts",
+        "dashboard/__tests__/pi-ceo-proxy-allowlist.test.ts"
+      ],
+      "evidence": "new test fails on old allowlist, passes on new; vitest 504/504; tsc clean"
+    },
+    {
+      "wp": "WP-03",
+      "pr": 818,
+      "evidence": "app/server/routes/zte.py; tests/test_zte_score_route.py 6 tests; unauth 401 through the real app"
+    },
+    {
+      "wp": "WP-05",
+      "pr": 818,
+      "evidence": "lib/command-centre/youtube-intent-state.ts; tile test fails on the old tile"
+    },
+    {
+      "wp": "WP-08",
+      "pr": 818,
+      "evidence": "59 panel cases; 4 false-state defects fixed (ModelFabric, Curator, SpecPipeline, Margot); vitest 568/568"
+    },
+    {
+      "wp": "WP-10 prep",
+      "pr": 818,
+      "evidence": "scripts/jev_triage.py, 9 tests with fake transport; no live call; daily cap lifted by founder decision 2026-09-28"
+    }
   ],
   "blockers": [
-    {"id": "B1", "what": "DASHBOARD_PASSWORD as a GitHub Actions secret", "owner": "Phill", "kind": "secret", "unblocks": ["WP-02", "WP-04", "WP-05", "WP-06"]},
-    {"id": "B2", "what": "TYPESAFE_API_KEY as a GitHub Actions secret, or api.typesafe.ai allowed in the cloud environment network policy", "owner": "Phill", "kind": "secret/environment", "unblocks": ["WP-10"]},
-    {"id": "D0", "what": "Merge authority: cross-model audit vs human-merge-only", "owner": "Phill", "kind": "direction"}
+    {
+      "id": "B1",
+      "what": "DASHBOARD_PASSWORD as a GitHub Actions secret",
+      "owner": "Phill",
+      "kind": "secret",
+      "unblocks": [
+        "WP-02",
+        "WP-04",
+        "WP-05",
+        "WP-06"
+      ],
+      "ticket": "RA-7832"
+    },
+    {
+      "id": "B2",
+      "what": "TYPESAFE_API_KEY as a GitHub Actions secret, or api.typesafe.ai allowed in the cloud environment network policy",
+      "owner": "Phill",
+      "kind": "secret/environment",
+      "unblocks": [
+        "WP-10"
+      ],
+      "ticket": "RA-7832"
+    }
   ],
-  "next_action": {"wp": "WP-03", "why": "SAFE and unblocked (ZTE badge investigation); WP-08 component tests are also unblocked", "then": "WP-02 once B1 is supplied"},
-  "review_receipts": [{"kind": "cross-model", "model": "codex", "outcome": "NOT_RUN", "reason": "Codex CLI not available in this container"}]
+  "next_action": {
+    "wp": "WP-02",
+    "why": "browser sign-in to the deployed dashboard; everything else safe is done",
+    "blocked_by": [
+      "B1 DASHBOARD_PASSWORD (RA-7832)"
+    ],
+    "parallel": "WP-10 live once B2 is resolved"
+  },
+  "review_receipts": [
+    {
+      "kind": "cross-model",
+      "model": "codex",
+      "outcome": "NOT_RUN",
+      "reason": "Codex CLI not available in this container"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D0",
+      "status": "DECIDED",
+      "answer": "Keep human merge for Pi-Dev-Ops; cross-model audit is review evidence, not acceptance",
+      "ticket": "RA-7818"
+    },
+    {
+      "id": "JEV-CAP",
+      "status": "DECIDED",
+      "decided_at": "2026-09-28",
+      "answer": "No daily cap on Jev while the system is used heavily; spend still ledgered"
+    }
+  ]
 }
