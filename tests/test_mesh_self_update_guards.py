@@ -239,3 +239,20 @@ def test_a_lock_held_elsewhere_fails_closed_instead_of_hanging(monkeypatch):
         for p in (child, holder):
             p.kill()
             p.wait()
+
+
+def test_a_pid_windows_cannot_hold_counts_as_running(monkeypatch):
+    import ctypes
+    seen: list = []
+
+    class Kernel32:  # the Windows API truncates a pid to 32 bits, then finds no such process
+        def OpenProcess(self, _access, _inherit, pid):
+            seen.append(pid & 0xFFFFFFFF)
+            return 0
+
+        def GetLastError(self):
+            return 87  # ERROR_INVALID_PARAMETER: "no such process"
+
+    monkeypatch.setattr(ctypes, "windll", types.SimpleNamespace(kernel32=Kernel32()), raising=False)
+    assert left_running._alive_windows(2**32 + 123) is True
+    assert seen == []  # never asked about a different, truncated pid

@@ -24,6 +24,8 @@ LOCK_SECONDS = 10.0  # a lock held longer than this fails closed, as msvcrt.LK_L
 
 
 def _alive_windows(pid: int) -> bool:
+    if not 0 < pid <= 0xFFFFFFFF:  # a DWORD pid: OpenProcess would silently ask about a truncated one
+        return True
     import ctypes
     k32 = ctypes.windll.kernel32
     handle = k32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
