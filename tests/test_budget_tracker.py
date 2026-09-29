@@ -70,6 +70,66 @@ def test_supabase_failure_does_not_break_record_cost(isolated_log, monkeypatch):
     assert json.loads(log.read_text(encoding="utf-8").strip())["cost_usd"] == 0.50
 
 
+def _cost_kwargs():
+    return dict(provider="anthropic_agent_sdk", role="planner", model="m",
+                cost_usd=0.1, tokens_in=1, tokens_out=1)
+
+
+def test_mirror_stays_synchronous_off_the_event_loop(isolated_log, monkeypatch):
+    bt, _ = isolated_log
+    sent = []
+    monkeypatch.setattr("app.server.supabase_log._insert",
+                        lambda table, row: sent.append(table) or True, raising=False)
+    bt.record_cost(**_cost_kwargs())
+    assert sent == ["llm_costs"]
+
+
+def test_mirror_does_not_block_a_running_event_loop(isolated_log, monkeypatch):
+    import asyncio
+    import threading
+
+    bt, log = isolated_log
+    release, started, sent = threading.Event(), threading.Event(), []
+
+    def slow_insert(table, row):
+        started.set()
+        release.wait(5)
+        sent.append(table)
+        return True
+
+    monkeypatch.setattr("app.server.supabase_log._insert", slow_insert, raising=False)
+
+    async def go():
+        bt.record_cost(**_cost_kwargs())  # returns while the write is still blocked
+        assert not sent
+        assert log.exists()               # the local row is written first
+        release.set()
+
+    asyncio.run(go())
+    assert started.wait(5)
+    assert bt._mirror_pool.submit(lambda: None).result(5) is None  # worker drained
+    assert sent == ["llm_costs"]
+    assert bt._mirror_pending == 0
+
+
+def test_a_failing_queued_mirror_does_not_raise(isolated_log, monkeypatch):
+    import asyncio
+
+    bt, _ = isolated_log
+
+    def boom(*a, **kw):
+        raise RuntimeError("supabase down")
+
+    monkeypatch.setattr("app.server.supabase_log._insert", boom, raising=False)
+
+    async def go():
+        bt.record_cost(**_cost_kwargs())
+
+    asyncio.run(go())
+    bt._mirror_pool.submit(lambda: None).result(5)
+    assert bt._mirror_pending == 0
+
+
 def test_record_cost_swallows_jsonl_write_error(tmp_path, monkeypatch):
     # Point at a path inside a non-existent unwritable parent — it auto-mkdirs,
     # so instead we point at an existing directory (write should fail open()).
