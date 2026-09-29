@@ -313,8 +313,8 @@ query AutonomyQueueIssues($projectId: String!, $statusName: String!, $autonomyLa
 """
 
 
-def fetch_todo_issues(api_key: str) -> list[dict]:
-    """Claimable autonomy queue across every portfolio project (UNI-2648)."""
+def fetch_todo_issues(api_key: str, *, fail_on_error: bool = False) -> list[dict]:
+    """Claimable queue. Live reads require a complete scan before caching."""
     projects = _load_portfolio_projects()
     seen: set[str] = set()
     merged: list[dict] = []
@@ -329,6 +329,8 @@ def fetch_todo_issues(api_key: str) -> list[dict]:
             except LinearRateLimitError:
                 raise
             except Exception as exc:
+                if fail_on_error:
+                    raise RuntimeError("Linear portfolio scan failed") from None
                 log.warning(
                     "Autonomy: project %s label %s fetch failed: %s",
                     p["name"], label, exc,

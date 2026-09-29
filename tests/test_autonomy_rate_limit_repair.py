@@ -260,6 +260,32 @@ def test_failed_live_reads_are_not_cached_or_logged_with_vendor_body(monkeypatch
     assert calls == {"queue": 2, "pulse": 2}
 
 
+def test_failed_portfolio_scan_is_not_cached_as_empty_queue(monkeypatch, caplog):
+    monkeypatch.setenv("LINEAR_API_KEY", "test-key")
+    monkeypatch.setattr(autonomy, "_load_portfolio_projects", lambda: [{
+        "project_id": "a", "repo_url": "https://example.test/a", "team_id": "t", "name": "A",
+    }])
+    calls = []
+    issue = {"id": "a1", "identifier": "RA-1", "title": "Recovered", "priority": 1,
+             "state": {"name": "Ready for Pi-Dev", "type": "unstarted"},
+             "labels": {"nodes": [{"name": "pi-dev:autonomous"}]}}
+    def gql(_key, _query, _variables):
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("Linear HTTP 500 customer@example.com")
+        return {"project": {"issues": {"nodes": [issue]}}}
+    monkeypatch.setattr(autonomy, "_gql", gql)
+
+    with caplog.at_level("DEBUG", logger="pi-ceo.mission_control"):
+        assert mission_control._cached_queue_snapshot()["next_issue_id"] is None
+    assert mission_control._queue_cache is None
+    assert "customer@example.com" not in caplog.text
+    assert mission_control._cached_queue_snapshot()["next_issue_id"] == "RA-1"
+    assert len(calls) == 3
+    assert mission_control._cached_queue_snapshot()["next_issue_id"] == "RA-1"
+    assert len(calls) == 3
+
+
 def test_1000_varied_linear_error_envelopes_have_exact_quota_classification():
     rng = random.Random(20260929)
     for index in range(1000):

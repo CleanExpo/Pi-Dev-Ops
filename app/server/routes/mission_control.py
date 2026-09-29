@@ -63,7 +63,7 @@ def _queue_snapshot() -> dict:
         return queue_snapshot_from_issues([])
     registry = {p["project_id"] for p in autonomy._load_portfolio_projects()}
     issues = filter_claimable_issues(
-        autonomy.fetch_todo_issues(key),
+        autonomy.fetch_todo_issues(key, fail_on_error=True),
         registered_project_ids=registry,
         priority_labels=autonomy._PRIORITY_FILTER,
     )
