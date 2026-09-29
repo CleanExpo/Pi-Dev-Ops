@@ -151,6 +151,15 @@ def test_a_record_whose_blob_lacks_two_agreeing_labels_is_corrupt(repo):
     assert out["findings"][0]["state"] == "corrupt" and engine.artifact_rating(RULE)[0] == "FAIL"
 
 
+def test_records_outside_the_repository_are_capped_at_aa(repo, tmp_path_factory, monkeypatch):
+    """The fixtures keep records inside ROOT, so this guard needs its own test (the runner found it unkilled)."""
+    engine.calibrate(RULE, recording([]), budget())
+    outside = tmp_path_factory.mktemp("elsewhere") / "records"
+    shutil.copytree(engine.RECORDS, outside)
+    monkeypatch.setattr(engine, "RECORDS", outside)
+    assert engine.artifact_rating(RULE) == ("AA", ["records not inside the repository"])
+
+
 def test_an_honest_record_still_verifies(repo):
     """Positive control for the lineage check: an untampered calibration is usable and rates AA."""
     engine.calibrate(RULE, recording([]), budget())

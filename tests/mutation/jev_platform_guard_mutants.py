@@ -206,9 +206,9 @@ GUARD_MUTANTS = [
     # round 10 P1s: committed inputs only (tests/test_jev_platform_committed_inputs.py)
     ('engine.py', '    committed = _committed(QUESTIONS)\n',
      '    committed = ("", QUESTIONS.read_text()) if QUESTIONS.exists() else None\n'),  # en-registry-head
-    ('engine.py', '    committed = _committed(CASES / f"{rule_id}.jsonl")\n',
-     '    committed = (_committed(CASES / f"{rule_id}.jsonl") or ("", ""))[0], '
-     '(CASES / f"{rule_id}.jsonl").read_text()\n'),  # en-cases-head
+    ('engine.py', '    committed = _committed(CASES / f"{rule_id}.jsonl") if rule else None\n',
+     '    committed = ((_committed(CASES / f"{rule_id}.jsonl") or ("", ""))[0], '
+     '(CASES / f"{rule_id}.jsonl").read_text()) if rule else None\n'),  # en-cases-head
     ('engine.py', '"cases_blob": committed[0]}',
      '"cases_blob": _git("rev-parse", "HEAD")}'),  # en-cases-blob
     ('engine.py', 'None if cases and all(_dual_labelled(c) for c in cases) else',
