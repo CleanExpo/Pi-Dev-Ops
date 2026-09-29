@@ -78,14 +78,14 @@ export default function LiveActivityFeed() {
 
   if (!data && !err) {
     return (
-      <div className="rounded-lg border border-slate-700/50 bg-slate-900/50 p-6 backdrop-blur-sm">
+      <div id="mission-control-live" className="rounded-lg border border-slate-700/50 bg-slate-900/50 p-6 backdrop-blur-sm">
         <div className="animate-pulse text-text-muted">Loading Mission Control…</div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-slate-700/50 bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-sm">
+    <div id="mission-control-live" className="rounded-lg border border-slate-700/50 bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-sm">
       {/* Header */}
       <div className="border-b border-slate-800 p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
