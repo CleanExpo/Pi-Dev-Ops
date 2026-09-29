@@ -49,6 +49,8 @@ def approved_manifest(repo: str) -> dict | None:
         data = json.loads(out.stdout)
     except ValueError:
         return None
+    if not isinstance(data, dict):  # a list, string, number or null manifest is refused, not a crash
+        return None
     return data if isinstance(data.get("files"), dict) and isinstance(data.get("questions"), dict) else None
 
 
