@@ -118,6 +118,9 @@ def test_scout_refuses_a_relative_repo_even_when_it_is_a_repository(calls, monke
 def test_scout_refuses_a_directory_outside_any_repository(calls, monkeypatch, tmp_path, capsys):
     """guard sweep 29/09: a non-git directory is refused with rc 2; nothing runs against it."""
     monkeypatch.setenv(KEY, "ts-test-value-0000")
+    # git must not find a repository ABOVE tmp_path (a TMPDIR inside a checkout would make this pass as a repo)
+    env = ask.git_env
+    monkeypatch.setattr(ask, "git_env", lambda: {**env(), "GIT_CEILING_DIRECTORIES": str(tmp_path)})
     (tmp_path / "plain").mkdir()
     assert cli_scale.repo_root(str(tmp_path / "plain")) is None
     assert cli.main(["scout", "--glob", "*.ts", "--q", "known-issue", "--repo", str(tmp_path / "plain")]) == 2
