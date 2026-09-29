@@ -20,7 +20,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("FleetTile", () => {
-  it("shows each machine's revision, heartbeat, claim and checkedAt", async () => {
+  it("LOADED: shows each machine's revision, heartbeat, claim and checkedAt", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -47,7 +47,7 @@ describe("FleetTile", () => {
     expect(screen.queryByText(/unavailable/i)).toBeNull();
   });
 
-  it("renders unavailable when the BFF says so — not an empty fleet", async () => {
+  it("ERROR: renders unavailable when the BFF says so — not an empty fleet", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -62,14 +62,14 @@ describe("FleetTile", () => {
     expect(screen.queryByText(/No machines enrolled/)).toBeNull();
   });
 
-  it("renders unavailable when the fetch fails, not a placeholder fleet", async () => {
+  it("ERROR: renders unavailable when the fetch fails, not a placeholder fleet", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network"); }));
     render(<FleetTile />);
     expect(await screen.findByText(/unavailable/i)).toBeTruthy();
     expect(screen.queryByText(/No machines enrolled/)).toBeNull();
   });
 
-  it("CONTROL: a genuine empty enrolment is not labelled unavailable", async () => {
+  it("EMPTY (control): a genuine empty enrolment is not labelled unavailable", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>

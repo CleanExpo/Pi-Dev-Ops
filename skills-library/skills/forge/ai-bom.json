@@ -1,0 +1,65 @@
+{
+ "bomFormat": "AI-BOM/CycloneDX-style",
+ "specVersion": "1.0",
+ "generated_utc": "2026-07-06T11:36:53.101354+00:00",
+ "component": {
+  "name": "forge",
+  "purpose": "Use when a new skill must be created from a decision, verdict, or capability gap \u2014 the user says \"forge a skill\", \"turn this verdict into a skill\", \"build a skill for X\", or pantheon/nexus hands over a VERDICT recommending one. Produces a secure, evaluated, quarantined skill package with an AI-BOM.",
+  "declared_tools": [
+   "Agent",
+   "Bash",
+   "Edit",
+   "Glob",
+   "Grep",
+   "LS",
+   "Read",
+   "Skill",
+   "Write"
+  ]
+ },
+ "scan": {
+  "checks": [
+   {
+    "id": "QA-FRONTMATTER",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "SEC-SECRET",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "SEC-DESTRUCT",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "SEC-EXEC",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "SEC-INJECT",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "QA-TESTS",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "SEC-SCOPE",
+    "status": "PASS",
+    "detail": ""
+   }
+  ],
+  "verdict": "PASS",
+  "exempted_files": [
+   "references/scan-checklist.md",
+   "scripts/scan.py"
+  ]
+ },
+ "threat_note": "Static scan only; runtime behaviour gated by eval + human promotion."
+}

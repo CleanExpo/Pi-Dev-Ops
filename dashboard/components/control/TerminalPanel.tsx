@@ -24,6 +24,9 @@ interface Session {
 interface SessionsResp {
   sessions?: Session[];
   error?: string;
+  // RA-7849: false on a host without the tmux program (the Railway image).
+  available?: boolean;
+  reason?: string;
 }
 interface TailResp {
   session?: string;
@@ -39,6 +42,7 @@ export default function TerminalPanel() {
   const [selected, setSelected] = useState<string | null>(null);
   const [lines, setLines] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState<string | null>(null);
   const [fresh, setFresh] = useState<boolean>(false);
 
   // `path` is WITHOUT the /api/pi-ceo prefix — fetchProxy adds it. Previously
@@ -61,6 +65,7 @@ export default function TerminalPanel() {
       if (!mounted || !j) return;
       const list = j.sessions ?? [];
       setSessions(list);
+      setUnavailable(j.available === false ? (j.reason ?? "tmux is not available on this host") : null);
       if (j.error) setErr(j.error);
       else setErr(null);
       // auto-select the first session once, if none chosen
@@ -109,15 +114,19 @@ export default function TerminalPanel() {
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-neutral-200">Terminal fleet — specialist</h2>
         <span
-          className={`text-xs ${fresh ? "text-emerald-400" : "text-neutral-500"}`}
+          className={`text-xs ${fresh ? "text-emerald-400" : "text-neutral-400"}`}
           title="live pane freshness"
         >
           {fresh ? "● live" : "○ idle"}
         </span>
       </div>
 
-      {sessions.length === 0 ? (
-        <p className="text-xs text-neutral-500">
+      {sessions.length === 0 && unavailable && !err ? (
+        <p className="text-xs text-neutral-400" data-mc-empty="the terminal fleet runs on the mesh machines, not this host">
+          Not available on this host: {unavailable}.
+        </p>
+      ) : sessions.length === 0 ? (
+        <p className="text-xs text-neutral-400" data-mc-empty={err ? undefined : "the Railway node runs no tmux sessions"}>
           {err ? `No sessions — ${err}` : "No tmux sessions on this node."}
         </p>
       ) : (
@@ -125,6 +134,7 @@ export default function TerminalPanel() {
           <div className="mb-3 flex flex-wrap gap-2">
             {sessions.map((s) => (
               <button
+                data-mc-data={err ? undefined : "tmux-session"}
                 key={s.name}
                 onClick={() => {
                   setSelected(s.name);

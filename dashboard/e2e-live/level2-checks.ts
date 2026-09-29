@@ -131,6 +131,20 @@ export async function checkAuthBoundary(
   };
 }
 
+type AxeViolation = Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"][number];
+
+// Names up to three failing elements, with colours and ratio for contrast, so a
+// live-only failure can be fixed from the receipt: the live site is unreachable
+// from local sandboxes, and "color-contrast (2 el)" alone said nothing (RA-7843).
+function describeViolation(v: AxeViolation): string {
+  const els = v.nodes.slice(0, 3).map((n) => {
+    const d = n.any[0]?.data as { fgColor?: string; bgColor?: string; contrastRatio?: number } | undefined;
+    const colours = d?.fgColor ? ` ${d.fgColor} on ${d.bgColor} = ${d.contrastRatio}:1` : "";
+    return `${n.target.map(String).join(" ")}${colours}`;
+  });
+  return `${v.id} (${v.impact}, ${v.nodes.length} el: ${els.join(" | ")})`;
+}
+
 // MC check 8: axe at WCAG 2.2 AA, zero serious or critical violations.
 export async function checkAccessibility(page: Page): Promise<CheckResult> {
   const { violations } = await new AxeBuilder({ page })
@@ -143,6 +157,6 @@ export async function checkAccessibility(page: Page): Promise<CheckResult> {
     detail:
       blocking.length === 0
         ? `0 serious/critical (${violations.length} lesser)`
-        : blocking.map((v) => `${v.id} (${v.impact}, ${v.nodes.length} el)`).join("; "),
+        : blocking.map(describeViolation).join("; "),
   };
 }

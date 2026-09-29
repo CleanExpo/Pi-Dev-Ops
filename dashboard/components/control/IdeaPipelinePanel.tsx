@@ -63,6 +63,7 @@ export default function IdeaPipelinePanel() {
   }, [refresh]);
 
   const packet: IdeaPacket | null = payload?.snapshot.packet ?? null;
+  const legacyPacket = Boolean(packet && !packet.north_star_fit.source_revision);
 
   async function dropIdea() {
     const text = draft.trim();
@@ -116,6 +117,7 @@ export default function IdeaPipelinePanel() {
 
   return (
     <section
+      id="idea-pipeline"
       className={styles.panel}
       aria-label="Idea intake and Board packet"
     >
@@ -152,16 +154,16 @@ export default function IdeaPipelinePanel() {
 
       {packet ? (
         <details className={styles.packet} open={Boolean(notice)}>
-          <summary>Board packet · {packet.status} · {packet.recommended_verdict}</summary>
+          <summary>Board packet · {packet.status} · {legacyPacket ? "review required" : packet.recommended_verdict}</summary>
           <div className="mt-3 grid gap-3">
           <Field label="Idea" value={packet.text} />
           <Field
             label="North Star fit"
-            value={`${packet.north_star_fit.label} · ${packet.north_star_fit.rationale}`}
+            value={legacyPacket ? "Legacy packet under an earlier North Star. Re-examine before deciding; its old recommendation is not current evidence." : `${packet.north_star_fit.label} · ${packet.north_star_fit.rationale}`}
           />
           <Field
             label="Effort vs impact"
-            value={`${packet.effort_vs_impact.effort} effort / ${packet.effort_vs_impact.impact} impact. ${packet.effort_vs_impact.rationale}`}
+            value={legacyPacket ? "Unknown until re-examined." : `${packet.effort_vs_impact.effort} effort / ${packet.effort_vs_impact.impact} impact. ${packet.effort_vs_impact.rationale}`}
           />
           <Field
             label="Directive"
@@ -173,7 +175,7 @@ export default function IdeaPipelinePanel() {
           />
           <Field
             label="Board lean"
-            value={`${packet.recommended_verdict} · Judge ${packet.judge.score} ${packet.judge.decision}`}
+            value={legacyPacket ? "Review required under the current North Star." : `${packet.recommended_verdict} · Judge ${packet.judge.decision}. ${packet.judge.note ?? ""}`}
           />
           {packet.plan_packet_md ? (
             <div>

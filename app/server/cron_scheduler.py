@@ -60,6 +60,33 @@ async def _watchdog_notebooklm_refresh_weekly(log) -> None:
         log.error("RA-1668 notebooklm weekly refresh failed: %s", exc)
 
 
+async def _run_watchdogs(triggers: list[dict], log: logging.Logger) -> None:
+    """The half-hourly watchdogs, in their existing order."""
+    await _watchdog_check(triggers, log)
+    await _watchdog_docs_staleness(log, triggers)  # RA-635/RA-7027
+    await _watchdog_escalations(log)              # RA-633
+    await _watchdog_zte_reality_check(log)        # RA-608
+    await _watchdog_notebooklm_health(log)        # RA-820
+    await _watchdog_notebooklm_refresh_weekly(log)  # RA-1668
+    await _watchdog_board_meeting_silence(log, triggers)    # RA-1472/RA-7030
+    await _watchdog_vercel_deploy_failures(log)   # RA-1742
+    await _watchdog_linear_auth(log)              # RA-1908
+    await _watchdog_health_full(log)              # RA-1910
+
+
+def _run_watchdogs_blocking(triggers: list[dict], log: logging.Logger) -> None:
+    """Run the watchdogs to completion on the calling (worker) thread, in its own loop.
+
+    RA-7845: the watchdogs are async but make blocking Supabase, Linear, Vercel
+    and Telegram calls. On the server's event loop each one froze every
+    request: production logged a 4.0 s stall inside
+    _watchdog_notebooklm_health -> supabase_log._insert at 10:30:53 UTC,
+    29 Sept 2026. cron_loop awaits this through asyncio.to_thread, so a slow
+    watchdog can delay only the watchdogs after it, never a request.
+    """
+    asyncio.run(_run_watchdogs(triggers, log))
+
+
 async def cron_loop() -> None:
     """Background asyncio task. Checks triggers every 60s."""
     _log = logging.getLogger("pi-ceo.cron")
@@ -68,7 +95,7 @@ async def cron_loop() -> None:
     # --- Startup catch-up: fire overdue scan/monitor triggers immediately ---
     await asyncio.sleep(10)  # brief delay so server is fully ready
     try:
-        triggers = _load_triggers()
+        triggers = await asyncio.to_thread(_load_triggers)
         fired = False
         for trigger in triggers:
             if should_fire_on_boot(trigger):
@@ -80,7 +107,7 @@ async def cron_loop() -> None:
                 except Exception as exc:
                     _log.error("Catch-up: trigger %s failed: %s", trigger["id"], exc)
         if fired:
-            _save_triggers(triggers)
+            await asyncio.to_thread(_save_triggers, triggers)
     except Exception as exc:
         _log.error("Catch-up startup error: %s", exc)
 
@@ -92,7 +119,7 @@ async def cron_loop() -> None:
         await asyncio.sleep(60)
         try:
             now = datetime.datetime.utcnow()
-            triggers = _load_triggers()
+            triggers = await asyncio.to_thread(_load_triggers)
             fired = False
             for trigger in triggers:
                 if _matches(trigger, now.hour, now.minute, now.weekday(), now.day, now.month):
@@ -130,22 +157,13 @@ async def cron_loop() -> None:
                             exc_info=True,
                         )
             if fired:
-                _save_triggers(triggers)
+                await asyncio.to_thread(_save_triggers, triggers)
 
             # Watchdog checks every 30 minutes
             _watchdog_interval += 1
             if _watchdog_interval >= 30:
                 _watchdog_interval = 0
-                await _watchdog_check(triggers, _log)
-                await _watchdog_docs_staleness(_log, triggers)  # RA-635/RA-7027
-                await _watchdog_escalations(_log)              # RA-633
-                await _watchdog_zte_reality_check(_log)        # RA-608
-                await _watchdog_notebooklm_health(_log)        # RA-820
-                await _watchdog_notebooklm_refresh_weekly(_log)  # RA-1668
-                await _watchdog_board_meeting_silence(_log, triggers)    # RA-1472/RA-7030
-                await _watchdog_vercel_deploy_failures(_log)   # RA-1742
-                await _watchdog_linear_auth(_log)              # RA-1908
-                await _watchdog_health_full(_log)              # RA-1910
+                await asyncio.to_thread(_run_watchdogs_blocking, triggers, _log)
 
             # Linear pulse every 15 min — mandatory single-pane-of-glass for
             # the founder, per explicit requirement (2026-04-19).

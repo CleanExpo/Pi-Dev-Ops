@@ -175,6 +175,7 @@ export default function AgentRolesPanel() {
           className="text-[10px] font-mono uppercase px-2 py-0.5 rounded"
           style={{ color: "var(--text-dim)", background: "var(--panel-hover)", border: "1px solid var(--border)" }}
           title="Each build session runs through these 8 real phases — this is not a roster of independently-running agents."
+          data-mc-empty={!loading && !fetchError && active.length === 0 ? "no build session is running right now" : undefined}
         >
           {active.length > 0 ? `${active.length} active` : "idle"}
         </span>
@@ -195,6 +196,7 @@ export default function AgentRolesPanel() {
           <div className="flex flex-col gap-1 mb-1">
             {active.map((s) => (
               <div
+                data-mc-data={fetchError ? undefined : "active-session"}
                 key={s.id}
                 className="flex items-center gap-2.5 px-2.5 py-1.5"
                 style={{ background: "var(--panel-hover)", border: "1px solid var(--accent)", borderRadius: 6 }}

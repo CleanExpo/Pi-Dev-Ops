@@ -4,7 +4,7 @@ export const BRAND_DARK = {
   onAccent: "#0e1014",
   success: "#00d97e",
   warning: "#ff8a1f",
-  error: "#e5484d",
+  error: "#ff6369", // matches --error (dark); was e5484d, 4.27:1 on panel (RA-7843)
   info: "#22d3ee",
   text: "#f4f5f7",
   textMuted: "#a7adba",

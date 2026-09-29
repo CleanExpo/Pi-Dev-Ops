@@ -172,6 +172,7 @@ export default function HealthGrid() {
               const history = historyRef.current.get(p.project_id) ?? [p.overall_health];
               return (
                 <button
+                  data-mc-data="project-health"
                   key={p.project_id}
                   onClick={() => setSelected(p)}
                   className="text-left p-2.5 rounded transition-colors"

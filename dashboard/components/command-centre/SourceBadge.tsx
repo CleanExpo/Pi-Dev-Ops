@@ -81,7 +81,7 @@ export function SourceBadge({ mode, label, lastUpdatedAt }: SourceBadgeProps) {
       {stamp && (
         <>
           <span>·</span>
-          <span style={{ color: 'var(--cc-ink-hush, rgba(207,224,236,0.45))' }}>{stamp}</span>
+          <span data-mc-data="live-source-stamp" style={{ color: 'var(--cc-ink-hush, rgba(207,224,236,0.45))' }}>{stamp}</span>
         </>
       )}
     </span>

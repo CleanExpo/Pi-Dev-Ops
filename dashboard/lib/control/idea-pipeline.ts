@@ -12,11 +12,11 @@ export interface IdeaPacket {
   go_at: string | null;
   executed: boolean;
   execution_requested?: boolean;
-  north_star_fit: { label: string; score: number; rationale: string };
+  north_star_fit: { label: string; score: number | null; rationale: string; source_revision?: string };
   effort_vs_impact: { effort: string; impact: string; rationale: string };
   directive: { label: string; rationale: string };
   displacement: { would_displace: string; rationale: string };
-  judge: { score: number; decision: string; note?: string };
+  judge: { score: number | null; decision: string; note?: string };
   spm: { problem: string; desired_outcome: string; out_of_scope: string };
   /** Set when a mesh node reviewed this idea from an idea:plan Linear ticket. */
   linear_id?: string;

@@ -1,5 +1,6 @@
 import { repoShort, skillFromPhase, statusDot } from "@/lib/control/overview-format";
 import { sessionTime, type OperatorSession } from "@/lib/operator-status";
+import { brisbaneTime } from "@/lib/brisbane-time";
 
 export function AgentCard({ session }: { session: OperatorSession }) {
   const live = ["cloning", "building", "evaluating", "created"].includes(session.status);
@@ -51,7 +52,7 @@ export function AgentCard({ session }: { session: OperatorSession }) {
 
 export function ActivityRow({ session, index }: { session: OperatorSession; index: number }) {
   const ts = new Date(sessionTime(session.started));
-  const timeStr = ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const timeStr = brisbaneTime(ts);
   const live = ["cloning", "building", "evaluating", "created"].includes(session.status);
 
   return (

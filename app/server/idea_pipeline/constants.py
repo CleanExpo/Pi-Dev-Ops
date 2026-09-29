@@ -1,10 +1,10 @@
-"""UNI-2633 idea pipeline constants — North Star, verdicts, directives."""
+"""Idea pipeline cues. The source of truth is docs/governance/NEXUS-NORTH-STAR.md."""
 
 from __future__ import annotations
 
-NORTH_STAR = (
-    "empower small business owners to grow, self-paced, all learning styles"
-)
+NORTH_STAR = "Build a group of businesses, people and systems that earn trust when conditions are hardest."
+NORTH_STAR_SOURCE = "docs/governance/NEXUS-NORTH-STAR.md"
+NORTH_STAR_REVISION = "2026-09-29"
 
 VERDICTS = frozenset({"PROMOTE", "BACKLOG", "PARK", "KILL"})
 SOURCES = frozenset({"phill", "margot"})
@@ -35,30 +35,10 @@ DIRECTIVES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
 
 NORTH_STAR_TERMS = frozenset(
     {
-        "empower",
-        "small",
-        "business",
-        "owner",
-        "owners",
-        "grow",
-        "growth",
-        "self-paced",
-        "learning",
-        "style",
-        "styles",
-        "course",
-        "teach",
-        "lesson",
-        "shop",
-        "cafe",
-        "founder",
-        "sales",
-        "customer",
-        "video",
-        "audio",
-        "practise",
-        "practice",
-        "training",
+        "trust", "truth", "honest", "protect", "customer", "team",
+        "partner", "repair", "recover", "recovery", "incident",
+        "escalate", "evidence", "accountable", "commitment", "pressure",
+        "restoration", "technician", "damage",
     }
 )
 
@@ -83,6 +63,11 @@ ACTION_VERBS = frozenset(
         "show",
         "give",
         "offer",
+        "call",
+        "name",
+        "verify",
+        "contain",
+        "correct",
     }
 )
 

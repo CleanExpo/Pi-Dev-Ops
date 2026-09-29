@@ -17,7 +17,10 @@ export default async function YouTubeIntentPage() {
       </Link>
       <h1 style={{ margin: 0, fontSize: 24, color: 'var(--deck-text)' }}>UG-N Intent-Only YouTube Catalog</h1>
       {!data ? (
-        <p style={{ color: load.kind === 'absent' ? 'var(--deck-muted)' : 'var(--deck-abort-text)', marginTop: 12 }}>
+        <p
+          style={{ color: load.kind === 'absent' ? 'var(--deck-muted)' : 'var(--deck-abort-text)', marginTop: 12 }}
+          data-mc-empty={load.kind === 'absent' ? 'the intent catalogue is built on the mesh machine and is not deployed to this host' : undefined}
+        >
           {notice}
         </p>
       ) : (
@@ -41,7 +44,7 @@ export default async function YouTubeIntentPage() {
             <h2 style={{ margin: 0, fontSize: 16 }}>Most watched strategic selections</h2>
             <ul>
               {data.topAccepted.map((item) => (
-                <li key={item.video_key}>
+                <li key={item.video_key} data-mc-data="intent-signal">
                   <b>{item.title ?? item.video_key}</b> ({item.channel ?? 'unknown channel'}) · watched{' '}
                   {item.watch_count_window ?? 1} times · topics: {(item.strategic_hits ?? []).join(', ') || 'none'}
                 </li>

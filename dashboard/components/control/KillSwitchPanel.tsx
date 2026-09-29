@@ -54,12 +54,12 @@ export default function KillSwitchPanel() {
     await refresh();
   };
 
-  const headline =
-    status?.kill_switch_active
-      ? { dot: "red" as const, label: "HALTED" }
-      : status?.swarm_enabled_env
-        ? { dot: "green" as const, label: "RUNNING" }
-        : { dot: "dim" as const, label: "DISABLED" };
+  // An unread or failed status is UNKNOWN, never "DISABLED" with invented zeros.
+  const known = status !== null && !status.error;
+  const headline = !known ? { dot: "dim" as const, label: status ? "UNKNOWN" : "CHECKING" }
+    : status?.kill_switch_active ? { dot: "red" as const, label: "HALTED" }
+      : { dot: status?.swarm_enabled_env ? "green" as const : "dim" as const,
+          label: status?.swarm_enabled_env ? "RUNNING" : "DISABLED" };
 
   return (
     <div
@@ -81,17 +81,17 @@ export default function KillSwitchPanel() {
       <Row label="State" value={headline.label} />
       <Row
         label="Escalation lock"
-        value={status?.escalation_lock_active ? "LOCKED" : "no"}
+        value={!known ? "unknown" : status?.escalation_lock_active ? "LOCKED" : "no"}
         emphasis={status?.escalation_lock_active}
       />
       <Row
         label="Panics last hour"
-        value={String(status?.panic_count_last_hour ?? "—")}
+        value={known ? String(status?.panic_count_last_hour ?? "—") : "unknown"}
         emphasis={(status?.panic_count_last_hour ?? 0) >= 3}
       />
       <Row
         label="Approvers w/ TOTP"
-        value={`${status?.approver_totp_configured?.length ?? 0} / ${status?.approver_allowlist?.length ?? 0}`}
+        value={known ? `${status?.approver_totp_configured?.length ?? 0} / ${status?.approver_allowlist?.length ?? 0}` : "unknown"}
       />
 
       <div className="mt-3 flex gap-2">

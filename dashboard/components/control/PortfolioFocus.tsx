@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import type { MissionControlLive, MCSession } from "@/lib/control/mission-control-live";
 import { latestPipelineForRepo, PATHWAY, stageEvidence, type PipelineSummary } from "@/lib/control/project-pathway";
+import FounderNorthStarReadout from "./FounderNorthStarReadout";
 import styles from "./portfolio-focus.module.css";
 
 interface ProjectHealth {
@@ -81,6 +82,7 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
         </div>
         <span className={styles.truthMark}>EVIDENCE FIRST</span>
       </div>
+      <FounderNorthStarReadout live={live} />
 
       {loading ? <p className={styles.notice} role="status">Loading portfolio…</p> : projectError ? (
         <p className={styles.notice} role="status">Portfolio source unavailable. Project status is unknown.</p>
@@ -96,6 +98,7 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
               const activityLabel = activityError ? "activity unknown" : active ? "work observed" : "no active work observed";
               return (
                 <button
+                  data-mc-data="project"
                   type="button"
                   key={`${project.project_id}-${index}`}
                   className={`${styles.card} ${raised ? styles.raised : ""}`}

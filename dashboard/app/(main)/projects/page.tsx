@@ -4,6 +4,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { brisbaneTime } from "@/lib/brisbane-time";
 
 interface ProjectHealth {
   project_id: string;
@@ -125,7 +126,7 @@ export default function ProjectsPage() {
         <div className="flex items-center gap-3">
           {lastUpdated && (
             <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>
-              updated {lastUpdated.toLocaleTimeString()}
+              updated {brisbaneTime(lastUpdated, true)}
             </span>
           )}
           <button

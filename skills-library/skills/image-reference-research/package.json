@@ -1,0 +1,10 @@
+{
+  "name": "image-reference-research",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rights-aware industry image reference library (research only) — scripts and offline eval.",
+  "scripts": {
+    "verify": "node scripts/eval.mjs"
+  }
+}

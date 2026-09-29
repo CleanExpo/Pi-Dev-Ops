@@ -105,6 +105,42 @@ the text snapshot that Jev contracts J1–J3 read, so a nightly run yields rough
 
 ## What today's grade is
 
-**Ungraded — below Level 1**, so not scoreable under the portfolio rubric. Check 1 cannot pass on any surface because no browser test exists
-(coverage-register.md: "Browser tests touching any surface: 0"). This is a statement that the
-evidence does not exist, not that the pages are broken.
+**Ungraded — below Level 1**, so not scoreable under the portfolio rubric. Check 1 is now measured
+(29 Sept): components mark the element they render only from backend data with `data-mc-data`,
+or an honest empty state with `data-mc-empty` and the reason, and `dashboard/e2e-live/real-data.ts`
+asserts one is visible. Three surfaces show no backend data by design, so they fail check 1 until
+that is decided: MC-07 (the build form fetches nothing until a run starts), MC-13 (a static index
+of links) and MC-14 (a static design-target registry). Check 7 is measured too: each page's data
+panels are listed in `dashboard/e2e-live/panel-coverage.json`, and a page passes only when every
+panel has passing tests named for its loaded, empty and error states (a page with no data panels
+is N/A, which does not count as met). The scorer
+(`scripts/mission_control_scorecard.py`) reads the result from the nightly receipts; run the live
+suite for today's per-surface levels rather than trusting a count here. Check 10 is measured from
+30 Sept: each run's `scorecard.json` records, per surface, whether every live receipt it should
+have exists and passed, and is kept 90 days as the `mission-control-scorecard` artifact. The next
+run downloads the last three scheduled runs' scorecards and a surface meets check 10 only when the
+last three scheduled runs all passed for it on their first attempt
+(`scripts/mission_control_stability.py`). A scheduled run that left no scorecard breaks the streak,
+and a manual run never counts toward it. Scheduled runs before this change recorded no scorecard,
+so check 10 reads "not measured" until three nightly runs have run with it. Check 11 is measured too
+(`scripts/mission_control_register.py`): a surface fails when its row in
+[coverage-register.md](coverage-register.md) is CONFLICTING or STRUCTURAL_ONLY or missing, or when
+an open Linear issue labelled `mc-defect` names it as `MC-xx` (an issue naming no surface counts
+against all of them). Without `LINEAR_API_KEY` the ticket half is unread and check 11 reads "not
+measured". Check 12 is measured for MC-03 from 30 Sept
+(`dashboard/e2e-writes/`, a receipt named `MC-03-W.json`): the real dashboard build runs on the test
+machine against a recording stand-in backend, and five journeys assert that what each swarm
+button sends matches its label: Halt sends one kill and no resume, Resume the reverse, Cancel and
+an invalid form send nothing, and a refused halt is shown and never looks halted. Each journey was
+mutation-checked against the real panel code. It proves what the dashboard sends, not that the real
+backend accepts it. Every other write surface (MC-01, 02, 05, 07, 10, 11) reads "not measured" for check 12 until
+its own journeys exist. **Check 3 stays unmet on all seven write surfaces**: it is defined as running
+against a PR preview (Railway `Pi-Dev-Ops-pr-<n>` + Vercel preview), and Vercel's sign-in
+protection (`ssoProtection: all_except_custom_domains`, read from the project on 29 Sept) blocks
+the browser from previews. **A bypass secret alone is not enough, and by itself it would be unsafe:**
+the Vercel variable `PI_CEO_URL` is set to the production Railway URL for the `preview` scope as
+well as `production` (a plain, non-secret value, read 29 Sept), so a preview talks to the real
+backend, not to the Railway `Pi-Dev-Ops-pr-<n>` copy. `PI_CEO_PASSWORD`, `DASHBOARD_PASSWORD` and
+`KILL_SWITCH_SECRET` are production-only, so a preview today would mostly fail closed by accident.
+No write journey may be pointed at a preview until previews have their own backend URL and
+credentials. That is a founder decision (secrets, and a Railway PR environment per preview).

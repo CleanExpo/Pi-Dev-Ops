@@ -162,6 +162,7 @@ def test_orphan_recovery_state_missing_does_not_crash(monkeypatch: pytest.Monkey
     monkeypatch.setattr(a, "_load_portfolio_projects", lambda: [fake_project])
     monkeypatch.setattr(a, "_gql", fake_gql)
     monkeypatch.setattr(a, "transition_issue", fake_transition)
+    monkeypatch.setattr(a, "add_label_to_issue", lambda *args, **kwargs: True)
 
     # _is_pi_ceo_orphan needs an empty live-session set to flag the ticket.
     fake_sessions: dict = {}

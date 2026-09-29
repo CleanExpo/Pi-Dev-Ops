@@ -1,0 +1,14 @@
+# Library skills kept out of skills-library/ while their files fail this repo's secrets gate
+# (handoff-loop audit-secrets, or the same rules over Markdown in sync_skills_library check),
+# or while they run files of a skill that does, or while they carry a spec.md with no
+# engineering.md beside it (the PR release gate requires one for any spec in a diff). Each hit was checked by its shape, without
+# printing the value, and is an example (placeholder, URL builder, fixture), not a credential.
+# The gate stays exactly as it is: the library rewrites those lines, and the next sync drops the
+# name from this list. Checked by scripts/sync_skills_library.py.
+impeccable  # scripts/live-browser.js builds '?token=' + TOKEN URLs (10 lines)
+nexus-scientific  # a placeholder OpenRouter key line in 36 generate_* scripts; redaction-test fixtures
+pr-release-gate  # the reason text in ci-mirror-exempt/CleanExpo__CCW-CRM.json trips the password rule
+shipyard  # its SKILL.md runs pr-release-gate scripts, which are held back above
+credential-custody  # SKILL.md line 37 assigns a quoted example value (Markdown scan, 1 line)
+engineering-requirements  # harness/fixture/spec.md has no engineering.md; the PR release gate reads it as an unreviewed spec
+skill-authoring-standard  # spec.md has no engineering.md (same gate rule); skills/ has its own copy, which is the one that loads

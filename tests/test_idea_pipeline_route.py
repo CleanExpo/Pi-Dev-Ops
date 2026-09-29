@@ -43,7 +43,7 @@ def test_intake_produces_a_board_packet(client: TestClient) -> None:
     listed = client.get("/api/idea-pipeline")
     packet = listed.json()["snapshot"]["packet"]
     assert packet["idea_id"] == idea_id
-    assert packet["judge"]["score"] >= 1
+    assert packet["judge"]["decision"] == "REVIEW_REQUIRED"
     assert packet["spm"]["desired_outcome"]
 
 

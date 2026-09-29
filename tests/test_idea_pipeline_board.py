@@ -15,27 +15,39 @@ def _idea(text: str, source: str = "phill") -> RawIdea:
     return RawIdea(idea_id="idea-test", text=text, source=source, intake_path="IDEAS.md")
 
 
-def test_strong_north_star_idea_promotes() -> None:
+def test_keyword_overlap_does_not_approve_an_idea() -> None:
     text = (
         "Teach shop owners to film their own product videos in short "
         "self-paced lessons that also work as audio."
     )
     packet = build_packet(_idea(text))
     assert packet["recommended_verdict"] in VERDICTS
-    assert packet["recommended_verdict"] == "PROMOTE"
+    assert packet["recommended_verdict"] == "BACKLOG"
     assert packet["north_star_fit"]["north_star"] == NORTH_STAR
-    assert packet["north_star_fit"]["score"] >= 0.45
+    assert packet["north_star_fit"]["label"] == "unverified"
+    assert packet["north_star_fit"]["score"] is None
+    assert packet["north_star_fit"]["source_revision"] == "2026-09-29"
     assert packet["directive"]["id"] != "unmapped"
-    assert packet["judge"]["score"] >= 1
+    assert packet["judge"]["decision"] == "REVIEW_REQUIRED"
+    assert packet["judge"]["score"] is None
     assert packet["spm"]["out_of_scope"]
     assert packet["storm"]["rows"]
     assert packet["executed"] is False
     assert packet["go_at"] is None
 
 
-def test_unrelated_idea_is_killed() -> None:
+def test_lexical_miss_does_not_kill_an_idea() -> None:
     packet = build_packet(_idea("Repaint the office bikeshed a darker blue."))
-    assert packet["recommended_verdict"] == "KILL"
+    assert packet["recommended_verdict"] == "PARK"
+    assert packet["north_star_fit"]["label"] == "unverified"
+
+
+def test_hard_day_customer_recovery_requires_evidence() -> None:
+    packet = build_packet(_idea("When a flooded home job fails, call the family promptly, name an owner and verify the repair."))
+    assert packet["recommended_verdict"] == "BACKLOG"
+    assert packet["judge"]["category_scores"] == {}
+    assert packet["effort_vs_impact"]["impact"] == "unknown"
+    assert packet["storm"]["rows"][2]["status"] == "UNVERIFIED"
 
 
 def test_vague_idea_is_parked() -> None:

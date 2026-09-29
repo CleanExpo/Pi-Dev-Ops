@@ -187,6 +187,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect, onCl
         }}
         className={styles.input}
         aria-label="Project brief"
+        data-mc-data={!loading && !error && projects.length > 0 ? "goal-briefs" : undefined}
       >
         <option value="">Select a brief</option>
         {projects.map((project) => (
@@ -202,7 +203,7 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect, onCl
         </p>
       ) : null}
       {!loading && !error && projects.length === 0 && !creating ? (
-        <p className={`${styles.note} mt-2`}>{BRIEFS_EMPTY_NOTE}</p>
+        <p className={`${styles.note} mt-2`} data-mc-empty="no project briefs have been created yet">{BRIEFS_EMPTY_NOTE}</p>
       ) : null}
       {!creating ? (
         <div className="flex flex-wrap gap-2 mt-2">

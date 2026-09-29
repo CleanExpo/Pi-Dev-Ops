@@ -109,7 +109,7 @@ export default function CuratorProposalsPanel() {
         )}
 
         {data !== null && !data.error && proposals.length === 0 && (
-          <p className="text-xs" style={{ color: "var(--text-dim)" }}>
+          <p className="text-xs" style={{ color: "var(--text-dim)" }} data-mc-empty="no curator proposals are pending review">
             No pending proposals. Not the Goal path. The curator still
             clusters lessons.jsonl; it does not file Linear tickets.
           </p>
@@ -130,6 +130,7 @@ export default function CuratorProposalsPanel() {
                   <span
                     className="font-mono"
                     style={{ color: "var(--accent)" }}
+                    data-mc-data={p.proposed_skill_name && !data?.error ? "curator-proposal" : undefined}
                   >
                     {p.proposed_skill_name ?? "(unnamed)"}
                   </span>

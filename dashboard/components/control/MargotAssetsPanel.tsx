@@ -250,7 +250,7 @@ export default function MargotAssetsPanel() {
         )}
 
         {packetsError && <p style={{ color: "var(--error)" }}>Build packets unavailable: {packetsError}</p>}
-        {packets?.length === 0 && !packetsError && <p style={{ color: "var(--text-dim)" }}>No build packets yet.</p>}
+        {packets?.length === 0 && !packetsError && <p style={{ color: "var(--text-dim)" }} data-mc-empty="no Margot build packets have been generated yet">No build packets yet.</p>}
         {packets && packets.length > 0 && (
           <div>
             <h3 className="text-[11px] font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--text-muted)" }}>
@@ -258,7 +258,7 @@ export default function MargotAssetsPanel() {
             </h3>
             <ul className="flex flex-col gap-1">
               {packets.map((p) => (
-                <li key={p.filename}>
+                <li key={p.filename} data-mc-data="build-packet">
                   <button
                     type="button"
                     className="w-full text-left rounded border px-2 py-1.5"

@@ -17,6 +17,7 @@ from ..sessions import _sessions
 from ..vercel_monitor import check_deployment_drift
 from .. import config
 from .. import lessons as _lessons
+from ..loop_lag import start_loop_lag_monitor  # RA-7845
 
 log = logging.getLogger("pi-ceo.main")
 
@@ -50,6 +51,7 @@ async def _poll_claude_cli() -> None:
 @app.on_event("startup")
 async def _start_claude_poll():
     asyncio.create_task(_resilient(_poll_claude_cli, "claude_cli_poll"))
+    start_loop_lag_monitor()
 
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "static")
@@ -133,8 +135,8 @@ async def health(request: Request):
     # Swarm state — read env at request time (not module load) so Railway
     # restart-for-env-change takes effect immediately. The dashboard Overview
     # reads these as optional fields and falls back to "Active" when absent.
-    swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "1") not in ("0", "false", "False", "")
-    swarm_shadow = os.environ.get("TAO_SWARM_SHADOW", "0") not in ("0", "false", "False", "")
+    swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "0") == "1"  # app_factory gate (RA-7849)
+    swarm_shadow = os.environ.get("TAO_SWARM_SHADOW", "1") == "1"    # swarm/config.SHADOW_MODE
 
     # Pi-SEO scheduler gate — RA-1469. The cron loop fires every 60s but
     # `cron_triggers._fire_scan_trigger` and `_fire_monitor_trigger` skip

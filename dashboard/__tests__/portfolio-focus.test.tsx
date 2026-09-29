@@ -21,7 +21,7 @@ it("checks 1,000 varied scan states before showing a measured score", () => {
   }
 });
 
-it("separates scan health, observed work, and unverified release stages when switching projects", async () => {
+it("LOADED: separates scan health, observed work, and unverified release stages when switching projects", async () => {
   vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
     ? [
         { project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist", overall_health: 82, scores: { security: 82 } },
@@ -39,14 +39,22 @@ it("separates scan health, observed work, and unverified release stages when swi
   expect(screen.getAllByText("unverified")).toHaveLength(8);
 });
 
-it("fails closed when the project source cannot be read", async () => {
+it("ERROR: fails closed when the project source cannot be read", async () => {
   vi.mocked(fetchProxyJSON).mockResolvedValue(null);
   render(<PortfolioFocus />);
   await waitFor(() => expect(screen.getByText(/Portfolio source unavailable/)).toBeTruthy());
   expect(screen.queryByText(/SCAN HEALTH/)).toBeNull();
 });
 
-it("labels activity unknown when the live feed fails instead of claiming no active work", async () => {
+it("EMPTY: an empty project list says the source returned none, not that it is unavailable", async () => {
+  vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health" ? [] as never
+    : path === "/api/pipelines" ? [] as never : { active_sessions: [] } as never);
+  render(<PortfolioFocus />);
+  await waitFor(() => expect(screen.getByText("No projects returned by the project health source.")).toBeTruthy());
+  expect(screen.queryByText(/Portfolio source unavailable/)).toBeNull();
+});
+
+it("ERROR: labels activity unknown when the live feed fails instead of claiming no active work", async () => {
   vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
     ? [{ project_id: "CARSI", repo: "CleanExpo/CARSI" }] as never
     : null);
@@ -79,4 +87,18 @@ it("shows completed stages only for a pipeline tied to the selected repository",
   expect(screen.getAllByText("completed")).toHaveLength(2);
   expect(screen.getAllByText("unverified")).toHaveLength(5);
   expect(screen.getByText("pipeline recorded")).toBeTruthy();
+});
+
+it("shows five founder answers with linked evidence and an honest shipped unknown", async () => {
+  vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
+    ? [{ project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist" }] as never
+    : path === "/api/pipelines" ? [] as never
+    : { ts: new Date().toISOString(), active_sessions: [], queue: { next_issue_id: "RA-42", next_issue_title: "Repair dispatch" },
+        observability: { actions: [] }, idea_pipeline: { awaiting: 1 } } as never);
+  render(<PortfolioFocus><div id="idea-pipeline">Idea inbox</div></PortfolioFocus>);
+  await waitFor(() => expect(screen.getByRole("heading", { name: "The founder’s five answers" })).toBeTruthy());
+  expect(screen.getByText(/RA-42 · Repair dispatch/)).toBeTruthy();
+  expect(screen.getByText(/1 idea awaits disposition/)).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Source: Idea pipeline" }).getAttribute("href")).toBe("#idea-pipeline");
+  expect(screen.getByText(/This feed records build completions/)).toBeTruthy();
 });

@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import ProgressRing from "./ProgressRing";
 import KillSwitchPanel from "./KillSwitchPanel";
+import { brisbaneDateTime } from "@/lib/brisbane-time";
 
 interface SwarmStatus {
   state: "SHADOW" | "ACTIVE" | "RATE_LIMITED" | "OFF" | "UNKNOWN";
@@ -27,12 +28,7 @@ const STATE_COLOUR: Record<SwarmStatus["state"], string> = {
 function fmtTs(ts: string | null): string {
   if (!ts) return "Not observed";
   try {
-    return new Date(ts).toLocaleString(undefined, {
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return brisbaneDateTime(ts);
   } catch {
     return ts;
   }
@@ -114,6 +110,7 @@ export default function SwarmPanel() {
         </h2>
         {data && (
           <span
+            data-mc-data={data.state && data.state !== "UNKNOWN" ? "swarm-state" : undefined}
             className="text-[10px] font-mono uppercase px-2 py-0.5 rounded"
             style={{
               color: STATE_COLOUR[data.state],
@@ -200,6 +197,7 @@ export default function SwarmPanel() {
               </div>
               {data.last_pr_url ? (
                 <a
+                  data-mc-data="last-autonomous-pr"
                   href={data.last_pr_url}
                   target="_blank"
                   rel="noopener noreferrer"

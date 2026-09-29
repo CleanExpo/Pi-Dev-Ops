@@ -1,7 +1,7 @@
-// DegradedDataBanner — explicit warning rendered when a panel attempted a
-// live data fetch and fell back to seed values. Distinct from SourceBadge
-// (the always-present source pip): this is the loud banner shown only on
-// failure, so the operator is never quietly handed illustrative numbers.
+// DegradedDataBanner — explicit warning rendered when a panel's live data
+// fetch failed. Distinct from SourceBadge (the always-present source pip):
+// this is the loud banner shown only on failure. Its only user, the provider
+// cockpit, has no seed: it shows nothing, or its last successful reading.
 
 export interface DegradedDataBannerProps {
   /** Which subsystem failed to respond. */
@@ -26,8 +26,8 @@ export function DegradedDataBanner({ source, reason }: DegradedDataBannerProps) 
         Degraded data · {source}
       </span>
       <span style={{ color: 'var(--cc-ink-dim)' }}>
-        Live request to {source} failed{reason ? ` (${reason})` : ''}. The panel is showing
-        the static seed; treat numbers as illustrative.
+        Live request to {source} failed{reason ? ` (${reason})` : ''}. Any figures shown
+        are from the last successful read, not current.
       </span>
     </div>
   )

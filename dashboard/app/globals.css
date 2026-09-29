@@ -23,11 +23,11 @@
   --border-subtle: #e4e4e7;
   --text: #09090b;
   --text-muted: #52525b;       /* zinc-600; ≈5.7:1 on panel (was 71717a) */
-  --text-dim: #71717a;         /* zinc-500; ≈4.05:1 on panel (was a1a1aa / 2.74:1 fail) */
-  --accent: #c2410c;           /* orange-700; ≈4.8:1 (was ea580c / 3.9:1) */
+  --text-dim: #63636b;         /* ≥4.69:1 on panel, bg and panel-hover (was 71717a: 4.39:1, RA-7843) */
+  --accent: #b23c0b;           /* ≥4.67:1 incl. on accent-subtle tint (was c2410c: 4.3:1 there, RA-7843) */
   --accent-subtle: rgba(234,88,12,0.08);
-  --success: #15803d;          /* green-700; ≈5.2:1 (was 16a34a / 4.1:1) */
-  --warning: #a16207;          /* yellow-700; ≈4.6:1 (was ca8a04 / 3.2:1) */
+  --success: #166534;          /* green-800; ≥5.17:1 incl. on panel-hover and green tints (green-700 was 3.95:1 on panel-hover, RA-7843) */
+  --warning: #854d0e;          /* yellow-800; ≥5.40:1 incl. on panel-hover (yellow-700 was 4.48:1 on panel, RA-7843) */
   --error: #b91c1c;            /* red-700; ≈5.1:1 (was dc2626 / 4.2:1) */
   --info: #1d4ed8;             /* blue-700; ≈6.1:1 */
   --on-accent: #ffffff;        /* WCAG AA on --accent (orange-700) */
@@ -47,12 +47,12 @@
   --text: #f4f5f7;             /* off-white — never pure #fff */
   --text-muted: #a7adba;
   --text-dim: #9aa3b1;         /* ≈4.6:1 on panel; was #727a88 (3.87:1 fail) */
-  --accent: #ff3b5c;           /* candy red — CEO action */
+  --accent: #ff3b5c;           /* candy red — CEO action (brand, DESIGN.md) */
   --on-accent: #0e1014;        /* near-black on candy-red ≈5.5:1 (white was 3.48:1) */
-  --accent-subtle: rgba(255,59,92,0.10);
+  --accent-subtle: rgba(255,59,92,0.06); /* was 0.10: accent text on it was 4.37:1; 0.06 gives 4.55:1 (RA-7843) */
   --success: #00d97e;          /* candy green */
   --warning: #ff8a1f;          /* candy orange */
-  --error: #e5484d;            /* alarm red (kept distinct from candy-red accent) */
+  --error: #ff6369;            /* alarm red, distinct from accent; ≥5.03:1 (was e5484d: 4.27:1 on panel, RA-7843) */
   --info: #22d3ee;             /* candy cyan — cool complement */
 
   --scrollbar-track: #191e26;

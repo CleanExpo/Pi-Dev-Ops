@@ -82,6 +82,10 @@ export interface MissionControlLive {
   active_sessions?: MCSession[];
   recent_completions?: MCCompletion[];
   queue?: MCQueue;
+  idea_pipeline?: {
+    awaiting?: number;
+    packet?: { idea_id?: string; text?: string; status?: string } | null;
+  };
   pulse?: MCPulse;
   observability?: MCObservability;
   nexus_one?: MCNexusOne;

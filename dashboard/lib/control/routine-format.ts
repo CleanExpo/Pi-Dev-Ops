@@ -4,6 +4,7 @@
 // the CLAUDE.md file-length convention: the page is over the 300-line
 // convention and grandfathered, so touching it means extracting rather than
 // adding. Pure formatting — no state, no fetching, no React.
+import { brisbaneDateTime, brisbaneTime } from "@/lib/brisbane-time";
 
 export const STATUS_COLOR: Record<string, string> = {
   success: "#4ADE80",
@@ -18,7 +19,7 @@ export const STATUS_ICON: Record<string, string> = {
 };
 
 export const ROUTINES_LIST_NOTE =
-  "Cron outcomes — same list as Control → Runs.";
+  "Runs reported to the routine-complete webhook — same list as Control → Runs.";
 
 export const TRIGGER_LABEL: Record<string, string> = {
   api:      "API",
@@ -33,15 +34,15 @@ export function fmtDuration(s: number): string {
   return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
 }
 
+/** Last-refresh stamp for the page header, Brisbane time with seconds. */
+export function fmtClock(ms: number): string {
+  return brisbaneTime(ms, true);
+}
+
 export function fmtTs(ts: string): string {
   if (!ts) return "—";
   try {
-    return new Date(ts).toLocaleString(undefined, {
-      month:  "short",
-      day:    "2-digit",
-      hour:   "2-digit",
-      minute: "2-digit",
-    });
+    return brisbaneDateTime(ts);
   } catch {
     return ts;
   }

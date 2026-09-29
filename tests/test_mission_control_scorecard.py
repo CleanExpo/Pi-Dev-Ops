@@ -98,7 +98,7 @@ def test_hub_receipt_maps_to_mc00_and_its_level_two_is_not_measured(tmp_path: Pa
 
 def test_mission_control_level_is_the_lowest_surface(monkeypatch: pytest.MonkeyPatch) -> None:
     levels = iter([3] * 19 + [1])
-    monkeypatch.setattr(sc, "score_surface", lambda s, r: {"surface": s, "level": next(levels)})
+    monkeypatch.setattr(sc, "score_surface", lambda s, r, *_: {"surface": s, "level": next(levels)})
     assert sc.build_scorecard({})["mission_control_level"] == 1
 
 
@@ -112,3 +112,91 @@ def test_cli_writes_markdown_and_json(tmp_path: Path, capsys: pytest.CaptureFixt
 
 def test_cli_rejects_a_missing_folder(tmp_path: Path) -> None:
     assert sc.main([str(tmp_path / "nope")]) == 2
+
+
+def test_real_data_pass_lifts_a_read_only_surface_to_level_one(tmp_path: Path) -> None:
+    ok = {**READ_OK, "1-real-data": "PASS"}
+    _receipt(tmp_path, "MC-13_command-centre", ok)
+    _receipt(tmp_path, "MC-13_command-centre@phone", ok)
+    _receipt(tmp_path, "MC-13_command-centre-L2", L2_OK)
+    row = sc.score_surface("MC-13", sc.load_receipts(tmp_path))
+    assert row["checks"]["1"]["met"] is True
+    assert row["level"] == 1
+    assert row["blocked_by"].startswith("check 7: not measured")
+
+
+def test_real_data_failure_is_a_measured_check_one_failure(tmp_path: Path) -> None:
+    _receipt(tmp_path, "MC-13_command-centre", {**READ_OK, "1-real-data": "FAIL"})
+    row = sc.score_surface("MC-13", sc.load_receipts(tmp_path))
+    assert row["level"] == 0
+    assert any(f.startswith("1: 1-real-data FAIL") for f in row["measured_failures"])
+
+
+def test_write_surface_with_real_data_is_still_blocked_by_write_journeys(tmp_path: Path) -> None:
+    _receipt(tmp_path, "MC-02_control_goal", {**READ_OK, "1-real-data": "PASS"})
+    row = sc.score_surface("MC-02", sc.load_receipts(tmp_path))
+    assert row["checks"]["1"]["met"] is True
+    assert row["blocked_by"].startswith("check 3: not measured")
+
+
+def test_hub_real_data_result_measures_mc00_check_one(tmp_path: Path) -> None:
+    _receipt(tmp_path, "control-hub", {"1-signed-in-hub": "PASS", "1-nav-labels": "PASS",
+                                       "1-real-data": "PASS", "2-no-hidden-refusals": "PASS"})
+    row = sc.score_surface("MC-00", sc.load_receipts(tmp_path))
+    assert row["checks"]["1"]["met"] is True
+
+
+# --- check 12: label honesty, read from the write-journey (-W) receipt ---------
+
+def _w(folder: Path, surface: str, results: dict[str, str]) -> None:
+    _receipt(folder, f"{surface}-W", results)
+
+
+def test_check_twelve_is_not_measured_without_a_write_journey_receipt(tmp_path: Path) -> None:
+    v = sc.score_surface("MC-03", sc.load_receipts(tmp_path))["checks"]["12"]
+    assert v["met"] is False and v["reason"].startswith("not measured")
+
+
+def test_check_twelve_needs_every_journey_to_pass(tmp_path: Path) -> None:
+    _w(tmp_path, "MC-03", {"12-halt-sends-kill-and-only-kill": "PASS", "12-cancel-sends-nothing": "PASS"})
+    assert sc.score_surface("MC-03", sc.load_receipts(tmp_path))["checks"]["12"]["met"] is True
+    _w(tmp_path, "MC-03", {"12-halt-sends-kill-and-only-kill": "PASS", "12-cancel-sends-nothing": "FAIL"})
+    v = sc.score_surface("MC-03", sc.load_receipts(tmp_path))["checks"]["12"]
+    assert v["met"] is False and "12-cancel-sends-nothing FAIL" in v["reason"]
+
+
+def test_a_write_receipt_only_speaks_for_its_own_surface(tmp_path: Path) -> None:
+    _w(tmp_path, "MC-03", {"12-halt-sends-kill-and-only-kill": "PASS"})
+    receipts = sc.load_receipts(tmp_path)
+    assert sc.score_surface("MC-07", receipts)["checks"]["12"]["reason"].startswith("not measured")
+    assert sc.score_surface("MC-04", receipts)["checks"]["12"]["met"] is True  # no write actions: N/A
+
+
+def test_check_three_stays_unmeasured_and_says_why(tmp_path: Path) -> None:
+    _w(tmp_path, "MC-03", {"12-halt-sends-kill-and-only-kill": "PASS"})
+    v = sc.score_surface("MC-03", sc.load_receipts(tmp_path))["checks"]["3"]
+    assert v["met"] is False and "PR preview" in v["reason"]
+
+
+def test_a_failed_write_journey_breaks_the_nights_suite(tmp_path: Path) -> None:
+    ok = {"1-x": "PASS"}
+    _receipt(tmp_path, "MC-03_control_swarm", ok)
+    _receipt(tmp_path, "MC-03_control_swarm@phone", ok)
+    _receipt(tmp_path, "MC-03_control_swarm-L2", ok)
+    _w(tmp_path, "MC-03", {"12-cancel-sends-nothing": "PASS"})
+    assert sc.suite_passed("MC-03", sc.receipts_for("MC-03", sc.load_receipts(tmp_path))) is True
+    _w(tmp_path, "MC-03", {"12-cancel-sends-nothing": "FAIL"})
+    assert sc.suite_passed("MC-03", sc.receipts_for("MC-03", sc.load_receipts(tmp_path))) is False
+
+
+def test_a_night_with_no_write_receipt_does_not_pass_for_a_surface_that_has_journeys(tmp_path: Path) -> None:
+    # The journey step can die before it writes anything (failed build, dead
+    # server, step skipped). Every other receipt passing must not hide that.
+    ok = {"1-x": "PASS"}
+    for stem in ("_control_swarm", "_control_swarm@phone", "_control_swarm-L2"):
+        _receipt(tmp_path, f"MC-03{stem}", ok)
+        _receipt(tmp_path, f"MC-04{stem}", ok)
+    receipts = sc.load_receipts(tmp_path)
+    assert sc.suite_passed("MC-03", sc.receipts_for("MC-03", receipts)) is False
+    # A surface with no write journeys is not held to one.
+    assert sc.suite_passed("MC-04", sc.receipts_for("MC-04", receipts)) is True

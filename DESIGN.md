@@ -60,7 +60,7 @@
 |-------|-----|------|
 | `status-success` | `#00d97e` | Candy green — complete, passed, healthy |
 | `status-warning` | `#ff8a1f` | Candy orange — warning, in-review |
-| `status-error` | `#e5484d` | Alarm red — failed, critical (flatter than brand candy red, kept distinct) |
+| `status-error` | `#ff6369` | Alarm red — failed, critical (kept distinct from brand candy red). Was `#e5484d`, 4.27:1 on surface — below WCAG AA (RA-7843) |
 | `status-info` | `#22d3ee` | Candy cyan — running, in-progress (cool complement) |
 | `accent-amber` | `#ffb020` | Candy amber — secondary signal, highlights |
 | `status-neutral` | `#727a88` | Killed, cancelled, unknown |
@@ -68,7 +68,7 @@
 ### Status tints (for badges)
 ```css
 .badge-success { background: rgba(0,217,126,0.12);  color: #00d97e; }
-.badge-error   { background: rgba(229,72,77,0.12);   color: #e5484d; }
+.badge-error   { background: rgba(255,99,105,0.12);  color: #ff6369; }
 .badge-warning { background: rgba(255,138,31,0.12);  color: #ff8a1f; }
 .badge-info    { background: rgba(34,211,238,0.12);  color: #22d3ee; }
 ```
@@ -142,7 +142,7 @@ border-radius: 6px;
 **Destructive**
 ```css
 background: rgba(229,72,77,0.12);
-color: #e5484d;
+color: #ff6369;
 border: 1px solid rgba(229,72,77,0.25);
 /* hover */ background: rgba(229,72,77,0.20);
 ```
@@ -328,7 +328,7 @@ Inner border highlight: `box-shadow: inset 0 1px 0 rgba(255,255,255,0.06)` on al
 Canvas: #0e1014 | Surface: #191e26 | Accent (candy red): #ff3b5c
 Text: #f4f5f7 (primary) · #a7adba (secondary) · #727a88 (tertiary)
 Border: rgba(255,255,255,0.06) default · rgba(255,255,255,0.10) strong
-Status: #00d97e success · #e5484d error · #ff8a1f warning · #22d3ee info
+Status: #00d97e success · #ff6369 error · #ff8a1f warning · #22d3ee info
 Never: #ffffff or #000000 fills.
 ```
 
