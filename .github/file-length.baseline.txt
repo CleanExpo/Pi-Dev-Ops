@@ -53,7 +53,7 @@
 623	31645fa63292	swarm/board.py
 621	0cf1038b41e7	tests/test_margot_research_voice.py
 614	f3f803805d1f	scripts/marathon_watchdog.py
-605	c5609c445350	app/server/brief.py
+584	ac03471d0e23	app/server/brief.py
 604	cd9d55b9219b	tests/test_discovery.py
 598	34a9ba1aa147	scripts/skill_sync.py
 587	58b6534c0ff1	app/server/session_evaluator.py

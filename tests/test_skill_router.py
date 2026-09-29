@@ -27,7 +27,8 @@ def _jev_picking(label, confidence=0.9):
         options = payload["questions"]["skill"]["criteria"]
         probs = {k: 0.0 for k in options}
         probs[label] = 1.0
-        return {"answers": {"skill": {"choice": label, "probabilities": probs, "confidence": confidence}},
+        return {"answers": {"skill": {"type": "choice", "choice": label, "probabilities": probs,
+                                      "confidence": confidence}},
                 "usage": {"input_tokens": 1000}}
 
     jev.calls = calls
@@ -78,6 +79,15 @@ def test_jev_failure_falls_back_to_lexical_and_says_so():
 
     d = sr.route("website load faster", catalogue=_cat(), skills=SKILLS, jev=broken)
     assert d.source == "lexical_fallback" and d.skills == ["web-perf"] and "TimeoutError" in d.reason
+
+
+def test_malformed_jev_answer_is_a_failure_not_a_pick():
+    def bad(payload):
+        return {"answers": {"skill": {"type": "choice", "choice": "seo", "probabilities": {"seo": 0.4},
+                                      "confidence": 0.9}}, "usage": {"input_tokens": 10}}
+
+    d = sr.route("website load faster", catalogue=_cat(), skills=SKILLS, jev=bad)
+    assert d.source == "lexical_fallback" and d.reason == "jev_error:ValueError"
 
 
 def test_no_jev_configured_falls_back_to_lexical_and_says_so():

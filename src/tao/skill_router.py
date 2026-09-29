@@ -163,15 +163,30 @@ def _jev_pick(
     budget_tokens: int,
     min_confidence: float,
 ) -> RouteDecision:
+    from scripts.mission_control_jev_shadow import validate_answer
+
     try:
         result = jev(payload)
-        answer = result["answers"]["skill"]
-        choice, confidence = answer["choice"], float(answer["confidence"])
+        answer = validate_answer("skill", result["answers"].get("skill"), payload["questions"]["skill"])
+        if answer is None:
+            raise ValueError("malformed Jev answer")
+        choice, confidence = answer["label"], float(answer["confidence"])
         decision.jev_input_tokens = int(result.get("usage", {}).get("input_tokens", 0))
     except Exception as exc:  # any Jev failure degrades visibly, never silently
         decision.source, decision.reason = "lexical_fallback", f"jev_error:{type(exc).__name__}"
         return _load(decision, decision.shortlist[0], skills, budget_tokens)
+    return apply_answer(decision, choice, confidence, skills, budget_tokens, min_confidence)
 
+
+def apply_answer(
+    decision: RouteDecision,
+    choice: str,
+    confidence: float,
+    skills: dict[str, dict],
+    budget_tokens: int,
+    min_confidence: float = MIN_CONFIDENCE,
+) -> RouteDecision:
+    """The one rule for turning a Jev answer into what gets loaded; the eval runner uses it too."""
     decision.source, decision.confidence = "jev", confidence
     if choice == NO_MATCH:
         decision.reason = "no_match"

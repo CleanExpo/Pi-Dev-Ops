@@ -29,6 +29,7 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 from .lessons import load_lessons  # noqa: E402
+from . import skill_routing  # noqa: E402
 
 
 # ── RA-1025: Grounded repo context scanner ────────────────────────────────────
@@ -272,28 +273,6 @@ _ADW_TEMPLATES = {
 def get_adw_template(intent: str) -> dict:
     """Return the ADW template for a given intent."""
     return _ADW_TEMPLATES.get(intent, _ADW_TEMPLATES["feature"])
-
-
-def _get_skill_context(intent: str, max_chars: int = 4000) -> str:
-    """Load relevant skills for the intent and return truncated context."""
-    try:
-        from src.tao.skills import skills_for_intent
-        skills = skills_for_intent(intent)
-        if not skills:
-            return ""
-        parts = []
-        total = 0
-        for s in skills:
-            chunk = f"### Skill: {s['name']}\n{s['body'][:800]}\n"
-            if total + len(chunk) > max_chars:
-                break
-            parts.append(chunk)
-            total += len(chunk)
-        if parts:
-            return "--- RELEVANT SKILLS ---\n" + "\n".join(parts) + "--- END SKILLS ---\n\n"
-    except Exception:
-        pass
-    return ""
 
 
 # ── RA-678: Intent file types — loaded from <workspace>/.harness/intent/ ──────
@@ -558,7 +537,7 @@ def build_structured_brief(
     lesson_context = ""
     intent_context = ""
     if complexity_tier in ("detailed", "advanced"):
-        skill_context = _get_skill_context(intent)
+        skill_context = skill_routing.skill_context(raw_brief, intent)
         lesson_context = _get_lesson_context(intent)
         intent_context = _load_intent_files(workspace)  # RA-678
 
