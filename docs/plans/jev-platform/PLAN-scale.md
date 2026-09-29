@@ -1,9 +1,9 @@
 # Jev Platform: Levels 9 and 10, a Gemini Flash agent, and a cheaper case writer — plan
 
-Status: DRAFT rev 3 · 29/09/2026. It builds on PLAN.md rev 5 and PLAN-ask.md rev 4, both approved
+Status: DRAFT rev 4 · 29/09/2026. It builds on PLAN.md rev 5 and PLAN-ask.md rev 4, both approved
 100/100. Done contract v7 (`w_9a6c73db7577`, criteria C12–C16) is locked against this plan.
 Rev 1 scored 72/100 (`judge-scale-r1.md`) and rev 2 scored 84/100 (`judge-scale-r2.md`). Rev 3
-answers every open item; see "Rev 3 changes" at the end.
+scored 94/100 (`judge-scale-r3.md`). Rev 4 answers its three items; see "Rev 4 changes" at the end.
 
 ## Why
 
@@ -88,7 +88,9 @@ something may be sent. Public visibility is not used at all.
 - **Agent-proposed questions.** When the agent wants a question no template covers, it may call
   `propose_template`. That records the proposal in the local run report under
   `proposed templates (not sent, needs review)` and returns `recorded, not sent`. A human
-  reviewing it and committing it to `questions` is the only way it can ever be sent. This is how
+  reviewing it and committing it to `questions` is the only way it can ever be sent **to Jev**. The
+  proposal's own function-call arguments are echoed back to Gemini in the conversation history,
+  which is Gemini's own output and no new disclosure (the echo rule above). This is how
   the video's "agent writes its own questions" arrives here: the agent drafts them and a human
   admits them.
 - **Defence in depth.** Every serialised outbound payload, Jev or Gemini, still passes
@@ -98,6 +100,22 @@ something may be sent. Public visibility is not used at all.
     that pass `_DENY_NAMES` and `sensitive()`, and lists the refused ones with reasons.
   - `approve --prompt-file F --id ID` prints a `prompts` entry.
   - Neither ever writes the manifest; a human reviews and commits it.
+- **Template/state compatibility, checked before any send.** Each tool builds exactly one state
+  shape and accepts only templates that declare it:
+
+  | Tool | State built by code | Templates accepted (`state` field) |
+  |---|---|---|
+  | `ask_jev_files` without a prompt id | `{content}` | `["content"]` (the default) |
+  | `ask_jev_files` with a prompt id | `{task, content}` | `["content"]` or `["task", "content"]` |
+  | `pick_first_file` | `{task, files}` | `["task", "files"]` |
+  | `ask_jev` (Level 10) | `{task, files}` | `["task", "files"]` |
+
+  - An incompatible template id is refused before any request, with
+    `refused: template <id> reads <fields>, this tool sends <fields>`.
+  - Templates must name, in their own text, every field they declare (checked at load).
+  - The live-run manifest gets `known-issue`, `touches-auth` and `layer` as `["content"]`,
+    `relevant-to-task` as `["task", "content"]`, and `pick-first-for-task` and
+    `triage-bundle` as `["task", "files"]`.
 - **Question shape (templates).**
   - At most 8 questions per call, each at most 1,000 characters.
   - `noul` needs non-empty `true` and `false` criteria.
@@ -140,7 +158,7 @@ something may be sent. Public visibility is not used at all.
 `ask_jev(repo, prompt_id, paths, template_ids)` makes **one** Jev call. Code builds the state as
 `{task: <approved prompt text>, files: {path: content}}` from:
 - up to 20 approved `paths`, each admitted as above
-- up to 8 templates whose `state` includes `task`/`files` or `content`
+- up to 8 templates declaring `state: ["task", "files"]` (any other is refused before sending)
 
 Size is checked on the **serialised request bytes**, not on tokens. When the aggregate goes over
 `client.MAX_REQUEST_BYTES` (64,000), the call is refused before sending, with the per-part byte
@@ -183,8 +201,18 @@ A Python loop over Gemini `generateContent` with function calling.
      instructions, and/or function declarations". Its `totalTokens` is the input reservation.
      - A `countTokens` failure means the request is not sent: the run ends `incomplete`, with the
        reason.
-     - `countTokens` calls are counted in the ledger. Whether they are billed is **UNVERIFIED**
-       (the docs are silent), so they are recorded, not assumed free.
+     - **Billing of the count call is documented as zero.** Google's Firebase AI Logic docs, which
+       front the Gemini Developer API, say: "There's no charge for calling `countTokens` (the Count
+       Tokens API). The maximum quota for the Count Tokens API is 3000 requests per minute (RPM)."
+       (firebase.google.com/docs/ai-logic/count-tokens, fetched 29/09.)
+     - **The price table carries the count price explicitly** (`"count": 0.0`), with the same
+       `valid_until` expiry. When it is non-zero, it is reserved **before each count attempt** as
+       `serialised request bytes × count` under the same lock and cap. A count call that the cap
+       cannot cover is not made.
+     - **A hard count-call cap:** at most `2 × turn cap` (24) per run, including retries, and
+       likewise per writer batch. The cap stops the run as `incomplete: count cap`.
+     - Count calls are recorded in the ledger (attempts, successes, reserved US$). A 429 on count is
+       retried under the same retry rule and cap.
   2. **Output is hard-bounded by Google.** `maxOutputTokens: 2048`. The thinking doc says
      `max_output_tokens` "sets the maximum number of tokens a response can generate, including
      thought tokens" and "acts as a hard cutoff enforced by the infrastructure". A reply cut off
@@ -257,7 +285,10 @@ A Python loop over Gemini `generateContent` with function calling.
   - An unknown `--prompt-id`, or free text in its place → exit 2, zero requests.
   - A Jev request body contains only template text, approved bytes, the approved prompt text and
     `f`-keys. The test recomputes the body from those parts and compares bytes.
-  - `propose_template` sends nothing: zero Jev and zero Gemini requests carry its text.
+  - `propose_template` never reaches Jev: no Jev request body contains any proposal text, at any
+    point in the run. Its arguments do appear in later Gemini requests, only as Gemini's own echoed
+    function call, which is the same-provider echo the boundary already permits. The test asserts
+    that and nothing wider. The function result returned is the fixed string `recorded, not sent`.
   - The model-visible projection holds no sha256 and no bytes, and passes `sensitive()`. The local
     ledger still holds the hashes.
   - A secret planted in an approved file whose digest is refreshed by a bad actor is still refused
@@ -277,6 +308,10 @@ A Python loop over Gemini `generateContent` with function calling.
   - A file named `none` is keyed `f00N`.
   - More than 250 candidates are capped.
   - Empty candidates → `none`, with zero requests.
+- **Compatibility**
+  - Each tool with a compatible template → sends, and the body holds exactly the declared fields.
+  - Each tool with an incompatible template → refused, with zero requests.
+  - A template whose text omits a declared field → rejected at manifest load.
 - **Level 10**
   - One call per `ask_jev`.
   - 21 paths → refused.
@@ -287,6 +322,10 @@ A Python loop over Gemini `generateContent` with function calling.
   - An expired price table → `BLOCKED`, zero requests.
   - The `countTokens` body equals the `generateContent` body, byte for byte.
   - A `countTokens` failure → no `generateContent`, and the run is `incomplete`.
+  - A price table with `count > 0` reserves before each count; a cap too small for the count
+    reservation → no count call and no generate call.
+  - The 25th count call in a run is refused (`incomplete: count cap`), retries included.
+  - A 429 on count is retried within the cap, and exhausted retries → `incomplete`.
   - A reservation over the cap → no request.
   - Missing `usageMetadata` keeps the full reservation.
   - Reported prompt tokens above counted → `incomplete: overrun`.
@@ -309,6 +348,8 @@ A Python loop over Gemini `generateContent` with function calling.
   - a sha256 leaking into the projection
   - the inherited environment passed to git
   - `countTokens` skipped
+  - the count cap removed
+  - a non-zero count price not reserved
   - reserving before the count
   - usage retention dropped
   - overrun ignored
@@ -397,3 +438,15 @@ A Python loop over Gemini `generateContent` with function calling.
    quote plus the fixed writer prompt in `generate.py`. That is the same content `claude_write()`
    already sends to Claude, now also to Google, at the founder's 29/09 direction. No file bytes
    are included.
+
+## Rev 4 changes (answers to judge-scale-r3)
+
+1. **Count-call billing.** It is documented as free (quoted, with source and fetch date). The
+   price table still carries an explicit `count` rate with an expiry, reserved before each count
+   attempt whenever it is non-zero. A hard count-call cap is added (24 per run, retries included).
+   All of it is tested, with bypass mutants.
+2. **Proposal echo.** The contract is explicit: proposals never reach Jev. Gemini sees only its own
+   echoed function call. The test is narrowed to exactly that.
+3. **Template/state compatibility.** There is one state shape per tool, a declared `state` on every
+   template, refusal before send on a mismatch, and a load-time check that the template text names
+   its fields. Tests cover both paths.
