@@ -82,7 +82,7 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
         </div>
         <span className={styles.truthMark}>EVIDENCE FIRST</span>
       </div>
-      {!loading && <FounderNorthStarReadout live={live} />}
+      <FounderNorthStarReadout live={live} />
 
       {loading ? <p className={styles.notice} role="status">Loading portfolio…</p> : projectError ? (
         <p className={styles.notice} role="status">Portfolio source unavailable. Project status is unknown.</p>
