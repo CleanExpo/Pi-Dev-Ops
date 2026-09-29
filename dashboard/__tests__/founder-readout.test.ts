@@ -24,6 +24,7 @@ it("answers from fresh observations while keeping shipment unverified", () => {
   expect(answers[3].answer).toContain("2 ideas await");
   expect(answers[4].answer).toMatch(/^Unknown/);
   expect(answers.every((row) => row.href && row.source)).toBe(true);
+  expect(answers[0].href).toBe("#mission-control-live");
 });
 
 it("marks unavailable, stale and incomplete signals unknown", () => {
