@@ -16,7 +16,7 @@ def _iso_now() -> str:
 
 def _judge_block(exam: dict[str, Any], text: str) -> dict[str, Any]:
     return {
-        "score": 0,
+        "score": None,
         "decision": "REVIEW_REQUIRED",
         "category_scores": {},
         "note": "No evidence was verified by this deterministic intake. Judge and Board review remain required.",
