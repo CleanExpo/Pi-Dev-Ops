@@ -165,6 +165,8 @@ def _main_with(monkeypatch, tmp_path, write):
 
     def counted(q, d, s):
         calls.append(1)
+        if len(calls) > 4 * generate.MAX_EMPTY_ROUNDS:  # a missing stop must fail the test, not hang it
+            raise generate.WriterExhausted("test: runaway generation loop")
         return write(q, d, s)
     monkeypatch.setattr(generate, "_writer", lambda a: (counted, "gemini", tmp_path / "x.jsonl"))
     monkeypatch.setattr(generate, "load_questions", lambda: [QUESTION])
