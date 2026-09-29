@@ -92,6 +92,8 @@ MUTANTS = [
      "return None"),
     # release review r4 P1: a lock landing during count or between retries stops this model at once
     ("gemini.py", "    if budget.model not in (None, model):", "    if False:"),
+    ("gemini.py", "with budget.selecting if budget.model is None else contextlib.nullcontext():",
+     "with contextlib.nullcontext():"),  # r5 P1: one call at a time until a model is locked
     ("gemini.py", "if status not in ADVANCE_STATUSES and budget.model in (None, model):", "if status not in ADVANCE_STATUSES:"),
     ("gemini.py", "for v in (prompt, cands, thoughts))", "for v in (prompt, cands))"),
     ("gemini.py", "RUN_CAP_USD = 2.50", "RUN_CAP_USD = 1.00"),

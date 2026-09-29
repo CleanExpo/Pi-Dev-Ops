@@ -4,6 +4,8 @@ Split from test_jev_platform_gemini_chain.py to keep each file under 300 lines. 
 """
 from __future__ import annotations
 
+import threading
+
 from jev_scale_support import FakeGemini, ftext
 
 from jev_platform import gemini
@@ -34,3 +36,22 @@ def test_a_lock_between_retries_moves_the_call_to_the_locked_model():
 def test_a_lock_during_count_sends_nothing_more_to_this_model():
     out, sent, b = _run(":countTokens", ftext("unused"))
     assert (gemini.MODEL, "generateContent") not in sent and b.model == OTHER
+
+
+def test_while_no_model_is_locked_a_second_call_sends_nothing_until_the_first_settles():
+    """Release review r5 P1: a writer paused between its checks and its send could still send to an old model."""
+    b = gemini.GeminiBudget(0.10, dict(gemini.PRICES[gemini.MODEL]))
+    inner, sends, b_sent, out = FakeGemini([ftext("a"), ftext("b")]), [], threading.Event(), {}
+
+    def fake(url, payload, headers, timeout):
+        sends.append((threading.current_thread().name, url.rsplit("/", 1)[1].split(":")[0]))
+        if threading.current_thread().name == "B":
+            b_sent.set()
+        elif url.endswith(":generateContent") and "B" not in {t.name for t in threading.enumerate()}:
+            second.start()
+            assert not b_sent.wait(0.3), "call B sent while call A was still choosing the run's model"
+        return inner(url, payload, headers, timeout)
+    second = threading.Thread(name="B", target=lambda: out.update(b=gemini.call(BODY, KEY, b, fake)))
+    assert "data" in gemini.call(BODY, KEY, b, fake, sleep=lambda s: None)
+    second.join(5)
+    assert "data" in out["b"] and {m for _, m in sends} == {gemini.MODEL} == {b.model}

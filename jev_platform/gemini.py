@@ -9,6 +9,7 @@ The key travels only in the `x-goog-api-key` header and is never logged or retur
 """
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import json
 import os
@@ -32,9 +33,8 @@ def urls(model: str) -> tuple[str, str]:
 
 
 GENERATE_URL, COUNT_URL = urls(MODEL)
-# models.get inputTokenLimit, fetched 29/09/2026: Google refuses a request whose prompt exceeds it, so it
-# is the provider-backed ceiling on billable input for a multi-turn body, whose carried thinking
-# countTokens does not report.
+# models.get inputTokenLimit, fetched 29/09/2026: Google refuses a prompt above it, so it bounds billable input
+# for a multi-turn body, whose carried thinking countTokens does not report.
 INPUT_TOKEN_LIMIT = {m: 1_048_576 for m in CHAIN}
 # ai.google.dev/gemini-api/docs/pricing, fetched 29/09/2026 (3.8/3.7/3.6 double on 01/01/2027).
 # countTokens is documented as free by Firebase AI Logic; the pricing page does not list it.
@@ -49,9 +49,8 @@ TURN_CAP = 12
 COUNT_CAP = 2 * TURN_CAP
 MAX_RETRIES = 2
 RETRY_STATUSES = (429, 503)
-# An agent turn after the first reserves the provider input ceiling (below), about US$0.79 at the dearest
-# row. A failed attempt keeps its reservation, so the cap holds every attempt one turn may make
-# (1 + MAX_RETRIES). Unused reservation settles back after each reply.
+# An agent turn after the first reserves the provider input ceiling (below), about US$0.79 at the dearest row.
+# A failed attempt keeps its reservation, so the cap holds every attempt one turn may make (1 + MAX_RETRIES).
 RUN_CAP_USD = 2.50
 WRITER_CAP_USD = 1.00
 REQUEST_TIMEOUT = 60.0
@@ -86,11 +85,11 @@ class GeminiBudget:
                        "reported_output": 0}
         # Thinking re-enters later turns through thought signatures and is billed as prompt, but countTokens
         # omits it. Measured 29/09: the turn-N gap equals the sum of earlier thoughtsTokenCount exactly.
-        self.thoughts = 0
-        self.thoughts_known = True
+        self.thoughts, self.thoughts_known = 0, True
         # Fixed at start: settling a cheap reply down never buys extra attempts.
         self.max_attempts = int((max_usd + 1e-12) // (MAX_OUTPUT_TOKENS * price["out"]))
         self._lock = threading.Lock()
+        self.selecting = threading.Lock()  # held by the one call walking the chain while no model is locked
 
     def start_batch(self) -> None:
         with self._lock:
@@ -268,24 +267,25 @@ def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep
         return {"error": "refused: sensitive payload"}
     headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
     on = today()
-    # A budget whose bodies carry model turns is one conversation (an agent run), so every earlier
-    # thought is in context. Single-turn bodies (the writer) carry none.
+    # Bodies carrying model turns are one conversation (an agent run): every earlier thought is in context.
     multi_turn = any(c.get("role") == "model" for c in body.get("contents", []))
     if multi_turn and not budget.thoughts_known:
         return {"error": "thinking tokens unreported: input cannot be bounded"}
     carry = budget.thoughts if multi_turn else 0
     out, tried = {"error": "no chain model has a current price"}, []  # the lock is re-read per attempt
-    while (model := budget.model or next((m for m in CHAIN if m not in tried and price_table(on, m)), None)) \
-            and model not in tried:
-        tried.append(model)
-        out, status = _call_one(model, body, headers, budget, http_post, sleep, carry, multi_turn)
-        if "error" not in out:
-            budget.lock_model(model, price_table(on, model))
-            if budget.model != model:  # a reply from a model the run did not lock is never used
-                return {"error": f"reply from {model} discarded: run locked to {budget.model}"}
-            return out
-        if status not in ADVANCE_STATUSES and budget.model in (None, model):  # else: go to the locked model
-            return out
+    # Once locked, the model never changes. Until then only one call may send, so no check can go stale.
+    with budget.selecting if budget.model is None else contextlib.nullcontext():
+        while (model := budget.model or next((m for m in CHAIN if m not in tried and price_table(on, m)), None)) \
+                and model not in tried:
+            tried.append(model)
+            out, status = _call_one(model, body, headers, budget, http_post, sleep, carry, multi_turn)
+            if "error" not in out:
+                budget.lock_model(model, price_table(on, model))
+                if budget.model != model:  # a reply from a model the run did not lock is never used
+                    return {"error": f"reply from {model} discarded: run locked to {budget.model}"}
+                return out
+            if status not in ADVANCE_STATUSES and budget.model in (None, model):  # else: go to the locked model
+                return out
     return out
 
 

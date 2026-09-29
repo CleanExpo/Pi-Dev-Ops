@@ -90,14 +90,14 @@ With no `TYPESAFE_API_KEY` (and, for `agent`, no `GEMINI_API_KEY`), the command 
   - `ask` defaults to US$0.14.
   - `pick-first` and `ask-jev` make one call and default to US$0.01, which is 3 attempts.
   - `scout` defaults to US$0.75, enough for 255 files. The agent's Jev budget is also US$0.75.
-- **Gemini 3.8 Flash** costs US$0.75 per million input tokens and US$3.75 per million output
-  tokens until 31/12/2026. Both double on 01/01/2027, and the price table in `gemini.py` expires
-  on that date and must be updated.
-  - Each call is reserved beforehand from Google's own `countTokens` plus a 2,048-token output
-    cap, which Google documents as including thinking.
-  - The run cap is US$0.10 and the turn cap is 12.
-- A Gemini `503 high demand` is Google-side and temporary. The run ends `incomplete` and should
-  be retried later.
+- **Gemini** runs on a chain of five Flash models (`gemini.CHAIN`, dearest first: 3.8 Flash at
+  US$0.75 / US$3.75 per million input / output tokens). The price table in `gemini.py` expires on
+  31/12/2026 and must be updated; the 3.8/3.7/3.6 prices double on 01/01/2027.
+  - A 404, 429 or 503 that outlasts the retries moves to the next priced model. The first model that
+    answers is locked for the whole run; until then only one call at a time may send.
+  - Each call is reserved beforehand at its own model's price: Google's `countTokens` for a single
+    turn, the model's input-token limit for a multi-turn agent body, plus a 2,048-token output cap.
+  - The run cap is US$2.50 (`RUN_CAP_USD`) and the turn cap is 12.
 
 ## What it is not
 
