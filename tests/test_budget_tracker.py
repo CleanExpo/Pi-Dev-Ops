@@ -88,6 +88,8 @@ def test_mirror_does_not_block_a_running_event_loop(isolated_log, monkeypatch):
     import asyncio
     import threading
 
+    from swarm import cost_mirror
+
     bt, log = isolated_log
     release, started, sent = threading.Event(), threading.Event(), []
 
@@ -107,13 +109,15 @@ def test_mirror_does_not_block_a_running_event_loop(isolated_log, monkeypatch):
 
     asyncio.run(go())
     assert started.wait(5)
-    assert bt._mirror_pool.submit(lambda: None).result(5) is None  # worker drained
+    assert cost_mirror.wait_idle(5)  # worker drained
     assert sent == ["llm_costs"]
-    assert bt._mirror_pending == 0
+    assert cost_mirror._pending == 0
 
 
 def test_a_failing_queued_mirror_does_not_raise(isolated_log, monkeypatch):
     import asyncio
+
+    from swarm import cost_mirror
 
     bt, _ = isolated_log
 
@@ -126,8 +130,8 @@ def test_a_failing_queued_mirror_does_not_raise(isolated_log, monkeypatch):
         bt.record_cost(**_cost_kwargs())
 
     asyncio.run(go())
-    bt._mirror_pool.submit(lambda: None).result(5)
-    assert bt._mirror_pending == 0
+    assert cost_mirror.wait_idle(5)
+    assert cost_mirror._pending == 0
 
 
 def test_record_cost_swallows_jsonl_write_error(tmp_path, monkeypatch):

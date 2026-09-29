@@ -32,31 +32,19 @@ Storage:
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
-import threading
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from swarm.cost_mirror import mirror
+
 log = logging.getLogger("swarm.budget_tracker")
 
 DEFAULT_DAILY_LIMIT_USD = 20.00
-
-# The Supabase mirror is a blocking urllib request (8 s timeout). Called from
-# async build code it froze the whole server: the loop-lag monitor caught a
-# 2.3 s stall in record_cost at 14:23 UTC on 29 Sept 2026. On a running event
-# loop the write goes to one worker thread (one keeps rows in order); off the
-# loop it stays synchronous. The local JSONL is the source of truth, so when
-# Supabase is slow and writes pile up, the extra mirrors are dropped.
-_MIRROR_MAX_PENDING = 200
-_mirror_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="cost-mirror")
-_mirror_lock = threading.Lock()
-_mirror_pending = 0
 
 
 def _log_path() -> Path:
@@ -122,51 +110,7 @@ def record_cost(
         log.debug("budget_tracker: jsonl write failed (non-fatal): %s", exc)
 
     # Supabase mirror — best effort, must not break record_cost
-    _mirror(row)
-
-
-def _on_event_loop() -> bool:
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return False
-    return True
-
-
-def _mirror_now(row: dict[str, Any]) -> None:
-    try:
-        from app.server.supabase_log import _insert  # noqa: PLC0415
-        _insert("llm_costs", row)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("budget_tracker: supabase mirror failed (non-fatal): %s", exc)
-
-
-def _mirror_queued(row: dict[str, Any]) -> None:
-    global _mirror_pending
-    try:
-        _mirror_now(row)
-    finally:
-        with _mirror_lock:
-            _mirror_pending -= 1
-
-
-def _mirror(row: dict[str, Any]) -> None:
-    """Mirror one row to Supabase without blocking a running event loop."""
-    global _mirror_pending
-    if not _on_event_loop():
-        _mirror_now(row)
-        return
-    with _mirror_lock:
-        if _mirror_pending >= _MIRROR_MAX_PENDING:
-            log.debug("budget_tracker: mirror backlog full, row kept in JSONL only")
-            return
-        _mirror_pending += 1
-    try:
-        _mirror_pool.submit(_mirror_queued, row)
-    except Exception as exc:  # noqa: BLE001
-        with _mirror_lock:
-            _mirror_pending -= 1
-        log.debug("budget_tracker: mirror not queued (non-fatal): %s", exc)
+    mirror(row)
 
 
 def _iter_rows() -> list[dict[str, Any]]:
