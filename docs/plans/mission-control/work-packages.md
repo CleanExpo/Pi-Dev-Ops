@@ -46,7 +46,7 @@ re-ticketed.
 | Chain step | MC packages | State |
 |---|---|---|
 | MC-DISCOVER | [coverage-register.md](coverage-register.md) (20 rows) | Shallow pass done; deep runtime pass needs WP-02 |
-| MC-PROMISE | *new:* MC Customer Promise Register — every nav blurb, tile label and button label in `dashboard/lib/control/nav.ts` and the panels, as a promise to the founder | NOT_STARTED; safe to do next (read-only) |
+| MC-PROMISE | [promise-register.md](promise-register.md) — 12 nav blurbs and 21 button promises, each with source line and proving journey | Written 29 Sept: 33 promises, 0 proven, 20 with a mocked test |
 | MC-VERIFY | WP-02, WP-04, WP-06, WP-07, WP-09 | Blocked on `DASHBOARD_PASSWORD` (RA-7832) |
 | MC-REPAIR | WP-01, WP-03, WP-05, WP-08 | Done (#809 merged; #818 awaiting merge) |
 | MC-AUDIT | *new:* two non-author audits of the final candidate (Claude + Codex lanes) | NOT_RUN; Codex lane unavailable in this container |
