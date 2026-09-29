@@ -170,3 +170,24 @@ def test_the_checkpoint_shutdown_flush_also_waits_for_cost_mirrors(isolated_log,
     monkeypatch.setattr(cost_mirror, "flush", fake_flush)
     asyncio.run(checkpoint_queue.flush(10.0))
     assert seen == [5.0]
+
+
+def test_wait_idle_never_exceeds_its_timeout_when_the_queue_is_nearly_full(monkeypatch):
+    import threading
+    import time
+
+    from swarm import cost_mirror
+
+    release = threading.Event()
+    monkeypatch.setattr(cost_mirror, "_write", lambda row: release.wait(5))
+    monkeypatch.setattr(cost_mirror, "_queue", cost_mirror.queue.Queue(maxsize=1))
+    monkeypatch.setattr(cost_mirror, "_worker", None)  # a fresh worker serves the fresh queue
+    cost_mirror._ensure_worker()
+    cost_mirror._queue.put({"cost_usd": 0.1})          # the worker takes this and blocks
+    time.sleep(0.2)
+    cost_mirror._queue.put({"cost_usd": 0.1})          # the queue is now full
+    threading.Timer(0.3, cost_mirror._queue.get_nowait).start()   # a slot frees after 0.3 s
+    started = time.monotonic()
+    assert cost_mirror.wait_idle(0.5) is False         # the marker never runs: the worker is blocked
+    assert time.monotonic() - started < 0.65           # stacked timeouts take about 0.8 s (0.3 s for a slot, then the full 0.5 s)
+    release.set()
