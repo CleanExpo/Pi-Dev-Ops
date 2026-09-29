@@ -225,6 +225,7 @@ def test_the_gemini_writer_is_blocked_until_its_committed_control_says_use(monke
                                                                             committed, working):
     """Release review r8 P1: --writer gemini ran while the control said do-not-use; only HEAD's control counts."""
     monkeypatch.setattr(generate, "WRITER_CONTROL", _control_repo(tmp_path, committed, working))
+    monkeypatch.setattr(generate, "REPO", generate.WRITER_CONTROL.parent)
     monkeypatch.setenv("GEMINI_API_KEY", "gk-test-not-a-real-key")
     built = []
     monkeypatch.setattr(generate, "gemini_writer", lambda *a: built.append(a))
@@ -241,6 +242,7 @@ def test_the_committed_control_blocks_the_gemini_writer_today(monkeypatch, capsy
 
 def test_a_committed_use_verdict_from_a_run_control_builds_the_gemini_writer(monkeypatch, tmp_path):
     monkeypatch.setattr(generate, "WRITER_CONTROL", _control_repo(tmp_path, {"status": "run", "verdict": "use"}))
+    monkeypatch.setattr(generate, "REPO", generate.WRITER_CONTROL.parent)
     monkeypatch.setenv("GEMINI_API_KEY", "gk-test-not-a-real-key")
     monkeypatch.setattr(generate, "gemini_writer", lambda *a: "write")
     assert generate._writer(generate.argparse.Namespace(writer="gemini", question="core-44", max_usd=1.0))[1] == "gemini"

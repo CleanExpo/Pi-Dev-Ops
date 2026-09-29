@@ -61,6 +61,7 @@ def workspace(tmp_path, monkeypatch):
     (tmp_path / "cases").mkdir()
     (tmp_path / "questions.json").write_text(json.dumps({"questions": [Q]}))
     monkeypatch.setattr(h, "QUESTIONS", tmp_path / "questions.json")
+    monkeypatch.setattr(h, "REPO", (tmp_path / "questions.json").parent)
     monkeypatch.setattr(h, "CASES", tmp_path / "cases")
     monkeypatch.setattr(h, "RESULTS", tmp_path / "results")
     git(tmp_path, "init", "-q")

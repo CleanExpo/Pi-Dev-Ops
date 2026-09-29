@@ -26,6 +26,7 @@ from pathlib import Path
 from jev_platform import committed as verified
 
 ROOT = Path(__file__).parent
+REPO = Path(__file__).parents[2]  # the checkout these files are committed in; never discovered from a file
 QUESTIONS = ROOT / "questions.json"
 CASES = ROOT / "cases"
 RESULTS = ROOT / "results"
@@ -78,7 +79,7 @@ def validate_question(qid: str, cases: list[dict]) -> list[str]:
 
 def _at_head(path: Path) -> str | None:
     """`path` as committed at HEAD of its repository, or None. `run` sends only this, never the working copy."""
-    data = verified.file_at_head(path)  # round 12: commit, trees and blob each rehashed against their ids
+    data = verified.file_at_head(REPO, path)  # rounds 12-14: objects rehashed; root given, never discovered
     try:
         return None if data is None else data.decode()
     except UnicodeDecodeError:

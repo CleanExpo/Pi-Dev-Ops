@@ -44,6 +44,7 @@ def _quotes_main(monkeypatch, tmp_path, stored: bool) -> int:
     path.write_text(json.dumps({"constitution": "rev abcdef123",
                                 "questions": [{"id": "q1", "quote_verbatim": stored}]}))
     monkeypatch.setattr(harness, "QUESTIONS", path)
+    monkeypatch.setattr(harness, "REPO", (path).parent)
     monkeypatch.setattr(quotes, "check", lambda data, repo: {"q1": None})  # the source says verbatim
     return quotes.main(["--repo", str(tmp_path)])
 
@@ -66,6 +67,7 @@ def test_validate_exits_invalid_on_an_unscoreable_case_set(monkeypatch, tmp_path
     path = tmp_path / "questions.json"
     path.write_text(json.dumps({"questions": [{"id": "q1", "quote_verbatim": True}]}))
     monkeypatch.setattr(harness, "QUESTIONS", path)
+    monkeypatch.setattr(harness, "REPO", (path).parent)
     monkeypatch.setattr(harness, "CASES", tmp_path / "cases")  # no cases at all
     assert harness.main(["validate"]) == harness.EXIT_INVALID
     assert "INVALID q1" in capsys.readouterr().out
@@ -135,6 +137,7 @@ def _use_control(monkeypatch, tmp_path):
     _git(tmp_path, "add", "control.json")
     _git(tmp_path, "commit", "-qm", "c")
     monkeypatch.setattr(generate, "WRITER_CONTROL", path)
+    monkeypatch.setattr(generate, "REPO", generate.WRITER_CONTROL.parent)
 
 
 def _args():

@@ -103,25 +103,22 @@ def at_head(repo, path: str, env: dict | None = None) -> tuple[str, str, bytes] 
     return None if found is None else (commit, found[0], found[1])
 
 
-def file_at_head(path: Path, env: dict | None = None) -> bytes | None:
-    """Bytes of `path` as committed at HEAD of the repository containing it, or None.
+def file_at_head(root: Path, path: Path, env: dict | None = None) -> bytes | None:
+    """Bytes of `path` as committed at HEAD of `root`, or None.
 
-    The repository path is built from `path`'s own names, never by resolving it: a working-copy symlink at the file
-    or at any directory inside the repository is refused, so an uncommitted link cannot pick another committed file
-    (round 13 P1-COMMITTED-PATH-WORKTREE-SYMLINK)."""
-    top = subprocess.run(["git", "-C", str(path.parent), "rev-parse", "--show-toplevel"],
-                         capture_output=True, text=True, env=env).stdout.strip()
-    names, here = [], Path(os.path.abspath(path))
-    while top:
-        if here.is_symlink():
+    `root` is the repository the caller already trusts (its own checkout). Nothing below it is used to find a
+    repository, so an untracked nested .git cannot redirect the read (round 14), and the repository path is built
+    from `path`'s own names: a working-copy symlink at the file or any directory under `root` is refused, never
+    followed (round 13)."""
+    base, here = Path(os.path.abspath(root)), Path(os.path.abspath(path))
+    try:
+        rel = here.relative_to(base)
+    except ValueError:
+        return None
+    for depth in range(len(rel.parts), 0, -1):
+        if base.joinpath(*rel.parts[:depth]).is_symlink():
             return None
-        if here.resolve() == Path(top).resolve():
-            break
-        if here.parent == here:
-            return None  # walked past the filesystem root without meeting the repository
-        names.insert(0, here.name)
-        here = here.parent
-    found = at_head(top, "/".join(names), env) if top and names else None
+    found = at_head(base, rel.as_posix(), env) if rel.parts else None
     return found[2] if found else None
 
 

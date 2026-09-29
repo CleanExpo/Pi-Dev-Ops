@@ -153,6 +153,7 @@ def test_the_live_fixture_is_read_through_verified_objects(repo):
 def test_the_writer_control_is_read_through_verified_objects(tmp_path, monkeypatch, capsys, how):
     new_repo(tmp_path, {"control.json": json.dumps({"status": "run", "verdict": "do-not-use"})})
     monkeypatch.setattr(generate, "WRITER_CONTROL", tmp_path / "control.json")
+    monkeypatch.setattr(generate, "REPO", generate.WRITER_CONTROL.parent)
     use = json.dumps({"status": "run", "verdict": "use"})
     reviewed = out(tmp_path, "rev-parse", "HEAD:control.json")
     if how == "replace":
@@ -171,21 +172,38 @@ def test_a_working_copy_symlink_cannot_pick_another_committed_control(tmp_path, 
                         "other.json": json.dumps({"status": "run", "verdict": "use"})})
     control = tmp_path / "control.json"
     monkeypatch.setattr(generate, "WRITER_CONTROL", control)
-    assert committed.file_at_head(control) is not None  # positive control: the committed control reads back
+    monkeypatch.setattr(generate, "REPO", generate.WRITER_CONTROL.parent)
+    assert committed.file_at_head(tmp_path, control) is not None  # positive control: the committed control reads back
     control.unlink()
     control.symlink_to("other.json")
-    assert committed.file_at_head(control) is None
+    assert committed.file_at_head(tmp_path, control) is None
     args = argparse.Namespace(writer="gemini", question=RULE, max_usd=1.0)
     assert generate._writer(args) is None and "writer control" in capsys.readouterr().err
 
 
 def test_a_symlinked_directory_on_the_path_is_refused(tmp_path):
     new_repo(tmp_path, {"real/q.json": "reviewed", "other/q.json": MARKER})
-    assert committed.file_at_head(tmp_path / "real" / "q.json") == b"reviewed"
+    assert committed.file_at_head(tmp_path, tmp_path / "real" / "q.json") == b"reviewed"
     (tmp_path / "real" / "q.json").unlink()
     (tmp_path / "real").rmdir()
     (tmp_path / "real").symlink_to("other")
-    assert committed.file_at_head(tmp_path / "real" / "q.json") is None
+    assert committed.file_at_head(tmp_path, tmp_path / "real" / "q.json") is None
+
+
+def test_an_untracked_nested_repository_cannot_redirect_the_control(tmp_path, monkeypatch, capsys):
+    """Round 14 P1-COMMITTED-PATH-NESTED-REPOSITORY: the repository is given, never discovered from the file."""
+    new_repo(tmp_path, {"docs/plans/control.json": json.dumps({"status": "run", "verdict": "do-not-use"})})
+    nested = tmp_path / "docs" / "plans"
+    (nested / "control.json").write_text(json.dumps({"status": "run", "verdict": "use"}))
+    git(nested, "init", "-q")
+    git(nested, "add", "control.json")
+    git(nested, "commit", "-qm", "nested")
+    assert '"use"' in out(nested, "show", "HEAD:control.json")  # positive control: discovery from the file finds it
+    monkeypatch.setattr(generate, "REPO", tmp_path)
+    monkeypatch.setattr(generate, "WRITER_CONTROL", nested / "control.json")
+    assert json.loads(committed.file_at_head(tmp_path, nested / "control.json"))["verdict"] == "do-not-use"
+    args = argparse.Namespace(writer="gemini", question=RULE, max_usd=1.0)
+    assert generate._writer(args) is None and "writer control" in capsys.readouterr().err
 
 
 def test_the_eval_harness_refuses_a_symlinked_registry(eval_repo):

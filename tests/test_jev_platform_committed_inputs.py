@@ -181,6 +181,7 @@ def eval_repo(tmp_path, monkeypatch):
     git(tmp_path, "add", "-A")
     git(tmp_path, "commit", "-qm", "eval inputs")
     monkeypatch.setattr(h, "QUESTIONS", tmp_path / "questions.json")
+    monkeypatch.setattr(h, "REPO", (tmp_path / "questions.json").parent)
     monkeypatch.setattr(h, "CASES", tmp_path / "cases")
     monkeypatch.setattr(h, "RESULTS", tmp_path / "results")
     return tmp_path

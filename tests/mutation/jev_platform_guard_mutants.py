@@ -232,18 +232,20 @@ GUARD_MUTANTS = [
     ('committed.py', '            if oid == ancestor:\n                return True',
      '            if True:\n                return True'),  # co-ancestor
     ('engine.py', '    if not verified.is_oid(sha):\n        return', '    if False:\n        return'),  # en-lineage-sha
-    ('committed.py', '        if here.is_symlink():\n            return None',
+    ('committed.py', '        if base.joinpath(*rel.parts[:depth]).is_symlink():\n            return None',
      '        if False:\n            return None'),  # co-no-symlink (round 13)
+    ('evals/jev_constitution/generate.py', 'verified.file_at_head(REPO, WRITER_CONTROL,',
+     'verified.file_at_head(WRITER_CONTROL.parent, WRITER_CONTROL,'),  # ge-root-given (round 14)
     ('engine.py', ' != blob:\n        return ["cases_blob is not the cases file',
      ' != blob and False:\n        return ["cases_blob is not the cases file'),  # en-lineage-at-sha
     ('engine.py', '    if not verified.is_ancestor(ROOT, sha, verified.resolve(ROOT) or ""):\n',
      '    if False:\n'),  # en-lineage-ancestor
-    ('evals/jev_constitution/harness.py', '    data = verified.file_at_head(path)',
+    ('evals/jev_constitution/harness.py', '    data = verified.file_at_head(REPO, path)',
      '    data = __import__("subprocess").run(["git", "-C", str(path.parent), "show", f"HEAD:./{path.name}"], '
      'capture_output=True).stdout or None'),  # ha-verified
     ('__main__.py', 'json.loads(verified.at_head(engine.ROOT, FIXTURE_AT_HEAD)[2])',
      'json.loads(engine._git("show", f"HEAD:{FIXTURE_AT_HEAD}"))'),  # cli-fixture-verified
-    ('evals/jev_constitution/generate.py', 'shown = verified.file_at_head(WRITER_CONTROL, env={"PATH": os.environ.get("PATH", "")})',
+    ('evals/jev_constitution/generate.py', 'shown = verified.file_at_head(REPO, WRITER_CONTROL, env={"PATH": os.environ.get("PATH", "")})',
      'shown = subprocess.run(["git", "-C", str(WRITER_CONTROL.parent), "show", f"HEAD:./{WRITER_CONTROL.name}"], '
      'capture_output=True).stdout or None'),  # ge-control-verified
     ('evals/jev_constitution/quotes.py', '        if found is None:\n            raise ValueError',

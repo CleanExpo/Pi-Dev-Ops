@@ -42,7 +42,8 @@ DOMAINS = [
     "a support reply to a restoration contractor", "a test, gate or release check", "a CARSI course lesson",
 ]
 # PLAN-scale.md: Gemini writes cases only once this frozen control, run live, returns `use`.
-WRITER_CONTROL = Path(__file__).resolve().parents[2] / "docs" / "plans" / "jev-platform" / "gemini-writer-control.json"
+REPO = Path(__file__).resolve().parents[2]  # the checkout the control is committed in; never discovered from a file
+WRITER_CONTROL = REPO / "docs" / "plans" / "jev-platform" / "gemini-writer-control.json"
 _SCRUB = ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY")
 
 
@@ -186,7 +187,7 @@ def _writer(args):
     """(write function, writer name, output path) or None after printing BLOCKED. Claude stays the default."""
     if args.writer == "claude":
         return claude_write, "claude", CASES / f"{args.question}.jsonl"
-    shown = verified.file_at_head(WRITER_CONTROL, env={"PATH": os.environ.get("PATH", "")})
+    shown = verified.file_at_head(REPO, WRITER_CONTROL, env={"PATH": os.environ.get("PATH", "")})
     try:  # the control as COMMITTED and rehashed (round 12): no edit, replacement or rewrite can flip it to `use`
         control = json.loads(shown) if shown is not None else {}
     except ValueError:
