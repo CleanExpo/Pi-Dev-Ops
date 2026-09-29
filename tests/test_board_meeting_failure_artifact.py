@@ -81,6 +81,8 @@ async def test_fire_board_meeting_trigger_persists_artifact_then_reraises(tmp_pa
     # keep it out of the real repo .harness/job-success/ store.
     from app.server import job_success_record as jsr
     monkeypatch.setattr(jsr, "_job_success_dir", lambda: tmp_path / "job-success")
+    # The failure-artifact test must not call Linear or a live model for a pre-brief.
+    monkeypatch.setattr(cfa, "_generate_board_prebrief", lambda _log: "")
 
     def _raises():
         raise RuntimeError("simulated SDK 401 from phase 3")
