@@ -142,6 +142,8 @@ MUTANTS = [
     ("gemini_shape.py", '    if "model" in body and not isinstance(body["model"], str):', "    if False:"),
     # release review r9: the traversal guard reached directly, and live decide on the committed fixture only
     ("ask.py", 'if rel.startswith("/") or any(p in ("", ".", "..") for p in parts):', "if False:"),
+    ("evals/jev_constitution/generate.py", "json.loads(shown.stdout) if shown.returncode == 0 else {}",
+     "json.loads(WRITER_CONTROL.read_text())"),  # the writer control counts only as committed
     ("__main__.py", "    actions = _committed_actions() if a.live else",
      '    actions = json.loads(engine.FIXTURES.read_text())["actions"] if a.live else'),
     ("evals/jev_constitution/generate.py", '!= ("run", "use"):', '!= ("run", "use") and False:'),
@@ -149,6 +151,20 @@ MUTANTS = [
      'control.get("verdict") != "use"'),
 ]
 env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+
+
+def suite() -> subprocess.CompletedProcess:
+    return subprocess.run([PY, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider",
+                           *map(str, (ROOT / "tests").glob("test_jev_platform_*.py"))],
+                          cwd=ROOT, capture_output=True, text=True, env=env)
+
+
+# A red suite "kills" every mutant, so the count means nothing unless the unmutated suite is green first
+# (e.g. a copy without .git fails every committed-file test). Positive control, then the mutants.
+baseline = suite()
+if baseline.returncode != 0:
+    print("BASELINE RED: the unmutated suite fails, so no mutant result is evidence\n" + baseline.stdout[-2000:])
+    sys.exit(2)
 killed = 0
 for fname, old, new in MUTANTS:
     path = ROOT / fname if "/" in fname else ROOT / "jev_platform" / fname
@@ -156,11 +172,11 @@ for fname, old, new in MUTANTS:
     assert src.count(old) == 1, (fname, old)
     path.write_text(src.replace(old, new))
     try:
-        r = subprocess.run([PY, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *map(str, (ROOT / "tests").glob("test_jev_platform_*.py"))],
-                           cwd=ROOT, capture_output=True, text=True, env=env)
+        r = suite()
     finally:
         path.write_text(src)
     ok = r.returncode != 0
     killed += ok
     print(("KILLED  " if ok else "SURVIVED"), fname, "|", old[:60])
 print(f"{killed}/{len(MUTANTS)} mutants killed")
+sys.exit(0 if killed == len(MUTANTS) else 1)

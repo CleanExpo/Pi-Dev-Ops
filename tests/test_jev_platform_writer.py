@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import subprocess
 
 import pytest
 from jev_scale_support import FakeGemini, ftext
@@ -202,14 +203,28 @@ def test_rounds_where_the_labellers_always_disagree_stop(monkeypatch, tmp_path, 
     assert rc == 3 and calls == 2 * generate.MAX_EMPTY_ROUNDS and "BLOCKED" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("control", [{"status": "run", "verdict": "do-not-use"}, {"status": "frozen"},
-                                     {"status": "frozen", "verdict": "use"}, None])
-def test_the_gemini_writer_is_blocked_until_its_control_says_use(monkeypatch, tmp_path, capsys, control):
-    """Release review r8 P1: --writer gemini ran bulk generation while the committed control said do-not-use."""
-    path = tmp_path / "control.json"
-    if control is not None:
-        path.write_text(json.dumps(control))
-    monkeypatch.setattr(generate, "WRITER_CONTROL", path)
+def _control_repo(tmp_path, committed, working=None):
+    """A git repo whose HEAD holds `committed` as the control; `working` is an uncommitted edit on top."""
+    path, run = tmp_path / "control.json", lambda *a: subprocess.run(["git", "-C", str(tmp_path), *a], check=True)
+    run("init", "-q")
+    if committed is not None:
+        path.write_text(json.dumps(committed))
+        run("add", "control.json")
+        run("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "c")
+    if working is not None:
+        path.write_text(json.dumps(working))
+    return path
+
+
+@pytest.mark.parametrize("committed,working", [
+    ({"status": "run", "verdict": "do-not-use"}, None), ({"status": "frozen"}, None),
+    ({"status": "frozen", "verdict": "use"}, None), (None, None),
+    ({"status": "run", "verdict": "do-not-use"}, {"status": "run", "verdict": "use"}),  # uncommitted flip
+    (None, {"status": "run", "verdict": "use"})])  # never committed
+def test_the_gemini_writer_is_blocked_until_its_committed_control_says_use(monkeypatch, tmp_path, capsys,
+                                                                            committed, working):
+    """Release review r8 P1: --writer gemini ran while the control said do-not-use; only HEAD's control counts."""
+    monkeypatch.setattr(generate, "WRITER_CONTROL", _control_repo(tmp_path, committed, working))
     monkeypatch.setenv("GEMINI_API_KEY", "gk-test-not-a-real-key")
     built = []
     monkeypatch.setattr(generate, "gemini_writer", lambda *a: built.append(a))
@@ -224,10 +239,8 @@ def test_the_committed_control_blocks_the_gemini_writer_today(monkeypatch, capsy
     assert generate.main(["--question", "core-44", "--writer", "gemini"]) == 2
 
 
-def test_a_use_verdict_from_a_run_control_builds_the_gemini_writer(monkeypatch, tmp_path):
-    path = tmp_path / "control.json"
-    path.write_text(json.dumps({"status": "run", "verdict": "use"}))
-    monkeypatch.setattr(generate, "WRITER_CONTROL", path)
+def test_a_committed_use_verdict_from_a_run_control_builds_the_gemini_writer(monkeypatch, tmp_path):
+    monkeypatch.setattr(generate, "WRITER_CONTROL", _control_repo(tmp_path, {"status": "run", "verdict": "use"}))
     monkeypatch.setenv("GEMINI_API_KEY", "gk-test-not-a-real-key")
     monkeypatch.setattr(generate, "gemini_writer", lambda *a: "write")
     assert generate._writer(generate.argparse.Namespace(writer="gemini", question="core-44", max_usd=1.0))[1] == "gemini"
