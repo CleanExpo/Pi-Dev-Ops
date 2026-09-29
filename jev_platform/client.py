@@ -1,0 +1,115 @@
+"""Jev transport with hard budget, deadline, redaction and strict response checks (PLAN.md rev 5).
+
+`post(body, timeout)` is injected: it returns (status, parsed_json_or_None, retry_after_seconds_or_None).
+Every failure path returns `signal_unavailable` (or `budget_exhausted`); nothing is ever inferred.
+"""
+from __future__ import annotations
+
+import json
+import re
+import threading
+import time
+
+from jev_platform import policy
+
+MAX_REQUEST_BYTES = 64_000
+RESERVE_TOKENS = 64_000  # documented per-request limit (docs/vendor/typesafe/llms-full.txt:13008)
+USD_PER_TOKEN = 0.042 / 1_000_000
+RESERVE_USD = RESERVE_TOKENS * USD_PER_TOKEN
+MAX_RETRIES = 2
+REQUEST_TIMEOUT = 30.0
+REDACTION_VERSION = "redact-1"
+_PATTERNS = [
+    re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
+    re.compile(r"\+?\d[\d ()-]{7,}\d"),
+    re.compile(r"\d{12,}"),
+    re.compile(r"\b(?:sk-|ts-|ghp_)[\w-]{8,}"),
+    re.compile(r"\b[0-9a-fA-F]{32,}\b"),
+    re.compile(r"https?://\S*\?\S*"),
+]
+
+
+def redact(text: str) -> tuple[str, bool]:
+    out = text
+    for pat in _PATTERNS:
+        out = pat.sub("[redacted]", out)
+    return out, out != text
+
+
+class Budget:
+    """Reserve the documented worst case before every attempt; settle down only on reported usage."""
+
+    def __init__(self, max_usd: float, max_seconds: float, clock=time.monotonic):
+        self.max_usd, self.clock = max_usd, clock
+        self.deadline = clock() + max_seconds
+        self.spent, self.attempts = 0.0, 0
+        # Fixed at start: settling a cheap answer down never buys extra attempts.
+        self.max_attempts = int((max_usd + 1e-12) // RESERVE_USD)
+        self._lock = threading.Lock()
+
+    def remaining_seconds(self) -> float:
+        return self.deadline - self.clock()
+
+    def reserve(self) -> bool:
+        with self._lock:
+            if (self.attempts >= self.max_attempts or self.spent + RESERVE_USD > self.max_usd + 1e-12
+                    or self.remaining_seconds() <= 0):
+                return False
+            self.spent += RESERVE_USD
+            self.attempts += 1
+            return True
+
+    def settle(self, data) -> None:
+        usage = (data or {}).get("usage") if isinstance(data, dict) else None
+        tokens = usage.get("input_tokens") if isinstance(usage, dict) else None
+        if isinstance(tokens, int) and not isinstance(tokens, bool) and 0 <= tokens <= RESERVE_TOKENS:
+            with self._lock:
+                self.spent -= RESERVE_USD - tokens * USD_PER_TOKEN
+
+
+def build_request(state: str, rules: list[dict], model: str = "jev-latest") -> dict:
+    return {"state": state, "model": model, "questions": {
+        r["id"]: {"type": "noul", "instructions": r["question"],
+                  "criteria": {"true": r["criteria_true"], "false": r["criteria_false"]}} for r in rules}}
+
+
+def validate(data, rule_ids: list[str]) -> dict | None:
+    """Every requested id answered exactly, as a finite Noul in [0, 1]; else None."""
+    if not isinstance(data, dict) or not isinstance(data.get("answers"), dict):
+        return None
+    answers = data["answers"]
+    if set(answers) != set(rule_ids):
+        return None
+    out = {}
+    for rid in rule_ids:
+        a = answers[rid]
+        if not isinstance(a, dict) or a.get("type") != "noul" or not policy.valid_noul(a.get("noul")):
+            return None
+        out[rid] = float(a["noul"])
+    return out
+
+
+def ask(state: str, rules: list[dict], post, budget: Budget, sleep=time.sleep) -> dict:
+    """{'nouls': {...}, 'model': str} or {'error': reason}. Redaction happens before sending."""
+    body = build_request(state, rules)
+    if len(json.dumps(body).encode()) > MAX_REQUEST_BYTES:
+        return {"error": "request_too_large"}
+    ids = [r["id"] for r in rules]
+    for attempt in range(MAX_RETRIES + 1):
+        if not budget.reserve():
+            return {"error": "budget_exhausted"}
+        try:
+            status, data, retry_after = post(body, min(REQUEST_TIMEOUT, budget.remaining_seconds()))
+        except Exception:  # noqa: BLE001 — any transport failure is signal_unavailable, never a pass
+            return {"error": "signal_unavailable:transport"}
+        if status == 200:
+            budget.settle(data)
+            nouls = validate(data, ids)
+            if nouls is None:
+                return {"error": "signal_unavailable:invalid_response"}
+            return {"nouls": nouls, "model": str(data.get("model", "unknown"))}
+        wait = retry_after if isinstance(retry_after, (int, float)) else None
+        if status != 429 or attempt == MAX_RETRIES or wait is None or wait >= budget.remaining_seconds():
+            return {"error": f"signal_unavailable:http_{status}"}
+        sleep(wait)
+    return {"error": "signal_unavailable:retries"}
