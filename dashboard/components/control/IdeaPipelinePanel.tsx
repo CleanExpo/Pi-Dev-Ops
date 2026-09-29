@@ -117,6 +117,7 @@ export default function IdeaPipelinePanel() {
 
   return (
     <section
+      id="idea-pipeline"
       className={styles.panel}
       aria-label="Idea intake and Board packet"
     >
