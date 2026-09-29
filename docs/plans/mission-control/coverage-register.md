@@ -11,9 +11,9 @@ Paths: `D` = `dashboard/`, `CC` = `dashboard/components/control/`, `R` = `app/se
 ## What "evidence" means in this table
 
 - **VERIFIED** — a named check passed against a named environment and revision. Nothing in this
-  table reaches VERIFIED today: no browser test opens any Mission Control page (`D/e2e/` covers only
-  `placecards-prototype.html`), and live smoke checks status codes and JSON key names, not what a
-  user sees.
+  table reaches VERIFIED today: browser tests now exist for all 20 surfaces (`D/e2e-live/`), but none
+  has yet run against a named deployment (blocked on `DASHBOARD_PASSWORD`, RA-7832), and live smoke
+  checks status codes and JSON key names, not what a user sees.
 - **PARTIAL** — unit tests with mocks, or a live status-code smoke, but no observed user outcome.
 - **STRUCTURAL_ONLY** — the page and route exist; nothing exercises them.
 - **CONFLICTING** — a check failed on the current revision, or code reading says it cannot work.
