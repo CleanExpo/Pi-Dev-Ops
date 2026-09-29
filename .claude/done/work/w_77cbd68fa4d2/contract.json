@@ -1,0 +1,58 @@
+{
+  "schema": "done/1",
+  "work_id": "w_77cbd68fa4d2",
+  "version": 4,
+  "supersedes": "w_75bfce2edf7a",
+  "goal": "v4: quote_verbatim is now derived by evals/jev_constitution/quotes.py from the pinned Constitution (538/538 verbatim); C1 expects 16 passed across both test files; C7 requires the quote check to exit 0",
+  "created_at_utc": "2026-09-29T02:57:36Z",
+  "identity_key": "feat/jev-constitution-eval@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-constitution",
+  "baseline_observed": {
+    "head": "23e265daee986a6a655643af1f8d2c8e02008fc2",
+    "branch": "feat/jev-constitution-eval",
+    "dirty_count": 4
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "text": "Offline harness and quote-check tests pass: 16 passed",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_constitution_eval.py tests/test_jev_constitution_quotes.py -q -p no:cacheprovider | grep -q '16 passed'"
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "text": "questions.json holds all 538 extracted rules, each with source file:line and quote",
+      "recipe": "python3 -c \"import json;q=json.load(open('evals/jev_constitution/questions.json'))['questions'];assert len(q)==538 and all(x['source'] and x['quote'] for x in q)\""
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "text": "a run with no TYPESAFE_API_KEY reports BLOCKED and exits 2",
+      "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 > /tmp/jev_c3.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c3.txt"
+    },
+    {
+      "id": "C4",
+      "required": true,
+      "text": "the metered-lane refusal in app/server/provider_policy.py is untouched vs origin/main",
+      "recipe": "git diff --quiet origin/main -- app/server/provider_policy.py"
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "text": "pilot ch3-4-27 (no fabricating evidence, approvals or completed actions) has a scoreable set of >=1000 Claude+Codex-agreed cases",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness validate | grep -qE '^VALID +ch3-4-27$'"
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "text": "Jev scored on the full ch3-4-27 set with the fake-key control refused (needs TYPESAFE_API_KEY from the founder)",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 | grep -q 'ch3-4-27: accuracy'"
+    },
+    {
+      "id": "C7",
+      "required": true,
+      "text": "Every question's quote_verbatim flag matches the pinned Constitution text, and all 538 quotes are verbatim",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.quotes --repo /Users/phill-mac/Unite-Group | grep -q '^verbatim 538/538; stored flags wrong: 0$'"
+    }
+  ]
+}

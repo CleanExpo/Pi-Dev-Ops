@@ -1,8 +1,69 @@
 {
   "schema": "done/1",
-  "criterion_evidence": "UNPROVEN",
-  "verification_status": "NOT_RUN",
+  "criterion_evidence": "FAILED",
+  "verification_status": "FAIL",
   "delivery_status": "NOT_STARTED",
-  "verified_head": null,
-  "updated_at_utc": "2026-09-29T02:42:16Z"
+  "verified_head": "23e265daee986a6a655643af1f8d2c8e02008fc2",
+  "updated_at_utc": "2026-09-29T02:42:23Z",
+  "last_verify": {
+    "head": "23e265daee986a6a655643af1f8d2c8e02008fc2",
+    "at_utc": "2026-09-29T02:42:23Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_constitution_eval.py -q -p no:cacheprovider | grep -q '12 passed'",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "python3 -c \"import json;q=json.load(open('evals/jev_constitution/questions.json'))['questions'];assert len(q)==538 and all(x['source'] and x['quote'] for x in q)\"",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 > /tmp/jev_c3.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c3.txt",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "git diff --quiet origin/main -- app/server/provider_policy.py",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C5",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness validate | grep -qE '^VALID +ch3-4-27$'",
+        "exit_code": 0,
+        "output_digest": "23231a8f743d7b5e9ef2ced707176822244fc61b4f239ed356484b025bab0ac7",
+        "output_tail": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nBrokenPipeError: [Errno 32] Broken pipe"
+      },
+      {
+        "id": "C6",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 | grep -q 'ch3-4-27: accuracy'",
+        "exit_code": 1,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      }
+    ],
+    "blockers": []
+  }
 }

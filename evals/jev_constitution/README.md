@@ -12,7 +12,8 @@ this run: this runs as its own script.
 
 | File | What it holds |
 |---|---|
-| `questions.json` | One Noul question per binding constitutional rule, with its quote and `source` (file:line) at Unite-Group `origin/main` `8eb9491b8`. `quote_verbatim` is true when the quote was found word-for-word in that file (488 of 538 on 2026-09-29); the other 50 were paraphrased by the extraction agents |
+| `questions.json` | One Noul question per binding constitutional rule, with its quote and `source` (file:line) at Unite-Group `origin/main` `8eb9491b8`. `quote_verbatim` is set by `quotes.py`, never by hand: true when every fragment of the quote (split on `...`, `…` or a flattened list marker ` * `) appears in order, word for word, in that file. 538 of 538 on 2026-09-29 |
+| `quotes.py` | Re-derives `quote_verbatim` from a Unite-Group clone: `--repo ~/Unite-Group` checks (exit 1 on any stale flag), `--write` records |
 | `cases/<question-id>.jsonl` | The labelled scenarios for that question |
 | `generate.py` | Writes cases with Claude (Max plan), has Codex (Pro plan) label them blind, keeps only agreements |
 | `harness.py` | `validate` checks every case set; `run` asks Jev and scores it |
