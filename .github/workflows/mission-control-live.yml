@@ -1,0 +1,73 @@
+# WP-02 — Mission Control browser suite against the DEPLOYED dashboard.
+# docs/plans/mission-control/work-packages.md. Signs in with the real login
+# route and writes one JSON receipt per surface (MC control-set checks 1, 2, 4).
+# Without DASHBOARD_PASSWORD it reports NOT_RUN and fails loudly — a missing
+# secret must never look like a passing suite (RA-7832).
+name: Mission Control live
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Dashboard URL to test"
+        required: false
+        default: "https://pi-dev-ops.vercel.app"
+  schedule:
+    - cron: "17 16 * * *" # 02:17 Brisbane
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mission-control-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    name: Live browser suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: dashboard
+    env:
+      MC_LIVE_URL: ${{ github.event.inputs.target || 'https://pi-dev-ops.vercel.app' }}
+      DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
+    steps:
+      - name: Require the sign-in secret
+        run: |
+          if [ -z "${DASHBOARD_PASSWORD}" ]; then
+            echo "## Mission Control live: NOT_RUN" >> "$GITHUB_STEP_SUMMARY"
+            echo "Secret DASHBOARD_PASSWORD is missing (RA-7832). No check ran; nothing here is a pass." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run live suite
+        run: npx playwright test --config playwright.live.config.ts
+
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mission-control-live-receipts
+          path: |
+            dashboard/e2e-live-receipts/
+            dashboard/test-results/
+          if-no-files-found: warn
+          retention-days: 30

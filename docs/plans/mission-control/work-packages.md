@@ -7,7 +7,7 @@ and its authority class: **SAFE** (reversible code/test change, agent may do it)
 | ID | Outcome | Rows | Depends on | Authority | Completion test |
 |---|---|---|---|---|---|
 | WP-01 | Margot panel and Spec-pipeline detail stop being refused by the dashboard proxy | MC-10, MC-11 | — | SAFE | **Done in this change.** `dashboard/lib/pi-ceo-proxy-allowlist.ts` + test that fails on the old list and passes on the new (8/8); full vitest 504/504, `tsc` clean. Live check still owed (WP-06) |
-| WP-02 | Playwright can sign in to a deployed dashboard | all | secret | SECRET | A second Playwright project (`control-live`) with `baseURL` from env, signing in with `DASHBOARD_PASSWORD` stored as a GitHub Actions secret; one test opens `/control` and sees the hub. The existing `playwright.config.ts` targets only a local stub server and `/placecards-prototype.html` |
+| WP-02 | Playwright can sign in to a deployed dashboard | all | secret | SECRET | **Built 29 Sept; runs once the secret is added.** `dashboard/playwright.live.config.ts` + `dashboard/e2e-live/` (sign-in through the real login route, 4xx/5xx collector, JSON receipt) + `.github/workflows/mission-control-live.yml` (nightly + manual; fails as NOT_RUN without `DASHBOARD_PASSWORD`). Proved locally against a dev server: signed in, 12 nav labels visible, and check 2 caught `/api/mesh-fleet` 503 with no backend (positive control); wrong password and missing password both fail. Target `https://pi-dev-ops.vercel.app` (Vercel production domain) |
 | WP-03 | ZTE badge reads a real score or says honestly that none exists | MC-00 | — | SAFE | **Done in #818 (awaiting merge).** Added `app/server/routes/zte.py` serving the daily cron's cached score, 404 when none; `tests/test_zte_score_route.py` 6 tests. Live check owed after merge (badge shows `source: backend`) |
 | WP-04 | wiki-graph status settled | MC-18 | WP-02 | SAFE | Browser test on production opens `/command-centre/wiki-graph` and records 200 + rendered graph or an explicit error; close or re-open RA-7264 with that receipt |
 | WP-05 | Deploy-only pages behave honestly on Vercel | MC-14, MC-19 | — | SAFE | **youtube-intent done in #818 (awaiting merge):** explicit "Not available on this host" state, no localhost link in production. `hermes` was re-checked and does **not** read a local file, so it needs no change here. Browser assertion per page moves into WP-06 |
@@ -31,6 +31,11 @@ These affect "finished" for the wider system, not the MC levels of the screens t
 - **Autonomy switch.** `TAO_AUTONOMY_ENABLED` was `0` in production on 2026-08-18 (QUEUE.md:24-34);
   current value not re-checked.
 - **Secrets.** `DASHBOARD_PASSWORD` and `TYPESAFE_API_KEY` as GitHub Actions secrets (WP-02, WP-10).
+- **Direction, 29 Sept 2026 (Phill):** Mission Control is to become the single place that secures access
+  and keys. Today Phill and the software engineer share the same Vercel/GitHub accounts, so no action
+  can be traced to one person — which the portfolio packet needs for separate builder/reviewer identity
+  (T07) and for RANA's named support role. Recorded as direction, not yet a work package; first
+  concrete step is RA-7834 (mark readable keys Sensitive).
 
 ## Refinement checkpoints
 
@@ -48,7 +53,7 @@ re-ticketed.
 |---|---|---|
 | MC-DISCOVER | [coverage-register.md](coverage-register.md) (20 rows) | Shallow pass done; deep runtime pass needs WP-02 |
 | MC-PROMISE | [promise-register.md](promise-register.md) — 12 nav blurbs and 21 button promises, each with source line and proving journey | Written 29 Sept: 33 promises, 0 proven, 20 with a mocked test |
-| MC-VERIFY | WP-02, WP-04, WP-06, WP-07, WP-09 | Blocked on `DASHBOARD_PASSWORD` (RA-7832) |
+| MC-VERIFY | WP-02, WP-04, WP-06, WP-07, WP-09 | WP-02 built; all live runs wait on `DASHBOARD_PASSWORD` as a GitHub Actions secret (RA-7832) |
 | MC-REPAIR | WP-01, WP-03, WP-05, WP-08 | Done (#809 merged; #818 awaiting merge) |
 | MC-AUDIT | *new:* two non-author audits of the final candidate (Claude + Codex lanes) | NOT_RUN; Codex lane unavailable in this container |
 | MC-RELEASE | WP-12 + packet release stages R0–R4 and support readiness (RANA) | NOT_STARTED |
