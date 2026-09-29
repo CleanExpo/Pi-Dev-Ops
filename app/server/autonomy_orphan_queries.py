@@ -13,7 +13,10 @@ query InProgressPiCeoIssues($projectId: String!) {
                 updatedAt
                 state { name type }
                 labels { nodes { name } }
-                comments(first: 5, orderBy: createdAt) { nodes { body } }
+                comments(first: 5, orderBy: createdAt) {
+                    nodes { body }
+                    pageInfo { hasNextPage endCursor }
+                }
             }
         }
     }
@@ -21,17 +24,32 @@ query InProgressPiCeoIssues($projectId: String!) {
 """
 
 _RECOVERY_TARGET_QUERY = """
-query RecoveryTargetPiCeoIssues($projectId: String!, $targetState: String!) {
+query RecoveryTargetPiCeoIssues($projectId: String!, $targetState: String!, $after: String) {
     project(id: $projectId) {
         issues(filter: {state: {name: {eq: $targetState}}},
-               first: 30, orderBy: updatedAt) {
+               first: 30, after: $after, orderBy: updatedAt) {
+            pageInfo { hasNextPage endCursor }
             nodes {
                 id
                 identifier
                 state { name type }
                 labels { nodes { name } }
-                comments(first: 5, orderBy: createdAt) { nodes { body } }
+                comments(first: 5, orderBy: createdAt) {
+                    nodes { body }
+                    pageInfo { hasNextPage endCursor }
+                }
             }
+        }
+    }
+}
+"""
+
+_COMMENT_PAGE_QUERY = """
+query OrphanCommentPage($issueId: String!, $after: String) {
+    issue(id: $issueId) {
+        comments(first: 50, after: $after, orderBy: createdAt) {
+            nodes { body }
+            pageInfo { hasNextPage endCursor }
         }
     }
 }

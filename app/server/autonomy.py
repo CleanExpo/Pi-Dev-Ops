@@ -47,6 +47,9 @@ from app.server.autonomy_eligibility import (
     filter_claimable_issues,
 )
 from .autonomy_orphan_queries import _IN_PROGRESS_QUERY, _RECOVERY_TARGET_QUERY
+from .autonomy_orphan_support import (
+    issue_pages, orphan_completion, recovery_comment_present, record_recovery_success,
+)
 from .autonomy_linear_rate import (
     LinearRateLimitError,
     has_linear_rate_limit_error as _has_linear_rate_limit_error,
@@ -646,21 +649,19 @@ def _orphan_recovery_blocking(api_key: str) -> None:
 
 
 _ORPHAN_COMMENT_MARKER = "Pi-CEO orphan recovery — session lost."
+_pending_orphan_recoveries: set[str] = set()
 
 
 def _orphan_completion(issue: dict) -> tuple[bool, bool]:
-    labels = (issue.get("labels") or {}).get("nodes") or []
-    comments = (issue.get("comments") or {}).get("nodes") or []
-    labelled = any(n.get("name") == _BLOCKED_REASON_SESSION_LOST for n in labels)
-    commented = any(_ORPHAN_COMMENT_MARKER in (n.get("body") or "") for n in comments)
-    return labelled, commented
+    return orphan_completion(issue, _BLOCKED_REASON_SESSION_LOST, _ORPHAN_COMMENT_MARKER)
 
 
 def _comment_on_orphan(api_key: str, iid: str, team_id: str, target_state: str,
-                       issue: dict) -> bool:
-    labelled, commented = _orphan_completion(issue)
+                       issue: dict) -> tuple[bool, bool]:
+    labelled, _ = _orphan_completion(issue)
     label_ok = labelled or add_label_to_issue(api_key, iid, team_id, _BLOCKED_REASON_SESSION_LOST)
-    if not commented:
+    changed = not labelled and label_ok
+    if not recovery_comment_present(issue, _gql, api_key, _ORPHAN_COMMENT_MARKER):
         comment_on_issue(
             api_key, iid,
             "🤖 **Pi-CEO orphan recovery — session lost.**\n\n"
@@ -673,7 +674,8 @@ def _comment_on_orphan(api_key: str, iid: str, team_id: str, target_state: str,
             "A human (or the next contract-audit pass) should confirm "
             "state, then move back to `Ready for Pi-Dev` to re-queue.",
         )
-    return label_ok
+        changed = True
+    return label_ok, changed
 
 
 def _recover_orphan_issue(api_key: str, project: dict, issue: dict) -> int:
@@ -681,6 +683,10 @@ def _recover_orphan_issue(api_key: str, project: dict, issue: dict) -> int:
     target_state = _recovery_state_for(team_id)
     already_target = (issue.get("state") or {}).get("name", "").lower() == target_state.lower()
     if already_target and all(_orphan_completion(issue)):
+        if iid in _pending_orphan_recoveries:
+            record_recovery_success(_log_event, _pending_orphan_recoveries, iid, ident,
+                                    target_state, _BLOCKED_REASON_SESSION_LOST, True)
+            return 1
         return 0
     try:
         try:
@@ -694,13 +700,15 @@ def _recover_orphan_issue(api_key: str, project: dict, issue: dict) -> int:
             _log_event({"action": "orphan_recovery_state_missing", "ticket": ident,
                         "team_id": team_id, "target_state": target_state, "error": str(exc)})
             return 0
-        label_ok = _comment_on_orphan(api_key, iid, team_id, target_state, issue)
-        log.info("orphan-recovery: transitioned %s to %s (session-lost)", ident, target_state)
-        _log_event({"action": "orphan_recovered", "ticket": ident,
-                    "transition": target_state, "reason_label": _BLOCKED_REASON_SESSION_LOST,
-                    "label_attached": label_ok})
-        return 1
+        label_ok, changed = _comment_on_orphan(api_key, iid, team_id, target_state, issue)
+        if not already_target or changed or iid in _pending_orphan_recoveries:
+            log.info("orphan-recovery: transitioned %s to %s (session-lost)", ident, target_state)
+            record_recovery_success(_log_event, _pending_orphan_recoveries, iid, ident,
+                                    target_state, _BLOCKED_REASON_SESSION_LOST, label_ok)
+            return 1
+        return 0
     except LinearRateLimitError as exc:
+        _pending_orphan_recoveries.add(iid)
         _log_event({"action": "orphan_recovery_error", "ticket": ident,
                     "error": str(exc), "transition": target_state})
         raise
@@ -728,22 +736,20 @@ def _orphan_recovery_sync(api_key: str) -> None:
         )
         for query, variables in queries:
             try:
-                data = _gql(api_key, query, variables)
+                for nodes in issue_pages(_gql, api_key, query, variables,
+                                         paginate=query == _RECOVERY_TARGET_QUERY):
+                    for issue in nodes:
+                        if issue["id"] in seen:
+                            continue
+                        seen.add(issue["id"])
+                        checked += 1
+                        if not _is_pi_ceo_orphan(issue, live_ids):
+                            continue
+                        reverted += _recover_orphan_issue(api_key, p, issue)
             except LinearRateLimitError:
                 raise
             except Exception as exc:
                 log.warning("orphan-recovery: project %s fetch failed: %s", p["name"], exc)
-                continue
-
-            nodes = (data.get("project") or {}).get("issues", {}).get("nodes") or []
-            for issue in nodes:
-                if issue["id"] in seen:
-                    continue
-                seen.add(issue["id"])
-                checked += 1
-                if not _is_pi_ceo_orphan(issue, live_ids):
-                    continue
-                reverted += _recover_orphan_issue(api_key, p, issue)
 
     log.info("orphan-recovery complete: checked=%d blocked=%d live_sessions=%d",
              checked, reverted, len(live_ids))

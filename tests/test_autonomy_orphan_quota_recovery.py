@@ -10,6 +10,7 @@ from app.server import autonomy, autonomy_linear_rate
 @pytest.fixture(autouse=True)
 def clear_cooldown(monkeypatch):
     monkeypatch.setattr(autonomy_linear_rate, "_rate_limited_until", 0.0)
+    monkeypatch.setattr(autonomy, "_pending_orphan_recoveries", set())
 
 
 class OrphanScenario:
@@ -82,10 +83,11 @@ def test_orphan_recovery_completes_after_quota_at_each_mutation(monkeypatch, quo
     assert sum(autonomy._ORPHAN_COMMENT_MARKER in n["body"]
                for n in scenario.issue["comments"]["nodes"]) == 1
     recovered = [e["action"] for e in scenario.events].count("orphan_recovered")
-    assert recovered == (0 if quota_step == "comment" else 1)
+    assert recovered == 1
     before = scenario.calls[:]
     autonomy._orphan_recovery_sync("test-key")
     assert scenario.calls == before
+    assert [e["action"] for e in scenario.events].count("orphan_recovered") == 1
 
 
 def test_label_lookup_propagates_quota(monkeypatch):
@@ -95,3 +97,67 @@ def test_label_lookup_propagates_quota(monkeypatch):
     with pytest.raises(autonomy.LinearRateLimitError):
         autonomy.add_label_to_issue("test-key", "issue-1", autonomy._RA_TEAM_ID,
                                     autonomy._BLOCKED_REASON_SESSION_LOST)
+
+
+def test_retry_finds_recovery_comment_after_first_five(monkeypatch):
+    scenario = OrphanScenario("comment")
+    scenario.issue["comments"]["nodes"].extend(
+        {"body": f"earlier comment {i}"} for i in range(4))
+    scenario.install(monkeypatch)
+    page_requests = []
+
+    def gql(_key, query, variables):
+        comments = scenario.issue["comments"]["nodes"]
+        if "OrphanCommentPage" in query:
+            page_requests.append(variables["after"])
+            return {"issue": {"comments": {"nodes": comments[5:],
+                    "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
+        target = "RecoveryTargetPiCeoIssues" in query
+        visible = scenario.issue["state"]["name"] == (
+            scenario.target if target else "In Progress")
+        item = {**scenario.issue, "comments": {"nodes": comments[:5],
+                "pageInfo": {"hasNextPage": len(comments) > 5,
+                             "endCursor": "comment-5"}}}
+        return {"project": {"issues": {"nodes": [item] if visible else []}}}
+
+    monkeypatch.setattr(autonomy, "_gql", gql)
+    with pytest.raises(autonomy.LinearRateLimitError):
+        autonomy._orphan_recovery_sync("test-key")
+    monkeypatch.setattr(autonomy_linear_rate, "_rate_limited_until", 0.0)
+    autonomy._orphan_recovery_sync("test-key")
+    assert page_requests == ["comment-5"]
+    assert sum(autonomy._ORPHAN_COMMENT_MARKER in n["body"]
+               for n in scenario.issue["comments"]["nodes"]) == 1
+    assert [e["action"] for e in scenario.events].count("orphan_recovered") == 1
+
+
+def test_target_scan_finds_partial_ticket_on_second_page(monkeypatch):
+    scenario = OrphanScenario("never")
+    scenario.issue["state"] = {"name": scenario.target, "type": "unstarted"}
+    scenario.install(monkeypatch)
+    complete = [{"id": f"done-{i}", "identifier": f"RA-{i + 2}",
+                 "state": {"name": scenario.target},
+                 "labels": {"nodes": [{"name": autonomy._BLOCKED_REASON_SESSION_LOST}]},
+                 "comments": {"nodes": [
+                     {"body": "Session ID: `abc12345abcd`"},
+                     {"body": autonomy._ORPHAN_COMMENT_MARKER}]}}
+                for i in range(30)]
+    cursors = []
+
+    def gql(_key, query, variables):
+        if "RecoveryTargetPiCeoIssues" not in query:
+            return {"project": {"issues": {"nodes": []}}}
+        cursors.append(variables.get("after"))
+        second = variables.get("after") == "issue-30"
+        return {"project": {"issues": {
+            "nodes": [scenario.issue] if second else complete,
+            "pageInfo": {"hasNextPage": not second,
+                         "endCursor": "issue-30" if not second else None}}}}
+
+    monkeypatch.setattr(autonomy, "_gql", gql)
+    autonomy._orphan_recovery_sync("test-key")
+    assert cursors == [None, "issue-30"]
+    assert scenario.calls == ["label", "comment"]
+    assert [n["name"] for n in scenario.issue["labels"]["nodes"]] == [
+        autonomy._BLOCKED_REASON_SESSION_LOST]
+    assert [e["action"] for e in scenario.events] == ["orphan_recovered"]
