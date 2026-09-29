@@ -18,7 +18,7 @@ import time
 import urllib.error
 import urllib.request
 
-from jev_platform import ask
+from jev_platform import ask, gemini_shape
 
 MODEL = "gemini-3.8-flash"
 # Founder 29/09/2026: a quota-limited model is never a blocker. Tried in this order; a run locks to the
@@ -264,9 +264,8 @@ def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep
     body = json.loads(raw := json.dumps(body))  # a private copy: the caller cannot change it after the checks
     if ask.sensitive(raw):
         return {"error": "refused: sensitive payload"}
-    if not isinstance(cfg := body.get("generationConfig"), dict) or set(cfg) - {"maxOutputTokens", "thinkingConfig"} \
-            or cfg.get("maxOutputTokens") not in range(1, MAX_OUTPUT_TOKENS + 1):  # priced: ONE reply, <= 2048 out
-        return {"error": f"refused: maxOutputTokens 1..{MAX_OUTPUT_TOKENS} and thinkingConfig are the only settings"}
+    if refusal := gemini_shape.problem(body, MAX_OUTPUT_TOKENS, THINKING_LEVEL):  # only the priced shape is sent
+        return {"error": f"refused: {refusal}"}
     headers, on = {"x-goog-api-key": key, "Content-Type": "application/json"}, today()
     # Bodies carrying model turns are one conversation (an agent run): every earlier thought is in context.
     multi_turn = any(c.get("role") == "model" for c in body.get("contents", []))

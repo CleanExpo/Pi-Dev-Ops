@@ -95,7 +95,7 @@ MUTANTS = [
     ("gemini.py", "    if budget.model not in (None, model):", "    if False:"),
     ("gemini.py", "with budget.selecting if budget.model is None else contextlib.nullcontext():",
      "with contextlib.nullcontext():"),  # r5 P1: one call at a time until a model is locked
-    ("gemini.py", 'not in range(1, MAX_OUTPUT_TOKENS + 1):', "not in range(1, 10**6):"),  # r6 P1: output bound
+    ("gemini_shape.py", "not in range(1, max_output_tokens + 1)", "not in range(1, 10**6)"),  # r6 P1: output bound
     ("gemini.py", "    body = json.loads(raw := json.dumps(body))", "    raw = json.dumps(body)"),  # r7 P1: private copy
     ("gemini.py", "if status not in ADVANCE_STATUSES and budget.model in (None, model):", "if status not in ADVANCE_STATUSES:"),
     ("gemini.py", "for v in (prompt, cands, thoughts))", "for v in (prompt, cands))"),
@@ -131,7 +131,15 @@ MUTANTS = [
      "if False:"),
     ("evals/jev_constitution/writer_control.py", "round(num / den * 100, 1) == round(claim, 1)", "True"),
     # release review r8 P1s: unpriced generation settings, and the writer control enforced at the CLI
-    ("gemini.py", 'or set(cfg) - {"maxOutputTokens", "thinkingConfig"}', "or set()"),
+    ("gemini_shape.py", 'set(cfg) != {"maxOutputTokens", "thinkingConfig"}', 'not set(cfg) >= {"maxOutputTokens", "thinkingConfig"}'),
+    ("gemini.py", "    if refusal := gemini_shape.problem(body, MAX_OUTPUT_TOKENS, THINKING_LEVEL):", "    if refusal := None:"),
+    ("gemini_shape.py", "    if extra := set(body) - TOP_LEVEL:", "    if extra := None:"),
+    ("gemini_shape.py", 'set(t) == {"functionDeclarations"}', '"functionDeclarations" in t'),
+    ("gemini_shape.py", 'c["role"] in ROLES and _parts_ok(c["parts"], PART_KEYS)', 'c["role"] in ROLES'),
+    ("gemini_shape.py", 'or cfg["thinkingConfig"] != {"thinkingLevel": thinking_level}:', ":"),
+    ("gemini_shape.py", ' or isinstance(cfg["maxOutputTokens"], bool)', ""),
+    ("gemini_shape.py", '_parts_ok(body["systemInstruction"]["parts"], {"text"})', "True"),
+    ("gemini_shape.py", '    if "model" in body and not isinstance(body["model"], str):', "    if False:"),
     ("evals/jev_constitution/generate.py", '!= ("run", "use"):', '!= ("run", "use") and False:'),
     ("evals/jev_constitution/generate.py", '(control.get("status"), control.get("verdict")) != ("run", "use")',
      'control.get("verdict") != "use"'),
