@@ -37,6 +37,11 @@ export default function ProvidersPage() {
         ["--cc-ink-dim" as string]: "#5a6b62",
         ["--cc-ink-hush" as string]: "#6b7280",
         ["--cc-signal-text" as string]: "#15803d",
+        // Usage bars: --cc-signal is the warning fill (unset here, so near-limit and
+        // blocked bars were transparent) and --cc-track a pale track every fill clears
+        // at >= 3:1 (ink 13.1, dim 4.6, signal 4.1, hush 3.9). Bugbot, #836.
+        ["--cc-signal" as string]: "#15803d",
+        ["--cc-track" as string]: "#e5e7eb",
         padding: "1.25rem 1.5rem",
         gap: "1rem",
         fontFamily:
