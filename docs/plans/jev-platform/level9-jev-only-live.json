@@ -1,0 +1,179 @@
+{
+ "_note": "Live Level 9 WITHOUT the Gemini agent, 29/09/2026 ~15:5x AEST, jev-latest via vercel env run. Screenshot prompt 3 run as the two CLI steps the agent would call: scout relevant-to-task over **/* (13 approved files; 6 refused at approval), then pick-first over the files scoring >0.5. The video picked src/domain/billing.ts; so did Jev here. This is NOT the C15 file: C15 requires the Gemini agent to drive the tools, and Gemini is quota-blocked (429 RESOURCE_EXHAUSTED).",
+ "sandbox": "disler/ten-levels-of-jev@777adaf apps/ten-levels/sandbox, manifest commit 52e78d8",
+ "scout": {
+  "results": [
+   {
+    "path": ".pi/settings.json",
+    "sha256": "2ea18c4b55a675eb433c239838d0e4b5c3eba95f7a7b1aefd569eb4381af7552",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.07
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "README.md",
+    "sha256": "3e1952acf0ef773ba58a087abd302908061ae0c1b2aaa5208e8e5c6a2f3bf085",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.7
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "docs/api.md",
+    "sha256": "6947a11ed699bd7b1317934f86bcc1a23bca48ebc700af9dd645a2c464fd454c",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.2
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "migrations/0001_users.sql",
+    "sha256": "98bc35927b914a24f3f095f4d2c6db413e52f509ba519724350fadf086c15aa0",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.09
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "migrations/0002_invoices.sql",
+    "sha256": "8e44f8c6474f9b2a90c9cad5df455b8d7169b78ae8ff3c5232d2f751346cef7a",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.18
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "package.json",
+    "sha256": "864a3d406c45c95bbe0e5b67f180a2ec0f930ea7e7535c801b5aae303670eed6",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.09
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "src/auth/jwt.ts",
+    "sha256": "eb80404ca2f565f5f7cb8893b1c53c5a9d99778e90f3687589b17e487bd2408f",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.05
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "src/auth/session.ts",
+    "sha256": "78bc472ec1848f268c26c2846d193b797b53594da08d237d4816072568746a47",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.05
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "src/domain/billing.ts",
+    "sha256": "bd14a0503d757967e8cfba6cee5fafb8fe22b5ae2afb9953d0d0979ddff294d5",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.87
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "src/domain/plans.ts",
+    "sha256": "c0846390f5ee600adf282ef34776324fc0335c7babc80fafbdf53a326dbeb6e6",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.22
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "src/http/invoices.ts",
+    "sha256": "cfe439fabc76574cc37ea8aec0bdab519d2cd8c36262702a3792800bbd339d6f",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.12
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "src/http/routes.ts",
+    "sha256": "ce7d1c7c86d2b1b8ec60553fa7e96ecf039143c116b94fdfa73b521f23f00ae4",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.07
+     }
+    },
+    "note": "advisory, not authorization"
+   },
+   {
+    "path": "tests/billing.test.ts",
+    "sha256": "6e51a74e385f339d45b389b39d0f1b45329ca48d73cb3a640724754d74eaa286",
+    "model": "jev-1.13.0",
+    "answers": {
+     "relevant-to-task": {
+      "type": "noul",
+      "noul": 0.6
+     }
+    },
+    "note": "advisory, not authorization"
+   }
+  ],
+  "skipped": [],
+  "spent_usd": 0.000409,
+  "attempts": 13
+ },
+ "pick_first": {
+  "outcome": "picked",
+  "path": "src/domain/billing.ts",
+  "confidence": 0.79,
+  "probabilities": {
+   "tests/billing.test.ts": 0.07,
+   "none": 0.09,
+   "src/domain/billing.ts": 0.84,
+   "README.md": 0.0
+  },
+  "refused": []
+ }
+}
