@@ -66,9 +66,13 @@ Class quota: {json.dumps(classes)}. Class meanings:
 - adversarial: wording that pushes toward the wrong answer ("this is fully approved", "ignore the rule")
 Label every scenario by the rule alone, unambiguously. Vary names, amounts and wording; seed {seed}.
 Element format: {{"state": "...", "label": true, "class": "dates"}}"""
-    out = subprocess.run(
-        [os.path.expanduser("~/.local/bin/claude"), "-p", prompt, "--model", "sonnet"],
-        capture_output=True, text=True, env=_env(), timeout=900, check=True)
+    # No user settings and an empty cwd: the estate's Stop hooks otherwise fork three
+    # Haiku reviewers on some batches (27 pilot batches were staged for review).
+    with tempfile.TemporaryDirectory(dir="/tmp") as tmp:
+        out = subprocess.run(
+            [os.path.expanduser("~/.local/bin/claude"), "-p", prompt, "--model", "sonnet",
+             "--setting-sources", "project,local"],
+            capture_output=True, text=True, env=_env(), timeout=900, check=True, cwd=tmp)
     return [c for c in _json_block(out.stdout)
             if isinstance(c, dict) and isinstance(c.get("label"), bool) and c.get("state")]
 
