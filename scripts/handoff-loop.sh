@@ -179,10 +179,12 @@ else
     # the same command finished in well under 90s moments earlier in the same
     # session. No `timeout`/`gtimeout` binary is available on this machine, so
     # bound it with the portable perl-alarm idiom instead of a new dependency —
-    # 180s is double the observed worst-case clean run, so a legitimate slow
+    # The bound is double the observed worst-case clean run, so a legitimate slow
     # run has headroom while a genuine hang still fails fast and loud rather
-    # than hanging indefinitely.
-    [ "$PY_OK" = 1 ] && gate "tests-python" perl -e 'alarm shift; exec @ARGV' 180 "$PY" -m pytest tests/ -q \
+    # than hanging indefinitely. Set at 180s when that run was 90s; re-measured
+    # 30/09/2026 at 158s on origin/main 06dc4c19 and 170-185s with the jev suite
+    # added (feat/jev-constitution-eval), so the same rule now gives 360s.
+    [ "$PY_OK" = 1 ] && gate "tests-python" perl -e 'alarm shift; exec @ARGV' 360 "$PY" -m pytest tests/ -q \
       || { [ "$PY_OK" = 1 ] || skip "tests-python" "python deps absent"; }
   fi
   # CI runs `pytest swarm/` as its own step; this runner never did.
