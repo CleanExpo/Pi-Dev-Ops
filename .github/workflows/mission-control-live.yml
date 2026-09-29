@@ -190,5 +190,6 @@ jobs:
           path: |
             dashboard/e2e-live-receipts/
             dashboard/test-results/
+            dashboard/test-results-writes/
           if-no-files-found: warn
           retention-days: 30

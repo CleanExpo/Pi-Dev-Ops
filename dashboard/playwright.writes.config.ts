@@ -14,6 +14,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
+  // Its own folder: Playwright empties outputDir when a run starts, and the
+  // default (test-results) is where the live suite leaves its failure traces.
+  outputDir: "./test-results-writes",
   expect: { timeout: 15_000 },
   retries: 0,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
