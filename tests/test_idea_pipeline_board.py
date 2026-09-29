@@ -25,9 +25,11 @@ def test_keyword_overlap_does_not_approve_an_idea() -> None:
     assert packet["recommended_verdict"] == "BACKLOG"
     assert packet["north_star_fit"]["north_star"] == NORTH_STAR
     assert packet["north_star_fit"]["label"] == "unverified"
+    assert packet["north_star_fit"]["score"] is None
     assert packet["north_star_fit"]["source_revision"] == "2026-09-29"
     assert packet["directive"]["id"] != "unmapped"
     assert packet["judge"]["decision"] == "REVIEW_REQUIRED"
+    assert packet["judge"]["score"] is None
     assert packet["spm"]["out_of_scope"]
     assert packet["storm"]["rows"]
     assert packet["executed"] is False
