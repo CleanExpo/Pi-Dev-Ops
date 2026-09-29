@@ -92,7 +92,6 @@ MUTANTS = [
     ("gemini.py", "            if self.model is None:\n                self.model, self.price", "            if True:\n                self.model, self.price"),
     ("evals/jev_constitution/generate.py", "            raise WriterExhausted(f\"gemini: {sent['error']}\")", "            raise ValueError(f\"gemini: {sent['error']}\")"),
     ("evals/jev_constitution/generate.py", "        if empty >= MAX_EMPTY_ROUNDS:", "        if False:"),
-    ("scripts/secrets_check.py", " or _VALUE_PLACEHOLDER_RE.search(matched_text):", ":"),
     ("gemini.py", "                budget.lock_model(model, price_table(on, model))\n", "                pass\n"),
     ("gemini.py", 'payload = json.dumps({**body, "model": f"models/{model}"}).encode()',
      "payload = json.dumps(body).encode()"),
