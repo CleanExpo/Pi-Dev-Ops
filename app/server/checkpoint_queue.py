@@ -16,6 +16,7 @@ stays synchronous, exactly as before.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -69,9 +70,27 @@ def save_checkpoint(session: Any) -> None:
     sid = getattr(session, "id", "") if session is not None else ""
     if not sid:
         return
-    _enqueue(sid, supabase_log._checkpoint_payload(session))
+    try:
+        # A JSON round trip detaches the row from the live session: nested
+        # lists and dicts the build keeps mutating are copied, not shared.
+        row = json.loads(json.dumps(supabase_log._checkpoint_payload(session)))
+    except Exception as exc:
+        log.warning("RA-1407 checkpoint not serialisable (non-fatal): %s", exc)
+        return
+    _enqueue(sid, row)
 
 
 def wait_idle(timeout: float = 5.0) -> bool:
-    """Block until queued writes have run. For tests and shutdown."""
-    return _pool.submit(lambda: None).result(timeout=timeout) is None
+    """Block until queued writes have run; False if they outlast the timeout."""
+    try:
+        _pool.submit(lambda: None).result(timeout=timeout)
+    except Exception:
+        return False
+    return True
+
+
+async def flush(timeout: float) -> None:
+    """Await queued writes at shutdown: the "interrupted" rows are what the
+    next container resumes from, so they must land before the process exits."""
+    if not await asyncio.to_thread(wait_idle, timeout):
+        log.warning("queued Supabase checkpoints did not finish within %.0fs", timeout)
