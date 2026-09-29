@@ -95,6 +95,51 @@ def test_a_child_that_cannot_start_does_not_hold_the_slot(monkeypatch, recorder)
     assert not jev_transport._IN_FLIGHT.locked()
 
 
+def test_the_child_never_sees_the_key_in_its_environment(monkeypatch, recorder):
+    """Review round 10 P1-JEV-CHILD-INHERITS-KEY-ENV: the child inherited TYPESAFE_API_KEY."""
+    monkeypatch.setenv("TYPESAFE_API_KEY", "LOCAL-DUMMY-KEY")
+    code = ("import sys,os,json,base64; sys.stdin.buffer.read(); "
+            "body=json.dumps({'env_has_key': any('LOCAL-DUMMY-KEY' in v for v in os.environ.values())}); "
+            "print(json.dumps({'status': 200, 'body': base64.b64encode(body.encode()).decode()}))")
+    monkeypatch.setattr(jev_transport, "_CHILD", [sys.executable, "-I", "-S", "-c", code])
+    assert _call(recorder[0]) == {"env_has_key": False}
+
+
+def test_a_malformed_key_never_comes_back_in_the_error():
+    """Review round 10 P1-JEV-KEY-IN-RETURNED-EXCEPTION: the child's message quoted the header."""
+    def run(opener):
+        req = request.Request("http://127.0.0.1:9/", data=b"{}", method="POST",
+                              headers={"Authorization": "Bearer LOCAL-DUMMY-KEY\nX"})
+        return opener(req).read()
+
+    with pytest.raises(Exception) as caught:
+        jev_transport.within_deadline(run)
+    assert "LOCAL-DUMMY-KEY" not in repr(caught.value) + str(caught.value)
+
+
+def test_a_server_echoing_the_key_in_its_reason_never_reaches_the_error():
+    class Echo(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            self.send_response(429, self.headers.get("Authorization"))
+            self.end_headers()
+            self.wfile.write(self.headers.get("Authorization").encode())
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Echo)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        with pytest.raises(Exception) as caught:
+            _call(f"http://127.0.0.1:{server.server_port}/")
+    finally:
+        server.shutdown()
+    err = caught.value
+    text = repr(err) + str(err) + str(getattr(err, "reason", "")) + repr(getattr(err, "read", lambda: b"")())
+    assert getattr(err, "code", None) == 429 and "LOCAL-DUMMY-KEY" not in text
+
+
 def test_the_bench_never_carries_the_key_through_a_redirect(monkeypatch):
     """Review round 8 P1-JEV-BENCH-REDIRECT-LEAKS-KEY: the bench's urlopen followed a 302 with the key."""
     from evals.skill_routing import run

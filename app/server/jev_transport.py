@@ -5,7 +5,10 @@ Killing the process ends whatever it was doing (a DNS lookup, a stalled connect,
 handshake, a trickled header or body), and a dead process can send nothing after the deadline.
 Review rounds 5 to 9 each found one more way a thread-and-socket version outlived its deadline
 (body trickle, header trickle, TLS detach, connect stall, uncancellable DNS); a process has no
-such corners. The request, Bearer key included, reaches the child on stdin, never argv or env.
+such corners. The request, Bearer key included, reaches the child on stdin, never argv or env:
+the child gets only the certificate and proxy variables it needs (review round 10), and it
+reports failures as exception class names and HTTP status codes, never as text that could
+echo the key back (a malformed header value, or a server's reason phrase).
 
 This file is also the child: run by path with `python -I -S`, it imports only the standard
 library, so nothing from the app loads in the process that holds the key.
@@ -26,6 +29,8 @@ from urllib import error, request
 JEV_DEADLINE_S = 3.0
 _MAX_BODY = 1_000_000
 _CHILD = [sys.executable, "-I", "-S", os.path.abspath(__file__)]
+_CHILD_ENV = ("SSL_CERT_FILE", "SSL_CERT_DIR", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY",
+              "http_proxy", "NO_PROXY", "no_proxy")
 
 # One live Jev call at a time. The caller always frees the slot before it returns, because the
 # child is dead by then; a stuck lookup can no longer hold it (review round 9).
@@ -64,8 +69,9 @@ def _run_child(req: request.Request, deadline: float) -> dict:
     """Run one exchange in a child process; kill it at the deadline. Never starts one late."""
     if time.monotonic() >= deadline:
         raise TimeoutError("Jev deadline passed before the request could start")
+    env = {name: os.environ[name] for name in _CHILD_ENV if name in os.environ}
     proc = subprocess.Popen(_CHILD, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                            stderr=subprocess.DEVNULL)
+                            stderr=subprocess.DEVNULL, env=env)
     _CHILDREN.add(proc)
     try:
         out, _ = proc.communicate(_spec(req), timeout=max(0.0, deadline - time.monotonic()))
@@ -79,19 +85,18 @@ def _run_child(req: request.Request, deadline: float) -> dict:
             _CHILDREN.discard(proc)
         except (subprocess.TimeoutExpired, ValueError, OSError):
             pass
-    return json.loads(out or b'{"error": "URLError: the Jev child produced no reply"}')
+    return json.loads(out or b'{"error": "NoReply"}')
 
 
 def _exchange(req: request.Request, deadline: float) -> io.BytesIO:
     """What urlopen would return or raise, from the child's reply."""
     reply = _run_child(req, deadline)
     if "error" in reply:
-        raise error.URLError(reply["error"])
-    body = base64.b64decode(reply["body"])
+        raise error.URLError(f"Jev child failed: {reply['error']}")
     if not 200 <= reply["status"] < 300:
-        raise error.HTTPError(req.full_url, reply["status"], reply.get("reason", ""), None,
-                              io.BytesIO(body))
-    return io.BytesIO(body)
+        raise error.HTTPError(req.full_url, reply["status"], f"HTTP {reply['status']}", None,
+                              io.BytesIO(b""))
+    return io.BytesIO(base64.b64decode(reply["body"]))
 
 
 def within_deadline(run: Callable[[Callable], dict]) -> dict:
@@ -113,11 +118,12 @@ def _child_main() -> int:
                           headers=spec["headers"], method=spec["method"])
     try:
         with no_redirect_opener().open(req, timeout=JEV_DEADLINE_S) as resp:
-            reply = {"status": resp.status, "reason": resp.reason, "body": resp.read(_MAX_BODY)}
+            reply = {"status": resp.status, "body": resp.read(_MAX_BODY)}
     except error.HTTPError as exc:
-        reply = {"status": exc.code, "reason": str(exc.reason), "body": exc.read(_MAX_BODY)}
-    except Exception as exc:  # reported to the parent as a URLError
-        reply = {"error": f"{type(exc).__name__}: {exc}"}
+        reply = {"status": exc.code}
+    except Exception as exc:  # class names only: a message can quote the Authorization header
+        cause = getattr(exc, "reason", None)
+        reply = {"error": type(exc).__name__ + (f":{type(cause).__name__}" if cause is not None else "")}
     if "body" in reply:
         reply["body"] = base64.b64encode(reply["body"]).decode("ascii")
     sys.stdout.write(json.dumps(reply))
