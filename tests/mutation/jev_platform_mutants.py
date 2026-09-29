@@ -149,6 +149,177 @@ MUTANTS = [
     ("evals/jev_constitution/generate.py", '!= ("run", "use"):', '!= ("run", "use") and False:'),
     ("evals/jev_constitution/generate.py", '(control.get("status"), control.get("verdict")) != ("run", "use")',
      'control.get("verdict") != "use"'),
+    # guard sweep 29/09: scout/client/agent/gemini
+    ('scout.py', 'if not isinstance(answers, dict) or set(answers) != {tid} or not isinstance(answers[tid], dict):',
+     'if not isinstance(answers, dict) or tid not in answers or not isinstance(answers[tid], dict):'),
+    ('scout.py', 'if a.get("type") != "choice" or not policy.valid_noul(a.get("confidence"))',
+     'if not policy.valid_noul(a.get("confidence"))'),
+    ('scout.py', 'if a.get("type") != "choice" or not policy.valid_noul(a.get("confidence")) '
+                 'or not isinstance(probs, dict)',
+     'if a.get("type") != "choice" or not isinstance(a.get("confidence"), (int, float)) '
+     'or not isinstance(probs, dict)'),
+    ('scout.py', '            or not all(policy.valid_noul(v) for v in probs.values()):\n'
+                 '        return None\n    if a.get',
+     '            or False:\n        return None\n    if a.get'),
+    ('scout.py', 'if a.get("choice") not in allowed or not set(probs) <= allowed:',
+     'if a.get("choice") not in allowed:'),
+    ('scout.py', 'if a.get("choice") not in allowed or not set(probs) <= allowed:', 'if not set(probs) <= allowed:'),
+    ('scout.py', 'if rel in manifest["files"] and not (ask._DENY_NAMES.search(rel) or ask.sensitive(rel)):',
+     'if rel in manifest["files"]:'),
+    ('scout.py', 'if not paths or len(paths) > MAX_BUNDLE or len(set(paths)) != len(paths):',
+     'if not paths or len(paths) > MAX_BUNDLE:'),
+    ('scout.py', 'if not paths or len(paths) > MAX_BUNDLE or len(set(paths)) != len(paths):',
+     'if len(paths) > MAX_BUNDLE or len(set(paths)) != len(paths):'),
+    ('scout.py', '    if answers is None:\n        return {"outcome": "unavailable"',
+     '    if False:\n        return {"outcome": "unavailable"'),
+    ('client.py', 'and 0 <= tokens <= RESERVE_TOKENS:', ':'),
+    ('client.py', 'if isinstance(tokens, int) and not isinstance(tokens, bool) and', 'if isinstance(tokens, int) and'),
+    ('client.py', 'if not isinstance(data, dict) or not isinstance(data.get("answers"), dict):',
+     'if not isinstance(data, dict):'),
+    ('client.py', 'if not isinstance(a, dict) or a.get("type") != "noul" or not policy.valid_noul(a.get("noul")):',
+     'if not isinstance(a, dict) or not policy.valid_noul(a.get("noul")):'),
+    ('client.py', 'if status != 429 or attempt == MAX_RETRIES', 'if attempt == MAX_RETRIES'),
+    ('client.py', 'or wait is None or', 'or'),
+    ('agent_tools.py', '    if not isinstance(args, dict):\n        return "arguments must be an object"',
+     '    if False:\n        return "arguments must be an object"'),
+    ('agent_tools.py', '        if not ok:\n            return f"argument',
+     '        if False:\n            return f"argument'),
+    ('agent_tools.py', 'isinstance(v, list) and all(isinstance(x, str) for x in v)', 'isinstance(v, list)'),
+    ('agent_tools.py', 'if v is None and name == "propose_template":', 'if v is None:'),
+    ('agent_tools.py', '    if "blocked" in out:\n        return {"refused": out["blocked"]}',
+     '    if False:\n        return {"refused": out["blocked"]}'),
+    ('agent.py', 'if finish == "MALFORMED_FUNCTION_CALL" or not all(', 'if not all('),
+    ('agent.py', 'if isinstance(p.get("text"), str) and not p.get("thought"))', 'if isinstance(p.get("text"), str))'),
+    ('agent.py', 'gemini.GeminiBudget(min(a.max_usd, gemini.RUN_CAP_USD), price)',
+     'gemini.GeminiBudget(a.max_usd, price)'),
+    ('agent.py', 'return 0 if ledger["outcome"] == "complete" else 1', 'return 0'),
+    ('agent.py', 'repo = cli_scale.repo_root(a.repo) if cli_scale._jev_ready() else None',
+     'repo = cli_scale.repo_root(a.repo)'),
+    ('gemini.py', '            if self.attempts >= self.max_attempts or self.spent + cost > self.max_usd + 1e-12:\n'
+                  '                return None',
+     '            if self.spent + cost > self.max_usd + 1e-12:\n                return None'),
+    ('gemini.py', 'if prompt is None or not isinstance(t, int) or isinstance(t, bool) or t < 0:',
+     'if not isinstance(t, int) or isinstance(t, bool) or t < 0:'),
+    # guard sweep 29/09: engine/cli/calibration/policy
+    ('engine.py', 'if rules and not problems else',
+     'if rules else'),  # en-notsent
+    ('engine.py', 'return None if not path.exists() else {"corrupt": True}',
+     'return None'),  # en-loadrecord-corrupt
+    ('engine.py', '    if record is None:\n        return "FAIL", ["absent"]',
+     '    if False:\n        return "FAIL", ["absent"]'),  # en-rating-absent
+    ('engine.py', 'return ("AAA", []) if tracked and clean else',
+     'return ("AAA", []) if clean else'),  # en-rating-tracked
+    ('engine.py', 'return ("AAA", []) if tracked and clean else',
+     'return ("AAA", []) if tracked else'),  # en-rating-clean
+    ('policy.py', '"coverage": "FAIL" if evaluated < RULE_COUNT else "A",',
+     '"coverage": "A",'),  # po-coverage
+    ('calibration.py', ' or not isinstance(record["label_provenance"], dict):\n        return "corrupt"',
+     ':\n        return "corrupt"'),  # ca-es-prov
+    ('calibration.py', '    if record["state"] != policy.USABLE_STATE:\n        return record["state"]',
+     '    if False:\n        return record["state"]'),  # ca-es-state
+    ('calibration.py', '    if any(k not in record for k in REQUIRED):\n        return ["missing required fields"]',
+     '    if False:\n        return ["missing required fields"]'),  # ca-verify-required
+    ('calibration.py', 'for key in ("threshold", "state", "split", "counters", "miss_rate_upper_95"):',
+     'for key in ("state", "split", "counters", "miss_rate_upper_95"):'),  # ca-verify-keys-thr
+    ('calibration.py', 'for key in ("threshold", "state", "split", "counters", "miss_rate_upper_95"):',
+     'for key in ("threshold", "state", "split", "counters"):'),  # ca-verify-keys-bound
+    ('calibration.py', ' or violations < MIN_PER_SIDE or compliant < MIN_PER_SIDE:',
+     ' or violations < MIN_PER_SIDE:'),  # ca-state-mincomp
+    ('calibration.py', '    if threshold is None:\n        return "no_qualifying_threshold"',
+     '    if False:\n        return "no_qualifying_threshold"'),  # ca-state-none
+    ('__main__.py', 'def cmd_calibrate(a) -> int:\n    if not _live_ready():',
+     'def cmd_calibrate(a) -> int:\n    if False:'),  # mn-calib-ready
+    ('__main__.py', 'return 0 if rec.get("state") not in ("incomplete", None) else 1',
+     'return 0'),  # mn-calib-rc
+    ('__main__.py', 'return 0 if rating in ("AA", "AAA") else 1',
+     'return 0'),  # mn-verify-rc
+    ('__main__.py', 'def cmd_ask(a) -> int:\n    if not _live_ready():',
+     'def cmd_ask(a) -> int:\n    if False:'),  # mn-ask-ready
+    ('__main__.py', '    return 2 if "blocked" in out else 0\n\n\ndef cmd_approve',
+     '    return 0\n\n\ndef cmd_approve'),  # mn-ask-rc
+    ('__main__.py', '    if sum(x is not None for x in (a.path, a.glob, a.prompt_file)) != 1 or (a.prompt_file is None) != (a.id is None):',
+     '    if False:'),  # mn-approve-one
+    ('__main__.py', ' != 1 or (a.prompt_file is None) != (a.id is None):',
+     ' != 1:'),  # mn-approve-id
+    ('__main__.py', 'return 2 if a.path is None and "files" not in out and "prompts" not in out else 0',
+     'return 0'),  # mn-approve-rc
+    ('__main__.py', '    if a.cmd == "ask" and len(a.file) > 50:',
+     '    if False:'),  # mn-50files
+    ('cli_scale.py', '    if path is not None and not os.path.isabs(path):',
+     '    if False:'),  # cs-isabs
+    ('cli_scale.py', '    return top or None',
+     "    return top or (path or '.')"),  # cs-toplevel
+    ('cli_scale.py', '    if not _jev_ready():\n        return 2',
+     '    if False:\n        return 2'),  # cs-ready
+    ('cli_scale.py', '    if not os.environ.get("TYPESAFE_API_KEY", "").strip():',
+     '    if False:'),  # cs-jevready
+    ('cli_scale.py', '    if repo is None:\n        return 2',
+     '    if False:\n        return 2'),  # cs-repo-none
+    ('cli_scale.py', 'return 2 if "blocked" in out or out.get("outcome") == "refused" else 0',
+     'return 0'),  # cs-rc
+    ('cli_scale.py', 'return 2 if "blocked" in out or out.get("outcome") == "refused" else 0',
+     'return 2 if "blocked" in out else 0'),  # cs-rc-refused
+    ('cli_scale.py', 'return 2 if "blocked" in out or out.get("outcome") == "refused" else 0',
+     'return 2 if out.get("outcome") == "refused" else 0'),  # cs-rc-blocked
+    # guard sweep 29/09: evals
+    ('evals/jev_constitution/quotes.py',
+     '        if mode != "120000":',
+     '        if True:'),
+    ('evals/jev_constitution/quotes.py',
+     '    return 1 if drift else 0',
+     '    return 0'),
+    ('evals/jev_constitution/harness.py',
+     '    if status != 200 or not isinstance(resp, dict):',
+     '    if not isinstance(resp, dict):'),
+    ('evals/jev_constitution/harness.py',
+     'return EXIT_OK if verdicts and ok == len(verdicts) else EXIT_INVALID',
+     'return EXIT_OK'),
+    ('evals/jev_constitution/generate.py',
+     'return {k: v for k, v in os.environ.items() if k not in _SCRUB}',
+     'return dict(os.environ)'),
+    ('evals/jev_constitution/generate.py',
+     '    if not isinstance(items, list):\n        raise ValueError("writer reply',
+     '    if False:\n        raise ValueError("writer reply'),
+    ('evals/jev_constitution/generate.py',
+     'if not isinstance(parts, list) or first.get("finishReason") not in (None, "STOP"):',
+     'if not isinstance(parts, list):'),
+    ('evals/jev_constitution/generate.py',
+     'and isinstance(p.get("text"), str)\n                   and not p.get("thought"))',
+     'and isinstance(p.get("text"), str))'),
+    ('evals/jev_constitution/generate.py',
+     '    if len(labels) != len(states):',
+     '    if False:'),
+    ('evals/jev_constitution/generate.py',
+     'return [x if isinstance(x, bool) else None for x in labels]',
+     'return list(labels)'),
+    ('evals/jev_constitution/generate.py',
+     '    if not key or price is None:\n',
+     '    if False:\n'),
+    ('evals/jev_constitution/generate.py',
+     'return write, "gemini", CASES / f"{args.question}.gemini.jsonl"',
+     'return write, "gemini", CASES / f"{args.question}.jsonl"'),
+    ('evals/jev_constitution/writer_control.py',
+     'return None if isinstance(claim, bool) or not isinstance(claim, int) else',
+     'return None if False else'),
+    ('evals/jev_constitution/writer_control.py',
+     'return None if isinstance(claim, bool) or not isinstance(claim, int) else',
+     'return None if not isinstance(claim, int) else'),
+    ('evals/jev_constitution/writer_control.py',
+     '    if not isinstance(case, dict) or not isinstance(case.get("label"), bool) '
+     'or not isinstance(case.get("state"), str) \\\n            or not case["state"].strip():\n        return False',
+     '    if not isinstance(case, dict):\n        return False'),
+    ('evals/jev_constitution/writer_control.py',
+     ' \\\n            or not case["state"].strip():\n        return False',
+     ':\n        return False'),
+    ('evals/jev_constitution/writer_control.py',
+     'return cls not in ANCHOR_FIELDS or anchor_truth({**case, "class": cls}) is not None',
+     'return True'),
+    ('evals/jev_constitution/writer_control.py',
+     '    items = items[:requested]',
+     '    items = items'),
+    ('evals/jev_constitution/writer_control.py',
+     'budget = gemini.GeminiBudget(gemini.WRITER_CAP_USD, price)',
+     'budget = gemini.GeminiBudget(100.0, price)'),
 ]
 env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
 
