@@ -8,12 +8,15 @@ shape so the frontend stays dumb + fast.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import time
 import tomllib
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -56,6 +59,33 @@ def _linear_graphql(query: str, variables: dict | None = None) -> dict:
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         log.debug("mission_control linear fetch failed: %s", exc)
         return {}
+
+
+# RA-7845 — /live is polled every 5 s by every open Mission Control page. The
+# two Linear reads below are blocking urllib calls (_queue_snapshot alone makes
+# two per portfolio project, 28 today). Run inline in this async handler they
+# froze the event loop, so every request queued behind them (/health took
+# 5-25 s with the CPU idle), and they spent Linear's 2,500/hour quota in
+# minutes, which then failed the autonomy poller too. Now: at most one refresh
+# per TTL, in a worker thread. The margot_route probe (health_full.py) and the
+# autonomy poller's fetch_todo_issues call now run in worker threads too.
+_LINEAR_TTL_S = 120.0
+_linear_cache: dict[str, tuple[float, dict]] = {}
+_linear_lock = asyncio.Lock()
+
+
+async def _cached_off_loop(name: str, read: Callable[[], dict]) -> dict:
+    """Return `read()`'s result, refreshed at most every _LINEAR_TTL_S, off the loop."""
+    hit = _linear_cache.get(name)
+    if hit and time.monotonic() - hit[0] < _LINEAR_TTL_S:
+        return hit[1]
+    async with _linear_lock:
+        hit = _linear_cache.get(name)
+        if hit and time.monotonic() - hit[0] < _LINEAR_TTL_S:
+            return hit[1]
+        value = await asyncio.to_thread(read)
+        _linear_cache[name] = (time.monotonic(), value)
+        return value
 
 
 def _queue_snapshot() -> dict:
@@ -211,8 +241,8 @@ async def mission_control_live() -> dict:
         "throughput": {"hourly": _hourly_throughput_24h()},
         "active_sessions": _active_sessions(),
         "recent_completions": _recent_completions(),
-        "queue": _queue_snapshot(),
-        "pulse": _pulse_status(),
+        "queue": await _cached_off_loop("queue", _queue_snapshot),
+        "pulse": await _cached_off_loop("pulse", _pulse_status),
         "observability": await _observability_snapshot(),
         "claude_hud": _claude_session_hud(),
         "idea_pipeline": _idea_pipeline_snapshot(_repo_root()),
