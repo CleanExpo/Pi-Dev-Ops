@@ -380,6 +380,14 @@ class TestGetPipelineRoute:
 class TestListPipelinesRoute:
     """GET /api/pipelines tests."""
 
+    def test_summary_exposes_repo_for_project_matching(self, tmp_path, monkeypatch):
+        from app.server import pipeline
+
+        monkeypatch.setattr(pipeline, "_PIPELINE_ROOT", tmp_path / "pipeline")
+        pipeline.save_pipeline_state(_make_pipeline_state())
+        summaries = pipeline.list_pipelines()
+        assert summaries[0]["repo_url"] == "https://github.com/example/inventory-api"
+
     def test_list_pipelines_empty(self):
         """Returns 200 + empty list when no pipelines exist."""
         app = _make_app()

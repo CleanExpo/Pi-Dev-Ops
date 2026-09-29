@@ -32,7 +32,7 @@ function MargotAvatar({ size = 48 }: { size?: number }) {
   );
 }
 
-export default function MargotBubble() {
+export default function MargotBubble({ className = "" }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<BubbleMessage[]>([
     { id: "welcome", role: "assistant", text: MARGOT_WELCOME },
@@ -98,7 +98,7 @@ export default function MargotBubble() {
   }
 
   return (
-    <div className="fixed right-4 bottom-20 sm:bottom-6 z-50 flex flex-col items-end gap-3">
+    <div className={`fixed right-4 bottom-20 sm:bottom-6 z-50 flex flex-col items-end gap-3 ${className}`}>
       {open && (
         <div
           className="flex w-[min(100vw-2rem,380px)] flex-col overflow-hidden rounded-lg border shadow-2xl"

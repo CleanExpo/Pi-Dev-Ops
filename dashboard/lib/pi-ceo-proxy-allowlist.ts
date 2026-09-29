@@ -16,6 +16,7 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   /^\/api\/projects\/[^/]+\/findings$/,
   /^\/api\/routines$/,
   /^\/api\/mission-control\/live$/,
+  /^\/api\/pipelines$/,
   // RA-7539 — read-only Nexus One synthetic status. Session-gated upstream;
   // forwarding grants no live worker and no production registration.
   /^\/api\/nexus-one\/status$/,

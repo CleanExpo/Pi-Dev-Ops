@@ -11,6 +11,7 @@ import {
   type IdeaPipelinePayload,
   type IdeaVerdict,
 } from "@/lib/control/idea-pipeline";
+import styles from "./idea-pipeline-panel.module.css";
 
 const API = "/api/idea-pipeline";
 
@@ -115,53 +116,44 @@ export default function IdeaPipelinePanel() {
 
   return (
     <section
-      className="rounded-lg border border-slate-700/50 bg-slate-900/50 p-4"
-      aria-label="Board idea packet"
+      className={styles.panel}
+      aria-label="Idea intake and Board packet"
     >
-      <header className="mb-3 flex items-baseline justify-between gap-3">
+      <header className={styles.header}>
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">Board packet</h2>
-          <p className="text-xs text-text-muted">
-            Drop a short idea. Dispose with one word. Nothing starts without GO.
-          </p>
+          <h2>Tell Mission Control your idea</h2>
+          <p>One inbox for all projects. Choosing a card above does not attach the idea. Nothing starts without your GO.</p>
         </div>
-        <span className="text-xs text-text-muted tabular-nums">
-          {payload ? `${payload.snapshot.awaiting} waiting` : "…"}
+        <span className={styles.count}>
+          {payload ? `${payload.snapshot.awaiting} waiting for a decision` : "Board status unknown"}
         </span>
       </header>
 
-      <label className="block text-xs text-text-muted" htmlFor="idea-intake">
-        New idea
-      </label>
-      <textarea
-        id="idea-intake"
-        className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"
-        rows={3}
-        value={draft}
-        disabled={busy}
-        placeholder="One to three sentences. No formatting needed."
-        onChange={(event) => setDraft(event.target.value)}
-      />
-      <button
-        type="button"
-        className="mt-2 rounded bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-900 disabled:opacity-50"
-        disabled={busy}
-        onClick={() => void dropIdea()}
-      >
-        Drop idea
-      </button>
+      <div className={styles.composer}>
+        <label className={styles.srOnly} htmlFor="idea-intake">New idea</label>
+        <textarea
+          id="idea-intake"
+          rows={2}
+          value={draft}
+          disabled={busy}
+          maxLength={2000}
+          placeholder="One to three sentences. No formatting needed."
+          onChange={(event) => setDraft(event.target.value)}
+        />
+        <button type="button" disabled={busy} onClick={() => void dropIdea()}>
+          {busy ? "Working…" : "Drop idea ↗"}
+        </button>
+      </div>
 
       <div className="mt-3 min-h-[1.25rem] text-sm" aria-live="polite">
         {error ? <p className="text-rose-300">{error}</p> : null}
         {notice && !error ? <p className="text-emerald-300">{notice}</p> : null}
       </div>
 
-      {!packet ? (
-        <p className="mt-2 text-sm text-text-muted">
-          No idea waiting. Drop one above or add a line to IDEAS.md.
-        </p>
-      ) : (
-        <div className="mt-3 grid gap-3">
+      {packet ? (
+        <details className={styles.packet} open={Boolean(notice)}>
+          <summary>Board packet · {packet.status} · {packet.recommended_verdict}</summary>
+          <div className="mt-3 grid gap-3">
           <Field label="Idea" value={packet.text} />
           <Field
             label="North Star fit"
@@ -218,8 +210,9 @@ export default function IdeaPipelinePanel() {
           {packet.go_at ? (
             <p className="text-sm text-emerald-300">GO is on the record. Nothing has started.</p>
           ) : null}
-        </div>
-      )}
+          </div>
+        </details>
+      ) : null}
     </section>
   );
 }

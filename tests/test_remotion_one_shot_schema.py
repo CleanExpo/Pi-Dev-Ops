@@ -39,7 +39,8 @@ def test_one_shot_dry_run_generates_packet_without_tts(tmp_path):
 
     result = subprocess.run(
         [
-            "npx",
+            "node",
+            "--import",
             "tsx",
             "render/one-shot.ts",
             f"--brief={json.dumps(brief)}",
@@ -49,8 +50,7 @@ def test_one_shot_dry_run_generates_packet_without_tts(tmp_path):
         ],
         cwd=REMOTION,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         timeout=60,
         check=False,
     )
