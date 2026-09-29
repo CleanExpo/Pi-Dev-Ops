@@ -28,11 +28,21 @@ function _quietError(error: string, detail?: string): Response {
   );
 }
 
+// The record fields swarm/meta_curator.py writes (propose_from_cluster,
+// accept/reject/expire), minus proposed_skill_content, which the backend
+// strips from list responses. RA-7848: this list used to name id / skill /
+// summary / rationale, which the backend never sends, so every real
+// proposal was withheld as "upstream payload shape changed".
+const PROPOSAL_FIELDS = [
+  "ts", "proposal_id", "cluster_id", "trigger_source", "cluster_summary", "evidence_count",
+  "proposed_skill_name", "proposed_skill_path", "status", "created_at", "draft_id", "error",
+  "reason", "accepted_at", "skill_path_written", "rejected_at", "expired_at",
+];
+
 const ALLOWED_PATHS = new Set([
   "count", "status", "limit", "total", "returned", "by_status", "error", "detail",
   "proposals",
-  "proposals[].id", "proposals[].skill", "proposals[].status",
-  "proposals[].created_at", "proposals[].summary", "proposals[].rationale",
+  ...PROPOSAL_FIELDS.map((field) => `proposals[].${field}`),
 ]);
 
 /** Every payload key path, with array positions collapsed to `[]`. */
@@ -71,7 +81,11 @@ export async function GET(request: Request): Promise<Response> {
     }
     const body = await upstream.json().catch(() => ({}));
     const payload = upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body };
-    const unexpected = [...new Set(keyPaths(payload))].filter((key) => !ALLOWED_PATHS.has(key));
+    // by_status is keyed by status name (pending, accepted, rejected_dedup, ...), and each count
+    // is a plain number, so any key under it is expected.
+    const unexpected = [...new Set(keyPaths(payload))].filter(
+      (key) => !ALLOWED_PATHS.has(key) && !key.startsWith("by_status."),
+    );
     if (unexpected.length > 0) {
       console.error("[curator-proposals] upstream returned unexpected key paths:", unexpected);
       return _quietError("upstream payload shape changed", "response withheld pending review");
