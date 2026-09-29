@@ -26,6 +26,7 @@ MUTANTS = [
     ("calibration.py", "valid = [c for c in scored if int(c[\"hash\"], 16) % 2 == 1]", "valid = scored"),
     ("engine.py", "if altered and result != policy.UNCERTAIN:", "if False:"),
     ("engine.py", "if errors or len(models) != 1:", "if len(models) > 1:"),
+    ("engine.py", "if not all(p.resolve().is_relative_to(ROOT) for p in paths):", "if False:"),
 ]
 env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
 killed = 0

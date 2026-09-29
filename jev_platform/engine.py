@@ -121,7 +121,10 @@ def artifact_rating(rule_id: str) -> tuple[str, list[str]]:
     problems = calibration.verify(record, load_scored(rule_id))
     if problems:
         return "FAIL", problems
-    files = [f"jev_platform/calibration/{rule_id}.json", f"jev_platform/calibration/{rule_id}.scored.jsonl"]
+    paths = [RECORDS / f"{rule_id}.json", RECORDS / f"{rule_id}.scored.jsonl"]
+    if not all(p.resolve().is_relative_to(ROOT) for p in paths):
+        return "AA", ["records not inside the repository"]
+    files = [str(p.resolve().relative_to(ROOT)) for p in paths]
     tracked = all(_git("ls-files", f) for f in files)
     clean = subprocess.run(["git", "-C", str(ROOT), "diff", "--quiet", "HEAD", "--", *files]).returncode == 0
     return ("AAA", []) if tracked and clean else ("AA", ["not bound to HEAD"])
