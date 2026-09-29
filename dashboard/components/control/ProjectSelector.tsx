@@ -62,8 +62,13 @@ export function useActiveProject(): { project_id: string; repo: string } | null 
   return active;
 }
 
+// Shown instead of the list when the project source cannot be read. Before
+// RA-7844 a failed read left the menu on "Loading projects…" forever.
+export const PROJECTS_UNAVAILABLE = "Projects unavailable — the project source did not respond.";
+
 export default function ProjectSelector() {
   const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [active, setActive] = useState<{ project_id: string; repo: string } | null>(
     () => getActiveProject(),
   );
@@ -72,13 +77,19 @@ export default function ProjectSelector() {
   useEffect(() => {
     let cancelled = false;
     // `r.ok ? json : []` turned an outage into an empty project list, silently.
-    // null now short-circuits instead — lib/pi-ceo-fetch.ts.
+    // null (outage) and a rejected fetch now both show PROJECTS_UNAVAILABLE.
     fetchProxyJSON<Array<{ project_id: string; repo: string }>>("/api/projects/health")
       .then((data) => {
-        if (cancelled || !Array.isArray(data)) return;
+        if (cancelled) return;
+        if (!Array.isArray(data)) {
+          setLoadFailed(true);
+          return;
+        }
         setProjects(data.map((p) => ({ project_id: p.project_id, repo: p.repo })));
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setLoadFailed(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -172,8 +183,12 @@ export default function ProjectSelector() {
             </button>
           ))}
           {projects.length === 0 && (
-            <div className="text-[10px] px-3 py-2" style={{ color: "var(--text-dim)" }}>
-              Loading projects…
+            <div
+              className="text-[10px] px-3 py-2"
+              style={{ color: loadFailed ? "var(--error)" : "var(--text-dim)" }}
+              role={loadFailed ? "alert" : "status"}
+            >
+              {loadFailed ? PROJECTS_UNAVAILABLE : "Loading projects…"}
             </div>
           )}
         </div>
