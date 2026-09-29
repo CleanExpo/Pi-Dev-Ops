@@ -31,7 +31,7 @@ Raise a specific sanitized quota exception from HTTP 429 and GraphQL `RATELIMITE
 No new controls. A healthy backend restores real project status; if upstream data is absent, existing Unknown/unreachable states remain honest.
 
 ## 11. Technical
-Modify `app/server/autonomy.py`, `app/server/routes/mission_control.py`, and relevant tests. No schema, env, public API, credentials, or payload changes. Keep `/health` autonomy status semantics. `_last_poll_at` is a start tick, not a successful-poll metric; verify `poll_error` for failure truth.
+Modify `app/server/autonomy.py`, its small quota-state helper, `app/server/routes/mission_control.py`, and relevant tests. No schema, env, public API, credentials, or payload changes. Keep `/health` autonomy status semantics. `_last_poll_at` is a start tick, not a successful-poll metric; verify `poll_error` for failure truth.
 
 ## 12. Security and privacy
 Keep API keys out of exceptions and receipts. No real customer data leaves the repo. JEV uses synthetic snapshots only in the current runner. No production mutation in this candidate.

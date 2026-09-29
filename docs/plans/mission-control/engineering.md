@@ -1,7 +1,7 @@
 ---
 type: engineering-requirements
 spec: ./autonomy-linear-rate-limit-spec.md
-spec_sha256: 4689ef55896dd965f30d57cc8bf9b7fd8d7f93326c8ab742159374084123a2d5
+spec_sha256: c50e99db9c93a61f3d7851053096bb2559a68d37da59001facf63a41e7bffdc1
 reviewer: bench
 seated: [boris, eng-failure, eng-observability, eng-test, eng-release]
 reviewed_at: 2026-09-29T15:27:00+10:00

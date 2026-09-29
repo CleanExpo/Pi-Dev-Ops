@@ -33,7 +33,6 @@ import asyncio
 import json
 import logging
 import os
-import threading
 import time
 import urllib.request
 import urllib.error
@@ -47,45 +46,16 @@ from app.server.autonomy_eligibility import (
     READY_STATUS_NAME as _READY_STATUS_NAME,
     filter_claimable_issues,
 )
+from .autonomy_linear_rate import (
+    LinearRateLimitError,
+    has_linear_rate_limit_error as _has_linear_rate_limit_error,
+    linear_rate_limited,
+    mark_linear_rate_limited as _mark_linear_rate_limited,
+)
 
 log = logging.getLogger("pi-ceo.autonomy")
 
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
-_LINEAR_RATE_LIMIT_SECONDS = 3600
-_linear_rate_limited_until = 0.0
-_linear_rate_limit_lock = threading.Lock()
-
-
-class LinearRateLimitError(RuntimeError):
-    """A sanitized, process-wide signal to stop reading the exhausted Linear key."""
-
-
-def linear_rate_limited() -> bool:
-    with _linear_rate_limit_lock:
-        return time.monotonic() < _linear_rate_limited_until
-
-
-def _mark_linear_rate_limited() -> LinearRateLimitError:
-    global _linear_rate_limited_until
-    with _linear_rate_limit_lock:
-        _linear_rate_limited_until = max(
-            _linear_rate_limited_until, time.monotonic() + _LINEAR_RATE_LIMIT_SECONDS,
-        )
-    return LinearRateLimitError("Linear rate limited; retry after cooldown")
-
-
-def _has_linear_rate_limit_error(payload: object) -> bool:
-    if not isinstance(payload, dict):
-        return False
-    errors = payload.get("errors")
-    if not isinstance(errors, list):
-        return False
-    return any(
-        isinstance(error, dict)
-        and isinstance(error.get("extensions"), dict)
-        and error["extensions"].get("code") == "RATELIMITED"
-        for error in errors
-    )
 
 
 _AUTONOMY_LOG = (
@@ -683,25 +653,53 @@ def _orphan_recovery_blocking(api_key: str) -> None:
     asyncio.run(_orphan_recovery(api_key))
 
 
+def _comment_on_orphan(api_key: str, iid: str, team_id: str, target_state: str) -> bool:
+    label_ok = add_label_to_issue(api_key, iid, team_id, _BLOCKED_REASON_SESSION_LOST)
+    comment_on_issue(
+        api_key, iid,
+        "🤖 **Pi-CEO orphan recovery — session lost.**\n\n"
+        "The previous Pi-CEO session claimed this ticket but is no "
+        "longer running (likely a Railway restart or process crash "
+        "— in-memory session state did not survive).\n\n"
+        f"- Transitioned to `{target_state}`.\n"
+        f"- Label `{_BLOCKED_REASON_SESSION_LOST}` attached "
+        f"({'OK' if label_ok else 'attach failed — see server log'}).\n\n"
+        "A human (or the next contract-audit pass) should confirm "
+        "state, then move back to `Ready for Pi-Dev` to re-queue.",
+    )
+    return label_ok
+
+
+def _recover_orphan_issue(api_key: str, project: dict, issue: dict) -> int:
+    iid, ident, team_id = issue["id"], issue.get("identifier", "?"), project["team_id"]
+    target_state = _recovery_state_for(team_id)
+    try:
+        try:
+            transition_issue(api_key, iid, target_state, team_id=team_id)
+        except RuntimeError as exc:
+            if "not found" not in str(exc).lower():
+                raise
+            log.warning("orphan-recovery: state '%s' missing on team %s for %s — skipping",
+                        target_state, team_id, ident)
+            _log_event({"action": "orphan_recovery_state_missing", "ticket": ident,
+                        "team_id": team_id, "target_state": target_state, "error": str(exc)})
+            return 0
+        label_ok = _comment_on_orphan(api_key, iid, team_id, target_state)
+        log.info("orphan-recovery: transitioned %s to %s (session-lost)", ident, target_state)
+        _log_event({"action": "orphan_recovered", "ticket": ident,
+                    "transition": target_state, "reason_label": _BLOCKED_REASON_SESSION_LOST,
+                    "label_attached": label_ok})
+        return 1
+    except LinearRateLimitError:
+        raise
+    except Exception as exc:
+        log.warning("orphan-recovery: block %s failed: %s", ident, exc)
+        _log_event({"action": "orphan_recovery_error", "ticket": ident, "error": str(exc)})
+        return 0
+
+
 def _orphan_recovery_sync(api_key: str) -> None:
-    """RA-1369 — reconcile tickets left In Progress with live sessions.
-
-    Railway restarts, platform scale-downs, and process crashes all leave
-    Linear tickets stuck In Progress forever because _sessions is in-memory
-    and the session's exception handler only catches RuntimeError, not SIGKILL.
-
-    Runs ONCE at poller startup (after startup_delay). For each "started"
-    state issue in any portfolio project that has a Pi-CEO session_id in its
-    recent comments but no live session: transition it to "Pi-Dev: Blocked",
-    attach the `pi-dev:blocked-reason:session-lost` label, and post an
-    explanatory comment. A human (or the next contract-audit pass) decides
-    whether to re-queue via `Ready for Pi-Dev`.
-
-    Rationale: per skills/pi-dev-linear-contract/SKILL.md the failure-mode
-    for a lost session is `Pi-Dev: Blocked` + blocked-reason label. Silently
-    reverting to Todo masked the failure and let the same ticket get picked
-    up again by the next poll without human review.
-    """
+    """Block session-lost tickets once at startup, off the ASGI event loop."""
     from .sessions import _sessions  # late import to avoid circular
     live_ids = _live_session_ids(_sessions)
 
@@ -723,64 +721,7 @@ def _orphan_recovery_sync(api_key: str) -> None:
             checked += 1
             if not _is_pi_ceo_orphan(issue, live_ids):
                 continue
-            iid          = issue["id"]
-            ident        = issue.get("identifier", "?")
-            team_id      = p["team_id"]
-            target_state = _recovery_state_for(team_id)  # RA-1973 — per-team
-            try:
-                try:
-                    transition_issue(api_key, iid, target_state, team_id=team_id)
-                except RuntimeError as exc:
-                    # State name doesn't exist on this team's workflow — skip
-                    # this ticket (don't crash the recovery routine for the
-                    # rest of the portfolio). RA-1973.
-                    if "not found" in str(exc).lower():
-                        log.warning(
-                            "orphan-recovery: state '%s' missing on team %s for %s — skipping",
-                            target_state, team_id, ident,
-                        )
-                        _log_event({
-                            "action": "orphan_recovery_state_missing",
-                            "ticket": ident,
-                            "team_id": team_id,
-                            "target_state": target_state,
-                            "error": str(exc),
-                        })
-                        continue
-                    raise
-                label_ok = add_label_to_issue(
-                    api_key, iid, team_id, _BLOCKED_REASON_SESSION_LOST,
-                )
-                comment_on_issue(
-                    api_key, iid,
-                    "🤖 **Pi-CEO orphan recovery — session lost.**\n\n"
-                    "The previous Pi-CEO session claimed this ticket but is no "
-                    "longer running (likely a Railway restart or process crash "
-                    "— in-memory session state did not survive).\n\n"
-                    f"- Transitioned to `{target_state}`.\n"
-                    f"- Label `{_BLOCKED_REASON_SESSION_LOST}` attached "
-                    f"({'OK' if label_ok else 'attach failed — see server log'}).\n\n"
-                    "A human (or the next contract-audit pass) should confirm "
-                    "state, then move back to `Ready for Pi-Dev` to re-queue.",
-                )
-                reverted += 1
-                log.info("orphan-recovery: transitioned %s to %s (session-lost)", ident, target_state)
-                _log_event({
-                    "action": "orphan_recovered",
-                    "ticket": ident,
-                    "transition": target_state,
-                    "reason_label": _BLOCKED_REASON_SESSION_LOST,
-                    "label_attached": label_ok,
-                })
-            except LinearRateLimitError:
-                raise
-            except Exception as exc:
-                log.warning("orphan-recovery: block %s failed: %s", ident, exc)
-                _log_event({
-                    "action": "orphan_recovery_error",
-                    "ticket": ident,
-                    "error": str(exc),
-                })
+            reverted += _recover_orphan_issue(api_key, p, issue)
 
     log.info("orphan-recovery complete: checked=%d blocked=%d live_sessions=%d",
              checked, reverted, len(live_ids))
@@ -859,6 +800,20 @@ async def linear_todo_poller() -> None:
             continue
 
 
+async def _ensure_orphan_recovery(config: Any, done: bool) -> bool:
+    if done or not config.AUTONOMY_ENABLED or not config.LINEAR_API_KEY or linear_rate_limited():
+        return done
+    try:
+        await asyncio.to_thread(_orphan_recovery_blocking, config.LINEAR_API_KEY)
+    except LinearRateLimitError as exc:
+        log.warning("orphan-recovery rate limited; pausing Linear reads")
+        _log_event({"action": "poll_error", "error": str(exc)})
+        return False
+    except Exception as exc:
+        log.error("orphan-recovery crashed: %s", exc)
+    return True
+
+
 async def _run_poller_iteration(
     config: Any,
     create_session: Any,
@@ -875,17 +830,7 @@ async def _run_poller_iteration(
     # left In Progress by a previous process instance (Railway restart /
     # crash) with no live session gets reverted to Todo + explanatory
     # comment, so the next poll reclaims it instead of it sitting stuck.
-    if (not orphan_recovery_done and config.AUTONOMY_ENABLED
-            and config.LINEAR_API_KEY and not linear_rate_limited()):
-        try:
-            await asyncio.to_thread(_orphan_recovery_blocking, config.LINEAR_API_KEY)
-        except LinearRateLimitError as exc:
-            log.warning("orphan-recovery rate limited; pausing Linear reads")
-            _log_event({"action": "poll_error", "error": str(exc)})
-            return orphan_recovery_done
-        except Exception as exc:
-            log.error("orphan-recovery crashed: %s", exc)
-        orphan_recovery_done = True
+    orphan_recovery_done = await _ensure_orphan_recovery(config, orphan_recovery_done)
 
     if not config.AUTONOMY_ENABLED:
         log.debug("Autonomy poller: disabled (TAO_AUTONOMY_ENABLED=0)")

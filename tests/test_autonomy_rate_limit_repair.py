@@ -14,12 +14,13 @@ from types import SimpleNamespace
 import pytest
 
 from app.server import autonomy
+from app.server import autonomy_linear_rate
 from app.server.routes import mission_control
 
 
 @pytest.fixture(autouse=True)
 def clear_cooldown(monkeypatch):
-    monkeypatch.setattr(autonomy, "_linear_rate_limited_until", 0.0)
+    monkeypatch.setattr(autonomy_linear_rate, "_rate_limited_until", 0.0)
     monkeypatch.setattr(mission_control, "_queue_cache", None)
     monkeypatch.setattr(mission_control, "_pulse_cache", None)
 
@@ -196,7 +197,7 @@ def test_live_cache_prevents_five_second_linear_hammer(monkeypatch):
 
 def test_cooldown_skips_all_live_linear_reads(monkeypatch):
     monkeypatch.setenv("LINEAR_API_KEY", "test-key")
-    monkeypatch.setattr(autonomy, "_linear_rate_limited_until", time.monotonic() + 3600)
+    monkeypatch.setattr(autonomy_linear_rate, "_rate_limited_until", time.monotonic() + 3600)
     monkeypatch.setattr(mission_control, "_queue_snapshot", lambda: pytest.fail("queue queried"))
     monkeypatch.setattr(mission_control, "_pulse_status", lambda: pytest.fail("pulse queried"))
     assert mission_control._cached_queue_snapshot()["next_issue_id"] is None
@@ -245,7 +246,7 @@ def test_1000_varied_linear_error_envelopes_have_exact_quota_classification():
 def test_expired_cooldown_permits_refresh(monkeypatch):
     monkeypatch.setenv("LINEAR_API_KEY", "test-key")
     now = time.monotonic()
-    monkeypatch.setattr(autonomy, "_linear_rate_limited_until", now - 1)
+    monkeypatch.setattr(autonomy_linear_rate, "_rate_limited_until", now - 1)
     calls = []
     monkeypatch.setattr(mission_control, "_queue_snapshot", lambda: (
         calls.append("queue") or {"next_issue_id": "A-1"}
