@@ -1,9 +1,17 @@
 """Mutation control for jev_platform: run `python tests/mutation/jev_platform_mutants.py`.
 
 Break each guard once; the platform test suite must fail for every mutant."""
+import concurrent.futures
+import contextlib
 import os
+import queue
+import re
+import shutil
+import signal
 import subprocess
 import sys
+import tempfile
+import time
 from pathlib import Path
 
 from jev_platform_guard_mutants import GUARD_MUTANTS
@@ -153,33 +161,140 @@ MUTANTS = [
      'control.get("verdict") != "use"'),
 ]
 MUTANTS += GUARD_MUTANTS
+# Wall-clock-bounded tests (engineering.md, Concurrency): a kill by one is re-run alone; passing -> SURVIVED.
+WALL_CLOCK = {
+    "tests/test_jev_platform_ask.py::test_a_fifo_at_an_admitted_path_is_refused_without_blocking",
+    "tests/test_jev_platform_gemini_lock.py::test_while_no_model_is_locked_a_second_call_sends_nothing_until_the_first_settles"}
+BASELINE_CEILING, BUDGET = 300, 900
+LABEL = {"killed": "KILLED  ", "survived": "SURVIVED", "timeout": "TIMEOUT "}
 env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
-
-
-def suite() -> subprocess.CompletedProcess:
-    return subprocess.run([PY, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider",
-                           *map(str, (ROOT / "tests").glob("test_jev_platform_*.py"))],
-                          cwd=ROOT, capture_output=True, text=True, env=env)
-
-
-# A red suite "kills" every mutant, so the count means nothing unless the unmutated suite is green first
-# (e.g. a copy without .git fails every committed-file test). Positive control, then the mutants.
-baseline = suite()
-if baseline.returncode != 0:
-    print("BASELINE RED: the unmutated suite fails, so no mutant result is evidence\n" + baseline.stdout[-2000:])
-    sys.exit(2)
-killed = 0
-for fname, old, new in MUTANTS:
-    path = ROOT / fname if "/" in fname else ROOT / "jev_platform" / fname
-    src = path.read_text()
-    assert src.count(old) == 1, (fname, old)
-    path.write_text(src.replace(old, new))
+_running: dict = {}  # pid -> live suite process, so every exit path can kill its process group
+class Refusal(Exception):
+    """A failed control: diagnostic to stderr, exit 2, and never a certificate line."""
+def git(*args, cwd=ROOT) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
+def _kill(proc) -> None:
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        os.killpg(proc.pid, signal.SIGKILL)
+def suite(clone: Path, basetemp: str, timeout: float) -> tuple[int | None, str]:  # rc None = timed out
+    tests = sorted(map(str, (clone / "tests").glob("test_jev_platform_*.py")))
+    proc = subprocess.Popen([PY, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", f"--basetemp={basetemp}", *tests],
+                            cwd=clone, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+    _running[proc.pid] = proc
     try:
-        r = suite()
+        out, _ = proc.communicate(timeout=timeout)
+        return proc.returncode, out
+    except subprocess.TimeoutExpired:
+        _kill(proc)  # the whole process group, so no grandchild outlives the verdict
+        proc.communicate()
+        return None, ""
+    finally:
+        _running.pop(proc.pid, None)
+def clean(clone: Path) -> bool:  # tracked, untracked and ignored residue all count
+    r = git("status", "--porcelain", "--untracked-files=all", "--ignored", cwd=clone)
+    return r.returncode == 0 and r.stdout == ""
+def baselines(pool, clones, basetemps, timeout: float, label: str) -> float:  # all clones at once; slowest wall
+    def one(k):
+        start = time.monotonic()
+        rc, out = suite(clones[k], basetemps[k], timeout)
+        if rc != 0:
+            raise Refusal(f"BASELINE TIMEOUT{label}: {clones[k]} exceeded {timeout:.0f}s" if rc is None
+                          else f"BASELINE RED{label}: {clones[k]} rc={rc}\n{out[-2000:]}")
+        return time.monotonic() - start
+    return max(f.result() for f in [pool.submit(one, k) for k in range(len(clones))])
+def mutate(i: int, clone: Path, basetemp: str, timeout: float) -> tuple:  # (outcome, rc, killer, seconds)
+    fname, old, new = MUTANTS[i]
+    if not clean(clone):
+        raise Refusal(f"DIRTY CLONE before mutant {i}: {clone}")
+    path = clone / fname if "/" in fname else clone / "jev_platform" / fname
+    src = path.read_text()
+    if src.count(old) != 1:
+        raise Refusal(f"RUNNER ERROR: mutant {i} anchor matches {src.count(old)} times in {fname}")
+    path.write_text(src.replace(old, new))
+    start = time.monotonic()
+    try:
+        rc, out = suite(clone, basetemp, timeout)
     finally:
         path.write_text(src)
-    ok = r.returncode != 0
-    killed += ok
-    print(("KILLED  " if ok else "SURVIVED"), fname, "|", old[:60])
-print(f"{killed}/{len(MUTANTS)} mutants killed")
-sys.exit(0 if killed == len(MUTANTS) else 1)
+    if not clean(clone):
+        raise Refusal(f"DIRTY CLONE after mutant {i}: {clone}\n{git('status', '--porcelain', '--ignored', cwd=clone).stdout}")
+    if rc not in (None, 0, 1):
+        raise Refusal(f"RUNNER ERROR: mutant {i} ({fname}) pytest rc={rc}\n{out[-2000:]}")
+    killer = re.search(r"^FAILED (\S+)", out, re.M) if rc == 1 else None
+    outcome = "timeout" if rc is None else "killed" if rc == 1 else "survived"
+    return outcome, rc, killer.group(1) if killer else None, time.monotonic() - start
+def emit(results: dict, printed: int, hold: set) -> int:  # result lines in index order, once each is final
+    while printed in results and printed not in hold:
+        print(LABEL[results[printed][0]], MUTANTS[printed][0], "|", MUTANTS[printed][1][:60], flush=True)
+        printed += 1
+    return printed
+def run(clones: list, basetemps: list, pool) -> int:
+    t0 = time.monotonic()
+    timeout = max(120.0, 5 * baselines(pool, clones, basetemps, BASELINE_CEILING, ""))
+    print(f"workers={len(clones)} head={SHA} timeout={timeout:.0f}s", file=sys.stderr, flush=True)
+    free, errors = queue.Queue(), []
+    list(map(free.put, range(len(clones))))
+    def task(i):
+        k = free.get()
+        if k is None:  # an earlier task failed and kept its clone: wake the next waiter, report that failure
+            free.put(None)
+            raise errors[0]
+        try:
+            result = mutate(i, clones[k], basetemps[k], timeout)
+        except BaseException as e:
+            errors.append(e)
+            free.put(None)
+            raise
+        free.put(k)  # only a clone that came back byte-clean is re-queued
+        return k, result  # the clone it ran in, so a wall-clock rerun uses the same one
+    results, where, printed, rerun = {}, {}, 0, set()
+    futures = {pool.submit(task, i): i for i in range(len(MUTANTS))}
+    for f in concurrent.futures.as_completed(futures):
+        i = futures[f]
+        k, (outcome, rc, killer, secs) = where[i], results[i] = f.result()
+        if killer and killer.split("[")[0] in WALL_CLOCK:
+            rerun.add(i)  # rerun in clone where[i], alone
+        print(f"[{len(results)}/{len(MUTANTS)}] {LABEL[outcome].strip()} idx={i} {MUTANTS[i][0]} {secs:.1f}s {killer or f'rc={rc}'}", file=sys.stderr, flush=True)
+        printed = emit(results, printed, rerun)
+    for i in sorted(rerun):  # alone: no other suite is running now
+        results[i] = mutate(i, clones[where[i]], basetemps[where[i]], timeout)
+        print(f"RERUN idx={i} {results[i][0]} {results[i][2] or f'rc={results[i][1]}'}", file=sys.stderr, flush=True)
+    emit(results, printed, set())
+    baselines(pool, clones, basetemps, min(BASELINE_CEILING, timeout), " (closing)")
+    killed = sum(1 for r in results.values() if r[0] == "killed")
+    print(f"elapsed={time.monotonic() - t0:.0f}s budget={BUDGET}s", file=sys.stderr, flush=True)
+    print(f"{killed}/{len(MUTANTS)} mutants killed", flush=True)  # last, and only after every control passed
+    return 0 if killed == len(MUTANTS) else 1
+def main() -> int:
+    global SHA
+    SHA = git("rev-parse", "--verify", "HEAD").stdout.strip()
+    untracked = git("ls-files", "--others", "--exclude-standard", "--", "jev_platform", "evals", "tests").stdout
+    if len(SHA) != 40 or git("diff", "--quiet", SHA, "--", "jev_platform", "evals", "tests").returncode or untracked:
+        print(f"DIRTY TREE: {ROOT} differs from HEAD {SHA or '?'} under jev_platform/, evals/ or tests/; commit first. Nothing was run.", file=sys.stderr)
+        return 2
+    jobs = int(os.environ.get("JEV_MUT_JOBS") or min(4, os.cpu_count() or 1))
+    clones, basetemps, code = [], [], 2
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=jobs)
+    try:
+        for _ in range(jobs):
+            clones.append(Path(tempfile.mkdtemp(prefix="jev-mut-")))
+            basetemps.append(tempfile.mkdtemp(prefix="jev-mut-bt-"))
+            for args in (["clone", "--shared", "--quiet", "--no-checkout", str(ROOT), str(clones[-1])],
+                         ["-C", str(clones[-1]), "checkout", "--quiet", "--detach", SHA]):
+                r = subprocess.run(["git", *args], capture_output=True, text=True)
+                if r.returncode != 0:
+                    raise Refusal(f"CLONE FAILED: git {' '.join(args[:2])}: {r.stderr.strip()}")
+        code = run(clones, basetemps, pool)
+    except Exception as e:  # the first failure is reported as itself, never a cleanup error
+        print(str(e) if isinstance(e, Refusal) else f"RUNNER ERROR: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+    finally:  # stop queued work, kill running suites so the wait is short, then remove every temp dir
+        pool.shutdown(wait=False, cancel_futures=True)
+        for proc in list(_running.values()):
+            _kill(proc)
+        pool.shutdown(wait=True)
+        for d in [*clones, *basetemps]:
+            shutil.rmtree(d, ignore_errors=True)
+    return code
+
+if __name__ == "__main__":
+    sys.exit(main())
