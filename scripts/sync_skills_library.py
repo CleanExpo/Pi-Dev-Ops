@@ -5,24 +5,29 @@ usage:
   python scripts/sync_skills_library.py check
 
 One home per skill (CleanExpo/skills-library skills/HOMES.json): a skill whose home is
-"library" is edited only there. `sync` copies each such skill's SKILL.md, plus the library's
-skills/index.md (router phrases) and HOMES.json, into skills-library/skills/, replacing what
-was there, and pins the library commit in skills-library.lock. Only SKILL.md is copied:
-Mission Control reads nothing else from a skill, and the library's scripts and reference
-trees (tens of MB) would only bloat the image. Symlinks are refused, never followed.
+"library" is edited only there. `sync` copies each such skill's whole folder (its SKILL.md
+names sibling references and scripts it needs), less its tests and caches, plus the library's
+skills/index.md (router
+phrases) and HOMES.json, into skills-library/skills/, replacing what was there. It pins the
+library commit in skills-library.lock and writes skills-library/MANIFEST.json: that commit
+plus a sha256 for every copied file. A symlink anywhere on the way, a source that resolves
+outside the checkout, a name that is not a plain folder name, or a SKILL.md whose frontmatter
+name differs from its folder stops the sync before anything is replaced.
 
 `check` needs no network, so CI runs it on every PR (tests/test_skills_library_sync.py):
-- every copied skill is home=library in the copied HOMES.json, and every home=library skill
-  was copied;
-- no copied file is a symlink;
+- the files on disk are exactly MANIFEST.json's, byte for byte, and its commit is the lock's;
+- the copy holds index.md, HOMES.json and at least one skill, and every home=library skill
+  is there, named as its folder, with nothing else beside them;
 - a skill in this repo's skills/ whose home is the library or a single machine is listed in
-  OVERLAP_BASELINE. That list only shrinks: a listed skill with no PDO copy left fails too.
-  Until a listed skill's PDO copy is merged into the library and removed, the PDO copy is
-  the one Mission Control loads (src/tao/skills.py), so today's behaviour does not change.
+  OVERLAP_BASELINE, which must exist and only shrinks: a listed skill with no PDO copy left
+  fails too. While a name is listed, the skills/ copy is the one Mission Control loads
+  (src/tao/skills.py), so today's behaviour does not change.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
 import shutil
 import sys
@@ -33,65 +38,145 @@ DEST = ROOT / "skills-library" / "skills"
 LOCK = ROOT / "skills-library.lock"
 OVERLAP_BASELINE = ROOT / ".github" / "skills-library-overlap.baseline.txt"
 _SHA = re.compile(r"^[0-9a-f]{40}$")
+_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+_EXTRAS = ("index.md", "HOMES.json")
+# A skill's own test suite, caches and installed packages are never read at run time, and test
+# fixtures carry secret-shaped strings (a redaction tool's fake keys) that secret scanners flag.
+_SKIP_DIRS = {"tests", "test", "__pycache__", "node_modules", ".pytest_cache"}
+_SKIP_FILES = re.compile(r"^(test_.*\.py|.*_test\.py|.*\.pyc)$")
 
 
 def _homes(skills_dir: Path) -> dict[str, str]:
     return json.loads((skills_dir / "HOMES.json").read_text("utf-8"))["homes"]
 
 
-def _copy_file(src: Path, dst: Path) -> None:
-    if src.is_symlink():
-        raise ValueError(f"refusing symlink {src}")
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(src, dst)
+def _frontmatter_name(skill_md: Path) -> str:
+    from src.tao.skills import _parse_frontmatter  # the loader's own reading of a name
+
+    meta, _ = _parse_frontmatter(skill_md.read_text("utf-8"))
+    return str(meta.get("name", skill_md.parent.name))
+
+
+def _files_under(src: Path, root: Path) -> list[Path]:
+    """Every file under src, refusing any symlink and anything that resolves outside root."""
+    if src.is_symlink() or not src.resolve().is_relative_to(root):
+        raise ValueError(f"refusing {src}: a symlink or outside the checkout")
+    if src.is_file():
+        return [src]
+    found = []
+    for base, dirs, files in os.walk(src):
+        for entry in dirs + files:
+            if (Path(base) / entry).is_symlink():
+                raise ValueError(f"refusing symlink {Path(base) / entry}")
+        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
+        found += [Path(base) / f for f in files if not _SKIP_FILES.match(f)]
+    return found
+
+
+def _plan(library: Path) -> list[tuple[Path, str]]:
+    """(source file, path relative to the copy) for everything sync will write."""
+    src = library / "skills"
+    root = src.resolve()
+    if library.is_symlink() or src.is_symlink():
+        raise ValueError("refusing a symlinked checkout or skills/ folder")
+    names = sorted(n for n, home in _homes(src).items() if home == "library")
+    if not names:
+        raise ValueError("HOMES.json names no library skills; refusing to sync an empty copy")
+    plan = []
+    for name in names:
+        if not _NAME.match(name):
+            raise ValueError(f"refusing skill name {name!r}: not a plain folder name")
+        if _frontmatter_name(src / name / "SKILL.md") != name:
+            raise ValueError(f"refusing {name}: its SKILL.md names a different skill")
+        plan += [(f, f.relative_to(src).as_posix()) for f in _files_under(src / name, root)]
+    return plan + [(f, f.name) for extra in _EXTRAS for f in _files_under(src / extra, root)]
+
+
+def _digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def sync(library: Path, sha: str, dest: Path = DEST, lock: Path = LOCK) -> int:
-    """Replace dest with the library's home=library SKILL.md files; pin sha. Returns the count."""
+    """Replace dest with the library's home=library skills; pin sha. Returns the skill count."""
     if not _SHA.match(sha):
         raise ValueError(f"sha must be 40 lower-case hex characters, got {sha!r}")
-    src = library / "skills"
-    names = sorted(n for n, home in _homes(src).items() if home == "library")
+    plan = _plan(library)
     staged = dest.with_name(dest.name + ".new")
     shutil.rmtree(staged, ignore_errors=True)
-    for name in names:
-        _copy_file(src / name / "SKILL.md", staged / name / "SKILL.md")
-    for extra in ("index.md", "HOMES.json"):
-        _copy_file(src / extra, staged / extra)
+    for src, rel in plan:
+        (staged / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, staged / rel)
+    manifest = {"sha": sha, "files": {rel: _digest(staged / rel) for _, rel in sorted(plan, key=lambda p: p[1])}}
     shutil.rmtree(dest, ignore_errors=True)
     staged.rename(dest)
+    (dest.parent / "MANIFEST.json").write_text(json.dumps(manifest, indent=1) + "\n", "utf-8")
     lock.write_text(sha + "\n", "utf-8")
-    return len(names)
+    return len({rel.split("/", 1)[0] for _, rel in plan}) - len(_EXTRAS)
 
 
-def _baseline(path: Path) -> set[str]:
+def _baseline(path: Path) -> set[str] | None:
     if not path.is_file():
-        return set()
+        return None
     lines = (line.split("#", 1)[0].strip() for line in path.read_text("utf-8").splitlines())
     return {line for line in lines if line}
+
+
+def _copy_problems(dest: Path, lock: Path) -> list[str]:
+    """The copy against its manifest and the lock: bytes, file set, commit."""
+    manifest_path = dest.parent / "MANIFEST.json"
+    if not manifest_path.is_file():
+        return ["skills-library/MANIFEST.json is missing"]
+    manifest = json.loads(manifest_path.read_text("utf-8"))
+    pinned = lock.read_text("utf-8").strip() if lock.is_file() else ""
+    problems = [] if _SHA.match(pinned) else [f"skills-library.lock is not a 40-char SHA: {pinned!r}"]
+    if manifest.get("sha") != pinned:
+        problems.append(f"MANIFEST.json was synced at {manifest.get('sha')!r}, the lock says {pinned!r}")
+    links = [p for p in dest.rglob("*") if p.is_symlink()]
+    problems += [f"symlink in the copy: {p.relative_to(dest)}" for p in links]
+    on_disk = {p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file() and not p.is_symlink()}
+    expected = manifest.get("files", {})
+    problems += [f"not in MANIFEST.json: {rel}" for rel in sorted(on_disk - set(expected))]
+    problems += [f"missing from the copy: {rel}" for rel in sorted(set(expected) - on_disk)]
+    problems += [f"changed since sync: {rel}" for rel in sorted(on_disk & set(expected))
+                 if _digest(dest / rel) != expected[rel]]
+    return problems
+
+
+def _home_problems(dest: Path, pdo_skills: Path, baseline: Path) -> list[str]:
+    """What was copied against HOMES.json, and this repo's skills/ against the overlap list."""
+    missing = [f"the copy has no {extra}" for extra in _EXTRAS if not (dest / extra).is_file()]
+    if missing:
+        return missing
+    homes = _homes(dest)
+    wanted = {n for n, home in homes.items() if home == "library"}
+    copied = {p.name for p in dest.iterdir() if p.is_dir()}
+    problems = [] if wanted else ["HOMES.json names no library skills"]
+    problems += [f"copied but home is not library: {n}" for n in sorted(copied - wanted)]
+    problems += [f"home=library but not copied: {n}" for n in sorted(wanted - copied)]
+    for n in sorted(copied & wanted):
+        skill_md = dest / n / "SKILL.md"
+        if not skill_md.is_file():
+            problems.append(f"copied folder without SKILL.md: {n}")
+        elif _frontmatter_name(skill_md) != n:
+            problems.append(f"{n}: its SKILL.md names a different skill")
+    listed = _baseline(baseline)
+    if listed is None:
+        return problems + [f"{baseline.name} is missing"]
+    local = {p.parent.name for p in pdo_skills.glob("*/SKILL.md")}
+    overlap = {n for n in local if homes.get(n) in ("library", "machine-local")}
+    problems += [f"{n}: its home is {homes[n]}, so edit it there, not in skills/ (or merge "
+                 "and delete this copy)" for n in sorted(overlap - listed)]
+    problems += [f"{n}: listed in {baseline.name} but no longer overlaps; remove the line"
+                 for n in sorted(listed - overlap)]
+    return problems
 
 
 def check(dest: Path = DEST, pdo_skills: Path = ROOT / "skills", baseline: Path = OVERLAP_BASELINE,
           lock: Path = LOCK) -> list[str]:
     """Every problem with the copy, as one line each. Empty means clean."""
-    homes = _homes(dest)
-    problems = [f"symlink in the copy: {p.relative_to(dest)}" for p in dest.rglob("*") if p.is_symlink()]
-    copied = {p.name for p in dest.iterdir() if p.is_dir()}
-    wanted = {n for n, home in homes.items() if home == "library"}
-    problems += [f"copied but home is not library: {n}" for n in sorted(copied - wanted)]
-    problems += [f"home=library but not copied: {n}" for n in sorted(wanted - copied)]
-    problems += [f"copied folder without SKILL.md: {n}" for n in sorted(copied) if not (dest / n / "SKILL.md").is_file()]
-    local = {p.parent.name for p in pdo_skills.glob("*/SKILL.md")}
-    overlap = {n for n in local if homes.get(n) in ("library", "machine-local")}
-    listed = _baseline(baseline)
-    problems += [f"{n}: its home is {homes[n]}, so edit it there, not in skills/ (or merge "
-                 "and delete this copy)" for n in sorted(overlap - listed)]
-    problems += [f"{n}: listed in {baseline.name} but no longer overlaps; remove the line"
-                 for n in sorted(listed - overlap)]
-    pinned = lock.read_text("utf-8").strip() if lock.is_file() else ""
-    if not _SHA.match(pinned):
-        problems.append(f"skills-library.lock is not a 40-char SHA: {pinned!r}")
-    return problems
+    if not dest.is_dir():
+        return [f"{dest} does not exist"]
+    return _copy_problems(dest, lock) + _home_problems(dest, pdo_skills, baseline)
 
 
 def main(argv: list[str]) -> int:
@@ -109,4 +194,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(ROOT))
     sys.exit(main(sys.argv[1:]))

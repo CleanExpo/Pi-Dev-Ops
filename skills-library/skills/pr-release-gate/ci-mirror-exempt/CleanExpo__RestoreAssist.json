@@ -1,0 +1,23 @@
+{
+  "_comment": "Steps GitHub runs on RestoreAssist PRs that cannot be reproduced on a laptop. Every entry says why. Adding one widens the gap between local green and GitHub green, so each needs a reason a reviewer can check.",
+  "exempt": [
+    {
+      "workflow": "lighthouse-agentic.yml",
+      "job": "agentic-audit",
+      "step": "*",
+      "reason": "Audits the Vercel PREVIEW deployment of the PR; 'Determine target URL' resolves it with github.token from the deployment API. No preview exists before push."
+    },
+    {
+      "workflow": "pr-review-panel.yml",
+      "job": "panel",
+      "step": "*",
+      "reason": "Advisory multi-model review that posts a PR comment using the repo's OPENROUTER_API_KEY secret. It exits green when no seat is configured; its verdict is not a build or test outcome."
+    },
+    {
+      "workflow": "pr-checks.yml",
+      "job": "quality",
+      "step": "Secrets scan (working tree)",
+      "reason": "Downloads the Linux x64 gitleaks release and verifies it with GNU sha256sum; the binary cannot execute on macOS. KNOWN GAP: secrets in the working tree are only caught by GitHub for this repo until gitleaks is installed locally."
+    }
+  ]
+}

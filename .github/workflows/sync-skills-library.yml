@@ -48,6 +48,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install dependencies (the loader's frontmatter parser)
+        run: pip install --require-hashes -r app/requirements.lock
+
       - name: Copy the library's skills at its exact commit
         id: sync
         run: |

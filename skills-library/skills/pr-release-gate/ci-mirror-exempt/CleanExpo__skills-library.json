@@ -1,0 +1,34 @@
+{
+  "_comment": "Steps GitHub runs on skills-library PRs that cannot be reproduced on a laptop. Every entry says why. Adding one widens the gap between local green and GitHub green, so each needs a reason a reviewer can check.",
+  "exempt": [
+    {
+      "workflow": "estate-checks.yml",
+      "job": "checks",
+      "step": "Install zsh (estate-sync's suite shells out to it)",
+      "reason": "Ubuntu-runner PROVISIONING, not a check. It shells out to apt-get, which does not exist on macOS ('sudo: apt-get: command not found'), and it blocked every following step. The step's purpose is that estate-sync's suite has a zsh to shell out to; that purpose is already met here, verified: /bin/zsh, zsh 5.9 (arm64-apple-darwin25.0). So the suite runs its zsh-backed tests locally exactly as it does on the runner, and nothing is skipped by exempting the installer. NOT a known gap: the thing the step provisions is present."
+    },
+    {
+      "workflow": "enforcement-loop.yml",
+      "job": "installer",
+      "step": "Install zsh (estate-sync.sh is zsh, not bash)",
+      "reason": "The same Ubuntu provisioning step as the estate-checks entry above, in a second workflow: `sudo apt-get install -y -qq zsh`, which fails on macOS with 'sudo: apt-get: command not found' (mirror run on 88d7360, 24/09/2026). It provisions zsh and tests nothing; /bin/zsh (zsh 5.9) is present here, so the installer job's following steps run against a real zsh. NOT a known gap."
+    },
+    {
+      "workflow": "enforcement-loop.yml",
+      "job": "estate-sync-windows",
+      "step": "RED — archived PowerShell path fails the behavioural gate",
+      "reason": "Windows-only by construction, not by missing tooling. pwsh 7.6.6 IS installed here and ran this step (24/09/2026, head 25e4c39): its assertions expect t10/t12 to fail through the archived estate-sync.ps1, but test_estate_sync.py only drives the PowerShell script when os.name == 'nt' (lines 109 and 536: powershell.exe -File, with git.cmd wrappers at line 299). On macOS the same tests drive the zsh script, so they pass and the RED assertion cannot hold. GitHub's windows-latest runner executes this step on every PR and still fails it if the red is lost. The GREEN step in the same job runs here unexempted.",
+      "test_gap": true
+    }
+  ],
+  "_withdrawn": [
+    {
+      "step": "Install PyYAML (senior-harness parses workflow YAML semantically)",
+      "why_withdrawn": "EXEMPTED IN ERROR ON 23/09/2026, THEN WITHDRAWN. The stated evidence was 'python3 -c import yaml reports PyYAML 6.0.3' -- but that was the AUTHOR'S SHELL (Python 3.9.6). The workflow pins 3.11, so check_runtime shims python/python3 to ~/.local/bin/python3.11, and THAT interpreter had no PyYAML. senior-harness then degraded to 13 failures and 6 errors, and the mirror reported a FAILING SUITE on a clean head. A premise verified in the wrong environment, which is the exact fault this whole branch exists to remove. Resolved properly instead: a seeded uv venv at ~/.local/share/ci-mirror-py311 provides Python 3.11.15 with pip, so the workflow's own install step runs unmodified and installs the pinned PyYAML 6.0.2. Put that venv's bin first on PATH when running the mirror. Kept here as a worked example: an exemption's reason must be checked in the environment the STEP runs in, not the one the author is typing in."
+    },
+    {
+      "step": "Assert PowerShell is present / RED — archived PowerShell path",
+      "why_withdrawn": "Withdrawn 24/09/2026: PowerShell 7.6.6 is now installed on this MacBook at ~/.local/bin/pwsh (Microsoft's osx-arm64 release, sha256-verified), and ci_mirror.py runs `shell: pwsh` steps with pwsh the way GitHub's runner does. Both steps now run locally; the known gap is closed rather than recorded. The RED step was later re-exempted on narrower grounds (it needs os.name == 'nt', not just pwsh); see its entry."
+    }
+  ]
+}

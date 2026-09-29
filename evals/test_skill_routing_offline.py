@@ -63,3 +63,28 @@ def test_the_bench_refuses_a_cap_that_is_not_a_finite_amount(cap):
     with pytest.raises(argparse.ArgumentTypeError):
         usd(cap)
     assert usd("5") == 5.0 and usd("0") == 0.0
+
+
+def test_the_bench_reads_a_library_skill_whose_name_differs_from_its_folder(tmp_path, monkeypatch):
+    """PR #838 CodeRabbit: load_skills rebuilt the path from the frontmatter name, so a skill named
+    differently from its folder (graphify -> graphify-windows at library 64d5869) aborted the run."""
+    from evals.skill_routing import run
+
+    folder = tmp_path / "skills" / "graphify"
+    folder.mkdir(parents=True)
+    (folder / "SKILL.md").write_text("---\nname: graphify-windows\ndescription: Graph a repo.\n---\nBody.\n")
+    monkeypatch.setattr(tao_skills, "load_all_skills", lambda *a, **k: {})
+    assert run.load_skills(tmp_path)["graphify-windows"]["body"] == "Body."
+
+
+def test_the_bench_refuses_jev_without_a_key(tmp_path, monkeypatch, capsys):
+    """PR #838 Bugbot: a missing key reported Jev as NOT RUN and exited 0, so the tune steps looked
+    successful and the held-out step crashed later without saying why."""
+    import sys
+
+    from evals.skill_routing import run
+
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setattr(sys, "argv", ["run", "--library", str(tmp_path), "--jev", "--ledger", str(tmp_path / "l")])
+    assert run.main() == 2
+    assert "TYPESAFE_API_KEY" in capsys.readouterr().err

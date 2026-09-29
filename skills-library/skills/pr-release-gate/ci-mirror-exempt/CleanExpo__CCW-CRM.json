@@ -1,0 +1,72 @@
+{
+  "_comment": "Steps GitHub runs on CCW-CRM PRs that cannot be reproduced on a laptop. Every entry says why. Written 2026-09-21 from the ci-mirror report for c179e073. Adding one widens the gap between local green and GitHub green, so each needs a reason a reviewer can check. GitHub still runs every one of these on the PR, and the PR stays draft until those checks are green. The e2e-public accessibility entry was withdrawn the same day: its 18 local failures were caused by an orphaned dev server from an earlier gate run holding port 3000.",
+  "exempt": [
+    {
+      "workflow": "agent-pr-checks.yml",
+      "job": "validate-agent-metadata",
+      "step": "Verify Agent Metadata in PR Description",
+      "reason": "Reads the PR description through secrets.GITHUB_TOKEN; there is no PR before push."
+    },
+    {
+      "workflow": "agent-pr-checks.yml",
+      "job": "update-pr-status",
+      "step": "Comment on PR",
+      "reason": "Posts a PR comment with secrets.GITHUB_TOKEN; there is no PR before push."
+    },
+    {
+      "workflow": "agent-pr-checks.yml",
+      "job": "security-scan",
+      "step": "Scan for Secrets",
+      "reason": "Runs grep -r over the working tree. On GitHub it runs straight after checkout with no npm install; locally the worktree holds node_modules, whose @types/node docs contain sample 'password = ' strings. Checked 2026-09-21: the same two patterns over git-tracked files only (git grep) return no match, with a positive control that git grep finds 'password' in tracked .ts files."
+    },
+    {
+      "workflow": "ci.yml",
+      "job": "post-preview-comment",
+      "step": "Comment preview URL on PR",
+      "reason": "Third-party actions/github-script posting to a PR that does not exist before push."
+    },
+    {
+      "workflow": "gitleaks.yml",
+      "job": "gitleaks",
+      "step": "gitleaks",
+      "reason": "Third-party gitleaks/gitleaks-action cannot run locally. The repo's own scripts/ci/scan-secrets.js runs in the definition of done."
+    },
+    {
+      "workflow": "security.yml",
+      "job": "dependency-review",
+      "step": "Dependency Review",
+      "reason": "Third-party actions/dependency-review-action compares the PR's dependency graph through the GitHub API; no PR before push."
+    },
+    {
+      "workflow": "security.yml",
+      "job": "trivy-scan",
+      "step": "Run Trivy vulnerability scanner",
+      "reason": "Third-party aquasecurity/trivy-action cannot run locally."
+    },
+    {
+      "workflow": "security.yml",
+      "job": "trivy-scan",
+      "step": "Upload Trivy results to GitHub Security tab",
+      "reason": "Third-party github/codeql-action/upload-sarif uploads to the GitHub Security tab."
+    },
+    {
+      "workflow": "security.yml",
+      "job": "snyk-frontend",
+      "step": "*",
+      "reason": "Every step needs the repository secret SNYK_TOKEN or the third-party snyk/actions/node action; neither can run locally."
+    },
+    {
+      "workflow": "ci.yml",
+      "job": "ci-summary",
+      "step": "*",
+      "reason": "Both steps read needs.<job>.result from GitHub's job graph, which the local runner cannot resolve. The jobs it summarises (frontend-tests, build) run locally in their own right.",
+      "test_gap": true
+    },
+    {
+      "workflow": "lighthouse-agentic.yml",
+      "job": "agentic-audit",
+      "step": "Determine target URL",
+      "reason": "Looks up the PR's Vercel preview URL through the GitHub deployments API with github.token; before push there is no PR and no preview. The Lighthouse and llms.txt steps after it are gated on that URL and skip when it is empty, so nothing else in the job can run locally either. GitHub runs it on the PR."
+    }
+  ]
+}

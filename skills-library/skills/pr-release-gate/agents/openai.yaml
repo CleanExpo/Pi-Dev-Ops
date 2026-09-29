@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Release Gate"
+  short_description: "Require tests and independent review before PRs"
+  default_prompt: "Use $pr-release-gate before pushing a branch or opening a pull request."

@@ -13,6 +13,7 @@ import argparse
 import json
 import math
 import os
+import sys
 import time
 from pathlib import Path
 from urllib import request
@@ -42,7 +43,8 @@ def load_skills(library: Path) -> dict[str, dict]:
     skills = dict(tao_skills.load_all_skills())
     for name, item in inventory(library).items():
         if item["home"] == "library":
-            meta, body = tao_skills._parse_frontmatter((library / "skills" / name / "SKILL.md").read_text("utf-8"))
+            # By the path it was found at: a frontmatter name can differ from its folder.
+            meta, body = tao_skills._parse_frontmatter(Path(item["path"]).read_text("utf-8"))
             skills[name] = {"name": name, "description": item["description"], "body": body}
     return skills
 
@@ -181,6 +183,10 @@ def main() -> int:
     ap.add_argument("--out", type=Path)
     ap.add_argument("--rows-out", type=Path, help="write every Jev row (with confidence) as JSONL")
     args = ap.parse_args()
+    if args.jev and not (os.environ.get("TYPESAFE_API_KEY") and args.ledger):
+        print("--jev needs --ledger and TYPESAFE_API_KEY in the environment; refusing to report "
+              "a Jev score that was never measured", file=sys.stderr)
+        return 2
     cases = [json.loads(line) for line in args.corpus.read_text("utf-8").splitlines() if line.strip()]
     cases = [c for c in cases if args.split == "all" or c["split"] == args.split][: args.limit or None]
     skills = load_skills(args.library)

@@ -1,0 +1,11 @@
+{
+ "_comment": "Steps GitHub runs on Pi-Dev-Ops PRs that cannot be reproduced on a macOS laptop. Every entry says why. Keep the list short and the reasons checkable.",
+ "exempt": [
+  {
+   "workflow": "pgtap-pilot.yml",
+   "job": "rls-assertions",
+   "step": "Install Postgres client",
+   "reason": "Runs sudo apt-get install postgresql-client; macOS has no apt-get. Every later step in the job uses only psql, which must already be on PATH, so the schema, migration, mesh-schema and RLS assertion steps still run locally against the Docker postgres service."
+  }
+ ]
+}
