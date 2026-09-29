@@ -26,8 +26,8 @@
   --text-dim: #63636b;         /* ≥4.69:1 on panel, bg and panel-hover (was 71717a: 4.39:1, RA-7843) */
   --accent: #b23c0b;           /* ≥4.67:1 incl. on accent-subtle tint (was c2410c: 4.3:1 there, RA-7843) */
   --accent-subtle: rgba(234,88,12,0.08);
-  --success: #15803d;          /* green-700; ≈5.2:1 (was 16a34a / 4.1:1) */
-  --warning: #a16207;          /* yellow-700; ≈4.6:1 (was ca8a04 / 3.2:1) */
+  --success: #166534;          /* green-800; ≥5.17:1 incl. on panel-hover and green tints (green-700 was 3.95:1 on panel-hover, RA-7843) */
+  --warning: #854d0e;          /* yellow-800; ≥5.40:1 incl. on panel-hover (yellow-700 was 4.48:1 on panel, RA-7843) */
   --error: #b91c1c;            /* red-700; ≈5.1:1 (was dc2626 / 4.2:1) */
   --info: #1d4ed8;             /* blue-700; ≈6.1:1 */
   --on-accent: #ffffff;        /* WCAG AA on --accent (orange-700) */
