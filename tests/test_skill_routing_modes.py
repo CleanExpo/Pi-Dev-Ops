@@ -191,6 +191,70 @@ def test_approved_egress_reaches_jev(monkeypatch):
     assert len(sent) == 1
 
 
+@pytest.fixture()
+def trickle_server():
+    """A local server that answers one byte every 0.1 s for 6 s: never silent for 3 s."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    class Trickle(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            try:
+                for _ in range(60):
+                    self.wfile.write(b" ")
+                    self.wfile.flush()
+                    time.sleep(0.1)
+            except OSError:
+                pass
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Trickle)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_port}/"
+    server.shutdown()
+
+
+def _point_jev_at(monkeypatch, url):
+    import urllib.request as ur
+
+    real = ur.urlopen
+
+    def to_local(req, timeout=None):
+        return real(ur.Request(url, data=req.data, method="POST"), timeout=timeout)
+
+    monkeypatch.setattr(skill_routing.request, "urlopen", to_local)
+    monkeypatch.setenv("TYPESAFE_API_KEY", "not-a-real-key")
+    monkeypatch.setenv("SKILL_ROUTER_REAL_DATA_EGRESS", "approved")
+
+
+def test_a_trickling_jev_is_cut_off_at_the_wall_clock_deadline(monkeypatch, trickle_server):
+    """Review P1-JEV-SOCKET-TIMEOUT-IS-NOT-WALL-CLOCK-DEADLINE: a byte every 0.1 s held the call 4.6 s."""
+    _point_jev_at(monkeypatch, trickle_server)
+    started = time.monotonic()
+    d = skill_routing._decide(BRIEF)
+    elapsed = time.monotonic() - started
+    assert elapsed < skill_routing.JEV_DEADLINE_S + 0.8, f"Jev held the route for {elapsed:.2f}s"
+    assert d.source == "lexical_fallback" and d.reason == "jev_error:TimeoutError"
+    # The abandoned reader must actually stop, not trickle on in the background.
+    deadline = time.monotonic() + 1.0
+    while time.monotonic() < deadline and any(t.name == "skill-router-jev" for t in threading.enumerate()):
+        time.sleep(0.05)
+    assert not any(t.name == "skill-router-jev" for t in threading.enumerate())
+
+
+def test_a_trickling_jev_does_not_hold_the_shadow_lock(monkeypatch, trickle_server):
+    _point_jev_at(monkeypatch, trickle_server)
+    monkeypatch.setenv("SKILL_ROUTER", "shadow")
+    skill_routing.skill_context(BRIEF, "feature")
+    skill_routing.wait_for_shadow(timeout=skill_routing.JEV_DEADLINE_S + 2)
+    assert not skill_routing._SHADOW_BUSY.locked()
+
+
 def test_unknown_mode_means_shadow(monkeypatch):
     monkeypatch.setenv("SKILL_ROUTER", "yes please")
     assert skill_routing.mode() == "shadow"

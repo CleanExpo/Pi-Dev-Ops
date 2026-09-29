@@ -17,6 +17,7 @@ import json
 import logging
 import math
 import os
+import socket
 import threading
 from pathlib import Path
 from typing import Callable
@@ -27,6 +28,7 @@ _CATALOGUE: list | None = None
 _PINS: dict[str, str] | None = None
 LEDGER = Path(os.environ.get("SKILL_ROUTER_LEDGER", ".harness/skill-router-ledger.sqlite"))
 INDEX = Path(__file__).resolve().parents[2] / "skills-library" / "skills" / "index.md"
+JEV_DEADLINE_S = 3.0
 
 
 class CapReached(RuntimeError):
@@ -76,7 +78,7 @@ def live_jev() -> Callable[[dict], dict] | None:
         if call_id is None:
             raise CapReached(f"daily Jev cap ${cap} reached")
         try:
-            result = evaluate(payload, key, opener=lambda req, timeout: request.urlopen(req, timeout=3))
+            result = _within_deadline(lambda opener: evaluate(payload, key, opener=opener))
         except Exception:
             finish_call(LEDGER, call_id, "error")
             raise
@@ -84,6 +86,49 @@ def live_jev() -> Callable[[dict], dict] | None:
         return result
 
     return call
+
+
+def _abort(resp) -> None:
+    """End an in-flight read now. resp.close() waits on the buffer lock the reading thread
+    holds, so it cannot interrupt that read; shutting the socket down does, and the ordinary
+    close then runs off to the side so the caller never waits on it."""
+    try:
+        resp.fp.raw._sock.shutdown(socket.SHUT_RDWR)
+    except Exception:
+        pass
+    threading.Thread(target=resp.close, name="skill-router-jev-close", daemon=True).start()
+
+
+def _within_deadline(run: Callable[[Callable], dict]) -> dict:
+    """Run one Jev call with a WALL-CLOCK deadline. urlopen's timeout only bounds silence
+    between bytes, so a server trickling a byte at a time could hold the call indefinitely
+    (review round 5). At the deadline every response the call opened is closed, which ends the
+    worker thread's read, and the caller gets TimeoutError."""
+    opened: list = []
+
+    def opener(req, timeout=None):
+        resp = request.urlopen(req, timeout=JEV_DEADLINE_S)
+        opened.append(resp)
+        return resp
+
+    box: dict = {}
+
+    def work():
+        try:
+            box["value"] = run(opener)
+        except BaseException as exc:  # handed to the caller below
+            box["error"] = exc
+
+    worker = threading.Thread(target=work, name="skill-router-jev", daemon=True)
+    worker.start()
+    worker.join(JEV_DEADLINE_S)
+    if worker.is_alive():
+        for resp in opened:
+            _abort(resp)
+        raise TimeoutError(f"Jev gave no complete answer within {JEV_DEADLINE_S}s")
+    if "error" in box:
+        raise box["error"]
+    return box["value"]
 
 
 def _decide(raw_brief: str):
