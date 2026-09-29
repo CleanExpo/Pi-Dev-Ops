@@ -376,7 +376,8 @@ def main() -> int:
     print(f"Target: {args.url}")
     print(f"Mode:   {args.mode}")
 
-    if not verify_e2e_revisions(session, args, wait_for_revision):
+    # Its own session: the backend check logs in, and the unauth probes below need an empty jar.
+    if not verify_e2e_revisions(Session(args.url), args, wait_for_revision):
         return 1
 
     all_runs: list[TestRun] = []
