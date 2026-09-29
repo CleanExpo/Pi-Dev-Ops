@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { checkAccessibility, checkAuthBoundary, checkFailurePath, recordDataCalls } from "./level2-checks";
 import { receiptName, signIn, writeReceipt, type CheckResult } from "./live-session";
-import { stuckLoadingTexts } from "./page-state";
+import { settle, stuckLoadingTexts } from "./page-state";
 import { LIVE_SURFACES } from "./surfaces";
 
 // WP-09: Level 2 checks 5, 6 and 8 per register row, one receipt per surface
@@ -21,7 +21,7 @@ for (const surface of LIVE_SURFACES) {
       await signIn(page.request);
       const dataCalls = recordDataCalls(page, origin);
       await page.goto(surface.path);
-      await page.waitForLoadState("networkidle");
+      await settle(page);
       await stuckLoadingTexts(page);
       checks.push(await checkAccessibility(page));
       checks.push(await checkAuthBoundary(anon, surface, dataCalls, origin));

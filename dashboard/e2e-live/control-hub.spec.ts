@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { MISSION_HOME_LINKS } from "../lib/control/mission-home-links";
 import { collectFailures, signIn, writeReceipt, type CheckResult } from "./live-session";
+import { settle } from "./page-state";
 
 // Register row MC-00 / promise P01: the signed-in hub renders its real
 // navigation, and nothing the page asks for is refused. Since #828 the hub's
@@ -14,7 +15,7 @@ test("Mission Control hub renders for a signed-in user with no refused requests"
   const failures = collectFailures(page, origin);
 
   await page.goto("/control");
-  await page.waitForLoadState("networkidle");
+  await settle(page);
 
   const checks: CheckResult[] = [];
   const onControl = new URL(page.url()).pathname.startsWith("/control");

@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import type { APIRequestContext, Page, Request } from "@playwright/test";
 import type { CheckResult } from "./live-session";
-import { OUTAGE_TEXT, stuckLoadingTexts } from "./page-state";
+import { OUTAGE_TEXT, settle, stuckLoadingTexts } from "./page-state";
 import type { LiveSurface } from "./surfaces";
 
 // WP-09 (docs/plans/mission-control/work-packages.md): MC checks 5, 6 and 8 as
@@ -64,7 +64,7 @@ export async function checkFailurePath(page: Page, surface: LiveSurface, origin:
     },
   );
   await page.goto(surface.path);
-  await page.waitForLoadState("networkidle").catch(() => undefined);
+  await settle(page);
   const stuck = await stuckLoadingTexts(page);
   await page.unroute(() => true);
   const blocked = [...cut].sort().join(", ");
