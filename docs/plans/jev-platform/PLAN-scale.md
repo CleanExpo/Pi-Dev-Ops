@@ -462,3 +462,146 @@ The compatibility test now asserts that the state keys match the tool's document
 each template's declared fields are a subset of them. It covers a content-only template sent with
 a prompt id, and a mixed batch. The zero-request refusal tests for incompatible selections are
 kept.
+
+## Rev 6b change: a model chain in place of the single pinned model (founder, 29/09/2026)
+
+The founder's direction on 29/09: a quota-limited model is never a blocker. Rev 5 pinned
+`gemini-3.8-flash`, and on 29/09 that one model returned 429 RESOURCE_EXHAUSTED on the pi-dev-ops
+key after about 15 calls, which stopped C15 and C16 outright. Rev 6b replaces the pin with an
+ordered chain. **Every cost rule above is unchanged** (count first, reserve before send,
+`maxOutputTokens` 2048, run cap, count cap, overrun tripwire, price-table expiry). The rejected
+rev 6 margin (`proposals/`) stays rejected; rev 6b adds no margin.
+
+- **Chain, in order:** `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.6-flash`,
+  `gemini-3-flash-preview`, `gemini-3.5-flash-lite`. `gemini-3.5-flash` is left out because it
+  costs twice as much (US$1.50/US$9.00), and every `gemini-2.5-*` model returns 404 to new users.
+- **Probe, 29/09 16:20-16:30, pi-dev-ops key (sha8 `84a99187`), one call each:**
+  - 200: 3.7-flash, 3-flash-preview, 3.5-flash-lite, 3.1-flash-lite
+  - 429: 3.8-flash, 3.1-pro-preview
+  - 503 (demand): 3.5-flash, 3.6-flash
+  - 404: 2.5-flash, 2.5-pro, 2.5-flash-lite
+- **Prices** come from ai.google.dev/gemini-api/docs/pricing, fetched 29/09.
+  - 3.8, 3.7 and 3.6 Flash are each US$0.75/US$3.75 until 31/12/2026.
+  - 3-flash-preview is US$0.50/US$3.00.
+  - 3.5-flash-lite is US$0.30/US$2.50.
+  - Every row carries `valid_until: 2026-12-31`. A model whose row has expired is skipped, and if
+    none is priced nothing is sent.
+- **Selection and lock.**
+  - While a run has no model, `call()` walks the chain.
+  - A model's attempt that ends in 404, 429 or 503, after the existing retries of 429/503, moves
+    to the next model. This applies to `countTokens` as well as to `generateContent`.
+  - Any other failure (a 5xx other than 503, transport, cap, overrun, malformed) ends the call as
+    before and does **not** advance.
+  - The first model that answers is **locked for the rest of the run**, and a locked run never
+    switches model. The reason is that Gemini 3 thought signatures are model-bound: sending a
+    function-call turn without its signature returns HTTP 400, as observed live on 29/09.
+- **Cost bound across the chain.**
+  - `gemini-3.8-flash` stays the dearest row, and a test asserts this.
+  - Until the lock, the budget reserves and settles at that row, so a fallback can only
+    over-reserve, never under-reserve.
+  - At the lock, the budget's price becomes the locked model's row.
+  - The attempt cap stays fixed at the start, from the dearest output rate.
+- **Every request body names the model its URL names.** `request_body()` still builds the rev 5
+  body, and `call()` sets `model` to the attempted model before counting. The count body wraps
+  those exact bytes, so countTokens and generateContent see identical bytes per model.
+- **The ledger records the model that answered.**
+  - `agent_model` in the agent ledger, `writer_model` in the writer control, `model` in every
+    budget snapshot.
+  - It is `None` when none answered.
+  - C15 and C16 (Done contract v8, `w_9471fcfe4a36`) accept any chain model.
+- **Count-gap evidence.** On 29/09 a two-turn function-call exchange gave `countTokens` =
+  `promptTokenCount` exactly on both `gemini-3-flash-preview` and `gemini-3.5-flash-lite` (turn 1:
+  61/61; turn 2 with the signature: 93/93). That is toy-sized, with no system instruction and one
+  tool. The 6-11% overrun from attempt 1 was on 3.8-flash with the real agent payload. **The
+  tripwire is kept exactly as in rev 5,** and the live runs are the test: each turn's ledger shows
+  `reported_prompt <= counted` or the run stops.
+- **Tests added:**
+  - 404/429/503 advance and lock the next model at its price
+  - a quota refusal on count also advances
+  - body model = URL model on every call
+  - a locked run never switches
+  - a 500 does not advance
+  - all-refused ends with the last refusal and no lock
+  - the chain is fully priced and its head is the dearest
+- **Mutants added:**
+  - advance disabled
+  - lock-reuse removed
+  - locked-run advance allowed
+  - lock never set
+  - body model not rewritten
+  - agent ledger reporting the constant
+- **Out of scope for rev 6b:**
+  - MiniMax (`MiniMax-M2`, HTTP 200 on 29/09) as a further lane. It has no countTokens
+    equivalent, so it needs its own bound and is a separate slice.
+  - Claude and Codex CLIs as the agent seat. They cannot be counted per call, so that would be a
+    redesign.
+
+## Rev 6c changes (answers to judge-scale-rev6b-r1, 86/100)
+
+1. **The pre-send input bound now covers everything Google bills as prompt.**
+   - **Cause, measured 29/09.** In a multi-turn function-call exchange, the reported
+     `promptTokenCount` exceeds `countTokens` for the identical body by exactly the sum of the
+     `thoughtsTokenCount` that Google reported for the earlier turns of that conversation. That
+     earlier thinking is re-injected through the thought signatures, and `countTokens` omits it.
+     It was exact on every turn measured, with no rounding:
+
+     | Model | Turn | countTokens | promptTokenCount | Gap | Earlier thoughts |
+     |---|---|---|---|---|---|
+     | gemini-3-flash-preview | 1 | 112 | 112 | 0 | 0 |
+     | gemini-3-flash-preview | 2 | 166 | 465 | 299 | 299 |
+     | gemini-3-flash-preview | 3 | 221 | 598 | 377 | 377 (299 + 78) |
+     | gemini-3.5-flash-lite | 1 | 112 | 112 | 0 | 0 |
+     | gemini-3.5-flash-lite | 2 | 166 | 300 | 134 | 134 |
+     | gemini-3.5-flash-lite | 3 | 221 | 499 | 278 | 278 (134 + 144) |
+     | gemini-3.7-flash | 1 | 112 | 112 | 0 | 0 |
+     | gemini-3.7-flash | 2 | 166 | 274 | 108 | 108 |
+     | gemini-3.6-flash | 1 | 112 | 112 | 0 | 0 (turn 2: 503) |
+
+     All runs used thinking level high. Script: `scratchpad/thought_gap.py`; it prints numbers
+     only. Rev 5's attempt-1 overruns on 3.8-flash (turn-2 gaps of 218 and 109 tokens) fit the
+     same cause. That fit is UNVERIFIED on 3.8, because it was quota-locked during this
+     measurement, which is one more reason the tripwire stays.
+   - **Bound.** `input_bound = countTokens(identical body) + sum of thoughtsTokenCount reported
+     for earlier turns of this conversation`. Both terms are provider-reported, and there is no
+     margin. The reservation is `input_bound x in + 2048 x out` at the budget's price row. The
+     tripwire now compares `promptTokenCount` against `input_bound`, so any undercount the bound
+     misses still stops the run, keeping the larger figure as before.
+   - **Conversation scope.**
+     - The carry applies only to bodies containing a `model` turn.
+     - An agent run is one conversation on one budget, so every earlier thought is in its
+       context.
+     - The writer sends single-turn bodies only, so it carries nothing.
+     - A reply whose usage is missing or malformed makes the carry unknown. The next multi-turn
+       call is then refused with zero requests: `thinking tokens unreported: input cannot be
+       bounded`.
+   - **Output** stays hard-bounded by `maxOutputTokens` 2048, which includes thinking, as in rev 5.
+2. **Calibration digest check.** The round-1 diff showed `calibration.py:131` as `if False`. That
+   was a live mutant, captured because the mutation runner edits source in place and the diff was
+   taken mid-run. The committed code is unchanged: `git diff -- jev_platform/calibration.py` is
+   empty (`rev6c.diff`). Mutants now run from an isolated copy (`/tmp/jev-mut`), never the working
+   tree.
+3. **Price freshness before every attempt.**
+   - A locked run whose model's price row has expired returns `price table expired` with zero
+     requests. It is never moved to another model, because the conversation is signed to its
+     model.
+   - An unlocked run after expiry finds no priced model and sends nothing.
+   - Both cases have date-rollover tests.
+
+**Tests added in 6c:**
+- the second turn reserves for the carried thinking and is not an overrun
+- a billed prompt above count plus carry is still an overrun
+- unreported usage refuses the next turn with zero requests
+- a single-turn body carries nothing
+- a locked run with an expired price sends nothing
+- an unlocked run after expiry sends nothing
+- the agent ledger names the fallback model, or `None`
+
+**Mutants added in 6c:**
+- the bound without the carry
+- the carry forced to 0
+- the unreported-usage guard removed
+- thoughts not accumulated
+- `add_thoughts` never called
+- the locked-price guard removed
+
+The duplicate lock guard, which had made two mutants unkillable, was removed.

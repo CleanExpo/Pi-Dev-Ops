@@ -172,6 +172,7 @@ def main(out: Path = OUT) -> int:
                "gemini": lambda e: generate.gemini_text(control_prompt(question, e), budget, gemini.urllib_post, key)}
     doc = run_control(writers, lambda states: generate.codex_label(question, states))
     doc["gemini_ledger"] = budget.snapshot()
+    doc["writer_model"] = budget.model  # the chain model that answered; None if none did
     out.write_text(json.dumps(doc, indent=1) + "\n")
     print(f"{doc['verdict']}: {'; '.join(doc['failing']) or 'every clause holds'}")
     return 0

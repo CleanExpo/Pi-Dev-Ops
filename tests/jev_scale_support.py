@@ -105,8 +105,9 @@ class FakeGemini:
 
     def __call__(self, url, payload, headers, timeout):
         self.calls.append((url, payload, headers))
-        queue = self.counts if url == gemini.COUNT_URL else self.replies
-        item = queue.pop(0) if len(queue) > 1 or url != gemini.COUNT_URL else queue[0]
+        is_count = url.endswith(":countTokens")
+        queue = self.counts if is_count else self.replies
+        item = queue.pop(0) if len(queue) > 1 or not is_count else queue[0]
         return item if isinstance(item, tuple) else (200, item)
 
     def urls(self) -> list[str]:

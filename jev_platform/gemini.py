@@ -20,11 +20,25 @@ import urllib.request
 from jev_platform import ask
 
 MODEL = "gemini-3.8-flash"
+# Founder 29/09/2026: a quota-limited model is never a blocker. Tried in this order; a run locks to the
+# first model that answers and never switches, because thought signatures are model-bound (HTTP 400).
+CHAIN = (MODEL, "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3-flash-preview", "gemini-3.5-flash-lite")
+ADVANCE_STATUSES = (404, 429, 503)
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/"
-GENERATE_URL = f"{BASE_URL}{MODEL}:generateContent"
-COUNT_URL = f"{BASE_URL}{MODEL}:countTokens"
-# ai.google.dev/gemini-api/docs/pricing, fetched 29/09/2026; countTokens is documented as free.
-PRICES = {MODEL: {"in": 0.75e-6, "out": 3.75e-6, "count": 0.0, "valid_until": "2026-12-31"}}
+
+
+def urls(model: str) -> tuple[str, str]:
+    return f"{BASE_URL}{model}:generateContent", f"{BASE_URL}{model}:countTokens"
+
+
+GENERATE_URL, COUNT_URL = urls(MODEL)
+# ai.google.dev/gemini-api/docs/pricing, fetched 29/09/2026 (3.8/3.7/3.6 double on 01/01/2027).
+# countTokens is documented as free by Firebase AI Logic; the pricing page does not list it.
+# MODEL must stay the dearest row: a budget reserves at it until the run has locked a model.
+_FLASH = {"in": 0.75e-6, "out": 3.75e-6, "count": 0.0, "valid_until": "2026-12-31"}
+PRICES = {MODEL: dict(_FLASH), "gemini-3.7-flash": dict(_FLASH), "gemini-3.6-flash": dict(_FLASH),
+          "gemini-3-flash-preview": {"in": 0.50e-6, "out": 3.00e-6, "count": 0.0, "valid_until": "2026-12-31"},
+          "gemini-3.5-flash-lite": {"in": 0.30e-6, "out": 2.50e-6, "count": 0.0, "valid_until": "2026-12-31"}}
 MAX_OUTPUT_TOKENS = 2048
 THINKING_LEVEL = "low"
 TURN_CAP = 12
@@ -58,9 +72,15 @@ class GeminiBudget:
 
     def __init__(self, max_usd: float, price: dict, max_count_calls: int = COUNT_CAP):
         self.max_usd, self.price, self.max_count_calls = max_usd, price, max_count_calls
+        self.model: str | None = None  # the chain model this run locked to; None until one answers
         self.spent = self.count_usd = 0.0
         self.attempts = self.count_calls = self.count_ok = self.batch_count_calls = 0
-        self.tokens = {"counted": 0, "reserved_in": 0, "reserved_out": 0, "reported_prompt": 0, "reported_output": 0}
+        self.tokens = {"counted": 0, "carried": 0, "reserved_in": 0, "reserved_out": 0, "reported_prompt": 0,
+                       "reported_output": 0}
+        # Thinking re-enters later turns through thought signatures and is billed as prompt, but countTokens
+        # omits it. Measured 29/09: the turn-N gap equals the sum of earlier thoughtsTokenCount exactly.
+        self.thoughts = 0
+        self.thoughts_known = True
         # Fixed at start: settling a cheap reply down never buys extra attempts.
         self.max_attempts = int((max_usd + 1e-12) // (MAX_OUTPUT_TOKENS * price["out"]))
         self._lock = threading.Lock()
@@ -109,9 +129,27 @@ class GeminiBudget:
             self.tokens["reported_output"] += output
             self.spent += max(actual, reserved) - reserved if prompt > counted else actual - reserved
 
+    def note_carry(self, carry: int) -> None:
+        with self._lock:
+            self.tokens["carried"] += carry
+
+    def add_thoughts(self, usage) -> None:
+        """Absent thoughtsTokenCount is zero thinking; absent or malformed usage leaves the carry unknown."""
+        prompt, _ = _usage(usage)
+        t = usage.get("thoughtsTokenCount", 0) if isinstance(usage, dict) else None
+        with self._lock:
+            if prompt is None or not isinstance(t, int) or isinstance(t, bool) or t < 0:
+                self.thoughts_known = False
+            else:
+                self.thoughts += t
+
+    def lock_model(self, model: str, price: dict) -> None:
+        with self._lock:
+            self.model, self.price = model, price
+
     def snapshot(self) -> dict:
         with self._lock:
-            return {"attempts": self.attempts, "count_calls": self.count_calls, "count_ok": self.count_ok,
+            return {"model": self.model, "attempts": self.attempts, "count_calls": self.count_calls, "count_ok": self.count_ok,
                     "count_reserved_usd": round(self.count_usd, 6), "tokens": dict(self.tokens),
                     "spent_usd": round(self.spent, 6)}
 
@@ -145,54 +183,87 @@ def _post(http_post, url: str, payload: bytes, headers: dict) -> tuple[int | Non
         return None, None
 
 
-def _count(payload: bytes, headers: dict, budget: GeminiBudget, http_post) -> tuple[int | None, str | None, bool]:
-    """(totalTokens, problem, retryable). The count body wraps the exact generateContent bytes."""
+def _count(url: str, payload: bytes, headers: dict, budget: GeminiBudget, http_post
+           ) -> tuple[int | None, str | None, int | None]:
+    """(totalTokens, problem, http status). The count body wraps the exact generateContent bytes."""
     refusal = budget.reserve_count(len(payload))
     if refusal:
-        return None, refusal, False
-    status, data = _post(http_post, COUNT_URL, b'{"generateContentRequest": ' + payload + b"}", headers)
+        return None, refusal, None
+    status, data = _post(http_post, url, b'{"generateContentRequest": ' + payload + b"}", headers)
     if status != 200:
-        return None, f"countTokens {'http_' + str(status) if status else 'transport failure'}", status in RETRY_STATUSES
+        return None, f"countTokens {'http_' + str(status) if status else 'transport failure'}", status
     total = data.get("totalTokens") if isinstance(data, dict) else None
     if not isinstance(total, int) or isinstance(total, bool) or total < 0:
-        return None, "countTokens malformed", False
+        return None, "countTokens malformed", None
     budget.count_succeeded(total)
-    return total, None, False
+    return total, None, None
 
 
 def _settled(data, reserved: float, counted: int, budget: GeminiBudget) -> dict:
     usage = data.get("usageMetadata") if isinstance(data, dict) else None
     budget.settle(reserved, usage, counted)
+    budget.add_thoughts(usage)
     prompt = usage.get("promptTokenCount") if isinstance(usage, dict) else None
     if isinstance(prompt, int) and prompt > counted:
         return {"error": "overrun", "counted": counted}
     return {"data": data, "counted": counted}
 
 
-def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep) -> dict:
-    """{'data': reply, 'counted': n} or {'error': reason}. Count, reserve, send; 429/503 retried at most twice."""
-    payload = json.dumps(body).encode()
-    if ask.sensitive(payload.decode()):
-        return {"error": "refused: sensitive payload"}
-    headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
+def _call_one(model: str, body: dict, headers: dict, budget: GeminiBudget, http_post, sleep, carry: int = 0
+              ) -> tuple[dict, int | None]:
+    """(result, final http status) for one model. Count, reserve, send; 429/503 retried at most twice."""
+    payload = json.dumps({**body, "model": f"models/{model}"}).encode()
+    generate_url, count_url = urls(model)
     for attempt in range(MAX_RETRIES + 1):
-        counted, problem, retry = _count(payload, headers, budget, http_post)
+        counted, problem, status = _count(count_url, payload, headers, budget, http_post)
         if problem:
-            if retry and attempt < MAX_RETRIES:
+            if status in RETRY_STATUSES and attempt < MAX_RETRIES:
                 sleep(2.0 * (attempt + 1))
                 continue
-            return {"error": problem}
-        reserved = budget.reserve_generate(counted)
+            return {"error": problem}, status
+        bound = counted + carry  # provider count plus provider-reported earlier thinking
+        reserved = budget.reserve_generate(bound)
         if reserved is None:
-            return {"error": "cap: reservation over the run cap"}
-        status, data = _post(http_post, GENERATE_URL, payload, headers)
+            return {"error": "cap: reservation over the run cap"}, None
+        budget.note_carry(carry)
+        status, data = _post(http_post, generate_url, payload, headers)
         if status == 200:
-            return _settled(data, reserved, counted, budget)
+            return _settled(data, reserved, bound, budget), status
         if status in RETRY_STATUSES and attempt < MAX_RETRIES:
             sleep(2.0 * (attempt + 1))
             continue
-        return {"error": f"gemini {'http_' + str(status) if status else 'transport failure'}"}
-    return {"error": "retries exhausted"}
+        return {"error": f"gemini {'http_' + str(status) if status else 'transport failure'}"}, status
+    return {"error": "retries exhausted"}, None
+
+
+def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep) -> dict:
+    """{'data': reply, 'counted': n} or {'error': reason}.
+
+    Before the run has a model, CHAIN is walked in order and a 404/429/503 that outlasts the retries moves
+    to the next priced model; the first model that answers is locked for the rest of the run."""
+    if ask.sensitive(json.dumps(body)):
+        return {"error": "refused: sensitive payload"}
+    headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
+    on = today()
+    if budget.model and price_table(on, budget.model) is None:
+        return {"error": "price table expired"}  # a signed conversation is never moved to another model
+    # A budget whose bodies carry model turns is one conversation (an agent run), so every earlier
+    # thought is in context. Single-turn bodies (the writer) carry none.
+    multi_turn = any(c.get("role") == "model" for c in body.get("contents", []))
+    if multi_turn and not budget.thoughts_known:
+        return {"error": "thinking tokens unreported: input cannot be bounded"}
+    carry = budget.thoughts if multi_turn else 0
+    models = (budget.model,) if budget.model else tuple(m for m in CHAIN if price_table(on, m))
+    out: dict = {"error": "no chain model has a current price"}
+    for model in models:
+        out, status = _call_one(model, body, headers, budget, http_post, sleep, carry)
+        if "error" not in out:
+            if budget.model is None:
+                budget.lock_model(model, price_table(on, model))
+            return out
+        if status not in ADVANCE_STATUSES:
+            return out
+    return out
 
 
 def urllib_post(url: str, payload: bytes, headers: dict, timeout: float) -> tuple[int, object]:

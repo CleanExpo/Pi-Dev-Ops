@@ -1,6 +1,6 @@
 """The Gemini Flash agent runner: `python -m jev_platform agent --prompt ID` (PLAN-scale.md rev 5).
 
-A function-calling loop over generateContent (model pinned to gemini-3.8-flash, thinking low).
+A function-calling loop over generateContent (gemini.CHAIN, one model locked per run, thinking low).
 The operator prompt is an approved prompt id, never free text. Tools: ask_jev_files,
 pick_first_file, ask_jev, read_file, propose_template; nothing writes, edits, runs commands or
 approves. Caps: US$0.10 per run, 12 turns, 24 count calls. Any outage, safety block, empty
@@ -56,7 +56,7 @@ def parse_reply(data) -> tuple[dict | None, list, str, str | None]:
 
 
 def new_ledger(prompt_id: str) -> dict:
-    return {"agent_model": gemini.MODEL, "prompt_id": prompt_id, "turns": 0, "jev_calls": 0, "questions": 0,
+    return {"agent_model": None, "prompt_id": prompt_id, "turns": 0, "jev_calls": 0, "questions": 0,
             "files_read": 0, "outcome": "incomplete: not started", "summary": ""}
 
 
@@ -67,8 +67,9 @@ def finish(ledger: dict, run, gem: gemini.GeminiBudget, jev: client.Budget, outc
                        "questions": sum(len(b.get("questions", {})) for b in run.sends),
                        "files_read": run.files_read, "tool_calls": run.tool_calls, "jev_results": run.results,
                        "reads": run.reads, "proposals": run.proposals})
+    ledger["agent_model"] = gem.model  # the chain model that answered; None if none did
     ledger.update({"gemini": gem.snapshot(), "jev_usd": round(jev.spent, 6), "gemini_usd": round(gem.spent, 6),
-                   "price_table": {gemini.MODEL: gem.price}, "outcome": outcome})
+                   "price_table": {gem.model or gemini.MODEL: gem.price}, "outcome": outcome})
     return ledger
 
 

@@ -168,3 +168,14 @@ def test_key_never_appears_in_ledger_stdout_or_stderr(monkeypatch, capsys, repo,
     captured = capsys.readouterr()
     assert KEY not in captured.out + captured.err + out_path.read_text() and "outcome" in out_path.read_text()
     assert all(h["x-goog-api-key"] == KEY for _, _, h in fake.calls)
+
+
+def test_ledger_names_the_chain_model_that_answered_not_the_head_of_the_chain(repo):
+    ledger, fake, _ = run(repo, [(429, None)] * 3 + [fcall(SCOUT), ftext("done")])
+    assert ledger["outcome"] == "complete" and ledger["agent_model"] == gemini.CHAIN[1]
+    assert set(ledger["price_table"]) == {gemini.CHAIN[1]} and ledger["gemini"]["model"] == gemini.CHAIN[1]
+
+
+def test_ledger_names_no_model_when_none_answered(repo):
+    ledger, _, _ = run(repo, [(404, None)] * len(gemini.CHAIN))
+    assert ledger["outcome"].startswith("incomplete") and ledger["agent_model"] is None
