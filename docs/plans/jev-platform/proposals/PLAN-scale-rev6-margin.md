@@ -1,9 +1,11 @@
 # Jev Platform: Levels 9 and 10, a Gemini Flash agent, and a cheaper case writer — plan
 
-Status: DRAFT rev 5 · 29/09/2026. It builds on PLAN.md rev 5 and PLAN-ask.md rev 4, both approved
+Status: DRAFT rev 6 · 29/09/2026. It builds on PLAN.md rev 5 and PLAN-ask.md rev 4, both approved
 100/100. Done contract v7 (`w_9a6c73db7577`, criteria C12–C16) is locked against this plan.
 Rev 1 scored 72/100 (`judge-scale-r1.md`) and rev 2 scored 84/100 (`judge-scale-r2.md`). Rev 3
-scored 94/100 (`judge-scale-r3.md`). Rev 4 scored 99/100 (`judge-scale-r4.md`); rev 5 corrects its one test contract.
+scored 94/100 (`judge-scale-r3.md`). Rev 4 scored 99/100 (`judge-scale-r4.md`); rev 5 corrected its one test contract and was approved
+100/100 (`judge-scale-r5.md`). Rev 6 changes one approved behaviour after the first live run; see
+"Rev 6 change" at the end.
 
 ## Why
 
@@ -217,13 +219,15 @@ A Python loop over Gemini `generateContent` with function calling.
      `max_output_tokens` "sets the maximum number of tokens a response can generate, including
      thought tokens" and "acts as a hard cutoff enforced by the infrastructure". A reply cut off
      there is `incomplete`.
-  3. **Reservation formula:** `totalTokens × in_rate + 2048 × out_rate`, taken under the lock. If
-     it would pass the cap, the request is not sent.
+  3. **Reservation formula (rev 6):** `reserved_in = ceil(totalTokens × 1.25) + 256`, and cost =
+     `reserved_in × in_rate + 2048 × out_rate`, taken under the lock. If it would pass the cap, the
+     request is not sent.
   4. **Settling.** Reported `usageMetadata` settles the spend down. **Missing usage, a timeout or
      a 5xx keeps the full reservation.**
-  5. **Overrun tripwire.** If the reported `promptTokenCount` is ever above the counted
-     `totalTokens`, the run stops `incomplete: overrun`, keeping the larger figure. This is a
-     tripwire on the provider's count, not the bound itself.
+  5. **Overrun tripwire (rev 6).** If the reported `promptTokenCount` is ever above `reserved_in`,
+     the run stops `incomplete: overrun`, keeping the larger figure. A reported figure above
+     `totalTokens` but within `reserved_in` settles normally, and is recorded in the ledger as
+     `count_gap` (reported minus counted) so the margin stays measured.
   6. **Retries** (429/503 only, at most 2) count and reserve again.
 - **Caps:**
   - Run cap: **US$0.10**.
@@ -333,7 +337,10 @@ A Python loop over Gemini `generateContent` with function calling.
   - A 429 on count is retried within the cap, and exhausted retries → `incomplete`.
   - A reservation over the cap → no request.
   - Missing `usageMetadata` keeps the full reservation.
-  - Reported prompt tokens above counted → `incomplete: overrun`.
+  - Reported prompt tokens above counted but within `reserved_in` → settles, run continues,
+    `count_gap` recorded.
+  - Reported prompt tokens above `reserved_in` → `incomplete: overrun`, keeping the larger figure.
+  - A cap that covers `totalTokens` but not `reserved_in` → no request.
   - A scripted fake Gemini calling `ask_jev_files` → `jev_calls=1`, `files_read=0`.
   - A fake Gemini claiming extra Jev calls in its prose → the ledger still counts the sends.
   - `read_file` on an unapproved path → refusal with no bytes.
@@ -358,6 +365,7 @@ A Python loop over Gemini `generateContent` with function calling.
   - reserving before the count
   - usage retention dropped
   - overrun ignored
+  - margin dropped (reserving only `totalTokens`)
   - price expiry ignored
   - the pick key check removed
   - `unavailable` converted to `none`
@@ -462,3 +470,29 @@ The compatibility test now asserts that the state keys match the tool's document
 each template's declared fields are a subset of them. It covers a content-only template sent with
 a prompt id, and a mixed batch. The zero-request refusal tests for incompatible selections are
 kept.
+
+## Rev 6 change (after the first live run, 29/09 15:38 AEST)
+
+**Observed.** In both multi-turn runs, turn 2's reported `promptTokenCount` was above the
+`countTokens` total for the identical body:
+- 2,289 against 2,071, a ratio of 1.105
+- 2,000 against 1,891, a ratio of 1.058
+
+Turn 1 was within the count. So the rev 5 tripwire stopped every multi-turn run: the scout could
+never reach turn 3. The ledgers are in `docs/plans/jev-platform/level9-live-attempt1.json`.
+
+**Why it matters for the bound.** Under rev 5, `countTokens` was trusted as the input bound. It is
+not an upper bound for multi-turn requests.
+
+**Change.**
+- Reserve `ceil(totalTokens × 1.25) + 256` input tokens before each attempt.
+- Trip only when the reported prompt exceeds that reservation.
+
+**What stays the same.**
+- The cap is still enforced before sending, from the reservation.
+- An exceedance still stops the run and keeps the larger figure.
+- The gap is recorded on every call, so the margin is evidence-driven, not assumed.
+
+**Honest limit.** The 1.25 factor rests on two observations, 1.058 and 1.105. If a longer run
+exceeds it, the tripwire stops the run. It does not overspend beyond one call's excess, and the
+ledger shows the new gap.
