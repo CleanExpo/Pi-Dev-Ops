@@ -1,0 +1,84 @@
+name: Sync skills library
+
+# Copies CleanExpo/skills-library's own skills (home=library in its skills/HOMES.json) into
+# skills-library/ at one pinned commit, via scripts/sync_skills_library.py, and opens a PR
+# when anything changed. Each sync is reviewed and merged like any other change; nothing here
+# writes to main. The branch is named after the library SHA, so it is never force-pushed.
+#
+# A PR opened with GITHUB_TOKEN does not start other workflows. Push an empty commit to the
+# sync branch (or re-run CI) before reviewing it, so the normal checks run.
+
+on:
+  schedule:
+    - cron: "17 21 * * 0"   # Sundays 21:17 UTC (Monday morning in Brisbane)
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "skills-library ref to sync (branch, tag or SHA)"
+        default: "main"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-skills-library
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'CleanExpo/Pi-Dev-Ops'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - uses: actions/checkout@v4
+        with:
+          repository: CleanExpo/skills-library
+          ref: ${{ inputs.ref || 'main' }}
+          token: ${{ secrets.SKILLS_LIBRARY_READ_TOKEN }}
+          path: _skills-library
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Copy the library's skills at its exact commit
+        id: sync
+        run: |
+          sha="$(git -C _skills-library rev-parse HEAD)"
+          python scripts/sync_skills_library.py sync _skills-library "$sha"
+          rm -rf _skills-library
+          python scripts/sync_skills_library.py check
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Open a PR if anything changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.sync.outputs.sha }}
+        run: |
+          if git diff --quiet -- skills-library skills-library.lock \
+             && [ -z "$(git ls-files --others --exclude-standard -- skills-library)" ]; then
+            echo "skills-library/ already matches $SHA."
+            exit 0
+          fi
+          branch="tao/skills-library-sync-${SHA:0:12}"
+          if gh api "repos/${GITHUB_REPOSITORY}/branches/${branch}" > /dev/null 2>&1; then
+            echo "$branch already exists; nothing to do."
+            exit 0
+          fi
+          git config user.name "tao-skills-library-sync"
+          git config user.email "noreply@unite-group.dev"
+          git switch -c "$branch"
+          git add -- skills-library skills-library.lock
+          git commit -m "chore(skills): sync skills-library at ${SHA:0:12}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
+          gh pr create --draft --base main --head "$branch" \
+            --title "chore(skills): sync skills-library at ${SHA:0:12}" \
+            --body "Automated copy of CleanExpo/skills-library home=library skills at \`$SHA\` (scripts/sync_skills_library.py). Review like any other change." \
+            || echo "::warning::GitHub token cannot open the PR. Branch pushed: https://github.com/${GITHUB_REPOSITORY}/tree/${branch}"

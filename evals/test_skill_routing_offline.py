@@ -1,9 +1,12 @@
 """Skill routing regression floor, free and keyless: runs on every PR in Prove-It Evals.
 
-Covers the corpus cases whose skill lives in this repo (the library's skills are not checked
-out in keyless CI). The live Jev score comes from .github/workflows/skill-routing-eval.yml.
-Floors sit just under the 29/09/2026 measurement (held-out top-1 0.305, recall@254 0.980),
-so a scoring change that makes the free shortlist worse fails here.
+Covers every held-out case, both homes: the library's own skills are in skills-library/
+(scripts/sync_skills_library.py), so the catalogue here is the one production routes over
+(352 skills). The live Jev score comes from .github/workflows/skill-routing-eval.yml.
+Floors sit just under the 29/09/2026 measurement on that catalogue (744 held-out cases:
+top-1 0.273, recall@254 0.968), so a scoring change that makes the free shortlist worse
+fails here. Before the library was synced, only this repo's 175 skills were scored (0.305 /
+0.980 over 440 cases); more lookalike skills make the same cases harder, not the scorer worse.
 """
 import collections
 import json
@@ -32,21 +35,22 @@ def test_corpus_is_well_formed():
     assert len(per_skill) >= 300 and min(per_skill.values()) >= 6
 
 
-def test_every_repo_skill_label_exists(catalogue):
+def test_every_skill_label_exists(catalogue):
     names = {c.name for c in catalogue}
-    missing = {r["expected"] for r in ROWS if r.get("home") == "pi-dev-ops"} - names
-    assert missing == set(), f"corpus labels skills this repo no longer has: {sorted(missing)}"
+    missing = {r["expected"] for r in ROWS if r["expected"]} - names
+    assert missing == set(), f"corpus labels skills Mission Control cannot load: {sorted(missing)}"
 
 
 def test_free_shortlist_holds_the_right_skill(catalogue):
-    held = [r for r in ROWS if r["split"] == "heldout" and r.get("home") == "pi-dev-ops"]
+    held = [r for r in ROWS if r["split"] == "heldout" and r["expected"]]
+    assert len(held) >= 700, "the held-out set shrank; re-measure before trusting the floors"
     top1 = recall = 0
     for r in held:
         names = [n for n, _ in sr.shortlist(r["text"], catalogue, sr.MAX_OPTIONS)]
         top1 += bool(names) and names[0] == r["expected"]
         recall += r["expected"] in names
-    assert top1 / len(held) >= 0.28, f"lexical top-1 fell to {top1 / len(held):.3f}"
-    assert recall / len(held) >= 0.96, f"shortlist recall@{sr.MAX_OPTIONS} fell to {recall / len(held):.3f}"
+    assert top1 / len(held) >= 0.26, f"lexical top-1 fell to {top1 / len(held):.3f}"
+    assert recall / len(held) >= 0.95, f"shortlist recall@{sr.MAX_OPTIONS} fell to {recall / len(held):.3f}"
 
 
 @pytest.mark.parametrize("cap", ["nan", "inf", "-inf", "-1", "lots"])

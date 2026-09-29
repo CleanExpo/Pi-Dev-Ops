@@ -50,6 +50,8 @@ COPY swarm/ ./swarm/
 # Committed config / skills
 COPY config/harness/ ./config/harness/
 COPY skills/ ./skills/
+# The skills library's own skills (SKILL.md only), synced by scripts/sync_skills_library.py
+COPY skills-library/ ./skills-library/
 
 # Board governance corpus
 COPY docs/governance/board-meetings/ ./docs/governance/board-meetings/
