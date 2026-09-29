@@ -109,7 +109,7 @@ export default function TerminalPanel() {
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-neutral-200">Terminal fleet — specialist</h2>
         <span
-          className={`text-xs ${fresh ? "text-emerald-400" : "text-neutral-500"}`}
+          className={`text-xs ${fresh ? "text-emerald-400" : "text-neutral-400"}`}
           title="live pane freshness"
         >
           {fresh ? "● live" : "○ idle"}
@@ -117,7 +117,7 @@ export default function TerminalPanel() {
       </div>
 
       {sessions.length === 0 ? (
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-neutral-400">
           {err ? `No sessions — ${err}` : "No tmux sessions on this node."}
         </p>
       ) : (

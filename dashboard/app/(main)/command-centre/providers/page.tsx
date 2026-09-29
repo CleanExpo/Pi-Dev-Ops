@@ -30,6 +30,18 @@ export default function ProvidersPage() {
         minHeight: "100vh",
         background: "#fffdf7",
         color: "#14241b",
+        // This page is light and sits outside the command-deck scope that defines
+        // the --cc-* inks, so SourceBadge and the cockpit fell back to pale dark-theme
+        // colours (#cfe0ec: 1.32:1 on this ground, RA-7843). Set them for this ground.
+        ["--cc-ink" as string]: "#14241b",
+        ["--cc-ink-dim" as string]: "#5a6b62",
+        ["--cc-ink-hush" as string]: "#6b7280",
+        ["--cc-signal-text" as string]: "#15803d",
+        // Usage bars: --cc-signal is the warning fill (unset here, so near-limit and
+        // blocked bars were transparent) and --cc-track a pale track every fill clears
+        // at >= 3:1 (ink 13.1, dim 4.6, signal 4.1, hush 3.9). Bugbot, #836.
+        ["--cc-signal" as string]: "#15803d",
+        ["--cc-track" as string]: "#e5e7eb",
         padding: "1.25rem 1.5rem",
         gap: "1rem",
         fontFamily:
@@ -41,7 +53,7 @@ export default function ProvidersPage() {
           href="/command-centre"
           style={{
             fontSize: 11,
-            color: "rgba(21,128,61,0.7)",
+            color: "#15803d", // 4.93:1 on #fffdf7 (70% alpha was 2.88:1, RA-7843)
             textDecoration: "none",
           }}
         >

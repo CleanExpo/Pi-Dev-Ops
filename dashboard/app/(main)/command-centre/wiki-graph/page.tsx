@@ -90,7 +90,7 @@ export default async function WikiGraphPage() {
     >
       <header style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Link href="/command-centre" style={{ fontSize: 11, color: 'rgba(21,128,61,0.7)', textDecoration: 'none' }}>
+          <Link href="/command-centre" style={{ fontSize: 11, color: '#15803d' /* 4.93:1; 70% alpha was 2.88:1 (RA-7843) */, textDecoration: 'none' }}>
             &larr; Command Deck
           </Link>
           <h1 style={{ fontSize: '1.4rem', fontWeight: 600, letterSpacing: '-0.01em', color: '#15803d', margin: 0 }}>
