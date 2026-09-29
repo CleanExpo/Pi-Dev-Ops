@@ -234,17 +234,16 @@ def _scanner_rules():
 
 def _secret_problems(dest: Path) -> list[str]:
     """The scanner's own rules over every copied file, Markdown included: the scanner skips .md
-    for convenience, and skills are mostly Markdown (review round 3)."""
+    for convenience, and skills are mostly Markdown (review round 3). Only a matched value that
+    is itself a placeholder is waived; a label elsewhere on the line is not (review round 7)."""
     rules, problems = _scanner_rules(), []
     for path in sorted(p for p in dest.rglob("*") if p.is_file() and not p.is_symlink()):
         text = path.read_text("utf-8", errors="replace")
-        lines = text.split("\n")
         for pattern, title, _ in rules._COMPILED:
             for match in pattern.finditer(text):
                 number = text.count("\n", 0, match.start()) + 1
                 if ((title.startswith("JWT (") and rules._is_public_anon_jwt(match.group(0)))
-                        or rules._PLACEHOLDER_RE.search(match.group(0))
-                        or rules._PLACEHOLDER_RE.search(lines[number - 1])):
+                        or rules._PLACEHOLDER_RE.search(match.group(0))):
                     continue
                 problems.append(f"secret-shaped value in the copy: {path.relative_to(dest)}:{number} ({title})")
     return problems

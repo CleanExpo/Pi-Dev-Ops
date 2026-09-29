@@ -139,8 +139,11 @@ def test_check_scans_copied_markdown_with_the_repo_scanners_rules(layout):
     notes.write_text("Example: AWS_KEY=" + key + "\n")
     assert any(p.startswith("secret-shaped value in the copy: alpha/references/contract.md:1")
                for p in _check(layout))
+    # Review round 7 P1-MARKDOWN-PLACEHOLDER-LINE-BYPASS: a label on the line waives nothing.
     notes.write_text("Example (placeholder, not a real key): AWS_KEY=" + key + "\n")
-    assert not any(p.startswith("secret-shaped") for p in _check(layout)), "the scanner's own placeholder rule"
+    assert any(p.startswith("secret-shaped") for p in _check(layout)), "a label hid a real-shaped key"
+    notes.write_text("Example: AWS_KEY=" + "AKIA" + "IOSFODNN7EXAMPLE" + "\n")
+    assert not any(p.startswith("secret-shaped") for p in _check(layout)), "the value itself is a placeholder"
 
 
 def test_a_stale_staging_symlink_cannot_redirect_the_copy(layout, tmp_path):
