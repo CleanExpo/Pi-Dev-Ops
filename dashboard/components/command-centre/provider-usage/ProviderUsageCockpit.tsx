@@ -76,7 +76,7 @@ function ProviderMeter({ provider }: { provider: ProviderCockpitEntry }) {
       {/* usage meter */}
       <div
         {...usageBarA11y(`${provider.label} usage`, provider.usagePct)}
-        style={{ height: 6, borderRadius: 2, background: 'var(--cc-track, var(--cc-ink-hush))', overflow: 'hidden' }}
+        style={{ height: 6, borderRadius: 2, background: 'var(--cc-track, var(--cc-ink-hush))', boxShadow: 'inset 0 0 0 1px var(--cc-track-edge, transparent)', overflow: 'hidden' }}
       >
         <div style={{ width: `${pct}%`, height: '100%', background: color }} />
       </div>
@@ -116,7 +116,7 @@ function PlanSeatBar({ seat }: { seat: PlanSeat }) {
       </div>
       <div
         {...usageBarA11y(`${seat.label} plan usage`, seat.usagePct)}
-        style={{ height: 4, borderRadius: 2, background: 'var(--cc-track, var(--cc-ink-hush))', overflow: 'hidden' }}
+        style={{ height: 4, borderRadius: 2, background: 'var(--cc-track, var(--cc-ink-hush))', boxShadow: 'inset 0 0 0 1px var(--cc-track-edge, transparent)', overflow: 'hidden' }}
       >
         <div style={{ width: `${pct}%`, height: '100%', background: stateColor(seat.state) }} />
       </div>

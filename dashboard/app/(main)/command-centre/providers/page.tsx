@@ -39,9 +39,11 @@ export default function ProvidersPage() {
         ["--cc-signal-text" as string]: "#15803d",
         // Usage bars: --cc-signal is the warning fill (unset here, so near-limit and
         // blocked bars were transparent) and --cc-track a pale track every fill clears
-        // at >= 3:1 (ink 13.1, dim 4.6, signal 4.1, hush 3.9). Bugbot, #836.
+        // at >= 3:1 (ink 13.1, dim 4.6, signal 4.1, hush 3.9). The pale track is 1.2:1 on
+        // this ground, so --cc-track-edge outlines it at 4.8:1 (WCAG 1.4.11). Bugbot, #836.
         ["--cc-signal" as string]: "#15803d",
         ["--cc-track" as string]: "#e5e7eb",
+        ["--cc-track-edge" as string]: "#6b7280",
         padding: "1.25rem 1.5rem",
         gap: "1rem",
         fontFamily:
