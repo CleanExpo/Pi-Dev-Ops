@@ -35,6 +35,11 @@ from scripts.mission_control_stability import judge_stable, load_history  # noqa
 # Surfaces with write actions (work-packages.md WP-07). Checks 3 and 12 apply
 # only to these; for every other surface they are N/A.
 WRITE_SURFACES = {"MC-01", "MC-02", "MC-03", "MC-05", "MC-07", "MC-10", "MC-11"}
+# Surfaces that have write journeys (dashboard/e2e-writes/). Their -W receipt is
+# part of the night's suite: a journey run that died before writing it (a failed
+# build, a dead server, the step skipped) must not count as a passing night.
+# Add a surface here in the same change that adds its journeys.
+WRITE_JOURNEY_SURFACES = {"MC-03"}
 SURFACES = [f"MC-{n:02d}" for n in range(20)]
 
 LEVELS: dict[int, list[str]] = {1: ["1", "2", "3", "4"], 2: ["5", "6", "7", "8", "9"], 3: ["10", "11", "12", "13"]}
@@ -99,10 +104,13 @@ def suite_passed(surface: str, got: dict[str, dict]) -> bool:
     Every live receipt the surface should have must exist (a test that died
     before writing one is a failure), and every check in them is PASS or N/A.
     The panel-coverage (-C7) and register (-C11) receipts are not part of the live
-    suite; a write-journey (-W) receipt counts when the surface has one.
+    suite. A write-journey (-W) receipt is required for surfaces in
+    WRITE_JOURNEY_SURFACES and counts whenever a surface has one.
     """
     kinds = ("desktop",) if surface == "MC-00" else ("desktop", "phone", "l2")
     if any(not got.get(k) for k in kinds):
+        return False
+    if surface in WRITE_JOURNEY_SURFACES and not got.get("w"):
         return False
     kinds += ("w",) if got.get("w") else ()  # a write journey that failed breaks the night too
     return all(c.get("result") in ("PASS", "N/A") for k in kinds for c in got[k].get("checks", []))

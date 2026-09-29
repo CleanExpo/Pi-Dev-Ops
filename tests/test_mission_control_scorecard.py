@@ -183,6 +183,20 @@ def test_a_failed_write_journey_breaks_the_nights_suite(tmp_path: Path) -> None:
     _receipt(tmp_path, "MC-03_control_swarm", ok)
     _receipt(tmp_path, "MC-03_control_swarm@phone", ok)
     _receipt(tmp_path, "MC-03_control_swarm-L2", ok)
+    _w(tmp_path, "MC-03", {"12-cancel-sends-nothing": "PASS"})
     assert sc.suite_passed("MC-03", sc.receipts_for("MC-03", sc.load_receipts(tmp_path))) is True
     _w(tmp_path, "MC-03", {"12-cancel-sends-nothing": "FAIL"})
     assert sc.suite_passed("MC-03", sc.receipts_for("MC-03", sc.load_receipts(tmp_path))) is False
+
+
+def test_a_night_with_no_write_receipt_does_not_pass_for_a_surface_that_has_journeys(tmp_path: Path) -> None:
+    # The journey step can die before it writes anything (failed build, dead
+    # server, step skipped). Every other receipt passing must not hide that.
+    ok = {"1-x": "PASS"}
+    for stem in ("_control_swarm", "_control_swarm@phone", "_control_swarm-L2"):
+        _receipt(tmp_path, f"MC-03{stem}", ok)
+        _receipt(tmp_path, f"MC-04{stem}", ok)
+    receipts = sc.load_receipts(tmp_path)
+    assert sc.suite_passed("MC-03", sc.receipts_for("MC-03", receipts)) is False
+    # A surface with no write journeys is not held to one.
+    assert sc.suite_passed("MC-04", sc.receipts_for("MC-04", receipts)) is True
