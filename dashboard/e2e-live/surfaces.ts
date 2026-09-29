@@ -10,6 +10,10 @@ export interface LiveSurface {
   id: string;
   path: string;
   landmark: { kind: "heading"; text: string } | { kind: "testid"; id: string };
+  // WP-09 check 5: this page's own data is rendered on the server, so cutting
+  // browser calls only cuts the shell's. Only these pages may score N/A there;
+  // any other page that goes silent fails. Set from the 29 Sept local run.
+  serverRendered?: true;
 }
 
 const CONTROL_IDS: Record<string, string> = {
@@ -30,14 +34,18 @@ const heading = (text: string): LiveSurface["landmark"] => ({ kind: "heading", t
 
 export const LIVE_SURFACES: readonly LiveSurface[] = [
   // MC-00 (the shell) is proved by control-hub.spec.ts: all nav labels visible.
-  { id: "MC-01", path: "/control", landmark: heading("Command deck") },
+  // #828 replaced the "Command deck" hero with PortfolioFocus; its h2 renders in
+  // loading, error and loaded states alike (components/control/PortfolioFocus.tsx).
+  { id: "MC-01", path: "/control", landmark: heading("Choose a project. See the work.") },
   ...CONTROL_SECTIONS.map((item) => ({
     id: CONTROL_IDS[item.slug],
     path: item.href,
     landmark: heading(item.title),
+    // MC-07 (build) fetches nothing of its own; its calls are the TopBar's.
+    ...(item.slug === "build" ? { serverRendered: true as const } : {}),
   })),
-  { id: "MC-13", path: "/command-centre", landmark: heading("Command Centre") },
-  { id: "MC-14", path: "/command-centre/hermes", landmark: heading("Hermes Control Panel") },
+  { id: "MC-13", path: "/command-centre", landmark: heading("Command Centre"), serverRendered: true },
+  { id: "MC-14", path: "/command-centre/hermes", landmark: heading("Hermes Control Panel"), serverRendered: true },
   { id: "MC-15", path: "/command-centre/knowledge", landmark: heading("Wiki Knowledge Base") },
   { id: "MC-16", path: "/command-centre/providers", landmark: heading("Providers") },
   { id: "MC-17", path: "/command-centre/wall", landmark: { kind: "testid", id: "wall-banner" } },
@@ -46,5 +54,6 @@ export const LIVE_SURFACES: readonly LiveSurface[] = [
     id: "MC-19",
     path: "/command-centre/youtube-intent",
     landmark: heading("UG-N Intent-Only YouTube Catalog"),
+    serverRendered: true,
   },
 ];

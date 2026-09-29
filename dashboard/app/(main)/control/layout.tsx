@@ -17,7 +17,8 @@ export default function ControlLayout({ children }: { children: ReactNode }) {
         <ActiveBuildStrip />
       </div>
       <ControlSubnav />
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+      {/* data-mc-page: page content without TopBar / ActiveBuildStrip (e2e-live check 5). */}
+      <div data-mc-page="" className="flex-1 min-h-0 overflow-hidden flex flex-col">
         {children}
       </div>
     </div>

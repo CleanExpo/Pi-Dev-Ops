@@ -56,6 +56,7 @@ DASHBOARD = "dashboard/"
 EXEMPT_SUBSTRINGS = (
     "dashboard/app/api/pi-ceo/",
     "dashboard/e2e/",  # Browser test route interception is not a client rendering proxy data.
+    "dashboard/e2e-live/",  # Live suite: names proxy paths to cut/replay (WP-09); renders nothing.
     "dashboard/lib/pi-ceo-proxy-allowlist",
     "dashboard/lib/pi-ceo-fetch",
     "__tests__/",
