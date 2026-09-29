@@ -4,13 +4,14 @@
 import { useEffect, useState } from "react";
 
 import type { FleetMachine, FleetView } from "@/lib/control/mesh-fleet";
+import { brisbaneDateTime } from "@/lib/brisbane-time";
 
 const POLL_MS = 20_000;
 
 function fmtStamp(value: string | null | undefined): string {
   if (!value) return "never";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? value : brisbaneDateTime(date);
 }
 
 async function loadFleet(): Promise<FleetView> {

@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import ProgressRing from "./ProgressRing";
 import KillSwitchPanel from "./KillSwitchPanel";
+import { brisbaneDateTime } from "@/lib/brisbane-time";
 
 interface SwarmStatus {
   state: "SHADOW" | "ACTIVE" | "RATE_LIMITED" | "OFF" | "UNKNOWN";
@@ -27,12 +28,7 @@ const STATE_COLOUR: Record<SwarmStatus["state"], string> = {
 function fmtTs(ts: string | null): string {
   if (!ts) return "Not observed";
   try {
-    return new Date(ts).toLocaleString(undefined, {
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return brisbaneDateTime(ts);
   } catch {
     return ts;
   }

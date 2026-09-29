@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { brisbaneTime } from "@/lib/brisbane-time";
 
 type ObsidianHealth = {
   ok: boolean;
@@ -103,7 +104,7 @@ export default function LiveObsidianStatus() {
       </div>
       {checkedAt && Number.isFinite(checkedAt.getTime()) && !err && !loading && (
         <p className="text-[10px]" style={{ color: "var(--text-dim)" }}>
-          checked {checkedAt.toLocaleTimeString()}
+          checked {brisbaneTime(checkedAt, true)}
         </p>
       )}
     </section>

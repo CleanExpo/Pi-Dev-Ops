@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { fetchProxy } from "@/lib/pi-ceo-fetch";
 import { PhaseBar, ScoreBadge, type PhaseMetric } from "@/components/control/BuildPhaseMetrics";
 import BuildsEmpty from "@/components/control/BuildsEmpty";
+import { brisbaneTime } from "@/lib/brisbane-time";
 
 interface PiSession {
   id: string;
@@ -362,7 +363,7 @@ export default function BuildsPage() {
         <div className="flex items-center gap-3">
           {lastFetch > 0 && (
             <span className="font-mono text-[10px] hidden sm:inline" style={{ color: "var(--text-dim)" }}>
-             {new Date(lastFetch).toLocaleTimeString()}
+             {brisbaneTime(lastFetch, true)}
             </span>
           )}
           <button
