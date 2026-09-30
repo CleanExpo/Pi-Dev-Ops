@@ -30,6 +30,32 @@ if [ -n "${PI_CEO_API_KEY:-}" ]; then
   say "Mesh authority persisted to ~/.hermes/.env (600)"
 fi
 
+# 1c. Trust this runtime folder in Claude Code. Untrusted, `claude -p` ignores every
+# permissions.allow entry ("Ignoring 37 permissions.allow entries … has not been
+# trusted"), the preflight agent hangs to its timeout, and the node holds forever
+# claiming nothing — the Mini, 30/09. Worktrees resolve to this repo, so one key covers
+# every run. Only this key is written; the file is replaced atomically.
+say "Trusting $REPO_DIR for the mesh agent"
+REPO_DIR="$REPO_DIR" python3 - <<'PYT' || warn "could not mark $REPO_DIR trusted; preflight will hold with the reason"
+import json, os, tempfile
+path = os.path.expanduser("~/.claude.json")
+repo = os.path.realpath(os.environ["REPO_DIR"])
+config = {}
+if os.path.exists(path):
+    with open(path, encoding="utf-8") as fh:
+        config = json.load(fh)  # unreadable JSON: stop here rather than overwrite it
+project = config.setdefault("projects", {}).setdefault(repo, {})
+if project.get("hasTrustDialogAccepted") is not True:
+    project["hasTrustDialogAccepted"] = True
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".claude.json.")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump(config, fh, indent=2)
+    if os.path.exists(path):
+        os.chmod(tmp, os.stat(path).st_mode & 0o777)
+    os.replace(tmp, path)
+    print(f"  trusted {repo}")
+PYT
+
 # 2. autogit — work bus
 if ! command -v autogit >/dev/null; then
   say "Installing autogit"
@@ -175,8 +201,8 @@ PL
 </dict></plist>
 PL
     # The runner reads PI_CEO_API_KEY from ~/.hermes/.env at runtime. It is not
-    # embedded in this plist. Successful exit (hard stop or claim cap) stays
-    # stopped; crashes restart after the throttle interval.
+    # embedded in this plist. Successful exit (hard stop, stuck update) stays
+    # stopped; crashes and the claim cap (exit 4) restart after the throttle interval.
     launchctl unload "$RUNNER_PLIST" 2>/dev/null || true
     RUN_SVC=0
     if launchctl load "$RUNNER_PLIST"; then

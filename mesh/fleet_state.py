@@ -74,7 +74,19 @@ def active_agent_count(api: Api, host: str) -> "int | None":
     return sum(1 for a in _rows(fleet, "agents") if a.get("machine") == host)
 
 
-def next_work(api: Api, host: str) -> list[dict]:
+# A 4xx the server chose to send is a refusal; 404 is Railway's "Application not found"
+# edge page during an outage, and 408/429 are the server too busy to answer.
+_NOT_A_REFUSAL = ("HTTP 404", "HTTP 408", "HTTP 429")
+
+
+def _failure(response: dict) -> str:
+    """Rejected when the server refused the call, unavailable when it was not reached."""
+    error = str(response.get("error") or "")
+    refused = error.startswith("HTTP 4") and not error.startswith(_NOT_A_REFUSAL)
+    return "rejected" if refused else "unavailable"
+
+
+def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outcome: None) -> list[dict]:
     """Use assigned work first, otherwise atomically self-claim a mesh:auto ticket.
 
     KNOWN GAP — only the self-claim path carries the ticket's brief. `/claim/self`
@@ -86,12 +98,21 @@ def next_work(api: Api, host: str) -> list[dict]:
     GET /api/mesh/claims server-side from Linear, which is its own change — the
     endpoint would start returning ticket text to any node holding the mesh secret.
     Do not enable dispatch expecting work to happen until that lands.
+
+    `report` hears one outcome per poll — unavailable, rejected, empty or assigned —
+    because all four used to return [] alike, so an outage read as an empty queue.
     """
     claims = my_claims(api, host)
     if claims is None:
+        report("unavailable")
         return []          # fleet unreadable: hold, never self-claim on a guess
     if claims:
+        report("assigned")
         return claims
     response = api("POST", "/api/mesh/claim/self", {"host": host})
+    if not isinstance(response, dict) or response.get("error"):
+        report(_failure(response) if isinstance(response, dict) else "unavailable")
+        return []
     claimed = response.get("claimed")
+    report("assigned" if claimed else "empty")
     return [claimed] if claimed else []
