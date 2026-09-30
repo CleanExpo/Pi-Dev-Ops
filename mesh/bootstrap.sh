@@ -37,31 +37,53 @@ fi
 # so every worktree a run makes of this repo is covered by that one key; when this
 # checkout is itself a linked worktree, that root is the main clone, so both are
 # trusted. Only these keys are written, the file is replaced atomically, and a config
-# that does not parse is left alone and fails the enlistment below.
+# that does not parse is left alone and fails the enlistment below. The write holds
+# Claude Code's own config lock (the `~/.claude.json.lock` directory its
+# proper-lockfile creates, stale after 10 s), so a running Claude cannot save between
+# our read and our replace and lose its update, nor we lose ours.
 TRUST_OK=0
 say "Trusting $REPO_DIR for the mesh agent"
 if REPO_DIR="$REPO_DIR" python3 - <<'PYT'
-import json, os, subprocess, tempfile
+import json, os, subprocess, tempfile, time
 path = os.path.expanduser("~/.claude.json")
+lock = path + ".lock"
 repo = os.path.realpath(os.environ["REPO_DIR"])
 common = subprocess.run(["git", "-C", repo, "rev-parse", "--path-format=absolute", "--git-common-dir"],
                         capture_output=True, text=True, check=True).stdout.strip()
 keys = sorted({repo, os.path.realpath(os.path.dirname(common))})
-config = {}
-if os.path.exists(path):
-    with open(path, encoding="utf-8") as fh:
-        config = json.load(fh)  # unreadable JSON: stop here rather than overwrite it
-projects = config.setdefault("projects", {})
-todo = [k for k in keys if projects.setdefault(k, {}).get("hasTrustDialogAccepted") is not True]
-for key in todo:
-    projects[key]["hasTrustDialogAccepted"] = True
-if todo:
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".claude.json.")
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        json.dump(config, fh, indent=2)
+deadline = time.time() + float(os.environ.get("MESH_TRUST_LOCK_TIMEOUT", "30"))
+while True:
+    try:
+        os.mkdir(lock)
+        break
+    except FileExistsError:
+        try:
+            if time.time() - os.stat(lock).st_mtime > 10:  # proper-lockfile's stale rule
+                os.rmdir(lock)
+                continue
+        except FileNotFoundError:
+            continue
+        if time.time() > deadline:
+            raise SystemExit(f"{lock} is held; is Claude Code saving? try again")
+        time.sleep(0.2)
+try:
+    config = {}
     if os.path.exists(path):
-        os.chmod(tmp, os.stat(path).st_mode & 0o777)
-    os.replace(tmp, path)
+        with open(path, encoding="utf-8") as fh:
+            config = json.load(fh)  # unreadable JSON: stop here rather than overwrite it
+    projects = config.setdefault("projects", {})
+    todo = [k for k in keys if projects.setdefault(k, {}).get("hasTrustDialogAccepted") is not True]
+    for key in todo:
+        projects[key]["hasTrustDialogAccepted"] = True
+    if todo:
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".claude.json.")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(config, fh, indent=2)
+        if os.path.exists(path):
+            os.chmod(tmp, os.stat(path).st_mode & 0o777)
+        os.replace(tmp, path)
+finally:
+    os.rmdir(lock)
 print("  trusted " + ", ".join(keys))
 PYT
 then

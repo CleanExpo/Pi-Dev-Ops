@@ -13,6 +13,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -22,7 +23,7 @@ sys.path.insert(0, str(REPO_ROOT / "tests"))
 sys.path.insert(0, str(REPO_ROOT / "mesh"))
 
 from mesh_helpers import Break, load_module  # noqa: E402
-from test_mesh_bootstrap_reporting import _run_bootstrap  # noqa: E402
+from test_mesh_bootstrap_reporting import _run_bootstrap, _stub_bins  # noqa: E402
 
 UNTRUSTED = ("Ignoring 37 permissions.allow entries from .claude/settings.json: "
              "this workspace has not been trusted.")
@@ -63,6 +64,39 @@ def test_bootstrap_trusts_the_runtime_folder_and_keeps_every_other_setting(tmp_p
         assert config["projects"][key]["hasTrustDialogAccepted"] is True, key
     assert config["userID"] == "keep-me"
     assert config["projects"]["/elsewhere"] == {"allowedTools": ["x"]}
+    assert not (home / ".claude.json.lock").exists(), "the config lock is released"
+
+
+def _bootstrap_with_lock(tmp_path, lock_age: float) -> tuple[subprocess.CompletedProcess, Path]:
+    """Bootstrap while Claude Code's config lock directory exists, `lock_age` seconds old."""
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".claude.json").write_text(json.dumps({"userID": "keep-me"}))
+    lock = home / ".claude.json.lock"
+    lock.mkdir()
+    old = time.time() - lock_age
+    os.utime(lock, (old, old))
+    env = {"PATH": f"{_stub_bins(tmp_path, uname_s='Darwin', heartbeat_ok=True)}:/usr/local/bin:/usr/bin:/bin",
+           "HOME": str(home), "PI_CEO_API_KEY": "test-key-not-a-real-credential",
+           "MESH_TRUST_LOCK_TIMEOUT": "1"}
+    result = subprocess.run(["bash", str(REPO_ROOT / "mesh" / "bootstrap.sh")], env=env, cwd=str(REPO_ROOT),
+                            capture_output=True, text=True, timeout=120)
+    return result, home
+
+
+def test_bootstrap_waits_on_claude_codes_own_config_lock_and_never_writes_under_it(tmp_path):
+    result, home = _bootstrap_with_lock(tmp_path, lock_age=0)
+    assert result.returncode != 0
+    assert "not trusted by Claude Code" in result.stdout + result.stderr
+    assert json.loads((home / ".claude.json").read_text()) == {"userID": "keep-me"}
+    assert (home / ".claude.json.lock").is_dir(), "another writer's lock is never removed while live"
+
+
+def test_a_stale_config_lock_is_taken_over_and_released(tmp_path):
+    result, home = _bootstrap_with_lock(tmp_path, lock_age=60)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert os.path.realpath(REPO_ROOT) in json.loads((home / ".claude.json").read_text())["projects"]
+    assert not (home / ".claude.json.lock").exists()
 
 
 def test_a_config_bootstrap_cannot_parse_is_left_alone_and_the_node_is_not_enlisted(tmp_path):
