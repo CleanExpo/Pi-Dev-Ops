@@ -170,6 +170,8 @@ EMPTY_FLEET = {"claims": [], "agents": [], "degraded": False}
     ({"error": "HTTP 401", "detail": "bad secret"}, {}, "rejected"),
     ({**EMPTY_FLEET, "degraded": True}, {}, "unavailable"),
     ({}, {"claimed": None}, "unavailable"),
+    (EMPTY_FLEET, {}, "unavailable"),
+    (EMPTY_FLEET, {"claimed": {"title": "no ticket id"}}, "unavailable"),
     ({**EMPTY_FLEET, "claims": [{"machine": HOST, "state": "claimed", "linear_id": "RA-1"}]}, {}, "assigned"),
     (EMPTY_FLEET, {"error": "HTTP 404", "detail": "Application not found"}, "unavailable"),
     (EMPTY_FLEET, {"error": "<urlopen error timed out>"}, "unavailable"),
@@ -208,6 +210,8 @@ def test_a_fleet_read_that_answered_is_contact_even_when_the_self_claim_then_fai
     fs.next_work(_api({"error": "HTTP 502"}, {}), HOST, seen.append, lambda: contacts.append(1))
     fs.next_work(_api({}, {"claimed": None}), HOST, seen.append, lambda: contacts.append(1))
     assert contacts == [1], "a failed or empty-bodied fleet read is not contact"
+    fs.next_work(_api(EMPTY_FLEET, {}), HOST, seen.append, lambda: contacts.append(1))
+    assert contacts == [1, 1], "only the fleet read answered; an empty claim body is not contact"
 
 
 @pytest.mark.parametrize("linear, outcome", [({}, "unavailable"), ({"issues": {"nodes": None}}, "unavailable"),
