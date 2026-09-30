@@ -1,0 +1,164 @@
+"""red_signals.py — give every red signal a delivery path and an owner.
+
+Audit 2026-09-30 rank #6. The /api/health/full watchdog polled port 8000
+while uvicorn binds PORT (8080 on Railway), and dropped the 503 that carries
+the alarm, so margot_route sat red for a month with nobody told. And even a
+delivered alert went to Telegram only — nothing held it until someone acted.
+
+This module holds:
+  * ``health_full_url`` / ``fetch_health_full`` — poll the port uvicorn binds
+    and treat the endpoint's 503 body as the snapshot it is;
+  * ``health_full_ticket`` — who owns a red component, and whether the fix
+    needs something only the founder can grant (label ``founder-only``);
+  * ``upsert_red_linear_ticket`` — find-or-update ONE open Linear issue per
+    red signal; a second is never created.
+"""
+from __future__ import annotations
+
+import json
+import os
+import urllib.error
+import urllib.request
+from typing import Any
+
+from . import config
+
+LINEAR_URL = "https://api.linear.app/graphql"
+TEAM_ID = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"
+PROJECT_ID = "f45212be-3259-4bfb-89b1-54c122c939a7"
+FOUNDER_ONLY_LABEL = "founder-only"
+
+# A red whose fix needs something only the founder can grant — a credential,
+# a Railway env var, a permission — is founder-only. Everything else belongs
+# to the agent lane named in mission_control's action map.
+FOUNDER_ONLY_COMPONENTS = frozenset({"schema_drift_db"})
+FOUNDER_ONLY_HINTS = (
+    "401", "403", "unauthori", "forbidden", "not set", "not configured",
+    "missing", "api_key", "api key", "token",
+)
+
+
+def health_full_url() -> str:
+    """Local /api/health/full on the port uvicorn binds (runtime_model_guard: PORT, default 8080)."""
+    return f"http://127.0.0.1:{os.environ.get('PORT') or '8080'}/api/health/full"
+
+
+def fetch_health_full(log) -> dict | None:
+    """GET /api/health/full. A 503 is the "something is red" answer: parse its body.
+
+    Any other failure returns None and is logged at WARNING — it used to be
+    log.debug, which is how a month of failed polls stayed invisible.
+    """
+    req = urllib.request.Request(health_full_url(), headers={"Accept": "application/json"})
+    try:
+        try:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as http_err:
+            if http_err.code != 503:
+                raise
+            return json.loads(http_err.read())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("health_full watchdog: fetch failed (%s)", exc)
+        return None
+
+
+def health_full_ticket(name: str, payload: dict) -> dict[str, Any]:
+    """Title, body, owner and founder-only flag for one red health_full component."""
+    try:
+        from .routes.mission_control import _OBSERVABILITY_ACTIONS  # noqa: PLC0415
+        owner = _OBSERVABILITY_ACTIONS.get(name, {}).get("owner") or "Senior PM"
+    except Exception:  # noqa: BLE001
+        owner = "Senior PM"
+    detail = f"{payload.get('error') or ''} {payload.get('note') or ''}".lower()
+    founder_only = name in FOUNDER_ONLY_COMPONENTS or any(h in detail for h in FOUNDER_ONLY_HINTS)
+    return {
+        "title": f"[RED] health_full: {name}",
+        "body": (
+            f"/api/health/full reports component `{name}` red.\n\n"
+            f"Payload: `{json.dumps(payload, default=str)[:500]}`"
+        ),
+        "owner": owner,
+        "founder_only": founder_only,
+    }
+
+
+def _graphql(query: str, variables: dict) -> dict:
+    req = urllib.request.Request(
+        LINEAR_URL,
+        data=json.dumps({"query": query, "variables": variables}).encode(),
+        method="POST",
+        headers={"Content-Type": "application/json", "Authorization": config.LINEAR_API_KEY},
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+        result = json.loads(resp.read())
+    if result.get("errors"):
+        raise RuntimeError(f"Linear errors: {str(result['errors'])[:200]}")
+    return result.get("data") or {}
+
+
+_FIND = """query RedTicket($prefix: String!, $project: ID!) {
+    issues(first: 1, filter: {
+        title: { startsWith: $prefix },
+        state: { type: { in: ["backlog", "unstarted", "started"] } },
+        project: { id: { eq: $project } }
+    }) { nodes { id identifier } }
+}"""
+_COMMENT = """mutation RedComment($input: CommentCreateInput!) {
+    commentCreate(input: $input) { success }
+}"""
+_LABEL = """query FounderOnlyLabel($name: String!) {
+    issueLabels(first: 1, filter: { name: { eq: $name } }) { nodes { id } }
+}"""
+_CREATE = """mutation RedCreate($input: IssueCreateInput!) {
+    issueCreate(input: $input) { success issue { identifier } }
+}"""
+
+
+def _founder_only_label_id(log, title: str) -> str | None:
+    nodes = (_graphql(_LABEL, {"name": FOUNDER_ONLY_LABEL}).get("issueLabels") or {}).get("nodes") or []
+    if not nodes:
+        log.warning("red ticket: no '%s' label in Linear — filed unlabelled: %s", FOUNDER_ONLY_LABEL, title)
+        return None
+    return nodes[0]["id"]
+
+
+def _create(title: str, text: str, founder_only: bool, log) -> str | None:
+    issue: dict[str, Any] = {
+        "teamId": TEAM_ID, "projectId": PROJECT_ID,
+        "title": title, "description": text, "priority": 2,
+    }
+    label_id = _founder_only_label_id(log, title) if founder_only else None
+    if label_id:
+        issue["labelIds"] = [label_id]
+    created = _graphql(_CREATE, {"input": issue})
+    return ((created.get("issueCreate") or {}).get("issue") or {}).get("identifier")
+
+
+def upsert_red_linear_ticket(title: str, body: str, *, owner: str, founder_only: bool, log) -> str | None:
+    """Comment on the open issue titled ``title``, or create it once. Returns its identifier.
+
+    If the lookup fails, nothing is created: a create after a failed find is
+    how duplicate tickets are born.
+    """
+    if not config.LINEAR_API_KEY:
+        log.warning("red ticket: LINEAR_API_KEY unset — not filed: %s", title)
+        return None
+    text = f"Owner: {owner}\nFounder-only: {'yes' if founder_only else 'no'}\n\n{body}"
+    try:
+        found = _graphql(_FIND, {"prefix": title, "project": PROJECT_ID})
+    except Exception as exc:  # noqa: BLE001
+        log.error("red ticket: Linear lookup failed (%s) — not creating: %s", exc, title)
+        return None
+    try:
+        nodes = (found.get("issues") or {}).get("nodes") or []
+        if nodes:
+            _graphql(_COMMENT, {"input": {"issueId": nodes[0]["id"], "body": text}})
+            ident = nodes[0].get("identifier")
+        else:
+            ident = _create(title, text, founder_only, log)
+        log.info("red ticket: %s %s (%s)", "updated" if nodes else "created", ident, title)
+        return ident
+    except Exception as exc:  # noqa: BLE001
+        log.error("red ticket: Linear write failed (%s): %s", exc, title)
+        return None

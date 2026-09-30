@@ -12,6 +12,8 @@ The ZTE pipeline-stall watchdog (RA-608) lives in cron_watchdog_zte.py.
 import asyncio
 import time
 from app.server import config_loader
+from app.server.red_signals import fetch_health_full, health_full_ticket
+from app.server.red_signals import upsert_red_linear_ticket as _upsert_red_linear_ticket
 
 # RA-635 — module-level dedup state for docs-stale watchdog.
 # Prevents spamming on every 30-minute watchdog check.
@@ -1046,21 +1048,17 @@ async def _watchdog_vercel_deploy_failures(log) -> None:
 _health_alert_cooldowns: dict[str, float] = {}
 _health_red_components: set[str] = set()
 _HEALTH_COOLDOWN_S = 30 * 60
-_HEALTH_FULL_URL = "http://127.0.0.1:8000/api/health/full"
 
 
-def _health_full_send_telegram(text: str, log) -> None:
-    """Best-effort Telegram alert via the shared swarm helper.
-
-    Uses bot_name="Margot" per RA-1910 spec. Falls back silently if the
-    swarm helper isn't importable or the env vars aren't configured —
-    we never want a missing token to crash the watchdog.
-    """
+def _health_full_send_telegram(text: str, log) -> bool:
+    """Best-effort Telegram alert (bot "Margot", RA-1910). Never raises;
+    returns whether it was sent, so "alert sent" is never logged for nothing."""
     try:
         from swarm.telegram_alerts import send  # noqa: PLC0415
-        send(text, severity="high", bot_name="Margot")
+        return bool(send(text, severity="high", bot_name="Margot"))
     except Exception as exc:  # noqa: BLE001
-        log.debug("health_full watchdog: telegram send skipped (%s)", exc)
+        log.warning("health_full watchdog: telegram send failed (%s)", exc)
+        return False
 
 
 async def _watchdog_health_full(log) -> None:
@@ -1074,30 +1072,13 @@ async def _watchdog_health_full(log) -> None:
     For each component that was red previously and is now green:
       - send a "Component X recovered" Telegram and clear cooldown.
 
-    Uses stdlib urllib so we don't add a new dependency. The local FastAPI
-    instance binds to 127.0.0.1:8000 in Railway/dev — soft-fails if the
-    request errors so a watchdog crash never silences the rest of the loop.
+    Each new red also finds-or-updates ONE owned Linear ticket (red_signals).
+    Fetch (PORT, 503 body parsed) lives in red_signals.fetch_health_full.
     """
     global _health_red_components
 
-    import json as _json
-    import urllib.request as _ureq
-
-    body: dict | None = None
-    try:
-        req = _ureq.Request(_HEALTH_FULL_URL, headers={"Accept": "application/json"})
-        # urlopen is sync — wrap in to_thread so we don't block the loop.
-        loop = asyncio.get_running_loop()
-
-        def _fetch() -> dict:
-            with _ureq.urlopen(req, timeout=5) as resp:  # noqa: S310
-                return _json.loads(resp.read())
-
-        body = await loop.run_in_executor(None, _fetch)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("health_full watchdog: fetch failed (%s)", exc)
-        return
-
+    # urlopen is sync — run it off the loop.
+    body = await asyncio.get_running_loop().run_in_executor(None, fetch_health_full, log)
     if not isinstance(body, dict):
         return
     components = body.get("components") or {}
@@ -1122,9 +1103,10 @@ async def _watchdog_health_full(log) -> None:
             f"health_full: component <b>{name}</b> RED"
             + (f"\nerror: <code>{err}</code>" if err else "")
         )
-        _health_full_send_telegram(msg, log)
+        sent = _health_full_send_telegram(msg, log)
+        _upsert_red_linear_ticket(**health_full_ticket(name, components.get(name) or {}), log=log)
         _health_alert_cooldowns[name] = now
-        log.warning("health_full watchdog: %s RED — alert sent", name)
+        log.warning("health_full watchdog: %s RED — telegram %s", name, "sent" if sent else "NOT sent")
 
     # Recovery messages for components that just flipped red→green.
     recovered = _health_red_components - current_red
