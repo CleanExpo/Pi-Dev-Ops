@@ -2,8 +2,10 @@
 
 A runner that cannot prove its agent exited leaves the claim and worktree in place.
 Its own process may then end (MAX_CLAIMS, HARD_STOP, crash) and a new one start, so
-the record must outlive the process: a small JSON list of pids. Self-update refuses
-to move the runtime while any listed agent is alive.
+the record must outlive the process: a small JSON list of pids, plus the agent's
+process group (`pgid`) when it had one, so a descendant that outlived an exited agent
+still counts (estate audit rank 13). Self-update refuses to move the runtime while any
+listed agent or group is alive.
 
 Unknown counts as alive, the safe direction: a missing pid, a pid this user may not
 inspect, or a file that exists but cannot be read all block the update. An operator
@@ -57,19 +59,39 @@ def _alive(pid: int) -> bool:
     return True
 
 
+def _group_alive(pgid: int) -> bool:
+    """False only when no process is left in the group. Unknown counts as alive."""
+    if pgid <= 0 or not hasattr(os, "killpg"):
+        return True
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except Exception:  # noqa: BLE001 — EPERM (a zombie on darwin, or someone else's), anything
+        return True
+    return True
+
+
+def _entry_alive(entry: tuple) -> bool:
+    kind, number = entry
+    return _group_alive(number) if kind == "pgid" else _alive(number)
+
+
 def _load() -> list:
+    """The recorded entries as ("pid" | "pgid", number) pairs."""
     if not os.path.lexists(PATH):  # lexists: a dangling link is present, not absent
         return []
     try:
-        return [int(e["pid"]) for e in json.loads(PATH.read_text())]
+        return [("pgid", int(e["pgid"])) if "pgid" in e else ("pid", int(e["pid"]))
+                for e in json.loads(PATH.read_text())]
     except Exception:  # noqa: BLE001 — present but unreadable: unknown, so it blocks
-        return [0]
+        return [("pid", 0)]
 
 
-def _save(pids: list) -> None:
+def _save(entries: list) -> None:
     PATH.parent.mkdir(parents=True, exist_ok=True)
     tmp = PATH.with_suffix(".tmp")
-    tmp.write_text(json.dumps([{"pid": p} for p in pids]))
+    tmp.write_text(json.dumps([{kind: number} for kind, number in entries]))
     os.replace(tmp, PATH)
 
 
@@ -130,9 +152,13 @@ def track(rec) -> None:
     if rec is None or getattr(rec, "reaped", None) is not False:
         return
     proc = getattr(rec, "proc", None)
+    pgid = getattr(rec, "pgid", None)
+    entries = [("pid", int(getattr(proc, "pid", 0) or 0))]
+    if isinstance(pgid, int):  # the agent may have exited while a descendant did not
+        entries.append(("pgid", pgid))
     try:
         with _locked():
-            _save(_load() + [int(getattr(proc, "pid", 0) or 0)])
+            _save(_load() + entries)
     except Exception:  # noqa: BLE001 — never raise in claim cleanup; block instead
         _UNRECORDED[0] = True
         try:  # memory dies with this runner; the marker blocks its successors too
@@ -149,7 +175,7 @@ def any_alive() -> bool:
             return True
         with _locked():
             pids = _load()
-            live = [p for p in pids if _alive(p)]
+            live = [p for p in pids if _entry_alive(p)]
             if pids and len(live) != len(pids):
                 try:
                     _save(live)

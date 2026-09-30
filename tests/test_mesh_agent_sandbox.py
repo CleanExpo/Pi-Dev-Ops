@@ -135,6 +135,41 @@ def test_a_descendant_that_cannot_be_ended_marks_the_run_unreaped(tmp_path, monk
     assert rr.unreaped(rec)
 
 
+@posix_only
+def test_a_survivor_of_an_exited_agent_keeps_blocking_self_update(tmp_path, monkeypatch):
+    """Review P1: with the leader gone and a descendant alive, the record must still say alive."""
+    import left_running  # on sys.path via run_record
+
+    monkeypatch.setattr(left_running, "PATH", tmp_path / "left.json")
+    monkeypatch.setattr(rr.agent_sandbox, "signal_group", lambda _pgid, _sig: None)  # the kill fails
+    monkeypatch.setattr(rr.agent_sandbox, "EMPTY_TIMEOUT", 0.2)
+    cmd, pid_file = _spawn_grandchild_then(tmp_path, "sys.exit(0)")
+    plan: dict = {}
+    rec = rr.run_agent(lambda: cmd, str(tmp_path), tmp_path, "0b0b0b05", plan, _wait_until_exit)
+    survivor = _read_pid(pid_file)
+    try:
+        assert rec.reaped is False and not _alive(rec.proc.pid)
+        left_running.track(rec)
+        assert left_running.any_alive(), "an exited leader's live descendant was forgotten"
+    finally:
+        os.kill(survivor, 9)
+    assert _gone_within(survivor)
+    assert _gone_within_group(rec.pgid) and not left_running.any_alive()
+
+
+def _gone_within_group(pgid: int) -> bool:
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        try:
+            os.killpg(pgid, 0)
+        except ProcessLookupError:
+            return True
+        except PermissionError:
+            pass
+        time.sleep(0.05)
+    return False
+
+
 def test_the_build_agent_gets_an_explicit_tool_allowlist(monkeypatch, tmp_path):
     """runner.py starts the agent with an explicit --allowedTools set."""
     monkeypatch.setenv("MESH_REPO_DIR", str(REPO_ROOT))
