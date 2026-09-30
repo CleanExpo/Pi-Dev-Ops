@@ -249,5 +249,13 @@ def pr_facts(repo: str, number: int) -> dict:
     }
 
 
+def ordered_bodies(issue: dict) -> list[str] | None:
+    """Comment bodies oldest-first, or None when the list did not arrive whole."""
+    nodes = complete_nodes(issue, "comments")
+    if nodes is None or not all(isinstance(c.get("body"), str) and c.get("createdAt") for c in nodes):
+        return None
+    return [c["body"] for c in sorted(nodes, key=lambda c: c["createdAt"])]
+
+
 def state_is(issue: dict, name: str) -> bool:
     return ((issue.get("state") or {}).get("name") or "").lower() == name.lower()

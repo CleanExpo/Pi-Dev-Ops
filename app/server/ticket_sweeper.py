@@ -36,6 +36,7 @@ _STATE_FILE = Path(__file__).resolve().parents[2] / ".harness" / "ticket-sweeper
 WRITE_ENV = "TAO_TICKET_SWEEPER_WRITE"
 STALE_DAYS = 14
 UNREVIEWED_DAYS = 3
+STATE_MAX_AGE_H = 36  # nightly job: an older saved run is not "the latest" any more
 STALE_LABEL = "stale:14d"
 REVIEW_LABEL = "review:red-pr"
 RETRY_LABEL = "pi-dev:failed-retry-used"
@@ -60,6 +61,7 @@ class SweepReport:
     failed_to_ready: list[str] = field(default_factory=list)
     failed_to_blocked: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    pending_moves: list[dict] = field(default_factory=list)   # label+comment landed, move did not
 
 
 def writes_enabled() -> bool:
@@ -97,14 +99,6 @@ def decide_review(facts: list[dict | None], now: datetime) -> str:
     return "unknown" if any(f is None for f in facts) else "ok"
 
 
-def _ordered_comments(issue: dict) -> list[str] | None:
-    """Comment bodies oldest-first, or None when the list did not arrive whole."""
-    nodes = io.complete_nodes(issue, "comments")
-    if nodes is None or not all(isinstance(c.get("body"), str) and c.get("createdAt") for c in nodes):
-        return None
-    return [c["body"] for c in sorted(nodes, key=lambda c: c["createdAt"])]
-
-
 def decide_failed(issue: dict) -> str | None:
     """'ready', 'blocked', 'unread' or None for a Todo ticket.
 
@@ -115,7 +109,7 @@ def decide_failed(issue: dict) -> str | None:
     failure → 'blocked'. A ticket a human moved back after a block has no
     failure since, so it is left alone.
     """
-    bodies, labels = _ordered_comments(issue), io.label_names(issue)
+    bodies, labels = io.ordered_bodies(issue), io.label_names(issue)
     if bodies is None or labels is None:
         return "unread"
     last = max((i for i, b in enumerate(bodies) if b.startswith(SWEEP_COMMENT_PREFIX)), default=-1)
@@ -125,19 +119,6 @@ def decide_failed(issue: dict) -> str | None:
 
 
 # ── Writes (only when enabled) ───────────────────────────────────────────────
-
-def _apply(api_key: str, issue: dict, report: SweepReport, w: wr.Write) -> None:
-    if report.dry_run:
-        return
-    try:
-        problem = wr.write_verified(api_key, issue["id"], issue.get("_team_id") or autonomy._TEAM_ID, w)
-    except autonomy.LinearRateLimitError:
-        raise
-    except Exception as exc:  # noqa: BLE001 — one ticket never aborts the sweep
-        problem = f"write_failed:{type(exc).__name__}"
-    if problem:
-        report.errors.append(f"{problem}:{issue.get('identifier')}")
-
 
 def _sweep_stale(api_key: str, issues: list[dict], report: SweepReport, now: datetime) -> None:
     cutoff = now - timedelta(days=STALE_DAYS)
@@ -149,7 +130,7 @@ def _sweep_stale(api_key: str, issues: list[dict], report: SweepReport, now: dat
         (report.stale_to_todo if move else report.stale_labelled).append(issue["identifier"])
         note = ("moved to Todo: no linked PR and nothing blocking it." if move
                 else "left in place: it has a linked PR, an open blocker, or is Blocked.")
-        _apply(api_key, issue, report, wr.Write(
+        wr.apply(api_key, issue, report, wr.Write(
             STALE_LABEL, f"**Stale sweep:** no activity for {STALE_DAYS}+ days — {note}",
             "Todo" if move else None,
             lambda f, v=verdict: _older_than(f, cutoff) and decide_stale(f) == v,
@@ -180,7 +161,7 @@ def _sweep_review(api_key: str, issues: list[dict], report: SweepReport, now: da
             report.review_unknown.append(issue["identifier"])
         elif verdict == "red":
             report.review_red_pr.append(issue["identifier"])
-            _apply(api_key, issue, report, wr.Write(REVIEW_LABEL, recheck=lambda f: io.state_is(f, "In Review")))
+            wr.apply(api_key, issue, report, wr.Write(REVIEW_LABEL, recheck=lambda f: io.state_is(f, "In Review")))
 
 
 def _has_retry_label(issue: dict) -> bool:
@@ -195,13 +176,13 @@ def _sweep_failed(api_key: str, issues: list[dict], report: SweepReport) -> None
             report.errors.append(f"comments_unread:{issue['identifier']}")
         elif verdict == "ready":
             report.failed_to_ready.append(issue["identifier"])
-            _apply(api_key, issue, report, wr.Write(
+            wr.apply(api_key, issue, report, wr.Write(
                 RETRY_LABEL, f"{SWEEP_COMMENT_PREFIX} first failure — sent back to Ready for Pi-Dev once.",
                 autonomy._READY_STATUS_NAME, lambda f: io.state_is(f, "Todo") and decide_failed(f) == "ready",
                 _has_retry_label))
         elif verdict == "blocked":
             report.failed_to_blocked.append(issue["identifier"])
-            _apply(api_key, issue, report, wr.Write(
+            wr.apply(api_key, issue, report, wr.Write(
                 BLOCKED_REASON_LABEL, f"{SWEEP_COMMENT_PREFIX} failed again after its one retry — blocked for a human.",
                 autonomy._BLOCKED_STATUS_NAME, lambda f: io.state_is(f, "Todo") and decide_failed(f) == "blocked",
                 _has_retry_label))
@@ -211,8 +192,10 @@ def _sweep_failed(api_key: str, issues: list[dict], report: SweepReport) -> None
 
 def run_sweep(now: datetime | None = None) -> SweepReport:
     now = now or datetime.now(timezone.utc)
-    report = SweepReport(started_at=now.isoformat(), dry_run=not writes_enabled())
+    report = SweepReport(started_at=now.isoformat(), dry_run=not writes_enabled(), complete=False)
     api_key = (os.environ.get("LINEAR_API_KEY") or getattr(config, "LINEAR_API_KEY", "") or "").strip()
+    pending = _read_state().get("pending_moves") or []
+    _write_state(report)  # in-progress: the tile never shows the previous run while this one runs
     try:
         if not api_key:
             report.errors.append("no_linear_api_key")
@@ -222,6 +205,7 @@ def run_sweep(now: datetime | None = None) -> SweepReport:
         _sweep_stale(api_key, buckets["stale"], report, now)
         _sweep_review(api_key, buckets["in_review"], report, now)
         _sweep_failed(api_key, buckets["recent_todo"], report)
+        wr.resume_pending(api_key, pending, report)
     except autonomy.LinearRateLimitError:
         report.errors.append("linear_rate_limited")
     except Exception as exc:  # noqa: BLE001 — a crash must persist as incomplete, never as a clean zero
@@ -250,6 +234,18 @@ def _write_state(report: SweepReport) -> None:
     except Exception as exc:  # noqa: BLE001 — state IO must never break the sweep
         log.warning("ticket_sweeper: could not persist state: %s", exc)
         _unsaved_run_at = report.finished_at or report.started_at
+        try:  # an older saved run must not outlive this process as "current"
+            _STATE_FILE.unlink(missing_ok=True)
+        except OSError:
+            pass  # read-only disk: status_snapshot's staleness check still catches it
+
+
+def _read_state() -> dict:
+    try:
+        state = json.loads(_STATE_FILE.read_text())
+        return state if isinstance(state, dict) else {}
+    except Exception:  # noqa: BLE001 — missing/corrupt = nothing saved
+        return {}
 
 
 def status_snapshot() -> dict:
@@ -258,19 +254,26 @@ def status_snapshot() -> dict:
     if _unsaved_run_at is not None:
         return {"last_run_at": _unsaved_run_at, "dry_run": not writes_enabled(), "complete": False,
                 "counts": None, "errors": ["state_write_failed"]}
-    try:
-        state = json.loads(_STATE_FILE.read_text())
-    except Exception:  # noqa: BLE001 — missing/corrupt = never run
+    state = _read_state()
+    if not state:
         return {"last_run_at": None, "dry_run": not writes_enabled(), "complete": False,
                 "counts": None, "errors": []}
+    fresh = _within(state.get("finished_at"), timedelta(hours=STATE_MAX_AGE_H))
     return {
         "last_run_at": state.get("finished_at"),
         "dry_run": bool(state.get("dry_run", True)),
-        "complete": bool(state.get("complete")),
+        "complete": bool(state.get("complete")) and fresh,
         "counts": {k: len(state.get(k) or []) for k in _COUNT_FIELDS},
         "review_red_pr": (state.get("review_red_pr") or [])[:20],
-        "errors": (state.get("errors") or [])[:10],
+        "errors": ([] if fresh else ["stale_state"]) + (state.get("errors") or [])[:10],
     }
+
+
+def _within(stamp: str | None, age: timedelta) -> bool:
+    try:
+        return datetime.now(timezone.utc) - datetime.fromisoformat(stamp or "") <= age
+    except (TypeError, ValueError):
+        return False
 
 
 async def _fire_ticket_sweeper_trigger(trigger: dict, log_arg) -> None:

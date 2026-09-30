@@ -220,3 +220,59 @@ def test_unsaved_run_never_shows_the_older_clean_run(world, monkeypatch):  # noq
     snap = ticket_sweeper.status_snapshot()
     assert snap["complete"] is False and snap["errors"] == ["state_write_failed"] and snap["counts"] is None
 
+
+def test_unfinished_move_is_resumed_next_sweep(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["recent_todo"] = [
+        _issue("RA-60", "Todo", stype="unstarted", comments=[FAILED]),
+        _issue("RA-61", "Todo", stype="unstarted", comments=[FAILED, GRANT, FAILED],
+               labels=["pi-dev:failed-retry-used"]),
+    ]
+    world["state_ok"] = False
+    first = ticket_sweeper.run_sweep(now=NOW)
+    assert sorted(first.errors) == ["state_unconfirmed:RA-60", "state_unconfirmed:RA-61"]
+    world["state_ok"] = True
+    second = ticket_sweeper.run_sweep(now=NOW)
+    assert second.errors == [] and second.complete is True
+    assert world["db"]["id-RA-60"]["state"]["name"] == "Ready for Pi-Dev"
+    assert world["db"]["id-RA-61"]["state"]["name"] == "Pi-Dev: Blocked"
+
+
+def test_human_comment_during_the_sweep_stops_the_move(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["stale"] = [_issue("RA-62")]
+    world["on_comment"] = lambda issue: issue["comments"]["nodes"].append(
+        {"body": "still on it", "createdAt": "2026-09-30T01:00:00Z"})
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.errors == ["drift:RA-62"]
+    assert not [w for w in world["writes"] if w[0] == "state"]
+
+
+def test_failed_save_survives_a_restart(world, monkeypatch):  # noqa: F811
+    ticket_sweeper.run_sweep(now=NOW)
+    monkeypatch.setattr(ticket_sweeper.os, "replace", lambda *a: (_ for _ in ()).throw(OSError("ro")))
+    world["fail"] = {"stale"}
+    ticket_sweeper.run_sweep(now=NOW)
+    monkeypatch.setattr(ticket_sweeper, "_unsaved_run_at", None)  # a fresh process
+    snap = ticket_sweeper.status_snapshot()
+    assert snap["complete"] is False and snap["counts"] is None
+
+
+def test_an_old_saved_run_reads_as_stale(world):  # noqa: F811
+    import json
+    ticket_sweeper._STATE_FILE.write_text(json.dumps(
+        {"finished_at": "2026-01-01T00:00:00+00:00", "complete": True, "dry_run": True, "errors": []}))
+    snap = ticket_sweeper.status_snapshot()
+    assert snap["complete"] is False and snap["errors"][0] == "stale_state"
+
+
+def test_unfinished_move_is_dropped_when_someone_acted_since(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["recent_todo"] = [_issue("RA-63", "Todo", stype="unstarted", comments=[FAILED])]
+    world["state_ok"] = False
+    ticket_sweeper.run_sweep(now=NOW)
+    world["state_ok"] = True
+    world["db"]["id-RA-63"]["comments"]["nodes"].append({"body": "leave it", "createdAt": "2026-09-30T02:00:00Z"})
+    ticket_sweeper.run_sweep(now=NOW)
+    assert world["db"]["id-RA-63"]["state"]["name"] == "Todo"
+

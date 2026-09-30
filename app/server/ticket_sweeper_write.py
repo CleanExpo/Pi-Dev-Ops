@@ -6,6 +6,7 @@ re-read of the issue shows it.
 """
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from typing import Callable
 
@@ -43,6 +44,29 @@ def _comment_count(issue: dict, body: str) -> int | None:
     return None if nodes is None else sum(1 for c in nodes if c.get("body") == body)
 
 
+def only_our_changes(fresh: dict, after: dict, w: Write) -> bool:
+    """True when the only differences between the two reads are the sweeper's own
+    label and comment — no human comment, label, state, title or text change."""
+    fb, ab = io.ordered_bodies(fresh), io.ordered_bodies(after)
+    fl, al = io.label_names(fresh), io.label_names(after)
+    if fb is None or ab is None or fl is None or al is None:
+        return False
+    return (Counter(ab) == Counter(fb) + Counter([w.comment] if w.comment else [])
+            and al == fl | {w.label.lower()}
+            and all(after.get(k) == fresh.get(k) for k in ("title", "description"))
+            and io.state_is(after, (fresh.get("state") or {}).get("name") or ""))
+
+
+def _move(api_key: str, iid: str, team: str, state: str) -> str | None:
+    try:
+        autonomy.transition_issue(api_key, iid, state, team_id=team)
+    except autonomy.LinearRateLimitError:
+        raise
+    except Exception:  # noqa: BLE001 — reported as move_failed and retried next sweep
+        return "move_failed"
+    return None if io.state_is(io.fetch_issue(api_key, iid), state) else "state_unconfirmed"
+
+
 def write_verified(api_key: str, iid: str, team: str, w: Write) -> str | None:
     """Re-read, then each write followed by a re-read that proves it stuck.
     Returns a problem name, or None. Order is label → comment → move, so a
@@ -64,10 +88,51 @@ def write_verified(api_key: str, iid: str, team: str, w: Write) -> str | None:
     if before_n is None or after_n is None or after_n <= before_n:
         return "comment_unconfirmed"
     if w.state:
-        if not io.state_is(after, (fresh.get("state") or {}).get("name") or "") or (
-                w.move_guard is not None and not w.move_guard(after)):
-            return "drift"  # changed under us (e.g. moved to In Review) — do not move it
-        autonomy.transition_issue(api_key, iid, w.state, team_id=team)
-        if not io.state_is(io.fetch_issue(api_key, iid), w.state):
-            return "state_unconfirmed"
+        if not only_our_changes(fresh, after, w) or (w.move_guard is not None and not w.move_guard(after)):
+            return "drift"  # someone else touched it while we wrote — do not move it
+        return _move(api_key, iid, team, w.state)
     return None
+
+
+def resume_move(api_key: str, p: dict) -> str | None:
+    """Finish a move a previous sweep wrote the label and comment for but could
+    not complete. Only when nothing happened since: same state, our comment is
+    still the newest, our label still on. Otherwise it is dropped as 'drift'."""
+    cur = io.fetch_issue(api_key, p["id"])
+    bodies = io.ordered_bodies(cur)
+    if (bodies is None or not bodies or bodies[-1] != p["comment"] or not io.state_is(cur, p["from_state"])
+            or p["label"].lower() not in (io.label_names(cur) or set())):
+        return "drift"
+    return _move(api_key, p["id"], p["team"], p["to_state"])
+
+
+def apply(api_key: str, issue: dict, report, w: Write) -> None:
+    """One verified write for the sweep; problems and unfinished moves go on ``report``."""
+    if report.dry_run:
+        return
+    try:
+        problem = write_verified(api_key, issue["id"], issue.get("_team_id") or autonomy._TEAM_ID, w)
+    except autonomy.LinearRateLimitError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — one ticket never aborts the sweep
+        problem = f"write_failed:{type(exc).__name__}"
+    if problem:
+        report.errors.append(f"{problem}:{issue.get('identifier')}")
+    if problem in ("move_failed", "state_unconfirmed"):
+        report.pending_moves.append({
+            "id": issue["id"], "identifier": issue.get("identifier"), "label": w.label, "comment": w.comment,
+            "team": issue.get("_team_id") or autonomy._TEAM_ID, "to_state": w.state,
+            "from_state": (issue.get("state") or {}).get("name") or ""})
+
+
+def resume_pending(api_key: str, pending: list[dict], report) -> None:
+    for p in pending if not report.dry_run else []:
+        try:
+            problem = resume_move(api_key, p)
+        except autonomy.LinearRateLimitError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            problem = f"write_failed:{type(exc).__name__}"
+        if problem and problem != "drift":
+            report.errors.append(f"resume_{problem}:{p.get('identifier')}")
+            report.pending_moves.append(p)

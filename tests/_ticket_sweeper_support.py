@@ -62,7 +62,7 @@ def _fake_gql(state: dict):
                 state["db"].setdefault(i["id"], copy.deepcopy(i))
         return {"project": {"issues": {
             "pageInfo": {"hasNextPage": more, "endCursor": str(idx + 1) if more else None},
-            "nodes": [copy.deepcopy(i) if i else i for i in pages[idx]]}}}
+            "nodes": [copy.deepcopy(state["db"][i["id"]]) if i else i for i in pages[idx]]}}}
     return fake_gql
 
 
