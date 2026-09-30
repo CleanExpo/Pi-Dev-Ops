@@ -212,10 +212,14 @@ GUARD_MUTANTS = [
      '"cases_blob": _git("rev-parse", "HEAD")}'),  # en-cases-blob
     ('engine.py', 'None if cases and all(_dual_labelled(c) for c in cases) else',
      'None if cases else'),  # en-calib-dual
-    ('engine.py', '        problems = calibration.verify(record, scored) or _lineage_problems(rule["id"], record, scored)\n',
+    ('engine.py', '        problems = calibration.verify(record, scored) or _lineage_problems(rule["id"], record, scored,\n'
+     '                                                                           verified.resolve(ROOT))\n',
      '        problems = calibration.verify(record, scored)\n'),  # en-state-lineage
-    ('engine.py', '    problems = calibration.verify(record, scored) or _lineage_problems(rule_id, record, scored)\n    if problems:',
-     '    problems = calibration.verify(record, scored)\n    if problems:'),  # en-rating-lineage
+    ('engine.py', '    problems = calibration.verify(record, scored) or _lineage_problems(rule_id, record, scored, commit)\n'
+     '    if problems:', '    problems = calibration.verify(record, scored)\n    if problems:'),  # en-rating-lineage
+    # round 18: the lineage judges the commit the receipt names (test_jev_platform_binding_bytes.py)
+    ('engine.py', '_lineage_problems(rule_id, record, scored, commit)',
+     '_lineage_problems(rule_id, record, scored, verified.resolve(ROOT))'),  # en-rating-lineage-head
     ('engine.py', '    if not all(_dual_labelled(c) for c in cases):\n        return ["cases_blob',
      '    if False:\n        return ["cases_blob'),  # en-lineage-dual
     ('engine.py', 'return [] if want == have else', 'return [] if True else'),  # en-lineage-match
@@ -237,7 +241,7 @@ GUARD_MUTANTS = [
      'verified.file_at_head(WRITER_CONTROL.parent, WRITER_CONTROL,'),  # ge-root-given (round 14)
     ('engine.py', ' != blob:\n        return ["cases_blob is not the cases file',
      ' != blob and False:\n        return ["cases_blob is not the cases file'),  # en-lineage-at-sha
-    ('engine.py', '    if not verified.is_ancestor(ROOT, sha, verified.resolve(ROOT) or ""):\n',
+    ('engine.py', '    if not verified.is_ancestor(ROOT, sha, head or ""):\n',
      '    if False:\n'),  # en-lineage-ancestor
     ('evals/jev_constitution/harness.py', '    data = verified.file_at_head(REPO, path)',
      '    data = __import__("subprocess").run(["git", "-C", str(path.parent), "show", f"HEAD:./{path.name}"], '

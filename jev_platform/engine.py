@@ -71,9 +71,10 @@ def _dual_labelled(case: dict) -> bool:
         labels.get("claude") == labels.get("codex") == case.get("label")
 
 
-def _lineage_problems(rule_id: str, record: dict, scored: list[dict]) -> list[str]:
+def _lineage_problems(rule_id: str, record: dict, scored: list[dict], head: str | None) -> list[str]:
     """The stored scores must be exactly the cases in the blob the record names, each with two agreeing labels,
-    and that blob must be this rule's cases file in a commit HEAD descends from (round 11).
+    and that blob must be this rule's cases file in a commit `head` descends from (round 11). Round 18: the caller
+    resolves `head` once, so the lineage and the byte binding judge the same commit.
     calibration.verify only proves the record is self-consistent; this proves where its inputs came from."""
     blob = (record.get("label_provenance") or {}).get("cases_blob")
     sha = record.get("eval_sha")
@@ -82,7 +83,7 @@ def _lineage_problems(rule_id: str, record: dict, scored: list[dict]) -> list[st
     at_sha = verified.read(ROOT, str((CASES / f"{rule_id}.jsonl").relative_to(ROOT)), sha)
     if at_sha is None or at_sha[0] != blob:
         return ["cases_blob is not the cases file committed at eval_sha"]
-    if not verified.is_ancestor(ROOT, sha, verified.resolve(ROOT) or ""):
+    if not verified.is_ancestor(ROOT, sha, head or ""):
         return ["eval_sha is not in the history of HEAD"]
     cases = [json.loads(line) for line in at_sha[1].decode(errors="replace").splitlines() if line.strip()]
     if not all(_dual_labelled(c) for c in cases):
@@ -119,7 +120,8 @@ def _decision_state(rule: dict, record: dict | None, model: str) -> str:
         return state
     try:
         scored = load_scored(rule["id"])
-        problems = calibration.verify(record, scored) or _lineage_problems(rule["id"], record, scored)
+        problems = calibration.verify(record, scored) or _lineage_problems(rule["id"], record, scored,
+                                                                           verified.resolve(ROOT))
     except (OSError, ValueError, KeyError, TypeError):
         return "corrupt"
     return "corrupt" if problems else state
@@ -220,7 +222,7 @@ def artifact_binding(rule_id: str) -> tuple[str, list[str], str | None]:
     if record is None:
         return "FAIL", ["absent"], commit
     scored = [json.loads(line) for line in (raw[1] or b"").decode().splitlines() if line.strip()]
-    problems = calibration.verify(record, scored) or _lineage_problems(rule_id, record, scored)
+    problems = calibration.verify(record, scored) or _lineage_problems(rule_id, record, scored, commit)
     if problems:
         return "FAIL", problems, commit
     base, here = Path(os.path.abspath(ROOT)), [Path(os.path.abspath(p)) for p in paths]

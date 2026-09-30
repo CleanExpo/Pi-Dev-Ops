@@ -17,6 +17,7 @@ from jev_scale_support import git
 from test_jev_platform_committed_inputs import budget, recording
 
 from jev_platform import __main__ as cli
+from jev_platform import committed as verified
 from jev_platform import engine
 
 repo = ci.repo  # a temp repo standing in for engine.ROOT
@@ -102,6 +103,25 @@ def test_a_symlink_to_identical_untracked_bytes_is_still_not_aaa(repo):
     engine.RECORDS.symlink_to(copy, target_is_directory=True)
     assert engine.load_record(ci.RULE) is not None  # control: the same bytes are readable through the link
     assert engine.artifact_rating(ci.RULE) == ("AA", ["not bound to HEAD"])
+
+
+def test_lineage_is_checked_against_the_commit_the_receipt_names(repo, monkeypatch):
+    """Round 18 P1-AAA-LINEAGE-HEAD-SNAPSHOT: HEAD moving between the binding and the lineage check must not admit
+    an eval_sha outside the history of the commit the receipt names."""
+    committed_records(repo)
+    descends = git_head(repo)  # its history holds the record's eval_sha
+    tree = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD^{tree}"], capture_output=True, text=True).stdout
+    root = subprocess.run(["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t", "commit-tree",
+                           tree.strip(), "-m", "same files, no history"], capture_output=True, text=True).stdout.strip()
+    git(repo, "reset", "-q", "--soft", root)
+    assert engine.artifact_rating(ci.RULE) == ("FAIL", ["eval_sha is not in the history of HEAD"])  # control: stable
+    seen = []
+
+    def moving_head(repo_, rev="HEAD", env=None):  # HEAD moves to `descends` after the first resolution
+        seen.append(rev)
+        return root if len(seen) == 1 else descends
+    monkeypatch.setattr(verified, "resolve", moving_head)
+    assert engine.artifact_rating(ci.RULE) == ("FAIL", ["eval_sha is not in the history of HEAD"])
 
 
 def git_head(root) -> str:
