@@ -43,8 +43,11 @@ from w1b_helpers import _NOW, _PROJECT, _START, REPO_ROOT, _ago, _issue  # noqa:
     (_issue(comments=[(_START, _ago(1)), (_START, _ago(5))]), "repeat-claim"),
     (_issue(comments=[(_START, _ago(1)), (_START, _ago(40))]), None),
     (_issue(labels=("pi-dev:autonomous", "pi-dev:blocked-reason:session-lost")), "blocked-reason"),
+    ({**_issue(), "inverseRelations": {"nodes": [], "pageInfo": {"hasNextPage": True}}}, "guard-data-incomplete"),
+    ({**_issue(), "comments": {"nodes": [], "pageInfo": {"hasNextPage": True}}}, "guard-data-incomplete"),
 ], ids=["clean", "open-blocker", "done-blocker", "canceled-blocker", "blocked-3h",
-        "blocked-30h", "two-starts-24h", "one-start-24h", "blocked-reason-label"])
+        "blocked-30h", "two-starts-24h", "one-start-24h", "blocked-reason-label",
+        "relations-truncated", "comments-truncated"])
 def test_claim_refusal(issue, reason):
     assert elig.claim_refusal(issue, _NOW) == reason
     assert elig.issue_is_claimable(issue, registered_project_ids={_PROJECT}, now=_NOW) is (reason is None)
@@ -195,6 +198,17 @@ def test_failed_session_is_labelled_unclaimable_before_its_claim_is_released(mon
 
 def test_failed_session_that_cannot_be_labelled_keeps_its_claim(monkeypatch):
     assert _terminal(monkeypatch, False) == [("label", "pi-dev:blocked-reason:session-failed")]
+
+
+def test_completed_session_releases_even_when_linear_is_down(monkeypatch):
+    from app.server import autonomy_queue
+    released: list = []
+    monkeypatch.setattr(session_lease, "release_linear_ticket", lambda i, s="released": released.append((i, s)) or True)
+    monkeypatch.setattr(autonomy, "_gql", lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("Linear HTTP 503")))
+    autonomy_queue.remember_claim("uuid-9", "RA-9")
+    autonomy_queue.release_session_claim(SimpleNamespace(linear_issue_id="uuid-9", status="complete",
+                                                         autonomy_triggered=True))
+    assert released == [("RA-9", "done")]
 
 
 def test_park_never_moves_an_unlabelled_ticket_into_a_claimable_state(monkeypatch):

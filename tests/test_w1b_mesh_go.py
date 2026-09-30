@@ -74,13 +74,16 @@ def test_explicit_dispatch_ids_pass_the_shared_rule():
     from app.server import mesh_lanes
     ato = "20bb0ca6-0176-46c4-be4c-cd34ac89767d"
     issues = {"UNI-OK": _issue("UNI-OK", labels=("mesh:auto",), project=ato),
-              "UNI-BLK": _issue("UNI-BLK", labels=("mesh:auto",), blockers=[("UNI-1", "started")])}
+              "UNI-BLK": _issue("UNI-BLK", labels=("mesh:auto",), blockers=[("UNI-1", "started")]),
+              "RA-DONE": {**_issue("RA-DONE", labels=(), project="unregistered"),
+                          "state": {"name": "Done", "type": "completed"}},
+              "UNI-SHUT": {**_issue("UNI-SHUT", labels=("mesh:auto",)), "state": {"name": "Done", "type": "completed"}}}
 
     def gql(q):
         ident = q.split('issue(id:"', 1)[1].split('"', 1)[0]
         return {"issue": issues.get(ident)}
 
-    got = mesh_lanes.explicit(gql, ["UNI-OK", "UNI-BLK", "UNI-GONE"])
+    got = mesh_lanes.explicit(gql, ["UNI-OK", "UNI-BLK", "UNI-GONE", "RA-DONE", "UNI-SHUT"])
     assert [i["identifier"] for i in got] == ["UNI-OK"]
 
 

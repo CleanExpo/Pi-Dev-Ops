@@ -40,7 +40,7 @@ log = logging.getLogger("pi-ceo.mesh_lanes")
 
 PLAN_LABEL = "idea:plan"
 BUILD_LABEL = "mesh:auto"
-_PAGE_ARGS = "first:50"
+_PAGE_ARGS = "first:25"  # each node carries three guard connections
 # Two branches, so the autonomous lane is read by state NAME (Todo / Ready for Pi-Dev)
 # and 195 finished pi-dev:autonomous tickets never ride along on every 30s poll.
 _STATE_NAMES = ",".join(f'"{n}"' for n in sorted(MESH_STATES))
@@ -51,10 +51,11 @@ SELF_CLAIM_QUERY = (
     f'{{labels:{{name:{{eq:"{AUTONOMY_LABEL}"}}}},state:{{name:{{in:[{_STATE_NAMES}]}}}}}}'
     ']}){pageInfo{hasNextPage endCursor} nodes{'
 )
-_NODE_FIELDS = (f'id identifier title description priority team{{id}} state{{name}} '
+_NODE_FIELDS = (f'id identifier title description priority team{{id}} state{{name type}} '
                 f'labels{{nodes{{name}}}} {GUARD_FIELDS}')
 SELF_CLAIM_QUERY += _NODE_FIELDS + "}}}"
 _MAX_PAGES = 20
+_OPEN_STATE_TYPES = frozenset({"backlog", "unstarted"})
 # The idea-pipeline store lives under the repo root, as routes/idea_pipeline.py has it.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -94,6 +95,17 @@ def eligible(issue: dict, repos: dict[str, str]) -> bool:
     return claim_refusal(issue) is None
 
 
+def _in_mesh_pool(issue: dict) -> bool:
+    """What SELF_CLAIM_QUERY's filter selects, checked in code for a ticket read by id:
+    autonomy work (its states are checked by ``eligible``), or mesh:auto / idea:plan
+    in an open (backlog/unstarted) state."""
+    if _autonomy_build(issue):
+        return True
+    labels = issue_label_names(issue)
+    return (not labels.isdisjoint({BUILD_LABEL, PLAN_LABEL})
+            and ((issue.get("state") or {}).get("type")) in _OPEN_STATE_TYPES)
+
+
 def repo_of(issue: dict, repos: dict[str, str]) -> Optional[str]:
     """owner/name to build in, for a registered project; None means the runner default."""
     return repos.get(issue_project_id(issue) or "")
@@ -128,7 +140,7 @@ def explicit(graphql, identifiers: list[str]) -> list[dict]:
     out: list[dict] = []
     for ident in identifiers:
         issue = (graphql(f"query{{issue(id:{json.dumps(ident)}){{{_NODE_FIELDS}}}}}") or {}).get("issue")
-        if issue and eligible(issue, repos):
+        if issue and _in_mesh_pool(issue) and eligible(issue, repos):
             out.append(issue)
         else:
             log.info("dispatch: %s not eligible or not found; skipped", ident)

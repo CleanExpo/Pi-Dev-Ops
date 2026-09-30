@@ -954,6 +954,7 @@ async def _process_autonomy_issue(
     transitioned_to = _transition_to_in_progress(config, issue_id, identifier, title, team_id)
     if transitioned_to is None:
         return
+    _aq.remember_claim(issue_id, identifier)
 
     _log_event({
         "action": "transition_to_in_progress",

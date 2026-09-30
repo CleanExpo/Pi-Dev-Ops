@@ -40,12 +40,15 @@ GUARD_WINDOW = timedelta(hours=24)
 _CLOSED_STATE_TYPES = frozenset({"completed", "canceled"})
 
 # Every executor's issue query selects these so claim_refusal can see them.
-# `inverseRelations` of type "blocks" are the issues blocking this one.
+# `inverseRelations` of type "blocks" are the issues blocking this one. Each
+# connection carries pageInfo: a guard that saw only part of its data refuses
+# (``guard-data-incomplete``) rather than passing on what it did not read.
+_GUARD_CONNECTIONS = ("inverseRelations", "history", "comments")
 GUARD_FIELDS = (
     "project { id } "
-    "inverseRelations(first: 20) { nodes { type issue { identifier state { type } } } } "
-    "history(first: 20) { nodes { createdAt toState { name } } } "
-    "comments(first: 50) { nodes { body createdAt } }"
+    "inverseRelations(first: 50) { pageInfo { hasNextPage } nodes { type issue { identifier state { type } } } } "
+    "history(first: 50) { pageInfo { hasNextPage } nodes { createdAt toState { name } } } "
+    "comments(first: 50) { pageInfo { hasNextPage } nodes { body createdAt } }"
 )
 
 
@@ -93,11 +96,16 @@ def claim_refusal(issue: Mapping[str, Any], now: datetime | None = None) -> str 
     clear it, because teams without a Blocked state park failures in Todo, which
     the mesh lane reads), ``blocked-by`` (an open blockedBy relation),
     ``recently-blocked`` (moved to Pi-Dev: Blocked within 24h), ``repeat-claim``
-    (already started twice within 24h). Fields a query did not select count as absent.
+    (already started twice within 24h), ``guard-data-incomplete`` (a guard
+    connection has more pages than were read). Fields a query did not select
+    count as absent.
     """
     now = now or datetime.now(timezone.utc)
     if any(name.startswith(BLOCKED_REASON_PREFIX) for name in issue_label_names(issue)):
         return "blocked-reason"
+    if any(((issue.get(k) or {}).get("pageInfo") or {}).get("hasNextPage") for k in _GUARD_CONNECTIONS
+           if isinstance(issue.get(k), Mapping)):
+        return "guard-data-incomplete"
     if open_blockers(issue):
         return "blocked-by"
     if any(

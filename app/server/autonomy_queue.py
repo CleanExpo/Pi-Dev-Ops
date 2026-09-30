@@ -29,7 +29,7 @@ from app.server.autonomy_eligibility import GUARD_FIELDS, MESH_STATES, REPEAT_CL
 
 log = logging.getLogger("pi-ceo.autonomy")
 
-PAGE_SIZE = 50
+PAGE_SIZE = 25  # each issue carries three guard connections of up to 50 nodes
 MAX_PAGES = 20  # 1,000 tickets per project/label; a runaway cursor cannot spin forever
 TOKEN_CAP_LABEL = "pi-dev:blocked-reason:token-cap"
 START_FAILED_LABEL = "pi-dev:blocked-reason:start-failed"
@@ -237,14 +237,23 @@ def claimable_or_refused(issues: list[dict], refused: list | None, **kwargs: Any
 _TERMINAL_CLAIM_STATE = {"complete": "done", "failed": "failed"}
 
 
+_CLAIMED: dict[str, str] = {}  # Linear UUID -> identifier, for claims this process took
+
+
+def remember_claim(issue_id: str, identifier: str) -> None:
+    """Record which ticket a won claim belongs to, so release needs no Linear read."""
+    _CLAIMED[issue_id] = identifier
+
+
 def release_session_claim(session: Any) -> None:
     """On any terminal status: mark a failed ticket unclaimable, then free its claim.
 
     A failed session moves its ticket to Todo (session_linear), which the mesh
     lane reads. So a failed ticket is labelled ``pi-dev:blocked-reason:session-failed``
-    first, while the fleet claim still locks it. If the label cannot be attached
-    the claim is kept, so nobody re-claims an unlabelled failure. The claim row is
-    keyed by identifier; a session knows only the UUID, so it is read back.
+    first, while the fleet claim still locks it; if the label cannot be attached
+    (Linear down included) the claim is kept, so nobody re-claims an unlabelled
+    failure. Any other terminal status releases from the identity recorded at
+    claim time, so a Linear outage cannot strand the claim.
     """
     issue_id = getattr(session, "linear_issue_id", None)
     status = str(getattr(session, "status", ""))
@@ -253,17 +262,21 @@ def release_session_claim(session: Any) -> None:
     from app.server import config, session_lease  # noqa: PLC0415
 
     a = _autonomy()
-    try:
-        data = a._gql(config.LINEAR_API_KEY,
-                      "query($id: String!) { issue(id: $id) { identifier team { id } } }", {"id": issue_id})
-        issue = data.get("issue") or {}
-        ident, team_id = issue.get("identifier"), (issue.get("team") or {}).get("id")
-        if status == "failed" and not a.add_label_to_issue(
-                config.LINEAR_API_KEY, issue_id, team_id or a._TEAM_ID, SESSION_FAILED_LABEL):
-            log.warning("Autonomy: %s failed and could not be labelled; claim kept", ident)
+    ident = _CLAIMED.get(issue_id)
+    if status == "failed":
+        try:
+            data = a._gql(config.LINEAR_API_KEY,
+                          "query($id: String!) { issue(id: $id) { identifier team { id } } }", {"id": issue_id})
+            issue = data.get("issue") or {}
+            ident = ident or issue.get("identifier")
+            labelled = a.add_label_to_issue(config.LINEAR_API_KEY, issue_id,
+                                            (issue.get("team") or {}).get("id") or a._TEAM_ID, SESSION_FAILED_LABEL)
+        except Exception as exc:  # noqa: BLE001 — terminal bookkeeping never raises
+            log.warning("Autonomy: could not label failed %s: %s", issue_id, exc)
+            labelled = False
+        if not labelled:
+            log.warning("Autonomy: %s failed and could not be labelled; claim kept", ident or issue_id)
             return
-    except Exception as exc:  # noqa: BLE001 — terminal bookkeeping never raises
-        log.warning("Autonomy: terminal bookkeeping failed for %s: %s", issue_id, exc)
-        return
     if ident and getattr(session, "autonomy_triggered", False):
-        session_lease.release_linear_ticket(ident, _TERMINAL_CLAIM_STATE.get(status, "released"))
+        if session_lease.release_linear_ticket(ident, _TERMINAL_CLAIM_STATE.get(status, "released")):
+            _CLAIMED.pop(issue_id, None)
