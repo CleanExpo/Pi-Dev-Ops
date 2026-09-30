@@ -33,8 +33,9 @@ FOUNDER_ONLY_LABEL = "founder-only"
 # to the agent lane named in mission_control's action map.
 FOUNDER_ONLY_COMPONENTS = frozenset({"schema_drift_db"})
 FOUNDER_ONLY_HINTS = (
-    "401", "403", "unauthori", "forbidden", "not set", "not configured",
-    "missing", "api_key", "api key", "token",
+    "401", "403", "unauthori", "unauthent", "forbidden", "permission", "denied",
+    "credential", "expired", "not set", "not configured", "missing", "absent",
+    "api_key", "api key", "_token", "access token", "invalid token",
 )
 
 
@@ -100,7 +101,7 @@ def _graphql(query: str, variables: dict) -> dict:
 _FIND = """query RedTicket($prefix: String!, $project: ID!) {
     issues(first: 1, filter: {
         title: { startsWith: $prefix },
-        state: { type: { in: ["backlog", "unstarted", "started"] } },
+        state: { type: { in: ["triage", "backlog", "unstarted", "started"] } },
         project: { id: { eq: $project } }
     }) { nodes { id identifier } }
 }"""
@@ -110,27 +111,46 @@ _COMMENT = """mutation RedComment($input: CommentCreateInput!) {
 _LABEL = """query FounderOnlyLabel($name: String!) {
     issueLabels(first: 1, filter: { name: { eq: $name } }) { nodes { id } }
 }"""
+_ADD_LABEL = """mutation RedAddLabel($id: String!, $labelId: String!) {
+    issueAddLabel(id: $id, labelId: $labelId) { success }
+}"""
 _CREATE = """mutation RedCreate($input: IssueCreateInput!) {
     issueCreate(input: $input) { success issue { identifier } }
 }"""
 
 
-def _founder_only_label_id(log, title: str) -> str | None:
-    nodes = (_graphql(_LABEL, {"name": FOUNDER_ONLY_LABEL}).get("issueLabels") or {}).get("nodes") or []
-    if not nodes:
-        log.warning("red ticket: no '%s' label in Linear — filed unlabelled: %s", FOUNDER_ONLY_LABEL, title)
-        return None
+def _founder_only_label_id() -> str:
+    """The founder-only label's id. Raises when it cannot be resolved: a
+    founder-only red must never be filed as though an agent owned it."""
+    nodes = (_graphql(_LABEL, {"name": FOUNDER_ONLY_LABEL}).get("issueLabels") or {}).get("nodes")
+    if not isinstance(nodes, list) or not nodes or not nodes[0].get("id"):
+        raise RuntimeError(f"no '{FOUNDER_ONLY_LABEL}' label in Linear")
     return nodes[0]["id"]
 
 
-def _create(title: str, text: str, founder_only: bool, log) -> str | None:
+def _open_matches(found: dict) -> list:
+    """issues.nodes from the lookup. Raises unless it is explicitly a list, so a
+    malformed answer can never read as "no open issue" and trigger a create."""
+    nodes = (found.get("issues") or {}).get("nodes") if isinstance(found.get("issues"), dict) else None
+    if not isinstance(nodes, list):
+        raise RuntimeError("Linear lookup returned no issues.nodes list")
+    return nodes
+
+
+def _update(issue: dict, text: str, founder_only: bool) -> str | None:
+    if founder_only:
+        _graphql(_ADD_LABEL, {"id": issue["id"], "labelId": _founder_only_label_id()})
+    _graphql(_COMMENT, {"input": {"issueId": issue["id"], "body": text}})
+    return issue.get("identifier")
+
+
+def _create(title: str, text: str, founder_only: bool) -> str | None:
     issue: dict[str, Any] = {
         "teamId": TEAM_ID, "projectId": PROJECT_ID,
         "title": title, "description": text, "priority": 2,
     }
-    label_id = _founder_only_label_id(log, title) if founder_only else None
-    if label_id:
-        issue["labelIds"] = [label_id]
+    if founder_only:
+        issue["labelIds"] = [_founder_only_label_id()]
     created = _graphql(_CREATE, {"input": issue})
     return ((created.get("issueCreate") or {}).get("issue") or {}).get("identifier")
 
@@ -138,25 +158,24 @@ def _create(title: str, text: str, founder_only: bool, log) -> str | None:
 def upsert_red_linear_ticket(title: str, body: str, *, owner: str, founder_only: bool, log) -> str | None:
     """Comment on the open issue titled ``title``, or create it once. Returns its identifier.
 
-    If the lookup fails, nothing is created: a create after a failed find is
-    how duplicate tickets are born.
+    If the lookup fails or is malformed, nothing is created: a create after a
+    failed find is how duplicate tickets are born. A founder-only red whose
+    label cannot be resolved is not filed unlabelled; it logs an error.
     """
     if not config.LINEAR_API_KEY:
         log.warning("red ticket: LINEAR_API_KEY unset — not filed: %s", title)
         return None
     text = f"Owner: {owner}\nFounder-only: {'yes' if founder_only else 'no'}\n\n{body}"
     try:
-        found = _graphql(_FIND, {"prefix": title, "project": PROJECT_ID})
+        nodes = _open_matches(_graphql(_FIND, {"prefix": title, "project": PROJECT_ID}))
     except Exception as exc:  # noqa: BLE001
         log.error("red ticket: Linear lookup failed (%s) — not creating: %s", exc, title)
         return None
     try:
-        nodes = (found.get("issues") or {}).get("nodes") or []
         if nodes:
-            _graphql(_COMMENT, {"input": {"issueId": nodes[0]["id"], "body": text}})
-            ident = nodes[0].get("identifier")
+            ident = _update(nodes[0], text, founder_only)
         else:
-            ident = _create(title, text, founder_only, log)
+            ident = _create(title, text, founder_only)
         log.info("red ticket: %s %s (%s)", "updated" if nodes else "created", ident, title)
         return ident
     except Exception as exc:  # noqa: BLE001
