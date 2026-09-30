@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, mesh_fleet, mesh_lanes, mesh_reaper, mesh_requeue, mesh_run_record
+from .. import config, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_reaper, mesh_requeue, mesh_run_record
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -176,7 +176,7 @@ def fleet(
     an entry in `errors`, with `degraded` true, so "nobody has joined yet" and
     "the read broke" stop being the same response.
     """
-    _check_secret(x_pi_ceo_secret)
+    mesh_fleet_auth.check(x_pi_ceo_secret)
     return mesh_fleet.snapshot(lambda path: _sb("GET", path))
 
 
