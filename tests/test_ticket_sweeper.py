@@ -49,7 +49,8 @@ FAILED = "Pi CEO build **failed** after 12s.\n\nSession: `abc`"
 @pytest.fixture
 def world(monkeypatch, tmp_path):
     """Fake Linear + GitHub; records every write the sweeper makes."""
-    state = {"stale": [], "in_review": [], "recent_todo": [], "fail": set(), "prs": {}, "writes": []}
+    state = {"stale": [], "in_review": [], "recent_todo": [], "fail": set(), "null_project": set(),
+             "pages": {}, "prs": {}, "writes": [], "label_ok": True}
     monkeypatch.setenv("LINEAR_API_KEY", "lin_test")
     monkeypatch.delenv("TAO_TICKET_SWEEPER_WRITE", raising=False)
     monkeypatch.setattr(ticket_sweeper, "_STATE_FILE", tmp_path / "sweeper.json")
@@ -60,7 +61,14 @@ def world(monkeypatch, tmp_path):
                   "in_review" if "SweeperInReview" in query else "recent_todo")
         if bucket in state["fail"]:
             raise RuntimeError("Linear HTTP 500")
-        return {"project": {"issues": {"nodes": [dict(i) for i in state[bucket]]}}}
+        if bucket in state["null_project"]:
+            return {"project": None}
+        pages = state["pages"].get(bucket) or [state[bucket]]
+        idx = int((variables or {}).get("cursor") or 0)
+        more = idx + 1 < len(pages)
+        return {"project": {"issues": {
+            "pageInfo": {"hasNextPage": more, "endCursor": str(idx + 1) if more else None},
+            "nodes": [dict(i) for i in pages[idx]]}}}
 
     def fake_github(path):
         for key, value in state["prs"].items():
@@ -75,13 +83,13 @@ def world(monkeypatch, tmp_path):
     monkeypatch.setattr(autonomy, "comment_on_issue",
                         lambda k, iid, body: state["writes"].append(("comment", iid)))
     monkeypatch.setattr(autonomy, "add_label_to_issue",
-                        lambda k, iid, team, label: state["writes"].append(("label", iid, label)) or True)
+                        lambda k, iid, team, label: state["label_ok"] and not state["writes"].append(("label", iid, label)))
     monkeypatch.setattr(autonomy, "transition_issue",
                         lambda k, iid, name, team_id=None: state["writes"].append(("state", iid, name)))
     return state
 
 
-def _pr(repo_num, *, red=False, reviewed=False, created="2026-09-13T00:00:00Z", open_=True):
+def _pr(repo_num, *, red=False, reviewed=False, created="2026-09-13T00:00:00Z", open_=True, status="success"):
     base = f"/repos/CleanExpo/ATO/pulls/{repo_num}"
     return {
         base + "/reviews": [{"id": 1}] if reviewed else [],
@@ -89,6 +97,7 @@ def _pr(repo_num, *, red=False, reviewed=False, created="2026-09-13T00:00:00Z", 
                "created_at": created, "head": {"sha": f"sha{repo_num}"}},
         f"/repos/CleanExpo/ATO/commits/sha{repo_num}/check-runs": {"check_runs": [
             {"conclusion": "failure" if red else "success"}]},
+        f"/repos/CleanExpo/ATO/commits/sha{repo_num}/status": {"state": status},
     }
 
 
@@ -158,12 +167,15 @@ def test_failed_build_goes_to_ready_once_then_blocked(world, monkeypatch):
     ]
     report = ticket_sweeper.run_sweep(now=NOW)
     assert report.failed_to_ready == ["RA-10"]
-    assert sorted(report.failed_to_blocked) == ["RA-11", "RA-12"]
+    # RA-12: one failure + retry marker = retry still owed, never blocked early.
+    # Ready for Pi-Dev is also type "unstarted"; the bucket must select Todo by name.
+    assert 'state: { name: { eq: "Todo" } }' in ticket_sweeper_io._RECENT_TODO_QUERY
+    assert report.failed_to_blocked == ["RA-11"]
     assert ("state", "id-RA-10", "Ready for Pi-Dev") in world["writes"]
     assert ("label", "id-RA-10", "pi-dev:failed-retry-used") in world["writes"]
     assert ("state", "id-RA-11", "Pi-Dev: Blocked") in world["writes"]
     assert ("label", "id-RA-11", "pi-dev:blocked-reason:build-failed") in world["writes"]
-    assert not [w for w in world["writes"] if w[1] in ("id-RA-13", "id-RA-14")]
+    assert not [w for w in world["writes"] if w[1] in ("id-RA-12", "id-RA-13", "id-RA-14")]
 
 
 def test_failed_fetch_marks_run_incomplete(world):
@@ -187,6 +199,49 @@ def test_counts_persist_to_mission_control_snapshot(world):
     snap = ticket_sweeper.status_snapshot()
     assert snap["last_run_at"] and snap["dry_run"] is True and snap["complete"] is True
     assert snap["counts"]["stale_to_todo"] == 1 and snap["counts"]["stale_labelled"] == 1
+
+
+def test_failed_retry_label_write_blocks_the_move(world, monkeypatch):
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["label_ok"] = False
+    world["recent_todo"] = [_issue("RA-10", "Todo", stype="unstarted", comments=[FAILED])]
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert not [w for w in world["writes"] if w[0] == "state"]
+    assert report.errors == ["label_failed:RA-10"] and report.complete is False
+
+
+def test_red_commit_status_counts_as_red(world):
+    world["in_review"] = [_issue("RA-5", "In Review", pr=PR)]
+    world["prs"] = _pr(35, red=False, reviewed=True, status="failure")
+    assert ticket_sweeper.run_sweep(now=NOW).review_red_pr == ["RA-5"]
+
+
+def test_every_page_is_swept(world):
+    world["pages"]["stale"] = [[_issue(f"UNI-{i}") for i in range(50)], [_issue("UNI-99")]]
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert len(report.stale_to_todo) == 51 and report.complete is True
+
+
+def test_too_many_pages_is_incomplete_not_short(world, monkeypatch):
+    monkeypatch.setattr(ticket_sweeper_io, "_MAX_PAGES", 1)
+    world["pages"]["stale"] = [[_issue("UNI-1")], [_issue("UNI-2")]]
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.complete is False and any("OverflowError" in e for e in report.errors)
+
+
+def test_missing_project_is_incomplete_not_zero(world):
+    world["null_project"] = {"stale", "in_review", "recent_todo"}
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.complete is False and len(report.errors) == 3
+    assert ticket_sweeper.status_snapshot()["complete"] is False
+
+
+def test_committed_cron_row_fires_at_0330():
+    import json
+    from app.server import cron_triggers
+    rows = json.loads((REPO_ROOT / "config" / "harness" / "cron-triggers.json").read_text())
+    row = next(r for r in rows if r["id"] == "ticket-sweeper-nightly")
+    assert cron_triggers._matches(row, 3, 30) and not cron_triggers._matches(row, 4, 30)
 
 
 def test_cron_registry_knows_the_sweeper():

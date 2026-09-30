@@ -26,44 +26,64 @@ _ISSUE_FIELDS = """
     inverseRelations(first: 20) { nodes { type issue { identifier state { type } } } }
 """
 
+_PAGE = "first: 50, after: $cursor) { pageInfo { hasNextPage endCursor } nodes { %s } }"
+_MAX_PAGES = 20  # 1,000 issues per bucket per project; beyond that the run is marked truncated
+
 _STARTED_QUERY = """
-query SweeperStarted($projectId: String!, $before: DateTimeOrDuration!) {
+query SweeperStarted($projectId: String!, $before: DateTimeOrDuration!, $cursor: String) {
     project(id: $projectId) {
         issues(filter: {
             state: { type: { eq: "started" } }
             updatedAt: { lt: $before }
-        }, first: 50) { nodes { %s } }
+        }, %s
     }
 }
-""" % _ISSUE_FIELDS
+""" % (_PAGE % _ISSUE_FIELDS)
 
 _IN_REVIEW_QUERY = """
-query SweeperInReview($projectId: String!) {
+query SweeperInReview($projectId: String!, $cursor: String) {
     project(id: $projectId) {
-        issues(filter: { state: { name: { eq: "In Review" } } }, first: 50) {
-            nodes { %s }
-        }
+        issues(filter: { state: { name: { eq: "In Review" } } }, %s
     }
 }
-""" % _ISSUE_FIELDS
+""" % (_PAGE % _ISSUE_FIELDS)
 
-# A failed build lands in Todo (session_linear: failed → Todo). Look back a week
-# so a skipped night never loses one; acting moves the ticket out of Todo.
+# A failed build lands in Todo (session_linear: failed → Todo). Filter on the
+# state NAME: "Ready for Pi-Dev" is also type unstarted, and a retry waiting
+# there must not be re-judged. Look back a week so a skipped night loses nothing.
 _RECENT_TODO_QUERY = """
-query SweeperRecentTodo($projectId: String!, $after: DateTimeOrDuration!) {
+query SweeperRecentTodo($projectId: String!, $since: DateTimeOrDuration!, $cursor: String) {
     project(id: $projectId) {
         issues(filter: {
-            state: { type: { eq: "unstarted" } }
-            updatedAt: { gt: $after }
-        }, first: 50) { nodes { %s comments(first: 20) { nodes { body } } } }
+            state: { name: { eq: "Todo" } }
+            updatedAt: { gt: $since }
+        }, %s
     }
 }
-""" % _ISSUE_FIELDS
+""" % (_PAGE % (_ISSUE_FIELDS + "    comments(first: 20) { nodes { body } }\n"))
 
 
 def _iso_days_ago(days: int, now: datetime | None = None) -> str:
     now = now or datetime.now(timezone.utc)
     return (now - timedelta(days=days)).isoformat()
+
+
+def _fetch_all(api_key: str, query: str, variables: dict) -> list[dict]:
+    """Every page of one bucket for one project. Raises on a missing project or
+    issues connection, and on more pages than _MAX_PAGES — never a silent short read."""
+    nodes: list[dict] = []
+    cursor = None
+    for _ in range(_MAX_PAGES):
+        data = autonomy._gql(api_key, query, {**variables, "cursor": cursor})
+        conn = (data.get("project") or {}).get("issues")
+        if not isinstance(conn, dict):
+            raise LookupError("project or issues connection missing")
+        nodes.extend(conn.get("nodes") or [])
+        page = conn.get("pageInfo") or {}
+        if not page.get("hasNextPage"):
+            return nodes
+        cursor = page.get("endCursor")
+    raise OverflowError(f"more than {_MAX_PAGES} pages")
 
 
 def fetch_buckets(api_key: str, *, stale_days: int, now: datetime | None = None) -> tuple[dict, list[str]]:
@@ -79,18 +99,18 @@ def fetch_buckets(api_key: str, *, stale_days: int, now: datetime | None = None)
     plan = (
         ("stale", _STARTED_QUERY, {"before": _iso_days_ago(stale_days, now)}),
         ("in_review", _IN_REVIEW_QUERY, {}),
-        ("recent_todo", _RECENT_TODO_QUERY, {"after": _iso_days_ago(7, now)}),
+        ("recent_todo", _RECENT_TODO_QUERY, {"since": _iso_days_ago(7, now)}),
     )
     for p in autonomy._load_portfolio_projects():
         for bucket, query, extra in plan:
             try:
-                data = autonomy._gql(api_key, query, {"projectId": p["project_id"], **extra})
+                nodes = _fetch_all(api_key, query, {"projectId": p["project_id"], **extra})
             except autonomy.LinearRateLimitError:
                 raise
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"fetch_failed:{bucket}:{p['name']}:{type(exc).__name__}")
                 continue
-            for issue in (data.get("project") or {}).get("issues", {}).get("nodes") or []:
+            for issue in nodes:
                 iid = issue.get("id")
                 if not iid or iid in seen[bucket]:
                     continue
@@ -152,10 +172,13 @@ def pr_facts(repo: str, number: int) -> dict:
     pr = github_get(f"/repos/{repo}/pulls/{number}")
     sha = ((pr.get("head") or {}).get("sha")) or ""
     runs = github_get(f"/repos/{repo}/commits/{sha}/check-runs?per_page=100") if sha else {}
+    # Commit statuses are a separate red signal from check runs (older CI, Vercel).
+    status = github_get(f"/repos/{repo}/commits/{sha}/status") if sha else {}
     reviews = github_get(f"/repos/{repo}/pulls/{number}/reviews?per_page=100")
+    red_runs = any((r.get("conclusion") or "") in _RED_CONCLUSIONS for r in (runs or {}).get("check_runs") or [])
     return {
         "open": pr.get("state") == "open" and not pr.get("merged"),
         "created_at": pr.get("created_at") or "",
-        "red": any((r.get("conclusion") or "") in _RED_CONCLUSIONS for r in (runs or {}).get("check_runs") or []),
+        "red": red_runs or (status or {}).get("state") in ("failure", "error"),
         "reviewed": bool(reviews),
     }

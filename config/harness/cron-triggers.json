@@ -422,12 +422,8 @@
     "id": "ticket-sweeper-nightly",
     "type": "ticket_sweeper",
     "name": "Ticket lifecycle sweeper: stale:14d, review:red-pr, failed-build retry-once (audit #17)",
-    "hour": [
-      3
-    ],
-    "minute": [
-      30
-    ],
+    "hour": 3,
+    "minute": 30,
     "enabled": true,
     "note": "DRY-RUN unless TAO_TICKET_SWEEPER_WRITE=1: counts decisions for the Mission Control tile without writing to Linear.",
     "created_at": 1790726400,

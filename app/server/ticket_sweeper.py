@@ -89,13 +89,17 @@ def decide_review(facts: list[dict | None], now: datetime) -> str:
 
 
 def decide_failed(issue: dict) -> str | None:
-    """'ready' for a first failure, 'blocked' after the retry, else None."""
+    """'ready' for a first failure, 'blocked' once a second failure is on record,
+    else None. One failure plus the retry marker means the retry is still owed
+    or in flight — it is never blocked before a second failure exists."""
     bodies = [c.get("body") or "" for c in (issue.get("comments") or {}).get("nodes") or []]
     failures = sum(1 for b in bodies if b.startswith(FAILED_MARKER))
     labels = io.label_names(issue)
     if failures == 0 or BLOCKED_REASON_LABEL in labels:
         return None
-    return "ready" if failures == 1 and RETRY_LABEL not in labels else "blocked"
+    if failures >= 2:
+        return "blocked"
+    return None if RETRY_LABEL in labels else "ready"
 
 
 # ── Writes (only when enabled) ───────────────────────────────────────────────
@@ -106,10 +110,13 @@ def _apply(api_key: str, issue: dict, report: SweepReport, *,
         return
     iid, team = issue["id"], issue.get("_team_id") or autonomy._TEAM_ID
     try:
-        if comment:
-            autonomy.comment_on_issue(api_key, iid, comment)
+        # Label first: it is the durable marker (e.g. retry-used). Without it, a
+        # move would let the same ticket be retried again on the next sweep.
         if label.lower() not in io.label_names(issue) and not autonomy.add_label_to_issue(api_key, iid, team, label):
             report.errors.append(f"label_failed:{issue.get('identifier')}")
+            return
+        if comment:
+            autonomy.comment_on_issue(api_key, iid, comment)
         if state:
             autonomy.transition_issue(api_key, iid, state, team_id=team)
     except autonomy.LinearRateLimitError:
@@ -186,7 +193,7 @@ def run_sweep(now: datetime | None = None) -> SweepReport:
     except autonomy.LinearRateLimitError:
         report.errors.append("linear_rate_limited")
     finally:
-        report.complete = not report.errors or all(e.startswith(("label_failed", "write_failed")) for e in report.errors)
+        report.complete = not report.errors
         report.finished_at = datetime.now(timezone.utc).isoformat()
         _write_state(report)
     return report
