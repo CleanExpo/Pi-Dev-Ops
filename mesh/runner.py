@@ -123,7 +123,7 @@ def write_state(current_task, state: str, session_id: str | None = None) -> None
 
 def get_work() -> list[dict]:
     """Assigned work first, else a self-claimed mesh:auto ticket (fleet_state.next_work)."""
-    return next_work(_api, HOST, LOG.polled)
+    return next_work(_api, HOST, LOG.polled, LOG.contacted)
 
 
 def default_repo_dir_problem() -> str:

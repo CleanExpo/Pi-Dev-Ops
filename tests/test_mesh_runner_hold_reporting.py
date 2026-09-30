@@ -157,8 +157,18 @@ def test_the_poll_line_carries_the_outcome_and_the_last_good_contact(runner, mon
     runner.main()
     empty = _lines(capsys.readouterr().out)[-1]
     assert empty["poll"] == "empty" and isinstance(empty["last_contact"], int) and "ts" in empty
-    monkeypatch.setattr(runner, "_api", _api(EMPTY_FLEET, {"error": "HTTP 404", "detail": "Application not found"}))
+    railway_down = {"error": "HTTP 404", "detail": "Application not found"}
+    monkeypatch.setattr(runner, "_api", _api(railway_down, railway_down))
     runner.main()
     outage = _lines(capsys.readouterr().out)[-1]
     assert outage["poll"] == "unavailable"
     assert outage["last_contact"] == empty["last_contact"], "an outage is not a contact"
+
+
+def test_a_fleet_read_that_answered_is_contact_even_when_the_self_claim_then_fails():
+    fs = load_module("mesh_fleet_state_contact", "mesh/fleet_state.py")
+    seen, contacts = [], []
+    fs.next_work(_api(EMPTY_FLEET, {"error": "HTTP 503"}), HOST, seen.append, lambda: contacts.append(1))
+    assert seen == ["unavailable"] and contacts == [1]
+    fs.next_work(_api({"error": "HTTP 502"}, {}), HOST, seen.append, lambda: contacts.append(1))
+    assert contacts == [1], "a failed fleet read is not contact"

@@ -33,10 +33,12 @@ class Log:
         self.last_contact: int | None = None
 
     def polled(self, outcome: str) -> None:
-        """One poll ran, so the node is not held. Only an answer counts as contact."""
+        """One poll ran, so the node is not held."""
         self.holds, self.poll = 0, outcome
-        if outcome in ("empty", "assigned"):
-            self.last_contact = int(self._clock())
+
+    def contacted(self) -> None:
+        """The server answered a call successfully; a failed one never moves this."""
+        self.last_contact = int(self._clock())
 
     def line(self, health: node_health.NodeHealth | None, **fields) -> str:
         held = health is not None and health.state != "healthy"

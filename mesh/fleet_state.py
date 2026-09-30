@@ -86,7 +86,8 @@ def _failure(response: object) -> str:
     return "rejected" if refused else "unavailable"
 
 
-def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outcome: None) -> list[dict]:
+def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outcome: None,
+              contact: Callable[[], object] = lambda: None) -> list[dict]:
     """Use assigned work first, otherwise atomically self-claim a mesh:auto ticket.
 
     KNOWN GAP — only the self-claim path carries the ticket's brief. `/claim/self`
@@ -101,10 +102,12 @@ def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outc
 
     `report` hears one outcome per poll — unavailable, rejected, empty or assigned —
     because all four used to return [] alike, so an outage read as an empty queue.
+    `contact` hears each call the server answered successfully, even when a later one fails.
     """
     claims = my_claims(api, host, lambda response: report(_failure(response)))
     if claims is None:
         return []          # fleet unreadable: hold, never self-claim on a guess
+    contact()
     if claims:
         report("assigned")
         return claims
@@ -112,6 +115,7 @@ def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outc
     if not isinstance(response, dict) or response.get("error"):
         report(_failure(response))
         return []
+    contact()
     claimed = response.get("claimed")
     report("assigned" if claimed else "empty")
     return [claimed] if claimed else []
