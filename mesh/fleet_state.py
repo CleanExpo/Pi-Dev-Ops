@@ -119,7 +119,8 @@ def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outc
         report(_failure(response))
         return []
     claimed = response.get("claimed", False)  # absent is no answer; null is "nothing to claim"
-    if not (claimed is None or (isinstance(claimed, dict) and claimed.get("linear_id"))):
+    if not (claimed is None or (isinstance(claimed, dict) and isinstance(claimed.get("linear_id"), str)
+                                and claimed["linear_id"])):
         report("unavailable")
         return []
     contact()

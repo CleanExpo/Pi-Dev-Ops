@@ -172,6 +172,7 @@ EMPTY_FLEET = {"claims": [], "agents": [], "degraded": False}
     ({}, {"claimed": None}, "unavailable"),
     (EMPTY_FLEET, {}, "unavailable"),
     (EMPTY_FLEET, {"claimed": {"title": "no ticket id"}}, "unavailable"),
+    (EMPTY_FLEET, {"claimed": {"linear_id": ["RA-1"]}}, "unavailable"),
     ({**EMPTY_FLEET, "claims": [{"machine": HOST, "state": "claimed", "linear_id": "RA-1"}]}, {}, "assigned"),
     (EMPTY_FLEET, {"error": "HTTP 404", "detail": "Application not found"}, "unavailable"),
     (EMPTY_FLEET, {"error": "<urlopen error timed out>"}, "unavailable"),
