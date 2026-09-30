@@ -470,7 +470,9 @@ last 24 h, two session starts in the last 24 h (the third is parked with
 `pi-dev:blocked-reason:repeat-claim`), or any `pi-dev:blocked-reason:*` label. A failed start
 is parked Blocked, never re-queued. A ticket whose sessions have spent `TAO_TICKET_TOKEN_CAP`
 tokens in total (default 300,000, summed from Supabase session checkpoints) is parked with
-`pi-dev:blocked-reason:token-cap`. To restart a parked ticket: fix the cause, remove the
+`pi-dev:blocked-reason:token-cap`; with no readable ledger (Supabase unset or failing) the
+ticket is skipped, so set `TAO_TICKET_TOKEN_CAP=0` to run the poller without Supabase. A failed
+session is labelled `pi-dev:blocked-reason:session-failed` before its claim is released. To restart a parked ticket: fix the cause, remove the
 blocked-reason label, then move it to `Ready for Pi-Dev`. Re-derive:
 `grep -n "def claim_refusal" -A30 app/server/autonomy_eligibility.py`
 

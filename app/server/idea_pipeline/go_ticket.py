@@ -50,12 +50,42 @@ def _team_ids(gql: GqlFn, team_id: str) -> tuple[str | None, str | None]:
     return state, label
 
 
+def _marker(packet: dict[str, Any]) -> str:
+    return f"idea `{packet.get('idea_id')}`"
+
+
+def _existing(gql: GqlFn, team_id: str, packet: dict[str, Any]) -> dict[str, Any] | None:
+    """The ticket an earlier attempt already filed for this idea, if any.
+
+    ``{"error": ...}`` when Linear cannot be asked: a create whose response was lost
+    may still have committed, so an unanswerable check must never lead to a second
+    create.
+    """
+    res = gql(
+        "query($team: ID!, $marker: String!) { issues(first: 1, filter: {"
+        " team: { id: { eq: $team } }, description: { contains: $marker } }) {"
+        " nodes { id identifier url } } }",
+        {"team": team_id, "marker": _marker(packet)},
+    )
+    if res.get("error") or res.get("errors"):
+        return {"error": "reconcile_failed"}
+    nodes = (((res.get("data") or {}).get("issues") or {}).get("nodes")) or []
+    return {**nodes[0], "status": "linked", "state": READY_STATUS_NAME} if nodes else None
+
+
 def file_go_ticket(packet: dict[str, Any], *, gql: GqlFn | None = None) -> dict[str, Any]:
-    """Create the build ticket for a GO'd idea. Returns the ticket or ``{"error": ...}``."""
+    """Create the build ticket for a GO'd idea. Returns the ticket or ``{"error": ...}``.
+
+    Idempotent across lost responses: a ticket already carrying this idea's marker
+    is linked instead of created again.
+    """
     target = _target()
     if not target:
         return {"error": "go_project_unregistered"}
     client = gql or _linear_gql
+    found = _existing(client, target["team_id"], packet)
+    if found:
+        return found
     state_id, label_id = _team_ids(client, target["team_id"])
     if not state_id:
         return {"error": "ready_state_missing", "team_id": target["team_id"]}
@@ -68,7 +98,7 @@ def file_go_ticket(packet: dict[str, Any], *, gql: GqlFn | None = None) -> dict[
         "title": (text.splitlines()[0] if text else f"Idea {packet.get('idea_id')}")[:_TITLE_MAX],
         "description": (
             f"## Idea\n{text}\n\n## Approval\nPROMOTE, then GO at {packet.get('go_at')}.\n\n"
-            f"---\nFiled by the idea pipeline on execute (idea `{packet.get('idea_id')}`)."
+            f"---\nFiled by the idea pipeline on execute ({_marker(packet)})."
         ),
     }
     out = _submit_issue(client, issue_input, [AUTONOMY_LABEL], target, target["repo"])

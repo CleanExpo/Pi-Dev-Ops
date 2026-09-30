@@ -25,7 +25,7 @@ import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
-from app.server.autonomy_eligibility import GUARD_FIELDS, REPEAT_CLAIM_LABEL
+from app.server.autonomy_eligibility import GUARD_FIELDS, MESH_STATES, REPEAT_CLAIM_LABEL
 
 log = logging.getLogger("pi-ceo.autonomy")
 
@@ -33,6 +33,10 @@ PAGE_SIZE = 50
 MAX_PAGES = 20  # 1,000 tickets per project/label; a runaway cursor cannot spin forever
 TOKEN_CAP_LABEL = "pi-dev:blocked-reason:token-cap"
 START_FAILED_LABEL = "pi-dev:blocked-reason:start-failed"
+SESSION_FAILED_LABEL = "pi-dev:blocked-reason:session-failed"
+# A session row whose checkpoint carries no budget.used is charged one default
+# session budget: unknown spend is counted, never read as zero.
+_UNKNOWN_SESSION_SPEND = 100_000
 _DEFAULT_TICKET_TOKEN_CAP = 300_000  # three default session budgets
 
 TODO_ISSUES_QUERY = """
@@ -81,10 +85,19 @@ def _autonomy():
 
 
 def _park(api_key: str, issue_id: str, team_id: str, label: str, comment: str) -> str:
-    """Label, move to the team's Blocked state, comment. Returns the state used."""
+    """Label, move to the team's Blocked state, comment. Returns the state used.
+
+    Teams without a Blocked state fall back to Todo, which the mesh lane reads;
+    there the label is the only thing keeping the ticket unclaimable. So when the
+    label cannot be attached the ticket is NOT moved into a claimable state: it
+    stays where it is, and the comment says so.
+    """
     a = _autonomy()
     target = a._recovery_state_for(team_id)
-    a.add_label_to_issue(api_key, issue_id, team_id, label)
+    if not a.add_label_to_issue(api_key, issue_id, team_id, label) and target in MESH_STATES:
+        a.comment_on_issue(api_key, issue_id, f"{comment}\n\n(Label `{label}` could not be "
+                           f"attached, so the ticket was not moved to `{target}`.)")
+        return "unchanged"
     a.transition_issue(api_key, issue_id, target, team_id=team_id)
     a.comment_on_issue(api_key, issue_id, comment)
     return target
@@ -133,15 +146,17 @@ def ticket_token_cap() -> int:
 
 
 def tokens_spent(linear_issue_id: str) -> int | None:
-    """Tokens every recorded session has spent on this ticket; None when unreadable.
+    """Tokens every recorded session has spent on this ticket; None when unknowable.
 
-    0 when Supabase is not configured: there is no shared ledger to read, the
-    same stance ``session_lease.claim_linear_ticket`` takes.
+    None when Supabase is not configured or the read fails: with no ledger the
+    cap cannot be checked, so the caller refuses (TAO_TICKET_TOKEN_CAP=0 runs
+    without a cap). A row without ``budget.used`` counts as one default session
+    budget, never as zero.
     """
     from app.server import supabase_log  # noqa: PLC0415
 
     if not all(supabase_log._cfg()):
-        return 0
+        return None
     status, rows = supabase_log._request(
         "GET",
         "sessions?select=used:checkpoint->budget->used"
@@ -150,7 +165,10 @@ def tokens_spent(linear_issue_id: str) -> int | None:
     )
     if not supabase_log._ok(status) or not isinstance(rows, list):
         return None
-    return sum(int(r.get("used") or 0) for r in rows if isinstance(r, dict))
+    return sum(
+        int(r["used"]) if isinstance(r.get("used"), (int, float)) else _UNKNOWN_SESSION_SPEND
+        for r in rows if isinstance(r, dict)
+    )
 
 
 def token_cap_refusal(config: Any, issue_id: str, identifier: str, team_id: str) -> bool:
@@ -211,24 +229,32 @@ _TERMINAL_CLAIM_STATE = {"complete": "done", "failed": "failed"}
 
 
 def release_session_claim(session: Any) -> None:
-    """Release the fleet claim an autonomy session holds, on any terminal status.
+    """On any terminal status: mark a failed ticket unclaimable, then free its claim.
 
-    The claim row is keyed by identifier (RA-123); a session knows only the
-    Linear UUID, so the identifier is read back from Linear. Best-effort: a
-    miss leaves the row for the reaper, exactly as before this existed.
+    A failed session moves its ticket to Todo (session_linear), which the mesh
+    lane reads. So a failed ticket is labelled ``pi-dev:blocked-reason:session-failed``
+    first, while the fleet claim still locks it. If the label cannot be attached
+    the claim is kept, so nobody re-claims an unlabelled failure. The claim row is
+    keyed by identifier; a session knows only the UUID, so it is read back.
     """
     issue_id = getattr(session, "linear_issue_id", None)
-    if not issue_id or not getattr(session, "autonomy_triggered", False):
+    status = str(getattr(session, "status", ""))
+    if not issue_id or (status != "failed" and not getattr(session, "autonomy_triggered", False)):
         return
     from app.server import config, session_lease  # noqa: PLC0415
 
+    a = _autonomy()
     try:
-        data = _autonomy()._gql(config.LINEAR_API_KEY, "query($id: String!) { issue(id: $id) { identifier } }",
-                                {"id": issue_id})
-        ident = (data.get("issue") or {}).get("identifier")
+        data = a._gql(config.LINEAR_API_KEY,
+                      "query($id: String!) { issue(id: $id) { identifier team { id } } }", {"id": issue_id})
+        issue = data.get("issue") or {}
+        ident, team_id = issue.get("identifier"), (issue.get("team") or {}).get("id")
+        if status == "failed" and not a.add_label_to_issue(
+                config.LINEAR_API_KEY, issue_id, team_id or a._TEAM_ID, SESSION_FAILED_LABEL):
+            log.warning("Autonomy: %s failed and could not be labelled; claim kept", ident)
+            return
     except Exception as exc:  # noqa: BLE001 — terminal bookkeeping never raises
-        log.warning("Autonomy: claim release lookup failed for %s: %s", issue_id, exc)
+        log.warning("Autonomy: terminal bookkeeping failed for %s: %s", issue_id, exc)
         return
-    state = _TERMINAL_CLAIM_STATE.get(str(getattr(session, "status", "")), "released")
-    if ident:
-        session_lease.release_linear_ticket(ident, state)
+    if ident and getattr(session, "autonomy_triggered", False):
+        session_lease.release_linear_ticket(ident, _TERMINAL_CLAIM_STATE.get(status, "released"))

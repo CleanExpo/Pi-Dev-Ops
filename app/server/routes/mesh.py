@@ -222,8 +222,8 @@ def _team_started_state_id(team_id: str) -> str:
 def _mark_issue_in_progress(issue: dict) -> bool:
     """Transition a just-claimed issue out of backlog/unstarted so _MESH_AUTO_QUERY
     stops returning it. Without this, a completed ticket re-enters the pool and is
-    re-claimed forever (the infinite re-claim loop). Best-effort: only possible for
-    tickets that came from the auto query (explicit dispatch ids carry no node id)."""
+    re-claimed forever (the infinite re-claim loop). Best-effort: needs the node id
+    and team, which every candidate read from Linear carries."""
     issue_id = issue.get("id")
     team_id = (issue.get("team") or {}).get("id")
     if not issue_id or not team_id:
@@ -314,7 +314,7 @@ def _open_claim_ids() -> set:
 
 
 class DispatchRequest(BaseModel):
-    linear_ids: list[str] = Field(default_factory=list)  # explicit tickets; empty → query Linear mesh:auto
+    linear_ids: list[str] = Field(default_factory=list)  # explicit tickets; empty → shared candidate pool
 
 
 class ClaimUpdate(mesh_lanes.PlanPacketFields, mesh_run_record.RunRecordFields):

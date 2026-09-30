@@ -136,7 +136,7 @@ def test_failed_start_parks_blocked_and_releases_claim(monkeypatch):
     monkeypatch.setattr(autonomy, "generation_blocked", lambda *_: False)
     monkeypatch.setattr(session_lease, "claim_linear_ticket", lambda _i: True)
     monkeypatch.setattr(session_lease, "release_linear_ticket", lambda i, s="released": released.append((i, s)))
-    monkeypatch.setattr(supabase_log, "_cfg", lambda: ("", ""))
+    monkeypatch.setenv("TAO_TICKET_TOKEN_CAP", "0")
     issue = {**_issue("RA-7785"), "_team_id": autonomy._RA_TEAM_ID, "description": "fix the thing"}
     asyncio.run(autonomy._process_autonomy_issue(cfg, boom, issue))
     assert "Ready for Pi-Dev" not in states
@@ -144,30 +144,57 @@ def test_failed_start_parks_blocked_and_releases_claim(monkeypatch):
     assert released == [("RA-7785", "failed")]
 
 
-def test_release_patch_targets_only_this_hosts_open_claim(monkeypatch):
+def test_release_ends_only_the_claim_row_this_process_inserted(monkeypatch):
     sent: list = []
     monkeypatch.setattr(supabase_log, "_cfg", lambda: ("https://x", "key"))
     monkeypatch.setattr(session_lease, "claim_machine", lambda: "railway")
+    monkeypatch.setattr(supabase_log, "_upsert", lambda *a: True)
+    monkeypatch.setattr(supabase_log, "_insert", lambda t, row: sent.append(("POST", row)) or True)
     monkeypatch.setattr(supabase_log, "_request", lambda m, p, b=None, pr="": sent.append((m, p, b)) or (204, None))
+    # Another replica (same machine name) never inserted RA-1 here: nothing to release.
+    assert session_lease.release_linear_ticket("RA-1", "done") is False and sent == []
+    assert session_lease.claim_linear_ticket("RA-1") is True
+    claim_id = sent[0][1]["id"]
     assert session_lease.release_linear_ticket("RA-1", "done") is True
-    method, path, body = sent[0]
-    assert method == "PATCH" and "linear_id=eq.RA-1" in path and "machine=eq.railway" in path
+    method, path, body = sent[-1]
+    assert method == "PATCH" and f"id=eq.{claim_id}" in path and "machine=" not in path
     assert "state=in.(claimed,working)" in path and body["state"] == "done"
+    assert session_lease.release_linear_ticket("RA-1", "done") is False  # released once
 
 
-def test_terminal_session_releases_its_claim(monkeypatch):
-    from app.server import autonomy_queue, session_linear
-    released: list = []
-    monkeypatch.setattr(session_lease, "release_linear_ticket", lambda i, s="released": released.append((i, s)))
-    monkeypatch.setattr(autonomy, "_gql", lambda *_a, **_k: {"issue": {"identifier": "RA-5"}})
+def _terminal(monkeypatch, label_ok: bool):
+    from app.server import session_linear
+    calls: list = []
+    monkeypatch.setattr(session_lease, "release_linear_ticket", lambda i, s="released": calls.append(("release", i, s)))
+    monkeypatch.setattr(autonomy, "add_label_to_issue", lambda *a: calls.append(("label", a[3])) or label_ok)
+    monkeypatch.setattr(autonomy, "_gql", lambda *_a, **_k: {"issue": {"identifier": "RA-5", "team": {"id": "t"}}})
     monkeypatch.setattr(session_linear, "_send_autonomy_outcome_telegram", lambda _s: None)
     monkeypatch.setattr(session_linear, "_post_linear_comment", lambda *_a: None)
     monkeypatch.setattr(session_linear, "_update_linear_state", lambda *_a: None)
     s = SimpleNamespace(id="s1", status="failed", started_at=None, evaluator_score=None,
                         evaluator_status="", linear_issue_id="uuid-5", autonomy_triggered=True)
     session_linear._sync_linear_on_completion(s)
-    assert released == [("RA-5", "failed")]
-    assert autonomy_queue.release_session_claim(SimpleNamespace(linear_issue_id=None)) is None
+    return calls
+
+
+def test_failed_session_is_labelled_unclaimable_before_its_claim_is_released(monkeypatch):
+    assert _terminal(monkeypatch, True) == [
+        ("label", "pi-dev:blocked-reason:session-failed"), ("release", "RA-5", "failed")]
+
+
+def test_failed_session_that_cannot_be_labelled_keeps_its_claim(monkeypatch):
+    assert _terminal(monkeypatch, False) == [("label", "pi-dev:blocked-reason:session-failed")]
+
+
+def test_park_never_moves_an_unlabelled_ticket_into_a_claimable_state(monkeypatch):
+    from app.server import autonomy_queue
+    states: list = []
+    monkeypatch.setattr(autonomy, "add_label_to_issue", lambda *a: False)
+    monkeypatch.setattr(autonomy, "transition_issue", lambda *a, **k: states.append(a[2]))
+    monkeypatch.setattr(autonomy, "comment_on_issue", lambda *a: None)
+    # UNI's recovery state is Todo, which the mesh lane reads.
+    assert autonomy_queue._park("k", "u", autonomy._UNI_TEAM_ID, "pi-dev:blocked-reason:x", "c") == "unchanged"
+    assert states == []
 
 
 # ── Token cap across retries ────────────────────────────────────────────────
@@ -198,7 +225,11 @@ def test_ticket_over_cumulative_token_cap_is_not_claimed(monkeypatch):
 
 def test_unreadable_token_ledger_refuses_rather_than_guessing(monkeypatch):
     from app.server import autonomy_queue
+    monkeypatch.setattr(supabase_log, "_cfg", lambda: ("", ""))
+    assert autonomy_queue.tokens_spent("uuid-1") is None  # no ledger is unknown, not zero
     monkeypatch.setattr(supabase_log, "_cfg", lambda: ("https://x", "key"))
+    monkeypatch.setattr(supabase_log, "_request", lambda *a, **k: (200, [{"used": None}, {"used": 5}]))
+    assert autonomy_queue.tokens_spent("uuid-1") == 100_005  # a row without spend is charged, not zeroed
     monkeypatch.setattr(supabase_log, "_request", lambda *a, **k: (0, None))
     assert autonomy_queue.tokens_spent("uuid-1") is None
     assert autonomy_queue.token_cap_refusal(SimpleNamespace(LINEAR_API_KEY="k"), "uuid-1", "RA-1", "t") is True

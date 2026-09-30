@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import socket
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -240,13 +241,22 @@ def claim_linear_ticket(linear_id: str) -> bool:
         return True
     host = claim_machine()
     supabase_log._upsert("mesh_machines", {"host": host, "status": "online"})
+    claim_id = str(uuid.uuid4())  # chosen here so release can name exactly this row
     ok = supabase_log._insert(
         "mesh_work_claims",
-        {"linear_id": linear_id, "machine": host, "state": "claimed"},
+        {"id": claim_id, "linear_id": linear_id, "machine": host, "state": "claimed"},
     )
-    if not ok:
+    if ok:
+        _OWN_CLAIMS[linear_id] = claim_id
+    else:
         log.info("mesh claim lost for %s (machine=%s) — another worker owns it", linear_id, host)
     return ok
+
+
+# Claim rows this process inserted, by ticket. Every cloud replica shares the
+# machine name "railway", so machine alone cannot tell this replica's row from
+# another's; the row id can, and only the process that inserted it knows it.
+_OWN_CLAIMS: dict[str, str] = {}
 
 
 def release_linear_ticket(linear_id: str, state: str = "released") -> bool:
@@ -255,9 +265,11 @@ def release_linear_ticket(linear_id: str, state: str = "released") -> bool:
     The mirror of `claim_linear_ticket`. The autonomy path took the claim and
     never gave it back, so a finished or failed ticket kept the
     `mesh_work_claims_one_open` slot until the reaper happened to run. `state`
-    is one of the terminal claim states: done, failed or released. Scoped to
-    this host's own open row, so it can never end another worker's claim.
-    Best-effort: True when there is nothing to release (Supabase unconfigured).
+    is one of the terminal claim states: done, failed or released. It ends only
+    the row THIS process inserted (by id), so it can never end another worker's
+    or another replica's claim; with no such row it does nothing and returns
+    False (a claim from a previous process is the reaper's). True when Supabase
+    is unconfigured: there is no claim to release.
     """
     if not linear_id:
         return False
@@ -265,9 +277,12 @@ def release_linear_ticket(linear_id: str, state: str = "released") -> bool:
 
     if not all(supabase_log._cfg()):
         return True
+    claim_id = _OWN_CLAIMS.pop(linear_id, None)
+    if not claim_id:
+        return False
     query = (
-        f"mesh_work_claims?linear_id=eq.{supabase_log._q(linear_id)}"
-        f"&machine=eq.{supabase_log._q(claim_machine())}&state=in.(claimed,working)"
+        f"mesh_work_claims?id=eq.{supabase_log._q(claim_id)}"
+        f"&linear_id=eq.{supabase_log._q(linear_id)}&state=in.(claimed,working)"
     )
     body = {"state": state, "released_at": datetime.now(timezone.utc).isoformat()}
     ok = supabase_log._ok(supabase_log._request("PATCH", query, body)[0])

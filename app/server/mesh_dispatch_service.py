@@ -90,7 +90,7 @@ def run_dispatch_tick(linear_ids: Optional[list[str]] = None) -> dict[str, Any]:
 
     mesh_routes._reap_sweep_best_effort()  # free dead-runner claims before assigning
     if linear_ids:
-        tickets: list[dict] = [{"identifier": t} for t in linear_ids]
+        tickets: list[dict] = mesh_lanes.explicit(mesh_routes._linear_graphql, linear_ids)  # W1b
     else:
         tickets = mesh_lanes.candidates(mesh_routes._linear_graphql)[0]  # W1b: shared rule
 

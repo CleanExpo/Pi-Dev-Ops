@@ -18,7 +18,8 @@ recent Blocked, no third start in 24h, no blocked-reason label).
 The dispatcher assigns no lane, so a dispatched claim runs as build. It therefore
 skips any ticket whose labels carry ``idea:plan`` (``mesh_dispatch_service._assign``);
 such a ticket reaches a node only through ``/claim/self``. Explicit ``linear_ids`` sent to
-``/dispatch`` carry no labels and are dispatched as the operator named them.
+``/dispatch`` are read from Linear and pass the same rule (``explicit``) — naming a ticket
+does not get it past its blockers.
 """
 from __future__ import annotations
 
@@ -48,9 +49,11 @@ SELF_CLAIM_QUERY = (
     f'{{labels:{{name:{{in:["{BUILD_LABEL}","{PLAN_LABEL}"]}}}},'
     'state:{type:{in:["backlog","unstarted"]}}},'
     f'{{labels:{{name:{{eq:"{AUTONOMY_LABEL}"}}}},state:{{name:{{in:[{_STATE_NAMES}]}}}}}}'
-    ']}){pageInfo{hasNextPage endCursor} nodes{id identifier title '
-    f'description priority team{{id}} state{{name}} labels{{nodes{{name}}}} {GUARD_FIELDS}}}}}}}'
+    ']}){pageInfo{hasNextPage endCursor} nodes{'
 )
+_NODE_FIELDS = (f'id identifier title description priority team{{id}} state{{name}} '
+                f'labels{{nodes{{name}}}} {GUARD_FIELDS}')
+SELF_CLAIM_QUERY += _NODE_FIELDS + "}}}"
 _MAX_PAGES = 20
 # The idea-pipeline store lives under the repo root, as routes/idea_pipeline.py has it.
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -66,20 +69,25 @@ class PlanPacketFields(BaseModel):
     host: Optional[str] = None
 
 
-def _autonomy_only(issue: dict) -> bool:
-    """Admitted only by pi-dev:autonomous — neither mesh:auto nor idea:plan."""
+def _autonomy_build(issue: dict) -> bool:
+    """Carries pi-dev:autonomous and is not plan-lane work — with or without mesh:auto.
+
+    A ticket carrying both autonomy and mesh:auto is still approved autonomy work, so
+    it answers to the full shared rule and to its project's repo, not the looser
+    mesh:auto admission.
+    """
     labels = issue_label_names(issue)
-    return AUTONOMY_LABEL in labels and labels.isdisjoint({BUILD_LABEL, PLAN_LABEL})
+    return AUTONOMY_LABEL in labels and PLAN_LABEL not in labels
 
 
 def needs_repo(issue: dict) -> bool:
     """True for autonomy-lane work, which must be built in its project's repo."""
-    return _autonomy_only(issue)
+    return _autonomy_build(issue)
 
 
 def eligible(issue: dict, repos: dict[str, str]) -> bool:
     """The shared admission rule for a mesh candidate (claim/self and dispatch)."""
-    if _autonomy_only(issue):
+    if _autonomy_build(issue):
         return issue_is_claimable(issue, registered_project_ids=set(repos), states=MESH_STATES)
     return claim_refusal(issue) is None
 
@@ -106,6 +114,23 @@ def candidates(graphql) -> tuple[list[dict], dict[str, str]]:
             break
         query = SELF_CLAIM_QUERY.replace(_PAGE_ARGS, f"{_PAGE_ARGS},after:{json.dumps(cursor)}", 1)
     return [n for n in nodes if eligible(n, repos)], repos
+
+
+def explicit(graphql, identifiers: list[str]) -> list[dict]:
+    """Operator-named tickets, read from Linear and passed through the same rule.
+
+    An id Linear does not return, or that the rule refuses, is dropped: naming a
+    ticket is not a way around its blockers.
+    """
+    repos = registry_repos()
+    out: list[dict] = []
+    for ident in identifiers:
+        issue = (graphql(f"query{{issue(id:{json.dumps(ident)}){{{_NODE_FIELDS}}}}}") or {}).get("issue")
+        if issue and eligible(issue, repos):
+            out.append(issue)
+        else:
+            log.info("dispatch: %s not eligible or not found; skipped", ident)
+    return out
 
 
 def lane_of(issue: dict) -> str:

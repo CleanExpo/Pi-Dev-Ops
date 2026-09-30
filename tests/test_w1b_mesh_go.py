@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
 from w1b_helpers import REPO_ROOT, _issue  # noqa: E402
 
 
@@ -40,6 +41,31 @@ def test_mesh_candidates_take_autonomous_todo_and_ready_under_shared_rule():
     assert '"pi-dev:autonomous"' in queries[0] and 'after:"c1"' in queries[1]
     assert mesh_lanes.repo_of(nodes[0], repos) == "CleanExpo/ATO"
     assert mesh_lanes.repo_of(nodes[2], repos) is None
+
+
+def test_dual_labelled_autonomy_ticket_answers_to_the_full_rule_and_its_repo():
+    from app.server import mesh_lanes
+    ato = "20bb0ca6-0176-46c4-be4c-cd34ac89767d"
+    repos = {ato: "CleanExpo/ATO"}
+    backlog = _issue("UNI-DUAL", state="Backlog", labels=("pi-dev:autonomous", "mesh:auto"), project=ato)
+    ready = _issue("UNI-DUAL2", state="Todo", labels=("pi-dev:autonomous", "mesh:auto"), project=ato)
+    assert not mesh_lanes.eligible(backlog, repos)
+    assert mesh_lanes.eligible(ready, repos) and mesh_lanes.needs_repo(ready)
+    assert mesh_lanes.repo_of(ready, repos) == "CleanExpo/ATO"
+
+
+def test_explicit_dispatch_ids_pass_the_shared_rule():
+    from app.server import mesh_lanes
+    ato = "20bb0ca6-0176-46c4-be4c-cd34ac89767d"
+    issues = {"UNI-OK": _issue("UNI-OK", labels=("mesh:auto",), project=ato),
+              "UNI-BLK": _issue("UNI-BLK", labels=("mesh:auto",), blockers=[("UNI-1", "started")])}
+
+    def gql(q):
+        ident = q.split('issue(id:"', 1)[1].split('"', 1)[0]
+        return {"issue": issues.get(ident)}
+
+    got = mesh_lanes.explicit(gql, ["UNI-OK", "UNI-BLK", "UNI-GONE"])
+    assert [i["identifier"] for i in got] == ["UNI-OK"]
 
 
 def test_runner_never_builds_a_named_repo_in_its_default_checkout(tmp_path):
@@ -85,6 +111,8 @@ def test_go_execute_files_exactly_one_autonomous_ticket(tmp_path):
         if "team(id" in query:
             return {"data": {"team": {"states": {"nodes": [{"id": "st-ready", "name": "Ready for Pi-Dev"}]},
                                       "labels": {"nodes": [{"id": "lb-auto", "name": "pi-dev:autonomous"}]}}}}
+        if "issues(" in query:
+            return {"data": {"issues": {"nodes": []}}}
         created.append(variables["input"])
         return {"data": {"issueCreate": {"success": True, "issue": {
             "id": "i1", "identifier": "RA-9001", "title": "x", "url": "u"}}}}
@@ -98,3 +126,28 @@ def test_go_execute_files_exactly_one_autonomous_ticket(tmp_path):
     assert created[0]["stateId"] == "st-ready" and created[0]["labelIds"] == ["lb-auto"]
     assert first["linear_ticket"]["identifier"] == "RA-9001"
     assert first["executed"] is False
+
+
+def test_go_retry_after_a_lost_create_response_links_instead_of_duplicating(tmp_path):
+    from app.server.idea_pipeline import (
+        PipelineGateError, append_and_examine, authorize_go_for, dispose_idea, try_execute_idea,
+    )
+    creates: list = []
+
+    def gql(query, variables=None):
+        if "team(id" in query:
+            return {"data": {"team": {"states": {"nodes": [{"id": "st", "name": "Ready for Pi-Dev"}]},
+                                      "labels": {"nodes": [{"id": "lb", "name": "pi-dev:autonomous"}]}}}}
+        if "issues(" in query:  # reconcile: finds the ticket once one was created
+            nodes = [{"id": "i1", "identifier": "RA-9001", "url": "u"}] if creates else []
+            return {"data": {"issues": {"nodes": nodes}}}
+        creates.append(variables["input"])
+        return {"errors": [{"message": "timeout after commit"}]}  # committed, response lost
+
+    packet = append_and_examine(tmp_path, "Teach shop owners to grow with a short video lesson.")
+    dispose_idea(tmp_path, packet["idea_id"], "PROMOTE")
+    authorize_go_for(tmp_path, packet["idea_id"])
+    with pytest.raises(PipelineGateError):
+        try_execute_idea(tmp_path, packet["idea_id"], gql=gql)
+    again = try_execute_idea(tmp_path, packet["idea_id"], gql=gql)
+    assert len(creates) == 1 and again["linear_ticket"]["identifier"] == "RA-9001"
