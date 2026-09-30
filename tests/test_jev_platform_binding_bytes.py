@@ -60,5 +60,49 @@ def test_the_receipt_names_roots_commit_under_an_inherited_git_dir(repo, tmp_pat
     assert capsys.readouterr().out == f"{ci.RULE}: AAA @ {head}\n"
 
 
+def committed_alternative(root):
+    """Round 17: a second valid calibration pair committed at alt/, whose bytes differ from HEAD's records/."""
+    committed_records(root)
+    alt = root / "alt"
+    shutil.copytree(engine.RECORDS, alt)
+    reformat_record(alt / f"{ci.RULE}.json")
+    pad_scored(alt / f"{ci.RULE}.scored.jsonl")
+    git(root, "add", "-f", "alt")
+    git(root, "commit", "-qm", "alt")
+    return alt
+
+
+def swap_files(root, alt) -> None:
+    for name in (f"{ci.RULE}.json", f"{ci.RULE}.scored.jsonl"):
+        (engine.RECORDS / name).unlink()
+        (engine.RECORDS / name).symlink_to(alt / name)
+
+
+def swap_directory(root, alt) -> None:
+    shutil.rmtree(engine.RECORDS)
+    engine.RECORDS.symlink_to(alt, target_is_directory=True)
+
+
+@pytest.mark.parametrize("swap", [swap_files, swap_directory])
+def test_a_symlink_does_not_choose_the_committed_path_compared(repo, swap):
+    """Round 17 P1-AAA-SYMLINK-PATH-SUBSTITUTION: bytes read through a symlink are compared at the records' own path."""
+    alt = committed_alternative(repo)
+    swap(repo, alt)
+    rel = (engine.RECORDS / f"{ci.RULE}.json").relative_to(repo)
+    at_head = subprocess.run(["git", "-C", str(repo), "show", f"HEAD:{rel.as_posix()}"], capture_output=True).stdout
+    assert (engine.RECORDS / f"{ci.RULE}.json").read_bytes() != at_head  # control: the bytes checked are not HEAD's
+    assert engine.artifact_rating(ci.RULE) == ("AA", ["not bound to HEAD"])
+
+
+def test_a_symlink_to_identical_untracked_bytes_is_still_not_aaa(repo):
+    """Round 17: the refusal is of the symlink itself, as committed.file_at_head does (round 13)."""
+    committed_records(repo)
+    copy = repo / "copy"
+    shutil.move(engine.RECORDS, copy)
+    engine.RECORDS.symlink_to(copy, target_is_directory=True)
+    assert engine.load_record(ci.RULE) is not None  # control: the same bytes are readable through the link
+    assert engine.artifact_rating(ci.RULE) == ("AA", ["not bound to HEAD"])
+
+
 def git_head(root) -> str:
     return subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()

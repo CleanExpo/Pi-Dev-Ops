@@ -36,7 +36,7 @@ MUTANTS = [
     ("calibration.py", "valid = [c for c in scored if int(c[\"hash\"], 16) % 2 == 1]", "valid = scored"),
     ("engine.py", "if altered and result != policy.UNCERTAIN:", "if False:"),
     ("engine.py", "if errors or len(models) != 1:", "if len(models) > 1:"),
-    ("engine.py", "if not all(p.resolve().is_relative_to(ROOT) for p in paths):", "if False:"),
+    ("engine.py", "if not all(h.is_relative_to(base) for h in here):", "if False:"),
     # release review r2 P1: a decision never relies on evidence that fails verification
     ("engine.py", 'return "corrupt" if problems else state', "return state"),
     ("engine.py", '    except (OSError, ValueError, KeyError, TypeError):\n        return "corrupt"',

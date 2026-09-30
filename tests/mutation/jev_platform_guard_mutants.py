@@ -60,9 +60,9 @@ GUARD_MUTANTS = [
      'return None'),  # en-loadrecord-corrupt
     ('engine.py', '    if record is None:\n        return "FAIL", ["absent"]',
      '    if False:\n        return "FAIL", ["absent"]'),  # en-rating-absent
-    ('engine.py', 'all(b is not None and (verified.read(ROOT, f, commit) or ("", None))[1] == b',
-     'all(b is not None and (verified.read(ROOT, f, commit) or ("", None))[1] is not None'),  # en-rating-tracked
-    ('engine.py', 'bound = commit is not None and all(', 'bound = commit is not None and any('),  # en-rating-each
+    ('engine.py', 'b is not None and (verified.read(ROOT, r.as_posix(), commit) or ("", None))[1] == b',
+     'b is not None and (verified.read(ROOT, r.as_posix(), commit) or ("", None))[1] is not None'),  # en-rating-tracked
+    ('engine.py', 'and commit is not None and all(', 'and commit is not None and any('),  # en-rating-each
     ('policy.py', '"coverage": "FAIL" if evaluated < RULE_COUNT else "A",',
      '"coverage": "A",'),  # po-coverage
     ('calibration.py', ' or not isinstance(record["label_provenance"], dict):\n        return "corrupt"',
@@ -285,4 +285,8 @@ GUARD_MUTANTS = [
      'return super().redirect_request(req, fp, code, msg, headers, newurl)'),
     *[(f, 'with client.open_url(req, timeout) as resp:', 'with urllib.request.urlopen(req, timeout=timeout) as resp:')
       for f in ('__main__.py', 'gemini.py', 'evals/jev_constitution/harness.py')],
+    # round 17: a symlink never chooses the committed path compared (test_jev_platform_binding_bytes.py)
+    ('engine.py', '    bound = not linked and commit is not None and all(',
+     '    bound = commit is not None and all('),
+    ('engine.py', '[Path(os.path.abspath(p)) for p in paths]', '[p.resolve() for p in paths]'),
 ]

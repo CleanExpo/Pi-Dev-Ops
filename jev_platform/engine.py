@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -222,9 +223,13 @@ def artifact_binding(rule_id: str) -> tuple[str, list[str], str | None]:
     problems = calibration.verify(record, scored) or _lineage_problems(rule_id, record, scored)
     if problems:
         return "FAIL", problems, commit
-    if not all(p.resolve().is_relative_to(ROOT) for p in paths):
+    base, here = Path(os.path.abspath(ROOT)), [Path(os.path.abspath(p)) for p in paths]
+    if not all(h.is_relative_to(base) for h in here):
         return "AA", ["records not inside the repository"], commit
-    files = [str(p.resolve().relative_to(ROOT)) for p in paths]
-    bound = commit is not None and all(b is not None and (verified.read(ROOT, f, commit) or ("", None))[1] == b
-                                       for f, b in zip(files, raw))
+    # Round 17: paths come from the records' own names, never a symlink target, and a symlink at any component
+    # under ROOT means the bytes read are not the file at that committed path.
+    rels = [h.relative_to(base) for h in here]
+    linked = any(base.joinpath(*r.parts[:d]).is_symlink() for r in rels for d in range(1, len(r.parts) + 1))
+    bound = not linked and commit is not None and all(
+        b is not None and (verified.read(ROOT, r.as_posix(), commit) or ("", None))[1] == b for r, b in zip(rels, raw))
     return ("AAA", [], commit) if bound else ("AA", ["not bound to HEAD"], commit)
