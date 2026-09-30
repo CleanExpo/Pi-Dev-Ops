@@ -9,7 +9,8 @@ import { ThemeInitScript } from "@/components/ThemeInitScript";
 // Inter: primary UI font. JetBrains Mono: code/terminal companion.
 // CSS variables are named generically (--font-sans / --font-mono) so future
 // font swaps don't require touching component classNames.
-// Self-hosted (app/fonts: the latin woff2 files Google serves, SIL OFL 1.1) rather
+// Self-hosted (app/fonts: the latin woff2 files Google serves, SIL OFL 1.1; the
+// licence and copyright notice for each family ship in public/fonts/OFL-*.txt) rather
 // than loaded from Google: the Google loader downloads during `next build`, and a
 // failed download fails the whole Turbopack build (main CI run 36682119471, 30/09/2026).
 const sans = localFont({
