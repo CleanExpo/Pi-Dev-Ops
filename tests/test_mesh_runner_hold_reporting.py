@@ -169,6 +169,7 @@ EMPTY_FLEET = {"claims": [], "agents": [], "degraded": False}
     ({"error": "HTTP 502"}, {}, "unavailable"),
     ({"error": "HTTP 401", "detail": "bad secret"}, {}, "rejected"),
     ({**EMPTY_FLEET, "degraded": True}, {}, "unavailable"),
+    ({}, {"claimed": None}, "unavailable"),
     ({**EMPTY_FLEET, "claims": [{"machine": HOST, "state": "claimed", "linear_id": "RA-1"}]}, {}, "assigned"),
     (EMPTY_FLEET, {"error": "HTTP 404", "detail": "Application not found"}, "unavailable"),
     (EMPTY_FLEET, {"error": "<urlopen error timed out>"}, "unavailable"),
@@ -205,10 +206,12 @@ def test_a_fleet_read_that_answered_is_contact_even_when_the_self_claim_then_fai
     fs.next_work(_api(EMPTY_FLEET, {"error": "HTTP 503"}), HOST, seen.append, lambda: contacts.append(1))
     assert seen == ["unavailable"] and contacts == [1]
     fs.next_work(_api({"error": "HTTP 502"}, {}), HOST, seen.append, lambda: contacts.append(1))
-    assert contacts == [1], "a failed fleet read is not contact"
+    fs.next_work(_api({}, {"claimed": None}), HOST, seen.append, lambda: contacts.append(1))
+    assert contacts == [1], "a failed or empty-bodied fleet read is not contact"
 
 
-@pytest.mark.parametrize("linear, outcome", [({}, "unavailable"), ({"issues": {"nodes": []}}, "empty")])
+@pytest.mark.parametrize("linear, outcome", [({}, "unavailable"), ({"issues": {"nodes": None}}, "unavailable"),
+                                             ({"issues": {"nodes": []}}, "empty")])
 def test_claim_self_tells_the_runner_an_unread_linear_from_an_empty_queue(monkeypatch, linear, outcome):
     """Codex round 5: `_linear_graphql` returns {} on any failure, and /claim/self answered
     that with the same `queue empty` as a real empty queue, so the runner logged "empty"."""

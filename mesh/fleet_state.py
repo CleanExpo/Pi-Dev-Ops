@@ -40,10 +40,13 @@ def _readable(api: Api, failed: Callable[[object], object] = lambda response: No
     Two independent signals, because the read can fail at two layers:
     `_api` renders any HTTP or transport error as `{"error": ...}`, and the
     server sets `degraded` when one of its four Supabase sources failed even
-    though the request itself returned 200. `failed` is shown the response it refused.
+    though the request itself returned 200. A snapshot without its `claims` and `agents`
+    lists (`{}`, or an error object where rows belong) carries no claim evidence either.
+    `failed` is shown the response it refused.
     """
     fleet = api("GET", "/api/mesh/fleet")
-    if not isinstance(fleet, dict) or fleet.get("error") or fleet.get("degraded"):
+    if (not isinstance(fleet, dict) or fleet.get("error") or fleet.get("degraded")
+            or not all(isinstance(fleet.get(key), list) for key in ("claims", "agents"))):
         failed(fleet)
         return None
     return fleet
