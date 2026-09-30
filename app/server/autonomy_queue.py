@@ -171,6 +171,15 @@ def tokens_spent(linear_issue_id: str) -> int | None:
     )
 
 
+def within_token_cap(issue_id: str) -> bool:
+    """The cap check every executor shares: False when over the cap or unknowable."""
+    cap = ticket_token_cap()
+    if cap <= 0:
+        return True
+    spent = tokens_spent(issue_id)
+    return spent is not None and spent < cap
+
+
 def token_cap_refusal(config: Any, issue_id: str, identifier: str, team_id: str) -> bool:
     """True when this ticket must not start: over its cap, or its spend is unreadable.
 

@@ -88,7 +88,9 @@ def needs_repo(issue: dict) -> bool:
 def eligible(issue: dict, repos: dict[str, str]) -> bool:
     """The shared admission rule for a mesh candidate (claim/self and dispatch)."""
     if _autonomy_build(issue):
-        return issue_is_claimable(issue, registered_project_ids=set(repos), states=MESH_STATES)
+        from .autonomy_queue import within_token_cap  # noqa: PLC0415 — same cap as the poller
+        return (issue_is_claimable(issue, registered_project_ids=set(repos), states=MESH_STATES)
+                and within_token_cap(str(issue.get("id") or "")))
     return claim_refusal(issue) is None
 
 

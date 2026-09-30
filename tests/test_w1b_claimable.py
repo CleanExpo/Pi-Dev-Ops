@@ -162,6 +162,17 @@ def test_release_ends_only_the_claim_row_this_process_inserted(monkeypatch):
     assert session_lease.release_linear_ticket("RA-1", "done") is False  # released once
 
 
+def test_failed_release_keeps_the_claim_id_for_a_retry(monkeypatch):
+    status = iter([0, 204])
+    patches: list = []
+    monkeypatch.setattr(supabase_log, "_cfg", lambda: ("https://x", "key"))
+    monkeypatch.setattr(session_lease, "_OWN_CLAIMS", {"RA-2": "claim-2"})
+    monkeypatch.setattr(supabase_log, "_request", lambda m, p, b=None, pr="": patches.append(p) or (next(status), None))
+    assert session_lease.release_linear_ticket("RA-2", "failed") is False
+    assert session_lease.release_linear_ticket("RA-2", "failed") is True
+    assert len(patches) == 2 and all("id=eq.claim-2" in p for p in patches)
+
+
 def _terminal(monkeypatch, label_ok: bool):
     from app.server import session_linear
     calls: list = []

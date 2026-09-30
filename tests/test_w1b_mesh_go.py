@@ -26,8 +26,9 @@ def _mesh_nodes():
     ]
 
 
-def test_mesh_candidates_take_autonomous_todo_and_ready_under_shared_rule():
+def test_mesh_candidates_take_autonomous_todo_and_ready_under_shared_rule(monkeypatch):
     from app.server import mesh_lanes
+    monkeypatch.setenv("TAO_TICKET_TOKEN_CAP", "0")  # the cap has its own test below
     queries: list = []
 
     def gql(q):
@@ -43,8 +44,9 @@ def test_mesh_candidates_take_autonomous_todo_and_ready_under_shared_rule():
     assert mesh_lanes.repo_of(nodes[2], repos) is None
 
 
-def test_dual_labelled_autonomy_ticket_answers_to_the_full_rule_and_its_repo():
+def test_dual_labelled_autonomy_ticket_answers_to_the_full_rule_and_its_repo(monkeypatch):
     from app.server import mesh_lanes
+    monkeypatch.setenv("TAO_TICKET_TOKEN_CAP", "0")
     ato = "20bb0ca6-0176-46c4-be4c-cd34ac89767d"
     repos = {ato: "CleanExpo/ATO"}
     backlog = _issue("UNI-DUAL", state="Backlog", labels=("pi-dev:autonomous", "mesh:auto"), project=ato)
@@ -52,6 +54,20 @@ def test_dual_labelled_autonomy_ticket_answers_to_the_full_rule_and_its_repo():
     assert not mesh_lanes.eligible(backlog, repos)
     assert mesh_lanes.eligible(ready, repos) and mesh_lanes.needs_repo(ready)
     assert mesh_lanes.repo_of(ready, repos) == "CleanExpo/ATO"
+
+
+def test_mesh_refuses_an_autonomy_ticket_over_or_without_its_token_ledger(monkeypatch):
+    from app.server import mesh_lanes, supabase_log
+    ato = "20bb0ca6-0176-46c4-be4c-cd34ac89767d"
+    ready = _issue("UNI-CAP", project=ato)
+    monkeypatch.delenv("TAO_TICKET_TOKEN_CAP", raising=False)
+    monkeypatch.setattr(supabase_log, "_cfg", lambda: ("https://x", "key"))
+    monkeypatch.setattr(supabase_log, "_request", lambda *a, **k: (200, [{"used": 350_000}]))
+    assert not mesh_lanes.eligible(ready, {ato: "CleanExpo/ATO"})
+    monkeypatch.setattr(supabase_log, "_request", lambda *a, **k: (200, [{"used": 10}]))
+    assert mesh_lanes.eligible(ready, {ato: "CleanExpo/ATO"})
+    monkeypatch.setattr(supabase_log, "_request", lambda *a, **k: (0, None))
+    assert not mesh_lanes.eligible(ready, {ato: "CleanExpo/ATO"})
 
 
 def test_explicit_dispatch_ids_pass_the_shared_rule():

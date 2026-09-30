@@ -277,7 +277,7 @@ def release_linear_ticket(linear_id: str, state: str = "released") -> bool:
 
     if not all(supabase_log._cfg()):
         return True
-    claim_id = _OWN_CLAIMS.pop(linear_id, None)
+    claim_id = _OWN_CLAIMS.get(linear_id)
     if not claim_id:
         return False
     query = (
@@ -286,6 +286,8 @@ def release_linear_ticket(linear_id: str, state: str = "released") -> bool:
     )
     body = {"state": state, "released_at": datetime.now(timezone.utc).isoformat()}
     ok = supabase_log._ok(supabase_log._request("PATCH", query, body)[0])
-    if not ok:
+    if ok:
+        _OWN_CLAIMS.pop(linear_id, None)
+    else:  # keep the id: a later call can still retry this exact row
         log.warning("mesh claim release failed for %s (state=%s)", linear_id, state)
     return ok
