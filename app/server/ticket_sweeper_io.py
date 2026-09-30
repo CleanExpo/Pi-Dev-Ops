@@ -79,6 +79,8 @@ def _fetch_all(api_key: str, query: str, variables: dict) -> list[dict]:
         page = conn.get("pageInfo") if isinstance(conn, dict) else None
         if not isinstance(conn.get("nodes") if page else None, list) or not isinstance(page.get("hasNextPage"), bool):
             raise LookupError("project, issues connection, nodes or pageInfo missing")
+        if not all(isinstance(n, dict) and n.get("id") and n.get("identifier") for n in conn["nodes"]):
+            raise LookupError("malformed issue node")
         nodes.extend(conn["nodes"])
         if not page["hasNextPage"]:
             return nodes
@@ -139,14 +141,25 @@ def pr_refs(issue: dict) -> list[tuple[str, int]]:
     return refs
 
 
+def complete_nodes(issue: dict, key: str) -> list[dict] | None:
+    """The connection's nodes, or None unless it provably arrived whole and well-formed."""
+    conn = issue.get(key)
+    if not isinstance(conn, dict) or (conn.get("pageInfo") or {}).get("hasNextPage") is not False:
+        return None
+    nodes = conn.get("nodes")
+    if not isinstance(nodes, list) or not all(isinstance(n, dict) for n in nodes):
+        return None
+    return nodes
+
+
 def open_blockers(issue: dict) -> list[str]:
     """Identifiers of unfinished issues that block this one. A relation list
     that did not arrive whole counts as blocked ("?unread"): never move on a guess."""
-    conn = issue.get("inverseRelations")
-    if not isinstance(conn, dict) or (conn.get("pageInfo") or {}).get("hasNextPage") is not False:
+    nodes = complete_nodes(issue, "inverseRelations")
+    if nodes is None:
         return ["?unread"]
     out = []
-    for rel in conn.get("nodes") or []:
+    for rel in nodes:
         other = rel.get("issue") or {}
         if rel.get("type") == "blocks" and (other.get("state") or {}).get("type") not in ("completed", "canceled"):
             out.append(other.get("identifier") or "?")
@@ -173,18 +186,52 @@ def github_get(path: str) -> dict | list:
 _RED_CONCLUSIONS = {"failure", "timed_out", "cancelled", "action_required", "startup_failure"}
 
 
+def _all_check_runs(repo: str, sha: str) -> list[dict]:
+    """Every check run on the head; raises rather than return a partial list."""
+    runs: list[dict] = []
+    for page in range(1, 11):
+        data = github_get(f"/repos/{repo}/commits/{sha}/check-runs?per_page=100&page={page}")
+        batch, total = data.get("check_runs"), data.get("total_count")
+        if not isinstance(batch, list) or not isinstance(total, int):
+            raise LookupError("malformed check-runs payload")
+        runs.extend(batch)
+        if len(runs) >= total or not batch:
+            if len(runs) < total:
+                raise LookupError("check runs ended short of total_count")
+            return runs
+    raise OverflowError("more than 1,000 check runs")
+
+
 def pr_facts(repo: str, number: int) -> dict:
-    """Facts needed to judge a PR: open?, red checks?, reviewed?, age."""
+    """Facts needed to judge a PR: open?, red checks?, reviewed?, age. Raises
+    when an open PR's check state cannot be read, so the caller says 'unknown'."""
     pr = github_get(f"/repos/{repo}/pulls/{number}")
     sha = ((pr.get("head") or {}).get("sha")) or ""
-    runs = github_get(f"/repos/{repo}/commits/{sha}/check-runs?per_page=100") if sha else {}
+    is_open = pr.get("state") == "open" and not pr.get("merged")
+    if not is_open:
+        return {"open": False, "created_at": "", "red": False, "reviewed": False}
+    if not sha:
+        raise LookupError("open PR without head sha")
+    runs = _all_check_runs(repo, sha)
     # Commit statuses are a separate red signal from check runs (older CI, Vercel).
-    status = github_get(f"/repos/{repo}/commits/{sha}/status") if sha else {}
+    status = github_get(f"/repos/{repo}/commits/{sha}/status")
+    if not isinstance(status, dict) or "state" not in status:
+        raise LookupError("malformed commit status payload")
     reviews = github_get(f"/repos/{repo}/pulls/{number}/reviews?per_page=100")
-    red_runs = any((r.get("conclusion") or "") in _RED_CONCLUSIONS for r in (runs or {}).get("check_runs") or [])
+    red_runs = any((r.get("conclusion") or "") in _RED_CONCLUSIONS for r in runs)
     return {
-        "open": pr.get("state") == "open" and not pr.get("merged"),
+        "open": True,
         "created_at": pr.get("created_at") or "",
-        "red": red_runs or (status or {}).get("state") in ("failure", "error"),
+        "red": red_runs or status["state"] in ("failure", "error"),
         "reviewed": bool(reviews),
     }
+
+
+_LABEL_CHECK = "query SweeperLabelCheck($id: String!) { issue(id: $id) { labels { nodes { name } } } }"
+
+
+def label_confirmed(api_key: str, issue_id: str, label: str) -> bool:
+    """Re-read the issue: a write helper saying True is not proof the label stuck."""
+    data = autonomy._gql(api_key, _LABEL_CHECK, {"id": issue_id})
+    nodes = (((data.get("issue") or {}).get("labels") or {}).get("nodes")) or []
+    return label.lower() in {(n or {}).get("name", "").lower() for n in nodes}

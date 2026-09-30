@@ -92,20 +92,21 @@ def decide_review(facts: list[dict | None], now: datetime) -> str:
 
 def _ordered_comments(issue: dict) -> list[str] | None:
     """Comment bodies oldest-first, or None when the list did not arrive whole."""
-    conn = issue.get("comments")
-    if not isinstance(conn, dict) or (conn.get("pageInfo") or {}).get("hasNextPage") is not False:
+    nodes = io.complete_nodes(issue, "comments")
+    if nodes is None or not all(isinstance(c.get("body"), str) and c.get("createdAt") for c in nodes):
         return None
-    nodes = sorted(conn.get("nodes") or [], key=lambda c: c.get("createdAt") or "")
-    return [c.get("body") or "" for c in nodes]
+    return [c["body"] for c in sorted(nodes, key=lambda c: c["createdAt"])]
 
 
 def decide_failed(issue: dict) -> str | None:
     """'ready', 'blocked', 'unread' or None for a Todo ticket.
 
     The sweeper's own last comment is the epoch: only build failures AFTER it
-    count. No sweeper comment yet → a failure earns the one retry ('ready').
-    After a retry grant or a block, a new failure → 'blocked'. A ticket a
-    human moved back after a block has no failure since, so it is left alone.
+    count. Blocking needs BOTH durable markers — a sweeper comment and the
+    retry label. No retry marker → a failure earns the one retry ('ready');
+    a human removing the retry label grants another. After a grant, a new
+    failure → 'blocked'. A ticket a human moved back after a block has no
+    failure since, so it is left alone.
     """
     bodies = _ordered_comments(issue)
     if bodies is None:
@@ -113,7 +114,8 @@ def decide_failed(issue: dict) -> str | None:
     last = max((i for i, b in enumerate(bodies) if b.startswith(SWEEP_COMMENT_PREFIX)), default=-1)
     if not any(b.startswith(FAILED_MARKER) for b in bodies[last + 1:]):
         return None
-    return "ready" if last == -1 else "blocked"
+    retried = last != -1 and RETRY_LABEL in io.label_names(issue)
+    return "blocked" if retried else "ready"
 
 
 # ── Writes (only when enabled) ───────────────────────────────────────────────
@@ -126,7 +128,8 @@ def _apply(api_key: str, issue: dict, report: SweepReport, *,
     try:
         # Label first: it is the durable marker (e.g. retry-used). Without it, a
         # move would let the same ticket be retried again on the next sweep.
-        if label.lower() not in io.label_names(issue) and not autonomy.add_label_to_issue(api_key, iid, team, label):
+        if label.lower() not in io.label_names(issue) and not (
+                autonomy.add_label_to_issue(api_key, iid, team, label) and io.label_confirmed(api_key, iid, label)):
             report.errors.append(f"label_failed:{issue.get('identifier')}")
             return
         if comment:
@@ -208,6 +211,9 @@ def run_sweep(now: datetime | None = None) -> SweepReport:
         _sweep_failed(api_key, buckets["recent_todo"], report)
     except autonomy.LinearRateLimitError:
         report.errors.append("linear_rate_limited")
+    except Exception as exc:  # noqa: BLE001 — a crash must persist as incomplete, never as a clean zero
+        log.exception("ticket_sweeper: sweep crashed")
+        report.errors.append(f"sweep_crashed:{type(exc).__name__}")
     finally:
         report.complete = not report.errors
         report.finished_at = datetime.now(timezone.utc).isoformat()
