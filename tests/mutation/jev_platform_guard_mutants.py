@@ -264,7 +264,7 @@ GUARD_MUTANTS = [
      'if q["id"] == QUESTION_ID'),  # wc-question-head
     ('engine.py', '    refusal = "rule_not_committed" if not rule else',
      '    rule = rule or registry()[rule_id]\n    refusal = "rule_not_committed" if not rule else'),  # en-calib-rule
-    # round 15: each deny alternative, killed by its own approved committed fixture (test_jev_platform_ask.py DENIED)
+    # round 15: each deny alternative, killed by its own approved committed fixture (test_jev_platform_ask_denied.py DENIED)
     *[('ask.py', old, new) for old, new in [
         (r'(\.env[^/]*|', '('), ('(pem|', '('), ('|key|', '|'), ('|p12|', '|'), ('|pfx|', '|'), ('|kdbx|', '|'),
         ('|tfstate)', ')'), ('(id_rsa|', '('), ('|id_ed25519|', '|'), ('|credential|', '|'), ('|secret)', ')'),
