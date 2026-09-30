@@ -1048,6 +1048,15 @@ async def _watchdog_vercel_deploy_failures(log) -> None:
 _health_alert_cooldowns: dict[str, float] = {}
 _health_red_components: set[str] = set()
 _HEALTH_COOLDOWN_S = 30 * 60
+# Components whose Linear upsert failed: retried every tick, not every cooldown.
+_health_ticket_unfiled: set[str] = set()
+
+
+def _file_health_ticket(name: str, payload: dict, log) -> None:
+    if _upsert_red_linear_ticket(**health_full_ticket(name, payload), log=log):
+        _health_ticket_unfiled.discard(name)
+    else:
+        _health_ticket_unfiled.add(name)
 
 
 def _health_full_send_telegram(text: str, log) -> bool:
@@ -1097,6 +1106,8 @@ async def _watchdog_health_full(log) -> None:
     for name in sorted(current_red):
         last = _health_alert_cooldowns.get(name, 0.0)
         if now - last <= _HEALTH_COOLDOWN_S:
+            if name in _health_ticket_unfiled:
+                _file_health_ticket(name, components.get(name) or {}, log)
             continue
         err = (components.get(name) or {}).get("error", "")
         msg = (
@@ -1104,7 +1115,7 @@ async def _watchdog_health_full(log) -> None:
             + (f"\nerror: <code>{err}</code>" if err else "")
         )
         sent = _health_full_send_telegram(msg, log)
-        _upsert_red_linear_ticket(**health_full_ticket(name, components.get(name) or {}), log=log)
+        _file_health_ticket(name, components.get(name) or {}, log)
         _health_alert_cooldowns[name] = now
         log.warning("health_full watchdog: %s RED — telegram %s", name, "sent" if sent else "NOT sent")
 
@@ -1116,6 +1127,7 @@ async def _watchdog_health_full(log) -> None:
             log,
         )
         _health_alert_cooldowns.pop(name, None)
+        _health_ticket_unfiled.discard(name)
         log.info("health_full watchdog: %s recovered", name)
 
     _health_red_components = current_red

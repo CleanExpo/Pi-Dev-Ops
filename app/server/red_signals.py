@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from typing import Any
@@ -33,9 +34,15 @@ FOUNDER_ONLY_LABEL = "founder-only"
 # to the agent lane named in mission_control's action map.
 FOUNDER_ONLY_COMPONENTS = frozenset({"schema_drift_db"})
 FOUNDER_ONLY_HINTS = (
-    "401", "403", "unauthori", "unauthent", "forbidden", "permission", "denied",
-    "credential", "expired", "not set", "not configured", "missing", "absent",
-    "api_key", "api key", "_token", "access token", "invalid token",
+    "401", "403", "unauthori", "unauthent", "forbidden", "permission denied",
+    "credential", "not set", "not configured", "api_key", "api key",
+    "access token", "invalid token", "token expired", "key expired",
+)
+# An env var the founder sets (FOO_URL, FOO_KEY, ...) reported missing/absent.
+# A bare "missing" is not enough: "missing llm-cost log" is an agent's repair.
+_ENV_VAR_MISSING = re.compile(
+    r"\b[A-Z][A-Z0-9]*_[A-Z0-9_]*(URL|KEY|TOKEN|SECRET|PASSWORD)\b[^.]*"
+    r"\b(missing|absent|unset|empty)\b"
 )
 
 
@@ -71,8 +78,12 @@ def health_full_ticket(name: str, payload: dict) -> dict[str, Any]:
         owner = _OBSERVABILITY_ACTIONS.get(name, {}).get("owner") or "Senior PM"
     except Exception:  # noqa: BLE001
         owner = "Senior PM"
-    detail = f"{payload.get('error') or ''} {payload.get('note') or ''}".lower()
-    founder_only = name in FOUNDER_ONLY_COMPONENTS or any(h in detail for h in FOUNDER_ONLY_HINTS)
+    detail = f"{payload.get('error') or ''} {payload.get('note') or ''}"
+    founder_only = (
+        name in FOUNDER_ONLY_COMPONENTS
+        or any(h in detail.lower() for h in FOUNDER_ONLY_HINTS)
+        or bool(_ENV_VAR_MISSING.search(detail))
+    )
     return {
         "title": f"[RED] health_full: {name}",
         "body": (
@@ -96,6 +107,14 @@ def _graphql(query: str, variables: dict) -> dict:
     if result.get("errors"):
         raise RuntimeError(f"Linear errors: {str(result['errors'])[:200]}")
     return result.get("data") or {}
+
+
+def _require_success(data: dict, field: str) -> dict:
+    """Linear can answer 200 with success:false; treat that as the failure it is."""
+    node = data.get(field)
+    if not isinstance(node, dict) or node.get("success") is not True:
+        raise RuntimeError(f"Linear {field} did not succeed: {str(node)[:120]}")
+    return node
 
 
 _FIND = """query RedTicket($prefix: String!, $project: ID!) {
@@ -139,8 +158,8 @@ def _open_matches(found: dict) -> list:
 
 def _update(issue: dict, text: str, founder_only: bool) -> str | None:
     if founder_only:
-        _graphql(_ADD_LABEL, {"id": issue["id"], "labelId": _founder_only_label_id()})
-    _graphql(_COMMENT, {"input": {"issueId": issue["id"], "body": text}})
+        _require_success(_graphql(_ADD_LABEL, {"id": issue["id"], "labelId": _founder_only_label_id()}), "issueAddLabel")
+    _require_success(_graphql(_COMMENT, {"input": {"issueId": issue["id"], "body": text}}), "commentCreate")
     return issue.get("identifier")
 
 
@@ -151,8 +170,8 @@ def _create(title: str, text: str, founder_only: bool) -> str | None:
     }
     if founder_only:
         issue["labelIds"] = [_founder_only_label_id()]
-    created = _graphql(_CREATE, {"input": issue})
-    return ((created.get("issueCreate") or {}).get("issue") or {}).get("identifier")
+    created = _require_success(_graphql(_CREATE, {"input": issue}), "issueCreate")
+    return (created.get("issue") or {}).get("identifier")
 
 
 def upsert_red_linear_ticket(title: str, body: str, *, owner: str, founder_only: bool, log) -> str | None:

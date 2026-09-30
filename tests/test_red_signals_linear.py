@@ -29,13 +29,14 @@ class _Linear:
         self.ops: list[tuple[str, dict]] = []
         self.find_queries: list[str] = []
         self.find_data: dict | None = None
+        self.add_label_ok = True
 
     def urlopen(self, req, timeout=10):  # noqa: ARG002
         payload = json.loads(req.data)
         q = payload["query"]
         v = payload.get("variables") or {}
         if "issueAddLabel" in q:
-            op, data = "add_label", {"issueAddLabel": {"success": True}}
+            op, data = "add_label", {"issueAddLabel": {"success": self.add_label_ok}}
         elif "issueLabels" in q:
             op, data = "labels", {"issueLabels": {"nodes": self.labels}}
         elif "commentCreate" in q:
@@ -207,8 +208,27 @@ def test_lookup_counts_triage_issues_as_open(monkeypatch, linear_key):
     ("HTTP 401 unauthorized", True),
     ("last token count stale", False),
     ("no turn since 2026-08-30", False),
+    ("missing llm-cost log", False),
+    ("missing conversation record", False),
 ])
 def test_founder_only_classification(error, expected):
     from app.server.red_signals import health_full_ticket
 
     assert health_full_ticket("supabase", {"ok": False, "error": error})["founder_only"] is expected
+
+
+# ── review round 2 (codex, 9e336c6b) ───────────────────────────────────────
+
+
+def test_rejected_label_mutation_is_a_failure_not_a_success(monkeypatch, linear_key):
+    import urllib.request as _ureq
+
+    fake = _Linear(existing=[{"id": "uuid-1", "identifier": "RA-9001"}],
+                   labels=[{"id": "label-fo", "name": "founder-only"}])
+    fake.add_label_ok = False
+    monkeypatch.setattr(_ureq, "urlopen", fake.urlopen)
+
+    assert cw._upsert_red_linear_ticket(
+        "[RED] health_full: schema_drift_db", "x", owner="founder", founder_only=True, log=LOG,
+    ) is None
+    assert "comment" not in [op for op, _ in fake.ops]

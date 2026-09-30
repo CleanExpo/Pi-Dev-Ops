@@ -30,9 +30,11 @@ LOG = logging.getLogger("test")
 def _reset_state():
     cw._health_alert_cooldowns.clear()
     cw._health_red_components.clear()
+    cw._health_ticket_unfiled.clear()
     yield
     cw._health_alert_cooldowns.clear()
     cw._health_red_components.clear()
+    cw._health_ticket_unfiled.clear()
 
 
 def _red_body(component: str = "margot_route", error: str = "no turn since 2026-08-30") -> dict:
@@ -161,3 +163,26 @@ async def test_non_json_error_is_still_silent(monkeypatch, telegram, tickets):
     monkeypatch.setattr(_ureq, "urlopen", fake_urlopen)
     await cw._watchdog_health_full(LOG)
     assert telegram == [] and tickets == []
+
+
+@pytest.mark.asyncio
+async def test_failed_ticket_write_retries_next_tick(monkeypatch, telegram):
+    """Review round 2: a failed upsert must not wait out the Telegram cooldown."""
+    monkeypatch.delenv("PORT", raising=False)
+    _serve_503(monkeypatch, _red_body("margot_route"), [])
+    results = [None, "RA-9001"]
+    calls: list[str] = []
+
+    def flaky_upsert(title, body, *, owner, founder_only, log):  # noqa: ARG001
+        calls.append(title)
+        return results[len(calls) - 1] if len(calls) <= len(results) else "RA-9001"
+
+    monkeypatch.setattr(cw, "_upsert_red_linear_ticket", flaky_upsert)
+
+    await cw._watchdog_health_full(LOG)   # upsert fails
+    await cw._watchdog_health_full(LOG)   # inside cooldown: retried, succeeds
+    await cw._watchdog_health_full(LOG)   # filed: no further write this cooldown
+
+    assert len(calls) == 2
+    assert len(telegram) == 1
+    assert cw._health_ticket_unfiled == set()
