@@ -48,7 +48,7 @@ def test_label_write_reporting_success_but_not_persisted_blocks_the_move(world, 
     world["recent_todo"] = [_issue("RA-31", "Todo", stype="unstarted", comments=[FAILED])]
     report = ticket_sweeper.run_sweep(now=NOW)
     assert not [w for w in world["writes"] if w[0] in ("state", "comment")]
-    assert report.errors == ["label_failed:RA-31"]
+    assert report.errors == ["label_unconfirmed:RA-31"]
 
 
 def test_sweep_crash_persists_incomplete(world, monkeypatch):  # noqa: F811
@@ -108,7 +108,7 @@ def test_failed_retry_label_write_blocks_the_move(world, monkeypatch):  # noqa: 
     world["recent_todo"] = [_issue("RA-10", "Todo", stype="unstarted", comments=[FAILED])]
     report = ticket_sweeper.run_sweep(now=NOW)
     assert not [w for w in world["writes"] if w[0] == "state"]
-    assert report.errors == ["label_failed:RA-10"] and report.complete is False
+    assert report.errors == ["label_unconfirmed:RA-10"] and report.complete is False
 
 
 def test_too_many_pages_is_incomplete_not_short(world, monkeypatch):  # noqa: F811
@@ -123,3 +123,52 @@ def test_missing_project_is_incomplete_not_zero(world):  # noqa: F811
     report = ticket_sweeper.run_sweep(now=NOW)
     assert report.complete is False and len(report.errors) == 3
     assert ticket_sweeper.status_snapshot()["complete"] is False
+
+
+def test_ticket_moved_to_in_review_mid_write_is_not_moved(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["stale"] = [_issue("RA-40")]
+    world["on_label"] = lambda issue: issue["state"].update(name="In Review")
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert not [w for w in world["writes"] if w[0] == "state"]
+    assert "drift:RA-40" in report.errors and report.complete is False
+
+
+def test_lost_grant_comment_blocks_the_move(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["comment_ok"] = False
+    world["recent_todo"] = [_issue("RA-41", "Todo", stype="unstarted", comments=[FAILED])]
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert not [w for w in world["writes"] if w[0] == "state"]
+    assert report.errors == ["comment_unconfirmed:RA-41"]
+
+
+def test_unpersisted_transition_is_an_error(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["state_ok"] = False
+    world["recent_todo"] = [_issue("RA-42", "Todo", stype="unstarted", comments=[FAILED])]
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.errors == ["state_unconfirmed:RA-42"] and report.complete is False
+
+
+def test_empty_project_registry_is_incomplete(world, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(autonomy, "_load_portfolio_projects", lambda: [])
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.errors == ["no_portfolio_projects"] and report.complete is False
+
+
+def test_truncated_attachments_or_labels_fail_closed(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    stale = _issue("RA-43")
+    stale["attachments"]["pageInfo"]["hasNextPage"] = True  # a PR could be attachment 101
+    todo = _issue("RA-44", "Todo", stype="unstarted", comments=[FAILED])
+    todo["labels"]["pageInfo"]["hasNextPage"] = True  # the retry label could be label 101
+    review = _issue("RA-45", "In Review")
+    review["attachments"]["pageInfo"]["hasNextPage"] = True
+    world["stale"], world["recent_todo"], world["in_review"] = [stale], [todo], [review]
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.stale_labelled == ["RA-43"] and report.stale_to_todo == []
+    assert "comments_unread:RA-44" in report.errors and report.failed_to_ready == []
+    assert report.review_unknown == ["RA-45"]
+    assert not [w for w in world["writes"] if w[0] == "state"]
+

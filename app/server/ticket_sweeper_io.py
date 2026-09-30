@@ -1,6 +1,6 @@
-"""ticket_sweeper_io.py — Linear queries and GitHub PR facts for the nightly
-ticket sweeper (``ticket_sweeper.py``). Read-only: every write goes through the
-autonomy helpers from the sweeper itself, behind its dry-run flag.
+"""ticket_sweeper_io.py — Linear queries, verified Linear writes and GitHub PR
+facts for the nightly ticket sweeper (``ticket_sweeper.py``). ``write_verified``
+is only ever called by the sweeper behind its dry-run flag.
 
 Kept separate so the decision module stays under the 300-line ceiling and the
 tests can replace ``autonomy._gql`` / ``github_get`` without a network.
@@ -11,7 +11,9 @@ import json
 import os
 import re
 import urllib.request
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Callable
 
 from . import autonomy
 
@@ -21,8 +23,8 @@ _PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/pull/(\d+)")
 _ISSUE_FIELDS = """
     id identifier title updatedAt description
     state { id name type }
-    labels { nodes { name } }
-    attachments { nodes { url } }
+    labels(first: 100) { pageInfo { hasNextPage } nodes { name } }
+    attachments(first: 100) { pageInfo { hasNextPage } nodes { url } }
     inverseRelations(first: 50) { pageInfo { hasNextPage } nodes { type issue { identifier state { type } } } }
 """
 
@@ -51,6 +53,8 @@ query SweeperInReview($projectId: String!, $cursor: String) {
 # A failed build lands in Todo (session_linear: failed → Todo). Filter on the
 # state NAME: "Ready for Pi-Dev" is also type unstarted, and a retry waiting
 # there must not be re-judged. Look back a week so a skipped night loses nothing.
+_COMMENTS = "    comments(first: 100) { pageInfo { hasNextPage } nodes { body createdAt } }\n"
+
 _RECENT_TODO_QUERY = """
 query SweeperRecentTodo($projectId: String!, $since: DateTimeOrDuration!, $cursor: String) {
     project(id: $projectId) {
@@ -60,7 +64,11 @@ query SweeperRecentTodo($projectId: String!, $since: DateTimeOrDuration!, $curso
         }, %s
     }
 }
-""" % (_PAGE % (_ISSUE_FIELDS + "    comments(first: 100) { pageInfo { hasNextPage } nodes { body createdAt } }\n"))
+""" % (_PAGE % (_ISSUE_FIELDS + _COMMENTS))
+
+# Single-issue re-read: before any write (the ticket may have changed since the
+# bucket fetch) and after it (a mutation helper returning is not proof it stuck).
+_ISSUE_QUERY = "query SweeperIssue($id: String!) { issue(id: $id) { %s } }" % (_ISSUE_FIELDS + _COMMENTS)
 
 
 def _iso_days_ago(days: int, now: datetime | None = None) -> str:
@@ -105,7 +113,10 @@ def fetch_buckets(api_key: str, *, stale_days: int, now: datetime | None = None)
         ("in_review", _IN_REVIEW_QUERY, {}),
         ("recent_todo", _RECENT_TODO_QUERY, {"since": _iso_days_ago(7, now)}),
     )
-    for p in autonomy._load_portfolio_projects():
+    projects = autonomy._load_portfolio_projects()
+    if not projects:
+        errors.append("no_portfolio_projects")
+    for p in projects:
         for bucket, query, extra in plan:
             try:
                 nodes = _fetch_all(api_key, query, {"projectId": p["project_id"], **extra})
@@ -124,13 +135,26 @@ def fetch_buckets(api_key: str, *, stale_days: int, now: datetime | None = None)
     return buckets, errors
 
 
-def label_names(issue: dict) -> set[str]:
-    return {n.get("name", "").lower() for n in (issue.get("labels") or {}).get("nodes") or []}
+def fetch_issue(api_key: str, issue_id: str) -> dict:
+    issue = autonomy._gql(api_key, _ISSUE_QUERY, {"id": issue_id}).get("issue")
+    if not isinstance(issue, dict) or issue.get("id") != issue_id:
+        raise LookupError("issue re-read failed")
+    return issue
 
 
-def pr_refs(issue: dict) -> list[tuple[str, int]]:
-    """GitHub PRs linked to the issue (attachments first, then description)."""
-    texts = [a.get("url") or "" for a in (issue.get("attachments") or {}).get("nodes") or []]
+def label_names(issue: dict) -> set[str] | None:
+    """Lower-cased label names, or None when the label list did not arrive whole."""
+    nodes = complete_nodes(issue, "labels")
+    return None if nodes is None else {(n.get("name") or "").lower() for n in nodes}
+
+
+def pr_refs(issue: dict) -> list[tuple[str, int]] | None:
+    """GitHub PRs linked to the issue (attachments, then description), or None
+    when the attachment list did not arrive whole."""
+    nodes = complete_nodes(issue, "attachments")
+    if nodes is None:
+        return None
+    texts = [a.get("url") or "" for a in nodes]
     texts.append(issue.get("description") or "")
     refs: list[tuple[str, int]] = []
     for text in texts:
@@ -227,11 +251,48 @@ def pr_facts(repo: str, number: int) -> dict:
     }
 
 
-_LABEL_CHECK = "query SweeperLabelCheck($id: String!) { issue(id: $id) { labels { nodes { name } } } }"
+def state_is(issue: dict, name: str) -> bool:
+    return ((issue.get("state") or {}).get("name") or "").lower() == name.lower()
 
 
-def label_confirmed(api_key: str, issue_id: str, label: str) -> bool:
-    """Re-read the issue: a write helper saying True is not proof the label stuck."""
-    data = autonomy._gql(api_key, _LABEL_CHECK, {"id": issue_id})
-    nodes = (((data.get("issue") or {}).get("labels") or {}).get("nodes")) or []
-    return label.lower() in {(n or {}).get("name", "").lower() for n in nodes}
+@dataclass
+class Write:
+    label: str
+    comment: str | None = None
+    state: str | None = None
+    recheck: Callable[[dict], bool] | None = None  # does the FRESH issue still qualify?
+    move_guard: Callable[[dict], bool] | None = None  # checked again just before the move
+
+
+def _comment_count(issue: dict, body: str) -> int | None:
+    nodes = complete_nodes(issue, "comments")
+    return None if nodes is None else sum(1 for c in nodes if c.get("body") == body)
+
+
+def write_verified(api_key: str, iid: str, team: str, w: Write) -> str | None:
+    """Re-read, then each write followed by a re-read that proves it stuck.
+    Returns a problem name, or None. Order is label → comment → move, so a
+    ticket is never moved without both durable retry markers on Linear."""
+    fresh = fetch_issue(api_key, iid)
+    if w.recheck is not None and not w.recheck(fresh):
+        return "drift"
+    if label_names(fresh) is None:
+        return "labels_unread"
+    if w.label.lower() not in label_names(fresh):
+        autonomy.add_label_to_issue(api_key, iid, team, w.label)
+        if w.label.lower() not in (label_names(fetch_issue(api_key, iid)) or set()):
+            return "label_unconfirmed"
+    if w.comment:
+        autonomy.comment_on_issue(api_key, iid, w.comment)
+    after = fetch_issue(api_key, iid)
+    before_n, after_n = (_comment_count(fresh, w.comment), _comment_count(after, w.comment)) if w.comment else (0, 1)
+    if before_n is None or after_n is None or after_n <= before_n:
+        return "comment_unconfirmed"
+    if w.state:
+        if not state_is(after, (fresh.get("state") or {}).get("name") or "") or (
+                w.move_guard is not None and not w.move_guard(after)):
+            return "drift"  # changed under us (e.g. moved to In Review) — do not move it
+        autonomy.transition_issue(api_key, iid, w.state, team_id=team)
+        if not state_is(fetch_issue(api_key, iid), w.state):
+            return "state_unconfirmed"
+    return None

@@ -5,6 +5,7 @@ and ``ticket_sweeper_io.github_get`` are replaced, and every write is recorded.
 """
 from __future__ import annotations
 
+import copy
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,8 +27,8 @@ def _issue(ident, state="In Progress", *, stype="started", labels=(), pr=None, b
         "id": f"id-{ident}", "identifier": ident, "title": ident, "description": "",
         "updatedAt": "2026-09-01T00:00:00Z",
         "state": {"id": "s", "name": state, "type": stype},
-        "labels": {"nodes": [{"name": n} for n in labels]},
-        "attachments": {"nodes": [{"url": pr}] if pr else []},
+        "labels": {"pageInfo": {"hasNextPage": False}, "nodes": [{"name": n} for n in labels]},
+        "attachments": {"pageInfo": {"hasNextPage": False}, "nodes": [{"url": pr}] if pr else []},
         "inverseRelations": {"pageInfo": {"hasNextPage": False}, "nodes": [
             {"type": "blocks", "issue": {"identifier": blocker, "state": {"type": "started"}}},
         ] if blocker else []},
@@ -42,10 +43,11 @@ BLOCK = "**Failed-build sweep:** failed again after its one retry — blocked fo
 
 
 def _fake_gql(state: dict):
+    """A small Linear: bucket queries page over state[bucket]; SweeperIssue re-reads
+    the live copy in state["db"], which the fake write helpers mutate."""
     def fake_gql(api_key, query, variables=None, **kw):
-        if "SweeperLabelCheck" in query:
-            names = [w[2] for w in state["writes"] if w[0] == "label" and w[1] == variables["id"]]
-            return {"issue": {"labels": {"nodes": [{"name": n} for n in names]}}}
+        if "SweeperIssue" in query:
+            return {"issue": copy.deepcopy(state["db"].get(variables["id"]))}
         bucket = ("stale" if "SweeperStarted" in query else
                   "in_review" if "SweeperInReview" in query else "recent_todo")
         if bucket in state["fail"]:
@@ -55,10 +57,37 @@ def _fake_gql(state: dict):
         pages = state["pages"].get(bucket) or [state[bucket]]
         idx = int((variables or {}).get("cursor") or 0)
         more = idx + 1 < len(pages)
+        for i in pages[idx]:
+            if i:
+                state["db"].setdefault(i["id"], copy.deepcopy(i))
         return {"project": {"issues": {
             "pageInfo": {"hasNextPage": more, "endCursor": str(idx + 1) if more else None},
-            "nodes": [dict(i) if i else i for i in pages[idx]]}}}
+            "nodes": [copy.deepcopy(i) if i else i for i in pages[idx]]}}}
     return fake_gql
+
+
+def _fake_writes(state: dict, monkeypatch) -> None:
+    """Write helpers that record, and persist into state["db"] unless told not to."""
+    def label(k, iid, team, name):
+        state["writes"].append(("label", iid, name))
+        state["on_label"](state["db"][iid])
+        if state["label_ok"]:
+            state["db"][iid]["labels"]["nodes"].append({"name": name})
+        return True
+
+    def comment(k, iid, body):
+        state["writes"].append(("comment", iid))
+        if state["comment_ok"]:
+            state["db"][iid]["comments"]["nodes"].append({"body": body, "createdAt": "2026-09-30T00:00:00Z"})
+
+    def transition(k, iid, name, team_id=None):
+        state["writes"].append(("state", iid, name))
+        if state["state_ok"]:
+            state["db"][iid]["state"]["name"] = name
+
+    monkeypatch.setattr(autonomy, "add_label_to_issue", label)
+    monkeypatch.setattr(autonomy, "comment_on_issue", comment)
+    monkeypatch.setattr(autonomy, "transition_issue", transition)
 
 
 def _fake_github(state: dict):
@@ -76,19 +105,15 @@ def _fake_github(state: dict):
 def world(monkeypatch, tmp_path):
     """Fake Linear + GitHub; records every write the sweeper makes."""
     state = {"stale": [], "in_review": [], "recent_todo": [], "fail": set(), "null_project": set(),
-             "pages": {}, "prs": {}, "writes": [], "label_ok": True}
+             "pages": {}, "prs": {}, "writes": [], "db": {}, "on_label": lambda issue: None,
+             "label_ok": True, "comment_ok": True, "state_ok": True}
     monkeypatch.setenv("LINEAR_API_KEY", "lin_test")
     monkeypatch.delenv("TAO_TICKET_SWEEPER_WRITE", raising=False)
     monkeypatch.setattr(ticket_sweeper, "_STATE_FILE", tmp_path / "sweeper.json")
     monkeypatch.setattr(autonomy, "_load_portfolio_projects", lambda: _PROJECT)
     monkeypatch.setattr(autonomy, "_gql", _fake_gql(state))
     monkeypatch.setattr(ticket_sweeper_io, "github_get", _fake_github(state))
-    monkeypatch.setattr(autonomy, "comment_on_issue",
-                        lambda k, iid, body: state["writes"].append(("comment", iid)))
-    monkeypatch.setattr(autonomy, "add_label_to_issue",
-                        lambda k, iid, team, label: state["label_ok"] and not state["writes"].append(("label", iid, label)))
-    monkeypatch.setattr(autonomy, "transition_issue",
-                        lambda k, iid, name, team_id=None: state["writes"].append(("state", iid, name)))
+    _fake_writes(state, monkeypatch)
     return state
 
 
