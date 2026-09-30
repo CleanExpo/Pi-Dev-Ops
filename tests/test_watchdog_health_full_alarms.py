@@ -186,3 +186,48 @@ async def test_failed_ticket_write_retries_next_tick(monkeypatch, telegram):
     assert len(calls) == 2
     assert len(telegram) == 1
     assert cw._health_ticket_unfiled == set()
+
+
+@pytest.mark.asyncio
+async def test_degraded_unobserved_component_is_not_red(monkeypatch, telegram, tickets):
+    """Review round 4: /api/health/full answers 200 with red_components=[] when a
+    component is merely unobserved on this host. That is not a red guard."""
+    monkeypatch.delenv("PORT", raising=False)
+    import urllib.request as _ureq
+
+    body = {
+        "ok": True, "red_components": [], "degraded_components": ["hermes_gateway"],
+        "components": {"hermes_gateway": {"ok": False, "observed": False, "status": "not_observed"}},
+    }
+
+    class _R:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps(body).encode()
+
+    monkeypatch.setattr(_ureq, "urlopen", lambda req, timeout=5: _R())
+    await cw._watchdog_health_full(LOG)
+    assert telegram == [] and tickets == []
+
+
+@pytest.mark.parametrize("error,expected", [
+    ("credential expired", True),
+    ("SUPABASE_DB_URL absent", True),
+    ("[Errno 13] Permission denied: .harness/hermes/heartbeat.jsonl", False),
+    ("HTTP 403 Forbidden", True),
+    ("HTTP 401 unauthorized", True),
+    ("last token count stale", False),
+    ("no turn since 2026-08-30", False),
+    ("missing llm-cost log", False),
+    ("missing conversation record", False),
+    ("missing TELEGRAM_BOT_TOKEN or TELEGRAM_WEBHOOK_SECRET", True),
+])
+def test_founder_only_classification(error, expected):
+    from app.server.red_signals import health_full_ticket
+
+    assert health_full_ticket("supabase", {"ok": False, "error": error})["founder_only"] is expected

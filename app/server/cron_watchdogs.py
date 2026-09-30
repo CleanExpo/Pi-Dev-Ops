@@ -1101,6 +1101,8 @@ async def _watchdog_health_full(log) -> None:
             continue
         if not bool(payload.get("ok", True)):
             current_red.add(name)
+    if isinstance(body.get("red_components"), list):  # degraded/unobserved is not red
+        current_red &= set(body["red_components"])
 
     # Alerts for red components (with per-component cooldown).
     for name in sorted(current_red):

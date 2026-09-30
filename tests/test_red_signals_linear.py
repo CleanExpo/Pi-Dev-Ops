@@ -204,23 +204,6 @@ def test_lookup_counts_triage_issues_as_open(monkeypatch, linear_key):
     assert '"triage"' in fake.find_queries[0]
 
 
-@pytest.mark.parametrize("error,expected", [
-    ("credential expired", True),
-    ("SUPABASE_DB_URL absent", True),
-    ("[Errno 13] Permission denied: .harness/hermes/heartbeat.jsonl", False),
-    ("HTTP 403 Forbidden", True),
-    ("HTTP 401 unauthorized", True),
-    ("last token count stale", False),
-    ("no turn since 2026-08-30", False),
-    ("missing llm-cost log", False),
-    ("missing conversation record", False),
-])
-def test_founder_only_classification(error, expected):
-    from app.server.red_signals import health_full_ticket
-
-    assert health_full_ticket("supabase", {"ok": False, "error": error})["founder_only"] is expected
-
-
 # ── review round 2 (codex, 9e336c6b) ───────────────────────────────────────
 
 
@@ -267,3 +250,45 @@ def test_successful_create_without_identifier_is_still_filed(monkeypatch, linear
     assert cw._upsert_red_linear_ticket(
         "[RED] health_full: margot_route", "x", owner="o", founder_only=False, log=LOG,
     )
+
+
+# ── review round 4 (codex, 14a2c802) ───────────────────────────────────────
+
+
+def test_concurrent_upserts_create_one_issue(monkeypatch, linear_key):
+    import threading
+    import urllib.request as _ureq
+
+    both_finding = threading.Barrier(2)
+
+    class _Persisting(_Linear):
+        def urlopen(self, req, timeout=10):
+            payload = json.loads(req.data)
+            if "issues(" in payload["query"]:
+                # Snapshot what Linear holds NOW, then hold the find until a second
+                # is in flight (or 0.5 s pass): unserialised upserts both read "none".
+                title = payload["variables"]["title"]
+                self.find_data = {"issues": {"nodes": [{**n, "title": title} for n in self.existing]}}
+                try:
+                    both_finding.wait(timeout=0.5)
+                except threading.BrokenBarrierError:
+                    pass
+            resp = super().urlopen(req, timeout)
+            if self.ops[-1][0] == "create":
+                self.existing.append({"id": "uuid-new", "identifier": "RA-NEW"})
+            return resp
+
+    fake = _Persisting(existing=[], labels=[])
+    monkeypatch.setattr(_ureq, "urlopen", fake.urlopen)
+
+    def run():
+        cw._upsert_red_linear_ticket(
+            "[RED] health_full: margot_route", "x", owner="o", founder_only=False, log=LOG,
+        )
+
+    threads = [threading.Thread(target=run) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert [op for op, _ in fake.ops].count("create") == 1

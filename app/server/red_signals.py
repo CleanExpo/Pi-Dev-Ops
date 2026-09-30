@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 import urllib.error
 import urllib.request
 from typing import Any
@@ -40,10 +41,12 @@ FOUNDER_ONLY_HINTS = (
 )
 # An env var the founder sets (FOO_URL, FOO_KEY, ...) reported missing/absent.
 # A bare "missing" is not enough: "missing llm-cost log" is an agent's repair.
-_ENV_VAR_MISSING = re.compile(
-    r"\b[A-Z][A-Z0-9]*_[A-Z0-9_]*(URL|KEY|TOKEN|SECRET|PASSWORD)\b[^.]*"
-    r"\b(missing|absent|unset|empty)\b"
-)
+_ENV_VAR = r"\b[A-Z][A-Z0-9]*_[A-Z0-9_]*(URL|KEY|TOKEN|SECRET|PASSWORD)\b"
+_MISSING = r"\b(missing|absent|unset|empty)\b"
+_ENV_VAR_MISSING = re.compile(f"{_ENV_VAR}[^.]*{_MISSING}|{_MISSING}[^.]*{_ENV_VAR}")
+# One writer per process: find-then-create is not atomic, so two concurrent
+# upserts for one title would both see "none open" and both create.
+_UPSERT_LOCK = threading.Lock()
 
 
 def health_full_url() -> str:
@@ -177,6 +180,12 @@ def _create(title: str, text: str, founder_only: bool) -> str | None:
 
 
 def upsert_red_linear_ticket(title: str, body: str, *, owner: str, founder_only: bool, log) -> str | None:
+    """Serialised find-or-update; see ``_upsert``."""
+    with _UPSERT_LOCK:
+        return _upsert(title, body, owner=owner, founder_only=founder_only, log=log)
+
+
+def _upsert(title: str, body: str, *, owner: str, founder_only: bool, log) -> str | None:
     """Comment on the open issue titled ``title``, or create it once. Returns its identifier.
 
     If the lookup fails or is malformed, nothing is created: a create after a
