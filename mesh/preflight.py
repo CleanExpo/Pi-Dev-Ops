@@ -24,6 +24,7 @@ import uuid
 from pathlib import Path
 from typing import Callable
 
+import agent_sandbox
 import claim_lifecycle
 import run_record
 
@@ -61,7 +62,8 @@ def agent_writes(repo_dir: Path, agent_cmd: str,
         probe = worktree / f"mesh-preflight-{uuid.uuid4().hex}.txt"
         if probe.exists():
             return "scratch worktree already holds the probe file"
-        agent = run([agent_cmd, "-p", PROBE_PROMPT.format(name=probe.name)], cwd=str(worktree),
+        agent = run(agent_sandbox.agent_argv(agent_cmd, PROBE_PROMPT.format(name=probe.name)),
+                    cwd=str(worktree), env=agent_sandbox.agent_env(),
                     capture_output=True, text=True, check=False, timeout=AGENT_TIMEOUT)
         if UNTRUSTED in f"{agent.stdout or ''}{agent.stderr or ''}":
             return f"agent workspace not trusted: run `{agent_cmd}` once in {repo_dir} and accept"

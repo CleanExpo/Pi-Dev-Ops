@@ -167,8 +167,9 @@ def test_build_lane_still_makes_a_worktree_and_denies_nothing(runner, monkeypatc
     monkeypatch.setattr(runner.subprocess, "Popen", agent)
     plan = runner.run_claim(claim, dry_run=False)
     assert any(call[3:5] == ["worktree", "add"] for call in runner.git_calls)
-    assert agent.argv[:2] == [runner.AGENT_CMD, "-p"] and len(agent.argv) == 3
-    assert "--disallowedTools" not in agent.argv
+    assert agent.argv[:2] == [runner.AGENT_CMD, "-p"] and len(agent.argv) == 4
+    assert agent.argv[3].startswith("--allowedTools=")  # audit rank 13: explicit, not inherited
+    assert not any(a.startswith("--disallowedTools") for a in agent.argv)
     assert plan["state"] == "done" and "packet_path" not in plan
 
 
