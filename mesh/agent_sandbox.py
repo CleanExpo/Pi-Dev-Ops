@@ -16,7 +16,9 @@ value it does not need is blanked. The runner now matches it:
                 then proves the group is empty before the worktree is removed.
 
 Not contained: a descendant that calls setsid() leaves the group. That needs an
-OS sandbox, not a signal.
+OS sandbox, not a signal. And Windows has no process groups here: GROUPS is False,
+the group steps are no-ops, and the runner keeps its old direct-child stop there,
+which proves nothing about descendants. A Job Object is the fix (RA-7851).
 """
 from __future__ import annotations
 
