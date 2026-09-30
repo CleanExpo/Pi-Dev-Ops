@@ -23,7 +23,7 @@ _ISSUE_FIELDS = """
     state { id name type }
     labels { nodes { name } }
     attachments { nodes { url } }
-    inverseRelations(first: 20) { nodes { type issue { identifier state { type } } } }
+    inverseRelations(first: 50) { pageInfo { hasNextPage } nodes { type issue { identifier state { type } } } }
 """
 
 _PAGE = "first: 50, after: $cursor) { pageInfo { hasNextPage endCursor } nodes { %s } }"
@@ -60,7 +60,7 @@ query SweeperRecentTodo($projectId: String!, $since: DateTimeOrDuration!, $curso
         }, %s
     }
 }
-""" % (_PAGE % (_ISSUE_FIELDS + "    comments(first: 20) { nodes { body } }\n"))
+""" % (_PAGE % (_ISSUE_FIELDS + "    comments(first: 100) { pageInfo { hasNextPage } nodes { body createdAt } }\n"))
 
 
 def _iso_days_ago(days: int, now: datetime | None = None) -> str:
@@ -76,13 +76,15 @@ def _fetch_all(api_key: str, query: str, variables: dict) -> list[dict]:
     for _ in range(_MAX_PAGES):
         data = autonomy._gql(api_key, query, {**variables, "cursor": cursor})
         conn = (data.get("project") or {}).get("issues")
-        if not isinstance(conn, dict):
-            raise LookupError("project or issues connection missing")
-        nodes.extend(conn.get("nodes") or [])
-        page = conn.get("pageInfo") or {}
-        if not page.get("hasNextPage"):
+        page = conn.get("pageInfo") if isinstance(conn, dict) else None
+        if not isinstance(conn.get("nodes") if page else None, list) or not isinstance(page.get("hasNextPage"), bool):
+            raise LookupError("project, issues connection, nodes or pageInfo missing")
+        nodes.extend(conn["nodes"])
+        if not page["hasNextPage"]:
             return nodes
         cursor = page.get("endCursor")
+        if not isinstance(cursor, str) or not cursor:
+            raise LookupError("hasNextPage without endCursor")
     raise OverflowError(f"more than {_MAX_PAGES} pages")
 
 
@@ -138,9 +140,13 @@ def pr_refs(issue: dict) -> list[tuple[str, int]]:
 
 
 def open_blockers(issue: dict) -> list[str]:
-    """Identifiers of unfinished issues that block this one."""
+    """Identifiers of unfinished issues that block this one. A relation list
+    that did not arrive whole counts as blocked ("?unread"): never move on a guess."""
+    conn = issue.get("inverseRelations")
+    if not isinstance(conn, dict) or (conn.get("pageInfo") or {}).get("hasNextPage") is not False:
+        return ["?unread"]
     out = []
-    for rel in (issue.get("inverseRelations") or {}).get("nodes") or []:
+    for rel in conn.get("nodes") or []:
         other = rel.get("issue") or {}
         if rel.get("type") == "blocks" and (other.get("state") or {}).get("type") not in ("completed", "canceled"):
             out.append(other.get("identifier") or "?")

@@ -9,7 +9,8 @@ tickets wait on red PRs with nothing telling a human. This sweep:
   (b) In Review whose PR is red, or open and unreviewed >3d → ``review:red-pr``.
       In Review is a deliberate human wait: surfaced, never moved.
   (c) failed build sitting in Todo → Ready for Pi-Dev once (``pi-dev:failed-retry-used``),
-      then Pi-Dev: Blocked with ``pi-dev:blocked-reason:build-failed``
+      then Pi-Dev: Blocked with ``pi-dev:blocked-reason:build-failed``. Only
+      failures newer than the sweeper's own last comment count (see decide_failed).
 
 DRY-RUN BY DEFAULT. Linear writes happen only when ``TAO_TICKET_SWEEPER_WRITE=1``.
 Counts persist to ``.harness/ticket-sweeper-state.json`` and are served on
@@ -39,6 +40,7 @@ REVIEW_LABEL = "review:red-pr"
 RETRY_LABEL = "pi-dev:failed-retry-used"
 BLOCKED_REASON_LABEL = "pi-dev:blocked-reason:build-failed"
 FAILED_MARKER = "Pi CEO build **failed**"  # session_linear.py failed-build comment
+SWEEP_COMMENT_PREFIX = "**Failed-build sweep:**"  # the sweeper's own epoch marker
 
 _COUNT_FIELDS = ("stale_labelled", "stale_to_todo", "review_red_pr", "review_unknown",
                  "failed_to_ready", "failed_to_blocked")
@@ -88,18 +90,30 @@ def decide_review(facts: list[dict | None], now: datetime) -> str:
     return "unknown" if any(f is None for f in facts) else "ok"
 
 
-def decide_failed(issue: dict) -> str | None:
-    """'ready' for a first failure, 'blocked' once a second failure is on record,
-    else None. One failure plus the retry marker means the retry is still owed
-    or in flight — it is never blocked before a second failure exists."""
-    bodies = [c.get("body") or "" for c in (issue.get("comments") or {}).get("nodes") or []]
-    failures = sum(1 for b in bodies if b.startswith(FAILED_MARKER))
-    labels = io.label_names(issue)
-    if failures == 0 or BLOCKED_REASON_LABEL in labels:
+def _ordered_comments(issue: dict) -> list[str] | None:
+    """Comment bodies oldest-first, or None when the list did not arrive whole."""
+    conn = issue.get("comments")
+    if not isinstance(conn, dict) or (conn.get("pageInfo") or {}).get("hasNextPage") is not False:
         return None
-    if failures >= 2:
-        return "blocked"
-    return None if RETRY_LABEL in labels else "ready"
+    nodes = sorted(conn.get("nodes") or [], key=lambda c: c.get("createdAt") or "")
+    return [c.get("body") or "" for c in nodes]
+
+
+def decide_failed(issue: dict) -> str | None:
+    """'ready', 'blocked', 'unread' or None for a Todo ticket.
+
+    The sweeper's own last comment is the epoch: only build failures AFTER it
+    count. No sweeper comment yet → a failure earns the one retry ('ready').
+    After a retry grant or a block, a new failure → 'blocked'. A ticket a
+    human moved back after a block has no failure since, so it is left alone.
+    """
+    bodies = _ordered_comments(issue)
+    if bodies is None:
+        return "unread"
+    last = max((i for i, b in enumerate(bodies) if b.startswith(SWEEP_COMMENT_PREFIX)), default=-1)
+    if not any(b.startswith(FAILED_MARKER) for b in bodies[last + 1:]):
+        return None
+    return "ready" if last == -1 else "blocked"
 
 
 # ── Writes (only when enabled) ───────────────────────────────────────────────
@@ -165,14 +179,16 @@ def _sweep_review(api_key: str, issues: list[dict], report: SweepReport, now: da
 def _sweep_failed(api_key: str, issues: list[dict], report: SweepReport) -> None:
     for issue in issues:
         verdict = decide_failed(issue)
-        if verdict == "ready":
+        if verdict == "unread":
+            report.errors.append(f"comments_unread:{issue['identifier']}")
+        elif verdict == "ready":
             report.failed_to_ready.append(issue["identifier"])
             _apply(api_key, issue, report, label=RETRY_LABEL, state=autonomy._READY_STATUS_NAME,
-                   comment="**Failed-build sweep:** first failure — sent back to Ready for Pi-Dev once.")
+                   comment=f"{SWEEP_COMMENT_PREFIX} first failure — sent back to Ready for Pi-Dev once.")
         elif verdict == "blocked":
             report.failed_to_blocked.append(issue["identifier"])
             _apply(api_key, issue, report, label=BLOCKED_REASON_LABEL, state=autonomy._BLOCKED_STATUS_NAME,
-                   comment="**Failed-build sweep:** failed again after its one retry — blocked for a human.")
+                   comment=f"{SWEEP_COMMENT_PREFIX} failed again after its one retry — blocked for a human.")
 
 
 # ── Run + state ──────────────────────────────────────────────────────────────

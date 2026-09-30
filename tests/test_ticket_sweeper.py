@@ -36,14 +36,17 @@ def _issue(ident, state="In Progress", *, stype="started", labels=(), pr=None, b
         "state": {"id": "s", "name": state, "type": stype},
         "labels": {"nodes": [{"name": n} for n in labels]},
         "attachments": {"nodes": [{"url": pr}] if pr else []},
-        "inverseRelations": {"nodes": [
+        "inverseRelations": {"pageInfo": {"hasNextPage": False}, "nodes": [
             {"type": "blocks", "issue": {"identifier": blocker, "state": {"type": "started"}}},
         ] if blocker else []},
-        "comments": {"nodes": [{"body": b} for b in comments]},
+        "comments": {"pageInfo": {"hasNextPage": False}, "nodes": [
+            {"body": b, "createdAt": f"2026-09-{10 + n:02d}T00:00:00Z"} for n, b in enumerate(comments)]},
     }
 
 
 FAILED = "Pi CEO build **failed** after 12s.\n\nSession: `abc`"
+GRANT = "**Failed-build sweep:** first failure — sent back to Ready for Pi-Dev once."
+BLOCK = "**Failed-build sweep:** failed again after its one retry — blocked for a human."
 
 
 @pytest.fixture
@@ -159,23 +162,46 @@ def test_failed_build_goes_to_ready_once_then_blocked(world, monkeypatch):
     monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
     world["recent_todo"] = [
         _issue("RA-10", "Todo", stype="unstarted", comments=[FAILED]),
-        _issue("RA-11", "Todo", stype="unstarted", comments=[FAILED, "note", FAILED]),
-        _issue("RA-12", "Todo", stype="unstarted", comments=[FAILED], labels=["pi-dev:failed-retry-used"]),
+        _issue("RA-11", "Todo", stype="unstarted", comments=[FAILED, GRANT, "note", FAILED]),
+        # Retry granted, no failure since: the retry is owed or in flight — never blocked early.
+        _issue("RA-12", "Todo", stype="unstarted", comments=[FAILED, GRANT], labels=["pi-dev:failed-retry-used"]),
         _issue("RA-13", "Todo", stype="unstarted", comments=["just a todo"]),
-        _issue("RA-14", "Todo", stype="unstarted", comments=[FAILED, FAILED],
-               labels=["pi-dev:blocked-reason:build-failed"]),
+        # A human moved it back after the block; no failure since → left alone.
+        _issue("RA-14", "Todo", stype="unstarted", comments=[FAILED, GRANT, FAILED, BLOCK],
+               labels=["pi-dev:failed-retry-used"]),
+        # Two historical failures, never granted a retry → gets its one retry first.
+        _issue("RA-15", "Todo", stype="unstarted", comments=[FAILED, FAILED]),
     ]
     report = ticket_sweeper.run_sweep(now=NOW)
-    assert report.failed_to_ready == ["RA-10"]
-    # RA-12: one failure + retry marker = retry still owed, never blocked early.
     # Ready for Pi-Dev is also type "unstarted"; the bucket must select Todo by name.
     assert 'state: { name: { eq: "Todo" } }' in ticket_sweeper_io._RECENT_TODO_QUERY
+    assert sorted(report.failed_to_ready) == ["RA-10", "RA-15"]
     assert report.failed_to_blocked == ["RA-11"]
     assert ("state", "id-RA-10", "Ready for Pi-Dev") in world["writes"]
     assert ("label", "id-RA-10", "pi-dev:failed-retry-used") in world["writes"]
     assert ("state", "id-RA-11", "Pi-Dev: Blocked") in world["writes"]
     assert ("label", "id-RA-11", "pi-dev:blocked-reason:build-failed") in world["writes"]
     assert not [w for w in world["writes"] if w[1] in ("id-RA-12", "id-RA-13", "id-RA-14")]
+
+
+def test_truncated_comments_or_relations_fail_closed(world, monkeypatch):
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    todo = _issue("RA-20", "Todo", stype="unstarted", comments=[FAILED])
+    todo["comments"]["pageInfo"]["hasNextPage"] = True
+    stale = _issue("UNI-20")
+    stale["inverseRelations"]["pageInfo"]["hasNextPage"] = True  # 51st relation could block
+    world["recent_todo"], world["stale"] = [todo], [stale]
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.failed_to_ready == [] and "comments_unread:RA-20" in report.errors
+    assert report.stale_labelled == ["UNI-20"] and report.stale_to_todo == []
+    assert not [w for w in world["writes"] if w[0] == "state"]
+    assert report.complete is False
+
+
+def test_malformed_issue_page_is_incomplete_not_zero(world, monkeypatch):
+    monkeypatch.setattr(autonomy, "_gql", lambda *a, **k: {"project": {"issues": {}}})
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.complete is False and len(report.errors) == 3
 
 
 def test_failed_fetch_marks_run_incomplete(world):
