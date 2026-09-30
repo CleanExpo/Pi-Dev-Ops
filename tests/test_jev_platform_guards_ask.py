@@ -162,3 +162,14 @@ def test_the_valid_reply_fixture_is_answered(tmp_path):
     repo = make_repo(tmp_path, {"src/a.ts": GOOD})
     r = ask_one(repo, ["known-issue", "layer"], Recorder())["results"][0]
     assert set(r["answers"]) == {"known-issue", "layer"} and r["note"] == ask.ADVISORY
+
+
+@pytest.mark.parametrize("tid", ["sk-reviewfixtureabcdefgh", "customer@example.test"])
+def test_a_sensitive_template_id_is_refused_before_any_request(tmp_path, tid):
+    """Round 19 P1-ASK-TEMPLATE-ID-DISCLOSURE: the id is sent as a questions key, so it is screened like the text."""
+    repo = make_repo(tmp_path, {"src/a.ts": GOOD}, questions={**TEMPLATES, tid: TEMPLATES["known-issue"],
+                                                              "plain-copy": TEMPLATES["known-issue"]})
+    post = Recorder()
+    assert ask_one(repo, ["plain-copy"], post)["results"] and len(post.calls) == 1  # control: the template is sent
+    post = Recorder()
+    assert ask_one(repo, [tid], post)["blocked"] == f"template refused: {tid}" and post.calls == []

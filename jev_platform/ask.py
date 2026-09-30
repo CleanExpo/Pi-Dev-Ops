@@ -100,7 +100,7 @@ def build_questions(manifest: dict, template_ids: list[str]) -> tuple[dict | Non
         if q is None:
             return None, f"unknown or malformed template: {tid}"
         text = json.dumps(q)
-        if len(text) > MAX_TEMPLATE_CHARS or sensitive(text):
+        if len(text) > MAX_TEMPLATE_CHARS or sensitive(text) or sensitive(tid):  # round 19: the id is sent too
             return None, f"template refused: {tid}"
         questions[tid] = q
     return questions, None

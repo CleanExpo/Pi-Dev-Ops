@@ -183,8 +183,8 @@ GUARD_MUTANTS = [
     ('ask.py', 'and 2 <= len(t["options"]) <= 255 and', 'and'),
     ('ask.py', 'all(isinstance(v, str) for v in t["options"].values())', 'True'),
     ("ask.py", "if not template_ids or len(template_ids) > MAX_QUESTIONS:", "if not template_ids:"),
-    ("ask.py", "if len(text) > MAX_TEMPLATE_CHARS or sensitive(text):", "if sensitive(text):"),
-    ("ask.py", "if len(text) > MAX_TEMPLATE_CHARS or sensitive(text):", "if len(text) > MAX_TEMPLATE_CHARS:"),
+    ("ask.py", "if len(text) > MAX_TEMPLATE_CHARS or sensitive(text) or", "if sensitive(text) or"),
+    ("ask.py", "if len(text) > MAX_TEMPLATE_CHARS or sensitive(text) or", "if len(text) > MAX_TEMPLATE_CHARS or"),
     ('ask.py', 'if not isinstance(a, dict) or a.get("type") != q["type"]:', 'if not isinstance(a, dict):'),
     ('ask.py', 'if policy.valid_noul(a.get("noul")) else None', 'if a.get("noul") is not None else None'),
     ("ask.py", "            or not set(probs) <= allowed or not all(", "            or not all("),
@@ -293,4 +293,6 @@ GUARD_MUTANTS = [
     ('engine.py', '    bound = not linked and commit is not None and all(',
      '    bound = commit is not None and all('),
     ('engine.py', '[Path(os.path.abspath(p)) for p in paths]', '[p.resolve() for p in paths]'),
+    # round 19: a template id is screened like its text (test_jev_platform_guards_ask.py)
+    ('ask.py', ' or sensitive(tid):  # round 19', ':  # round 19'),
 ]
