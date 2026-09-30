@@ -1,7 +1,7 @@
 // app/layout.tsx — root layout with Inter + JetBrains Mono + ToastProvider
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
 import { ThemeInitScript } from "@/components/ThemeInitScript";
@@ -9,8 +9,19 @@ import { ThemeInitScript } from "@/components/ThemeInitScript";
 // Inter: primary UI font. JetBrains Mono: code/terminal companion.
 // CSS variables are named generically (--font-sans / --font-mono) so future
 // font swaps don't require touching component classNames.
-const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
+// Self-hosted (app/fonts: the latin woff2 files Google serves, SIL OFL 1.1) rather
+// than loaded from Google: the Google loader downloads during `next build`, and a
+// failed download fails the whole Turbopack build (main CI run 36682119471, 30/09/2026).
+const sans = localFont({
+  src: [{ path: "./fonts/inter-latin-var.woff2", weight: "100 900", style: "normal" }],
+  variable: "--font-sans",
+  display: "swap",
+});
+const mono = localFont({
+  src: [{ path: "./fonts/jetbrains-mono-latin-var.woff2", weight: "100 800", style: "normal" }],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Pi CEO — Autonomous Dev Platform",
