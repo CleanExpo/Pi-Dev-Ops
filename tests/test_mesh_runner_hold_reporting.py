@@ -56,9 +56,24 @@ def test_bootstrap_trusts_the_runtime_folder_and_keeps_every_other_setting(tmp_p
     result = _run_bootstrap(tmp_path, uname_s="Darwin", heartbeat_ok=True)
     assert result.returncode == 0, result.stdout + result.stderr
     config = json.loads((home / ".claude.json").read_text())
-    assert config["projects"][os.path.realpath(REPO_ROOT)]["hasTrustDialogAccepted"] is True
+    # Claude Code checks trust on the canonical git root, which every run worktree shares
+    common = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "--path-format=absolute",
+                             "--git-common-dir"], capture_output=True, text=True, check=True).stdout.strip()
+    for key in {os.path.realpath(REPO_ROOT), os.path.realpath(os.path.dirname(common))}:
+        assert config["projects"][key]["hasTrustDialogAccepted"] is True, key
     assert config["userID"] == "keep-me"
     assert config["projects"]["/elsewhere"] == {"allowedTools": ["x"]}
+
+
+def test_a_config_bootstrap_cannot_parse_is_left_alone_and_the_node_is_not_enlisted(tmp_path):
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".claude.json").write_text("{broken-json")
+    result = _run_bootstrap(tmp_path, uname_s="Darwin", heartbeat_ok=True)
+    assert result.returncode != 0
+    assert "is enlisted with visibility" not in result.stdout + result.stderr
+    assert "not trusted by Claude Code" in result.stdout + result.stderr
+    assert (home / ".claude.json").read_text() == "{broken-json"
 
 
 @pytest.fixture
@@ -118,6 +133,8 @@ EMPTY_FLEET = {"claims": [], "agents": [], "degraded": False}
 
 @pytest.mark.parametrize("fleet, self_claim, outcome", [
     ({"error": "HTTP 502"}, {}, "unavailable"),
+    ({"error": "HTTP 401", "detail": "bad secret"}, {}, "rejected"),
+    ({**EMPTY_FLEET, "degraded": True}, {}, "unavailable"),
     ({**EMPTY_FLEET, "claims": [{"machine": HOST, "state": "claimed", "linear_id": "RA-1"}]}, {}, "assigned"),
     (EMPTY_FLEET, {"error": "HTTP 404", "detail": "Application not found"}, "unavailable"),
     (EMPTY_FLEET, {"error": "<urlopen error timed out>"}, "unavailable"),

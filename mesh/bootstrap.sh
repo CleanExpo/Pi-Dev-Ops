@@ -33,28 +33,42 @@ fi
 # 1c. Trust this runtime folder in Claude Code. Untrusted, `claude -p` ignores every
 # permissions.allow entry ("Ignoring 37 permissions.allow entries … has not been
 # trusted"), the preflight agent hangs to its timeout, and the node holds forever
-# claiming nothing — the Mini, 30/09. Worktrees resolve to this repo, so one key covers
-# every run. Only this key is written; the file is replaced atomically.
+# claiming nothing — the Mini, 30/09. Claude Code keys trust on the CANONICAL git root,
+# so every worktree a run makes of this repo is covered by that one key; when this
+# checkout is itself a linked worktree, that root is the main clone, so both are
+# trusted. Only these keys are written, the file is replaced atomically, and a config
+# that does not parse is left alone and fails the enlistment below.
+TRUST_OK=0
 say "Trusting $REPO_DIR for the mesh agent"
-REPO_DIR="$REPO_DIR" python3 - <<'PYT' || warn "could not mark $REPO_DIR trusted; preflight will hold with the reason"
-import json, os, tempfile
+if REPO_DIR="$REPO_DIR" python3 - <<'PYT'
+import json, os, subprocess, tempfile
 path = os.path.expanduser("~/.claude.json")
 repo = os.path.realpath(os.environ["REPO_DIR"])
+common = subprocess.run(["git", "-C", repo, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                        capture_output=True, text=True, check=True).stdout.strip()
+keys = sorted({repo, os.path.realpath(os.path.dirname(common))})
 config = {}
 if os.path.exists(path):
     with open(path, encoding="utf-8") as fh:
         config = json.load(fh)  # unreadable JSON: stop here rather than overwrite it
-project = config.setdefault("projects", {}).setdefault(repo, {})
-if project.get("hasTrustDialogAccepted") is not True:
-    project["hasTrustDialogAccepted"] = True
+projects = config.setdefault("projects", {})
+todo = [k for k in keys if projects.setdefault(k, {}).get("hasTrustDialogAccepted") is not True]
+for key in todo:
+    projects[key]["hasTrustDialogAccepted"] = True
+if todo:
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".claude.json.")
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         json.dump(config, fh, indent=2)
     if os.path.exists(path):
         os.chmod(tmp, os.stat(path).st_mode & 0o777)
     os.replace(tmp, path)
-    print(f"  trusted {repo}")
+print("  trusted " + ", ".join(keys))
 PYT
+then
+  TRUST_OK=1
+else
+  warn "could not mark $REPO_DIR trusted in ~/.claude.json; the runner will hold with that reason"
+fi
 
 # 2. autogit — work bus
 if ! command -v autogit >/dev/null; then
@@ -231,10 +245,10 @@ PL
     ;;
 esac
 
-# The verdict. Both halves must hold; each failure names the work it needs,
+# The verdict. Both halves, and TRUST_OK (1c), must hold; each failure names the work it needs,
 # because a denial an operator cannot act on is barely better than a false
 # success. Exit is non-zero so automation cannot read this as done either.
-if [ "$HEARTBEAT_OK" = 1 ] && [ "$SUPERVISED" = 1 ]; then
+if [ "$HEARTBEAT_OK" = 1 ] && [ "$SUPERVISED" = 1 ] && [ "$TRUST_OK" = 1 ]; then
   say "Done. $HOST is enlisted with visibility + work execution."
   exit 0
 fi
@@ -242,6 +256,7 @@ fi
 warn "$HOST is NOT enlisted."
 [ "$HEARTBEAT_OK" = 1 ] || warn "  - the first heartbeat did not publish; the node is invisible to dispatch"
 [ "$SUPERVISED" = 1 ] || warn "  - no supervision installed; the node goes stale ~60s from now"
+[ "$TRUST_OK" = 1 ] || warn "  - the runtime folder is not trusted by Claude Code; the runner will claim nothing"
 warn "Confirm from the fleet, not from this output:"
 echo "  curl -s \"\$PI_CEO_API_URL/api/mesh/fleet\" -H \"X-Pi-CEO-Secret: \$PI_CEO_API_KEY\""
 # A degraded read returns the same empty lists as a fleet nobody joined (RA-7392), so an

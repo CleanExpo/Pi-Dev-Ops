@@ -34,18 +34,17 @@ from typing import Callable
 Api = Callable[..., dict]
 
 
-def _readable(api: Api) -> "dict | None":
+def _readable(api: Api, failed: Callable[[object], object] = lambda response: None) -> "dict | None":
     """The fleet snapshot, or None when it cannot be trusted.
 
     Two independent signals, because the read can fail at two layers:
     `_api` renders any HTTP or transport error as `{"error": ...}`, and the
     server sets `degraded` when one of its four Supabase sources failed even
-    though the request itself returned 200.
+    though the request itself returned 200. `failed` is shown the response it refused.
     """
     fleet = api("GET", "/api/mesh/fleet")
-    if not isinstance(fleet, dict):
-        return None
-    if fleet.get("error") or fleet.get("degraded"):
+    if not isinstance(fleet, dict) or fleet.get("error") or fleet.get("degraded"):
+        failed(fleet)
         return None
     return fleet
 
@@ -57,9 +56,10 @@ def _rows(fleet: dict, key: str) -> list:
     return [row for row in value if isinstance(row, dict)] if isinstance(value, list) else []
 
 
-def my_claims(api: Api, host: str) -> "list[dict] | None":
+def my_claims(api: Api, host: str,
+              failed: Callable[[object], object] = lambda response: None) -> "list[dict] | None":
     """Open claims for `host`, or None when the fleet could not be read."""
-    fleet = _readable(api)
+    fleet = _readable(api, failed)
     if fleet is None:
         return None
     return [c for c in _rows(fleet, "claims")
@@ -79,9 +79,9 @@ def active_agent_count(api: Api, host: str) -> "int | None":
 _NOT_A_REFUSAL = ("HTTP 404", "HTTP 408", "HTTP 429")
 
 
-def _failure(response: dict) -> str:
+def _failure(response: object) -> str:
     """Rejected when the server refused the call, unavailable when it was not reached."""
-    error = str(response.get("error") or "")
+    error = str(response.get("error") or "") if isinstance(response, dict) else ""
     refused = error.startswith("HTTP 4") and not error.startswith(_NOT_A_REFUSAL)
     return "rejected" if refused else "unavailable"
 
@@ -102,16 +102,15 @@ def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outc
     `report` hears one outcome per poll — unavailable, rejected, empty or assigned —
     because all four used to return [] alike, so an outage read as an empty queue.
     """
-    claims = my_claims(api, host)
+    claims = my_claims(api, host, lambda response: report(_failure(response)))
     if claims is None:
-        report("unavailable")
         return []          # fleet unreadable: hold, never self-claim on a guess
     if claims:
         report("assigned")
         return claims
     response = api("POST", "/api/mesh/claim/self", {"host": host})
     if not isinstance(response, dict) or response.get("error"):
-        report(_failure(response) if isinstance(response, dict) else "unavailable")
+        report(_failure(response))
         return []
     claimed = response.get("claimed")
     report("assigned" if claimed else "empty")
