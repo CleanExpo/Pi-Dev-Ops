@@ -476,7 +476,7 @@ skills:
     inferred: true
     low_confidence: true
   - id: compound-development-loop
-    description: "\"Agentic development operating loop for non-engineer-led builds: expand the idea, research surrounding advances, produce artifacts, plan, build, review, and compound learnings back into the 2nd brain and CRM.\""
+    description: "Agentic development operating loop for non-engineer-led builds: expand the idea, research surrounding advances, produce artifacts, plan, build, review, and compound learnings back into the 2nd brain and CRM."
     owner_role: "\"Senior PM\""
     status: "\"wave-6\""
     path: skills/compound-development-loop/SKILL.md
@@ -2060,7 +2060,7 @@ skills:
     inferred: true
     low_confidence: true
   - id: skybridge
-    description: "| Guide developers through creating and updating ChatGPT and MCP apps. Covers the full lifecycle: brainstorming ideas against UX guidelines, bootstrapping projects, implementing tools/views, debugging, running dev servers, deploying and connecting apps to ChatGPT. Use when a user wants to create or update a ChatGPT app, MCP app, MCP server or use the Skybridge framework."
+    description: "Guide developers through creating and updating ChatGPT and MCP apps.\nCovers the full lifecycle: brainstorming ideas against UX guidelines, bootstrapping projects, implementing tools/views, debugging, running dev servers, deploying and connecting apps to ChatGPT.\nUse when a user wants to create or update a ChatGPT app, MCP app, MCP server or use the Skybridge framework."
     owner_role: (unset)
     status: (unset)
     path: skills/skybridge/SKILL.md
@@ -2518,7 +2518,7 @@ skills:
     inferred: true
     low_confidence: true
   - id: weekly-enhancement-loop
-    description: "\"Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in config/harness/projects.json, opening review PRs so all projects compound over time. Cost-optimised open-weight ladder (Qwen/DeepSeek) via OpenRouter — cheap grunt tiers, one reserved reasoner for the planner handoff (~$5/full run).\""
+    description: "Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in config/harness/projects.json, opening review PRs so all projects compound over time. Cost-optimised open-weight ladder (Qwen/DeepSeek) via OpenRouter — cheap grunt tiers, one reserved reasoner for the planner handoff (~$5/full run)."
     owner_role: "\"Senior PM\""
     status: "\"wave-6\""
     path: skills/weekly-enhancement-loop/SKILL.md
