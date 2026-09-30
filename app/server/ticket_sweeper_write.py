@@ -38,6 +38,7 @@ class Write:
     recheck: Callable[[dict], bool] | None = None  # does the FRESH issue still qualify?
     move_guard: Callable[[dict], bool] | None = None  # checked again just before the move
     kind: str = ""  # which guard re-validates an unfinished move on the next sweep
+    seen_updated_at: str = ""  # the ticket's updatedAt once our label + comment were on
 
 
 def _comment_count(issue: dict, body: str) -> int | None:
@@ -91,18 +92,21 @@ def write_verified(api_key: str, iid: str, team: str, w: Write) -> str | None:
     if w.state:
         if not only_our_changes(fresh, after, w) or (w.move_guard is not None and not w.move_guard(after)):
             return "drift"  # someone else touched it while we wrote — do not move it
+        w.seen_updated_at = after.get("updatedAt") or ""
         return _move(api_key, iid, team, w.state)
     return None
 
 
 def resume_move(api_key: str, p: dict, guard: Callable[[dict], bool] | None) -> str | None:
     """Finish a move a previous sweep wrote the label and comment for but could
-    not complete. Only when nothing happened since (same state, our comment is
-    still the newest, our label still on) AND the ticket still qualifies under
-    its kind's guard. Otherwise it is dropped as 'drift'."""
+    not complete. Only when nothing at all happened since (updatedAt unchanged
+    from the read after our label + comment, same state, our comment newest,
+    our label on) AND the ticket still qualifies under its kind's guard.
+    Otherwise it is dropped as 'drift'."""
     cur = io.fetch_issue(api_key, p["id"])
     bodies = io.ordered_bodies(cur)
     if (guard is None or bodies is None or not bodies or bodies[-1] != p["comment"]
+            or not p.get("seen_updated_at") or cur.get("updatedAt") != p["seen_updated_at"]
             or not io.state_is(cur, p["from_state"]) or p["label"].lower() not in (io.label_names(cur) or set())
             or not guard(cur)):
         return "drift"
@@ -125,7 +129,7 @@ def apply(api_key: str, issue: dict, report, w: Write) -> None:
         report.pending_moves.append({
             "id": issue["id"], "identifier": issue.get("identifier"), "label": w.label, "comment": w.comment,
             "team": issue.get("_team_id") or autonomy._TEAM_ID, "to_state": w.state, "kind": w.kind,
-            "from_state": (issue.get("state") or {}).get("name") or ""})
+            "from_state": (issue.get("state") or {}).get("name") or "", "seen_updated_at": w.seen_updated_at})
 
 
 def resume_pending(api_key: str, report, guards: dict[str, Callable[[dict], bool]]) -> None:
@@ -135,10 +139,11 @@ def resume_pending(api_key: str, report, guards: dict[str, Callable[[dict], bool
     if report.dry_run:
         return
     todo, report.pending_moves[:] = list(report.pending_moves), []
-    for p in todo:
+    for i, p in enumerate(todo):
         try:
             problem = resume_move(api_key, p, guards.get(p.get("kind", "")))
         except autonomy.LinearRateLimitError:
+            report.pending_moves.extend(todo[i:])  # this one and the rest wait for the next sweep
             raise
         except Exception as exc:  # noqa: BLE001
             problem = f"write_failed:{type(exc).__name__}"

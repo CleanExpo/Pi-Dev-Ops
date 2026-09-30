@@ -7,7 +7,7 @@ could not be saved never lets an older clean run show as current.
 from __future__ import annotations
 
 from _ticket_sweeper_support import FAILED, GRANT, NOW, PR, _issue, world  # noqa: F401 — fixture
-from app.server import ticket_sweeper
+from app.server import autonomy, ticket_sweeper, ticket_sweeper_write
 
 
 def test_unsaved_run_never_shows_the_older_clean_run(world, monkeypatch):  # noqa: F811
@@ -118,3 +118,39 @@ def test_failed_save_with_undeletable_old_file_still_reads_incomplete(world, mon
     monkeypatch.setattr(ticket_sweeper, "_unsaved_run_at", None)  # a fresh process
     snap = ticket_sweeper.status_snapshot()
     assert snap["complete"] is False and snap["errors"] == ["state_write_failed"]
+
+
+def test_pending_move_keeps_a_dry_run_incomplete(world, monkeypatch):  # noqa: F811
+    _leave_pending(world, monkeypatch, _issue("RA-73", "Todo", stype="unstarted", comments=[FAILED]), "recent_todo")
+    monkeypatch.delenv("TAO_TICKET_SWEEPER_WRITE")
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.dry_run is True and len(report.pending_moves) == 1 and report.complete is False
+    assert ticket_sweeper.status_snapshot()["complete"] is False
+
+
+def test_rate_limit_during_resume_keeps_every_pending_move(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["recent_todo"] = [_issue(i, "Todo", stype="unstarted", comments=[FAILED]) for i in ("RA-74", "RA-75")]
+    world["state_ok"] = False
+    assert len(ticket_sweeper.run_sweep(now=NOW).pending_moves) == 2
+    world["state_ok"], world["recent_todo"] = True, []
+    calls = []
+
+    def limited(*a):
+        calls.append(a)
+        raise autonomy.LinearRateLimitError("429")
+    real = ticket_sweeper_write.resume_move
+    monkeypatch.setattr(ticket_sweeper_write, "resume_move", limited)
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert "linear_rate_limited" in report.errors and len(report.pending_moves) == 2
+    monkeypatch.setattr(ticket_sweeper_write, "resume_move", real)
+    ticket_sweeper.run_sweep(now=NOW)
+    assert {world["db"][i]["state"]["name"] for i in ("id-RA-74", "id-RA-75")} == {"Ready for Pi-Dev"}
+
+
+def test_pending_stale_move_dropped_after_any_human_edit(world, monkeypatch):  # noqa: F811
+    live = _leave_pending(world, monkeypatch, _issue("RA-76"), "stale")
+    live["title"], live["updatedAt"] = "renamed by a human", "2026-09-30T11:00:00Z"
+    ticket_sweeper.run_sweep(now=NOW)
+    assert live["state"]["name"] == "In Progress"
+

@@ -215,7 +215,7 @@ def run_sweep(now: datetime | None = None) -> SweepReport:
         log.exception("ticket_sweeper: sweep crashed")
         report.errors.append(f"sweep_crashed:{type(exc).__name__}")
     finally:
-        report.complete = not report.errors
+        report.complete = not report.errors and not report.pending_moves  # unfinished moves = not done
         report.finished_at = datetime.now(timezone.utc).isoformat()
         _write_state(report)
     return report
