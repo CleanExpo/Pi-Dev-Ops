@@ -31,12 +31,12 @@ const chakra = localFont({
   display: 'swap',
 })
 const syne = localFont({
-  src: [{ path: '../../../fonts/syne-latin-var.woff2', weight: '400 800', style: 'normal' }],
+  src: [{ path: '../../../fonts/syne-var.woff2', weight: '400 800', style: 'normal' }],
   variable: '--font-syne',
   display: 'swap',
 })
 const jbMono = localFont({
-  src: [{ path: '../../../fonts/jetbrains-mono-latin-var.woff2', weight: '100 800', style: 'normal' }],
+  src: [{ path: '../../../fonts/jetbrains-mono-var.woff2', weight: '100 800', style: 'normal' }],
   variable: '--font-jbmono',
   display: 'swap',
 })
