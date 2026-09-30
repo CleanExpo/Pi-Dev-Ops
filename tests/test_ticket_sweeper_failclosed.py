@@ -207,3 +207,16 @@ def test_add_label_adds_one_label_and_checks_success(monkeypatch):
     assert all("issueAddLabel" in q and "labelIds" not in q for q, _ in sent)
     assert sent[0][1] == {"id": "iss-1", "labelId": "lbl-1"}
 
+
+def test_unsaved_run_never_shows_the_older_clean_run(world, monkeypatch):  # noqa: F811
+    ticket_sweeper.run_sweep(now=NOW)  # a complete, clean, saved run
+    assert ticket_sweeper.status_snapshot()["complete"] is True
+
+    def read_only(*a):
+        raise OSError("read-only")
+    monkeypatch.setattr(ticket_sweeper.os, "replace", read_only)
+    world["fail"] = {"stale"}
+    ticket_sweeper.run_sweep(now=NOW)
+    snap = ticket_sweeper.status_snapshot()
+    assert snap["complete"] is False and snap["errors"] == ["state_write_failed"] and snap["counts"] is None
+

@@ -112,6 +112,7 @@ def world(monkeypatch, tmp_path):
     monkeypatch.setenv("LINEAR_API_KEY", "lin_test")
     monkeypatch.delenv("TAO_TICKET_SWEEPER_WRITE", raising=False)
     monkeypatch.setattr(ticket_sweeper, "_STATE_FILE", tmp_path / "sweeper.json")
+    monkeypatch.setattr(ticket_sweeper, "_unsaved_run_at", None)
     monkeypatch.setattr(autonomy, "_load_portfolio_projects", lambda: _PROJECT)
     monkeypatch.setattr(autonomy, "_gql", _fake_gql(state))
     monkeypatch.setattr(ticket_sweeper_io, "github_get", _fake_github(state))

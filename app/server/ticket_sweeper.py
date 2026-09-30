@@ -234,18 +234,30 @@ def run_sweep(now: datetime | None = None) -> SweepReport:
     return report
 
 
+# Set when the latest run could not be saved, so the tile never shows an OLDER
+# complete run as current. Process-local; the next saved run clears it.
+_unsaved_run_at: str | None = None
+
+
 def _write_state(report: SweepReport) -> None:
+    global _unsaved_run_at
     try:
         _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         tmp = _STATE_FILE.with_suffix(".tmp")
         tmp.write_text(json.dumps(asdict(report)))
         os.replace(tmp, _STATE_FILE)
+        _unsaved_run_at = None
     except Exception as exc:  # noqa: BLE001 — state IO must never break the sweep
         log.warning("ticket_sweeper: could not persist state: %s", exc)
+        _unsaved_run_at = report.finished_at or report.started_at
 
 
 def status_snapshot() -> dict:
-    """Mission Control tile payload. Never-run reads as never-run, not as zero."""
+    """Mission Control tile payload. Never-run reads as never-run, not as zero,
+    and a run that could not be saved reads as incomplete, not as the last saved one."""
+    if _unsaved_run_at is not None:
+        return {"last_run_at": _unsaved_run_at, "dry_run": not writes_enabled(), "complete": False,
+                "counts": None, "errors": ["state_write_failed"]}
     try:
         state = json.loads(_STATE_FILE.read_text())
     except Exception:  # noqa: BLE001 — missing/corrupt = never run
