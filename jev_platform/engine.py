@@ -29,8 +29,10 @@ def _sha(obj) -> str:
 
 
 def _run_git(*args, **kw) -> subprocess.CompletedProcess:
-    """Round 11: every git read ignores refs/replace, which would re-point a reviewed id at other bytes."""
-    return subprocess.run(["git", "--no-replace-objects", "-C", str(ROOT), *args], capture_output=True, **kw)
+    """Round 11: every git read ignores refs/replace, which would re-point a reviewed id at other bytes. Round 15: no
+    inherited GIT_* variable, which would point it at another repository."""
+    return subprocess.run(["git", "--no-replace-objects", "-C", str(ROOT), *args], capture_output=True,
+                          env=verified.git_env(), **kw)
 
 
 def _committed(path: Path, rev: str = "HEAD") -> tuple[str, str] | None:

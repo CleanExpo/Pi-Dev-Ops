@@ -264,4 +264,17 @@ GUARD_MUTANTS = [
      'if q["id"] == QUESTION_ID'),  # wc-question-head
     ('engine.py', '    refusal = "rule_not_committed" if not rule else',
      '    rule = rule or registry()[rule_id]\n    refusal = "rule_not_committed" if not rule else'),  # en-calib-rule
+    # round 15: each deny alternative, killed by its own approved committed fixture (test_jev_platform_ask.py DENIED)
+    *[('ask.py', old, new) for old, new in [
+        (r'(\.env[^/]*|', '('), ('(pem|', '('), ('|key|', '|'), ('|p12|', '|'), ('|pfx|', '|'), ('|kdbx|', '|'),
+        ('|tfstate)', ')'), ('(id_rsa|', '('), ('|id_ed25519|', '|'), ('|credential|', '|'), ('|secret)', ')'),
+        (r'|\.npmrc|', '|'), (r'|\.netrc|', '|'), (r'|\.pypirc)', ')'), (r'(\.git|', '('), (r'|\.hermes|', '|'),
+        (r'|\.ssh|', '|'), (r'|\.aws|', '|'), (r'|\.vercel|', '|'), (r'|\.gcloud)', ')'),
+        ('if _DENY_NAMES.search(rel) or sensitive(rel):', 'if _DENY_NAMES.search(rel):')]],
+    # round 15: no inherited GIT_* variable chooses the repository (test_jev_platform_git_env.py)
+    ('committed.py', ' if not k.startswith("GIT_")}', '}'),
+    ('committed.py', 'stderr=subprocess.DEVNULL,\n                                      env=git_env(env))',
+     'stderr=subprocess.DEVNULL,\n                                      env=env)'),
+    ('committed.py', 'capture_output=True, text=True, env=git_env(env))', 'capture_output=True, text=True, env=env)'),
+    ('engine.py', 'env=verified.git_env(), **kw)', '**kw)'),
 ]

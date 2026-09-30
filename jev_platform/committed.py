@@ -21,6 +21,14 @@ def is_oid(value) -> bool:
     return isinstance(value, str) and bool(_OID.fullmatch(value))
 
 
+def git_env(env: dict | None = None) -> dict:
+    """The environment every git call on reviewed content runs in: `env` (default: this process's) with every GIT_*
+    variable dropped, so an inherited GIT_DIR or config override cannot point `git -C root` at another repository
+    (round 15). The two restrictions ask.git_env() already set are pinned, never inherited."""
+    kept = {k: v for k, v in (os.environ if env is None else env).items() if not k.startswith("GIT_")}
+    return {**kept, "GIT_CONFIG_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0"}
+
+
 def _hash_ok(oid: str, kind: bytes, data: bytes) -> bool:
     algo = "sha1" if len(oid) == 40 else "sha256"
     return hashlib.new(algo, kind + b" %d\0" % len(data) + data).hexdigest() == oid
@@ -32,7 +40,7 @@ class Objects:
     def __init__(self, repo, env: dict | None = None):
         self._proc = subprocess.Popen(["git", "--no-replace-objects", "-C", str(repo), "cat-file", "--batch"],
                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                      env=env)
+                                      env=git_env(env))
 
     def __enter__(self):
         return self
@@ -73,7 +81,7 @@ def _entry(tree: bytes, name: bytes, width: int) -> tuple[bytes, str] | None:
 def resolve(repo, rev: str = "HEAD", env: dict | None = None) -> str | None:
     """The full commit id `rev` names, or None. A ref is trusted; everything read below it is checked."""
     out = subprocess.run(["git", "--no-replace-objects", "-C", str(repo), "rev-parse", "--verify", "--quiet",
-                          "--end-of-options", f"{rev}^{{commit}}"], capture_output=True, text=True, env=env)
+                          "--end-of-options", f"{rev}^{{commit}}"], capture_output=True, text=True, env=git_env(env))
     commit = out.stdout.strip()
     return commit if out.returncode == 0 and is_oid(commit) else None
 
