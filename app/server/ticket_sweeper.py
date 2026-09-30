@@ -28,6 +28,7 @@ from pathlib import Path
 
 from . import autonomy, config
 from . import ticket_sweeper_io as io
+from . import ticket_sweeper_write as wr
 
 log = logging.getLogger("pi-ceo.ticket_sweeper")
 
@@ -125,11 +126,11 @@ def decide_failed(issue: dict) -> str | None:
 
 # ── Writes (only when enabled) ───────────────────────────────────────────────
 
-def _apply(api_key: str, issue: dict, report: SweepReport, w: io.Write) -> None:
+def _apply(api_key: str, issue: dict, report: SweepReport, w: wr.Write) -> None:
     if report.dry_run:
         return
     try:
-        problem = io.write_verified(api_key, issue["id"], issue.get("_team_id") or autonomy._TEAM_ID, w)
+        problem = wr.write_verified(api_key, issue["id"], issue.get("_team_id") or autonomy._TEAM_ID, w)
     except autonomy.LinearRateLimitError:
         raise
     except Exception as exc:  # noqa: BLE001 — one ticket never aborts the sweep
@@ -148,7 +149,7 @@ def _sweep_stale(api_key: str, issues: list[dict], report: SweepReport, now: dat
         (report.stale_to_todo if move else report.stale_labelled).append(issue["identifier"])
         note = ("moved to Todo: no linked PR and nothing blocking it." if move
                 else "left in place: it has a linked PR, an open blocker, or is Blocked.")
-        _apply(api_key, issue, report, io.Write(
+        _apply(api_key, issue, report, wr.Write(
             STALE_LABEL, f"**Stale sweep:** no activity for {STALE_DAYS}+ days — {note}",
             "Todo" if move else None,
             lambda f, v=verdict: _older_than(f, cutoff) and decide_stale(f) == v,
@@ -179,7 +180,12 @@ def _sweep_review(api_key: str, issues: list[dict], report: SweepReport, now: da
             report.review_unknown.append(issue["identifier"])
         elif verdict == "red":
             report.review_red_pr.append(issue["identifier"])
-            _apply(api_key, issue, report, io.Write(REVIEW_LABEL, recheck=lambda f: io.state_is(f, "In Review")))
+            _apply(api_key, issue, report, wr.Write(REVIEW_LABEL, recheck=lambda f: io.state_is(f, "In Review")))
+
+
+def _has_retry_label(issue: dict) -> bool:
+    """Pre-move guard: the durable retry marker is still on the ticket (a human may remove it)."""
+    return RETRY_LABEL in (io.label_names(issue) or set())
 
 
 def _sweep_failed(api_key: str, issues: list[dict], report: SweepReport) -> None:
@@ -189,14 +195,16 @@ def _sweep_failed(api_key: str, issues: list[dict], report: SweepReport) -> None
             report.errors.append(f"comments_unread:{issue['identifier']}")
         elif verdict == "ready":
             report.failed_to_ready.append(issue["identifier"])
-            _apply(api_key, issue, report, io.Write(
+            _apply(api_key, issue, report, wr.Write(
                 RETRY_LABEL, f"{SWEEP_COMMENT_PREFIX} first failure — sent back to Ready for Pi-Dev once.",
-                autonomy._READY_STATUS_NAME, lambda f: io.state_is(f, "Todo") and decide_failed(f) == "ready"))
+                autonomy._READY_STATUS_NAME, lambda f: io.state_is(f, "Todo") and decide_failed(f) == "ready",
+                _has_retry_label))
         elif verdict == "blocked":
             report.failed_to_blocked.append(issue["identifier"])
-            _apply(api_key, issue, report, io.Write(
+            _apply(api_key, issue, report, wr.Write(
                 BLOCKED_REASON_LABEL, f"{SWEEP_COMMENT_PREFIX} failed again after its one retry — blocked for a human.",
-                autonomy._BLOCKED_STATUS_NAME, lambda f: io.state_is(f, "Todo") and decide_failed(f) == "blocked"))
+                autonomy._BLOCKED_STATUS_NAME, lambda f: io.state_is(f, "Todo") and decide_failed(f) == "blocked",
+                _has_retry_label))
 
 
 # ── Run + state ──────────────────────────────────────────────────────────────

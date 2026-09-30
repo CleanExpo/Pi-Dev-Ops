@@ -1,6 +1,6 @@
-"""ticket_sweeper_io.py — Linear queries, verified Linear writes and GitHub PR
-facts for the nightly ticket sweeper (``ticket_sweeper.py``). ``write_verified``
-is only ever called by the sweeper behind its dry-run flag.
+"""ticket_sweeper_io.py — Linear queries and GitHub PR facts for the nightly
+ticket sweeper (``ticket_sweeper.py``). Read-only; the writes live in
+``ticket_sweeper_write.py``.
 
 Kept separate so the decision module stays under the 300-line ceiling and the
 tests can replace ``autonomy._gql`` / ``github_get`` without a network.
@@ -11,9 +11,7 @@ import json
 import os
 import re
 import urllib.request
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Callable
 
 from . import autonomy
 
@@ -253,46 +251,3 @@ def pr_facts(repo: str, number: int) -> dict:
 
 def state_is(issue: dict, name: str) -> bool:
     return ((issue.get("state") or {}).get("name") or "").lower() == name.lower()
-
-
-@dataclass
-class Write:
-    label: str
-    comment: str | None = None
-    state: str | None = None
-    recheck: Callable[[dict], bool] | None = None  # does the FRESH issue still qualify?
-    move_guard: Callable[[dict], bool] | None = None  # checked again just before the move
-
-
-def _comment_count(issue: dict, body: str) -> int | None:
-    nodes = complete_nodes(issue, "comments")
-    return None if nodes is None else sum(1 for c in nodes if c.get("body") == body)
-
-
-def write_verified(api_key: str, iid: str, team: str, w: Write) -> str | None:
-    """Re-read, then each write followed by a re-read that proves it stuck.
-    Returns a problem name, or None. Order is label → comment → move, so a
-    ticket is never moved without both durable retry markers on Linear."""
-    fresh = fetch_issue(api_key, iid)
-    if w.recheck is not None and not w.recheck(fresh):
-        return "drift"
-    if label_names(fresh) is None:
-        return "labels_unread"
-    if w.label.lower() not in label_names(fresh):
-        autonomy.add_label_to_issue(api_key, iid, team, w.label)
-        if w.label.lower() not in (label_names(fetch_issue(api_key, iid)) or set()):
-            return "label_unconfirmed"
-    if w.comment:
-        autonomy.comment_on_issue(api_key, iid, w.comment)
-    after = fetch_issue(api_key, iid)
-    before_n, after_n = (_comment_count(fresh, w.comment), _comment_count(after, w.comment)) if w.comment else (0, 1)
-    if before_n is None or after_n is None or after_n <= before_n:
-        return "comment_unconfirmed"
-    if w.state:
-        if not state_is(after, (fresh.get("state") or {}).get("name") or "") or (
-                w.move_guard is not None and not w.move_guard(after)):
-            return "drift"  # changed under us (e.g. moved to In Review) — do not move it
-        autonomy.transition_issue(api_key, iid, w.state, team_id=team)
-        if not state_is(fetch_issue(api_key, iid), w.state):
-            return "state_unconfirmed"
-    return None

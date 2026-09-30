@@ -5,8 +5,8 @@ marked incomplete and the ticket untouched — never a clean zero on the tile.
 """
 from __future__ import annotations
 
-from _ticket_sweeper_support import FAILED, NOW, PR, _issue, _pr, world  # noqa: F401 — fixture
-from app.server import autonomy, ticket_sweeper, ticket_sweeper_io
+from _ticket_sweeper_support import FAILED, GRANT, NOW, PR, _issue, _pr, world  # noqa: F401 — fixture
+from app.server import autonomy, ticket_sweeper, ticket_sweeper_io, ticket_sweeper_write
 
 
 def test_truncated_comments_or_relations_fail_closed(world, monkeypatch):  # noqa: F811
@@ -44,7 +44,7 @@ def test_null_issue_node_rejects_the_bucket(world):  # noqa: F811
 
 def test_label_write_reporting_success_but_not_persisted_blocks_the_move(world, monkeypatch):  # noqa: F811
     monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
-    monkeypatch.setattr(autonomy, "add_label_to_issue", lambda *a: True)  # says ok, writes nothing
+    monkeypatch.setattr(ticket_sweeper_write, "add_label", lambda *a: True)  # says ok, writes nothing
     world["recent_todo"] = [_issue("RA-31", "Todo", stype="unstarted", comments=[FAILED])]
     report = ticket_sweeper.run_sweep(now=NOW)
     assert not [w for w in world["writes"] if w[0] in ("state", "comment")]
@@ -171,4 +171,39 @@ def test_truncated_attachments_or_labels_fail_closed(world, monkeypatch):  # noq
     assert "comments_unread:RA-44" in report.errors and report.failed_to_ready == []
     assert report.review_unknown == ["RA-45"]
     assert not [w for w in world["writes"] if w[0] == "state"]
+
+
+def test_retry_label_removed_mid_block_is_not_moved(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["recent_todo"] = [_issue("RA-50", "Todo", stype="unstarted", comments=[FAILED, GRANT, FAILED],
+                                   labels=["pi-dev:failed-retry-used"])]
+    world["on_comment"] = lambda issue: issue["labels"]["nodes"].remove({"name": "pi-dev:failed-retry-used"})
+    report = ticket_sweeper.run_sweep(now=NOW)  # a human revoked the retry while we were writing
+    assert not [w for w in world["writes"] if w[0] == "state"]
+    assert report.errors == ["drift:RA-50"] and report.complete is False
+
+
+def test_label_write_that_drops_an_existing_label_is_an_error(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["recent_todo"] = [_issue("RA-51", "Todo", stype="unstarted", comments=[FAILED], labels=["keep-me"])]
+    world["on_label"] = lambda issue: issue["labels"]["nodes"].clear()  # a replace-style write
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.errors == ["label_unconfirmed:RA-51"]
+    assert not [w for w in world["writes"] if w[0] in ("comment", "state")]
+
+
+def test_add_label_adds_one_label_and_checks_success(monkeypatch):
+    sent = []
+    monkeypatch.setattr(autonomy, "_resolve_or_create_label", lambda k, team, name: "lbl-1")
+
+    def fake_gql(api_key, query, variables=None, **kw):
+        sent.append((query, variables))
+        return {"issueAddLabel": {"success": ok}}
+    monkeypatch.setattr(autonomy, "_gql", fake_gql)
+    ok = True
+    assert ticket_sweeper_write.add_label("k", "iss-1", "team", "stale:14d") is True
+    ok = False
+    assert ticket_sweeper_write.add_label("k", "iss-1", "team", "stale:14d") is False
+    assert all("issueAddLabel" in q and "labelIds" not in q for q, _ in sent)
+    assert sent[0][1] == {"id": "iss-1", "labelId": "lbl-1"}
 

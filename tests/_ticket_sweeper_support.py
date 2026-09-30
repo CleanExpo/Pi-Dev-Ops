@@ -15,7 +15,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from app.server import autonomy, ticket_sweeper, ticket_sweeper_io  # noqa: E402
+from app.server import autonomy, ticket_sweeper, ticket_sweeper_io, ticket_sweeper_write  # noqa: E402
 
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
 _PROJECT = [{"name": "pi-dev-ops", "project_id": "proj-RA", "repo_url": "x", "team_id": "team-RA"}]
@@ -77,6 +77,7 @@ def _fake_writes(state: dict, monkeypatch) -> None:
 
     def comment(k, iid, body):
         state["writes"].append(("comment", iid))
+        state["on_comment"](state["db"][iid])
         if state["comment_ok"]:
             state["db"][iid]["comments"]["nodes"].append({"body": body, "createdAt": "2026-09-30T00:00:00Z"})
 
@@ -85,7 +86,7 @@ def _fake_writes(state: dict, monkeypatch) -> None:
         if state["state_ok"]:
             state["db"][iid]["state"]["name"] = name
 
-    monkeypatch.setattr(autonomy, "add_label_to_issue", label)
+    monkeypatch.setattr(ticket_sweeper_write, "add_label", label)
     monkeypatch.setattr(autonomy, "comment_on_issue", comment)
     monkeypatch.setattr(autonomy, "transition_issue", transition)
 
@@ -106,6 +107,7 @@ def world(monkeypatch, tmp_path):
     """Fake Linear + GitHub; records every write the sweeper makes."""
     state = {"stale": [], "in_review": [], "recent_todo": [], "fail": set(), "null_project": set(),
              "pages": {}, "prs": {}, "writes": [], "db": {}, "on_label": lambda issue: None,
+             "on_comment": lambda issue: None,
              "label_ok": True, "comment_ok": True, "state_ok": True}
     monkeypatch.setenv("LINEAR_API_KEY", "lin_test")
     monkeypatch.delenv("TAO_TICKET_SWEEPER_WRITE", raising=False)
