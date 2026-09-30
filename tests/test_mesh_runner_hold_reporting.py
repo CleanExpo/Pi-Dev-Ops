@@ -151,6 +151,8 @@ def test_each_poll_names_its_outcome(fleet, self_claim, outcome):
 
 def test_the_poll_line_carries_the_outcome_and_the_last_good_contact(runner, monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["runner", "--once"])
+    ticks = iter(range(1000, 2000, 100))  # every read of the clock is a later second
+    monkeypatch.setattr(runner, "LOG", runner.runner_idle.Log(clock=lambda: next(ticks)))
     monkeypatch.setattr(runner, "_api", _api(EMPTY_FLEET, {"claimed": None}))
     runner.main()
     empty = _lines(capsys.readouterr().out)[-1]
