@@ -74,6 +74,11 @@ def fetch_health_full(log) -> dict | None:
         return None
 
 
+def observed_green(payload) -> bool:
+    """Observed and ok:true. Only this ends a red; unobserved is unresolved."""
+    return isinstance(payload, dict) and payload.get("ok") is True and payload.get("observed", True) is not False
+
+
 def health_full_ticket(name: str, payload: dict) -> dict[str, Any]:
     """Title, body, owner and founder-only flag for one red health_full component."""
     try:
@@ -161,7 +166,9 @@ def _open_matches(found: dict, title: str) -> list:
     nodes = (found.get("issues") or {}).get("nodes") if isinstance(found.get("issues"), dict) else None
     if not isinstance(nodes, list):
         raise RuntimeError("Linear lookup returned no issues.nodes list")
-    return [n for n in nodes if isinstance(n, dict) and n.get("title") == title]
+    if any(not isinstance(n, dict) or not isinstance(n.get("title"), str) or not n.get("id") for n in nodes):
+        raise RuntimeError("Linear lookup returned a node without id/title")
+    return [n for n in nodes if n["title"] == title]
 
 
 def _update(issue: dict, text: str, founder_only: bool) -> str | None:

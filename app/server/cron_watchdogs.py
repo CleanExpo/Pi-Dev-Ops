@@ -12,7 +12,7 @@ The ZTE pipeline-stall watchdog (RA-608) lives in cron_watchdog_zte.py.
 import asyncio
 import time
 from app.server import config_loader
-from app.server.red_signals import fetch_health_full, health_full_ticket
+from app.server.red_signals import fetch_health_full, health_full_ticket, observed_green
 from app.server.red_signals import upsert_red_linear_ticket as _upsert_red_linear_ticket
 
 # RA-635 — module-level dedup state for docs-stale watchdog.
@@ -1123,7 +1123,7 @@ async def _watchdog_health_full(log) -> None:
 
     # Recovery messages for components that just flipped red→green.
     # Recovered means observed ok:true. Red→unobserved stays unresolved, not "green".
-    unresolved = {n for n in _health_red_components - current_red if (components.get(n) or {}).get("ok") is not True}
+    unresolved = {n for n in _health_red_components - current_red if not observed_green(components.get(n))}
     recovered = _health_red_components - current_red - unresolved
     for name in sorted(recovered):
         _health_full_send_telegram(

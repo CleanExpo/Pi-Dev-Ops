@@ -152,7 +152,8 @@ def test_upsert_does_not_create_when_lookup_fails(monkeypatch, linear_key):
 
 
 
-@pytest.mark.parametrize("malformed", [{}, {"issues": {}}, {"issues": {"nodes": None}}, {"issues": None}])
+_TITLELESS = {"issues": {"nodes": [{"id": "existing-1", "identifier": "RA-9001"}]}}
+@pytest.mark.parametrize("malformed", [{}, {"issues": {}}, {"issues": {"nodes": None}}, {"issues": None}, _TITLELESS])
 def test_malformed_lookup_never_creates(monkeypatch, linear_key, malformed):
     import urllib.request as _ureq
 
