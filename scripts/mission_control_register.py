@@ -61,12 +61,24 @@ def register_states(text: str) -> dict[str, str]:
     return out
 
 
+def auth_header(api_key: str) -> str:
+    """Linear wants a personal key bare and an OAuth token as `Bearer <token>`.
+
+    A pasted secret often carries stray whitespace or a `Bearer ` prefix, and
+    an OAuth token sent bare is answered "Authentication required".
+    """
+    key = api_key.strip()
+    if key.lower().startswith("bearer "):
+        return "Bearer " + key[7:].strip()
+    return "Bearer " + key if key.startswith("lin_oauth_") else key
+
+
 def linear_fetch(api_key: str) -> Fetch:
     def fetch(query: str, variables: dict) -> dict:
         req = urllib.request.Request(
             "https://api.linear.app/graphql",
             data=json.dumps({"query": query, "variables": variables}).encode(),
-            headers={"Authorization": api_key, "Content-Type": "application/json"},
+            headers={"Authorization": auth_header(api_key), "Content-Type": "application/json"},
         )
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:

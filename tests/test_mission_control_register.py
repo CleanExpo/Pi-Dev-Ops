@@ -201,3 +201,10 @@ def test_main_warns_about_unplaced_tickets_even_when_every_page_fails(tmp_path: 
     out = capsys.readouterr().out
     assert "check 11: 0/20 surfaces pass" in out
     assert "not counted: RA-2" in out
+
+
+def test_auth_header_fits_the_kind_of_key_pasted() -> None:
+    assert mr.auth_header("lin_api_abc") == "lin_api_abc"
+    assert mr.auth_header("  lin_api_abc\n") == "lin_api_abc"
+    assert mr.auth_header("lin_oauth_abc") == "Bearer lin_oauth_abc"
+    assert mr.auth_header("bearer  tok") == "Bearer tok"
