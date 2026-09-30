@@ -22,10 +22,12 @@ import sys
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Callable
+from types import SimpleNamespace
+from typing import Callable, Optional
 
 import agent_sandbox
 import claim_lifecycle
+import left_running
 import run_record
 
 PROBE_PROMPT = ("Create a file named {name} in the current directory containing "
@@ -49,37 +51,56 @@ def run_log() -> str:
 
 
 def agent_writes(repo_dir: Path, agent_cmd: str,
-                 run: Callable[..., subprocess.CompletedProcess] = subprocess.run) -> str:
-    """The agent writes a file in a scratch worktree, and is not in an untrusted workspace."""
+                 run: Optional[Callable[..., subprocess.CompletedProcess]] = None) -> str:
+    """The agent writes a file in a scratch worktree, and is not in an untrusted workspace.
+
+    `run`, when given, stands in for both git and the agent (tests). By default the agent
+    runs contained (agent_sandbox.run_contained): its whole process group is ended before
+    the scratch worktree goes, and a group that cannot be emptied keeps the worktree and
+    is recorded in left_running, which blocks self-update.
+    """
+    git = run or subprocess.run
     worktree = Path(tempfile.mkdtemp(prefix="mesh-preflight-wt-", dir=claim_lifecycle.temp_root())) / "wt"
+    kept = False
     try:
-        added = run(["git", "-C", str(repo_dir), "worktree", "add", "--detach", str(worktree), "HEAD"],
+        added = git(["git", "-C", str(repo_dir), "worktree", "add", "--detach", str(worktree), "HEAD"],
                     capture_output=True, text=True, check=False)
         if added.returncode != 0:
             return "scratch worktree could not be created"
-        # A fresh name each time, proven absent first: a file the repo already
-        # tracks, or one left by an earlier probe, must never pass for the agent's.
-        probe = worktree / f"mesh-preflight-{uuid.uuid4().hex}.txt"
-        if probe.exists():
-            return "scratch worktree already holds the probe file"
-        agent = run(agent_sandbox.agent_argv(agent_cmd, PROBE_PROMPT.format(name=probe.name)),
-                    cwd=str(worktree), env=agent_sandbox.agent_env(),
-                    capture_output=True, text=True, check=False, timeout=AGENT_TIMEOUT)
-        if UNTRUSTED in f"{agent.stdout or ''}{agent.stderr or ''}":
-            return f"agent workspace not trusted: run `{agent_cmd}` once in {repo_dir} and accept"
-        if agent.returncode != 0:
-            return f"agent exited {agent.returncode}"
-        if not probe.is_file() or probe.read_text(errors="replace").strip().lower() != "ok":
-            return "agent could not write a file"
-        return ""
+        return _probe(worktree, repo_dir, agent_cmd, run or agent_sandbox.run_contained)
+    except agent_sandbox.GroupSurvived as exc:
+        kept = True
+        left_running.track(SimpleNamespace(reaped=False, proc=SimpleNamespace(pid=exc.pgid), pgid=exc.pgid))
+        return "agent left processes running; scratch worktree kept"
     except subprocess.TimeoutExpired:
         return "agent timed out"
     except OSError:
         return "agent could not start"
     finally:
-        run(["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],
-            capture_output=True, text=True, check=False)
-        shutil.rmtree(worktree.parent, ignore_errors=True)
+        if not kept:
+            git(["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],
+                capture_output=True, text=True, check=False)
+            shutil.rmtree(worktree.parent, ignore_errors=True)
+
+
+def _probe(worktree: Path, repo_dir: Path, agent_cmd: str,
+           agent_run: Callable[..., subprocess.CompletedProcess]) -> str:
+    """Ask the agent to write the probe file in `worktree`; "" when it did."""
+    # A fresh name each time, proven absent first: a file the repo already
+    # tracks, or one left by an earlier probe, must never pass for the agent's.
+    probe = worktree / f"mesh-preflight-{uuid.uuid4().hex}.txt"
+    if probe.exists():
+        return "scratch worktree already holds the probe file"
+    agent = agent_run(agent_sandbox.agent_argv(agent_cmd, PROBE_PROMPT.format(name=probe.name)),
+                      cwd=str(worktree), env=agent_sandbox.agent_env(),
+                      capture_output=True, text=True, check=False, timeout=AGENT_TIMEOUT)
+    if UNTRUSTED in f"{agent.stdout or ''}{agent.stderr or ''}":
+        return f"agent workspace not trusted: run `{agent_cmd}` once in {repo_dir} and accept"
+    if agent.returncode != 0:
+        return f"agent exited {agent.returncode}"
+    if not probe.is_file() or probe.read_text(errors="replace").strip().lower() != "ok":
+        return "agent could not write a file"
+    return ""
 
 
 def runner_loads(mesh_dir: Path) -> str:

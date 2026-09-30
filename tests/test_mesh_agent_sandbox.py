@@ -10,6 +10,8 @@ same, starts the agent in its own process group, and reaps that group.
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -168,6 +170,72 @@ def _gone_within_group(pgid: int) -> bool:
             pass
         time.sleep(0.05)
     return False
+
+
+def _planted_agent(tmp_path: Path) -> tuple:
+    """An executable 'agent' that starts a sleeping child, records its pid, then sleeps."""
+    pid_file = tmp_path / "preflight-child.pid"
+    agent = tmp_path / "planted-agent"
+    agent.write_text(
+        f"#!{sys.executable}\n"
+        "import subprocess, sys, time\n"
+        "g = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        f"open({str(pid_file)!r}, 'w').write(str(g.pid))\n"
+        "time.sleep(60)\n")
+    agent.chmod(0o755)
+    return str(agent), pid_file
+
+
+def _scratch_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for args in (["init", "-q"], ["-c", "user.email=t@t", "-c", "user.name=t",
+                                  "commit", "-q", "--allow-empty", "-m", "init"]):
+        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+    return repo
+
+
+@posix_only
+def test_a_timed_out_preflight_agent_leaves_no_descendant(tmp_path, monkeypatch):
+    """Review P1 round 2: preflight removed its worktree while the agent's child still ran."""
+    pf = load_module("mesh_preflight_sandbox_under_test", "mesh/preflight.py")
+    agent, pid_file = _planted_agent(tmp_path)
+    monkeypatch.setattr(pf, "AGENT_TIMEOUT", 1.5)
+    assert pf.agent_writes(_scratch_repo(tmp_path), agent) == "agent timed out"
+    child = _read_pid(pid_file)
+    try:
+        assert _gone_within(child), "the preflight agent's child outlived the scratch worktree"
+    finally:
+        if _alive(child):
+            os.kill(child, 9)
+
+
+@posix_only
+def test_a_preflight_group_that_cannot_be_emptied_keeps_its_worktree(tmp_path, monkeypatch):
+    """Unprovable group: the worktree stays and left_running blocks self-update."""
+    import left_running
+
+    pf = load_module("mesh_preflight_sandbox_kept_under_test", "mesh/preflight.py")
+    monkeypatch.setattr(left_running, "PATH", tmp_path / "left.json")
+    monkeypatch.setattr(pf.agent_sandbox, "end_group", lambda _pgid: False)
+    monkeypatch.setattr(pf.agent_sandbox, "signal_group", lambda _pgid, _sig: None)  # the child survives
+    monkeypatch.setattr(pf, "AGENT_TIMEOUT", 1.5)
+    agent, pid_file = _planted_agent(tmp_path)
+    repo = _scratch_repo(tmp_path)
+    try:
+        assert pf.agent_writes(repo, agent) == "agent left processes running; scratch worktree kept"
+        worktrees = subprocess.run(["git", "-C", str(repo), "worktree", "list"],
+                                   capture_output=True, text=True, check=True).stdout
+        assert len(worktrees.strip().splitlines()) == 2, worktrees
+        assert left_running.any_alive()
+    finally:
+        child = _read_pid(pid_file)
+        if _alive(child):
+            os.kill(child, 9)
+        for line in subprocess.run(["git", "-C", str(repo), "worktree", "list", "--porcelain"],
+                                   capture_output=True, text=True).stdout.splitlines()[1:]:
+            if line.startswith("worktree "):
+                shutil.rmtree(Path(line[9:]).parent, ignore_errors=True)
 
 
 def test_the_build_agent_gets_an_explicit_tool_allowlist(monkeypatch, tmp_path):

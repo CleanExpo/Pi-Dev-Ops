@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import signal
+import subprocess
 import time
 from typing import Mapping, Optional
 
@@ -99,3 +100,39 @@ def end_group(pgid: Optional[int]) -> bool:
         if time.monotonic() >= deadline:
             return False
         time.sleep(0.05)
+
+
+class GroupSurvived(RuntimeError):
+    """A contained run left a process in its group that could not be ended."""
+
+    def __init__(self, pgid: int):
+        super().__init__(f"process group {pgid} could not be emptied")
+        self.pgid = pgid
+
+
+def run_contained(argv: list, *, cwd: Optional[str] = None, env: Optional[dict] = None,
+                  timeout: Optional[float] = None, **_run_kwargs) -> subprocess.CompletedProcess:
+    """`subprocess.run(argv, capture_output=True, text=True, check=False)` for an agent, except
+    that the agent leads its own process group and the whole group is ended before this
+    returns: on success, on timeout and on an interrupt. Raises TimeoutExpired as run does,
+    and GroupSurvived when the group cannot be proven empty; the caller must then keep its
+    worktree. The group is killed before the final read, so a descendant holding the
+    output pipes cannot stall it; its output is then discarded."""
+    proc = subprocess.Popen(argv, cwd=cwd, env=env, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True, start_new_session=GROUPS)
+    pgid = proc.pid if GROUPS else None
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except BaseException:
+        if GROUPS:
+            signal_group(pgid, signal.SIGKILL)
+        proc.kill()
+        proc.wait()  # not communicate(): a surviving descendant holding the pipes would stall it
+        for pipe in (proc.stdout, proc.stderr):
+            pipe.close()
+        if not end_group(pgid):
+            raise GroupSurvived(pgid) from None
+        raise
+    if not end_group(pgid):
+        raise GroupSurvived(pgid)
+    return subprocess.CompletedProcess(argv, proc.returncode, out, err)
