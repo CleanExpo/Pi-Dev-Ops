@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import FleetTile from "@/components/control/FleetTile";
+import TicketSweeperTile from "@/components/control/TicketSweeperTile";
 import { deriveNeeds } from "@/lib/control/loop-needs";
 import { completed24h, type MissionControlLive } from "@/lib/control/mission-control-live";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
@@ -192,6 +193,8 @@ export default function LoopPage() {
           </Panel>
 
           <FleetTile />
+
+          <TicketSweeperTile sweeper={mc?.ticket_sweeper} />
 
           {/* Swarm & kill-switch */}
           <Panel title="Swarm & Kill-Switch">
