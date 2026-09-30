@@ -70,6 +70,16 @@ def test_a_supplied_env_cannot_redirect_the_readers_either(repo, tmp_path_factor
     assert committed.is_ancestor(repo, head, head, env=env)
 
 
+def test_objects_are_read_from_roots_store_not_an_inherited_one(repo, tmp_path_factory):
+    """Objects are rehashed, so another store can serve root's bytes or nothing; an empty one must not blind a read."""
+    empty = tmp_path_factory.mktemp("empty")
+    git(empty, "init", "-q")
+    env = {"PATH": os.environ["PATH"], "GIT_DIR": str(empty / ".git")}
+    head = committed.resolve(repo)
+    assert subprocess.run(["git", "-C", str(repo), "cat-file", "-e", head], env=env).returncode != 0  # control
+    assert committed.read(repo, REL_QUESTIONS, head, env=env)[1] == (repo / REL_QUESTIONS).read_bytes()
+
+
 def test_the_sanitised_env_drops_every_git_variable_and_keeps_the_rest():
     env = committed.git_env({"PATH": "/p", "HOME": "/h", "GIT_DIR": "/x", "GIT_COMMON_DIR": "/y",
                              "GIT_OBJECT_DIRECTORY": "/z", "GIT_CONFIG_PARAMETERS": "'a.b'='c'",
