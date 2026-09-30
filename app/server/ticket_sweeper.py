@@ -81,11 +81,6 @@ def decide_stale(issue: dict) -> str | None:
     return "todo"
 
 
-def _older_than(issue: dict, cutoff: datetime) -> bool:
-    raw = issue.get("updatedAt") or ""
-    return bool(raw) and datetime.fromisoformat(raw.replace("Z", "+00:00")) < cutoff
-
-
 def decide_review(facts: list[dict | None], now: datetime) -> str:
     """'red' when any open PR is red or unreviewed > 3d; 'unknown' when a PR
     could not be read and none was flagged; else 'ok'. ``None`` = read failed."""
@@ -133,8 +128,8 @@ def _sweep_stale(api_key: str, issues: list[dict], report: SweepReport, now: dat
         wr.apply(api_key, issue, report, wr.Write(
             STALE_LABEL, f"**Stale sweep:** no activity for {STALE_DAYS}+ days — {note}",
             "Todo" if move else None,
-            lambda f, v=verdict: _older_than(f, cutoff) and decide_stale(f) == v,
-            lambda f: decide_stale(f) == "todo"))
+            lambda f, v=verdict: io.older_than(f, cutoff) and decide_stale(f) == v,
+            _GUARDS["stale"], "stale"))
 
 
 def _review_facts(issue: dict) -> list[dict | None]:
@@ -169,6 +164,14 @@ def _has_retry_label(issue: dict) -> bool:
     return RETRY_LABEL in (io.label_names(issue) or set())
 
 
+# Checked just before any move, and again before finishing an unfinished one.
+_GUARDS = {
+    "stale": lambda f: decide_stale(f) == "todo",
+    "ready": lambda f: io.state_is(f, "Todo") and _has_retry_label(f),
+    "blocked": lambda f: io.state_is(f, "Todo") and _has_retry_label(f),
+}
+
+
 def _sweep_failed(api_key: str, issues: list[dict], report: SweepReport) -> None:
     for issue in issues:
         verdict = decide_failed(issue)
@@ -179,13 +182,13 @@ def _sweep_failed(api_key: str, issues: list[dict], report: SweepReport) -> None
             wr.apply(api_key, issue, report, wr.Write(
                 RETRY_LABEL, f"{SWEEP_COMMENT_PREFIX} first failure — sent back to Ready for Pi-Dev once.",
                 autonomy._READY_STATUS_NAME, lambda f: io.state_is(f, "Todo") and decide_failed(f) == "ready",
-                _has_retry_label))
+                _GUARDS["ready"], "ready"))
         elif verdict == "blocked":
             report.failed_to_blocked.append(issue["identifier"])
             wr.apply(api_key, issue, report, wr.Write(
                 BLOCKED_REASON_LABEL, f"{SWEEP_COMMENT_PREFIX} failed again after its one retry — blocked for a human.",
                 autonomy._BLOCKED_STATUS_NAME, lambda f: io.state_is(f, "Todo") and decide_failed(f) == "blocked",
-                _has_retry_label))
+                _GUARDS["blocked"], "blocked"))
 
 
 # ── Run + state ──────────────────────────────────────────────────────────────
@@ -194,18 +197,18 @@ def run_sweep(now: datetime | None = None) -> SweepReport:
     now = now or datetime.now(timezone.utc)
     report = SweepReport(started_at=now.isoformat(), dry_run=not writes_enabled(), complete=False)
     api_key = (os.environ.get("LINEAR_API_KEY") or getattr(config, "LINEAR_API_KEY", "") or "").strip()
-    pending = _read_state().get("pending_moves") or []
+    report.pending_moves = list(_read_state().get("pending_moves") or [])  # kept until finished
     _write_state(report)  # in-progress: the tile never shows the previous run while this one runs
     try:
         if not api_key:
             report.errors.append("no_linear_api_key")
             return report
+        wr.resume_pending(api_key, report, _GUARDS)
         buckets, fetch_errors = io.fetch_buckets(api_key, stale_days=STALE_DAYS, now=now)
         report.errors.extend(fetch_errors)
         _sweep_stale(api_key, buckets["stale"], report, now)
         _sweep_review(api_key, buckets["in_review"], report, now)
         _sweep_failed(api_key, buckets["recent_todo"], report)
-        wr.resume_pending(api_key, pending, report)
     except autonomy.LinearRateLimitError:
         report.errors.append("linear_rate_limited")
     except Exception as exc:  # noqa: BLE001 — a crash must persist as incomplete, never as a clean zero
@@ -231,13 +234,20 @@ def _write_state(report: SweepReport) -> None:
         tmp.write_text(json.dumps(asdict(report)))
         os.replace(tmp, _STATE_FILE)
         _unsaved_run_at = None
+        _fail_file().unlink(missing_ok=True)
     except Exception as exc:  # noqa: BLE001 — state IO must never break the sweep
         log.warning("ticket_sweeper: could not persist state: %s", exc)
         _unsaved_run_at = report.finished_at or report.started_at
-        try:  # an older saved run must not outlive this process as "current"
-            _STATE_FILE.unlink(missing_ok=True)
-        except OSError:
-            pass  # read-only disk: status_snapshot's staleness check still catches it
+        for undo in (lambda: _fail_file().write_text(json.dumps({"at": _unsaved_run_at})),
+                     lambda: _STATE_FILE.unlink(missing_ok=True)):
+            try:  # an older saved run must not outlive this process as "current"
+                undo()
+            except OSError:
+                pass  # disk refuses every write: the 36h staleness check still catches it
+
+
+def _fail_file() -> Path:
+    return _STATE_FILE.with_name("ticket-sweeper-save-failed.json")
 
 
 def _read_state() -> dict:
@@ -251,6 +261,9 @@ def _read_state() -> dict:
 def status_snapshot() -> dict:
     """Mission Control tile payload. Never-run reads as never-run, not as zero,
     and a run that could not be saved reads as incomplete, not as the last saved one."""
+    global _unsaved_run_at
+    if _unsaved_run_at is None and _fail_file().exists():
+        _unsaved_run_at = "unknown (save failed before a restart)"
     if _unsaved_run_at is not None:
         return {"last_run_at": _unsaved_run_at, "dry_run": not writes_enabled(), "complete": False,
                 "counts": None, "errors": ["state_write_failed"]}
@@ -258,7 +271,7 @@ def status_snapshot() -> dict:
     if not state:
         return {"last_run_at": None, "dry_run": not writes_enabled(), "complete": False,
                 "counts": None, "errors": []}
-    fresh = _within(state.get("finished_at"), timedelta(hours=STATE_MAX_AGE_H))
+    fresh = io.within(state.get("finished_at"), timedelta(hours=STATE_MAX_AGE_H))
     return {
         "last_run_at": state.get("finished_at"),
         "dry_run": bool(state.get("dry_run", True)),
@@ -267,13 +280,6 @@ def status_snapshot() -> dict:
         "review_red_pr": (state.get("review_red_pr") or [])[:20],
         "errors": ([] if fresh else ["stale_state"]) + (state.get("errors") or [])[:10],
     }
-
-
-def _within(stamp: str | None, age: timedelta) -> bool:
-    try:
-        return datetime.now(timezone.utc) - datetime.fromisoformat(stamp or "") <= age
-    except (TypeError, ValueError):
-        return False
 
 
 async def _fire_ticket_sweeper_trigger(trigger: dict, log_arg) -> None:

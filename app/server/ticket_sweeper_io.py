@@ -259,3 +259,15 @@ def ordered_bodies(issue: dict) -> list[str] | None:
 
 def state_is(issue: dict, name: str) -> bool:
     return ((issue.get("state") or {}).get("name") or "").lower() == name.lower()
+
+
+def older_than(issue: dict, cutoff: datetime) -> bool:
+    raw = issue.get("updatedAt") or ""
+    return bool(raw) and datetime.fromisoformat(raw.replace("Z", "+00:00")) < cutoff
+
+
+def within(stamp: str | None, age: timedelta) -> bool:
+    try:
+        return datetime.now(timezone.utc) - datetime.fromisoformat(stamp or "") <= age
+    except (TypeError, ValueError):
+        return False

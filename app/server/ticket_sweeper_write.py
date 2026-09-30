@@ -37,6 +37,7 @@ class Write:
     state: str | None = None
     recheck: Callable[[dict], bool] | None = None  # does the FRESH issue still qualify?
     move_guard: Callable[[dict], bool] | None = None  # checked again just before the move
+    kind: str = ""  # which guard re-validates an unfinished move on the next sweep
 
 
 def _comment_count(issue: dict, body: str) -> int | None:
@@ -94,14 +95,16 @@ def write_verified(api_key: str, iid: str, team: str, w: Write) -> str | None:
     return None
 
 
-def resume_move(api_key: str, p: dict) -> str | None:
+def resume_move(api_key: str, p: dict, guard: Callable[[dict], bool] | None) -> str | None:
     """Finish a move a previous sweep wrote the label and comment for but could
-    not complete. Only when nothing happened since: same state, our comment is
-    still the newest, our label still on. Otherwise it is dropped as 'drift'."""
+    not complete. Only when nothing happened since (same state, our comment is
+    still the newest, our label still on) AND the ticket still qualifies under
+    its kind's guard. Otherwise it is dropped as 'drift'."""
     cur = io.fetch_issue(api_key, p["id"])
     bodies = io.ordered_bodies(cur)
-    if (bodies is None or not bodies or bodies[-1] != p["comment"] or not io.state_is(cur, p["from_state"])
-            or p["label"].lower() not in (io.label_names(cur) or set())):
+    if (guard is None or bodies is None or not bodies or bodies[-1] != p["comment"]
+            or not io.state_is(cur, p["from_state"]) or p["label"].lower() not in (io.label_names(cur) or set())
+            or not guard(cur)):
         return "drift"
     return _move(api_key, p["id"], p["team"], p["to_state"])
 
@@ -121,14 +124,20 @@ def apply(api_key: str, issue: dict, report, w: Write) -> None:
     if problem in ("move_failed", "state_unconfirmed"):
         report.pending_moves.append({
             "id": issue["id"], "identifier": issue.get("identifier"), "label": w.label, "comment": w.comment,
-            "team": issue.get("_team_id") or autonomy._TEAM_ID, "to_state": w.state,
+            "team": issue.get("_team_id") or autonomy._TEAM_ID, "to_state": w.state, "kind": w.kind,
             "from_state": (issue.get("state") or {}).get("name") or ""})
 
 
-def resume_pending(api_key: str, pending: list[dict], report) -> None:
-    for p in pending if not report.dry_run else []:
+def resume_pending(api_key: str, report, guards: dict[str, Callable[[dict], bool]]) -> None:
+    """Retry the unfinished moves carried on ``report.pending_moves``. Each one
+    stays on the list until it is finished or proven obsolete, so a crashed or
+    dry run never loses the record."""
+    if report.dry_run:
+        return
+    todo, report.pending_moves[:] = list(report.pending_moves), []
+    for p in todo:
         try:
-            problem = resume_move(api_key, p)
+            problem = resume_move(api_key, p, guards.get(p.get("kind", "")))
         except autonomy.LinearRateLimitError:
             raise
         except Exception as exc:  # noqa: BLE001
