@@ -206,3 +206,28 @@ def test_a_fleet_read_that_answered_is_contact_even_when_the_self_claim_then_fai
     assert seen == ["unavailable"] and contacts == [1]
     fs.next_work(_api({"error": "HTTP 502"}, {}), HOST, seen.append, lambda: contacts.append(1))
     assert contacts == [1], "a failed fleet read is not contact"
+
+
+@pytest.mark.parametrize("linear, outcome", [({}, "unavailable"), ({"issues": {"nodes": []}}, "empty")])
+def test_claim_self_tells_the_runner_an_unread_linear_from_an_empty_queue(monkeypatch, linear, outcome):
+    """Codex round 5: `_linear_graphql` returns {} on any failure, and /claim/self answered
+    that with the same `queue empty` as a real empty queue, so the runner logged "empty"."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    sys.path.insert(0, str(REPO_ROOT))
+    from app.server import config as _config
+    monkeypatch.setattr(_config, "INTERNAL_WEBHOOK_SECRET", "test-secret", raising=False)
+    sys.modules.pop("app.server.routes.mesh", None)
+    from app.server.routes import mesh
+    monkeypatch.setattr(mesh.config, "INTERNAL_WEBHOOK_SECRET", "test-secret", raising=False)
+    monkeypatch.setattr(mesh, "_sb", lambda method, path, body=None, *, prefer="": (200, "[]"))
+    monkeypatch.setattr(mesh, "_linear_graphql", lambda q: linear)
+    app = FastAPI()
+    app.include_router(mesh.router)
+    reply = TestClient(app).post("/api/mesh/claim/self", json={"host": HOST},
+                                 headers={"X-Pi-CEO-Secret": "test-secret"})
+    as_runner_sees_it = reply.json() if reply.status_code < 400 else {"error": f"HTTP {reply.status_code}"}
+    fs = load_module("mesh_fleet_state_route", "mesh/fleet_state.py")
+    seen = []
+    fs.next_work(_api(EMPTY_FLEET, as_runner_sees_it), HOST, seen.append)
+    assert seen == [outcome]
