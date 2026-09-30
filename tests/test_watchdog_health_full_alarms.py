@@ -234,8 +234,12 @@ def test_founder_only_classification(error, expected):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("ok_flag", [False, True])
-async def test_red_turning_unobserved_is_not_announced_green(monkeypatch, telegram, tickets, ok_flag):
+@pytest.mark.parametrize("unobserved_payload", [
+    {"ok": False, "observed": False, "status": "not_observed"},
+    {"ok": True, "observed": False, "status": "not_observed"},
+    {"ok": True, "status": "not_observed"},  # round 7: status-only
+])
+async def test_red_turning_unobserved_is_not_announced_green(monkeypatch, telegram, tickets, unobserved_payload):
     """Review rounds 5-6: red -> not_observed is unresolved, not a recovery, whatever ok says."""
     monkeypatch.delenv("PORT", raising=False)
     _serve_503(monkeypatch, _red_body("margot_route"), [])
@@ -245,7 +249,7 @@ async def test_red_turning_unobserved_is_not_announced_green(monkeypatch, telegr
 
     unobserved = {
         "ok": True, "red_components": [], "degraded_components": ["margot_route"],
-        "components": {"margot_route": {"ok": ok_flag, "observed": False, "status": "not_observed"}},
+        "components": {"margot_route": unobserved_payload},
     }
 
     class _R:

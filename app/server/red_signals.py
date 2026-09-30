@@ -24,6 +24,7 @@ import urllib.request
 from typing import Any
 
 from . import config
+from .routes.health_aggregate import is_observed
 
 LINEAR_URL = "https://api.linear.app/graphql"
 TEAM_ID = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"
@@ -76,7 +77,7 @@ def fetch_health_full(log) -> dict | None:
 
 def observed_green(payload) -> bool:
     """Observed and ok:true. Only this ends a red; unobserved is unresolved."""
-    return isinstance(payload, dict) and payload.get("ok") is True and payload.get("observed", True) is not False
+    return isinstance(payload, dict) and payload.get("ok") is True and is_observed(payload)
 
 
 def health_full_ticket(name: str, payload: dict) -> dict[str, Any]:
