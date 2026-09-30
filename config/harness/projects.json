@@ -111,6 +111,18 @@
       "discovery_enabled": true
     },
     {
+      "id": "dr-nrpg-go-live",
+      "repo": "CleanExpo/DR-NRPG",
+      "linear_project_id": "ba150052-ff1c-4750-a0bc-7a8261d4d72b",
+      "linear_project_name": "DR-NRPG Contractor Go-Live",
+      "linear_team_id": "43811130-ac12-47d3-9433-330320a76205",
+      "linear_team_key": "DR",
+      "stack": [],
+      "deployments": {},
+      "notes": "W1b (estate audit 30/09 rank #1): this Linear project held approved pi-dev:autonomous work no executor could reach, because every executor drops a project with no row here. Its code is the DR-NRPG repo, so the row reuses CleanExpo/DR-NRPG and sits after dr-nrpg so first-match repo lookups still resolve to dr-nrpg. Project id read from Linear (P-DR-34) on 30/09/2026.",
+      "_comment_no_scan_priority": "Omitted deliberately: the dr-nrpg row already schedules scans of this repo."
+    },
+    {
       "id": "nrpg-onboarding",
       "repo": "CleanExpo/NRPG-Onboarding-Framework",
       "linear_project_id": "144c3160-0277-4c68-9e7c-96000a81db59",
@@ -270,6 +282,18 @@
       "deployments": {},
       "notes": "Mission Control directive 03/09/2026 (WS0 route the real work). The Linear project Mission Control holds Ready for Pi-Dev + pi-dev:autonomous work (UNI-2726, UNI-2638, UNI-2661) that could not reach the /control queue or the poller while this project had no row. Its code lives in this repo, so the row reuses repo CleanExpo/Pi-Dev-Ops and sits after pi-dev-ops so first-match repo lookups still resolve to pi-dev-ops.",
       "_comment_no_scan_priority": "Omitted deliberately, as for skills-library. The pi-dev-ops row already schedules scans of this repo; a scan_priority here would scan it twice. The autonomy poller does NOT read this key and DOES cover this entry."
+    },
+    {
+      "id": "ato",
+      "repo": "CleanExpo/ATO",
+      "linear_project_id": "20bb0ca6-0176-46c4-be4c-cd34ac89767d",
+      "linear_project_name": "ATO",
+      "linear_team_id": "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b",
+      "linear_team_key": "UNI",
+      "stack": [],
+      "deployments": {},
+      "notes": "W1b (estate audit 30/09 rank #1): UNI-2801/2802/2803 sat in Ready for Pi-Dev with pi-dev:autonomous from 28/09 and were never picked up, because no executor reads a project without a row here. Project id read from Linear (P-UNI-3) on 30/09/2026; repo from CleanExpo/ATO#38 cited in UNI-2801.",
+      "_comment_no_scan_priority": "Omitted deliberately: adding this row must not start scheduled scans of a new repo. Add scan_priority when that is wanted."
     }
   ],
   "scan_types": [

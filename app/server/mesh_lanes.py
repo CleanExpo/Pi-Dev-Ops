@@ -8,6 +8,13 @@ Two labels feed `/api/mesh/claim/self`:
 
 A ticket carrying both is ``plan``: an idea is never built before it is reviewed.
 
+W1b (audit rank #1): ``pi-dev:autonomous`` also feeds the build lane, in Todo or Ready
+for Pi-Dev, when its Linear project is in config/harness/projects.json — the same
+``issue_is_claimable`` rule the Railway poller uses. The claim carries the project's
+``repo`` so the runner builds in that repository and never in its default one. Every
+candidate, whatever its label, must also pass ``claim_refusal`` (no open blocker, no
+recent Blocked, no third start in 24h, no blocked-reason label).
+
 The dispatcher assigns no lane, so a dispatched claim runs as build. It therefore
 skips any ticket whose labels carry ``idea:plan`` (``mesh_dispatch_service._assign``);
 such a ticket reaches a node only through ``/claim/self``. Explicit ``linear_ids`` sent to
@@ -15,6 +22,7 @@ such a ticket reaches a node only through ``/claim/self``. Explicit ``linear_ids
 """
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Iterable, Optional
@@ -22,16 +30,28 @@ from typing import Iterable, Optional
 from pydantic import BaseModel
 
 from . import mesh_fleet, mesh_priority
+from .autonomy_eligibility import (
+    AUTONOMY_LABEL, GUARD_FIELDS, MESH_STATES, claim_refusal, issue_is_claimable,
+    issue_label_names, issue_project_id, registry_repos,
+)
 
 log = logging.getLogger("pi-ceo.mesh_lanes")
 
 PLAN_LABEL = "idea:plan"
 BUILD_LABEL = "mesh:auto"
+_PAGE_ARGS = "first:50"
+# Two branches, so the autonomous lane is read by state NAME (Todo / Ready for Pi-Dev)
+# and 195 finished pi-dev:autonomous tickets never ride along on every 30s poll.
+_STATE_NAMES = ",".join(f'"{n}"' for n in sorted(MESH_STATES))
 SELF_CLAIM_QUERY = (
-    f'query{{issues(first:50,filter:{{labels:{{name:{{in:["{BUILD_LABEL}","{PLAN_LABEL}"]}}}},'
-    'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title '
-    'description priority team{id} labels{nodes{name}}}}}'
+    f'query{{issues({_PAGE_ARGS},filter:{{or:['
+    f'{{labels:{{name:{{in:["{BUILD_LABEL}","{PLAN_LABEL}"]}}}},'
+    'state:{type:{in:["backlog","unstarted"]}}},'
+    f'{{labels:{{name:{{eq:"{AUTONOMY_LABEL}"}}}},state:{{name:{{in:[{_STATE_NAMES}]}}}}}}'
+    ']}){pageInfo{hasNextPage endCursor} nodes{id identifier title '
+    f'description priority team{{id}} state{{name}} labels{{nodes{{name}}}} {GUARD_FIELDS}}}}}}}'
 )
+_MAX_PAGES = 20
 # The idea-pipeline store lives under the repo root, as routes/idea_pipeline.py has it.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -44,6 +64,48 @@ class PlanPacketFields(BaseModel):
     packet_md: Optional[str] = None
     title: Optional[str] = None
     host: Optional[str] = None
+
+
+def _autonomy_only(issue: dict) -> bool:
+    """Admitted only by pi-dev:autonomous — neither mesh:auto nor idea:plan."""
+    labels = issue_label_names(issue)
+    return AUTONOMY_LABEL in labels and labels.isdisjoint({BUILD_LABEL, PLAN_LABEL})
+
+
+def needs_repo(issue: dict) -> bool:
+    """True for autonomy-lane work, which must be built in its project's repo."""
+    return _autonomy_only(issue)
+
+
+def eligible(issue: dict, repos: dict[str, str]) -> bool:
+    """The shared admission rule for a mesh candidate (claim/self and dispatch)."""
+    if _autonomy_only(issue):
+        return issue_is_claimable(issue, registered_project_ids=set(repos), states=MESH_STATES)
+    return claim_refusal(issue) is None
+
+
+def repo_of(issue: dict, repos: dict[str, str]) -> Optional[str]:
+    """owner/name to build in, for a registered project; None means the runner default."""
+    return repos.get(issue_project_id(issue) or "")
+
+
+def candidates(graphql) -> tuple[list[dict], dict[str, str]]:
+    """Every eligible open candidate, all pages, plus the project -> repo registry.
+
+    ``graphql`` takes one query string and returns the ``data`` object.
+    """
+    repos = registry_repos()
+    nodes: list[dict] = []
+    query = SELF_CLAIM_QUERY
+    for _ in range(_MAX_PAGES):
+        issues = (graphql(query) or {}).get("issues") or {}
+        nodes.extend(issues.get("nodes") or [])
+        page = issues.get("pageInfo") or {}
+        cursor = page.get("endCursor")
+        if not page.get("hasNextPage") or not cursor:
+            break
+        query = SELF_CLAIM_QUERY.replace(_PAGE_ARGS, f"{_PAGE_ARGS},after:{json.dumps(cursor)}", 1)
+    return [n for n in nodes if eligible(n, repos)], repos
 
 
 def lane_of(issue: dict) -> str:

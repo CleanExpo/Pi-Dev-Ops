@@ -180,20 +180,16 @@ def fleet(
     return mesh_fleet.snapshot(lambda path: _sb("GET", path))
 
 
-# ── Dispatcher: assign mesh:auto tickets to free nodes ───────────────────────
+# ── Dispatcher: assign mesh work to free nodes ───────────────────────────────
 # The nervous-system brain (RA-6494): the always-on server hands work to whichever
 # online node has spare capacity. The unique partial index on mesh_work_claims
 # guarantees a ticket is claimed by exactly one machine even if dispatch races.
+# Candidates (claim/self and dispatch alike) come from mesh_lanes.candidates: the one
+# shared admission rule, paginated (W1b). `description` rides with the claim so the
+# node needs no Linear key. BOTH fields are capped: either is unbounded in Linear, and
+# the text is untrusted — it reaches an unattended agent. See mesh/prompt.py, which
+# also fences it as data.
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
-# `description` rides with the claim so the execution node needs no Linear key at all.
-# BOTH fields are capped: either one is unbounded in Linear, and the text is untrusted —
-# it reaches an unattended agent. Why, and the measured failure that forced it (a Mac-mini
-# run that could not read its own ticket): mesh/prompt.py, which also fences it as data.
-_MESH_AUTO_QUERY = (
-    'query{issues(first:50,filter:{labels:{name:{eq:"mesh:auto"}},'
-    'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title '
-    'description priority team{id} labels{nodes{name}}}}}'
-)
 _BRIEF_MAX_CHARS = 6000
 _TITLE_MAX_CHARS = 500  # a Linear title is unbounded too; capping only the body is a gap
 
@@ -419,7 +415,7 @@ def claim_self(
     ticket. Returns the ticket claimed, or null when the queue is empty/drained."""
     _check_secret(x_pi_ceo_secret)
     _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before self-claiming
-    nodes = _linear_graphql(mesh_lanes.SELF_CLAIM_QUERY).get("issues", {}).get("nodes", [])
+    nodes, repos = mesh_lanes.candidates(_linear_graphql)
     for tk in mesh_lanes.ranked(nodes, _open_claim_ids() | mesh_requeue.failed_here(_get, body.host)):
         ident = tk["identifier"]
         row = mesh_requeue.claim_row(ident, body.host)
@@ -428,6 +424,7 @@ def claim_self(
             _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
             return {"claimed": {
                 "linear_id": ident, "id": row["id"], "machine": body.host, "lane": mesh_lanes.lane_of(tk),
+                **({"repo": mesh_lanes.repo_of(tk, repos)} if mesh_lanes.needs_repo(tk) else {}),
                 "title": (tk.get("title") or "")[:_TITLE_MAX_CHARS],
                 "description": (tk.get("description") or "")[:_BRIEF_MAX_CHARS]}}
         # status 409 = raced by another node → try the next candidate

@@ -168,9 +168,12 @@ def test_queue_snapshot_without_api_key_is_empty(monkeypatch) -> None:
 # ── Both call sites share the helper; old filter is gone ─────────────────────
 
 def test_both_call_sites_use_the_same_eligibility_function() -> None:
+    from app.server import autonomy_queue
     fetch_src = inspect.getsource(autonomy.fetch_todo_issues)
     queue_src = inspect.getsource(mission_control._queue_snapshot)
-    assert "filter_claimable_issues" in fetch_src
+    # W1b: the poller delegates to claimable_or_refused, which is the same helper.
+    assert "claimable_or_refused" in fetch_src
+    assert "filter_claimable_issues" in inspect.getsource(autonomy_queue.claimable_or_refused)
     assert "filter_claimable_issues" in queue_src
     assert "unstarted" not in queue_src
     assert "priority: {eq:" not in queue_src

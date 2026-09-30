@@ -13,9 +13,11 @@ CoS ``flow`` intent). This adds two more:
     this daily heartbeat is the missing cadence that makes that host
     *self-feeding* rather than waiting on an external trigger.
 
-  * **linear_intake (item 1 — the Linear queue):** pull ``agent-ready`` tickets
+  * **linear_intake (item 1 — the Linear queue):** pull the tickets the shared
+    autonomy rule (``app.server.autonomy_eligibility.issue_is_claimable``) admits
     and enqueue each NEW one (deduped by identifier), so scoped work flows into
-    the loop without a human handing it over.
+    the loop without a human handing it over. It used to read the label
+    ``agent-ready``, which does not exist in Linear, so it never saw a ticket (W1b).
 
 Both self-gate on ``config.CLOSED_LOOP_ENABLED`` and time-gate internally
 (heartbeat daily, Linear hourly), mirroring ``gap_detector``. enqueue failures
@@ -42,7 +44,8 @@ HEARTBEAT_STATE_KEY = "last_intake_heartbeat"
 LINEAR_STATE_KEY = "last_intake_linear"
 SEEN_IDS_KEY = "intake_seen_ticket_ids"
 
-AGENT_READY_LABEL = "agent-ready"
+AGENT_READY_LABEL = "pi-dev:autonomous"  # the one approval label every executor reads (W1b)
+_MAX_PAGES = 20
 _SEEN_CAP = 500            # bound the dedup memory carried in orchestrator state
 _LINEAR_INTERVAL_S = 3600  # poll Linear at most hourly; heartbeat is daily
 
@@ -97,38 +100,44 @@ def should_run(state: dict) -> bool:
 
 
 def _agent_ready_tickets() -> list[tuple[str, str]]:
-    """Return ``(identifier, title)`` for unstarted ``agent-ready`` tickets.
+    """``(identifier, title)`` for the team's tickets the shared autonomy rule admits.
 
-    Reuses ``linear_tools._gql`` (shared LINEAR_API_KEY auth + fail-soft); an
-    empty list on any error keeps the producer a safe no-op.
+    Same rule as the Railway poller and the mesh (``issue_is_claimable``). Every
+    page is read; an empty list on any error keeps the producer a safe no-op.
     """
+    from app.server.autonomy_eligibility import (  # noqa: PLC0415
+        GUARD_FIELDS, READY_STATUS_NAME, issue_is_claimable, registry_repos,
+    )
+
     from . import config, linear_tools  # noqa: PLC0415
     t = linear_tools._resolve_team(config.INTAKE_LINEAR_TEAM)
     if not t:
         return []
-    res = linear_tools._gql(
-        """
-        query($teamId: String!, $label: String!) {
-          team(id: $teamId) {
-            issues(
-              first: 25,
-              orderBy: updatedAt,
-              filter: {
-                labels: { name: { eq: $label } },
-                state: { type: { eq: "unstarted" } }
-              }
-            ) { nodes { identifier title } }
-          }
-        }
-        """,
-        {"teamId": t["id"], "label": AGENT_READY_LABEL},
+    query = (
+        "query($teamId: String!, $label: String!, $state: String!, $after: String) {"
+        " team(id: $teamId) { issues(first: 50, after: $after, orderBy: updatedAt, filter: {"
+        " labels: { name: { eq: $label } }, state: { name: { eq: $state } } }) {"
+        " pageInfo { hasNextPage endCursor }"
+        f" nodes {{ identifier title state {{ name }} labels {{ nodes {{ name }} }} {GUARD_FIELDS} }} }} }} }}"
     )
-    if "error" in res:
-        return []
-    nodes = (
-        res.get("data", {}).get("team", {}).get("issues", {}).get("nodes", [])
-    )
-    return [(n["identifier"], n.get("title", "")) for n in nodes if n.get("identifier")]
+    nodes: list[dict] = []
+    after = None
+    for _ in range(_MAX_PAGES):
+        res = linear_tools._gql(query, {"teamId": t["id"], "label": AGENT_READY_LABEL,
+                                        "state": READY_STATUS_NAME, "after": after})
+        if "error" in res or res.get("errors"):
+            return []
+        issues = ((res.get("data") or {}).get("team") or {}).get("issues") or {}
+        nodes.extend(issues.get("nodes") or [])
+        page = issues.get("pageInfo") or {}
+        after = page.get("endCursor")
+        if not page.get("hasNextPage") or not after:
+            break
+    registered = set(registry_repos())
+    return [
+        (n["identifier"], n.get("title", "")) for n in nodes
+        if n.get("identifier") and issue_is_claimable(n, registered_project_ids=registered)
+    ]
 
 
 # ── Enqueue helper (never let a write failure crash the cycle) ───────────────

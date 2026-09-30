@@ -18,7 +18,7 @@ Per ticket:
   2. Build a structured brief
   3. Infer intent + scope from labels / estimate
   4. Trigger create_session() to start the 5-phase build pipeline
-  5. On failure, revert → Ready for Pi-Dev (fallback: Todo) + explanatory comment
+  5. On failure, park → team Blocked state + label, release claim (never Ready)
 
 Startup recovery:
   6. Any ticket left In Progress by a prior process instance with no live
@@ -44,8 +44,8 @@ from app.server.autonomy_eligibility import (
     AUTONOMY_LABEL as _AUTONOMY_LABEL,
     MACHINE_SHIP_LABEL as _MACHINE_SHIP_LABEL,
     READY_STATUS_NAME as _READY_STATUS_NAME,
-    filter_claimable_issues,
 )
+from app.server import autonomy_queue as _aq
 from .autonomy_orphan_queries import _IN_PROGRESS_QUERY, _RECOVERY_TARGET_QUERY
 from .autonomy_orphan_support import (
     issue_pages, needs_recovery_success, orphan_completion, recovery_comment_present,
@@ -294,54 +294,31 @@ _PRIORITY_FILTER: set[str] = {
     s.strip() for s in _PRIORITY_FILTER_RAW.split(",") if s.strip()
 }
 
-_TODO_ISSUES_QUERY = """
-query AutonomyQueueIssues($projectId: String!, $statusName: String!, $autonomyLabel: String!) {
-    project(id: $projectId) {
-        issues(filter: {
-            state: { name: { eq: $statusName } }
-            labels: { name: { eq: $autonomyLabel } }
-        }, first: 10, orderBy: updatedAt) {
-            nodes {
-                id
-                identifier
-                title
-                description
-                priority
-                url
-                estimate
-                state { id name type }
-                labels { nodes { name } }
-            }
-        }
-    }
-}
-"""
+_TODO_ISSUES_QUERY = _aq.TODO_ISSUES_QUERY  # W1b: paginated, carries the claim-guard fields
 
 
-def fetch_todo_issues(api_key: str, *, fail_on_error: bool = False) -> list[dict]:
-    """Claimable queue. Live reads require a complete scan before caching."""
+def fetch_todo_issues(api_key: str, *, fail_on_error: bool = False,
+                      refused: list | None = None) -> list[dict]:
+    """Claimable queue, every page. Repeat-claim refusals go to ``refused``."""
     projects = _load_portfolio_projects()
     seen: set[str] = set()
     merged: list[dict] = []
     for p in projects:
         for label in (_AUTONOMY_LABEL, _MACHINE_SHIP_LABEL):
             try:
-                data = _gql(api_key, _TODO_ISSUES_QUERY, {
+                nodes = list(_aq.issue_pages(_gql, api_key, {
                     "projectId": p["project_id"],
                     "statusName": _READY_STATUS_NAME,
                     "autonomyLabel": label,
-                })
+                }))
             except LinearRateLimitError:
                 raise
             except Exception as exc:
                 if fail_on_error:
                     raise RuntimeError("Linear portfolio scan failed") from None
-                log.warning(
-                    "Autonomy: project %s label %s fetch failed: %s",
-                    p["name"], label, exc,
-                )
+                log.warning("Autonomy: project %s label %s fetch failed: %s", p["name"], label, exc)
                 continue
-            for issue in (data.get("project") or {}).get("issues", {}).get("nodes") or []:
+            for issue in nodes:
                 iid = issue.get("id")
                 if not iid or iid in seen:
                     continue
@@ -351,8 +328,8 @@ def fetch_todo_issues(api_key: str, *, fail_on_error: bool = False) -> list[dict
                 issue["_project_name"] = p["name"]
                 issue["_project_id"] = p["project_id"]
                 merged.append(issue)
-    merged = filter_claimable_issues(
-        merged,
+    merged = _aq.claimable_or_refused(
+        merged, refused,
         registered_project_ids={p["project_id"] for p in projects},
         priority_labels=_PRIORITY_FILTER,
     )
@@ -666,7 +643,7 @@ def _comment_on_orphan(api_key: str, iid: str, target_state: str,
             f"- Label `{_BLOCKED_REASON_SESSION_LOST}` attached "
             f"({'OK' if label_ok else 'attach failed — see server log'}).\n\n"
             "A human (or the next contract-audit pass) should confirm "
-            "state, then move back to `Ready for Pi-Dev` to re-queue.",
+            "state, remove the blocked-reason label, then move back to `Ready for Pi-Dev`.",
         )
         changed = True
     return changed
@@ -890,6 +867,7 @@ async def _run_poller_iteration(
 
     try:
         issues = await asyncio.to_thread(fetch_todo_issues, config.LINEAR_API_KEY)
+        await asyncio.to_thread(_aq.block_repeat_claims, config.LINEAR_API_KEY, _aq.drain_repeat_claims())
     except Exception as exc:
         log.error("Autonomy poll #%d: fetch failed: %s", _poll_count, exc)
         _log_event({"action": "poll_error", "poll": _poll_count, "error": str(exc)})
@@ -897,7 +875,6 @@ async def _run_poller_iteration(
 
     log.info("Autonomy poll #%d: %d todo issues found", _poll_count, len(issues))
     _log_event({"action": "poll", "poll": _poll_count, "found": len(issues)})
-
     for issue in issues:
         await _process_autonomy_issue(config, create_session, issue)
     return orphan_recovery_done
@@ -937,6 +914,8 @@ async def _process_autonomy_issue(
 
     if generation_blocked(identifier, _log_event):
         return
+    if _aq.token_cap_refusal(config, issue_id, identifier, team_id):
+        return  # W1b: at its cumulative token cap across retries — parked, never claimed
 
     label_names = {
         n.get("name", "")
@@ -968,11 +947,8 @@ async def _process_autonomy_issue(
             })
         except Exception as exc:  # noqa: BLE001
             log.exception("Autonomy machine-ship failed for %s", identifier)
-            _log_event({
-                "action": "machine_spec_pipeline_error",
-                "ticket": identifier,
-                "error": str(exc),
-            })
+            _log_event({"action": "machine_spec_pipeline_error", "ticket": identifier, "error": str(exc)})
+        session_lease.release_linear_ticket(identifier, "done")  # W1b: never hold a finished claim
         return
 
     transitioned_to = _transition_to_in_progress(config, issue_id, identifier, title, team_id)
@@ -1022,47 +998,18 @@ async def _process_autonomy_issue(
         except Exception as exc:
             log.warning("Autonomy: comment post failed for %s: %s", identifier, exc)
 
-    except RuntimeError as exc:
-        log.warning("Autonomy: session start failed for %s: %s", identifier, exc)
-        _log_event({
-            "action": "session_error",
-            "ticket": identifier,
-            "title": title,
-            "error": str(exc),
-        })
-        try:
-            try:
-                transition_issue(config.LINEAR_API_KEY, issue_id,
-                                 _READY_STATUS_NAME, team_id=team_id)
-                revert_to = _READY_STATUS_NAME
-            except RuntimeError:
-                transition_issue(config.LINEAR_API_KEY, issue_id,
-                                 "Todo", team_id=team_id)
-                revert_to = "Todo"
-            comment_on_issue(
-                config.LINEAR_API_KEY,
-                issue_id,
-                f"⚠️ Pi-CEO session start failed — reverted to `{revert_to}`.\n"
-                f"Error: `{exc}`",
-            )
-        except Exception:
-            pass
-
     except Exception as exc:
-        log.error("Autonomy: unexpected error for %s: %s", identifier, exc)
-        _log_event({
-            "action": "session_error",
-            "ticket": identifier,
-            "title": title,
-            "error": str(exc),
-        })
+        # W1b: a failed start is parked Blocked and its claim released. Reverting
+        # it to Ready is what let RA-7785 be claimed 14 times in one day.
+        _aq.fail_start(config.LINEAR_API_KEY, issue_id, identifier, team_id, exc)
 
 
 def _transition_error(identifier: str, title: str, exc: BaseException) -> None:
-    """Log + ring-record one failed Linear transition."""
+    """Log + ring-record one failed Linear transition, and give back the claim it won."""
     log.error("Autonomy: transition failed for %s: %s", identifier, exc)
     _log_event({"action": "transition_error", "ticket": identifier,
                 "title": title, "error": str(exc)})
+    session_lease.release_linear_ticket(identifier, "released")  # W1b: nothing started
 
 
 def _transition_to_in_progress(

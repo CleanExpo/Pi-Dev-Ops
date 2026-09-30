@@ -247,3 +247,30 @@ def claim_linear_ticket(linear_id: str) -> bool:
     if not ok:
         log.info("mesh claim lost for %s (machine=%s) — another worker owns it", linear_id, host)
     return ok
+
+
+def release_linear_ticket(linear_id: str, state: str = "released") -> bool:
+    """End this host's open fleet claim on a ticket (W1b, audit rank #5).
+
+    The mirror of `claim_linear_ticket`. The autonomy path took the claim and
+    never gave it back, so a finished or failed ticket kept the
+    `mesh_work_claims_one_open` slot until the reaper happened to run. `state`
+    is one of the terminal claim states: done, failed or released. Scoped to
+    this host's own open row, so it can never end another worker's claim.
+    Best-effort: True when there is nothing to release (Supabase unconfigured).
+    """
+    if not linear_id:
+        return False
+    from . import supabase_log  # noqa: PLC0415 — avoid an import cycle at module load
+
+    if not all(supabase_log._cfg()):
+        return True
+    query = (
+        f"mesh_work_claims?linear_id=eq.{supabase_log._q(linear_id)}"
+        f"&machine=eq.{supabase_log._q(claim_machine())}&state=in.(claimed,working)"
+    )
+    body = {"state": state, "released_at": datetime.now(timezone.utc).isoformat()}
+    ok = supabase_log._ok(supabase_log._request("PATCH", query, body)[0])
+    if not ok:
+        log.warning("mesh claim release failed for %s (state=%s)", linear_id, state)
+    return ok

@@ -89,9 +89,24 @@ def authorize_go_for(repo_root: Path, idea_id: str) -> dict[str, Any]:
     return updated
 
 
-def try_execute_idea(repo_root: Path, idea_id: str) -> dict[str, Any]:
+def try_execute_idea(repo_root: Path, idea_id: str, *, gql: Any = None) -> dict[str, Any]:
+    """Record execute, then file exactly one Ready + pi-dev:autonomous ticket (W1b).
+
+    Idempotent: a packet that already carries ``linear_ticket`` files nothing new.
+    A failed filing is saved on the packet and raised, so it is never silent.
+    """
+    from .go_ticket import file_go_ticket  # noqa: PLC0415 — keeps goal_ticket off import
+
     store, packet = _require_packet(repo_root, idea_id)
     updated = try_execute(packet)
+    if not updated.get("linear_ticket"):
+        ticket = file_go_ticket(updated, gql=gql)
+        if ticket.get("error"):
+            updated["linear_ticket_error"] = ticket["error"]
+            write_packet(store, updated)
+            raise PipelineGateError(f"GO recorded, but the build ticket was not filed: {ticket['error']}.")
+        updated.pop("linear_ticket_error", None)
+        updated["linear_ticket"] = {k: ticket.get(k) for k in ("id", "identifier", "url", "state")}
     write_packet(store, updated)
     return updated
 
