@@ -30,6 +30,7 @@ class _Linear:
         self.find_queries: list[str] = []
         self.find_data: dict | None = None
         self.add_label_ok = True
+        self.created_issue: dict | None = {"identifier": "RA-NEW"}
 
     def urlopen(self, req, timeout=10):  # noqa: ARG002
         payload = json.loads(req.data)
@@ -42,9 +43,11 @@ class _Linear:
         elif "commentCreate" in q:
             op, data = "comment", {"commentCreate": {"success": True}}
         elif "issueCreate" in q:
-            op, data = "create", {"issueCreate": {"success": True, "issue": {"identifier": "RA-NEW"}}}
+            op, data = "create", {"issueCreate": {"success": True, "issue": self.created_issue}}
         elif "issues(" in q:
-            op, data = "find", {"issues": {"nodes": self.existing}}
+            # An entry without a title stands for "the issue with the requested title".
+            nodes = [{**n, "title": n.get("title", v.get("title"))} for n in self.existing]
+            op, data = "find", {"issues": {"nodes": nodes}}
         else:
             raise AssertionError(f"unexpected Linear query: {q[:80]}")
         if op == "find":
@@ -204,7 +207,8 @@ def test_lookup_counts_triage_issues_as_open(monkeypatch, linear_key):
 @pytest.mark.parametrize("error,expected", [
     ("credential expired", True),
     ("SUPABASE_DB_URL absent", True),
-    ("permission denied", True),
+    ("[Errno 13] Permission denied: .harness/hermes/heartbeat.jsonl", False),
+    ("HTTP 403 Forbidden", True),
     ("HTTP 401 unauthorized", True),
     ("last token count stale", False),
     ("no turn since 2026-08-30", False),
@@ -232,3 +236,34 @@ def test_rejected_label_mutation_is_a_failure_not_a_success(monkeypatch, linear_
         "[RED] health_full: schema_drift_db", "x", owner="founder", founder_only=True, log=LOG,
     ) is None
     assert "comment" not in [op for op, _ in fake.ops]
+
+
+# ── review round 3 (codex, 1ce3e298) ───────────────────────────────────────
+
+
+def test_longer_title_sharing_the_prefix_is_not_this_signals_ticket(monkeypatch, linear_key):
+    import urllib.request as _ureq
+
+    fake = _Linear(existing=[{"id": "other-id", "identifier": "RA-OTHER",
+                              "title": "[RED] health_full: supabase_health"}], labels=[])
+    monkeypatch.setattr(_ureq, "urlopen", fake.urlopen)
+
+    assert cw._upsert_red_linear_ticket(
+        "[RED] health_full: supabase", "x", owner="o", founder_only=False, log=LOG,
+    ) == "RA-NEW"
+    assert "comment" not in [op for op, _ in fake.ops]
+    assert fake.ops[0][1]["title"] == "[RED] health_full: supabase"
+    assert "eq: $title" in fake.find_queries[0]
+
+
+def test_successful_create_without_identifier_is_still_filed(monkeypatch, linear_key):
+    """success:true with issue:null must not read as unfiled, or the retry creates a second."""
+    import urllib.request as _ureq
+
+    fake = _Linear(existing=[], labels=[])
+    fake.created_issue = None
+    monkeypatch.setattr(_ureq, "urlopen", fake.urlopen)
+
+    assert cw._upsert_red_linear_ticket(
+        "[RED] health_full: margot_route", "x", owner="o", founder_only=False, log=LOG,
+    )

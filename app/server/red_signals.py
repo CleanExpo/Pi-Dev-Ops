@@ -34,7 +34,7 @@ FOUNDER_ONLY_LABEL = "founder-only"
 # to the agent lane named in mission_control's action map.
 FOUNDER_ONLY_COMPONENTS = frozenset({"schema_drift_db"})
 FOUNDER_ONLY_HINTS = (
-    "401", "403", "unauthori", "unauthent", "forbidden", "permission denied",
+    "401", "403", "unauthori", "unauthent", "forbidden",
     "credential", "not set", "not configured", "api_key", "api key",
     "access token", "invalid token", "token expired", "key expired",
 )
@@ -117,12 +117,12 @@ def _require_success(data: dict, field: str) -> dict:
     return node
 
 
-_FIND = """query RedTicket($prefix: String!, $project: ID!) {
-    issues(first: 1, filter: {
-        title: { startsWith: $prefix },
+_FIND = """query RedTicket($title: String!, $project: ID!) {
+    issues(first: 5, filter: {
+        title: { eq: $title },
         state: { type: { in: ["triage", "backlog", "unstarted", "started"] } },
         project: { id: { eq: $project } }
-    }) { nodes { id identifier } }
+    }) { nodes { id identifier title } }
 }"""
 _COMMENT = """mutation RedComment($input: CommentCreateInput!) {
     commentCreate(input: $input) { success }
@@ -147,13 +147,13 @@ def _founder_only_label_id() -> str:
     return nodes[0]["id"]
 
 
-def _open_matches(found: dict) -> list:
-    """issues.nodes from the lookup. Raises unless it is explicitly a list, so a
-    malformed answer can never read as "no open issue" and trigger a create."""
+def _open_matches(found: dict, title: str) -> list:
+    """Open issues titled exactly ``title``. Raises unless issues.nodes is
+    explicitly a list, so a malformed answer never reads as "none open"."""
     nodes = (found.get("issues") or {}).get("nodes") if isinstance(found.get("issues"), dict) else None
     if not isinstance(nodes, list):
         raise RuntimeError("Linear lookup returned no issues.nodes list")
-    return nodes
+    return [n for n in nodes if isinstance(n, dict) and n.get("title") == title]
 
 
 def _update(issue: dict, text: str, founder_only: bool) -> str | None:
@@ -171,7 +171,9 @@ def _create(title: str, text: str, founder_only: bool) -> str | None:
     if founder_only:
         issue["labelIds"] = [_founder_only_label_id()]
     created = _require_success(_graphql(_CREATE, {"input": issue}), "issueCreate")
-    return (created.get("issue") or {}).get("identifier")
+    # success:true means the issue exists. Never report that as unfiled: the
+    # caller would retry and create a second one. The next find adopts it.
+    return (created.get("issue") or {}).get("identifier") or "created-identifier-not-returned"
 
 
 def upsert_red_linear_ticket(title: str, body: str, *, owner: str, founder_only: bool, log) -> str | None:
@@ -186,7 +188,7 @@ def upsert_red_linear_ticket(title: str, body: str, *, owner: str, founder_only:
         return None
     text = f"Owner: {owner}\nFounder-only: {'yes' if founder_only else 'no'}\n\n{body}"
     try:
-        nodes = _open_matches(_graphql(_FIND, {"prefix": title, "project": PROJECT_ID}))
+        nodes = _open_matches(_graphql(_FIND, {"title": title, "project": PROJECT_ID}), title)
     except Exception as exc:  # noqa: BLE001
         log.error("red ticket: Linear lookup failed (%s) — not creating: %s", exc, title)
         return None
