@@ -23,6 +23,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from jev_platform import client
 from jev_platform import committed as verified
 
 ROOT = Path(__file__).parent
@@ -112,7 +113,7 @@ def _post(body: dict, key: str, timeout: int = 60) -> tuple[int, dict | str]:
         API_URL, data=json.dumps(body).encode(), method="POST",
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with client.open_url(req, timeout) as resp:
             return resp.status, json.load(resp)
     except urllib.error.HTTPError as e:
         return e.code, e.read()[:300].decode(errors="replace")

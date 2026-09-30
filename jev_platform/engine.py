@@ -193,19 +193,38 @@ def calibrate(rule_id: str, post, budget, workers: int = 8) -> dict:
     return record
 
 
+def _record_bytes(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
+
+
 def artifact_rating(rule_id: str) -> tuple[str, list[str]]:
     """AAA: recomputes and the files match HEAD; AA: recomputes only; FAIL: absent or not reproducible."""
-    record = load_record(rule_id)
+    return artifact_binding(rule_id)[:2]
+
+
+def artifact_binding(rule_id: str) -> tuple[str, list[str], str | None]:
+    """artifact_rating plus the commit it is bound to. Round 16: each file is read once, and those exact bytes are
+    both verified and compared with the blob committed at that commit — never an index-assisted diff, which
+    assume-unchanged or skip-worktree can blind — and the commit is resolved with no inherited GIT_* variable."""
+    paths = [RECORDS / f"{rule_id}.json", RECORDS / f"{rule_id}.scored.jsonl"]
+    raw = [_record_bytes(p) for p in paths]
+    commit = verified.resolve(ROOT)
+    try:
+        record = None if raw[0] is None and not paths[0].exists() else json.loads(raw[0] or b"")
+    except ValueError:
+        record = {"corrupt": True}
     if record is None:
-        return "FAIL", ["absent"]
-    scored = load_scored(rule_id)
+        return "FAIL", ["absent"], commit
+    scored = [json.loads(line) for line in (raw[1] or b"").decode().splitlines() if line.strip()]
     problems = calibration.verify(record, scored) or _lineage_problems(rule_id, record, scored)
     if problems:
-        return "FAIL", problems
-    paths = [RECORDS / f"{rule_id}.json", RECORDS / f"{rule_id}.scored.jsonl"]
+        return "FAIL", problems, commit
     if not all(p.resolve().is_relative_to(ROOT) for p in paths):
-        return "AA", ["records not inside the repository"]
+        return "AA", ["records not inside the repository"], commit
     files = [str(p.resolve().relative_to(ROOT)) for p in paths]
-    tracked = all(_git("ls-files", f) for f in files)
-    clean = _run_git("diff", "--quiet", "HEAD", "--", *files).returncode == 0
-    return ("AAA", []) if tracked and clean else ("AA", ["not bound to HEAD"])
+    bound = commit is not None and all(b is not None and (verified.read(ROOT, f, commit) or ("", None))[1] == b
+                                       for f, b in zip(files, raw))
+    return ("AAA", [], commit) if bound else ("AA", ["not bound to HEAD"], commit)

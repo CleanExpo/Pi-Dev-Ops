@@ -60,10 +60,9 @@ GUARD_MUTANTS = [
      'return None'),  # en-loadrecord-corrupt
     ('engine.py', '    if record is None:\n        return "FAIL", ["absent"]',
      '    if False:\n        return "FAIL", ["absent"]'),  # en-rating-absent
-    ('engine.py', 'return ("AAA", []) if tracked and clean else',
-     'return ("AAA", []) if clean else'),  # en-rating-tracked
-    ('engine.py', 'return ("AAA", []) if tracked and clean else',
-     'return ("AAA", []) if tracked else'),  # en-rating-clean
+    ('engine.py', 'all(b is not None and (verified.read(ROOT, f, commit) or ("", None))[1] == b',
+     'all(b is not None and (verified.read(ROOT, f, commit) or ("", None))[1] is not None'),  # en-rating-tracked
+    ('engine.py', 'bound = commit is not None and all(', 'bound = commit is not None and any('),  # en-rating-each
     ('policy.py', '"coverage": "FAIL" if evaluated < RULE_COUNT else "A",',
      '"coverage": "A",'),  # po-coverage
     ('calibration.py', ' or not isinstance(record["label_provenance"], dict):\n        return "corrupt"',
@@ -276,5 +275,14 @@ GUARD_MUTANTS = [
     ('committed.py', 'stderr=subprocess.DEVNULL,\n                                      env=git_env(env))',
      'stderr=subprocess.DEVNULL,\n                                      env=env)'),
     ('committed.py', 'capture_output=True, text=True, env=git_env(env))', 'capture_output=True, text=True, env=env)'),
-    ('engine.py', 'env=verified.git_env(), **kw)', '**kw)'),
+    # round 16: AAA compares the exact bytes verified; the receipt names that commit; no credential follows a redirect
+    ('engine.py', '    commit = verified.resolve(ROOT)\n    try:',
+     '    commit = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True,'
+     ' text=True).stdout.strip()\n    try:'),  # test_jev_platform_binding_bytes.py receipt
+    ('client.py', 'return urllib.request.build_opener(_NoRedirect).open(req, timeout=timeout)',
+     'return urllib.request.urlopen(req, timeout=timeout)'),
+    ('client.py', 'return None  # answered as the HTTPError it is',
+     'return super().redirect_request(req, fp, code, msg, headers, newurl)'),
+    *[(f, 'with client.open_url(req, timeout) as resp:', 'with urllib.request.urlopen(req, timeout=timeout) as resp:')
+      for f in ('__main__.py', 'gemini.py', 'evals/jev_constitution/harness.py')],
 ]

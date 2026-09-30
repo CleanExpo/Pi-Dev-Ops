@@ -53,10 +53,12 @@ def committed(ws, tmp_path, monkeypatch):
     return tmp_path
 
 
-def test_untracked_records_are_capped_at_aa(committed, monkeypatch):
-    """guard sweep 29/09: AAA needs the files tracked at HEAD, not merely an unchanged working copy."""
-    real = engine._git
-    monkeypatch.setattr(engine, "_git", lambda *a: "" if a[0] == "ls-files" else real(*a))
+@pytest.mark.parametrize("name", [f"{RULE}.json", f"{RULE}.scored.jsonl"])
+def test_untracked_records_are_capped_at_aa(committed, name):
+    """guard sweep 29/09: AAA needs each file committed at HEAD, not merely an unchanged working copy."""
+    git(committed, "rm", "-q", "--cached", str((engine.RECORDS / name).relative_to(committed)))
+    git(committed, "commit", "-qm", "untrack")
+    assert (engine.RECORDS / name).exists()  # control: the working copy is untouched
     assert engine.artifact_rating(RULE) == ("AA", ["not bound to HEAD"])
 
 

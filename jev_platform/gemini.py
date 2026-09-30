@@ -18,7 +18,7 @@ import time
 import urllib.error
 import urllib.request
 
-from jev_platform import ask, gemini_shape
+from jev_platform import ask, client, gemini_shape
 
 MODEL = "gemini-3.8-flash"
 # Founder 29/09/2026: a quota-limited model is never a blocker. Tried in this order; a run locks to the
@@ -293,7 +293,7 @@ def urllib_post(url: str, payload: bytes, headers: dict, timeout: float) -> tupl
     """The live transport. Error bodies are never read, so none can be logged or shown."""
     req = urllib.request.Request(url, data=payload, method="POST", headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with client.open_url(req, timeout) as resp:
             return resp.status, json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
         return e.code, None

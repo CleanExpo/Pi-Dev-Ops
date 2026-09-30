@@ -29,7 +29,7 @@ def calls(monkeypatch):
     for mod, name in ((engine, "calibrate"), (ask, "ask_files"), (ask, "approve_entry"),
                       (mf, "approve_glob"), (mf, "approve_prompt"), (scout, "scout_files")):
         monkeypatch.setattr(mod, name, spy(name))
-    monkeypatch.setattr(engine, "artifact_rating", lambda rid: seen.append("rating") or reply["rating"])
+    monkeypatch.setattr(engine, "artifact_binding", lambda rid: seen.append("rating") or (*reply["rating"], "0" * 40))
     post = Recorder()
     monkeypatch.setattr(cli, "http_post", post)
     seen.reply, seen.post = reply, post

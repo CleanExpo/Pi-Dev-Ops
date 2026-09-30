@@ -9,6 +9,7 @@ import json
 import re
 import threading
 import time
+import urllib.request
 
 from jev_platform import policy
 
@@ -27,6 +28,16 @@ _PATTERNS = [
     re.compile(r"\b[0-9a-fA-F]{32,}\b"),
     re.compile(r"https?://\S*\?\S*"),
 ]
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None  # answered as the HTTPError it is
+
+
+def open_url(req: urllib.request.Request, timeout: float):
+    """Round 16: every live transport sends a credential, so none follows a redirect; one could carry it elsewhere."""
+    return urllib.request.build_opener(_NoRedirect).open(req, timeout=timeout)
 
 
 def redact(text: str) -> tuple[str, bool]:

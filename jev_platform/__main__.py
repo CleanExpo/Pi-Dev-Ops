@@ -26,7 +26,7 @@ def http_post(body: dict, timeout: float):
     req = urllib.request.Request(URL, data=json.dumps(body).encode(), method="POST",
                                  headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with client.open_url(req, timeout) as resp:
             return resp.status, json.loads(resp.read().decode()), None
     except urllib.error.HTTPError as e:
         retry = e.headers.get("retry-after")
@@ -75,9 +75,8 @@ def cmd_calibrate(a) -> int:
 
 
 def cmd_verify(a) -> int:
-    rating, problems = engine.artifact_rating(a.rule)
-    head = subprocess.run(["git", "-C", str(engine.ROOT), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-    print(f"{a.rule}: {rating} @ {head}" + (f" — {'; '.join(problems)}" if problems else ""))
+    rating, problems, head = engine.artifact_binding(a.rule)  # round 16: the commit the bytes were compared with
+    print(f"{a.rule}: {rating} @ {head or 'no commit'}" + (f" — {'; '.join(problems)}" if problems else ""))
     return 0 if rating in ("AA", "AAA") else 1
 
 
