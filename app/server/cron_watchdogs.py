@@ -1122,7 +1122,9 @@ async def _watchdog_health_full(log) -> None:
         log.warning("health_full watchdog: %s RED — telegram %s", name, "sent" if sent else "NOT sent")
 
     # Recovery messages for components that just flipped red→green.
-    recovered = _health_red_components - current_red
+    # Recovered means observed ok:true. Red→unobserved stays unresolved, not "green".
+    unresolved = {n for n in _health_red_components - current_red if (components.get(n) or {}).get("ok") is not True}
+    recovered = _health_red_components - current_red - unresolved
     for name in sorted(recovered):
         _health_full_send_telegram(
             f"health_full: component <b>{name}</b> recovered (now green)",
@@ -1132,4 +1134,4 @@ async def _watchdog_health_full(log) -> None:
         _health_ticket_unfiled.discard(name)
         log.info("health_full watchdog: %s recovered", name)
 
-    _health_red_components = current_red
+    _health_red_components = current_red | unresolved

@@ -151,8 +151,6 @@ def test_upsert_does_not_create_when_lookup_fails(monkeypatch, linear_key):
     assert len(calls) == 1
 
 
-# ── review round 1 (codex, 798e34cf): four P1s, each planted here ──────────
-
 
 @pytest.mark.parametrize("malformed", [{}, {"issues": {}}, {"issues": {"nodes": None}}, {"issues": None}])
 def test_malformed_lookup_never_creates(monkeypatch, linear_key, malformed):
@@ -204,8 +202,6 @@ def test_lookup_counts_triage_issues_as_open(monkeypatch, linear_key):
     assert '"triage"' in fake.find_queries[0]
 
 
-# ── review round 2 (codex, 9e336c6b) ───────────────────────────────────────
-
 
 def test_rejected_label_mutation_is_a_failure_not_a_success(monkeypatch, linear_key):
     import urllib.request as _ureq
@@ -220,8 +216,6 @@ def test_rejected_label_mutation_is_a_failure_not_a_success(monkeypatch, linear_
     ) is None
     assert "comment" not in [op for op, _ in fake.ops]
 
-
-# ── review round 3 (codex, 1ce3e298) ───────────────────────────────────────
 
 
 def test_longer_title_sharing_the_prefix_is_not_this_signals_ticket(monkeypatch, linear_key):
@@ -251,8 +245,6 @@ def test_successful_create_without_identifier_is_still_filed(monkeypatch, linear
         "[RED] health_full: margot_route", "x", owner="o", founder_only=False, log=LOG,
     )
 
-
-# ── review round 4 (codex, 14a2c802) ───────────────────────────────────────
 
 
 def test_concurrent_upserts_create_one_issue(monkeypatch, linear_key):
@@ -292,3 +284,16 @@ def test_concurrent_upserts_create_one_issue(monkeypatch, linear_key):
     for t in threads:
         t.join()
     assert [op for op, _ in fake.ops].count("create") == 1
+
+
+
+def test_founder_label_from_another_team_is_not_used(monkeypatch, linear_key):
+    import urllib.request as _ureq
+
+    fake = _Linear(existing=[], labels=[{"id": "other-team-label", "team": {"id": "other-team"}}])
+    monkeypatch.setattr(_ureq, "urlopen", fake.urlopen)
+
+    assert cw._upsert_red_linear_ticket(
+        "[RED] health_full: schema_drift_db", "x", owner="founder", founder_only=True, log=LOG,
+    ) is None
+    assert "create" not in [op for op, _ in fake.ops]

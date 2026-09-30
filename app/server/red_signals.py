@@ -131,7 +131,7 @@ _COMMENT = """mutation RedComment($input: CommentCreateInput!) {
     commentCreate(input: $input) { success }
 }"""
 _LABEL = """query FounderOnlyLabel($name: String!) {
-    issueLabels(first: 1, filter: { name: { eq: $name } }) { nodes { id } }
+    issueLabels(first: 20, filter: { name: { eq: $name } }) { nodes { id team { id } } }
 }"""
 _ADD_LABEL = """mutation RedAddLabel($id: String!, $labelId: String!) {
     issueAddLabel(id: $id, labelId: $labelId) { success }
@@ -145,9 +145,14 @@ def _founder_only_label_id() -> str:
     """The founder-only label's id. Raises when it cannot be resolved: a
     founder-only red must never be filed as though an agent owned it."""
     nodes = (_graphql(_LABEL, {"name": FOUNDER_ONLY_LABEL}).get("issueLabels") or {}).get("nodes")
-    if not isinstance(nodes, list) or not nodes or not nodes[0].get("id"):
-        raise RuntimeError(f"no '{FOUNDER_ONLY_LABEL}' label in Linear")
-    return nodes[0]["id"]
+    # Team labels can share a name across teams: only a workspace label or this team's.
+    usable = [
+        n for n in (nodes if isinstance(nodes, list) else [])
+        if isinstance(n, dict) and n.get("id") and (n.get("team") or {}).get("id") in (None, TEAM_ID)
+    ]
+    if not usable:
+        raise RuntimeError(f"no '{FOUNDER_ONLY_LABEL}' label usable by team {TEAM_ID}")
+    return usable[0]["id"]
 
 
 def _open_matches(found: dict, title: str) -> list:

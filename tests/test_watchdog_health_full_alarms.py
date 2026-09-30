@@ -231,3 +231,34 @@ def test_founder_only_classification(error, expected):
     from app.server.red_signals import health_full_ticket
 
     assert health_full_ticket("supabase", {"ok": False, "error": error})["founder_only"] is expected
+
+
+@pytest.mark.asyncio
+async def test_red_turning_unobserved_is_not_announced_green(monkeypatch, telegram, tickets):
+    """Review round 5: red -> not_observed is unresolved, not a recovery."""
+    monkeypatch.delenv("PORT", raising=False)
+    _serve_503(monkeypatch, _red_body("margot_route"), [])
+    await cw._watchdog_health_full(LOG)
+
+    import urllib.request as _ureq
+
+    unobserved = {
+        "ok": True, "red_components": [], "degraded_components": ["margot_route"],
+        "components": {"margot_route": {"ok": False, "observed": False, "status": "not_observed"}},
+    }
+
+    class _R:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps(unobserved).encode()
+
+    monkeypatch.setattr(_ureq, "urlopen", lambda req, timeout=5: _R())
+    await cw._watchdog_health_full(LOG)
+
+    assert not any("recovered" in m["message"] for m in telegram)
+    assert cw._health_red_components == {"margot_route"}
