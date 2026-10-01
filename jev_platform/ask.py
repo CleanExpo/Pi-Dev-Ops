@@ -28,7 +28,8 @@ ADVISORY = "advisory, not authorization"
 _DENY_NAMES = re.compile(
     r"(^|/)(\.env[^/]*|[^/]*\.(pem|key|p12|pfx|kdbx|tfstate)|[^/]*(id_rsa|id_ed25519|credential|secret)[^/]*"
     r"|\.npmrc|\.netrc|\.pypirc)$|(^|/)(\.git|\.hermes|\.ssh|\.aws|\.vercel|\.gcloud)(/|$)", re.I)
-_REFUSE = client.CREDENTIALS + [re.compile(p, re.I) for p in (client._EDGE + r"iicrc" + client._END, r"standards australia")] \
+_REFUSE = client.CREDENTIALS + [re.compile(p, re.I | re.ASCII) for p in (client._EDGE + r"iicrc" + client._END,
+                                                                 r"standards australia")] \
     + client._PATTERNS
 
 

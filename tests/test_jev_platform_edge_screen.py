@@ -17,7 +17,9 @@ KEYS = ["AWS key: AKIAABCDEFGHIJKLMNOP已撤销", "已AKIAABCDEFGHIJKLMNOP", "_A
         "_sk-reviewfixtureabcdefgh_", "_ts-reviewfixtureabcdefgh_", "_ghp_reviewfixtureabcdefgh_",
         "已sk-reviewfixtureabcdefgh", "_xoxb-1234567890-abc_", "_sk_live_abcdefgh1_",
         "_eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.sig_"]
-OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc"]  # refused by ask.sensitive only
+FOLDS = ["\u212a", "\u0130", "\u0131", "\u017f"]  # round 24: re.I alone treats these as ASCII letters
+KEYS += [f"AWS key: AKIAABCDEFGHIJKLMNOP{c}" for c in FOLDS] + [f"{c}sk-reviewfixtureabcdefgh" for c in FOLDS]
+OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc"]  # refused by ask.sensitive only
 CLEAN = ["task-abcdefghij", "costs-abcdefghijk", "On 2026-09-29 the job ran.", "masks-and-gloves"]
 
 

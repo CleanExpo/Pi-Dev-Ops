@@ -21,4 +21,7 @@ GUARD_MUTANTS = _GUARD + [
     ('client.py', 'r"AKIA[0-9A-Z]{16}" + _END', 'r"AKIA[0-9A-Z]{16}\\b"'),
     ('client.py', 're.compile(_EDGE + r"[0-9a-fA-F]{32,}" + _END)', 're.compile(r"\\b[0-9a-fA-F]{32,}\\b")'),
     ('ask.py', 'client._EDGE + r"iicrc" + client._END', 'r"\\biicrc\\b"'),
+    # round 24: re.ASCII, or re.I folds U+212A/U+0130/U+0131/U+017F into the ASCII edge classes
+    ('client.py', 're.compile(p, re.I | re.ASCII) for p in (  # ASCII', 're.compile(p, re.I) for p in (  # ASCII'),
+    ('ask.py', '[re.compile(p, re.I | re.ASCII) for p in (client._EDGE', '[re.compile(p, re.I) for p in (client._EDGE'),
 ]

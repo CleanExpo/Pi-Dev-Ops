@@ -34,7 +34,7 @@ _PATTERNS = [
 ]
 
 # Round 22: key material only. The PII patterns above also match dates, so they are not part of this set.
-CREDENTIALS = [re.compile(p, re.I) for p in (
+CREDENTIALS = [re.compile(p, re.I | re.ASCII) for p in (  # ASCII: re.I alone folds K-sign, dotted I, long s
     r"-----BEGIN [A-Z ]*(PRIVATE KEY|CERTIFICATE)", _EDGE + r"AKIA[0-9A-Z]{16}" + _END,
     _EDGE + r"eyJ[\w-]{10,}\.[\w-]{10,}\.", _EDGE + r"(sk|rk)_live_\w{8,}", _EDGE + r"xox[bpas]-[\w-]{8,}")] \
     + [_API_KEYS]
