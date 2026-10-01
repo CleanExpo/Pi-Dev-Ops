@@ -57,6 +57,18 @@ def sensitive(text: str) -> bool:
     return any(p.search(text) for p in _REFUSE)
 
 
+def sensitive_payload(obj) -> bool:
+    """Round 20: screen every decoded string key and value of an outbound body, not only its JSON text, where a
+    newline or tab before a secret serialises as \\n or \\t and hides the word boundary the patterns need."""
+    if isinstance(obj, str):
+        return sensitive(obj)
+    if isinstance(obj, dict):
+        return any(sensitive_payload(k) or sensitive_payload(v) for k, v in obj.items())
+    if isinstance(obj, (list, tuple)):
+        return any(sensitive_payload(v) for v in obj)
+    return False
+
+
 def read_confined(repo: str, rel: str) -> bytes:
     """Open repo/rel without following any symlink component; return up to MAX_FILE_BYTES + 1 bytes."""
     parts = rel.split("/")
@@ -100,7 +112,7 @@ def build_questions(manifest: dict, template_ids: list[str]) -> tuple[dict | Non
         if q is None:
             return None, f"unknown or malformed template: {tid}"
         text = json.dumps(q)
-        if len(text) > MAX_TEMPLATE_CHARS or sensitive(text) or sensitive(tid):  # round 19: the id is sent too
+        if len(text) > MAX_TEMPLATE_CHARS or sensitive(text) or sensitive_payload({tid: q}):  # rounds 19-20
             return None, f"template refused: {tid}"
         questions[tid] = q
     return questions, None

@@ -290,9 +290,11 @@ GUARD_MUTANTS = [
     *[(f, 'with client.open_url(req, timeout) as resp:', 'with urllib.request.urlopen(req, timeout=timeout) as resp:')
       for f in ('__main__.py', 'gemini.py', 'evals/jev_constitution/harness.py')],
     # round 17: a symlink never chooses the committed path compared (test_jev_platform_binding_bytes.py)
-    ('engine.py', '    bound = not linked and commit is not None and all(',
-     '    bound = commit is not None and all('),
+    ('engine.py', '    bound = not linked and commit is not None and all(', '    bound = commit is not None and all('),
     ('engine.py', '[Path(os.path.abspath(p)) for p in paths]', '[p.resolve() for p in paths]'),
-    # round 19: a template id is screened like its text (test_jev_platform_guards_ask.py)
-    ('ask.py', ' or sensitive(tid):  # round 19', ':  # round 19'),
+    # rounds 19-20: template ids and every decoded outbound string are screened (test_jev_platform_payload_screen.py)
+    ('ask.py', ' or sensitive_payload({tid: q}):  # rounds 19-20', ':  # rounds 19-20'),
+    ('ask.py', 'sensitive_payload(k) or sensitive_payload(v)', 'sensitive_payload(v)'),
+    ('ask.py', '    if isinstance(obj, (list, tuple)):\n        return any(', '    if False:\n        return any('),
+    *[(f, ' or ask.sensitive_payload(body):  # round 20', ':  # round 20') for f in ('scout.py', 'gemini.py')],
 ]
