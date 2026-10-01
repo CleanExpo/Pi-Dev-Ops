@@ -7,7 +7,14 @@
  */
 
 export function meshSecret(): string {
-  return (process.env.TAO_INTERNAL_WEBHOOK_SECRET || process.env.TAO_WEBHOOK_SECRET || "").trim();
+  // TAO_FLEET_READ_SECRET is read-only and accepted by the fleet snapshot alone (RA-7846);
+  // the other two are the write-capable shared secret and stay as fallbacks.
+  return (
+    process.env.TAO_FLEET_READ_SECRET ||
+    process.env.TAO_INTERNAL_WEBHOOK_SECRET ||
+    process.env.TAO_WEBHOOK_SECRET ||
+    ""
+  ).trim();
 }
 
 export function ceoBase(): string {
