@@ -12,23 +12,24 @@ import urllib.error
 import pytest
 
 from evals.jev_constitution import harness as h
-from jev_platform import ask, client
+from jev_platform import client
 
 Q = {"id": "t-01", "question": "Does it comply?", "criteria_true": "yes", "criteria_false": "no",
      "quote_verbatim": True}
 KEYS = ["key AKIAABCDEFGHIJKLMNOP here", "-----BEGIN RSA PRIVATE KEY-----", "token sk_live_abcdefgh123",
-        "slack xoxb-1234567890-abc", "jwt eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.sig"]
+        "slack xoxb-1234567890-abc", "jwt eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.sig",
+        "sk-reviewfixtureabcdefgh", "ts-reviewfixtureabcdefgh", "ghp_reviewfixtureabcdefgh"]
 
 
 def test_the_screen_finds_keys_and_spares_dates():
-    assert all(ask.credential(k) for k in KEYS)
-    assert not ask.credential("On 2026-09-29 Dana approved it; the IICRC course ran at 02:00.")
+    assert all(client.credential(k) for k in KEYS)
+    assert not client.credential("On 2026-09-29 Dana approved it; the IICRC course ran at 02:00.")
 
 
 def test_no_committed_case_carries_a_credential():
     cases = [json.loads(line) for f in sorted(h.CASES.glob("*.jsonl")) for line in f.read_text().splitlines()
              if line.strip()]
-    assert len(cases) > 1000 and not [c for c in cases if ask.credential(str(c.get("state", "")))]
+    assert len(cases) > 1000 and not [c for c in cases if client.credential(str(c.get("state", "")))]
 
 
 @pytest.mark.parametrize("where", ["state", "question", "criteria_true", "criteria_false"])

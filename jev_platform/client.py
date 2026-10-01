@@ -20,14 +20,35 @@ RESERVE_USD = RESERVE_TOKENS * USD_PER_TOKEN
 MAX_RETRIES = 2
 REQUEST_TIMEOUT = 30.0
 REDACTION_VERSION = "redact-1"
+_API_KEYS = re.compile(r"\b(?:sk-|ts-|ghp_)[\w-]{8,}")
 _PATTERNS = [
     re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
     re.compile(r"\+?\d[\d ()-]{7,}\d"),
     re.compile(r"\d{12,}"),
-    re.compile(r"\b(?:sk-|ts-|ghp_)[\w-]{8,}"),
+    _API_KEYS,
     re.compile(r"\b[0-9a-fA-F]{32,}\b"),
     re.compile(r"https?://\S*\?\S*"),
 ]
+
+# Round 22: key material only. The PII patterns above also match dates, so they are not part of this set.
+CREDENTIALS = [re.compile(p, re.I) for p in (
+    r"-----BEGIN [A-Z ]*(PRIVATE KEY|CERTIFICATE)", r"\bAKIA[0-9A-Z]{16}\b", r"\beyJ[\w-]{10,}\.[\w-]{10,}\.",
+    r"\b(sk|rk)_live_\w{8,}", r"\bxox[bpas]-[\w-]{8,}")] + [_API_KEYS]
+
+
+def credential(text: str) -> bool:
+    return any(p.search(text) for p in CREDENTIALS)
+
+
+def credential_payload(obj) -> bool:
+    """Every decoded string key and value of an outbound body, so no escaping can hide a key (round 20's lesson)."""
+    if isinstance(obj, str):
+        return credential(obj)
+    if isinstance(obj, dict):
+        return any(credential_payload(k) or credential_payload(v) for k, v in obj.items())
+    if isinstance(obj, (list, tuple)):
+        return any(credential_payload(v) for v in obj)
+    return False
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -102,6 +123,8 @@ def validate(data, rule_ids: list[str]) -> dict | None:
 
 def send(body: dict, post, budget: Budget, sleep=time.sleep) -> dict:
     """{'data': json} on HTTP 200, else {'error': reason}. Budget reserved before every attempt."""
+    if credential_payload(body):  # round 22: no key material leaves through any Jev transport
+        return {"error": "credential_in_request"}
     if len(json.dumps(body).encode()) > MAX_REQUEST_BYTES:
         return {"error": "request_too_large"}
     for attempt in range(MAX_RETRIES + 1):
