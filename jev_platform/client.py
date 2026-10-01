@@ -20,20 +20,24 @@ RESERVE_USD = RESERVE_TOKENS * USD_PER_TOKEN
 MAX_RETRIES = 2
 REQUEST_TIMEOUT = 30.0
 REDACTION_VERSION = "redact-1"
-_API_KEYS = re.compile(r"\b(?:sk-|ts-|ghp_)[\w-]{8,}")
+# Edges are "not an ASCII letter or digit", never \b: \b is Unicode-aware and counts "_" as a word
+# character, so _sk-..._ or a key touching a CJK letter had no boundary (round 23).
+_EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
+_API_KEYS = re.compile(_EDGE + r"(?:sk-|ts-|ghp_)[\w-]{8,}")
 _PATTERNS = [
     re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
     re.compile(r"\+?\d[\d ()-]{7,}\d"),
     re.compile(r"\d{12,}"),
     _API_KEYS,
-    re.compile(r"\b[0-9a-fA-F]{32,}\b"),
+    re.compile(_EDGE + r"[0-9a-fA-F]{32,}" + _END),
     re.compile(r"https?://\S*\?\S*"),
 ]
 
 # Round 22: key material only. The PII patterns above also match dates, so they are not part of this set.
 CREDENTIALS = [re.compile(p, re.I) for p in (
-    r"-----BEGIN [A-Z ]*(PRIVATE KEY|CERTIFICATE)", r"\bAKIA[0-9A-Z]{16}\b", r"\beyJ[\w-]{10,}\.[\w-]{10,}\.",
-    r"\b(sk|rk)_live_\w{8,}", r"\bxox[bpas]-[\w-]{8,}")] + [_API_KEYS]
+    r"-----BEGIN [A-Z ]*(PRIVATE KEY|CERTIFICATE)", _EDGE + r"AKIA[0-9A-Z]{16}" + _END,
+    _EDGE + r"eyJ[\w-]{10,}\.[\w-]{10,}\.", _EDGE + r"(sk|rk)_live_\w{8,}", _EDGE + r"xox[bpas]-[\w-]{8,}")] \
+    + [_API_KEYS]
 
 
 def credential(text: str) -> bool:

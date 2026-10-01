@@ -5,7 +5,7 @@ GUARD_MUTANTS = _GUARD + [
     # round 22: one credential set, screened decoded in client.send and the eval harness; no error body is read
     # (test_jev_platform_harness_screen.py, test_jev_platform_send_screen.py)
     ('client.py', 'return any(p.search(text) for p in CREDENTIALS)', 'return False'),
-    ('client.py', ')] + [_API_KEYS]', ')]'),
+    ('client.py', ')] \\\n    + [_API_KEYS]', ')]'),
     ('client.py', '        return credential(obj)', '        return False'),
     ('client.py', 'credential_payload(k) or credential_payload(v)', 'credential_payload(v)'),
     ('client.py', '    if isinstance(obj, (list, tuple)):\n        return any(credential_payload',
@@ -16,4 +16,9 @@ GUARD_MUTANTS = _GUARD + [
     ('evals/jev_constitution/harness.py', '    if client.credential_payload(body):\n        return 0, None, 0.0',
      '    if False:\n        return 0, None, 0.0'),
     ('evals/jev_constitution/harness.py', '"HTTP error body not read"', 'e.read()[:300].decode(errors="replace")'),
+    # round 23: edges are ASCII letter/digit lookarounds, never \\b (test_jev_platform_edge_screen.py)
+    ('client.py', '_EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"', '_EDGE, _END = r"\\b", r"\\b"'),
+    ('client.py', 'r"AKIA[0-9A-Z]{16}" + _END', 'r"AKIA[0-9A-Z]{16}\\b"'),
+    ('client.py', 're.compile(_EDGE + r"[0-9a-fA-F]{32,}" + _END)', 're.compile(r"\\b[0-9a-fA-F]{32,}\\b")'),
+    ('ask.py', 'client._EDGE + r"iicrc" + client._END', 'r"\\biicrc\\b"'),
 ]
