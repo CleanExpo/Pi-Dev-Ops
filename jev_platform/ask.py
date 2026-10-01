@@ -28,9 +28,10 @@ ADVISORY = "advisory, not authorization"
 _DENY_NAMES = re.compile(
     r"(^|/)(\.env[^/]*|[^/]*\.(pem|key|p12|pfx|kdbx|tfstate)|[^/]*(id_rsa|id_ed25519|credential|secret)[^/]*"
     r"|\.npmrc|\.netrc|\.pypirc)$|(^|/)(\.git|\.hermes|\.ssh|\.aws|\.vercel|\.gcloud)(/|$)", re.I)
-_REFUSE = [re.compile(p, re.I) for p in (
+_CREDENTIALS = [re.compile(p, re.I) for p in (
     r"-----BEGIN [A-Z ]*(PRIVATE KEY|CERTIFICATE)", r"\bAKIA[0-9A-Z]{16}\b", r"\beyJ[\w-]{10,}\.[\w-]{10,}\.",
-    r"\b(sk|rk)_live_\w{8,}", r"\bxox[bpas]-[\w-]{8,}", r"\biicrc\b", r"standards australia")] + client._PATTERNS
+    r"\b(sk|rk)_live_\w{8,}", r"\bxox[bpas]-[\w-]{8,}")]
+_REFUSE = _CREDENTIALS + [re.compile(p, re.I) for p in (r"\biicrc\b", r"standards australia")] + client._PATTERNS
 
 
 def git_env() -> dict:
@@ -55,6 +56,11 @@ def approved_manifest(repo: str) -> dict | None:
 
 def sensitive(text: str) -> bool:
     return any(p.search(text) for p in _REFUSE)
+
+
+def credential(text: str) -> bool:
+    """Round 22: key material never belongs in eval text; the PII patterns also match dates, so they are not used."""
+    return any(p.search(text) for p in _CREDENTIALS)
 
 
 def sensitive_payload(obj) -> bool:

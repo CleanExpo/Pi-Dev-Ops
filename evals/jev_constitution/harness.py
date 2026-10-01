@@ -23,7 +23,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from jev_platform import client
+from jev_platform import ask, client
 from jev_platform import committed as verified
 
 ROOT = Path(__file__).parent
@@ -98,7 +98,10 @@ def committed_cases(qid: str) -> list[dict]:
 
 
 def question_problems(q: dict, cases_dir: Path | None = None, cases: list[dict] | None = None) -> list[str]:
-    problems = validate_question(q["id"], load_cases(q["id"], cases_dir) if cases is None else cases)
+    cases = load_cases(q["id"], cases_dir) if cases is None else cases
+    problems = validate_question(q["id"], cases)
+    if any(ask.credential(str(c.get("state", ""))) for c in cases):  # round 22: refused before anything is sent
+        problems.append("a case carries a credential; nothing is sent")
     if not q.get("quote_verbatim"):
         problems.append("rule quote is not verbatim in the Constitution")
     return problems
@@ -116,7 +119,7 @@ def _post(body: dict, key: str, timeout: int = 60) -> tuple[int, dict | str]:
         with client.open_url(req, timeout) as resp:
             return resp.status, json.load(resp)
     except urllib.error.HTTPError as e:
-        return e.code, e.read()[:300].decode(errors="replace")
+        return e.code, "HTTP error body not read"  # round 22: it could echo the request back
     except (urllib.error.URLError, TimeoutError) as e:
         return 0, str(e)
 
@@ -125,6 +128,9 @@ def ask_jev(question: dict, state: str, key: str, post=_post) -> tuple[int, floa
     body = {"state": state, "model": MODEL, "questions": {"q": {
         "type": "noul", "instructions": question["question"],
         "criteria": {"true": question["criteria_true"], "false": question["criteria_false"]}}}}
+    if any(ask.credential(str(s)) for s in (state, *body["questions"]["q"]["criteria"].values(),
+                                           question["question"])):
+        return 0, None, 0.0  # round 22: a credential never leaves; an error, never a judgment
     start = time.monotonic()
     status, resp = post(body, key)
     elapsed = time.monotonic() - start

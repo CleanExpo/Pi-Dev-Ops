@@ -14,7 +14,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from jev_platform_guard_mutants import GUARD_MUTANTS
+from jev_platform_late_mutants import GUARD_MUTANTS  # guard sweep, then round 22 onward
 
 ROOT = Path(__file__).resolve().parents[2]
 PY = sys.executable
