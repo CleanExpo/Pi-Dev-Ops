@@ -70,7 +70,7 @@ MUTANTS = [
      '"probabilities": {}}'),
     ("scout.py", "if len(admitted) > MAX_SCOUT_FILES:", "if False:"),
     ("scout.py", "if len(json.dumps(body).encode()) > client.MAX_REQUEST_BYTES:", "if False:"),
-    ("scout.py", "if ask.sensitive(json.dumps(body)) or ask.sensitive_payload(body):", "if False:"),
+    ("scout.py", "if ask.sensitive(json.dumps(body), decode=False) or ask.sensitive_payload(body):", "if False:"),
     ("manifest.py", "if reads not in ACCEPTS[tool]:", "if False:"),
     ("manifest.py", "    if missing:\n", "    if False:\n"),
     # Gemini runner (PLAN-scale.md rev 5)

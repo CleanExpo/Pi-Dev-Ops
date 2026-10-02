@@ -262,7 +262,7 @@ def call(body: dict, key: str, budget: GeminiBudget, http_post, sleep=time.sleep
     """{'data': reply, 'counted': n} or {'error': reason}. Before the run has a model, CHAIN is walked in order
     and a 404/429/503 that outlasts the retries moves on; the first model that answers is locked for the run."""
     body = json.loads(raw := json.dumps(body))  # a private copy: the caller cannot change it after the checks
-    if ask.sensitive(raw) or ask.sensitive_payload(body):  # round 20: decoded strings too, before countTokens
+    if ask.sensitive(raw, decode=False) or ask.sensitive_payload(body):  # round 20: decoded strings too, before countTokens
         return {"error": "refused: sensitive payload"}
     if refusal := gemini_shape.problem(body, MAX_OUTPUT_TOKENS, THINKING_LEVEL):  # only the priced shape is sent
         return {"error": f"refused: {refusal}"}

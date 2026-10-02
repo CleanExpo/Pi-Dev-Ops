@@ -30,8 +30,13 @@ _K = "sk-reviewfixtureabcdefgh"  # round 30: nested escaping and terminal colour
 KEYS += [json.dumps(json.dumps({"m": "\n" + _K})), json.dumps(json.dumps(json.dumps({"m": "\t" + _K}))),
          json.dumps(repr("\x1b" + _K)), "\x1b[31m" + _K + "\x1b[0m", "\\x1b[31m" + _K, "\\033[1;31m" + _K,
          "\\u001b[0m" + _K, json.dumps("\x1b[31m" + _K)]
-OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc", "\\niicrc", "\\x1biicrc"]  # refused by ask.sensitive only
-CLEAN = ["task-abcdefghij", "costs-abcdefghijk", "On 2026-09-29 the job ran.", "masks-and-gloves", "see array [1m] values"]
+KEYS += ["\x9b31m" + _K, "\x1b[38:2:255:0:0m" + _K, "sk-re\x1b[31mviewfixtureabcdefgh",  # round 31
+         "\\u0073k-reviewfixtureabcdefgh", "sk-review\\x66ixtureabcdefgh",
+         json.dumps("\\u0073k-reviewfixtureabcdefgh"), "\\x41sk-reviewfixtureabcdefgh",
+         "abc\x1b[31m" + _K, "\\" * 64 + "u0073k-reviewfixtureabcdefgh"]
+OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc", "\\niicrc", "\\x1biicrc", "\\u0069icrc"]  # refused by ask.sensitive only
+CLEAN = ["task-abcdefghij", "costs-abcdefghijk", "On 2026-09-29 the job ran.", "masks-and-gloves", "see array [1m] values",
+         "C:\\Users\\data\\report.txt", "\\d+\\s*\\w+ matches"]
 
 
 @pytest.mark.parametrize("text", KEYS)

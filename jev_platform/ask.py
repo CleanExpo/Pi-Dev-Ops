@@ -53,8 +53,8 @@ def approved_manifest(repo: str) -> dict | None:
     return data if isinstance(data.get("files"), dict) and isinstance(data.get("questions"), dict) else None
 
 
-def sensitive(text: str) -> bool:
-    return any(p.search(t) for t in client.screened(text) for p in _REFUSE)
+def sensitive(text: str, decode: bool = True) -> bool:
+    return any(p.search(t) for t in client.screened(text, decode) for p in _REFUSE)
 
 
 def sensitive_payload(obj) -> bool:

@@ -35,12 +35,22 @@ GUARD_MUTANTS = _GUARD + [
     # round 27: model-written JSON refuses duplicates too (test_jev_platform_duplicate_model_json.py)
     ('evals/jev_constitution/generate.py', 'return client.strict_json(m.group(1))', 'return json.loads(m.group(1))'),
     # round 29: screens read the raw text AND its escape-free reading (test_jev_platform_edge_screen.py LOG_ESCAPES)
-    ('client.py', '    return text, _ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text)))', '    return (text,)'),
-    ('client.py', '    return text, _ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text)))',
-     '    return (_ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text))),)'),
-    # round 30: nested escaping collapses, colour codes are removed
-    ('client.py', '_ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text)))', '_ANSI.sub(" ", _ESCAPE.sub(" ", text))'),
-    ('client.py', '_ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text)))', '_ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text))'),
     ('client.py', 'for t in screened(text) for p in CREDENTIALS', 'for t in (text,) for p in CREDENTIALS'),
-    ('ask.py', 'for t in client.screened(text) for p in _REFUSE', 'for t in (text,) for p in _REFUSE'),
+    ('ask.py', 'for t in client.screened(text, decode) for p in _REFUSE', 'for t in (text,) for p in _REFUSE'),
+    # rounds 30-31: four readings (raw, escape-blanked, decoded with colour codes as a gap / as nothing), bounded decode
+    ('client.py', '    return text, blanked, _CSI.sub(" ", decoded), _CSI.sub("", decoded)',
+     '    return blanked, _CSI.sub(" ", decoded), _CSI.sub("", decoded)'),
+    ('client.py', '    return text, blanked, _CSI.sub(" ", decoded), _CSI.sub("", decoded)',
+     '    return text, _CSI.sub(" ", decoded), _CSI.sub("", decoded)'),
+    ('client.py', '    return text, blanked, _CSI.sub(" ", decoded), _CSI.sub("", decoded)',
+     '    return text, blanked, _CSI.sub("", decoded)'),
+    ('client.py', '    return text, blanked, _CSI.sub(" ", decoded), _CSI.sub("", decoded)',
+     '    return text, blanked, _CSI.sub(" ", decoded)'),
+    ('client.py', '        text = nxt\n    return None', '        text = nxt\n    return text'),
+    ('client.py', '_CSI = re.compile(r"(?:\\x1b\\[|\\x9b)', '_CSI = re.compile(r"(?:\\x1b\\[)'),
+    ('client.py', '_CSI = re.compile(r"(?:\\x1b\\[|\\x9b)[0-9:;<=>?]*', '_CSI = re.compile(r"(?:\\x1b\\[|\\x9b)[0-9;?]*'),
+    ('client.py', '        return chr(n) if n <= 0x10FFFF else', '        return " " if n <= 0x10FFFF else'),
+    ('client.py', '        nxt = _ESCAPE.sub(_decode_one, text)', '        nxt = _ESCAPE.sub(" ", text)'),
+    ('client.py', '    blanked = _BLANKED_CSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub(',
+     '    blanked = _BLANKED_CSI.sub(" ", _ESCAPE.sub(" ", (lambda x: x)('),
 ]

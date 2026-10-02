@@ -22,7 +22,7 @@ HIDDEN = [f"before\n{SECRET_U}", f"before\t{SECRET_U}"]
 
 @pytest.mark.parametrize("text", HIDDEN)
 def test_the_json_screen_alone_misses_it(text):
-    assert ask.sensitive(text) and not ask.sensitive(json.dumps({"q": text}))  # the bypass is live
+    assert ask.sensitive(text) and not ask.sensitive(json.dumps({"q": text}), decode=False)  # the wire screen alone is blind
 
 
 @pytest.mark.parametrize("text", HIDDEN)
@@ -55,7 +55,7 @@ def test_gemini_refuses_before_count_tokens(text):
 def test_the_agent_catalogue_never_sends_a_sensitive_template_id():
     """The round 19 id reaches Gemini through agent.system_text, one per line after a newline."""
     system = agent.system_text({"files": {"src/a.ts": "0" * 64}, "questions": {SECRET_U: TEMPLATES["known-issue"]}})
-    assert f"\n{SECRET_U} " in system and not ask.sensitive(json.dumps(system))  # control: the JSON screen is blind
+    assert f"\n{SECRET_U} " in system and not ask.sensitive(json.dumps(system), decode=False)  # control: the wire screen is blind
     fake = FakeGemini([ftext("hi")])
     body = gemini.request_body([{"role": "user", "parts": [{"text": "go"}]}], system)
     out = gemini.call(body, "gk-test-not-a-real-key", gemini.GeminiBudget(0.1, dict(gemini.PRICES[gemini.MODEL])),

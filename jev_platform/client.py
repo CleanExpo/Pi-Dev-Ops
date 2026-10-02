@@ -23,21 +23,53 @@ REDACTION_VERSION = "redact-1"
 # Edges are "not an ASCII letter or digit", never \b: \b is Unicode-aware and counts "_" as a word
 # character, so _sk-..._ or a key touching a CJK letter had no boundary (round 23).
 _EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
-# Rounds 28-29: a logged key hides behind the letters of a written-out escape (\n, \x1b, \u000a, \033, repr()).
-# Every escape is replaced by a space and the result screened too; the raw text is screened as well, because a
-# key straight after a lone backslash (C:\sk-...) would lose its first letter to the replacement.
+# Rounds 28-31: a logged key hides behind or inside written-out escapes (\n, \x1b, \u0073, \033, repr(), nested
+# logs) and terminal colour codes. Every screen reads: the raw text; a reading with each escape blanked (an escape
+# that decodes to a letter still separates); and the escapes DECODED to a fixpoint, with colour codes removed both
+# as a gap (a key after a code) and as nothing (a code inside a key). Text still decoding after _MAX_DEPTH rounds
+# is refused outright. The raw reading covers a key straight after a lone backslash (C:\sk-...).
 _ESCAPE = re.compile(r"\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|N\{[^}]*\}|[0-7]{1,3}|.)", re.S)
-
-
-# Round 30: a nested log doubles its backslashes (\\\\n), so runs collapse to one first; terminal colour codes
-# (ESC[31m, real or written out) end in a letter that would touch the key, so they are removed too.
 _BACKSLASHES = re.compile(r"\\{2,}")
-_ANSI = re.compile(r"(?:\x1b|\x9b|(?<= ))\[[0-9;?]*[ -/]*[@-~]")
+_CSI = re.compile(r"(?:\x1b\[|\x9b)[0-9:;<=>?]*[ -/]*[@-~]")  # ESC[ or the one-character CSI, any SGR syntax
+_BLANKED_CSI = re.compile(r"(?<= )\[[0-9:;<=>?]*[ -/]*[@-~]")  # a written-out ESC already blanked to a space
+_SINGLE = {"n": "\n", "t": "\t", "r": "\r", "b": "\b", "f": "\f", "v": "\v", "a": "\a", "e": "\x1b", "0": "\0"}
+_MAX_DEPTH = 6
 
 
-def screened(text: str) -> tuple[str, str]:
-    """The raw text and its escape-free reading; a screen refuses if either matches."""
-    return text, _ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\", text)))
+def _decode_one(m: re.Match) -> str:
+    e = m.group(0)[1:]
+    if e[0] in "xuU" and len(e) > 1:
+        n = int(e[1:], 16)
+        return chr(n) if n <= 0x10FFFF else "\ufffd"
+    if e[0] == "N" and e.startswith("N{"):
+        return " "
+    if e[0] in "01234567":
+        return chr(int(e, 8))
+    return _SINGLE.get(e, e)
+
+
+def _decoded(text: str) -> str | None:
+    """Escapes decoded until nothing changes; None when still changing after _MAX_DEPTH rounds."""
+    for _ in range(_MAX_DEPTH):
+        nxt = _ESCAPE.sub(_decode_one, text)
+        if nxt == text:
+            return text
+        text = nxt
+    return None
+
+
+def screened(text: str, decode: bool = True) -> tuple[str, ...]:
+    """Every reading a screen must refuse on; one sentinel reading when decoding does not settle. decode=False is
+    for the serialised wire text of a whole body, whose strings the per-string payload screen decodes."""
+    blanked = _BLANKED_CSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\", text)))
+    if not decode:
+        return text, blanked
+    decoded = _decoded(text)
+    if decoded is None:
+        return text, blanked, "sk-unsettled-escape-depth"  # fail closed: matches the API-key screen
+    return text, blanked, _CSI.sub(" ", decoded), _CSI.sub("", decoded)
+
+
 _API_KEYS = re.compile(_EDGE + r"(?:sk-|ts-|ghp_)[\w-]{8,}")
 _PATTERNS = [
     re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
