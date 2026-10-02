@@ -25,7 +25,7 @@ ESCAPES = ["\\n", "\\t", "\\r", "\\u000a"]  # round 28: literal JSON escapes, as
 KEYS += [f"{{\"message\": \"{e}sk-reviewfixtureabcdefgh\"}}" for e in ESCAPES] + [f"{e}AKIAABCDEFGHIJKLMNOP" for e in ESCAPES]
 LOG_ESCAPES = ["\\x1b", "\\v", "\\x00", "\\033", "\\a", "\\U0001F600", "\\N{BEL}"]  # round 29: repr/log escapes
 KEYS += [f"{e}sk-reviewfixtureabcdefgh" for e in LOG_ESCAPES] + [f"{e}AKIAABCDEFGHIJKLMNOP" for e in LOG_ESCAPES]
-KEYS += ["C:\\sk-reviewfixtureabcdefgh"]  # a lone backslash: only the raw-text screen sees this one
+KEYS += ["C:\\sk-reviewfixtureabcdefgh"]  # a lone backslash: blanking eats the s; decoding keeps it
 _K = "sk-reviewfixtureabcdefgh"  # round 30: nested escaping and terminal colour codes
 KEYS += [json.dumps(json.dumps({"m": "\n" + _K})), json.dumps(json.dumps(json.dumps({"m": "\t" + _K}))),
          json.dumps(repr("\x1b" + _K)), "\x1b[31m" + _K + "\x1b[0m", "\\x1b[31m" + _K, "\\033[1;31m" + _K,

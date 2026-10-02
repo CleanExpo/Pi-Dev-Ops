@@ -23,11 +23,12 @@ REDACTION_VERSION = "redact-1"
 # Edges are "not an ASCII letter or digit", never \b: \b is Unicode-aware and counts "_" as a word
 # character, so _sk-..._ or a key touching a CJK letter had no boundary (round 23).
 _EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
-# Rounds 28-31: a logged key hides behind or inside written-out escapes (\n, \x1b, \u0073, \033, repr(), nested
-# logs) and terminal colour codes. Every screen reads: the raw text; a reading with each escape blanked (an escape
+# Rounds 28-32: a logged key hides behind or inside written-out escapes (\n, \x1b, \u0073, \033, repr(), nested
+# logs) and terminal colour codes. Every screen reads: a reading with each escape blanked (an escape
 # that decodes to a letter still separates); and the escapes DECODED to a fixpoint, with colour codes removed both
 # as a gap (a key after a code) and as nothing (a code inside a key). Text still decoding after _MAX_DEPTH rounds
-# is refused outright. The raw reading covers a key straight after a lone backslash (C:\sk-...).
+# is refused outright. Decoding never alters a key (no backslash in its body) or turns the character before it
+# into a letter, so the decoded readings already see everything the raw text shows (round 32).
 _ESCAPE = re.compile(r"\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|N\{[^}]*\}|[0-7]{1,3}|.)", re.S)
 _BACKSLASHES = re.compile(r"\\{2,}")
 _CSI = re.compile(r"(?:\x1b\[|\x9b)[0-9:;<=>?]*[ -/]*[@-~]")  # ESC[ or the one-character CSI, any SGR syntax
@@ -66,8 +67,8 @@ def screened(text: str, decode: bool = True) -> tuple[str, ...]:
         return text, blanked
     decoded = _decoded(text)
     if decoded is None:
-        return text, blanked, "sk-unsettled-escape-depth"  # fail closed: matches the API-key screen
-    return text, blanked, _CSI.sub(" ", decoded), _CSI.sub("", decoded)
+        return blanked, "sk-unsettled-escape-depth"  # fail closed: matches the API-key screen
+    return blanked, _CSI.sub(" ", decoded), _CSI.sub("", decoded)
 
 
 _API_KEYS = re.compile(_EDGE + r"(?:sk-|ts-|ghp_)[\w-]{8,}")
