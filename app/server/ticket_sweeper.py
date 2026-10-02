@@ -122,14 +122,14 @@ def _sweep_stale(api_key: str, issues: list[dict], report: SweepReport, now: dat
         if verdict is None:
             continue
         move = verdict == "todo"
-        (report.stale_to_todo if move else report.stale_labelled).append(issue["identifier"])
         note = ("moved to Todo: no linked PR and nothing blocking it." if move
                 else "left in place: it has a linked PR, an open blocker, or is Blocked.")
-        wr.apply(api_key, issue, report, wr.Write(
-            STALE_LABEL, f"**Stale sweep:** no activity for {STALE_DAYS}+ days — {note}",
-            "Todo" if move else None,
-            lambda f, v=verdict: io.older_than(f, cutoff) and decide_stale(f) == v,
-            _GUARDS["stale"], "stale"))
+        if wr.apply(api_key, issue, report, wr.Write(
+                STALE_LABEL, f"**Stale sweep:** no activity for {STALE_DAYS}+ days — {note}",
+                "Todo" if move else None,
+                lambda f, v=verdict: io.older_than(f, cutoff) and decide_stale(f) == v,
+                _GUARDS["stale"], "stale")):
+            (report.stale_to_todo if move else report.stale_labelled).append(issue["identifier"])
 
 
 def _review_facts(issue: dict) -> list[dict | None]:
@@ -154,9 +154,9 @@ def _sweep_review(api_key: str, issues: list[dict], report: SweepReport, now: da
         verdict = decide_review(facts, now)
         if verdict == "unknown":
             report.review_unknown.append(issue["identifier"])
-        elif verdict == "red":
+        elif verdict == "red" and wr.apply(
+                api_key, issue, report, wr.Write(REVIEW_LABEL, recheck=lambda f: io.state_is(f, "In Review"))):
             report.review_red_pr.append(issue["identifier"])
-            wr.apply(api_key, issue, report, wr.Write(REVIEW_LABEL, recheck=lambda f: io.state_is(f, "In Review")))
 
 
 def _has_retry_label(issue: dict) -> bool:
@@ -177,18 +177,16 @@ def _sweep_failed(api_key: str, issues: list[dict], report: SweepReport) -> None
         verdict = decide_failed(issue)
         if verdict == "unread":
             report.errors.append(f"comments_unread:{issue['identifier']}")
-        elif verdict == "ready":
-            report.failed_to_ready.append(issue["identifier"])
-            wr.apply(api_key, issue, report, wr.Write(
+        elif verdict == "ready" and wr.apply(api_key, issue, report, wr.Write(
                 RETRY_LABEL, f"{SWEEP_COMMENT_PREFIX} first failure — sent back to Ready for Pi-Dev once.",
                 autonomy._READY_STATUS_NAME, lambda f: io.state_is(f, "Todo") and decide_failed(f) == "ready",
-                _GUARDS["ready"], "ready"))
-        elif verdict == "blocked":
-            report.failed_to_blocked.append(issue["identifier"])
-            wr.apply(api_key, issue, report, wr.Write(
+                _GUARDS["ready"], "ready")):
+            report.failed_to_ready.append(issue["identifier"])
+        elif verdict == "blocked" and wr.apply(api_key, issue, report, wr.Write(
                 BLOCKED_REASON_LABEL, f"{SWEEP_COMMENT_PREFIX} failed again after its one retry — blocked for a human.",
                 autonomy._BLOCKED_STATUS_NAME, lambda f: io.state_is(f, "Todo") and decide_failed(f) == "blocked",
-                _GUARDS["blocked"], "blocked"))
+                _GUARDS["blocked"], "blocked")):
+            report.failed_to_blocked.append(issue["identifier"])
 
 
 # ── Run + state ──────────────────────────────────────────────────────────────

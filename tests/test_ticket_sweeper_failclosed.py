@@ -109,6 +109,17 @@ def test_failed_retry_label_write_blocks_the_move(world, monkeypatch):  # noqa: 
     report = ticket_sweeper.run_sweep(now=NOW)
     assert not [w for w in world["writes"] if w[0] == "state"]
     assert report.errors == ["label_unconfirmed:RA-10"] and report.complete is False
+    assert report.failed_to_ready == []  # a write that did not stick is not counted as swept
+
+
+def test_a_failed_write_is_not_counted_on_the_tile(world, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("TAO_TICKET_SWEEPER_WRITE", "1")
+    world["label_ok"] = False
+    world["in_review"] = [_issue("RA-34", "In Review", pr=PR)]
+    world["prs"] = _pr(35, red=True)
+    report = ticket_sweeper.run_sweep(now=NOW)
+    assert report.review_red_pr == [] and report.errors == ["label_unconfirmed:RA-34"]
+    assert ticket_sweeper.status_snapshot()["counts"]["review_red_pr"] == 0
 
 
 def test_too_many_pages_is_incomplete_not_short(world, monkeypatch):  # noqa: F811

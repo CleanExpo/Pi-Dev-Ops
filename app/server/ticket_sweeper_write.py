@@ -113,10 +113,12 @@ def resume_move(api_key: str, p: dict, guard: Callable[[dict], bool] | None) -> 
     return _move(api_key, p["id"], p["team"], p["to_state"])
 
 
-def apply(api_key: str, issue: dict, report, w: Write) -> None:
-    """One verified write for the sweep; problems and unfinished moves go on ``report``."""
+def apply(api_key: str, issue: dict, report, w: Write) -> bool:
+    """One verified write for the sweep; problems and unfinished moves go on ``report``.
+    True only when every write was confirmed on Linear (or, in a dry run, would be made),
+    so a ticket is counted as swept only after its write stuck."""
     if report.dry_run:
-        return
+        return True
     try:
         problem = write_verified(api_key, issue["id"], issue.get("_team_id") or autonomy._TEAM_ID, w)
     except autonomy.LinearRateLimitError:
@@ -130,6 +132,7 @@ def apply(api_key: str, issue: dict, report, w: Write) -> None:
             "id": issue["id"], "identifier": issue.get("identifier"), "label": w.label, "comment": w.comment,
             "team": issue.get("_team_id") or autonomy._TEAM_ID, "to_state": w.state, "kind": w.kind,
             "from_state": (issue.get("state") or {}).get("name") or "", "seen_updated_at": w.seen_updated_at})
+    return problem is None
 
 
 def resume_pending(api_key: str, report, guards: dict[str, Callable[[dict], bool]]) -> None:
