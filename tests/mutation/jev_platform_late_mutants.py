@@ -42,15 +42,15 @@ GUARD_MUTANTS = _GUARD + [
     ('client.py', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))', '    return tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))'),
     ('client.py', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub("", t),))'),
     ('client.py', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t),))'),
-    ('client.py', '        text = nxt\n    return None', '        text = nxt\n    return stages'),
-    ('client.py', '    stages = [text]\n', '    stages = []\n'),
+    ('client.py', '        frontier = nxt\n    return None', '        frontier = nxt\n    return stages'),
+    ('client.py', '    stages, frontier = [text], [text]\n', '    stages, frontier = [], [text]\n'),
     ('client.py', '            return stages\n', '            return stages[-1:]\n'),
     ('client.py', '            return stages\n', '            return stages[:1] + stages[-1:]\n'),
     ('client.py', '        return text, blanked, "sk-unsettled-escape-depth"', '        return text, blanked'),
     ('client.py', '_CSI = re.compile(r"(?:\\x1b\\[|\\x9b)', '_CSI = re.compile(r"(?:\\x1b\\[)'),
     ('client.py', '_CSI = re.compile(r"(?:\\x1b\\[|\\x9b)[0-9:;<=>?]*', '_CSI = re.compile(r"(?:\\x1b\\[|\\x9b)[0-9;?]*'),
     ('client.py', '        return chr(n) if n <= 0x10FFFF else', '        return " " if n <= 0x10FFFF else'),
-    ('client.py', '        nxt = _ESCAPE.sub(_decode_one, text)', '        nxt = _ESCAPE.sub(" ", text)'),
+    ('client.py', 'for d in (_ESCAPE.sub(_decode_one, t), _python_decode(t)):', 'for d in (_ESCAPE.sub(" ", t), _python_decode(t)):'),
     ('client.py', '    blanked = _BLANKED_CSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub(',
      '    blanked = _BLANKED_CSI.sub(" ", _ESCAPE.sub(" ", (lambda x: x)('),
     # round 32: named escapes decode to their letter; backslash-newline (LF or CRLF) is a continuation
@@ -59,4 +59,12 @@ GUARD_MUTANTS = _GUARD + [
     ('client.py', '_SINGLE.update({"\\n": "", "\\r\\n": "", "\\r": ""})', '_SINGLE.update({"\\n": "", "\\r": ""})'),
     ('client.py', '_SINGLE.update({"\\n": "", "\\r\\n": "", "\\r": ""})', '_SINGLE.update({"\\n": "", "\\r\\n": ""})'),  # round 34: lone CR
     ('client.py', '[0-7]{1,3}|\\r\\n|.)', '[0-7]{1,3}|.)'),
+    # round 36: Python's own unicode_escape reading is a second decoder, followed to the same fixpoint
+    ('client.py', 'for d in (_ESCAPE.sub(_decode_one, t), _python_decode(t)):', 'for d in (_ESCAPE.sub(_decode_one, t),):'),
+    ('client.py', 'for d in (_ESCAPE.sub(_decode_one, t), _python_decode(t)):', 'for d in (_python_decode(t),):'),
+    ('client.py', '            return text.encode("latin-1", "backslashreplace").decode("unicode_escape")', '            return text'),
+    ('client.py', '        except UnicodeDecodeError:\n            return text\n', '        except UnicodeDecodeError:\n            raise\n'),
+    ('client.py', '        warnings.simplefilter("ignore")', '        warnings.simplefilter("error")'),
+    ('client.py', '        frontier = nxt\n', '        frontier = frontier\n'),
+    ('client.py', '                if d not in stages:', '                if True:'),
 ]
