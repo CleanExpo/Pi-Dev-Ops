@@ -97,6 +97,10 @@ def run_dispatch_tick(linear_ids: Optional[list[str]] = None) -> dict[str, Any]:
     machines = mesh_routes._online_machines()
     if not machines:
         return {"assigned": [], "online_machines": [], "reason": "no online machines"}
+    if (repeat := mesh_lanes.repeat_claimed(mesh_routes._get)) is None:
+        return {"assigned": [], "online_machines": [m["host"] for m in machines],
+                "reason": "claim history unreadable; not assigning blind"}
+    tickets = [t for t in tickets if (t.get("identifier") or t.get("id")) not in repeat]  # W1b
 
     return {
         "assigned": _assign(mesh_routes, tickets, machines),

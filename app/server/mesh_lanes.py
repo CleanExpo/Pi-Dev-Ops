@@ -25,6 +25,9 @@ from __future__ import annotations
 
 import json
 import logging
+import urllib.parse
+from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -32,7 +35,8 @@ from pydantic import BaseModel
 
 from . import mesh_fleet, mesh_priority
 from .autonomy_eligibility import (
-    AUTONOMY_LABEL, GUARD_FIELDS, MESH_STATES, claim_refusal, issue_is_claimable,
+    AUTONOMY_LABEL, GUARD_FIELDS, GUARD_WINDOW, MAX_STARTS_PER_WINDOW, MESH_STATES,
+    claim_refusal, issue_is_claimable,
     issue_label_names, issue_project_id, registry_repos,
 )
 
@@ -82,8 +86,11 @@ def _autonomy_build(issue: dict) -> bool:
 
 
 def needs_repo(issue: dict) -> bool:
-    """True for autonomy-lane work, which must be built in its project's repo."""
-    return _autonomy_build(issue)
+    """True for build work with a Linear project: it must be built in that project's repo.
+
+    Only a project-less mesh:auto ticket (the legacy form) builds in the runner default.
+    """
+    return _autonomy_build(issue) or (lane_of(issue) == "build" and bool(issue_project_id(issue)))
 
 
 def eligible(issue: dict, repos: dict[str, str]) -> bool:
@@ -92,7 +99,32 @@ def eligible(issue: dict, repos: dict[str, str]) -> bool:
         from .autonomy_queue import within_token_cap  # noqa: PLC0415 — same cap as the poller
         return (issue_is_claimable(issue, registered_project_ids=set(repos), states=MESH_STATES)
                 and within_token_cap(str(issue.get("id") or "")))
+    # mesh:auto / idea:plan. A build ticket in a Linear project must be in a registered
+    # project, so it is built in that project's repo; a project-less one is legacy work
+    # for the runner's default repo. Plan-lane work is read-only and needs no repo.
+    project = issue_project_id(issue)
+    if lane_of(issue) == "build" and project and project not in repos:
+        return False
     return claim_refusal(issue) is None
+
+
+def repeat_claimed(get) -> "set[str] | None":
+    """Tickets already claimed twice in 24h by any executor; None when unreadable.
+
+    Every executor (Railway poller, dispatcher, self-claim) writes a mesh_work_claims
+    row per claim, so this is the one start ledger. A third claim is refused; an
+    unreadable ledger means the caller claims nothing rather than guessing.
+    """
+    since = (datetime.now(timezone.utc) - GUARD_WINDOW).isoformat()
+    try:
+        rows, problem = mesh_fleet.read(
+            get, f"mesh_work_claims?select=linear_id&claimed_at=gte.{urllib.parse.quote(since)}")
+    except Exception:  # noqa: BLE001 — e.g. Supabase not configured
+        return None
+    if problem:
+        return None
+    counts = Counter(r.get("linear_id") for r in rows if r.get("linear_id"))
+    return {ident for ident, n in counts.items() if n >= MAX_STARTS_PER_WINDOW}
 
 
 def _in_mesh_pool(issue: dict) -> bool:
@@ -124,10 +156,14 @@ def candidates(graphql) -> tuple[list[dict], dict[str, str]]:
         nodes.extend(issues.get("nodes") or [])
         page = issues.get("pageInfo") or {}
         cursor = page.get("endCursor")
-        if not page.get("hasNextPage") or not cursor:
+        if not page.get("hasNextPage"):
+            return [n for n in nodes if eligible(n, repos)], repos
+        if not cursor:
             break
         query = SELF_CLAIM_QUERY.replace(_PAGE_ARGS, f"{_PAGE_ARGS},after:{json.dumps(cursor)}", 1)
-    return [n for n in nodes if eligible(n, repos)], repos
+    # An incomplete read is refused, never served as the whole queue.
+    log.error("mesh candidates: Linear read incomplete after %d pages; claiming nothing", _MAX_PAGES)
+    return [], repos
 
 
 def explicit(graphql, identifiers: list[str]) -> list[dict]:

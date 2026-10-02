@@ -170,3 +170,40 @@ def test_go_retry_after_a_lost_create_response_links_instead_of_duplicating(tmp_
         try_execute_idea(tmp_path, packet["idea_id"], gql=gql)
     again = try_execute_idea(tmp_path, packet["idea_id"], gql=gql)
     assert len(creates) == 1 and again["linear_ticket"]["identifier"] == "RA-9001"
+
+
+def test_mesh_build_ticket_in_an_unregistered_project_is_refused_and_registered_one_routed():
+    from app.server import mesh_lanes
+    ato = "20bb0ca6-0176-46c4-be4c-cd34ac89767d"
+    repos = {ato: "CleanExpo/ATO"}
+    stray = _issue("UNI-MESH", state="Todo", labels=("mesh:auto",), project="unregistered")
+    routed = _issue("UNI-MESH2", state="Todo", labels=("mesh:auto",), project=ato)
+    legacy = _issue("UNI-MESH3", state="Todo", labels=("mesh:auto",), project=None)
+    assert not mesh_lanes.eligible(stray, repos)
+    assert mesh_lanes.eligible(routed, repos) and mesh_lanes.needs_repo(routed)
+    assert mesh_lanes.eligible(legacy, repos) and not mesh_lanes.needs_repo(legacy)
+
+
+def test_third_claim_in_24h_is_refused_across_executors():
+    import json as _json
+
+    from app.server import mesh_lanes
+    rows = [{"linear_id": "UNI-2"}, {"linear_id": "UNI-2"}, {"linear_id": "UNI-3"}]
+    assert mesh_lanes.repeat_claimed(lambda _p: (200, _json.dumps(rows))) == {"UNI-2"}
+    assert mesh_lanes.repeat_claimed(lambda _p: (500, "boom")) is None  # unreadable: claim nothing
+
+
+def test_an_incomplete_linear_read_is_refused_not_served_partial(monkeypatch):
+    from app.server import autonomy_queue, mesh_lanes
+    monkeypatch.setenv("TAO_TICKET_TOKEN_CAP", "0")
+    endless = {"issues": {"nodes": [_issue("UNI-X", labels=("mesh:auto",), project=None)],
+                          "pageInfo": {"hasNextPage": True, "endCursor": "c"}}}
+    assert mesh_lanes.candidates(lambda _q: endless)[0] == []
+    no_cursor = {"issues": {"nodes": [], "pageInfo": {"hasNextPage": True}}}
+    assert mesh_lanes.candidates(lambda _q: no_cursor)[0] == []
+
+    def gql(_k, _q, _v):
+        return {"project": {"issues": {"nodes": [{"id": "a"}], "pageInfo": {"hasNextPage": True, "endCursor": "c"}}}}
+
+    with pytest.raises(RuntimeError):
+        list(autonomy_queue.issue_pages(gql, "k", {}))

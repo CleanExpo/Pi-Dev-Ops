@@ -416,7 +416,9 @@ def claim_self(
     _check_secret(x_pi_ceo_secret)
     _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before self-claiming
     nodes, repos = mesh_lanes.candidates(_linear_graphql)
-    for tk in mesh_lanes.ranked(nodes, _open_claim_ids() | mesh_requeue.failed_here(_get, body.host)):
+    if (repeat := mesh_lanes.repeat_claimed(_get)) is None:
+        return {"claimed": None, "reason": "claim history unreadable; not claiming blind"}
+    for tk in mesh_lanes.ranked(nodes, _open_claim_ids() | repeat | mesh_requeue.failed_here(_get, body.host)):
         ident = tk["identifier"]
         row = mesh_requeue.claim_row(ident, body.host)
         status, _ = _sb("POST", "mesh_work_claims", row, prefer="return=minimal")

@@ -73,10 +73,13 @@ def issue_pages(gql: Callable[..., dict], api_key: str, variables: dict) -> Iter
         issues = (data.get("project") or {}).get("issues") or {}
         yield from issues.get("nodes") or []
         page = issues.get("pageInfo") or {}
-        after = page.get("endCursor")
-        if not page.get("hasNextPage") or not after:
+        if not page.get("hasNextPage"):
             return
-    log.warning("Autonomy: queue read stopped at %d pages for %s", MAX_PAGES, variables)
+        after = page.get("endCursor")
+        if not after:
+            raise RuntimeError("Linear said more pages but gave no cursor")
+    # An incomplete read is refused, never served as the whole queue.
+    raise RuntimeError(f"Linear queue read exceeded {MAX_PAGES} pages")
 
 
 def _autonomy():
