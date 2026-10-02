@@ -136,7 +136,8 @@ def test_a_record_whose_eval_sha_is_outside_heads_history_is_corrupt(repo):
     tree = out(repo, "mktree", stdin=f"100644 blob {blob}\t{RULE}.jsonl\n")
     for sub in ("cases", "jev_constitution", "evals"):
         tree = out(repo, "mktree", stdin=f"040000 tree {tree}\t{sub}\n")
-    orphan = out(repo, "commit-tree", tree, "-m", "never merged")
+    # The fixture's identity, so a runner with no git identity (CI) still writes the commit.
+    orphan = out(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit-tree", tree, "-m", "never merged")
     assert out(repo, "rev-parse", f"{orphan}:{REL_CASES}") == blob  # positive control: the orphan holds the blob
     forge(repo, orphan, ALT, blob)
     state_and_rating("eval_sha is not in the history of HEAD")
