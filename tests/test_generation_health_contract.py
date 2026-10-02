@@ -21,8 +21,9 @@ def test_health_includes_generation_preflight(monkeypatch, status, ready, blocke
               "cost_verified": False}
     probe = Mock(return_value=report)
     monkeypatch.setattr(session_sdk, "generation_readiness", probe, raising=False)
-    monkeypatch.delenv("TAO_PASSWORD", raising=False)
-    response = asyncio.run(health(SimpleNamespace(headers={}, cookies={})))
+    from app.server.auth import create_session_token
+    headers = {"Authorization": f"Bearer {create_session_token()}"}
+    response = asyncio.run(health(SimpleNamespace(headers=headers, cookies={})))
     assert json.loads(response.body)["generation"] == report
     probe.assert_called_once_with()
 

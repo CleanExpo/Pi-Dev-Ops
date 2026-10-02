@@ -65,8 +65,10 @@ def page_of(issues: Any) -> tuple[list[Any], bool, Any]:
     """
     if not isinstance(issues, Mapping):
         raise IncompleteRead("Linear returned no issues connection")
+    if not isinstance(nodes := issues.get("nodes"), list):  # non-null in the schema: unread
+        raise IncompleteRead("Linear returned no issue nodes")
     page = issues.get("pageInfo") or {}
-    return list(issues.get("nodes") or []), bool(page.get("hasNextPage")), page.get("endCursor")
+    return list(nodes), bool(page.get("hasNextPage")), page.get("endCursor")
 
 
 def _nodes(issue: Mapping[str, Any], key: str) -> list[Mapping[str, Any]]:

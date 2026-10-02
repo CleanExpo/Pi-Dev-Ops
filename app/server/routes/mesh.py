@@ -415,7 +415,10 @@ def claim_self(
     ticket. Returns the ticket claimed, or null when the queue is empty/drained."""
     _check_secret(x_pi_ceo_secret)
     _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before self-claiming
-    nodes, repos = mesh_lanes.candidates(_linear_graphql)
+    try:  # an unread queue is unknown, not empty (audit 30/09 #18)
+        nodes, repos = mesh_lanes.candidates(_linear_graphql, strict=True)
+    except mesh_lanes.IncompleteRead:
+        raise HTTPException(503, "Linear could not be read; the queue is unknown, not empty")
     if (repeat := mesh_lanes.repeat_claimed(_get)) is None:
         return {"claimed": None, "reason": "claim history unreadable; not claiming blind"}
     for tk in mesh_lanes.ranked(nodes, _open_claim_ids() | repeat | mesh_requeue.failed_here(_get, body.host)):

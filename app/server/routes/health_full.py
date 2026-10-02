@@ -22,9 +22,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from ..auth import require_auth
 from .health_aggregate import classify, run_with_timeout
 
 
@@ -271,7 +272,7 @@ async def gather_components() -> dict[str, dict[str, Any]]:
     return {name: payload for name, payload in pairs}
 
 
-@router.get("/api/health/full")
+@router.get("/api/health/full", dependencies=[Depends(require_auth)])
 async def health_full() -> JSONResponse:
     components = await gather_components()
     verdict = classify(components)

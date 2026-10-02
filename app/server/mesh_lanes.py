@@ -143,10 +143,11 @@ def repo_of(issue: dict, repos: dict[str, str]) -> Optional[str]:
     return repos.get(issue_project_id(issue) or "")
 
 
-def candidates(graphql) -> tuple[list[dict], dict[str, str]]:
+def candidates(graphql, strict: bool = False) -> tuple[list[dict], dict[str, str]]:
     """Every eligible open candidate, all pages, plus the project -> repo registry.
 
-    ``graphql`` takes one query string and returns the ``data`` object.
+    ``graphql`` takes one query string and returns the ``data`` object. With
+    ``strict`` an incomplete read raises IncompleteRead instead of claiming nothing.
     """
     repos = registry_repos()
     nodes: list[dict] = []
@@ -155,6 +156,8 @@ def candidates(graphql) -> tuple[list[dict], dict[str, str]]:
         try:
             batch, more, cursor = page_of((graphql(query) or {}).get("issues"))
         except IncompleteRead:
+            if strict:
+                raise
             break
         nodes.extend(batch)
         if not more:
@@ -163,6 +166,8 @@ def candidates(graphql) -> tuple[list[dict], dict[str, str]]:
             break
         query = SELF_CLAIM_QUERY.replace(_PAGE_ARGS, f"{_PAGE_ARGS},after:{json.dumps(cursor)}", 1)
     # An incomplete read is refused, never served as the whole queue.
+    if strict:
+        raise IncompleteRead(f"Linear read incomplete after {_MAX_PAGES} pages")
     log.error("mesh candidates: Linear read incomplete after %d pages; claiming nothing", _MAX_PAGES)
     return [], repos
 

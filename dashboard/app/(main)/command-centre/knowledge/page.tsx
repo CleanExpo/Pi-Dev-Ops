@@ -9,7 +9,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { Chakra_Petch, Syne, JetBrains_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
 import { getToolCatalogue } from '@/lib/command-centre/tools/catalogue'
 import { WikiGraphTile } from '@/components/command-centre/wiki-graph/WikiGraphTile'
 import { IntentCatalogTile } from '@/components/command-centre/youtube-intent/IntentCatalogTile'
@@ -19,21 +19,24 @@ import { railFor } from '@/components/command-centre/deck-visual-helpers'
 import shell from '@/components/command-centre/shell.module.css'
 import styles from '@/components/command-centre/command-deck.module.css'
 
-const chakra = Chakra_Petch({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
+// Self-hosted from app/fonts; app/layout.tsx says why.
+const chakra = localFont({
+  src: [
+    { path: '../../../fonts/chakra-petch-400.woff2', weight: '400', style: 'normal' },
+    { path: '../../../fonts/chakra-petch-500.woff2', weight: '500', style: 'normal' },
+    { path: '../../../fonts/chakra-petch-600.woff2', weight: '600', style: 'normal' },
+    { path: '../../../fonts/chakra-petch-700.woff2', weight: '700', style: 'normal' },
+  ],
   variable: '--font-chakra',
   display: 'swap',
 })
-const syne = Syne({
-  weight: ['400', '500', '600', '700', '800'],
-  subsets: ['latin'],
+const syne = localFont({
+  src: [{ path: '../../../fonts/syne-var.woff2', weight: '400 800', style: 'normal' }],
   variable: '--font-syne',
   display: 'swap',
 })
-const jbMono = JetBrains_Mono({
-  weight: ['400', '500', '600'],
-  subsets: ['latin'],
+const jbMono = localFont({
+  src: [{ path: '../../../fonts/jetbrains-mono-var.woff2', weight: '100 800', style: 'normal' }],
   variable: '--font-jbmono',
   display: 'swap',
 })

@@ -230,6 +230,9 @@ def test_a_graphql_error_inside_a_200_is_an_incomplete_read(monkeypatch):
              "pageInfo": {"hasNextPage": True, "endCursor": "c"}}
     pages = iter([{"issues": first}, {"issues": None}])
     assert mesh_lanes.candidates(lambda _q: next(pages))[0] == []
+    pages = iter([{"issues": first}, {"issues": None}])  # claim/self: unknown, not empty -> 503
+    with pytest.raises(AE.IncompleteRead):
+        mesh_lanes.candidates(lambda _q: next(pages), strict=True)
     seq = iter([{"project": {"issues": first}}, {"project": {"issues": None}}])
     with pytest.raises(AE.IncompleteRead):
         list(autonomy_queue.issue_pages(lambda *_a: next(seq), "k", {}))
