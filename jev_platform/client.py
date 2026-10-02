@@ -35,7 +35,7 @@ _BACKSLASHES = re.compile(r"\\{2,}")
 _CSI = re.compile(r"(?:\x1b\[|\x9b)[0-9:;<=>?]*[ -/]*[@-~]")  # ESC[ or the one-character CSI, any SGR syntax
 _BLANKED_CSI = re.compile(r"(?<= )\[[0-9:;<=>?]*[ -/]*[@-~]")  # a written-out ESC already blanked to a space
 _SINGLE = {"n": "\n", "t": "\t", "r": "\r", "b": "\b", "f": "\f", "v": "\v", "a": "\a", "e": "\x1b", "0": "\0"}
-_SINGLE.update({"\n": "", "\r\n": ""})  # round 32: backslash-newline is a line continuation
+_SINGLE.update({"\n": "", "\r\n": "", "\r": ""})  # rounds 32-34: backslash + LF, CRLF or CR continues a line
 _MAX_DEPTH = 6
 
 

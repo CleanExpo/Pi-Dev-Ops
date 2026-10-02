@@ -40,8 +40,9 @@ KEYS += [_NAMED, "sk-review\\N{LATIN SMALL LETTER F}ixtureabcdefgh", json.dumps(
          "AKIAABCD\\\nEFGHIJKLMNOP"]
 KEYS += ["abc\\sk-reviewfixtureabcdefgh", "abc\\AKIAABCDEFGHIJKLMNOP",  # round 33: raw + every stage
          "abc\\u005c\\u0073k-reviewfixtureabcdefgh", "abc\\u005c\\u0041KIAABCDEFGHIJKLMNOP"]
+KEYS += ["sk-re\\\rviewfixtureabcdefgh", "AKIAABCD\\\rEFGHIJKLMNOP", json.dumps("sk-re\\\rviewfixtureabcdefgh")]  # round 34
 OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc", "\\niicrc", "\\x1biicrc", "\\u0069icrc",
-         "\\N{LATIN SMALL LETTER I}icrc", "ii\\\ncrc", "abc\\iicrc", "abc\\u005c\\u0069icrc"]  # refused by ask.sensitive only
+         "\\N{LATIN SMALL LETTER I}icrc", "ii\\\ncrc", "abc\\iicrc", "abc\\u005c\\u0069icrc", "ii\\\rcrc"]  # refused by ask.sensitive only
 CLEAN = ["task-abcdefghij", "costs-abcdefghijk", "On 2026-09-29 the job ran.", "masks-and-gloves", "see array [1m] values",
          "C:\\Users\\data\\report.txt", "\\d+\\s*\\w+ matches", "\\N{NO SUCH NAME}sk"]
 

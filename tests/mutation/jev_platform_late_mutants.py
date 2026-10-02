@@ -55,7 +55,8 @@ GUARD_MUTANTS = _GUARD + [
      '    blanked = _BLANKED_CSI.sub(" ", _ESCAPE.sub(" ", (lambda x: x)('),
     # round 32: named escapes decode to their letter; backslash-newline (LF or CRLF) is a continuation
     ('client.py', '            return unicodedata.lookup(e[2:-1])', '            return " "'),
-    ('client.py', '_SINGLE.update({"\\n": "", "\\r\\n": ""})', '_SINGLE.update({"\\r\\n": ""})'),
-    ('client.py', '_SINGLE.update({"\\n": "", "\\r\\n": ""})', '_SINGLE.update({"\\n": ""})'),
+    ('client.py', '_SINGLE.update({"\\n": "", "\\r\\n": "", "\\r": ""})', '_SINGLE.update({"\\r\\n": "", "\\r": ""})'),
+    ('client.py', '_SINGLE.update({"\\n": "", "\\r\\n": "", "\\r": ""})', '_SINGLE.update({"\\n": "", "\\r": ""})'),
+    ('client.py', '_SINGLE.update({"\\n": "", "\\r\\n": "", "\\r": ""})', '_SINGLE.update({"\\n": "", "\\r\\n": ""})'),  # round 34: lone CR
     ('client.py', '[0-7]{1,3}|\\r\\n|.)', '[0-7]{1,3}|.)'),
 ]
