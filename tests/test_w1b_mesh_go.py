@@ -217,3 +217,29 @@ def test_an_incomplete_linear_read_is_refused_not_served_partial(monkeypatch):
     assert IP._agent_ready_tickets() == []
     page = {"nodes": [_issue("UNI-2801", project=ato)], "pageInfo": {"hasNextPage": True}}
     assert IP._agent_ready_tickets() == []
+
+
+def test_a_graphql_error_inside_a_200_is_an_incomplete_read(monkeypatch):
+    # Linear nulls a connection on a GraphQL error; that is not an empty last page.
+    from app.server import autonomy_eligibility as AE
+    from app.server import autonomy_queue, mesh_lanes
+    from swarm import intake_producers as IP
+    from swarm import linear_tools
+    monkeypatch.setenv("TAO_TICKET_TOKEN_CAP", "0")
+    first = {"nodes": [_issue("UNI-X", labels=("mesh:auto",), project=None)],
+             "pageInfo": {"hasNextPage": True, "endCursor": "c"}}
+    pages = iter([{"issues": first}, {"issues": None}])
+    assert mesh_lanes.candidates(lambda _q: next(pages))[0] == []
+    seq = iter([{"project": {"issues": first}}, {"project": {"issues": None}}])
+    with pytest.raises(AE.IncompleteRead):
+        list(autonomy_queue.issue_pages(lambda *_a: next(seq), "k", {}))
+    monkeypatch.setattr(linear_tools, "_resolve_team", lambda _t: {"id": "team"})
+    monkeypatch.setattr(linear_tools, "_gql", lambda _q, _v=None: {"data": {"team": {"issues": None}}})
+    assert IP._agent_ready_tickets() == []
+
+
+def test_a_nulled_guard_connection_refuses_the_claim():
+    issue = _issue("UNI-2801", project="20bb0ca6-0176-46c4-be4c-cd34ac89767d")
+    from app.server.autonomy_eligibility import claim_refusal
+    assert claim_refusal(issue) is None
+    assert claim_refusal({**issue, "comments": None}) == "guard-data-incomplete"

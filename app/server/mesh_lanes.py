@@ -36,7 +36,7 @@ from pydantic import BaseModel
 from . import mesh_fleet, mesh_priority
 from .autonomy_eligibility import (
     AUTONOMY_LABEL, GUARD_FIELDS, GUARD_WINDOW, MAX_STARTS_PER_WINDOW, MESH_STATES,
-    claim_refusal, issue_is_claimable,
+    IncompleteRead, claim_refusal, issue_is_claimable, page_of,
     issue_label_names, issue_project_id, registry_repos,
 )
 
@@ -152,11 +152,12 @@ def candidates(graphql) -> tuple[list[dict], dict[str, str]]:
     nodes: list[dict] = []
     query = SELF_CLAIM_QUERY
     for _ in range(_MAX_PAGES):
-        issues = (graphql(query) or {}).get("issues") or {}
-        nodes.extend(issues.get("nodes") or [])
-        page = issues.get("pageInfo") or {}
-        cursor = page.get("endCursor")
-        if not page.get("hasNextPage"):
+        try:
+            batch, more, cursor = page_of((graphql(query) or {}).get("issues"))
+        except IncompleteRead:
+            break
+        nodes.extend(batch)
+        if not more:
             return [n for n in nodes if eligible(n, repos)], repos
         if not cursor:
             break

@@ -101,18 +101,20 @@ def should_run(state: dict) -> bool:
 
 def _team_issue_pages(gql, query: str, variables: dict) -> list[dict]:
     """Every node across all pages; [] on an error or an incomplete read, never a partial queue."""
+    from app.server.autonomy_eligibility import IncompleteRead, page_of  # noqa: PLC0415
     nodes: list[dict] = []
     after = None
     for _ in range(_MAX_PAGES):
         res = gql(query, {**variables, "after": after})
         if "error" in res or res.get("errors"):
             return []
-        issues = ((res.get("data") or {}).get("team") or {}).get("issues") or {}
-        nodes.extend(issues.get("nodes") or [])
-        page = issues.get("pageInfo") or {}
-        if not page.get("hasNextPage"):
+        try:
+            batch, more, after = page_of(((res.get("data") or {}).get("team") or {}).get("issues"))
+        except IncompleteRead:
+            return []
+        nodes.extend(batch)
+        if not more:
             return nodes
-        after = page.get("endCursor")
         if not after:
             return []  # more pages but no cursor
     return []  # page cap hit

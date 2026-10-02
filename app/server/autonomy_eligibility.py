@@ -52,6 +52,23 @@ GUARD_FIELDS = (
 )
 
 
+class IncompleteRead(RuntimeError):
+    """A Linear queue read that cannot be proven whole. Callers claim nothing."""
+
+
+def page_of(issues: Any) -> tuple[list[Any], bool, Any]:
+    """``(nodes, has_next, cursor)`` for one page of an issues connection.
+
+    A GraphQL error inside an HTTP 200 nulls the connection (pageInfo is non-null in
+    Linear's schema, so an error there nulls ``issues`` itself); read as an empty
+    last page it would serve a partial queue. A null connection raises IncompleteRead.
+    """
+    if not isinstance(issues, Mapping):
+        raise IncompleteRead("Linear returned no issues connection")
+    page = issues.get("pageInfo") or {}
+    return list(issues.get("nodes") or []), bool(page.get("hasNextPage")), page.get("endCursor")
+
+
 def _nodes(issue: Mapping[str, Any], key: str) -> list[Mapping[str, Any]]:
     conn = issue.get(key)
     nodes = (conn or {}).get("nodes") if isinstance(conn, Mapping) else None
@@ -103,6 +120,8 @@ def claim_refusal(issue: Mapping[str, Any], now: datetime | None = None) -> str 
     now = now or datetime.now(timezone.utc)
     if any(name.startswith(BLOCKED_REASON_PREFIX) for name in issue_label_names(issue)):
         return "blocked-reason"
+    if any(k in issue and not isinstance(issue[k], Mapping) for k in _GUARD_CONNECTIONS):
+        return "guard-data-incomplete"  # selected but nulled, e.g. a GraphQL error
     if any(((issue.get(k) or {}).get("pageInfo") or {}).get("hasNextPage") for k in _GUARD_CONNECTIONS
            if isinstance(issue.get(k), Mapping)):
         return "guard-data-incomplete"

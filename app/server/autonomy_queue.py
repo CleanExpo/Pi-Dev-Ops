@@ -25,7 +25,9 @@ import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
-from app.server.autonomy_eligibility import GUARD_FIELDS, MESH_STATES, REPEAT_CLAIM_LABEL
+from app.server.autonomy_eligibility import (
+    GUARD_FIELDS, MESH_STATES, REPEAT_CLAIM_LABEL, IncompleteRead, page_of,
+)
 
 log = logging.getLogger("pi-ceo.autonomy")
 
@@ -70,16 +72,14 @@ def issue_pages(gql: Callable[..., dict], api_key: str, variables: dict) -> Iter
     after = None
     for _ in range(MAX_PAGES):
         data = gql(api_key, TODO_ISSUES_QUERY, {**variables, "after": after})
-        issues = (data.get("project") or {}).get("issues") or {}
-        yield from issues.get("nodes") or []
-        page = issues.get("pageInfo") or {}
-        if not page.get("hasNextPage"):
+        nodes, more, after = page_of((data.get("project") or {}).get("issues"))
+        yield from nodes
+        if not more:
             return
-        after = page.get("endCursor")
         if not after:
-            raise RuntimeError("Linear said more pages but gave no cursor")
+            raise IncompleteRead("Linear said more pages but gave no cursor")
     # An incomplete read is refused, never served as the whole queue.
-    raise RuntimeError(f"Linear queue read exceeded {MAX_PAGES} pages")
+    raise IncompleteRead(f"Linear queue read exceeded {MAX_PAGES} pages")
 
 
 def _autonomy():
