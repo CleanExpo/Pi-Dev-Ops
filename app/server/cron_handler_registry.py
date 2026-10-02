@@ -44,6 +44,7 @@ HANDLERS: dict[str, tuple[str, str]] = {
     "mesh_dispatch": (".cron_fire_mesh", "_fire_mesh_dispatch_trigger"),     # Nexus Mesh P2
     "staging_pull": (".cron_fire_wiki", "_fire_staging_pull_trigger"),       # M4 front door
     "youtube_transcripts": (".cron_fire_wiki", "_fire_youtube_transcripts_trigger"),  # M4
+    "ticket_sweeper": (".ticket_sweeper", "_fire_ticket_sweeper_trigger"),   # audit #17
 }
 
 
