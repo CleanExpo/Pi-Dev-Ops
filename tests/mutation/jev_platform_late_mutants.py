@@ -24,4 +24,7 @@ GUARD_MUTANTS = _GUARD + [
     # round 24: re.ASCII, or re.I folds U+212A/U+0130/U+0131/U+017F into the ASCII edge classes
     ('client.py', 're.compile(p, re.I | re.ASCII) for p in (  # ASCII', 're.compile(p, re.I) for p in (  # ASCII'),
     ('ask.py', '[re.compile(p, re.I | re.ASCII) for p in (client._EDGE', '[re.compile(p, re.I) for p in (client._EDGE'),
+    # round 25: one private snapshot is screened and sent on every retry (test_jev_platform_retry_snapshot.py)
+    ('client.py', '    body = json.loads(json.dumps(body))  # round 25', '    body = body  # round 25'),
+    ('scout.py', '    body = json.loads(json.dumps(body))  # round 25', '    body = body  # round 25'),
 ]

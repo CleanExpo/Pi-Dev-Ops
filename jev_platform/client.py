@@ -127,6 +127,7 @@ def validate(data, rule_ids: list[str]) -> dict | None:
 
 def send(body: dict, post, budget: Budget, sleep=time.sleep) -> dict:
     """{'data': json} on HTTP 200, else {'error': reason}. Budget reserved before every attempt."""
+    body = json.loads(json.dumps(body))  # round 25: screen and send one private snapshot, never the caller's dict
     if credential_payload(body):  # round 22: no key material leaves through any Jev transport
         return {"error": "credential_in_request"}
     if len(json.dumps(body).encode()) > MAX_REQUEST_BYTES:

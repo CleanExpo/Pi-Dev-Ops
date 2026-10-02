@@ -21,6 +21,7 @@ MODEL = "jev-latest"
 
 def guarded_send(body: dict, post, budget: client.Budget) -> dict:
     """client.send, after a last screen of the whole serialised body."""
+    body = json.loads(json.dumps(body))  # round 25: the screened bytes are the bytes sent, on every retry
     if ask.sensitive(json.dumps(body)) or ask.sensitive_payload(body):  # round 20: decoded strings too
         return {"error": "refused: sensitive payload"}
     return client.send(body, post, budget)
