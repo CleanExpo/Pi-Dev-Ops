@@ -15,8 +15,10 @@ import re
 import time
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+
+from ..auth import require_auth
 
 
 log = logging.getLogger("pi-ceo.health_ready")
@@ -139,7 +141,7 @@ def public_ready_payload(repo_url: str, result: dict[str, Any]) -> dict[str, Any
     return payload
 
 
-@router.get("/api/health/ready")
+@router.get("/api/health/ready", dependencies=[Depends(require_auth)])
 async def health_ready() -> JSONResponse:
     repo_url = configured_repo_url()
     payload = public_ready_payload(repo_url, await run_ls_remote(repo_url))

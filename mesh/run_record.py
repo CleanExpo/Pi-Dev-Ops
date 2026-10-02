@@ -24,10 +24,15 @@ from __future__ import annotations
 
 import os
 import re
+import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any, Callable, Optional
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import agent_sandbox  # noqa: E402
 
 # run_claim's ids are uuid4().hex[:8]. Anything else never becomes a path.
 _RUN_ID = re.compile(r"[0-9a-f]{8}")
@@ -137,10 +142,12 @@ class RunRecord:
                 self.path = path
         self.started = time.monotonic()
         self.proc: Optional[subprocess.Popen] = None
+        self.pgid: Optional[int] = None  # the agent's own process group, POSIX only
         self.reaped: Optional[bool] = None  # set by stop(): False = the agent may still be running
 
     def popen(self, cmd: list, cwd: str) -> subprocess.Popen:
-        """Start the agent with stdout and stderr in this run's log.
+        """Start the agent with stdout and stderr in this run's log, an allowlisted
+        environment, and (on POSIX) a process group of its own for stop() to end.
 
         An Exception from Popen means no agent is running: Popen reaps a child
         that failed to exec. An interrupt can land after the child started but
@@ -148,7 +155,12 @@ class RunRecord:
         record cannot see; stop() then reports it as not reaped.
         """
         try:
-            self.proc = subprocess.Popen(cmd, cwd=cwd, stdout=self._log, stderr=subprocess.STDOUT)
+            self.proc = subprocess.Popen(cmd, cwd=cwd, stdout=self._log, stderr=subprocess.STDOUT,
+                                         env=agent_sandbox.agent_env(),
+                                         start_new_session=agent_sandbox.GROUPS)
+            pid = getattr(self.proc, "pid", None)
+            if agent_sandbox.GROUPS and isinstance(pid, int):
+                self.pgid = pid  # start_new_session made the agent its group's leader
         except Exception:
             raise
         except BaseException:
@@ -157,10 +169,12 @@ class RunRecord:
         return self.proc
 
     def stop(self) -> None:
-        """End a still-running agent and reap it, then close the log.
+        """End a still-running agent and everything it started, reap it, then close the log.
 
         A claim must not be reported terminal, and its worktree removed, while
-        the agent is still executing in it. Never raises an Exception. An
+        the agent or any process it left behind is still executing in it: the
+        whole group is signalled, and `reaped` is True only once the group is
+        proven empty. Never raises an Exception. An
         interrupt arriving during any step does not cut shutdown short: it is
         held until every step has been attempted, then re-raised.
         """
@@ -172,13 +186,15 @@ class RunRecord:
             exited: list = []
             _attempt(lambda: exited.append(proc.poll() is not None), held)
             if exited != [True]:  # still running, or cannot tell
+                _attempt(lambda: agent_sandbox.signal_group(self.pgid, signal.SIGTERM), held)
                 _attempt(proc.terminate, held)
                 if not _attempt(lambda: proc.wait(timeout=10), held):
                     _attempt(proc.kill, held)
                     _attempt(proc.wait, held)
             gone: list = []
             _attempt(lambda: gone.append(proc.poll() is not None), held)
-            self.reaped = gone == [True]
+            _attempt(lambda: gone.append(agent_sandbox.end_group(self.pgid)), held)
+            self.reaped = gone == [True, True]
         _attempt(self.close, held)
         if held:
             raise held[0]
@@ -221,16 +237,15 @@ def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: st
     caller's cleanup never runs while the agent is still executing. The stop
     sits in `finally`, so nothing a handler does can skip it. The record is
     appended to `holder` as soon as it exists, so a caller whose call is cut
-    short by an interrupt still learns whether the agent was reaped.
+    short by an interrupt still learns whether the agent was reaped. A run that
+    finished is stopped too: the agent's exit does not end what it started.
     """
     rec = None
-    finished = False
     try:
         rec = RunRecord(run_id, base_dir)
         if holder is not None:
             holder.append(rec)
         wait(rec.popen(make_cmd(), cwd), plan)
-        finished = True
     except Exception as exc:  # noqa: BLE001 — reported as the claim's failure, never re-raised
         plan["state"] = "failed"
         plan["error_code"] = "runner_exception_os" if isinstance(exc, OSError) else "runner_exception"
@@ -240,7 +255,7 @@ def run_agent(make_cmd: Callable[[], list], cwd: str, base_dir: Path, run_id: st
         plan["error_code"] = "runner_exception"
         raise
     finally:
-        if rec is not None and not finished:
+        if rec is not None:
             rec.stop()
     return rec
 
