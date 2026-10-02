@@ -128,6 +128,23 @@ async def test_503_with_red_component_sends_telegram(monkeypatch, telegram, tick
 
 
 @pytest.mark.asyncio
+async def test_linear_ticket_write_runs_off_the_event_loop(monkeypatch, telegram):
+    # The Linear upsert is sync urllib; on the loop it would stall every other task.
+    import threading
+    monkeypatch.delenv("PORT", raising=False)
+    _serve_503(monkeypatch, _red_body("margot_route"), [])
+    seen: dict = {"loop": threading.get_ident()}
+
+    def fake_upsert(title, body, *, owner, founder_only, log):  # noqa: ARG001
+        seen["upsert"] = threading.get_ident()
+        return "RA-TEST"
+
+    monkeypatch.setattr(cw, "_upsert_red_linear_ticket", fake_upsert)
+    await cw._watchdog_health_full(LOG)
+    assert "upsert" in seen and seen["upsert"] != seen["loop"]
+
+
+@pytest.mark.asyncio
 async def test_503_with_red_component_upserts_one_owned_ticket(monkeypatch, telegram, tickets):
     monkeypatch.delenv("PORT", raising=False)
     _serve_503(monkeypatch, _red_body("margot_route"), [])

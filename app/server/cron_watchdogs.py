@@ -1087,7 +1087,8 @@ async def _watchdog_health_full(log) -> None:
     global _health_red_components
 
     # urlopen is sync — run it off the loop.
-    body = await asyncio.get_running_loop().run_in_executor(None, fetch_health_full, log)
+    loop = asyncio.get_running_loop()
+    body = await loop.run_in_executor(None, fetch_health_full, log)
     if not isinstance(body, dict):
         return
     components = body.get("components") or {}
@@ -1109,7 +1110,7 @@ async def _watchdog_health_full(log) -> None:
         last = _health_alert_cooldowns.get(name, 0.0)
         if now - last <= _HEALTH_COOLDOWN_S:
             if name in _health_ticket_unfiled:
-                _file_health_ticket(name, components.get(name) or {}, log)
+                await loop.run_in_executor(None, _file_health_ticket, name, components.get(name) or {}, log)
             continue
         err = (components.get(name) or {}).get("error", "")
         msg = (
@@ -1117,7 +1118,8 @@ async def _watchdog_health_full(log) -> None:
             + (f"\nerror: <code>{err}</code>" if err else "")
         )
         sent = _health_full_send_telegram(msg, log)
-        _file_health_ticket(name, components.get(name) or {}, log)
+        # Linear writes are sync urllib — run them off the loop, like the fetch above.
+        await loop.run_in_executor(None, _file_health_ticket, name, components.get(name) or {}, log)
         _health_alert_cooldowns[name] = now
         log.warning("health_full watchdog: %s RED — telegram %s", name, "sent" if sent else "NOT sent")
 
