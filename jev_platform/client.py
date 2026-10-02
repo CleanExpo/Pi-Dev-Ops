@@ -28,8 +28,8 @@ _EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
 # logs) and terminal colour codes. Every screen reads: a reading with each escape blanked (an escape
 # that decodes to a letter still separates); and the escapes DECODED to a fixpoint, with colour codes removed both
 # as a gap (a key after a code) and as nothing (a code inside a key). Text still decoding after _MAX_DEPTH rounds
-# is refused outright. Decoding never alters a key (no backslash in its body) or turns the character before it
-# into a letter, so the decoded readings already see everything the raw text shows (round 32).
+# is refused outright. The raw text and every intermediate stage are read too: decoding can join a letter onto a
+# key's front (abc\sk-... becomes abcsk-...), erasing the boundary an earlier stage still shows (round 33).
 _ESCAPE = re.compile(r"\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|N\{[^}]*\}|[0-7]{1,3}|\r\n|.)", re.S)
 _BACKSLASHES = re.compile(r"\\{2,}")
 _CSI = re.compile(r"(?:\x1b\[|\x9b)[0-9:;<=>?]*[ -/]*[@-~]")  # ESC[ or the one-character CSI, any SGR syntax
@@ -54,12 +54,15 @@ def _decode_one(m: re.Match) -> str:
     return _SINGLE.get(e, e)
 
 
-def _decoded(text: str) -> str | None:
-    """Escapes decoded until nothing changes; None when still changing after _MAX_DEPTH rounds."""
+def _stages(text: str) -> list[str] | None:
+    """The text and each decoding of it until nothing changes; None when still changing after _MAX_DEPTH rounds.
+    Every stage is screened: decoding can erase a boundary an earlier stage still shows (abc\\sk-, round 33)."""
+    stages = [text]
     for _ in range(_MAX_DEPTH):
         nxt = _ESCAPE.sub(_decode_one, text)
         if nxt == text:
-            return text
+            return stages
+        stages.append(nxt)
         text = nxt
     return None
 
@@ -70,10 +73,10 @@ def screened(text: str, decode: bool = True) -> tuple[str, ...]:
     blanked = _BLANKED_CSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\", text)))
     if not decode:
         return text, blanked
-    decoded = _decoded(text)
-    if decoded is None:
-        return blanked, "sk-unsettled-escape-depth"  # fail closed: matches the API-key screen
-    return blanked, _CSI.sub(" ", decoded), _CSI.sub("", decoded)
+    stages = _stages(text)
+    if stages is None:
+        return text, blanked, "sk-unsettled-escape-depth"  # fail closed: matches the API-key screen
+    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))
 
 
 _API_KEYS = re.compile(_EDGE + r"(?:sk-|ts-|ghp_)[\w-]{8,}")
