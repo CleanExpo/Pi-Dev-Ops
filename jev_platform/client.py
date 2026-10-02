@@ -11,6 +11,7 @@ import threading
 import time
 import unicodedata
 import urllib.request
+import warnings
 
 from jev_platform import policy
 
@@ -54,16 +55,32 @@ def _decode_one(m: re.Match) -> str:
     return _SINGLE.get(e, e)
 
 
+def _python_decode(text: str) -> str:
+    """Python's own unicode_escape reading (round 36): it keeps a backslash before a lone CR that the line-
+    continuation rule deletes, so it can leave a key at an edge the other reading joins onto a letter."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        try:
+            return text.encode("latin-1", "backslashreplace").decode("unicode_escape")
+        except UnicodeDecodeError:
+            return text
+
+
 def _stages(text: str) -> list[str] | None:
-    """The text and each decoding of it until nothing changes; None when still changing after _MAX_DEPTH rounds.
-    Every stage is screened: decoding can erase a boundary an earlier stage still shows (abc\\sk-, round 33)."""
-    stages = [text]
+    """The text and every decoding of it, by this module's decoder and by Python's, until nothing new appears;
+    None when still changing after _MAX_DEPTH rounds. Every stage is screened: decoding can erase a boundary an
+    earlier stage still shows (abc\\sk-, round 33), and the two decoders disagree at line continuations."""
+    stages, frontier = [text], [text]
     for _ in range(_MAX_DEPTH):
-        nxt = _ESCAPE.sub(_decode_one, text)
-        if nxt == text:
+        nxt = []
+        for t in frontier:
+            for d in (_ESCAPE.sub(_decode_one, t), _python_decode(t)):
+                if d not in stages:
+                    stages.append(d)
+                    nxt.append(d)
+        if not nxt:
             return stages
-        stages.append(nxt)
-        text = nxt
+        frontier = nxt
     return None
 
 
