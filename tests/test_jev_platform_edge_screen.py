@@ -19,7 +19,9 @@ KEYS = ["AWS key: AKIAABCDEFGHIJKLMNOP已撤销", "已AKIAABCDEFGHIJKLMNOP", "_A
         "_eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.sig_"]
 FOLDS = ["\u212a", "\u0130", "\u0131", "\u017f"]  # round 24: re.I alone treats these as ASCII letters
 KEYS += [f"AWS key: AKIAABCDEFGHIJKLMNOP{c}" for c in FOLDS] + [f"{c}sk-reviewfixtureabcdefgh" for c in FOLDS]
-OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc"]  # refused by ask.sensitive only
+ESCAPES = ["\\n", "\\t", "\\r", "\\u000a"]  # round 28: literal JSON escapes, as in a logged message
+KEYS += [f"{{\"message\": \"{e}sk-reviewfixtureabcdefgh\"}}" for e in ESCAPES] + [f"{e}AKIAABCDEFGHIJKLMNOP" for e in ESCAPES]
+OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc", "\\niicrc"]  # refused by ask.sensitive only
 CLEAN = ["task-abcdefghij", "costs-abcdefghijk", "On 2026-09-29 the job ran.", "masks-and-gloves"]
 
 

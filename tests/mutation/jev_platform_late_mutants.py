@@ -17,7 +17,10 @@ GUARD_MUTANTS = _GUARD + [
      '    if False:\n        return 0, None, 0.0'),
     ('evals/jev_constitution/harness.py', '"HTTP error body not read"', 'e.read()[:300].decode(errors="replace")'),
     # round 23: edges are ASCII letter/digit lookarounds, never \\b (test_jev_platform_edge_screen.py)
-    ('client.py', '_EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"', '_EDGE, _END = r"\\b", r"\\b"'),
+    ('client.py', '_EDGE = r"(?:(?<![A-Za-z0-9])|(?<=\\\\[bfnrt])|(?<=\\\\u[0-9A-Fa-f]{4}))"\n_END = r"(?![A-Za-z0-9])"',
+     '_EDGE = r"\\b"\n_END = r"\\b"'),
+    # round 28: a literal JSON escape starts a token (test_jev_platform_edge_screen.py ESCAPES)
+    ('client.py', '_EDGE = r"(?:(?<![A-Za-z0-9])|(?<=\\\\[bfnrt])|(?<=\\\\u[0-9A-Fa-f]{4}))"', '_EDGE = r"(?<![A-Za-z0-9])"'),
     ('client.py', 'r"AKIA[0-9A-Z]{16}" + _END', 'r"AKIA[0-9A-Z]{16}\\b"'),
     ('client.py', 're.compile(_EDGE + r"[0-9a-fA-F]{32,}" + _END)', 're.compile(r"\\b[0-9a-fA-F]{32,}\\b")'),
     ('ask.py', 'client._EDGE + r"iicrc" + client._END', 'r"\\biicrc\\b"'),

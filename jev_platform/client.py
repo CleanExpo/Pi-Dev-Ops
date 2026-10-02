@@ -22,7 +22,9 @@ REQUEST_TIMEOUT = 30.0
 REDACTION_VERSION = "redact-1"
 # Edges are "not an ASCII letter or digit", never \b: \b is Unicode-aware and counts "_" as a word
 # character, so _sk-..._ or a key touching a CJK letter had no boundary (round 23).
-_EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
+# Round 28: a literal JSON escape (\n, \t, \u000a ...) also starts a token, or a logged key hides behind its letter.
+_EDGE = r"(?:(?<![A-Za-z0-9])|(?<=\\[bfnrt])|(?<=\\u[0-9A-Fa-f]{4}))"
+_END = r"(?![A-Za-z0-9])"
 _API_KEYS = re.compile(_EDGE + r"(?:sk-|ts-|ghp_)[\w-]{8,}")
 _PATTERNS = [
     re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),

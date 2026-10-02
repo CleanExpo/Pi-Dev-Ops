@@ -14,7 +14,10 @@ from jev_scale_support import GOOD, TEMPLATES, FakeGemini, Recorder, budget, fte
 from jev_platform import agent, ask, gemini, scout
 
 SECRET = "sk-reviewfixtureabcdefgh"  # the id round 19 reported
-HIDDEN = [f"before\n{SECRET}", f"before\t{SECRET}"]
+# Round 28 taught the JSON-text screen to see a key after a literal \n, so the decoded-only case is now a key
+# with a non-ASCII letter in its body: json.dumps escapes it to \u00e9, which cuts the key below 8 characters.
+SECRET_U = "sk-revi\u00e9wfixtureabcdefgh"
+HIDDEN = [f"before\n{SECRET_U}", f"before\t{SECRET_U}"]
 
 
 @pytest.mark.parametrize("text", HIDDEN)
@@ -51,8 +54,8 @@ def test_gemini_refuses_before_count_tokens(text):
 
 def test_the_agent_catalogue_never_sends_a_sensitive_template_id():
     """The round 19 id reaches Gemini through agent.system_text, one per line after a newline."""
-    system = agent.system_text({"files": {"src/a.ts": "0" * 64}, "questions": {SECRET: TEMPLATES["known-issue"]}})
-    assert f"\n{SECRET} " in system and not ask.sensitive(json.dumps(system))  # control: the JSON screen is blind
+    system = agent.system_text({"files": {"src/a.ts": "0" * 64}, "questions": {SECRET_U: TEMPLATES["known-issue"]}})
+    assert f"\n{SECRET_U} " in system and not ask.sensitive(json.dumps(system))  # control: the JSON screen is blind
     fake = FakeGemini([ftext("hi")])
     body = gemini.request_body([{"role": "user", "parts": [{"text": "go"}]}], system)
     out = gemini.call(body, "gk-test-not-a-real-key", gemini.GeminiBudget(0.1, dict(gemini.PRICES[gemini.MODEL])),
