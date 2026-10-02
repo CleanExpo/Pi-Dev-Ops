@@ -44,6 +44,9 @@ KEYS += ["sk-re\\\rviewfixtureabcdefgh", "AKIAABCD\\\rEFGHIJKLMNOP", json.dumps(
 _R36 = ["abc\\\r\\u0073k-reviewfixtureabcdefgh", "abc\\\r\n\\u0073k-reviewfixtureabcdefgh",  # round 36: Python's
         "abc\\\r\\x41KIAABCDEFGHIJKLMNOP", "abc\\\r\n\\x41KIAABCDEFGHIJKLMNOP"]  # own unicode_escape reading
 KEYS += _R36 + [json.dumps(t) for t in _R36] + [json.dumps(json.dumps(t)) for t in _R36]
+_BAD = "\\x4 "  # Python's unicode_escape refuses the whole text, so only this module's decoder reads the rest
+KEYS += [_BAD + "\\u0073k-reviewfixtureabcdefgh", _BAD + "\\N{LATIN SMALL LETTER S}k-reviewfixtureabcdefgh",
+         _BAD + "sk-re\\\nviewfixtureabcdefgh", "abc\\ts-reviewfixtureabcdefgh"]  # last: only the raw text shows it
 OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc", "\\niicrc", "\\x1biicrc", "\\u0069icrc",
          "\\N{LATIN SMALL LETTER I}icrc", "ii\\\ncrc", "abc\\iicrc", "abc\\u005c\\u0069icrc", "ii\\\rcrc",
          "abc\\\r\\u0069icrc", "abc\\\r\n\\u0069icrc"]  # refused by ask.sensitive only
