@@ -34,18 +34,20 @@ from typing import Callable
 Api = Callable[..., dict]
 
 
-def _readable(api: Api) -> "dict | None":
+def _readable(api: Api, failed: Callable[[object], object] = lambda response: None) -> "dict | None":
     """The fleet snapshot, or None when it cannot be trusted.
 
     Two independent signals, because the read can fail at two layers:
     `_api` renders any HTTP or transport error as `{"error": ...}`, and the
     server sets `degraded` when one of its four Supabase sources failed even
-    though the request itself returned 200.
+    though the request itself returned 200. A snapshot without its `claims` and `agents`
+    lists (`{}`, or an error object where rows belong) carries no claim evidence either.
+    `failed` is shown the response it refused.
     """
     fleet = api("GET", "/api/mesh/fleet")
-    if not isinstance(fleet, dict):
-        return None
-    if fleet.get("error") or fleet.get("degraded"):
+    if (not isinstance(fleet, dict) or fleet.get("error") or fleet.get("degraded")
+            or not all(isinstance(fleet.get(key), list) for key in ("claims", "agents"))):
+        failed(fleet)
         return None
     return fleet
 
@@ -57,9 +59,10 @@ def _rows(fleet: dict, key: str) -> list:
     return [row for row in value if isinstance(row, dict)] if isinstance(value, list) else []
 
 
-def my_claims(api: Api, host: str) -> "list[dict] | None":
+def my_claims(api: Api, host: str,
+              failed: Callable[[object], object] = lambda response: None) -> "list[dict] | None":
     """Open claims for `host`, or None when the fleet could not be read."""
-    fleet = _readable(api)
+    fleet = _readable(api, failed)
     if fleet is None:
         return None
     return [c for c in _rows(fleet, "claims")
@@ -74,7 +77,20 @@ def active_agent_count(api: Api, host: str) -> "int | None":
     return sum(1 for a in _rows(fleet, "agents") if a.get("machine") == host)
 
 
-def next_work(api: Api, host: str) -> list[dict]:
+# A 4xx the server chose to send is a refusal; 404 is Railway's "Application not found"
+# edge page during an outage, and 408/429 are the server too busy to answer.
+_NOT_A_REFUSAL = ("HTTP 404", "HTTP 408", "HTTP 429")
+
+
+def _failure(response: object) -> str:
+    """Rejected when the server refused the call, unavailable when it was not reached."""
+    error = str(response.get("error") or "") if isinstance(response, dict) else ""
+    refused = error.startswith("HTTP 4") and not error.startswith(_NOT_A_REFUSAL)
+    return "rejected" if refused else "unavailable"
+
+
+def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outcome: None,
+              contact: Callable[[], object] = lambda: None) -> list[dict]:
     """Use assigned work first, otherwise atomically self-claim a mesh:auto ticket.
 
     KNOWN GAP — only the self-claim path carries the ticket's brief. `/claim/self`
@@ -86,12 +102,27 @@ def next_work(api: Api, host: str) -> list[dict]:
     GET /api/mesh/claims server-side from Linear, which is its own change — the
     endpoint would start returning ticket text to any node holding the mesh secret.
     Do not enable dispatch expecting work to happen until that lands.
+
+    `report` hears one outcome per poll — unavailable, rejected, empty or assigned —
+    because all four used to return [] alike, so an outage read as an empty queue.
+    `contact` hears each call the server answered successfully, even when a later one fails.
     """
-    claims = my_claims(api, host)
+    claims = my_claims(api, host, lambda response: report(_failure(response)))
     if claims is None:
         return []          # fleet unreadable: hold, never self-claim on a guess
+    contact()
     if claims:
+        report("assigned")
         return claims
     response = api("POST", "/api/mesh/claim/self", {"host": host})
-    claimed = response.get("claimed")
+    if not isinstance(response, dict) or response.get("error"):
+        report(_failure(response))
+        return []
+    claimed = response.get("claimed", False)  # absent is no answer; null is "nothing to claim"
+    if not (claimed is None or (isinstance(claimed, dict) and isinstance(claimed.get("linear_id"), str)
+                                and claimed["linear_id"])):
+        report("unavailable")
+        return []
+    contact()
+    report("assigned" if claimed else "empty")
     return [claimed] if claimed else []

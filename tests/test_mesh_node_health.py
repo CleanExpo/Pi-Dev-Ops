@@ -173,7 +173,7 @@ def test_a_stuck_marker_that_cannot_be_written_never_lets_the_runner_exit(tmp_pa
         path.write_text(outcome)
     monkeypatch.setattr(ri.self_update, "mark_stuck", mark)
     rt = types.SimpleNamespace(HOST="n", POLL_INTERVAL=30, stuck_file=lambda: tmp_path / "STUCK",
-                               write_state=lambda lid, state: states.append(state),
+                               write_state=lambda lid, state: states.append(state), LOG=ri.Log(),
                                time=types.SimpleNamespace(sleep=sleeps.append))
     health = types.SimpleNamespace(state="healthy")
     assert ri.idle(rt, _StuckUpdater(), health, []) == 0

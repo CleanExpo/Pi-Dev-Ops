@@ -50,6 +50,12 @@ def run_log() -> str:
         shutil.rmtree(scratch, ignore_errors=True)
 
 
+def untrusted(repo_dir: Path, agent_cmd: str) -> str:
+    """The hold reason for a workspace Claude Code has not trusted, and its fix."""
+    return (f"agent workspace not trusted: re-run mesh/bootstrap.sh, "
+            f"or run `{agent_cmd}` once in {repo_dir} and accept")
+
+
 def agent_writes(repo_dir: Path, agent_cmd: str,
                  run: Optional[Callable[..., subprocess.CompletedProcess]] = None) -> str:
     """The agent writes a file in a scratch worktree, and is not in an untrusted workspace.
@@ -72,8 +78,12 @@ def agent_writes(repo_dir: Path, agent_cmd: str,
         kept = True
         left_running.track(SimpleNamespace(reaped=False, proc=SimpleNamespace(pid=exc.pgid), pgid=exc.pgid))
         return "agent left processes running; scratch worktree kept"
-    except subprocess.TimeoutExpired:
-        return "agent timed out"
+    except subprocess.TimeoutExpired as exc:
+        # An untrusted agent drops its permissions and then hangs until the timeout
+        # (the Mini, 30/09): name the cause it printed, not the timeout it caused.
+        said = "".join(o.decode(errors="replace") if isinstance(o, bytes) else o
+                       for o in (exc.stdout, exc.stderr) if o)
+        return untrusted(repo_dir, agent_cmd) if UNTRUSTED in said else "agent timed out"
     except OSError:
         return "agent could not start"
     finally:
@@ -95,7 +105,7 @@ def _probe(worktree: Path, repo_dir: Path, agent_cmd: str,
                       cwd=str(worktree), env=agent_sandbox.agent_env(),
                       capture_output=True, text=True, check=False, timeout=AGENT_TIMEOUT)
     if UNTRUSTED in f"{agent.stdout or ''}{agent.stderr or ''}":
-        return f"agent workspace not trusted: run `{agent_cmd}` once in {repo_dir} and accept"
+        return untrusted(repo_dir, agent_cmd)
     if agent.returncode != 0:
         return f"agent exited {agent.returncode}"
     if not probe.is_file() or probe.read_text(errors="replace").strip().lower() != "ok":
