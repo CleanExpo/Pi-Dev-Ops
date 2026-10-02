@@ -27,7 +27,8 @@ LOG = logging.getLogger("test")
 
 
 @pytest.fixture(autouse=True)
-def _reset_state():
+def _reset_state(monkeypatch):
+    monkeypatch.setattr("app.server.red_signals._poll_failures", 0)
     cw._health_alert_cooldowns.clear()
     cw._health_red_components.clear()
     cw._health_ticket_unfiled.clear()

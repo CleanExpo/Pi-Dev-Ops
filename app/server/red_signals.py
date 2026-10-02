@@ -55,27 +55,64 @@ def health_full_url() -> str:
     return f"http://127.0.0.1:{os.environ.get('PORT') or '8080'}/api/health/full"
 
 
-def fetch_health_full(log) -> dict | None:
-    """GET /api/health/full. A 503 is the "something is red" answer: parse its body.
+# The poll itself is a guard: a watchdog that cannot read health must not go quiet.
+WATCHDOG_COMPONENT = "health_full_watchdog"
+POLL_FAILURES_TO_RED = 3  # a single blip stays a WARNING; a dead poll pages
+_poll_failures = 0
 
-    Any other failure returns None and is logged at WARNING — it used to be
-    log.debug, which is how a month of failed polls stayed invisible.
-    The route needs auth (#869), so the request carries a minted session.
-    """
+
+class _AuthRefused(Exception):
+    """The poll was refused or could not mint a session: it can never recover alone."""
+
+
+def _poll_health_full() -> dict:
+    """GET /api/health/full with a minted session (#869). A 503 body is the answer."""
     try:
         from .auth import create_session_token  # noqa: PLC0415
-        req = urllib.request.Request(health_full_url(), headers={
-            "Accept": "application/json", "Authorization": f"Bearer {create_session_token()}"})
-        try:
-            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
-                return json.loads(resp.read())
-        except urllib.error.HTTPError as http_err:
-            if http_err.code != 503:
-                raise
-            return json.loads(http_err.read())
+        token = create_session_token()
     except Exception as exc:  # noqa: BLE001
-        log.warning("health_full watchdog: fetch failed (%s)", exc)
+        raise _AuthRefused(f"session could not be minted: {exc}") from exc
+    req = urllib.request.Request(health_full_url(), headers={
+        "Accept": "application/json", "Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as http_err:
+        if http_err.code in (401, 403):
+            raise _AuthRefused(f"HTTP {http_err.code}: poll refused by auth") from http_err
+        if http_err.code != 503:
+            raise
+        return json.loads(http_err.read())
+
+
+def _poll_red(error: str) -> dict:
+    return {"ok": False, "red_components": [WATCHDOG_COMPONENT],
+            "components": {WATCHDOG_COMPONENT: {"ok": False, "error": error}}}
+
+
+def fetch_health_full(log) -> dict | None:
+    """The /api/health/full snapshot, with the poll itself as WATCHDOG_COMPONENT.
+
+    An auth refusal is red at once; any other failure is red after
+    POLL_FAILURES_TO_RED in a row, else None (a WARNING, never log.debug).
+    A good poll reports WATCHDOG_COMPONENT ok, so a poll red can recover.
+    """
+    global _poll_failures
+    try:
+        body = _poll_health_full()
+    except _AuthRefused as exc:
+        log.warning("health_full watchdog: %s", exc)
+        return _poll_red(f"health_full poll failed: {exc}")
+    except Exception as exc:  # noqa: BLE001
+        _poll_failures += 1
+        log.warning("health_full watchdog: fetch failed (%s), %d in a row", exc, _poll_failures)
+        if _poll_failures >= POLL_FAILURES_TO_RED:
+            return _poll_red(f"health_full poll failed {_poll_failures} times in a row: {exc}")
         return None
+    _poll_failures = 0
+    if isinstance(body, dict) and isinstance(body.get("components"), dict):
+        body["components"].setdefault(WATCHDOG_COMPONENT, {"ok": True})
+    return body
 
 
 def observed_green(payload) -> bool:
