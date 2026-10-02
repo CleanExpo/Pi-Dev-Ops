@@ -35,8 +35,12 @@ GUARD_MUTANTS = _GUARD + [
     # round 27: model-written JSON refuses duplicates too (test_jev_platform_duplicate_model_json.py)
     ('evals/jev_constitution/generate.py', 'return client.strict_json(m.group(1))', 'return json.loads(m.group(1))'),
     # round 29: screens read the raw text AND its escape-free reading (test_jev_platform_edge_screen.py LOG_ESCAPES)
-    ('client.py', '    return text, _ESCAPE.sub(" ", text)', '    return (text,)'),
-    ('client.py', '    return text, _ESCAPE.sub(" ", text)', '    return (_ESCAPE.sub(" ", text),)'),
+    ('client.py', '    return text, _ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text)))', '    return (text,)'),
+    ('client.py', '    return text, _ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text)))',
+     '    return (_ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text))),)'),
+    # round 30: nested escaping collapses, colour codes are removed
+    ('client.py', '_ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text)))', '_ANSI.sub(" ", _ESCAPE.sub(" ", text))'),
+    ('client.py', '_ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text)))', '_ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\\\\\", text))'),
     ('client.py', 'for t in screened(text) for p in CREDENTIALS', 'for t in (text,) for p in CREDENTIALS'),
     ('ask.py', 'for t in client.screened(text) for p in _REFUSE', 'for t in (text,) for p in _REFUSE'),
 ]

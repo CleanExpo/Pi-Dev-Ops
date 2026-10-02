@@ -29,9 +29,15 @@ _EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
 _ESCAPE = re.compile(r"\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|N\{[^}]*\}|[0-7]{1,3}|.)", re.S)
 
 
+# Round 30: a nested log doubles its backslashes (\\\\n), so runs collapse to one first; terminal colour codes
+# (ESC[31m, real or written out) end in a letter that would touch the key, so they are removed too.
+_BACKSLASHES = re.compile(r"\\{2,}")
+_ANSI = re.compile(r"(?:\x1b|\x9b|(?<= ))\[[0-9;?]*[ -/]*[@-~]")
+
+
 def screened(text: str) -> tuple[str, str]:
     """The raw text and its escape-free reading; a screen refuses if either matches."""
-    return text, _ESCAPE.sub(" ", text)
+    return text, _ANSI.sub(" ", _ESCAPE.sub(" ", _BACKSLASHES.sub("\\\\", text)))
 _API_KEYS = re.compile(_EDGE + r"(?:sk-|ts-|ghp_)[\w-]{8,}")
 _PATTERNS = [
     re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),

@@ -7,6 +7,8 @@ zero sends; ordinary words that merely contain a key prefix stay clean. Offline:
 """
 from __future__ import annotations
 
+import json
+
 import pytest
 from jev_scale_support import Recorder, budget
 
@@ -24,8 +26,12 @@ KEYS += [f"{{\"message\": \"{e}sk-reviewfixtureabcdefgh\"}}" for e in ESCAPES] +
 LOG_ESCAPES = ["\\x1b", "\\v", "\\x00", "\\033", "\\a", "\\U0001F600", "\\N{BEL}"]  # round 29: repr/log escapes
 KEYS += [f"{e}sk-reviewfixtureabcdefgh" for e in LOG_ESCAPES] + [f"{e}AKIAABCDEFGHIJKLMNOP" for e in LOG_ESCAPES]
 KEYS += ["C:\\sk-reviewfixtureabcdefgh"]  # a lone backslash: only the raw-text screen sees this one
+_K = "sk-reviewfixtureabcdefgh"  # round 30: nested escaping and terminal colour codes
+KEYS += [json.dumps(json.dumps({"m": "\n" + _K})), json.dumps(json.dumps(json.dumps({"m": "\t" + _K}))),
+         json.dumps(repr("\x1b" + _K)), "\x1b[31m" + _K + "\x1b[0m", "\\x1b[31m" + _K, "\\033[1;31m" + _K,
+         "\\u001b[0m" + _K, json.dumps("\x1b[31m" + _K)]
 OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc", "\\niicrc", "\\x1biicrc"]  # refused by ask.sensitive only
-CLEAN = ["task-abcdefghij", "costs-abcdefghijk", "On 2026-09-29 the job ran.", "masks-and-gloves"]
+CLEAN = ["task-abcdefghij", "costs-abcdefghijk", "On 2026-09-29 the job ran.", "masks-and-gloves", "see array [1m] values"]
 
 
 @pytest.mark.parametrize("text", KEYS)
