@@ -47,7 +47,12 @@ KEYS += _R36 + [json.dumps(t) for t in _R36] + [json.dumps(json.dumps(t)) for t 
 _BAD = "\\x4 "  # Python's unicode_escape refuses the whole text, so only this module's decoder reads the rest
 KEYS += [_BAD + "\\u0073k-reviewfixtureabcdefgh", _BAD + "\\N{LATIN SMALL LETTER S}k-reviewfixtureabcdefgh",
          _BAD + "sk-re\\\nviewfixtureabcdefgh", "abc\\ts-reviewfixtureabcdefgh"]  # last: only the raw text shows it
-OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc", "\\niicrc", "\\x1biicrc", "\\u0069icrc",
+_R37 = ["\\u001b[\\u0041KIAABCDEFGHIJKLMNOP", "\\u001b[\\u0073k-reviewfixtureabcdefgh",  # round 37: a CSI final
+        "\\u009b\\u0073k-reviewfixtureabcdefgh", "\\x1b[\\x73k-reviewfixtureabcdefgh",  # byte is any letter, so a
+        "\x1b[AKIAABCDEFGHIJKLMNOP", "\x1b[sk-reviewfixtureabcdefgh", "\x9bsk-reviewfixtureabcdefgh"]  # strip ate the first
+KEYS += _R37 + [json.dumps(t) for t in _R37]
+OTHER = ["\\u001b[\\u0069icrc", "\x1b[iicrc", "\x9biicrc",  # round 37
+         "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc", "\\niicrc", "\\x1biicrc", "\\u0069icrc",
          "\\N{LATIN SMALL LETTER I}icrc", "ii\\\ncrc", "abc\\iicrc", "abc\\u005c\\u0069icrc", "ii\\\rcrc",
          "abc\\\r\\u0069icrc", "abc\\\r\n\\u0069icrc"]  # refused by ask.sensitive only
 CLEAN = ["task-abcdefghij", "costs-abcdefghijk", "On 2026-09-29 the job ran.", "masks-and-gloves", "see array [1m] values",

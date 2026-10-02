@@ -93,7 +93,9 @@ def screened(text: str, decode: bool = True) -> tuple[str, ...]:
     stages = _stages(text)
     if stages is None:
         return text, blanked, "sk-unsettled-escape-depth"  # fail closed: matches the API-key screen
-    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))
+    # Each stage is screened as decoded too, not only CSI-stripped: a CSI final byte is any letter, so stripping
+    # ESC [ A from ESC [ AKIA... eats the key's first letter (round 37).
+    return (blanked,) + tuple(r for t in stages for r in (t, _CSI.sub(" ", t), _CSI.sub("", t)))
 
 
 _API_KEYS = re.compile(_EDGE + r"(?:sk-|ts-|ghp_)[\w-]{8,}")

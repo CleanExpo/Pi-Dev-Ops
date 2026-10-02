@@ -39,9 +39,10 @@ GUARD_MUTANTS = _GUARD + [
     ('ask.py', 'for t in client.screened(text, decode) for p in _REFUSE', 'for t in (text,) for p in _REFUSE'),
     # rounds 30-31: four readings (raw, escape-blanked, decoded with colour codes as a gap / as nothing), bounded decode
     # round 33: the raw text and EVERY decoding stage are screened (gap + join), plus blanked; bounded
-    ('client.py', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))', '    return tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))'),
-    ('client.py', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub("", t),))'),
-    ('client.py', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t),))'),
+    ('client.py', '    return (blanked,) + tuple(r for t in stages for r in (t, _CSI.sub(" ", t), _CSI.sub("", t)))', '    return tuple(r for t in stages for r in (t, _CSI.sub(" ", t), _CSI.sub("", t)))'),
+    ('client.py', '    return (blanked,) + tuple(r for t in stages for r in (t, _CSI.sub(" ", t), _CSI.sub("", t)))', '    return (blanked,) + tuple(r for t in stages for r in (t, _CSI.sub("", t)))'),
+    ('client.py', '    return (blanked,) + tuple(r for t in stages for r in (t, _CSI.sub(" ", t), _CSI.sub("", t)))', '    return (blanked,) + tuple(r for t in stages for r in (t, _CSI.sub(" ", t)))'),
+    ('client.py', '    return (blanked,) + tuple(r for t in stages for r in (t, _CSI.sub(" ", t), _CSI.sub("", t)))', '    return (blanked,) + tuple(r for t in stages for r in (_CSI.sub(" ", t), _CSI.sub("", t)))'),  # round 37: each stage unstripped
     ('client.py', '        frontier = nxt\n    return None', '        frontier = nxt\n    return stages'),
     ('client.py', '    stages, frontier = [text], [text]\n', '    stages, frontier = [], [text]\n'),
     ('client.py', '            return stages\n', '            return stages[-1:]\n'),
