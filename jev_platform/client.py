@@ -9,6 +9,7 @@ import json
 import re
 import threading
 import time
+import unicodedata
 import urllib.request
 
 from jev_platform import policy
@@ -29,11 +30,12 @@ _EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
 # as a gap (a key after a code) and as nothing (a code inside a key). Text still decoding after _MAX_DEPTH rounds
 # is refused outright. Decoding never alters a key (no backslash in its body) or turns the character before it
 # into a letter, so the decoded readings already see everything the raw text shows (round 32).
-_ESCAPE = re.compile(r"\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|N\{[^}]*\}|[0-7]{1,3}|.)", re.S)
+_ESCAPE = re.compile(r"\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|N\{[^}]*\}|[0-7]{1,3}|\r\n|.)", re.S)
 _BACKSLASHES = re.compile(r"\\{2,}")
 _CSI = re.compile(r"(?:\x1b\[|\x9b)[0-9:;<=>?]*[ -/]*[@-~]")  # ESC[ or the one-character CSI, any SGR syntax
 _BLANKED_CSI = re.compile(r"(?<= )\[[0-9:;<=>?]*[ -/]*[@-~]")  # a written-out ESC already blanked to a space
 _SINGLE = {"n": "\n", "t": "\t", "r": "\r", "b": "\b", "f": "\f", "v": "\v", "a": "\a", "e": "\x1b", "0": "\0"}
+_SINGLE.update({"\n": "", "\r\n": ""})  # round 32: backslash-newline is a line continuation
 _MAX_DEPTH = 6
 
 
@@ -43,7 +45,10 @@ def _decode_one(m: re.Match) -> str:
         n = int(e[1:], 16)
         return chr(n) if n <= 0x10FFFF else "\ufffd"
     if e[0] == "N" and e.startswith("N{"):
-        return " "
+        try:
+            return unicodedata.lookup(e[2:-1])  # round 32: a named letter is decoded, not blanked
+        except KeyError:
+            return " "
     if e[0] in "01234567":
         return chr(int(e, 8))
     return _SINGLE.get(e, e)
