@@ -26,6 +26,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import agent_sandbox  # noqa: E402
 import plan_lane  # noqa: E402
 import ship_run  # noqa: E402
 from fleet_state import active_agent_count, next_work  # noqa: E402
@@ -209,7 +210,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         start = ship_run.start_point(repo_dir)  # RA-7780: held where the agent cannot move it
         if claim_lifecycle.add_worktree(repo_dir, branch, worktree):
             run_record.run_agent(
-                lambda: [AGENT_CMD, "-p", build_prompt(claim, linear_id, branch)],
+                lambda: agent_sandbox.agent_argv(AGENT_CMD, build_prompt(claim, linear_id, branch)),
                 str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent, held)
             claim_lifecycle.deliver(  # RA-7780: `done` means pushed, checked before the worktree goes
                 lambda: ship_run.settle(plan, start, worktree, branch, linear_id, HOST), plan)
