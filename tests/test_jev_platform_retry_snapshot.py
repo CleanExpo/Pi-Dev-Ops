@@ -9,7 +9,7 @@ import json
 
 from jev_scale_support import budget
 
-from jev_platform import client, scout
+from jev_platform import ask, client, scout
 
 SECRET = "sk-reviewfixtureabcdefgh"
 
@@ -44,3 +44,19 @@ def test_scout_guarded_send_retries_the_screened_snapshot(monkeypatch):
     monkeypatch.setattr(client.time, "sleep", lambda s: None)
     scout.guarded_send(original, post, budget())
     assert len(sent) == 2 and SECRET not in sent[1]
+
+
+def test_scout_sends_the_body_it_screened_not_a_later_change(monkeypatch):
+    """A caller changing the body between scout's screen and client.send must not get an IICRC term out:
+    client.send screens credentials only, so scout has to send its own screened snapshot."""
+    original = body()
+    real = ask.sensitive_payload
+
+    def screen_then_race(obj):
+        verdict = real(obj)
+        original["questions"]["q"]["criteria"]["true"] = "per the IICRC S500 text"  # concurrent change
+        return verdict
+    monkeypatch.setattr(ask, "sensitive_payload", screen_then_race)
+    sent = []
+    scout.guarded_send(original, lambda b, t: sent.append(json.dumps(b)) or (200, {"answers": {}}, None), budget())
+    assert len(sent) == 1 and "IICRC" not in sent[0]
