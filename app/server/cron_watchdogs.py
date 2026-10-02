@@ -1074,18 +1074,18 @@ async def _watchdog_health_full(log) -> None:
     For each component that was red previously and is now green:
       - send a "Component X recovered" Telegram and clear cooldown.
 
-    Uses stdlib urllib so we don't add a new dependency. The local FastAPI
-    instance binds to 127.0.0.1:8000 in Railway/dev — soft-fails if the
-    request errors so a watchdog crash never silences the rest of the loop.
+    Stdlib urllib to 127.0.0.1:8000 with a minted session (route needs auth);
+    soft-fails on request errors so a watchdog crash never silences the loop.
     """
     global _health_red_components
-
     import json as _json
     import urllib.request as _ureq
+    from app.server.auth import create_session_token
 
     body: dict | None = None
     try:
-        req = _ureq.Request(_HEALTH_FULL_URL, headers={"Accept": "application/json"})
+        req = _ureq.Request(_HEALTH_FULL_URL, headers={
+            "Accept": "application/json", "Authorization": f"Bearer {create_session_token()}"})
         # urlopen is sync — wrap in to_thread so we don't block the loop.
         loop = asyncio.get_running_loop()
 
