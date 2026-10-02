@@ -99,6 +99,25 @@ def should_run(state: dict) -> bool:
 # ── Linear agent-ready pull (reuses linear_tools' auth/client) ───────────────
 
 
+def _team_issue_pages(gql, query: str, variables: dict) -> list[dict]:
+    """Every node across all pages; [] on an error or an incomplete read, never a partial queue."""
+    nodes: list[dict] = []
+    after = None
+    for _ in range(_MAX_PAGES):
+        res = gql(query, {**variables, "after": after})
+        if "error" in res or res.get("errors"):
+            return []
+        issues = ((res.get("data") or {}).get("team") or {}).get("issues") or {}
+        nodes.extend(issues.get("nodes") or [])
+        page = issues.get("pageInfo") or {}
+        if not page.get("hasNextPage"):
+            return nodes
+        after = page.get("endCursor")
+        if not after:
+            return []  # more pages but no cursor
+    return []  # page cap hit
+
+
 def _agent_ready_tickets() -> list[tuple[str, str]]:
     """``(identifier, title)`` for the team's tickets the shared autonomy rule admits.
 
@@ -120,19 +139,8 @@ def _agent_ready_tickets() -> list[tuple[str, str]]:
         " pageInfo { hasNextPage endCursor }"
         f" nodes {{ identifier title state {{ name }} labels {{ nodes {{ name }} }} {GUARD_FIELDS} }} }} }} }}"
     )
-    nodes: list[dict] = []
-    after = None
-    for _ in range(_MAX_PAGES):
-        res = linear_tools._gql(query, {"teamId": t["id"], "label": AGENT_READY_LABEL,
-                                        "state": READY_STATUS_NAME, "after": after})
-        if "error" in res or res.get("errors"):
-            return []
-        issues = ((res.get("data") or {}).get("team") or {}).get("issues") or {}
-        nodes.extend(issues.get("nodes") or [])
-        page = issues.get("pageInfo") or {}
-        after = page.get("endCursor")
-        if not page.get("hasNextPage") or not after:
-            break
+    nodes = _team_issue_pages(linear_tools._gql, query, {
+        "teamId": t["id"], "label": AGENT_READY_LABEL, "state": READY_STATUS_NAME})
     registered = set(registry_repos())
     return [
         (n["identifier"], n.get("title", "")) for n in nodes

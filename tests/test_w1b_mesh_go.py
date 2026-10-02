@@ -207,3 +207,13 @@ def test_an_incomplete_linear_read_is_refused_not_served_partial(monkeypatch):
 
     with pytest.raises(RuntimeError):
         list(autonomy_queue.issue_pages(gql, "k", {}))
+
+    from swarm import intake_producers as IP
+    from swarm import linear_tools
+    ato = "20bb0ca6-0176-46c4-be4c-cd34ac89767d"
+    page = {"nodes": [_issue("UNI-2801", project=ato)], "pageInfo": {"hasNextPage": True, "endCursor": "c"}}
+    monkeypatch.setattr(linear_tools, "_resolve_team", lambda _t: {"id": "team"})
+    monkeypatch.setattr(linear_tools, "_gql", lambda _q, _v=None: {"data": {"team": {"issues": page}}})
+    assert IP._agent_ready_tickets() == []
+    page = {"nodes": [_issue("UNI-2801", project=ato)], "pageInfo": {"hasNextPage": True}}
+    assert IP._agent_ready_tickets() == []
