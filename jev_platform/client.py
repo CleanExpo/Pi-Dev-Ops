@@ -55,6 +55,21 @@ def credential_payload(obj) -> bool:
     return False
 
 
+def _no_duplicates(pairs):
+    out = {}
+    for k, v in pairs:
+        if k in out:
+            raise ValueError(f"duplicate key in provider reply: {k!r}")
+        out[k] = v
+    return out
+
+
+def strict_json(raw):
+    """Round 26: json.loads keeps the LAST of two equal keys, so q=0.01 then q=0.99 read as a pass. A reply
+    with any duplicate key raises ValueError instead; every caller treats that as no signal."""
+    return json.loads(raw, object_pairs_hook=_no_duplicates)
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None  # answered as the HTTPError it is

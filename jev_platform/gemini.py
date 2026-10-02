@@ -294,6 +294,6 @@ def urllib_post(url: str, payload: bytes, headers: dict, timeout: float) -> tupl
     req = urllib.request.Request(url, data=payload, method="POST", headers=headers)
     try:
         with client.open_url(req, timeout) as resp:
-            return resp.status, json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
-        return e.code, None
+            return resp.status, client.strict_json(resp.read().decode())
+    except (urllib.error.HTTPError, ValueError) as e:  # round 26: a duplicate-key reply (ValueError) is no answer
+        return getattr(e, "code", 0), None

@@ -117,7 +117,9 @@ def _post(body: dict, key: str, timeout: int = 60) -> tuple[int, dict | str]:
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
     try:
         with client.open_url(req, timeout) as resp:
-            return resp.status, json.load(resp)
+            return resp.status, client.strict_json(resp.read().decode())
+    except ValueError:  # round 26: a duplicate-key reply is an error, never a judgment
+        return 0, "duplicate key in reply"
     except urllib.error.HTTPError as e:
         return e.code, "HTTP error body not read"  # round 22: it could echo the request back
     except (urllib.error.URLError, TimeoutError) as e:

@@ -27,4 +27,9 @@ GUARD_MUTANTS = _GUARD + [
     # round 25: one private snapshot is screened and sent on every retry (test_jev_platform_retry_snapshot.py)
     ('client.py', '    body = json.loads(json.dumps(body))  # round 25', '    body = body  # round 25'),
     ('scout.py', '    body = json.loads(json.dumps(body))  # round 25', '    body = body  # round 25'),
+    # round 26: provider replies refuse duplicate keys (test_jev_platform_duplicate_reply.py)
+    ('client.py', '        if k in out:\n            raise ValueError(', '        if False:\n            raise ValueError('),
+    ('__main__.py', 'client.strict_json(resp.read().decode()), None', 'json.loads(resp.read().decode()), None'),
+    ('gemini.py', 'return resp.status, client.strict_json(resp.read().decode())', 'return resp.status, json.loads(resp.read().decode())'),
+    ('evals/jev_constitution/harness.py', 'client.strict_json(resp.read().decode())', 'json.load(resp)'),
 ]

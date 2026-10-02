@@ -27,7 +27,9 @@ def http_post(body: dict, timeout: float):
                                  headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
     try:
         with client.open_url(req, timeout) as resp:
-            return resp.status, json.loads(resp.read().decode()), None
+            return resp.status, client.strict_json(resp.read().decode()), None
+    except ValueError:  # round 26: a duplicate-key reply is no signal, never a judgment
+        return 0, None, None
     except urllib.error.HTTPError as e:
         retry = e.headers.get("retry-after")
         return e.code, None, float(retry) if retry and retry.replace(".", "", 1).isdigit() else None
