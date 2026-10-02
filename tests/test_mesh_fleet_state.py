@@ -124,8 +124,9 @@ def test_a_dict_where_rows_belong_does_not_crash_the_caller():
     """
     weird = {"claims": {"message": "permission denied"}, "agents": {"x": 1},
              "degraded": False, "errors": []}
-    assert my_claims(api_returning(weird), HOST) == []
-    assert active_agent_count(api_returning(weird), HOST) == 0
+    # unknown, not empty: rows that are not rows are no evidence of an empty fleet
+    assert my_claims(api_returning(weird), HOST) is None
+    assert active_agent_count(api_returning(weird), HOST) is None
 
 
 # --------------------------------------------------------------------------

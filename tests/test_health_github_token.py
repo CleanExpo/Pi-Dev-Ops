@@ -36,11 +36,11 @@ class _StubRequest:
 def _health_payload(monkeypatch) -> dict:
     """Call /health and return the decoded body.
 
-    TAO_PASSWORD is cleared so the handler serves the full payload: the auth gate
-    is `if tao_password and not authed`, so an unset password falls through.
+    Authenticated with a session-token Bearer: /health fails closed otherwise.
     """
-    monkeypatch.delenv("TAO_PASSWORD", raising=False)
-    response = asyncio.run(health_route.health(_StubRequest()))
+    from app.server.auth import create_session_token
+    bearer = {"Authorization": f"Bearer {create_session_token()}"}
+    response = asyncio.run(health_route.health(_StubRequest(headers=bearer)))
     return json.loads(response.body)
 
 

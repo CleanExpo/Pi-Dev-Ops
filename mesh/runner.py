@@ -26,6 +26,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import agent_sandbox  # noqa: E402
 import plan_lane  # noqa: E402
 import ship_run  # noqa: E402
 from fleet_state import active_agent_count, next_work  # noqa: E402
@@ -66,6 +67,7 @@ MESH_KILL_GRACE_SECONDS = 10
 AGENT_TIMEOUT_SECONDS = 3600
 DEFAULT_REPO_DIR = Path(os.environ.get(
     "MESH_REPO_DIR", str(Path(__file__).resolve().parents[1])))
+LOG = runner_idle.Log()  # ts, hold reason, poll outcome and last server contact on every line
 
 
 def _api(method: str, path: str, body=None) -> dict:
@@ -122,7 +124,7 @@ def write_state(current_task, state: str, session_id: str | None = None) -> None
 
 def get_work() -> list[dict]:
     """Assigned work first, else a self-claimed mesh:auto ticket (fleet_state.next_work)."""
-    return next_work(_api, HOST)
+    return next_work(_api, HOST, LOG.polled, LOG.contacted)
 
 
 def default_repo_dir_problem() -> str:
@@ -209,7 +211,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         start = ship_run.start_point(repo_dir)  # RA-7780: held where the agent cannot move it
         if claim_lifecycle.add_worktree(repo_dir, branch, worktree):
             run_record.run_agent(
-                lambda: [AGENT_CMD, "-p", build_prompt(claim, linear_id, branch)],
+                lambda: agent_sandbox.agent_argv(AGENT_CMD, build_prompt(claim, linear_id, branch)),
                 str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent, held)
             claim_lifecycle.deliver(  # RA-7780: `done` means pushed, checked before the worktree goes
                 lambda: ship_run.settle(plan, start, worktree, branch, linear_id, HOST), plan)
@@ -252,7 +254,7 @@ def main() -> int:
     if problem:
         # Non-zero on purpose: KeepAlive{SuccessfulExit:false} retries it, so
         # the node keeps announcing this and resumes once it is fixed.
-        print(json.dumps({"runner": HOST, "status": "REFUSED", "reason": problem}))
+        print(LOG.line(None, runner=HOST, status="REFUSED", reason=problem))
         return 2
     check = (lambda: preflight.check(DEFAULT_REPO_DIR, AGENT_CMD)) if PREFLIGHT_ENABLED else (lambda: "")
     health, processed = node_health.NodeHealth(check), 0
@@ -261,8 +263,10 @@ def main() -> int:
         stop = _stop_status(processed)
         if stop:
             write_state(None, stop.get("state", "idle"))
-            print(json.dumps(stop))
-            return 0
+            print(LOG.line(health, **stop), flush=True)
+            # A clean exit keeps launchd from restarting the runner, right for HARD_STOP and
+            # STUCK; at the claim cap the Mini just stopped for good (audit 30/09 #18).
+            return 4 if stop["status"] == "MAX_CLAIMS" else 0
         if not args.dry_run and not health.may_claim():
             code = runner_idle.hold(types.SimpleNamespace(**globals()), health, args.once)
             if code is not None:
@@ -273,7 +277,7 @@ def main() -> int:
             "POST", "/api/mesh/claim/update",
             {"linear_id": c["linear_id"], "state": "released", "host": HOST, "claim_id": c.get("id")}))
         processed += len(results)
-        print(json.dumps({"runner": HOST, "claims": len(work), "results": results, "processed": processed}))
+        print(LOG.line(health, runner=HOST, claims=len(work), results=results, processed=processed), flush=True)
         if args.once:
             return 0
         agents = active_agent_count(_api, HOST)

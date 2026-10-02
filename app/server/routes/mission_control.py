@@ -26,6 +26,7 @@ from ..autonomy_eligibility import filter_claimable_issues, queue_snapshot_from_
 from ..claude_session_hud import claude_session_hud as _claude_session_hud
 from ..idea_pipeline import daily_snapshot as _idea_pipeline_snapshot
 from ..nexus_one.status import status_payload_for_app
+from ..ticket_sweeper import status_snapshot as _ticket_sweeper_snapshot
 from .health_aggregate import _is_observed, classify
 from .health_full import gather_components
 from .mission_control_sessions import (
@@ -254,5 +255,6 @@ async def mission_control_live() -> dict:
         "claude_hud": _claude_session_hud(),
         "idea_pipeline": _idea_pipeline_snapshot(_repo_root()),
         "nexus_one": _nexus_one_status(),
+        "ticket_sweeper": _ticket_sweeper_snapshot(),
         "ts": datetime.now(timezone.utc).isoformat(),
     }

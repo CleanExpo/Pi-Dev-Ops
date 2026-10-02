@@ -471,7 +471,7 @@ def test_runner_honours_max_claims_cost_cap(runner, monkeypatch):
     monkeypatch.setattr(runner, "MAX_CLAIMS", 2)
     server = FakeMeshServer(["UNI-A", "UNI-B", "UNI-C"])
     runner._api = server.api
-    assert _main_returns(runner) == 0      # stops at the cap, never reaches sleep
+    assert _main_returns(runner) == 4      # stops at the cap, never reaches sleep; 4 = launchd restarts it
     assert server.worked == ["UNI-A", "UNI-B"]  # capped at 2, UNI-C untouched
 
 

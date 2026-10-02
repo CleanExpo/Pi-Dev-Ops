@@ -110,16 +110,16 @@ if _unresolved_refs:
     )
 
 # ---------------------------------------------------------------------------
-# Password — bcrypt-ready.  If TAO_PASSWORD not set, auto-generate and print.
-# The stored value is the raw password; auth.py handles hashing.
+# Password — never invented-and-logged: Railway refuses to start without it.
 # ---------------------------------------------------------------------------
 
 _raw_password = os.environ.get("TAO_PASSWORD", "")
 _password_from_env = bool(_raw_password)  # True = user explicitly set it
 
 if not _raw_password:
-    _raw_password = secrets.token_urlsafe(24)
-    log.info("Generated one-time password: %s  (set TAO_PASSWORD to persist)", _raw_password)
+    if os.environ.get("RAILWAY_ENVIRONMENT"):
+        raise SystemExit("TAO_PASSWORD not configured")
+    _raw_password = secrets.token_urlsafe(24)  # local only: unknown, so login is disabled
 
 # ---------------------------------------------------------------------------
 # Data directory — must be defined before any path references below
@@ -150,7 +150,7 @@ elif HASH_FILE.exists():
     log.info("Loaded persisted bcrypt hash from %s (no TAO_PASSWORD in env)", HASH_FILE)
 else:
     PASSWORD_HASH = hashlib.sha256(_raw_password.encode()).hexdigest()
-    log.info("Using SHA-256 hash of auto-generated password (will upgrade to bcrypt on first login)")
+    log.warning("TAO_PASSWORD not set and no persisted hash — password login disabled")
 
 # ---------------------------------------------------------------------------
 # Session secret — persist to disk so it survives restarts
