@@ -245,8 +245,8 @@ GUARD_MUTANTS = [
     ('evals/jev_constitution/harness.py', '    data = verified.file_at_head(REPO, path)',
      '    data = __import__("subprocess").run(["git", "-C", str(path.parent), "show", f"HEAD:./{path.name}"], '
      'capture_output=True).stdout or None'),  # ha-verified
-    ('__main__.py', 'json.loads(verified.at_head(engine.ROOT, FIXTURE_AT_HEAD)[2])',
-     'json.loads(engine._git("show", f"HEAD:{FIXTURE_AT_HEAD}"))'),  # cli-fixture-verified
+    ('__main__.py', 'client.strict_json(verified.at_head(engine.ROOT, FIXTURE_AT_HEAD)[2])',
+     'client.strict_json(engine._git("show", f"HEAD:{FIXTURE_AT_HEAD}"))'),  # cli-fixture-verified
     ('evals/jev_constitution/generate.py', 'shown = verified.file_at_head(REPO, WRITER_CONTROL, env={"PATH": os.environ.get("PATH", "")})',
      'shown = subprocess.run(["git", "-C", str(WRITER_CONTROL.parent), "show", f"HEAD:./{WRITER_CONTROL.name}"], '
      'capture_output=True).stdout or None'),  # ge-control-verified

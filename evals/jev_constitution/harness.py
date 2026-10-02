@@ -45,14 +45,14 @@ EXIT_OK, EXIT_INVALID, EXIT_BLOCKED, EXIT_CONTROL = 0, 1, 2, 3
 
 
 def load_questions(path: Path | None = None) -> list[dict]:
-    return json.loads((path or QUESTIONS).read_text())["questions"]
+    return client.strict_json((path or QUESTIONS).read_text())["questions"]
 
 
 def load_cases(qid: str, cases_dir: Path | None = None) -> list[dict]:
     path = (cases_dir or CASES) / f"{qid}.jsonl"
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [client.strict_json(line) for line in path.read_text().splitlines() if line.strip()]
 
 
 def validate_question(qid: str, cases: list[dict]) -> list[str]:
@@ -89,12 +89,12 @@ def _at_head(path: Path) -> str | None:
 
 def committed_questions() -> list[dict]:
     text = _at_head(QUESTIONS)
-    return json.loads(text)["questions"] if text else []
+    return client.strict_json(text)["questions"] if text else []
 
 
 def committed_cases(qid: str) -> list[dict]:
     text = _at_head(CASES / f"{qid}.jsonl")
-    return [json.loads(line) for line in text.splitlines() if line.strip()] if text else []
+    return [client.strict_json(line) for line in text.splitlines() if line.strip()] if text else []
 
 
 def question_problems(q: dict, cases_dir: Path | None = None, cases: list[dict] | None = None) -> list[str]:

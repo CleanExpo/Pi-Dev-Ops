@@ -18,6 +18,7 @@ import posixpath
 import re
 
 from evals.jev_constitution import harness
+from jev_platform import client
 from jev_platform import committed as verified
 
 _SPLIT = re.compile(r"\.\.\.|…| \* ")
@@ -77,7 +78,7 @@ def main(argv=None) -> int:
     p.add_argument("--write", action="store_true", help="record the derived flags in questions.json")
     args = p.parse_args(argv)
     path = harness.QUESTIONS
-    data = json.loads(path.read_text())
+    data = client.strict_json(path.read_text())
     missing = check(data, args.repo)
     drift = [q["id"] for q in data["questions"] if bool(q.get("quote_verbatim")) != (missing[q["id"]] is None)]
     for q in data["questions"]:

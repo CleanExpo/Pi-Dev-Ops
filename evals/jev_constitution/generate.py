@@ -27,6 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from evals.jev_constitution.harness import CASES, FAILURE_CLASSES, committed_questions, load_cases
+from jev_platform import client
 from jev_platform import committed as verified
 from jev_platform import gemini
 
@@ -55,7 +56,7 @@ def _json_block(text: str):
     m = re.search(r"(\[.*\]|\{.*\})", text, re.S)
     if not m:
         raise ValueError(f"no JSON in model output: {text[:200]!r}")
-    return json.loads(m.group(1))
+    return client.strict_json(m.group(1))
 
 
 def writer_prompt(question: dict, domain: str, seed: int, n: int = BATCH, per_class: int = PER_CLASS) -> str:
@@ -189,7 +190,7 @@ def _writer(args):
         return claude_write, "claude", CASES / f"{args.question}.jsonl"
     shown = verified.file_at_head(REPO, WRITER_CONTROL, env={"PATH": os.environ.get("PATH", "")})
     try:  # the control as COMMITTED and rehashed (round 12): no edit, replacement or rewrite can flip it to `use`
-        control = json.loads(shown) if shown is not None else {}
+        control = client.strict_json(shown) if shown is not None else {}
     except ValueError:
         control = {}
     if not isinstance(control, dict) or (control.get("status"), control.get("verdict")) != ("run", "use"):
@@ -228,7 +229,7 @@ def main(argv=None) -> int:
     write, writer, path = chosen
     question = next(q for q in committed_questions() if q["id"] == args.question)  # its text is sent: HEAD only
     CASES.mkdir(exist_ok=True)
-    own = [json.loads(x) for x in path.read_text().splitlines() if x.strip()] if path.exists() else []
+    own = [client.strict_json(x) for x in path.read_text().splitlines() if x.strip()] if path.exists() else []
     seen = {c["state"].lower() for c in load_cases(args.question) + own}
     have = len({c["state"].lower() for c in own})
     n, written, proposed, empty = have // BATCH, 0, 0, 0

@@ -60,7 +60,7 @@ def registry(rev: str = "HEAD") -> dict[str, dict]:
     """The committed registry. Not committed or unreadable -> empty, so every rule id is unknown and nothing is sent."""
     found = _committed(QUESTIONS, rev)
     try:
-        return {q["id"]: q for q in json.loads(found[1])["questions"]} if found else {}
+        return {q["id"]: q for q in client.strict_json(found[1])["questions"]} if found else {}
     except (ValueError, KeyError, TypeError):
         return {}
 
@@ -85,7 +85,7 @@ def _lineage_problems(rule_id: str, record: dict, scored: list[dict], head: str 
         return ["cases_blob is not the cases file committed at eval_sha"]
     if not verified.is_ancestor(ROOT, sha, head or ""):
         return ["eval_sha is not in the history of HEAD"]
-    cases = [json.loads(line) for line in at_sha[1].decode(errors="replace").splitlines() if line.strip()]
+    cases = [client.strict_json(line) for line in at_sha[1].decode(errors="replace").splitlines() if line.strip()]
     if not all(_dual_labelled(c) for c in cases):
         return ["cases_blob has cases without two agreeing labels"]
     want = sorted((calibration.case_hash(c["state"]), c["label"], c.get("class", "normal")) for c in cases)
@@ -103,14 +103,14 @@ def bindings(rule: dict, model: str) -> dict:
 def load_record(rule_id: str) -> dict | None:
     path = RECORDS / f"{rule_id}.json"
     try:
-        return json.loads(path.read_text())
+        return client.strict_json(path.read_text())
     except (OSError, ValueError):
         return None if not path.exists() else {"corrupt": True}
 
 
 def load_scored(rule_id: str) -> list[dict]:
     path = RECORDS / f"{rule_id}.scored.jsonl"
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
+    return [client.strict_json(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
 
 
 def _decision_state(rule: dict, record: dict | None, model: str) -> str:
@@ -170,7 +170,7 @@ def calibrate(rule_id: str, post, budget, workers: int = 8) -> dict:
     commit = verified.resolve(ROOT)  # resolved once: every read below is at it
     rule = registry(commit).get(rule_id) if commit else None
     committed = _committed(CASES / f"{rule_id}.jsonl", commit) if rule else None
-    cases = [json.loads(line) for line in committed[1].splitlines() if line.strip()] if committed else []
+    cases = [client.strict_json(line) for line in committed[1].splitlines() if line.strip()] if committed else []
     refusal = "rule_not_committed" if not rule else "cases_not_committed" if not committed else \
         None if cases and all(_dual_labelled(c) for c in cases) else "cases_lack_two_agreeing_labels"
     if refusal:
@@ -216,12 +216,12 @@ def artifact_binding(rule_id: str) -> tuple[str, list[str], str | None]:
     raw = [_record_bytes(p) for p in paths]
     commit = verified.resolve(ROOT)
     try:
-        record = None if raw[0] is None and not paths[0].exists() else json.loads(raw[0] or b"")
+        record = None if raw[0] is None and not paths[0].exists() else client.strict_json(raw[0] or b"")
     except ValueError:
         record = {"corrupt": True}
     if record is None:
         return "FAIL", ["absent"], commit
-    scored = [json.loads(line) for line in (raw[1] or b"").decode().splitlines() if line.strip()]
+    scored = [client.strict_json(line) for line in (raw[1] or b"").decode().splitlines() if line.strip()]
     problems = calibration.verify(record, scored) or _lineage_problems(rule_id, record, scored, commit)
     if problems:
         return "FAIL", problems, commit

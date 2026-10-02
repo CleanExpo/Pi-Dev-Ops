@@ -152,8 +152,8 @@ MUTANTS = [
     ("gemini_shape.py", '    if "model" in body and not isinstance(body["model"], str):', "    if False:"),
     # release review r9: the traversal guard reached directly, and live decide on the committed fixture only
     ("ask.py", 'if rel.startswith("/") or any(p in ("", ".", "..") for p in parts):', "if False:"),
-    ("evals/jev_constitution/generate.py", "json.loads(shown) if shown is not None else {}",
-     "json.loads(WRITER_CONTROL.read_text())"),  # the writer control counts only as committed
+    ("evals/jev_constitution/generate.py", "client.strict_json(shown) if shown is not None else {}",
+     "client.strict_json(WRITER_CONTROL.read_text())"),  # the writer control counts only as committed
     ("__main__.py", "    actions = _committed_actions() if a.live else",
      '    actions = json.loads(engine.FIXTURES.read_text())["actions"] if a.live else'),
     ("evals/jev_constitution/generate.py", '!= ("run", "use"):', '!= ("run", "use") and False:'),

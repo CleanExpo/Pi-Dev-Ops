@@ -28,8 +28,10 @@ GUARD_MUTANTS = _GUARD + [
     ('client.py', '    body = json.loads(json.dumps(body))  # round 25', '    body = body  # round 25'),
     ('scout.py', '    body = json.loads(json.dumps(body))  # round 25', '    body = body  # round 25'),
     # round 26: provider replies refuse duplicate keys (test_jev_platform_duplicate_reply.py)
-    ('client.py', '        if k in out:\n            raise ValueError(', '        if False:\n            raise ValueError('),
+    ('client.py', '        if k in out:\n            raise json.JSONDecodeError(', '        if False:\n            raise json.JSONDecodeError('),
     ('__main__.py', 'client.strict_json(resp.read().decode()), None', 'json.loads(resp.read().decode()), None'),
     ('gemini.py', 'return resp.status, client.strict_json(resp.read().decode())', 'return resp.status, json.loads(resp.read().decode())'),
     ('evals/jev_constitution/harness.py', 'client.strict_json(resp.read().decode())', 'json.load(resp)'),
+    # round 27: model-written JSON refuses duplicates too (test_jev_platform_duplicate_model_json.py)
+    ('evals/jev_constitution/generate.py', 'return client.strict_json(m.group(1))', 'return json.loads(m.group(1))'),
 ]
