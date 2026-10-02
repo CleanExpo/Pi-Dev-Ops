@@ -34,19 +34,17 @@ def _call_health(monkeypatch, *, linear_api_key: str = "", last_poll_at: float =
     """Call the /health async handler directly and return the parsed JSON payload.
 
     Monkeypatches config + autonomy globals so tests are hermetic.
-    TAO_PASSWORD is cleared so the auth gate is bypassed (no Bearer token needed).
+    Authenticated with a session-token Bearer: /health fails closed otherwise.
     """
     from app.server import config, autonomy as _autonomy
     monkeypatch.setattr(config, "LINEAR_API_KEY", linear_api_key)
-    # health() reads TAO_PASSWORD directly from os.environ, not from config
-    monkeypatch.delenv("TAO_PASSWORD", raising=False)
     monkeypatch.setattr(_autonomy, "_last_poll_at", last_poll_at)
     monkeypatch.setattr(_autonomy, "_poll_count", poll_count)
 
-    # Minimal mock request — TAO_PASSWORD is empty so the auth gate is skipped
     from starlette.datastructures import Headers
+    from app.server.auth import create_session_token
     mock_req = MagicMock()
-    mock_req.headers = Headers({})
+    mock_req.headers = Headers({"Authorization": f"Bearer {create_session_token()}"})
 
     from app.server.routes.health import health as health_fn
     response = asyncio.run(health_fn(mock_req))

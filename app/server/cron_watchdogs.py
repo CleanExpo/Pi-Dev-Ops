@@ -1082,7 +1082,7 @@ async def _watchdog_health_full(log) -> None:
       - send a "Component X recovered" Telegram and clear cooldown.
 
     Each new red also finds-or-updates ONE owned Linear ticket (red_signals).
-    Fetch (PORT, 503 body parsed) lives in red_signals.fetch_health_full.
+    Fetch (PORT, minted session, 503 body parsed) lives in red_signals.fetch_health_full.
     """
     global _health_red_components
 

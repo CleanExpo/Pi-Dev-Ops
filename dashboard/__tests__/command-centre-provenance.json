@@ -29,12 +29,12 @@
     "operator-gateway": "NOT YET ESTABLISHED — blocks capability 6"
   },
   "imports": {
-    "app/(main)/command-centre/hermes/page.tsx :: next/font/google": {
-      "specifier": "next/font/google",
+    "app/(main)/command-centre/hermes/page.tsx :: next/font/local": {
+      "specifier": "next/font/local",
       "resolves_in_source": "package: next/font/google",
-      "resolves_in_target": "package: next/font/google",
-      "judgment": "same",
-      "note": "same npm package in both apps"
+      "resolves_in_target": "package: next/font/local",
+      "judgment": "different-but-checked",
+      "note": "same faces, weights and --font-* variables, self-hosted from app/fonts instead of downloaded from Google at build time (a failed download failed the main build, CI run 36682119471). Removes a build-time network fetch; adds none."
     },
     "app/(main)/command-centre/hermes/page.tsx :: @/lib/command-centre/control-panel": {
       "specifier": "@/lib/command-centre/control-panel",
@@ -71,12 +71,12 @@
       "judgment": "same",
       "note": "same npm package in both apps"
     },
-    "app/(main)/command-centre/knowledge/page.tsx :: next/font/google": {
-      "specifier": "next/font/google",
+    "app/(main)/command-centre/knowledge/page.tsx :: next/font/local": {
+      "specifier": "next/font/local",
       "resolves_in_source": "package: next/font/google",
-      "resolves_in_target": "package: next/font/google",
-      "judgment": "same",
-      "note": "same npm package in both apps"
+      "resolves_in_target": "package: next/font/local",
+      "judgment": "different-but-checked",
+      "note": "same faces, weights and --font-* variables, self-hosted from app/fonts instead of downloaded from Google at build time (a failed download failed the main build, CI run 36682119471). Removes a build-time network fetch; adds none."
     },
     "app/(main)/command-centre/knowledge/page.tsx :: @/lib/command-centre/tools/catalogue": {
       "specifier": "@/lib/command-centre/tools/catalogue",

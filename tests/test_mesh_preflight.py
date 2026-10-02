@@ -40,7 +40,7 @@ def fake_run(agent_writes: bool, stderr: str = "", *, content: str = "ok", exit_
                 (Path(cmd[6]) / name).write_text(text)
         elif cmd[0] == "claude":
             if agent_writes:
-                (Path(cwd) / re.search(r"named (\S+) in", cmd[-1]).group(1)).write_text(content)
+                (Path(cwd) / re.search(r"named (\S+) in", cmd[2]).group(1)).write_text(content)
             return subprocess.CompletedProcess(cmd, exit_code, stdout="", stderr=stderr)
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr=stderr)
 
@@ -97,7 +97,7 @@ def test_each_preflight_asks_for_a_different_file():
     first, second = fake_run(agent_writes=True), fake_run(agent_writes=True)
     pf.agent_writes(REPO, "claude", run=first)
     pf.agent_writes(REPO, "claude", run=second)
-    prompts = [c[-1] for r in (first, second) for c in r.calls if c[0] == "claude"]
+    prompts = [c[2] for r in (first, second) for c in r.calls if c[0] == "claude"]
     assert len(prompts) == 2 and prompts[0] != prompts[1]
 
 

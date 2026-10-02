@@ -16,10 +16,11 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from ..app_factory import app, _resilient
+from ..auth import require_auth
 from .telegram_webhook_ownership import _owned_bot_id, _webhook_ownership_error
 
 
@@ -279,6 +280,6 @@ async def _start_telegram_intake() -> None:
     asyncio.create_task(_resilient(telegram_intake_loop, "telegram_intake_loop"))
 
 
-@router.get("/api/telegram/intake/status")
+@router.get("/api/telegram/intake/status", dependencies=[Depends(require_auth)])
 async def telegram_intake_status() -> JSONResponse:
     return JSONResponse(_status())

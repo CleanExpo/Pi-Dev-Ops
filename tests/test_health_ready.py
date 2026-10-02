@@ -45,8 +45,11 @@ class _FakeProc:
 
 
 def _client() -> TestClient:
+    from app.server.auth import require_auth
+
     app = FastAPI()
     app.include_router(health_ready.router)
+    app.dependency_overrides[require_auth] = lambda: True
     return TestClient(app)
 
 
@@ -176,14 +179,14 @@ def test_health_stays_liveness_200_when_disk_check_fails(monkeypatch):
 
     from app.server.routes.health import health as health_fn
 
-    monkeypatch.delenv("TAO_PASSWORD", raising=False)
+    from app.server.auth import create_session_token
 
     def boom(*_a, **_k):
         raise OSError("no disk")
 
     monkeypatch.setattr(shutil, "disk_usage", boom)
     req = MagicMock()
-    req.headers = Headers({})
+    req.headers = Headers({"Authorization": f"Bearer {create_session_token()}"})
     req.cookies = {}
     response = asyncio.run(health_fn(req))
     body = json.loads(response.body)

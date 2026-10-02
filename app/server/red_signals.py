@@ -60,9 +60,12 @@ def fetch_health_full(log) -> dict | None:
 
     Any other failure returns None and is logged at WARNING — it used to be
     log.debug, which is how a month of failed polls stayed invisible.
+    The route needs auth (#869), so the request carries a minted session.
     """
-    req = urllib.request.Request(health_full_url(), headers={"Accept": "application/json"})
     try:
+        from .auth import create_session_token  # noqa: PLC0415
+        req = urllib.request.Request(health_full_url(), headers={
+            "Accept": "application/json", "Authorization": f"Bearer {create_session_token()}"})
         try:
             with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
                 return json.loads(resp.read())
