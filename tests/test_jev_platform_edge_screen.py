@@ -21,7 +21,10 @@ FOLDS = ["\u212a", "\u0130", "\u0131", "\u017f"]  # round 24: re.I alone treats 
 KEYS += [f"AWS key: AKIAABCDEFGHIJKLMNOP{c}" for c in FOLDS] + [f"{c}sk-reviewfixtureabcdefgh" for c in FOLDS]
 ESCAPES = ["\\n", "\\t", "\\r", "\\u000a"]  # round 28: literal JSON escapes, as in a logged message
 KEYS += [f"{{\"message\": \"{e}sk-reviewfixtureabcdefgh\"}}" for e in ESCAPES] + [f"{e}AKIAABCDEFGHIJKLMNOP" for e in ESCAPES]
-OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc", "\\niicrc"]  # refused by ask.sensitive only
+LOG_ESCAPES = ["\\x1b", "\\v", "\\x00", "\\033", "\\a", "\\U0001F600", "\\N{BEL}"]  # round 29: repr/log escapes
+KEYS += [f"{e}sk-reviewfixtureabcdefgh" for e in LOG_ESCAPES] + [f"{e}AKIAABCDEFGHIJKLMNOP" for e in LOG_ESCAPES]
+KEYS += ["C:\\sk-reviewfixtureabcdefgh"]  # a lone backslash: only the raw-text screen sees this one
+OTHER = ["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6已", "_iicrc_", "已iicrc", "iicrc\u212a", "\u017fiicrc", "\\niicrc", "\\x1biicrc"]  # refused by ask.sensitive only
 CLEAN = ["task-abcdefghij", "costs-abcdefghijk", "On 2026-09-29 the job ran.", "masks-and-gloves"]
 
 

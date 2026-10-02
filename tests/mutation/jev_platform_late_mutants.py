@@ -4,7 +4,7 @@ from jev_platform_guard_mutants import GUARD_MUTANTS as _GUARD
 GUARD_MUTANTS = _GUARD + [
     # round 22: one credential set, screened decoded in client.send and the eval harness; no error body is read
     # (test_jev_platform_harness_screen.py, test_jev_platform_send_screen.py)
-    ('client.py', 'return any(p.search(text) for p in CREDENTIALS)', 'return False'),
+    ('client.py', 'return any(p.search(t) for t in screened(text) for p in CREDENTIALS)', 'return False'),
     ('client.py', ')] \\\n    + [_API_KEYS]', ')]'),
     ('client.py', '        return credential(obj)', '        return False'),
     ('client.py', 'credential_payload(k) or credential_payload(v)', 'credential_payload(v)'),
@@ -17,10 +17,7 @@ GUARD_MUTANTS = _GUARD + [
      '    if False:\n        return 0, None, 0.0'),
     ('evals/jev_constitution/harness.py', '"HTTP error body not read"', 'e.read()[:300].decode(errors="replace")'),
     # round 23: edges are ASCII letter/digit lookarounds, never \\b (test_jev_platform_edge_screen.py)
-    ('client.py', '_EDGE = r"(?:(?<![A-Za-z0-9])|(?<=\\\\[bfnrt])|(?<=\\\\u[0-9A-Fa-f]{4}))"\n_END = r"(?![A-Za-z0-9])"',
-     '_EDGE = r"\\b"\n_END = r"\\b"'),
-    # round 28: a literal JSON escape starts a token (test_jev_platform_edge_screen.py ESCAPES)
-    ('client.py', '_EDGE = r"(?:(?<![A-Za-z0-9])|(?<=\\\\[bfnrt])|(?<=\\\\u[0-9A-Fa-f]{4}))"', '_EDGE = r"(?<![A-Za-z0-9])"'),
+    ('client.py', '_EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"', '_EDGE, _END = r"\\b", r"\\b"'),
     ('client.py', 'r"AKIA[0-9A-Z]{16}" + _END', 'r"AKIA[0-9A-Z]{16}\\b"'),
     ('client.py', 're.compile(_EDGE + r"[0-9a-fA-F]{32,}" + _END)', 're.compile(r"\\b[0-9a-fA-F]{32,}\\b")'),
     ('ask.py', 'client._EDGE + r"iicrc" + client._END', 'r"\\biicrc\\b"'),
@@ -37,4 +34,9 @@ GUARD_MUTANTS = _GUARD + [
     ('evals/jev_constitution/harness.py', 'client.strict_json(resp.read().decode())', 'json.load(resp)'),
     # round 27: model-written JSON refuses duplicates too (test_jev_platform_duplicate_model_json.py)
     ('evals/jev_constitution/generate.py', 'return client.strict_json(m.group(1))', 'return json.loads(m.group(1))'),
+    # round 29: screens read the raw text AND its escape-free reading (test_jev_platform_edge_screen.py LOG_ESCAPES)
+    ('client.py', '    return text, _ESCAPE.sub(" ", text)', '    return (text,)'),
+    ('client.py', '    return text, _ESCAPE.sub(" ", text)', '    return (_ESCAPE.sub(" ", text),)'),
+    ('client.py', 'for t in screened(text) for p in CREDENTIALS', 'for t in (text,) for p in CREDENTIALS'),
+    ('ask.py', 'for t in client.screened(text) for p in _REFUSE', 'for t in (text,) for p in _REFUSE'),
 ]

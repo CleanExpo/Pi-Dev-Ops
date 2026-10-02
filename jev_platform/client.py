@@ -22,9 +22,16 @@ REQUEST_TIMEOUT = 30.0
 REDACTION_VERSION = "redact-1"
 # Edges are "not an ASCII letter or digit", never \b: \b is Unicode-aware and counts "_" as a word
 # character, so _sk-..._ or a key touching a CJK letter had no boundary (round 23).
-# Round 28: a literal JSON escape (\n, \t, \u000a ...) also starts a token, or a logged key hides behind its letter.
-_EDGE = r"(?:(?<![A-Za-z0-9])|(?<=\\[bfnrt])|(?<=\\u[0-9A-Fa-f]{4}))"
-_END = r"(?![A-Za-z0-9])"
+_EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
+# Rounds 28-29: a logged key hides behind the letters of a written-out escape (\n, \x1b, \u000a, \033, repr()).
+# Every escape is replaced by a space and the result screened too; the raw text is screened as well, because a
+# key straight after a lone backslash (C:\sk-...) would lose its first letter to the replacement.
+_ESCAPE = re.compile(r"\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|N\{[^}]*\}|[0-7]{1,3}|.)", re.S)
+
+
+def screened(text: str) -> tuple[str, str]:
+    """The raw text and its escape-free reading; a screen refuses if either matches."""
+    return text, _ESCAPE.sub(" ", text)
 _API_KEYS = re.compile(_EDGE + r"(?:sk-|ts-|ghp_)[\w-]{8,}")
 _PATTERNS = [
     re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),
@@ -43,7 +50,7 @@ CREDENTIALS = [re.compile(p, re.I | re.ASCII) for p in (  # ASCII: re.I alone fo
 
 
 def credential(text: str) -> bool:
-    return any(p.search(text) for p in CREDENTIALS)
+    return any(p.search(t) for t in screened(text) for p in CREDENTIALS)
 
 
 def credential_payload(obj) -> bool:

@@ -54,7 +54,7 @@ def approved_manifest(repo: str) -> dict | None:
 
 
 def sensitive(text: str) -> bool:
-    return any(p.search(text) for p in _REFUSE)
+    return any(p.search(t) for t in client.screened(text) for p in _REFUSE)
 
 
 def sensitive_payload(obj) -> bool:
