@@ -232,7 +232,6 @@ def test_dispatcher_never_assigns_an_idea_plan_ticket():
     A ticket carrying idea:plan (alone or with mesh:auto) must therefore never be
     dispatched: it reaches a node only through /claim/self, which says `plan`."""
     from app.server import mesh_dispatch_service as svc
-    from app.server.routes import mesh as real_mesh
 
     class Routes:
         claims: list = []
@@ -252,4 +251,5 @@ def test_dispatcher_never_assigns_an_idea_plan_ticket():
                _issue("UNI-3", ["mesh:auto", "idea:plan"])]
     svc._assign(routes, tickets, [{"host": "nodeA"}])
     assert routes.claims == ["UNI-1"]
-    assert "labels{nodes{name}}" in real_mesh._MESH_AUTO_QUERY
+    from app.server import mesh_lanes as real_lanes  # W1b: dispatch reads the shared query
+    assert "labels{nodes{name}}" in real_lanes.SELF_CLAIM_QUERY

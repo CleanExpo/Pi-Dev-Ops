@@ -12,7 +12,7 @@ You are the guardian of how Pi-Dev-Ops talks to Linear. Every autonomous read, w
 ## Core decisions (already made, do not re-litigate)
 
 - **Routing:** Pattern B (repo name → matching Linear project name, verbatim). Pattern C override — explicit `target_project` parameter wins.
-- **Autonomy signal:** STATUS-based. A ticket is autonomous-pickable iff status=`Ready for Pi-Dev` AND label `pi-dev:autonomous`. Both required — status alone is not authorisation.
+- **Autonomy signal:** STATUS-based. A ticket is autonomous-pickable iff status=`Ready for Pi-Dev` AND label `pi-dev:autonomous`. Both required — status alone is not authorisation. The mesh build lane also accepts `Todo` + `pi-dev:autonomous`. Every executor applies `issue_is_claimable()` (`app/server/autonomy_eligibility.py`), which also refuses open blockers, a Blocked move in the last 24 h, a third start in 24 h, and any `pi-dev:blocked-reason:*` label. A failed start is parked Blocked, never returned to Ready.
 - **Idempotency:** Every Pi-Dev run has a unique `run_id`. Stored in the `Pi-Dev Run ID` custom field. Skill 1 updates in place if run_id already filed.
 
 ## Workspace setup (must exist before any skill runs)

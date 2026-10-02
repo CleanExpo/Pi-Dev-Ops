@@ -52,6 +52,7 @@ def test_autonomy_checks_generation_before_claiming_ticket(monkeypatch, machine_
     monkeypatch.setattr(autonomy, "_transition_to_in_progress", transition)
     monkeypatch.setattr(autonomy, "_log_event", events)
     monkeypatch.setenv("TAO_MACHINE_SHIP_MODE", "1" if machine_ship else "0")
+    monkeypatch.setenv("TAO_TICKET_TOKEN_CAP", "0")  # W1b: no Supabase ledger here; cap is tested elsewhere
     issue = {"id": "ticket-1", "identifier": "TEST-1", "title": "Repair test build",
              "description": "https://github.com/example/test", "labels": {"nodes": []}}
     if machine_ship:

@@ -101,5 +101,7 @@ async def post_execute(body: IdeaIdBody) -> dict:
         "packet": packet,
         "executed": False,
         "authorized": True,
-        "note": "GO recorded. The idea pipeline does not auto-start a build.",
+        "linear_ticket": packet.get("linear_ticket"),
+        "note": "GO recorded. One Ready for Pi-Dev + pi-dev:autonomous ticket is filed; "
+                "an executor picks it up. The pipeline itself starts no build.",
     }

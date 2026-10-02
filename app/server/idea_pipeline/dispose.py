@@ -50,7 +50,11 @@ def authorize_go(packet: dict[str, Any]) -> dict[str, Any]:
 
 
 def try_execute(packet: dict[str, Any]) -> dict[str, Any]:
-    """Record an execute request. Never starts a build. Refuses without GO."""
+    """Record an execute request. Refuses without GO.
+
+    Starts no build itself; ``try_execute_idea`` then files the one Ready +
+    pi-dev:autonomous ticket the executors pick up (W1b).
+    """
     if not packet.get("go_at"):
         raise PipelineGateError("Nothing executes without GO.")
     if packet.get("verdict") != "PROMOTE":

@@ -28,7 +28,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import config
+from . import autonomy_queue, config
 
 _log = logging.getLogger("pi-ceo.session_linear")
 
@@ -350,6 +350,6 @@ def _sync_linear_on_completion(session) -> None:
             # Move back to Todo so the issue is visible as needing attention
             _update_linear_state(issue_id, "Todo")
         # killed / other terminal states: no Linear update needed
-
+    autonomy_queue.release_session_claim(session)  # W1b: free the fleet claim on every terminal status
     # ── RA-887: Telegram outcome notification (autonomy sessions only) ────────
     _send_autonomy_outcome_telegram(session)
