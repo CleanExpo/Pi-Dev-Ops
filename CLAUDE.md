@@ -455,13 +455,26 @@ does not exist (RA-7396).
 ## Autonomy and kill switches
 
 `app/server/autonomy.py` polls Linear and creates sessions, every `TAO_AUTONOMY_POLL_INTERVAL`
-seconds (`autonomy.py:803`, default `300` = 5 min). **The poll filter is not priority-based.**
-`fetch_todo_issues()` (`autonomy.py:294-365`) only claims an issue when status name is exactly
-`"Ready for Pi-Dev"` **and** it carries the label `pi-dev:autonomous` or `pi-dev:machine-ship`
-(`autonomy.py:241-250,318-319`) — a prior priority-based filter (`state.type=unstarted` +
-`priority<=2`) was replaced because it accidentally claimed any high-priority Todo across the
-whole workspace. An issue in any other status, or missing either label, is invisible to the
-poller — move it to `Ready for Pi-Dev` with the label set to restart a stalled session.
+seconds (default `300` = 5 min). **The poll filter is not
+priority-based.** Every executor admits work through one function,
+`issue_is_claimable()` in `app/server/autonomy_eligibility.py`: the Railway poller
+(`fetch_todo_issues()`, every page), the mesh self-claim and dispatcher
+(`mesh_lanes.candidates()`), and swarm intake. The poller claims only status name exactly
+`"Ready for Pi-Dev"` **and** label `pi-dev:autonomous` or `pi-dev:machine-ship`, in a
+project registered in `config/harness/projects.json`; the mesh build lane also takes
+`pi-dev:autonomous` in `Todo`. A prior priority-based filter (`state.type=unstarted` +
+`priority<=2`) was replaced because it claimed any high-priority Todo across the workspace.
+
+`claim_refusal()` refuses a ticket with an open blocker, a move to `Pi-Dev: Blocked` in the
+last 24 h, two session starts in the last 24 h (the third is parked with
+`pi-dev:blocked-reason:repeat-claim`), or any `pi-dev:blocked-reason:*` label. A failed start
+is parked Blocked, never re-queued. A ticket whose sessions have spent `TAO_TICKET_TOKEN_CAP`
+tokens in total (default 300,000, summed from Supabase session checkpoints) is parked with
+`pi-dev:blocked-reason:token-cap`; with no readable ledger (Supabase unset or failing) the
+ticket is skipped, so set `TAO_TICKET_TOKEN_CAP=0` to run the poller without Supabase. A failed
+session is labelled `pi-dev:blocked-reason:session-failed` before its claim is released. To restart a parked ticket: fix the cause, remove the
+blocked-reason label, then move it to `Ready for Pi-Dev`. Re-derive:
+`grep -n "def claim_refusal" -A30 app/server/autonomy_eligibility.py`
 
 Three abort axes apply to every TAO loop (`app/server/kill_switch.py`):
 

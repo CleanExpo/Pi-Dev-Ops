@@ -116,3 +116,22 @@ def repo_dir_problem(default_repo_dir: Path, own_repo: Path) -> str:
     if canonical_origin(theirs) != canonical_origin(mine):
         return f"MESH_REPO_DIR={target} has origin {theirs or '(none)'}, expected {mine}"
     return ""
+
+
+def repo_dir_for(slug: str, default_repo_dir: Path, repos_root: Path) -> Path:
+    """The checkout to build `slug` (owner/name) in — never a different repository.
+
+    W1b: autonomy-lane claims name their project's repo. The runner's default
+    checkout is used only when its own origin IS that repo; otherwise the
+    checkout is `repos_root/<name>`, and only if its origin matches. Anything
+    else returns a path with no `.git`, so the runner fails the claim with
+    "repo missing" instead of building one project's ticket in another's code.
+    """
+    want = f"github.com/{slug.strip().strip('/')}".lower()
+    default = Path(default_repo_dir).expanduser().resolve()
+    if canonical_origin(git_origin(default)).lower() == want:
+        return default
+    candidate = Path(repos_root).expanduser().resolve() / slug.rsplit("/", 1)[-1]
+    if (candidate / ".git").exists() and canonical_origin(git_origin(candidate)).lower() == want:
+        return candidate
+    return candidate / f"not-a-checkout-of-{slug.replace('/', '-')}"

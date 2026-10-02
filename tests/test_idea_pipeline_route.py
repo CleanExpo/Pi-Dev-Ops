@@ -9,12 +9,19 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.server.auth import require_auth
+from app.server.idea_pipeline import go_ticket
 from app.server.routes import idea_pipeline
+
+
+def _fake_ticket(_packet, *, gql=None):
+    """W1b: execute now files a Linear ticket; tests never reach Linear."""
+    return {"id": "i1", "identifier": "RA-TEST", "url": "u", "state": "Ready for Pi-Dev"}
 
 
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(idea_pipeline, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(go_ticket, "file_go_ticket", _fake_ticket)
     app = FastAPI()
     app.include_router(idea_pipeline.router)
     app.dependency_overrides[require_auth] = lambda: None
@@ -65,6 +72,7 @@ def test_execute_is_blocked_until_promote_and_go(client: TestClient) -> None:
     assert execute.status_code == 200
     assert execute.json()["executed"] is False
     assert execute.json()["authorized"] is True
+    assert execute.json()["linear_ticket"]["identifier"] == "RA-TEST"
 
 
 def test_margot_intake_and_bad_verdict(client: TestClient) -> None:
