@@ -17,7 +17,9 @@
 | 3 | `0a4ed28` | same | spec vs route files | PASS | — |
 | 3 | same | same | spec vs brief (run twice) | PASS, PASS | — (non-blocking notes addressed in text) |
 | 3 | same | same | standards | FAIL | A6 did not list every page it claims unchanged |
-| 3-fix | this revision | same | standards, finding F1 only | see below | The reviewer's own proposed fix was applied verbatim (A6 now lists all 21 pages). Round 3 was the last full round the brief allows, so this is a single confirmation that F1 is closed, not a fourth review |
+| 3-fix | `05fb0bf` | same | standards, finding F1 only | F1 RESOLVED; NEW BLOCKING: none | The reviewer's own proposed fix was applied verbatim (A6 now lists all 21 pages). Round 3 was the last full round the brief allows, so this is a single confirmation that F1 is closed, not a fourth review |
+
+**Gate result:** no open blocking finding on `05fb0bf`; the build may start.
 
 Reviewer note: neither Codex nor an OpenRouter key is available in this session's environment
 (no `codex` binary, no `OPENROUTER_API_KEY`). The reviewer is the LLM behind Composio's workbench
