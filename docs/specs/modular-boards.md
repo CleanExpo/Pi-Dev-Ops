@@ -7,10 +7,13 @@
 
 | Round | Spec revision | Reviewer model | Axes | Verdict | Blocking findings |
 |---|---|---|---|---|---|
-| 1 | `b0`: commit after `e3dff5e` | Composio `invoke_llm` (vendor undisclosed; see note) | standards | FAIL | refresh-after-write untested; done-clause omits T/G tests; pasted "Today" rates; `/loop` + section pages untested for "unchanged"; no in-board write test |
+| 1 | `fdbe99f` | Composio `invoke_llm` (vendor undisclosed; see note) | standards | FAIL | refresh-after-write untested; done-clause omits T/G tests; pasted "Today" rates; `/loop` + section pages untested for "unchanged"; no in-board write test |
 | 1 | same | same | spec vs brief | FAIL | sessions/health routing unclear (N1); FixSessionLive second interval; action views hidden on failure would remove the kill control |
 | 1 | same | same | spec vs route files | FAIL | mesh-fleet no_source rows uncited; kill-switch 401 body misquoted |
 | 1 | same | same | spec (single combined call) | NO VERDICT — reviewer returned no output twice; not counted as a pass, replaced by the two split calls above | — |
+| 2 | `b880806` | same | standards | PASS | — (6 non-blocking, addressed in round 3 text) |
+| 2 | same | same | spec vs route files | PASS | — |
+| 2 | same | same | spec vs brief | FAIL | wrapped provider-usage / wiki-graph components would add a second reader (one-request rule) |
 
 Reviewer note: neither Codex nor an OpenRouter key is available in this session's environment
 (no `codex` binary, no `OPENROUTER_API_KEY`). The reviewer is the LLM behind Composio's workbench
@@ -83,7 +86,9 @@ Every feed resolves to exactly one of five states:
 | `unreachable` | The latest read failed and no good data exists; or the response says the upstream did not answer; or 401 | "Unreachable — <reason>" in the frame; no number |
 | `no_source` | The feed says it is not configured, or the module has no live source | Grey hollow "No source yet — <reason>"; no number |
 
-Stale age for every feed = `3 × interval` (minimum 15 s).
+Stale age for every feed = `3 × interval` (minimum 15 s). The factor is the one already used on
+`main`: `lib/wall/client.ts` sets `STALE_AFTER_MS = POLL_MS * 3`, and `LiveActivityFeed` calls its
+5 s feed live only if the last update is under 15 s old.
 
 A module's state is the worst of its sources, in the order
 `unreachable > no_source > stale > loading > live`.
@@ -111,7 +116,7 @@ The `LiveActivityFeed` 1 s line is its clock, not a poll. `IdeaPipelinePanel` an
 | `wiki-graph` | `/api/command-centre/wiki-graph` | 300 s | once on mount | Counts change on a sync, not minute to minute |
 | `curator` | `/api/curator-proposals?status=pending&limit=10` | 30 s | 30 s | Unchanged; the query is the one `CuratorProposalsPanel` sends today |
 | `pi-health` | `/api/pi-ceo/health` (via `fetchProxy`) | 15 s | 15 s (overview) | Unchanged; `operator-readiness.test.tsx` pins 15 s |
-| `sessions` | `/api/pi-ceo/api/sessions` (via `fetchProxy`) | 15 s | 4 s / 15 s | The overview rate; `FixSessionLive`'s 4 s fallback folds in (note N2) |
+| `sessions` | `/api/pi-ceo/api/sessions` (via `fetchProxy`) | 15 s | 4 s / 15 s (the grep below finds no 5 s sessions poll; the brief's "5 s" is `LiveActivityFeed`'s `mc-live` poll, whose payload carries `active_sessions` — a different feed) | The overview rate; `FixSessionLive`'s 4 s fallback folds in (note N2) |
 | `projects-health` | `/api/pi-ceo/api/projects/health` (via `fetchProxy`) | 30 s | 30 s and 60 s | Scan scores move hourly; 30 s keeps PortfolioFocus's rate |
 | `mc-live` | `/api/pi-ceo/api/mission-control/live` (via `fetchProxy`) | 5 s | 5 s and 30 s | The live feed's "live" label means a read in the last 15 s |
 | `idea-pipeline` | `/api/pi-ceo/api/idea-pipeline` (via `fetchProxy`) | 60 s | on mount + after actions | Ideas arrive by hand; `refresh()` covers the after-action read |
@@ -148,7 +153,8 @@ Failure readers — one per feed, each with a unit test (§9 T1):
 Where the server sends no timestamp, the freshness chip reads "fetched Xs ago (browser time)".
 Unknown stays unknown: in every state other than `live`, `ModuleFrame` renders no view, so no
 number from the view reaches the screen (G4 checks this per view); views contain no sample rows
-(T5 checks that no file under `components/boards/views/` defines a literal data array).
+(T5 checks that no file under `components/boards/` or `lib/boards/` other than `lib/boards/presets/`
+defines a literal array of data rows).
 
 ## 4. Registry
 
@@ -181,10 +187,10 @@ Remove), the freshness chip and the five states. No view re-implements them.
   today (`__tests__/kill-switch-panel.test.tsx`, "ERROR" cases), and a board must not remove it.
   These panels already render unknown values as "unknown" / an error line, not as numbers; A3
   checks that on the board.
-- **Signed out (401).** When a module's source answered 401, every write control in an action view
-  is disabled and the reason "Signed out — sign in again (401)" is shown beside it (A5). This is
-  the one new behaviour inside a view #1 panel; a POST from a signed-out browser would be refused
-  by the same route anyway.
+- **Signed out (401).** When the `kill-switch` source answered 401, `KillSwitchPanel`'s Halt and
+  Resume buttons are disabled and the reason "Signed out — sign in again (401)" is shown beside
+  them (A5). This is the one new behaviour inside a view #1 panel; a POST from a signed-out browser
+  would be refused by the same route anyway. Other action panels are unchanged in this pass.
 
 ### 4.1 Module list
 
@@ -215,15 +221,43 @@ own `setInterval`; its markup, copy and classes do not change.
 
 `ProviderUsageCockpit` and `WikiGraphTile` are provenance-baselined
 (`__tests__/command-centre-readonly.test.ts`) and are not edited. Their modules wrap them from
-outside; the frame's state comes from the shared `provider-usage` / `wiki-graph` sources. Declared
-delta D1: while the provider-usage module is on a board, its feed is read twice per 30 s (the
-component's own poll plus the shared one, pinned by T7); while the wiki-graph module is on a board,
-the component makes its one read on mount and the shared source reads every 300 s.
+outside. Both components call the global `fetch` themselves, so a shared poller alone would add a
+second reader. To keep one request per interval without editing them, the boards page installs a
+**request-sharing tap** (`lib/boards/sources/fetch-tap.ts`) for exactly two URL paths —
+`/api/command-centre/provider-usage` and `/api/command-centre/wiki-graph`:
+
+- It wraps `window.fetch` only while a board page is mounted, and restores the original on unmount.
+- Only GET requests whose path is one of the two is touched; every other request passes straight
+  through to the original `fetch` unchanged.
+- A matching GET joins an in-flight request for the same path, or receives a clone of the last
+  response if that response is younger than the feed's interval minus 1 s; otherwise it goes to the
+  network. Each network response is also handed to the shared source, so the frame's state comes
+  from the same read the component made.
+- Net effect, pinned by T7: with N provider-usage modules on a board, exactly one
+  `/api/command-centre/provider-usage` network request per 30 s; with N wiki-graph modules, one per
+  300 s.
+
+This is the only global patch in the diff. It is scoped to two paths and the board page's lifetime,
+and T7 also asserts that a request to any other path reaches the original `fetch` untouched.
 
 The `Wall` component (`components/wall/Wall.tsx`) and `/command-centre/wall` are not edited and
 keep their own 5 s poll. Board modules on the `wall` feed use the shared source. Declared delta D2:
 a board with wall modules open beside `/command-centre/wall` in the same browser makes two wall
 reads per 5 s, one per page.
+
+### 4.2 Declared deltas
+
+Every visible or behavioural difference from `main` that this pass introduces on purpose:
+
+| # | Delta | Where |
+|---|---|---|
+| D2 | A board with wall modules open beside `/command-centre/wall` in the same browser makes two wall reads per 5 s (one per page; `Wall.tsx` is not edited) | wall feed |
+| D3 | `FixSessionLive`'s fallback poll slows from 4 s to the shared 15 s (N2) | HealthGrid drill-down |
+| D4 | On a board, a read-only view is hidden while its module is `stale`, `unreachable` or `no_source`, and the frame shows the state instead. On the existing pages the panels keep today's behaviour | boards only |
+| D5 | On a board, an action view #1 renders under the frame's state banner (kicker, title, state, reason). The panel's own markup inside the frame is unchanged (T8) | boards only |
+| D6 | Signed out (401): the kill switch's Halt / Resume are disabled with the reason shown (A5). Applies on the existing pages too, because it lives in the panel | KillSwitchPanel |
+| D7 | New modules with no existing panel — `builds`, `north-star`, `clock` — are additions; their first views follow the new-view rules | registry |
+| D8 | `wiki-graph` is re-read every 300 s on a board, where today the tile reads once on mount | wiki-graph feed |
 
 ## 5. Boards
 
@@ -285,6 +319,8 @@ overall look is a founder visual review of the screenshots in the handoff, and i
 - Hex literals are banned in new files under `components/boards/` and `lib/boards/` (T5 greps
   them); converted view #1 files keep theirs. Card titles are rendered from the registry's
   sentence-case `name` with no `uppercase` class (T5 checks `ModuleFrame`).
+- Sequencing: second views are built only after the board canvas works (A1, A2, A4 green), as the
+  brief orders.
 - Pattern references (no paid Mobbin pull in this pass): Linear Dashboards, PostHog dashboards,
   Mercury home, Better Stack monitors.
 
@@ -312,6 +348,15 @@ overall look is a founder visual review of the screenshots in the handoff, and i
 - File length ≤ 300 lines for every new `.py/.ts/.tsx` in the diff (registry, components, tests), functions ≤ 40 lines for new Python
   (`file_length_lint.py`, `function_length_lint.py`, run after `git add`).
 - Existing tests stay green; tests that stub `fetch` per case rely on the global `resetSources()`.
+  The brief names these as the ones most likely to need a poller-aware change, and each keeps its
+  assertions: `fleet-tile.test.tsx` (per-case stubs → reset), `control-telemetry-refresh.test.tsx`
+  (30 s fake timer → the shared poller must use the same timers and the same 10 s abort),
+  `operator-readiness.test.tsx` (15 s fake timer → `pi-health`/`sessions` at 15 s),
+  `kill-switch-panel.test.tsx` (status shapes → kill-switch reader), and
+  `e2e-writes/kill-switch.spec.ts` (Playwright write journey → unchanged routes).
+- `e2e-live/panel-coverage.json` keeps listing each converted panel at its module path. The panels
+  stay where they are (`components/control/*`, `components/wall/*`); only their data hook moves, so
+  the existing entries remain correct and MC-20 gets its own list.
 
 ## 9. Acceptance
 
@@ -321,11 +366,11 @@ the build with the guarded behaviour removed), then passing. Receipts go in the 
 | # | Test | Tool |
 |---|---|---|
 | A1 | On `/control/boards`: drag one module, resize one, add one from the library, remove one, switch one view; reload; all five changes persist | Playwright |
-| A2 | A board with two Fleet modules makes exactly one `/api/mesh-fleet` request per interval. Exempt by declaration: the provider-usage and wiki-graph modules (D1, pinned by T7) | vitest (fake timers) + Playwright request count |
+| A2 | A board with two Fleet modules makes exactly one `/api/mesh-fleet` request per interval; a board with two provider-usage modules makes exactly one provider-usage request per 30 s (through the tap) | vitest (fake timers) + Playwright request count |
 | A3 | Pi-CEO backend down (proxy answers with `X-Upstream-Status`): every backend-dependent module shows unreachable or stale and no number; provider-usage and wiki-graph stay live | vitest + Playwright with routed responses |
 | A4 | A board with an unknown module id renders the grey frame; the page does not crash | vitest + Playwright |
 | A5 | Kill switch module with `/api/kill-switch` answering 401: kill control disabled, reason shown. Existing kill-switch tests stay green | vitest |
-| A6 | `/control`, `/control/<section>` (all eleven), `/loop`, `/overview`, `/command-centre/*` and the wall unchanged: the existing vitest suites for each converted panel stay green unmodified in their assertions; e2e green; before/after Playwright screenshots of `/control`, `/control/swarm`, `/control/model`, `/control/health`, `/control/curator`, `/loop`, `/overview`, `/command-centre/providers`, `/command-centre/knowledge` and `/command-centre/wall` with identical routed responses, compared pixel-for-pixel (`toHaveScreenshot` with zero tolerance after masking clocks) | vitest, Playwright |
+| A6 | `/control`, `/control/<section>` (all eleven), `/loop`, `/overview`, `/command-centre/*` and the wall unchanged: the existing vitest suites for each converted panel stay green unmodified in their assertions; e2e green; before/after Playwright screenshots of `/control`, `/control/swarm`, `/control/model`, `/control/health`, `/control/curator`, `/loop`, `/overview`, `/command-centre/providers`, `/command-centre/knowledge` and `/command-centre/wall` with identical routed responses, compared pixel-for-pixel (`toHaveScreenshot`, zero tolerance; masks cover only the text nodes of live clocks and relative "Xs ago" labels, and those nodes are separately asserted present in the DOM) | vitest, Playwright |
 | A7 | At 400 px wide: no horizontal page scroll; modules stack in one column | Playwright |
 | A8 | `npx tsc --noEmit`, `npm run build`, `bash scripts/handoff-loop.sh` pass; the release-gate receipt records exactly `bash scripts/handoff-loop.sh` | shell |
 | A9 | Write action inside a board: on a board, the Kill switch module's "Halt swarm" opens the existing confirm modal; with the POST answering 200, the modal closes and the module shows HALTED from the immediate refresh read (exactly one extra status GET after the POST, no second timer) | vitest |
@@ -341,7 +386,8 @@ Unit and governance tests (all gate Done):
 | T4 | Board validation and BoardStore: invalid JSON or shape rejected with a message and storage left unchanged; unknown view falls back to the first view; storage that throws falls back to presets; export → import round-trips |
 | T5 | Look rules: no hex literal and no literal data array under `components/boards/` and `lib/boards/`; `ModuleFrame` title has no `uppercase` class; no net-new `lucide-react` import (the existing design-md lint) |
 | T6 | MC-20 is present in every enumerated MC list: `scripts/mission_control_register.py`, `scripts/mission_control_scorecard.py`, `docs/plans/mission-control/coverage-register.md`, `dashboard/e2e-live/surfaces.ts`, `dashboard/e2e-live/panel-coverage.json` |
-| T7 | Declared deltas D1/D2 pinned: with the `provider-usage` module on a board, exactly two provider-usage GETs per 30 s (component's own + shared) |
+| T7 | Request-sharing tap: two provider-usage modules plus the shared source make exactly one network GET per 30 s; two wiki-graph modules make one per 300 s; a GET or POST to any other path reaches the original `fetch` with the same arguments; unmount restores the original `fetch` |
+| T8 | In-board fidelity: for each view #1 panel, the panel's inner markup rendered inside `ModuleFrame` in the `live` state equals the panel rendered alone, given the same responses |
 
 ## 10. Out of scope
 
