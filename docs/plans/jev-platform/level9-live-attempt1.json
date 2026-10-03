@@ -1,0 +1,305 @@
+{
+ "_note": "Live attempt 1, 29/09/2026 15:38-15:39 AEST, gemini-3.8-flash + jev-latest, sandbox disler/ten-levels-of-jev@777adaf (apps/ten-levels/sandbox) with manifest commit 52e78d8. NOT the C15 evidence file: all three runs ended incomplete (two on the overrun tripwire: reported prompt tokens exceeded countTokens; one on Gemini 429). An earlier attempt at 15:1x ended incomplete on Gemini 503 high demand.",
+ "runs": {
+  "scr2-auth-layer": {
+   "agent_model": "gemini-3.8-flash",
+   "prompt_id": "scr2-auth-layer",
+   "turns": 2,
+   "jev_calls": 3,
+   "questions": 6,
+   "files_read": 0,
+   "outcome": "incomplete: overrun",
+   "summary": "",
+   "tool_calls": {
+    "ask_jev_files": 1
+   },
+   "jev_results": [
+    {
+     "tool": "ask_jev_files",
+     "args": {
+      "template_ids": [
+       "touches-auth",
+       "layer"
+      ],
+      "patterns": [
+       "src/auth/session.ts",
+       "src/auth/jwt.ts",
+       "src/http/routes.ts"
+      ]
+     },
+     "result": {
+      "results": [
+       {
+        "path": "src/auth/jwt.ts",
+        "sha256": "eb80404ca2f565f5f7cb8893b1c53c5a9d99778e90f3687589b17e487bd2408f",
+        "model": "jev-1.13.0",
+        "answers": {
+         "touches-auth": {
+          "type": "noul",
+          "noul": 0.98
+         },
+         "layer": {
+          "type": "choice",
+          "choice": "other",
+          "confidence": 0.99,
+          "probabilities": {
+           "domain_logic": 0.01,
+           "data_access": 0.0,
+           "other": 0.99,
+           "http_handler": 0.0
+          }
+         }
+        },
+        "note": "advisory, not authorization"
+       },
+       {
+        "path": "src/auth/session.ts",
+        "sha256": "78bc472ec1848f268c26c2846d193b797b53594da08d237d4816072568746a47",
+        "model": "jev-1.13.0",
+        "answers": {
+         "touches-auth": {
+          "type": "noul",
+          "noul": 0.99
+         },
+         "layer": {
+          "type": "choice",
+          "choice": "other",
+          "confidence": 0.93,
+          "probabilities": {
+           "http_handler": 0.0,
+           "domain_logic": 0.05,
+           "data_access": 0.0,
+           "other": 0.95
+          }
+         }
+        },
+        "note": "advisory, not authorization"
+       },
+       {
+        "path": "src/http/routes.ts",
+        "sha256": "ce7d1c7c86d2b1b8ec60553fa7e96ecf039143c116b94fdfa73b521f23f00ae4",
+        "model": "jev-1.13.0",
+        "answers": {
+         "touches-auth": {
+          "type": "noul",
+          "noul": 0.98
+         },
+         "layer": {
+          "type": "choice",
+          "choice": "http_handler",
+          "confidence": 1.0,
+          "probabilities": {
+           "domain_logic": 0.0,
+           "http_handler": 1.0,
+           "other": 0.0,
+           "data_access": 0.0
+          }
+         }
+        },
+        "note": "advisory, not authorization"
+       }
+      ],
+      "skipped": [],
+      "spent_usd": 0.000104,
+      "attempts": 3
+     }
+    }
+   ],
+   "reads": [],
+   "proposals": [],
+   "gemini": {
+    "attempts": 2,
+    "count_calls": 2,
+    "count_ok": 2,
+    "count_reserved_usd": 0.0,
+    "tokens": {
+     "counted": 2071,
+     "reserved_in": 2071,
+     "reserved_out": 4096,
+     "reported_prompt": 2289,
+     "reported_output": 421
+    },
+    "spent_usd": 0.010268
+   },
+   "jev_usd": 0.000104,
+   "gemini_usd": 0.010268,
+   "price_table": {
+    "gemini-3.8-flash": {
+     "in": 7.5e-07,
+     "out": 3.75e-06,
+     "count": 0.0,
+     "valid_until": "2026-12-31"
+    }
+   }
+  },
+  "scr1-known-issues": {
+   "agent_model": "gemini-3.8-flash",
+   "prompt_id": "scr1-known-issues",
+   "turns": 2,
+   "jev_calls": 6,
+   "questions": 6,
+   "files_read": 0,
+   "outcome": "incomplete: overrun",
+   "summary": "",
+   "tool_calls": {
+    "ask_jev_files": 1
+   },
+   "jev_results": [
+    {
+     "tool": "ask_jev_files",
+     "args": {
+      "template_ids": [
+       "known-issue"
+      ],
+      "patterns": [
+       "src/**/*.ts"
+      ]
+     },
+     "result": {
+      "results": [
+       {
+        "path": "src/auth/jwt.ts",
+        "sha256": "eb80404ca2f565f5f7cb8893b1c53c5a9d99778e90f3687589b17e487bd2408f",
+        "model": "jev-1.13.0",
+        "answers": {
+         "known-issue": {
+          "type": "noul",
+          "noul": 0.26
+         }
+        },
+        "note": "advisory, not authorization"
+       },
+       {
+        "path": "src/auth/session.ts",
+        "sha256": "78bc472ec1848f268c26c2846d193b797b53594da08d237d4816072568746a47",
+        "model": "jev-1.13.0",
+        "answers": {
+         "known-issue": {
+          "type": "noul",
+          "noul": 0.67
+         }
+        },
+        "note": "advisory, not authorization"
+       },
+       {
+        "path": "src/domain/billing.ts",
+        "sha256": "bd14a0503d757967e8cfba6cee5fafb8fe22b5ae2afb9953d0d0979ddff294d5",
+        "model": "jev-1.13.0",
+        "answers": {
+         "known-issue": {
+          "type": "noul",
+          "noul": 0.3
+         }
+        },
+        "note": "advisory, not authorization"
+       },
+       {
+        "path": "src/domain/plans.ts",
+        "sha256": "c0846390f5ee600adf282ef34776324fc0335c7babc80fafbdf53a326dbeb6e6",
+        "model": "jev-1.13.0",
+        "answers": {
+         "known-issue": {
+          "type": "noul",
+          "noul": 0.19
+         }
+        },
+        "note": "advisory, not authorization"
+       },
+       {
+        "path": "src/http/invoices.ts",
+        "sha256": "cfe439fabc76574cc37ea8aec0bdab519d2cd8c36262702a3792800bbd339d6f",
+        "model": "jev-1.13.0",
+        "answers": {
+         "known-issue": {
+          "type": "noul",
+          "noul": 0.34
+         }
+        },
+        "note": "advisory, not authorization"
+       },
+       {
+        "path": "src/http/routes.ts",
+        "sha256": "ce7d1c7c86d2b1b8ec60553fa7e96ecf039143c116b94fdfa73b521f23f00ae4",
+        "model": "jev-1.13.0",
+        "answers": {
+         "known-issue": {
+          "type": "noul",
+          "noul": 0.24
+         }
+        },
+        "note": "advisory, not authorization"
+       }
+      ],
+      "skipped": [],
+      "spent_usd": 0.000232,
+      "attempts": 6
+     }
+    }
+   ],
+   "reads": [],
+   "proposals": [],
+   "gemini": {
+    "attempts": 2,
+    "count_calls": 2,
+    "count_ok": 2,
+    "count_reserved_usd": 0.0,
+    "tokens": {
+     "counted": 1891,
+     "reserved_in": 1891,
+     "reserved_out": 4096,
+     "reported_prompt": 2000,
+     "reported_output": 494
+    },
+    "spent_usd": 0.009619
+   },
+   "jev_usd": 0.000232,
+   "gemini_usd": 0.009619,
+   "price_table": {
+    "gemini-3.8-flash": {
+     "in": 7.5e-07,
+     "out": 3.75e-06,
+     "count": 0.0,
+     "valid_until": "2026-12-31"
+    }
+   }
+  },
+  "scr3-proration": {
+   "agent_model": "gemini-3.8-flash",
+   "prompt_id": "scr3-proration",
+   "turns": 1,
+   "jev_calls": 0,
+   "questions": 0,
+   "files_read": 0,
+   "outcome": "incomplete: gemini http_429",
+   "summary": "",
+   "tool_calls": {},
+   "jev_results": [],
+   "reads": [],
+   "proposals": [],
+   "gemini": {
+    "attempts": 3,
+    "count_calls": 3,
+    "count_ok": 3,
+    "count_reserved_usd": 0.0,
+    "tokens": {
+     "counted": 2502,
+     "reserved_in": 2502,
+     "reserved_out": 6144,
+     "reported_prompt": 0,
+     "reported_output": 0
+    },
+    "spent_usd": 0.024917
+   },
+   "jev_usd": 0.0,
+   "gemini_usd": 0.024917,
+   "price_table": {
+    "gemini-3.8-flash": {
+     "in": 7.5e-07,
+     "out": 3.75e-06,
+     "count": 0.0,
+     "valid_until": "2026-12-31"
+    }
+   }
+  }
+ }
+}

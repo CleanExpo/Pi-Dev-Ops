@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.24.4
-  generated_at: "2026-09-30T09:51:48.737466+00:00"
+  version: 1.25.0
+  generated_at: "2026-10-02T22:17:46.863991+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -1010,6 +1010,21 @@ skills:
     safety:
       requires_kill_switch: false
       requires_hitl_gate: true
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: jev
+    description: "Ask TypeSafe Jev typed yes/no, pick-one or pick-a-file questions about reviewed files without reading them into an expensive model's context (Levels 8–10), or run the Gemini 3.8 Flash scout agent over them. Use for \"is this file relevant\", \"which layer is this\", \"which file do I open first\", triage before reading. Never for sums, dates, counts, gating an action, or UI. Answers are advisory and never clear an action."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/jev/SKILL.md
+    sha256: 9701a1dfe62dd41e3309b1a85692f6c857c44ee274b00bb6c57a21f7b21d49f7
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
       pii_handling: pass-through
     inferred: true
     low_confidence: true

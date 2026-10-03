@@ -1,0 +1,64 @@
+{
+  "schema": "done/1",
+  "work_id": "w_a1a81de48bc1",
+  "version": 5,
+  "supersedes": "w_77cbd68fa4d2",
+  "goal": "v5: Jev Platform slice 1 (shadow mode) per docs/plans/jev-platform/PLAN.md rev 5, approved 100/100 by Codex round 5 (judge-r5.md). C6 now verifies the committed ch3-4-27 calibration record at AAA instead of a live harness run; adds isolation check C8",
+  "created_at_utc": "2026-09-29T03:34:37Z",
+  "identity_key": "feat/jev-constitution-eval@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-constitution",
+  "baseline_observed": {
+    "head": "aab1faf17da7813be1dc1935551e295805a75298",
+    "branch": "feat/jev-constitution-eval",
+    "dirty_count": 23
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "text": "All Jev eval, quote and platform offline tests pass: 99 passed",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_constitution_eval.py tests/test_jev_constitution_quotes.py tests/test_jev_platform_policy.py tests/test_jev_platform_calibration.py tests/test_jev_platform_client.py tests/test_jev_platform_engine.py -q -p no:cacheprovider | grep -q '99 passed'"
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "text": "questions.json holds all 538 extracted rules, each with source file:line and quote",
+      "recipe": "python3 -c \"import json;q=json.load(open('evals/jev_constitution/questions.json'))['questions'];assert len(q)==538 and all(x['source'] and x['quote'] for x in q)\""
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "text": "a run with no TYPESAFE_API_KEY reports BLOCKED and exits 2",
+      "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 > /tmp/jev_c3.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c3.txt"
+    },
+    {
+      "id": "C4",
+      "required": true,
+      "text": "the metered-lane refusal in app/server/provider_policy.py is untouched vs origin/main",
+      "recipe": "git diff --quiet origin/main -- app/server/provider_policy.py"
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "text": "pilot ch3-4-27 (no fabricating evidence, approvals or completed actions) has a scoreable set of >=1000 Claude+Codex-agreed cases",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness validate | grep -qE '^VALID +ch3-4-27$'"
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "text": "The committed live calibration record for ch3-4-27 recomputes from its stored per-case scores and is bound to HEAD (AAA artifact rating)",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform verify-calibration --rule ch3-4-27 | grep -qE '^ch3-4-27: AAA @ [0-9a-f]{40}$'"
+    },
+    {
+      "id": "C7",
+      "required": true,
+      "text": "Every question's quote_verbatim flag matches the pinned Constitution text, and all 538 quotes are verbatim",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.quotes --repo /Users/phill-mac/Unite-Group | grep -q '^verbatim 538/538; stored flags wrong: 0$'"
+    },
+    {
+      "id": "C8",
+      "required": true,
+      "text": "Shadow mode is structurally isolated: nothing under app/ or swarm/ references jev_platform",
+      "recipe": "! git grep -q jev_platform -- app swarm"
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "schema": "done/1",
+  "work_id": "w_7e61d2ea1b24",
+  "version": 11,
+  "supersedes": "w_b518506d66d0",
+  "goal": "v11: C11a/C11b replaced by C11a-C11d at equal-or-greater strictness, rest as v10. C11b (mutants after 131) killed 183/183 at ad548ccb but exceeded donectl's fixed 900s recipe cap; the full list is now split into four ranges (0-79, 80-159, 160-239, 240 onward), same unmodified runner, same all-killed rule, and the full-list floor rises from 261 to 315. v10: C9 and C11 replaced at equal-or-greater strictness. v9: Jev scale Levels 9/10 on the Gemini agent chain.",
+  "created_at_utc": "2026-10-02T08:44:36Z",
+  "identity_key": "feat/jev-constitution-eval@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-constitution",
+  "baseline_observed": {
+    "head": "73df31980f231eefb070ea58d41236785cb0b33c",
+    "branch": "feat/jev-constitution-eval",
+    "dirty_count": 2
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "text": "Every Jev test file passes with zero failures and at least 129 tests (v6 floor)",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_constitution_eval.py tests/test_jev_constitution_quotes.py tests/test_jev_platform_*.py -q -p no:cacheprovider > /tmp/jev_c1.txt; test $? -eq 0 && python3 -c \"import re;n=int(re.search(r'(\\d+) passed',open('/tmp/jev_c1.txt').read()).group(1));assert n>=129,n\""
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "text": "questions.json holds all 538 extracted rules, each with source file:line and quote",
+      "recipe": "python3 -c \"import json;q=json.load(open('evals/jev_constitution/questions.json'))['questions'];assert len(q)==538 and all(x['source'] and x['quote'] for x in q)\""
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "text": "a run with no TYPESAFE_API_KEY reports BLOCKED and exits 2",
+      "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 > /tmp/jev_c3.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c3.txt"
+    },
+    {
+      "id": "C4",
+      "required": true,
+      "text": "the metered-lane refusal in app/server/provider_policy.py is untouched vs origin/main",
+      "recipe": "git diff --quiet origin/main -- app/server/provider_policy.py"
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "text": "pilot ch3-4-27 (no fabricating evidence, approvals or completed actions) has a scoreable set of >=1000 Claude+Codex-agreed cases",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness validate | grep -qE '^VALID +ch3-4-27$'"
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "text": "The committed live calibration record for ch3-4-27 recomputes from its stored per-case scores and is bound to HEAD (AAA artifact rating)",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform verify-calibration --rule ch3-4-27 | grep -qE '^ch3-4-27: AAA @ [0-9a-f]{40}$'"
+    },
+    {
+      "id": "C7",
+      "required": true,
+      "text": "Every question's quote_verbatim flag matches the pinned Constitution text, and all 538 quotes are verbatim",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.quotes --repo /Users/phill-mac/Unite-Group | grep -q '^verbatim 538/538; stored flags wrong: 0$'"
+    },
+    {
+      "id": "C8",
+      "required": true,
+      "text": "Shadow mode is structurally isolated: nothing under app/ or swarm/ references jev_platform",
+      "recipe": "! git grep -q jev_platform -- app swarm"
+    },
+    {
+      "id": "C9",
+      "required": true,
+      "text": "Level 8 refuses every denied name (each _DENY_NAMES alternative plus IICRC, approved and committed), the approved .env path, and escaping paths, with zero requests sent; the same approval at a plain path IS sent (positive control)",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_platform_ask.py tests/test_jev_platform_ask_denied.py -q -p no:cacheprovider -k 'denied_name_refused_even_when_approved or refused_as_denied or escaping_paths_refused or plain_path_is_sent' | grep -qE '^26 passed'"
+    },
+    {
+      "id": "C10",
+      "required": true,
+      "text": "Level 8 with no TYPESAFE_API_KEY prints BLOCKED and exits 2",
+      "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform ask --file jev_platform/policy.py --q arch-layer 2>/tmp/jev_c10.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c10.txt"
+    },
+    {
+      "id": "C11a",
+      "required": true,
+      "text": "Every guard has a mutant that a test kills (part 1 of 4): mutants 1-80 of the runner list, all killed, run by the unmodified runner; the full list holds at least 315 so none is silently dropped",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -c \"import sys;sys.path.insert(0,'tests/mutation');import jev_platform_mutants as m;print('full=%d'%len(m.MUTANTS),flush=True);m.MUTANTS[:]=m.MUTANTS[0:80];sys.exit(m.main())\" | python3 -c \"import re,sys;t=sys.stdin.read();n=int(re.search(r'^full=(\\d+)$',t,re.M).group(1));m=re.search(r'^(\\d+)/(\\d+) mutants killed$',t,re.M);assert m and m.group(1)==m.group(2) and int(m.group(2))==80 and n>=315\""
+    },
+    {
+      "id": "C11b",
+      "required": true,
+      "text": "Every guard has a mutant that a test kills (part 2 of 4): mutants 81-160 of the runner list, all killed, run by the unmodified runner; the full list holds at least 315 so none is silently dropped",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -c \"import sys;sys.path.insert(0,'tests/mutation');import jev_platform_mutants as m;print('full=%d'%len(m.MUTANTS),flush=True);m.MUTANTS[:]=m.MUTANTS[80:160];sys.exit(m.main())\" | python3 -c \"import re,sys;t=sys.stdin.read();n=int(re.search(r'^full=(\\d+)$',t,re.M).group(1));m=re.search(r'^(\\d+)/(\\d+) mutants killed$',t,re.M);assert m and m.group(1)==m.group(2) and int(m.group(2))==80 and n>=315\""
+    },
+    {
+      "id": "C11c",
+      "required": true,
+      "text": "Every guard has a mutant that a test kills (part 3 of 4): mutants 161-240 of the runner list, all killed, run by the unmodified runner; the full list holds at least 315 so none is silently dropped",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -c \"import sys;sys.path.insert(0,'tests/mutation');import jev_platform_mutants as m;print('full=%d'%len(m.MUTANTS),flush=True);m.MUTANTS[:]=m.MUTANTS[160:240];sys.exit(m.main())\" | python3 -c \"import re,sys;t=sys.stdin.read();n=int(re.search(r'^full=(\\d+)$',t,re.M).group(1));m=re.search(r'^(\\d+)/(\\d+) mutants killed$',t,re.M);assert m and m.group(1)==m.group(2) and int(m.group(2))==80 and n>=315\""
+    },
+    {
+      "id": "C11d",
+      "required": true,
+      "text": "Every guard has a mutant that a test kills (part 4 of 4): every mutant after the first 240 of the runner list, all killed, run by the unmodified runner; the full list holds at least 315 so none is silently dropped",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -c \"import sys;sys.path.insert(0,'tests/mutation');import jev_platform_mutants as m;print('full=%d'%len(m.MUTANTS),flush=True);m.MUTANTS[:]=m.MUTANTS[240:];sys.exit(m.main())\" | python3 -c \"import re,sys;t=sys.stdin.read();n=int(re.search(r'^full=(\\d+)$',t,re.M).group(1));m=re.search(r'^(\\d+)/(\\d+) mutants killed$',t,re.M);assert m and m.group(1)==m.group(2) and int(m.group(2))==n-240 and n>=315\""
+    },
+    {
+      "id": "C12",
+      "required": true,
+      "text": "PLAN-scale.md is approved 100/100 by an independent Codex judge (latest judge-scale round)",
+      "recipe": "f=$(ls docs/plans/jev-platform/judge-scale-r*.md | sort -V | tail -1) && grep -q '\\*\\*100/100\\*\\*' \"$f\""
+    },
+    {
+      "id": "C13",
+      "required": true,
+      "text": "Level 9: a recursive expand over more than 255 eligible files is capped at 255 with zero sends over the cap, and pick_first returns only a path that was asked",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_platform_scale.py -q -p no:cacheprovider -k 'cap_255 or pick_first_only_real_path' | grep -qE '^[2-9][0-9]* passed|^[2-9] passed'"
+    },
+    {
+      "id": "C14",
+      "required": true,
+      "text": "The Gemini agent runner with no GEMINI_API_KEY prints BLOCKED and exits 2",
+      "recipe": "env -u GEMINI_API_KEY PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform agent --prompt 'x' 2>/tmp/jev_c14.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c14.txt"
+    },
+    {
+      "id": "C15",
+      "required": true,
+      "text": "Live Level 9 run of the three founder screenshot prompts on the approved Gemini agent chain (3.8-flash attempted first; one model per run, recorded): each made >=1 Jev call; prompts 1-2 read zero files into the agent; prompt 3 opened exactly one file (founder 29/09 16:20: a quota-limited model is never a blocker)",
+      "recipe": "python3 -c \"import json;C=['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3-flash-preview','gemini-3.5-flash-lite'];d=json.load(open('docs/plans/jev-platform/level9-live.json'));r=d['runs'];assert len(r)==3;assert all(x['agent_model'] in C and x['jev_calls']>=1 for x in r);assert r[0]['files_read']==0 and r[1]['files_read']==0 and r[2]['files_read']==1\""
+    },
+    {
+      "id": "C16",
+      "required": true,
+      "text": "Gemini writer control on the approved chain: a measured Codex blind-agreement rate for Gemini-written cases vs Claude-written cases on the same rule, with observed token usage (not estimated) and the writer model recorded",
+      "recipe": "python3 -c \"import json;C=['gemini-3.8-flash','gemini-3.7-flash','gemini-3.6-flash','gemini-3-flash-preview','gemini-3.5-flash-lite'];d=json.load(open('docs/plans/jev-platform/gemini-writer-control.json'));w=d['writers'];g,c=w['gemini'],w['claude'];assert d['writer_model'] in C and d['status']=='run';assert g['requested']>=50 and c['requested']>=50;assert d['gemini_ledger']['tokens']['reported_prompt']>0 and d['gemini_ledger']['tokens']['reported_output']>0;assert 0<=g['agreement']<=1 and 0<=c['agreement']<=1 and d['verdict'] in ('use','do-not-use')\""
+    }
+  ]
+}

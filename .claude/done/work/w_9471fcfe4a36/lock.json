@@ -1,0 +1,9 @@
+{
+  "schema": "done/1",
+  "work_id": "w_9471fcfe4a36",
+  "contract_digest": "3f523829fd75040070ac01f0fe15bac8aa176abdc79df2cb52c941fc74ddd494",
+  "baseline_head": "506087bdebd40cfeb69167c4c3755e26895b6423",
+  "identity_key": "feat/jev-constitution-eval@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-constitution",
+  "locked_at_utc": "2026-09-29T06:27:27Z",
+  "criteria_count": 16
+}

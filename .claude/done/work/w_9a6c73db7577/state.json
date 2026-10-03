@@ -1,0 +1,159 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "FAILED",
+  "verification_status": "FAIL",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": "0255482074c699d7a5c4864448a7c57883a683eb",
+  "updated_at_utc": "2026-09-29T05:30:25Z",
+  "last_verify": {
+    "head": "0255482074c699d7a5c4864448a7c57883a683eb",
+    "at_utc": "2026-09-29T05:30:25Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_constitution_eval.py tests/test_jev_constitution_quotes.py tests/test_jev_platform_*.py -q -p no:cacheprovider > /tmp/jev_c1.txt; test $? -eq 0 && python3 -c \"import re;n=int(re.search(r'(\\d+) passed',open('/tmp/jev_c1.txt').read()).group(1));assert n>=129,n\"",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "python3 -c \"import json;q=json.load(open('evals/jev_constitution/questions.json'))['questions'];assert len(q)==538 and all(x['source'] and x['quote'] for x in q)\"",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 > /tmp/jev_c3.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c3.txt",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "git diff --quiet origin/main -- app/server/provider_policy.py",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C5",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness validate | grep -qE '^VALID +ch3-4-27$'",
+        "exit_code": 0,
+        "output_digest": "0e889f2fe0d3f350dd061920896a56b0bd9191f6ccf339610dc0b93af86f726b",
+        "output_tail": "^^^^\n  File \"/Users/phill-mac/Pi-Dev-Ops/.worktrees/jev-constitution/evals/jev_constitution/harness.py\", line 195, in main\n    print(f\"{'VALID  ' if not problems else 'INVALID'} {qid}\" + (f\": {'; '.join(problems)}\" if problems else \"\"))\nBrokenPipeError: [Errno 32] Broken pipe\nException ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nBrokenPipeError: [Errno 32] Broken pipe"
+      },
+      {
+        "id": "C6",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform verify-calibration --rule ch3-4-27 | grep -qE '^ch3-4-27: AAA @ [0-9a-f]{40}$'",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C7",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.quotes --repo /Users/phill-mac/Unite-Group | grep -q '^verbatim 538/538; stored flags wrong: 0$'",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C8",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "! git grep -q jev_platform -- app swarm",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C9",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_platform_ask.py -q -p no:cacheprovider -k 'denied_name_refused_even_when_approved or denied_or_escaping' | grep -qE '^9 passed'",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C10",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform ask --file jev_platform/policy.py --q arch-layer 2>/tmp/jev_c10.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c10.txt",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C11",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python tests/mutation/jev_platform_mutants.py | python3 -c \"import re,sys;m=re.search(r'^(\\d+)/(\\d+) mutants killed$',sys.stdin.read(),re.M);assert m and m.group(1)==m.group(2) and int(m.group(2))>=28\"",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C12",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "f=$(ls docs/plans/jev-platform/judge-scale-r*.md | sort -V | tail -1) && grep -q '\\*\\*100/100\\*\\*' \"$f\"",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C13",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_platform_scale.py -q -p no:cacheprovider -k 'cap_255 or pick_first_only_real_path' | grep -qE '^[2-9][0-9]* passed|^[2-9] passed'",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C14",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -u GEMINI_API_KEY PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m jev_platform agent --prompt 'x' 2>/tmp/jev_c14.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c14.txt",
+        "exit_code": 0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_tail": ""
+      },
+      {
+        "id": "C15",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "python3 -c \"import json;d=json.load(open('docs/plans/jev-platform/level9-live.json'));r=d['runs'];assert len(r)==3;assert all(x['agent_model']=='gemini-3.8-flash' and x['jev_calls']>=1 for x in r);assert r[0]['files_read']==0 and r[1]['files_read']==0 and r[2]['files_read']==1\"",
+        "exit_code": 1,
+        "output_digest": "62313c8c50a9de304fc67b44cbe400134a25fcdffbd0170131e6a2dca05cfa5c",
+        "output_tail": "jev-platform/level9-live.json'));r=d['runs'];assert len(r)==3;assert all(x['agent_model']=='gemini-3.8-flash' and x['jev_calls']>=1 for x in r);assert r[0]['files_read']==0 and r[1]['files_read']==0 and r[2]['files_read']==1\n                            ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: 'docs/plans/jev-platform/level9-live.json'"
+      },
+      {
+        "id": "C16",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "python3 -c \"import json;d=json.load(open('docs/plans/jev-platform/gemini-writer-control.json'));assert d['writer_model']=='gemini-3.8-flash' and d['gemini']['proposed']>=50 and d['claude']['proposed']>=50;assert d['gemini']['usage_tokens']>0 and 0<=d['gemini']['agreement']<=1 and 'verdict' in d\"",
+        "exit_code": 1,
+        "output_digest": "2648ead8eb6ade71d4d71a1eb2b6e511a215f7462f553efaf801cf0302712b13",
+        "output_tail": "n'));assert d['writer_model']=='gemini-3.8-flash' and d['gemini']['proposed']>=50 and d['claude']['proposed']>=50;assert d['gemini']['usage_tokens']>0 and 0<=d['gemini']['agreement']<=1 and 'verdict' in d\n                            ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: 'docs/plans/jev-platform/gemini-writer-control.json'"
+      }
+    ],
+    "blockers": []
+  }
+}

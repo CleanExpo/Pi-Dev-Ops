@@ -183,7 +183,8 @@ else
     # run has headroom while a genuine hang still fails loud rather than hanging
     # indefinitely. Raised 180s -> 420s on 2026-10-02: the suite grew to ~6,980
     # tests and a clean run took 184-215s, so the old bound killed passing runs
-    # (rc=142 at 87% with no failure) and blocked every receipt.
+    # (rc=142 at 87% with no failure) and blocked every receipt. The jev suite
+    # (feat/jev-constitution-eval) measured 170-185s on 30/09/2026, inside it.
     [ "$PY_OK" = 1 ] && gate "tests-python" perl -e 'alarm shift; exec @ARGV' 420 "$PY" -m pytest tests/ -q \
       || { [ "$PY_OK" = 1 ] || skip "tests-python" "python deps absent"; }
   fi

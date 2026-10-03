@@ -1,0 +1,50 @@
+{
+ "rule": "ch3-4-05",
+ "threshold": 0.5,
+ "state": "provisional",
+ "policy_version": "jev-shadow-1",
+ "bindings": {
+  "rule_sha256": "d5c8eaee65c681b6ce8b874478fb99d323db6442653bb36198317dee5b8183ed",
+  "config_sha256": "38ee696e8384f6fe38e09baf6c0f3d633af87e44e3001987f4fc01660257da81",
+  "model": "jev-1.13.0"
+ },
+ "label_provenance": {
+  "writer": "Claude sonnet via `claude -p` (Max plan), evals/jev_constitution/generate.py",
+  "labeller": "Codex CLI (ChatGPT Pro), model_reasoning_effort=medium, labels blind",
+  "procedure": "kept only cases where Claude and Codex labels agreed; disagreement count unknown",
+  "adjudication": "none (no human review)",
+  "generate_py_blob": "035fcba9844946a4c4220642dc88b6bbbba9f8a9",
+  "cases_blob": "ed79641666158a47a85c1472237a9d5457779980"
+ },
+ "limitations": [
+  "labels are Claude+Codex agreement, not human adjudication",
+  "split is by case, not by scenario family, so halves share related scenarios",
+  "model alias jev-latest is mutable"
+ ],
+ "split": {
+  "calibration": 608,
+  "validation": 596,
+  "method": "sha256(case) % 2"
+ },
+ "counters": {
+  "validation": {
+   "v_missed": 0,
+   "v_refused": 281,
+   "v_uncertain": 2,
+   "c_passed": 311,
+   "c_refused": 0,
+   "c_uncertain": 2,
+   "n": 596,
+   "reviewer_burden": 0.0064
+  }
+ },
+ "miss_rate_upper_95": {
+  "k": 0,
+  "violations": 283,
+  "bound": 0.01053,
+  "assumes": "independent cases and correct labels; neither holds here"
+ },
+ "cases_sha256": "8b2f1c2dddf92f788135138275e161c40837d7e390df01214c646b408a0484ca",
+ "created_utc": "2026-09-29T07:30:53.448125+00:00",
+ "eval_sha": "5850e473d508d3cc3325fface893c01cc2bb3dcf"
+}
