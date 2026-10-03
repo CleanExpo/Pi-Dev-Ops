@@ -109,7 +109,8 @@ describe("shared poller", () => {
     expect(getSnapshot("t")?.state).toBe("stale");
   });
 
-  it("an unsubscribe followed at once by a resubscribe keeps the same poller (no second read)", async () => {
+  it("in development, an unsubscribe followed at once by a resubscribe keeps the same poller (no second read)", async () => {
+    vi.stubEnv("NODE_ENV", "development");
     const read = vi.fn(async () => live());
     const d = def(read);
     const off = subscribe(d, () => {});
@@ -117,6 +118,18 @@ describe("shared poller", () => {
     subscribe(d, () => {});
     await vi.advanceTimersByTimeAsync(0);
     expect(read).toHaveBeenCalledTimes(1);
+    vi.unstubAllEnvs();
+  });
+
+  it("outside development, an unmount stops at once so a remount reads fresh", async () => {
+    const read = vi.fn(async () => live());
+    const d = def(read);
+    const off = subscribe(d, () => {});
+    await vi.advanceTimersByTimeAsync(0);
+    off();
+    subscribe(d, () => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(read).toHaveBeenCalledTimes(2);
   });
 
   it("resetSources() stops everything", async () => {

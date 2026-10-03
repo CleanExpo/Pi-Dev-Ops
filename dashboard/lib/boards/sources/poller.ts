@@ -140,10 +140,13 @@ export function subscribe(def: FeedDef<unknown>, listener: () => void): () => vo
   if (entry.listeners.size === 1 && entry.timer === null) start(entry);
   return () => {
     entry.listeners.delete(listener);
-    // Stop on the next microtask, not now: React's development double-mount
-    // unsubscribes and resubscribes in one go, and a restart there would make
-    // a second request for the same interval.
-    if (entry.listeners.size === 0) queueMicrotask(() => { if (entry.listeners.size === 0) stop(entry); });
+    if (entry.listeners.size > 0) return;
+    // In development, React mounts every component twice (unsubscribe and
+    // resubscribe in one go); stopping on the next microtask keeps that from
+    // making a second request. Everywhere else an unmount stops at once, so a
+    // fresh mount always starts with a fresh read.
+    if (process.env.NODE_ENV === "development") queueMicrotask(() => { if (entry.listeners.size === 0) stop(entry); });
+    else stop(entry);
   };
 }
 
