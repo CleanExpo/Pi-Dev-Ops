@@ -1,0 +1,85 @@
+/* RA-7898 — board page chrome (header, library, edit bar). Tokens only. */
+.root {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 18px 20px 48px; background: var(--board-canvas); color: var(--board-ink);
+  font-family: var(--font-sans, system-ui, sans-serif); overflow-x: hidden;
+}
+.wrap { max-width: 1480px; margin-inline: auto; }
+.header { display: flex; flex-direction: column; }
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.crumb { display: flex; align-items: center; gap: 8px; margin-right: auto; min-width: 0; font-size: 13px; color: var(--board-ink-2); }
+.crumb b { color: var(--board-ink); font-weight: 500; }
+.updated { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12.5px; color: var(--board-ink-3); }
+.updated::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--board-ok); }
+.seg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--board-sunk); border: 1px solid var(--board-line); }
+.seg button { height: 26px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; font-size: 12.5px; color: var(--board-ink-2); }
+.seg button[aria-pressed="true"] { background: var(--board-card); color: var(--board-ink); box-shadow: var(--board-shadow), 0 0 0 1px var(--board-line); }
+.hello { margin-top: 26px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; }
+.hello h1 { margin: 0; font-size: calc(26px * var(--board-scale)); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+.hello p { margin: 6px 0 0; font-size: 14px; color: var(--board-ink-2); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  height: 32px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--board-line-2); background: var(--board-card);
+  color: var(--board-ink); display: inline-flex; align-items: center; font-size: 13px; text-decoration: none; box-shadow: var(--board-shadow);
+}
+.chip:hover { border-color: var(--board-accent); }
+.chipFirst { background: var(--board-accent); border-color: var(--board-accent); color: var(--board-on-accent); }
+.tabsRow {
+  margin-top: 22px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+  border-bottom: 1px solid var(--board-line);
+}
+.tabs { display: flex; gap: 2px; overflow-x: auto; min-width: 0; max-width: 100%; }
+.tab {
+  height: 38px; padding: 0 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: transparent;
+  color: var(--board-ink-3); cursor: pointer; white-space: nowrap; font-size: 13.5px; font-weight: 500;
+}
+.tab:hover { color: var(--board-ink); }
+.tab[aria-selected="true"] { color: var(--board-ink); border-bottom-color: var(--board-ink); }
+.btn {
+  height: 32px; padding: 0 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--board-line-2);
+  background: var(--board-card); color: var(--board-ink); cursor: pointer; font-size: 13px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; box-shadow: var(--board-shadow);
+}
+.btn:hover { background: var(--board-hover); }
+.primary { background: var(--board-accent); border-color: var(--board-accent); color: var(--board-on-accent); }
+.primary:hover { background: var(--board-accent); filter: brightness(1.06); }
+.ghost { height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--board-ink-2); cursor: pointer; font-size: 13px; }
+.ghost:hover { background: var(--board-hover); color: var(--board-ink); }
+.editBar {
+  margin-top: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 12px;
+  border-radius: 10px; background: var(--board-accent-soft); color: var(--board-ink); font-size: 13px;
+}
+.editBar > span { margin-right: auto; }
+.editBar .btn { margin-bottom: 0; }
+.notice { margin-top: 10px; font-size: 12.5px; color: var(--board-ink-3); }
+.error { margin-top: 10px; font-size: 12.5px; color: var(--board-bad); }
+.workspace { display: flex; gap: 16px; align-items: flex-start; margin-top: 16px; }
+/* A drawer over the board's right edge, so opening it never changes the
+ * board's width (and so never switches it to another breakpoint's layout). */
+.library {
+  width: 340px; position: fixed; right: 16px; top: 16px; bottom: 16px; z-index: 40; overflow: auto; padding: 16px;
+  background: var(--board-card); border: 1px solid var(--board-line-2); border-radius: 14px;
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.45);
+}
+.libHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.libHead h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.libSub { margin: 4px 0 12px; font-size: 12.5px; line-height: 1.45; color: var(--board-ink-2); }
+.sector { margin-top: 16px; }
+.sector h3 { margin: 0 0 8px; font-size: 10.5px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--board-ink-3); }
+.libItem { padding: 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--board-line); }
+.libItem:hover { border-color: var(--board-line-2); }
+.libTop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.libTop strong { font-size: 13.5px; font-weight: 500; }
+.libTop small { font-size: 11.5px; color: var(--board-ink-3); white-space: nowrap; }
+.libItem p { margin: 4px 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--board-ink-2); }
+.addRow { display: flex; flex-wrap: wrap; gap: 6px; }
+.addRow button {
+  height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--board-line-2);
+  background: var(--board-sunk); color: var(--board-ink); cursor: pointer; font-size: 12px;
+}
+.addRow button:hover { border-color: var(--board-accent); color: var(--board-accent); }
+.importBox { width: 100%; min-height: 120px; margin-top: 8px; padding: 8px; border-radius: 8px; border: 1px solid var(--board-line-2); background: var(--board-card); color: var(--board-ink); font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; }
+@media (max-width: 860px) {
+  .workspace { flex-direction: column; align-items: stretch; }
+  .library { left: 16px; right: 16px; width: auto; top: auto; max-height: 60vh; }
+}

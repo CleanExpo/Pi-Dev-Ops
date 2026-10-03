@@ -1,0 +1,46 @@
+{
+  "name": "Wall \u00b7 screen 2",
+  "skin": "wall",
+  "items": [
+    {
+      "id": "clock-w2",
+      "module": "clock",
+      "view": "digital"
+    },
+    {
+      "id": "builds-w2",
+      "module": "builds",
+      "view": "board"
+    },
+    {
+      "id": "activity-w2",
+      "module": "activity",
+      "view": "feed"
+    }
+  ],
+  "layouts": {
+    "lg": [
+      {
+        "i": "clock-w2",
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 3
+      },
+      {
+        "i": "builds-w2",
+        "x": 3,
+        "y": 0,
+        "w": 9,
+        "h": 6
+      },
+      {
+        "i": "activity-w2",
+        "x": 0,
+        "y": 6,
+        "w": 12,
+        "h": 10
+      }
+    ]
+  }
+}

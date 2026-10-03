@@ -151,7 +151,9 @@ describe("Pi-CEO proxy feeds", () => {
     const fn = serve(def.id === "mc-live" ? { ts: "2026-10-03T00:00:00Z" } : []);
     const r = await def.read(signal);
     expect(r.kind).toBe("live");
-    expect(String(fn.mock.calls[0][0])).toBe(def.url);
+    // def.url reads "Pi-CEO <path> (proxy)"; the wire URL is the proxy prefix plus that path.
+    const path = def.url.replace(/^Pi-CEO /, "").replace(/ \(proxy\)$/, "");
+    expect(String(fn.mock.calls[0][0])).toBe(`/api/pi-ceo${path}`);
   });
   it("mission-control/live: a body error is unreachable; ts is the server clock", async () => {
     serve({ error: "boom", ts: "2026-10-03T00:00:00Z" });

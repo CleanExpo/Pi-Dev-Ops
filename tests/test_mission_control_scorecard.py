@@ -97,7 +97,7 @@ def test_hub_receipt_maps_to_mc00_and_its_level_two_is_not_measured(tmp_path: Pa
 
 
 def test_mission_control_level_is_the_lowest_surface(monkeypatch: pytest.MonkeyPatch) -> None:
-    levels = iter([3] * 19 + [1])
+    levels = iter([3] * (len(sc.SURFACES) - 1) + [1])
     monkeypatch.setattr(sc, "score_surface", lambda s, r, *_: {"surface": s, "level": next(levels)})
     assert sc.build_scorecard({})["mission_control_level"] == 1
 
@@ -107,7 +107,7 @@ def test_cli_writes_markdown_and_json(tmp_path: Path, capsys: pytest.CaptureFixt
     out = tmp_path / "card.json"
     assert sc.main([str(tmp_path), "--json", str(out)]) == 0
     assert "below Level 1" in capsys.readouterr().out
-    assert len(json.loads(out.read_text())["surfaces"]) == 20
+    assert len(json.loads(out.read_text())["surfaces"]) == len(sc.SURFACES)
 
 
 def test_cli_rejects_a_missing_folder(tmp_path: Path) -> None:

@@ -42,10 +42,10 @@ export async function readMissionControlLive(): Promise<FeedRead<unknown>> {
 const proxied = (path: string, init?: RequestInit) => () => readProxy(path, init);
 
 export const PROXY_FEEDS: FeedDef<unknown>[] = [
-  { id: "pi-health", url: "/api/pi-ceo/health", intervalMs: 15_000, read: proxied("/health", NO_STORE) },
-  { id: "sessions", url: "/api/pi-ceo/api/sessions", intervalMs: 15_000, read: proxied("/api/sessions", NO_STORE) },
-  { id: "projects-health", url: "/api/pi-ceo/api/projects/health", intervalMs: 30_000, read: proxied("/api/projects/health") },
-  { id: "mc-live", url: "/api/pi-ceo/api/mission-control/live", intervalMs: 5_000, read: readMissionControlLive, serverClock: true },
-  { id: "idea-pipeline", url: "/api/pi-ceo/api/idea-pipeline", intervalMs: 60_000, read: proxied("/api/idea-pipeline", LIVE_INIT) },
-  { id: "pipelines", url: "/api/pi-ceo/api/pipelines", intervalMs: 30_000, read: proxied("/api/pipelines", NO_STORE) },
+  { id: "pi-health", url: "Pi-CEO /health (proxy)", intervalMs: 15_000, read: proxied("/health", NO_STORE) },
+  { id: "sessions", url: "Pi-CEO /api/sessions (proxy)", intervalMs: 15_000, read: proxied("/api/sessions", NO_STORE) },
+  { id: "projects-health", url: "Pi-CEO /api/projects/health (proxy)", intervalMs: 30_000, read: proxied("/api/projects/health") },
+  { id: "mc-live", url: "Pi-CEO /api/mission-control/live (proxy)", intervalMs: 5_000, read: readMissionControlLive, serverClock: true },
+  { id: "idea-pipeline", url: "Pi-CEO /api/idea-pipeline (proxy)", intervalMs: 60_000, read: proxied("/api/idea-pipeline", LIVE_INIT) },
+  { id: "pipelines", url: "Pi-CEO /api/pipelines (proxy)", intervalMs: 30_000, read: proxied("/api/pipelines", NO_STORE) },
 ];

@@ -1,0 +1,82 @@
+{
+  "name": "Founder brief",
+  "skin": "slate",
+  "items": [
+    {
+      "id": "north-star-b",
+      "module": "north-star",
+      "view": "banner"
+    },
+    {
+      "id": "clock-b",
+      "module": "clock",
+      "view": "digital"
+    },
+    {
+      "id": "ideas-b",
+      "module": "ideas",
+      "view": "packet"
+    },
+    {
+      "id": "portfolio-b",
+      "module": "portfolio",
+      "view": "focus"
+    },
+    {
+      "id": "ship-chain-b",
+      "module": "ship-chain",
+      "view": "accordion"
+    },
+    {
+      "id": "builds-b",
+      "module": "builds",
+      "view": "board"
+    }
+  ],
+  "layouts": {
+    "lg": [
+      {
+        "i": "north-star-b",
+        "x": 0,
+        "y": 0,
+        "w": 9,
+        "h": 3
+      },
+      {
+        "i": "clock-b",
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 3
+      },
+      {
+        "i": "ideas-b",
+        "x": 0,
+        "y": 3,
+        "w": 5,
+        "h": 10
+      },
+      {
+        "i": "portfolio-b",
+        "x": 5,
+        "y": 3,
+        "w": 7,
+        "h": 10
+      },
+      {
+        "i": "ship-chain-b",
+        "x": 0,
+        "y": 13,
+        "w": 4,
+        "h": 8
+      },
+      {
+        "i": "builds-b",
+        "x": 4,
+        "y": 13,
+        "w": 8,
+        "h": 6
+      }
+    ]
+  }
+}

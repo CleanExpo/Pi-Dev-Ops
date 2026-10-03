@@ -71,6 +71,10 @@
     ],
     "MC-19": [
       "app/(main)/command-centre/youtube-intent/page"
+    ],
+    "MC-20": [
+      "components/boards/ModuleFrame",
+      "components/boards/BoardsPage"
     ]
   }
 }

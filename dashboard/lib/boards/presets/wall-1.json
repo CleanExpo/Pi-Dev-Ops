@@ -1,0 +1,58 @@
+{
+  "name": "Wall \u00b7 screen 1",
+  "skin": "wall",
+  "items": [
+    {
+      "id": "wall-banner-w1",
+      "module": "wall-banner",
+      "view": "banner"
+    },
+    {
+      "id": "wall-fleet-w1",
+      "module": "wall-fleet",
+      "view": "tiles"
+    },
+    {
+      "id": "clock-w1",
+      "module": "clock",
+      "view": "digital"
+    },
+    {
+      "id": "ship-chain-w1",
+      "module": "ship-chain",
+      "view": "accordion"
+    }
+  ],
+  "layouts": {
+    "lg": [
+      {
+        "i": "wall-banner-w1",
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 3
+      },
+      {
+        "i": "wall-fleet-w1",
+        "x": 0,
+        "y": 3,
+        "w": 8,
+        "h": 9
+      },
+      {
+        "i": "clock-w1",
+        "x": 8,
+        "y": 3,
+        "w": 4,
+        "h": 3
+      },
+      {
+        "i": "ship-chain-w1",
+        "x": 8,
+        "y": 6,
+        "w": 4,
+        "h": 9
+      }
+    ]
+  }
+}

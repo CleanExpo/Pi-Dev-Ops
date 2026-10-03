@@ -28,6 +28,8 @@ interface FrameProps {
   onView?: (itemId: string, view: string) => void;
   onRemove?: (itemId: string) => void;
   viewProps?: ViewProps;
+  /** False on a locked surface (the kiosk): no ⋯ menu at all. */
+  menu?: boolean;
 }
 
 export default function ModuleFrame(props: FrameProps) {
@@ -36,7 +38,7 @@ export default function ModuleFrame(props: FrameProps) {
   return <KnownFrame def={def} {...props} />;
 }
 
-function KnownFrame({ def, item, editing = false, onView, onRemove, viewProps }: FrameProps & { def: ModuleDef }) {
+function KnownFrame({ def, item, editing = false, onView, onRemove, viewProps, menu = true }: FrameProps & { def: ModuleDef }) {
   const status = moduleStatus(useSources(def.sources));
   const viewId = def.views[item.view] ? item.view : Object.keys(def.views)[0];
   const view = def.views[viewId];
@@ -44,9 +46,9 @@ function KnownFrame({ def, item, editing = false, onView, onRemove, viewProps }:
   const showView = status.state === "live" || (view.action === true && status.state !== "loading");
   return (
     <article className={styles.card} data-module={def.id} data-view={viewId} data-state={status.state} aria-label={def.name}>
-      <FrameHead def={def} status={status} viewId={viewId} onView={(v) => onView?.(item.id, v)} onRemove={() => onRemove?.(item.id)} />
+      <FrameHead def={def} status={status} viewId={viewId} menu={menu} onView={(v) => onView?.(item.id, v)} onRemove={() => onRemove?.(item.id)} />
       {showView && status.state !== "live" && <StateBanner status={status} />}
-      <div className={view.action || def.id.startsWith("wall") ? styles.panelBody : styles.body}>
+      <div className={showView && (view.action || def.id.startsWith("wall")) ? styles.panelBody : styles.body}>
         {showView ? <View {...viewProps} /> : <StateBody status={status} />}
       </div>
       {editing && Object.keys(def.views).length > 1 && (
@@ -66,8 +68,8 @@ function freshness(status: ModuleStatus, now: number): string | null {
   return status.clock === "server" ? `updated ${ago(status.freshAt, now)}` : `fetched ${ago(status.freshAt, now)}`;
 }
 
-function FrameHead({ def, status, viewId, onView, onRemove }: {
-  def: ModuleDef; status: ModuleStatus; viewId: string; onView: (v: string) => void; onRemove: () => void;
+function FrameHead({ def, status, viewId, menu, onView, onRemove }: {
+  def: ModuleDef; status: ModuleStatus; viewId: string; menu: boolean; onView: (v: string) => void; onRemove: () => void;
 }) {
   const now = useNow(1_000);
   const fresh = freshness(status, now);
@@ -81,7 +83,7 @@ function FrameHead({ def, status, viewId, onView, onRemove }: {
         </div>
         <h3 className={styles.title}>{def.name}</h3>
       </div>
-      <FrameMenu def={def} viewId={viewId} status={status} onView={onView} onRemove={onRemove} />
+      {menu && <FrameMenu def={def} viewId={viewId} status={status} onView={onView} onRemove={onRemove} />}
     </header>
   );
 }
@@ -154,7 +156,7 @@ function StateBanner({ status }: { status: ModuleStatus }) {
   );
 }
 
-function UnknownFrame({ item, onRemove }: FrameProps): ReactNode {
+function UnknownFrame({ item, onRemove, menu = true }: FrameProps): ReactNode {
   return (
     <article className={`${styles.card} ${styles.unknown}`} data-module={item.module} data-state="unknown" aria-label="Unknown module">
       <header className={styles.head}>
@@ -166,7 +168,7 @@ function UnknownFrame({ item, onRemove }: FrameProps): ReactNode {
       <div className={styles.body}>
         <div className={styles.state} role="status">
           <span>This board names a module that is not registered. It has no data and no actions.</span>
-          {onRemove && (
+          {menu && onRemove && (
             <button type="button" className="mc-nodrag" onClick={() => onRemove(item.id)}>Remove from board</button>
           )}
         </div>

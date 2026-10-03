@@ -199,7 +199,7 @@ def test_main_warns_about_unplaced_tickets_even_when_every_page_fails(tmp_path: 
     reg.write_text(_register(ALL_PARTIAL), encoding="utf-8")
     mr.main([str(tmp_path / "out"), "--register", str(reg)])
     out = capsys.readouterr().out
-    assert "check 11: 0/20 surfaces pass" in out
+    assert f"check 11: 0/{len(mr.SURFACES)} surfaces pass" in out
     assert "not counted: RA-2" in out
 
 
