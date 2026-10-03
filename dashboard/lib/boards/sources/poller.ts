@@ -140,7 +140,10 @@ export function subscribe(def: FeedDef<unknown>, listener: () => void): () => vo
   if (entry.listeners.size === 1 && entry.timer === null) start(entry);
   return () => {
     entry.listeners.delete(listener);
-    if (entry.listeners.size === 0) stop(entry);
+    // Stop on the next microtask, not now: React's development double-mount
+    // unsubscribes and resubscribes in one go, and a restart there would make
+    // a second request for the same interval.
+    if (entry.listeners.size === 0) queueMicrotask(() => { if (entry.listeners.size === 0) stop(entry); });
   };
 }
 

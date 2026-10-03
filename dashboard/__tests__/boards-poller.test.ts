@@ -32,6 +32,7 @@ describe("shared poller", () => {
     const off = subscribe(def(read), () => {});
     await vi.advanceTimersByTimeAsync(0);
     off();
+    await Promise.resolve();
     expect(activeFeedIds()).toEqual([]);
     await vi.advanceTimersByTimeAsync(5_000);
     expect(read).toHaveBeenCalledTimes(1);
@@ -106,6 +107,16 @@ describe("shared poller", () => {
     expect(getSnapshot("t")?.state).toBe("live");
     await vi.advanceTimersByTimeAsync(11_000);
     expect(getSnapshot("t")?.state).toBe("stale");
+  });
+
+  it("an unsubscribe followed at once by a resubscribe keeps the same poller (no second read)", async () => {
+    const read = vi.fn(async () => live());
+    const d = def(read);
+    const off = subscribe(d, () => {});
+    off();
+    subscribe(d, () => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(read).toHaveBeenCalledTimes(1);
   });
 
   it("resetSources() stops everything", async () => {

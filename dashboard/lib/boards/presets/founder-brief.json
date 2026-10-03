@@ -5,7 +5,12 @@
     {
       "id": "north-star-b",
       "module": "north-star",
-      "view": "banner"
+      "view": "compact"
+    },
+    {
+      "id": "builds-b",
+      "module": "builds",
+      "view": "number"
     },
     {
       "id": "clock-b",
@@ -15,22 +20,17 @@
     {
       "id": "ideas-b",
       "module": "ideas",
-      "view": "packet"
+      "view": "inbox"
     },
     {
       "id": "portfolio-b",
       "module": "portfolio",
-      "view": "focus"
+      "view": "leaderboard"
     },
     {
       "id": "ship-chain-b",
       "module": "ship-chain",
       "view": "accordion"
-    },
-    {
-      "id": "builds-b",
-      "module": "builds",
-      "view": "board"
     }
   ],
   "layouts": {
@@ -39,7 +39,14 @@
         "i": "north-star-b",
         "x": 0,
         "y": 0,
-        "w": 9,
+        "w": 4,
+        "h": 3
+      },
+      {
+        "i": "builds-b",
+        "x": 4,
+        "y": 0,
+        "w": 3,
         "h": 3
       },
       {
@@ -52,30 +59,23 @@
       {
         "i": "ideas-b",
         "x": 0,
-        "y": 3,
-        "w": 5,
-        "h": 10
+        "y": 4,
+        "w": 4,
+        "h": 6
       },
       {
         "i": "portfolio-b",
-        "x": 5,
-        "y": 3,
-        "w": 7,
-        "h": 10
+        "x": 4,
+        "y": 4,
+        "w": 4,
+        "h": 6
       },
       {
         "i": "ship-chain-b",
-        "x": 0,
-        "y": 13,
+        "x": 8,
+        "y": 4,
         "w": 4,
         "h": 8
-      },
-      {
-        "i": "builds-b",
-        "x": 4,
-        "y": 13,
-        "w": 8,
-        "h": 6
       }
     ]
   }

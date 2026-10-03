@@ -65,7 +65,7 @@ function KnownFrame({ def, item, editing = false, onView, onRemove, viewProps, m
 function freshness(status: ModuleStatus, now: number): string | null {
   if (status.clock === "local") return null;
   if (status.freshAt === null) return null;
-  return status.clock === "server" ? `updated ${ago(status.freshAt, now)}` : `fetched ${ago(status.freshAt, now)}`;
+  return status.clock === "server" ? `Updated ${ago(status.freshAt, now)}` : `Fetched ${ago(status.freshAt, now)} (browser time)`;
 }
 
 function FrameHead({ def, status, viewId, menu, onView, onRemove }: {
@@ -79,9 +79,14 @@ function FrameHead({ def, status, viewId, menu, onView, onRemove }: {
         <div className={styles.kicker} data-testid="module-kicker">
           <span className={styles.dot} data-tone={status.state} aria-hidden />
           <span>{def.sector} · {STATE_LABEL[status.state]}{def.action ? " · Action" : ""}</span>
-          {fresh && <span title={status.clock === "server" ? "Server clock" : "Browser time of the last fetch"}>· {fresh}</span>}
         </div>
         <h3 className={styles.title}>{def.name}</h3>
+        {fresh && (
+          <div className={styles.fresh} data-testid="module-freshness"
+            title={status.clock === "server" ? "Age of the data, by the server's own timestamp" : "When this browser last fetched it; the source sends no timestamp"}>
+            {fresh}
+          </div>
+        )}
       </div>
       {menu && <FrameMenu def={def} viewId={viewId} status={status} onView={onView} onRemove={onRemove} />}
     </header>

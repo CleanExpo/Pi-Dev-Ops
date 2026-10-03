@@ -33,6 +33,7 @@
   margin: 3px 0 0; font-size: calc(14px * var(--board-scale)); font-weight: 500;
   color: var(--board-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.fresh { margin-top: 2px; font-size: calc(11px * var(--board-scale)); color: var(--board-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .menuBtn {
   width: 28px; height: 28px; flex: none; border: 0; border-radius: 7px; background: transparent;
   color: var(--board-ink-3); cursor: pointer; display: grid; place-items: center; font-size: 17px; line-height: 1;

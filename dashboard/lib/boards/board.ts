@@ -133,3 +133,29 @@ export function setLayouts(board: Board, layouts: BoardLayouts): Board {
 export function emptyBoard(name: string, skin: Skin = "paper"): Board {
   return { name, skin, items: [], layouts: { lg: [] } };
 }
+
+/**
+ * Fill in missing md / sm layouts from lg. sm (phones) stacks every card full
+ * width in reading order; md scales lg's columns down. Saved layouts win.
+ */
+export function withDerivedLayouts(board: Board): BoardLayouts {
+  const lg = board.layouts.lg ?? [];
+  const order = [...lg].sort((a, b) => a.y - b.y || a.x - b.x);
+  const out: BoardLayouts = { ...board.layouts };
+  if (!out.md) {
+    const k = COLS.md / COLS.lg;
+    out.md = lg.map((c) => {
+      const x = Math.min(COLS.md - 1, Math.round(c.x * k));
+      return { ...c, x, w: Math.max(1, Math.min(COLS.md - x, Math.round(c.w * k))) };
+    });
+  }
+  if (!out.sm) {
+    let y = 0;
+    out.sm = order.map((c) => {
+      const cell = { i: c.i, x: 0, y, w: COLS.sm, h: c.h };
+      y += c.h;
+      return cell;
+    });
+  }
+  return out;
+}

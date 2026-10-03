@@ -10,7 +10,7 @@
     {
       "id": "clock-w3",
       "module": "clock",
-      "view": "digital"
+      "view": "analog"
     },
     {
       "id": "health-w3",
@@ -32,12 +32,12 @@
         "x": 8,
         "y": 0,
         "w": 4,
-        "h": 3
+        "h": 4
       },
       {
         "i": "health-w3",
         "x": 8,
-        "y": 3,
+        "y": 4,
         "w": 4,
         "h": 9
       }

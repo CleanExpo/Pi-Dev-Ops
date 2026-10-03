@@ -3,9 +3,14 @@
   "skin": "paper",
   "items": [
     {
-      "id": "north-star-1",
-      "module": "north-star",
-      "view": "banner"
+      "id": "builds-n",
+      "module": "builds",
+      "view": "number"
+    },
+    {
+      "id": "kill-switch-1",
+      "module": "kill-switch",
+      "view": "panel"
     },
     {
       "id": "clock-1",
@@ -13,9 +18,19 @@
       "view": "digital"
     },
     {
-      "id": "kill-switch-1",
-      "module": "kill-switch",
-      "view": "panel"
+      "id": "north-star-1",
+      "module": "north-star",
+      "view": "compact"
+    },
+    {
+      "id": "ship-chain-1",
+      "module": "ship-chain",
+      "view": "row"
+    },
+    {
+      "id": "models-1",
+      "module": "models",
+      "view": "ring"
     },
     {
       "id": "fleet-1",
@@ -35,95 +50,92 @@
     {
       "id": "portfolio-1",
       "module": "portfolio",
-      "view": "focus"
+      "view": "heat"
     },
     {
       "id": "ideas-1",
       "module": "ideas",
-      "view": "packet"
-    },
-    {
-      "id": "models-1",
-      "module": "models",
-      "view": "panel"
-    },
-    {
-      "id": "curator-1",
-      "module": "curator",
-      "view": "list"
+      "view": "funnel"
     }
   ],
   "layouts": {
     "lg": [
       {
-        "i": "north-star-1",
+        "i": "builds-n",
         "x": 0,
         "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "i": "kill-switch-1",
+        "x": 3,
+        "y": 0,
+        "w": 3,
+        "h": 5
+      },
+      {
+        "i": "clock-1",
+        "x": 6,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "i": "north-star-1",
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "i": "ship-chain-1",
+        "x": 0,
+        "y": 5,
         "w": 8,
         "h": 3
       },
       {
-        "i": "clock-1",
+        "i": "models-1",
         "x": 8,
-        "y": 0,
+        "y": 5,
         "w": 4,
-        "h": 3
-      },
-      {
-        "i": "kill-switch-1",
-        "x": 0,
-        "y": 3,
-        "w": 3,
-        "h": 6
+        "h": 4
       },
       {
         "i": "fleet-1",
-        "x": 3,
-        "y": 3,
-        "w": 5,
+        "x": 0,
+        "y": 8,
+        "w": 8,
         "h": 6
       },
       {
         "i": "activity-1",
         "x": 8,
-        "y": 3,
+        "y": 9,
         "w": 4,
-        "h": 9
+        "h": 10
       },
       {
         "i": "builds-1",
         "x": 0,
-        "y": 9,
+        "y": 14,
         "w": 8,
         "h": 5
       },
       {
         "i": "portfolio-1",
         "x": 0,
-        "y": 14,
+        "y": 19,
         "w": 8,
-        "h": 11
+        "h": 6
       },
       {
         "i": "ideas-1",
         "x": 8,
-        "y": 12,
+        "y": 19,
         "w": 4,
-        "h": 11
-      },
-      {
-        "i": "models-1",
-        "x": 0,
-        "y": 25,
-        "w": 6,
-        "h": 8
-      },
-      {
-        "i": "curator-1",
-        "x": 6,
-        "y": 25,
-        "w": 6,
-        "h": 8
+        "h": 5
       }
     ]
   }

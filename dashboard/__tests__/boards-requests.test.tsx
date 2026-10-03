@@ -31,7 +31,7 @@ describe("A2 — one request per interval, however many readers", () => {
 
   it("two Fleet modules on a board make one request per 20 s", async () => {
     vi.useFakeTimers();
-    const fetchMock = vi.fn(async () => json({ status: "ok", checkedAt: new Date().toISOString(), machines: [] }));
+    const fetchMock = vi.fn(async (_url: string) => json({ status: "ok", checkedAt: new Date().toISOString(), machines: [] }));
     vi.stubGlobal("fetch", fetchMock);
     render(<>
       <ModuleFrame item={{ id: "a", module: "fleet", view: "tile" }} />
@@ -108,7 +108,7 @@ describe("T7 — request-sharing tap", () => {
   });
 
   it("any other request reaches the original fetch unchanged, and uninstall restores it", async () => {
-    const network = vi.fn(async () => json({}));
+    const network = vi.fn(async (_u: string, _i?: RequestInit) => json({}));
     vi.stubGlobal("fetch", network);
     const original = window.fetch;
     const uninstall = installFetchTap();

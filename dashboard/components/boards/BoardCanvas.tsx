@@ -7,7 +7,7 @@ import "react-grid-layout/css/styles.css";
 import { useMemo } from "react";
 import { Responsive, useContainerWidth, type Layout, type ResponsiveLayouts } from "react-grid-layout";
 
-import { BREAKPOINT_IDS, BREAKPOINTS, COLS, type Board, type BoardLayouts, type Breakpoint } from "@/lib/boards/board";
+import { BREAKPOINT_IDS, BREAKPOINTS, COLS, withDerivedLayouts, type Board, type BoardLayouts, type Breakpoint } from "@/lib/boards/board";
 import { MODULES } from "@/lib/boards/registry";
 import type { ViewProps } from "@/lib/boards/registry/types";
 import ModuleFrame from "./ModuleFrame";
@@ -31,8 +31,9 @@ const MARGIN: readonly [number, number] = [14, 14];
 function withMinimums(board: Board): ResponsiveLayouts<Breakpoint> {
   const moduleOf = new Map(board.items.map((i) => [i.id, i.module]));
   const out: ResponsiveLayouts<Breakpoint> = {};
+  const all = withDerivedLayouts(board);
   for (const bp of BREAKPOINT_IDS) {
-    const cells = board.layouts[bp];
+    const cells = all[bp];
     if (!cells) continue;
     out[bp] = cells.map((c) => {
       const min = MODULES.get(moduleOf.get(c.i) ?? "")?.minSize ?? { w: 2, h: 2 };

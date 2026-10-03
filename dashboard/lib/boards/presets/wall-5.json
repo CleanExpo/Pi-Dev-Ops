@@ -13,14 +13,19 @@
       "view": "panel"
     },
     {
-      "id": "wiki-graph-w5",
-      "module": "wiki-graph",
-      "view": "tile"
+      "id": "kill-switch-w5b",
+      "module": "kill-switch",
+      "view": "detail"
     },
     {
       "id": "curator-w5",
       "module": "curator",
       "view": "list"
+    },
+    {
+      "id": "wiki-graph-w5",
+      "module": "wiki-graph",
+      "view": "tile"
     }
   ],
   "layouts": {
@@ -40,11 +45,11 @@
         "h": 6
       },
       {
-        "i": "wiki-graph-w5",
+        "i": "kill-switch-w5b",
         "x": 4,
         "y": 6,
         "w": 3,
-        "h": 4
+        "h": 5
       },
       {
         "i": "curator-w5",
@@ -52,6 +57,13 @@
         "y": 0,
         "w": 5,
         "h": 8
+      },
+      {
+        "i": "wiki-graph-w5",
+        "x": 7,
+        "y": 8,
+        "w": 5,
+        "h": 4
       }
     ]
   }

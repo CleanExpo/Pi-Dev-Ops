@@ -13,9 +13,9 @@
       "view": "cockpit"
     },
     {
-      "id": "clock-w4",
-      "module": "clock",
-      "view": "digital"
+      "id": "models-w4b",
+      "module": "models",
+      "view": "table"
     }
   ],
   "layouts": {
@@ -35,11 +35,11 @@
         "h": 12
       },
       {
-        "i": "clock-w4",
+        "i": "models-w4b",
         "x": 0,
         "y": 9,
-        "w": 3,
-        "h": 3
+        "w": 6,
+        "h": 5
       }
     ]
   }

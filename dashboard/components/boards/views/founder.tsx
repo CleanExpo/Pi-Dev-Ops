@@ -44,3 +44,25 @@ export function ClockDigital() {
     </div>
   );
 }
+
+export function ClockAnalog() {
+  const t = brisbaneParts(useNow(1_000));
+  const hand = (deg: number, len: number, w: number, color: string) => (
+    <line x1="50" y1="50" x2={50 + len * Math.sin((deg * Math.PI) / 180)} y2={50 - len * Math.cos((deg * Math.PI) / 180)}
+      stroke={color} strokeWidth={w} strokeLinecap="round" />
+  );
+  return (
+    <div className={styles.center} data-testid="clock">
+      <svg viewBox="0 0 100 100" className={styles.svgFull} role="img" aria-label={`Brisbane time ${pad(t.h)}:${pad(t.m)}`}>
+        <circle cx="50" cy="50" r="46" fill="var(--board-sunk)" stroke="var(--board-line-2)" />
+        {Array.from({ length: 12 }, (_, i) => (
+          <line key={i} x1="50" y1="8" x2="50" y2={i % 3 === 0 ? 15 : 12} stroke="var(--board-ink-3)" strokeWidth={i % 3 === 0 ? 2 : 1} transform={`rotate(${i * 30} 50 50)`} />
+        ))}
+        {hand((t.h % 12) * 30 + t.m * 0.5, 24, 3.5, "var(--board-ink)")}
+        {hand(t.m * 6, 34, 2.5, "var(--board-ink)")}
+        {hand(t.s * 6, 38, 1.2, "var(--board-accent)")}
+        <circle cx="50" cy="50" r="2.5" fill="var(--board-accent)" />
+      </svg>
+    </div>
+  );
+}
