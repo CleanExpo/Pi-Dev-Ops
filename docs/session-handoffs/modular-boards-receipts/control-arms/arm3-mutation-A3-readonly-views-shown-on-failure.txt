@@ -1,0 +1,4 @@
+[1/1] e2e/boards.spec.ts:106:5 › A3: Pi-CEO backend down — no module shows a number; provider-usage and wiki-graph stay live
+  1) e2e/boards.spec.ts:106:5 › A3: Pi-CEO backend down — no module shows a number; provider-usage and wiki-graph stay live 
+    Error: fleet-1 shows a number while its source is down
+    > 118 |     expect(body, `${id} shows a number while its source is down`).not.toMatch(/\d/);

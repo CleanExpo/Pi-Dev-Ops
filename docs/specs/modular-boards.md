@@ -77,7 +77,8 @@ A layer may only depend on the layers above it in this table. A look changes no 
   it in a global `afterEach`, so per-case `fetch` stubs never see another case's cache. Pattern
   follows the `_resetWallCache()` hook in `lib/wall/source.ts:30`.
 - **Same-origin only.** A source reads exactly the URL in §3.3. Pi-CEO backend paths go through
-  `fetchProxy` in `lib/pi-ceo-fetch.ts` and nowhere else.
+  `fetchProxyJSON` (the wrapper over `fetchProxy`) in `lib/pi-ceo-fetch.ts` and nowhere else, called
+  with the same arguments each panel used before the move (see §12, B3).
 - **GET only.** The sources layer issues no request with a method other than GET.
 
 ### 3.2 Normalised state
@@ -264,6 +265,7 @@ Every visible or behavioural difference from `main` that this pass introduces on
 | D5 | Signed out (401): the kill switch's Halt / Resume are disabled with the reason shown (A5). Applies on the existing pages too, because it lives in the panel | KillSwitchPanel |
 | D6 | New modules with no existing panel — `builds`, `north-star`, `clock` — are additions; their first views follow the new-view rules | registry |
 | D7 | `wiki-graph` is re-read every 300 s on a board, where today the tile reads once on mount | wiki-graph feed |
+| D8 | One "Boards" link appended to the `/control/<section>` subnav (`ControlSubnav`); boards are not a `CONTROL_SECTIONS` entry | control subnav |
 
 ## 5. Boards
 
@@ -411,3 +413,21 @@ Unit and governance tests (all gate Done):
 
 1. Server-side board storage — needed for the kiosk to show a board edited on another machine.
 2. Making Desk the `/control` default once Level-1 read journeys pass.
+
+## 12. Build record — what changed against this spec while building
+
+Each item is a fact found while building, with where it lives. None adds a write path or a table.
+
+| # | Finding | What was done |
+|---|---|---|
+| B1 | The brief requires a nav link for `/control/boards`. Any link changes the existing `/control/<section>` subnav | D8: one "Boards" link appended to `ControlSubnav`. A6 masks the subnav in the pictures and asserts in text that the only subnav change is that link |
+| B2 | A library side panel that shrinks the board switches it to the medium breakpoint, so an edit made with the library open landed in another layout | The library is a drawer over the board's right edge; the board's width never changes when it opens |
+| B3 | Three existing panel tests mock `fetchProxyJSON`, and one pins `HealthGrid`'s exact call (`"/api/projects/health", undefined`) | Proxy feeds call `fetchProxyJSON` with each panel's own arguments, so those tests pass with assertions unmodified |
+| B4 | A reader that ignores the abort signal could hang a feed forever | The 10 s timeout settles the read itself (`Promise.race`), not only the signal |
+| B5 | React's development double-mount restarted a shared poller, making two requests where one was due | Unsubscribe stops the poller on the next microtask, so an immediate resubscribe keeps it |
+| B6 | Presets carry only the wide layout, so phones showed cards side by side | Missing `md` / `sm` layouts are derived: phones stack every card full width in reading order |
+| B7 | `HealthGrid` read a ref during render; moving its poll made the React lint flag it | Its history is state instead of a ref; markup unchanged (T8) |
+| B8 | The app shell's Margot bubble covers the bottom-right of the viewport, including any card's resize corner there | Not changed here (it is outside this scope); the A1 test resizes a left-column card |
+| B9 | The design lint failed locally only because an earlier test run left a git-ignored repo copy under `app/workspaces/` | Removed the generated copies; a fresh clone (CI) never has them |
+| B10 | Root `DESIGN.md` still listed `#727a88` for tertiary text, which `globals.css` replaced under RA-7843 for failing contrast | Root `DESIGN.md` now matches the code (`#9aa3b1`) |
+
