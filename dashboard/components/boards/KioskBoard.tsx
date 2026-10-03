@@ -8,12 +8,12 @@ import { useSearchParams } from "next/navigation";
 
 import { PRESETS, PRESET_IDS } from "@/lib/boards/presets";
 import { installFetchTap } from "@/lib/boards/sources";
-import BoardCanvas from "./BoardCanvas";
+import { BoardCanvas } from "./BoardCanvas";
 import styles from "./kiosk.module.css";
 
-export default function KioskBoard() {
+export function KioskBoard() {
   const params = useSearchParams();
-  const id = params.get("board") ?? "wall-1";
+  const id = params.get("board") ?? "";
   const machine = params.get("machine");
   const board = PRESETS.get(id);
   useEffect(() => installFetchTap(), []);
@@ -23,7 +23,7 @@ export default function KioskBoard() {
         <BoardCanvas board={{ ...board, skin: "wall" }} editing={false} menus={false} viewProps={{ kioskHost: machine }} />
       ) : (
         <div className={styles.error} role="alert">
-          <h1>No preset called “{id}”.</h1>
+          <h1>{id ? `No preset called “${id}”.` : "Which board? Add ?board=<preset> to the address."}</h1>
           <p>The kiosk shows repo presets only. Valid ids: {PRESET_IDS.join(", ")}.</p>
         </div>
       )}

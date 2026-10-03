@@ -25,6 +25,8 @@ export function healthyResponses(): Record<string, () => unknown> {
       panic_count_last_hour: 0, approver_allowlist: ["phill", "hermes"], approver_totp_configured: ["phill"] }),
     "/api/curator-proposals": () => ({ total: 1, returned: 1, by_status: { pending: 1 }, proposals: [
       { proposal_id: "p1", ts: iso(3600), status: "pending", proposed_skill_name: "release-notes", cluster_summary: "Release notes drafted by hand 4 times", evidence_count: 4 }] }),
+    "/api/command-centre/provider-usage": () => ({ source: "cc:provider-usage", generatedAt: iso(2),
+      summary: { total: 2, available: 1, watching: 1, nearLimit: 0, blocked: 0, unknown: 0 }, providers: [], routing: [] }),
     "/api/command-centre/wiki-graph": () => ({ nodes: [], edges: [], pageCount: 1284, edgeCount: 5210, lastSync: iso(7200), truncated: false, source: "supabase" }),
     "/api/pi-ceo/health": () => ({ status: "ok", uptime_s: 3600, swarm_enabled: true, swarm_shadow: true }),
     "/api/pi-ceo/api/sessions": () => [

@@ -100,7 +100,10 @@ async function readOnce(entry: Entry): Promise<void> {
     }, REQUEST_TIMEOUT_MS);
   });
   try {
-    const read = await Promise.race([entry.def.read(controller.signal), timedOut]);
+    const reading = entry.def.read(controller.signal);
+    // A read that settles after the timeout already won must not surface as an unhandled rejection.
+    reading.catch(() => undefined);
+    const read = await Promise.race([reading, timedOut]);
     if (generation === entry.generation) applyRead(entry, read);
   } finally {
     clearTimeout(timeout);

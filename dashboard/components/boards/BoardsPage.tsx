@@ -8,17 +8,18 @@ import { useEffect, useState } from "react";
 import { useBoards } from "@/lib/boards/state";
 import { installFetchTap } from "@/lib/boards/sources";
 import { PRESETS } from "@/lib/boards/presets";
-import BoardCanvas from "./BoardCanvas";
-import BoardHeader from "./BoardHeader";
-import BoardLibrary from "./BoardLibrary";
+import { BoardCanvas } from "./BoardCanvas";
+import { BoardHeader } from "./BoardHeader";
+import { BoardLibrary } from "./BoardLibrary";
 import styles from "./chrome.module.css";
 
-export default function BoardsPage() {
+export function BoardsPage() {
   const s = useBoards();
   const [editing, setEditing] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const [message, setMessage] = useState<{ text: string; error?: boolean; undo?: boolean } | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => { useBoards.getState().hydrate(); }, []);
   useEffect(() => installFetchTap(), []);
@@ -27,7 +28,7 @@ export default function BoardsPage() {
   if (!board) return null;
 
   const toggleEdit = () => { setEditing(!editing); setLibraryOpen(!editing); setImportOpen(false); };
-  const say = (text: string, error = false) => setMessage({ text, error });
+  const say = (text: string, error = false, undo = false) => setMessage({ text, error, undo });
 
   return (
     <div className={styles.root} data-board-skin={board.skin} data-testid="boards-page">
@@ -41,23 +42,45 @@ export default function BoardsPage() {
           <EditBar
             libraryOpen={libraryOpen} isPreset={PRESETS.has(s.active)}
             onLibrary={() => setLibraryOpen(!libraryOpen)}
-            onReset={() => { s.reset(); say(PRESETS.has(s.active) ? "Board back to its starting layout." : "Board cleared."); }}
+            onReset={() => setConfirmReset(true)}
             onExport={() => downloadBoard(s.exportBoard(), board.name, say)}
             onImport={() => setImportOpen(!importOpen)}
           />
+        )}
+        {confirmReset && (
+          <div className={styles.editBar} role="alertdialog" aria-label="Confirm reset">
+            <span>{PRESETS.has(s.active) ? "Put this board back to its starting layout? Your changes to it are replaced." : "Remove every card from this board?"}</span>
+            <button type="button" className={styles.btn} onClick={() => { s.reset(); setConfirmReset(false); say(s.undo?.what ?? "Done.", false, true); }}>
+              {PRESETS.has(s.active) ? "Reset board" : "Clear board"}
+            </button>
+            <button type="button" className={styles.ghost} onClick={() => setConfirmReset(false)}>Cancel</button>
+          </div>
         )}
         {importOpen && <ImportBox onImport={(text) => {
           const result = s.importBoard(text);
           if (result.ok) { setImportOpen(false); say("Board imported and opened."); } else say(`Import refused: ${result.error}`, true);
         }} />}
         {!s.saved && <p className={styles.error} role="alert">This browser refused to save the board. Changes last until the page closes.</p>}
-        {message && <p className={message.error ? styles.error : styles.notice} role="status">{message.text}</p>}
+        {s.refused.length > 0 && (
+          <p className={styles.error} role="alert">
+            {s.refused.length === 1 ? "One saved board" : `${s.refused.length} saved boards`} could not be read and {s.refused.length === 1 ? "is" : "are"} not shown
+            ({s.refused.map((r) => `${r.id}: ${r.error}`).join("; ")}). {s.refused.length === 1 ? "It is" : "They are"} kept in this browser unchanged.
+          </p>
+        )}
+        {message && (
+          <p className={message.error ? styles.error : styles.notice} role="status">
+            {message.text}
+            {message.undo && s.undo && (
+              <button type="button" className={styles.ghost} onClick={() => { s.restore(); setMessage({ text: "Undone." }); }}>Undo</button>
+            )}
+          </p>
+        )}
         <div className={styles.workspace}>
           <BoardCanvas
             board={board} editing={editing}
             onLayouts={editing ? s.layouts : undefined}
             onView={(id, view) => s.view(id, view)}
-            onRemove={(id) => { s.remove(id); say("Removed from board."); }}
+            onRemove={(id) => { s.remove(id); say("Removed from board.", false, true); }}
           />
           {editing && libraryOpen && (
             <BoardLibrary items={board.items} onClose={() => setLibraryOpen(false)} onDone={toggleEdit}

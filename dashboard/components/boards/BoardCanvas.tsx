@@ -10,7 +10,7 @@ import { Responsive, useContainerWidth, type Layout, type ResponsiveLayouts } fr
 import { BREAKPOINT_IDS, BREAKPOINTS, COLS, withDerivedLayouts, type Board, type BoardLayouts, type Breakpoint } from "@/lib/boards/board";
 import { MODULES } from "@/lib/boards/registry";
 import type { ViewProps } from "@/lib/boards/registry/types";
-import ModuleFrame from "./ModuleFrame";
+import { ModuleFrame } from "./ModuleFrame";
 import canvas from "./canvas.module.css";
 
 interface CanvasProps {
@@ -43,7 +43,7 @@ function withMinimums(board: Board): ResponsiveLayouts<Breakpoint> {
   return out;
 }
 
-export default function BoardCanvas({ board, editing, onLayouts, onView, onRemove, viewProps, menus = true }: CanvasProps) {
+export function BoardCanvas({ board, editing, onLayouts, onView, onRemove, viewProps, menus = true }: CanvasProps) {
   const { width, containerRef, mounted } = useContainerWidth();
   const layouts = useMemo(() => withMinimums(board), [board]);
   const onLayoutChange = (_layout: Layout, all: ResponsiveLayouts<Breakpoint>) => {

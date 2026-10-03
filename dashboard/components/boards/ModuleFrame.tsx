@@ -32,7 +32,7 @@ interface FrameProps {
   menu?: boolean;
 }
 
-export default function ModuleFrame(props: FrameProps) {
+export function ModuleFrame(props: FrameProps) {
   const def = MODULES.get(props.item.module);
   if (!def) return <UnknownFrame {...props} />;
   return <KnownFrame def={def} {...props} />;
@@ -135,7 +135,7 @@ function FrameMenu({ def, viewId, status, onView, onRemove }: {
 function stateText(status: ModuleStatus): { head: string; detail: string | null } {
   switch (status.state) {
     case "loading": return { head: "Loading…", detail: null };
-    case "stale": return { head: "Stale — showing nothing until a fresh read arrives.", detail: status.reason };
+    case "stale": return { head: "Stale — the last good data is too old to show; waiting for a fresh read.", detail: status.reason };
     case "unreachable": return { head: "Unreachable.", detail: status.reason };
     case "no_source": return { head: "No source yet.", detail: status.reason };
     default: return { head: "", detail: null };

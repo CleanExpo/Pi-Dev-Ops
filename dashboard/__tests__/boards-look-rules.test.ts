@@ -68,14 +68,25 @@ describe("no new write path (G2, G3)", () => {
     expect(hits).toEqual([]);
   });
 
-  it("the diff adds no API route, no mutating handler and no table", () => {
-    let diff: string;
-    try {
-      execFileSync("git", ["-C", REPO, "rev-parse", "--verify", "origin/main"], { stdio: "ignore" });
-      diff = execFileSync("git", ["-C", REPO, "diff", "--name-status", "origin/main...HEAD"], { encoding: "utf8" });
-    } catch {
-      return; // shallow CI checkout without origin/main: the route and table checks below still run on the tree
-    }
+  it("tree: no API route belongs to boards, and no API route or table file mentions them", () => {
+    expect(() => statSync(path.join(DASH, "app/api/boards"))).toThrow();
+    const apiFiles = files(path.join(DASH, "app/api")).filter((f) => /\.(ts|tsx)$/.test(f));
+    expect(apiFiles.length).toBeGreaterThan(10); // positive control: the walk found the routes
+    expect(apiFiles.filter((f) => /lib\/boards|components\/boards/.test(readFileSync(f, "utf8"))).map(rel)).toEqual([]);
+    const sql = [...files(path.join(REPO, "supabase")), ...files(path.join(REPO, "mesh/schema"))].filter((f) => f.endsWith(".sql"));
+    // A table whose name ends in "board(s)" would be board storage (intake_board_rounds is not).
+    const boardTable = /create table\s+(if not exists\s+)?[\w."]*boards?"?\s*\(/i;
+    expect(sql.length).toBeGreaterThan(5); // positive control: the walk found the migrations
+    expect(sql.filter((f) => boardTable.test(readFileSync(f, "utf8"))).map((f) => path.relative(REPO, f))).toEqual([]);
+  });
+
+  // The diff-relative half needs main's history. A shallow checkout has none: the
+  // test is then reported as SKIPPED (visible in the run), never as a pass.
+  const hasMain = (() => {
+    try { execFileSync("git", ["-C", REPO, "rev-parse", "--verify", "origin/main"], { stdio: "ignore" }); return true; } catch { return false; }
+  })();
+  it.skipIf(!hasMain)("diff: no added API route, mutating handler or table against origin/main", () => {
+    const diff = execFileSync("git", ["-C", REPO, "diff", "--name-status", "origin/main...HEAD"], { encoding: "utf8" });
     const added = diff.split("\n").filter((l) => l.startsWith("A\t")).map((l) => l.slice(2));
     expect(added.filter((f) => f.startsWith("dashboard/app/api/"))).toEqual([]);
     expect(added.filter((f) => /^(supabase|mesh\/schema)\//.test(f))).toEqual([]);

@@ -44,6 +44,7 @@ function parseCells(raw: unknown, bp: Breakpoint): BoardCell[] | string {
     if (!c || !isText(c.i) || !isInt(c.x) || !isInt(c.y) || !isInt(c.w) || !isInt(c.h) || c.w < 1 || c.h < 1) {
       return `layouts.${bp} cells need i and whole-number x, y, w, h`;
     }
+    if (c.x >= COLS[bp]) return `layouts.${bp} cell "${c.i}" starts outside the ${COLS[bp]} columns`;
     cells.push({ i: c.i, x: c.x, y: c.y, w: Math.min(c.w, COLS[bp]), h: c.h });
   }
   return cells;
@@ -64,7 +65,9 @@ export function parseBoard(value: unknown): ParseResult {
     if (rawLayouts[bp] === undefined) continue;
     const cells = parseCells(rawLayouts[bp], bp);
     if (typeof cells === "string") return { ok: false, error: cells };
-    layouts[bp] = cells.filter((c) => items.some((i) => i.id === c.i));
+    const orphan = cells.find((c) => !items.some((i) => i.id === c.i));
+    if (orphan) return { ok: false, error: `layouts.${bp} has a cell "${orphan.i}" for an item the board does not have.` };
+    layouts[bp] = cells;
   }
   if (!layouts.lg) return { ok: false, error: "A board needs an lg layout." };
   return { ok: true, board: { name: b.name.trim(), skin: b.skin as Skin, items, layouts } };

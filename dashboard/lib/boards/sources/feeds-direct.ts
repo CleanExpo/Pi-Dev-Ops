@@ -10,7 +10,7 @@ import { getJson, isNotConfigured, record } from "./http";
 import type {
   CuratorValue, FabricStatus, KillSwitchStatus, ProviderUsageValue, SwarmValue, WikiGraphSummary,
 } from "./shapes";
-import type { FeedDef, FeedRead } from "./types";
+import { defineFeed, type FeedDef, type FeedRead } from "./types";
 
 const FLEET_NOT_CONFIGURED = new Set(["mesh secret not configured", "Pi-CEO URL not configured"]);
 
@@ -36,7 +36,7 @@ export async function readWall(signal: AbortSignal): Promise<FeedRead<WallSnapsh
   }
   const fleet = body.fleet?.status;
   if (fleet === "no_source") return { kind: "no_source", value: body, reason: body.fleet.reason, httpStatus: r.status };
-  if (fleet === "broken") return { kind: "unreachable", value: body, reason: body.fleet.reason, httpStatus: r.status };
+  if (fleet !== "ok") return { kind: "unreachable", value: body, reason: body.fleet?.reason || "wall snapshot has no fleet status", httpStatus: r.status };
   return { kind: "live", value: body, serverTs: body.generated_at, httpStatus: r.status };
 }
 
@@ -90,6 +90,9 @@ export async function readProviderUsage(signal: AbortSignal): Promise<FeedRead<P
   const r = await getJson("/api/command-centre/provider-usage", signal);
   const body = record(r.body);
   if (!r.ok || !body) return { kind: "unreachable", value: null, reason: r.error ?? `provider_usage_http_${r.status}`, httpStatus: r.status };
+  if (typeof body.generatedAt !== "string" || !Array.isArray(body.providers)) {
+    return { kind: "unreachable", value: null, reason: "provider usage payload is not in the expected shape", httpStatus: r.status };
+  }
   const payload = body as unknown as NonNullable<ProviderUsageValue>;
   return { kind: "live", value: payload, serverTs: payload.generatedAt, httpStatus: r.status };
 }
@@ -125,12 +128,12 @@ export async function readCurator(signal: AbortSignal): Promise<FeedRead<Curator
 }
 
 export const DIRECT_FEEDS: FeedDef<unknown>[] = [
-  { id: "mesh-fleet", url: "/api/mesh-fleet", intervalMs: 20_000, read: readMeshFleet, serverClock: true },
-  { id: "wall", url: "/api/mesh-fleet/wall", intervalMs: 5_000, read: readWall, serverClock: true },
-  { id: "model-fabric", url: "/api/model-fabric", intervalMs: 15_000, read: readModelFabric },
-  { id: "swarm-status", url: "/api/swarm-status", intervalMs: 30_000, read: readSwarmStatus },
-  { id: "kill-switch", url: "/api/kill-switch?op=status", intervalMs: 10_000, read: readKillSwitch },
-  { id: "provider-usage", url: "/api/command-centre/provider-usage", intervalMs: 30_000, read: readProviderUsage, serverClock: true },
-  { id: "wiki-graph", url: "/api/command-centre/wiki-graph", intervalMs: 300_000, read: readWikiGraph },
-  { id: "curator", url: CURATOR_URL, intervalMs: 30_000, read: readCurator },
-] as FeedDef<unknown>[];
+  defineFeed({ id: "mesh-fleet", url: "/api/mesh-fleet", intervalMs: 20_000, read: readMeshFleet, serverClock: true }),
+  defineFeed({ id: "wall", url: "/api/mesh-fleet/wall", intervalMs: 5_000, read: readWall, serverClock: true }),
+  defineFeed({ id: "model-fabric", url: "/api/model-fabric", intervalMs: 15_000, read: readModelFabric }),
+  defineFeed({ id: "swarm-status", url: "/api/swarm-status", intervalMs: 30_000, read: readSwarmStatus }),
+  defineFeed({ id: "kill-switch", url: "/api/kill-switch?op=status", intervalMs: 10_000, read: readKillSwitch }),
+  defineFeed({ id: "provider-usage", url: "/api/command-centre/provider-usage", intervalMs: 30_000, read: readProviderUsage, serverClock: true }),
+  defineFeed({ id: "wiki-graph", url: "/api/command-centre/wiki-graph", intervalMs: 300_000, read: readWikiGraph }),
+  defineFeed({ id: "curator", url: CURATOR_URL, intervalMs: 30_000, read: readCurator }),
+];

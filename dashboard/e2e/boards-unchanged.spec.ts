@@ -51,16 +51,19 @@ async function capture(browser: Browser, base: string, path: string, file: strin
   await page.goto(path, { waitUntil: "networkidle" });
   await page.waitForTimeout(2_500);
   // The one declared difference on /control/<section> pages is the new "Boards" subnav link
-  // (spec D8). Mask the subnav in the picture; compare its links as text instead.
-  const nav = await page.locator('nav[aria-label="Control sections"]').allInnerTexts().then((t) => t.join("|")).catch(() => "");
-  const png = await page.screenshot({ path: file, animations: "disabled", caret: "hide",
-    mask: [page.locator('nav[aria-label="Control sections"]')] });
+  // (spec D8). It is appended last, so hiding just that link leaves every other pixel to compare;
+  // its presence is asserted as text. Nothing else is masked.
+  const navs = page.locator('nav[aria-label="Control sections"]');
+  const nav = (await navs.count()) ? (await navs.innerText()) : "";
+  await page.addStyleTag({ content: 'nav[aria-label="Control sections"] a[href="/control/boards"] { visibility: hidden !important; }' });
+  const png = await page.screenshot({ path: file, animations: "disabled", caret: "hide" });
   await context.close();
   return { png, nav };
 }
 
 test.describe("A6: existing pages unchanged", () => {
-  test.skip(!BEFORE || !AFTER, "set BOARDS_BEFORE_URL and BOARDS_AFTER_URL");
+  // Needs two servers (main and this branch); reported as SKIPPED, never as a pass, when they are not given.
+  test.skip(!BEFORE || !AFTER, "A6 needs BOARDS_BEFORE_URL (main) and BOARDS_AFTER_URL (branch) servers");
   test.setTimeout(120_000);
   for (const path of A6_PAGES) {
     test(path, async ({ browser }) => {
@@ -70,7 +73,12 @@ test.describe("A6: existing pages unchanged", () => {
       const after = await capture(browser, AFTER!, path, `${OUT}/${slug}.after.png`);
       const same = before.png.equals(after.png);
       writeFileSync(`${OUT}/${slug}.result.json`, JSON.stringify({ path, identical_pixels: same, nav_before: before.nav, nav_after: after.nav }, null, 2));
-      expect(after.nav.replace(/\n?BOARDS$/i, ""), "only the Boards link is added to the subnav").toBe(before.nav);
+      if (path.startsWith("/control/")) {
+        expect(before.nav.length, "subnav found on a section page").toBeGreaterThan(0);
+        expect(after.nav, "only the Boards link is added to the subnav").toBe(`${before.nav}\nBOARDS`);
+      } else {
+        expect(after.nav).toBe(before.nav);
+      }
       expect(same, `${path}: screenshots differ`).toBe(true);
     });
   }

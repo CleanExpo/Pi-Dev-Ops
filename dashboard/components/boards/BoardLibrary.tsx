@@ -13,7 +13,7 @@ interface LibraryProps {
   onDone: () => void;
 }
 
-export default function BoardLibrary({ items, onAdd, onClose, onDone }: LibraryProps) {
+export function BoardLibrary({ items, onAdd, onClose, onDone }: LibraryProps) {
   const counts = new Map<string, number>();
   for (const item of items) counts.set(item.module, (counts.get(item.module) ?? 0) + 1);
   return (

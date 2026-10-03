@@ -17,7 +17,7 @@ const QUICK: readonly { label: string; href: string }[] = [
   { label: "Run a build", href: "/control/build" },
   { label: "Capture an idea", href: "/control#idea-pipeline" },
   { label: "Set a goal", href: "/control/goal" },
-  { label: "Open the wall", href: "/control/boards/kiosk?board=wall-1" },
+  { label: "Open the wall", href: "/command-centre/wall" },
 ];
 
 function summary(snaps: readonly SourceSnapshot<unknown>[]): string {
@@ -43,7 +43,7 @@ interface HeaderProps {
   onToggleEdit: () => void;
 }
 
-export default function BoardHeader(p: HeaderProps) {
+export function BoardHeader(p: HeaderProps) {
   const now = useNow(1_000);
   const feedIds = [...new Set(p.board.items.flatMap((i) => MODULES.get(i.module)?.sources ?? []))]
     .filter((id) => id !== "local-clock" && id !== "static").sort();
@@ -77,7 +77,7 @@ export default function BoardHeader(p: HeaderProps) {
         <div className={styles.tabs} role="tablist" aria-label="Boards">
           {p.order.map((id) => (
             <button key={id} type="button" role="tab" aria-selected={p.active === id} className={styles.tab} onClick={() => p.onSelect(id)}>
-              {p.boards[id].name}
+              {p.boards[id]?.name ?? id}
             </button>
           ))}
           <button type="button" className={styles.tab} onClick={p.onNewBoard}>+ Board</button>

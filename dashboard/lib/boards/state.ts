@@ -5,20 +5,26 @@ import { create } from "zustand";
 
 import { addItem, emptyBoard, removeItem, setLayouts, setView, type Board, type BoardLayouts, type Skin } from "./board";
 import { PRESETS } from "./presets";
-import { LocalBoardStore, presetSet, type BoardSet, type BoardStore, type ImportResult } from "./store";
+import { LocalBoardStore, presetSet, type BoardSet, type BoardStore, type ImportResult, type Quarantined } from "./store";
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 let counter = 0;
-/** Unique, short, and stable enough for a board in one browser. */
+/** Unique across tabs: a random part, not only the clock and a per-tab counter. */
 export function newId(prefix: string): string {
   counter += 1;
-  return `${prefix}-${Date.now().toString(36)}${counter.toString(36)}`;
+  const random = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10);
+  return `${prefix}-${Date.now().toString(36)}${counter.toString(36)}-${random}`;
 }
 
 interface BoardsState extends BoardSet {
   hydrated: boolean;
   /** False when the browser refused the last save (private mode, quota). */
   saved: boolean;
+  /** Saved boards that failed validation on load; kept in storage, not shown. */
+  refused: Quarantined[];
+  /** The board as it was before the last remove or reset, for Undo. */
+  undo: { id: string; board: Board; what: string } | null;
+  restore: () => void;
   hydrate: () => void;
   select: (id: string) => void;
   update: (fn: (board: Board) => Board) => void;
@@ -44,7 +50,20 @@ export function createBoardsStore(store: BoardStore = new LocalBoardStore()) {
       ...presetSet(),
       hydrated: false,
       saved: true,
-      hydrate: () => set({ ...store.load(), hydrated: true }),
+      refused: [],
+      undo: null,
+      hydrate: () => {
+        if (get().hydrated) return;
+        const loaded = store.load();
+        set({ ...loaded, hydrated: true, refused: store.quarantined() });
+      },
+      restore: () => {
+        const u = get().undo;
+        if (!u) return;
+        const s = current();
+        persist({ ...s, boards: { ...s.boards, [u.id]: u.board }, active: u.id });
+        set({ undo: null });
+      },
       select: (id) => { if (get().boards[id]) persist({ ...current(), active: id }); },
       update: (fn) => {
         const s = current();
@@ -55,7 +74,11 @@ export function createBoardsStore(store: BoardStore = new LocalBoardStore()) {
         get().update((b) => addItem(b, module, view, id));
         return id;
       },
-      remove: (itemId) => get().update((b) => removeItem(b, itemId)),
+      remove: (itemId) => {
+        const s = current();
+        set({ undo: { id: s.active, board: s.boards[s.active], what: "Removed from board." } });
+        get().update((b) => removeItem(b, itemId));
+      },
       view: (itemId, view) => get().update((b) => setView(b, itemId, view)),
       layouts: (layouts) => get().update((b) => setLayouts(b, layouts)),
       skin: (skin) => get().update((b) => ({ ...b, skin })),
@@ -65,7 +88,9 @@ export function createBoardsStore(store: BoardStore = new LocalBoardStore()) {
         persist({ order: [...s.order, id], boards: { ...s.boards, [id]: emptyBoard(`Board ${s.order.length + 1}`) }, active: id });
       },
       reset: () => {
-        const preset = PRESETS.get(get().active);
+        const s = current();
+        const preset = PRESETS.get(s.active);
+        set({ undo: { id: s.active, board: s.boards[s.active], what: preset ? "Board back to its starting layout." : "Board cleared." } });
         get().update((b) => (preset ? clone(preset) : { ...b, items: [], layouts: { lg: [] } }));
       },
       importBoard: (text) => {

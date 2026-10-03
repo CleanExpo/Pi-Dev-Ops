@@ -40,4 +40,5 @@ def test_every_page_surface_is_in_the_live_suite_and_panel_coverage() -> None:
 def test_the_surface_regex_matches_every_surface_and_no_more() -> None:
     for sid in mr.SURFACES:
         assert mr.SURFACE_RE.search(f"fixes {sid} today"), sid
+    # SURFACES runs MC-00..MC-{n-1}, so MC-{n} (today MC-21) is the first id past the end.
     assert not mr.SURFACE_RE.search(f"MC-{len(mr.SURFACES):02d}")

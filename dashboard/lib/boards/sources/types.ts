@@ -70,3 +70,8 @@ export function toEpochMs(ts: string | number | null | undefined): number | null
   const ms = Date.parse(ts);
   return Number.isNaN(ms) ? null : ms;
 }
+
+/** Type-check a feed against its own value type, then store it in the shared catalogue. */
+export function defineFeed<T>(def: FeedDef<T>): FeedDef<unknown> {
+  return def as unknown as FeedDef<unknown>;
+}

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import FleetTile from "@/components/control/FleetTile";
 import KillSwitchPanel from "@/components/control/KillSwitchPanel";
-import ModuleFrame from "@/components/boards/ModuleFrame";
+import { ModuleFrame } from "@/components/boards/ModuleFrame";
 import { ProviderUsageCockpit } from "@/components/command-centre/provider-usage/ProviderUsageCockpit";
 import { installFetchTap } from "@/lib/boards/sources/fetch-tap";
 import { useSource } from "@/lib/boards/sources";

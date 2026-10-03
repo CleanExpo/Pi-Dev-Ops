@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { addItem, COLS, parseBoard, parseBoardText, removeItem, setLayouts, setView, type Board } from "@/lib/boards/board";
 import { PRESET_IDS, PRESET_RAW, PRESETS } from "@/lib/boards/presets";
 import { MODULES } from "@/lib/boards/registry";
+import { createBoardsStore } from "@/lib/boards/state";
 import { LocalBoardStore, presetSet, STORAGE_KEY } from "@/lib/boards/store";
 
 describe("presets (T3)", () => {
@@ -48,10 +49,21 @@ describe("board parser (T4)", () => {
   ])("refuses %s with a message", (_n, text, error) => {
     expect(parseBoardText(text)).toEqual({ ok: false, error });
   });
-  it("keeps an unknown module id (it renders the grey frame) and drops cells with no item", () => {
-    const parsed = parseBoard({ ...tiny, items: [...tiny.items, { id: "z", module: "nope", view: "v" }], layouts: { lg: [...tiny.layouts.lg!, { i: "ghost", x: 0, y: 9, w: 1, h: 1 }] } });
+  it("keeps an unknown module id: it renders the grey frame (boards-registry.test.tsx, G1)", () => {
+    const parsed = parseBoard({ ...tiny, items: [...tiny.items, { id: "z", module: "nope", view: "v" }] });
     expect(parsed.ok && parsed.board.items.map((i) => i.module)).toEqual(["fleet", "nope"]);
-    expect(parsed.ok && parsed.board.layouts.lg!.map((c) => c.i)).toEqual(["a"]);
+  });
+  it("keeps an unknown view id: the frame falls back to the first view (boards-registry.test.tsx)", () => {
+    const parsed = parseBoard({ ...tiny, items: [{ id: "a", module: "fleet", view: "nope" }] });
+    expect(parsed.ok && parsed.board.items[0].view).toBe("nope");
+  });
+  it("refuses a layout cell for an item the board does not have", () => {
+    expect(parseBoard({ ...tiny, layouts: { lg: [...tiny.layouts.lg!, { i: "ghost", x: 0, y: 9, w: 1, h: 1 }] } }))
+      .toEqual({ ok: false, error: 'layouts.lg has a cell "ghost" for an item the board does not have.' });
+  });
+  it("refuses a cell that starts outside the columns", () => {
+    expect(parseBoard({ ...tiny, layouts: { lg: [{ i: "a", x: 12, y: 0, w: 1, h: 1 }] } }))
+      .toEqual({ ok: false, error: 'layouts.lg cell "a" starts outside the 12 columns' });
   });
   it("clamps a cell wider than the breakpoint's columns", () => {
     const parsed = parseBoard({ ...tiny, layouts: { lg: tiny.layouts.lg, sm: [{ i: "a", x: 0, y: 0, w: 12, h: 5 }] } });
@@ -99,9 +111,27 @@ describe("BoardStore (T4)", () => {
     expect(store.load()).toEqual(presetSet());
     expect(store.saveAll(presetSet())).toBe(false);
   });
-  it("garbage in storage falls back to presets", () => {
-    const { storage } = memoryStorage({ [STORAGE_KEY]: "not json" });
-    expect(new LocalBoardStore(() => storage).load()).toEqual(presetSet());
+  it("unreadable storage falls back to presets, is reported, and is copied aside before any save", () => {
+    const { data, storage } = memoryStorage({ [STORAGE_KEY]: "not json" });
+    const store = new LocalBoardStore(() => storage);
+    expect(store.load()).toEqual(presetSet());
+    expect(store.quarantined()[0].error).toContain("not readable");
+    expect(data[`${STORAGE_KEY}.unreadable`]).toBe("not json");
+  });
+  it("an invalid saved board is refused, reported, not shown, and survives the next save unchanged", () => {
+    const bad = { name: "", skin: "paper", items: [], layouts: { lg: [] } };
+    const good = presetSet().boards.desk;
+    const { data, storage } = memoryStorage({ [STORAGE_KEY]: JSON.stringify({ order: ["good", "bad"], active: "bad", boards: { good, bad } }) });
+    const store = new LocalBoardStore(() => storage);
+    const set = store.load();
+    expect(set.order).toEqual(["good"]);
+    expect(set.active).toBe("good");
+    expect(store.quarantined()).toEqual([{ id: "bad", error: "A board needs a name." }]);
+    store.saveAll(set);
+    expect(JSON.parse(data[STORAGE_KEY]).quarantine).toEqual({ bad });
+    const again = new LocalBoardStore(() => storage);
+    again.load();
+    expect(again.quarantined().map((q) => q.id)).toEqual(["bad"]);
   });
   it("an invalid import is refused and storage is left unchanged", () => {
     const { data, storage } = memoryStorage();
@@ -128,5 +158,26 @@ describe("BoardStore (T4)", () => {
     edited.boards.desk = removeItem(edited.boards.desk, "clock-1");
     store.saveAll(edited);
     expect(store.load()).toEqual(edited);
+  });
+});
+
+describe("remove and reset can be undone (RA-1109: destructive actions get undo)", () => {
+  it("remove, then restore, brings the card back", () => {
+    const store = createBoardsStore(new LocalBoardStore(() => memoryStorage().storage));
+    const before = store.getState().boards.desk;
+    store.getState().remove("clock-1");
+    expect(store.getState().boards.desk.items.some((i) => i.id === "clock-1")).toBe(false);
+    store.getState().restore();
+    expect(store.getState().boards.desk).toEqual(before);
+    expect(store.getState().undo).toBeNull();
+  });
+  it("reset, then restore, brings the edited board back", () => {
+    const store = createBoardsStore(new LocalBoardStore(() => memoryStorage().storage));
+    store.getState().remove("clock-1");
+    const edited = store.getState().boards.desk;
+    store.getState().reset();
+    expect(store.getState().boards.desk.items.some((i) => i.id === "clock-1")).toBe(true);
+    store.getState().restore();
+    expect(store.getState().boards.desk).toEqual(edited);
   });
 });

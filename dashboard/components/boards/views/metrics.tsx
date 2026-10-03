@@ -76,6 +76,7 @@ export function PortfolioHeat() {
   );
 }
 
+/** Rank order comes from scoredProjects(), which sorts by score, unscored last. */
 export function PortfolioLeaderboard() {
   const projects = useProjects();
   if (!projects) return <Unexpected what="project health" />;

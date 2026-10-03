@@ -96,11 +96,10 @@ test("A2: two Fleet modules make one /api/mesh-fleet request per 20 s", async ({
   page.on("request", (r) => { if (new URL(r.url()).pathname === "/api/mesh-fleet") hits.push(Date.now()); });
   await page.goto("/control/boards");
   await expect(card(page, "f2").locator("article")).toHaveAttribute("data-state", "live");
-  const start = Date.now();
   await page.waitForTimeout(21_000);
-  const window = hits.filter((t) => t >= start - 2_000);
-  expect(window.length).toBeLessThanOrEqual(2);
+  // Two modules, one poller: exactly the first read and one more ~20 s later.
   expect(hits.length).toBe(2);
+  expect(hits[1] - hits[0]).toBeGreaterThan(15_000);
 });
 
 test("A3: Pi-CEO backend down — no module shows a number; provider-usage and wiki-graph stay live", async ({ page }) => {
@@ -114,7 +113,7 @@ test("A3: Pi-CEO backend down — no module shows a number; provider-usage and w
   for (const id of ["builds-n", "ship-chain-1", "models-1", "fleet-1", "activity-1", "builds-1", "portfolio-1", "ideas-1", "kill-switch-1"]) {
     const frame = card(page, id).locator("article");
     await expect(frame, id).toHaveAttribute("data-state", /unreachable|stale/);
-    const body = (await frame.locator(":scope > div").last().innerText()).replace(/\(\d{3}\)/g, "");
+    const body = await frame.locator(":scope > div").last().innerText();
     expect(body, `${id} shows a number while its source is down`).not.toMatch(/\d/);
   }
   await expect(card(page, "kill-switch-1").getByRole("button", { name: "Halt swarm" })).toBeEnabled();

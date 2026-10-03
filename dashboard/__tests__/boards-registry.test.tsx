@@ -24,7 +24,7 @@ vi.mock("@/lib/boards/sources/useSources", async (importOriginal) => {
   };
 });
 
-import ModuleFrame from "@/components/boards/ModuleFrame";
+import { ModuleFrame } from "@/components/boards/ModuleFrame";
 import { MODULE_LIST } from "@/lib/boards/registry";
 import { FEEDS } from "@/lib/boards/sources/feeds";
 

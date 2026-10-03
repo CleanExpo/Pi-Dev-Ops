@@ -2,25 +2,25 @@
 //
 // ProviderUsageCockpit and WikiGraphTile are provenance-baselined and call the
 // global `fetch` themselves, so they cannot read the shared sources. While a
-// board page is mounted, this tap wraps `window.fetch` for exactly two GET
-// paths: a matching request joins one in flight, or gets a clone of a response
-// younger than the feed's interval minus 1 s; otherwise it goes to the network.
-// The shared source reads through the same global `fetch`, so its read and the
-// component's coalesce into one network request per interval, and the frame
-// shows the state of the very response the component rendered. Any other
-// request passes straight through, untouched.
+// board page is mounted, this tap wraps `window.fetch` for exactly two
+// same-origin GET paths: a matching request joins one in flight, or gets a
+// fresh Response rebuilt from a body younger than the feed's interval minus
+// 1 s; otherwise it goes to the network with the caller's own arguments. The
+// shared source reads through the same global `fetch`, so its read and the
+// component's coalesce into one request per interval, and the frame shows the
+// state of the very response the component rendered. Any other request passes
+// straight through, untouched.
 
 import { FEEDS } from "./feeds";
 
 export const TAPPED_FEEDS = ["provider-usage", "wiki-graph"] as const;
 
-interface Slot { at: number; response: Response }
+interface Cached { at: number; status: number; statusText: string; headers: [string, string][]; body: string }
 
-function pathOf(input: RequestInfo | URL): string | null {
+function urlOf(input: RequestInfo | URL): URL | null {
   try {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    const url = new URL(raw, "http://local.invalid");
-    return url.pathname;
+    return new URL(raw, window.location.href);
   } catch {
     return null;
   }
@@ -29,6 +29,12 @@ function pathOf(input: RequestInfo | URL): string | null {
 function methodOf(input: RequestInfo | URL, init?: RequestInit): string {
   if (init?.method) return init.method.toUpperCase();
   return typeof input === "object" && "method" in input ? input.method.toUpperCase() : "GET";
+}
+
+const rebuild = (c: Cached) => new Response(c.body, { status: c.status, statusText: c.statusText, headers: c.headers });
+
+async function snapshot(res: Response): Promise<Cached> {
+  return { at: Date.now(), status: res.status, statusText: res.statusText, headers: [...res.headers.entries()], body: await res.text() };
 }
 
 let installs = 0;
@@ -41,24 +47,30 @@ export function installFetchTap(): () => void {
   if (installs === 1) {
     const real = window.fetch;
     original = real;
-    const routes = new Map(TAPPED_FEEDS.map((id) => [new URL(FEEDS.get(id)!.url, "http://local.invalid").pathname, id]));
-    const inflight = new Map<string, Promise<Response>>();
-    const recent = new Map<string, Slot>();
+    const routes = new Map<string, string>();
+    for (const id of TAPPED_FEEDS) {
+      const def = FEEDS.get(id);
+      if (def) routes.set(new URL(def.url, window.location.href).href, id);
+    }
+    const inflight = new Map<string, Promise<Cached>>();
+    const recent = new Map<string, Cached>();
     window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-      const path = pathOf(input);
-      const feedId = path ? routes.get(path) : undefined;
-      if (!path || !feedId || methodOf(input, init) !== "GET") return real(input, init);
-      const ttl = FEEDS.get(feedId)!.intervalMs - 1_000;
-      const slot = recent.get(path);
-      if (slot && Date.now() - slot.at < ttl) return Promise.resolve(slot.response.clone());
-      const pending = inflight.get(path);
-      if (pending) return pending.then((r) => r.clone());
-      const request = real(path, { cache: "no-store" }).then((response) => {
-        recent.set(path, { at: Date.now(), response: response.clone() });
-        return response;
-      }).finally(() => inflight.delete(path));
-      inflight.set(path, request);
-      return request.then((r) => r.clone());
+      const url = urlOf(input);
+      const feedId = url && url.origin === window.location.origin ? routes.get(url.href) : undefined;
+      if (!url || !feedId || methodOf(input, init) !== "GET") return real(input, init);
+      const ttl = (FEEDS.get(feedId)?.intervalMs ?? 0) - 1_000;
+      const hit = recent.get(url.href);
+      if (hit && Date.now() - hit.at < ttl) return Promise.resolve(rebuild(hit));
+      let pending = inflight.get(url.href);
+      if (!pending) {
+        // The caller's own arguments, minus its abort signal: the read is shared,
+        // so one caller unmounting must not cancel it for the others.
+        const { signal: _signal, ...rest } = init ?? {};
+        pending = real(input, rest).then(snapshot).then((c) => { recent.set(url.href, c); return c; })
+          .finally(() => inflight.delete(url.href));
+        inflight.set(url.href, pending);
+      }
+      return pending.then(rebuild);
     };
   }
   return () => {

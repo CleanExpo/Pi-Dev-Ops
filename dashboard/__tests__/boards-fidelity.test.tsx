@@ -7,7 +7,7 @@ import { act, cleanup, render } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import ModuleFrame from "@/components/boards/ModuleFrame";
+import { ModuleFrame } from "@/components/boards/ModuleFrame";
 import CuratorProposalsPanel from "@/components/control/CuratorProposalsPanel";
 import FleetTile from "@/components/control/FleetTile";
 import HealthGrid from "@/components/control/HealthGrid";
