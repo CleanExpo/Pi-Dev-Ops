@@ -9,43 +9,23 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 
-interface KillSwitchStatus {
-  swarm_enabled_env?: boolean;
-  kill_switch_active?: boolean;
-  escalation_lock_active?: boolean;
-  panic_count_last_hour?: number;
-  approver_allowlist?: string[];
-  approver_totp_configured?: string[];
-  error?: string;
-}
+import { SIGNED_OUT_REASON, useSource, type KillSwitchStatus } from "@/lib/boards/sources";
 
 type Mode = "idle" | "halt" | "resume";
 
-const POLL_MS = 10_000;
-
 export default function KillSwitchPanel() {
-  const [status, setStatus] = useState<KillSwitchStatus | null>(null);
+  // RA-7898: one shared /api/kill-switch?op=status poller (10 s) for every copy on screen.
+  const source = useSource<KillSwitchStatus>("kill-switch");
+  const status = source.seq > 0 ? source.value : null;
+  const refresh = source.refresh;
+  // RA-7898 A5: a 401 means this browser is signed out. Halt / Resume would be
+  // refused by the same route, so they are disabled and the reason is shown.
+  const signedOut = source.httpStatus === 401;
   const [mode, setMode] = useState<Mode>("idle");
   const [busy, setBusy] = useState<boolean>(false);
   const [actionError, setActionError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      const r = await fetch("/api/kill-switch?op=status", { cache: "no-store" });
-      const data = await r.json().catch(() => ({}));
-      setStatus(data);
-    } catch (exc) {
-      setStatus({ error: String(exc) });
-    }
-  }, []);
-
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, POLL_MS);
-    return () => clearInterval(t);
-  }, [refresh]);
 
   const onAfterAction = async () => {
     setMode("idle");
@@ -98,13 +78,13 @@ export default function KillSwitchPanel() {
         {!status?.kill_switch_active ? (
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || signedOut}
             onClick={() => setMode("halt")}
             className="flex-1 rounded border py-1 text-xs"
             style={{
               borderColor: "var(--error)",
               color: "var(--error)",
-              opacity: busy ? 0.5 : 1,
+              opacity: busy || signedOut ? 0.5 : 1,
             }}
           >
             Halt swarm
@@ -112,13 +92,13 @@ export default function KillSwitchPanel() {
         ) : (
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || signedOut}
             onClick={() => setMode("resume")}
             className="flex-1 rounded border py-1 text-xs"
             style={{
               borderColor: "var(--success)",
               color: "var(--success)",
-              opacity: busy ? 0.5 : 1,
+              opacity: busy || signedOut ? 0.5 : 1,
             }}
           >
             Resume swarm
@@ -126,7 +106,11 @@ export default function KillSwitchPanel() {
         )}
       </div>
 
-      {status?.error && (
+      {signedOut ? (
+        <p className="mt-2 text-[10px]" role="status" style={{ color: "var(--error)" }}>
+          {SIGNED_OUT_REASON}
+        </p>
+      ) : status?.error && (
         <p className="mt-2 text-[10px]" style={{ color: "var(--error)" }}>
           {status.error}
         </p>

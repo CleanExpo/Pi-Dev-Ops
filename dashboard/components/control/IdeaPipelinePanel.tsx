@@ -1,8 +1,8 @@
 // IdeaPipelinePanel — UNI-2633 one-screen Board packet on the daily window.
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { useEffect, useState } from "react";
+import { useSource } from "@/lib/boards/sources";
 import {
   IDEA_VERDICTS,
   canAuthorizeGo,
@@ -45,22 +45,19 @@ export default function IdeaPipelinePanel() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    const data = await fetchProxyJSON<IdeaPipelinePayload>(API, {
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (!data) {
+  // RA-7898: the idea pipeline is read by the shared poller (60 s); after a
+  // write, `refresh()` asks it for one immediate re-read.
+  const source = useSource<IdeaPipelinePayload>("idea-pipeline");
+  const refresh = source.refresh;
+  useEffect(() => {
+    if (source.seq === 0) return;
+    if (!source.value) {
       setError("Mission Control could not read the idea pipeline.");
       return;
     }
-    setPayload(data);
+    setPayload(source.value);
     setError(null);
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  }, [source.seq, source.value]);
 
   const packet: IdeaPacket | null = payload?.snapshot.packet ?? null;
   const legacyPacket = Boolean(packet && !packet.north_star_fit.source_revision);

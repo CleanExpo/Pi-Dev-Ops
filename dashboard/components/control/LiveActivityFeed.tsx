@@ -14,7 +14,7 @@ import ThroughputSparkline from "./ThroughputSparkline";
 import ClaudeSessionsHUD, { type ClaudeHud } from "./ClaudeSessionsHUD";
 import { LiveDot, PhasePill } from "./LiveFeedMarks";
 import LiveWatchLinks from "./LiveWatchLinks";
-import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { useSource } from "@/lib/boards/sources";
 import { fmtElapsed, fmtAgo } from "@/lib/control/activity-format";
 import { type MissionControlLive } from "@/lib/control/mission-control-live";
 import { asWatchInput, idleSessionsNote, watchBuildsHref, watchLoopHref, watchSwarmHref } from "@/lib/control/watchWork";
@@ -34,40 +34,25 @@ export default function LiveActivityFeed() {
   // second keeps render deterministic for any given commit.
   const [now, setNow] = useState<number>(() => Date.now());
 
+  // RA-7898: one shared mission-control/live poller (5 s) for every reader on screen.
+  // A null value is the proxy's placeholder or a failed read (lib/pi-ceo-fetch.ts).
+  const source = useSource<LiveData>("mc-live");
   useEffect(() => {
-    let mounted = true;
-    const tick = async () => {
-      try {
-        // See lib/pi-ceo-fetch.ts — a proxy fallback is not a live reading.
-        const j = await fetchProxyJSON<LiveData>("/api/mission-control/live", {
-          credentials: "include",
-          cache: "no-store",
-        });
-        if (!j) {
-          if (mounted) setErr("Pi-CEO backend unreachable");
-          return;
-        }
-        if (mounted) {
-          setData(j);
-          if (j.error) {
-            setLastUpdate(0);
-            setErr(j.error);
-          } else {
-            setLastUpdate(Date.now());
-            setErr(null);
-          }
-        }
-      } catch (e) {
-        if (mounted) setErr(String(e));
-      }
-    };
-    tick();
-    const id = setInterval(tick, 5000);
-    return () => {
-      mounted = false;
-      clearInterval(id);
-    };
-  }, []);
+    if (source.seq === 0) return;
+    const j = source.value;
+    if (!j) {
+      setErr("Pi-CEO backend unreachable");
+      return;
+    }
+    setData(j);
+    if (j.error) {
+      setLastUpdate(0);
+      setErr(j.error);
+    } else {
+      setLastUpdate(Date.now());
+      setErr(null);
+    }
+  }, [source.seq, source.value]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);

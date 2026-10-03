@@ -90,9 +90,17 @@ async function readOnce(entry: Entry): Promise<void> {
   const generation = entry.generation;
   const controller = new AbortController();
   entry.controller = controller;
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  // The timeout settles the read even when a reader ignores the abort signal,
+  // so one hung request can never block the feed's later ticks.
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = new Promise<FeedRead<unknown>>((resolve) => {
+    timeout = setTimeout(() => {
+      controller.abort();
+      resolve({ kind: "unreachable", value: null, reason: `no answer within ${REQUEST_TIMEOUT_MS / 1000} s` });
+    }, REQUEST_TIMEOUT_MS);
+  });
   try {
-    const read = await entry.def.read(controller.signal);
+    const read = await Promise.race([entry.def.read(controller.signal), timedOut]);
     if (generation === entry.generation) applyRead(entry, read);
   } finally {
     clearTimeout(timeout);

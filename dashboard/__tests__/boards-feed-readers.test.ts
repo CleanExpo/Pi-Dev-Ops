@@ -155,8 +155,8 @@ describe("Pi-CEO proxy feeds", () => {
   });
   it("mission-control/live: a body error is unreachable; ts is the server clock", async () => {
     serve({ error: "boom", ts: "2026-10-03T00:00:00Z" });
-    expect((await readMissionControlLive(signal)).kind).toBe("unreachable");
+    expect((await readMissionControlLive()).kind).toBe("unreachable");
     serve({ ts: "2026-10-03T00:00:00Z" });
-    expect((await readMissionControlLive(signal)).serverTs).toBe("2026-10-03T00:00:00Z");
+    expect((await readMissionControlLive()).serverTs).toBe("2026-10-03T00:00:00Z");
   });
 });
