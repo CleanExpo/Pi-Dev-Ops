@@ -14,6 +14,10 @@
 | 2 | `b880806` | same | standards | PASS | — (6 non-blocking, addressed in round 3 text) |
 | 2 | same | same | spec vs route files | PASS | — |
 | 2 | same | same | spec vs brief | FAIL | wrapped provider-usage / wiki-graph components would add a second reader (one-request rule) |
+| 3 | `0a4ed28` | same | spec vs route files | PASS | — |
+| 3 | same | same | spec vs brief (run twice) | PASS, PASS | — (non-blocking notes addressed in text) |
+| 3 | same | same | standards | FAIL | A6 did not list every page it claims unchanged |
+| 3-fix | this revision | same | standards, finding F1 only | see below | The reviewer's own proposed fix was applied verbatim (A6 now lists all 21 pages). Round 3 was the last full round the brief allows, so this is a single confirmation that F1 is closed, not a fourth review |
 
 Reviewer note: neither Codex nor an OpenRouter key is available in this session's environment
 (no `codex` binary, no `OPENROUTER_API_KEY`). The reviewer is the LLM behind Composio's workbench
@@ -134,7 +138,7 @@ through `fetchProxy`, and `proxy_fallback_lint.py` covers them.
 **Note N2 — one interval for `sessions`.** `FixSessionLive` in `HealthGrid.tsx` polls
 `/api/sessions` every 4 s as a fallback beside its EventSource log stream. It moves onto the shared
 `sessions` source (15 s). The EventSource stays the primary live surface; only the fallback slows.
-Declared delta D3.
+Declared delta D2.
 
 Failure readers — one per feed, each with a unit test (§9 T1):
 
@@ -241,7 +245,7 @@ This is the only global patch in the diff. It is scoped to two paths and the boa
 and T7 also asserts that a request to any other path reaches the original `fetch` untouched.
 
 The `Wall` component (`components/wall/Wall.tsx`) and `/command-centre/wall` are not edited and
-keep their own 5 s poll. Board modules on the `wall` feed use the shared source. Declared delta D2:
+keep their own 5 s poll. Board modules on the `wall` feed use the shared source. Declared delta D1:
 a board with wall modules open beside `/command-centre/wall` in the same browser makes two wall
 reads per 5 s, one per page.
 
@@ -251,13 +255,13 @@ Every visible or behavioural difference from `main` that this pass introduces on
 
 | # | Delta | Where |
 |---|---|---|
-| D2 | A board with wall modules open beside `/command-centre/wall` in the same browser makes two wall reads per 5 s (one per page; `Wall.tsx` is not edited) | wall feed |
-| D3 | `FixSessionLive`'s fallback poll slows from 4 s to the shared 15 s (N2) | HealthGrid drill-down |
-| D4 | On a board, a read-only view is hidden while its module is `stale`, `unreachable` or `no_source`, and the frame shows the state instead. On the existing pages the panels keep today's behaviour | boards only |
-| D5 | On a board, an action view #1 renders under the frame's state banner (kicker, title, state, reason). The panel's own markup inside the frame is unchanged (T8) | boards only |
-| D6 | Signed out (401): the kill switch's Halt / Resume are disabled with the reason shown (A5). Applies on the existing pages too, because it lives in the panel | KillSwitchPanel |
-| D7 | New modules with no existing panel — `builds`, `north-star`, `clock` — are additions; their first views follow the new-view rules | registry |
-| D8 | `wiki-graph` is re-read every 300 s on a board, where today the tile reads once on mount | wiki-graph feed |
+| D1 | A board with wall modules open beside `/command-centre/wall` in the same browser makes two wall reads per 5 s (one per page; `Wall.tsx` is not edited) | wall feed |
+| D2 | `FixSessionLive`'s fallback poll slows from 4 s to the shared 15 s (N2) | HealthGrid drill-down |
+| D3 | On a board, a read-only view is hidden while its module is `stale`, `unreachable` or `no_source`, and the frame shows the state instead. On the existing pages the panels keep today's behaviour | boards only |
+| D4 | On a board, an action view #1 renders under the frame's state banner (kicker, title, state, reason). The panel's own markup inside the frame is unchanged (T8) | boards only |
+| D5 | Signed out (401): the kill switch's Halt / Resume are disabled with the reason shown (A5). Applies on the existing pages too, because it lives in the panel | KillSwitchPanel |
+| D6 | New modules with no existing panel — `builds`, `north-star`, `clock` — are additions; their first views follow the new-view rules | registry |
+| D7 | `wiki-graph` is re-read every 300 s on a board, where today the tile reads once on mount | wiki-graph feed |
 
 ## 5. Boards
 
@@ -314,7 +318,8 @@ overall look is a founder visual review of the screenshots in the handoff, and i
 - **Looks** as token overrides on the board root (`data-board-skin`): **Paper** (default desk: warm
   paper ground, white cards, indigo accent), **Graphite** (Linear-style near-black), **Slate**
   (Mercury-style soft indigo-grey), **Wall** (Graphite, larger type). One token set in
-  `app/globals.css`. Root `DESIGN.md` and `.claude/DESIGN.md` record the four looks; CI lints the
+  `app/globals.css`. Root `DESIGN.md` and `.claude/DESIGN.md` are first diffed against each other and
+  any existing disagreement on tokens is resolved, then both record the four looks; CI lints the
   latter. No net-new `lucide-react` imports.
 - Hex literals are banned in new files under `components/boards/` and `lib/boards/` (T5 greps
   them); converted view #1 files keep theirs. Card titles are rendered from the registry's
@@ -327,7 +332,8 @@ overall look is a founder visual review of the screenshots in the handoff, and i
 ## 7. Governance (as tests)
 
 - G1. A board can only reference registered module ids; an unknown id renders the grey frame.
-- G2. The diff adds no write path absent from the baseline: no new file under `app/api/`, no new
+- G2. (checked by a test that lists `git diff --name-status origin/main...HEAD` and greps added
+  lines) The diff adds no write path absent from the baseline: no new file under `app/api/`, no new
   exported `POST`/`PUT`/`PATCH`/`DELETE` handler, no new `create table` in `supabase/` or
   `mesh/schema/`. Every non-GET request reachable from a board is one that the same panel already
   makes on `main` (§4.1 action column), through the same route.
@@ -367,14 +373,14 @@ the build with the guarded behaviour removed), then passing. Receipts go in the 
 |---|---|---|
 | A1 | On `/control/boards`: drag one module, resize one, add one from the library, remove one, switch one view; reload; all five changes persist | Playwright |
 | A2 | A board with two Fleet modules makes exactly one `/api/mesh-fleet` request per interval; a board with two provider-usage modules makes exactly one provider-usage request per 30 s (through the tap) | vitest (fake timers) + Playwright request count |
-| A3 | Pi-CEO backend down (proxy answers with `X-Upstream-Status`): every backend-dependent module shows unreachable or stale and no number; provider-usage and wiki-graph stay live | vitest + Playwright with routed responses |
+| A3 | Pi-CEO backend down: every `/api/pi-ceo/*` GET answers the proxy's 200 fallback with `X-Upstream-Status: 502`; `mesh-fleet`/`model-fabric` answer 503; `swarm-status`, `kill-switch` and `curator` answer their quiet-failure bodies; `wall` answers `fleet.status:"broken"`. Every module on those feeds shows unreachable or stale. Read-only modules render no view. Each action module (ideas, health, swarm, kill switch) is asserted to render no digit inside its panel body, and the kill switch still offers "Halt swarm". `provider-usage` and `wiki-graph` are routed their 200 success shapes, because their routes build from dashboard-side data first (`provider-usage/route.ts`; `wiki-graph/route.ts` reads Supabase before the backend), and those two modules stay live | vitest + Playwright with routed responses |
 | A4 | A board with an unknown module id renders the grey frame; the page does not crash | vitest + Playwright |
-| A5 | Kill switch module with `/api/kill-switch` answering 401: kill control disabled, reason shown. Existing kill-switch tests stay green | vitest |
-| A6 | `/control`, `/control/<section>` (all eleven), `/loop`, `/overview`, `/command-centre/*` and the wall unchanged: the existing vitest suites for each converted panel stay green unmodified in their assertions; e2e green; before/after Playwright screenshots of `/control`, `/control/swarm`, `/control/model`, `/control/health`, `/control/curator`, `/loop`, `/overview`, `/command-centre/providers`, `/command-centre/knowledge` and `/command-centre/wall` with identical routed responses, compared pixel-for-pixel (`toHaveScreenshot`, zero tolerance; masks cover only the text nodes of live clocks and relative "Xs ago" labels, and those nodes are separately asserted present in the DOM) | vitest, Playwright |
+| A5 | Kill switch module with `/api/kill-switch` answering 401: kill control disabled, reason shown — asserted both on a board and on `/control/swarm` (where the panel also lives). Existing kill-switch tests stay green | vitest |
+| A6 | Every existing page unchanged. Screenshot-gated, every page listed: `/control`; `/control/goal`, `/control/swarm`, `/control/model`, `/control/health`, `/control/roles`, `/control/build`, `/control/runs`, `/control/curator`, `/control/margot`, `/control/pipeline`, `/control/terminal`; `/loop`; `/overview`; `/command-centre`, `/command-centre/hermes`, `/command-centre/knowledge`, `/command-centre/providers`, `/command-centre/wall`, `/command-centre/wiki-graph`, `/command-centre/youtube-intent`. Before (`main`) and after (branch) Playwright screenshots of each with identical routed responses, compared with `toHaveScreenshot` at zero tolerance; masks are bounding boxes over live clocks and relative "Xs ago" labels only, and those nodes are separately asserted present in the DOM. Plus: the existing vitest suites for each converted panel stay green with their assertions unmodified; e2e green. The one intended difference (D5 signed-out kill switch) only appears under a 401, which the routed responses do not produce | vitest, Playwright |
 | A7 | At 400 px wide: no horizontal page scroll; modules stack in one column | Playwright |
 | A8 | `npx tsc --noEmit`, `npm run build`, `bash scripts/handoff-loop.sh` pass; the release-gate receipt records exactly `bash scripts/handoff-loop.sh` | shell |
 | A9 | Write action inside a board: on a board, the Kill switch module's "Halt swarm" opens the existing confirm modal; with the POST answering 200, the modal closes and the module shows HALTED from the immediate refresh read (exactly one extra status GET after the POST, no second timer) | vitest |
-| A10 | Kiosk: `/control/boards/kiosk?board=wall-1` renders the preset full-screen with no edit controls; `?board=nope` shows an error naming the valid preset ids | vitest + Playwright |
+| A10 | Kiosk: `/control/boards/kiosk?board=wall-1&machine=Phill_Desktop` renders the preset full-screen with no edit controls and passes `Phill_Desktop` to the wall fleet view as its own host; `?board=nope` shows an error naming the valid preset ids | vitest + Playwright |
 
 Unit and governance tests (all gate Done):
 
@@ -384,9 +390,9 @@ Unit and governance tests (all gate Done):
 | T2 | Poller contract: first subscriber starts, last unsubscribe stops; in-flight tick skipped; 10 s abort counts as a failed read; `refresh()` makes one read and no second timer; `resetSources()` clears all; stale after `3 × interval` |
 | T3 | Every preset in `lib/boards/presets/` validates: registered modules and views, layout ids match items, sizes ≥ min |
 | T4 | Board validation and BoardStore: invalid JSON or shape rejected with a message and storage left unchanged; unknown view falls back to the first view; storage that throws falls back to presets; export → import round-trips |
-| T5 | Look rules: no hex literal and no literal data array under `components/boards/` and `lib/boards/`; `ModuleFrame` title has no `uppercase` class; no net-new `lucide-react` import (the existing design-md lint) |
+| T5 | Look rules: the `static` North Star text names its source file in the module's source line; no hex literal and no literal data array under `components/boards/` and `lib/boards/`; `ModuleFrame` title has no `uppercase` class; no net-new `lucide-react` import (the existing design-md lint) |
 | T6 | MC-20 is present in every enumerated MC list: `scripts/mission_control_register.py`, `scripts/mission_control_scorecard.py`, `docs/plans/mission-control/coverage-register.md`, `dashboard/e2e-live/surfaces.ts`, `dashboard/e2e-live/panel-coverage.json` |
-| T7 | Request-sharing tap: two provider-usage modules plus the shared source make exactly one network GET per 30 s; two wiki-graph modules make one per 300 s; a GET or POST to any other path reaches the original `fetch` with the same arguments; unmount restores the original `fetch` |
+| T7 | Request-sharing tap: installed only by the `/control/boards` and kiosk pages (a grep test finds `installFetchTap` imported nowhere else); two provider-usage modules plus the shared source make exactly one network GET per 30 s; two wiki-graph modules make one per 300 s; a GET or POST to any other path reaches the original `fetch` with the same arguments; unmount restores the original `fetch` |
 | T8 | In-board fidelity: for each view #1 panel, the panel's inner markup rendered inside `ModuleFrame` in the `live` state equals the panel rendered alone, given the same responses |
 
 ## 10. Out of scope
