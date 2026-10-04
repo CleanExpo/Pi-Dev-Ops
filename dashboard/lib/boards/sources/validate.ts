@@ -80,6 +80,22 @@ const isProposal = (p: Record<string, unknown>) => isText(p.ts) && optText(p.sta
   && optText(p.cluster_id) && optText(p.trigger_source) && optText(p.cluster_summary)
   && optText(p.proposed_skill_name) && optText(p.draft_id) && optText(p.reason) && optNum(p.evidence_count);
 
+const isPlan = (p: Record<string, unknown>) => isText(p.id) && isText(p.label) && isText(p.state)
+  && isNumOrNull(p.usagePct) && isText(p.truthLevel);
+const isProvider = (p: Record<string, unknown>) => isText(p.id) && isText(p.label) && isText(p.planType)
+  && isText(p.resetCadence) && isText(p.state) && isText(p.truthLevel) && isText(p.bestUseLane)
+  && isTextOrNull(p.fallbackProvider) && isTextOrNull(p.missingSetupReason) && isNumOrNull(p.usagePct)
+  && isText(p.lastChecked) && (p.plans === undefined || every(p.plans, isPlan));
+const isRoute = (r: Record<string, unknown>) => isText(r.lane) && isTextOrNull(r.recommended) && isText(r.reason);
+
+/** provider-usage: the whole ProviderCockpitPayload (lib/command-centre/provider-usage.ts). */
+export function isProviderUsage(b: Record<string, unknown>): boolean {
+  const s = record(b.summary);
+  return isText(b.generatedAt) && s !== null
+    && ["total", "available", "watching", "nearLimit", "blocked", "unknown"].every((k) => isNum(s[k]))
+    && every(b.providers, isProvider) && every(b.routing, isRoute);
+}
+
 /** curator: routes/swarm.py always sends by_status counts and ProposalRow rows. */
 export function isCuratorList(b: CuratorValue): boolean {
   const counts = record(b.by_status);

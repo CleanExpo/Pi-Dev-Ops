@@ -40,15 +40,18 @@ export default function LiveActivityFeed() {
   useEffect(() => {
     if (source.seq === 0) return;
     const j = source.value;
+    // A failed read drops the last snapshot, so old counts never sit under the error.
     if (!j) {
+      setData(null);
       setErr("Pi-CEO backend unreachable");
       return;
     }
-    setData(j);
     if (j.error) {
+      setData(null);
       setLastUpdate(0);
       setErr(j.error);
     } else {
+      setData(j);
       setLastUpdate(Date.now());
       setErr(null);
     }

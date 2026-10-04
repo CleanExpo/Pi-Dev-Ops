@@ -52,6 +52,8 @@ export default function IdeaPipelinePanel() {
   useEffect(() => {
     if (source.seq === 0) return;
     if (!source.value) {
+      // Drop the last packet: its count and decision buttons are no longer current.
+      setPayload(null);
       setError("Mission Control could not read the idea pipeline.");
       return;
     }

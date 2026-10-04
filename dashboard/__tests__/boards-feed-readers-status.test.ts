@@ -48,9 +48,26 @@ describe("kill-switch", () => {
   });
 });
 
+const USAGE = {
+  source: "cc:provider-usage", generatedAt: "2026-10-03T00:00:00Z",
+  summary: { total: 1, available: 1, watching: 0, nearLimit: 0, blocked: 0, unknown: 0 },
+  providers: [{ id: "claude", label: "Claude", planType: "Max", resetCadence: "5h", state: "available", truthLevel: "estimated",
+    bestUseLane: "build", fallbackProvider: null, missingSetupReason: null, usagePct: 0.2, lastChecked: "2026-10-03T00:00:00Z" }],
+  routing: [{ lane: "build", recommended: "claude", reason: "primary" }],
+};
+
 describe("provider-usage", () => {
+  it.each([["summary", without(USAGE, "summary")], ["routing", without(USAGE, "routing")],
+    ["summary.total", { ...USAGE, summary: without(USAGE.summary, "total") }],
+    ["a provider label", { ...USAGE, providers: [without(USAGE.providers[0], "label")] }],
+    ["a provider usagePct", { ...USAGE, providers: [{ ...USAGE.providers[0], usagePct: "20%" }] }],
+    ["a routing reason", { ...USAGE, routing: [without(USAGE.routing[0], "reason")] }],
+  ])("a 200 missing or mistyping %s is unreachable", async (_k, body) => {
+    serve(body);
+    expect((await readProviderUsage(signal)).kind).toBe("unreachable");
+  });
   it("200 is live with generatedAt", async () => {
-    serve({ source: "cc:provider-usage", generatedAt: "2026-10-03T00:00:00Z", summary: {}, providers: [], routing: [] });
+    serve(USAGE);
     const r = await readProviderUsage(signal);
     expect([r.kind, r.serverTs]).toEqual(["live", "2026-10-03T00:00:00Z"]);
   });

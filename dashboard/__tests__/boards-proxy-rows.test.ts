@@ -73,6 +73,19 @@ describe("pipelines, idea-pipeline, sessions and health", () => {
       expect((await read("idea-pipeline")).kind, key).toBe("unreachable");
     }
   });
+  it("a complete idea packet is live; empty decision records are unreachable", async () => {
+    const packet = { idea_id: "i", text: "t", source: "s", status: "awaiting", verdict: null, recommended_verdict: "PROMOTE",
+      go_at: null, executed: false, north_star_fit: { label: "fit", score: 4, rationale: "r" },
+      effort_vs_impact: { effort: "S", impact: "H", rationale: "r" }, directive: { label: "d", rationale: "r" },
+      displacement: { would_displace: "x", rationale: "r" }, judge: { score: null, decision: "go" },
+      spm: { problem: "p", desired_outcome: "o", out_of_scope: "n" } };
+    serve({ snapshot: { ...IDEA.snapshot, packet } });
+    expect((await read("idea-pipeline")).kind).toBe("live");
+    for (const key of ["north_star_fit", "effort_vs_impact", "directive", "displacement", "judge", "spm"]) {
+      serve({ snapshot: { ...IDEA.snapshot, packet: { ...packet, [key]: {} } } });
+      expect((await read("idea-pipeline")).kind, key).toBe("unreachable");
+    }
+  });
   it("a session row the operator parser rejects is unreachable", async () => {
     serve([{ id: "s1" }]);
     expect((await read("sessions")).kind).toBe("unreachable");

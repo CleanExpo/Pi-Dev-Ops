@@ -11,7 +11,9 @@ import type {
   CuratorValue, FabricStatus, KillSwitchStatus, ProviderUsageValue, SwarmValue, WikiGraphSummary,
 } from "./shapes";
 import { defineFeed, type FeedDef, type FeedRead } from "./types";
-import { isCuratorList, isFabricStatus, isFleetMachines, isKillSwitchStatus, isSwarmStatus, isWallSnapshot } from "./validate";
+import {
+  isCuratorList, isFabricStatus, isFleetMachines, isKillSwitchStatus, isProviderUsage, isSwarmStatus, isWallSnapshot,
+} from "./validate";
 
 const FLEET_NOT_CONFIGURED = new Set(["mesh secret not configured", "Pi-CEO URL not configured"]);
 
@@ -118,7 +120,8 @@ export async function readProviderUsage(signal: AbortSignal): Promise<FeedRead<P
   const r = await getJson("/api/command-centre/provider-usage", signal);
   const body = record(r.body);
   if (!r.ok || !body) return { kind: "unreachable", value: null, reason: r.error ?? `provider_usage_http_${r.status}`, httpStatus: r.status };
-  if (typeof body.generatedAt !== "string" || !Array.isArray(body.providers)) {
+  // The cockpit reads summary, routing and every provider row: a partial 200 would crash it.
+  if (!isProviderUsage(body)) {
     return { kind: "unreachable", value: null, reason: "provider usage payload is not in the expected shape", httpStatus: r.status };
   }
   const payload = body as unknown as NonNullable<ProviderUsageValue>;

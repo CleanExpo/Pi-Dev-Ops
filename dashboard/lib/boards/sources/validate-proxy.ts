@@ -69,9 +69,15 @@ export const isProjectList = (v: unknown) => rows(v, (p) => isText(p.project_id)
 export const isPipelineList = (v: unknown) => rows(v, (p) => isText(p.pipeline_id) && isText(p.repo_url)
   && isText(p.current_phase) && isTextList(p.phases_completed) && isText(p.updated_at));
 
+const nested = (v: unknown, check: (r: Row) => boolean) => { const r = record(v); return r !== null && check(r); };
 const isPacket = (p: Row) => isText(p.idea_id) && isText(p.text) && isText(p.status) && optText(p.verdict)
   && isText(p.recommended_verdict) && optText(p.go_at) && isBool(p.executed)
-  && ["north_star_fit", "effort_vs_impact", "directive", "displacement", "judge", "spm"].every((k) => record(p[k]) !== null);
+  && nested(p.north_star_fit, (n) => isText(n.label) && optNum(n.score) && n.score !== undefined && isText(n.rationale) && optText(n.source_revision))
+  && nested(p.effort_vs_impact, (n) => isText(n.effort) && isText(n.impact) && isText(n.rationale))
+  && nested(p.directive, (n) => isText(n.label) && isText(n.rationale))
+  && nested(p.displacement, (n) => isText(n.would_displace) && isText(n.rationale))
+  && nested(p.judge, (n) => optNum(n.score) && n.score !== undefined && isText(n.decision) && optText(n.note))
+  && nested(p.spm, (n) => isText(n.problem) && isText(n.desired_outcome) && isText(n.out_of_scope));
 
 /** idea-pipeline: IdeaPipelinePayload. */
 export function isIdeaPipeline(v: unknown): boolean {

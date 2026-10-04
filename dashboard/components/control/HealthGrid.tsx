@@ -92,6 +92,7 @@ export default function HealthGrid() {
     if (source.seq === 0) return;
     const data = source.value;
     if (!data) {
+      setProjects([]);
       setError(source.reason ?? "Pi-CEO backend unreachable");
       setLoading(false);
       return;
