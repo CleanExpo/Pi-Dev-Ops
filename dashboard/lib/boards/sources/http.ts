@@ -30,6 +30,15 @@ export function record(value: unknown): Record<string, unknown> | null {
     ? (value as Record<string, unknown>) : null;
 }
 
+/**
+ * A body's `error` as display text. Absent stays absent; anything that is not
+ * a string becomes `fallback`, so a panel is never handed an object to render.
+ */
+export function errorText(value: unknown, fallback: string): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  return typeof value === "string" ? value : fallback;
+}
+
 /** "not configured" in a quiet-failure `error` means configuration is absent, not a fault. */
 export function isNotConfigured(error: unknown): boolean {
   return typeof error === "string" && /not configured/i.test(error);

@@ -6,7 +6,7 @@
 
 import type { FleetView } from "@/lib/control/mesh-fleet";
 import type { WallSnapshot } from "@/lib/wall/snapshot";
-import { getJson, isNotConfigured, record } from "./http";
+import { errorText, getJson, isNotConfigured, record } from "./http";
 import type {
   CuratorValue, FabricStatus, KillSwitchStatus, ProviderUsageValue, SwarmValue, WikiGraphSummary,
 } from "./shapes";
@@ -23,7 +23,7 @@ export async function readMeshFleet(signal: AbortSignal): Promise<FeedRead<Fleet
   if (r.ok && body && body.status === "ok" && typeof body.checkedAt === "string" && Array.isArray(body.machines)) {
     return { kind: "live", value: body, serverTs: body.checkedAt, httpStatus: r.status };
   }
-  if (body && body.status === "unavailable") {
+  if (body && body.status === "unavailable" && typeof body.reason === "string") {
     const kind = FLEET_NOT_CONFIGURED.has(body.reason) ? "no_source" : "unreachable";
     return { kind, value: body, reason: body.reason, httpStatus: r.status };
   }
@@ -42,6 +42,10 @@ export async function readWall(signal: AbortSignal): Promise<FeedRead<WallSnapsh
   if (fleet === "ok" && (typeof body.generated_at !== "string" || !Array.isArray(body.fleet.machines))) {
     return { kind: "unreachable", value: null, reason: "invalid wall payload", httpStatus: r.status };
   }
+  // A failed wall still renders its fleet panel: it needs a text reason and a machine list.
+  if (fleet !== "ok" && (typeof body.fleet?.reason !== "string" || !Array.isArray(body.fleet?.machines))) {
+    return { kind: "unreachable", value: null, reason: "invalid wall payload", httpStatus: r.status };
+  }
   if (fleet === "no_source") return { kind: "no_source", value: body, reason: body.fleet.reason, httpStatus: r.status };
   if (fleet !== "ok") return { kind: "unreachable", value: body, reason: body.fleet?.reason || "wall snapshot has no fleet status", httpStatus: r.status };
   return { kind: "live", value: body, serverTs: body.generated_at, httpStatus: r.status };
@@ -57,6 +61,7 @@ export async function readModelFabric(signal: AbortSignal): Promise<FeedRead<Fab
     return { kind: "unreachable", value: { enabled: false, healthy: false, error }, reason: error, httpStatus: r.status };
   }
   const body = (record(r.body) ?? {}) as FabricStatus;
+  body.error = errorText(body.error, "invalid error field from /api/model-fabric");
   // A 200 without the two flags the panel reads would render as "DISABLED" with zero metrics.
   if (r.ok && !body.error && (typeof body.enabled !== "boolean" || typeof body.healthy !== "boolean")) {
     const error = "invalid model-fabric status payload";
@@ -96,6 +101,7 @@ export async function readKillSwitch(signal: AbortSignal): Promise<FeedRead<Kill
   const r = await getJson("/api/kill-switch?op=status", signal);
   if (r.error !== undefined) return { kind: "unreachable", value: { error: r.error }, reason: r.error };
   const body = (record(r.body) ?? {}) as KillSwitchStatus;
+  body.error = errorText(body.error, "invalid error field from /api/kill-switch");
   // Every failed read carries an `error`, so the panel shows UNKNOWN, never a
   // "DISABLED" read off an empty or default body.
   if (!r.ok && !body.error) body.error = `HTTP ${r.status}`;
@@ -150,6 +156,7 @@ export async function readCurator(signal: AbortSignal): Promise<FeedRead<Curator
   const r = await getJson(CURATOR_URL, signal);
   if (r.error !== undefined) return { kind: "unreachable", value: { error: r.error }, reason: r.error };
   const body = (record(r.body) ?? {}) as CuratorValue;
+  body.error = errorText(body.error, "invalid error field from /api/curator-proposals");
   // A failed read must never render as "No pending proposals" (CuratorProposalsPanel).
   if (!r.ok && !body.error) body.error = `HTTP ${r.status}`;
   if (body.error) {

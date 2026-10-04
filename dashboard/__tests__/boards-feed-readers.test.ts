@@ -24,6 +24,11 @@ function fail(message = "network down") {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("mesh-fleet", () => {
+  it("unavailable with a non-text reason is the fallback value", async () => {
+    serve({ status: "unavailable", checkedAt: "2026-10-04T00:00:00Z", reason: {} }, 503);
+    const r = await readMeshFleet(signal);
+    expect([r.kind, r.value.status, typeof (r.value as { reason: unknown }).reason]).toEqual(["unreachable", "unavailable", "string"]);
+  });
   it("a 503 with an ok-shaped body is the unavailable value, never a fleet", async () => {
     serve({ status: "ok", checkedAt: "2026-10-04T00:00:00Z", machines: [] }, 503);
     const r = await readMeshFleet(signal);
@@ -76,6 +81,11 @@ describe("wall", () => {
   it("fleet ok without a machine list is unreachable", async () => {
     serve({ generated_at: "2026-10-03T00:00:00Z", fleet: { status: "ok", reason: "", others: [] }, stations: [], banner: { red: 0, grey: 0 } });
     expect((await readWall(signal)).kind).toBe("unreachable");
+  });
+  it("fleet broken with a non-text reason drops the body", async () => {
+    serve({ generated_at: "2026-10-03T00:00:00Z", fleet: { status: "broken", reason: {}, machines: [], others: [] }, stations: [], banner: { red: 0, grey: 0 } });
+    const r = await readWall(signal);
+    expect([r.kind, r.value]).toEqual(["unreachable", null]);
   });
   it("fleet broken is unreachable", async () => { serve(snap("broken")); expect((await readWall(signal)).kind).toBe("unreachable"); });
   it("fleet no_source is no_source", async () => { serve(snap("no_source")); expect((await readWall(signal)).kind).toBe("no_source"); });
@@ -231,6 +241,11 @@ describe("Pi-CEO proxy feeds", () => {
     expect((await def.read(signal)).kind).toBe("unreachable");
     serve("not a payload");
     expect((await def.read(signal)).kind).toBe("unreachable");
+  });
+  it("mission-control/live: a non-text error drops the body", async () => {
+    serve({ error: {}, ts: "2026-10-03T00:00:00Z" });
+    const r = await readMissionControlLive();
+    expect([r.kind, r.value]).toEqual(["unreachable", null]);
   });
   it("mission-control/live: a 200 {} is unreachable", async () => {
     serve({});

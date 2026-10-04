@@ -8,7 +8,7 @@
 // with the same arguments the panel used.
 
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
-import { record } from "./http";
+import { errorText, record } from "./http";
 import type { FeedDef, FeedRead } from "./types";
 
 export const BACKEND_UNREACHABLE = "Pi-CEO backend unreachable";
@@ -45,7 +45,10 @@ export async function readMissionControlLive(signal?: AbortSignal): Promise<Feed
   if (read.kind !== "live") return read;
   const body = record(read.value);
   if (!body) return { ...read, kind: "unreachable", value: null, reason: INVALID_PAYLOAD };
-  if (typeof body.error === "string" && body.error) return { ...read, kind: "unreachable", reason: body.error };
+  const error = errorText(body.error, INVALID_PAYLOAD);
+  // A non-text error is a malformed body: dropped, so no panel renders an object.
+  if (error === INVALID_PAYLOAD) return { ...read, kind: "unreachable", value: null, reason: INVALID_PAYLOAD };
+  if (error) return { ...read, kind: "unreachable", reason: error };
   // The backend always stamps `ts`; a body without it is not a live payload.
   if (typeof body.ts !== "string") return { ...read, kind: "unreachable", value: null, reason: INVALID_PAYLOAD };
   return { ...read, serverTs: body.ts };

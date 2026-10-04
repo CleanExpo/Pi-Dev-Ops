@@ -30,6 +30,16 @@ describe("a hung status read, after the 10 s timeout", () => {
     expect(screen.getAllByText(/no answer within 10 s/).length).toBeGreaterThan(0);
   });
 
+  it.each([
+    ["KillSwitchPanel", () => <KillSwitchPanel />],
+    ["CuratorProposalsPanel", () => <CuratorProposalsPanel />],
+    ["ModelFabricPanel", () => <ModelFabricPanel />],
+  ])("%s: a 200 whose error is not text shows a failure, never crashes", async (_name, Ui) => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: {} }), { status: 200 })));
+    render(<Ui />);
+    expect((await screen.findAllByText(/invalid error field/)).length).toBeGreaterThan(0);
+  });
+
   it("FleetTile: a 503 with an ok-shaped empty fleet is not 'No machines enrolled'", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(
       JSON.stringify({ status: "ok", checkedAt: "2026-10-04T00:00:00Z", machines: [] }), { status: 503 })));
