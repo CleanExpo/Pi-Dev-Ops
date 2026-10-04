@@ -163,7 +163,8 @@ test("A10: the kiosk shows a preset full-screen, locked, with the machine passed
   await page.waitForTimeout(1_000);
   await shot(page, "kiosk-wall-1");
   await page.goto("/control/boards/kiosk?board=nope");
-  await expect(page.getByRole("alert")).toContainText("Valid ids: desk, founder-brief, wall-1");
+  // Scoped by text: a production build also renders Next's empty route announcer with role "alert".
+  await expect(page.getByRole("alert").filter({ hasText: "No preset" })).toContainText("Valid ids: desk, founder-brief, wall-1");
 });
 
 for (const skin of ["graphite", "slate"] as const) {

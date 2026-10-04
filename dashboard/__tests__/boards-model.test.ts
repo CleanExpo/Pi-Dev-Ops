@@ -89,6 +89,14 @@ describe("board edits (T4)", () => {
   it("setView switches the view and refuses an unknown one", () => {
     expect(setView(tiny, "a", "nope")).toBe(tiny);
   });
+  it("setView to a wider view slides a right-edge card left so it stays inside the columns", () => {
+    const desk = PRESETS.get("desk")!;
+    const before = desk.layouts.lg!.find((c) => c.i === "models-1")!;
+    expect(before.x + before.w).toBe(COLS.lg); // positive control: the card touches the right edge
+    const cell = setView(desk, "models-1", "table").layouts.lg!.find((c) => c.i === "models-1")!;
+    expect(cell.w).toBe(5);
+    expect(cell.x + cell.w).toBeLessThanOrEqual(COLS.lg);
+  });
   it("setLayouts keeps only known ids and the five fields", () => {
     const next = setLayouts(tiny, { lg: [{ i: "a", x: 2, y: 1, w: 5, h: 6, minW: 3 } as never, { i: "ghost", x: 0, y: 0, w: 1, h: 1 }] });
     expect(next.layouts.lg).toEqual([{ i: "a", x: 2, y: 1, w: 5, h: 6 }]);

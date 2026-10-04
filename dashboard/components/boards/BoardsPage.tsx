@@ -24,6 +24,10 @@ export function BoardsPage() {
   useEffect(() => { useBoards.getState().hydrate(); }, []);
   useEffect(() => installFetchTap(), []);
 
+  // Draw nothing until this browser's saved boards are loaded: drawing the
+  // preset first and then swapping in the saved board restarts every feed
+  // (two requests at once) and flashes the wrong board.
+  if (!s.hydrated) return <p className={styles.notice} role="status">Loading your boards…</p>;
   const board = s.boards[s.active];
   if (!board) return null;
 

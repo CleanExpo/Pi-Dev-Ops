@@ -118,7 +118,11 @@ export function setView(board: Board, id: string, view: string): Board {
   item.view = view;
   for (const bp of BREAKPOINT_IDS) {
     const cell = next.layouts[bp]?.find((c) => c.i === id);
-    if (cell) { cell.w = Math.min(Math.max(cell.w, size.w), COLS[bp]); cell.h = Math.max(cell.h, size.h); }
+    if (!cell) continue;
+    cell.w = Math.min(Math.max(cell.w, size.w), COLS[bp]);
+    cell.h = Math.max(cell.h, size.h);
+    // A wider view slides the card left so it still ends inside the columns.
+    cell.x = Math.min(cell.x, COLS[bp] - cell.w);
   }
   return next;
 }
