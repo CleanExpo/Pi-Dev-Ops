@@ -24,6 +24,11 @@ function fail(message = "network down") {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("mesh-fleet", () => {
+  it("a 200 ok without a machine list is unreachable", async () => {
+    serve({ status: "ok" });
+    const r = await readMeshFleet(signal);
+    expect([r.kind, r.value.status]).toEqual(["unreachable", "unavailable"]);
+  });
   it("200 ok is live with checkedAt as the server clock", async () => {
     serve({ status: "ok", checkedAt: "2026-10-03T00:00:00Z", machines: [] });
     const r = await readMeshFleet(signal);
@@ -54,6 +59,10 @@ describe("wall", () => {
     serve(snap("ok"));
     const r = await readWall(signal);
     expect([r.kind, r.serverTs]).toEqual(["live", "2026-10-03T00:00:00Z"]);
+  });
+  it("fleet ok without generated_at or machines is unreachable", async () => {
+    serve({ fleet: { status: "ok", reason: "", others: [] }, stations: [], banner: { red: 0, grey: 0 } });
+    expect((await readWall(signal)).kind).toBe("unreachable");
   });
   it("fleet broken is unreachable", async () => { serve(snap("broken")); expect((await readWall(signal)).kind).toBe("unreachable"); });
   it("fleet no_source is no_source", async () => { serve(snap("no_source")); expect((await readWall(signal)).kind).toBe("no_source"); });
@@ -145,6 +154,10 @@ describe("wiki-graph", () => {
     expect([r.kind, r.reason]).toEqual(["no_source", "no key"]);
   });
   it("non-200 is unreachable", async () => { serve({}, 500); expect((await readWikiGraph(signal)).kind).toBe("unreachable"); });
+  it("a 200 {} is unreachable, never zero pages shown as live", async () => {
+    serve({});
+    expect((await readWikiGraph(signal)).kind).toBe("unreachable");
+  });
 });
 
 describe("curator", () => {

@@ -17,7 +17,8 @@ const FLEET_NOT_CONFIGURED = new Set(["mesh secret not configured", "Pi-CEO URL 
 export async function readMeshFleet(signal: AbortSignal): Promise<FeedRead<FleetView>> {
   const r = await getJson("/api/mesh-fleet", signal);
   const body = record(r.body) as FleetView | null;
-  if (body && body.status === "ok") {
+  // "ok" counts only with the machine list and clock FleetTile reads.
+  if (body && body.status === "ok" && typeof body.checkedAt === "string" && Array.isArray(body.machines)) {
     return { kind: r.ok === false ? "unreachable" : "live", value: body, serverTs: body.checkedAt, httpStatus: r.status };
   }
   if (body && body.status === "unavailable") {
@@ -35,6 +36,10 @@ export async function readWall(signal: AbortSignal): Promise<FeedRead<WallSnapsh
     return { kind: "unreachable", value: null, reason: r.error ?? `HTTP ${r.status ?? "?"}`, httpStatus: r.status };
   }
   const fleet = body.fleet?.status;
+  // A live wall needs its clock and the fleet's machine list.
+  if (fleet === "ok" && (typeof body.generated_at !== "string" || !Array.isArray(body.fleet.machines))) {
+    return { kind: "unreachable", value: null, reason: "invalid wall payload", httpStatus: r.status };
+  }
   if (fleet === "no_source") return { kind: "no_source", value: body, reason: body.fleet.reason, httpStatus: r.status };
   if (fleet !== "ok") return { kind: "unreachable", value: body, reason: body.fleet?.reason || "wall snapshot has no fleet status", httpStatus: r.status };
   return { kind: "live", value: body, serverTs: body.generated_at, httpStatus: r.status };
@@ -119,6 +124,10 @@ export async function readWikiGraph(signal: AbortSignal): Promise<FeedRead<WikiG
   const r = await getJson("/api/command-centre/wiki-graph", signal);
   const body = record(r.body);
   if (!r.ok || !body) return { kind: "unreachable", value: null, reason: r.error ?? `HTTP ${r.status}`, httpStatus: r.status };
+  // The route always sends both counts and a source; without them the tile would show zeros as live.
+  if (!Number.isFinite(body.pageCount) || !Number.isFinite(body.edgeCount) || typeof body.source !== "string") {
+    return { kind: "unreachable", value: null, reason: "invalid wiki graph payload", httpStatus: r.status };
+  }
   const value: WikiGraphSummary = {
     pageCount: typeof body.pageCount === "number" ? body.pageCount : null,
     edgeCount: typeof body.edgeCount === "number" ? body.edgeCount : null,
