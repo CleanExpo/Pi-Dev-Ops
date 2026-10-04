@@ -264,6 +264,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          # boards-look-rules.test.ts diffs against origin/main (RA-7898 G2); a
+          # shallow checkout has no origin/main and the test fails rather than skip.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
