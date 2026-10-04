@@ -24,11 +24,23 @@ claude plugin validate mods/mc-lane
 claude plugin test mods/mc-lane
 ```
 
+## Install (every machine) — updates arrive on their own
+
+This repository is a marketplace (`.claude-plugin/marketplace.json`, name `pi-dev-ops-mods`).
+It is public, so background auto-update needs no credentials.
+
+```bash
+claude plugin marketplace add CleanExpo/Pi-Dev-Ops
+claude plugin install mc-lane@pi-dev-ops-mods
+```
+
+Then turn on auto-update for `pi-dev-ops-mods` (`/plugin` → Marketplaces → Enable auto-update,
+or `"autoUpdate": true` on its `extraKnownMarketplaces` entry). There is no `version` in
+`plugin.json`, so every merged change to `mods/mc-lane` reaches the fleet at the next session start.
+
 ## Try it in one session (before any install)
 
 ```bash
 MC_LANE_URL=... MC_LANE_SECRET=... MC_LANE_HOST=unite-mac-mini claude --plugin-dir mods/mc-lane
 ```
 
-Fleet install goes through `unite-group-marketplace` once the table is applied
-and a Mission Control module reads `GET /api/mesh/lane-events`.

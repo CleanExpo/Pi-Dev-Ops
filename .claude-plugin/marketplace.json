@@ -1,0 +1,13 @@
+{
+  "name": "pi-dev-ops-mods",
+  "description": "Claude Code mods for the Unite-Group fleet, served from mods/ in this repository. Background auto-update needs no credentials because the repository is public.",
+  "owner": { "name": "Unite-Group" },
+  "plugins": [
+    {
+      "name": "mc-lane",
+      "source": "./mods/mc-lane",
+      "description": "Reports each Claude Code lane's tool calls (names and timings only), context use and cost to Mission Control.",
+      "author": { "name": "Unite-Group" }
+    }
+  ]
+}
