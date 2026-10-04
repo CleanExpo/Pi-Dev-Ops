@@ -13,10 +13,19 @@ import type { FeedDef, FeedRead } from "./types";
 
 export const BACKEND_UNREACHABLE = "Pi-CEO backend unreachable";
 
-async function readProxy(path: string, init: RequestInit | undefined): Promise<FeedRead<unknown>> {
+export const INVALID_PAYLOAD = "invalid payload";
+
+/** What each feed's panel reads, checked before a 200 may count as live. */
+type Shape = (data: unknown) => boolean;
+const isList: Shape = (data) => Array.isArray(data);
+const anyShape: Shape = () => true;
+
+async function readProxy(path: string, init: RequestInit | undefined, shape: Shape = anyShape): Promise<FeedRead<unknown>> {
   try {
     const data = await fetchProxyJSON<unknown>(path, init);
     if (data === null) return { kind: "unreachable", value: null, reason: BACKEND_UNREACHABLE };
+    // A malformed 200 is a failed read, never empty data shown as live.
+    if (!shape(data)) return { kind: "unreachable", value: null, reason: INVALID_PAYLOAD };
     return { kind: "live", value: data };
   } catch (exc) {
     return { kind: "unreachable", value: null, reason: exc instanceof Error ? exc.message : String(exc) };
@@ -35,21 +44,26 @@ export async function readMissionControlLive(signal?: AbortSignal): Promise<Feed
   const read = await readProxy("/api/mission-control/live", withSignal(LIVE_INIT, signal));
   if (read.kind !== "live") return read;
   const body = record(read.value);
-  if (!body) return { ...read, kind: "unreachable", reason: "invalid payload" };
+  if (!body) return { ...read, kind: "unreachable", value: null, reason: INVALID_PAYLOAD };
   if (typeof body.error === "string" && body.error) return { ...read, kind: "unreachable", reason: body.error };
-  return { ...read, serverTs: typeof body.ts === "string" ? body.ts : null };
+  // The backend always stamps `ts`; a body without it is not a live payload.
+  if (typeof body.ts !== "string") return { ...read, kind: "unreachable", value: null, reason: INVALID_PAYLOAD };
+  return { ...read, serverTs: body.ts };
 }
 
 // Arguments are the ones each panel passed before the move: HealthGrid read
 // projects/health with no init (pinned by __tests__/health-grid.test.tsx),
 // IdeaPipelinePanel and LiveActivityFeed sent credentials, the rest no-store.
-const proxied = (path: string, init?: RequestInit) => (signal: AbortSignal) => readProxy(path, withSignal(init, signal));
+const proxied = (path: string, init: RequestInit | undefined, shape: Shape) =>
+  (signal: AbortSignal) => readProxy(path, withSignal(init, signal), shape);
+const isHealth: Shape = (data) => typeof record(data)?.status === "string";
+const isIdeaPipeline: Shape = (data) => record(record(data)?.snapshot) !== null;
 
 export const PROXY_FEEDS: FeedDef<unknown>[] = [
-  { id: "pi-health", url: "Pi-CEO /health (proxy)", intervalMs: 15_000, read: proxied("/health", NO_STORE) },
-  { id: "sessions", url: "Pi-CEO /api/sessions (proxy)", intervalMs: 15_000, read: proxied("/api/sessions", NO_STORE) },
-  { id: "projects-health", url: "Pi-CEO /api/projects/health (proxy)", intervalMs: 30_000, read: proxied("/api/projects/health") },
+  { id: "pi-health", url: "Pi-CEO /health (proxy)", intervalMs: 15_000, read: proxied("/health", NO_STORE, isHealth) },
+  { id: "sessions", url: "Pi-CEO /api/sessions (proxy)", intervalMs: 15_000, read: proxied("/api/sessions", NO_STORE, isList) },
+  { id: "projects-health", url: "Pi-CEO /api/projects/health (proxy)", intervalMs: 30_000, read: proxied("/api/projects/health", undefined, isList) },
   { id: "mc-live", url: "Pi-CEO /api/mission-control/live (proxy)", intervalMs: 5_000, read: readMissionControlLive, serverClock: true },
-  { id: "idea-pipeline", url: "Pi-CEO /api/idea-pipeline (proxy)", intervalMs: 60_000, read: proxied("/api/idea-pipeline", LIVE_INIT) },
-  { id: "pipelines", url: "Pi-CEO /api/pipelines (proxy)", intervalMs: 30_000, read: proxied("/api/pipelines", NO_STORE) },
+  { id: "idea-pipeline", url: "Pi-CEO /api/idea-pipeline (proxy)", intervalMs: 60_000, read: proxied("/api/idea-pipeline", LIVE_INIT, isIdeaPipeline) },
+  { id: "pipelines", url: "Pi-CEO /api/pipelines (proxy)", intervalMs: 30_000, read: proxied("/api/pipelines", NO_STORE, isList) },
 ];

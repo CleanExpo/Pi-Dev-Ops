@@ -167,16 +167,30 @@ describe("Pi-CEO proxy feeds", () => {
     const r = await def.read(signal);
     expect([r.kind, r.value]).toEqual(["unreachable", null]);
   });
+  const good: Record<string, unknown> = {
+    "pi-health": { status: "ok" }, "mc-live": { ts: "2026-10-03T00:00:00Z" },
+    "idea-pipeline": { snapshot: {} }, sessions: [], "projects-health": [], pipelines: [],
+  };
   it.each(PROXY_FEEDS.map((f) => [f.id, f] as const))("%s: a real 200 is live and reads through /api/pi-ceo", async (_id, def) => {
-    const fn = serve(def.id === "mc-live" ? { ts: "2026-10-03T00:00:00Z" } : []);
+    const fn = serve(good[def.id]);
     const r = await def.read(signal);
     expect(r.kind).toBe("live");
     // def.url reads "Pi-CEO <path> (proxy)"; the wire URL is the proxy prefix plus that path.
     const path = def.url.replace(/^Pi-CEO /, "").replace(/ \(proxy\)$/, "");
     expect(String(fn.mock.calls[0][0])).toBe(`/api/pi-ceo${path}`);
   });
+  it.each(PROXY_FEEDS.map((f) => [f.id, f] as const))("%s: a malformed 200 is unreachable, never live", async (_id, def) => {
+    serve(def.id === "sessions" || def.id === "projects-health" || def.id === "pipelines" ? {} : []);
+    expect((await def.read(signal)).kind).toBe("unreachable");
+    serve("not a payload");
+    expect((await def.read(signal)).kind).toBe("unreachable");
+  });
+  it("mission-control/live: a 200 {} is unreachable", async () => {
+    serve({});
+    expect((await readMissionControlLive()).kind).toBe("unreachable");
+  });
   it.each(PROXY_FEEDS.map((f) => [f.id, f] as const))("%s: the poller's abort signal reaches fetch", async (_id, def) => {
-    const fn = serve([]);
+    const fn = serve(good[def.id]);
     const controller = new AbortController();
     await def.read(controller.signal);
     expect((fn.mock.calls[0] as unknown[])[1]).toMatchObject({ signal: controller.signal });
