@@ -89,6 +89,18 @@ describe("board edits (T4)", () => {
   it("setView switches the view and refuses an unknown one", () => {
     expect(setView(tiny, "a", "nope")).toBe(tiny);
   });
+  it("setView saves a grown card inside the grid and clear of its neighbours", () => {
+    // The desk preset's Models card (x 8, w 4) switched to Table grows to w 5,
+    // over the Activity card below it. The saved layout must already be the one
+    // the grid settles on, or the grid saves a different one later.
+    const board: Board = { name: "T", skin: "paper",
+      items: [{ id: "m", module: "models", view: "ring" }, { id: "a", module: "activity", view: "feed" }],
+      layouts: { lg: [{ i: "m", x: 8, y: 4, w: 4, h: 4 }, { i: "a", x: 8, y: 8, w: 4, h: 10 }] } };
+    const [m, a] = setView(board, "m", "table").layouts.lg ?? [];
+    expect(m.w).toBeGreaterThan(4);
+    expect(m.x + m.w).toBeLessThanOrEqual(COLS.lg);
+    expect(a.y).toBeGreaterThanOrEqual(m.y + m.h);
+  });
   it("setLayouts keeps only known ids and the five fields", () => {
     const next = setLayouts(tiny, { lg: [{ i: "a", x: 2, y: 1, w: 5, h: 6, minW: 3 } as never, { i: "ghost", x: 0, y: 0, w: 1, h: 1 }] });
     expect(next.layouts.lg).toEqual([{ i: "a", x: 2, y: 1, w: 5, h: 6 }]);

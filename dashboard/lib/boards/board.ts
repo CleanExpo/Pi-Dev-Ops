@@ -3,6 +3,8 @@
 // A board is nothing more than this JSON (docs/specs/modular-boards.md §5):
 // { name, skin, items: [{ id, module, view }], layouts: { lg, md, sm: [{ i, x, y, w, h }] } }
 
+import { correctBounds, verticalCompactor } from "react-grid-layout/core";
+
 import { MODULES } from "./registry";
 
 export const SKINS = ["paper", "graphite", "slate", "wall"] as const;
@@ -118,9 +120,19 @@ export function setView(board: Board, id: string, view: string): Board {
   item.view = view;
   for (const bp of BREAKPOINT_IDS) {
     const cell = next.layouts[bp]?.find((c) => c.i === id);
-    if (cell) { cell.w = Math.min(Math.max(cell.w, size.w), COLS[bp]); cell.h = Math.max(cell.h, size.h); }
+    if (!cell) continue;
+    cell.w = Math.min(Math.max(cell.w, size.w), COLS[bp]);
+    cell.h = Math.max(cell.h, size.h);
+    next.layouts[bp] = settle(next.layouts[bp]!, COLS[bp]);
   }
   return next;
+}
+
+/** The layout the grid itself settles on (its own bounds + vertical compaction), so a
+ *  grown card is saved where it will sit and the grid has nothing to re-save. */
+function settle(cells: BoardCell[], cols: number): BoardCell[] {
+  const done = new Map(verticalCompactor.compact(correctBounds(cells.map((c) => ({ ...c })), { cols }), cols).map((c) => [c.i, c]));
+  return cells.map(({ i }) => { const { x, y, w, h } = done.get(i)!; return { i, x, y, w, h }; });
 }
 
 export function setLayouts(board: Board, layouts: BoardLayouts): Board {

@@ -17,14 +17,17 @@ test("Mission Control project focus writes a separate advisory snapshot", async 
   await page.route("**/api/pi-ceo/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     const body = path.endsWith("/api/projects/health") ? [
-      { project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist", overall_health: 100, scores: {} },
-      { project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 61, scores: { security: 61 } },
+      { project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist", overall_health: 100, scores: {}, findings_count: {}, deployments: {} },
+      { project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 61, scores: { security: 61 }, findings_count: {}, deployments: {} },
     ] : path.endsWith("/api/pipelines") ? [
       { pipeline_id: "CARSI-14", repo_url: "https://github.com/CleanExpo/CARSI.git", current_phase: "test", phases_completed: ["spec", "plan"], updated_at: "2026-09-29T00:00:00Z" },
     ] : path.endsWith("/api/mission-control/live") ? {
-      active_sessions: [], recent_completions: [], throughput: { hourly: Array(24).fill(0) },
+      ts: "2026-09-29T00:00:00Z", active_sessions: [], recent_completions: [], throughput: { hourly: Array(24).fill(0) },
+      queue: { urgent: 0, high: 0 }, pulse: { last_at: null, comments_today: 0, pulse_issue_id: null },
     } : path.endsWith("/api/idea-pipeline") ? {
-      snapshot: { awaiting: 0, packet: null },
+      snapshot: { intake: "", north_star: "", awaiting: 0, packet: null, verdicts: [], go_required: true, executed: false },
+    } : path.endsWith("/api/sessions") ? [] : path.endsWith("/health") ? {
+      status: "ok", uptime_s: 3600, swarm_enabled: true, swarm_shadow: true,
     } : {};
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   });

@@ -25,7 +25,9 @@ export function BoardsPage() {
   useFetchTap();
 
   const board = s.boards[s.active];
-  if (!board) return null;
+  // Nothing until the saved boards are read: drawing the default first would
+  // start every one of its feeds, then restart them for the saved board.
+  if (!s.hydrated || !board) return null;
 
   const toggleEdit = () => { setEditing(!editing); setLibraryOpen(!editing); setImportOpen(false); };
   const say = (text: string, error = false, undo = false) => setMessage({ text, error, undo });
