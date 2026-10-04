@@ -32,16 +32,19 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .. import mesh_fleet_auth
+from ..auth import require_auth
 from . import mesh as _mesh
 
 log = logging.getLogger("pi-ceo.routes.mesh_lane_events")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
+# Session-gated read for the dashboard (through the /api/pi-ceo proxy): the
+# browser never holds X-Pi-CEO-Secret, and no dashboard API route is added.
+mc_router = APIRouter(prefix="/api/mission-control", tags=["mission-control"])
 
 MAX_BATCH = 200          # mods/mc-lane/hooks/lane.ts MAX_BATCH — keep equal
 MAX_READ = 500
@@ -64,14 +67,14 @@ class LaneEvent(BaseModel):
     seq: int = Field(ge=0)
     kind: str
     at: str
-    repo: Optional[str] = None
-    model: Optional[str] = None
-    tool: Optional[str] = None
-    ok: Optional[bool] = None
-    ms: Optional[float] = Field(default=None, ge=0)
-    ctx_pct: Optional[float] = Field(default=None, ge=0, le=100)
-    rate_pct: Optional[float] = Field(default=None, ge=0, le=100)
-    cost_usd: Optional[float] = Field(default=None, ge=0)
+    repo: str | None = None
+    model: str | None = None
+    tool: str | None = None
+    ok: bool | None = None
+    ms: float | None = Field(default=None, ge=0)
+    ctx_pct: float | None = Field(default=None, ge=0, le=100)
+    rate_pct: float | None = Field(default=None, ge=0, le=100)
+    cost_usd: float | None = Field(default=None, ge=0)
 
 
 class LaneBatch(BaseModel):
@@ -79,11 +82,11 @@ class LaneBatch(BaseModel):
     events: list[LaneEvent] = Field(default_factory=list)
 
 
-def _match(pattern: re.Pattern, value: Optional[str]) -> Optional[str]:
+def _match(pattern: re.Pattern, value: str | None) -> str | None:
     return value if value is not None and pattern.match(value) else None
 
 
-def _row(host: str, ev: LaneEvent) -> Optional[dict]:
+def _row(host: str, ev: LaneEvent) -> dict | None:
     """The row to store, or None when the event itself is unusable."""
     if ev.kind not in KINDS or not _ID.match(ev.session_id):
         return None
@@ -107,7 +110,7 @@ def _row(host: str, ev: LaneEvent) -> Optional[dict]:
 @router.post("/lane-events")
 def post_lane_events(
     batch: LaneBatch,
-    x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
+    x_pi_ceo_secret: str | None = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
     _mesh._check_secret(x_pi_ceo_secret)
     if len(batch.events) > MAX_BATCH:
@@ -132,19 +135,14 @@ def post_lane_events(
     return {"ok": True, "stored": len(rows), "rejected": rejected, "acked": acked}
 
 
-@router.get("/lane-events")
-def get_lane_events(
-    after_id: int = Query(0, ge=0),
-    limit: int = Query(200, ge=1, le=MAX_READ),
-    x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
-):
-    """Events with id > after_id, oldest first. `cursor` is the id to pass next.
+def _read(after_id: int, limit: int, newest: bool) -> dict:
+    """Events after `after_id` (oldest first), or the newest `limit` (newest first).
 
     A failed read is a 502, never an empty list: "no lane reported" and "could
     not read" must not look the same (RA-7392's lesson in mesh_fleet.py).
     """
-    mesh_fleet_auth.check(x_pi_ceo_secret)
-    status, body = _sb("GET", f"mesh_lane_events?id=gt.{after_id}&order=id.asc&limit={limit}")
+    order = "id.desc" if newest else "id.asc"
+    status, body = _sb("GET", f"mesh_lane_events?id=gt.{after_id}&order={order}&limit={limit}")
     if status >= 300:
         raise HTTPException(502, f"lane-events read failed ({status})")
     try:
@@ -153,5 +151,23 @@ def get_lane_events(
         raise HTTPException(502, "lane-events read returned non-JSON") from exc
     if not isinstance(rows, list):
         raise HTTPException(502, "lane-events read returned an error object")
-    cursor = rows[-1]["id"] if rows else after_id
+    cursor = max((r["id"] for r in rows if isinstance(r, dict) and isinstance(r.get("id"), int)), default=after_id)
     return {"events": rows, "cursor": cursor}
+
+
+@router.get("/lane-events")
+def get_lane_events(
+    after_id: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=MAX_READ),
+    newest: bool = Query(False),
+    x_pi_ceo_secret: str | None = Header(default=None, alias="X-Pi-CEO-Secret"),
+):
+    """Machine read (fleet read secret): a cursor read, or newest=true for the latest."""
+    mesh_fleet_auth.check(x_pi_ceo_secret)
+    return _read(after_id, limit, newest)
+
+
+@mc_router.get("/lane-events", dependencies=[Depends(require_auth)])
+def mission_control_lane_events(limit: int = Query(MAX_READ, ge=1, le=MAX_READ)):
+    """Dashboard read (session): the newest events, for the Claude lanes board module."""
+    return _read(0, limit, newest=True)

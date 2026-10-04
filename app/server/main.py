@@ -57,6 +57,7 @@ app.include_router(youtube_intent.router)  # Intent-only YouTube -> UG-N knowled
 app.include_router(mesh.router)  # Nexus Mesh — /api/mesh/*
 app.include_router(mesh_ship.router)  # RA-7377 — POST /api/mesh/ship
 app.include_router(mesh_lane_events.router)  # mc-lane mod — /api/mesh/lane-events
+app.include_router(mesh_lane_events.mc_router)  # Claude lanes board — /api/mission-control/lane-events (session)
 app.include_router(terminal.router)  # Terminal Orchestrator read API — /api/terminal/* (RA-7012)
 app.include_router(model_fabric.router)  # Mission Control Model Fabric telemetry
 app.include_router(slack_bridge.router)  # Signed Slack <-> Telegram Margot bridge

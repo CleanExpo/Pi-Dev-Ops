@@ -807,6 +807,14 @@
       "_comment": "mc-lane read path (GET /api/mesh/lane-events?after_id=), fleet read secret via mesh_fleet_auth.check. Proves the dashboard session gate only, as above; the route's own 401 and its 502-not-empty failure behaviour are covered offline by tests/test_mesh_lane_events.py. No authenticated probe: before mesh/schema/0004 is applied the read is a deliberate 502, so one expected_status would lie on one of the two deploys."
     },
     {
+      "name": "mc-lane-events-proxy-unauth",
+      "path": "/api/pi-ceo/api/mission-control/lane-events",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "Claude lanes board module read (app/server/routes/mesh_lane_events.py mission_control_lane_events, require_auth upstream). /api/pi-ceo is in PROTECTED_API_PREFIXES, so this probe proves the dashboard session gate only; the backend's own 401 without a session is covered offline by tests/test_mesh_lane_events.py. No authenticated probe: before mesh_lane_events is applied (RA-7902) the read is a deliberate 502, so one expected_status would lie on one of the two deploys."
+    },
+    {
       "name": "mesh-dispatch-nosig",
       "path": "/api/pi-ceo/api/mesh/dispatch",
       "method": "POST",

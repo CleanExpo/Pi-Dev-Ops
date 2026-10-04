@@ -131,6 +131,7 @@ describe("Pi-CEO proxy feeds", () => {
   const good: Record<string, unknown> = {
     "pi-health": { status: "ok" }, "mc-live": MC_LIVE,
     "idea-pipeline": { snapshot: { intake: "", north_star: "", awaiting: 0, packet: null, verdicts: [], go_required: true, executed: false } }, sessions: [], "projects-health": [], pipelines: [],
+    "mesh-lanes": { events: [], cursor: 0 },
   };
   it.each(PROXY_FEEDS.map((f) => [f.id, f] as const))("%s: a real 200 is live and reads through /api/pi-ceo", async (_id, def) => {
     const fn = serve(good[def.id]);

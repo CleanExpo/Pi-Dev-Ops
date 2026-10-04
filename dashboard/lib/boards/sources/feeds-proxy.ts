@@ -7,9 +7,10 @@
 // exactly what each panel got from `fetchProxyJSON` before the move, called
 // with the same arguments the panel used.
 
+import { projectLanes, type LanesView } from "@/lib/control/mesh-lanes";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { errorText, record } from "./http";
-import type { FeedDef, FeedRead } from "./types";
+import { defineFeed, type FeedDef, type FeedRead } from "./types";
 import { isHealth, isIdeaPipeline, isMissionControlLive, isPipelineList, isProjectList, isSessionList } from "./validate-proxy";
 
 export const BACKEND_UNREACHABLE = "Pi-CEO backend unreachable";
@@ -55,6 +56,20 @@ export async function readMissionControlLive(signal?: AbortSignal): Promise<Feed
   return { ...read, serverTs: body.ts as string };
 }
 
+/**
+ * Claude lanes: the newest mc-lane events (Pi-CEO /api/mission-control/lane-events,
+ * session-gated upstream), folded into one row per session. A backend that did
+ * not answer, or an events body that is not a list, is unreachable — never an
+ * empty lane list (lib/control/mesh-lanes.ts).
+ */
+export async function readMeshLanes(signal?: AbortSignal): Promise<FeedRead<LanesView | null>> {
+  const read = await readProxy("/api/mission-control/lane-events", withSignal(NO_STORE, signal));
+  if (read.kind !== "live") return { ...read, value: null };
+  const view = projectLanes(read.value, new Date().toISOString());
+  if (view.status !== "ok") return { kind: "unreachable", value: null, reason: view.reason };
+  return { kind: "live", value: view, serverTs: view.checkedAt };
+}
+
 // Arguments are the ones each panel passed before the move: HealthGrid read
 // projects/health with no init (pinned by __tests__/health-grid.test.tsx),
 // IdeaPipelinePanel and LiveActivityFeed sent credentials, the rest no-store.
@@ -68,4 +83,5 @@ export const PROXY_FEEDS: FeedDef<unknown>[] = [
   { id: "mc-live", url: "Pi-CEO /api/mission-control/live (proxy)", intervalMs: 5_000, read: readMissionControlLive, serverClock: true },
   { id: "idea-pipeline", url: "Pi-CEO /api/idea-pipeline (proxy)", intervalMs: 60_000, read: proxied("/api/idea-pipeline", LIVE_INIT, isIdeaPipeline) },
   { id: "pipelines", url: "Pi-CEO /api/pipelines (proxy)", intervalMs: 30_000, read: proxied("/api/pipelines", NO_STORE, isPipelineList) },
+  defineFeed({ id: "mesh-lanes", url: "Pi-CEO /api/mission-control/lane-events (proxy)", intervalMs: 15_000, read: readMeshLanes, serverClock: true }),
 ];
