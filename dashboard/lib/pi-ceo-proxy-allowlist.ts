@@ -16,6 +16,9 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   /^\/api\/projects\/[^/]+\/findings$/,
   /^\/api\/routines$/,
   /^\/api\/mission-control\/live$/,
+  // Claude lanes board module: the newest mc-lane events. Session-gated upstream
+  // (require_auth); names and numbers only, no tool input or output.
+  /^\/api\/mission-control\/lane-events$/,
   /^\/api\/pipelines$/,
   // RA-7539 — read-only Nexus One synthetic status. Session-gated upstream;
   // forwarding grants no live worker and no production registration.

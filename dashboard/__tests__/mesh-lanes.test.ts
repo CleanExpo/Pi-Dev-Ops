@@ -1,16 +1,20 @@
 /**
- * Claude lanes — projection, BFF route and board feed reader.
+ * Claude lanes — projection and board feed reader.
  *
  * What this pins:
  *   1. A failed or malformed read is `unavailable`, never an empty lane list.
  *   2. Cost a lane did not report stays null (shown "unknown"), never 0.
- *   3. The BFF never echoes the secret it attaches upstream.
- *   4. The feed reader maps "not configured" to no_source and everything else to unreachable.
+ *   3. The board reads through the allowlisted, session-gated Pi-CEO proxy path —
+ *      no dashboard API route (RA-7898 G2/G3) and no secret in the browser.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/pi-ceo-fetch", () => ({ fetchProxyJSON: vi.fn() }));
 
 import { projectLanes } from "@/lib/control/mesh-lanes";
-import { readMeshLanes } from "@/lib/boards/sources/feeds-direct";
+import { readMeshLanes } from "@/lib/boards/sources/feeds-proxy";
+import { allowed } from "@/lib/pi-ceo-proxy-allowlist";
+import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 
 const CHECKED = "2026-10-04T12:00:00.000Z";
 
@@ -58,90 +62,37 @@ describe("projectLanes", () => {
   });
 });
 
-describe("GET /api/mesh-fleet/lanes", () => {
-  const SECRET = "mesh-lanes-test-secret";
-  const saved: Record<string, string | undefined> = {};
-  const ENV = ["TAO_FLEET_READ_SECRET", "TAO_INTERNAL_WEBHOOK_SECRET", "TAO_WEBHOOK_SECRET", "RAILWAY_URL", "PI_CEO_URL"] as const;
-  let fetchMock: ReturnType<typeof vi.fn>;
+describe("readMeshLanes (board feed, through the Pi-CEO proxy)", () => {
+  afterEach(() => vi.mocked(fetchProxyJSON).mockReset());
 
-  beforeEach(() => {
-    for (const key of ENV) { saved[key] = process.env[key]; delete process.env[key]; }
-    process.env.PI_CEO_URL = "http://pi-ceo.test";
-    fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-  });
-
-  afterEach(() => {
-    for (const key of ENV) {
-      if (saved[key] === undefined) delete process.env[key];
-      else process.env[key] = saved[key];
-    }
-    vi.unstubAllGlobals();
-    vi.resetModules();
-  });
-
-  it("is unavailable without a secret and never calls upstream", async () => {
-    const { GET } = await import("../app/api/mesh-fleet/lanes/route");
-    const res = await GET();
-    expect(res.status).toBe(503);
-    expect(await res.json()).toMatchObject({ status: "unavailable", reason: "mesh secret not configured" });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("is unavailable when upstream answers 502 (table not applied yet)", async () => {
-    process.env.TAO_FLEET_READ_SECRET = SECRET;
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({ detail: "lane-events read failed (404)" }), { status: 502 }));
-    const { GET } = await import("../app/api/mesh-fleet/lanes/route");
-    const res = await GET();
-    expect(res.status).toBe(503);
-    expect((await res.json()).reason).toBe("upstream unreachable");
-  });
-
-  it("projects lanes, asks for the newest events, and never echoes the secret", async () => {
-    process.env.TAO_FLEET_READ_SECRET = SECRET;
-    fetchMock.mockResolvedValue(new Response(JSON.stringify(EVENTS), { status: 200, headers: { "content-type": "application/json" } }));
-    const { GET } = await import("../app/api/mesh-fleet/lanes/route");
-    const res = await GET();
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(text).not.toContain(SECRET);
-    const body = JSON.parse(text);
-    expect(body.status).toBe("ok");
-    expect(body.lanes).toHaveLength(2);
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(String(url)).toBe("http://pi-ceo.test/api/mesh/lane-events?newest=true&limit=500");
-    expect((init as RequestInit).headers).toEqual({ "X-Pi-CEO-Secret": SECRET });
-  });
-});
-
-describe("readMeshLanes (board feed)", () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  function answer(status: number, body: unknown) {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status })));
-  }
-
-  it("live on an ok body", async () => {
-    answer(200, projectLanes(EVENTS, CHECKED));
+  it("live: folds the newest events into lanes, path is the allowlisted session-gated read", async () => {
+    vi.mocked(fetchProxyJSON).mockResolvedValue(EVENTS as never);
     const r = await readMeshLanes(new AbortController().signal);
     expect(r.kind).toBe("live");
-    expect(r.serverTs).toBe(CHECKED);
+    expect(r.value?.status).toBe("ok");
+    if (r.value?.status === "ok") expect(r.value.lanes).toHaveLength(2);
+    expect(vi.mocked(fetchProxyJSON).mock.calls[0][0]).toBe("/api/mission-control/lane-events");
+    expect(allowed("/api/mission-control/lane-events")).toBe(true);
   });
 
-  it("no_source when the BFF says the secret or URL is not configured", async () => {
-    answer(503, { status: "unavailable", checkedAt: CHECKED, reason: "mesh secret not configured" });
-    expect((await readMeshLanes(new AbortController().signal)).kind).toBe("no_source");
-  });
-
-  it("unreachable when upstream failed, with the reason", async () => {
-    answer(503, { status: "unavailable", checkedAt: CHECKED, reason: "upstream unreachable" });
+  it("unreachable, not an empty list, when the backend did not answer (proxy placeholder → null)", async () => {
+    vi.mocked(fetchProxyJSON).mockResolvedValue(null);
     const r = await readMeshLanes(new AbortController().signal);
     expect(r.kind).toBe("unreachable");
-    expect(r.reason).toBe("upstream unreachable");
+    expect(r.value).toBeNull();
   });
 
-  it("unreachable, not live, for a 200 whose lanes are not a list", async () => {
-    answer(200, { status: "ok", checkedAt: CHECKED, windowEvents: 0, lanes: "x" });
-    expect((await readMeshLanes(new AbortController().signal)).kind).toBe("unreachable");
+  it("unreachable for a body whose events are not a list", async () => {
+    vi.mocked(fetchProxyJSON).mockResolvedValue({ detail: "lane-events read failed (404)" } as never);
+    const r = await readMeshLanes(new AbortController().signal);
+    expect(r.kind).toBe("unreachable");
+    expect(r.reason).toBe("invalid lane-events payload");
+  });
+
+  it("live with no lanes when nothing has reported yet (distinct from unreachable)", async () => {
+    vi.mocked(fetchProxyJSON).mockResolvedValue({ events: [], cursor: 0 } as never);
+    const r = await readMeshLanes(new AbortController().signal);
+    expect(r.kind).toBe("live");
+    if (r.value?.status === "ok") expect(r.value.lanes).toEqual([]);
   });
 });

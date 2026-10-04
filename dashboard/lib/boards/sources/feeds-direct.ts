@@ -5,7 +5,6 @@
 // §3.3; each is pinned by __tests__/boards-feed-readers.test.ts.
 
 import type { FleetView } from "@/lib/control/mesh-fleet";
-import type { LanesView } from "@/lib/control/mesh-lanes";
 import type { WallSnapshot } from "@/lib/wall/snapshot";
 import { errorText, getJson, isNotConfigured, record } from "./http";
 import type {
@@ -32,22 +31,6 @@ export async function readMeshFleet(signal: AbortSignal): Promise<FeedRead<Fleet
     return { kind, value: body, reason: body.reason, httpStatus: r.status };
   }
   const value: FleetView = { status: "unavailable", checkedAt: new Date().toISOString(), reason: "fleet read failed" };
-  return { kind: "unreachable", value, reason: r.error ?? `HTTP ${r.status ?? "?"}`, httpStatus: r.status };
-}
-
-export async function readMeshLanes(signal: AbortSignal): Promise<FeedRead<LanesView>> {
-  const r = await getJson("/api/mesh-fleet/lanes", signal);
-  const body = record(r.body) as LanesView | null;
-  // "ok" counts only with the lane list and clock the view reads; a non-2xx is never shown as lanes.
-  if (r.ok && body && body.status === "ok" && typeof body.checkedAt === "string" && Array.isArray(body.lanes)
-    && typeof body.windowEvents === "number") {
-    return { kind: "live", value: body, serverTs: body.checkedAt, httpStatus: r.status };
-  }
-  if (body && body.status === "unavailable" && typeof body.reason === "string") {
-    const kind = FLEET_NOT_CONFIGURED.has(body.reason) ? "no_source" : "unreachable";
-    return { kind, value: body, reason: body.reason, httpStatus: r.status };
-  }
-  const value: LanesView = { status: "unavailable", checkedAt: new Date().toISOString(), reason: "lanes read failed" };
   return { kind: "unreachable", value, reason: r.error ?? `HTTP ${r.status ?? "?"}`, httpStatus: r.status };
 }
 
@@ -192,8 +175,6 @@ export const DIRECT_FEEDS: FeedDef<unknown>[] = [
   defineFeed({ id: "mesh-fleet", url: "/api/mesh-fleet", intervalMs: 20_000, read: readMeshFleet, serverClock: true,
     failed: (reason): FleetView => ({ status: "unavailable", checkedAt: new Date().toISOString(), reason }) }),
   defineFeed({ id: "wall", url: "/api/mesh-fleet/wall", intervalMs: 5_000, read: readWall, serverClock: true }),
-  defineFeed({ id: "mesh-lanes", url: "/api/mesh-fleet/lanes", intervalMs: 15_000, read: readMeshLanes, serverClock: true,
-    failed: (reason): LanesView => ({ status: "unavailable", checkedAt: new Date().toISOString(), reason }) }),
   defineFeed({ id: "model-fabric", url: "/api/model-fabric", intervalMs: 15_000, read: readModelFabric,
     failed: (error): FabricStatus => ({ enabled: false, healthy: false, error }) }),
   defineFeed({ id: "swarm-status", url: "/api/swarm-status", intervalMs: 30_000, read: readSwarmStatus,
