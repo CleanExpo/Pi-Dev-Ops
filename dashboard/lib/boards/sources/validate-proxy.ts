@@ -75,7 +75,8 @@ export const isPipelineList = (v: unknown) => rows(v, (p) => isText(p.pipeline_i
   && isText(p.current_phase) && isTextList(p.phases_completed) && isText(p.updated_at));
 
 const nested = (v: unknown, check: (r: Row) => boolean) => { const r = record(v); return r !== null && check(r); };
-const isPacket = (p: Row) => isText(p.idea_id) && isText(p.text) && isText(p.status) && optText(p.verdict)
+const isPacket = (p: Row) => isText(p.idea_id) && isText(p.text) && isText(p.source) && isText(p.status) && optText(p.verdict)
+  && optText(p.linear_id) && optText(p.plan_packet_md) && optBool(p.execution_requested)
   && isText(p.recommended_verdict) && optText(p.go_at) && isBool(p.executed)
   && nested(p.north_star_fit, (n) => isText(n.label) && optNum(n.score) && n.score !== undefined && isText(n.rationale) && optText(n.source_revision))
   && nested(p.effort_vs_impact, (n) => isText(n.effort) && isText(n.impact) && isText(n.rationale))

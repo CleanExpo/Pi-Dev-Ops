@@ -85,6 +85,10 @@ describe("pipelines, idea-pipeline, sessions and health", () => {
       spm: { problem: "p", desired_outcome: "o", out_of_scope: "n" } };
     serve({ snapshot: { ...IDEA.snapshot, packet } });
     expect((await read("idea-pipeline")).kind).toBe("live");
+    for (const [key, bad] of [["plan_packet_md", { message: "bad" }], ["linear_id", 7], ["source", undefined], ["execution_requested", "yes"]] as const) {
+      serve({ snapshot: { ...IDEA.snapshot, packet: { ...packet, [key]: bad } } });
+      expect((await read("idea-pipeline")).kind, key).toBe("unreachable");
+    }
     for (const key of ["north_star_fit", "effort_vs_impact", "directive", "displacement", "judge", "spm"]) {
       serve({ snapshot: { ...IDEA.snapshot, packet: { ...packet, [key]: {} } } });
       expect((await read("idea-pipeline")).kind, key).toBe("unreachable");
