@@ -1,0 +1,42 @@
+/**
+ * RA-7898 — a status read that never answers is a failed read once the shared
+ * poller gives up at 10 s. Each panel must then show the failure, never stay
+ * on its first-load "checking" / "loading" state.
+ */
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import CuratorProposalsPanel from "@/components/control/CuratorProposalsPanel";
+import FleetTile from "@/components/control/FleetTile";
+import KillSwitchPanel from "@/components/control/KillSwitchPanel";
+import ModelFabricPanel from "@/components/control/ModelFabricPanel";
+import SwarmPanel from "@/components/control/SwarmPanel";
+import { resetSources } from "@/lib/boards/sources";
+
+afterEach(() => { cleanup(); resetSources(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+describe("a hung status read, after the 10 s timeout", () => {
+  it.each([
+    ["KillSwitchPanel", () => <KillSwitchPanel />],
+    ["CuratorProposalsPanel", () => <CuratorProposalsPanel />],
+    ["FleetTile", () => <FleetTile />],
+    ["ModelFabricPanel", () => <ModelFabricPanel />],
+    ["SwarmPanel", () => <SwarmPanel />],
+  ])("%s shows the timeout, not a loading state", async (_name, Ui) => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+    render(<Ui />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_001); });
+    expect(screen.getAllByText(/no answer within 10 s/).length).toBeGreaterThan(0);
+  });
+
+  it("KillSwitchPanel reads UNKNOWN, not CHECKING, and keeps Halt", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+    render(<KillSwitchPanel />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_001); });
+    expect(screen.getByText("UNKNOWN")).toBeTruthy();
+    expect(screen.queryByText("CHECKING")).toBeNull();
+    expect(screen.getByRole("button", { name: "Halt swarm" })).toBeTruthy();
+  });
+});

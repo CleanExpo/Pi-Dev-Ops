@@ -29,6 +29,11 @@ export interface FeedDef<T> {
   serverClock?: boolean;
   /** Local feeds (clock, static text) never touch the network. */
   local?: boolean;
+  /**
+   * The panel-shaped value for a read the poller gave up on (10 s timeout).
+   * Without it the value is null, which some panels read as "still loading".
+   */
+  failed?: (reason: string) => T;
 }
 
 export interface SourceSnapshot<T> {

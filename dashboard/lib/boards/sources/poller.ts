@@ -103,7 +103,8 @@ async function runRead(entry: Entry): Promise<void> {
   const timedOut = new Promise<FeedRead<unknown>>((resolve) => {
     timeout = setTimeout(() => {
       controller.abort();
-      resolve({ kind: "unreachable", value: null, reason: `no answer within ${REQUEST_TIMEOUT_MS / 1000} s` });
+      const reason = `no answer within ${REQUEST_TIMEOUT_MS / 1000} s`;
+      resolve({ kind: "unreachable", value: entry.def.failed?.(reason) ?? null, reason });
     }, REQUEST_TIMEOUT_MS);
   });
   try {

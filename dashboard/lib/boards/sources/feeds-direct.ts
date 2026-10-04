@@ -163,12 +163,17 @@ export async function readCurator(signal: AbortSignal): Promise<FeedRead<Curator
 }
 
 export const DIRECT_FEEDS: FeedDef<unknown>[] = [
-  defineFeed({ id: "mesh-fleet", url: "/api/mesh-fleet", intervalMs: 20_000, read: readMeshFleet, serverClock: true }),
+  defineFeed({ id: "mesh-fleet", url: "/api/mesh-fleet", intervalMs: 20_000, read: readMeshFleet, serverClock: true,
+    failed: (reason): FleetView => ({ status: "unavailable", checkedAt: new Date().toISOString(), reason }) }),
   defineFeed({ id: "wall", url: "/api/mesh-fleet/wall", intervalMs: 5_000, read: readWall, serverClock: true }),
-  defineFeed({ id: "model-fabric", url: "/api/model-fabric", intervalMs: 15_000, read: readModelFabric }),
-  defineFeed({ id: "swarm-status", url: "/api/swarm-status", intervalMs: 30_000, read: readSwarmStatus }),
-  defineFeed({ id: "kill-switch", url: "/api/kill-switch?op=status", intervalMs: 10_000, read: readKillSwitch }),
+  defineFeed({ id: "model-fabric", url: "/api/model-fabric", intervalMs: 15_000, read: readModelFabric,
+    failed: (error): FabricStatus => ({ enabled: false, healthy: false, error }) }),
+  defineFeed({ id: "swarm-status", url: "/api/swarm-status", intervalMs: 30_000, read: readSwarmStatus,
+    failed: (error): SwarmValue => ({ data: null, error }) }),
+  defineFeed({ id: "kill-switch", url: "/api/kill-switch?op=status", intervalMs: 10_000, read: readKillSwitch,
+    failed: (error): KillSwitchStatus => ({ error }) }),
   defineFeed({ id: "provider-usage", url: "/api/command-centre/provider-usage", intervalMs: 30_000, read: readProviderUsage, serverClock: true }),
   defineFeed({ id: "wiki-graph", url: "/api/command-centre/wiki-graph", intervalMs: 300_000, read: readWikiGraph }),
-  defineFeed({ id: "curator", url: CURATOR_URL, intervalMs: 30_000, read: readCurator }),
+  defineFeed({ id: "curator", url: CURATOR_URL, intervalMs: 30_000, read: readCurator,
+    failed: (error): CuratorValue => ({ error }) }),
 ];
