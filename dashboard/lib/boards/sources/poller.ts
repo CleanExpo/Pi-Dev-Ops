@@ -17,6 +17,7 @@ interface Entry {
   timer: ReturnType<typeof setInterval> | null;
   controller: AbortController | null;
   pending: boolean;
+  inFlight: Promise<void> | null;
   generation: number;
 }
 
@@ -34,7 +35,7 @@ function entryFor(def: FeedDef<unknown>): Entry {
   if (!entry) {
     entry = {
       def, snapshot: emptySnapshot(def.id), listeners: new Set(),
-      timer: null, controller: null, pending: false, generation: 0,
+      timer: null, controller: null, pending: false, inFlight: null, generation: 0,
     };
     entries.set(def.id, entry);
   }
@@ -84,9 +85,15 @@ function ageCheck(entry: Entry): void {
   if (Date.now() - reference > staleAfterMs(entry.def.intervalMs)) emit(entry, { ...snap, state: "stale" });
 }
 
-async function readOnce(entry: Entry): Promise<void> {
-  if (entry.pending) return;
+function readOnce(entry: Entry): Promise<void> {
+  if (entry.pending) return Promise.resolve();
   entry.pending = true;
+  const reading = runRead(entry);
+  entry.inFlight = reading;
+  return reading;
+}
+
+async function runRead(entry: Entry): Promise<void> {
   const generation = entry.generation;
   const controller = new AbortController();
   entry.controller = controller;
@@ -110,6 +117,7 @@ async function readOnce(entry: Entry): Promise<void> {
     if (generation === entry.generation) {
       entry.pending = false;
       entry.controller = null;
+      entry.inFlight = null;
     }
   }
 }
@@ -122,6 +130,7 @@ function tick(entry: Entry): void {
 function start(entry: Entry): void {
   entry.generation += 1;
   entry.pending = false;
+  entry.inFlight = null;
   entry.snapshot = emptySnapshot(entry.def.id);
   void readOnce(entry);
   entry.timer = setInterval(() => tick(entry), entry.def.intervalMs);
@@ -133,6 +142,7 @@ function stop(entry: Entry): void {
   entry.controller?.abort();
   entry.controller = null;
   entry.pending = false;
+  entry.inFlight = null;
   entry.generation += 1;
 }
 
@@ -161,6 +171,10 @@ export function getSnapshot(id: string): SourceSnapshot<unknown> | null {
 export async function refresh(id: string): Promise<void> {
   const entry = entries.get(id);
   if (!entry || entry.timer === null) return;
+  // A read already in flight started before the action's write, so it cannot
+  // show the result: let it land, then read again.
+  if (entry.inFlight) await entry.inFlight;
+  if (entry.timer === null) return;
   await readOnce(entry);
 }
 

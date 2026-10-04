@@ -28,7 +28,8 @@ describe("HealthGrid", () => {
     render(<HealthGrid />);
     expect(await screen.findByRole("button", { name: "pi-dev-ops health 88 out of 100" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "restoreassist health 41 out of 100" })).toBeTruthy();
-    expect(fetchProxyJSON).toHaveBeenCalledWith("/api/projects/health", undefined);
+    // No cache option, as before the move; only the poller's abort signal.
+    expect(fetchProxyJSON).toHaveBeenCalledWith("/api/projects/health", { signal: expect.any(AbortSignal) });
   });
 
   it("EMPTY: an empty list says no projects are registered", async () => {

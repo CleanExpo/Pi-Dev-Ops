@@ -83,6 +83,12 @@ export async function readKillSwitch(signal: AbortSignal): Promise<FeedRead<Kill
     return { kind, value: body, reason: body.error, httpStatus: r.status };
   }
   if (r.ok === false) return { kind: "unreachable", value: body, reason: `HTTP ${r.status}`, httpStatus: r.status };
+  // A 200 that is not JSON, or lacks the two flags the headline reads, is a
+  // failed read: shown as UNKNOWN, never as an invented "DISABLED".
+  if (typeof body.kill_switch_active !== "boolean" || typeof body.swarm_enabled_env !== "boolean") {
+    const error = "invalid kill-switch status payload";
+    return { kind: "unreachable", value: { error }, reason: error, httpStatus: r.status };
+  }
   return { kind: "live", value: body, httpStatus: r.status };
 }
 
@@ -123,6 +129,11 @@ export async function readCurator(signal: AbortSignal): Promise<FeedRead<Curator
   if (body.error) {
     const kind = isNotConfigured(body.error) ? "no_source" : "unreachable";
     return { kind, value: body, reason: body.error, httpStatus: r.status };
+  }
+  // A 200 without a proposals list must never render as "No pending proposals".
+  if (!Array.isArray(body.proposals)) {
+    const error = "invalid curator proposals payload";
+    return { kind: "unreachable", value: { error }, reason: error, httpStatus: r.status };
   }
   return { kind: "live", value: body, httpStatus: r.status };
 }

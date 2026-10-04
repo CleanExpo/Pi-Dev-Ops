@@ -94,7 +94,13 @@ describe("swarm-status", () => {
 });
 
 describe("kill-switch", () => {
-  it("200 without error is live", async () => { serve({ kill_switch_active: false }); expect((await readKillSwitch(signal)).kind).toBe("live"); });
+  it("200 without error is live", async () => { serve({ kill_switch_active: false, swarm_enabled_env: true }); expect((await readKillSwitch(signal)).kind).toBe("live"); });
+  it("200 that is not JSON is unreachable, never live {}", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("not json", { status: 200 })));
+    const r = await readKillSwitch(signal);
+    expect([r.kind, r.value]).toEqual(["unreachable", { error: "invalid kill-switch status payload" }]);
+  });
+  it("200 missing the flags is unreachable", async () => { serve({}); expect((await readKillSwitch(signal)).kind).toBe("unreachable"); });
   it("401 is unreachable with the signed-out reason", async () => {
     serve({ error: "Unauthorised" }, 401);
     const r = await readKillSwitch(signal);
@@ -134,6 +140,11 @@ describe("wiki-graph", () => {
 
 describe("curator", () => {
   it("200 without error is live", async () => { serve({ proposals: [], by_status: {} }); expect((await readCurator(signal)).kind).toBe("live"); });
+  it("200 that is not JSON is unreachable, never an empty list", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("not json", { status: 200 })));
+    const r = await readCurator(signal);
+    expect([r.kind, r.value]).toEqual(["unreachable", { error: "invalid curator proposals payload" }]);
+  });
   it("quiet failure is unreachable", async () => { serve({ error: "upstream unreachable" }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
   it("not configured is no_source", async () => {
     serve({ error: "PI_CEO_URL / RAILWAY_URL not configured" });
@@ -154,6 +165,12 @@ describe("Pi-CEO proxy feeds", () => {
     // def.url reads "Pi-CEO <path> (proxy)"; the wire URL is the proxy prefix plus that path.
     const path = def.url.replace(/^Pi-CEO /, "").replace(/ \(proxy\)$/, "");
     expect(String(fn.mock.calls[0][0])).toBe(`/api/pi-ceo${path}`);
+  });
+  it.each(PROXY_FEEDS.map((f) => [f.id, f] as const))("%s: the poller's abort signal reaches fetch", async (_id, def) => {
+    const fn = serve([]);
+    const controller = new AbortController();
+    await def.read(controller.signal);
+    expect((fn.mock.calls[0] as unknown[])[1]).toMatchObject({ signal: controller.signal });
   });
   it("mission-control/live: a body error is unreachable; ts is the server clock", async () => {
     serve({ error: "boom", ts: "2026-10-03T00:00:00Z" });

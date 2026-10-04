@@ -49,6 +49,20 @@ describe("shared poller", () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
+  it("refresh during an in-flight read waits for it, then reads again", async () => {
+    let release: () => void = () => {};
+    const read = vi.fn()
+      .mockImplementationOnce(() => new Promise<FeedRead<unknown>>((res) => { release = () => res(live("before")); }))
+      .mockImplementation(async () => live("after"));
+    subscribe(def(read, 60_000), () => {});
+    await vi.advanceTimersByTimeAsync(0);
+    const done = refresh("t");
+    release();
+    await done;
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(getSnapshot("t")?.value).toBe("after");
+  });
+
   it("a read is aborted at 10 s and counts as failed", async () => {
     const read = vi.fn((signal: AbortSignal) => new Promise<FeedRead<unknown>>((res) => {
       signal.addEventListener("abort", () => res({ kind: "unreachable", value: null, reason: "aborted" }));

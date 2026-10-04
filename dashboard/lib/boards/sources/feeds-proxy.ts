@@ -24,11 +24,15 @@ async function readProxy(path: string, init: RequestInit | undefined): Promise<F
 }
 
 const NO_STORE: RequestInit = { cache: "no-store" };
+// The poller's signal rides along with each panel's own options, so its 10 s
+// timeout cancels the wire request instead of leaving it open.
+const withSignal = (init: RequestInit | undefined, signal: AbortSignal | undefined): RequestInit | undefined =>
+  signal ? { ...init, signal } : init;
 const LIVE_INIT: RequestInit = { credentials: "include", cache: "no-store" };
 
 /** mission-control/live: a body `error` is a failed read; `ts` is the server clock. */
-export async function readMissionControlLive(): Promise<FeedRead<unknown>> {
-  const read = await readProxy("/api/mission-control/live", LIVE_INIT);
+export async function readMissionControlLive(signal?: AbortSignal): Promise<FeedRead<unknown>> {
+  const read = await readProxy("/api/mission-control/live", withSignal(LIVE_INIT, signal));
   if (read.kind !== "live") return read;
   const body = record(read.value);
   if (!body) return { ...read, kind: "unreachable", reason: "invalid payload" };
@@ -39,7 +43,7 @@ export async function readMissionControlLive(): Promise<FeedRead<unknown>> {
 // Arguments are the ones each panel passed before the move: HealthGrid read
 // projects/health with no init (pinned by __tests__/health-grid.test.tsx),
 // IdeaPipelinePanel and LiveActivityFeed sent credentials, the rest no-store.
-const proxied = (path: string, init?: RequestInit) => () => readProxy(path, init);
+const proxied = (path: string, init?: RequestInit) => (signal: AbortSignal) => readProxy(path, withSignal(init, signal));
 
 export const PROXY_FEEDS: FeedDef<unknown>[] = [
   { id: "pi-health", url: "Pi-CEO /health (proxy)", intervalMs: 15_000, read: proxied("/health", NO_STORE) },
