@@ -32,7 +32,6 @@ describe("mission-control/live rows", () => {
     ["queue with an object title", { queue: { urgent: 0, high: 0, next_issue_title: {} } }],
     ["pulse with a text count", { pulse: { comments_today: "2" } }],
     ["observability with a malformed action", { observability: { actions: [{ ok: "yes" }] } }],
-    ["a claude_hud without counts", { claude_hud: { available: true, reason: null, checked_dir: "/", sessions: [] } }],
   ])("%s is unreachable", async (_k, patch) => {
     serve({ ...MC_LIVE, ...patch });
     expect((await readMissionControlLive()).kind).toBe("unreachable");

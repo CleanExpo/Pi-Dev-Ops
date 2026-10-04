@@ -26,7 +26,7 @@ READERS = (
     REPO / "dashboard" / "app" / "api" / "pi-ceo" / "[...path]" / "route.ts",
 )
 
-# Keys the cockpit actually reads. Backend may also emit claude_hud; the proxy
+# Keys the cockpit actually reads. The backend may emit extra keys; the proxy
 # may add `error`. Those extras are allowed. These must exist on BOTH sides.
 COCKPIT_TOP = {
     "ts",

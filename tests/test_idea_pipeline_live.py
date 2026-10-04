@@ -32,7 +32,6 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(mission_control, "_pulse_status", lambda: {
         "last_at": None, "comments_today": 0, "pulse_issue_id": None,
     })
-    monkeypatch.setattr(mission_control, "_claude_session_hud", lambda: {})
     monkeypatch.setattr(
         mission_control,
         "_observability_snapshot",

@@ -6,12 +6,11 @@ GET  /api/mesh/lane-events   — newest events after a cursor (fleet read secret
 Spec: docs/specs/claude-mods-integration.md §3.1. The sender is
 `mods/mc-lane/hooks/register.ts`.
 
-WHY. `claude_session_hud.py` can see only the host the backend runs on (its own
+WHY. The retired `claude_session_hud.py` could see only the host the backend runs on (its own
 docstring says so: on Railway it is `available: False`), so the MacBook and
-Windows lanes never reach Mission Control's HUD. The mod posts from every
-machine instead. Once the mod is live on the fleet, the context-ceiling file
-reader is retired (spec §3, subtraction) — not in this change, because nothing
-is flowing yet.
+Windows lanes never reached Mission Control's HUD. The mod posts from every
+machine instead; with all three machines reporting (RA-7902), the
+context-ceiling file reader and its HUD were retired (spec §3, subtraction).
 
 WHAT IS STORED. Names, numbers and booleans only. The mod sends no tool input
 or output, and this route re-validates every field, so a mod that drifted (or
