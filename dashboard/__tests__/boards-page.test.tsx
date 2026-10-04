@@ -70,6 +70,9 @@ describe("BoardsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reset to preset" }));
     fireEvent.click(within(screen.getByRole("alertdialog", { name: "Confirm reset" })).getByRole("button", { name: "Reset board" }));
     expect(cards()).toContain("clock-1");
+    // The message names THIS reset, not the earlier remove's undo text.
+    expect(screen.getByText("Board back to its starting layout.")).toBeInTheDocument();
+    expect(screen.queryByText("Removed from board.")).toBeNull();
     fireEvent.click(await screen.findByRole("button", { name: "Undo" }));
     expect(cards()).toEqual(edited);
   });

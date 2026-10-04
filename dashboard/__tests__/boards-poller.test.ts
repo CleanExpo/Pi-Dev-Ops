@@ -58,6 +58,41 @@ describe("shared poller", () => {
     expect(getSnapshot("t")?.state).toBe("unreachable");
   });
 
+  it("a timed-out read keeps the reader's own failure shape, so panels render their error", async () => {
+    const read = vi.fn((signal: AbortSignal) => new Promise<FeedRead<unknown>>((res) => {
+      signal.addEventListener("abort", () => res({ kind: "unreachable", value: { error: "AbortError" }, reason: "aborted" }));
+    }));
+    subscribe(def(read, 60_000), () => {});
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(getSnapshot("t")?.value).toEqual({ error: "AbortError" });
+    expect(getSnapshot("t")?.reason).toBe("no answer within 10 s");
+  });
+
+  it("a reader that ignores the abort is settled at 10 s as unreachable", async () => {
+    subscribe(def(() => new Promise<FeedRead<unknown>>(() => {}), 60_000), () => {});
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(getSnapshot("t")?.state).toBe("loading"); // positive control: not settled early
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(1); // the zero-delay grace timer set at 10 s (fake timers run it at +1 ms)
+    expect(getSnapshot("t")).toMatchObject({ state: "unreachable", value: null, reason: "no answer within 10 s" });
+  });
+
+  it("refresh() during an in-flight read abandons it: the older answer never overwrites the fresh one", async () => {
+    let releaseOld: (r: FeedRead<unknown>) => void = () => {};
+    let call = 0;
+    const read = vi.fn(() => {
+      call += 1;
+      return call === 1 ? new Promise<FeedRead<unknown>>((res) => { releaseOld = res; }) : Promise.resolve(live("HALTED"));
+    });
+    subscribe(def(read, 60_000), () => {});
+    await refresh("t");
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(getSnapshot("t")?.value).toBe("HALTED");
+    releaseOld(live("RUNNING"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getSnapshot("t")?.value).toBe("HALTED");
+  });
+
   it("refresh() makes one read and adds no timer", async () => {
     const read = vi.fn(async () => live());
     subscribe(def(read, 60_000), () => {});

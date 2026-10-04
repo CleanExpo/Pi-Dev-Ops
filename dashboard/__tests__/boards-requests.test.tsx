@@ -107,6 +107,24 @@ describe("T7 — request-sharing tap", () => {
     uninstall();
   });
 
+  it("a shared GET that never answers is dropped at 10 s, so the next read starts afresh", async () => {
+    vi.useFakeTimers();
+    const network = vi.fn((_u: string, init?: RequestInit) => new Promise<Response>((_res, rej) => {
+      init?.signal?.addEventListener("abort", () => rej(new DOMException("aborted", "AbortError")));
+    }));
+    vi.stubGlobal("fetch", network);
+    const uninstall = installFetchTap();
+    const first = window.fetch("/api/command-centre/provider-usage");
+    const joined = window.fetch("/api/command-centre/provider-usage");
+    expect(network).toHaveBeenCalledTimes(1); // positive control: the second call joined the first
+    const settled = Promise.allSettled([first, joined]);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect((await settled).map((r) => r.status)).toEqual(["rejected", "rejected"]);
+    void window.fetch("/api/command-centre/provider-usage").catch(() => undefined);
+    expect(network).toHaveBeenCalledTimes(2);
+    uninstall();
+  });
+
   it("any other request reaches the original fetch unchanged, and uninstall restores it", async () => {
     const network = vi.fn(async (_u: string, _i?: RequestInit) => json({}));
     vi.stubGlobal("fetch", network);

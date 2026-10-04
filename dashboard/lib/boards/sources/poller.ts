@@ -9,6 +9,8 @@
 import { staleAfterMs, toEpochMs, type FeedDef, type FeedRead, type SourceSnapshot, type SourceState } from "./types";
 
 const REQUEST_TIMEOUT_MS = 10_000;
+/** One macrotask: a reader that honours the abort settles within microtasks of it. */
+const ABORT_GRACE_MS = 0;
 
 interface Entry {
   def: FeedDef<unknown>;
@@ -84,29 +86,43 @@ function ageCheck(entry: Entry): void {
   if (Date.now() - reference > staleAfterMs(entry.def.intervalMs)) emit(entry, { ...snap, state: "stale" });
 }
 
+/**
+ * The read, bounded at 10 s. On timeout the request is aborted and the reader
+ * gets until the next macrotask to report in its own failure shape (the panels
+ * render that shape); a reader that ignores the abort gets the generic one.
+ */
+function bounded(reading: Promise<FeedRead<unknown>>, controller: AbortController): { read: Promise<FeedRead<unknown>>; clear: () => void } {
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  const reason = `no answer within ${REQUEST_TIMEOUT_MS / 1000} s`;
+  let expired = false;
+  const timedOut = new Promise<FeedRead<unknown>>((resolve) => {
+    timers.push(setTimeout(() => {
+      expired = true;
+      controller.abort();
+      timers.push(setTimeout(() => resolve({ kind: "unreachable", value: null, reason }), ABORT_GRACE_MS));
+    }, REQUEST_TIMEOUT_MS));
+  });
+  // After the timeout, whatever the reader reports is a failure, and says why.
+  const read = Promise.race([reading, timedOut])
+    .then((r) => (expired && r.kind !== "live" ? { ...r, kind: "unreachable" as const, reason } : r));
+  return { read, clear: () => timers.forEach(clearTimeout) };
+}
+
 async function readOnce(entry: Entry): Promise<void> {
   if (entry.pending) return;
   entry.pending = true;
   const generation = entry.generation;
   const controller = new AbortController();
   entry.controller = controller;
-  // The timeout settles the read even when a reader ignores the abort signal,
-  // so one hung request can never block the feed's later ticks.
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  const timedOut = new Promise<FeedRead<unknown>>((resolve) => {
-    timeout = setTimeout(() => {
-      controller.abort();
-      resolve({ kind: "unreachable", value: null, reason: `no answer within ${REQUEST_TIMEOUT_MS / 1000} s` });
-    }, REQUEST_TIMEOUT_MS);
-  });
+  const reading = entry.def.read(controller.signal);
+  // A read that settles after the timeout already won must not surface as an unhandled rejection.
+  reading.catch(() => undefined);
+  const { read, clear } = bounded(reading, controller);
   try {
-    const reading = entry.def.read(controller.signal);
-    // A read that settles after the timeout already won must not surface as an unhandled rejection.
-    reading.catch(() => undefined);
-    const read = await Promise.race([reading, timedOut]);
-    if (generation === entry.generation) applyRead(entry, read);
+    const result = await read;
+    if (generation === entry.generation) applyRead(entry, result);
   } finally {
-    clearTimeout(timeout);
+    clear();
     if (generation === entry.generation) {
       entry.pending = false;
       entry.controller = null;
@@ -157,10 +173,20 @@ export function getSnapshot(id: string): SourceSnapshot<unknown> | null {
   return entries.get(id)?.snapshot ?? null;
 }
 
-/** One immediate read, e.g. after an action's write succeeded. Never adds a timer. */
+/**
+ * One immediate read, e.g. after an action's write succeeded. Never adds a
+ * timer. A read already in flight may predate the write, so it is abandoned
+ * (aborted, its answer ignored) and a fresh one replaces it.
+ */
 export async function refresh(id: string): Promise<void> {
   const entry = entries.get(id);
   if (!entry || entry.timer === null) return;
+  if (entry.pending) {
+    entry.controller?.abort();
+    entry.generation += 1;
+    entry.pending = false;
+    entry.controller = null;
+  }
   await readOnce(entry);
 }
 

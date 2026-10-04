@@ -14,6 +14,8 @@
 import { FEEDS } from "./feeds";
 
 export const TAPPED_FEEDS = ["provider-usage", "wiki-graph"] as const;
+/** Matches the poller's own 10 s bound on a read. */
+export const SHARED_TIMEOUT_MS = 10_000;
 
 interface Cached { at: number; status: number; statusText: string; headers: [string, string][]; body: string }
 
@@ -64,10 +66,14 @@ export function installFetchTap(): () => void {
       let pending = inflight.get(url.href);
       if (!pending) {
         // The caller's own arguments, minus its abort signal: the read is shared,
-        // so one caller unmounting must not cancel it for the others.
+        // so one caller unmounting must not cancel it for the others. The tap's
+        // own signal drops a request that never answers, so later reads are
+        // never stuck joining it.
         const { signal: _signal, ...rest } = init ?? {};
-        pending = real(input, rest).then(snapshot).then((c) => { recent.set(url.href, c); return c; })
-          .finally(() => inflight.delete(url.href));
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), SHARED_TIMEOUT_MS);
+        pending = real(input, { ...rest, signal: controller.signal }).then(snapshot).then((c) => { recent.set(url.href, c); return c; })
+          .finally(() => { clearTimeout(timer); inflight.delete(url.href); });
         inflight.set(url.href, pending);
       }
       return pending.then(rebuild);
