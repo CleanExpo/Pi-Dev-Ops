@@ -30,6 +30,14 @@ describe("a hung status read, after the 10 s timeout", () => {
     expect(screen.getAllByText(/no answer within 10 s/).length).toBeGreaterThan(0);
   });
 
+  it("FleetTile: a 503 with an ok-shaped empty fleet is not 'No machines enrolled'", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(
+      JSON.stringify({ status: "ok", checkedAt: "2026-10-04T00:00:00Z", machines: [] }), { status: 503 })));
+    render(<FleetTile />);
+    expect(await screen.findByText(/fleet read failed/)).toBeTruthy();
+    expect(screen.queryByText(/No machines enrolled/)).toBeNull();
+  });
+
   it("KillSwitchPanel reads UNKNOWN, not CHECKING, and keeps Halt", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));

@@ -18,8 +18,10 @@ export async function readMeshFleet(signal: AbortSignal): Promise<FeedRead<Fleet
   const r = await getJson("/api/mesh-fleet", signal);
   const body = record(r.body) as FleetView | null;
   // "ok" counts only with the machine list and clock FleetTile reads.
-  if (body && body.status === "ok" && typeof body.checkedAt === "string" && Array.isArray(body.machines)) {
-    return { kind: r.ok === false ? "unreachable" : "live", value: body, serverTs: body.checkedAt, httpStatus: r.status };
+  // A non-2xx is never shown as a fleet, even with an "ok" body: FleetTile
+  // would render its machines (or "No machines enrolled") as fact.
+  if (r.ok && body && body.status === "ok" && typeof body.checkedAt === "string" && Array.isArray(body.machines)) {
+    return { kind: "live", value: body, serverTs: body.checkedAt, httpStatus: r.status };
   }
   if (body && body.status === "unavailable") {
     const kind = FLEET_NOT_CONFIGURED.has(body.reason) ? "no_source" : "unreachable";

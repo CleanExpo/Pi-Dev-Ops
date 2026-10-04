@@ -24,6 +24,11 @@ function fail(message = "network down") {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("mesh-fleet", () => {
+  it("a 503 with an ok-shaped body is the unavailable value, never a fleet", async () => {
+    serve({ status: "ok", checkedAt: "2026-10-04T00:00:00Z", machines: [] }, 503);
+    const r = await readMeshFleet(signal);
+    expect([r.kind, r.value.status]).toEqual(["unreachable", "unavailable"]);
+  });
   it("a 200 ok without checkedAt is unreachable", async () => {
     serve({ status: "ok", machines: [] });
     expect((await readMeshFleet(signal)).kind).toBe("unreachable");
