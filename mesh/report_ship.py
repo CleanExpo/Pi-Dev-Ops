@@ -19,19 +19,8 @@ import urllib.request
 from pathlib import Path
 
 
-def _from_env_file(name: str) -> str:
-    """Read a key from ~/.hermes/.env when it is not in the process env."""
-    envf = Path.home() / ".hermes" / ".env"
-    if not envf.exists():
-        return ""
-    try:
-        for line in envf.read_text().splitlines():
-            line = line.strip()
-            if line.startswith(f"{name}="):
-                return line.split("=", 1)[1].strip().strip("'\"")
-    except OSError:
-        return ""
-    return ""
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from env_file import from_env_file as _from_env_file, resolve_key  # noqa: E402  (RA-7905)
 
 
 def api_url() -> str:
@@ -43,7 +32,7 @@ def api_url() -> str:
 
 
 def api_key() -> str:
-    return os.environ.get("PI_CEO_API_KEY") or _from_env_file("PI_CEO_API_KEY")
+    return resolve_key("PI_CEO_API_KEY")
 
 
 def _git(args: list[str]) -> str:

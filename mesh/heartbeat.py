@@ -27,27 +27,13 @@ import time
 import urllib.error
 import urllib.request
 
-def _from_env_file(name: str) -> str:
-    """Read a key from ~/.hermes/.env (mac/linux) when it's not in the process env.
-    Keeps the secret out of launchd plists / Scheduled Tasks — the daemon loads it
-    at runtime from the protected file instead of having it embedded."""
-    from pathlib import Path
-    envf = Path.home() / ".hermes" / ".env"
-    if not envf.exists():
-        return ""
-    try:
-        for line in envf.read_text().splitlines():
-            line = line.strip()
-            if line.startswith(f"{name}="):
-                return line.split("=", 1)[1].strip().strip("'\"")
-    except OSError:
-        pass
-    return ""
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from env_file import from_env_file as _from_env_file, resolve_key  # noqa: E402  (RA-7905)
 
 
 PI_CEO_API_URL = (os.environ.get("PI_CEO_API_URL") or _from_env_file("PI_CEO_API_URL")
                   or "https://pi-dev-ops-production.up.railway.app")
-PI_CEO_API_KEY = os.environ.get("PI_CEO_API_KEY") or _from_env_file("PI_CEO_API_KEY")
+PI_CEO_API_KEY = resolve_key("PI_CEO_API_KEY")
 INTERVAL = int(os.environ.get("HEARTBEAT_INTERVAL", "20"))
 AGENT_RUNTIMES = ("claude", "codex", "cursor-agent", "pi", "hermes")
 # Breadcrumb the mesh runner writes with its live task; kept in sync via env.
