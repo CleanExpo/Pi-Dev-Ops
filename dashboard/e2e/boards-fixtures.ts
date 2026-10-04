@@ -41,7 +41,7 @@ export function healthyResponses(): Record<string, () => unknown> {
     ],
     "/api/pi-ceo/api/mission-control/live": () => ({ ts: iso(), active_sessions: [{ id: "s-ra7912a", repo: "CleanExpo/RestoreAssist", phase: "build", elapsed_s: 840 }],
       recent_completions: [{ id: "s-ra7887b", repo: "CleanExpo/Pi-Dev-Ops", completed_at: iso(1800), score: 9.1 }],
-      throughput: { hourly: Array.from({ length: 24 }, (_, i) => (i * 7) % 5) }, queue: { urgent: 0, high: 2 } }),
+      throughput: { hourly: Array.from({ length: 24 }, (_, i) => (i * 7) % 5) }, queue: { urgent: 0, high: 2 }, pulse: { last_at: null, comments_today: 0, pulse_issue_id: null } }),
     "/api/pi-ceo/api/idea-pipeline": () => ({ snapshot: { intake: "", north_star: "", awaiting: 1, packet: null, verdicts: [], go_required: true, executed: false },
       packets: [{ idea_id: "i1", text: "Contractor leaderboard for NRPG", source: "telegram", verdict: null, go_at: null, executed: false }] }),
     "/api/pi-ceo/api/pipelines": () => [],

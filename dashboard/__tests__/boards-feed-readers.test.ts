@@ -23,6 +23,18 @@ function fail(message = "network down") {
 
 afterEach(() => vi.unstubAllGlobals());
 
+// Complete payloads, in the shape the backend always sends (routes/swarm.py,
+// routes/mission_control.py). Tests drop one field at a time from these.
+const KILL_SWITCH = {
+  swarm_enabled_env: true, kill_switch_active: false, escalation_lock_active: false,
+  panic_count_last_hour: 0, approver_allowlist: ["a"], approver_totp_configured: ["a"],
+};
+const MC_LIVE = {
+  ts: "2026-10-03T00:00:00Z", throughput: { hourly: [] }, active_sessions: [], recent_completions: [],
+  queue: { urgent: 0, high: 0 }, pulse: { last_at: null, comments_today: 0, pulse_issue_id: null },
+};
+const without = (body: Record<string, unknown>, key: string) => Object.fromEntries(Object.entries(body).filter(([k]) => k !== key));
+
 describe("mesh-fleet", () => {
   it("unavailable with a non-text reason is the fallback value", async () => {
     serve({ status: "unavailable", checkedAt: "2026-10-04T00:00:00Z", reason: {} }, 503);
@@ -139,7 +151,7 @@ describe("swarm-status", () => {
 });
 
 describe("kill-switch", () => {
-  it("200 without error is live", async () => { serve({ kill_switch_active: false, swarm_enabled_env: true }); expect((await readKillSwitch(signal)).kind).toBe("live"); });
+  it("200 without error is live", async () => { serve(KILL_SWITCH); expect((await readKillSwitch(signal)).kind).toBe("live"); });
   it("200 that is not JSON is unreachable, never live {}", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("not json", { status: 200 })));
     const r = await readKillSwitch(signal);
@@ -151,8 +163,12 @@ describe("kill-switch", () => {
     expect([r.kind, r.value.error]).toEqual(["unreachable", "HTTP 500"]);
   });
   it("200 missing the flags is unreachable", async () => { serve({}); expect((await readKillSwitch(signal)).kind).toBe("unreachable"); });
-  it.each([["kill_switch_active", { swarm_enabled_env: true }], ["swarm_enabled_env", { kill_switch_active: false }]])("200 without %s is unreachable", async (_f, body) => {
-    serve(body);
+  it.each(Object.keys(KILL_SWITCH))("200 without %s is unreachable", async (key) => {
+    serve(without(KILL_SWITCH, key));
+    expect((await readKillSwitch(signal)).kind).toBe("unreachable");
+  });
+  it("approver lists must hold names", async () => {
+    serve({ ...KILL_SWITCH, approver_allowlist: [{}] });
     expect((await readKillSwitch(signal)).kind).toBe("unreachable");
   });
   it("401 is unreachable with the signed-out reason", async () => {
@@ -225,7 +241,7 @@ describe("Pi-CEO proxy feeds", () => {
     expect([r.kind, r.value]).toEqual(["unreachable", null]);
   });
   const good: Record<string, unknown> = {
-    "pi-health": { status: "ok" }, "mc-live": { ts: "2026-10-03T00:00:00Z" },
+    "pi-health": { status: "ok" }, "mc-live": MC_LIVE,
     "idea-pipeline": { snapshot: {} }, sessions: [], "projects-health": [], pipelines: [],
   };
   it.each(PROXY_FEEDS.map((f) => [f.id, f] as const))("%s: a real 200 is live and reads through /api/pi-ceo", async (_id, def) => {
@@ -243,9 +259,21 @@ describe("Pi-CEO proxy feeds", () => {
     expect((await def.read(signal)).kind).toBe("unreachable");
   });
   it("mission-control/live: a non-text error drops the body", async () => {
-    serve({ error: {}, ts: "2026-10-03T00:00:00Z" });
+    serve({ ...MC_LIVE, error: {} });
     const r = await readMissionControlLive();
     expect([r.kind, r.value]).toEqual(["unreachable", null]);
+  });
+  it.each(Object.keys(MC_LIVE))("mission-control/live: a 200 without %s is unreachable", async (key) => {
+    serve(without(MC_LIVE, key));
+    expect((await readMissionControlLive()).kind).toBe("unreachable");
+  });
+  it.each([["queue.urgent", { high: 0 }], ["queue.high", { urgent: 0 }]])("mission-control/live: a 200 without %s is unreachable", async (_k, queue) => {
+    serve({ ...MC_LIVE, queue });
+    expect((await readMissionControlLive()).kind).toBe("unreachable");
+  });
+  it("mission-control/live: a 200 without throughput.hourly is unreachable", async () => {
+    serve({ ...MC_LIVE, throughput: {} });
+    expect((await readMissionControlLive()).kind).toBe("unreachable");
   });
   it("mission-control/live: a 200 {} is unreachable", async () => {
     serve({});
@@ -258,9 +286,9 @@ describe("Pi-CEO proxy feeds", () => {
     expect((fn.mock.calls[0] as unknown[])[1]).toMatchObject({ signal: controller.signal });
   });
   it("mission-control/live: a body error is unreachable; ts is the server clock", async () => {
-    serve({ error: "boom", ts: "2026-10-03T00:00:00Z" });
+    serve({ ...MC_LIVE, error: "boom" });
     expect((await readMissionControlLive()).kind).toBe("unreachable");
-    serve({ ts: "2026-10-03T00:00:00Z" });
+    serve(MC_LIVE);
     expect((await readMissionControlLive()).serverTs).toBe("2026-10-03T00:00:00Z");
   });
 });

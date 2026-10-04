@@ -29,7 +29,7 @@ const RESPONSES: Record<string, unknown> = {
   "/api/kill-switch": { swarm_enabled_env: true, kill_switch_active: false, escalation_lock_active: false, panic_count_last_hour: 0, approver_allowlist: ["a", "b"], approver_totp_configured: ["a"] },
   "/api/curator-proposals": { total: 1, returned: 1, by_status: { pending: 1 }, proposals: [{ proposal_id: "p", ts: iso(60), status: "pending", proposed_skill_name: "notes" }] },
   "/api/pi-ceo/api/projects/health": [{ project_id: "RA", repo: "CleanExpo/RA", overall_health: 86, scores: { security: 86 }, findings_count: {}, deployments: {} }],
-  "/api/pi-ceo/api/mission-control/live": { ts: iso(), active_sessions: [], recent_completions: [], throughput: { hourly: [1, 2] } },
+  "/api/pi-ceo/api/mission-control/live": { ts: iso(), active_sessions: [], recent_completions: [], throughput: { hourly: [1, 2] }, queue: { urgent: 0, high: 0 }, pulse: {} },
   "/api/pi-ceo/api/pipelines": [],
   "/api/pi-ceo/api/idea-pipeline": { snapshot: { intake: "", north_star: "", awaiting: 0, packet: null, verdicts: [], go_required: true, executed: false } },
 };

@@ -40,6 +40,13 @@ describe("a hung status read, after the 10 s timeout", () => {
     expect((await screen.findAllByText(/invalid error field/)).length).toBeGreaterThan(0);
   });
 
+  it("KillSwitchPanel: a partial 200 is UNKNOWN, never '0 / 0' approvers", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ kill_switch_active: false, swarm_enabled_env: true }), { status: 200 })));
+    render(<KillSwitchPanel />);
+    expect(await screen.findByText("UNKNOWN")).toBeTruthy();
+    expect(screen.queryByText("0 / 0")).toBeNull();
+  });
+
   it("FleetTile: a 503 with an ok-shaped empty fleet is not 'No machines enrolled'", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(
       JSON.stringify({ status: "ok", checkedAt: "2026-10-04T00:00:00Z", machines: [] }), { status: 503 })));

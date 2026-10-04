@@ -39,6 +39,14 @@ const withSignal = (init: RequestInit | undefined, signal: AbortSignal | undefin
   signal ? { ...init, signal } : init;
 const LIVE_INIT: RequestInit = { credentials: "include", cache: "no-store" };
 
+function isMissionControlLive(b: Record<string, unknown>): boolean {
+  const queue = record(b.queue);
+  return typeof b.ts === "string" && Array.isArray(record(b.throughput)?.hourly)
+    && Array.isArray(b.active_sessions) && Array.isArray(b.recent_completions)
+    && queue !== null && Number.isFinite(queue.urgent) && Number.isFinite(queue.high)
+    && record(b.pulse) !== null;
+}
+
 /** mission-control/live: a body `error` is a failed read; `ts` is the server clock. */
 export async function readMissionControlLive(signal?: AbortSignal): Promise<FeedRead<unknown>> {
   const read = await readProxy("/api/mission-control/live", withSignal(LIVE_INIT, signal));
@@ -49,9 +57,10 @@ export async function readMissionControlLive(signal?: AbortSignal): Promise<Feed
   // A non-text error is a malformed body: dropped, so no panel renders an object.
   if (error === INVALID_PAYLOAD) return { ...read, kind: "unreachable", value: null, reason: INVALID_PAYLOAD };
   if (error) return { ...read, kind: "unreachable", reason: error };
-  // The backend always stamps `ts`; a body without it is not a live payload.
-  if (typeof body.ts !== "string") return { ...read, kind: "unreachable", value: null, reason: INVALID_PAYLOAD };
-  return { ...read, serverTs: body.ts };
+  // The backend (routes/mission_control.py) always sends these; without them
+  // the panels would show missing counts as a quiet, empty live feed.
+  if (!isMissionControlLive(body)) return { ...read, kind: "unreachable", value: null, reason: INVALID_PAYLOAD };
+  return { ...read, serverTs: body.ts as string };
 }
 
 // Arguments are the ones each panel passed before the move: HealthGrid read

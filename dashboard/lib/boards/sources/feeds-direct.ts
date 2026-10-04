@@ -95,6 +95,14 @@ export async function readSwarmStatus(signal: AbortSignal): Promise<FeedRead<Swa
   };
 }
 
+const isStringList = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === "string");
+
+function isKillSwitchStatus(b: KillSwitchStatus): boolean {
+  return typeof b.kill_switch_active === "boolean" && typeof b.swarm_enabled_env === "boolean"
+    && typeof b.escalation_lock_active === "boolean" && Number.isFinite(b.panic_count_last_hour)
+    && isStringList(b.approver_allowlist) && isStringList(b.approver_totp_configured);
+}
+
 export const SIGNED_OUT_REASON = "Signed out — sign in again (401)";
 
 export async function readKillSwitch(signal: AbortSignal): Promise<FeedRead<KillSwitchStatus>> {
@@ -111,9 +119,10 @@ export async function readKillSwitch(signal: AbortSignal): Promise<FeedRead<Kill
     return { kind, value: body, reason: body.error, httpStatus: r.status };
   }
   if (r.ok === false) return { kind: "unreachable", value: body, reason: `HTTP ${r.status}`, httpStatus: r.status };
-  // A 200 that is not JSON, or lacks the two flags the headline reads, is a
-  // failed read: shown as UNKNOWN, never as an invented "DISABLED".
-  if (typeof body.kill_switch_active !== "boolean" || typeof body.swarm_enabled_env !== "boolean") {
+  // A 200 that is not JSON, or lacks any field the panel shows (the backend,
+  // routes/swarm.py, always sends all six), is a failed read: shown as
+  // UNKNOWN, never as an invented "DISABLED", "no" lock or "0 / 0" approvers.
+  if (!isKillSwitchStatus(body)) {
     const error = "invalid kill-switch status payload";
     return { kind: "unreachable", value: { error }, reason: error, httpStatus: r.status };
   }
