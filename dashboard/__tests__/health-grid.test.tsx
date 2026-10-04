@@ -22,8 +22,8 @@ afterEach(() => cleanup());
 describe("HealthGrid", () => {
   it("LOADED: renders one tile per project with its score", async () => {
     fetchProxyJSON.mockResolvedValue([
-      { project_id: "pi-dev-ops", overall_health: 88 },
-      { project_id: "restoreassist", overall_health: 41 },
+      { project_id: "pi-dev-ops", repo: "CleanExpo/pi-dev-ops", overall_health: 88 },
+      { project_id: "restoreassist", repo: "CleanExpo/restoreassist", overall_health: 41 },
     ]);
     render(<HealthGrid />);
     expect(await screen.findByRole("button", { name: "pi-dev-ops health 88 out of 100" })).toBeTruthy();

@@ -1,0 +1,84 @@
+/**
+ * RA-7898 — a proxy 200 is live only when every row its panels read is
+ * whole. One planted fault per test, from a complete payload.
+ */
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { PROXY_FEEDS, readMissionControlLive } from "@/lib/boards/sources/feeds-proxy";
+import { MC_LIVE, serve, signal, without } from "./boards-feed-fixtures";
+
+afterEach(() => vi.unstubAllGlobals());
+
+const read = (id: string) => PROXY_FEEDS.find((f) => f.id === id)!.read(signal);
+const SESSION = { id: "s1", repo: "CleanExpo/RA", phase: "build", status: "running", elapsed_s: 30, issue_id: null };
+const COMPLETION = { id: "c1", repo: "CleanExpo/RA", branch: null, score: 9, pr_url: null, issue_id: null, completed_at: null };
+const PROJECT = { project_id: "RA", repo: "CleanExpo/RA", overall_health: 80, scores: { security: 80 } };
+const PIPELINE = { pipeline_id: "p", repo_url: "https://github.com/x/y", current_phase: "spec", phases_completed: [], updated_at: "2026-10-04T00:00:00Z" };
+const IDEA = { snapshot: { intake: "", north_star: "", awaiting: 0, packet: null, verdicts: [], go_required: true, executed: false } };
+
+describe("mission-control/live rows", () => {
+  it("complete rows are live", async () => {
+    serve({ ...MC_LIVE, active_sessions: [SESSION], recent_completions: [COMPLETION] });
+    expect((await readMissionControlLive()).kind).toBe("live");
+  });
+  it("a null completion row is unreachable", async () => {
+    serve({ ...MC_LIVE, recent_completions: [null] });
+    expect((await readMissionControlLive()).kind).toBe("unreachable");
+  });
+  it.each([["session without id", { active_sessions: [without(SESSION, "id")] }],
+    ["session with an object phase", { active_sessions: [{ ...SESSION, phase: {} }] }],
+    ["completion with a text score", { recent_completions: [{ ...COMPLETION, score: "9" }] }],
+    ["non-numeric hourly", { throughput: { hourly: ["1"] } }],
+    ["queue with an object title", { queue: { urgent: 0, high: 0, next_issue_title: {} } }],
+    ["pulse with a text count", { pulse: { comments_today: "2" } }],
+    ["observability with a malformed action", { observability: { actions: [{ ok: "yes" }] } }],
+    ["a claude_hud without counts", { claude_hud: { available: true, reason: null, checked_dir: "/", sessions: [] } }],
+  ])("%s is unreachable", async (_k, patch) => {
+    serve({ ...MC_LIVE, ...patch });
+    expect((await readMissionControlLive()).kind).toBe("unreachable");
+  });
+});
+
+describe("projects/health rows", () => {
+  it("a row with only id and repo is live (no scan yet)", async () => {
+    serve([{ project_id: "RA", repo: "CleanExpo/RA" }]);
+    expect((await read("projects-health")).kind).toBe("live");
+  });
+  it("an empty row is unreachable, never a live empty portfolio", async () => {
+    serve([{}]);
+    expect((await read("projects-health")).kind).toBe("unreachable");
+  });
+  it.each([["project_id", without(PROJECT, "project_id")], ["repo", without(PROJECT, "repo")],
+    ["a text score", { ...PROJECT, scores: { security: "80" } }], ["a text health", { ...PROJECT, overall_health: "80" }],
+  ])("a row missing or mistyping %s is unreachable", async (_k, row) => {
+    serve([row]);
+    expect((await read("projects-health")).kind).toBe("unreachable");
+  });
+});
+
+describe("pipelines, idea-pipeline, sessions and health", () => {
+  it("a complete pipeline row is live; each missing field is unreachable", async () => {
+    serve([PIPELINE]);
+    expect((await read("pipelines")).kind).toBe("live");
+    for (const key of Object.keys(PIPELINE)) {
+      serve([without(PIPELINE, key)]);
+      expect((await read("pipelines")).kind, key).toBe("unreachable");
+    }
+  });
+  it("a complete idea snapshot is live; each missing field is unreachable", async () => {
+    serve(IDEA);
+    expect((await read("idea-pipeline")).kind).toBe("live");
+    for (const key of Object.keys(IDEA.snapshot)) {
+      serve({ snapshot: without(IDEA.snapshot, key) });
+      expect((await read("idea-pipeline")).kind, key).toBe("unreachable");
+    }
+  });
+  it("a session row the operator parser rejects is unreachable", async () => {
+    serve([{ id: "s1" }]);
+    expect((await read("sessions")).kind).toBe("unreachable");
+  });
+  it("health without a status is unreachable", async () => {
+    serve({ uptime_s: 1 });
+    expect((await read("pi-health")).kind).toBe("unreachable");
+  });
+});
