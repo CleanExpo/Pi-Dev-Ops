@@ -1,8 +1,7 @@
-RA-7898 A6 re-run, 2026-10-04 ~10:05Z (review round 19, finding P1-A6-FIXTURES).
+RA-7898 A6 re-run, 2026-10-04 ~10:52Z, after the e2e fixes in 12bda432 (first run ~10:05Z for review round 19, finding P1-A6-FIXTURES).
 
 before: main b4bb532de403bc80b4406406ed96f7d1ae2bcf00, `next build` + `next start -p 3011`
-after:  this branch, app code as at e36da3fba7052665007e5e118849ee87d92b501b (the fix commit
-        changes only test files), `next build` + `next start -p 3010`
+after:  this branch at 12bda432, `next build` + `next start -p 3010`
 build env: CI's placeholders (PI_CEO_URL=http://127.0.0.1:7777, PI_CEO_PASSWORD=ci-build-stub,
         NEXT_PUBLIC_SUPABASE_URL=https://stub.supabase.co); every /api/ read is routed by the spec.
 command: BOARDS_BEFORE_URL=http://127.0.0.1:3011 BOARDS_AFTER_URL=http://127.0.0.1:3010 \
@@ -15,3 +14,7 @@ every one to read as live through this branch's own feed readers.
 Positive control: with the old model-fabric body (no models_available/fallbacks/strengthened)
 restored, `-g "/control/model$"` exits 1 with "/control/model: screenshots differ". So A6 does
 catch a body this branch rejects. The body was then restored byte-identical (cmp).
+
+The 10:52Z run is the second full run at 12bda432. The first full run at 12bda432 passed 20 of 21:
+/control/model differed by 56 PNG bytes with no visible change, then passed 3 of 3 on its own and
+in the full second run. Recorded here, not hidden.
