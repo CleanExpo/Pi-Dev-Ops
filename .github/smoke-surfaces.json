@@ -163,6 +163,17 @@
       "_comment": "Live Wall slice 1 (docs/briefs/live-wall-v1.md): the wall snapshot sits under the /api/mesh-fleet prefix in PROTECTED_API_PREFIXES, so an anonymous caller is refused before the handler attaches X-Pi-CEO-Secret."
     },
     {
+      "name": "api-mesh-fleet-lanes-unauth",
+      "path": "/api/mesh-fleet/lanes",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "body_contains": [
+        "Unauthorised"
+      ],
+      "_comment": "Claude lanes board module BFF (dashboard/app/api/mesh-fleet/lanes/route.ts). It sits under the /api/mesh-fleet prefix in PROTECTED_API_PREFIXES, so an anonymous caller is refused before the handler attaches X-Pi-CEO-Secret. No authenticated probe: before lanes report (or before mesh_lane_events exists) the route answers 503 unavailable by design, so one expected_status would lie on one of the two deploys. Projection and failure shapes are covered offline by __tests__/mesh-lanes.test.ts."
+    },
+    {
       "name": "cc-wall-redirect",
       "path": "/command-centre/wall",
       "method": "GET",

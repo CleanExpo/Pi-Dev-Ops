@@ -179,3 +179,11 @@ def test_a_broken_read_is_502_not_empty(lane, status, body):
     client, _, state = lane
     state["get_status"], state["get_body"] = status, body
     assert client.get("/api/mesh/lane-events", headers=HDR).status_code == 502
+
+
+def test_newest_reads_latest_first_and_cursor_is_the_max_id(lane):
+    client, calls, state = lane
+    state["get_body"] = json.dumps([{"id": 30}, {"id": 29}])
+    r = client.get("/api/mesh/lane-events?newest=true&limit=2", headers=HDR)
+    assert r.status_code == 200 and r.json()["cursor"] == 30
+    assert "order=id.desc" in calls[0][1] and "limit=2" in calls[0][1]

@@ -136,6 +136,7 @@ def post_lane_events(
 def get_lane_events(
     after_id: int = Query(0, ge=0),
     limit: int = Query(200, ge=1, le=MAX_READ),
+    newest: bool = Query(False),
     x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
     """Events with id > after_id, oldest first. `cursor` is the id to pass next.
@@ -144,7 +145,10 @@ def get_lane_events(
     not read" must not look the same (RA-7392's lesson in mesh_fleet.py).
     """
     mesh_fleet_auth.check(x_pi_ceo_secret)
-    status, body = _sb("GET", f"mesh_lane_events?id=gt.{after_id}&order=id.asc&limit={limit}")
+    # newest=true: the latest `limit` events, newest first (the Mission Control
+    # lanes view). Otherwise a cursor read, oldest first after `after_id`.
+    order = "id.desc" if newest else "id.asc"
+    status, body = _sb("GET", f"mesh_lane_events?id=gt.{after_id}&order={order}&limit={limit}")
     if status >= 300:
         raise HTTPException(502, f"lane-events read failed ({status})")
     try:
@@ -153,5 +157,5 @@ def get_lane_events(
         raise HTTPException(502, "lane-events read returned non-JSON") from exc
     if not isinstance(rows, list):
         raise HTTPException(502, "lane-events read returned an error object")
-    cursor = rows[-1]["id"] if rows else after_id
+    cursor = max((r["id"] for r in rows), default=after_id)
     return {"events": rows, "cursor": cursor}
