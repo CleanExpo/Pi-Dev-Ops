@@ -50,6 +50,11 @@ export async function readModelFabric(signal: AbortSignal): Promise<FeedRead<Fab
     return { kind: "unreachable", value: { enabled: false, healthy: false, error }, reason: error, httpStatus: r.status };
   }
   const body = (record(r.body) ?? {}) as FabricStatus;
+  // A 200 without the two flags the panel reads would render as "DISABLED" with zero metrics.
+  if (r.ok && !body.error && (typeof body.enabled !== "boolean" || typeof body.healthy !== "boolean")) {
+    const error = "invalid model-fabric status payload";
+    return { kind: "unreachable", value: { enabled: false, healthy: false, error }, reason: error, httpStatus: r.status };
+  }
   // A non-2xx without an `error` field would otherwise render as "DISABLED" (ModelFabricPanel).
   if (!r.ok && !body.error) body.error = `HTTP ${r.status}`;
   return r.ok && !body.error
@@ -57,12 +62,19 @@ export async function readModelFabric(signal: AbortSignal): Promise<FeedRead<Fab
     : { kind: "unreachable", value: body, reason: body.error ?? `HTTP ${r.status}`, httpStatus: r.status };
 }
 
+const SWARM_STATES = new Set<unknown>(["SHADOW", "ACTIVE", "RATE_LIMITED", "OFF", "UNKNOWN"]);
+
 export async function readSwarmStatus(signal: AbortSignal): Promise<FeedRead<SwarmValue>> {
   const r = await getJson("/api/swarm-status", signal);
   if (r.error !== undefined) return { kind: "unreachable", value: { data: null, error: r.message ?? r.error }, reason: r.error };
   if (!r.ok) return { kind: "unreachable", value: { data: null, error: `HTTP ${r.status}` }, reason: `HTTP ${r.status}`, httpStatus: r.status };
   const data = record(r.body) as SwarmValue["data"];
   if (!data) return { kind: "unreachable", value: { data: null, error: "invalid JSON from /api/swarm-status" }, reason: "invalid JSON", httpStatus: r.status };
+  // A 200 without a known state is a failed read, never zeroed counters.
+  if (!SWARM_STATES.has(data.state)) {
+    const error = "invalid swarm status payload";
+    return { kind: "unreachable", value: { data: null, error }, reason: error, httpStatus: r.status };
+  }
   // The route's own fallback is 200 with state UNKNOWN: a failed read, shown as the panel always showed it.
   const unknown = data.state === "UNKNOWN";
   return {

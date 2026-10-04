@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 
 import { useBoards } from "@/lib/boards/state";
-import { installFetchTap } from "@/lib/boards/sources";
+import { useFetchTap } from "@/lib/boards/sources";
 import { PRESETS } from "@/lib/boards/presets";
 import { BoardCanvas } from "./BoardCanvas";
 import { BoardHeader } from "./BoardHeader";
@@ -22,7 +22,7 @@ export function BoardsPage() {
   const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => { useBoards.getState().hydrate(); }, []);
-  useEffect(() => installFetchTap(), []);
+  useFetchTap();
 
   const board = s.boards[s.active];
   if (!board) return null;

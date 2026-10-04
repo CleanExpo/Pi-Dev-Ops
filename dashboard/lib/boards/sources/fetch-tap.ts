@@ -11,11 +11,23 @@
 // state of the very response the component rendered. Any other request passes
 // straight through, untouched.
 
+import { useLayoutEffect } from "react";
+
 import { FEEDS } from "./feeds";
 
 export const TAPPED_FEEDS = ["provider-usage", "wiki-graph"] as const;
 
 interface Cached { at: number; status: number; statusText: string; headers: [string, string][]; body: string }
+
+/** A shared wire request is cut off here, so one hung request cannot hold the path for good. */
+export const TAP_TIMEOUT_MS = 10_000;
+
+interface Flight { promise: Promise<Cached>; controller: AbortController; waiters: number }
+
+function callerSignal(input: RequestInfo | URL, init?: RequestInit): AbortSignal | undefined {
+  if (init?.signal) return init.signal;
+  return typeof Request !== "undefined" && input instanceof Request ? input.signal : undefined;
+}
 
 function urlOf(input: RequestInfo | URL): URL | null {
   try {
@@ -52,7 +64,7 @@ export function installFetchTap(): () => void {
       const def = FEEDS.get(id);
       if (def) routes.set(new URL(def.url, window.location.href).href, id);
     }
-    const inflight = new Map<string, Promise<Cached>>();
+    const inflight = new Map<string, Flight>();
     const recent = new Map<string, Cached>();
     window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = urlOf(input);
@@ -61,16 +73,47 @@ export function installFetchTap(): () => void {
       const ttl = (FEEDS.get(feedId)?.intervalMs ?? 0) - 1_000;
       const hit = recent.get(url.href);
       if (hit && Date.now() - hit.at < ttl) return Promise.resolve(rebuild(hit));
-      let pending = inflight.get(url.href);
-      if (!pending) {
-        // The caller's own arguments, minus its abort signal: the read is shared,
-        // so one caller unmounting must not cancel it for the others.
+      let flight = inflight.get(url.href);
+      if (!flight) {
+        // The read is shared, so it runs on its own controller, not any one
+        // caller's signal. It is aborted when the last waiter leaves or at
+        // TAP_TIMEOUT_MS, and leaves the in-flight map either way, even if the
+        // network ignores the abort.
+        const controller = new AbortController();
         const { signal: _signal, ...rest } = init ?? {};
-        pending = real(input, rest).then(snapshot).then((c) => { recent.set(url.href, c); return c; })
-          .finally(() => inflight.delete(url.href));
-        inflight.set(url.href, pending);
+        const timer = setTimeout(() => controller.abort(new DOMException("shared request timed out", "TimeoutError")), TAP_TIMEOUT_MS);
+        const aborted = new Promise<never>((_, reject) => {
+          controller.signal.addEventListener("abort", () => reject(controller.signal.reason), { once: true });
+        });
+        const promise = Promise.race([real(input, { ...rest, signal: controller.signal }), aborted])
+          .then(snapshot).then((c) => { recent.set(url.href, c); return c; })
+          .finally(() => { clearTimeout(timer); if (inflight.get(url.href)?.promise === promise) inflight.delete(url.href); });
+        promise.catch(() => undefined);
+        flight = { promise, controller, waiters: 0 };
+        inflight.set(url.href, flight);
       }
-      return pending.then(rebuild);
+      const shared = flight;
+      const signal = callerSignal(input, init);
+      shared.waiters += 1;
+      return new Promise<Response>((resolve, reject) => {
+        let left = false;
+        const leave = () => {
+          if (left) return false;
+          left = true;
+          signal?.removeEventListener("abort", onAbort);
+          shared.waiters -= 1;
+          return true;
+        };
+        // One caller aborting rejects only its own promise; the last one out cancels the wire request.
+        function onAbort() {
+          if (!leave()) return;
+          if (shared.waiters === 0) shared.controller.abort(signal?.reason);
+          reject(signal?.reason ?? new DOMException("The operation was aborted.", "AbortError"));
+        }
+        if (signal?.aborted) { onAbort(); return; }
+        signal?.addEventListener("abort", onAbort);
+        shared.promise.then((c) => { if (leave()) resolve(rebuild(c)); }, (e) => { if (leave()) reject(e); });
+      });
     };
   }
   return () => {
@@ -80,4 +123,12 @@ export function installFetchTap(): () => void {
       original = null;
     }
   };
+}
+
+/**
+ * Install the tap for a board page. A layout effect runs before any child's
+ * passive effect, so the tap is in place before the modules' first reads.
+ */
+export function useFetchTap(): void {
+  useLayoutEffect(() => installFetchTap(), []);
 }

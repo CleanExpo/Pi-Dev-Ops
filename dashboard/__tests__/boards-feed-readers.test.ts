@@ -75,10 +75,19 @@ describe("model-fabric", () => {
     expect((await readModelFabric(signal)).value.error).toBe("HTTP 502");
   });
   it("network error is unreachable", async () => { fail(); expect((await readModelFabric(signal)).kind).toBe("unreachable"); });
+  it("200 without the flags is unreachable, never DISABLED", async () => {
+    serve({});
+    const r = await readModelFabric(signal);
+    expect([r.kind, r.value.error]).toEqual(["unreachable", "invalid model-fabric status payload"]);
+  });
 });
 
 describe("swarm-status", () => {
   it("a known state is live", async () => { serve({ state: "ACTIVE" }); expect((await readSwarmStatus(signal)).kind).toBe("live"); });
+  it("200 without a known state is unreachable, never zeroed counters", async () => {
+    serve({});
+    expect((await readSwarmStatus(signal)).value).toEqual({ data: null, error: "invalid swarm status payload" });
+  });
   it("the route's 200 UNKNOWN fallback is unreachable", async () => {
     serve({ state: "UNKNOWN", autonomous_prs_today: null });
     expect((await readSwarmStatus(signal)).kind).toBe("unreachable");

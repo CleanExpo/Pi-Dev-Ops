@@ -3,11 +3,10 @@
 // Wall look, locked, no edit controls. Resolves repo presets only until
 // server-side board storage exists (spec §5, §11).
 
-import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { PRESETS, PRESET_IDS } from "@/lib/boards/presets";
-import { installFetchTap } from "@/lib/boards/sources";
+import { useFetchTap } from "@/lib/boards/sources";
 import { BoardCanvas } from "./BoardCanvas";
 import styles from "./kiosk.module.css";
 
@@ -16,7 +15,7 @@ export function KioskBoard() {
   const id = params.get("board") ?? "";
   const machine = params.get("machine");
   const board = PRESETS.get(id);
-  useEffect(() => installFetchTap(), []);
+  useFetchTap();
   return (
     <div className={styles.kiosk} data-board-skin="wall" data-testid="kiosk">
       {board ? (

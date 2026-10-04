@@ -9,7 +9,7 @@ import FleetTile from "@/components/control/FleetTile";
 import KillSwitchPanel from "@/components/control/KillSwitchPanel";
 import { ModuleFrame } from "@/components/boards/ModuleFrame";
 import { ProviderUsageCockpit } from "@/components/command-centre/provider-usage/ProviderUsageCockpit";
-import { installFetchTap } from "@/lib/boards/sources/fetch-tap";
+import { installFetchTap, TAP_TIMEOUT_MS, useFetchTap } from "@/lib/boards/sources/fetch-tap";
 import { useSource } from "@/lib/boards/sources";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -104,6 +104,47 @@ describe("T7 — request-sharing tap", () => {
     expect(usage()).toBe(1);
     await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
     expect(usage()).toBe(3);
+    uninstall();
+  });
+
+  it("installed by a page, the tap is in place before its modules' first reads", async () => {
+    vi.useFakeTimers();
+    const network = vi.fn(async (input: string) => (pathOf(input) === "/api/command-centre/provider-usage" ? json(payload()) : json({})));
+    vi.stubGlobal("fetch", network);
+    function Page() {
+      useFetchTap();
+      return <><ProviderUsageCockpit /><ProviderUsageCockpit /><Shared /></>;
+    }
+    render(<Page />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(network.mock.calls.filter(([u]) => pathOf(u) === "/api/command-centre/provider-usage")).toHaveLength(1);
+  });
+
+  it("a hung shared request is dropped when its last caller aborts, so the next read reaches the network", async () => {
+    const network = vi.fn((_u: string, _i?: RequestInit) => new Promise<Response>(() => {}));
+    vi.stubGlobal("fetch", network);
+    const uninstall = installFetchTap();
+    const caller = new AbortController();
+    const first = window.fetch("/api/command-centre/provider-usage", { signal: caller.signal });
+    caller.abort();
+    await expect(first).rejects.toBeDefined();
+    void window.fetch("/api/command-centre/provider-usage").catch(() => undefined);
+    expect(network).toHaveBeenCalledTimes(2);
+    expect(network.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    uninstall();
+  });
+
+  it("a hung shared request times out and frees the path", async () => {
+    vi.useFakeTimers();
+    const network = vi.fn((_u: string, _i?: RequestInit) => new Promise<Response>(() => {}));
+    vi.stubGlobal("fetch", network);
+    const uninstall = installFetchTap();
+    const first = window.fetch("/api/command-centre/provider-usage");
+    const settled = expect(first).rejects.toBeDefined();
+    await vi.advanceTimersByTimeAsync(TAP_TIMEOUT_MS);
+    await settled;
+    void window.fetch("/api/command-centre/provider-usage").catch(() => undefined);
+    expect(network).toHaveBeenCalledTimes(2);
     uninstall();
   });
 
