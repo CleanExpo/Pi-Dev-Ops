@@ -1,33 +1,14 @@
 // Fleet tile — UNI-2649. Reads the session-gated BFF, never /api/mesh/fleet.
 "use client";
 
-import { useEffect, useState } from "react";
-
 import type { FleetMachine, FleetView } from "@/lib/control/mesh-fleet";
 import { brisbaneDateTime } from "@/lib/brisbane-time";
-
-const POLL_MS = 20_000;
+import { useSource } from "@/lib/boards/sources";
 
 function fmtStamp(value: string | null | undefined): string {
   if (!value) return "never";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : brisbaneDateTime(date);
-}
-
-async function loadFleet(): Promise<FleetView> {
-  try {
-    const res = await fetch("/api/mesh-fleet", { cache: "no-store" });
-    const body = (await res.json().catch(() => null)) as FleetView | null;
-    if (body && body.status === "ok") return body;
-    if (body && body.status === "unavailable") return body;
-  } catch {
-    /* fall through */
-  }
-  return {
-    status: "unavailable",
-    checkedAt: new Date().toISOString(),
-    reason: "fleet read failed",
-  };
 }
 
 function MachineRow({ machine }: { machine: FleetMachine }) {
@@ -50,21 +31,9 @@ function MachineRow({ machine }: { machine: FleetMachine }) {
 }
 
 export default function FleetTile() {
-  const [view, setView] = useState<FleetView | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      const next = await loadFleet();
-      if (!cancelled) setView(next);
-    };
-    void refresh();
-    const timer = setInterval(() => { void refresh(); }, POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
+  // RA-7898: one shared /api/mesh-fleet poller (20 s) for every Fleet on screen.
+  const fleet = useSource<FleetView>("mesh-fleet");
+  const view = fleet.seq > 0 ? fleet.value : null;
 
   return (
     <section

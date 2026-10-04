@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { useState, type ReactNode } from "react";
+import { useSource } from "@/lib/boards/sources";
 import type { MissionControlLive, MCSession } from "@/lib/control/mission-control-live";
 import { latestPipelineForRepo, PATHWAY, stageEvidence, type PipelineSummary } from "@/lib/control/project-pathway";
 import FounderNorthStarReadout from "./FounderNorthStarReadout";
@@ -26,43 +26,23 @@ function matchingSession(project: ProjectHealth, sessions: MCSession[]): MCSessi
 }
 
 export default function PortfolioFocus({ children }: { children?: ReactNode }) {
-  const [projects, setProjects] = useState<ProjectHealth[]>([]);
-  const [live, setLive] = useState<MissionControlLive | null>(null);
-  const [pipelines, setPipelines] = useState<PipelineSummary[]>([]);
-  const [pipelineError, setPipelineError] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [projectError, setProjectError] = useState(false);
-  const [activityError, setActivityError] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    async function refresh() {
-      const [projectResult, liveResult, pipelineResult] = await Promise.allSettled([
-        fetchProxyJSON<ProjectHealth[]>("/api/projects/health", { cache: "no-store" }),
-        fetchProxyJSON<MissionControlLive>("/api/mission-control/live", { cache: "no-store" }),
-        fetchProxyJSON<PipelineSummary[]>("/api/pipelines", { cache: "no-store" }),
-      ]);
-      if (!active) return;
-      const list = projectResult.status === "fulfilled" && Array.isArray(projectResult.value)
-        ? projectResult.value.filter((item) => item && typeof item.project_id === "string" && typeof item.repo === "string")
-        : null;
-      const reading = liveResult.status === "fulfilled" && liveResult.value && !liveResult.value.error
-        ? liveResult.value : null;
-      setProjectError(list === null);
-      setActivityError(reading === null);
-      setProjects(list ?? []);
-      setLive(reading);
-      const pipelineList = pipelineResult.status === "fulfilled" && Array.isArray(pipelineResult.value)
-        ? pipelineResult.value : null;
-      setPipelines(pipelineList ?? []);
-      setPipelineError(pipelineList === null);
-      setLoading(false);
-    }
-    void refresh();
-    const interval = setInterval(() => void refresh(), 30_000);
-    return () => { active = false; clearInterval(interval); };
-  }, []);
+  // RA-7898: three shared pollers — projects/health (30 s), mission-control/live
+  // (5 s) and pipelines (30 s) — each shared with every other reader on screen.
+  const projectSource = useSource<ProjectHealth[]>("projects-health");
+  const liveSource = useSource<MissionControlLive>("mc-live");
+  const pipelineSource = useSource<PipelineSummary[]>("pipelines");
+  const loading = projectSource.seq === 0 || liveSource.seq === 0 || pipelineSource.seq === 0;
+  const list = Array.isArray(projectSource.value)
+    ? projectSource.value.filter((item) => item && typeof item.project_id === "string" && typeof item.repo === "string")
+    : null;
+  const projectError = list === null;
+  const projects = list ?? [];
+  const live = liveSource.value && !liveSource.value.error ? liveSource.value : null;
+  const activityError = live === null;
+  const pipelineList = Array.isArray(pipelineSource.value) ? pipelineSource.value : null;
+  const pipelines = pipelineList ?? [];
+  const pipelineError = pipelineList === null;
 
   const selected = projects.find((project) => project.project_id === selectedId) ?? projects[0];
   const session = selected && live ? matchingSession(selected, live.active_sessions ?? []) : undefined;

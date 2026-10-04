@@ -24,11 +24,11 @@ it("checks 1,000 varied scan states before showing a measured score", () => {
 it("LOADED: separates scan health, observed work, and unverified release stages when switching projects", async () => {
   vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
     ? [
-        { project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist", overall_health: 82, scores: { security: 82 } },
-        { project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 61, scores: { security: 61 } },
+        { project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist", overall_health: 82, scores: { security: 82 }, findings_count: {}, deployments: {} },
+        { project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 61, scores: { security: 61 }, findings_count: {}, deployments: {} },
       ] as never
     : path === "/api/pipelines" ? [] as never
-    : { active_sessions: [{ id: "run-1", repo: "CleanExpo/CARSI", phase: "building", issue_id: "CARSI-1" }] } as never);
+    : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [{ id: "run-1", repo: "CleanExpo/CARSI", phase: "building", issue_id: "CARSI-1" }] } as never);
   render(<PortfolioFocus />);
   await waitFor(() => expect(screen.getByRole("button", { name: /CARSI, work observed/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /CARSI, work observed/ }));
@@ -48,7 +48,7 @@ it("ERROR: fails closed when the project source cannot be read", async () => {
 
 it("EMPTY: an empty project list says the source returned none, not that it is unavailable", async () => {
   vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health" ? [] as never
-    : path === "/api/pipelines" ? [] as never : { active_sessions: [] } as never);
+    : path === "/api/pipelines" ? [] as never : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [] } as never);
   render(<PortfolioFocus />);
   await waitFor(() => expect(screen.getByText("No projects returned by the project health source.")).toBeTruthy());
   expect(screen.queryByText(/Portfolio source unavailable/)).toBeNull();
@@ -56,7 +56,7 @@ it("EMPTY: an empty project list says the source returned none, not that it is u
 
 it("ERROR: labels activity unknown when the live feed fails instead of claiming no active work", async () => {
   vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
-    ? [{ project_id: "CARSI", repo: "CleanExpo/CARSI" }] as never
+    ? [{ project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 100, scores: {}, findings_count: {}, deployments: {} }] as never
     : null);
   render(<PortfolioFocus />);
   await waitFor(() => expect(screen.getByRole("button", { name: /CARSI, activity unknown/ })).toBeTruthy());
@@ -66,9 +66,9 @@ it("ERROR: labels activity unknown when the live feed fails instead of claiming 
 
 it("does not present the scanner's default 100 as a measured score when no scans exist", async () => {
   vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
-    ? [{ project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 100, scores: {} }] as never
+    ? [{ project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 100, scores: {}, findings_count: {}, deployments: {} }] as never
     : path === "/api/pipelines" ? [] as never
-    : { active_sessions: [] } as never);
+    : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [] } as never);
   render(<PortfolioFocus />);
   await waitFor(() => expect(screen.getByRole("button", { name: /CARSI, no active work observed/ })).toBeTruthy());
   expect(screen.getByText("SCAN HEALTH UNKNOWN")).toBeTruthy();
@@ -78,10 +78,10 @@ it("does not present the scanner's default 100 as a measured score when no scans
 
 it("shows completed stages only for a pipeline tied to the selected repository", async () => {
   vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
-    ? [{ project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 61, scores: { security: 61 } }] as never
+    ? [{ project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 61, scores: { security: 61 }, findings_count: {}, deployments: {} }] as never
     : path === "/api/pipelines"
       ? [{ pipeline_id: "CARSI-14", repo_url: "https://github.com/CleanExpo/CARSI.git", current_phase: "test", phases_completed: ["spec", "plan"], updated_at: "2026-09-29T12:00:00Z" }] as never
-      : { active_sessions: [] } as never);
+      : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [] } as never);
   render(<PortfolioFocus />);
   await waitFor(() => expect(screen.getByText(/Latest matched pipeline CARSI-14/)).toBeTruthy());
   expect(screen.getAllByText("completed")).toHaveLength(2);
@@ -91,9 +91,9 @@ it("shows completed stages only for a pipeline tied to the selected repository",
 
 it("shows five founder answers with linked evidence and an honest shipped unknown", async () => {
   vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
-    ? [{ project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist" }] as never
+    ? [{ project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist", overall_health: 100, scores: {}, findings_count: {}, deployments: {} }] as never
     : path === "/api/pipelines" ? [] as never
-    : { ts: new Date().toISOString(), active_sessions: [], queue: { next_issue_id: "RA-42", next_issue_title: "Repair dispatch" },
+    : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], pulse: {}, active_sessions: [], queue: { urgent: 0, high: 0, next_issue_id: "RA-42", next_issue_title: "Repair dispatch" },
         observability: { actions: [] }, idea_pipeline: { awaiting: 1 } } as never);
   render(<PortfolioFocus><div id="idea-pipeline">Idea inbox</div></PortfolioFocus>);
   await waitFor(() => expect(screen.getByRole("heading", { name: "The founder’s five answers" })).toBeTruthy());

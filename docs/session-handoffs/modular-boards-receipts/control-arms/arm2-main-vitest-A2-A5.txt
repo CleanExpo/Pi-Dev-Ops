@@ -1,0 +1,6 @@
+     × A2: two Fleet tiles make one /api/mesh-fleet request per 20 s 69ms
+     × A5: on its own page, a 401 disables Halt and shows the reason 2137ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected "vi.fn()" to be called 1 times, but got 2 times
+Received element is not disabled:
+      Tests  2 failed (2)

@@ -2,20 +2,10 @@
 // RA-1839 — Kill-switch panel embedded after the PR progress block.
 "use client";
 
-import { useEffect, useState } from "react";
 import ProgressRing from "./ProgressRing";
 import KillSwitchPanel from "./KillSwitchPanel";
 import { brisbaneDateTime } from "@/lib/brisbane-time";
-
-interface SwarmStatus {
-  state: "SHADOW" | "ACTIVE" | "RATE_LIMITED" | "OFF" | "UNKNOWN";
-  autonomous_prs_today: number | null;
-  autonomous_prs_limit: number | null;
-  green_merges: number | null;
-  green_merges_target: number | null;
-  last_pr_ts: string | null;
-  last_pr_url: string | null;
-}
+import { useSource, type SwarmStatus, type SwarmValue } from "@/lib/boards/sources";
 
 const STATE_COLOUR: Record<SwarmStatus["state"], string> = {
   ACTIVE: "var(--success)",
@@ -35,46 +25,11 @@ function fmtTs(ts: string | null): string {
 }
 
 export default function SwarmPanel() {
-  const [data, setData] = useState<SwarmStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let pending = false;
-    let controller: AbortController | null = null;
-
-    async function load() {
-      if (pending) return;
-      pending = true;
-      const request = new AbortController();
-      controller = request;
-      const timeout = setTimeout(() => request.abort(), 10_000);
-      try {
-        const res = await fetch("/api/swarm-status", { cache: "no-store", signal: request.signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = (await res.json()) as SwarmStatus;
-        if (!cancelled) {
-          setData(json);
-          setError(null);
-        }
-      } catch (e) {
-        if (!cancelled) { setData(null); setError(e instanceof Error ? e.message : "Failed to load swarm status"); }
-      } finally {
-        clearTimeout(timeout);
-        pending = false;
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    void load();
-    const t = setInterval(() => void load(), 30_000);
-    return () => {
-      cancelled = true;
-      controller?.abort();
-      clearInterval(t);
-    };
-  }, []);
+  // RA-7898: one shared /api/swarm-status poller (30 s, 10 s abort) for every copy on screen.
+  const source = useSource<SwarmValue>("swarm-status");
+  const loading = source.seq === 0;
+  const data = source.value?.data ?? null;
+  const error = source.value?.error ?? null;
 
   const prPct = data && data.autonomous_prs_today !== null && data.autonomous_prs_limit !== null
     ? Math.min(100, Math.round((data.autonomous_prs_today / Math.max(1, data.autonomous_prs_limit)) * 100))

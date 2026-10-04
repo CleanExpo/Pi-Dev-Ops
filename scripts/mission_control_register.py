@@ -8,7 +8,7 @@ Control surface as a defect." Two halves, two receipt checks:
   whose evidence state is CONFLICTING or STRUCTURAL_ONLY fails; a surface with
   no row fails too, since an unlisted surface is undocumented, not clean.
 - 11-tickets reads Linear: open issues (not completed or cancelled) carrying
-  the label `mc-defect`. A ticket names its surfaces as MC-00..MC-19 in its
+  the label `mc-defect`. A ticket names its surfaces as MC-00..MC-20 in its
   title or description. One that names none fails no surface, because it
   cannot be placed; it is listed in each surface's detail and printed as a
   warning so it stays visible until someone names a surface on it.
@@ -37,11 +37,11 @@ from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTER = ROOT / "docs" / "plans" / "mission-control" / "coverage-register.md"
-SURFACES = [f"MC-{n:02d}" for n in range(20)]
+SURFACES = [f"MC-{n:02d}" for n in range(21)]
 LABEL = "mc-defect"
 BAD_STATES = {"CONFLICTING", "STRUCTURAL_ONLY"}
 STATES = ("VERIFIED", "PARTIAL", "STRUCTURAL_ONLY", "CONFLICTING", "UNKNOWN")
-SURFACE_RE = re.compile(r"\bMC-(0\d|1\d)\b")
+SURFACE_RE = re.compile(r"\bMC-(0\d|1\d|20)\b")
 QUERY = """query($label: String!) { issues(first: 100, filter: {
   labels: { name: { eq: $label } }, state: { type: { nin: ["completed", "canceled"] } } }) {
   nodes { identifier title description } } }"""

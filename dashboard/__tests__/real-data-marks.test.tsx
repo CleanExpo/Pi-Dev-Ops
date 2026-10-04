@@ -33,9 +33,12 @@ describe("check 1 markers", () => {
   it("curator: a named proposal is data; the '(unnamed)' fallback is not", async () => {
     stubFetch(() =>
       jsonResponse({
+        total: 2,
+        returned: 2,
+        by_status: { pending: 2 },
         proposals: [
-          { proposal_id: "p1", ts: new Date().toISOString(), proposed_skill_name: "retry-flaky-ci" },
-          { proposal_id: "p2", ts: new Date().toISOString() },
+          { proposal_id: "p1", ts: new Date().toISOString(), status: "pending", proposed_skill_name: "retry-flaky-ci" },
+          { proposal_id: "p2", ts: new Date().toISOString(), status: "pending" },
         ],
       }),
     );
@@ -45,7 +48,7 @@ describe("check 1 markers", () => {
   });
 
   it("curator: empty list is an honest empty state; a failed read is neither", async () => {
-    stubFetch(() => jsonResponse({ proposals: [] }));
+    stubFetch(() => jsonResponse({ total: 0, returned: 0, proposals: [], by_status: {} }));
     render(<CuratorProposalsPanel />);
     await screen.findByText(/No pending proposals/);
     expect(marks("data-mc-empty")).toHaveLength(1);

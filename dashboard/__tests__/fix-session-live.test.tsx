@@ -33,7 +33,7 @@ describe("fix session completion evidence", () => {
 
   it.each(["blocked", "stalled", "interrupted", "error", "failed", "killed"])(
     "surfaces %s from authoritative session state and preserves it on stream loss", async (status) => {
-      vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, headers: new Headers(), json: async () => [{ id: "test-session", status }] })));
+      vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, headers: new Headers(), json: async () => [{ id: "test-session", repo: "https://github.com/x/y", status, started: 1 }] })));
       await mount();
       expect(screen.getByText(`Session ended: ${status}`, { exact: false })).toBeInTheDocument();
       act(() => MockEventSource.latest.onerror?.());
@@ -43,7 +43,7 @@ describe("fix session completion evidence", () => {
   );
 
   it("shows reported completion only after a session status response", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, headers: new Headers(), json: async () => [{ id: "test-session", status: "complete" }] })));
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, headers: new Headers(), json: async () => [{ id: "test-session", repo: "https://github.com/x/y", status: "complete", started: 1 }] })));
     await mount();
     expect(screen.getByText("Reported complete", { exact: true })).toBeInTheDocument();
   });

@@ -47,6 +47,14 @@ describe("KillSwitchPanel", () => {
     expect(screen.getByRole("button", { name: "Halt swarm" })).toBeTruthy();
   });
 
+  it.each([500, 401])("ERROR: a %i with an empty body is UNKNOWN, not DISABLED", async (status) => {
+    serve({}, status);
+    render(<KillSwitchPanel />);
+    expect(await screen.findByText("UNKNOWN")).toBeTruthy();
+    expect(screen.queryByText("DISABLED")).toBeNull();
+    expect(screen.getByRole("button", { name: "Halt swarm" })).toBeTruthy();
+  });
+
   it("ERROR: an upstream failure is UNKNOWN, not DISABLED with invented zeros", async () => {
     serve(quiet("upstream unreachable"));
     render(<KillSwitchPanel />);

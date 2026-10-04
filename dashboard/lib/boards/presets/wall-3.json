@@ -1,0 +1,46 @@
+{
+  "name": "Wall \u00b7 screen 3",
+  "skin": "wall",
+  "items": [
+    {
+      "id": "portfolio-w3",
+      "module": "portfolio",
+      "view": "focus"
+    },
+    {
+      "id": "clock-w3",
+      "module": "clock",
+      "view": "analog"
+    },
+    {
+      "id": "health-w3",
+      "module": "health",
+      "view": "grid"
+    }
+  ],
+  "layouts": {
+    "lg": [
+      {
+        "i": "portfolio-w3",
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 12
+      },
+      {
+        "i": "clock-w3",
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      {
+        "i": "health-w3",
+        "x": 8,
+        "y": 4,
+        "w": 4,
+        "h": 9
+      }
+    ]
+  }
+}

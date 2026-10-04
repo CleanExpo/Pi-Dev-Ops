@@ -1,68 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import ModelBadge from "./ModelBadge";
+import { useSource, type FabricStatus as SharedFabricStatus } from "@/lib/boards/sources";
 
-type Lane = { model: string; banned: boolean; models?: string[] };
-type LastCall = {
-  ts: number;
-  role: string;
-  lane: string;
-  requested_model: string;
-  served_model: string;
-  provider: string;
-  latency_ms: number;
-  ok: boolean;
-  attempts: string[];
-  strengthened?: boolean;
-  error?: string | null;
-};
-type FabricStatus = {
-  enabled: boolean;
-  healthy: boolean;
-  base_url?: string;
-  allowed_roles?: string[];
-  lanes?: Record<string, Lane>;
-  strength_model?: string;
-  models_available?: number;
-  last_call?: LastCall | null;
-  totals?: { calls: number; failures: number; fallbacks?: number; strengthened?: number };
-  blocked?: string[];
-  error?: string | null;
-};
+type FabricStatus = SharedFabricStatus;
 
 function dot(ok: boolean): string {
   return ok ? "●" : "○";
 }
 
 export default function ModelFabricPanel() {
-  const [data, setData] = useState<FabricStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await fetch("/api/model-fabric", { cache: "no-store" });
-        const body = (await res.json()) as FabricStatus;
-        // A non-2xx without an `error` field would otherwise render as "DISABLED".
-        if (!res.ok && !body.error) body.error = `HTTP ${res.status}`;
-        if (!cancelled) setData(body);
-      } catch (error) {
-        if (!cancelled) {
-          setData({ enabled: false, healthy: false, error: error instanceof Error ? error.message : "Unavailable" });
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    const timer = setInterval(() => void load(), 15_000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
+  // RA-7898: one shared /api/model-fabric poller (15 s) for every copy on screen.
+  const source = useSource<FabricStatus>("model-fabric");
+  const loading = source.seq === 0;
+  const data = source.seq > 0 ? source.value : null;
 
   const failureRate = useMemo(() => {
     const calls = data?.totals?.calls ?? 0;

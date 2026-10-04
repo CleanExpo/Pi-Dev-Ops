@@ -1,0 +1,81 @@
+/* RA-7898 — board chrome. Colours come only from --board-* tokens
+ * (app/globals.css, [data-board-skin]); no literal colours here. */
+
+.card {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--board-card);
+  border: 1px solid var(--board-line);
+  border-radius: var(--board-radius);
+  box-shadow: var(--board-shadow);
+  color: var(--board-ink);
+  font-size: calc(13px * var(--board-scale));
+}
+.editing .card { outline: 1px dashed var(--board-line-2); outline-offset: 3px; }
+.head { display: flex; align-items: flex-start; gap: 8px; padding: 14px 10px 4px 16px; }
+.titles { flex: 1; min-width: 0; }
+.editing .titles { cursor: grab; }
+.kicker {
+  display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap;
+  font-size: calc(10.5px * var(--board-scale)); font-weight: 500; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--board-ink-3);
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--board-idle); }
+.dot[data-tone="live"] { background: var(--board-ok); }
+.dot[data-tone="stale"] { background: var(--board-warn); }
+.dot[data-tone="unreachable"] { background: var(--board-bad); }
+.dot[data-tone="no_source"] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--board-idle); }
+.dot[data-tone="loading"] { background: var(--board-line-2); }
+.title {
+  margin: 3px 0 0; font-size: calc(14px * var(--board-scale)); font-weight: 500;
+  color: var(--board-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fresh { margin-top: 2px; font-size: calc(11px * var(--board-scale)); color: var(--board-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.menuBtn {
+  width: 28px; height: 28px; flex: none; border: 0; border-radius: 7px; background: transparent;
+  color: var(--board-ink-3); cursor: pointer; display: grid; place-items: center; font-size: 17px; line-height: 1;
+}
+.menuBtn:hover, .menuBtn[aria-expanded="true"] { background: var(--board-hover); color: var(--board-ink); }
+.body { flex: 1; min-height: 0; overflow: auto; padding: 8px 16px 14px; }
+.panelBody { flex: 1; min-height: 0; overflow: auto; padding: 0 6px 6px; }
+.menu {
+  position: absolute; top: 44px; right: 8px; z-index: 30; width: 240px; padding: 6px;
+  background: var(--board-card); border: 1px solid var(--board-line-2); border-radius: 10px;
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.28); font-size: 13px;
+}
+.menu h4 {
+  margin: 4px 8px 6px; font-size: 10.5px; font-weight: 500; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--board-ink-3);
+}
+.menu button {
+  width: 100%; height: 30px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent;
+  color: var(--board-ink); cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+  text-align: left; font: inherit;
+}
+.menu button:hover { background: var(--board-hover); }
+.menu button[aria-checked="true"]::after { content: "✓"; color: var(--board-accent); font-weight: 600; }
+.sep { height: 1px; margin: 6px 4px; background: var(--board-line); }
+.src { padding: 4px 8px 6px; font-size: 11.5px; color: var(--board-ink-3); word-break: break-all; }
+.src code { font-family: var(--font-mono, ui-monospace, monospace); }
+.danger { color: var(--board-bad) !important; }
+.viewStrip { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px 10px; }
+.viewStrip button {
+  height: 24px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--board-line-2);
+  background: transparent; color: var(--board-ink-2); cursor: pointer; font-size: 11.5px;
+}
+.viewStrip button[aria-pressed="true"] { background: var(--board-ink); color: var(--board-card); border-color: var(--board-ink); }
+.state {
+  height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 6px;
+  color: var(--board-ink-2); font-size: calc(13px * var(--board-scale)); line-height: 1.5;
+}
+.state strong { color: var(--board-ink); font-weight: 500; }
+.banner {
+  margin: 4px 12px 8px; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.45;
+  background: var(--board-idle-soft); color: var(--board-ink-2);
+}
+.banner[data-tone="unreachable"] { background: var(--board-bad-soft); color: var(--board-bad); }
+.banner[data-tone="stale"] { background: var(--board-warn-soft); color: var(--board-warn); }
+.unknown { background: var(--board-sunk); border-style: dashed; }

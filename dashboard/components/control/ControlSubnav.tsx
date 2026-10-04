@@ -25,6 +25,15 @@ export default function ControlSubnav() {
           </Link>
         );
       })}
+      {/* RA-7898: boards have their own link and are not a CONTROL_SECTIONS entry. */}
+      <Link
+        href="/control/boards"
+        aria-current={path.startsWith("/control/boards") ? "page" : undefined}
+        title="Your own boards of modules"
+        className={`${styles.tab} ${path.startsWith("/control/boards") ? styles.tabActive : ""}`}
+      >
+        Boards
+      </Link>
     </nav>
   );
 }
