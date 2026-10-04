@@ -23,7 +23,6 @@ from fastapi import APIRouter, Depends
 from .. import autonomy
 from ..auth import require_auth
 from ..autonomy_eligibility import filter_claimable_issues, queue_snapshot_from_issues
-from ..claude_session_hud import claude_session_hud as _claude_session_hud
 from ..idea_pipeline import daily_snapshot as _idea_pipeline_snapshot
 from ..nexus_one.status import status_payload_for_app
 from ..ticket_sweeper import status_snapshot as _ticket_sweeper_snapshot
@@ -252,7 +251,6 @@ async def mission_control_live() -> dict:
         "queue": queue,
         "pulse": pulse,
         "observability": await _observability_snapshot(),
-        "claude_hud": _claude_session_hud(),
         "idea_pipeline": _idea_pipeline_snapshot(_repo_root()),
         "nexus_one": _nexus_one_status(),
         "ticket_sweeper": _ticket_sweeper_snapshot(),

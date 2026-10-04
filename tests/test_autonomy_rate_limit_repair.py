@@ -195,7 +195,6 @@ def test_live_route_does_not_block_event_loop(monkeypatch):
     monkeypatch.setattr(mission_control, "_active_sessions", lambda: [])
     monkeypatch.setattr(mission_control, "_recent_completions", lambda: [])
     monkeypatch.setattr(mission_control, "_pulse_status", lambda: {})
-    monkeypatch.setattr(mission_control, "_claude_session_hud", lambda: {})
     monkeypatch.setattr(mission_control, "_idea_pipeline_snapshot", lambda *_args: {})
     monkeypatch.setattr(mission_control, "_nexus_one_status", lambda: {})
     async def observability():

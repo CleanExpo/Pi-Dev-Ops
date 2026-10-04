@@ -11,7 +11,6 @@
 import { useEffect, useState } from "react";
 
 import ThroughputSparkline from "./ThroughputSparkline";
-import ClaudeSessionsHUD, { type ClaudeHud } from "./ClaudeSessionsHUD";
 import { LiveDot, PhasePill } from "./LiveFeedMarks";
 import LiveWatchLinks from "./LiveWatchLinks";
 import { useSource } from "@/lib/boards/sources";
@@ -21,7 +20,7 @@ import { asWatchInput, idleSessionsNote, watchBuildsHref, watchLoopHref, watchSw
 
 // Backend key is `hourly` (mission_control.py). Types live in
 // mission-control-live.ts so a rename on one side fails the UNI-2647 fixture.
-type LiveData = MissionControlLive & { ts: string; claude_hud?: ClaudeHud };
+type LiveData = MissionControlLive & { ts: string };
 
 export default function LiveActivityFeed() {
   const [data, setData] = useState<LiveData | null>(null);
@@ -96,7 +95,6 @@ export default function LiveActivityFeed() {
       {/* Stats grid */}
       {data && (
         <>
-          <ClaudeSessionsHUD data={data.claude_hud} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-b border-slate-800">
             {/* Throughput */}
             <div>

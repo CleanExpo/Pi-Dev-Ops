@@ -135,7 +135,6 @@ def test_mission_control_live_includes_fail_closed_nexus_one(monkeypatch):
     monkeypatch.setattr(mission_control, "_recent_completions", lambda: [])
     monkeypatch.setattr(mission_control, "_queue_snapshot", lambda: {})
     monkeypatch.setattr(mission_control, "_pulse_status", lambda: {})
-    monkeypatch.setattr(mission_control, "_claude_session_hud", lambda: {})
 
     async def _obs() -> dict:
         return {"source": "test", "ok": False}

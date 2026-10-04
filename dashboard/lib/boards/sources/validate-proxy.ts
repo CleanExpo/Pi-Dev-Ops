@@ -42,14 +42,6 @@ const isAction = (a: Row) => optText(a.component) && optText(a.status) && optBoo
 const isObservability = (o: Row) => optText(o.source) && optBool(o.ok) && optBool(o.fully_observed)
   && optTextList(o.red_components) && optTextList(o.degraded_components)
   && (o.actions === undefined || rows(o.actions, isAction));
-const isHudSession = (s: Row) => isText(s.session_id) && optText(s.project) && optText(s.stage)
-  && optNum(s.pct) && optNum(s.used_tokens) && optNum(s.window) && isNum(s.age_s);
-const isHud = (h: Row) => {
-  const counts = record(h.counts);
-  return isBool(h.available) && optText(h.reason) && isText(h.checked_dir) && rows(h.sessions, isHudSession)
-    && counts !== null && isNum(counts.live) && isNum(counts.handoff) && isNum(counts.hard);
-};
-
 /** mission-control/live: routes/mission_control.py always sends the first six. */
 export function isMissionControlLive(b: Row): boolean {
   const throughput = record(b.throughput);
@@ -57,7 +49,7 @@ export function isMissionControlLive(b: Row): boolean {
     && rows(b.active_sessions, isSession) && rows(b.recent_completions, isCompletion)
     && optRecord(b.queue, isQueue) && b.queue !== undefined && b.queue !== null
     && optRecord(b.pulse, isPulse) && b.pulse !== undefined && b.pulse !== null
-    && optRecord(b.observability, isObservability) && optRecord(b.claude_hud, isHud);
+    && optRecord(b.observability, isObservability);
 }
 
 /**

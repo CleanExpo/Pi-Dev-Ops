@@ -46,8 +46,7 @@ def test_read_refreshes_after_the_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
 def _stub_live_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in ("_hourly_throughput_24h", "_active_sessions", "_recent_completions"):
         monkeypatch.setattr(mission_control, name, lambda: [])
-    for name in ("_claude_session_hud", "_nexus_one_status"):
-        monkeypatch.setattr(mission_control, name, lambda: {})
+    monkeypatch.setattr(mission_control, "_nexus_one_status", lambda: {})
     monkeypatch.setattr(mission_control, "_idea_pipeline_snapshot", lambda *_: {})
     monkeypatch.setattr(mission_control, "_pulse_status", lambda: {})
     async def observability() -> dict:
