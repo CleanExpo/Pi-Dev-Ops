@@ -52,7 +52,7 @@ export function BoardsPage() {
         {confirmReset && (
           <div className={styles.editBar} role="alertdialog" aria-label="Confirm reset">
             <span>{PRESETS.has(s.active) ? "Put this board back to its starting layout? Your changes to it are replaced." : "Remove every card from this board?"}</span>
-            <button type="button" className={styles.btn} onClick={() => { s.reset(); setConfirmReset(false); say(s.undo?.what ?? "Done.", false, true); }}>
+            <button type="button" className={styles.btn} onClick={() => { s.reset(); setConfirmReset(false); say(useBoards.getState().undo?.what ?? "Done.", false, true); }}>
               {PRESETS.has(s.active) ? "Reset board" : "Clear board"}
             </button>
             <button type="button" className={styles.ghost} onClick={() => setConfirmReset(false)}>Cancel</button>
