@@ -1,0 +1,17 @@
+RA-7898 A6 re-run, 2026-10-04 ~10:05Z (review round 19, finding P1-A6-FIXTURES).
+
+before: main b4bb532de403bc80b4406406ed96f7d1ae2bcf00, `next build` + `next start -p 3011`
+after:  this branch, app code as at e36da3fba7052665007e5e118849ee87d92b501b (the fix commit
+        changes only test files), `next build` + `next start -p 3010`
+build env: CI's placeholders (PI_CEO_URL=http://127.0.0.1:7777, PI_CEO_PASSWORD=ci-build-stub,
+        NEXT_PUBLIC_SUPABASE_URL=https://stub.supabase.co); every /api/ read is routed by the spec.
+command: BOARDS_BEFORE_URL=http://127.0.0.1:3011 BOARDS_AFTER_URL=http://127.0.0.1:3010 \
+         npx playwright test e2e/boards-unchanged.spec.ts
+result:  21 passed; every page identical_pixels=true (A6-results.json).
+
+Routed bodies now come from e2e/a6-feeds.ts, and __tests__/boards-a6-feeds.test.ts requires
+every one to read as live through this branch's own feed readers.
+
+Positive control: with the old model-fabric body (no models_available/fallbacks/strengthened)
+restored, `-g "/control/model$"` exits 1 with "/control/model: screenshots differ". So A6 does
+catch a body this branch rejects. The body was then restored byte-identical (cmp).
