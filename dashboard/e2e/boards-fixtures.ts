@@ -17,7 +17,7 @@ export function healthyResponses(): Record<string, () => unknown> {
       ] },
       stations: ["Capture", "Shape", "Contract", "Build", "Prove", "Ship", "Learn"].map((name) => ({
         id: name.toLowerCase(), name, chip: "GREY", reason: "NO LIVE SOURCE YET" })) }),
-    "/api/model-fabric": () => ({ enabled: true, healthy: true, totals: { calls: 1840, failures: 12, fallbacks: 31, strengthened: 4 },
+    "/api/model-fabric": () => ({ enabled: true, healthy: true, models_available: 12, totals: { calls: 1840, failures: 12, fallbacks: 31, strengthened: 4 },
       lanes: { generator: { model: "sonnet", banned: false }, reviewer: { model: "minimax-m3", banned: false }, paid: { model: "api", banned: true } } }),
     "/api/swarm-status": () => ({ state: "SHADOW", autonomous_prs_today: 1, autonomous_prs_limit: 3, green_merges: 4,
       green_merges_target: 20, last_pr_ts: null, last_pr_url: null }),

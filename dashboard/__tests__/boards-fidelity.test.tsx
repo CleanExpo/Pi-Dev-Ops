@@ -24,7 +24,7 @@ const iso = (agoS = 0) => new Date(NOW.getTime() - agoS * 1000).toISOString();
 
 const RESPONSES: Record<string, unknown> = {
   "/api/mesh-fleet": { status: "ok", checkedAt: iso(), machines: [{ host: "desk", revision: "abc", lastHeartbeat: iso(8), currentClaim: "RA-1", stale: false }] },
-  "/api/model-fabric": { enabled: true, healthy: true, totals: { calls: 10, failures: 1 }, lanes: { review: { model: "m3", banned: false } } },
+  "/api/model-fabric": { enabled: true, healthy: true, models_available: 3, totals: { calls: 10, failures: 1, fallbacks: 0, strengthened: 0 }, lanes: { review: { model: "m3", banned: false } } },
   "/api/swarm-status": { state: "SHADOW", autonomous_prs_today: 1, autonomous_prs_limit: 3, green_merges: 4, green_merges_target: 20, last_pr_ts: null, last_pr_url: null },
   "/api/kill-switch": { swarm_enabled_env: true, kill_switch_active: false, escalation_lock_active: false, panic_count_last_hour: 0, approver_allowlist: ["a", "b"], approver_totp_configured: ["a"] },
   "/api/curator-proposals": { total: 1, returned: 1, by_status: { pending: 1 }, proposals: [{ proposal_id: "p", ts: iso(60), status: "pending", proposed_skill_name: "notes" }] },

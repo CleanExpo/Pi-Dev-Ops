@@ -33,6 +33,14 @@ const MC_LIVE = {
   ts: "2026-10-03T00:00:00Z", throughput: { hourly: [] }, active_sessions: [], recent_completions: [],
   queue: { urgent: 0, high: 0 }, pulse: { last_at: null, comments_today: 0, pulse_issue_id: null },
 };
+const SWARM = {
+  state: "ACTIVE", autonomous_prs_today: 1, autonomous_prs_limit: 3, green_merges: null,
+  green_merges_target: null, last_pr_ts: null, last_pr_url: null,
+};
+const FABRIC = {
+  enabled: true, healthy: true, models_available: 4, lanes: {},
+  totals: { calls: 10, failures: 1, fallbacks: 0, strengthened: 0 },
+};
 const without = (body: Record<string, unknown>, key: string) => Object.fromEntries(Object.entries(body).filter(([k]) => k !== key));
 
 describe("mesh-fleet", () => {
@@ -45,6 +53,11 @@ describe("mesh-fleet", () => {
     serve({ status: "ok", checkedAt: "2026-10-04T00:00:00Z", machines: [] }, 503);
     const r = await readMeshFleet(signal);
     expect([r.kind, r.value.status]).toEqual(["unreachable", "unavailable"]);
+  });
+  it.each([["no host", { stale: false, revision: null, lastHeartbeat: null, currentClaim: null }],
+    ["an object claim", { host: "mini", stale: false, revision: null, lastHeartbeat: null, currentClaim: {} }]])("a machine row with %s is unreachable", async (_k, row) => {
+    serve({ status: "ok", checkedAt: "2026-10-04T00:00:00Z", machines: [row] });
+    expect((await readMeshFleet(signal)).kind).toBe("unreachable");
   });
   it("a 200 ok without checkedAt is unreachable", async () => {
     serve({ status: "ok", machines: [] });
@@ -94,6 +107,14 @@ describe("wall", () => {
     serve({ generated_at: "2026-10-03T00:00:00Z", fleet: { status: "ok", reason: "", others: [] }, stations: [], banner: { red: 0, grey: 0 } });
     expect((await readWall(signal)).kind).toBe("unreachable");
   });
+  it("a station without a name is unreachable", async () => {
+    serve({ generated_at: "2026-10-03T00:00:00Z", fleet: { status: "ok", reason: "", machines: [], others: [] }, stations: [{ id: "s", chip: "GREEN", reason: "" }], banner: { red: 0, grey: 0 } });
+    expect((await readWall(signal)).kind).toBe("unreachable");
+  });
+  it("a wall machine without a chip is unreachable", async () => {
+    serve({ generated_at: "2026-10-03T00:00:00Z", fleet: { status: "ok", reason: "", machines: [{ host: "mini", reason: "", agents: [] }], others: [] }, stations: [], banner: { red: 0, grey: 0 } });
+    expect((await readWall(signal)).kind).toBe("unreachable");
+  });
   it("fleet broken with a non-text reason drops the body", async () => {
     serve({ generated_at: "2026-10-03T00:00:00Z", fleet: { status: "broken", reason: {}, machines: [], others: [] }, stations: [], banner: { red: 0, grey: 0 } });
     const r = await readWall(signal);
@@ -108,7 +129,15 @@ describe("wall", () => {
 });
 
 describe("model-fabric", () => {
-  it("200 is live", async () => { serve({ enabled: true, healthy: true }); expect((await readModelFabric(signal)).kind).toBe("live"); });
+  it("200 is live", async () => { serve(FABRIC); expect((await readModelFabric(signal)).kind).toBe("live"); });
+  it.each(Object.keys(FABRIC))("200 without %s is unreachable", async (key) => {
+    serve(without(FABRIC, key));
+    expect((await readModelFabric(signal)).kind).toBe("unreachable");
+  });
+  it.each(Object.keys(FABRIC.totals))("200 without totals.%s is unreachable", async (key) => {
+    serve({ ...FABRIC, totals: without(FABRIC.totals, key) });
+    expect((await readModelFabric(signal)).kind).toBe("unreachable");
+  });
   it("503 is unreachable and keeps the route's error", async () => {
     serve({ enabled: false, healthy: false, error: "Pi-CEO unavailable" }, 503);
     const r = await readModelFabric(signal);
@@ -131,7 +160,15 @@ describe("model-fabric", () => {
 });
 
 describe("swarm-status", () => {
-  it("a known state is live", async () => { serve({ state: "ACTIVE" }); expect((await readSwarmStatus(signal)).kind).toBe("live"); });
+  it("a known state is live", async () => { serve(SWARM); expect((await readSwarmStatus(signal)).kind).toBe("live"); });
+  it.each(Object.keys(SWARM))("200 without %s is unreachable", async (key) => {
+    serve(without(SWARM, key));
+    expect((await readSwarmStatus(signal)).kind).toBe("unreachable");
+  });
+  it.each([["a negative count", { autonomous_prs_today: -1 }], ["a text count", { green_merges: "4" }], ["a numeric url", { last_pr_url: 5 }]])("200 with %s is unreachable", async (_k, patch) => {
+    serve({ ...SWARM, ...patch });
+    expect((await readSwarmStatus(signal)).kind).toBe("unreachable");
+  });
   it("200 without a known state is unreachable, never zeroed counters", async () => {
     serve({});
     expect((await readSwarmStatus(signal)).value).toEqual({ data: null, error: "invalid swarm status payload" });
@@ -222,6 +259,13 @@ describe("wiki-graph", () => {
 
 describe("curator", () => {
   it("200 without error is live", async () => { serve({ proposals: [], by_status: {} }); expect((await readCurator(signal)).kind).toBe("live"); });
+  it("200 without by_status is unreachable", async () => { serve({ proposals: [] }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
+  it("a non-numeric count is unreachable", async () => { serve({ proposals: [], by_status: { pending: "1" } }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
+  it("a row without ts is unreachable", async () => { serve({ proposals: [{ proposal_id: "p" }], by_status: {} }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
+  it("a row with an object field is unreachable", async () => {
+    serve({ proposals: [{ ts: "2026-10-04T00:00:00Z", cluster_summary: {} }], by_status: {} });
+    expect((await readCurator(signal)).kind).toBe("unreachable");
+  });
   it("200 that is not JSON is unreachable, never an empty list", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("not json", { status: 200 })));
     const r = await readCurator(signal);

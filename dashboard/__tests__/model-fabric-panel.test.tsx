@@ -31,7 +31,7 @@ describe("ModelFabricPanel", () => {
           healthy: true,
           models_available: 7,
           lanes: { generator: { model: "sonnet-lane-model-x", banned: false } },
-          totals: { calls: 4, failures: 1, fallbacks: 2 },
+          totals: { calls: 4, failures: 1, fallbacks: 2, strengthened: 0 },
           last_call: {
             ts: 1,
             role: "evaluator",
@@ -59,7 +59,7 @@ describe("ModelFabricPanel", () => {
   it("EMPTY: shows the explicit no-routed-call copy", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => jsonResponse({ enabled: true, healthy: true, lanes: {}, last_call: null })),
+      vi.fn(async () => jsonResponse({ enabled: true, healthy: true, models_available: 0, lanes: {}, last_call: null, totals: { calls: 0, failures: 0, fallbacks: 0, strengthened: 0 } })),
     );
     render(<ModelFabricPanel />);
     expect(
