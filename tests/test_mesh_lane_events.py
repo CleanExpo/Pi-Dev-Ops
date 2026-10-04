@@ -191,10 +191,10 @@ def test_newest_reads_latest_first_and_cursor_is_the_max_id(lane):
 
 def test_mission_control_read_is_session_gated_and_newest_first(lane, monkeypatch):
     """The dashboard's read: session auth (require_auth), never the machine secret."""
-    from fastapi import FastAPI
     from fastapi.testclient import TestClient
-    from app.server.routes import mesh_lane_events as mod
+
     from app.server.auth import require_auth
+    from app.server.routes import mesh_lane_events as mod
     client_no_auth = TestClient(_app_with(mod.mc_router))
     assert client_no_auth.get("/api/mission-control/lane-events").status_code == 401
 

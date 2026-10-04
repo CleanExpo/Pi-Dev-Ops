@@ -32,7 +32,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -68,14 +67,14 @@ class LaneEvent(BaseModel):
     seq: int = Field(ge=0)
     kind: str
     at: str
-    repo: Optional[str] = None
-    model: Optional[str] = None
-    tool: Optional[str] = None
-    ok: Optional[bool] = None
-    ms: Optional[float] = Field(default=None, ge=0)
-    ctx_pct: Optional[float] = Field(default=None, ge=0, le=100)
-    rate_pct: Optional[float] = Field(default=None, ge=0, le=100)
-    cost_usd: Optional[float] = Field(default=None, ge=0)
+    repo: str | None = None
+    model: str | None = None
+    tool: str | None = None
+    ok: bool | None = None
+    ms: float | None = Field(default=None, ge=0)
+    ctx_pct: float | None = Field(default=None, ge=0, le=100)
+    rate_pct: float | None = Field(default=None, ge=0, le=100)
+    cost_usd: float | None = Field(default=None, ge=0)
 
 
 class LaneBatch(BaseModel):
@@ -83,11 +82,11 @@ class LaneBatch(BaseModel):
     events: list[LaneEvent] = Field(default_factory=list)
 
 
-def _match(pattern: re.Pattern, value: Optional[str]) -> Optional[str]:
+def _match(pattern: re.Pattern, value: str | None) -> str | None:
     return value if value is not None and pattern.match(value) else None
 
 
-def _row(host: str, ev: LaneEvent) -> Optional[dict]:
+def _row(host: str, ev: LaneEvent) -> dict | None:
     """The row to store, or None when the event itself is unusable."""
     if ev.kind not in KINDS or not _ID.match(ev.session_id):
         return None
@@ -111,7 +110,7 @@ def _row(host: str, ev: LaneEvent) -> Optional[dict]:
 @router.post("/lane-events")
 def post_lane_events(
     batch: LaneBatch,
-    x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
+    x_pi_ceo_secret: str | None = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
     _mesh._check_secret(x_pi_ceo_secret)
     if len(batch.events) > MAX_BATCH:
@@ -161,7 +160,7 @@ def get_lane_events(
     after_id: int = Query(0, ge=0),
     limit: int = Query(200, ge=1, le=MAX_READ),
     newest: bool = Query(False),
-    x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
+    x_pi_ceo_secret: str | None = Header(default=None, alias="X-Pi-CEO-Secret"),
 ):
     """Machine read (fleet read secret): a cursor read, or newest=true for the latest."""
     mesh_fleet_auth.check(x_pi_ceo_secret)
