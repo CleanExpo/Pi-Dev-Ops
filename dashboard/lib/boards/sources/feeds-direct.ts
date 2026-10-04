@@ -11,26 +11,7 @@ import type {
   CuratorValue, FabricStatus, KillSwitchStatus, ProviderUsageValue, SwarmValue, WikiGraphSummary,
 } from "./shapes";
 import { defineFeed, type FeedDef, type FeedRead } from "./types";
-
-const isText = (v: unknown) => typeof v === "string";
-const isTextOrNull = (v: unknown) => v === null || typeof v === "string";
-const isChip = (v: unknown) => v === "GREEN" || v === "RED" || v === "GREY";
-/** A row field a panel renders as text: absent, null, text or a number - never an object. */
-const isRenderable = (v: unknown) => v === undefined || v === null || typeof v === "string" || typeof v === "number";
-
-const isFleetMachine = (m: unknown) => {
-  const r = record(m);
-  return r !== null && isText(r.host) && typeof r.stale === "boolean"
-    && isTextOrNull(r.revision) && isTextOrNull(r.lastHeartbeat) && isTextOrNull(r.currentClaim);
-};
-const isWallTile = (m: unknown) => {
-  const r = record(m);
-  return r !== null && isText(r.host) && isChip(r.chip) && isText(r.reason) && Array.isArray(r.agents);
-};
-const isStation = (s: unknown) => {
-  const r = record(s);
-  return r !== null && isText(r.id) && isText(r.name) && isChip(r.chip) && isText(r.reason);
-};
+import { isCuratorList, isFabricStatus, isFleetMachines, isKillSwitchStatus, isSwarmStatus, isWallSnapshot } from "./validate";
 
 const FLEET_NOT_CONFIGURED = new Set(["mesh secret not configured", "Pi-CEO URL not configured"]);
 
@@ -40,8 +21,7 @@ export async function readMeshFleet(signal: AbortSignal): Promise<FeedRead<Fleet
   // "ok" counts only with the machine list and clock FleetTile reads.
   // A non-2xx is never shown as a fleet, even with an "ok" body: FleetTile
   // would render its machines (or "No machines enrolled") as fact.
-  if (r.ok && body && body.status === "ok" && typeof body.checkedAt === "string" && Array.isArray(body.machines)
-    && body.machines.every(isFleetMachine)) {
+  if (r.ok && body && body.status === "ok" && typeof body.checkedAt === "string" && isFleetMachines(body.machines)) {
     return { kind: "live", value: body, serverTs: body.checkedAt, httpStatus: r.status };
   }
   if (body && body.status === "unavailable" && typeof body.reason === "string") {
@@ -54,30 +34,14 @@ export async function readMeshFleet(signal: AbortSignal): Promise<FeedRead<Fleet
 
 export async function readWall(signal: AbortSignal): Promise<FeedRead<WallSnapshot | null>> {
   const r = await getJson("/api/mesh-fleet/wall", signal);
-  const body = record(r.body) as WallSnapshot | null;
-  if (!r.ok || !body || !Array.isArray(body.stations) || !body.stations.every(isStation)
-    || (Array.isArray(body.fleet?.machines) && !body.fleet.machines.every(isWallTile))) {
-    return { kind: "unreachable", value: null, reason: r.error ?? `HTTP ${r.status ?? "?"}`, httpStatus: r.status };
-  }
-  const fleet = body.fleet?.status;
-  // A live wall needs its clock and the fleet's machine list.
-  if (fleet === "ok" && (typeof body.generated_at !== "string" || !Array.isArray(body.fleet.machines))) {
-    return { kind: "unreachable", value: null, reason: "invalid wall payload", httpStatus: r.status };
-  }
-  // A failed wall still renders its fleet panel: it needs a text reason and a machine list.
-  if (fleet !== "ok" && (typeof body.fleet?.reason !== "string" || !Array.isArray(body.fleet?.machines))) {
-    return { kind: "unreachable", value: null, reason: "invalid wall payload", httpStatus: r.status };
-  }
+  const body = record(r.body);
+  if (!r.ok || !body) return { kind: "unreachable", value: null, reason: r.error ?? `HTTP ${r.status ?? "?"}`, httpStatus: r.status };
+  // Every field the wall reads, ok or failed: a failed fleet still renders its panel.
+  if (!isWallSnapshot(body)) return { kind: "unreachable", value: null, reason: "invalid wall payload", httpStatus: r.status };
+  const fleet = body.fleet.status;
   if (fleet === "no_source") return { kind: "no_source", value: body, reason: body.fleet.reason, httpStatus: r.status };
-  if (fleet !== "ok") return { kind: "unreachable", value: body, reason: body.fleet?.reason || "wall snapshot has no fleet status", httpStatus: r.status };
+  if (fleet !== "ok") return { kind: "unreachable", value: body, reason: body.fleet.reason || "wall snapshot has no fleet status", httpStatus: r.status };
   return { kind: "live", value: body, serverTs: body.generated_at, httpStatus: r.status };
-}
-
-function isFabricStatus(b: FabricStatus): boolean {
-  const t = b.totals;
-  return typeof b.enabled === "boolean" && typeof b.healthy === "boolean" && Number.isFinite(b.models_available)
-    && record(b.lanes) !== null && record(t) !== null
-    && Number.isFinite(t?.calls) && Number.isFinite(t?.failures) && Number.isFinite(t?.fallbacks) && Number.isFinite(t?.strengthened);
 }
 
 export async function readModelFabric(signal: AbortSignal): Promise<FeedRead<FabricStatus>> {
@@ -104,16 +68,6 @@ export async function readModelFabric(signal: AbortSignal): Promise<FeedRead<Fab
     : { kind: "unreachable", value: body, reason: body.error ?? `HTTP ${r.status}`, httpStatus: r.status };
 }
 
-const SWARM_STATES = new Set<unknown>(["SHADOW", "ACTIVE", "RATE_LIMITED", "OFF", "UNKNOWN"]);
-const countOrNull = (v: unknown) => v === null || (typeof v === "number" && Number.isFinite(v) && v >= 0);
-const textOrNull = (v: unknown) => v === null || typeof v === "string";
-
-function isSwarmStatus(d: NonNullable<SwarmValue["data"]>): boolean {
-  return SWARM_STATES.has(d.state) && countOrNull(d.autonomous_prs_today) && countOrNull(d.autonomous_prs_limit)
-    && countOrNull(d.green_merges) && countOrNull(d.green_merges_target)
-    && textOrNull(d.last_pr_ts) && textOrNull(d.last_pr_url);
-}
-
 export async function readSwarmStatus(signal: AbortSignal): Promise<FeedRead<SwarmValue>> {
   const r = await getJson("/api/swarm-status", signal);
   if (r.error !== undefined) return { kind: "unreachable", value: { data: null, error: r.message ?? r.error }, reason: r.error };
@@ -132,14 +86,6 @@ export async function readSwarmStatus(signal: AbortSignal): Promise<FeedRead<Swa
     kind: unknown ? "unreachable" : "live", value: { data, error: null },
     reason: unknown ? "swarm state unknown" : undefined, httpStatus: r.status,
   };
-}
-
-const isStringList = (v: unknown) => Array.isArray(v) && v.every((x) => typeof x === "string");
-
-function isKillSwitchStatus(b: KillSwitchStatus): boolean {
-  return typeof b.kill_switch_active === "boolean" && typeof b.swarm_enabled_env === "boolean"
-    && typeof b.escalation_lock_active === "boolean" && Number.isFinite(b.panic_count_last_hour)
-    && isStringList(b.approver_allowlist) && isStringList(b.approver_totp_configured);
 }
 
 export const SIGNED_OUT_REASON = "Signed out — sign in again (401)";
@@ -196,17 +142,6 @@ export async function readWikiGraph(signal: AbortSignal): Promise<FeedRead<WikiG
   };
   if (value.source === "unconfigured") return { kind: "no_source", value, reason: value.reason ?? "wiki graph not configured", httpStatus: r.status };
   return { kind: "live", value, httpStatus: r.status };
-}
-
-const PROPOSAL_TEXT_FIELDS = ["proposal_id", "cluster_id", "cluster_summary", "trigger_source", "proposed_skill_name", "draft_id", "evidence_count"] as const;
-
-function isCuratorList(b: CuratorValue): boolean {
-  const counts = record(b.by_status);
-  return Array.isArray(b.proposals) && counts !== null && Object.values(counts).every((n) => Number.isFinite(n))
-    && b.proposals.every((p) => {
-      const row = record(p);
-      return row !== null && isText(row.ts) && PROPOSAL_TEXT_FIELDS.every((k) => isRenderable(row[k]));
-    });
 }
 
 export const CURATOR_URL = "/api/curator-proposals?status=pending&limit=10";

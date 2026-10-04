@@ -1,47 +1,14 @@
 /**
  * RA-7898 T1 — one reader per feed, each failure shape from
- * docs/specs/modular-boards.md §3.3 read to the right state.
+ * docs/specs/modular-boards.md §3.3 read to the right state. Fleet, wall,
+ * model fabric and swarm; the rest are in boards-feed-readers-status.test.ts.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  readCurator, readKillSwitch, readMeshFleet, readModelFabric, readProviderUsage, readSwarmStatus,
-  readWall, readWikiGraph, SIGNED_OUT_REASON,
-} from "@/lib/boards/sources/feeds-direct";
-import { readMissionControlLive, PROXY_FEEDS } from "@/lib/boards/sources/feeds-proxy";
-
-const signal = new AbortController().signal;
-
-function serve(body: unknown, status = 200, headers: Record<string, string> = {}) {
-  const fn = vi.fn(async (_url: string) => new Response(JSON.stringify(body), { status, headers }));
-  vi.stubGlobal("fetch", fn);
-  return fn;
-}
-function fail(message = "network down") {
-  vi.stubGlobal("fetch", vi.fn(async () => { throw new Error(message); }));
-}
+import { readMeshFleet, readModelFabric, readSwarmStatus, readWall } from "@/lib/boards/sources/feeds-direct";
+import { FABRIC, fail, serve, signal, SWARM, without } from "./boards-feed-fixtures";
 
 afterEach(() => vi.unstubAllGlobals());
-
-// Complete payloads, in the shape the backend always sends (routes/swarm.py,
-// routes/mission_control.py). Tests drop one field at a time from these.
-const KILL_SWITCH = {
-  swarm_enabled_env: true, kill_switch_active: false, escalation_lock_active: false,
-  panic_count_last_hour: 0, approver_allowlist: ["a"], approver_totp_configured: ["a"],
-};
-const MC_LIVE = {
-  ts: "2026-10-03T00:00:00Z", throughput: { hourly: [] }, active_sessions: [], recent_completions: [],
-  queue: { urgent: 0, high: 0 }, pulse: { last_at: null, comments_today: 0, pulse_issue_id: null },
-};
-const SWARM = {
-  state: "ACTIVE", autonomous_prs_today: 1, autonomous_prs_limit: 3, green_merges: null,
-  green_merges_target: null, last_pr_ts: null, last_pr_url: null,
-};
-const FABRIC = {
-  enabled: true, healthy: true, models_available: 4, lanes: {},
-  totals: { calls: 10, failures: 1, fallbacks: 0, strengthened: 0 },
-};
-const without = (body: Record<string, unknown>, key: string) => Object.fromEntries(Object.entries(body).filter(([k]) => k !== key));
 
 describe("mesh-fleet", () => {
   it("unavailable with a non-text reason is the fallback value", async () => {
@@ -107,6 +74,27 @@ describe("wall", () => {
     serve({ generated_at: "2026-10-03T00:00:00Z", fleet: { status: "ok", reason: "", others: [] }, stations: [], banner: { red: 0, grey: 0 } });
     expect((await readWall(signal)).kind).toBe("unreachable");
   });
+  const TILE = { host: "mini", chip: "GREEN", reason: "ok", ageSeconds: 3, load1: 0.5, selfReported: true,
+    agents: [{ runtime: "claude", state: "idle", chip: "GREEN", ageSeconds: 3 }] };
+  const wallWith = (machine: unknown, extra: Record<string, unknown> = {}) => ({ ...snap("ok"),
+    fleet: { status: "ok", reason: "", machines: [machine], others: [] }, ...extra });
+  it("a complete wall machine is live", async () => { serve(wallWith(TILE)); expect((await readWall(signal)).kind).toBe("live"); });
+  it.each(["host", "chip", "reason", "ageSeconds", "load1", "agents"])("a wall machine without %s is unreachable", async (key) => {
+    serve(wallWith(without(TILE, key)));
+    expect((await readWall(signal)).kind).toBe("unreachable");
+  });
+  it.each(["runtime", "state", "chip", "ageSeconds"])("an agent without %s is unreachable", async (key) => {
+    serve(wallWith({ ...TILE, agents: [without(TILE.agents[0], key)] }));
+    expect((await readWall(signal)).kind).toBe("unreachable");
+  });
+  it("fleet others that is not a list of names is unreachable", async () => {
+    serve({ ...snap("ok"), fleet: { status: "ok", reason: "", machines: [], others: "x" } });
+    expect((await readWall(signal)).kind).toBe("unreachable");
+  });
+  it("a wall without banner counts is unreachable", async () => {
+    serve({ ...snap("ok"), banner: { red: 0 } });
+    expect((await readWall(signal)).kind).toBe("unreachable");
+  });
   it("a station without a name is unreachable", async () => {
     serve({ generated_at: "2026-10-03T00:00:00Z", fleet: { status: "ok", reason: "", machines: [], others: [] }, stations: [{ id: "s", chip: "GREEN", reason: "" }], banner: { red: 0, grey: 0 } });
     expect((await readWall(signal)).kind).toBe("unreachable");
@@ -134,6 +122,19 @@ describe("model-fabric", () => {
     serve(without(FABRIC, key));
     expect((await readModelFabric(signal)).kind).toBe("unreachable");
   });
+  it("a null lane is unreachable", async () => { serve({ ...FABRIC, lanes: { review: null } }); expect((await readModelFabric(signal)).kind).toBe("unreachable"); });
+  it.each([["model", { banned: false }], ["banned", { model: "m" }]])("a lane without %s is unreachable", async (_k, lane) => {
+    serve({ ...FABRIC, lanes: { review: lane } });
+    expect((await readModelFabric(signal)).kind).toBe("unreachable");
+  });
+  it("a complete last call is live; a partial one is unreachable", async () => {
+    const call = { ts: 1, role: "r", lane: "l", requested_model: "a", served_model: "b", provider: "p", latency_ms: 5, ok: true, attempts: ["a"] };
+    serve({ ...FABRIC, last_call: call });
+    expect((await readModelFabric(signal)).kind).toBe("live");
+    serve({ ...FABRIC, last_call: without(call, "attempts") });
+    expect((await readModelFabric(signal)).kind).toBe("unreachable");
+  });
+  it("blocked that is not a list of names is unreachable", async () => { serve({ ...FABRIC, blocked: [1] }); expect((await readModelFabric(signal)).kind).toBe("unreachable"); });
   it.each(Object.keys(FABRIC.totals))("200 without totals.%s is unreachable", async (key) => {
     serve({ ...FABRIC, totals: without(FABRIC.totals, key) });
     expect((await readModelFabric(signal)).kind).toBe("unreachable");
@@ -184,155 +185,5 @@ describe("swarm-status", () => {
   it("network error carries the exception message", async () => {
     fail("timeout");
     expect((await readSwarmStatus(signal)).value).toEqual({ data: null, error: "timeout" });
-  });
-});
-
-describe("kill-switch", () => {
-  it("200 without error is live", async () => { serve(KILL_SWITCH); expect((await readKillSwitch(signal)).kind).toBe("live"); });
-  it("200 that is not JSON is unreachable, never live {}", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("not json", { status: 200 })));
-    const r = await readKillSwitch(signal);
-    expect([r.kind, r.value]).toEqual(["unreachable", { error: "invalid kill-switch status payload" }]);
-  });
-  it("500 with an empty body carries an error, so the panel shows UNKNOWN", async () => {
-    serve({}, 500);
-    const r = await readKillSwitch(signal);
-    expect([r.kind, r.value.error]).toEqual(["unreachable", "HTTP 500"]);
-  });
-  it("200 missing the flags is unreachable", async () => { serve({}); expect((await readKillSwitch(signal)).kind).toBe("unreachable"); });
-  it.each(Object.keys(KILL_SWITCH))("200 without %s is unreachable", async (key) => {
-    serve(without(KILL_SWITCH, key));
-    expect((await readKillSwitch(signal)).kind).toBe("unreachable");
-  });
-  it("approver lists must hold names", async () => {
-    serve({ ...KILL_SWITCH, approver_allowlist: [{}] });
-    expect((await readKillSwitch(signal)).kind).toBe("unreachable");
-  });
-  it("401 is unreachable with the signed-out reason", async () => {
-    serve({ error: "Unauthorised" }, 401);
-    const r = await readKillSwitch(signal);
-    expect([r.kind, r.reason, r.httpStatus]).toEqual(["unreachable", SIGNED_OUT_REASON, 401]);
-  });
-  it("quiet failure is unreachable", async () => { serve({ error: "upstream unreachable" }); expect((await readKillSwitch(signal)).kind).toBe("unreachable"); });
-  it("not configured is no_source", async () => {
-    serve({ error: "PI_CEO_URL / RAILWAY_URL not configured" });
-    expect((await readKillSwitch(signal)).kind).toBe("no_source");
-  });
-  it("network error keeps String(exc), as the panel showed", async () => {
-    fail(); expect((await readKillSwitch(signal)).value).toEqual({ error: "Error: network down" });
-  });
-});
-
-describe("provider-usage", () => {
-  it("200 is live with generatedAt", async () => {
-    serve({ source: "cc:provider-usage", generatedAt: "2026-10-03T00:00:00Z", summary: {}, providers: [], routing: [] });
-    const r = await readProviderUsage(signal);
-    expect([r.kind, r.serverTs]).toEqual(["live", "2026-10-03T00:00:00Z"]);
-  });
-  it("500 is unreachable", async () => { serve({ error: "Failed to build provider usage" }, 500); expect((await readProviderUsage(signal)).kind).toBe("unreachable"); });
-});
-
-describe("wiki-graph", () => {
-  it("a sourced graph is live", async () => {
-    serve({ pageCount: 3, edgeCount: 2, lastSync: null, source: "supabase" });
-    expect((await readWikiGraph(signal)).kind).toBe("live");
-  });
-  it("source unconfigured is no_source", async () => {
-    serve({ nodes: [], edges: [], pageCount: 0, edgeCount: 0, lastSync: null, source: "unconfigured", reason: "no key" });
-    const r = await readWikiGraph(signal);
-    expect([r.kind, r.reason]).toEqual(["no_source", "no key"]);
-  });
-  it("non-200 is unreachable", async () => { serve({}, 500); expect((await readWikiGraph(signal)).kind).toBe("unreachable"); });
-  it.each([
-    ["pageCount", { edgeCount: 2, source: "supabase" }],
-    ["edgeCount", { pageCount: 3, source: "supabase" }],
-    ["source", { pageCount: 3, edgeCount: 2 }],
-  ])("a 200 without %s is unreachable", async (_f, body) => {
-    serve(body);
-    expect((await readWikiGraph(signal)).kind).toBe("unreachable");
-  });
-  it("a 200 {} is unreachable, never zero pages shown as live", async () => {
-    serve({});
-    expect((await readWikiGraph(signal)).kind).toBe("unreachable");
-  });
-});
-
-describe("curator", () => {
-  it("200 without error is live", async () => { serve({ proposals: [], by_status: {} }); expect((await readCurator(signal)).kind).toBe("live"); });
-  it("200 without by_status is unreachable", async () => { serve({ proposals: [] }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
-  it("a non-numeric count is unreachable", async () => { serve({ proposals: [], by_status: { pending: "1" } }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
-  it("a row without ts is unreachable", async () => { serve({ proposals: [{ proposal_id: "p" }], by_status: {} }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
-  it("a row with an object field is unreachable", async () => {
-    serve({ proposals: [{ ts: "2026-10-04T00:00:00Z", cluster_summary: {} }], by_status: {} });
-    expect((await readCurator(signal)).kind).toBe("unreachable");
-  });
-  it("200 that is not JSON is unreachable, never an empty list", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("not json", { status: 200 })));
-    const r = await readCurator(signal);
-    expect([r.kind, r.value]).toEqual(["unreachable", { error: "invalid curator proposals payload" }]);
-  });
-  it("quiet failure is unreachable", async () => { serve({ error: "upstream unreachable" }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
-  it("not configured is no_source", async () => {
-    serve({ error: "PI_CEO_URL / RAILWAY_URL not configured" });
-    expect((await readCurator(signal)).kind).toBe("no_source");
-  });
-});
-
-describe("Pi-CEO proxy feeds", () => {
-  it.each(PROXY_FEEDS.map((f) => [f.id, f] as const))("%s: the proxy's 200 fallback with X-Upstream-Status is unreachable", async (_id, def) => {
-    serve([], 200, { "X-Upstream-Status": "502" });
-    const r = await def.read(signal);
-    expect([r.kind, r.value]).toEqual(["unreachable", null]);
-  });
-  const good: Record<string, unknown> = {
-    "pi-health": { status: "ok" }, "mc-live": MC_LIVE,
-    "idea-pipeline": { snapshot: {} }, sessions: [], "projects-health": [], pipelines: [],
-  };
-  it.each(PROXY_FEEDS.map((f) => [f.id, f] as const))("%s: a real 200 is live and reads through /api/pi-ceo", async (_id, def) => {
-    const fn = serve(good[def.id]);
-    const r = await def.read(signal);
-    expect(r.kind).toBe("live");
-    // def.url reads "Pi-CEO <path> (proxy)"; the wire URL is the proxy prefix plus that path.
-    const path = def.url.replace(/^Pi-CEO /, "").replace(/ \(proxy\)$/, "");
-    expect(String(fn.mock.calls[0][0])).toBe(`/api/pi-ceo${path}`);
-  });
-  it.each(PROXY_FEEDS.map((f) => [f.id, f] as const))("%s: a malformed 200 is unreachable, never live", async (_id, def) => {
-    serve(def.id === "sessions" || def.id === "projects-health" || def.id === "pipelines" ? {} : []);
-    expect((await def.read(signal)).kind).toBe("unreachable");
-    serve("not a payload");
-    expect((await def.read(signal)).kind).toBe("unreachable");
-  });
-  it("mission-control/live: a non-text error drops the body", async () => {
-    serve({ ...MC_LIVE, error: {} });
-    const r = await readMissionControlLive();
-    expect([r.kind, r.value]).toEqual(["unreachable", null]);
-  });
-  it.each(Object.keys(MC_LIVE))("mission-control/live: a 200 without %s is unreachable", async (key) => {
-    serve(without(MC_LIVE, key));
-    expect((await readMissionControlLive()).kind).toBe("unreachable");
-  });
-  it.each([["queue.urgent", { high: 0 }], ["queue.high", { urgent: 0 }]])("mission-control/live: a 200 without %s is unreachable", async (_k, queue) => {
-    serve({ ...MC_LIVE, queue });
-    expect((await readMissionControlLive()).kind).toBe("unreachable");
-  });
-  it("mission-control/live: a 200 without throughput.hourly is unreachable", async () => {
-    serve({ ...MC_LIVE, throughput: {} });
-    expect((await readMissionControlLive()).kind).toBe("unreachable");
-  });
-  it("mission-control/live: a 200 {} is unreachable", async () => {
-    serve({});
-    expect((await readMissionControlLive()).kind).toBe("unreachable");
-  });
-  it.each(PROXY_FEEDS.map((f) => [f.id, f] as const))("%s: the poller's abort signal reaches fetch", async (_id, def) => {
-    const fn = serve(good[def.id]);
-    const controller = new AbortController();
-    await def.read(controller.signal);
-    expect((fn.mock.calls[0] as unknown[])[1]).toMatchObject({ signal: controller.signal });
-  });
-  it("mission-control/live: a body error is unreachable; ts is the server clock", async () => {
-    serve({ ...MC_LIVE, error: "boom" });
-    expect((await readMissionControlLive()).kind).toBe("unreachable");
-    serve(MC_LIVE);
-    expect((await readMissionControlLive()).serverTs).toBe("2026-10-03T00:00:00Z");
   });
 });
