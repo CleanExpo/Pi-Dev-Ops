@@ -35,9 +35,9 @@ export function healthyResponses(): Record<string, () => unknown> {
       { id: "s-ra7887b", repo: "CleanExpo/Pi-Dev-Ops", status: "complete", started: Date.now() / 1000 - 5400 },
     ],
     "/api/pi-ceo/api/projects/health": () => [
-      { project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist", overall_health: 86, scores: { security: 86 } },
-      { project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 61, scores: { security: 61 } },
-      { project_id: "Synthex", repo: "CleanExpo/Synthex", overall_health: 100, scores: {} },
+      { project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist", overall_health: 86, scores: { security: 86 }, findings_count: {}, deployments: {} },
+      { project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 61, scores: { security: 61 }, findings_count: {}, deployments: {} },
+      { project_id: "Synthex", repo: "CleanExpo/Synthex", overall_health: 100, scores: {}, findings_count: {}, deployments: {} },
     ],
     "/api/pi-ceo/api/mission-control/live": () => ({ ts: iso(), active_sessions: [{ id: "s-ra7912a", repo: "CleanExpo/RestoreAssist", phase: "build", elapsed_s: 840 }],
       recent_completions: [{ id: "s-ra7887b", repo: "CleanExpo/Pi-Dev-Ops", completed_at: iso(1800), score: 9.1 }],

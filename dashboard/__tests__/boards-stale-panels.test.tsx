@@ -49,12 +49,19 @@ describe("a failed read after a live one", () => {
 
   it("HealthGrid drops the old projects", async () => {
     vi.useFakeTimers();
-    const failing = serveThenFail([{ project_id: "ra", repo: "CleanExpo/ra", overall_health: 88 }]);
+    const failing = serveThenFail([{ project_id: "ra", repo: "CleanExpo/ra", overall_health: 88, scores: {}, findings_count: {}, deployments: {} }]);
     render(<HealthGrid />);
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
     expect(screen.getByRole("button", { name: "ra health 88 out of 100" })).toBeTruthy();
     failing.on = true;
     await act(async () => { await vi.advanceTimersByTimeAsync(30_001); });
     expect(screen.queryByRole("button", { name: "ra health 88 out of 100" })).toBeNull();
+  });
+
+  it("HealthGrid shows an error, not a tile, for a partial project row", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json([{ project_id: "ra", repo: "CleanExpo/ra" }])));
+    render(<HealthGrid />);
+    expect(await screen.findByText(/invalid payload/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /ra health/ })).toBeNull();
   });
 });

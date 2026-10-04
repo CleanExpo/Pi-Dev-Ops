@@ -60,10 +60,15 @@ export function isMissionControlLive(b: Row): boolean {
     && optRecord(b.observability, isObservability) && optRecord(b.claude_hud, isHud);
 }
 
-/** projects/health: rows need an id and repo; scores are optional (no scan yet) but typed when present. */
+/**
+ * projects/health: scanner.get_health_summary always sends all six fields; a
+ * project with no scans yet is `scores: {}` and `overall_health: 100`, never
+ * absent fields. HealthGrid averages overall_health and walks scores.
+ */
+const isMap = (v: unknown, check: (x: unknown) => boolean) => v !== undefined && valuesAre(v, check);
 export const isProjectList = (v: unknown) => rows(v, (p) => isText(p.project_id) && isText(p.repo)
-  && optNum(p.overall_health) && valuesAre(p.scores, isNum) && valuesAre(p.findings_count, isNum)
-  && valuesAre(p.deployments, isText));
+  && isNum(p.overall_health) && isMap(p.scores, isNum) && isMap(p.findings_count, isNum)
+  && isMap(p.deployments, isText));
 
 /** pipelines: PipelineSummary rows. */
 export const isPipelineList = (v: unknown) => rows(v, (p) => isText(p.pipeline_id) && isText(p.repo_url)

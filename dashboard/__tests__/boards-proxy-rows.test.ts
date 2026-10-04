@@ -12,7 +12,7 @@ afterEach(() => vi.unstubAllGlobals());
 const read = (id: string) => PROXY_FEEDS.find((f) => f.id === id)!.read(signal);
 const SESSION = { id: "s1", repo: "CleanExpo/RA", phase: "build", status: "running", elapsed_s: 30, issue_id: null };
 const COMPLETION = { id: "c1", repo: "CleanExpo/RA", branch: null, score: 9, pr_url: null, issue_id: null, completed_at: null };
-const PROJECT = { project_id: "RA", repo: "CleanExpo/RA", overall_health: 80, scores: { security: 80 } };
+const PROJECT = { project_id: "RA", repo: "CleanExpo/RA", overall_health: 80, scores: { security: 80 }, findings_count: {}, deployments: {} };
 const PIPELINE = { pipeline_id: "p", repo_url: "https://github.com/x/y", current_phase: "spec", phases_completed: [], updated_at: "2026-10-04T00:00:00Z" };
 const IDEA = { snapshot: { intake: "", north_star: "", awaiting: 0, packet: null, verdicts: [], go_required: true, executed: false } };
 
@@ -40,9 +40,13 @@ describe("mission-control/live rows", () => {
 });
 
 describe("projects/health rows", () => {
-  it("a row with only id and repo is live (no scan yet)", async () => {
-    serve([{ project_id: "RA", repo: "CleanExpo/RA" }]);
+  it("a project with no scans yet (scores {}, health 100) is live", async () => {
+    serve([{ ...PROJECT, overall_health: 100, scores: {} }]);
     expect((await read("projects-health")).kind).toBe("live");
+  });
+  it.each(["overall_health", "scores", "findings_count", "deployments"])("a row without %s is unreachable", async (key) => {
+    serve([without(PROJECT, key)]);
+    expect((await read("projects-health")).kind).toBe("unreachable");
   });
   it("an empty row is unreachable, never a live empty portfolio", async () => {
     serve([{}]);
