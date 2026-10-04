@@ -1,0 +1,70 @@
+{
+  "name": "Wall \u00b7 screen 5",
+  "skin": "wall",
+  "items": [
+    {
+      "id": "swarm-w5",
+      "module": "swarm",
+      "view": "panel"
+    },
+    {
+      "id": "kill-switch-w5",
+      "module": "kill-switch",
+      "view": "panel"
+    },
+    {
+      "id": "kill-switch-w5b",
+      "module": "kill-switch",
+      "view": "detail"
+    },
+    {
+      "id": "curator-w5",
+      "module": "curator",
+      "view": "list"
+    },
+    {
+      "id": "wiki-graph-w5",
+      "module": "wiki-graph",
+      "view": "tile"
+    }
+  ],
+  "layouts": {
+    "lg": [
+      {
+        "i": "swarm-w5",
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 10
+      },
+      {
+        "i": "kill-switch-w5",
+        "x": 4,
+        "y": 0,
+        "w": 3,
+        "h": 6
+      },
+      {
+        "i": "kill-switch-w5b",
+        "x": 4,
+        "y": 6,
+        "w": 3,
+        "h": 5
+      },
+      {
+        "i": "curator-w5",
+        "x": 7,
+        "y": 0,
+        "w": 5,
+        "h": 8
+      },
+      {
+        "i": "wiki-graph-w5",
+        "x": 7,
+        "y": 8,
+        "w": 5,
+        "h": 4
+      }
+    ]
+  }
+}

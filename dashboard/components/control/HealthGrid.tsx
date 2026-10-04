@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Sparkline from "./Sparkline";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { useSource } from "@/lib/boards/sources";
 
 interface ProjectHealth {
   project_id: string;
@@ -79,37 +80,38 @@ export default function HealthGrid() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ProjectHealth | null>(null);
 
-  // Rolling health history buffer: project_id → last 10 scores
-  const historyRef = useRef<Map<string, number[]>>(new Map());
+  // Rolling health history buffer: project_id → last 10 scores. Kept in state
+  // so render reads a value, not a ref (react-hooks/refs).
+  const [history, setHistory] = useState<Map<string, number[]>>(() => new Map());
 
-  const fetchHealth = useCallback(async () => {
-    try {
-      // `[]` from the proxy fallback would read as "no projects" — lib/pi-ceo-fetch.ts.
-      const data = await fetchProxyJSON<ProjectHealth[]>("/api/projects/health");
-      if (!data) throw new Error("Pi-CEO backend unreachable");
-      const arr = Array.isArray(data) ? data : [];
-
-      // Append to rolling history (max 12 samples)
-      arr.forEach((p) => {
-        const prev = historyRef.current.get(p.project_id) ?? [];
-        const next = [...prev, p.overall_health].slice(-12);
-        historyRef.current.set(p.project_id, next);
-      });
-
-      setProjects(arr);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load project health");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // RA-7898: one shared projects/health poller (30 s) for every reader on screen.
+  // `[]` from the proxy fallback would read as "no projects", so a null value
+  // (fallback or failure) is an error, never an empty grid — lib/pi-ceo-fetch.ts.
+  const source = useSource<ProjectHealth[]>("projects-health");
   useEffect(() => {
-    void fetchHealth();
-    const t = setInterval(() => void fetchHealth(), 60_000);
-    return () => clearInterval(t);
-  }, [fetchHealth]);
+    if (source.seq === 0) return;
+    const data = source.value;
+    if (!data) {
+      setError(source.reason ?? "Pi-CEO backend unreachable");
+      setLoading(false);
+      return;
+    }
+    const arr = Array.isArray(data) ? data : [];
+
+    // Append to rolling history (max 12 samples)
+    setHistory((current) => {
+      const updated = new Map(current);
+      arr.forEach((p) => {
+        const prev = updated.get(p.project_id) ?? [];
+        updated.set(p.project_id, [...prev, p.overall_health].slice(-12));
+      });
+      return updated;
+    });
+
+    setProjects(arr);
+    setError(null);
+    setLoading(false);
+  }, [source.seq, source.value, source.reason]);
 
   const avg = projects.length
     ? Math.round(projects.reduce((s, p) => s + p.overall_health, 0) / projects.length)
@@ -169,7 +171,7 @@ export default function HealthGrid() {
         {!loading && !error && projects.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {projects.map((p) => {
-              const history = historyRef.current.get(p.project_id) ?? [p.overall_health];
+              const samples = history.get(p.project_id) ?? [p.overall_health];
               return (
                 <button
                   data-mc-data="project-health"
@@ -206,7 +208,7 @@ export default function HealthGrid() {
                       </span>
                     </div>
                     <Sparkline
-                      data={history}
+                      data={samples}
                       colour={healthColour(p.overall_health)}
                     />
                   </div>
@@ -553,33 +555,22 @@ export function FixSessionLive({
   }, [sessionId]);
 
   // RA-1181 — /api/sessions poller. Source of truth when SSE drops.
+  // RA-7898 (spec N2, delta D2): reads the shared `sessions` feed (15 s)
+  // instead of its own 4 s poll; the EventSource above stays the live surface.
+  const sessions = useSource<PollSession[]>("sessions");
   useEffect(() => {
-    let alive = true;
-    async function poll() {
-      try {
-        const data = await fetchProxyJSON<PollSession[]>("/api/sessions", { cache: "no-store" });
-        if (!data) return;
-        if (!alive) return;
-        const mine = data.find((s) => s.id === sessionId);
-        if (mine) {
-          setPollState(mine);
-          if (mine.status === "complete" || mine.status === "done") setStatus("done");
-          else if (["failed", "killed", "blocked", "stalled", "interrupted", "error"].includes(mine.status)) {
-            setStatus("error");
-            setErr(`Session ended: ${mine.status}`);
-          }
-        }
-      } catch {
-        // Ignore transient errors
+    const data = sessions.value;
+    if (sessions.seq === 0 || !Array.isArray(data)) return;
+    const mine = data.find((s) => s.id === sessionId);
+    if (mine) {
+      setPollState(mine);
+      if (mine.status === "complete" || mine.status === "done") setStatus("done");
+      else if (["failed", "killed", "blocked", "stalled", "interrupted", "error"].includes(mine.status)) {
+        setStatus("error");
+        setErr(`Session ended: ${mine.status}`);
       }
     }
-    void poll();
-    const id = setInterval(poll, 4000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, [sessionId]);
+  }, [sessions.seq, sessions.value, sessionId]);
 
   // Auto-scroll to bottom on new events
   useEffect(() => {

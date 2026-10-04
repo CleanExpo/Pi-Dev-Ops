@@ -171,6 +171,22 @@
       "_comment": "Live Wall kiosk page. /command-centre is a protected page prefix, so unauth 307-redirects to login. The page is client-rendered (it polls /api/mesh-fleet/wall), so its content is founder-verified per RA-1109 rather than body-asserted here."
     },
     {
+      "name": "control-boards-redirect",
+      "path": "/control/boards",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 307,
+      "_comment": "RA-7898: Mission Control boards (components/boards/*). Under the /control protected prefix, so unauth 307-redirects to login. Client-rendered: every module reads an existing GET feed through lib/boards/sources; the page adds no write route. Boards are saved in the browser's localStorage only. Content is founder-verified per RA-1109 and by dashboard/e2e/boards.spec.ts."
+    },
+    {
+      "name": "control-boards-kiosk-redirect",
+      "path": "/control/boards/kiosk?board=wall-1",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 307,
+      "_comment": "RA-7898: a repo preset board full-screen on a wall screen (locked, Wall look). Same /control prefix, same 307 when unauthenticated. Reads only the GET feeds its modules name."
+    },
+    {
       "name": "curator-proposals-quiet",
       "path": "/api/curator-proposals?status=pending&limit=10",
       "method": "GET",

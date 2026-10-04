@@ -1,0 +1,142 @@
+{
+  "name": "Desk",
+  "skin": "paper",
+  "items": [
+    {
+      "id": "builds-n",
+      "module": "builds",
+      "view": "number"
+    },
+    {
+      "id": "kill-switch-1",
+      "module": "kill-switch",
+      "view": "panel"
+    },
+    {
+      "id": "clock-1",
+      "module": "clock",
+      "view": "digital"
+    },
+    {
+      "id": "north-star-1",
+      "module": "north-star",
+      "view": "compact"
+    },
+    {
+      "id": "ship-chain-1",
+      "module": "ship-chain",
+      "view": "row"
+    },
+    {
+      "id": "models-1",
+      "module": "models",
+      "view": "ring"
+    },
+    {
+      "id": "fleet-1",
+      "module": "fleet",
+      "view": "tile"
+    },
+    {
+      "id": "activity-1",
+      "module": "activity",
+      "view": "feed"
+    },
+    {
+      "id": "builds-1",
+      "module": "builds",
+      "view": "board"
+    },
+    {
+      "id": "portfolio-1",
+      "module": "portfolio",
+      "view": "heat"
+    },
+    {
+      "id": "ideas-1",
+      "module": "ideas",
+      "view": "funnel"
+    }
+  ],
+  "layouts": {
+    "lg": [
+      {
+        "i": "builds-n",
+        "x": 0,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "i": "kill-switch-1",
+        "x": 3,
+        "y": 0,
+        "w": 3,
+        "h": 5
+      },
+      {
+        "i": "clock-1",
+        "x": 6,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "i": "north-star-1",
+        "x": 9,
+        "y": 0,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "i": "ship-chain-1",
+        "x": 0,
+        "y": 5,
+        "w": 8,
+        "h": 3
+      },
+      {
+        "i": "models-1",
+        "x": 8,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      {
+        "i": "fleet-1",
+        "x": 0,
+        "y": 8,
+        "w": 8,
+        "h": 6
+      },
+      {
+        "i": "activity-1",
+        "x": 8,
+        "y": 9,
+        "w": 4,
+        "h": 10
+      },
+      {
+        "i": "builds-1",
+        "x": 0,
+        "y": 14,
+        "w": 8,
+        "h": 5
+      },
+      {
+        "i": "portfolio-1",
+        "x": 0,
+        "y": 19,
+        "w": 8,
+        "h": 6
+      },
+      {
+        "i": "ideas-1",
+        "x": 8,
+        "y": 19,
+        "w": 4,
+        "h": 5
+      }
+    ]
+  }
+}

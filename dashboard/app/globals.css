@@ -158,3 +158,115 @@ a, button { -webkit-tap-highlight-color: transparent; }
     font-size: 16px !important;
   }
 }
+
+/* ── Board looks (RA-7898) ────────────────────────────────────────────────
+ * One token set, overridden per look on the board root via data-board-skin.
+ * Board chrome reads --board-*; the existing panels shown inside a board read
+ * the app tokens (--panel, --text, …), which each look also re-points, so a
+ * look changes no module code. Recorded in DESIGN.md and .claude/DESIGN.md. */
+[data-board-skin] {
+  --board-canvas: #f3f2ee;
+  --board-card: #ffffff;
+  --board-sunk: #f6f5f1;
+  --board-hover: #eeede8;
+  --board-line: rgba(22, 24, 29, 0.09);
+  --board-line-2: rgba(22, 24, 29, 0.16);
+  --board-ink: #16181d;
+  --board-ink-2: #555c67;
+  --board-ink-3: #6b717c;
+  --board-accent: #4a4af4;
+  --board-accent-2: #8f8ff8;
+  --board-accent-soft: rgba(74, 74, 244, 0.1);
+  --board-on-accent: #ffffff;
+  --board-ok: #12804f;
+  --board-warn: #a85600;
+  --board-bad: #c62e3a;
+  --board-idle: #8a8f98;
+  --board-ok-soft: rgba(18, 128, 79, 0.1);
+  --board-warn-soft: rgba(168, 86, 0, 0.1);
+  --board-bad-soft: rgba(198, 46, 58, 0.09);
+  --board-idle-soft: rgba(138, 143, 152, 0.13);
+  --board-shadow: 0 1px 2px rgba(22, 24, 29, 0.04), 0 2px 10px -6px rgba(22, 24, 29, 0.12);
+  --board-radius: 12px;
+  --board-scale: 1;
+  color-scheme: light;
+  /* Existing panels inside the board follow the look. */
+  --background: var(--board-canvas);
+  --panel: var(--board-card);
+  --panel-hover: var(--board-hover);
+  --border: var(--board-line-2);
+  --border-subtle: var(--board-line);
+  --text: var(--board-ink);
+  --text-muted: var(--board-ink-2);
+  --text-dim: var(--board-ink-3);
+  --accent: var(--board-accent);
+  --accent-subtle: var(--board-accent-soft);
+  --on-accent: var(--board-on-accent);
+  --success: var(--board-ok);
+  --warning: var(--board-warn);
+  --error: var(--board-bad);
+  --surface: var(--board-sunk);
+  background: var(--board-canvas);
+  color: var(--board-ink);
+}
+[data-board-skin="graphite"],
+[data-board-skin="wall"] {
+  --board-canvas: #0c0c0e;
+  --board-card: #141417;
+  --board-sunk: #1a1a1e;
+  --board-hover: #202025;
+  --board-line: rgba(255, 255, 255, 0.07);
+  --board-line-2: rgba(255, 255, 255, 0.13);
+  --board-ink: #ececef;
+  --board-ink-2: #a5a5ad;
+  --board-ink-3: #8b8b94;
+  --board-accent: #8b8bff;
+  --board-accent-2: #5a5ad6;
+  --board-accent-soft: rgba(139, 139, 255, 0.13);
+  --board-on-accent: #0c0c0e;
+  --board-ok: #4cc38a;
+  --board-warn: #f0a54a;
+  --board-bad: #f2646a;
+  --board-idle: #85858e;
+  --board-ok-soft: rgba(76, 195, 138, 0.12);
+  --board-warn-soft: rgba(240, 165, 74, 0.12);
+  --board-bad-soft: rgba(242, 100, 106, 0.12);
+  --board-idle-soft: rgba(133, 133, 142, 0.14);
+  --board-shadow: none;
+  --board-radius: 10px;
+  color-scheme: dark;
+}
+[data-board-skin="wall"] {
+  --board-canvas: #050506;
+  --board-card: #0f0f12;
+  --board-ink: #ffffff;
+  --board-ink-2: #c4c4cc;
+  --board-ink-3: #9a9aa3;
+  --board-scale: 1.22;
+}
+[data-board-skin="slate"] {
+  --board-canvas: #1d1e28;
+  --board-card: #262734;
+  --board-sunk: #2d2e3c;
+  --board-hover: #333445;
+  --board-line: rgba(255, 255, 255, 0.07);
+  --board-line-2: rgba(255, 255, 255, 0.14);
+  --board-ink: #ecebf5;
+  --board-ink-2: #aeadc2;
+  --board-ink-3: #9493aa;
+  --board-accent: #9b98ff;
+  --board-accent-2: #5f5cc4;
+  --board-accent-soft: rgba(155, 152, 255, 0.15);
+  --board-on-accent: #1d1e28;
+  --board-ok: #5fd39a;
+  --board-warn: #f1b062;
+  --board-bad: #f5727a;
+  --board-idle: #8e8da4;
+  --board-ok-soft: rgba(95, 211, 154, 0.13);
+  --board-warn-soft: rgba(241, 176, 98, 0.13);
+  --board-bad-soft: rgba(245, 114, 122, 0.13);
+  --board-idle-soft: rgba(142, 141, 164, 0.15);
+  --board-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --board-radius: 14px;
+  color-scheme: dark;
+}

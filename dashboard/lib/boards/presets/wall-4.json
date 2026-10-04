@@ -1,0 +1,46 @@
+{
+  "name": "Wall \u00b7 screen 4",
+  "skin": "wall",
+  "items": [
+    {
+      "id": "models-w4",
+      "module": "models",
+      "view": "panel"
+    },
+    {
+      "id": "provider-usage-w4",
+      "module": "provider-usage",
+      "view": "cockpit"
+    },
+    {
+      "id": "models-w4b",
+      "module": "models",
+      "view": "table"
+    }
+  ],
+  "layouts": {
+    "lg": [
+      {
+        "i": "models-w4",
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 9
+      },
+      {
+        "i": "provider-usage-w4",
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 12
+      },
+      {
+        "i": "models-w4b",
+        "x": 0,
+        "y": 9,
+        "w": 6,
+        "h": 5
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 import { CONTROL_SECTIONS } from "../lib/control/nav";
 
-// WP-06 (docs/plans/mission-control/work-packages.md): the 20 register rows in
+// WP-06 (docs/plans/mission-control/work-packages.md): the 21 register rows in
 // docs/plans/mission-control/coverage-register.md, each with the element that
 // proves the page rendered itself rather than the login page or app/error.tsx.
 // The landmark alone passes on an empty or placeholder page; the real-data half
@@ -58,4 +58,7 @@ export const LIVE_SURFACES: readonly LiveSurface[] = [
     landmark: heading("UG-N Intent-Only YouTube Catalog"),
     serverRendered: true,
   },
+  // MC-20 (RA-7898): modular boards. The greeting changes with the hour, so the
+  // landmark is the page root, which renders in every state.
+  { id: "MC-20", path: "/control/boards", landmark: { kind: "testid", id: "boards-page" } },
 ];

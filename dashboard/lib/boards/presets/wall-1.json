@@ -1,0 +1,130 @@
+{
+  "name": "Wall \u00b7 screen 1",
+  "skin": "wall",
+  "items": [
+    {
+      "id": "wall-banner-w1",
+      "module": "wall-banner",
+      "view": "banner"
+    },
+    {
+      "id": "clock-w1",
+      "module": "clock",
+      "view": "digital"
+    },
+    {
+      "id": "ship-chain-w1",
+      "module": "ship-chain",
+      "view": "row"
+    },
+    {
+      "id": "fleet-w1",
+      "module": "fleet",
+      "view": "strip"
+    },
+    {
+      "id": "builds-w1",
+      "module": "builds",
+      "view": "number"
+    },
+    {
+      "id": "activity-w1",
+      "module": "activity",
+      "view": "pulse"
+    },
+    {
+      "id": "activity-w1b",
+      "module": "activity",
+      "view": "timeline"
+    },
+    {
+      "id": "portfolio-w1",
+      "module": "portfolio",
+      "view": "bars"
+    },
+    {
+      "id": "kill-switch-w1",
+      "module": "kill-switch",
+      "view": "light"
+    },
+    {
+      "id": "models-w1",
+      "module": "models",
+      "view": "bars"
+    }
+  ],
+  "layouts": {
+    "lg": [
+      {
+        "i": "wall-banner-w1",
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 3
+      },
+      {
+        "i": "clock-w1",
+        "x": 0,
+        "y": 3,
+        "w": 3,
+        "h": 3
+      },
+      {
+        "i": "ship-chain-w1",
+        "x": 3,
+        "y": 3,
+        "w": 9,
+        "h": 3
+      },
+      {
+        "i": "fleet-w1",
+        "x": 0,
+        "y": 6,
+        "w": 6,
+        "h": 4
+      },
+      {
+        "i": "builds-w1",
+        "x": 6,
+        "y": 6,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "i": "activity-w1",
+        "x": 9,
+        "y": 6,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "i": "activity-w1b",
+        "x": 0,
+        "y": 10,
+        "w": 4,
+        "h": 8
+      },
+      {
+        "i": "portfolio-w1",
+        "x": 4,
+        "y": 10,
+        "w": 5,
+        "h": 8
+      },
+      {
+        "i": "kill-switch-w1",
+        "x": 9,
+        "y": 10,
+        "w": 3,
+        "h": 4
+      },
+      {
+        "i": "models-w1",
+        "x": 9,
+        "y": 14,
+        "w": 3,
+        "h": 4
+      }
+    ]
+  }
+}
