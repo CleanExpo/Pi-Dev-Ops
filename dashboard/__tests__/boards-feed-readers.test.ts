@@ -130,6 +130,11 @@ describe("kill-switch", () => {
     const r = await readKillSwitch(signal);
     expect([r.kind, r.value]).toEqual(["unreachable", { error: "invalid kill-switch status payload" }]);
   });
+  it("500 with an empty body carries an error, so the panel shows UNKNOWN", async () => {
+    serve({}, 500);
+    const r = await readKillSwitch(signal);
+    expect([r.kind, r.value.error]).toEqual(["unreachable", "HTTP 500"]);
+  });
   it("200 missing the flags is unreachable", async () => { serve({}); expect((await readKillSwitch(signal)).kind).toBe("unreachable"); });
   it.each([["kill_switch_active", { swarm_enabled_env: true }], ["swarm_enabled_env", { kill_switch_active: false }]])("200 without %s is unreachable", async (_f, body) => {
     serve(body);

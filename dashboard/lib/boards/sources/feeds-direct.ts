@@ -94,6 +94,9 @@ export async function readKillSwitch(signal: AbortSignal): Promise<FeedRead<Kill
   const r = await getJson("/api/kill-switch?op=status", signal);
   if (r.error !== undefined) return { kind: "unreachable", value: { error: r.error }, reason: r.error };
   const body = (record(r.body) ?? {}) as KillSwitchStatus;
+  // Every failed read carries an `error`, so the panel shows UNKNOWN, never a
+  // "DISABLED" read off an empty or default body.
+  if (!r.ok && !body.error) body.error = `HTTP ${r.status}`;
   if (r.status === 401) return { kind: "unreachable", value: body, reason: SIGNED_OUT_REASON, httpStatus: 401 };
   if (body.error) {
     const kind = isNotConfigured(body.error) ? "no_source" : "unreachable";
