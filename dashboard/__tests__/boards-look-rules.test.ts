@@ -80,12 +80,11 @@ describe("no new write path (G2, G3)", () => {
     expect(sql.filter((f) => boardTable.test(readFileSync(f, "utf8"))).map((f) => path.relative(REPO, f))).toEqual([]);
   });
 
-  // The diff-relative half needs main's history. A shallow checkout has none: the
-  // test is then reported as SKIPPED (visible in the run), never as a pass.
-  const hasMain = (() => {
-    try { execFileSync("git", ["-C", REPO, "rev-parse", "--verify", "origin/main"], { stdio: "ignore" }); return true; } catch { return false; }
-  })();
-  it.skipIf(!hasMain)("diff: no added API route, mutating handler or table against origin/main", () => {
+  // The diff-relative half needs main's history (ci.yml frontend-tests checks out with
+  // fetch-depth: 0). Without it this fails rather than skipping: a skip reports success.
+  it("diff: no added API route, mutating handler or table against origin/main", () => {
+    expect(() => execFileSync("git", ["-C", REPO, "rev-parse", "--verify", "origin/main"], { stdio: "ignore" }),
+      "origin/main is missing: this checkout has no history to diff against").not.toThrow();
     const diff = execFileSync("git", ["-C", REPO, "diff", "--name-status", "origin/main...HEAD"], { encoding: "utf8" });
     const added = diff.split("\n").filter((l) => l.startsWith("A\t")).map((l) => l.slice(2));
     expect(added.filter((f) => f.startsWith("dashboard/app/api/"))).toEqual([]);
