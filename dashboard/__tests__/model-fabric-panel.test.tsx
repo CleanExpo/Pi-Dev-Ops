@@ -68,6 +68,24 @@ describe("ModelFabricPanel", () => {
     expect(screen.queryByText(/Loading model fabric/)).toBeNull();
   });
 
+  it("LOADING: claims no routed-call state before the first read answers", async () => {
+    // A fetch that never resolves: the panel must not say "No routed call recorded"
+    // while it does not know yet. This raced in CI (RA-7901) because the copy
+    // rendered on first paint, so the EMPTY test could pass its findByText early.
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+    render(<ModelFabricPanel />);
+    expect(screen.getByText(/Loading model fabric/)).toBeTruthy();
+    expect(screen.queryByText(/No routed call recorded/)).toBeNull();
+  });
+
+  it("ERROR: does not claim no routed call when the read failed", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));
+    render(<ModelFabricPanel />);
+    expect(await screen.findByText("network down")).toBeTruthy();
+    expect(screen.queryByText(/No routed call recorded/)).toBeNull();
+    expect(screen.getByText(/Latest route unknown/)).toBeTruthy();
+  });
+
   it("ERROR: a rejected fetch shows the error, not an endless spinner", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));
     render(<ModelFabricPanel />);

@@ -148,7 +148,11 @@ export default function ModelFabricPanel() {
                   <div>strengthened: {last.strengthened ? "yes" : "no"}</div>
                   <div style={{ color: last.ok ? "var(--success)" : "var(--error)" }}>{last.ok ? "PASS" : last.error ?? "FAILED"}</div>
                 </div>
+              ) : loading ? null : data?.error ? (
+                // The status read failed, so whether a call was routed is unknown (RA-1109).
+                <div className="text-xs" style={{ color: "var(--text-dim)" }}>Latest route unknown: the fabric status read failed.</div>
               ) : (
+                // Only claimed once a successful read says so; before that it is not yet known.
                 <div className="text-xs" style={{ color: "var(--text-dim)" }}>No routed call recorded since this Pi-CEO process started.</div>
               )}
             </div>

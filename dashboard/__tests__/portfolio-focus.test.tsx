@@ -96,8 +96,10 @@ it("shows five founder answers with linked evidence and an honest shipped unknow
     : { ts: new Date().toISOString(), active_sessions: [], queue: { next_issue_id: "RA-42", next_issue_title: "Repair dispatch" },
         observability: { actions: [] }, idea_pipeline: { awaiting: 1 } } as never);
   render(<PortfolioFocus><div id="idea-pipeline">Idea inbox</div></PortfolioFocus>);
-  await waitFor(() => expect(screen.getByRole("heading", { name: "The founder’s five answers" })).toBeTruthy());
-  expect(screen.getByText(/RA-42 · Repair dispatch/)).toBeTruthy();
+  // The heading renders before any read (it shows "unknown" until the live feed answers),
+  // so wait for the live answer itself, not the heading: waiting on the heading raced the fetch.
+  expect(await screen.findByText(/RA-42 · Repair dispatch/)).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "The founder’s five answers" })).toBeTruthy();
   expect(screen.getByText(/1 idea awaits disposition/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "Source: Idea pipeline" }).getAttribute("href")).toBe("#idea-pipeline");
   expect(screen.getByText(/This feed records build completions/)).toBeTruthy();
