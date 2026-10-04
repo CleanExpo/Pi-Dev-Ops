@@ -9,7 +9,7 @@ import FleetTile from "@/components/control/FleetTile";
 import KillSwitchPanel from "@/components/control/KillSwitchPanel";
 import { ModuleFrame } from "@/components/boards/ModuleFrame";
 import { ProviderUsageCockpit } from "@/components/command-centre/provider-usage/ProviderUsageCockpit";
-import { installFetchTap, TAP_TIMEOUT_MS, useFetchTap } from "@/lib/boards/sources/fetch-tap";
+import { installFetchTap, useFetchTap } from "@/lib/boards/sources/fetch-tap";
 import { useSource } from "@/lib/boards/sources";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -141,7 +141,8 @@ describe("T7 — request-sharing tap", () => {
     const uninstall = installFetchTap();
     const first = window.fetch("/api/command-centre/provider-usage");
     const settled = expect(first).rejects.toBeDefined();
-    await vi.advanceTimersByTimeAsync(TAP_TIMEOUT_MS);
+    // The approved bound is 10 s: a literal, so a longer TAP_TIMEOUT_MS fails here.
+    await vi.advanceTimersByTimeAsync(10_000);
     await settled;
     void window.fetch("/api/command-centre/provider-usage").catch(() => undefined);
     expect(network).toHaveBeenCalledTimes(2);

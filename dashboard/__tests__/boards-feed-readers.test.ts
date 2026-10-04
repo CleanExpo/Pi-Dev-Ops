@@ -24,8 +24,12 @@ function fail(message = "network down") {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("mesh-fleet", () => {
+  it("a 200 ok without checkedAt is unreachable", async () => {
+    serve({ status: "ok", machines: [] });
+    expect((await readMeshFleet(signal)).kind).toBe("unreachable");
+  });
   it("a 200 ok without a machine list is unreachable", async () => {
-    serve({ status: "ok" });
+    serve({ status: "ok", checkedAt: "2026-10-03T00:00:00Z" });
     const r = await readMeshFleet(signal);
     expect([r.kind, r.value.status]).toEqual(["unreachable", "unavailable"]);
   });
@@ -60,8 +64,12 @@ describe("wall", () => {
     const r = await readWall(signal);
     expect([r.kind, r.serverTs]).toEqual(["live", "2026-10-03T00:00:00Z"]);
   });
-  it("fleet ok without generated_at or machines is unreachable", async () => {
-    serve({ fleet: { status: "ok", reason: "", others: [] }, stations: [], banner: { red: 0, grey: 0 } });
+  it("fleet ok without generated_at is unreachable", async () => {
+    serve({ fleet: { status: "ok", reason: "", machines: [], others: [] }, stations: [], banner: { red: 0, grey: 0 } });
+    expect((await readWall(signal)).kind).toBe("unreachable");
+  });
+  it("fleet ok without a machine list is unreachable", async () => {
+    serve({ generated_at: "2026-10-03T00:00:00Z", fleet: { status: "ok", reason: "", others: [] }, stations: [], banner: { red: 0, grey: 0 } });
     expect((await readWall(signal)).kind).toBe("unreachable");
   });
   it("fleet broken is unreachable", async () => { serve(snap("broken")); expect((await readWall(signal)).kind).toBe("unreachable"); });
@@ -84,6 +92,10 @@ describe("model-fabric", () => {
     expect((await readModelFabric(signal)).value.error).toBe("HTTP 502");
   });
   it("network error is unreachable", async () => { fail(); expect((await readModelFabric(signal)).kind).toBe("unreachable"); });
+  it.each([["enabled", { healthy: true }], ["healthy", { enabled: true }]])("200 without %s is unreachable", async (_f, body) => {
+    serve(body);
+    expect((await readModelFabric(signal)).kind).toBe("unreachable");
+  });
   it("200 without the flags is unreachable, never DISABLED", async () => {
     serve({});
     const r = await readModelFabric(signal);
@@ -119,6 +131,10 @@ describe("kill-switch", () => {
     expect([r.kind, r.value]).toEqual(["unreachable", { error: "invalid kill-switch status payload" }]);
   });
   it("200 missing the flags is unreachable", async () => { serve({}); expect((await readKillSwitch(signal)).kind).toBe("unreachable"); });
+  it.each([["kill_switch_active", { swarm_enabled_env: true }], ["swarm_enabled_env", { kill_switch_active: false }]])("200 without %s is unreachable", async (_f, body) => {
+    serve(body);
+    expect((await readKillSwitch(signal)).kind).toBe("unreachable");
+  });
   it("401 is unreachable with the signed-out reason", async () => {
     serve({ error: "Unauthorised" }, 401);
     const r = await readKillSwitch(signal);
@@ -154,6 +170,14 @@ describe("wiki-graph", () => {
     expect([r.kind, r.reason]).toEqual(["no_source", "no key"]);
   });
   it("non-200 is unreachable", async () => { serve({}, 500); expect((await readWikiGraph(signal)).kind).toBe("unreachable"); });
+  it.each([
+    ["pageCount", { edgeCount: 2, source: "supabase" }],
+    ["edgeCount", { pageCount: 3, source: "supabase" }],
+    ["source", { pageCount: 3, edgeCount: 2 }],
+  ])("a 200 without %s is unreachable", async (_f, body) => {
+    serve(body);
+    expect((await readWikiGraph(signal)).kind).toBe("unreachable");
+  });
   it("a 200 {} is unreachable, never zero pages shown as live", async () => {
     serve({});
     expect((await readWikiGraph(signal)).kind).toBe("unreachable");
