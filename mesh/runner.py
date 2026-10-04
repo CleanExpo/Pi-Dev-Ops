@@ -39,7 +39,7 @@ import preflight  # noqa: E402
 import run_record  # noqa: E402
 import runner_idle  # noqa: E402
 import self_update  # noqa: E402
-from env_file import from_env_file as _from_env_file  # noqa: E402
+from env_file import from_env_file as _from_env_file, resolve_key  # noqa: E402
 
 
 PI_CEO_API_URL = (
@@ -47,7 +47,7 @@ PI_CEO_API_URL = (
     or _from_env_file("PI_CEO_API_URL")
     or "https://pi-dev-ops-production.up.railway.app"
 )
-PI_CEO_SECRET = os.environ.get("PI_CEO_API_KEY") or _from_env_file("PI_CEO_API_KEY")
+PI_CEO_SECRET = resolve_key("PI_CEO_API_KEY")  # .hermes/.env wins (RA-7905)
 HOST = socket.gethostname().split(".")[0]
 HARD_STOP = Path.home() / ".claude" / "HARD_STOP"
 AGENT_CMD = os.environ.get("MESH_AGENT_CMD", "claude")
