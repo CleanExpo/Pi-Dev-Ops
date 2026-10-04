@@ -76,7 +76,7 @@ export function isKillSwitchStatus(b: KillSwitchStatus): boolean {
     && isNum(b.panic_count_last_hour) && isTextList(b.approver_allowlist) && isTextList(b.approver_totp_configured);
 }
 
-const isProposal = (p: Record<string, unknown>) => isText(p.ts) && optText(p.status) && optText(p.proposal_id)
+const isProposal = (p: Record<string, unknown>) => isText(p.ts) && isText(p.status) && isText(p.proposal_id)
   && optText(p.cluster_id) && optText(p.trigger_source) && optText(p.cluster_summary)
   && optText(p.proposed_skill_name) && optText(p.draft_id) && optText(p.reason) && optNum(p.evidence_count);
 
@@ -96,8 +96,16 @@ export function isProviderUsage(b: Record<string, unknown>): boolean {
     && every(b.providers, isProvider) && every(b.routing, isRoute);
 }
 
-/** curator: routes/swarm.py always sends by_status counts and ProposalRow rows. */
-export function isCuratorList(b: CuratorValue): boolean {
+/**
+ * curator: routes/swarm.py lists the rows for one status (this feed asks for
+ * pending, limit `limit`) and derives total, returned and by_status from those
+ * same rows, so they must agree - "1 pending" beside an empty list is a
+ * malformed read, not a fact. Every real row carries ts, proposal_id, status.
+ */
+export function isCuratorList(b: CuratorValue, limit: number): boolean {
   const counts = record(b.by_status);
-  return counts !== null && Object.values(counts).every(isNum) && every(b.proposals, isProposal);
+  const rows = b.proposals;
+  return counts !== null && Object.values(counts).every(isNum) && every(rows, isProposal)
+    && isNum(b.total) && isNum(b.returned) && Array.isArray(rows) && b.returned === rows.length
+    && b.returned === Math.min(b.total as number, limit) && (counts.pending ?? 0) === b.total;
 }

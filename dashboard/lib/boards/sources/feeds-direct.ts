@@ -147,7 +147,8 @@ export async function readWikiGraph(signal: AbortSignal): Promise<FeedRead<WikiG
   return { kind: "live", value, httpStatus: r.status };
 }
 
-export const CURATOR_URL = "/api/curator-proposals?status=pending&limit=10";
+const CURATOR_LIMIT = 10;
+export const CURATOR_URL = `/api/curator-proposals?status=pending&limit=${CURATOR_LIMIT}`;
 
 export async function readCurator(signal: AbortSignal): Promise<FeedRead<CuratorValue>> {
   const r = await getJson(CURATOR_URL, signal);
@@ -163,7 +164,7 @@ export async function readCurator(signal: AbortSignal): Promise<FeedRead<Curator
   // A 200 without a proposals list, or with counts or rows the panel cannot
   // render, must never show as "No pending proposals" (routes/swarm.py always
   // sends by_status counts and rows with a ts).
-  if (!isCuratorList(body)) {
+  if (!isCuratorList(body, CURATOR_LIMIT)) {
     const error = "invalid curator proposals payload";
     return { kind: "unreachable", value: { error }, reason: error, httpStatus: r.status };
   }

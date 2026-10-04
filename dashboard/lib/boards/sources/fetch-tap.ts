@@ -51,6 +51,8 @@ async function snapshot(res: Response): Promise<Cached> {
 
 let installs = 0;
 let original: typeof fetch | null = null;
+/** The live wrapper's in-flight shared requests, so the last uninstall can cancel them. */
+let liveFlights: Map<string, Flight> | null = null;
 
 /** Install the tap; returns the uninstall function. Nested installs share one wrapper. */
 export function installFetchTap(): () => void {
@@ -65,6 +67,7 @@ export function installFetchTap(): () => void {
       if (def) routes.set(new URL(def.url, window.location.href).href, id);
     }
     const inflight = new Map<string, Flight>();
+    liveFlights = inflight;
     const recent = new Map<string, Cached>();
     window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = urlOf(input);
@@ -121,6 +124,11 @@ export function installFetchTap(): () => void {
     if (installs === 0 && original) {
       window.fetch = original;
       original = null;
+      // Leaving the board cancels its shared requests now, not at the 10 s timeout,
+      // so a quick remount never runs a second copy beside an orphan.
+      for (const flight of liveFlights?.values() ?? []) flight.controller.abort(new DOMException("board closed", "AbortError"));
+      liveFlights?.clear();
+      liveFlights = null;
     }
   };
 }

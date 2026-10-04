@@ -99,23 +99,17 @@ describe("wiki-graph", () => {
   });
 });
 
+const CUR_ROW = { ts: "2026-10-04T00:00:00Z", proposal_id: "p1", status: "pending" };
+const curList = (row: Record<string, unknown>) => ({ total: 1, returned: 1, by_status: { pending: 1 }, proposals: [row] });
+
 describe("curator", () => {
-  it("200 without error is live", async () => { serve({ proposals: [], by_status: {} }); expect((await readCurator(signal)).kind).toBe("live"); });
-  it("200 without by_status is unreachable", async () => { serve({ proposals: [] }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
-  it("a non-numeric count is unreachable", async () => { serve({ proposals: [], by_status: { pending: "1" } }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
-  it("a row without ts is unreachable", async () => { serve({ proposals: [{ proposal_id: "p" }], by_status: {} }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
-  it("a numeric draft_id is unreachable", async () => {
-    serve({ proposals: [{ ts: "2026-10-04T00:00:00Z", draft_id: 42 }], by_status: {} });
-    expect((await readCurator(signal)).kind).toBe("unreachable");
-  });
-  it("a text evidence_count is unreachable", async () => {
-    serve({ proposals: [{ ts: "2026-10-04T00:00:00Z", evidence_count: "3" }], by_status: {} });
-    expect((await readCurator(signal)).kind).toBe("unreachable");
-  });
-  it("a row with an object field is unreachable", async () => {
-    serve({ proposals: [{ ts: "2026-10-04T00:00:00Z", cluster_summary: {} }], by_status: {} });
-    expect((await readCurator(signal)).kind).toBe("unreachable");
-  });
+  it("200 without error is live", async () => { serve({ total: 0, returned: 0, proposals: [], by_status: {} }); expect((await readCurator(signal)).kind).toBe("live"); });
+  it("200 without by_status is unreachable", async () => { serve(without(curList(CUR_ROW), "by_status")); expect((await readCurator(signal)).kind).toBe("unreachable"); });
+  it("a non-numeric count is unreachable", async () => { serve({ ...curList(CUR_ROW), by_status: { pending: 1, accepted: "1" } }); expect((await readCurator(signal)).kind).toBe("unreachable"); });
+  it("a row without ts is unreachable", async () => { serve(curList(without(CUR_ROW, "ts"))); expect((await readCurator(signal)).kind).toBe("unreachable"); });
+  it("a numeric draft_id is unreachable", async () => { serve(curList({ ...CUR_ROW, draft_id: 42 })); expect((await readCurator(signal)).kind).toBe("unreachable"); });
+  it("a text evidence_count is unreachable", async () => { serve(curList({ ...CUR_ROW, evidence_count: "3" })); expect((await readCurator(signal)).kind).toBe("unreachable"); });
+  it("a row with an object field is unreachable", async () => { serve(curList({ ...CUR_ROW, cluster_summary: {} })); expect((await readCurator(signal)).kind).toBe("unreachable"); });
   it("200 that is not JSON is unreachable, never an empty list", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("not json", { status: 200 })));
     const r = await readCurator(signal);
