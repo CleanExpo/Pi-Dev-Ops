@@ -219,6 +219,17 @@ def test_a_failed_fresh_read_backs_off_like_a_failed_queue_read(clock, monkeypat
     assert cache.candidates(gql, now=clock)[0][0]["identifier"] == "RA-T"  # resumes after it
 
 
+def test_a_walk_already_under_way_stops_when_a_peer_starts_the_back_off(clock, monkeypatch):
+    """Codex repro on 470fa3e: a claim holding cached nodes re-read Linear during a peer's back-off."""
+    reads = []
+    monkeypatch.setattr(mesh_lanes, "explicit", lambda read, ids: read("q") and [])
+    held = cache.rechecked(lambda q: reads.append(q) or {}, iter([{"identifier": "RA-T"}]), now=clock)
+    cache._state.update(failed_at=clock.t)  # the peer's fresh read just failed
+    with pytest.raises(mesh_lanes.IncompleteRead, match="backing off"):
+        next(held)
+    assert reads == []  # Linear was not touched
+
+
 def test_every_fresh_candidate_is_offered_however_many_lose_a_race(monkeypatch):
     """Codex repro on 8a5f219: a cap of 5 re-reads hid RA-5 behind five 409s on RA-0..RA-4."""
     monkeypatch.setattr(mesh_lanes, "explicit", lambda read, ids: read("q") and [{"identifier": ids[0]}])

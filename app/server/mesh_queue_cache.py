@@ -56,6 +56,13 @@ def forget(identifier: str) -> None:
             _state["value"] = ([n for n in nodes if n.get("identifier") != identifier], repos)
 
 
+def _refuse_inside_backoff(t: float) -> None:
+    """Raise IncompleteRead while a failed Linear read's back-off runs. Call under _lock."""
+    if _state["failed_at"] is not None and t - _state["failed_at"] < BACKOFF_S:
+        raise mesh_lanes.IncompleteRead(
+            f"Linear read failed {int(t - _state['failed_at'])}s ago; backing off for {int(BACKOFF_S)}s")
+
+
 def candidates(graphql: Callable[[str], dict], now: Callable[[], float] = time.monotonic):
     """`mesh_lanes.candidates(graphql, strict=True)`, read at most once per TTL_S.
 
@@ -66,9 +73,7 @@ def candidates(graphql: Callable[[str], dict], now: Callable[[], float] = time.m
     """
     with _lock:
         t = now()
-        if _state["failed_at"] is not None and t - _state["failed_at"] < BACKOFF_S:
-            raise mesh_lanes.IncompleteRead(
-                f"Linear read failed {int(t - _state['failed_at'])}s ago; backing off for {int(BACKOFF_S)}s")
+        _refuse_inside_backoff(t)
         if _state["value"] is not None and t - _state["at"] < TTL_S:
             return _state["value"]
         try:
@@ -97,6 +102,8 @@ def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict],
     failed queue read, so the next polls do not go back to Linear.
     """
     for node in ranked:
+        with _lock:  # a peer's failed read may have started the back-off since this walk began
+            _refuse_inside_backoff(now())
         answered: list[bool] = []
 
         def read(query: str) -> dict:
