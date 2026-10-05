@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_reaper, mesh_requeue, mesh_run_record
+from .. import config, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_queue_cache, mesh_reaper, mesh_requeue, mesh_run_record
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -205,7 +205,7 @@ def _linear_graphql(query: str) -> dict:
         with urllib.request.urlopen(req, timeout=15) as r:
             return (json.loads(r.read()) or {}).get("data", {}) or {}
     except Exception as e:  # noqa: BLE001
-        log.warning("linear query failed: %s", e)
+        log.warning("linear query failed: %s %s", e, mesh_queue_cache.linear_error_detail(e))  # RA-7910
         return {}
 
 
@@ -416,7 +416,7 @@ def claim_self(
     _check_secret(x_pi_ceo_secret)
     _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before self-claiming
     try:  # an unread queue is unknown, not empty (audit 30/09 #18)
-        nodes, repos = mesh_lanes.candidates(_linear_graphql, strict=True)
+        nodes, repos = mesh_queue_cache.candidates(_linear_graphql)  # one shared read per 90 s (RA-7910)
     except mesh_lanes.IncompleteRead:
         raise HTTPException(503, "Linear could not be read; the queue is unknown, not empty")
     if (repeat := mesh_lanes.repeat_claimed(_get)) is None:
