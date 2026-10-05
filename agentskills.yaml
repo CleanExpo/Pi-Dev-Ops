@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.25.1
-  generated_at: "2026-10-05T12:09:54.253398+00:00"
+  version: 1.25.2
+  generated_at: "2026-10-05T16:19:01.202789+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -898,7 +898,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/geo-optimization/SKILL.md
-    sha256: 31d63223e57efaa622ec28991b594876b2ae0beef2f2981a2d90cbf43abf4b4a
+    sha256: d878f4dbd034de8bbe729f6871bea994d0924065bffee173ee56ad926686ed1b
     dependencies:
       tools: []
       skills: []
@@ -1839,7 +1839,7 @@ skills:
     owner_role: Quality Director
     status: remotion-wave-1
     path: skills/remotion-professionalism/SKILL.md
-    sha256: 0803c33aad43c5cd36f3bb6f7ddc5000b75c00a88f79b983196a0baf3f241537
+    sha256: 6983dedbc05ab7d9ae7b300e21e80d1217a81d536d02fd22eb600c021a277d50
     dependencies:
       tools: []
       skills: []
