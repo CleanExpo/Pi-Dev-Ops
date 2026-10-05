@@ -72,7 +72,7 @@ def candidates(graphql: Callable[[str], dict], now: Callable[[], float] = time.m
         try:
             value = mesh_lanes.candidates(graphql, strict=True)
         except mesh_lanes.IncompleteRead:
-            _state.update(failed_at=t)
+            _state.update(failed_at=now())  # back off from when it failed: a slow read can take minutes
             raise
         _state.update(at=t, value=value, failed_at=None)
         return value
@@ -83,13 +83,17 @@ def linear_error_detail(exc: BaseException) -> str:
 
     Linear answers a rate-limited or malformed query with HTTP 400 and puts the
     reason in the JSON body; urllib's exception string says only "Bad Request".
-    Messages only — never the request, headers or key.
+    Messages only — never the request, headers or key. Never raises: it runs inside
+    the route's exception handler, so a malformed body must not escape it.
     """
     if not isinstance(exc, urllib.error.HTTPError):
         return ""
     try:
         body = json.loads(exc.read() or b"{}")
-    except (ValueError, OSError):
+    except Exception:  # noqa: BLE001  any unreadable body is "no detail", not a crash
         return ""
-    messages = [str(e.get("message", "")) for e in body.get("errors", []) if isinstance(e, dict)]
+    errors = body.get("errors") if isinstance(body, dict) else None
+    if not isinstance(errors, list):
+        return ""
+    messages = [str(e.get("message", "")) for e in errors if isinstance(e, dict)]
     return "; ".join(m for m in messages if m)[:300]

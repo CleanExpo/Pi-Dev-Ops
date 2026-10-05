@@ -112,6 +112,33 @@ def test_linear_error_detail_is_empty_for_non_http_errors_and_bad_bodies():
     assert cache.linear_error_detail(exc) == ""
 
 
+@pytest.mark.parametrize("body", [b'{"errors":7}', b"null", b"[]", b'{"errors":null}', b'"x"', b"\xff\xfe"])
+def test_a_malformed_linear_error_body_cannot_escape_the_route_handler(body, monkeypatch):
+    """_linear_graphql calls linear_error_detail inside its except; a raise there skips the 503 path."""
+    from app.server.routes import mesh as routes_mesh
+
+    def refuse(req, timeout=None):
+        raise urllib.error.HTTPError("https://api.linear.app/graphql", 400, "Bad Request", {}, io.BytesIO(body))
+    monkeypatch.setattr(routes_mesh.config, "LINEAR_API_KEY", "lin_test_placeholder")
+    monkeypatch.setattr(routes_mesh.urllib.request, "urlopen", refuse)
+    assert routes_mesh._linear_graphql("query{viewer{id}}") == {}
+
+
+def test_a_slow_failed_read_still_backs_off_from_when_it_failed(clock, monkeypatch):
+    calls = []
+
+    def slow_failure(graphql, strict=False):
+        calls.append(clock.t)
+        clock.t += cache.BACKOFF_S + 10  # 20 pages x 15 s timeouts can outlast the back-off
+        raise mesh_lanes.IncompleteRead("rate limited")
+    monkeypatch.setattr(mesh_lanes, "candidates", slow_failure)
+    with pytest.raises(mesh_lanes.IncompleteRead):
+        cache.candidates(lambda q: {}, now=clock)
+    with pytest.raises(mesh_lanes.IncompleteRead, match="backing off"):
+        cache.candidates(lambda q: {}, now=clock)
+    assert len(calls) == 1  # the immediate retry did not reach Linear
+
+
 def test_claim_self_reads_through_the_cache():
     src = (Path(__file__).resolve().parents[1] / "app" / "server" / "routes" / "mesh.py").read_text()
     assert "mesh_queue_cache.candidates(_linear_graphql)" in src
