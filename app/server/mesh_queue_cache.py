@@ -19,12 +19,13 @@ with 409. A cached ticket that someone else just took is skipped, not re-taken.
 """
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import threading
 import time
 import urllib.error
-from typing import Any, Callable
+from typing import Any, Callable, Iterable, Iterator
 
 from . import mesh_lanes
 
@@ -76,6 +77,26 @@ def candidates(graphql: Callable[[str], dict], now: Callable[[], float] = time.m
             raise
         _state.update(at=t, value=value, failed_at=None)
         return value
+
+
+MAX_RECHECKS = 5  # fresh single-ticket reads per claim call; bounds Linear traffic when rate-limited
+
+
+def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict]) -> Iterator[dict]:
+    """Each cached candidate re-read from Linear and re-admitted before it is claimed.
+
+    The shared read can be up to TTL_S old. A ticket blocked, labelled or moved in
+    Linear since then must not be claimed from the stale copy, so each one goes
+    through `mesh_lanes.explicit` — the same fresh read and admission rule dispatch
+    uses — and is dropped from the cache when refused. Lazy: a claim that succeeds
+    on the first candidate costs one request.
+    """
+    for node in itertools.islice(ranked, MAX_RECHECKS):
+        fresh = mesh_lanes.explicit(graphql, [node["identifier"]])
+        if fresh:
+            yield fresh[0]
+        else:
+            forget(node["identifier"])
 
 
 def linear_error_detail(exc: BaseException) -> str:

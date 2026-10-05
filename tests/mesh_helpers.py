@@ -139,3 +139,22 @@ def short_temp_alias(tmp_path: Path) -> tuple[Path, Path]:
     alias = tmp_path / "short-alias"
     alias.symlink_to(real, target_is_directory=True)
     return alias, real.resolve()
+
+
+# RA-7910: claim/self re-reads each cached candidate by id before claiming it, so a
+# fake Linear that serves the queue must also answer `query{issue(id:"X")…}` as Linear
+# does: that one ticket, or null. A ticket the list query returned is in the mesh pool
+# (that is the query's filter), so it reads back open and labelled unless it says otherwise.
+IN_POOL = {"labels": {"nodes": [{"name": "mesh:auto"}]}, "state": {"name": "Todo", "type": "unstarted"}}
+
+
+def is_issue_read(query: str) -> bool:
+    """True for Linear's single-ticket read (`mesh_lanes.explicit`)."""
+    return query.startswith("query{issue(")
+
+
+def issue_by_id(query: str, nodes) -> dict:
+    """Linear's answer to `query{issue(id:"X")…}` over the fake's queue."""
+    ident = query.split('issue(id:"', 1)[1].split('"', 1)[0]
+    node = next((n for n in nodes if n.get("identifier") == ident), None)
+    return {"issue": None if node is None else {**IN_POOL, **node}}

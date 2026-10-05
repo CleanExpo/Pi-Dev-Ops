@@ -17,6 +17,8 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from mesh_helpers import is_issue_read, issue_by_id  # noqa: E402
+
 HDR = {"X-Pi-CEO-Secret": "test-secret"}
 
 
@@ -70,8 +72,9 @@ def mesh_client(monkeypatch):
 
     def gql(q):
         mesh.gql.append(q)
-        if q.startswith("query{issue("):
-            return {"issue": {"id": "uuid-1"}}
+        if is_issue_read(q):  # RA-7910: a queued ticket reads back whole; any other id still resolves for the reaper
+            found = issue_by_id(q, mesh.queue)
+            return found if found["issue"] else {"issue": {"id": "uuid-1"}}
         if q.startswith("query{team"):
             return {"team": {"states": {"nodes": [{"id": "st", "type": "started"}]}}}
         if q.startswith("mutation"):

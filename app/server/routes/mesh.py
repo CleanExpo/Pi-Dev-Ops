@@ -421,7 +421,7 @@ def claim_self(
         raise HTTPException(503, "Linear could not be read; the queue is unknown, not empty")
     if (repeat := mesh_lanes.repeat_claimed(_get)) is None:
         return {"claimed": None, "reason": "claim history unreadable; not claiming blind"}
-    for tk in mesh_lanes.ranked(nodes, _open_claim_ids() | repeat | mesh_requeue.failed_here(_get, body.host)):
+    for tk in mesh_queue_cache.rechecked(_linear_graphql, mesh_lanes.ranked(nodes, _open_claim_ids() | repeat | mesh_requeue.failed_here(_get, body.host))):  # fresh re-admit (RA-7910)
         ident = tk["identifier"]
         row = mesh_requeue.claim_row(ident, body.host)
         status, _ = _sb("POST", "mesh_work_claims", row, prefer="return=minimal")

@@ -20,6 +20,8 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from mesh_helpers import is_issue_read, issue_by_id  # noqa: E402
+
 HDR = {"X-Pi-CEO-Secret": "test-secret"}
 
 
@@ -72,6 +74,8 @@ def _serve(mesh, issues: list[dict]) -> list[str]:
             return {"team": {"states": {"nodes": [{"id": "st", "type": "started"}]}}}
         if q.startswith("mutation"):
             return {"issueUpdate": {"success": True}}
+        if is_issue_read(q):
+            return issue_by_id(q, issues)
         return {"issues": {"nodes": issues}}
 
     mesh._linear_graphql = _gql
