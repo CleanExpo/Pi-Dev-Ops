@@ -222,8 +222,8 @@ def _team_started_state_id(team_id: str) -> str:
 def _mark_issue_in_progress(issue: dict) -> bool:
     """Transition a just-claimed issue out of backlog/unstarted so _MESH_AUTO_QUERY
     stops returning it. Without this, a completed ticket re-enters the pool and is
-    re-claimed forever (the infinite re-claim loop). Best-effort: needs the node id
-    and team, which every candidate read from Linear carries."""
+    re-claimed forever (the infinite re-claim loop). Also drops it from the shared queue read (RA-7910)."""
+    mesh_queue_cache.forget(issue.get("identifier") or "")  # a cached copy must not re-serve it
     issue_id = issue.get("id")
     team_id = (issue.get("team") or {}).get("id")
     if not issue_id or not team_id:

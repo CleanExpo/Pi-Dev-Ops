@@ -41,6 +41,21 @@ def reset() -> None:
         _state.update(at=None, value=None, failed_at=None)
 
 
+def forget(identifier: str) -> None:
+    """Drop one claimed ticket from the cached queue.
+
+    Called the moment a ticket is claimed (self-claim and dispatch both go through
+    routes/mesh.py `_mark_issue_in_progress`). Without it a ticket claimed and
+    finished inside one TTL is still in the cached list and is served again — the
+    infinite re-claim loop that `_mark_issue_in_progress` exists to prevent.
+    """
+    with _lock:
+        value = _state["value"]
+        if value is not None and identifier:
+            nodes, repos = value
+            _state["value"] = ([n for n in nodes if n.get("identifier") != identifier], repos)
+
+
 def candidates(graphql: Callable[[str], dict], now: Callable[[], float] = time.monotonic):
     """`mesh_lanes.candidates(graphql, strict=True)`, read at most once per TTL_S.
 

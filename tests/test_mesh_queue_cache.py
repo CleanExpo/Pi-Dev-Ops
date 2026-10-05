@@ -117,3 +117,19 @@ def test_claim_self_reads_through_the_cache():
     assert "mesh_queue_cache.candidates(_linear_graphql)" in src
     assert "mesh_lanes.candidates(_linear_graphql, strict=True)" not in src
     assert "linear_error_detail(e)" in src
+
+
+def test_a_claimed_ticket_is_dropped_from_the_cached_queue(clock, monkeypatch):
+    calls, fake = _counting(([{"identifier": "RA-1"}, {"identifier": "RA-2"}], {}))
+    monkeypatch.setattr(mesh_lanes, "candidates", fake)
+    assert [n["identifier"] for n in cache.candidates(lambda q: {}, now=clock)[0]] == ["RA-1", "RA-2"]
+    cache.forget("RA-1")
+    assert [n["identifier"] for n in cache.candidates(lambda q: {}, now=clock)[0]] == ["RA-2"]
+    assert calls == [True]  # still one Linear read
+
+
+def test_mark_in_progress_forgets_the_ticket():
+    """Both claim paths (self-claim, dispatch) pass through _mark_issue_in_progress."""
+    src = (Path(__file__).resolve().parents[1] / "app" / "server" / "routes" / "mesh.py").read_text()
+    body = src.split("def _mark_issue_in_progress", 1)[1].split("\ndef ", 1)[0]
+    assert "mesh_queue_cache.forget(" in body
