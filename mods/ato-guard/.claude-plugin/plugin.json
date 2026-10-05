@@ -1,0 +1,7 @@
+{
+  "name": "ato-guard",
+  "description": "In the ATO repository only: masks TFNs, ABNs, bank details and Xero/Bearer tokens in tool results, blocks Xero API and SBR/lodgement writes, and keeps a local audit of counts only",
+  "author": {
+    "name": "Unite-Group"
+  }
+}
