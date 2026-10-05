@@ -152,6 +152,17 @@
       "_comment": "UNI-2649: session-gated BFF for the Mission Control Fleet tile. proxy.ts lists /api/mesh-fleet in PROTECTED_API_PREFIXES, so an anonymous caller is refused before the handler can attach X-Pi-CEO-Secret. FleetTile.tsx is the client of this route, not a separate HTTP surface — it mounts on already-declared /control and /loop. An authenticated probe is not declared: a live secret would return machines, and a missing secret returns 503 unavailable, so a single expected_status would lie on one of those two deploys."
     },
     {
+      "name": "api-flow-board-unauth",
+      "path": "/api/flow-board",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "body_contains": [
+        "Unauthorised"
+      ],
+      "_comment": "FlowBoard BFF (dashboard/app/api/flow-board/route.ts) lists open Pi-Dev-Ops PRs with the dashboard GITHUB_TOKEN. Its only caller is FlowBoard on /control, a protected page; the route itself was unprotected and unclassified (it reached main in a direct merge, 3c2d756b, that skipped CI). Added to PROTECTED_API_PREFIXES 05/10 so an anonymous caller is refused before the token is spent."
+    },
+    {
       "name": "api-mesh-fleet-wall-unauth",
       "path": "/api/mesh-fleet/wall",
       "method": "GET",

@@ -59,6 +59,9 @@ const PROTECTED_PAGE_PREFIXES = [
 
 const PROTECTED_API_PREFIXES = [
   "/api/pi-ceo",
+  // FlowBoard on /control (session-gated) is the only caller. Unauthenticated, any visitor
+  // could spend the dashboard GITHUB_TOKEN listing PRs. Decision 05/10, RA-7910 follow-up.
+  "/api/flow-board",
   "/api/sessions",
   "/api/analyze",
   "/api/actions",
