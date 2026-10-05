@@ -1,12 +1,12 @@
 # .github — Wiki
 
-_Last updated: 2026-10-05T03:33:41Z (commits cd50c3d..3c2d756)_
+_Last updated: 2026-10-05T10:48:28Z (commits 1801f4a..493b8e7)_
 
 ## Recent changes
-- 3e016a8 — feat(control): UNI-2639 proposed lane rules in .github/lanes.yml
+- 493b8e7 — fix(dashboard): gate /api/flow-board behind login; main CI is red without it (#895)
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .github/lanes.yml — touched in recent commits
+- .github/smoke-surfaces.json — touched in recent commits
