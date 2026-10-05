@@ -200,12 +200,11 @@ def test_a_failed_fresh_read_is_unknown_not_an_empty_queue(monkeypatch, tmp_path
     assert [n["identifier"] for n in cache.candidates(gql)[0]] == ["RA-T"]  # still cached, not evicted
 
 
-def test_fresh_rechecks_are_capped_per_claim(monkeypatch):
-    reads = []
-    monkeypatch.setattr(mesh_lanes, "explicit", lambda gql, ids: reads.append(gql("q")) and [])
-    refused = ({"identifier": f"RA-{i}"} for i in range(20))  # Linear answers each read: not in the pool
-    assert list(cache.rechecked(lambda q: {"issue": None}, refused)) == []
-    assert len(reads) == cache.MAX_RECHECKS  # a refused or unreadable queue cannot cost 20 requests
+def test_every_fresh_candidate_is_offered_however_many_lose_a_race(monkeypatch):
+    """Codex repro on 8a5f219: a cap of 5 re-reads hid RA-5 behind five 409s on RA-0..RA-4."""
+    monkeypatch.setattr(mesh_lanes, "explicit", lambda read, ids: read("q") and [{"identifier": ids[0]}])
+    offered = cache.rechecked(lambda q: {"issue": {}}, ({"identifier": f"RA-{i}"} for i in range(8)))
+    assert [n["identifier"] for n in offered] == [f"RA-{i}" for i in range(8)]
 
 
 def test_claim_self_reads_through_the_cache():

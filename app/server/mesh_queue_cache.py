@@ -19,7 +19,6 @@ with 409. A cached ticket that someone else just took is skipped, not re-taken.
 """
 from __future__ import annotations
 
-import itertools
 import json
 import os
 import threading
@@ -79,9 +78,6 @@ def candidates(graphql: Callable[[str], dict], now: Callable[[], float] = time.m
         return value
 
 
-MAX_RECHECKS = 5  # fresh single-ticket reads per claim call; bounds Linear traffic when rate-limited
-
-
 def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict]) -> Iterator[dict]:
     """Each cached candidate re-read from Linear and re-admitted before it is claimed.
 
@@ -89,13 +85,14 @@ def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict]) -> Iterato
     Linear since then must not be claimed from the stale copy, so each one goes
     through `mesh_lanes.explicit` — the same fresh read and admission rule dispatch
     uses — and is dropped from the cache when refused. Lazy: a claim that succeeds
-    on the first candidate costs one request.
+    on the first candidate costs one request. Uncapped: a failed read stops the walk
+    at once, and a refusal is a ticket changed inside the TTL, dropped after one read.
 
     A re-read that fails (`_linear_graphql` answers {} with no `issue` key) raises
     IncompleteRead: unknown is not refused, so the ticket stays cached and the
     caller answers 503, never "queue empty".
     """
-    for node in itertools.islice(ranked, MAX_RECHECKS):
+    for node in ranked:
         answered: list[bool] = []
 
         def read(query: str) -> dict:
