@@ -29,6 +29,7 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from env_file import from_env_file as _from_env_file, resolve_key  # noqa: E402  (RA-7905)
+from node_health import runner_down  # noqa: E402
 
 
 PI_CEO_API_URL = (os.environ.get("PI_CEO_API_URL") or _from_env_file("PI_CEO_API_URL")
@@ -214,8 +215,10 @@ def running_agent_sessions() -> list[dict]:
     return uniq
 
 
-def node_status(agents: list, crumb: dict) -> str:
-    """A runner that has gated itself says so, above working/online (RA-7802)."""
+def node_status(agents: list, crumb: dict, down: bool = False) -> str:
+    """A runner that stopped polling, then one that gated itself, say so above working/online (RA-7802)."""
+    if down:
+        return "runner-down"
     if crumb.get("state") in ("blocked", "quarantined", "stuck"):
         return crumb["state"]
     return "working" if agents else "online"
@@ -231,7 +234,7 @@ def collect() -> dict:
     cpu, mem, load1 = cpu_mem_load()
     agents = running_agent_sessions()
     crumb = runner_breadcrumb()
-    status = node_status(agents, crumb)
+    status = node_status(agents, crumb, runner_down(MESH_RUNNER_STATE, agents))
     return {
         "host": socket.gethostname().split(".")[0],
         "os": f"{platform.system()} {platform.release()}",
