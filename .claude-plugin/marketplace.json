@@ -8,6 +8,12 @@
       "source": "./mods/mc-lane",
       "description": "Reports each Claude Code lane's tool calls (names and timings only), context use and cost to Mission Control.",
       "author": { "name": "Unite-Group" }
+    },
+    {
+      "name": "ato-guard",
+      "source": "./mods/ato-guard",
+      "description": "In the ATO repository only: masks taxpayer identifiers (TFN, ABN, bank details) and Xero/Bearer tokens before Claude reads them, blocks Xero and SBR/lodgement writes, and keeps a local audit of counts only.",
+      "author": { "name": "Unite-Group" }
     }
   ]
 }
