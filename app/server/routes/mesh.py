@@ -415,22 +415,22 @@ def claim_self(
     ticket. Returns the ticket claimed, or null when the queue is empty/drained."""
     _check_secret(x_pi_ceo_secret)
     _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before self-claiming
-    try:  # an unread queue is unknown, not empty (audit 30/09 #18)
+    try:  # an unread queue is unknown, not empty (audit 30/09 #18), and so is a failed fresh re-read (RA-7910)
         nodes, repos = mesh_queue_cache.candidates(_linear_graphql)  # one shared read per 90 s (RA-7910)
+        if (repeat := mesh_lanes.repeat_claimed(_get)) is None:
+            return {"claimed": None, "reason": "claim history unreadable; not claiming blind"}
+        for tk in mesh_queue_cache.rechecked(_linear_graphql, mesh_lanes.ranked(nodes, _open_claim_ids() | repeat | mesh_requeue.failed_here(_get, body.host))):  # fresh re-admit (RA-7910)
+            ident = tk["identifier"]
+            row = mesh_requeue.claim_row(ident, body.host)
+            status, _ = _sb("POST", "mesh_work_claims", row, prefer="return=minimal")
+            if status < 300:
+                _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
+                return {"claimed": {
+                    "linear_id": ident, "id": row["id"], "machine": body.host, "lane": mesh_lanes.lane_of(tk),
+                    **({"repo": mesh_lanes.repo_of(tk, repos)} if mesh_lanes.needs_repo(tk) else {}),
+                    "title": (tk.get("title") or "")[:_TITLE_MAX_CHARS],
+                    "description": (tk.get("description") or "")[:_BRIEF_MAX_CHARS]}}
+            # status 409 = raced by another node → try the next candidate
     except mesh_lanes.IncompleteRead:
         raise HTTPException(503, "Linear could not be read; the queue is unknown, not empty")
-    if (repeat := mesh_lanes.repeat_claimed(_get)) is None:
-        return {"claimed": None, "reason": "claim history unreadable; not claiming blind"}
-    for tk in mesh_queue_cache.rechecked(_linear_graphql, mesh_lanes.ranked(nodes, _open_claim_ids() | repeat | mesh_requeue.failed_here(_get, body.host))):  # fresh re-admit (RA-7910)
-        ident = tk["identifier"]
-        row = mesh_requeue.claim_row(ident, body.host)
-        status, _ = _sb("POST", "mesh_work_claims", row, prefer="return=minimal")
-        if status < 300:
-            _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
-            return {"claimed": {
-                "linear_id": ident, "id": row["id"], "machine": body.host, "lane": mesh_lanes.lane_of(tk),
-                **({"repo": mesh_lanes.repo_of(tk, repos)} if mesh_lanes.needs_repo(tk) else {}),
-                "title": (tk.get("title") or "")[:_TITLE_MAX_CHARS],
-                "description": (tk.get("description") or "")[:_BRIEF_MAX_CHARS]}}
-        # status 409 = raced by another node → try the next candidate
     return {"claimed": None, "reason": "queue empty or fully claimed"}

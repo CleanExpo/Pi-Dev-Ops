@@ -90,9 +90,21 @@ def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict]) -> Iterato
     through `mesh_lanes.explicit` — the same fresh read and admission rule dispatch
     uses — and is dropped from the cache when refused. Lazy: a claim that succeeds
     on the first candidate costs one request.
+
+    A re-read that fails (`_linear_graphql` answers {} with no `issue` key) raises
+    IncompleteRead: unknown is not refused, so the ticket stays cached and the
+    caller answers 503, never "queue empty".
     """
     for node in itertools.islice(ranked, MAX_RECHECKS):
-        fresh = mesh_lanes.explicit(graphql, [node["identifier"]])
+        answered: list[bool] = []
+
+        def read(query: str) -> dict:
+            data = graphql(query) or {}
+            answered.append(isinstance(data, dict) and "issue" in data)
+            return data if isinstance(data, dict) else {}
+        fresh = mesh_lanes.explicit(read, [node["identifier"]])
+        if not answered or not all(answered):
+            raise mesh_lanes.IncompleteRead(f"fresh Linear read of {node['identifier']} failed")
         if fresh:
             yield fresh[0]
         else:

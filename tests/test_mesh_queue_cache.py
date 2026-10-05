@@ -148,12 +148,12 @@ def _blockable_route(monkeypatch, tmp_path):
     labels = [{"name": "mesh:auto"}]
     node = {"id": "RA-T", "identifier": "RA-T", "title": "t", "description": "d", "priority": 1,
             "team": {"id": "team-1"}, "state": {"name": "Todo", "type": "unstarted"}, "labels": {"nodes": labels}}
-    reads = []
+    reads, mode = [], {"fresh_read_fails": False}
 
     def gql(q):
         reads.append(q[:12])
         if q.startswith("query{issue("):
-            return {"issue": node}
+            return {} if mode["fresh_read_fails"] else {"issue": node}  # {} is _linear_graphql's failure
         if q.startswith("query{team"):
             return {"team": {"states": {"nodes": [{"id": "st", "type": "started"}]}}}
         snapshot = {**node, "labels": {"nodes": list(labels)}}  # the list read is a copy, as Linear's JSON is
@@ -167,13 +167,13 @@ def _blockable_route(monkeypatch, tmp_path):
     app = FastAPI()
     app.include_router(routes_mesh.router)
     claim = lambda: TestClient(app).post("/api/mesh/claim/self", json={"host": "n"}, headers={"X-Pi-CEO-Secret": "s"}).json()  # noqa: E731
-    return claim, labels, reads, gql
+    return claim, labels, reads, gql, mode
 
 
 def test_a_ticket_blocked_after_the_shared_read_is_not_claimed(monkeypatch, tmp_path):
     """Codex repro on 194e58f: the cached copy was claimed although Linear now blocks it."""
     cache.reset()
-    claim, labels, reads, gql = _blockable_route(monkeypatch, tmp_path)
+    claim, labels, reads, gql, _ = _blockable_route(monkeypatch, tmp_path)
     assert [n["identifier"] for n in cache.candidates(gql)[0]] == ["RA-T"]  # eligible when the shared read ran
     labels.append({"name": "pi-dev:blocked-reason:manual"})  # a human blocks it, inside the TTL
     assert claim()["claimed"] is None
@@ -182,15 +182,29 @@ def test_a_ticket_blocked_after_the_shared_read_is_not_claimed(monkeypatch, tmp_
 
 def test_an_unblocked_ticket_is_still_claimed_after_its_fresh_read(monkeypatch, tmp_path):
     cache.reset()
-    claim, _, reads, _ = _blockable_route(monkeypatch, tmp_path)
+    claim, _, reads, _, _ = _blockable_route(monkeypatch, tmp_path)
     assert claim()["claimed"]["linear_id"] == "RA-T"
     assert any(r.startswith("query{issue(") for r in reads)
 
 
+def test_a_failed_fresh_read_is_unknown_not_an_empty_queue(monkeypatch, tmp_path):
+    """Codex repro on ecff9d1: a failed re-read answered "queue empty" and evicted the ticket."""
+    cache.reset()
+    claim, _, _, gql, mode = _blockable_route(monkeypatch, tmp_path)
+    cache.candidates(gql)
+    mode["fresh_read_fails"] = True
+    from app.server.routes import mesh as routes_mesh
+    with pytest.raises(Exception) as err:  # the route's 503
+        routes_mesh.claim_self(routes_mesh.SelfClaimRequest(host="n"), x_pi_ceo_secret="s")
+    assert getattr(err.value, "status_code", None) == 503
+    assert [n["identifier"] for n in cache.candidates(gql)[0]] == ["RA-T"]  # still cached, not evicted
+
+
 def test_fresh_rechecks_are_capped_per_claim(monkeypatch):
     reads = []
-    monkeypatch.setattr(mesh_lanes, "explicit", lambda gql, ids: reads.append(ids) or [])
-    assert list(cache.rechecked(lambda q: {}, ({"identifier": f"RA-{i}"} for i in range(20)))) == []
+    monkeypatch.setattr(mesh_lanes, "explicit", lambda gql, ids: reads.append(gql("q")) and [])
+    refused = ({"identifier": f"RA-{i}"} for i in range(20))  # Linear answers each read: not in the pool
+    assert list(cache.rechecked(lambda q: {"issue": None}, refused)) == []
     assert len(reads) == cache.MAX_RECHECKS  # a refused or unreadable queue cannot cost 20 requests
 
 
