@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_reaper, mesh_requeue, mesh_run_record
+from .. import config, linear_complexity, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_reaper, mesh_requeue, mesh_run_record
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -205,7 +205,7 @@ def _linear_graphql(query: str) -> dict:
         with urllib.request.urlopen(req, timeout=15) as r:
             return (json.loads(r.read()) or {}).get("data", {}) or {}
     except Exception as e:  # noqa: BLE001
-        log.warning("linear query failed: %s", e)
+        log.warning("linear query failed: %s%s", e, linear_complexity.error_detail(e))  # RA-7910
         return {}
 
 
