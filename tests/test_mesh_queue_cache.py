@@ -230,10 +230,19 @@ def test_a_walk_already_under_way_stops_when_a_peer_starts_the_back_off(clock, m
     assert reads == []  # Linear was not touched
 
 
+def test_a_null_issue_beside_a_graphql_error_is_unknown_not_refused(clock, monkeypatch):
+    """Codex repro on 64fdd21: {"issue": null} from a field error evicted the ticket and said 'empty'."""
+    monkeypatch.setattr(mesh_lanes, "explicit", lambda read, ids: read("q") and [])
+    walk = cache.rechecked(lambda q: {"issue": None}, iter([{"identifier": "RA-T"}]), now=clock)
+    with pytest.raises(mesh_lanes.IncompleteRead):
+        next(walk)
+    assert cache._state["failed_at"] == clock.t  # backs off; never a confirmed refusal
+
+
 def test_every_fresh_candidate_is_offered_however_many_lose_a_race(monkeypatch):
     """Codex repro on 8a5f219: a cap of 5 re-reads hid RA-5 behind five 409s on RA-0..RA-4."""
     monkeypatch.setattr(mesh_lanes, "explicit", lambda read, ids: read("q") and [{"identifier": ids[0]}])
-    offered = cache.rechecked(lambda q: {"issue": {}}, ({"identifier": f"RA-{i}"} for i in range(8)))
+    offered = cache.rechecked(lambda q: {"issue": {"id": "x"}}, ({"identifier": f"RA-{i}"} for i in range(8)))
     assert [n["identifier"] for n in offered] == [f"RA-{i}" for i in range(8)]
 
 

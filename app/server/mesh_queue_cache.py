@@ -96,8 +96,9 @@ def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict],
     on the first candidate costs one request. Uncapped: a failed read stops the walk
     at once, and a refusal is a ticket changed inside the TTL, dropped after one read.
 
-    A re-read that fails (`_linear_graphql` answers {} with no `issue` key) raises
-    IncompleteRead: unknown is not refused, so the ticket stays cached and the
+    Only a ticket Linear actually returned can be refused. Anything else — {} from
+    `_linear_graphql` on a failure, or `issue: null` beside a GraphQL error, or a
+    deleted ticket — raises IncompleteRead: unknown is not refused, so the ticket stays cached and the
     caller answers 503, never "queue empty". It starts the same BACKOFF_S as a
     failed queue read, so the next polls do not go back to Linear.
     """
@@ -108,7 +109,7 @@ def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict],
 
         def read(query: str) -> dict:
             data = graphql(query) or {}
-            answered.append(isinstance(data, dict) and "issue" in data)
+            answered.append(isinstance(data, dict) and isinstance(data.get("issue"), dict))
             return data if isinstance(data, dict) else {}
         fresh = mesh_lanes.explicit(read, [node["identifier"]])
         if not answered or not all(answered):
