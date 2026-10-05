@@ -1,6 +1,6 @@
 ---
 name: margot-sandcastle-bridge
-description: After a Margot Deep Research finding completes, classify "action-shaped vs informational" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On 👍, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 item 4 (RA-1856 epic). This is what makes Margot autonomous.
+description: After a Margot Deep Research finding completes, classify "action-shaped vs informational" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On 👍, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 item 4 (RA-1856 epic). This is what makes Margot autonomous. Use when a completed Margot deep research finding (deep_research or deep_research_max output) needs classifying as action-shaped or informational via intent_router, then drafting a Linear ticket and routing it through the draft_review HITL gate so an approved one reaches autonomy.py and sandcastle-runner.
 owner_role: Margot (research) → Chief of Staff (HITL) → Builder (execution)
 status: wave-5
 ---

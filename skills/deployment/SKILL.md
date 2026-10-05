@@ -1,6 +1,6 @@
 ---
 name: deployment
-description: Deployment constraints and runtime behaviour for Railway (backend) and Vercel (frontend) — proxy config, redirects, Telegram, SSE limits, and model routing.
+description: Deployment constraints and runtime behaviour for Railway (backend) and Vercel (frontend) — proxy config, redirects, Telegram, SSE limits, and model routing. Use when working on Railway backend config, Vercel SSE routes or the 300 second limit, httpx fetchers hitting Anthropic docs redirects, Telegram push via the Bot API, TrustedHostMiddleware or ALLOWED_ORIGINS CORS issues, or per-phase haiku and sonnet model routing in the analysis pipeline.
 ---
 
 # Deployment Patterns

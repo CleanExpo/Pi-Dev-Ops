@@ -1,6 +1,6 @@
 ---
 name: tao-tdd-pipeline
-description: Test-first iteration pipeline. Composes on tao-loop + tao-judge to enforce red→green→refactor discipline. The judge is bound to "all tests pass + new test files modified". Without test files in the diff, GOAL_MET is rejected.
+description: Test-first iteration pipeline. Composes on tao-loop + tao-judge to enforce red→green→refactor discipline. The judge is bound to "all tests pass + new test files modified". Without test files in the diff, GOAL_MET is rejected. Use when a user issues a TDD-style brief that mentions tests, scenarios, red/green, or asks for "test-first" or "test-driven" work, or when an orchestrator needs stronger guarantees than plain tao-loop for ambiguous goals like fixing a bug by adding a regression test first, since it rejects GOAL_MET unless pytest-convention test files are in the git diff and `pytest tests/` passes.
 owner_role: Tier-Orchestrator (uses generator + evaluator at sonnet per RA-1099)
 status: wave-2
 linear: RA-1992

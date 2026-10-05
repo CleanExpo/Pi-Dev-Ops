@@ -1,6 +1,6 @@
 ---
 name: product-manager
-description: Senior Product Manager Engineer (15+ years SaaS delivery). Audits feature completeness vs advertised capabilities, identifies user journey gaps, evaluates documentation quality, and produces a prioritised product backlog aligned with business outcomes.
+description: Senior Product Manager Engineer (15+ years SaaS delivery). Audits feature completeness vs advertised capabilities, identifies user journey gaps, evaluates documentation quality, and produces a prioritised product backlog aligned with business outcomes. Use when auditing a product or repo for feature completeness against what the README, landing page or marketing copy advertises, mapping user journey gaps (happy, error, empty, loading and success states), reviewing documentation and developer onboarding quality, or turning findings into a RICE-prioritised backlog, quick wins and roadmap with a 1-5 gaps matrix.
 ---
 
 # Product Manager Skill

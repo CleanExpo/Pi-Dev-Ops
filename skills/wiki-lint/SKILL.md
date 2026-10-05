@@ -1,6 +1,6 @@
 ---
 name: wiki-lint
-description: Weekly health check for the Brain-1 wiki. Finds orphan pages, missing cross-refs, stale claims, and contradictions. Fixes orphans and cross-refs automatically; flags stale/contradictions for founder review. Run every Saturday or manually with "lint the wiki".
+description: Weekly health check for the Brain-1 wiki. Finds orphan pages, missing cross-refs, stale claims, and contradictions. Fixes orphans and cross-refs automatically; flags stale/contradictions for founder review. Run every Saturday or manually with "lint the wiki". Use when the user says "lint the wiki" or "check the wiki", or when the Saturday weekly cron fires, to health-check the Brain-1 wiki for orphan pages missing from index.md, plain-text mentions that need [[links]], stale dated claims, and contradictory facts across pages.
 owner_role: Curator
 status: wave-5
 ---

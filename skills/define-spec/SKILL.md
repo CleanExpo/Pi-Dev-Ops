@@ -1,6 +1,6 @@
 ---
 name: define-spec
-description: Spec writer. Converts a raw idea into a structured specification with PITER classification, goals/non-goals, Given/When/Then acceptance criteria, and explicit constraints. Output is a spec.md ready for the /plan phase.
+description: Spec writer. Converts a raw idea into a structured specification with PITER classification, goals/non-goals, Given/When/Then acceptance criteria, and explicit constraints. Output is a spec.md ready for the /plan phase. Use when a raw idea, ticket title, or feature request such as "add dark mode" needs to become a structured spec.md with a PITER type (hotfix, bug, chore, spike, feature), goals and non-goals, Given/When/Then acceptance criteria, and constraints before the /plan phase begins.
 ---
 
 # Define Spec Skill

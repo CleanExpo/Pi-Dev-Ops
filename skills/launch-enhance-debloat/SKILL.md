@@ -1,6 +1,6 @@
 ---
 name: launch-enhance-debloat
-description: Make existing code stronger, leaner, and more secure without over-engineering — deletion is often the best change. Finds dead weight, weak spots on critical paths, and security issues; proposes a ranked reversible change list and applies only approved changes in a sandbox with tests passing. Use on "clean up", "remove bloat", "strengthen", "secure it", or as step 4 of /ship-it.
+description: Make existing code stronger, leaner, and more secure without over-engineering — deletion is often the best change. Finds dead weight, weak spots on critical paths, and security issues; proposes a ranked reversible change list and applies only approved changes in a sandbox with tests passing. Use on "clean up", "remove bloat", "strengthen", "secure it", or as step 4 of /ship-it. Use when the user says "clean up", "remove bloat", "strengthen", "secure it" or "make it better", when step 4 of /ship-it runs, or when a continuous-improvement cron fires, to hunt dead code, unused dependencies and weak spots on critical paths and propose a ranked, reversible change list that is applied only once approved.
 owner_role: Builder
 status: wave-4
 automation: manual

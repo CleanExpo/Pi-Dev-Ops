@@ -19,11 +19,9 @@ with 409. A cached ticket that someone else just took is skipped, not re-taken.
 """
 from __future__ import annotations
 
-import json
 import os
 import threading
 import time
-import urllib.error
 from typing import Any, Callable
 
 from . import mesh_lanes
@@ -76,20 +74,3 @@ def candidates(graphql: Callable[[str], dict], now: Callable[[], float] = time.m
             raise
         _state.update(at=t, value=value, failed_at=None)
         return value
-
-
-def linear_error_detail(exc: BaseException) -> str:
-    """Linear's own error text from a failed request, e.g. its rate-limit message.
-
-    Linear answers a rate-limited or malformed query with HTTP 400 and puts the
-    reason in the JSON body; urllib's exception string says only "Bad Request".
-    Messages only — never the request, headers or key.
-    """
-    if not isinstance(exc, urllib.error.HTTPError):
-        return ""
-    try:
-        body = json.loads(exc.read() or b"{}")
-    except (ValueError, OSError):
-        return ""
-    messages = [str(e.get("message", "")) for e in body.get("errors", []) if isinstance(e, dict)]
-    return "; ".join(m for m in messages if m)[:300]

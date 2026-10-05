@@ -1,12 +1,17 @@
 # skills — Wiki
 
-_Last updated: 2026-08-27T11:27:19Z (commits 8978b3c..6b58d72)_
+_Last updated: 2026-10-05T13:34:49Z (commits 6914c1a..7f39fe0)_
 
 ## Recent changes
-- 6b58d72 — Mission Control: rolling 15-step continuation across Claude, Telegram and Margot
+- 7f39fe0 — chore(skills): bring Pi-Dev-Ops skills up to Anthropic's skill authoring rules (RA-7914) (#897)
 
 ## Architecture (current)
 Auto-stub: `skills/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- skills/scheduled-tasks/SKILL.md — touched in recent commits
+- skills/afk-agent/SKILL.md — touched in recent commits
+- skills/agent-expert/SKILL.md — touched in recent commits
+- skills/agentic-layer/SKILL.md — touched in recent commits
+- skills/agentic-loop/SKILL.md — touched in recent commits
+- skills/agentic-review/SKILL.md — touched in recent commits
+- skills/agentskills-manifest/SKILL.md — touched in recent commits

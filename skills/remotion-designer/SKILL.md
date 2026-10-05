@@ -1,6 +1,6 @@
 ---
 name: remotion-designer
-description: Visual-design specialist for Remotion compositions. Sets layout grid, typography hierarchy, white-space, scene framing, and visual rhythm for a given composition + brand. Triggered after remotion-composition-builder for QA, or upfront when authoring a new composition type. Produces a layout spec consumed by remotion-composition-builder.
+description: Visual-design specialist for Remotion compositions. Sets layout grid, typography hierarchy, white-space, scene framing, and visual rhythm for a given composition + brand. Use after remotion-composition-builder for QA, or upfront when authoring a new composition type. Produces a layout spec consumed by remotion-composition-builder.
 automation: automatic
 intents: design-pass, layout-pass, visual-qa
 ---

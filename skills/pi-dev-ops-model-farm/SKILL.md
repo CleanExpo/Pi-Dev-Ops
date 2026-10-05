@@ -1,6 +1,6 @@
 ---
 name: pi-dev-ops-model-farm
-description: Multi-CLI agent farm orchestrator. Manages Claude Code (3x Max Plan accounts) and OpenAI Codex CLI (1x Max/Plus account) as tmux-based background workers. Receives routing requests from Pi-Dev-Ops /nexus, dispatches tasks, monitors health, and returns structured outputs via JSON-over-file IPC. Enables hybrid Claude+OpenAI execution without API billing.
+description: Multi-CLI agent farm orchestrator. Manages Claude Code (3x Max Plan accounts) and OpenAI Codex CLI (1x Max/Plus account) as tmux-based background workers. Receives routing requests from Pi-Dev-Ops /nexus, dispatches tasks, monitors health, and returns structured outputs via JSON-over-file IPC. Enables hybrid Claude+OpenAI execution without API billing. Use when a task needs Claude Code or Codex CLI work dispatched to tmux-based background workers, such as a Pi-Dev-Ops /nexus routing request for /judge, /boardroom, /storm or /spm, checking farm health or restarting a worker with pi-dev-ops-farm, or running hybrid Claude+OpenAI jobs without API billing.
 allowed-tools: Read, Grep, Glob, Bash, Agent, terminal, process, cronjob
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: remotion-render-pipeline
-description: Final step. Synthesises ElevenLabs voiceover for each scene, runs `npx tsx render/render.ts` to produce an MP4, validates duration / codec / resolution / size, uploads to Supabase storage, ships the result via Telegram, and opens a Linear ticket. Triggered after remotion-composition-builder reports ready. Failure modes (timeout, hang, type error) escalate to Linear.
+description: Final step. Synthesises ElevenLabs voiceover for each scene, runs `npx tsx render/render.ts` to produce an MP4, validates duration / codec / resolution / size, uploads to Supabase storage, ships the result via Telegram, and opens a Linear ticket. Use after remotion-composition-builder reports ready. Failure modes (timeout, hang, type error) escalate to Linear.
 automation: automatic
 intents: render-video, ship-video, deliver-video
 ---

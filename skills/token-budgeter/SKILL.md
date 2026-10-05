@@ -1,6 +1,6 @@
 ---
 name: token-budgeter
-description: Track and enforce token budgets per tier.
+description: Track and enforce token budgets per tier. Use when a task involves tracking or enforcing token budgets per tier, comparing model costs for Opus, Sonnet or Haiku output and cache tokens, or deciding how spend differs on Claude Max where execution via the claude CLI subprocess costs $0.
 ---
 
 # Token Budgeter

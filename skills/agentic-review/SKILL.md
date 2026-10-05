@@ -1,6 +1,6 @@
 ---
 name: agentic-review
-description: Review agent output for quality, not just correctness.
+description: Review agent output for quality, not just correctness. Use when the user asks to review agent-produced code or output for quality beyond passing tests, such as checking architecture, naming, error handling, duplication, complexity, or adherence to project conventions.
 ---
 
 # Agentic Review

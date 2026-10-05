@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Architectural conventions and anti-patterns specific to Pi-Dev-Ops — companion model, sandbox isolation, ZTE leverage, CLAUDE.md hygiene, parallel dispatch, topology-first autonomy.
+description: Architectural conventions and anti-patterns specific to Pi-Dev-Ops — companion model, sandbox isolation, ZTE leverage, CLAUDE.md hygiene, parallel dispatch, topology-first autonomy. Use when making structural decisions for Pi-Dev-Ops, such as session handling, workspace isolation under app/workspaces, pipeline design, parallel agent dispatch, updating CLAUDE.md, scheduled-task prompts, /health endpoints, poller bootstrap, or deciding whether autonomy belongs on Railway versus a Mac-bound Cowork or local claude -p process.
 ---
 
 # Architecture Best Practices

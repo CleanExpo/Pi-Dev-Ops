@@ -1,5 +1,13 @@
 # MOA board — the /spm specialist bench roster
 
+## Contents
+- [Consult contract (per seat, returned as ONE JSON block in the seat's final text)](#consult-contract-per-seat-returned-as-one-json-block-in-the-seats-final-text)
+- [The 8 seats](#the-8-seats)
+- [Dispatch mechanics](#dispatch-mechanics)
+- [Guardrails](#guardrails)
+- [Task-shape → seat mapping (mirrors the nexus G4 menu)](#task-shape--seat-mapping-mirrors-the-nexus-g4-menu)
+
+
 `board_version: 1.0` · `contract_v: 1` · calibrated 2026-07-10
 Change-control: roster/threshold changes ride agent-workflow's promotion ladder — 5 clean
 hand-run executions before a change is considered calibrated. Every emitted spec prints the

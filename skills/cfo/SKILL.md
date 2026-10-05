@@ -1,6 +1,6 @@
 ---
 name: cfo
-description: Daily financial visibility across the 11 Unite-Group businesses. Computes burn multiple, NRR, CAC payback, gross margin from Stripe + Xero feeds. Drafts a 1-page financial brief into the daily 6-pager. Gates spend approvals >$1K through draft_review HITL. Closes Wave 4.1 of the senior-agent slate (RA-1850).
+description: Daily financial visibility across the 11 Unite-Group businesses. Computes burn multiple, NRR, CAC payback, gross margin from Stripe + Xero feeds. Drafts a 1-page financial brief into the daily 6-pager. Gates spend approvals >$1K through draft_review HITL. Closes Wave 4.1 of the senior-agent slate (RA-1850). Use when the user asks for daily financial visibility across the 11 Unite-Group businesses, such as the CFO daily brief, burn multiple, NRR, CAC payback, gross margin or runway checks, threshold-breach alerts, or approving a spend or invoice over the $1,000 ceiling through the draft_review gate.
 owner_role: CFO
 status: wave-4
 ---

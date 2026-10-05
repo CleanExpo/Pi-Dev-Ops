@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: Design stack orchestrator for Pi-CEO. Routes UI work to the correct specialist skill (design-intelligence, ui-component-builder, impeccable, visual-qa). Start here for any design task.
+description: Design stack orchestrator for Pi-CEO. Routes UI work to the correct specialist skill (design-intelligence, ui-component-builder, impeccable, visual-qa). Start here for any design task. Use when starting any UI or design task in the Nexus (building or updating a component, asking whether something looks right, polishing, matching a brand or site, or checking visual regressions), so it can route to design-intelligence, ui-component-builder, impeccable or visual-qa and keep decisions grounded in DESIGN.md.
 automation: manual
 intents: design, feature
 ---

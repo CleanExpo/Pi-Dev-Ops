@@ -1,6 +1,6 @@
 ---
 name: remotion-screen-storyteller
-description: Writes the on-screen script for a video — scene-by-scene voiceover, on-screen text, b-roll callouts, and CTA. Triggered when the brief is a goal or topic but lacks scene structure. Produces a Storyboard JSON consumed by remotion-composition-builder and remotion-render-pipeline (for ElevenLabs voiceover synthesis).
+description: Writes the on-screen script for a video — scene-by-scene voiceover, on-screen text, b-roll callouts, and CTA. Use when the brief is a goal or topic but lacks scene structure. Produces a Storyboard JSON consumed by remotion-composition-builder and remotion-render-pipeline (for ElevenLabs voiceover synthesis).
 automation: automatic
 intents: storyboard, script, scene-breakdown
 ---

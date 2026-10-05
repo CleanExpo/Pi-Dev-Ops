@@ -1,6 +1,6 @@
 ---
 name: remotion-marketing-strategist
-description: Tunes a video's format and message for the target channel — LinkedIn, YouTube, Instagram Reel, internal training. Sets aspect ratio, total duration, hook timing, CTA timing, and pacing. Triggered when the brief mentions a specific channel or campaign goal. Output feeds remotion-screen-storyteller and remotion-composition-builder.
+description: Tunes a video's format and message for the target channel — LinkedIn, YouTube, Instagram Reel, internal training. Sets aspect ratio, total duration, hook timing, CTA timing, and pacing. Use when the brief mentions a specific channel or campaign goal. Output feeds remotion-screen-storyteller and remotion-composition-builder.
 automation: automatic
 intents: channel-strategy, campaign-strategy, marketing-fit
 ---

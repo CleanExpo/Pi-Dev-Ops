@@ -31,8 +31,8 @@ from app.server.autonomy_eligibility import (
 
 log = logging.getLogger("pi-ceo.autonomy")
 
-PAGE_SIZE = 25  # each issue carries three guard connections of up to 50 nodes
-MAX_PAGES = 20  # 1,000 tickets per project/label; a runaway cursor cannot spin forever
+PAGE_SIZE = 10  # three 50-node guard connections per issue; 25 exceeded Linear's 10,000 (RA-7910)
+MAX_PAGES = 50  # 500 tickets per project/label; a runaway cursor cannot spin forever
 TOKEN_CAP_LABEL = "pi-dev:blocked-reason:token-cap"
 START_FAILED_LABEL = "pi-dev:blocked-reason:start-failed"
 SESSION_FAILED_LABEL = "pi-dev:blocked-reason:session-failed"
