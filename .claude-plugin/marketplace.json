@@ -14,6 +14,12 @@
       "source": "./mods/ato-guard",
       "description": "In the ATO repository only: masks taxpayer identifiers (TFN, ABN, bank details) and Xero/Bearer tokens before Claude reads them, blocks Xero and SBR/lodgement writes, and keeps a local audit of counts only.",
       "author": { "name": "Unite-Group" }
+    },
+    {
+      "name": "synthex-main-status",
+      "source": "./mods/synthex-main-status",
+      "description": "In CleanExpo/Synthex sessions, shows a status line while Synthex main CI is red (read-only gh run list every two minutes).",
+      "author": { "name": "Unite-Group" }
     }
   ]
 }
