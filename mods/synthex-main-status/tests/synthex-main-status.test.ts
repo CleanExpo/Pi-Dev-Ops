@@ -124,5 +124,7 @@ describe('decideStatus', () => {
     expect(isSynthex('https://github.com/cleanexpo/synthex')).toBe(true)
     expect(isSynthex('https://github.com/CleanExpo/Synthex-Docs.git')).toBe(false)
     expect(isSynthex(undefined)).toBe(false)
+    expect(isSynthex('https://other.example/CleanExpo/Synthex.git')).toBe(false)
+    expect(isSynthex('https://notgithub.com/CleanExpo/Synthex.git')).toBe(false)
   })
 })

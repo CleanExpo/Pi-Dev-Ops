@@ -21,7 +21,9 @@ export function repoSlug(remote: string | null | undefined): string | undefined 
   return m ? `${m[1]}/${m[2]}` : undefined
 }
 
+/** True only for a github.com remote whose owner/name is CleanExpo/Synthex (any case). */
 export function isSynthex(remote: string | null | undefined): boolean {
+  if (!remote || !/(^|[@/])github\.com[:/]/i.test(remote.trim())) return false
   return repoSlug(remote)?.toLowerCase() === SYNTHEX.toLowerCase()
 }
 
