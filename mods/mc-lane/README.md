@@ -2,7 +2,12 @@
 
 Claude Code mod that reports each lane to Mission Control: session start/end,
 each tool call's **name, ok/failed and duration**, and context %, worst
-rate-limit % and cost after each turn. No tool input or output leaves the machine.
+rate-limit % and cost after each turn, and each subagent or agent-team teammate start
+(`agent_start`: the agent type's **name** and its model). No tool input or output, and no
+subagent prompt, leaves the machine.
+
+The unsent queue lives in `$.state` (contract: `types/index.d.ts`), so a hot reload neither
+loses it nor records a second `session_start`; at session end it is parked in `$.store`.
 
 Spec: `docs/specs/claude-mods-integration.md` §3.1 · Server: `app/server/routes/mesh_lane_events.py`
 · Table: `mesh/schema/0004_mesh_lane_events.sql` · Mods docs: `docs/reference/claude-mods/`

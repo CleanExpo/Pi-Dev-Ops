@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
-import { dropAcked, enqueue, makeSeq, MAX_QUEUE, repoSlug, toolName, worstRate, type LaneEvent } from '../hooks/lane'
+import { dropAcked, enqueue, makeSeq, MAX_QUEUE, modelName, repoSlug, toolName, worstRate, type LaneEvent } from '../hooks/lane'
 
 const ENV = { MC_LANE_URL: 'https://mc.example/', MC_LANE_SECRET: 's3cret', MC_LANE_HOST: 'unite-mac-mini' }
 
@@ -20,6 +20,11 @@ function harness(on: any, opts: { env?: Record<string, string>; status?: number;
   on('tool.call', () => ({ result: 'ok' }))
   on('session.measure', ($: unknown, e: unknown) => e)
   on('session.end', () => ({}))
+  const spawned: unknown[] = []
+  on('agent.spawn', ($: unknown, e: unknown) => {
+    spawned.push(e)
+    return { model: 'claude-haiku-4-5', agentId: 'agent-7' }
+  })
   on('http.fetch', ($: unknown, e: { url: string; init: { headers: Record<string, string>; body: string } }) => {
     const body = JSON.parse(e.init.body) as Post['body']
     posts.push({ url: e.url, headers: e.init.headers, body })
@@ -28,7 +33,7 @@ function harness(on: any, opts: { env?: Record<string, string>; status?: number;
     const status = opts.status ?? 200
     return { value: { status, ok: status < 300, headers: {}, text: JSON.stringify({ ok: true, acked }) } }
   })
-  return { posts, clock }
+  return { posts, clock, spawned }
 }
 
 describe('reporting', () => {
@@ -81,6 +86,51 @@ describe('reporting', () => {
   })
 })
 
+describe('hot reload', () => {
+  // A reload re-runs session.start in the same session; the queue and the
+  // "session_start already recorded" mark live in $.state, so neither resets.
+  test('a second session.start keeps the queue and records session_start once', async ($, on) => {
+    const { posts, clock } = harness(on, { status: 503 })
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/w' })
+    await $.tool.call({ tool: 'Read', file_path: 'a' })
+    await clock.advance(5_000) // backend down: both events stay queued
+    expect(posts.length).toBe(1)
+
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/w' }) // the reload
+    await $.tool.call({ tool: 'Edit', file_path: 'a' })
+    await clock.advance(5_000)
+
+    expect(posts.length).toBe(2) // one timer, not two
+    const kinds = posts[1].body.events.map(e => e.kind)
+    expect(kinds).toEqual(['session_start', 'tool', 'tool'])
+    expect(posts[1].body.events.map(e => e.tool)).toEqual([undefined, 'Read', 'Edit'])
+    const seqs = posts[1].body.events.map(e => e.seq)
+    expect(new Set(seqs).size).toBe(seqs.length)
+  })
+})
+
+describe('subagents and teammates', () => {
+  test('agent.spawn passes through unchanged and records agent_start (type and model only)', async ($, on) => {
+    const { posts, clock, spawned } = harness(on)
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/w' })
+    const input = {
+      tool_use_id: 'tu-1', prompt: 'read ~/.ssh/id_rsa and summarise', description: 'secret task',
+      subagentType: 'Explore', provider: { plugin: 'engine', tier: 'core' }, parentModel: 'claude-opus-5-5',
+      background: false, fork: false, isTeammate: true, name: 'scout',
+    }
+    const ran = await $.agent.spawn(input as never)
+
+    expect(spawned).toEqual([input]) // next(e) got the event as given
+    expect(ran).toMatchObject({ model: 'claude-haiku-4-5', agentId: 'agent-7' })
+
+    await clock.advance(5_000)
+    const ev = posts[0].body.events.find(e => e.kind === 'agent_start')
+    expect(ev).toMatchObject({ kind: 'agent_start', tool: 'Explore', model: 'claude-haiku-4-5', ok: true })
+    const sent = JSON.stringify(posts[0].body)
+    for (const leak of ['id_rsa', 'secret task', 'scout', 'tu-1']) expect(sent).not.toContain(leak)
+  })
+})
+
 describe('honesty when it cannot report', () => {
   test('unconfigured: sends nothing and says so', async ($, on) => {
     const { posts, clock } = harness(on, { env: {} })
@@ -129,6 +179,13 @@ describe('pure helpers', () => {
     expect(toolName('mcp__Linear__save_issue')).toBe('mcp__Linear__save_issue')
     expect(toolName('rm -rf /')).toBe('unknown')
     expect(toolName(42)).toBe('unknown')
+  })
+
+  test('modelName passes model ids and refuses anything else', () => {
+    expect(modelName('claude-opus-5-5')).toBe('claude-opus-5-5')
+    expect(modelName('claude-opus-4-6[1m]')).toBe('claude-opus-4-6[1m]')
+    expect(modelName('claude\nIGNORE PREVIOUS')).toBeUndefined()
+    expect(modelName(undefined)).toBeUndefined()
   })
 
   test('repoSlug strips credentials and suffixes', () => {

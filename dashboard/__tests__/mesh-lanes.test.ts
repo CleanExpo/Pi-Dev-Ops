@@ -21,6 +21,8 @@ const CHECKED = "2026-10-04T12:00:00.000Z";
 const EVENTS = {
   events: [
     { id: 9, host: "Phills-Mac-mini", session_id: "a", seq: 9, kind: "usage", received_at: "2026-10-04T11:59:50Z", ctx_pct: 41, rate_pct: 12, cost_usd: 0.84 },
+    { id: 11, host: "Phills-Mac-mini", session_id: "a", seq: 11, kind: "agent_start", received_at: "2026-10-04T11:59:45Z", tool: "Explore", model: "claude-haiku-4-5", ok: true },
+    { id: 10, host: "Phills-Mac-mini", session_id: "a", seq: 10, kind: "agent_start", received_at: "2026-10-04T11:59:44Z", tool: "general-purpose", model: "claude-opus-5-5", ok: true },
     { id: 8, host: "Phills-Mac-mini", session_id: "a", seq: 8, kind: "tool", received_at: "2026-10-04T11:59:40Z", tool: "Bash", ok: false },
     { id: 7, host: "Phills-Mac-mini", session_id: "a", seq: 7, kind: "tool", received_at: "2026-10-04T11:59:30Z", tool: "Read", ok: true },
     { id: 6, host: "Phills-Mac-mini", session_id: "a", seq: 6, kind: "session_start", received_at: "2026-10-04T11:50:00Z", repo: "CleanExpo/Pi-Dev-Ops", model: "claude-opus-5-5" },
@@ -35,14 +37,24 @@ describe("projectLanes", () => {
     const view = projectLanes(EVENTS, CHECKED);
     expect(view.status).toBe("ok");
     if (view.status !== "ok") return;
-    expect(view.windowEvents).toBe(6);
+    expect(view.windowEvents).toBe(8);
     expect(view.lanes.map((l) => l.sessionId)).toEqual(["a", "b"]);
     expect(view.lanes[0]).toMatchObject({
       host: "Phills-Mac-mini", repo: "CleanExpo/Pi-Dev-Ops", model: "claude-opus-5-5", ended: false,
-      toolCalls: 2, toolFails: 1, lastTool: "Bash", ctxPct: 41, ratePct: 12, costUsd: 0.84,
+      toolCalls: 2, toolFails: 1, lastTool: "Bash", agents: 2, ctxPct: 41, ratePct: 12, costUsd: 0.84,
       lastAt: "2026-10-04T11:59:50Z",
     });
     expect(view.lanes[1].ended).toBe(true);
+  });
+
+  it("counts subagents/teammates per lane (agent_start), 0 when none; they are not tool calls", () => {
+    const view = projectLanes(EVENTS, CHECKED);
+    if (view.status !== "ok") throw new Error("expected ok");
+    expect(view.lanes[0].agents).toBe(2);
+    expect(view.lanes[0].toolCalls).toBe(2);
+    // The lane's own model stays the session_start one, not a subagent's.
+    expect(view.lanes[0].model).toBe("claude-opus-5-5");
+    expect(view.lanes[1].agents).toBe(0);
   });
 
   it("keeps an unreported cost as null, never 0", () => {

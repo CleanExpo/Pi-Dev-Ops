@@ -6,7 +6,9 @@
 // field (app/server/routes/mesh_lane_events.py); this file is the first gate,
 // not the only one.
 
-export type LaneEventKind = 'session_start' | 'tool' | 'usage' | 'session_end'
+// `agent_start`: a subagent or agent-team teammate started (agent.spawn). Its
+// `tool` is the agent type's name and `model` what it runs on; nothing else.
+export type LaneEventKind = 'session_start' | 'tool' | 'agent_start' | 'usage' | 'session_end'
 
 export type LaneEvent = {
   session_id: string
@@ -38,6 +40,13 @@ const TOOL_NAME = /^[A-Za-z0-9_.:-]{1,128}$/
  */
 export function toolName(raw: unknown): string {
   return typeof raw === 'string' && TOOL_NAME.test(raw) ? raw : 'unknown'
+}
+
+const MODEL_NAME = /^[A-Za-z0-9_.:[\]-]{1,80}$/
+
+/** A model id or alias as Mission Control may show it (the server's _MODEL), or undefined. */
+export function modelName(raw: unknown): string | undefined {
+  return typeof raw === 'string' && MODEL_NAME.test(raw) ? raw : undefined
 }
 
 /** `owner/name` from a git remote URL, or undefined. Never sends the URL itself (it can hold a token). */
