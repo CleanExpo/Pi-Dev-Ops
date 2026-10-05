@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Fail when a dashboard client reads the Pi-CEO proxy without reading its
 fallback header.
 
@@ -56,6 +55,8 @@ DASHBOARD = "dashboard/"
 # The proxy route itself, and the allowlist that names paths, are not consumers.
 EXEMPT_SUBSTRINGS = (
     "dashboard/app/api/pi-ceo/",
+    "dashboard/e2e/",  # Browser test route interception is not a client rendering proxy data.
+    "dashboard/e2e-live/",  # Live suite: names proxy paths to cut/replay (WP-09); renders nothing.
     "dashboard/lib/pi-ceo-proxy-allowlist",
     "dashboard/lib/pi-ceo-fetch",
     "__tests__/",
@@ -95,7 +96,7 @@ PROXY_MARKER = "api/pi-ceo"
 #
 # So the rule is now: flagged unless a MECHANISM makes the fallback
 # unreachable. Guessing wrong flags an extra file, which costs one import.
-NON_GET = re.compile(r'method:\s*["\'](POST|PUT|PATCH|DELETE)["\']', re.I)
+NON_GET = re.compile(r'method:\s*["\'](POST|PUT|PATCH|DELETE)["\']', re.IGNORECASE)
 COMMENT_LINE = re.compile(r'^\s*(//|/\*|\*)')
 # LOOKBACK/LOOKAHEAD character windows were removed once _enclosing_call()
 # existed: proximity is not evidence, and both windows were measured excusing

@@ -17,6 +17,7 @@ from ..sessions import _sessions
 from ..vercel_monitor import check_deployment_drift
 from .. import config
 from .. import lessons as _lessons
+from ..loop_lag import start_loop_lag_monitor  # RA-7845
 
 log = logging.getLogger("pi-ceo.main")
 
@@ -50,6 +51,7 @@ async def _poll_claude_cli() -> None:
 @app.on_event("startup")
 async def _start_claude_poll():
     asyncio.create_task(_resilient(_poll_claude_cli, "claude_cli_poll"))
+    start_loop_lag_monitor()
 
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "static")
@@ -88,7 +90,8 @@ async def health(request: Request):
     elif cookie_token and verify_session_token(cookie_token):
         authed = True
 
-    if tao_password and not authed:
+    # Fail closed: an unset TAO_PASSWORD never opens the full payload.
+    if not authed:
         return JSONResponse({"status": "ok"}, status_code=200)
 
     uptime_s = int(time.time() - _START_TIME)
@@ -133,8 +136,8 @@ async def health(request: Request):
     # Swarm state — read env at request time (not module load) so Railway
     # restart-for-env-change takes effect immediately. The dashboard Overview
     # reads these as optional fields and falls back to "Active" when absent.
-    swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "1") not in ("0", "false", "False", "")
-    swarm_shadow = os.environ.get("TAO_SWARM_SHADOW", "0") not in ("0", "false", "False", "")
+    swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "0") == "1"  # app_factory gate (RA-7849)
+    swarm_shadow = os.environ.get("TAO_SWARM_SHADOW", "1") == "1"    # swarm/config.SHADOW_MODE
 
     # Pi-SEO scheduler gate — RA-1469. The cron loop fires every 60s but
     # `cron_triggers._fire_scan_trigger` and `_fire_monitor_trigger` skip
@@ -205,14 +208,13 @@ async def health(request: Request):
     return JSONResponse(payload, status_code=200)
 
 
-@app.get("/api/integrations/health")
+@app.get("/api/integrations/health", dependencies=[Depends(require_auth)])
 async def integrations_health():
     """RA-1293 — Integration health snapshot.
 
-    Public (no auth) so the dashboard can render it without a session, and so
-    `/health` consumers can flag degraded auth state without credentials. The
-    snapshot contains no secrets — only probe names, ok/fail, and short detail
-    strings like 'HTTP 401' or 'last_poll_age_s=370'.
+    Behind require_auth: the probe names and detail strings (which tokens are
+    missing, which integrations are off) map the attack surface. The dashboard
+    reaches it through the /api/pi-ceo proxy, which carries the session cookie.
     """
     from ..integration_health import get_snapshot
     return get_snapshot()
@@ -236,7 +238,7 @@ async def vercel_health():
     return JSONResponse(payload, status_code=status)
 
 
-@app.get("/api/health/obsidian")
+@app.get("/api/health/obsidian", dependencies=[Depends(require_auth)])
 async def obsidian_health():
     """Real Obsidian connectivity — replaces the dashboard's hardcoded status.
 

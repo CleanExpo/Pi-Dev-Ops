@@ -1,8 +1,8 @@
 // IdeaPipelinePanel — UNI-2633 one-screen Board packet on the daily window.
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { useEffect, useState } from "react";
+import { useSource } from "@/lib/boards/sources";
 import {
   IDEA_VERDICTS,
   canAuthorizeGo,
@@ -11,6 +11,7 @@ import {
   type IdeaPipelinePayload,
   type IdeaVerdict,
 } from "@/lib/control/idea-pipeline";
+import styles from "./idea-pipeline-panel.module.css";
 
 const API = "/api/idea-pipeline";
 
@@ -44,24 +45,24 @@ export default function IdeaPipelinePanel() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    const data = await fetchProxyJSON<IdeaPipelinePayload>(API, {
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (!data) {
+  // RA-7898: the idea pipeline is read by the shared poller (60 s); after a
+  // write, `refresh()` asks it for one immediate re-read.
+  const source = useSource<IdeaPipelinePayload>("idea-pipeline");
+  const refresh = source.refresh;
+  useEffect(() => {
+    if (source.seq === 0) return;
+    if (!source.value) {
+      // Drop the last packet: its count and decision buttons are no longer current.
+      setPayload(null);
       setError("Mission Control could not read the idea pipeline.");
       return;
     }
-    setPayload(data);
+    setPayload(source.value);
     setError(null);
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  }, [source.seq, source.value]);
 
   const packet: IdeaPacket | null = payload?.snapshot.packet ?? null;
+  const legacyPacket = Boolean(packet && !packet.north_star_fit.source_revision);
 
   async function dropIdea() {
     const text = draft.trim();
@@ -115,61 +116,53 @@ export default function IdeaPipelinePanel() {
 
   return (
     <section
-      className="rounded-lg border border-slate-700/50 bg-slate-900/50 p-4"
-      aria-label="Board idea packet"
+      id="idea-pipeline"
+      className={styles.panel}
+      aria-label="Idea intake and Board packet"
     >
-      <header className="mb-3 flex items-baseline justify-between gap-3">
+      <header className={styles.header}>
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">Board packet</h2>
-          <p className="text-xs text-text-muted">
-            Drop a short idea. Dispose with one word. Nothing starts without GO.
-          </p>
+          <h2>Tell Mission Control your idea</h2>
+          <p>One inbox for all projects. Choosing a card above does not attach the idea. Nothing starts without your GO.</p>
         </div>
-        <span className="text-xs text-text-muted tabular-nums">
-          {payload ? `${payload.snapshot.awaiting} waiting` : "…"}
+        <span className={styles.count}>
+          {payload ? `${payload.snapshot.awaiting} waiting for a decision` : "Board status unknown"}
         </span>
       </header>
 
-      <label className="block text-xs text-text-muted" htmlFor="idea-intake">
-        New idea
-      </label>
-      <textarea
-        id="idea-intake"
-        className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-2 text-sm text-slate-100"
-        rows={3}
-        value={draft}
-        disabled={busy}
-        placeholder="One to three sentences. No formatting needed."
-        onChange={(event) => setDraft(event.target.value)}
-      />
-      <button
-        type="button"
-        className="mt-2 rounded bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-900 disabled:opacity-50"
-        disabled={busy}
-        onClick={() => void dropIdea()}
-      >
-        Drop idea
-      </button>
+      <div className={styles.composer}>
+        <label className={styles.srOnly} htmlFor="idea-intake">New idea</label>
+        <textarea
+          id="idea-intake"
+          rows={2}
+          value={draft}
+          disabled={busy}
+          maxLength={2000}
+          placeholder="One to three sentences. No formatting needed."
+          onChange={(event) => setDraft(event.target.value)}
+        />
+        <button type="button" disabled={busy} onClick={() => void dropIdea()}>
+          {busy ? "Working…" : "Drop idea ↗"}
+        </button>
+      </div>
 
       <div className="mt-3 min-h-[1.25rem] text-sm" aria-live="polite">
         {error ? <p className="text-rose-300">{error}</p> : null}
         {notice && !error ? <p className="text-emerald-300">{notice}</p> : null}
       </div>
 
-      {!packet ? (
-        <p className="mt-2 text-sm text-text-muted">
-          No idea waiting. Drop one above or add a line to IDEAS.md.
-        </p>
-      ) : (
-        <div className="mt-3 grid gap-3">
+      {packet ? (
+        <details className={styles.packet} open={Boolean(notice)}>
+          <summary>Board packet · {packet.status} · {legacyPacket ? "review required" : packet.recommended_verdict}</summary>
+          <div className="mt-3 grid gap-3">
           <Field label="Idea" value={packet.text} />
           <Field
             label="North Star fit"
-            value={`${packet.north_star_fit.label} · ${packet.north_star_fit.rationale}`}
+            value={legacyPacket ? "Legacy packet under an earlier North Star. Re-examine before deciding; its old recommendation is not current evidence." : `${packet.north_star_fit.label} · ${packet.north_star_fit.rationale}`}
           />
           <Field
             label="Effort vs impact"
-            value={`${packet.effort_vs_impact.effort} effort / ${packet.effort_vs_impact.impact} impact. ${packet.effort_vs_impact.rationale}`}
+            value={legacyPacket ? "Unknown until re-examined." : `${packet.effort_vs_impact.effort} effort / ${packet.effort_vs_impact.impact} impact. ${packet.effort_vs_impact.rationale}`}
           />
           <Field
             label="Directive"
@@ -181,8 +174,18 @@ export default function IdeaPipelinePanel() {
           />
           <Field
             label="Board lean"
-            value={`${packet.recommended_verdict} · Judge ${packet.judge.score} ${packet.judge.decision}`}
+            value={legacyPacket ? "Review required under the current North Star." : `${packet.recommended_verdict} · Judge ${packet.judge.decision}. ${packet.judge.note ?? ""}`}
           />
+          {packet.plan_packet_md ? (
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-text-muted">
+                {`gs-autoplan review${packet.linear_id ? ` · ${packet.linear_id}` : ""}`}
+              </div>
+              <pre className="mt-0.5 max-h-96 overflow-auto whitespace-pre-wrap text-xs text-slate-100">
+                {packet.plan_packet_md}
+              </pre>
+            </div>
+          ) : null}
           <p className="text-xs text-text-muted">{packet.spm.out_of_scope}</p>
           <div className="flex flex-wrap gap-2">
             {IDEA_VERDICTS.map((word) => (
@@ -208,8 +211,9 @@ export default function IdeaPipelinePanel() {
           {packet.go_at ? (
             <p className="text-sm text-emerald-300">GO is on the record. Nothing has started.</p>
           ) : null}
-        </div>
-      )}
+          </div>
+        </details>
+      ) : null}
     </section>
   );
 }

@@ -1,0 +1,175 @@
+{
+  "package": "plan-to-done",
+  "design_version": "1.0",
+  "date": "2026-09-28",
+  "validation_scope": "LOCAL_STATIC_PACKAGE_CHECKS_ONLY",
+  "checks_total": 19,
+  "checks_passed": 19,
+  "checks_failed": 0,
+  "entry_lines": 154,
+  "evaluation_cases_designed": 30,
+  "checks": [
+    {
+      "check": "frontmatter_has_required_fields",
+      "result": "PASS",
+      "details": [
+        "allowed-tools",
+        "argument-hint",
+        "description",
+        "disable-model-invocation",
+        "name"
+      ]
+    },
+    {
+      "check": "command_skill_manual_invocation",
+      "result": "PASS",
+      "details": true
+    },
+    {
+      "check": "skill_name_matches_directory",
+      "result": "PASS",
+      "details": "plan-to-done"
+    },
+    {
+      "check": "no_banned_custom_frontmatter",
+      "result": "PASS",
+      "details": [
+        "allowed-tools",
+        "argument-hint",
+        "description",
+        "disable-model-invocation",
+        "name"
+      ]
+    },
+    {
+      "check": "entry_under_200_lines",
+      "result": "PASS",
+      "details": 154
+    },
+    {
+      "check": "house_section_order",
+      "result": "PASS",
+      "details": [
+        "## When to invoke",
+        "## Core procedure",
+        "## Output format",
+        "## Calibration",
+        "## What this skill is NOT",
+        "## Hard rules",
+        "## Provenance"
+      ]
+    },
+    {
+      "check": "ten_steps_with_exit_conditions",
+      "result": "PASS",
+      "details": {
+        "steps": 10,
+        "exit_conditions": 10
+      }
+    },
+    {
+      "check": "writing_tools_declared",
+      "result": "PASS",
+      "details": "Read, Grep, Glob, LS, Write, Edit, Agent"
+    },
+    {
+      "check": "no_blanket_shell_tool_declared",
+      "result": "PASS",
+      "details": "Read, Grep, Glob, LS, Write, Edit, Agent"
+    },
+    {
+      "check": "relative_markdown_links_resolve",
+      "result": "PASS",
+      "details": {
+        "links_checked": 16,
+        "missing": []
+      }
+    },
+    {
+      "check": "all_markdown_references_reachable_from_entry",
+      "result": "PASS",
+      "details": {
+        "reference_files": [
+          "completion-coverage.md",
+          "delivery-design.md",
+          "evaluation-cases.json",
+          "integration-and-portability.md",
+          "project-discovery.md",
+          "reuse-map.md",
+          "review-and-evaluation.md",
+          "source-ledger.md",
+          "typesafe-planning.md",
+          "worked-example.md",
+          "writing-contract.md"
+        ],
+        "entry_pointers": [
+          "completion-coverage.md",
+          "delivery-design.md",
+          "integration-and-portability.md",
+          "project-discovery.md",
+          "reuse-map.md",
+          "review-and-evaluation.md",
+          "source-ledger.md",
+          "typesafe-planning.md",
+          "worked-example.md",
+          "writing-contract.md"
+        ]
+      }
+    },
+    {
+      "check": "evaluation_cases_have_unique_ids",
+      "result": "PASS",
+      "details": 30
+    },
+    {
+      "check": "evaluation_results_honestly_unrun",
+      "result": "PASS",
+      "details": "DESIGNED_NOT_EXECUTED"
+    },
+    {
+      "check": "case_expectations_present",
+      "result": "PASS",
+      "details": 30
+    },
+    {
+      "check": "planning_only_boundary_present",
+      "result": "PASS",
+      "details": "Literal boundary checks, not behavioural enforcement"
+    },
+    {
+      "check": "separate_scope_and_evidence_claims_present",
+      "result": "PASS",
+      "details": "Literal coverage markers, not proof of semantic sufficiency"
+    },
+    {
+      "check": "no_executable_or_installer_files",
+      "result": "PASS",
+      "details": "Markdown and evaluation JSON only before generated validation/manifest"
+    },
+    {
+      "check": "no_symlinks",
+      "result": "PASS",
+      "details": "No symlinks in package"
+    },
+    {
+      "check": "source_snapshots_are_valid_hash_strings",
+      "result": "PASS",
+      "details": "Format only; hashes came from connected source reads"
+    }
+  ],
+  "not_performed": [
+    "Independent model review",
+    "Baseline or with-skill behavioural trials",
+    "Existing engineering gate execution",
+    "Product code testing",
+    "Jev API calls or shadow evaluation",
+    "GitHub commit/push/PR/merge",
+    "Library catalogue registration",
+    "Mac Mini/MacBook/PC installation or host enforcement checks"
+  ],
+  "limitations": [
+    "Structural checks cannot establish requirement sufficiency or model compliance.",
+    "This is a design candidate, not an active or proven harness.",
+    "Content hashes identify the files; they do not constitute approval signatures."
+  ]
+}

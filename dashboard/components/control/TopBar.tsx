@@ -4,43 +4,39 @@
 import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import ProjectSelector from "./ProjectSelector";
+import { BRISBANE_LABEL, brisbaneTime } from "@/lib/brisbane-time";
 
 interface ZteData {
   model: string;
   model_id: string;
 }
 
+// Empty until mounted: the server's render and the browser's first render
+// would otherwise differ by the seconds between them (hydration mismatch).
 function useLiveClock(): string {
-  const [time, setTime] = useState(() =>
-    new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-  );
+  const [time, setTime] = useState("");
   useEffect(() => {
-    const t = setInterval(() => {
-      setTime(new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-    }, 1000);
+    const tick = () => setTime(`${brisbaneTime(new Date(), true)} ${BRISBANE_LABEL}`);
+    tick();
+    const t = setInterval(tick, 1000);
     return () => clearInterval(t);
   }, []);
   return time;
 }
 
-function useModelChip(): string {
-  const [model, setModel] = useState<string>("claude-opus-5");
+// null until /api/zte reports a model. The chip used to start as a hard-coded
+// "claude-opus-5" and keep it whenever the read failed — an unobserved model
+// shown as the active one. ModelBadge says "Not observed" for the same data.
+function useModelChip(): string | null {
+  const [model, setModel] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/zte")
+    const load = () => fetch("/api/zte")
       .then((r) => r.ok ? r.json() : null)
-      .then((d: ZteData | null) => {
-        if (!cancelled && d?.model) setModel(d.model);
-      })
-      .catch(() => undefined);
-    const t = setInterval(() => {
-      fetch("/api/zte")
-        .then((r) => r.ok ? r.json() : null)
-        .then((d: ZteData | null) => {
-          if (!cancelled && d?.model) setModel(d.model);
-        })
-        .catch(() => undefined);
-    }, 120_000);
+      .then((d: ZteData | null) => { if (!cancelled) setModel(d?.model || null); })
+      .catch(() => { if (!cancelled) setModel(null); });
+    void load();
+    const t = setInterval(() => void load(), 120_000);
     return () => {
       cancelled = true;
       clearInterval(t);
@@ -91,8 +87,7 @@ export default function TopBar() {
         <span
           className="hidden sm:inline text-[11px] font-mono tabular-nums"
           style={{ color: "var(--text-dim)" }}
-          aria-live="polite"
-          aria-atomic="true"
+          title="Brisbane time"
         >
           {clock}
         </span>
@@ -101,13 +96,13 @@ export default function TopBar() {
         <span
           className="text-[10px] font-mono px-2 py-0.5 rounded"
           style={{
-            color: "var(--accent)",
+            color: model ? "var(--accent)" : "var(--text-dim)",
             background: "var(--accent-subtle)",
             border: "1px solid var(--accent)33",
           }}
-          title={`Active model: ${model}`}
+          title={model ? `Active model: ${model}` : "Active model not observed"}
         >
-          {model}
+          {model ?? "model unknown"}
         </span>
 
         {/* Theme toggle */}

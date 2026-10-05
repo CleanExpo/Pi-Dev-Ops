@@ -1,0 +1,95 @@
+{
+ "results": [
+  {
+   "path": "jev_platform/policy.py",
+   "sha256": "f096cf2c24b9425981833727b126b87c235e5d4f5c36aff7ca7ed16d14dcf693",
+   "model": "jev-1.13.0",
+   "answers": {
+    "makes-network-calls": {
+     "type": "noul",
+     "noul": 0.03
+    },
+    "arch-layer": {
+     "type": "choice",
+     "choice": "domain_logic",
+     "confidence": 1.0,
+     "probabilities": {
+      "transport": 0.0,
+      "domain_logic": 1.0,
+      "orchestration": 0.0
+     }
+    }
+   },
+   "note": "advisory, not authorization"
+  },
+  {
+   "path": "jev_platform/client.py",
+   "sha256": "498b616053734fc694658917dd0cd5d63d61a5a81c0c81ec3372bfa15a599161",
+   "model": "jev-1.13.0",
+   "answers": {
+    "makes-network-calls": {
+     "type": "noul",
+     "noul": 0.16
+    },
+    "arch-layer": {
+     "type": "choice",
+     "choice": "transport",
+     "confidence": 1.0,
+     "probabilities": {
+      "domain_logic": 0.0,
+      "transport": 1.0,
+      "orchestration": 0.0
+     }
+    }
+   },
+   "note": "advisory, not authorization"
+  },
+  {
+   "path": "jev_platform/calibration.py",
+   "sha256": "6a102ae6c3451048b4f12b105fa162c5c298c192c9e4e8c7b4b1548aa9e8f54c",
+   "model": "jev-1.13.0",
+   "answers": {
+    "makes-network-calls": {
+     "type": "noul",
+     "noul": 0.03
+    },
+    "arch-layer": {
+     "type": "choice",
+     "choice": "domain_logic",
+     "confidence": 0.93,
+     "probabilities": {
+      "domain_logic": 0.95,
+      "transport": 0.0,
+      "orchestration": 0.05
+     }
+    }
+   },
+   "note": "advisory, not authorization"
+  },
+  {
+   "path": "jev_platform/engine.py",
+   "sha256": "d76fef84cdc3d15e5c1d4a0d5f1b24641e2161f72d12a0bc05c1fdef5d54b081",
+   "model": "jev-1.13.0",
+   "answers": {
+    "makes-network-calls": {
+     "type": "noul",
+     "noul": 0.5
+    },
+    "arch-layer": {
+     "type": "choice",
+     "choice": "orchestration",
+     "confidence": 1.0,
+     "probabilities": {
+      "domain_logic": 0.0,
+      "orchestration": 1.0,
+      "transport": 0.0
+     }
+    }
+   },
+   "note": "advisory, not authorization"
+  }
+ ],
+ "spent_usd": 0.000314,
+ "attempts": 4,
+ "_note": "Live Level 8 smoke run, 29/09/2026, key injected via vercel env run. Advisory answers; makes no calibration claim."
+}

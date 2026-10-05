@@ -11,17 +11,16 @@
 import { useEffect, useState } from "react";
 
 import ThroughputSparkline from "./ThroughputSparkline";
-import ClaudeSessionsHUD, { type ClaudeHud } from "./ClaudeSessionsHUD";
 import { LiveDot, PhasePill } from "./LiveFeedMarks";
 import LiveWatchLinks from "./LiveWatchLinks";
-import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { useSource } from "@/lib/boards/sources";
 import { fmtElapsed, fmtAgo } from "@/lib/control/activity-format";
 import { type MissionControlLive } from "@/lib/control/mission-control-live";
 import { asWatchInput, idleSessionsNote, watchBuildsHref, watchLoopHref, watchSwarmHref } from "@/lib/control/watchWork";
 
 // Backend key is `hourly` (mission_control.py). Types live in
 // mission-control-live.ts so a rename on one side fails the UNI-2647 fixture.
-type LiveData = MissionControlLive & { ts: string; claude_hud?: ClaudeHud };
+type LiveData = MissionControlLive & { ts: string };
 
 export default function LiveActivityFeed() {
   const [data, setData] = useState<LiveData | null>(null);
@@ -34,40 +33,28 @@ export default function LiveActivityFeed() {
   // second keeps render deterministic for any given commit.
   const [now, setNow] = useState<number>(() => Date.now());
 
+  // RA-7898: one shared mission-control/live poller (5 s) for every reader on screen.
+  // A null value is the proxy's placeholder or a failed read (lib/pi-ceo-fetch.ts).
+  const source = useSource<LiveData>("mc-live");
   useEffect(() => {
-    let mounted = true;
-    const tick = async () => {
-      try {
-        // See lib/pi-ceo-fetch.ts — a proxy fallback is not a live reading.
-        const j = await fetchProxyJSON<LiveData>("/api/mission-control/live", {
-          credentials: "include",
-          cache: "no-store",
-        });
-        if (!j) {
-          if (mounted) setErr("Pi-CEO backend unreachable");
-          return;
-        }
-        if (mounted) {
-          setData(j);
-          if (j.error) {
-            setLastUpdate(0);
-            setErr(j.error);
-          } else {
-            setLastUpdate(Date.now());
-            setErr(null);
-          }
-        }
-      } catch (e) {
-        if (mounted) setErr(String(e));
-      }
-    };
-    tick();
-    const id = setInterval(tick, 5000);
-    return () => {
-      mounted = false;
-      clearInterval(id);
-    };
-  }, []);
+    if (source.seq === 0) return;
+    const j = source.value;
+    // A failed read drops the last snapshot, so old counts never sit under the error.
+    if (!j) {
+      setData(null);
+      setErr("Pi-CEO backend unreachable");
+      return;
+    }
+    if (j.error) {
+      setData(null);
+      setLastUpdate(0);
+      setErr(j.error);
+    } else {
+      setData(j);
+      setLastUpdate(Date.now());
+      setErr(null);
+    }
+  }, [source.seq, source.value]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -78,14 +65,14 @@ export default function LiveActivityFeed() {
 
   if (!data && !err) {
     return (
-      <div className="rounded-lg border border-slate-700/50 bg-slate-900/50 p-6 backdrop-blur-sm">
+      <div id="mission-control-live" className="rounded-lg border border-slate-700/50 bg-slate-900/50 p-6 backdrop-blur-sm">
         <div className="animate-pulse text-text-muted">Loading Mission Control…</div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-slate-700/50 bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-sm">
+    <div id="mission-control-live" className="rounded-lg border border-slate-700/50 bg-gradient-to-br from-slate-900/80 to-slate-950/80 backdrop-blur-sm">
       {/* Header */}
       <div className="border-b border-slate-800 p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -108,7 +95,6 @@ export default function LiveActivityFeed() {
       {/* Stats grid */}
       {data && (
         <>
-          <ClaudeSessionsHUD data={data.claude_hud} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-b border-slate-800">
             {/* Throughput */}
             <div>

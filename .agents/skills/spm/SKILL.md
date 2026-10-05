@@ -11,6 +11,14 @@ Turn the user's request into a professional, evidence-backed, build-ready `spec.
 
 Do not implement code during this skill unless the user separately approves implementation after reviewing the spec.
 
+## Nexus North Star check
+
+For Unite-Group work, read the current `docs/governance/NEXUS-NORTH-STAR.md` in this repo or its canonical linked source. Record the source revision in section 2. Name the customer, team, partner, or truthful-delivery promise served. If the source is unavailable, mark fit `UNVERIFIED` rather than inventing an alignment score.
+
+In sections 4, 8, 9, 15, and the `/goal` command, challenge a hard-day case: bad news, disagreement, weak evidence, capacity pressure or a failed release. Include a decision card with impact, evidence and unknowns, options, dissent, owner, authority boundary and next check. Answer: where are we, what matters now, what is hard, what needs Phill's decision, and what was truly shipped. Unobserved states remain `unknown`.
+
+This purpose lens does not change the lifecycle or approval gates. Do not score loyalty, private relationships or health. UNI-2432 and UNI-2427 still hold unresolved constitutional mechanics.
+
 ## Request
 
 ```text

@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
+from starlette.requests import ClientDisconnect, Request
 
 from .sessions import restore_sessions, _sessions
 from .gc import gc_loop
@@ -21,6 +21,7 @@ from .agents.build_stall_watchdog import stall_watchdog_loop  # RA-1104
 from .integration_health import integration_health_loop      # RA-1293
 from . import config
 from . import persistence
+from . import checkpoint_queue
 
 log = logging.getLogger("pi-ceo.main")
 
@@ -116,6 +117,13 @@ app.add_middleware(
 )
 # NOTE: TrustedHostMiddleware removed — Railway terminates TLS and proxies requests;
 # restricting to 127.0.0.1 would block all cloud traffic.
+
+
+@app.exception_handler(ClientDisconnect)
+async def _client_disconnected(request: Request, exc: ClientDisconnect) -> JSONResponse:
+    # A caller (e.g. a webhook sender) hung up before its body arrived; nothing to do.
+    log.warning("client disconnected before request body arrived: %s", request.url.path)
+    return JSONResponse({"error": "client disconnected"}, status_code=400)
 
 
 @app.on_event("startup")
@@ -288,4 +296,5 @@ async def on_shutdown():
             # cloning/building/evaluating that will never resume.
             persistence.save_session(session)
         await asyncio.sleep(2)
+    await checkpoint_queue.flush(10.0)  # RA-7845: queued "interrupted" rows land before exit
     log.info("Shutdown complete")

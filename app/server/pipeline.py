@@ -125,6 +125,7 @@ def list_pipelines() -> list[dict[str, Any]]:
             results.append({
                 "pipeline_id": state.pipeline_id,
                 "idea": state.idea[:80],
+                "repo_url": state.repo_url,
                 "current_phase": state.current_phase,
                 "phases_completed": state.phases_completed,
                 "updated_at": state.updated_at,

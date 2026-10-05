@@ -1,0 +1,52 @@
+{
+  "schema": "done/1",
+  "work_id": "w_75bfce2edf7a",
+  "version": 3,
+  "supersedes": "w_014d2f3aa003",
+  "goal": "v3: C1 now expects 12 passed (added the paraphrased-rule refusal test)",
+  "created_at_utc": "2026-09-29T02:42:16Z",
+  "identity_key": "feat/jev-constitution-eval@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-constitution",
+  "baseline_observed": {
+    "head": "bd9f7be13c37ae91e702553685dcd21492df80e2",
+    "branch": "feat/jev-constitution-eval",
+    "dirty_count": 1
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "text": "offline harness controls pass (validation, BLOCKED, fake-key control, scoring); each guard watched failing under a mutant 2026-09-29; paraphrased-rule refusal added and mutant-tested",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_jev_constitution_eval.py -q -p no:cacheprovider | grep -q '12 passed'"
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "text": "questions.json holds all 538 extracted rules, each with source file:line and quote",
+      "recipe": "python3 -c \"import json;q=json.load(open('evals/jev_constitution/questions.json'))['questions'];assert len(q)==538 and all(x['source'] and x['quote'] for x in q)\""
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "text": "a run with no TYPESAFE_API_KEY reports BLOCKED and exits 2",
+      "recipe": "env -u TYPESAFE_API_KEY /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 > /tmp/jev_c3.txt; test $? -eq 2 && grep -q BLOCKED /tmp/jev_c3.txt"
+    },
+    {
+      "id": "C4",
+      "required": true,
+      "text": "the metered-lane refusal in app/server/provider_policy.py is untouched vs origin/main",
+      "recipe": "git diff --quiet origin/main -- app/server/provider_policy.py"
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "text": "pilot ch3-4-27 (no fabricating evidence, approvals or completed actions) has a scoreable set of >=1000 Claude+Codex-agreed cases",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness validate | grep -qE '^VALID +ch3-4-27$'"
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "text": "Jev scored on the full ch3-4-27 set with the fake-key control refused (needs TYPESAFE_API_KEY from the founder)",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m evals.jev_constitution.harness run --question ch3-4-27 | grep -q 'ch3-4-27: accuracy'"
+    }
+  ]
+}

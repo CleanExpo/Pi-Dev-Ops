@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.24.0
-  generated_at: "2026-08-31T00:28:54.097876+00:00"
+  version: 1.25.0
+  generated_at: "2026-10-02T22:17:46.863991+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -122,11 +122,11 @@ skills:
       requires_hitl_gate: false
       pii_handling: pass-through
   - id: agentskills-manifest
-    description: "Export Pi-CEO's skill registry as an agentskills.io-format manifest. Closes Hermes RA-1838 SWARM-009 (open question #5 from the original Hermes brief — answered yes). Future-proofs Pi-CEO if/when it adopts the Hermes runtime via Path C."
+    description: "Export Pi-CEO's skill registry as an agentskills.io-format manifest. Closes Hermes RA-1838 SWARM-009 (open question 5 from the original Hermes brief — answered yes). Future-proofs Pi-CEO if/when it adopts the Hermes runtime via Path C."
     owner_role: Curator
     status: wave-3
     path: skills/agentskills-manifest/SKILL.md
-    sha256: 79a788386fe7490be475a4f5e4d51e3e6786d9f37f4dcc7bbd5b3af291fecd74
+    sha256: a4ed39be06d2bfb280cd0d906f5525036c873b3d7ea8b4b4d1baf048dce17f44
     dependencies:
       tools: []
       skills: []
@@ -476,7 +476,7 @@ skills:
     inferred: true
     low_confidence: true
   - id: compound-development-loop
-    description: "\"Agentic development operating loop for non-engineer-led builds: expand the idea, research surrounding advances, produce artifacts, plan, build, review, and compound learnings back into the 2nd brain and CRM.\""
+    description: "Agentic development operating loop for non-engineer-led builds: expand the idea, research surrounding advances, produce artifacts, plan, build, review, and compound learnings back into the 2nd brain and CRM."
     owner_role: "\"Senior PM\""
     status: "\"wave-6\""
     path: skills/compound-development-loop/SKILL.md
@@ -1013,6 +1013,21 @@ skills:
       pii_handling: pass-through
     inferred: true
     low_confidence: true
+  - id: jev
+    description: "Ask TypeSafe Jev typed yes/no, pick-one or pick-a-file questions about reviewed files without reading them into an expensive model's context (Levels 8–10), or run the Gemini 3.8 Flash scout agent over them. Use for \"is this file relevant\", \"which layer is this\", \"which file do I open first\", triage before reading. Never for sums, dates, counts, gating an action, or UI. Answers are advisory and never clear an action."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/jev/SKILL.md
+    sha256: 9701a1dfe62dd41e3309b1a85692f6c857c44ee274b00bb6c57a21f7b21d49f7
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: judge
     description: "Mandatory pre-build challenge gate (/judge). Run before approving or building any feature, connector, automation, agent, hook, MCP server, UI change, database change, or architecture plan. Read-only — performs first-source evidence review, devil's advocate critique, existing-capability review, UX review, security/privacy review, test/stress review, and return-on-effort scoring out of 100."
     owner_role: Tier-Architect (pre-build challenge gate; read-only reviewer)
@@ -1164,11 +1179,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: margot-sandcastle-bridge
-    description: "After a Margot Deep Research finding completes, classify \"action-shaped vs informational\" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On 👍, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 #4 (RA-1856 epic). This is what makes Margot autonomous."
+    description: "After a Margot Deep Research finding completes, classify \"action-shaped vs informational\" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On 👍, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 item 4 (RA-1856 epic). This is what makes Margot autonomous."
     owner_role: Margot (research) → Chief of Staff (HITL) → Builder (execution)
     status: wave-5
     path: skills/margot-sandcastle-bridge/SKILL.md
-    sha256: 7ef0908a79b2b975abebcd3da61a7fe21584ccccab7051740cf9224c17afcb73
+    sha256: 75ab4395201d0714ce9eab06451c8274d309da22f95c01c275d330e606ef8c9d
     dependencies:
       tools: []
       skills: []
@@ -1453,7 +1468,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/pi-dev-linear-contract/SKILL.md
-    sha256: c4ef688792d9508dca1c9b3bdb4c982ca46f68c7f65f4814bfe98e295ada0aea
+    sha256: a0f0640d053e6f7a6a8ae8091ac47cfdeadb0accf8ddd677084dc069ab80dcd2
     dependencies:
       tools: []
       skills: []
@@ -1640,11 +1655,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: remotion-brand-codify
-    description: "Converts a BrandResearch dossier into THREE artifacts — (1) typed BrandConfig TypeScript at Synthex/packages/brand-config/src/brands/{slug}.ts (runtime/behaviour: voice, voiceover, motion, audience, channel, forbiddenWords); (2) spec-conformant {slug}.design.md at Synthex/packages/brand-config/src/brands/{slug}.design.md (visual tokens: colour, typography, spacing, components, layout, elevation); (3) human-readable 9-section .md projection at Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md derived from BOTH. Boundary contract at Pi-Dev-Ops/remotion-studio/src/brands/CONTRACT.md. Triggered after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false — a human reviews before merge."
+    description: "Converts a BrandResearch dossier into THREE artifacts — (1) typed BrandConfig TypeScript at Synthex/packages/brand-config/src/brands/{slug}.ts (runtime/behaviour — voice, voiceover, motion, audience, channel, forbiddenWords); (2) spec-conformant {slug}.design.md at Synthex/packages/brand-config/src/brands/{slug}.design.md (visual tokens — colour, typography, spacing, components, layout, elevation); (3) human-readable 9-section .md projection at Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md derived from BOTH. Boundary contract at Pi-Dev-Ops/remotion-studio/src/brands/CONTRACT.md. Triggered after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false — a human reviews before merge."
     owner_role: (unset)
     status: (unset)
     path: skills/remotion-brand-codify/SKILL.md
-    sha256: 165866eb9be760580f282958df5b39c22839693917e6f8fbff303de4573d90b3
+    sha256: e5438f5c3bea8533f560944b5c90c496abe518a85f57d3e9af418d2dc0e9cf35
     dependencies:
       tools: []
       skills: []
@@ -1715,11 +1730,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: remotion-direction
-    description: "Use when a Remotion video needs creative direction: hook, visual sequence, scene purpose, motion restraint, and CTA direction before render."
+    description: Use when a Remotion video needs creative direction — hook, visual sequence, scene purpose, motion restraint, and CTA direction before render.
     owner_role: Creative Director
     status: remotion-wave-1
     path: skills/remotion-direction/SKILL.md
-    sha256: c72d9736f4166745ce93ca310f7bfae421c95e9eb4d00fea8007d9634ee1a5fd
+    sha256: 5b076c57964d342bf0b8b79fed947e0cb7999727770385d652e25039ae8e1bd9
     dependencies:
       tools: []
       skills: []
@@ -1910,11 +1925,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: sandcastle-runner
-    description: "The primitive. Wraps a single Sandcastle invocation (`npx sandcastle run`) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 #1 (RA-1856 epic)."
+    description: The primitive. Wraps a single Sandcastle invocation (`npx sandcastle run`) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 item 1 (RA-1856 epic).
     owner_role: Builder
     status: wave-5
     path: skills/sandcastle-runner/SKILL.md
-    sha256: 910a6529c95d0859c85d086bc761469b02292ce78b44414f67b87219103fc856
+    sha256: 46193a79ee801df1d05dcad00452b9b97de47ba09c0a8674a74ca414b1a878d2
     dependencies:
       tools: []
       skills: []
@@ -2060,7 +2075,7 @@ skills:
     inferred: true
     low_confidence: true
   - id: skybridge
-    description: "| Guide developers through creating and updating ChatGPT and MCP apps. Covers the full lifecycle: brainstorming ideas against UX guidelines, bootstrapping projects, implementing tools/views, debugging, running dev servers, deploying and connecting apps to ChatGPT. Use when a user wants to create or update a ChatGPT app, MCP app, MCP server or use the Skybridge framework."
+    description: "Guide developers through creating and updating ChatGPT and MCP apps.\nCovers the full lifecycle: brainstorming ideas against UX guidelines, bootstrapping projects, implementing tools/views, debugging, running dev servers, deploying and connecting apps to ChatGPT.\nUse when a user wants to create or update a ChatGPT app, MCP app, MCP server or use the Skybridge framework."
     owner_role: (unset)
     status: (unset)
     path: skills/skybridge/SKILL.md
@@ -2108,7 +2123,7 @@ skills:
     owner_role: Tier-Architect (senior project manager; spec author, not builder)
     status: active
     path: skills/spm/SKILL.md
-    sha256: 4d33a3ce544809ac6905c9abf790123849ca284eac7b146fc85a7f681d63a6cd
+    sha256: 26e86e1ca9ddfd8895d2c1a75ab3492bc9064d953c86b66e0a1023ce6e403f6e
     dependencies:
       tools: []
       skills: []
@@ -2164,11 +2179,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: tao-codebase-wiki
-    description: "Self-updating per-directory WIKI.md files driven by post-merge git history. Port of @0xkobold/pi-codebase-wiki. Compounds: every merge refreshes context for the next TAO session."
+    description: Self-updating per-directory WIKI.md files driven by post-merge git history. Port of @0xkobold/pi-codebase-wiki. Compounds — every merge refreshes context for the next TAO session.
     owner_role: (unset)
     status: (unset)
     path: skills/tao-codebase-wiki/SKILL.md
-    sha256: 5d6b489fb02232f1633dd88158f44fdc4a90c18bd34e6b1ce8699fcf16c86d79
+    sha256: e938e967f63bd55c1692c2dd80bd5c906c5cfef09e45798b3acc1358f0a5dce5
     dependencies:
       tools: []
       skills: []
@@ -2269,11 +2284,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: technical-plan
-    description: "Technical planner. Reads a spec.md and produces a concrete implementation plan: files to change, approach, effort sizing, dependency order, risk flags, and test plan stub. Output is a plan.md ready for the /build phase."
+    description: Technical planner. Reads a spec.md and produces a concrete implementation plan — files to change, approach, effort sizing, dependency order, risk flags, and test plan stub. Output is a plan.md ready for the /build phase.
     owner_role: (unset)
     status: (unset)
     path: skills/technical-plan/SKILL.md
-    sha256: 4de087a6e17524ca5c8c15b23bdcc63840bced710586cdd1641f7e284c5cf694
+    sha256: eac4e4e4803999b4b723d3a8973a641a86e2d0a561f0773c36955baa62087abe
     dependencies:
       tools: []
       skills: []
@@ -2413,11 +2428,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: unite-group-ci-recovery
-    description: "How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG, RestoreAssist, ATO, CARSI, CCW-CRM, Unite-Hub, synthex-mcp-app) without falling into the same CI / Vercel / Supabase / convention traps every session. Captures the recurring failure modes I hit 2026-05-25 across PRs #295–#299 so future agents don't relearn them."
+    description: "How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG, RestoreAssist, ATO, CARSI, CCW-CRM, Unite-Hub, synthex-mcp-app) without falling into the same CI / Vercel / Supabase / convention traps every session. Captures the recurring failure modes I hit 2026-05-25 across PRs 295–299 so future agents don't relearn them."
     owner_role: (unset)
     status: (unset)
     path: skills/unite-group-ci-recovery/SKILL.md
-    sha256: 90177cc198a6b8e25e5cb294f5a7ea164ed3bbb7e8e7c21315d1cd6337d61066
+    sha256: 5c8a1e31c081c35fed2ac81eb0ce9fde1581603c59ed9e6a680e7efe08f3caf0
     dependencies:
       tools: []
       skills: []
@@ -2443,11 +2458,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: vercel-env-puller
-    description: "Per-project Vercel env-var manifests (NAMES + targets only — never values). At Sandcastle launch time, resolves the named vars in-memory via `vercel env pull`, injects into the sandbox via Sandcastle's `agent.env`+`sandbox.env`, and never writes a secret to disk inside Pi-CEO. Closes Wave 5 #2 (RA-1856 epic)."
+    description: "Per-project Vercel env-var manifests (NAMES + targets only — never values). At Sandcastle launch time, resolves the named vars in-memory via `vercel env pull`, injects into the sandbox via Sandcastle's `agent.env`+`sandbox.env`, and never writes a secret to disk inside Pi-CEO. Closes Wave 5 item 2 (RA-1856 epic)."
     owner_role: CISO (binds in front of every Sandcastle launch)
     status: wave-5
     path: skills/vercel-env-puller/SKILL.md
-    sha256: c1da905e66fa364e488fa15a225b7699d3256a2ed069e83b8cd04819fbfd32ee
+    sha256: 47881fee84d2ea3396771292fbfa2547c862e1e08f0a1f6db208f020c3e5fb77
     dependencies:
       tools: []
       skills: []
@@ -2518,7 +2533,7 @@ skills:
     inferred: true
     low_confidence: true
   - id: weekly-enhancement-loop
-    description: "\"Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in config/harness/projects.json, opening review PRs so all projects compound over time. Cost-optimised open-weight ladder (Qwen/DeepSeek) via OpenRouter — cheap grunt tiers, one reserved reasoner for the planner handoff (~$5/full run).\""
+    description: "Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in config/harness/projects.json, opening review PRs so all projects compound over time. Cost-optimised open-weight ladder (Qwen/DeepSeek) via OpenRouter — cheap grunt tiers, one reserved reasoner for the planner handoff (~$5/full run)."
     owner_role: "\"Senior PM\""
     status: "\"wave-6\""
     path: skills/weekly-enhancement-loop/SKILL.md

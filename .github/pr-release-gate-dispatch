@@ -1,0 +1,10 @@
+# Workflows the PR release gate may tell an agent to start by hand on a branch (RA-7903).
+#
+# Pi-Dev-Ops runs workflows only on pull_request and pushes to main (RA-7222), so a branch
+# push gives the gate no GitHub run to read before `gh pr create`. These are started with
+# `gh workflow run <file> --ref <branch>` instead. List ONLY read-only checks: each one below
+# has `permissions: contents: read` and runs a checker, nothing that deploys, posts or writes.
+# These three are the ones dispatched to release #883.
+fail-open-check.yml
+secrets-scan-mutation.yml
+skills-drift-check.yml

@@ -18,14 +18,9 @@ echo "════════════════════════�
 # Change to project directory
 cd "$(dirname "$0")/.."
 
-# Set required environment variables
-export TAO_PASSWORD="${TAO_PASSWORD:-$(openssl rand -base64 24)}"
-export TAO_SESSION_SECRET="${TAO_SESSION_SECRET:-$(openssl rand -hex 32)}"
-
-echo ""
-echo "✓ Environment variables prepared"
-echo "  TAO_PASSWORD: ${TAO_PASSWORD:0:8}... (generated)"
-echo "  TAO_SESSION_SECRET: ${TAO_SESSION_SECRET:0:8}... (generated)"
+# TAO_PASSWORD and TAO_SESSION_SECRET live in the Railway service variables.
+# This script never generates or prints them; the server refuses to start on
+# Railway when TAO_PASSWORD is missing.
 
 # Deploy using Railway CLI
 echo ""

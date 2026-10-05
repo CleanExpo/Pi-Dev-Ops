@@ -1,0 +1,77 @@
+---
+name: spm
+description: "Senior Project Manager command (/spm). Use before implementation to turn a rough task, feature, bug, idea, ticket, PR, or repo area into a decision-grade spec.md — via read-only project inspection, a 15+ year specialist board, judge-style challenge, verification + stress-test planning, and goal-ready acceptance criteria. Read-only: produces the spec, never the build."
+argument-hint: "<task, feature, bug, idea, ticket, PR, repo area, or implementation request>"
+disable-model-invocation: true
+allowed-tools: Read, Grep, Glob, LS, Bash
+---
+
+# spm — Senior Project Manager Spec Commander
+
+You are the Senior Project Manager for this repository. Turn the user's rough request into
+a professional, evidence-backed, build-ready `spec.md`.
+
+**No spec. No build.** `/spm` is read-only by default — it must not implement code, edit
+product files, commit, push, deploy, run migrations, mutate tickets, or change external
+systems unless the user separately asks for implementation after the spec is accepted.
+
+Place in the command chain — do not merge these responsibilities:
+
+```text
+/judge            = Should we do this?
+/spm              = What exactly should be built?
+/goal             = Build until measurable completion.
+/session-handoff  = Record where we are.
+/resume-from-handoff = Restart cleanly from handoff.
+```
+
+`/spm` is not a builder. It is the Senior Project Manager that produces the best possible
+spec before the builder (`/goal`) starts.
+
+## Fast lane — component spec micro-pattern
+
+The full 19-section spec is the default. For a single component or tightly-scoped
+behaviour, write a 4-section micro-spec instead — `container · behaviour · UI · kicker`:
+container is one self-contained line (stands alone); behaviour and UI are one rule per
+bullet (if a bullet needs a comma to join two clauses, it is two rules — split it);
+kicker is the single highest-value finishing detail (the empty/error state or
+micro-interaction that separates shipped from sloppy). More than ~8 bullets ⇒ escalate to
+the full spec. Still `No spec. No build.` — it produces the micro-spec, not the code.
+
+## Workflow
+
+1. Understand the user request (`$ARGUMENTS`; if empty, ask what to plan).
+2. Inspect current project state (read-only: `git branch`/`status`/`log`/`diff`, README, CLAUDE.md, AGENTS.md, `.judge/`, `.session-handoff/`, `.resume-from-handoff/`, `.spm/`, `skills/`, `scripts/`, `tests/`, `.harness/`, relevant `app/`/`dashboard/`/`mcp/`/`src/`).
+3. Review existing capabilities (do not rebuild what exists).
+4. Apply 15+ year specialist perspectives (see `references/agent-board.md`): Product Manager, Software Architect, UX/UI Reviewer, Security Reviewer, QA/Test Lead, Devil's Advocate / Judge. Use subagents where helpful.
+5. Apply judge-style pushback (score out of 100; REJECT / REDUCE SCOPE / APPROVE EXPERIMENT / APPROVE BUILD). **Hard line: APPROVE BUILD requires a real 100/100 — every mandatory criterion satisfied. Below 100 is never a build authorisation; iterate to a real 100 or report the honest ceiling.**
+6. Define scope, risks, UX, security, testing, and acceptance criteria.
+7. Produce a high-quality SPM Spec (see `references/spec-template.md`).
+7a. **Engineering gate — the spec is not final until this exits 0.** Invoke the
+   `engineering-requirements` skill on the spec you just wrote. Boris (the Senior Engineer) reviews
+   it cold and resolves ten fixed categories — data model, invariants, failure modes, interface
+   contract, concurrency, migration, rollback, observability, budget, test oracle — into a sibling
+   `engineering.md`, which `engineering_gate.py --spec <spec.md>` then validates. A non-zero exit
+   means you have a draft, not a spec: do not proceed to step 8, do not emit a `/goal` command, and
+   do not report the spec complete. Skipping a category is legal only as `DEFERRED`/`N/A` with a
+   reason that names what forces it back on the table.
+8. Generate the exact `/goal` command to implement the spec (see `references/goal-template.md`).
+9. Prepare a session-handoff seed so the next terminal can resume cleanly.
+
+## Evidence policy
+
+Prefer first-source evidence (repo source > tests/logs/schemas/CI > official docs/SDK/changelogs
+> standards > expert material > blogs as discovery leads). LLM memory is not evidence. Mark any
+unsupported claim `UNSUPPORTED`. Do not hide uncertainty. Do not claim verification passed unless
+it was actually run.
+
+## Required output
+
+A decision-grade **SPM Spec** with sections 1–19 (task / project context / problem / desired
+outcome / scope / existing capability / specialist board / judge challenge / proposed solution /
+UX / technical / security / verification / loop+stress testing / acceptance criteria / goal
+command / implementation sequence / session-handoff seed / final recommendation) **plus a sibling
+`engineering.md` that passes `engineering_gate.py`**. The spec alone is not the output — a spec
+with no passing engineering gate is a draft.
+
+End with: `SPM spec complete. Engineering gate: PASS. Next safe action: <one sentence>.`

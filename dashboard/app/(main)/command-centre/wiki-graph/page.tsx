@@ -90,7 +90,7 @@ export default async function WikiGraphPage() {
     >
       <header style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.75rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Link href="/command-centre" style={{ fontSize: 11, color: 'rgba(21,128,61,0.7)', textDecoration: 'none' }}>
+          <Link href="/command-centre" style={{ fontSize: 11, color: '#15803d' /* 4.93:1; 70% alpha was 2.88:1 (RA-7843) */, textDecoration: 'none' }}>
             &larr; Command Deck
           </Link>
           <h1 style={{ fontSize: '1.4rem', fontWeight: 600, letterSpacing: '-0.01em', color: '#15803d', margin: 0 }}>
@@ -126,7 +126,7 @@ export default async function WikiGraphPage() {
           detail="0 pages found in the knowledge base. Once the Obsidian 2nd Brain sync populates wiki_pages, the graph will render here."
         />
       ) : (
-        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        <div data-mc-data="wiki-graph" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <WikiGraphCanvas nodes={graph.nodes} edges={graph.edges} />
           <p style={{ margin: '0.5rem 0 0', fontSize: 11, color: '#5a6b62' }}>
             {/* "· click to open the page" removed with the click handler — KI-005. A

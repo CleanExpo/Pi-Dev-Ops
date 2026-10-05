@@ -51,7 +51,7 @@
 |-------|-------|------|
 | `text-primary` | `#f4f5f7` | Headings, primary content |
 | `text-secondary` | `#a7adba` | Labels, meta, secondary content |
-| `text-tertiary` | `#727a88` | Placeholder, disabled, timestamps |
+| `text-tertiary` | `#9aa3b1` | Placeholder, disabled, timestamps. Was `#727a88` (3.87:1 on panel, failed AA); `dashboard/app/globals.css` `--text-dim` has carried `#9aa3b1` since RA-7843 |
 | `text-disabled` | `#4d535f` | Truly disabled elements |
 | `text-inverse` | `#0e1014` | Text on candy (red/orange/green) backgrounds |
 
@@ -60,7 +60,7 @@
 |-------|-----|------|
 | `status-success` | `#00d97e` | Candy green — complete, passed, healthy |
 | `status-warning` | `#ff8a1f` | Candy orange — warning, in-review |
-| `status-error` | `#e5484d` | Alarm red — failed, critical (flatter than brand candy red, kept distinct) |
+| `status-error` | `#ff6369` | Alarm red — failed, critical (kept distinct from brand candy red). Was `#e5484d`, 4.27:1 on surface — below WCAG AA (RA-7843) |
 | `status-info` | `#22d3ee` | Candy cyan — running, in-progress (cool complement) |
 | `accent-amber` | `#ffb020` | Candy amber — secondary signal, highlights |
 | `status-neutral` | `#727a88` | Killed, cancelled, unknown |
@@ -68,10 +68,34 @@
 ### Status tints (for badges)
 ```css
 .badge-success { background: rgba(0,217,126,0.12);  color: #00d97e; }
-.badge-error   { background: rgba(229,72,77,0.12);   color: #e5484d; }
+.badge-error   { background: rgba(255,99,105,0.12);  color: #ff6369; }
 .badge-warning { background: rgba(255,138,31,0.12);  color: #ff8a1f; }
 .badge-info    { background: rgba(34,211,238,0.12);  color: #22d3ee; }
 ```
+
+---
+
+### Board looks (modular boards only)
+
+Four looks for Mission Control boards (`/control/boards`, RA-7898), chosen by the founder
+after rejecting the gun-metal/candy styling for boards. They apply **only inside a board root**
+(`[data-board-skin]`, `dashboard/app/globals.css`) and override the CEO register there,
+including the never-white rule and the 4–6px radius. Everywhere else the CEO register stands.
+A look is token overrides only; it changes no module code.
+
+| Look | Ground (`--board-canvas`) | Card (`--board-card`) | Ink (`--board-ink`) | Data accent (`--board-accent`) | Radius | Reference |
+|---|---|---|---|---|---|---|
+| Paper (default desk) | `#f3f2ee` warm paper | `#ffffff` | `#16181d` | `#4a4af4` indigo | 12px | Mercury home, Affirm |
+| Graphite | `#0c0c0e` | `#141417` | `#ececef` | `#8b8bff` | 10px | Linear Dashboards |
+| Slate | `#1d1e28` | `#262734` | `#ecebf5` | `#9b98ff` | 14px | Mercury (dark) |
+| Wall | `#050506` | `#0f0f12` | `#ffffff` | `#8b8bff` | 10px, type ×1.22 | Better Stack monitors |
+
+Rules inside a board: one data accent per look; green / amber / red (`--board-ok`, `--board-warn`,
+`--board-bad`) only for a state that needs attention, always beside a text label; a grey hollow dot
+for "no source yet". Card anatomy: an uppercase kicker "<sector> · <state>" with a status dot, a
+sentence-case title, one ⋯ menu (Show as, source, Remove), no per-card footer, no uppercase titles.
+No hex literal in `dashboard/components/boards/` or `dashboard/lib/boards/` (tested by
+`__tests__/boards-look-rules.test.ts`); colours come only from the tokens above.
 
 ---
 
@@ -142,7 +166,7 @@ border-radius: 6px;
 **Destructive**
 ```css
 background: rgba(229,72,77,0.12);
-color: #e5484d;
+color: #ff6369;
 border: 1px solid rgba(229,72,77,0.25);
 /* hover */ background: rgba(229,72,77,0.20);
 ```
@@ -326,9 +350,9 @@ Inner border highlight: `box-shadow: inset 0 1px 0 rgba(255,255,255,0.06)` on al
 ### Quick colour reference
 ```
 Canvas: #0e1014 | Surface: #191e26 | Accent (candy red): #ff3b5c
-Text: #f4f5f7 (primary) · #a7adba (secondary) · #727a88 (tertiary)
+Text: #f4f5f7 (primary) · #a7adba (secondary) · #9aa3b1 (tertiary)
 Border: rgba(255,255,255,0.06) default · rgba(255,255,255,0.10) strong
-Status: #00d97e success · #e5484d error · #ff8a1f warning · #22d3ee info
+Status: #00d97e success · #ff6369 error · #ff8a1f warning · #22d3ee info
 Never: #ffffff or #000000 fills.
 ```
 

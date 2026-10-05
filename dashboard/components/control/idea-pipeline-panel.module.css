@@ -1,0 +1,18 @@
+.panel { position: relative; margin-top: 20px; padding: 18px; border: 1px solid #3d7282; border-radius: 11px; background: #082130; }
+.header { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+.header h2 { margin: 0 0 3px; color: #eaf7f4; font-size: 16px; font-weight: 650; }
+.header p { color: #a8c7ca; font-size: 12px; }
+.count { color: #b6d8d6; font: 10px/1.4 var(--font-mono, monospace); white-space: nowrap; }
+.composer { display: flex; align-items: stretch; gap: 10px; }
+.composer textarea { flex: 1; min-width: 0; resize: vertical; padding: 12px; border: 1px solid #41717d; border-radius: 8px; outline: none; background: #061923; color: #ecf7f3; font-size: 13px; }
+.composer textarea::placeholder { color: #9cbabf; }
+.composer textarea:focus-visible { border-color: #8bf0d7; box-shadow: 0 0 0 2px #69d8c34d; }
+.composer button { align-self: stretch; padding: 0 18px; border-radius: 8px; background: #7ce5cf; color: #062a30; font-size: 12px; font-weight: 700; cursor: pointer; }
+.composer button:hover { background: #a3f9e6; }
+.composer button:focus-visible { outline: 3px solid #f0c571; outline-offset: 3px; }
+.composer button:disabled { opacity: .55; cursor: wait; }
+.packet { margin-top: 12px; padding-top: 12px; border-top: 1px solid #315767; color: #dfefed; }
+.packet summary { width: fit-content; color: #9fe9d7; cursor: pointer; font-size: 12px; }
+.packet summary:focus-visible { outline: 2px solid #f0c571; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 740px) { .header { display: block; } .count { display: block; margin-top: 8px; } .composer { flex-direction: column; } .composer button { min-height: 42px; } }

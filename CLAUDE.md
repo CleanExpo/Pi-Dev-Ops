@@ -200,8 +200,10 @@ that have both burned this repo:
    Never dress a failure as "still running" and never retry silently.
 5. **Skill-injection hooks are advisory.** They fire on patterns, not task context. When off-task,
    say so in one line and ignore. Never let them drive scope creep.
-6. **Finishing the requested task is the stop signal.** Report and hand back. Do not auto-chain
-   into the next backlog item or open new scope without a fresh instruction.
+6. **POLICY — Finishing one item is not a stop signal (founder directive, 28/09/2026).** Carry
+   straight on to the next safe item already on the handoff, ticket or backlog you were given, and
+   stop only when that backlog is exhausted, a gate blocks every remaining thread, or Phill says
+   stop. This does not license new scope nobody asked for, and the pause list below still binds.
 
 Pause immediately for an explicit stop word, or for any decision requiring a human: branch-strategy
 change, secret rotation, destructive migration, new service provisioning.
@@ -210,10 +212,15 @@ change, secret rotation, destructive migration, new service provisioning.
 
 | Command | Purpose | Claude Code | Codex | Shared docs |
 |---|---|---|---|---|
-| `/judge` | Read-only challenge gate — decides *whether to build*. Scores out of 100. Never implements. | **missing** (defect 3) | `.agents/skills/judge/SKILL.md` | `.judge/` |
-| `/spm` | Decision-grade spec before implementation. Read-only by default. | **missing** (defect 3) | `.agents/skills/spm/SKILL.md` | `.spm/` |
-| `/session-handoff` | Gates the tree via `scripts/handoff-loop.sh`, then writes `docs/session-handoffs/handoff-<ts>.md`. Non-zero exit ⇒ write a BLOCKED handoff naming the failing gate. | **missing** (defect 3) | `.agents/skills/session-handoff/SKILL.md` | `.session-handoff/` |
-| `/resume-from-handoff` | Re-runs the same gate, reconciles drift, then resumes. Verification is read-only and mandatory first. | **missing** (defect 3) | `.agents/skills/resume-from-handoff/SKILL.md` | `.resume-from-handoff/` |
+| `/judge` | Read-only challenge gate — decides *whether to build*. Scores out of 100. Never implements. | `.claude/skills/judge` → symlink to `.agents/skills/judge` (defect 3 fixed) | `.agents/skills/judge/SKILL.md` | `.judge/` |
+| `/spm` | Decision-grade spec before implementation. Read-only by default. | `.claude/skills/spm` → symlink to `.agents/skills/spm` (defect 3 fixed) | `.agents/skills/spm/SKILL.md` | `.spm/` |
+| `/session-handoff` | Gates the tree via `scripts/handoff-loop.sh`, then writes `docs/session-handoffs/handoff-<ts>.md`. Non-zero exit ⇒ write a BLOCKED handoff naming the failing gate. | `.claude/skills/session-handoff` → symlink to `.agents/skills/session-handoff` (defect 3 fixed) | `.agents/skills/session-handoff/SKILL.md` | `.session-handoff/` |
+| `/resume-from-handoff` | Re-runs the same gate, reconciles drift, then resumes. Verification is read-only and mandatory first. | `.claude/skills/resume-from-handoff` → symlink to `.agents/skills/resume-from-handoff` (defect 3 fixed) | `.agents/skills/resume-from-handoff/SKILL.md` | `.resume-from-handoff/` |
+| `/plan-to-done` | Writes the whole-project delivery packet (intent → coverage → work packages → release and live checks). Planning only; never builds. **Candidate, quarantined** — not invocable until its evals run and it is promoted via `skills-library`. Routing it uses: `references/model-and-plan-routing.md` (reconciled against code in `docs/plans/idea-to-live/routing-reconciliation.md`). | **not installed** (by design) | package at `docs/plans/plan-to-done-v1.1/plan-to-done/SKILL.md` | `docs/plans/idea-to-live/` |
+
+Planning inputs are layered, not stacked side by side: method (plan-to-done, `/spm`) → portfolio
+(NEXUS-RELEASE-HARNESS) → track (e.g. `docs/plans/mission-control/`) → pathway (`docs/plans/idea-to-live/`).
+Classify every new planning input in `docs/plans/nexus-release-harness/adoption.md` before adding files.
 
 `/judge` decides whether to build. `/spm` specifies what to build. `/session-handoff` records what
 happened. `/resume-from-handoff` picks it back up. Distinct from `tao-judge`, which scores
@@ -448,13 +455,26 @@ does not exist (RA-7396).
 ## Autonomy and kill switches
 
 `app/server/autonomy.py` polls Linear and creates sessions, every `TAO_AUTONOMY_POLL_INTERVAL`
-seconds (`autonomy.py:803`, default `300` = 5 min). **The poll filter is not priority-based.**
-`fetch_todo_issues()` (`autonomy.py:294-365`) only claims an issue when status name is exactly
-`"Ready for Pi-Dev"` **and** it carries the label `pi-dev:autonomous` or `pi-dev:machine-ship`
-(`autonomy.py:241-250,318-319`) — a prior priority-based filter (`state.type=unstarted` +
-`priority<=2`) was replaced because it accidentally claimed any high-priority Todo across the
-whole workspace. An issue in any other status, or missing either label, is invisible to the
-poller — move it to `Ready for Pi-Dev` with the label set to restart a stalled session.
+seconds (default `300` = 5 min). **The poll filter is not
+priority-based.** Every executor admits work through one function,
+`issue_is_claimable()` in `app/server/autonomy_eligibility.py`: the Railway poller
+(`fetch_todo_issues()`, every page), the mesh self-claim and dispatcher
+(`mesh_lanes.candidates()`), and swarm intake. The poller claims only status name exactly
+`"Ready for Pi-Dev"` **and** label `pi-dev:autonomous` or `pi-dev:machine-ship`, in a
+project registered in `config/harness/projects.json`; the mesh build lane also takes
+`pi-dev:autonomous` in `Todo`. A prior priority-based filter (`state.type=unstarted` +
+`priority<=2`) was replaced because it claimed any high-priority Todo across the workspace.
+
+`claim_refusal()` refuses a ticket with an open blocker, a move to `Pi-Dev: Blocked` in the
+last 24 h, two session starts in the last 24 h (the third is parked with
+`pi-dev:blocked-reason:repeat-claim`), or any `pi-dev:blocked-reason:*` label. A failed start
+is parked Blocked, never re-queued. A ticket whose sessions have spent `TAO_TICKET_TOKEN_CAP`
+tokens in total (default 300,000, summed from Supabase session checkpoints) is parked with
+`pi-dev:blocked-reason:token-cap`; with no readable ledger (Supabase unset or failing) the
+ticket is skipped, so set `TAO_TICKET_TOKEN_CAP=0` to run the poller without Supabase. A failed
+session is labelled `pi-dev:blocked-reason:session-failed` before its claim is released. To restart a parked ticket: fix the cause, remove the
+blocked-reason label, then move it to `Ready for Pi-Dev`. Re-derive:
+`grep -n "def claim_refusal" -A30 app/server/autonomy_eligibility.py`
 
 Three abort axes apply to every TAO loop (`app/server/kill_switch.py`):
 

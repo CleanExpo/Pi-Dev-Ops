@@ -1,0 +1,128 @@
+[
+  {
+    "path": "/command-centre",
+    "identical_pixels": true,
+    "nav_before": "",
+    "nav_after": ""
+  },
+  {
+    "path": "/command-centre/hermes",
+    "identical_pixels": true,
+    "nav_before": "",
+    "nav_after": ""
+  },
+  {
+    "path": "/command-centre/knowledge",
+    "identical_pixels": true,
+    "nav_before": "",
+    "nav_after": ""
+  },
+  {
+    "path": "/command-centre/providers",
+    "identical_pixels": true,
+    "nav_before": "",
+    "nav_after": ""
+  },
+  {
+    "path": "/command-centre/wall",
+    "identical_pixels": true,
+    "nav_before": "",
+    "nav_after": ""
+  },
+  {
+    "path": "/command-centre/wiki-graph",
+    "identical_pixels": true,
+    "nav_before": "",
+    "nav_after": ""
+  },
+  {
+    "path": "/command-centre/youtube-intent",
+    "identical_pixels": true,
+    "nav_before": "",
+    "nav_after": ""
+  },
+  {
+    "path": "/control",
+    "identical_pixels": true,
+    "nav_before": "",
+    "nav_after": ""
+  },
+  {
+    "path": "/control/build",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/control/curator",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/control/goal",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/control/health",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/control/margot",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/control/model",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/control/pipeline",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/control/roles",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/control/runs",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/control/swarm",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/control/terminal",
+    "identical_pixels": true,
+    "nav_before": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL",
+    "nav_after": "LIVE\nGOAL\nSWARM\nMODELS\nHEALTH\nROLES\nBUILD\nRUNS\nCURATOR\nMARGOT\nPIPELINE\nTERMINAL\nBOARDS"
+  },
+  {
+    "path": "/loop",
+    "identical_pixels": true,
+    "nav_before": "",
+    "nav_after": ""
+  },
+  {
+    "path": "/overview",
+    "identical_pixels": true,
+    "nav_before": "",
+    "nav_after": ""
+  }
+]

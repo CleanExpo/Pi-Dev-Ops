@@ -1,0 +1,196 @@
+{
+ "items": [
+  {
+   "name": "seo",
+   "description": "Search engine optimisation audits, keyword research and backlinks.",
+   "bodyForScoring": "Run a technical SEO audit. Check sitemaps, robots, schema."
+  },
+  {
+   "name": "seo-plan",
+   "description": "Plan an SEO content calendar.",
+   "bodyForScoring": "Quarterly keyword plan."
+  },
+  {
+   "name": "web-perf",
+   "description": "Make a website load faster: Core Web Vitals.",
+   "bodyForScoring": "LCP, CLS, INP budgets."
+  },
+  {
+   "name": "session-handoff",
+   "description": "Hand off this session before stopping.",
+   "bodyForScoring": "Write the handoff report."
+  },
+  {
+   "name": "stripe-milestone-invoice",
+   "description": "Send a Stripe invoice for a milestone deposit.",
+   "bodyForScoring": "Create payment link."
+  },
+  {
+   "name": "video-director",
+   "description": "Make a video: explainer or promo.",
+   "bodyForScoring": "Storyboard, script, render."
+  }
+ ],
+ "cases": [
+  {
+   "query": "make my website load faster",
+   "tokens": [
+    "faster",
+    "load",
+    "website"
+   ],
+   "scores": {
+    "seo": 0,
+    "seo-plan": 0,
+    "web-perf": 9.777350098112615,
+    "session-handoff": 0,
+    "stripe-milestone-invoice": 0,
+    "video-director": 0
+   }
+  },
+  {
+   "query": "SEO",
+   "tokens": [
+    "seo"
+   ],
+   "scores": {
+    "seo": 9.242535625036332,
+    "seo-plan": 10.877964473009227,
+    "web-perf": 0,
+    "session-handoff": 0,
+    "stripe-milestone-invoice": 0,
+    "video-director": 0
+   }
+  },
+  {
+   "query": "keyword research for the client",
+   "tokens": [
+    "client",
+    "keyword",
+    "research"
+   ],
+   "scores": {
+    "seo": 5.242535625036333,
+    "seo-plan": 1.3779644730092273,
+    "web-perf": 0,
+    "session-handoff": 0,
+    "stripe-milestone-invoice": 0,
+    "video-director": 0
+   }
+  },
+  {
+   "query": "hand off before I stop",
+   "tokens": [
+    "before",
+    "hand",
+    "off",
+    "stop"
+   ],
+   "scores": {
+    "seo": 0,
+    "seo-plan": 0,
+    "web-perf": 0,
+    "session-handoff": 15.316227766016837,
+    "stripe-milestone-invoice": 0,
+    "video-director": 0
+   }
+  },
+  {
+   "query": "bill the client their deposit",
+   "tokens": [
+    "bill",
+    "client",
+    "deposit",
+    "their"
+   ],
+   "scores": {
+    "seo": 0,
+    "seo-plan": 0,
+    "web-perf": 0,
+    "session-handoff": 0,
+    "stripe-milestone-invoice": 2.816227766016838,
+    "video-director": 0
+   }
+  },
+  {
+   "query": "make a marketing video",
+   "tokens": [
+    "marketing",
+    "video"
+   ],
+   "scores": {
+    "seo": 0,
+    "seo-plan": 0,
+    "web-perf": 0,
+    "session-handoff": 0,
+    "stripe-milestone-invoice": 0,
+    "video-director": 5.816227766016838
+   }
+  },
+  {
+   "query": "the and of",
+   "tokens": [
+    "and",
+    "of",
+    "the"
+   ],
+   "scores": {
+    "seo": 2.742535625036333,
+    "seo-plan": 0,
+    "web-perf": 0,
+    "session-handoff": 10.316227766016837,
+    "stripe-milestone-invoice": 0,
+    "video-director": 0
+   }
+  },
+  {
+   "query": "zzz nothing matches",
+   "tokens": [
+    "matches",
+    "nothing",
+    "zzz"
+   ],
+   "scores": {
+    "seo": 0,
+    "seo-plan": 0,
+    "web-perf": 0,
+    "session-handoff": 0,
+    "stripe-milestone-invoice": 0,
+    "video-director": 0
+   }
+  },
+  {
+   "query": "Web-Perf LCP budget",
+   "tokens": [
+    "budget",
+    "lcp",
+    "perf",
+    "web"
+   ],
+   "scores": {
+    "seo": 0,
+    "seo-plan": 0,
+    "web-perf": 10.777350098112615,
+    "session-handoff": 0,
+    "stripe-milestone-invoice": 0,
+    "video-director": 0
+   }
+  },
+  {
+   "query": "seo rankings for the client",
+   "tokens": [
+    "client",
+    "rankings",
+    "seo"
+   ],
+   "scores": {
+    "seo": 4.242535625036333,
+    "seo-plan": 5.877964473009227,
+    "web-perf": 0,
+    "session-handoff": 0,
+    "stripe-milestone-invoice": 0,
+    "video-director": 0
+   }
+  }
+ ]
+}

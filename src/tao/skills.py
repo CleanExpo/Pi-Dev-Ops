@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 import re
 
+import yaml
+
 _SKILLS_CACHE: dict | None = None
 
 # ── YAML frontmatter parser ──────────────────────────────────────────────────
@@ -23,6 +25,14 @@ def _parse_frontmatter(content: str) -> tuple[dict, str]:
     if not m:
         return {}, content
     meta_block, body = m.group(1), m.group(2)
+    # Real YAML first: a folded/literal description (">", "|") otherwise loads as that
+    # single character. Line-by-line stays as the fallback for frontmatter YAML rejects.
+    try:
+        parsed = yaml.safe_load(meta_block)
+    except yaml.YAMLError:
+        parsed = None
+    if isinstance(parsed, dict):
+        return parsed, body.strip()
     meta = {}
     for line in meta_block.split("\n"):
         line = line.strip()
@@ -53,23 +63,14 @@ def load_skill(skill_dir: str) -> dict | None:
     }
 
 
-def load_all_skills(skills_root: str = "") -> dict[str, dict]:
-    """Scan all subdirectories of skills_root for SKILL.md files.
-    Returns { skill_name: { name, description, body, path } }.
-    Results are cached after first load."""
-    global _SKILLS_CACHE
-    if _SKILLS_CACHE is not None:
-        return _SKILLS_CACHE
+_PROJECT_ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 
-    if not skills_root:
-        # Default: skills/ relative to project root (2 dirs up from src/tao/)
-        skills_root = os.path.join(os.path.dirname(__file__), "..", "..", "skills")
+
+def _scan(skills_root: str) -> dict[str, dict]:
+    """Every SKILL.md one level under skills_root, by name. A missing root is empty."""
     skills_root = os.path.abspath(skills_root)
-
     if not os.path.isdir(skills_root):
-        _SKILLS_CACHE = {}
-        return _SKILLS_CACHE
-
+        return {}
     result = {}
     for entry in sorted(os.listdir(skills_root)):
         full = os.path.join(skills_root, entry)
@@ -79,7 +80,27 @@ def load_all_skills(skills_root: str = "") -> dict[str, dict]:
         if skill:
             # RA-693: include automation mode from frontmatter
             result[skill["name"]] = skill
+    return result
 
+
+def load_all_skills(skills_root: str = "") -> dict[str, dict]:
+    """Scan all subdirectories of skills_root for SKILL.md files.
+    Returns { skill_name: { name, description, body, path } }.
+    Results are cached after first load.
+
+    With no skills_root: this repo's skills/, then the library's own skills copied into
+    skills-library/skills/ (scripts/sync_skills_library.py). Where both hold a name (a skill
+    whose home is the library but whose PDO copy is still being merged), the PDO copy wins,
+    so adding the library never changes a skill Mission Control already loads."""
+    global _SKILLS_CACHE
+    if _SKILLS_CACHE is not None:
+        return _SKILLS_CACHE
+
+    if skills_root:
+        _SKILLS_CACHE = _scan(skills_root)
+        return _SKILLS_CACHE
+    result = _scan(os.path.join(_PROJECT_ROOT, "skills-library", "skills"))
+    result.update(_scan(os.path.join(_PROJECT_ROOT, "skills")))
     _SKILLS_CACHE = result
     return _SKILLS_CACHE
 

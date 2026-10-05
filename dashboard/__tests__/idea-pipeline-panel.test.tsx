@@ -31,7 +31,7 @@ function snapshot(overrides: Record<string, unknown> = {}) {
   return {
     snapshot: {
       intake: "IDEAS.md",
-      north_star: "empower small business owners to grow, self-paced, all learning styles",
+      north_star: "Build a group of businesses, people and systems that earn trust when conditions are hardest.",
       awaiting: 1,
       packet: packet(),
       verdicts: ["BACKLOG", "KILL", "PARK", "PROMOTE"],
@@ -63,9 +63,10 @@ describe("Idea pipeline Board packet", () => {
     cleanup();
   });
 
-  it("renders a waiting packet and the four dispose words", async () => {
+  it("LOADED: renders a waiting packet and the four dispose words", async () => {
     mockFetch(() => snapshot());
     render(<IdeaPipelinePanel />);
+    fireEvent.click(await screen.findByText(/Board packet · awaiting_dispose/));
     expect(await screen.findByText(/Teach shop owners/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "PROMOTE" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "BACKLOG" })).toBeTruthy();
@@ -74,10 +75,26 @@ describe("Idea pipeline Board packet", () => {
     expect((screen.getByRole("button", { name: "GO" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("empty intake shows the drop prompt", async () => {
+  it("marks an earlier North Star packet as requiring re-examination", async () => {
+    mockFetch(() => snapshot());
+    render(<IdeaPipelinePanel />);
+    fireEvent.click(await screen.findByText(/Board packet · awaiting_dispose/));
+    expect(await screen.findByText(/Legacy packet under an earlier North Star/)).toBeTruthy();
+    expect(screen.queryByText(/Judge 78 APPROVE_EXPERIMENT/)).toBeNull();
+  });
+
+  it("EMPTY: empty intake shows the direct idea composer", async () => {
     mockFetch(() => snapshot({ awaiting: 0, packet: null }));
     render(<IdeaPipelinePanel />);
-    expect(await screen.findByText(/No idea waiting/)).toBeTruthy();
+    expect(await screen.findByText("0 waiting for a decision")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "New idea" })).toBeTruthy();
+  });
+
+  it("ERROR: a failed read says the pipeline could not be read, not that nothing is waiting", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "down" }), { status: 502 })));
+    render(<IdeaPipelinePanel />);
+    expect(await screen.findByText("Mission Control could not read the idea pipeline.")).toBeTruthy();
+    expect(screen.queryByText(/waiting for a decision/)).toBeNull();
   });
 
   it("PROMOTE then GO updates the screen and does not claim a start", async () => {
@@ -104,6 +121,7 @@ describe("Idea pipeline Board packet", () => {
       return current;
     });
     render(<IdeaPipelinePanel />);
+    fireEvent.click(await screen.findByText(/Board packet · awaiting_dispose/));
     await screen.findByText(/Teach shop owners/);
     fireEvent.click(screen.getByRole("button", { name: "PROMOTE" }));
     expect(await screen.findByText(/Nothing has started/)).toBeTruthy();
@@ -113,9 +131,40 @@ describe("Idea pipeline Board packet", () => {
     expect(await screen.findByText(/GO is on the record/)).toBeTruthy();
     expect(screen.queryByText(/build started/i)).toBeNull();
   });
+
+  it("submits an idea through the existing intake and clears the composer", async () => {
+    let current = snapshot({ awaiting: 0, packet: null });
+    const requests: { url: string; init?: RequestInit }[] = [];
+    mockFetch((url, init) => {
+      if (url.endsWith("/intake") && init?.method === "POST") {
+        requests.push({ url, init });
+        current = snapshot();
+        return { packet: current.snapshot.packet };
+      }
+      return current;
+    });
+    render(<IdeaPipelinePanel />);
+    fireEvent.change(screen.getByRole("textbox", { name: "New idea" }), { target: { value: "Add a project evidence view" } });
+    fireEvent.click(screen.getByRole("button", { name: /Drop idea/ }));
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0].url).toBe("/api/pi-ceo/api/idea-pipeline/intake");
+    expect(JSON.parse(String(requests[0].init?.body))).toEqual({ text: "Add a project evidence view", source: "phill" });
+    expect(await screen.findByText("Idea captured. Board packet is ready.")).toBeTruthy();
+    expect((screen.getByRole("textbox", { name: "New idea" }) as HTMLTextAreaElement).value).toBe("");
+  });
 });
 
 describe("idea-pipeline helpers", () => {
+  it("checks 1,000 varied Board packets before enabling GO", () => {
+    const verdicts = ["PROMOTE", "BACKLOG", "PARK", "KILL", null];
+    for (let index = 0; index < 1000; index++) {
+      const verdict = verdicts[index % verdicts.length];
+      const go_at = index % 2 ? null : `2026-09-29T00:${String(index % 60).padStart(2, "0")}:00Z`;
+      const candidate = packet({ idea_id: `idea-${index}`, verdict, go_at });
+      expect(canAuthorizeGo(candidate)).toBe(verdict === "PROMOTE" && !go_at);
+    }
+  });
+
   it("GO is only legal after PROMOTE", () => {
     expect(canAuthorizeGo(packet({ verdict: "PROMOTE" }))).toBe(true);
     expect(canAuthorizeGo(packet({ verdict: "KILL" }))).toBe(false);

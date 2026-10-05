@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { brisbaneDateTime } from "@/lib/brisbane-time";
 
 interface RoutineRun {
   routine_name: string;
@@ -39,20 +40,18 @@ const STATUS_ICON: Record<string, string> = {
 function fmtTs(ts: string): string {
   if (!ts) return "—";
   try {
-    return new Date(ts).toLocaleString(undefined, {
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return brisbaneDateTime(ts);
   } catch {
     return ts;
   }
 }
 
+// Empty is honest today: nothing POSTs /api/webhook/routine-complete, and the
+// built-in cron scheduler never writes there. Runs live on the container disk,
+// so a redeploy clears them — the copy says both (RA-7849, MC-08).
 function EmptyState() {
   return (
-    <div className="px-1 py-3 font-mono">
+    <div className="px-1 py-3 font-mono" data-mc-empty="no-routine-reports">
       <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>
         <span style={{ color: "var(--accent)" }}>$ </span>
         pi-ceo routines --last 10
@@ -60,6 +59,11 @@ function EmptyState() {
       <br />
       <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
         No runs recorded yet.
+      </span>
+      <br />
+      <span className="text-[10px]" style={{ color: "var(--text-dim)" }}>
+        Only jobs that report to the routine-complete webhook appear here; the built-in
+        scheduler&apos;s jobs do not. History is cleared on each server redeploy.
       </span>
     </div>
   );
@@ -98,7 +102,7 @@ export default function RoutineTable() {
         style={{ borderBottom: "1px solid var(--border)" }}
       >
         <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
-          Last 10 — same cron list as sidebar Routines
+          Last 10 reported routine runs — same list as sidebar Routines
         </span>
         <button
           onClick={() => void fetchRuns()}
@@ -152,6 +156,7 @@ export default function RoutineTable() {
                 const isHovered = hovered === i;
                 return (
                   <tr
+                    data-mc-data="routine-run"
                     key={`${sid}-${r.ts}-${i}`}
                     onMouseEnter={() => setHovered(i)}
                     onMouseLeave={() => setHovered(null)}

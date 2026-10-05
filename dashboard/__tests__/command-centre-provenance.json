@@ -29,12 +29,12 @@
     "operator-gateway": "NOT YET ESTABLISHED — blocks capability 6"
   },
   "imports": {
-    "app/(main)/command-centre/hermes/page.tsx :: next/font/google": {
-      "specifier": "next/font/google",
+    "app/(main)/command-centre/hermes/page.tsx :: next/font/local": {
+      "specifier": "next/font/local",
       "resolves_in_source": "package: next/font/google",
-      "resolves_in_target": "package: next/font/google",
-      "judgment": "same",
-      "note": "same npm package in both apps"
+      "resolves_in_target": "package: next/font/local",
+      "judgment": "different-but-checked",
+      "note": "same faces, weights and --font-* variables, self-hosted from app/fonts instead of downloaded from Google at build time (a failed download failed the main build, CI run 36682119471). Removes a build-time network fetch; adds none."
     },
     "app/(main)/command-centre/hermes/page.tsx :: @/lib/command-centre/control-panel": {
       "specifier": "@/lib/command-centre/control-panel",
@@ -71,12 +71,12 @@
       "judgment": "same",
       "note": "same npm package in both apps"
     },
-    "app/(main)/command-centre/knowledge/page.tsx :: next/font/google": {
-      "specifier": "next/font/google",
+    "app/(main)/command-centre/knowledge/page.tsx :: next/font/local": {
+      "specifier": "next/font/local",
       "resolves_in_source": "package: next/font/google",
-      "resolves_in_target": "package: next/font/google",
-      "judgment": "same",
-      "note": "same npm package in both apps"
+      "resolves_in_target": "package: next/font/local",
+      "judgment": "different-but-checked",
+      "note": "same faces, weights and --font-* variables, self-hosted from app/fonts instead of downloaded from Google at build time (a failed download failed the main build, CI run 36682119471). Removes a build-time network fetch; adds none."
     },
     "app/(main)/command-centre/knowledge/page.tsx :: @/lib/command-centre/tools/catalogue": {
       "specifier": "@/lib/command-centre/tools/catalogue",
@@ -374,40 +374,12 @@
       "judgment": "no-source-baseline",
       "note": "Used only for NextResponse.json to serialise the summary. No database or network client."
     },
-    "app/api/command-centre/youtube-intent/route.ts :: node:path": {
-      "specifier": "node:path",
-      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
-      "resolves_in_target": "package: node:path",
-      "judgment": "no-source-baseline",
-      "note": "Path join for the local state file under process.cwd()/.harness. Read-only path arithmetic."
-    },
-    "app/api/command-centre/youtube-intent/route.ts :: node:fs": {
-      "specifier": "node:fs",
-      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
-      "resolves_in_target": "package: node:fs",
-      "judgment": "no-source-baseline",
-      "note": "fs.promises.readFile of .harness/ugn_intent_youtube/state.json only. No write, unlink, or exec API is imported or called."
-    },
     "app/(main)/command-centre/youtube-intent/page.tsx :: next/link": {
       "specifier": "next/link",
       "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
       "resolves_in_target": "package: next/link",
       "judgment": "no-source-baseline",
       "note": "Renders the '<- Knowledge deck' internal link. No data access."
-    },
-    "app/(main)/command-centre/youtube-intent/page.tsx :: node:path": {
-      "specifier": "node:path",
-      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
-      "resolves_in_target": "package: node:path",
-      "judgment": "no-source-baseline",
-      "note": "Path join for the same local state file. Read-only path arithmetic."
-    },
-    "app/(main)/command-centre/youtube-intent/page.tsx :: node:fs": {
-      "specifier": "node:fs",
-      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
-      "resolves_in_target": "package: node:fs",
-      "judgment": "no-source-baseline",
-      "note": "fs.promises.readFile of the same local state file. Read-only; no write or exec API imported."
     },
     "app/(main)/command-centre/youtube-intent/page.tsx :: @/components/command-centre/DeckThemeShell": {
       "specifier": "@/components/command-centre/DeckThemeShell",
@@ -590,6 +562,34 @@
       "resolves_in_target": "file: lib/wall/absent.ts",
       "judgment": "no-source-baseline",
       "note": "Live Wall file, new in the target; no source import to compare."
+    },
+    "app/api/command-centre/youtube-intent/route.ts :: @/lib/command-centre/youtube-intent-state": {
+      "specifier": "@/lib/command-centre/youtube-intent-state",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/command-centre/youtube-intent-state.ts",
+      "judgment": "no-source-baseline",
+      "note": "Shared read-only loader (WP-05). Replaces this route's own node:path/node:fs read of the same state file; no write or exec API."
+    },
+    "app/(main)/command-centre/youtube-intent/page.tsx :: @/lib/command-centre/youtube-intent-state": {
+      "specifier": "@/lib/command-centre/youtube-intent-state",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/command-centre/youtube-intent-state.ts",
+      "judgment": "no-source-baseline",
+      "note": "Same shared read-only loader. Replaces the page's own node:path/node:fs read; absent file now renders 'not available on this host'."
+    },
+    "lib/command-centre/youtube-intent-state.ts :: node:path": {
+      "specifier": "node:path",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: node:path",
+      "judgment": "no-source-baseline",
+      "note": "Path join for .harness/ugn_intent_youtube/state.json under process.cwd(). Read-only path arithmetic."
+    },
+    "lib/command-centre/youtube-intent-state.ts :: node:fs": {
+      "specifier": "node:fs",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: node:fs",
+      "judgment": "no-source-baseline",
+      "note": "fs.promises.readFile of the state file only. No write, unlink or exec API is imported or called."
     }
   },
   "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant.",
@@ -609,7 +609,8 @@
     "components/wall/StationAccordion.tsx": "NEW, seven-station accordion whose header colour survives collapse (spec §5 rule 3). Presentational only.",
     "lib/wall/client.ts": "NEW, pure browser rules: snapshot staleness from generated_at, rotation order, kiosk host match. No network, no DB, no execution.",
     "lib/wall/snapshot.ts": "NEW, pure snapshot builder: machine/agent staleness clocks, NO LIVE SOURCE station placeholders, banner counts. No network, no DB, no execution; the upstream read lives in lib/wall/source.ts, outside the page graph.",
-    "lib/wall/absent.ts": "NEW, the spec's single definition of absent (§4). Pure."
+    "lib/wall/absent.ts": "NEW, the spec's single definition of absent (§4). Pure.",
+    "lib/command-centre/youtube-intent-state.ts": "REBUILT, no source baseline. Extracted 2026-09-28 (WP-05, docs/plans/mission-control/work-packages.md) from the duplicated loaders in app/api/command-centre/youtube-intent/route.ts and app/(main)/command-centre/youtube-intent/page.tsx, so an absent catalogue reads as 'not available on this host' rather than a live zero or a raw ENOENT."
   },
   "_omitted_deliberately": {
     "components/command-centre/WikiEnhanceControl.tsx": "KI-002. Dropped from the knowledge port. It POSTs to a route that enqueues into operator_jobs on a production database and needs a per-user identity this app lacks. The route is ABSENT rather than stubbed.",

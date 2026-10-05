@@ -40,6 +40,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from swarm.cost_mirror import mirror
+
 log = logging.getLogger("swarm.budget_tracker")
 
 DEFAULT_DAILY_LIMIT_USD = 20.00
@@ -108,11 +110,7 @@ def record_cost(
         log.debug("budget_tracker: jsonl write failed (non-fatal): %s", exc)
 
     # Supabase mirror — best effort, must not break record_cost
-    try:
-        from app.server.supabase_log import _insert  # noqa: PLC0415
-        _insert("llm_costs", row)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("budget_tracker: supabase mirror failed (non-fatal): %s", exc)
+    mirror(row)
 
 
 def _iter_rows() -> list[dict[str, Any]]:

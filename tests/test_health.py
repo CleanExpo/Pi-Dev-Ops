@@ -34,19 +34,17 @@ def _call_health(monkeypatch, *, linear_api_key: str = "", last_poll_at: float =
     """Call the /health async handler directly and return the parsed JSON payload.
 
     Monkeypatches config + autonomy globals so tests are hermetic.
-    TAO_PASSWORD is cleared so the auth gate is bypassed (no Bearer token needed).
+    Authenticated with a session-token Bearer: /health fails closed otherwise.
     """
     from app.server import config, autonomy as _autonomy
     monkeypatch.setattr(config, "LINEAR_API_KEY", linear_api_key)
-    # health() reads TAO_PASSWORD directly from os.environ, not from config
-    monkeypatch.delenv("TAO_PASSWORD", raising=False)
     monkeypatch.setattr(_autonomy, "_last_poll_at", last_poll_at)
     monkeypatch.setattr(_autonomy, "_poll_count", poll_count)
 
-    # Minimal mock request — TAO_PASSWORD is empty so the auth gate is skipped
     from starlette.datastructures import Headers
+    from app.server.auth import create_session_token
     mock_req = MagicMock()
-    mock_req.headers = Headers({})
+    mock_req.headers = Headers({"Authorization": f"Bearer {create_session_token()}"})
 
     from app.server.routes.health import health as health_fn
     response = asyncio.run(health_fn(mock_req))
@@ -109,3 +107,23 @@ def test_health_autonomy_armed_false_when_no_key(monkeypatch):
     monkeypatch.setattr(config, "AUTONOMY_ENABLED", True)
     data = _call_health(monkeypatch, linear_api_key="")
     assert data["autonomy"]["armed"] is False
+
+
+@pytest.mark.parametrize("enabled_env,shadow_env,want", [
+    (None, None, (False, True)),   # unset: the orchestrator does not start; bots run in shadow
+    ("1", None, (True, True)),
+    ("1", "0", (True, False)),
+    ("0", "0", (False, False)),
+    ("true", None, (False, True)),  # app_factory starts the swarm only for exactly "1"
+])
+def test_health_swarm_flags_match_the_runtime_gates(monkeypatch, enabled_env, shadow_env, want):
+    """RA-7849: /health defaulted TAO_SWARM_ENABLED to on and TAO_SWARM_SHADOW to off, the
+    opposite of app_factory and swarm/config, so the sidebar could show "Swarm Active" while
+    production logged "Swarm orchestrator NOT started"."""
+    for name, value in (("TAO_SWARM_ENABLED", enabled_env), ("TAO_SWARM_SHADOW", shadow_env)):
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+    data = _call_health(monkeypatch)
+    assert (data["swarm_enabled"], data["swarm_shadow"]) == want

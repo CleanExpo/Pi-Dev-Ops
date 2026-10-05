@@ -62,7 +62,9 @@ SUFFIXES = ("*.py", "*.ts", "*.tsx")
 #
 # NOT AUTHORED — no one to tell "split this". `node_modules` is vendored;
 # `/dist/` is tsup output, tracked but rewritten by --clean on every build.
-GENERATED_PARTS = ("node_modules/", "/dist/")
+GENERATED_PARTS = ("node_modules/", "/dist/", "/skills-library/")
+# `/skills-library/` is CleanExpo/skills-library's own skills, copied verbatim by
+# scripts/sync_skills_library.py and edited only in that repo.
 #
 # AUTHORED, but long by the nature of the medium rather than by neglect. A
 # Remotion composition is one declarative animation timeline; splitting it across

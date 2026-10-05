@@ -17,6 +17,7 @@ async def test_sessions_never_500s_on_observer_failure(monkeypatch):
     """The dashboard fetch must degrade gracefully, not 500, if libtmux/observer errors."""
     import swarm.tmux_observer as obs
 
+    monkeypatch.setattr(terminal.shutil, "which", lambda name: "/usr/bin/tmux")
     monkeypatch.setattr(obs, "list_sessions", lambda **k: (_ for _ in ()).throw(RuntimeError("no tmux")))
     out = await terminal.sessions()
     assert out["sessions"] == []
@@ -38,3 +39,14 @@ def test_app_imports_with_terminal_router():
     assert main.app is not None
     # the router module is imported and included by main (version-robust check)
     assert main.terminal.router is terminal.router
+
+
+async def test_host_without_tmux_is_a_designed_state_not_an_error(monkeypatch):
+    """RA-7849: Railway installs libtmux but not tmux; say so instead of raising."""
+    import swarm.tmux_observer as obs
+
+    monkeypatch.setattr(terminal.shutil, "which", lambda name: None)
+    monkeypatch.setattr(obs, "list_sessions", lambda **k: (_ for _ in ()).throw(AssertionError("must not call libtmux")))
+    out = await terminal.sessions()
+    assert out == {"sessions": [], "available": False, "reason": "tmux is not installed on this host"}
+    assert "error" not in out

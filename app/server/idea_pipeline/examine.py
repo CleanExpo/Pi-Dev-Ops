@@ -11,6 +11,8 @@ from .constants import (
     HIGH_EFFORT,
     LOW_EFFORT,
     NORTH_STAR,
+    NORTH_STAR_SOURCE,
+    NORTH_STAR_REVISION,
     NORTH_STAR_TERMS,
 )
 from .intake import RawIdea
@@ -25,23 +27,14 @@ def tokens(text: str) -> set[str]:
 def north_star_fit(text: str) -> dict[str, Any]:
     words = tokens(text)
     hits = sorted(words & NORTH_STAR_TERMS)
-    score = min(1.0, len(hits) / 4.0)
-    if score >= 0.75:
-        label = "strong"
-    elif score >= 0.4:
-        label = "partial"
-    else:
-        label = "weak"
-    why = (
-        f"Matched {', '.join(hits)} against the North Star."
-        if hits
-        else "No North Star words found."
-    )
+    why = "Keyword cues are not evidence of mission fit. Check the promise and a hard-day case with a human reviewer."
     return {
-        "score": round(score, 2),
-        "label": label,
+        "score": None,
+        "label": "unverified",
         "hits": hits,
         "north_star": NORTH_STAR,
+        "source": NORTH_STAR_SOURCE,
+        "source_revision": NORTH_STAR_REVISION,
         "rationale": why,
     }
 
@@ -54,13 +47,12 @@ def effort_vs_impact(text: str, fit: dict[str, Any]) -> dict[str, Any]:
         effort = "low"
     else:
         effort = "medium"
-    impact = "high" if fit["score"] >= 0.6 else "medium" if fit["score"] >= 0.35 else "low"
+    impact = "unknown"
     return {
         "effort": effort,
         "impact": impact,
         "rationale": (
-            f"Effort reads {effort} from the wording; impact reads {impact} "
-            f"from North Star fit {fit['score']:.2f}."
+            f"Effort is a wording hint ({effort}); impact needs customer and team evidence."
         ),
     }
 
@@ -83,7 +75,7 @@ def which_directive(text: str) -> dict[str, Any]:
     return {
         "id": dir_id,
         "label": label,
-        "rationale": f"Serves {label} ({hits} cue hits).",
+        "rationale": f"Possible product directive: {label} ({hits} wording cues). Confirm with the owner.",
     }
 
 
@@ -114,12 +106,8 @@ def recommend_verdict(
 ) -> str:
     words = tokens(text)
     vague = len(text.split()) < 8 or not (words & ACTION_VERBS)
-    if fit["score"] < 0.15 and directive["id"] == "unmapped":
-        return "KILL"
     if vague:
         return "PARK"
-    if fit["score"] >= 0.45 and effort["effort"] != "high" and effort["impact"] != "low":
-        return "PROMOTE"
     return "BACKLOG"
 
 

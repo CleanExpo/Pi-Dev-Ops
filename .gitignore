@@ -106,6 +106,10 @@ ehthumbs.db
 .claude/settings.local.json
 mcp/node_modules/
 .playwright-mcp/
+# Playwright run output (WP-02 live suite writes receipts; CI uploads them as artifacts)
+dashboard/test-results/
+dashboard/e2e-live-receipts/
+dashboard/vitest-panels.json
 
 # ── Harness runtime data (NEVER commit — may contain credential scan findings) ──
 .harness/telegram-inbox/

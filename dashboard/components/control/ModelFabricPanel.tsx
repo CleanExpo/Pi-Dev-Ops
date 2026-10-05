@@ -1,66 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import ModelBadge from "./ModelBadge";
+import { useSource, type FabricStatus as SharedFabricStatus } from "@/lib/boards/sources";
 
-type Lane = { model: string; banned: boolean; models?: string[] };
-type LastCall = {
-  ts: number;
-  role: string;
-  lane: string;
-  requested_model: string;
-  served_model: string;
-  provider: string;
-  latency_ms: number;
-  ok: boolean;
-  attempts: string[];
-  strengthened?: boolean;
-  error?: string | null;
-};
-type FabricStatus = {
-  enabled: boolean;
-  healthy: boolean;
-  base_url?: string;
-  allowed_roles?: string[];
-  lanes?: Record<string, Lane>;
-  strength_model?: string;
-  models_available?: number;
-  last_call?: LastCall | null;
-  totals?: { calls: number; failures: number; fallbacks?: number; strengthened?: number };
-  blocked?: string[];
-  error?: string | null;
-};
+type FabricStatus = SharedFabricStatus;
 
 function dot(ok: boolean): string {
   return ok ? "●" : "○";
 }
 
 export default function ModelFabricPanel() {
-  const [data, setData] = useState<FabricStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await fetch("/api/model-fabric", { cache: "no-store" });
-        const body = (await res.json()) as FabricStatus;
-        if (!cancelled) setData(body);
-      } catch (error) {
-        if (!cancelled) {
-          setData({ enabled: false, healthy: false, error: error instanceof Error ? error.message : "Unavailable" });
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    const timer = setInterval(() => void load(), 15_000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, []);
+  // RA-7898: one shared /api/model-fabric poller (15 s) for every copy on screen.
+  const source = useSource<FabricStatus>("model-fabric");
+  const loading = source.seq === 0;
+  const data = source.seq > 0 ? source.value : null;
 
   const failureRate = useMemo(() => {
     const calls = data?.totals?.calls ?? 0;
@@ -110,7 +64,7 @@ export default function ModelFabricPanel() {
             <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--text-dim)" }}>Routing lanes</div>
             <div className="grid gap-2 sm:grid-cols-2">
               {lanes.map(([name, lane]) => (
-                <div key={name} className="rounded p-3" style={{ background: "var(--panel-hover)", border: "1px solid var(--border)" }}>
+                <div key={name} data-mc-data="model-lane" className="rounded p-3" style={{ background: "var(--panel-hover)", border: "1px solid var(--border)" }}>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-xs font-semibold" style={{ color: "var(--text)" }}>{name}</span>
                     <span className="text-[10px] font-mono" style={{ color: lane.banned ? "var(--error)" : "var(--success)" }}>
@@ -137,7 +91,7 @@ export default function ModelFabricPanel() {
             <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: "var(--text-dim)" }}>Latest route</div>
             <div className="rounded p-3" style={{ background: "var(--panel-hover)", border: "1px solid var(--border)" }}>
               {last ? (
-                <div className="grid gap-1 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+                <div data-mc-data="last-routed-call" className="grid gap-1 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
                   <div><strong style={{ color: "var(--text)" }}>{last.role}</strong> → {last.lane}</div>
                   <div>requested: {last.requested_model}</div>
                   <div>served: {last.served_model || "unknown"}</div>
@@ -146,7 +100,11 @@ export default function ModelFabricPanel() {
                   <div>strengthened: {last.strengthened ? "yes" : "no"}</div>
                   <div style={{ color: last.ok ? "var(--success)" : "var(--error)" }}>{last.ok ? "PASS" : last.error ?? "FAILED"}</div>
                 </div>
+              ) : loading ? null : data?.error ? (
+                // The status read failed, so whether a call was routed is unknown (RA-1109).
+                <div className="text-xs" style={{ color: "var(--text-dim)" }}>Latest route unknown: the fabric status read failed.</div>
               ) : (
+                // Only claimed once a successful read says so; before that it is not yet known.
                 <div className="text-xs" style={{ color: "var(--text-dim)" }}>No routed call recorded since this Pi-CEO process started.</div>
               )}
             </div>

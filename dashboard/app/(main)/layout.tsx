@@ -10,6 +10,7 @@ import { pathMatchesNav } from "@/lib/nav-active";
 import { SIDEBAR_NAV } from "@/lib/sidebar-nav";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { useEffect, useState } from "react";
+import MissionHomeShell from "@/components/control/MissionHomeShell";
 
 interface HealthData {
   swarm_enabled: boolean;
@@ -76,6 +77,8 @@ function SwarmStatus() {
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
 
+  if (path === "/control") return <MissionHomeShell>{children}</MissionHomeShell>;
+
   return (
     <div className="flex min-h-screen bg-background text-text">
 
@@ -92,7 +95,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {/* Logo */}
         <Link
           href="/"
-          className="flex items-center justify-center lg:justify-start gap-2.5 px-0 lg:px-4 h-[52px] shrink-0 hover:opacity-80 transition-opacity"
+          className="flex items-center justify-center lg:justify-start gap-2.5 px-0 lg:px-4 h-[52px] shrink-0 hover:bg-[var(--panel-hover)] transition-colors"
           style={{ borderBottom: "1px solid var(--border)" }}
         >
           <span
@@ -178,7 +181,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {/* ══════════════════════════════════════════════════════════════
           PAGE CONTENT
       ══════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col min-w-0 sm:mt-0 mt-[52px] pb-16 sm:pb-0">
+      {/* data-mc-page: the page's own content, excluding the sidebar health light.
+          The live suite (dashboard/e2e-live/level2-checks.ts) reads only inside it. */}
+      <div data-mc-page="" className="flex-1 flex flex-col min-w-0 sm:mt-0 mt-[52px] pb-16 sm:pb-0">
         {children}
         <MargotBubble />
       </div>

@@ -1,0 +1,58 @@
+{
+  "name": "Wall \u00b7 screen 6",
+  "skin": "wall",
+  "items": [
+    {
+      "id": "north-star-w6",
+      "module": "north-star",
+      "view": "banner"
+    },
+    {
+      "id": "builds-w6",
+      "module": "builds",
+      "view": "board"
+    },
+    {
+      "id": "builds-w6b",
+      "module": "builds",
+      "view": "table"
+    },
+    {
+      "id": "activity-w6",
+      "module": "activity",
+      "view": "feed"
+    }
+  ],
+  "layouts": {
+    "lg": [
+      {
+        "i": "north-star-w6",
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 3
+      },
+      {
+        "i": "builds-w6",
+        "x": 0,
+        "y": 3,
+        "w": 8,
+        "h": 6
+      },
+      {
+        "i": "builds-w6b",
+        "x": 8,
+        "y": 3,
+        "w": 4,
+        "h": 6
+      },
+      {
+        "i": "activity-w6",
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      }
+    ]
+  }
+}

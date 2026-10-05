@@ -6,31 +6,10 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useSource, type CuratorValue } from "@/lib/boards/sources";
 
-interface ProposalRow {
-  proposal_id?: string;
-  ts: string;
-  cluster_id?: string;
-  trigger_source?: string;
-  cluster_summary?: string;
-  evidence_count?: number;
-  proposed_skill_name?: string;
-  status: string;
-  draft_id?: string;
-  reason?: string;
-}
+type ProposalsResponse = CuratorValue;
 
-interface ProposalsResponse {
-  total?: number;
-  returned?: number;
-  by_status?: Record<string, number>;
-  proposals?: ProposalRow[];
-  error?: string;
-}
-
-const POLL_MS = 30_000;
-const FILTER_STATUS = "pending";
 
 function fmtAge(ts: string): string {
   const ms = Date.now() - new Date(ts).getTime();
@@ -42,26 +21,9 @@ function fmtAge(ts: string): string {
 }
 
 export default function CuratorProposalsPanel() {
-  const [data, setData] = useState<ProposalsResponse | null>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      const r = await fetch(
-        `/api/curator-proposals?status=${FILTER_STATUS}&limit=10`,
-        { cache: "no-store" },
-      );
-      const json = (await r.json().catch(() => ({}))) as ProposalsResponse;
-      setData(json);
-    } catch (exc) {
-      setData({ error: String(exc) });
-    }
-  }, []);
-
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, POLL_MS);
-    return () => clearInterval(t);
-  }, [refresh]);
+  // RA-7898: one shared /api/curator-proposals poller (30 s) for every copy on screen.
+  const source = useSource<ProposalsResponse>("curator");
+  const data = source.seq > 0 ? source.value : null;
 
   const proposals = data?.proposals ?? [];
   const pendingCount = data?.by_status?.pending ?? 0;
@@ -100,8 +62,14 @@ export default function CuratorProposalsPanel() {
           </p>
         )}
 
-        {!data?.error && proposals.length === 0 && (
+        {data === null && (
           <p className="text-xs" style={{ color: "var(--text-dim)" }}>
+            Loading…
+          </p>
+        )}
+
+        {data !== null && !data.error && proposals.length === 0 && (
+          <p className="text-xs" style={{ color: "var(--text-dim)" }} data-mc-empty="no curator proposals are pending review">
             No pending proposals. Not the Goal path. The curator still
             clusters lessons.jsonl; it does not file Linear tickets.
           </p>
@@ -122,6 +90,7 @@ export default function CuratorProposalsPanel() {
                   <span
                     className="font-mono"
                     style={{ color: "var(--accent)" }}
+                    data-mc-data={p.proposed_skill_name && !data?.error ? "curator-proposal" : undefined}
                   >
                     {p.proposed_skill_name ?? "(unnamed)"}
                   </span>

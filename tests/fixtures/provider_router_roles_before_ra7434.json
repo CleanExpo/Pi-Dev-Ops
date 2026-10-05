@@ -2,19 +2,19 @@
   "defaults_ollama_down": {
     "board": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.drafter": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.redteam": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -44,13 +44,13 @@
     ],
     "margot.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "margot.truth_check": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -62,25 +62,25 @@
     ],
     "orchestrator": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "planner": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "portfolio.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "realtime_lookup": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -92,7 +92,7 @@
     ],
     "research.realtime": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -154,19 +154,19 @@
   "defaults_ollama_up": {
     "board": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.drafter": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.redteam": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -196,13 +196,13 @@
     ],
     "margot.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "margot.truth_check": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -214,25 +214,25 @@
     ],
     "orchestrator": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "planner": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "portfolio.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "realtime_lookup": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -244,7 +244,7 @@
     ],
     "research.realtime": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -306,19 +306,19 @@
   "legacy_cheap_model_anthropic": {
     "board": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.drafter": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.redteam": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -348,13 +348,13 @@
     ],
     "margot.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "margot.truth_check": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -366,25 +366,25 @@
     ],
     "orchestrator": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "planner": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "portfolio.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "realtime_lookup": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -396,7 +396,7 @@
     ],
     "research.realtime": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -458,19 +458,19 @@
   "legacy_cheap_model_openrouter": {
     "board": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.drafter": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.redteam": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -500,13 +500,13 @@
     ],
     "margot.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "margot.truth_check": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -518,25 +518,25 @@
     ],
     "orchestrator": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "planner": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "portfolio.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "realtime_lookup": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -548,7 +548,7 @@
     ],
     "research.realtime": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -610,13 +610,13 @@
   "per_role_overrides_and_downgrade_correction": {
     "board": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.drafter": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -652,13 +652,13 @@
     ],
     "margot.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "margot.truth_check": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -670,25 +670,25 @@
     ],
     "orchestrator": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "planner": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "tier_downgrade_corrected"
     ],
     "portfolio.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "realtime_lookup": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -700,7 +700,7 @@
     ],
     "research.realtime": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -762,19 +762,19 @@
   "prod_like_cheap_pin_kimi": {
     "board": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.drafter": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "debate.redteam": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -804,13 +804,13 @@
     ],
     "margot.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "margot.truth_check": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -822,25 +822,25 @@
     ],
     "orchestrator": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "planner": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "portfolio.synthesis": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
     "realtime_lookup": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],
@@ -852,7 +852,7 @@
     ],
     "research.realtime": [
       "claude_print",
-      "claude-opus-5",
+      "claude-opus-5-5",
       "top",
       "env_tier_default"
     ],

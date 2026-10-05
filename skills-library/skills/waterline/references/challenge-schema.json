@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "verdict",
+    "blocking_findings",
+    "advisory_findings",
+    "independent_research",
+    "unchallenged"
+  ],
+  "properties": {
+    "schema": { "type": "integer" },
+    "verdict": { "type": "string", "enum": ["PASS", "FAIL"] },
+    "blocking_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "claim", "defect", "evidence", "fix"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["P0", "P1"] },
+          "claim": { "type": "string" },
+          "defect": { "type": "string" },
+          "evidence": { "type": "string" },
+          "fix": { "type": "string" }
+        }
+      }
+    },
+    "advisory_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "claim", "defect", "evidence", "fix"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["P2"] },
+          "claim": { "type": "string" },
+          "defect": { "type": "string" },
+          "evidence": { "type": "string" },
+          "fix": { "type": "string" }
+        }
+      }
+    },
+    "independent_research": { "type": "array", "items": { "type": "string" } },
+    "unchallenged": { "type": "array", "items": { "type": "string" } }
+  }
+}

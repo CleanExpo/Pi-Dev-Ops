@@ -53,7 +53,7 @@
 623	31645fa63292	swarm/board.py
 621	0cf1038b41e7	tests/test_margot_research_voice.py
 614	f3f803805d1f	scripts/marathon_watchdog.py
-605	c5609c445350	app/server/brief.py
+584	ac03471d0e23	app/server/brief.py
 604	cd9d55b9219b	tests/test_discovery.py
 598	34a9ba1aa147	scripts/skill_sync.py
 587	58b6534c0ff1	app/server/session_evaluator.py
@@ -100,7 +100,7 @@
 452	0203c1bb6857	swarm/tmux_validator.py
 449	898639bff71a	swarm/cfo.py
 441	99ffa5d79100	tests/swarm/nexus/test_channels.py
-438	ae861561c0da	app/server/routes/mesh.py
+436	bb8556ff4b17	app/server/routes/mesh.py
 438	04af471f5300	fence/pretooluse_fence.py
 436	4a9d5f2c2a28	app/server/session_sdk.py
 436	f5133b32e431	tests/swarm/nexus/test_approvals.py
@@ -179,7 +179,6 @@
 315	2d4299dbee2a	scripts/nexus_backfill.py
 315	e7bbb7010fa8	swarm/intent_router.py
 312	82f6341b9686	app/server/config_loader.py
-312	1be56d7904db	app/server/linear_pulse.py
 312	3cd93003f8d0	dashboard/components/control/MargotAssetsPanel.tsx
 311	49ff799830c4	swarm/linear_tools.py
 310	c3c44c3e3652	app/server/agents/anthropic_intel_refresh.py

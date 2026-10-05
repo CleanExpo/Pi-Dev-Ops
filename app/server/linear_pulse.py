@@ -29,12 +29,15 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .linear_pulse_rotate import create_pulse_issue, post_portfolio_pulse
+
 log = logging.getLogger("pi-ceo.linear_pulse")
 
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
 _STUCK_PHASE_MINUTES = 30
 _PULSE_ISSUE_TITLE = "Pi-CEO Portfolio Pulse (auto)"
 _STATE_FILE = Path(__file__).resolve().parent.parent.parent / ".harness" / "linear-pulse-state.json"
+_last_errors: list = []  # GraphQL `errors` of the last refused call (read by linear_pulse_rotate)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -56,10 +59,15 @@ def _graphql(query: str, variables: dict | None = None) -> dict:
     )
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
-            return (json.loads(resp.read()) or {}).get("data", {}) or {}
+            body = json.loads(resp.read()) or {}
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         log.warning("linear_pulse: graphql error: %s", exc)
         return {}
+    if body.get("errors"):  # Linear refuses with HTTP 200 + errors; say why
+        global _last_errors
+        _last_errors = body["errors"]
+        log.warning("linear_pulse: graphql errors: %s", body["errors"])
+    return body.get("data", {}) or {}
 
 
 def _load_state() -> dict:
@@ -80,73 +88,37 @@ def _save_state(state: dict) -> None:
 
 
 def _pulse_issue_id(state: dict) -> str | None:
-    """Resolve the Portfolio Pulse issue id, creating if missing."""
+    """Resolve the Portfolio Pulse issue id, creating if missing.
+
+    Matches by title PREFIX and takes the newest: a full issue is replaced by one titled
+    "<base> — from <date>" (linear_pulse_rotate), and a redeploy that loses local state
+    must land on that live issue, not the full original.
+    """
     cached = state.get("pulse_issue_id")
     if cached:
         return cached
 
-    team_id = os.environ.get("LINEAR_PULSE_TEAM_ID") or os.environ.get(
-        "LINEAR_TEAM_ID"
-    )
-    project_id = os.environ.get("LINEAR_PULSE_PROJECT_ID") or os.environ.get(
-        "LINEAR_PROJECT_ID"
-    )
-    if not team_id:
-        return None
-
-    # Search first to avoid duplicates
     search_q = """
     query($title: String!) {
-      issues(filter: {title: {eq: $title}}, first: 1) {
-        nodes { id identifier }
+      issues(filter: {title: {startsWith: $title}}, first: 50) {
+        nodes { id identifier createdAt }
       }
     }
     """
     data = _graphql(search_q, {"title": _PULSE_ISSUE_TITLE})
     nodes = ((data or {}).get("issues") or {}).get("nodes") or []
     if nodes:
-        state["pulse_issue_id"] = nodes[0].get("id")
+        newest = max(nodes, key=lambda n: n.get("createdAt") or "")
+        state["pulse_issue_id"] = newest.get("id")
         _save_state(state)
         return state["pulse_issue_id"]
-
-    # Create the pulse issue
-    mutation = """
-    mutation($input: IssueCreateInput!) {
-      issueCreate(input: $input) {
-        success issue { id identifier url }
-      }
-    }
-    """
-    inp = {
-        "teamId": team_id,
-        "title": _PULSE_ISSUE_TITLE,
-        "description": (
-            "Auto-created by Pi-CEO linear_pulse. Receives a comment every "
-            "15 min with the current portfolio snapshot.\n\n"
-            "Do not close — system will recreate if missing."
-        ),
-        "priority": 0,
-    }
-    if project_id:
-        inp["projectId"] = project_id
-    data = _graphql(mutation, {"input": inp})
-    issue = ((data or {}).get("issueCreate") or {}).get("issue")
-    if not issue:
-        log.warning("linear_pulse: failed to create pulse issue")
-        return None
-    state["pulse_issue_id"] = issue.get("id")
-    _save_state(state)
-    return state["pulse_issue_id"]
+    return create_pulse_issue(state, _PULSE_ISSUE_TITLE)
 
 
 def _post_comment(issue_id: str, body: str) -> bool:
     if not issue_id or not body:
         return False
-    mutation = """
-    mutation($input: CommentCreateInput!) {
-      commentCreate(input: $input) { success comment { id } }
-    }
-    """
+    mutation = "mutation($input: CommentCreateInput!) { commentCreate(input: $input) { success comment { id } } }"
     data = _graphql(mutation, {"input": {"issueId": issue_id, "body": body}})
     return bool(((data or {}).get("commentCreate") or {}).get("success"))
 
@@ -277,24 +249,8 @@ def run_pulse() -> dict:
                         sess.get("id"), sess.get("phase", "?"), int(minutes),
                     )
 
-    # 2. Portfolio-pulse comment
-    pulse_id = _pulse_issue_id(state)
-    if pulse_id:
-        try:
-            from .digest import render_digest_text
-
-            body = render_digest_text()
-        except Exception as exc:  # noqa: BLE001
-            body = f"digest unavailable: {exc}"
-        pulse_posted = _post_comment(pulse_id, body)
-        if not pulse_posted:
-            log.error(
-                "linear_pulse: portfolio-pulse comment FAILED to post to issue=%s — "
-                "the 15-min heartbeat did not reach Linear this tick",
-                pulse_id,
-            )
-    else:
-        pulse_posted = False
+    # 2. Portfolio-pulse comment (rotates to a new issue when Linear's comment cap is hit)
+    pulse_posted = post_portfolio_pulse(state)
 
     _save_state(state)
 

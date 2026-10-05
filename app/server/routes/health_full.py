@@ -22,9 +22,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from ..auth import require_auth
 from .health_aggregate import classify, run_with_timeout
 
 
@@ -101,7 +102,8 @@ async def _check_margot_route() -> dict[str, Any]:
         # Supabase is the durable source of truth (RA-1905); JSONL is hot cache.
         try:
             from app.server import supabase_log  # noqa: PLC0415
-            rows = supabase_log._select(  # type: ignore[attr-defined]
+            rows = await asyncio.to_thread(
+                supabase_log._select,  # type: ignore[attr-defined]
                 "margot_conversations",
                 "order=started_at.desc&limit=1&select=started_at",
             )
@@ -270,7 +272,7 @@ async def gather_components() -> dict[str, dict[str, Any]]:
     return {name: payload for name, payload in pairs}
 
 
-@router.get("/api/health/full")
+@router.get("/api/health/full", dependencies=[Depends(require_auth)])
 async def health_full() -> JSONResponse:
     components = await gather_components()
     verdict = classify(components)

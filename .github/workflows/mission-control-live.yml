@@ -1,0 +1,195 @@
+# WP-02 — Mission Control browser suite against the DEPLOYED dashboard.
+# docs/plans/mission-control/work-packages.md. Signs in with the real login
+# route and writes one JSON receipt per surface: MC checks 1, 2, 4 (WP-06) at
+# desktop and phone size (check 9), plus Level 2 checks 5, 6, 8 (WP-09), and
+# check 7 from the panel tests (scripts/mission_control_panel_coverage.py),
+# check 11 from the register and open Linear defect tickets, and check 12 from
+# the write journeys on a local stack (dashboard/e2e-writes/).
+# Without DASHBOARD_PASSWORD it reports NOT_RUN and fails loudly — a missing
+# secret must never look like a passing suite (RA-7832).
+name: Mission Control live
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Dashboard URL to test"
+        required: false
+        default: "https://pi-dev-ops.vercel.app"
+  schedule:
+    - cron: "17 16 * * *" # 02:17 Brisbane
+
+permissions:
+  contents: read
+  actions: read # check 10 downloads earlier scheduled runs' scorecards
+
+concurrency:
+  group: mission-control-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    name: Live browser suite
+    runs-on: ubuntu-latest
+    # 58 tests, one at a time, against the live site. 20 was cut off after
+    # 11 tests on the first live run (36527748153); public-repo minutes are free.
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: dashboard
+    env:
+      MC_LIVE_URL: ${{ github.event.inputs.target || 'https://pi-dev-ops.vercel.app' }}
+      DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
+    steps:
+      - name: Require the sign-in secret
+        # Runs before checkout, so the job's default working directory
+        # (dashboard/) does not exist yet; without this the step died with
+        # "No such file or directory" whether or not the secret was set, and
+        # every run read as NOT_RUN (found 29 Sept, runs 36527100226..36527630700).
+        working-directory: .
+        run: |
+          if [ -z "${DASHBOARD_PASSWORD}" ]; then
+            echo "## Mission Control live: NOT_RUN" >> "$GITHUB_STEP_SUMMARY"
+            echo "Secret DASHBOARD_PASSWORD is missing (RA-7832). No check ran; nothing here is a pass." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # AAA check 13: each receipt names the production revision it tested.
+      # /api/revision is deliberately public (api-auth-classification.json)
+      # and returns only a validated full SHA or null. Unobserved leaves
+      # MC_LIVE_SHA unset, and the scorer then reports check 13 unmet.
+      - name: Read the deployed revision (check 13)
+        working-directory: .
+        run: |
+          sha=$(python3 scripts/deployment_revision.py --current "$MC_LIVE_URL")
+          if [ -n "$sha" ]; then
+            echo "MC_LIVE_SHA=$sha" >> "$GITHUB_ENV"
+            echo "Deployed revision: \`$sha\` (panel tests run against checkout \`$GITHUB_SHA\`)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Deployed revision not observed at $MC_LIVE_URL/api/revision; check 13 stays unmet." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Run live suite
+        id: suite
+        run: npx playwright test --config playwright.live.config.ts
+
+      # AAA check 7: every data panel needs passing LOADED/EMPTY/ERROR vitest
+      # tests (e2e-live/panel-coverage.json lists the panels per page). Tests
+      # run against the checked-out commit, not the deploy; a failing test just
+      # does not count. Writes MC-xx-C7.json receipts the scorer reads.
+      - name: Measure panel test coverage (check 7)
+        if: always() && steps.suite.outcome != 'skipped'
+        run: |
+          npm test -- --reporter=json --outputFile=vitest-panels.json \
+            || echo "some vitest tests failed; failing tests do not count toward check 7"
+          python3 ../scripts/mission_control_panel_coverage.py vitest-panels.json e2e-live-receipts \
+            --registry e2e-live/panel-coverage.json --dashboard .
+
+      # AAA check 12: label honesty. The real dashboard build against a
+      # recording stand-in backend, on the runner only: nothing here can reach
+      # production (dashboard/playwright.writes.config.ts). For each write button
+      # it asserts the requests received match the label, then writes MC-xx-W.json.
+      # Check 3 (writes survive a reload on a PR preview) is a separate suite.
+      - name: Build the dashboard for the write journeys (check 12)
+        if: always() && steps.suite.outcome != 'skipped'
+        env:
+          DASHBOARD_PASSWORD: dev
+          PI_CEO_URL: http://127.0.0.1:7778
+          PI_CEO_PASSWORD: writes-suite-stub
+          NEXT_PUBLIC_SUPABASE_URL: https://stub.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-key
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build
+
+      - name: Run the write journeys (check 12)
+        if: always() && steps.suite.outcome != 'skipped'
+        env:
+          DASHBOARD_PASSWORD: dev
+        run: npx playwright test --config playwright.writes.config.ts
+
+      # AAA check 11: nothing documented broken. Reads the coverage register
+      # and open Linear issues labelled mc-defect; writes MC-xx-C11.json.
+      # Without LINEAR_API_KEY the ticket half is UNKNOWN and check 11 reads
+      # "not measured" (scripts/mission_control_register.py).
+      - name: Read the register and open defect tickets (check 11)
+        if: always() && steps.suite.outcome != 'skipped'
+        working-directory: .
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: python3 scripts/mission_control_register.py dashboard/e2e-live-receipts
+
+      # AAA check 10: stable over three consecutive scheduled (nightly) runs.
+      # Downloads the scorecards of the last three completed scheduled runs,
+      # one folder per run id. A run whose scorecard is missing (cancelled,
+      # secret missing, artifact expired) keeps an empty folder, which breaks
+      # the streak (scripts/mission_control_stability.py). A failed listing
+      # leaves no history, and check 10 then reads "not measured".
+      - name: Fetch earlier scheduled scorecards (check 10)
+        if: always() && steps.suite.outcome != 'skipped'
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p mc-history
+          ids=$(gh run list --workflow mission-control-live.yml --event schedule --status completed \
+                  --limit 3 --json databaseId --jq '.[].databaseId') \
+            || { echo "::warning::could not list scheduled runs; check 10 stays not measured"; ids=""; }
+          for id in $ids; do
+            [ "$id" = "$GITHUB_RUN_ID" ] && continue
+            mkdir -p "mc-history/$id"
+            gh run download "$id" -n mission-control-scorecard -D "mc-history/$id" \
+              || echo "run $id left no scorecard; it breaks the check-10 streak"
+          done
+
+      # WP-11: grade this run by docs/plans/mission-control/aaa-rating.md and
+      # publish one row per surface (level + what blocks the next level) on the
+      # run's summary page. Runs even when the suite fails — that is when the
+      # scorecard matters. Not a gate: the grade is the output.
+      - name: Score the run
+        # Not when the secret check stopped the job: then nothing was checked
+        # out or run, and NOT_RUN in the summary is the whole story.
+        if: always() && steps.suite.outcome != 'skipped'
+        working-directory: .
+        run: |
+          python3 scripts/mission_control_scorecard.py dashboard/e2e-live-receipts \
+            --json dashboard/e2e-live-receipts/scorecard.json \
+            --event "$GITHUB_EVENT_NAME" --run-id "$GITHUB_RUN_ID" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT" --history mc-history >> "$GITHUB_STEP_SUMMARY"
+
+      # Small and long-lived on purpose: tomorrow's run reads it for check 10.
+      - name: Upload scorecard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mission-control-scorecard
+          path: dashboard/e2e-live-receipts/scorecard.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mission-control-live-receipts
+          path: |
+            dashboard/e2e-live-receipts/
+            dashboard/test-results/
+            dashboard/test-results-writes/
+          if-no-files-found: warn
+          retention-days: 30

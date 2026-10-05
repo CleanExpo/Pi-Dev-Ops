@@ -94,6 +94,8 @@ async def swarm_status() -> dict:
         raise HTTPException(503, f"swarm module unreachable: {exc!r}")
     return {
         "swarm_enabled_env": os.environ.get("TAO_SWARM_ENABLED", "0") == "1",
+        # Same default as swarm/config.SHADOW_MODE: shadow unless explicitly "0" (RA-7849).
+        "swarm_shadow_env": os.environ.get("TAO_SWARM_SHADOW", "1") == "1",
         "kill_switch_active": kill_switch.is_active(),
         "escalation_lock_active": kill_switch.is_locked(),
         "panic_count_last_hour": kill_switch.panic_count_last_hour(),

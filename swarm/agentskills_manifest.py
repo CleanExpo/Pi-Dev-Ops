@@ -45,7 +45,6 @@ SCHEMA_OUT = REPO_ROOT / ".harness" / "agentskills_v1.schema.json"
 PACKAGE_NAME = "pi-ceo-skills"
 PACKAGE_SOURCE = "github.com/CleanExpo/Pi-Dev-Ops"
 
-_FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n(.*)$", re.DOTALL)
 _TOOL_REF_RE = re.compile(r"`(mcp\.[a-z0-9_-]+\.[a-z0-9_-]+)`")
 _SKILL_REF_RE = re.compile(r"`(skill\.[a-z0-9_-]+)`")
 _KILL_SWITCH_RE = re.compile(r"\b(TAO_SWARM_ENABLED|kill[- ]switch)\b", re.IGNORECASE)
@@ -68,24 +67,10 @@ class SkillEntry:
 
 
 def _parse_frontmatter(content: str) -> tuple[dict[str, str], str]:
-    """Naive YAML-ish frontmatter parser. Returns (fields, body)."""
-    m = _FRONTMATTER_RE.match(content)
-    if not m:
-        return {}, content
-    fm_text, body = m.group(1), m.group(2)
-    fields: dict[str, str] = {}
-    current_key: str | None = None
-    for line in fm_text.splitlines():
-        if not line.strip():
-            continue
-        if line.startswith(" ") and current_key:
-            fields[current_key] = (fields[current_key] + " " + line.strip()).strip()
-            continue
-        if ":" in line:
-            k, _, v = line.partition(":")
-            current_key = k.strip()
-            fields[current_key] = v.strip()
-    return fields, body
+    # Imported here so running this file directly still reaches the refusal below.
+    from swarm.skill_frontmatter import parse_frontmatter
+
+    return parse_frontmatter(content)
 
 
 def _sha256(content: str) -> str:

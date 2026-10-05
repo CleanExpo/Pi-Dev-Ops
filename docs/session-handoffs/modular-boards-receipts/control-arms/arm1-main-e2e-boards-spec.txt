@@ -1,0 +1,12 @@
+  6) e2e/boards.spec.ts:157:5 › A10: the kiosk shows a preset full-screen, locked, with the machine passed through 
+    Error: expect(locator).toBeVisible() failed
+    test-results/boards-A10-the-kiosk-shows-727da--the-machine-passed-through/test-failed-1.png
+    Error Context: test-results/boards-A10-the-kiosk-shows-727da--the-machine-passed-through/error-context.md
+  6 failed
+    e2e/boards.spec.ts:30:5 › A1: drag, resize, add, remove and switch a view; all five survive a reload 
+    e2e/boards.spec.ts:91:5 › A2: two Fleet modules make one /api/mesh-fleet request per 20 s ──────
+    e2e/boards.spec.ts:106:5 › A3: Pi-CEO backend down — no module shows a number; provider-usage and wiki-graph stay live 
+    e2e/boards.spec.ts:129:5 › A4: an unknown module id renders the grey frame and the page keeps working 
+    e2e/boards.spec.ts:142:5 › A7: at 400 px wide there is no horizontal page scroll and modules stack 
+    e2e/boards.spec.ts:157:5 › A10: the kiosk shows a preset full-screen, locked, with the machine passed through 
+  2 skipped

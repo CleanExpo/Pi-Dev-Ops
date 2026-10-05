@@ -1,0 +1,52 @@
+{
+  "target": "example.com",
+  "generated_at": "2026-04-30",
+  "scores": {
+    "overall": 72,
+    "keywords": 78,
+    "technical": 65,
+    "competitors": 70,
+    "content": 75,
+    "authority": 68
+  },
+  "executive_summary": "Example.com has strong commercial keyword positioning with healthy backlink growth, but technical issues on the blog template and a major content gap on transactional queries are leaving an estimated 4,000 monthly visits on the table. The single highest-impact action this month is fixing the 5xx errors on /blog/* and publishing the three flagship comparison articles competitors already rank for.",
+  "key_metrics": {
+    "estimated_traffic": "12,400/mo",
+    "ranking_keywords": 3420,
+    "top_10_keywords": 412,
+    "backlinks": 14200,
+    "referring_domains": 612,
+    "domain_rank": 421
+  },
+  "issues": [
+    {
+      "priority": "critical",
+      "title": "5xx errors on /blog/* template",
+      "recommendation": "Investigate server logs for blog template; deploy fix and re-submit XML sitemap.",
+      "impact": "Recovers ~5 indexed pages, potential 800+ monthly visits."
+    },
+    {
+      "priority": "high",
+      "title": "Missing meta descriptions on 18 indexable pages",
+      "recommendation": "Write unique 140-160 char meta descriptions focusing on the page's primary commercial keyword.",
+      "impact": "Improves CTR on existing rankings — estimated +5-15% click-through."
+    },
+    {
+      "priority": "medium",
+      "title": "Thin content on /services/* pages (avg 220 words)",
+      "recommendation": "Expand each service page to 600-1200 words covering the FAQ from competitor pages.",
+      "impact": "Long-term ranking improvement on commercial intent terms."
+    }
+  ],
+  "top_keywords": [
+    {"keyword": "seo audit tool", "search_volume": 1200, "cpc": 4.5, "difficulty": 28, "position": 8},
+    {"keyword": "keyword research software", "search_volume": 880, "cpc": 6.2, "difficulty": 35, "position": 14},
+    {"keyword": "ai seo platform", "search_volume": 720, "cpc": 5.8, "difficulty": 22, "position": null},
+    {"keyword": "site audit free", "search_volume": 590, "cpc": 3.1, "difficulty": 18, "position": 6}
+  ],
+  "competitors": [
+    {"domain": "competitor1.com", "keywords": 5180, "traffic": 18900, "rank": 502},
+    {"domain": "competitor2.com", "keywords": 3420, "traffic": 12100, "rank": 461},
+    {"domain": "competitor3.com", "keywords": 2890, "traffic": 9400, "rank": 378}
+  ]
+}

@@ -16,7 +16,13 @@ from app.server.idea_pipeline import (
     start_spec_pipeline,
     try_execute_idea,
 )
+from app.server.idea_pipeline import go_ticket
 from app.server.idea_pipeline.dispose import dispose, try_execute
+
+
+def _fake_ticket(_packet, *, gql=None):
+    """W1b: execute now files a Linear ticket; tests never reach Linear."""
+    return {"id": "i1", "identifier": "RA-TEST", "url": "u", "state": "Ready for Pi-Dev"}
 
 
 def _seed(tmp_path: Path) -> dict:
@@ -45,7 +51,8 @@ def test_go_refused_until_promote(tmp_path: Path) -> None:
         authorize_go_for(tmp_path, packet["idea_id"])
 
 
-def test_execute_refused_without_go(tmp_path: Path) -> None:
+def test_execute_refused_without_go(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(go_ticket, "file_go_ticket", _fake_ticket)
     packet = _seed(tmp_path)
     promoted = dispose_idea(tmp_path, packet["idea_id"], "PROMOTE")
     assert promoted["executed"] is False
@@ -85,7 +92,9 @@ def test_snapshot_keeps_promote_visible_until_go(tmp_path: Path) -> None:
     assert snap["packet"]["go_at"] is None
 
 
-def test_pipeline_never_auto_starts(tmp_path: Path) -> None:
+def test_pipeline_never_auto_starts(tmp_path: Path, monkeypatch) -> None:
+    """GO files a ticket for an executor (W1b); the pipeline itself starts no build."""
+    monkeypatch.setattr(go_ticket, "file_go_ticket", _fake_ticket)
     packet = _seed(tmp_path)
     with patch("app.server.idea_pipeline.start_spec_pipeline") as starter:
         dispose_idea(tmp_path, packet["idea_id"], "PROMOTE")

@@ -8,9 +8,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import FleetTile from "@/components/control/FleetTile";
+import TicketSweeperTile from "@/components/control/TicketSweeperTile";
 import { deriveNeeds } from "@/lib/control/loop-needs";
 import { completed24h, type MissionControlLive } from "@/lib/control/mission-control-live";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import { brisbaneDateTime, brisbaneTime } from "@/lib/brisbane-time";
 
 const POLL_MS = 20_000;
 
@@ -97,7 +99,7 @@ export default function LoopPage() {
     setMc(m);
     setSwarm(s);
     setRoutines(r);
-    setLastSync(new Date().toLocaleTimeString());
+    setLastSync(brisbaneTime(new Date(), true));
   }, []);
 
   useEffect(() => {
@@ -192,6 +194,8 @@ export default function LoopPage() {
 
           <FleetTile />
 
+          <TicketSweeperTile sweeper={mc?.ticket_sweeper} />
+
           {/* Swarm & kill-switch */}
           <Panel title="Swarm & Kill-Switch">
             {swarm ? (
@@ -239,7 +243,7 @@ export default function LoopPage() {
                 <Dot color="var(--accent)" />
                 <span style={{ color: "var(--text)" }}>
                   Burndown: last run {burndownRuns[0].status ?? (burndownRuns[0].ok ? "ok" : "?")}
-                  {burndownRuns[0].ts ? ` · ${new Date(burndownRuns[0].ts).toLocaleString()}` : ""}
+                  {burndownRuns[0].ts ? ` · ${brisbaneDateTime(burndownRuns[0].ts)}` : ""}
                 </span>
               </div>
             )}

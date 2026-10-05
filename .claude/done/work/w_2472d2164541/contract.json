@@ -1,0 +1,64 @@
+{
+  "schema": "done/1",
+  "work_id": "w_2472d2164541",
+  "version": 4,
+  "supersedes": "w_138017492518",
+  "goal": "PR 808 follow-up v4: same finish line as v3; C6 now reads the hook's permissionDecision field instead of grepping for the word deny, and carries its own mutant controls (review finding P1-DONE-C6-FALSE-DENIAL-PROOF)",
+  "created_at_utc": "2026-09-28T12:10:01Z",
+  "identity_key": "claude/nifty-mayer-qemzix@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ptd-808",
+  "baseline_observed": {
+    "head": "d2d31f96075739a166ba6be042876e26807b4a32",
+    "branch": "claude/nifty-mayer-qemzix",
+    "dirty_count": 1
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "text": "plan-to-done v1.1 package is byte-identical to its manifest (154 files)",
+      "recipe": "cd docs/plans/plan-to-done-v1.1 && sha256sum -c --quiet MANIFEST.sha256 && test \"$(sha256sum -c MANIFEST.sha256 | grep -c ': OK$')\" -eq 154"
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "text": "candidate is not activated: regenerating the agentskills manifest changes nothing",
+      "recipe": "python3 -m swarm.agentskills_manifest >/dev/null && git diff --exit-code agentskills.json agentskills.yaml"
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "text": "repo size gates pass (0 new, 0 grown)",
+      "recipe": "python3 .github/scripts/file_length_lint.py >/dev/null && python3 .github/scripts/function_length_lint.py >/dev/null"
+    },
+    {
+      "id": "C4",
+      "required": true,
+      "text": "package workflow parses and the PR's JSON files are valid",
+      "recipe": "node --check docs/plans/plan-to-done-v1.1/plan-to-done/workflows/plan-review.js && python3 -m json.tool docs/plans/idea-to-live/handoff.json >/dev/null && python3 -m json.tool docs/plans/idea-to-live/routing-verification-2026-09-28.json >/dev/null"
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "text": "every relative link in the authored docs resolves, and the checker fails on a planted dead link",
+      "recipe": "python3 .claude/done/work/w_8a69e21e87ed/check_links.py && ! python3 .claude/done/work/w_8a69e21e87ed/check_links.py --canary >/dev/null"
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "text": "boundary hook denies out-of-scope writes and git push; the PKG-2 traversal defect is pinned, not hidden",
+      "recipe": "bash .claude/done/work/w_2472d2164541/check_hook.sh && bash .claude/done/work/w_2472d2164541/check_hook_controls.sh"
+    },
+    {
+      "id": "C7",
+      "required": true,
+      "text": "subscription policy tests still pass (the routing text did not change live policy)",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_subscription_policy.py -q -p no:cacheprovider"
+    },
+    {
+      "id": "C8",
+      "required": true,
+      "text": "release-gate receipt with an independent SHA-bound review verifies for the current HEAD",
+      "recipe": "out=$(python3 /Users/phill-mac/.claude/skills/pr-release-gate/scripts/pr_release_gate.py verify 2>&1) && printf '%s\\n' \"$out\" | grep -qxE \"PR_RELEASE_GATE_PASS head=$(git rev-parse HEAD) reviewer=[a-z]+\""
+    }
+  ]
+}

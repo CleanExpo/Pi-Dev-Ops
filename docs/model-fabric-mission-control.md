@@ -24,6 +24,10 @@ Mission Control remains the authority and user-facing operating system. OmniRout
 - `background`: cheapest approved pool.
 - `emergency`: paid/high-trust escape hatch.
 
+Plan-level routing (which paid subscription or metered API does which job, under the 10 Sept 2026
+money rule) is a **proposal**, not live policy: [model-and-plan-routing.md](plans/plan-to-done-v1.1/plan-to-done/references/model-and-plan-routing.md).
+It disagrees with the enforced code in seven places; see [routing-reconciliation.md](plans/idea-to-live/routing-reconciliation.md).
+
 ## Deployment
 
 Pi-CEO owns the adapter. OmniRoute may run locally inside the Pi-CEO host or at a private Tailnet URL. The adapter is configured with `OMNIROUTE_BASE_URL`, `OMNIROUTE_API_KEY`, and `OMNIROUTE_ENABLED=1`. If unavailable, founder lanes fail over to the existing high-trust provider path, never to a banned local model.

@@ -1,0 +1,7 @@
+{
+  "name": "mc-lane",
+  "description": "Reports this Claude Code lane's tool calls (names and timings only), context use and cost to Mission Control",
+  "author": {
+    "name": "Unite-Group"
+  }
+}

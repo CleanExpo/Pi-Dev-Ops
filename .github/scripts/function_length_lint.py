@@ -68,7 +68,7 @@ import gate_sources  # noqa: E402
 Fn = tuple[int, int, str]
 
 LIMIT = int(os.environ.get("FUNCTION_LENGTH_LIMIT", "40"))
-EXCLUDE_PARTS = ("node_modules/", "/dist/")
+EXCLUDE_PARTS = ("node_modules/", "/dist/", "/skills-library/")  # skills-library/: synced, edited upstream
 BASELINE_PATH = Path(".github/function-length.baseline.txt")
 ANNOTATE = bool(os.environ.get("GITHUB_ACTIONS"))
 

@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 
 from mesh_helpers import Break as _Break  # noqa: E402
-from mesh_helpers import ImmediateProc as _ImmediateProc  # noqa: E402
+from mesh_helpers import SHIPPED, ImmediateProc as _ImmediateProc  # noqa: E402
 from mesh_helpers import load_module as _load  # noqa: E402
 
 
@@ -42,7 +42,7 @@ class FakeSupabase:
 
     def __init__(self, open_ids=()):
         self.open = set(open_ids)
-        self.inserts: list[str] = []
+        self.inserts: list[str] = []; self.inserted_ids: list = []  # noqa: E702
 
     def sb(self, method, path, body=None, *, prefer=""):
         if method == "POST" and path == "mesh_work_claims":
@@ -50,7 +50,7 @@ class FakeSupabase:
             if lid in self.open:
                 return 409, '{"code":"23505","message":"duplicate key"}'
             self.open.add(lid)
-            self.inserts.append(lid)
+            self.inserts.append(lid), self.inserted_ids.append(body.get("id"))
             return 201, ""
         if method == "GET" and path.startswith("mesh_work_claims?select=linear_id"):
             return 200, json.dumps([{"linear_id": lid} for lid in sorted(self.open)])
@@ -121,11 +121,11 @@ def test_claim_self_401_without_secret(mesh_client):
 def test_claim_self_picks_top_priority(mesh_client):
     client, mesh = mesh_client
     fake = FakeSupabase()
-    # listed out of order; Urgent(1) must be claimed before Medium(3)/Low(4)
-    monkeypatch_linear(mesh, _tickets(("UNI-C", 3), ("UNI-A", 1), ("UNI-B", 4)))
+    # Urgent(1) beats Medium(3)/Low(4), and sorts last so the identifier tiebreaker can't fake it.
+    monkeypatch_linear(mesh, _tickets(("UNI-A", 3), ("UNI-B", 4), ("UNI-C", 1)))
     mesh._sb = fake.sb
     r = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
-    assert r["claimed"] == {"linear_id": "UNI-A", "machine": "nodeA"}
+    assert r["claimed"] == dict(linear_id="UNI-C", id=fake.inserted_ids[-1], machine="nodeA", lane="build", title="UNI-C", description="")
 
 
 def test_claim_self_empty_queue_returns_null(mesh_client):
@@ -193,7 +193,7 @@ def test_completed_ticket_is_not_reclaimed(mesh_client):
     assert r1["claimed"]["linear_id"] == "UNI-A"
     # runner finishes the ticket: open claim released by the partial-index rules
     client.post("/api/mesh/claim/update",
-                json={"linear_id": "UNI-A", "state": "done"}, headers=HDR)
+                json={"linear_id": "UNI-A", "state": "done", "host": "nodeA", "claim_id": "c-1"}, headers=HDR)
     assert "UNI-A" not in fake.open  # claim row is closed — old bug's precondition
     r2 = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
     assert r2["claimed"] is None            # NOT re-served
@@ -266,7 +266,7 @@ def runner(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "IDLE_RECLAIM_DELAY", 0.01)
     # Never spawn a real agent/git worktree.
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: None)
-
+    monkeypatch.setattr(mod, "ship_run", SHIPPED)  # RA-7780: shipped
     monkeypatch.setattr(mod.subprocess, "Popen", lambda *a, **k: _ImmediateProc())
     # Record every sleep; only the full poll-cycle sleep ends the loop. The
     # idle-path floor sleep (IDLE_RECLAIM_DELAY) is recorded and returns, so
@@ -471,7 +471,7 @@ def test_runner_honours_max_claims_cost_cap(runner, monkeypatch):
     monkeypatch.setattr(runner, "MAX_CLAIMS", 2)
     server = FakeMeshServer(["UNI-A", "UNI-B", "UNI-C"])
     runner._api = server.api
-    assert _main_returns(runner) == 0      # stops at the cap, never reaches sleep
+    assert _main_returns(runner) == 4      # stops at the cap, never reaches sleep; 4 = launchd restarts it
     assert server.worked == ["UNI-A", "UNI-B"]  # capped at 2, UNI-C untouched
 
 

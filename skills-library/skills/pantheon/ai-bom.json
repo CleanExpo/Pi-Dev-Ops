@@ -1,0 +1,65 @@
+{
+ "bomFormat": "AI-BOM/CycloneDX-style",
+ "specVersion": "1.0",
+ "generated_utc": "2026-07-06T11:36:53.058171+00:00",
+ "component": {
+  "name": "pantheon",
+  "purpose": "Use when a genuinely contested, high-stakes, or novel question deserves a council of the greatest relevant minds \u2014 the user says \"/pantheon\", \"convene the council on X\", \"what would the greats say\", or nexus routes a decision that one specialist cannot carry. Sourced reasoning emulations only, never channelled individuals.",
+  "declared_tools": [
+   "Agent",
+   "Bash",
+   "Glob",
+   "Grep",
+   "LS",
+   "Read",
+   "Skill",
+   "WebFetch",
+   "WebSearch",
+   "Write"
+  ]
+ },
+ "scan": {
+  "checks": [
+   {
+    "id": "QA-FRONTMATTER",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "SEC-SECRET",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "SEC-DESTRUCT",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "SEC-EXEC",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "SEC-INJECT",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "QA-TESTS",
+    "status": "PASS",
+    "detail": ""
+   },
+   {
+    "id": "SEC-SCOPE",
+    "status": "PASS",
+    "detail": ""
+   }
+  ],
+  "verdict": "PASS",
+  "exempted_files": [
+   "references/persona-protocol.md"
+  ]
+ },
+ "threat_note": "Static scan only; runtime behaviour gated by eval + human promotion."
+}

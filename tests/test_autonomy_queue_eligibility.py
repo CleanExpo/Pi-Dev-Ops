@@ -137,7 +137,7 @@ def test_fetch_todo_issues_does_not_claim_unstarted_high_priority() -> None:
 def test_queue_snapshot_displays_eligible_hides_ineligible(monkeypatch) -> None:
     monkeypatch.setenv("LINEAR_API_KEY", "k")
     mixed = [_ELIGIBLE, _TODO_UNSTARTED, _NO_LABEL, _OTHER_PROJECT, _MACHINE_SHIP]
-    monkeypatch.setattr(autonomy, "fetch_todo_issues", lambda _key: mixed)
+    monkeypatch.setattr(autonomy, "fetch_todo_issues", lambda _key, **_kwargs: mixed)
     monkeypatch.setattr(autonomy, "_load_portfolio_projects", lambda: [_PROJECT_ROW])
     monkeypatch.setattr(autonomy, "_PRIORITY_FILTER", set())
     snap = mission_control._queue_snapshot()
@@ -151,7 +151,7 @@ def test_queue_snapshot_empty_when_only_ineligible(monkeypatch) -> None:
     monkeypatch.setenv("LINEAR_API_KEY", "k")
     monkeypatch.setattr(
         autonomy, "fetch_todo_issues",
-        lambda _key: [_TODO_UNSTARTED, _NO_LABEL, _OTHER_PROJECT],
+        lambda _key, **_kwargs: [_TODO_UNSTARTED, _NO_LABEL, _OTHER_PROJECT],
     )
     monkeypatch.setattr(autonomy, "_load_portfolio_projects", lambda: [_PROJECT_ROW])
     monkeypatch.setattr(autonomy, "_PRIORITY_FILTER", set())
@@ -168,9 +168,12 @@ def test_queue_snapshot_without_api_key_is_empty(monkeypatch) -> None:
 # ── Both call sites share the helper; old filter is gone ─────────────────────
 
 def test_both_call_sites_use_the_same_eligibility_function() -> None:
+    from app.server import autonomy_queue
     fetch_src = inspect.getsource(autonomy.fetch_todo_issues)
     queue_src = inspect.getsource(mission_control._queue_snapshot)
-    assert "filter_claimable_issues" in fetch_src
+    # W1b: the poller delegates to claimable_or_refused, which is the same helper.
+    assert "claimable_or_refused" in fetch_src
+    assert "filter_claimable_issues" in inspect.getsource(autonomy_queue.claimable_or_refused)
     assert "filter_claimable_issues" in queue_src
     assert "unstarted" not in queue_src
     assert "priority: {eq:" not in queue_src

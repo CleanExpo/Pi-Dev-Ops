@@ -1,7 +1,6 @@
 """tests/test_budget_tracker.py — RA-1909 phase-1 budget tracker tests."""
 from __future__ import annotations
 
-import importlib
 import json
 import sys
 from datetime import datetime, timedelta, timezone

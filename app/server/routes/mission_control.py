@@ -8,12 +8,13 @@ shape so the frontend stays dumb + fast.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import threading
+import time
 import tomllib
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,9 +23,9 @@ from fastapi import APIRouter, Depends
 from .. import autonomy
 from ..auth import require_auth
 from ..autonomy_eligibility import filter_claimable_issues, queue_snapshot_from_issues
-from ..claude_session_hud import claude_session_hud as _claude_session_hud
 from ..idea_pipeline import daily_snapshot as _idea_pipeline_snapshot
 from ..nexus_one.status import status_payload_for_app
+from ..ticket_sweeper import status_snapshot as _ticket_sweeper_snapshot
 from .health_aggregate import _is_observed, classify
 from .health_full import gather_components
 from .mission_control_sessions import (
@@ -36,26 +37,19 @@ from .mission_control_sessions import (
 log = logging.getLogger("pi-ceo.mission_control")
 router = APIRouter(prefix="/api/mission-control", tags=["mission-control"])
 
-_LINEAR_ENDPOINT = "https://api.linear.app/graphql"
+_queue_cache: tuple[float, dict] | None = None
+_pulse_cache: tuple[float, dict] | None = None
+_queue_cache_lock = threading.Lock()
+_pulse_cache_lock = threading.Lock()
+_QUEUE_CACHE_SECONDS = 300
+_PULSE_CACHE_SECONDS = 60
 
 
 def _linear_graphql(query: str, variables: dict | None = None) -> dict:
     key = os.environ.get("LINEAR_API_KEY", "").strip()
     if not key:
         return {}
-    payload = json.dumps({"query": query, "variables": variables or {}}).encode()
-    req = urllib.request.Request(
-        _LINEAR_ENDPOINT,
-        data=payload,
-        method="POST",
-        headers={"Content-Type": "application/json", "Authorization": key},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=6) as resp:
-            return (json.loads(resp.read()) or {}).get("data", {}) or {}
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        log.debug("mission_control linear fetch failed: %s", exc)
-        return {}
+    return autonomy._gql(key, query, variables, timeout=6)
 
 
 def _queue_snapshot() -> dict:
@@ -67,17 +61,13 @@ def _queue_snapshot() -> dict:
     key = os.environ.get("LINEAR_API_KEY", "").strip()
     if not key:
         return queue_snapshot_from_issues([])
-    try:
-        registry = {p["project_id"] for p in autonomy._load_portfolio_projects()}
-        issues = filter_claimable_issues(
-            autonomy.fetch_todo_issues(key),
-            registered_project_ids=registry,
-            priority_labels=autonomy._PRIORITY_FILTER,
-        )
-        return queue_snapshot_from_issues(issues)
-    except Exception as exc:  # noqa: BLE001
-        log.debug("mission_control queue snapshot failed: %s", exc)
-        return queue_snapshot_from_issues([])
+    registry = {p["project_id"] for p in autonomy._load_portfolio_projects()}
+    issues = filter_claimable_issues(
+        autonomy.fetch_todo_issues(key, fail_on_error=True),
+        registered_project_ids=registry,
+        priority_labels=autonomy._PRIORITY_FILTER,
+    )
+    return queue_snapshot_from_issues(issues)
 
 
 def _pulse_status() -> dict:
@@ -106,6 +96,49 @@ def _pulse_status() -> dict:
     comments_today = sum(1 for n in nodes if (n.get("createdAt") or "").startswith(today))
     last_at = nodes[0].get("createdAt") if nodes else None
     return {"last_at": last_at, "comments_today": comments_today, "pulse_issue_id": issue.get("identifier") or pulse_id}
+
+
+def _cached_queue_snapshot() -> dict:
+    """Reuse the portfolio read across the 5-second live-view refreshes."""
+    global _queue_cache
+    if autonomy.linear_rate_limited():
+        return queue_snapshot_from_issues([])
+    if not os.environ.get("LINEAR_API_KEY", "").strip():
+        return _queue_snapshot()
+    with _queue_cache_lock:
+        if autonomy.linear_rate_limited():
+            return queue_snapshot_from_issues([])
+        if _queue_cache is not None and time.monotonic() < _queue_cache[0]:
+            return _queue_cache[1]
+        try:
+            snapshot = _queue_snapshot()
+        except Exception as exc:  # noqa: BLE001 — live panel is best-effort
+            log.debug("mission_control queue snapshot failed: %s", type(exc).__name__)
+            return queue_snapshot_from_issues([])
+        if not autonomy.linear_rate_limited():
+            _queue_cache = (time.monotonic() + _QUEUE_CACHE_SECONDS, snapshot)
+        return snapshot
+
+
+def _cached_pulse_status() -> dict:
+    global _pulse_cache
+    if autonomy.linear_rate_limited():
+        return {"last_at": None, "comments_today": 0, "pulse_issue_id": None}
+    if not os.environ.get("LINEAR_API_KEY", "").strip():
+        return _pulse_status()
+    with _pulse_cache_lock:
+        if autonomy.linear_rate_limited():
+            return {"last_at": None, "comments_today": 0, "pulse_issue_id": None}
+        if _pulse_cache is not None and time.monotonic() < _pulse_cache[0]:
+            return _pulse_cache[1]
+        try:
+            snapshot = _pulse_status()
+        except Exception as exc:  # noqa: BLE001 — live panel is best-effort
+            log.debug("mission_control pulse fetch failed: %s", type(exc).__name__)
+            return {"last_at": None, "comments_today": 0, "pulse_issue_id": None}
+        if not autonomy.linear_rate_limited():
+            _pulse_cache = (time.monotonic() + _PULSE_CACHE_SECONDS, snapshot)
+        return snapshot
 
 
 _OBSERVABILITY_ACTIONS = {
@@ -207,15 +240,19 @@ def _nexus_one_status() -> dict:
 
 @router.get("/live", dependencies=[Depends(require_auth)])
 async def mission_control_live() -> dict:
+    queue, pulse = await asyncio.gather(
+        asyncio.to_thread(_cached_queue_snapshot),
+        asyncio.to_thread(_cached_pulse_status),
+    )
     return {
         "throughput": {"hourly": _hourly_throughput_24h()},
         "active_sessions": _active_sessions(),
         "recent_completions": _recent_completions(),
-        "queue": _queue_snapshot(),
-        "pulse": _pulse_status(),
+        "queue": queue,
+        "pulse": pulse,
         "observability": await _observability_snapshot(),
-        "claude_hud": _claude_session_hud(),
         "idea_pipeline": _idea_pipeline_snapshot(_repo_root()),
         "nexus_one": _nexus_one_status(),
+        "ticket_sweeper": _ticket_sweeper_snapshot(),
         "ts": datetime.now(timezone.utc).isoformat(),
     }

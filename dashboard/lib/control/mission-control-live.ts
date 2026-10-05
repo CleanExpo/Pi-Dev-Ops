@@ -75,6 +75,25 @@ export interface MCNexusOne {
   windows_policy?: string;
 }
 
+/** Audit #17 — nightly ticket sweeper counts. `counts: null` means never run, not zero. */
+export interface MCSweeperCounts {
+  stale_labelled: number;
+  stale_to_todo: number;
+  review_red_pr: number;
+  review_unknown: number;
+  failed_to_ready: number;
+  failed_to_blocked: number;
+}
+
+export interface MCTicketSweeper {
+  last_run_at: string | null;
+  dry_run: boolean;
+  complete: boolean;
+  counts: MCSweeperCounts | null;
+  review_red_pr?: string[];
+  errors: string[];
+}
+
 export interface MissionControlLive {
   ts?: string;
   error?: string;
@@ -82,9 +101,14 @@ export interface MissionControlLive {
   active_sessions?: MCSession[];
   recent_completions?: MCCompletion[];
   queue?: MCQueue;
+  idea_pipeline?: {
+    awaiting?: number;
+    packet?: { idea_id?: string; text?: string; status?: string } | null;
+  };
   pulse?: MCPulse;
   observability?: MCObservability;
   nexus_one?: MCNexusOne;
+  ticket_sweeper?: MCTicketSweeper;
 }
 
 /** Sum of the 24 hourly buckets the backend sends as `throughput.hourly`. */

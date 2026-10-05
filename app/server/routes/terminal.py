@@ -8,6 +8,8 @@ UI is read-only; state changes go through the gated writer, not a dashboard fetc
 """
 from __future__ import annotations
 
+import shutil
+
 from fastapi import APIRouter, Depends, Query
 
 from ..auth import require_auth
@@ -19,7 +21,14 @@ _MAX_TAIL_LINES = 500
 
 @router.get("/sessions", dependencies=[Depends(require_auth)])
 async def sessions() -> dict:
-    """List all tmux sessions (redacted snapshot)."""
+    """List all tmux sessions (redacted snapshot).
+
+    A host without the tmux program (the Railway image installs libtmux but not
+    tmux) is a designed state, not an error: the terminal fleet runs on the mesh
+    machines. RA-7849: this used to surface as "No sessions — <exception>".
+    """
+    if shutil.which("tmux") is None:
+        return {"sessions": [], "available": False, "reason": "tmux is not installed on this host"}
     from swarm.tmux_observer import list_sessions  # lazy: keep libtmux off the import path
 
     try:

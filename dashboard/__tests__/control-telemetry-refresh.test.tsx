@@ -7,7 +7,7 @@ import ModelBadge from "@/components/control/ModelBadge";
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 describe("control telemetry refresh", () => {
   it.each([
-    { Component: SwarmPanel, interval: 30_000, label: "ACTIVE", payload: { state: "ACTIVE", autonomous_prs_today: 1, autonomous_prs_limit: 3, green_merges: 1, green_merges_target: 20 } },
+    { Component: SwarmPanel, interval: 30_000, label: "ACTIVE", payload: { state: "ACTIVE", autonomous_prs_today: 1, autonomous_prs_limit: 3, green_merges: 1, green_merges_target: 20, last_pr_ts: null, last_pr_url: null } },
     { Component: ModelBadge, interval: 60_000, label: "Observed model test", payload: { score: 90, model: "Observed model test", model_id: "test-model", sdk_mode: null, source: "backend" } },
   ])("withdraws stale $label when a refresh hangs", async ({ Component, interval, label, payload }) => {
     vi.useFakeTimers();

@@ -27,6 +27,14 @@ Place in the command chain — do not merge these responsibilities:
 `/spm` is not a builder. It is the Senior Project Manager that produces the best possible
 spec before the builder (`/goal`) starts.
 
+## Nexus North Star check
+
+For Unite-Group work, read the current `docs/governance/NEXUS-NORTH-STAR.md` in Pi-Dev-Ops or the canonical source linked from it. Record the source revision in spec §2. Name the customer, team, partner, or truthful-delivery promise the work serves. If the source is unavailable, mark fit `UNVERIFIED` and never invent an alignment score.
+
+In spec §§4, 8, 9, 15 and the `/goal` command, challenge a hard-day case: bad news, disagreement, weak evidence, capacity pressure or failed release. Include a decision card with impact, evidence and unknowns, options, dissent, owner, authority boundary and next check. Answer for Phill: where are we, what matters now, what is hard, what needs his decision, and what was truly shipped. An unobserved state stays `unknown`.
+
+This purpose lens does not create a lifecycle or approval. Keep existing judge, Board, Waterline, human and release gates. Do not score personal loyalty, private relationships or health. UNI-2432 and UNI-2427 still hold unresolved constitutional mechanics.
+
 ## Fast lane — component spec micro-pattern
 
 The full 19-section spec is the default. For a single component or tightly-scoped
@@ -41,6 +49,7 @@ the full spec. Still `No spec. No build.` — it produces the micro-spec, not th
 
 1. Understand the user request (`$ARGUMENTS`; if empty, ask what to plan).
 2. Inspect current project state (read-only: `git branch`/`status`/`log`/`diff`, README, CLAUDE.md, AGENTS.md, `.judge/`, `.session-handoff/`, `.resume-from-handoff/`, `.spm/`, `skills/`, `scripts/`, `tests/`, `.harness/`, relevant `app/`/`dashboard/`/`mcp/`/`src/`).
+2a. Load the Nexus North Star for Unite-Group work and identify its promise and hard-day case before scoring or recommending.
 3. Review existing capabilities (do not rebuild what exists).
 4. Convene the **self-leveling MOA bench**: score the 5-axis rubric (F/I/N/X/S) from step-2 recon → tier T0–T3 per `references/leveling.md` → seat the bench from `references/moa-board.md` (a project-local `.spm/agent-board.md` overrides the roster) → dispatch seats as **parallel read-only subagents in one message**, each wrapped in `~/.claude/skills/nexus/references/NEXUS_PROMPT.md` at its calibrated tier + effort → collect consult contracts, measure divergence, ramp up/down (max 2 rounds) → synthesize into spec §7. **T0 = zero seats. Never role-play a board you didn't convene** — a board that wasn't dispatched is reported as "T0/inline", not simulated.
 5. Apply judge-style pushback (score out of 100; REJECT / REDUCE SCOPE / APPROVE EXPERIMENT / APPROVE BUILD). At T2+ the §8 judge challenge **is the devils-advocate-judge seat's contract** — its `must_fix` items become mandatory 100/100 criteria; at T0/T1 run the judge rubric inline. **Hard line: APPROVE BUILD requires a real 100/100 — every mandatory criterion satisfied. Below 100 is never a build authorisation; iterate to a real 100 or report the honest ceiling.** A security-seat `fail` at confidence ≥0.8 blocks 100/100 regardless of consensus.

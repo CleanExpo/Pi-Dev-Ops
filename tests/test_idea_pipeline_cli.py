@@ -4,10 +4,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.server.idea_pipeline import go_ticket
 from scripts.idea_pipeline import main
 
 
-def test_cli_intake_dispose_go_execute(tmp_path: Path, capsys) -> None:
+def _fake_ticket(_packet, *, gql=None):
+    """W1b: execute now files a Linear ticket; tests never reach Linear."""
+    return {"id": "i1", "identifier": "RA-TEST", "url": "u", "state": "Ready for Pi-Dev"}
+
+
+def test_cli_intake_dispose_go_execute(tmp_path: Path, capsys, monkeypatch) -> None:
+    monkeypatch.setattr(go_ticket, "file_go_ticket", _fake_ticket)
     idea = "Teach shop owners to grow with short self-paced video lessons."
     assert main(["--root", str(tmp_path), "intake", idea]) == 0
     created = capsys.readouterr().out

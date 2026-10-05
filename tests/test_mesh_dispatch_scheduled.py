@@ -57,6 +57,9 @@ class _FakeMeshRoutes:
     def _online_machines(self):
         return self._machines
 
+    def _get(self, _path):  # W1b: the claim-history read behind the repeat-claim guard
+        return 200, "[]"
+
     def _open_claim_ids(self):
         return set()
 

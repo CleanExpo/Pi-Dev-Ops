@@ -21,8 +21,9 @@ def test_health_includes_generation_preflight(monkeypatch, status, ready, blocke
               "cost_verified": False}
     probe = Mock(return_value=report)
     monkeypatch.setattr(session_sdk, "generation_readiness", probe, raising=False)
-    monkeypatch.delenv("TAO_PASSWORD", raising=False)
-    response = asyncio.run(health(SimpleNamespace(headers={}, cookies={})))
+    from app.server.auth import create_session_token
+    headers = {"Authorization": f"Bearer {create_session_token()}"}
+    response = asyncio.run(health(SimpleNamespace(headers=headers, cookies={})))
     assert json.loads(response.body)["generation"] == report
     probe.assert_called_once_with()
 
@@ -51,6 +52,7 @@ def test_autonomy_checks_generation_before_claiming_ticket(monkeypatch, machine_
     monkeypatch.setattr(autonomy, "_transition_to_in_progress", transition)
     monkeypatch.setattr(autonomy, "_log_event", events)
     monkeypatch.setenv("TAO_MACHINE_SHIP_MODE", "1" if machine_ship else "0")
+    monkeypatch.setenv("TAO_TICKET_TOKEN_CAP", "0")  # W1b: no Supabase ledger here; cap is tested elsewhere
     issue = {"id": "ticket-1", "identifier": "TEST-1", "title": "Repair test build",
              "description": "https://github.com/example/test", "labels": {"nodes": []}}
     if machine_ship:

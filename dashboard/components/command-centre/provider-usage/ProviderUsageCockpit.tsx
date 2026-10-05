@@ -75,12 +75,8 @@ function ProviderMeter({ provider }: { provider: ProviderCockpitEntry }) {
       </div>
       {/* usage meter */}
       <div
-        role="meter"
-        aria-label={`${provider.label} usage`}
-        aria-valuenow={provider.usagePct ?? undefined}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        style={{ height: 6, borderRadius: 2, background: 'var(--cc-ink-hush)', overflow: 'hidden' }}
+        {...usageBarA11y(`${provider.label} usage`, provider.usagePct)}
+        style={{ height: 6, borderRadius: 2, background: 'var(--cc-track, var(--cc-ink-hush))', boxShadow: 'inset 0 0 0 1px var(--cc-track-edge, transparent)', overflow: 'hidden' }}
       >
         <div style={{ width: `${pct}%`, height: '100%', background: color }} />
       </div>
@@ -119,17 +115,21 @@ function PlanSeatBar({ seat }: { seat: PlanSeat }) {
         </span>
       </div>
       <div
-        role="meter"
-        aria-label={`${seat.label} plan usage`}
-        aria-valuenow={seat.usagePct ?? undefined}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        style={{ height: 4, borderRadius: 2, background: 'var(--cc-ink-hush)', overflow: 'hidden' }}
+        {...usageBarA11y(`${seat.label} plan usage`, seat.usagePct)}
+        style={{ height: 4, borderRadius: 2, background: 'var(--cc-track, var(--cc-ink-hush))', boxShadow: 'inset 0 0 0 1px var(--cc-track-edge, transparent)', overflow: 'hidden' }}
       >
         <div style={{ width: `${pct}%`, height: '100%', background: stateColor(seat.state) }} />
       </div>
     </div>
   )
+}
+
+// A meter must carry a value (ARIA: aria-valuenow is required on role="meter"). When
+// usage is unknown there is no reading to announce, so the bar is labelled as an image
+// saying so rather than posing as a meter with no value (axe aria-required-attr, RA-7843).
+export function usageBarA11y(label: string, pct: number | null) {
+  if (pct === null) return { role: 'img', 'aria-label': `${label} unknown` } as const
+  return { role: 'meter', 'aria-label': label, 'aria-valuenow': pct, 'aria-valuemin': 0, 'aria-valuemax': 100 } as const
 }
 
 export function ProviderUsageCockpit() {
@@ -188,7 +188,7 @@ export function ProviderUsageCockpit() {
             <span>{payload.summary.unknown} unknown</span>
           </div>
 
-          <div>
+          <div data-mc-data={error ? undefined : "provider-usage"}>
             {payload.providers.map((p) => (
               <ProviderMeter key={p.id} provider={p} />
             ))}

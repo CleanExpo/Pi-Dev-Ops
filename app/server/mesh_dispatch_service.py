@@ -26,6 +26,8 @@ import logging
 import os
 from typing import Any, Optional
 
+from . import mesh_lanes
+
 log = logging.getLogger("pi-ceo.mesh.dispatch")
 
 
@@ -51,8 +53,10 @@ def _assign(mesh_routes, tickets: list[dict], machines: list[dict]) -> list[dict
     idx = 0
     for ticket in tickets:
         ident = ticket.get("identifier") or ticket.get("id")
-        if not ident or ident in open_ids:
-            continue
+        if not ident or ident in open_ids or mesh_lanes.lane_of(ticket) == "plan":
+            continue  # idea:plan is reviewed via /claim/self, never dispatched to build
+        if mesh_lanes.needs_repo(ticket):
+            continue  # a dispatched claim carries no repo; only /claim/self routes one
         host = machines[idx % len(machines)]["host"]
         status, _ = mesh_routes._sb(
             "POST", "mesh_work_claims",
@@ -71,8 +75,8 @@ def _assign(mesh_routes, tickets: list[dict], machines: list[dict]) -> list[dict
 def run_dispatch_tick(linear_ids: Optional[list[str]] = None) -> dict[str, Any]:
     """Assign unclaimed work to free nodes. One tick, idempotent.
 
-    Tickets come from the explicit `linear_ids` list, or from Linear's
-    `mesh:auto` pool when it is empty. Nodes are ordered least-loaded first
+    Tickets come from the explicit `linear_ids` list, or from the shared mesh
+    candidate pool (`mesh_lanes.candidates`) when it is empty. Nodes are ordered least-loaded first
     (`_online_machines`), so a three-machine fleet spreads work instead of
     stacking it on whichever node answered first.
 
@@ -86,14 +90,17 @@ def run_dispatch_tick(linear_ids: Optional[list[str]] = None) -> dict[str, Any]:
 
     mesh_routes._reap_sweep_best_effort()  # free dead-runner claims before assigning
     if linear_ids:
-        tickets: list[dict] = [{"identifier": t} for t in linear_ids]
+        tickets: list[dict] = mesh_lanes.explicit(mesh_routes._linear_graphql, linear_ids)  # W1b
     else:
-        data = mesh_routes._linear_graphql(mesh_routes._MESH_AUTO_QUERY)
-        tickets = (data.get("issues", {}) or {}).get("nodes", []) or []
+        tickets = mesh_lanes.candidates(mesh_routes._linear_graphql)[0]  # W1b: shared rule
 
     machines = mesh_routes._online_machines()
     if not machines:
         return {"assigned": [], "online_machines": [], "reason": "no online machines"}
+    if (repeat := mesh_lanes.repeat_claimed(mesh_routes._get)) is None:
+        return {"assigned": [], "online_machines": [m["host"] for m in machines],
+                "reason": "claim history unreadable; not assigning blind"}
+    tickets = [t for t in tickets if (t.get("identifier") or t.get("id")) not in repeat]  # W1b
 
     return {
         "assigned": _assign(mesh_routes, tickets, machines),
