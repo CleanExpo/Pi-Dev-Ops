@@ -60,15 +60,17 @@ def candidates(graphql: Callable[[str], dict], now: Callable[[], float] = time.m
     """`mesh_lanes.candidates(graphql, strict=True)`, read at most once per TTL_S.
 
     Raises mesh_lanes.IncompleteRead for a failed read, and for any call inside the
-    back-off window after one — the queue is unknown, never empty.
+    back-off window after one — the queue is unknown, never empty. The back-off is
+    checked before the cache: after a failed fresh re-read (`rechecked`) a cached
+    queue would only lead the caller straight back to a rate-limited Linear.
     """
     with _lock:
         t = now()
-        if _state["value"] is not None and t - _state["at"] < TTL_S:
-            return _state["value"]
         if _state["failed_at"] is not None and t - _state["failed_at"] < BACKOFF_S:
             raise mesh_lanes.IncompleteRead(
                 f"Linear read failed {int(t - _state['failed_at'])}s ago; backing off for {int(BACKOFF_S)}s")
+        if _state["value"] is not None and t - _state["at"] < TTL_S:
+            return _state["value"]
         try:
             value = mesh_lanes.candidates(graphql, strict=True)
         except mesh_lanes.IncompleteRead:
@@ -78,7 +80,8 @@ def candidates(graphql: Callable[[str], dict], now: Callable[[], float] = time.m
         return value
 
 
-def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict]) -> Iterator[dict]:
+def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict],
+              now: Callable[[], float] = time.monotonic) -> Iterator[dict]:
     """Each cached candidate re-read from Linear and re-admitted before it is claimed.
 
     The shared read can be up to TTL_S old. A ticket blocked, labelled or moved in
@@ -90,7 +93,8 @@ def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict]) -> Iterato
 
     A re-read that fails (`_linear_graphql` answers {} with no `issue` key) raises
     IncompleteRead: unknown is not refused, so the ticket stays cached and the
-    caller answers 503, never "queue empty".
+    caller answers 503, never "queue empty". It starts the same BACKOFF_S as a
+    failed queue read, so the next polls do not go back to Linear.
     """
     for node in ranked:
         answered: list[bool] = []
@@ -101,6 +105,8 @@ def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict]) -> Iterato
             return data if isinstance(data, dict) else {}
         fresh = mesh_lanes.explicit(read, [node["identifier"]])
         if not answered or not all(answered):
+            with _lock:
+                _state.update(failed_at=now())
             raise mesh_lanes.IncompleteRead(f"fresh Linear read of {node['identifier']} failed")
         if fresh:
             yield fresh[0]

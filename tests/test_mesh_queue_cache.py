@@ -197,7 +197,26 @@ def test_a_failed_fresh_read_is_unknown_not_an_empty_queue(monkeypatch, tmp_path
     with pytest.raises(Exception) as err:  # the route's 503
         routes_mesh.claim_self(routes_mesh.SelfClaimRequest(host="n"), x_pi_ceo_secret="s")
     assert getattr(err.value, "status_code", None) == 503
-    assert [n["identifier"] for n in cache.candidates(gql)[0]] == ["RA-T"]  # still cached, not evicted
+    assert [n["identifier"] for n in cache._state["value"][0]] == ["RA-T"]  # still cached, not evicted
+    assert cache._state["failed_at"] is not None  # and the back-off has started
+
+
+def test_a_failed_fresh_read_backs_off_like_a_failed_queue_read(clock, monkeypatch):
+    """Codex repro on 025e126: three polls in one TTL each re-read a rate-limited Linear."""
+    calls = []
+    monkeypatch.setattr(mesh_lanes, "candidates", lambda g, strict=False: calls.append("queue") or ([{"identifier": "RA-T"}], {}))
+
+    def gql(q):
+        calls.append("fresh")
+        return {}  # _linear_graphql's answer to any failure
+    for _ in range(3):
+        with pytest.raises(mesh_lanes.IncompleteRead):
+            nodes, _ = cache.candidates(gql, now=clock)
+            list(cache.rechecked(gql, nodes, now=clock))
+        clock.t += 10
+    assert calls == ["queue", "fresh"]  # one fresh read, then the back-off held
+    clock.t += cache.BACKOFF_S
+    assert cache.candidates(gql, now=clock)[0][0]["identifier"] == "RA-T"  # resumes after it
 
 
 def test_every_fresh_candidate_is_offered_however_many_lose_a_race(monkeypatch):
