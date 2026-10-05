@@ -1,6 +1,6 @@
 ---
 name: analyzing-customer-patterns
-description: Outcome feedback loop analyser. Reads shipped feature records + post-ship signals, detects patterns in what worked vs what didn't, and writes outcome lessons back into the build pipeline. Feeds the BVI "features delivered" component.
+description: Outcome feedback loop analyser. Reads shipped feature records + post-ship signals, detects patterns in what worked vs what didn't, and writes outcome lessons back into the build pipeline. Feeds the BVI "features delivered" component. Use when a monthly or manual feedback cycle is needed to judge whether shipped Pi-CEO features worked, such as reading shipped-features.jsonl and Linear post-ship comments or bug tickets to classify outcomes as positive, negative, neutral or stale, flag recurring patterns, flag features stale after 30 days, write outcome lessons to lessons.jsonl, or supply the BVI features-delivered figure and the board meeting STATUS block.
 ---
 
 # Analyzing Customer Patterns Skill

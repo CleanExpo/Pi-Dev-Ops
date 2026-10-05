@@ -1,5 +1,14 @@
 # Bench leveling — the self-leveling ramp for /spm's MOA board
 
+## Contents
+- [1. Classification rubric](#1-classification-rubric)
+- [2. Tier mapping](#2-tier-mapping)
+- [3. Tier table](#3-tier-table)
+- [4. Divergence measurement](#4-divergence-measurement)
+- [5. Ramp rules](#5-ramp-rules)
+- [6. Worked examples](#6-worked-examples)
+
+
 `leveling_version: 1.0` · calibrated 2026-07-10 · change-control: agent-workflow 5-clean-runs
 
 This file defines how `/spm` sizes its specialist bench to the task. It is consumed at

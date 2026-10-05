@@ -1,6 +1,6 @@
 ---
 name: launch-project-audit
-description: Scan the codebase and produce a plain-English map of every feature — what's built, stubbed, orphaned (built-disconnected), wired, or tested — plus how far each piece has travelled toward production. Cheap model for the bulk pass, frontier only for ambiguous calls. Use on "what's actually built", "scan the project", "what's left", or as step 2 of /ship-it.
+description: Scan the codebase and produce a plain-English map of every feature — what's built, stubbed, orphaned (built-disconnected), wired, or tested — plus how far each piece has travelled toward production. Cheap model for the bulk pass, frontier only for ambiguous calls. Use on "what's actually built", "scan the project", "what's left", or as step 2 of /ship-it. Use when the user asks "scan my project", "what's built", "what's left", or "is this ready", or as step 2 of /ship-it after launch-charter, to get a read-only, evidence-cited map of each feature's build state (stubbed, built-disconnected, wired, tested) and pipeline stage toward production.
 owner_role: Curator
 status: wave-4
 automation: manual

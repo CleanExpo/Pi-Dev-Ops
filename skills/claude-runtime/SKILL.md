@@ -1,6 +1,6 @@
 ---
 name: claude-runtime
-description: Rules for invoking Claude correctly — subprocess vs SDK mode, stream-json parsing, MCP SDK imports, Railway vs local environment differences.
+description: Rules for invoking Claude correctly — subprocess vs SDK mode, stream-json parsing, MCP SDK imports, Railway vs local environment differences. Use when writing or reviewing code that invokes Claude via a `claude -p` subprocess with stream-json output, the `claude_agent_sdk`, or an MCP server, especially when deciding between local and Railway cloud deployment (`TAO_USE_AGENT_SDK`, `ANTHROPIC_API_KEY`) or fixing `@modelcontextprotocol/sdk` imports such as `McpServer` not being exported from the top level.
 ---
 
 # Claude Runtime Best Practices

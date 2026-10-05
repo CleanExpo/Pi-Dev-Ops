@@ -1,6 +1,6 @@
 ---
 name: vercel-env-puller
-description: Per-project Vercel env-var manifests (NAMES + targets only — never values). At Sandcastle launch time, resolves the named vars in-memory via `vercel env pull`, injects into the sandbox via Sandcastle's `agent.env`+`sandbox.env`, and never writes a secret to disk inside Pi-CEO. Closes Wave 5 item 2 (RA-1856 epic).
+description: Per-project Vercel env-var manifests (NAMES + targets only — never values). At Sandcastle launch time, resolves the named vars in-memory via `vercel env pull`, injects into the sandbox via Sandcastle's `agent.env`+`sandbox.env`, and never writes a secret to disk inside Pi-CEO. Closes Wave 5 item 2 (RA-1856 epic). Use when an AI agent needs to supply production secrets to an AFK Sandcastle run, or when creating, refreshing or reviewing per-project Vercel env manifests under `.harness/env-manifests/{project-slug}.json`, which hold var names, targets, categories and criticality (blocker, degraded, optional, skip) but never values.
 owner_role: CISO (binds in front of every Sandcastle launch)
 status: wave-5
 ---

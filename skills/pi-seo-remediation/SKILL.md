@@ -1,6 +1,6 @@
 ---
 name: pi-seo-remediation
-description: Remediation advisor for Pi-SEO findings that cannot be auto-fixed. Produces per-finding remediation cards with tier classification, step-by-step fix instructions, before/after code examples, verification commands, and effort estimates.
+description: "Remediation advisor for Pi-SEO findings that cannot be auto-fixed. Produces per-finding remediation cards with tier classification, step-by-step fix instructions, before/after code examples, verification commands, and effort estimates. Use when Pi-SEO scanner findings (leaked API keys, hardcoded passwords or secrets, private keys, DB connection strings, shell=True, eval(), dangerouslySetInnerHTML, innerHTML, debug=True, 0.0.0.0 binding, security TODOs, # nosec suppressions) cannot be auto-fixed by autopr.py and need Tier 2-4 remediation cards with fix steps, before/after code, verification commands and effort estimates."
 ---
 
 # Pi-SEO Remediation Skill

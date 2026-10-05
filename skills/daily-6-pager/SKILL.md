@@ -1,6 +1,6 @@
 ---
 name: daily-6-pager
-description: Stripe-style daily executive brief assembled from CFO + CMO + CTO + CS snippets, the latest Margot deep-async insight, and RA-1842 (iOS release) status. Cron-fired at user-local 06:00. Routes through pii-redactor + draft_review HITL gate. Closes Wave 4 A5 of the senior-agent slate (RA-1863).
+description: Stripe-style daily executive brief assembled from CFO + CMO + CTO + CS snippets, the latest Margot deep-async insight, and RA-1842 (iOS release) status. Cron-fired at user-local 06:00. Routes through pii-redactor + draft_review HITL gate. Closes Wave 4 A5 of the senior-agent slate (RA-1863). Use when the user says 6-pager, brief me, or daily picture, or when a 06:00 cron fires, and the agent must assemble the Pi-CEO executive brief from the CFO, CMO, CTO and CS ledgers, the latest Margot insight and RA-1842 iOS release status, then redact PII and post it to the draft_review gate.
 owner_role: CoS
 status: wave-4
 ---

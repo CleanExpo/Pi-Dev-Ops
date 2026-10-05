@@ -1,6 +1,6 @@
 ---
 name: tier-architect
-description: Design tier configurations - which models for which roles.
+description: Design tier configurations - which models for which roles. Use when the user asks to design or review a tier hierarchy for a project, such as deciding which models (opus, sonnet, haiku) fill roles like orchestrator, specialist and worker, writing a tiers YAML config with name, model, role and parent fields, or on cold-start reading WIKI.md files to seed context.
 ---
 
 # Tier Architect

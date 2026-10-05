@@ -1,6 +1,6 @@
 ---
 name: cmo-growth
-description: Daily marketing visibility across the 11 Unite-Group businesses. Computes LTV:CAC, blended CPA, channel concentration (HHI), attribution decay from ad-platform feeds. Drafts a 1-page CMO snippet into the daily 6-pager. Gates ad-spend over $5,000/day through draft_review HITL. Closes Wave 4 A2 of the senior-agent slate (RA-1860).
+description: Daily marketing visibility across the 11 Unite-Group businesses. Computes LTV:CAC, blended CPA, channel concentration (HHI), attribution decay from ad-platform feeds. Drafts a 1-page CMO snippet into the daily 6-pager. Gates ad-spend over $5,000/day through draft_review HITL. Closes Wave 4 A2 of the senior-agent slate (RA-1860). Use when the user asks for daily marketing visibility across the Unite-Group businesses, such as LTV:CAC, blended CPA, channel concentration (HHI), attribution decay, or a CMO snippet for the daily 6-pager, or when an ad-spend request above $5,000/day needs routing through the draft_review approval gate.
 owner_role: CMO
 status: wave-4
 ---

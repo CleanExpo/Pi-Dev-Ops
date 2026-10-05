@@ -1,5 +1,14 @@
 # dispatcher-core — Wave 1 verification dry-run (2026-05-02)
 
+## Contents
+- [Flow declaration](#flow-declaration)
+- [Validation pass](#validation-pass)
+- [Dry-run execution trace](#dry-run-execution-trace)
+- [Verification checklist (from SKILL.md §Verification)](#verification-checklist-from-skillmd-verification)
+- [Caveat — what this dry-run does NOT prove](#caveat--what-this-dry-run-does-not-prove)
+- [Out-of-scope flags carried forward](#out-of-scope-flags-carried-forward)
+
+
 Per plan verification step 4: `[create Linear ticket → research via Margot → draft Telegram summary]` with state persisted, no real send on step 3.
 
 ## Flow declaration

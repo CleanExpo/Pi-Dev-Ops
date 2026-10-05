@@ -1,6 +1,6 @@
 ---
 name: tao-loop
-description: Judge-gated autonomous coding loop runner. Port of pi-until-done's `/goal ... Ralph` pattern with single-metric termination via `tao_judge.judge`. One worker step per iteration, optional judge call every N iters, three independent abort axes from `kill_switch.LoopCounter` (MAX_ITERS, MAX_COST, HARD_STOP).
+description: Judge-gated autonomous coding loop runner. Port of pi-until-done's `/goal ... Ralph` pattern with single-metric termination via `tao_judge.judge`. One worker step per iteration, optional judge call every N iters, three independent abort axes from `kill_switch.LoopCounter` (MAX_ITERS, MAX_COST, HARD_STOP). Use when a user issues an autonomy-class brief needing multiple iterations, or an orchestrator wants a budget-bounded, judge-gated worker loop (run_until_done, scripts/run_tao_loop.py) that stops on a judge score or a kill-switch breach of max iterations, max cost or hard stop, including lookahead planning via TAO_OM1_ENABLED.
 owner_role: Tier-Orchestrator (drives generator + evaluator; both sonnet per RA-1099)
 status: wave-1
 linear: RA-1970

@@ -1,6 +1,6 @@
 ---
 name: launch-review
-description: Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses — PM journey, growth/SEO, engineering, design — adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, impeccable, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on "is this ready to launch" or as the review step of /ship-it.
+description: Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses — PM journey, growth/SEO, engineering, design — adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, impeccable, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on "is this ready to launch" or as the review step of /ship-it. Use when the user asks to review a product, asks "is this ready to launch", wants a launch-readiness pass, or when running the review step of /ship-it after the audit, to get one prioritized report that covers the PM journey and growth/SEO conversion lenses and fans out to security-audit, impeccable, agentic-review and leverage-audit, without making any fixes.
 owner_role: Guardian
 status: wave-4
 automation: manual

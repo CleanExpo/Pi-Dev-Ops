@@ -1,5 +1,10 @@
 # forward-planner — output templates
 
+## Contents
+- [1. Foresight brief template](#1-foresight-brief-template)
+- [2. Structured plan — JSON schema](#2-structured-plan--json-schema)
+
+
 Two artifacts every run: a **foresight brief** (markdown, for humans) and a **structured plan** (JSON, for the swarm). Write the brief first — it's your reasoning — then derive the structured plan from it and validate.
 
 ---

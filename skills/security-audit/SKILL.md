@@ -1,6 +1,6 @@
 ---
 name: security-audit
-description: Senior Security Officer (15+ years white/black hat experience). Deep-audits codebases for OWASP Top 10, supply-chain risks, secrets exposure, auth flaws, injection vectors, CSP misconfigs, and weak crypto. Produces a prioritised CVE-style finding report with CVSS scores and remediation steps.
+description: Senior Security Officer (15+ years white/black hat experience). Deep-audits codebases for OWASP Top 10, supply-chain risks, secrets exposure, auth flaws, injection vectors, CSP misconfigs, and weak crypto. Produces a prioritised CVE-style finding report with CVSS scores and remediation steps. Use when a user asks for a security audit, vulnerability review, or pentest-style check of a codebase, covering OWASP Top 10 issues, hardcoded secrets, auth and session flaws, injection, SSRF, weak crypto, risky dependencies or CSP misconfigurations, and wants a prioritised JSON finding report with CVSS scores and remediation steps.
 ---
 
 # Security Audit Skill

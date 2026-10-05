@@ -44,7 +44,10 @@ log = logging.getLogger("pi-ceo.mesh_lanes")
 
 PLAN_LABEL = "idea:plan"
 BUILD_LABEL = "mesh:auto"
-_PAGE_ARGS = "first:25"  # each node carries three guard connections
+# Each node carries three 50-node guard connections (~400 Linear complexity points), so
+# 25 a page reached ~10,050 against Linear's hard 10,000 and every claim got HTTP 400
+# (RA-7910). Pagination walks _MAX_PAGES, so a smaller page drops nothing.
+_PAGE_ARGS = "first:10"
 # Two branches, so the autonomous lane is read by state NAME (Todo / Ready for Pi-Dev)
 # and 195 finished pi-dev:autonomous tickets never ride along on every 30s poll.
 _STATE_NAMES = ",".join(f'"{n}"' for n in sorted(MESH_STATES))
@@ -58,7 +61,7 @@ SELF_CLAIM_QUERY = (
 _NODE_FIELDS = (f'id identifier title description priority team{{id}} state{{name type}} '
                 f'labels{{nodes{{name}}}} {GUARD_FIELDS}')
 SELF_CLAIM_QUERY += _NODE_FIELDS + "}}}"
-_MAX_PAGES = 20
+_MAX_PAGES = 50  # 500 candidates at 10 a page, the reach 20 x 25 had
 _OPEN_STATE_TYPES = frozenset({"backlog", "unstarted"})
 # The idea-pipeline store lives under the repo root, as routes/idea_pipeline.py has it.
 REPO_ROOT = Path(__file__).resolve().parents[2]

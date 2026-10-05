@@ -1,9 +1,10 @@
 """mesh_queue_cache.py — one Linear read of the mesh queue, shared by every claim (RA-7910).
 
 WHY. Every `POST /api/mesh/claim/self` used to read the whole claimable queue
-from Linear: ~10 pages of 25 tickets, each page one request. Two runners poll
-every ~40 s, so claiming alone spent ~1,800 requests an hour from one key whose
-budget is 2,500 an hour shared with every other Pi-CEO feature. Once it ran out
+from Linear, one request per page: ~10 pages of 25, and since #896 kept each page
+under the complexity cap, up to 50 pages of 10. Three runners poll every ~40 s,
+so claiming alone could outspend one key whose budget is 2,500 requests an hour,
+shared with every other Pi-CEO feature. Once it ran out
 Linear answered every page with HTTP 400 "Rate limit exceeded", the read came
 back incomplete, and every claim was a 503 — the fleet could not take any work.
 
@@ -19,11 +20,9 @@ with 409. A cached ticket that someone else just took is skipped, not re-taken.
 """
 from __future__ import annotations
 
-import json
 import os
 import threading
 import time
-import urllib.error
 from typing import Any, Callable, Iterable, Iterator
 
 from . import mesh_lanes
@@ -120,24 +119,3 @@ def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict],
             yield fresh[0]
         else:
             forget(node["identifier"])
-
-
-def linear_error_detail(exc: BaseException) -> str:
-    """Linear's own error text from a failed request, e.g. its rate-limit message.
-
-    Linear answers a rate-limited or malformed query with HTTP 400 and puts the
-    reason in the JSON body; urllib's exception string says only "Bad Request".
-    Messages only — never the request, headers or key. Never raises: it runs inside
-    the route's exception handler, so a malformed body must not escape it.
-    """
-    if not isinstance(exc, urllib.error.HTTPError):
-        return ""
-    try:
-        body = json.loads(exc.read() or b"{}")
-    except Exception:  # noqa: BLE001  any unreadable body is "no detail", not a crash
-        return ""
-    errors = body.get("errors") if isinstance(body, dict) else None
-    if not isinstance(errors, list):
-        return ""
-    messages = [str(e.get("message", "")) for e in errors if isinstance(e, dict)]
-    return "; ".join(m for m in messages if m)[:300]

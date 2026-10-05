@@ -1,5 +1,13 @@
 # Control Scope — worked examples in full
 
+## Contents
+- [1. Mode 7 — the positive control that validated the instrument, not the aim](#1-mode-7--the-positive-control-that-validated-the-instrument-not-the-aim)
+- [2. Claim-shape — "confirmed by discovery" after a narrowed search](#2-claim-shape--confirmed-by-discovery-after-a-narrowed-search)
+- [3. Canary placement — the two-arm test that exposed a blind scanner](#3-canary-placement--the-two-arm-test-that-exposed-a-blind-scanner)
+- [4. The drift-check that exists on a branch and protects nothing](#4-the-drift-check-that-exists-on-a-branch-and-protects-nothing)
+- [5. Naming the risk — the brief that described the gap I then shipped](#5-naming-the-risk--the-brief-that-described-the-gap-i-then-shipped)
+
+
 The incidents behind the rules in `SKILL.md` — §1–§5 below. Each is an occasion where a *sound*
 instrument was aimed at the wrong surface and produced output indistinguishable from a clean
 result.

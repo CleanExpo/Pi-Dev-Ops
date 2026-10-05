@@ -1,6 +1,6 @@
 ---
 name: audit-emit
-description: Centralised audit emitter sitting in front of every Dispatcher step + every Scribe send + every CoS routing decision. Writes to .harness/swarm/swarm.jsonl (existing immutable append) and optionally fires Langfuse webhooks for off-Pi-CEO observability. Closes Hermes Sprint 1 SWARM-006 + the audit-immutable safety control.
+description: Centralised audit emitter sitting in front of every Dispatcher step + every Scribe send + every CoS routing decision. Writes to .harness/swarm/swarm.jsonl (existing immutable append) and optionally fires Langfuse webhooks for off-Pi-CEO observability. Closes Hermes Sprint 1 SWARM-006 + the audit-immutable safety control. Use when code needs to write an audit row to swarm.jsonl, such as a Dispatcher step, Scribe send, or CoS routing decision, or when someone is adding or migrating an audit_emit.row() call, validating event types, redacting PII at emit, or wiring the optional Langfuse sink.
 owner_role: Dispatcher (binds in front of every cross-tool step)
 status: wave-3
 ---

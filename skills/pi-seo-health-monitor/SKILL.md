@@ -1,6 +1,6 @@
 ---
 name: pi-seo-health-monitor
-description: Portfolio health trend analyst for Pi-SEO. Reads scan history from .harness/scan-results/, detects regressions and sustained degradation, identifies cross-repo systemic issues, computes portfolio health score, and generates alert digests.
+description: Portfolio health trend analyst for Pi-SEO. Reads scan history from .harness/scan-results/, detects regressions and sustained degradation, identifies cross-repo systemic issues, computes portfolio health score, and generates alert digests. Use when the user asks for a Pi-SEO portfolio health digest, or wants to detect score regressions, sustained degradation (below 70 for 3+ scans), or systemic findings that appear in 2+ repos, by reading scan history from .harness/scan-results/{project-id}/ to compute a weighted portfolio health score and generate alerts.
 ---
 
 # Pi-SEO Health Monitor Skill

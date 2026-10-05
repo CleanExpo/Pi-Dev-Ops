@@ -1,6 +1,6 @@
 ---
 name: closed-loop-prompt
-description: Self-correcting prompts with embedded verification.
+description: Self-correcting prompts with embedded verification. Use when the user wants a prompt that checks and fixes its own work, such as a build, run a check, fix and retry loop capped at 3 attempts, including test-fix loops, build-verify-iterate flows, or multi-step cascades that verify each phase before the next.
 ---
 
 # Closed-Loop Prompting

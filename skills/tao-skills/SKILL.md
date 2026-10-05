@@ -1,6 +1,6 @@
 ---
 name: tao-skills
-description: Master index of all 31 TAO skills.
+description: Master index of all 31 TAO skills. Use when the user asks for the TAO skills index, wants to know which of the 31 TAO skills exist across the Core, Frameworks, Strategic, Foundation, Meta, Operations and Ship Chain layers, or needs to pick a skill such as tier-architect, piter-framework, zte-maturity, ceo-mode, pi-seo-scanner or ship-chain.
 ---
 
 # TAO Skills Index

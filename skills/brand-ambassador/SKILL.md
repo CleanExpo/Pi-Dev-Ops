@@ -1,6 +1,6 @@
 ---
 name: brand-ambassador
-description: Generate brand-consistent content, copy, and messaging aligned with Pi-CEO tone and values.
+description: Generate brand-consistent content, copy, and messaging aligned with Pi-CEO tone and values. Use when writing Pi-CEO product announcements, release notes, sprint summaries, social content about Pi-CEO capabilities, or dashboard onboarding copy that must match the direct, technical voice, avoid first-person business language (We/Our/I/Us/My), and skip AI filler words like delve, leverage, robust, seamless or elevate.
 automation: manual
 anthropic_skill: anthropic-skills:brand-ambassador
 intents: content

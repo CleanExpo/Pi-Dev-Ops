@@ -101,17 +101,6 @@ def _http_400(body: dict) -> urllib.error.HTTPError:
                                   io.BytesIO(json.dumps(body).encode()))
 
 
-def test_linear_error_detail_surfaces_the_rate_limit_message():
-    exc = _http_400({"errors": [{"message": "Rate limit exceeded. Only 2500 requests are allowed per 1 hour."}]})
-    assert cache.linear_error_detail(exc).startswith("Rate limit exceeded")
-
-
-def test_linear_error_detail_is_empty_for_non_http_errors_and_bad_bodies():
-    assert cache.linear_error_detail(TimeoutError("slow")) == ""
-    exc = urllib.error.HTTPError("u", 502, "Bad Gateway", {}, io.BytesIO(b"<html>"))
-    assert cache.linear_error_detail(exc) == ""
-
-
 @pytest.mark.parametrize("body", [b'{"errors":7}', b"null", b"[]", b'{"errors":null}', b'"x"', b"\xff\xfe"])
 def test_a_malformed_linear_error_body_cannot_escape_the_route_handler(body, monkeypatch):
     """_linear_graphql calls linear_error_detail inside its except; a raise there skips the 503 path."""
@@ -250,7 +239,7 @@ def test_claim_self_reads_through_the_cache():
     src = (Path(__file__).resolve().parents[1] / "app" / "server" / "routes" / "mesh.py").read_text()
     assert "mesh_queue_cache.candidates(_linear_graphql)" in src
     assert "mesh_lanes.candidates(_linear_graphql, strict=True)" not in src
-    assert "linear_error_detail(e)" in src
+    assert "error_detail(e)" in src
 
 
 def test_a_claimed_ticket_is_dropped_from_the_cached_queue(clock, monkeypatch):
