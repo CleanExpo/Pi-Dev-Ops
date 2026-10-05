@@ -1,6 +1,6 @@
 ---
 name: agentic-loop
-description: Infinite self-correcting iteration until completion criteria met.
+description: Infinite self-correcting iteration until completion criteria met. Use when a task needs an open-ended, self-correcting loop that keeps iterating until explicit completion criteria are met, such as an overnight or unattended run, a stop guard that blocks the agent from quitting early, a completion sentinel like PROMISE COMPLETE, or Ralph Wiggum style loops with an iteration cap, an append-only progress file, one small feature per iteration, and a green-CI gate before each commit.
 ---
 
 # Agentic Loop

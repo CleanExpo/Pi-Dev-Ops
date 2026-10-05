@@ -1,6 +1,6 @@
 ---
 name: zte-maturity
-description: Zero Touch Engineering maturity model — 4-level assessment with explicit scoring criteria per dimension.
+description: Zero Touch Engineering maturity model — 4-level assessment with explicit scoring criteria per dimension. Use when the user asks to assess, score or rate a project's Zero Touch Engineering maturity, determine its level (L1 Manual, L2 Assisted, L3 Autonomous, L4 Zero Touch), or score the 12 leverage points such as spec quality, feedback loops, quality gating, trigger automation and knowledge retention.
 ---
 
 # ZTE Maturity Model

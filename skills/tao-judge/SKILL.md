@@ -1,6 +1,6 @@
 ---
 name: tao-judge
-description: Single-scalar termination gate for the TAO judge-gated loop. Wraps a Sonnet evaluator call that scores a goal-state pair and returns a structured JudgeVerdict (done, reason, score 0..1, next_action_hint). The autoresearch principle — autonomy mandate gives intent, judge() gives a measurable termination condition.
+description: Single-scalar termination gate for the TAO judge-gated loop. Wraps a Sonnet evaluator call that scores a goal-state pair and returns a structured JudgeVerdict (done, reason, score 0..1, next_action_hint). The autoresearch principle — autonomy mandate gives intent, judge() gives a measurable termination condition. Use when a tao-loop iteration reaches a judge-checkpoint after a worker step, or when an orchestrator wants a one-shot scoring pass on a goal-state pair, to get a JudgeVerdict (done, reason, score 0..1, next_action_hint) that decides whether the loop terminates on GOAL_MET.
 owner_role: Tier-Worker (evaluator role; sonnet per RA-1099 model policy)
 status: wave-1
 linear: RA-1970

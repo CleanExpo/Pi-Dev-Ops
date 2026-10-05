@@ -1,6 +1,6 @@
 ---
 name: remotion-motion-language
-description: Designs a brand-specific motion vocabulary — easing curves, default scene durations, signature entry/exit, transition frames. Each brand gets one signature move (rise / sweep / pulse / iris / whip) that recurs across compositions to build motion-recognition. Triggered when BrandConfig.motion is empty.
+description: Designs a brand-specific motion vocabulary — easing curves, default scene durations, signature entry/exit, transition frames. Each brand gets one signature move (rise / sweep / pulse / iris / whip) that recurs across compositions to build motion-recognition. Use when BrandConfig.motion is empty.
 automation: automatic
 intents: motion-language, signature-motion, easing, transitions
 ---

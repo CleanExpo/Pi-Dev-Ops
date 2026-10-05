@@ -1,6 +1,6 @@
 ---
 name: cs-tier1
-description: Tier-1 customer support across the 11 portfolio brands. Computes NPS, First Contact Resolution (FCR), Gross Retention Rate (GRR), and avg first-response time. Drafts replies through telegram-draft-for-review. Approves refunds up to $100; routes anything larger through draft_review HITL. Closes Wave 4 A4 of the senior-agent slate (RA-1862).
+description: "Tier-1 customer support across the 11 portfolio brands. Computes NPS, First Contact Resolution (FCR), Gross Retention Rate (GRR), and avg first-response time. Drafts replies through telegram-draft-for-review. Approves refunds up to $100; routes anything larger through draft_review HITL. Closes Wave 4 A4 of the senior-agent slate (RA-1862). Use when handling inbound customer support for any of the 11 portfolio brands: drafting ticket replies, approving or escalating refund requests (auto-approve up to $100, larger amounts go through draft_review), assembling the daily CS brief, or computing NPS, FCR, GRR and first-response metrics and flagging enterprise churn threats."
 owner_role: CS
 status: wave-4
 ---

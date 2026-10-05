@@ -1,6 +1,6 @@
 ---
 name: big-three
-description: The foundational framework - Model, Prompt, Context. Every decision maps to one of these.
+description: The foundational framework - Model, Prompt, Context. Every decision maps to one of these. Use when planning how to split a task across Opus, Sonnet and Haiku, writing or tightening an agent prompt with verification commands, deciding how much context to give an agent, or debugging an underperforming agent by checking model capability, prompt specificity and context sufficiency in that order.
 ---
 
 # The Big Three

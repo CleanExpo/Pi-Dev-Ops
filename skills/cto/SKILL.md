@@ -1,6 +1,6 @@
 ---
 name: cto
-description: Daily platform-health visibility across the 11 portfolio repos. Computes the DORA quartet (deploy frequency, lead time, MTTR, change-failure rate) plus p99 latency, uptime, and cost-per-request from GitHub Actions + Vercel observability feeds. Drafts a 1-page CTO snippet into the daily 6-pager. Gates production PR merges through draft_review HITL. Closes Wave 4 A3 of the senior-agent slate (RA-1861).
+description: Daily platform-health visibility across the 11 portfolio repos. Computes the DORA quartet (deploy frequency, lead time, MTTR, change-failure rate) plus p99 latency, uptime, and cost-per-request from GitHub Actions + Vercel observability feeds. Drafts a 1-page CTO snippet into the daily 6-pager. Gates production PR merges through draft_review HITL. Closes Wave 4 A3 of the senior-agent slate (RA-1861). Use when the user asks for platform health, DORA metrics (deploy frequency, lead time, MTTR, change-failure rate), p99 latency, uptime or cost-per-request across the portfolio repos, wants the daily CTO snippet for the 6-pager, or when a production PR merge needs the CTO dual-key HITL approval gate.
 owner_role: CTO
 status: wave-4
 ---

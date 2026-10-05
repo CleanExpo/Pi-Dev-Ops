@@ -1,6 +1,6 @@
 ---
 name: design-family-coherence
-description: Cross-brand audit. Given a colour family (`restoration | safety | industrial | consumer | training`), reads every brand's `.design.md` + `.motion.md` and reports on family-level consistency — shared signature motion, shared spacing rhythm, shared typography weight ladder, palette saturation curve. Flags drift. Used after `design-approve` adds a new brand to the family, and as a standing monthly audit.
+description: Cross-brand audit. Given a colour family (`restoration | safety | industrial | consumer | training`), reads every brand's `.design.md` + `.motion.md` and reports on family-level consistency — shared signature motion, shared spacing rhythm, shared typography weight ladder, palette saturation curve. Flags drift. Used after `design-approve` adds a new brand to the family, and as a standing monthly audit. Use when auditing a colour family (restoration, safety, industrial, consumer or training) for cross-brand consistency in `.design.md` and `.motion.md` specs, such as after `design-approve` adds a brand, on the monthly audit, or when asked to "audit the safety family", "check family drift" or whether brands are visually coherent.
 automation: manual
 intents: design-family-coherence, brand-family-audit, cross-brand-consistency, family-drift-check
 ---

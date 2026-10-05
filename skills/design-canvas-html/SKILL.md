@@ -1,6 +1,6 @@
 ---
 name: design-canvas-html
-description: Generates a self-contained `{slug}.html` preview file that demonstrates a brand's full design system (palette + WCAG contrast + typography scale + component recipes + motion samples + optional 3D scene) inline — no server, no build, opens directly in any browser. Used by design-approve to ship a portable canvas alongside the canonical spec files. Mirrors the routes in preview-canvas/app/brand/[slug] but flattened into one HTML file.
+description: Generates a self-contained `{slug}.html` preview file that demonstrates a brand's full design system (palette + WCAG contrast + typography scale + component recipes + motion samples + optional 3D scene) inline — no server, no build, opens directly in any browser. Used by design-approve to ship a portable canvas alongside the canonical spec files. Mirrors the routes in preview-canvas/app/brand/[slug] but flattened into one HTML file. Use when a brand's design spec (the .design.md file, with optional .motion.md and .scene.md) needs to become a single self-contained, offline-openable HTML preview showing palette, WCAG contrast, typography, component recipes, motion and an optional Three.js scene, such as when design-approve finishes writing canonical specs, or when the user says "regenerate the HTML preview for {slug}" or "give me a single-file design preview I can send to {client}".
 automation: automatic
 intents: design-canvas-html, generate-html-preview, brand-html-preview, standalone-canvas
 ---

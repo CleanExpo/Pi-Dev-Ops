@@ -1,6 +1,6 @@
 ---
 name: agentic-layer
-description: Design products with agent-native architecture.
+description: Design products with agent-native architecture. Use when designing a product, feature or API that needs agent-native architecture, meaning a structured agentic layer alongside the human UI, with deterministic JSON input and output, actions as named operations, machine-readable state, structured feedback and a self-describing capabilities endpoint.
 ---
 
 # The Agentic Layer

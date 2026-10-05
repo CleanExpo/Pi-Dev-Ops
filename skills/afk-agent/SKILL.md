@@ -1,6 +1,6 @@
 ---
 name: afk-agent
-description: Run agents unattended with stop guards and notifications.
+description: Run agents unattended with stop guards and notifications. Use when running an agent unattended or overnight (AFK, walk-away, Ralph Wiggum style loops) and needing a bounded runtime, token cost and iteration cap, stop guards that block premature exit, an append-only progress file, one small feature per iteration gated on green CI, a completion sentinel token, and a completion notification.
 ---
 
 # AFK Agent

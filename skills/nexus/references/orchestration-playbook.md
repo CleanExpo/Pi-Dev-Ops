@@ -1,5 +1,14 @@
 # Orchestration playbook — the method behind each gate
 
+## Contents
+- [Gate skills — check out on demand, never preload](#gate-skills--check-out-on-demand-never-preload)
+- [G1 — Appetite classifier](#g1--appetite-classifier)
+- [G2 — Unknowns scan (the frame-and-mine method)](#g2--unknowns-scan-the-frame-and-mine-method)
+- [G4 — Specialist routing menu (a menu, never a quota)](#g4--specialist-routing-menu-a-menu-never-a-quota)
+- [G3 — Deep-research integrity bar](#g3--deep-research-integrity-bar)
+- [G7 — Executive Read (the enforceable template)](#g7--executive-read-the-enforceable-template)
+
+
 Read this before opening any gate past G1. It carries the appetite classifier, the specialist
 routing menu, the research integrity bar, the tier ladder, and the Executive-Read template with
 a worked example. The governing rule for everything here: **the baseline you must beat is a bare

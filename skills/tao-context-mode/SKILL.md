@@ -1,6 +1,6 @@
 ---
 name: tao-context-mode
-description: Summary-index + on-demand expansion. Walks a repo once, summarises every source file (~200B vs raw 5-50KB), and serves the FULL file only when callers `expand(path)`. Port of `context-mode`. No LLM calls — pure regex + first-comment synopsis. Deterministic; sha256-keyed for invalidation.
+description: Summary-index + on-demand expansion. Walks a repo once, summarises every source file (~200B vs raw 5-50KB), and serves the FULL file only when callers `expand(path)`. Port of `context-mode`. No LLM calls — pure regex + first-comment synopsis. Deterministic; sha256-keyed for invalidation. Use when a TAO session starts and the planner needs codebase awareness without flooding the context window, when a new tao-loop iteration begins with rising tokens per turn, or when an agent asks where something lives in a repo and needs a cheap summary lookup before reading full files via build_index and expand.
 owner_role: Tier-Worker (context primitive, called by orchestrator + tao-loop)
 status: wave-1
 linear: RA-1969

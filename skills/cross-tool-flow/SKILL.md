@@ -1,6 +1,6 @@
 ---
 name: cross-tool-flow
-description: Declarative YAML/JSON authoring surface over dispatcher-core. Lets the user (or Margot, or Scribe) define multi-step cross-tool flows in plain text — chain Linear, Gmail, Calendar, Margot, Composio MCP tools — and run them via Dispatcher. Wave 2 surface; engine is dispatcher-core in Wave 1.
+description: Declarative YAML/JSON authoring surface over dispatcher-core. Lets the user (or Margot, or Scribe) define multi-step cross-tool flows in plain text — chain Linear, Gmail, Calendar, Margot, Composio MCP tools — and run them via Dispatcher. Wave 2 surface; engine is dispatcher-core in Wave 1. Use when the user wants to author, validate, or run a declarative YAML or JSON flow file in Pi-Dev-Ops/flows/ that chains Linear, Gmail, Calendar, Margot or Composio tools into ordered steps with templated inputs, tool allowlists, and manual, telegram_command, cron or webhook triggers, including via the Telegram /flow command or POST /api/flows/{name}/run.
 owner_role: Dispatcher
 status: wave-2
 ---

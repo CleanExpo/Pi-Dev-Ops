@@ -1,5 +1,12 @@
 # Executable Plan and Ownership Contract
 
+## Contents
+- [PLAN.json 1.0](#planjson-10)
+- [Validation rules](#validation-rules)
+- [Driver-enforced contract](#driver-enforced-contract)
+- [Ownership and amendment rules](#ownership-and-amendment-rules)
+
+
 Load this schema when creating, validating, or amending an Unlazy plan. `PLAN.json` is one flat JSON
 object with a `nodes` array. This slice ships no plan CLI, so this document is the normative
 definition: validate a plan by checking it against the rules below.

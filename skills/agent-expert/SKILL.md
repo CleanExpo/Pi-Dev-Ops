@@ -1,6 +1,6 @@
 ---
 name: agent-expert
-description: Act-Learn-Reuse cycle for agent improvement over time.
+description: Act-Learn-Reuse cycle for agent improvement over time. Use when a task finishes and its lessons should be captured and reused, or when a user asks to log lessons to .harness/lessons.jsonl, inject the top relevant lessons into the next task, or record that a skill's own SKILL.md was unclear or caused a mistake (via the applies_to_skill field).
 ---
 
 # Agent Experts

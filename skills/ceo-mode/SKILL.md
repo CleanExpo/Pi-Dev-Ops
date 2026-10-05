@@ -1,6 +1,6 @@
 ---
 name: ceo-mode
-description: CEO-level strategic analysis and executive communication. Direct, evidence-based, no filler.
+description: CEO-level strategic analysis and executive communication. Direct, evidence-based, no filler. Use when the user asks for a CEO-level strategic analysis, board memo, go or no-go recommendation, portfolio or risk review, or an executive status brief, such as "Where are we on X?", "Should we invest in Y?", "Risk on Z?" or "Board memo for next meeting", and the answer needs direct, evidence-based writing with options, a recommendation, a risk register and a numbered next-actions list.
 ---
 
 # CEO Mode

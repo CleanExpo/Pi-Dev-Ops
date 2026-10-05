@@ -1,6 +1,6 @@
 ---
 name: northstar-shipit
-description: NorthStar add-on for /northstar and /ship-it. Removes noisy branches, picks the highest-value straight path to ShipIt, and hands only the approved launch-ready lane into the existing launch-charter → ship-it → ship-chain machinery.
+description: NorthStar add-on for /northstar and /ship-it. Removes noisy branches, picks the highest-value straight path to ShipIt, and hands only the approved launch-ready lane into the existing launch-charter → ship-it → ship-chain machinery. Use when the user types /northstar or says things like "what is the straight path", "remove the noise", "get this to shipit", "what is the one thing to ship", "cut through the clutter" or "take this from idea to production", and an agent must narrow scattered project context into one default ShipIt lane with a gate status before handing off to launch-charter, ship-it, launch-project-audit, launch-review or ship-chain.
 owner_role: Senior PM
 status: wave-6
 automation: manual

@@ -1,6 +1,6 @@
 ---
 name: compound-development-loop
-description: "Agentic development operating loop for non-engineer-led builds: expand the idea, research surrounding advances, produce artifacts, plan, build, review, and compound learnings back into the 2nd brain and CRM."
+description: "Agentic development operating loop for non-engineer-led builds: expand the idea, research surrounding advances, produce artifacts, plan, build, review, and compound learnings back into the 2nd brain and CRM. Use when the operator brings a raw idea, asks what to build next, requests a feature, or wants a product improved, and the work needs expanding into a researched packet (strategic read, research lanes, requirements brief, implementation plan, review ledger, compound learning target) before building, then capturing learnings to the 2nd brain and CRM."
 owner_role: "Senior PM"
 status: "wave-6"
 automation: hybrid
