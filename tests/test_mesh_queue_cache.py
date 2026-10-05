@@ -156,38 +156,38 @@ def _blockable_route(monkeypatch, tmp_path):
     app = FastAPI()
     app.include_router(routes_mesh.router)
     claim = lambda: TestClient(app).post("/api/mesh/claim/self", json={"host": "n"}, headers={"X-Pi-CEO-Secret": "s"}).json()  # noqa: E731
-    return claim, labels, reads, gql, mode
+    # The route's own cache module: a suite that re-imports app.server leaves this file's `cache` stale.
+    route_cache = routes_mesh.mesh_queue_cache
+    route_cache.reset()
+    return claim, labels, reads, gql, mode, route_cache
 
 
 def test_a_ticket_blocked_after_the_shared_read_is_not_claimed(monkeypatch, tmp_path):
     """Codex repro on 194e58f: the cached copy was claimed although Linear now blocks it."""
-    cache.reset()
-    claim, labels, reads, gql, _ = _blockable_route(monkeypatch, tmp_path)
-    assert [n["identifier"] for n in cache.candidates(gql)[0]] == ["RA-T"]  # eligible when the shared read ran
+    claim, labels, reads, gql, _, route_cache = _blockable_route(monkeypatch, tmp_path)
+    assert [n["identifier"] for n in route_cache.candidates(gql)[0]] == ["RA-T"]  # eligible when the shared read ran
     labels.append({"name": "pi-dev:blocked-reason:manual"})  # a human blocks it, inside the TTL
     assert claim()["claimed"] is None
     assert sum(r.startswith("query{issues") for r in reads) == 1  # still one shared queue read
 
 
 def test_an_unblocked_ticket_is_still_claimed_after_its_fresh_read(monkeypatch, tmp_path):
-    cache.reset()
-    claim, _, reads, _, _ = _blockable_route(monkeypatch, tmp_path)
+    claim, _, reads, _, _, _ = _blockable_route(monkeypatch, tmp_path)
     assert claim()["claimed"]["linear_id"] == "RA-T"
     assert any(r.startswith("query{issue(") for r in reads)
 
 
 def test_a_failed_fresh_read_is_unknown_not_an_empty_queue(monkeypatch, tmp_path):
     """Codex repro on ecff9d1: a failed re-read answered "queue empty" and evicted the ticket."""
-    cache.reset()
-    claim, _, _, gql, mode = _blockable_route(monkeypatch, tmp_path)
-    cache.candidates(gql)
+    claim, _, _, gql, mode, route_cache = _blockable_route(monkeypatch, tmp_path)
+    route_cache.candidates(gql)
     mode["fresh_read_fails"] = True
     from app.server.routes import mesh as routes_mesh
     with pytest.raises(Exception) as err:  # the route's 503
         routes_mesh.claim_self(routes_mesh.SelfClaimRequest(host="n"), x_pi_ceo_secret="s")
     assert getattr(err.value, "status_code", None) == 503
-    assert [n["identifier"] for n in cache._state["value"][0]] == ["RA-T"]  # still cached, not evicted
-    assert cache._state["failed_at"] is not None  # and the back-off has started
+    assert [n["identifier"] for n in route_cache._state["value"][0]] == ["RA-T"]  # still cached, not evicted
+    assert route_cache._state["failed_at"] is not None  # and the back-off has started
 
 
 def test_a_failed_fresh_read_backs_off_like_a_failed_queue_read(clock, monkeypatch):
