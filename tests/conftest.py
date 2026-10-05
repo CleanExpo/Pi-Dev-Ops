@@ -27,3 +27,15 @@ def _fresh_left_running_record(tmp_path, monkeypatch):
     if module is not None:
         monkeypatch.setattr(module, "PATH", path)
         monkeypatch.setattr(module, "_UNRECORDED", [False])
+
+
+@pytest.fixture(autouse=True)
+def _fresh_mesh_queue_cache():
+    """RA-7910: claim/self shares one Linear read per TTL; never let it leak between tests."""
+    module = sys.modules.get("app.server.mesh_queue_cache")
+    if module is not None:
+        module.reset()
+    yield
+    module = sys.modules.get("app.server.mesh_queue_cache")
+    if module is not None:
+        module.reset()

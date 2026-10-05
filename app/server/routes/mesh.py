@@ -27,7 +27,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, linear_complexity, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_reaper, mesh_requeue, mesh_run_record
+from .. import config, linear_complexity, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_queue_cache, mesh_reaper, mesh_requeue, mesh_run_record
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -222,8 +222,8 @@ def _team_started_state_id(team_id: str) -> str:
 def _mark_issue_in_progress(issue: dict) -> bool:
     """Transition a just-claimed issue out of backlog/unstarted so _MESH_AUTO_QUERY
     stops returning it. Without this, a completed ticket re-enters the pool and is
-    re-claimed forever (the infinite re-claim loop). Best-effort: needs the node id
-    and team, which every candidate read from Linear carries."""
+    re-claimed forever (the infinite re-claim loop). Also drops it from the shared queue read (RA-7910)."""
+    mesh_queue_cache.forget(issue.get("identifier") or "")  # a cached copy must not re-serve it
     issue_id = issue.get("id")
     team_id = (issue.get("team") or {}).get("id")
     if not issue_id or not team_id:
@@ -416,7 +416,7 @@ def claim_self(
     _check_secret(x_pi_ceo_secret)
     _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before self-claiming
     try:  # an unread queue is unknown, not empty (audit 30/09 #18)
-        nodes, repos = mesh_lanes.candidates(_linear_graphql, strict=True)
+        nodes, repos = mesh_queue_cache.candidates(_linear_graphql)  # one shared read per 90 s (RA-7910)
     except mesh_lanes.IncompleteRead:
         raise HTTPException(503, "Linear could not be read; the queue is unknown, not empty")
     if (repeat := mesh_lanes.repeat_claimed(_get)) is None:
