@@ -59,7 +59,9 @@ while True:
     except FileExistsError:
         try:
             if time.time() - os.stat(lock).st_mtime > 10:  # proper-lockfile's stale rule
-                os.rmdir(lock)
+                # A stale lock can be a FILE too (Mac mini, 0 bytes since 13/09): rmdir alone
+                # raised NotADirectoryError and the node reported "NOT enlisted" while trusted.
+                (os.rmdir if os.path.isdir(lock) else os.remove)(lock)
                 continue
         except FileNotFoundError:
             continue
