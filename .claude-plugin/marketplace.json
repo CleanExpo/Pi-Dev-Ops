@@ -20,6 +20,12 @@
       "source": "./mods/synthex-main-status",
       "description": "In CleanExpo/Synthex sessions, shows a status line while Synthex main CI is red (read-only gh run list every two minutes).",
       "author": { "name": "Unite-Group" }
+    },
+    {
+      "name": "mission-control",
+      "source": "./mods/mission-control",
+      "description": "Read-only fleet view: /mc opens a pane with each machine's status and heartbeat age, open claims and recent ships; fleet_status gives Claude the same summary. A failed read shows as unknown, never as a healthy fleet.",
+      "author": { "name": "Unite-Group" }
     }
   ]
 }
