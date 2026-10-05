@@ -1,6 +1,6 @@
 ---
 name: tao-context-vcc
-description: Deterministic, LLM-free conversation compactor for TAO sessions. Port of @sting8k/pi-vcc. Reduces transcript bytes via tool-output dedup, verbose-block head/tail truncation, repeat-pattern collapse, and whitespace normalisation. No model calls — runs in the hot path with zero token cost.
+description: Deterministic, LLM-free conversation compactor for TAO sessions. Port of @sting8k/pi-vcc. Reduces transcript bytes via tool-output dedup, verbose-block head/tail truncation, repeat-pattern collapse, and whitespace normalisation. No model calls — runs in the hot path with zero token cost. Use when a TAO session transcript has used over 75% of the model's context window, token-per-turn telemetry in `.harness/agent-sdk-metrics/*.jsonl` climbs past baseline, or a new tao-loop iteration is about to start and the autoresearch lens flags rising tokens per turn, and a deterministic, no-LLM compaction is wanted via tool-output dedup, verbose-block truncation, repeat collapse, and whitespace normalisation.
 owner_role: Tier-Worker (compaction primitive, called by orchestrator + tao-loop)
 status: wave-1
 linear: RA-1967

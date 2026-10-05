@@ -1,6 +1,6 @@
 ---
 name: kill-switch-binding
-description: Telegram /panic command + dashboard kill button. Halts every role (CoS, Margot bridge, Scribe sends, Dispatcher mid-flow, Curator) within one cycle. Two-of-N + 2FA enforcement on dashboard side; Telegram side trusts only the configured operator chat_id. Closes the kill-switch safety control.
+description: Telegram /panic command + dashboard kill button. Halts every role (CoS, Margot bridge, Scribe sends, Dispatcher mid-flow, Curator) within one cycle. Two-of-N + 2FA enforcement on dashboard side; Telegram side trusts only the configured operator chat_id. Closes the kill-switch safety control. Use when an agent is working on halting or resuming the swarm, such as handling a Telegram /panic or /resume command, the dashboard Halt Swarm button with its two-approver TOTP check, the kill_switch.flag file, TAO_SWARM_ENABLED, or the repeated-/panic loop guard.
 owner_role: Chief of Staff (entry point) + Guardian (enforcer)
 status: wave-3
 ---

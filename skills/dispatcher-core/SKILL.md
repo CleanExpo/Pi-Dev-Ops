@@ -1,6 +1,6 @@
 ---
 name: dispatcher-core
-description: Cross-tool workflow primitive. Executes a declared sequence of steps that chain Linear, Gmail, Calendar, Margot, Composio, or any registered MCP tool. State persisted to .harness/dispatcher_state.json so kill-switch + crashes don't lose progress.
+description: Cross-tool workflow primitive. Executes a declared sequence of steps that chain Linear, Gmail, Calendar, Margot, Composio, or any registered MCP tool. State persisted to .harness/dispatcher_state.json so kill-switch + crashes don't lose progress. Use when a task needs an ordered chain of two or more steps across tools such as Linear, Gmail, Calendar, Margot, Composio or other MCP tools or skills, with step outputs feeding later steps, resumable state in .harness/dispatcher_state.json, a kill-switch pause or an allowlist, but not for single-tool calls, standalone drafting, or code-generation and build flows.
 owner_role: Dispatcher
 status: wave-1
 ---

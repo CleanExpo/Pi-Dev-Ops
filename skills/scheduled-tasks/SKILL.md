@@ -1,6 +1,6 @@
 ---
 name: scheduled-tasks
-description: Guidelines for writing reliable scheduled task prompts via the Claude scheduled-tasks MCP.
+description: Guidelines for writing reliable scheduled task prompts via the Claude scheduled-tasks MCP. Use when writing or editing a scheduled task prompt that runs through the Claude scheduled-tasks MCP in a desktop Claude session, including shrinking it to one shell command that calls a Python helper, discovering the repo dynamically instead of hardcoding paths, avoiding pytest in the sandbox, or deciding what a scheduled task may report to Telegram or Margot (only verified complete, protected decision required, or recovery failed).
 ---
 
 # Scheduled Tasks

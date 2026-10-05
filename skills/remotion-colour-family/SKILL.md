@@ -1,6 +1,6 @@
 ---
 name: remotion-colour-family
-description: Generates a complete, accessible palette (primary, secondary, accent, 4-step neutral, semantic, and dark variant) from one to three hex anchors plus a colour-family classification. Validates WCAG-AA contrast for all text-on-background pairs. Triggered when a BrandConfig has fewer than 5 defined colours or contrast fails.
+description: Generates a complete, accessible palette (primary, secondary, accent, 4-step neutral, semantic, and dark variant) from one to three hex anchors plus a colour-family classification. Validates WCAG-AA contrast for all text-on-background pairs. Use when a BrandConfig has fewer than 5 defined colours or contrast fails.
 automation: automatic
 intents: palette, contrast-check, colour-system
 ---

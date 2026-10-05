@@ -1,6 +1,6 @@
 ---
 name: ui-component-builder
-description: Senior-level UI implementation skill. Generates multi-variant React/Tailwind components grounded in DESIGN.md, applies taste-skill quality constraints (banning AI-default slop), and uses 21st.dev Magic patterns for component discovery and generation.
+description: Senior-level UI implementation skill. Generates multi-variant React/Tailwind components grounded in DESIGN.md, applies taste-skill quality constraints (banning AI-default slop), and uses 21st.dev Magic patterns for component discovery and generation. Use when building or reviewing React/Tailwind UI components, dashboards, landing pages or admin screens that must match DESIGN.md, including requests for multi-variant components, loading skeletons, empty and error states, 21st.dev Magic component discovery, or banning AI-default styling like Inter, hex codes in JSX and generic gray backgrounds.
 automation: manual
 intents: design, feature
 ---

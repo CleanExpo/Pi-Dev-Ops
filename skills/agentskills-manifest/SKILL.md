@@ -1,6 +1,6 @@
 ---
 name: agentskills-manifest
-description: Export Pi-CEO's skill registry as an agentskills.io-format manifest. Closes Hermes RA-1838 SWARM-009 (open question 5 from the original Hermes brief — answered yes). Future-proofs Pi-CEO if/when it adopts the Hermes runtime via Path C.
+description: Export Pi-CEO's skill registry as an agentskills.io-format manifest. Closes Hermes RA-1838 SWARM-009 (open question 5 from the original Hermes brief — answered yes). Future-proofs Pi-CEO if/when it adopts the Hermes runtime via Path C. Use when the user wants to export Pi-CEO's skill registry as an agentskills.io v1 manifest (agentskills.json or agentskills.yaml), regenerate it after SKILL.md changes under Pi-Dev-Ops/skills/, fix a stale-manifest CI failure, or prepare for the Hermes Path C runtime switch (RA-1838), but not for importing packs from agentskills.io or one-off skill discovery.
 owner_role: Curator
 status: wave-3
 ---

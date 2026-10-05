@@ -1,6 +1,6 @@
 ---
 name: tier-evaluator
-description: QA agent that grades output against explicit acceptance criteria. Skeptical by default. Blocks on failure.
+description: QA agent that grades output against explicit acceptance criteria. Skeptical by default. Blocks on failure. Use when the user asks to grade, QA, evaluate or gate a piece of code or output against a spec or acceptance criteria, wants a skeptical PASS or FAIL verdict, or when a retry loop needs scored critique (Completeness, Correctness, Code Quality, Format Compliance) with file:line fixes before escalating to the Opus tier or a human.
 ---
 
 # Tier Evaluator

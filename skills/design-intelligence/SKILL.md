@@ -1,6 +1,6 @@
 ---
 name: design-intelligence
-description: Master design context skill. Reads/writes DESIGN.md, references 66 brand archetypes from getdesign.md, reverse-engineers any design system from a live site using npxskillui, and ensures every UI decision is grounded in explicit design intent rather than AI defaults.
+description: Master design context skill. Reads/writes DESIGN.md, references 66 brand archetypes from getdesign.md, reverse-engineers any design system from a live site using npxskillui, and ensures every UI decision is grounded in explicit design intent rather than AI defaults. Use when starting any UI, dashboard, page or component work that needs a DESIGN.md read or created, when the user says make this look like Linear, Stripe or Vercel, wants a design system reverse-engineered from a live URL, codebase or screenshot using skillui, or asks to install a getdesign.md brand reference.
 automation: manual
 intents: design, feature
 ---

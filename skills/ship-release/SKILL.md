@@ -1,6 +1,6 @@
 ---
 name: ship-release
-description: Release gatekeeper. Validates all pipeline phases are complete, enforces the review score ≥ 8/10 hard gate, documents the ship event, and updates the Linear ticket to Done. Produces a ship-log.json.
+description: Release gatekeeper. Validates all pipeline phases are complete, enforces the review score ≥ 8/10 hard gate, documents the ship event, and updates the Linear ticket to Done. Produces a ship-log.json. Use when a pipeline build is ready to ship and the user asks to release, ship, or deploy it, or when /ship runs. This covers checking that spec.md, plan.md, session_id.txt, test-results.json, and review-score.json exist and pass. It also enforces the review score of at least 8/10 and no open blockers, then writes ship-log.json with the rollback git command and moves the Linear ticket to Done.
 ---
 
 # Ship Release Skill

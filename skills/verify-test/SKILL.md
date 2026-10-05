@@ -1,6 +1,6 @@
 ---
 name: verify-test
-description: Test verifier. Interprets smoke test and CI results, classifies pass/fail, detects flaky tests and coverage regressions, and produces a structured verdict with a recommendation for the /review gate.
+description: Test verifier. Interprets smoke test and CI results, classifies pass/fail, detects flaky tests and coverage regressions, and produces a structured verdict with a recommendation for the /review gate. Use when a pipeline needs test results interpreted before advancing to /review, such as reading scripts/smoke_test.py JSON output or CI results, classifying pass/fail, spotting flaky tests (ConnectionRefusedError, timed out, server not ready) or coverage drops, and emitting a PASS, FAIL or FLAKY_PASS verdict with a regression risk level and recommendation.
 ---
 
 # Verify Test Skill

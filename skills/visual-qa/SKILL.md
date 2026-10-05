@@ -1,6 +1,6 @@
 ---
 name: visual-qa
-description: Playwright-powered visual testing skill. Captures screenshots at multiple breakpoints and colour schemes, runs visual regression tests, validates design implementation against DESIGN.md, and generates baseline snapshots for CI.
+description: Playwright-powered visual testing skill. Captures screenshots at multiple breakpoints and colour schemes, runs visual regression tests, validates design implementation against DESIGN.md, and generates baseline snapshots for CI. Use when a user wants to screenshot a page at multiple breakpoints or in dark and light mode, run Playwright visual regression tests, update baseline snapshots, compare a built UI against DESIGN.md or a design reference, or set up a CI visual-regression workflow before shipping a design change.
 automation: manual
 intents: design, review, test
 ---

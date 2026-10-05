@@ -1,5 +1,27 @@
 # GLOSSARY — skill-authoring vocabulary
 
+## Contents
+- [Predictability](#predictability)
+- [Archetype](#archetype)
+- [Context load](#context-load)
+- [Cognitive load](#cognitive-load)
+- [Description](#description)
+- [WHEN-not-WHAT](#when-not-what)
+- [Information hierarchy](#information-hierarchy)
+- [Context pointer](#context-pointer)
+- [Progressive disclosure](#progressive-disclosure)
+- [Single source of truth](#single-source-of-truth)
+- [Leading word](#leading-word)
+- [Leg work](#leg-work)
+- [Completion criterion](#completion-criterion)
+- [Deletion test](#deletion-test)
+- [No-op _(failure mode)_](#no-op-failure-mode)
+- [Sediment _(failure mode)_](#sediment-failure-mode)
+- [Duplication _(failure mode)_](#duplication-failure-mode)
+- [Sprawl _(failure mode)_](#sprawl-failure-mode)
+- [Premature completion _(failure mode)_](#premature-completion-failure-mode)
+
+
 The domain model for the [`skill-authoring-standard`](SKILL.md) leading words. **Bold terms**
 in any definition are themselves headings here. Each entry ends with `_Avoid_:` — the loose
 synonyms that dilute it. Adapted from Matt Pocock's `writing-great-skills/GLOSSARY.md`.

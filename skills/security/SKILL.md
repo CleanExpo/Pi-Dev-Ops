@@ -1,6 +1,6 @@
 ---
 name: security
-description: Security patterns and anti-patterns for the Pi-Dev-Ops codebase — path traversal, HMAC webhooks, secrets hygiene, timing-safe comparisons, autonomous permission grants.
+description: Security patterns and anti-patterns for the Pi-Dev-Ops codebase — path traversal, HMAC webhooks, secrets hygiene, timing-safe comparisons, autonomous permission grants. Use when touching auth, session handling, file paths built from user input such as session IDs, webhook signature checks for GitHub or Linear, secrets or credentials in docs and scripts, autonomous harness permission settings, rate limiting, or TLS and proxy middleware in the Pi-Dev-Ops codebase.
 ---
 
 # Security Best Practices

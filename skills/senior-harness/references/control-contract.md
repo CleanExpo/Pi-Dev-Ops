@@ -1,5 +1,17 @@
 # Senior Harness control contract
 
+## Contents
+- [Hierarchy](#hierarchy)
+- [Startup admission](#startup-admission)
+- [TaskContract](#taskcontract)
+- [MoveContract](#movecontract)
+- [Discovery and forecasts](#discovery-and-forecasts)
+- [Attempt pathway](#attempt-pathway)
+- [Evidence and acceptance](#evidence-and-acceptance)
+- [Capability lifecycle](#capability-lifecycle)
+- [Self-hosting acceptance](#self-hosting-acceptance)
+
+
 Load this reference when a task crosses the Senior Harness boundary. The JSON file is the control
 plane; prose, chat history, a model conclusion, or a worker self-report cannot override it.
 

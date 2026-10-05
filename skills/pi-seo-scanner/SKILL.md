@@ -1,6 +1,6 @@
 ---
 name: pi-seo-scanner
-description: Scan interpretation specialist for Pi-SEO findings. Applies blast-radius scoring to prioritise findings, detects false positives, classifies into fix-now/schedule/suppress/investigate buckets, and recommends scan config changes per project.
+description: Scan interpretation specialist for Pi-SEO findings. Applies blast-radius scoring to prioritise findings, detects false positives, classifies into fix-now/schedule/suppress/investigate buckets, and recommends scan config changes per project. Use when a Pi-SEO autonomous scan has produced findings that need interpreting, such as scoring blast radius from severity, exposure and auto-fixability, sorting findings into fix-now, schedule, suppress or investigate buckets, spotting false positives like console.log in test files or secrets in .env.example, or recommending per-project scan frequency changes based on health score trends.
 ---
 
 # Pi-SEO Scanner Skill

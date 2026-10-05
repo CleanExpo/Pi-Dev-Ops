@@ -1,6 +1,6 @@
 ---
 name: pi-ceo-docparser
-description: Parse PDF / DOCX / TXT into structured ParsedDoc (text + pages + tables + metadata). Pure deterministic extraction, no LLM call. Foundation for ICP-research workflows; consumed by marketing-icp-research.
+description: Parse PDF / DOCX / TXT into structured ParsedDoc (text + pages + tables + metadata). Pure deterministic extraction, no LLM call. Foundation for ICP-research workflows; consumed by marketing-icp-research. Use when a task needs deterministic text extraction from a PDF, DOCX or TXT file into a structured ParsedDoc with per-page text, tables and metadata, such as parse_document calls, customer-interview transcripts, customer-discovery docs, or feeding marketing-icp-research and Margot research pipelines, but not for OCR of scanned PDFs, .xlsx, .pptx or legacy .doc files, or LLM-based document QA.
 owner_role: foundational primitive — no agent boundary
 status: wave-2
 linear: RA-1995

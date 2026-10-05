@@ -1,6 +1,6 @@
 ---
 name: claude
-description: Correct patterns for Claude SDK usage, subprocess vs API mode selection, MCP SDK imports, and streaming API call conventions in the Pi-Dev-Ops codebase.
+description: Correct patterns for Claude SDK usage, subprocess vs API mode selection, MCP SDK imports, and streaming API call conventions in the Pi-Dev-Ops codebase. Use when touching Claude SDK invocations in Pi-Dev-Ops, choosing between `claude -p` subprocess mode and API key mode (`ANALYSIS_MODE`, Railway deployments), importing `McpServer` from `@modelcontextprotocol/sdk` subpaths, looping over `ClaudeSDKClient.receive_response()`, or passing an AbortController `signal` to `client.messages.stream()`.
 ---
 
 # Claude SDK & Runtime Patterns

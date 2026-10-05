@@ -1,5 +1,17 @@
 # Marketing Skills Package
 
+## Contents
+- [How to invoke from any project](#how-to-invoke-from-any-project)
+- [The 10 skills](#the-10-skills)
+- [Composition with Remotion Skills Package](#composition-with-remotion-skills-package)
+- [Where each piece lives](#where-each-piece-lives)
+- [Per-project API keys](#per-project-api-keys)
+- [Adding a new brand](#adding-a-new-brand)
+- [End-to-end example — full Synthex launch](#end-to-end-example--full-synthex-launch)
+- [Voice + content rules (enforced by every skill)](#voice--content-rules-enforced-by-every-skill)
+- [Verification](#verification)
+
+
 Shared marketing capability for every project under `/Users/phill-mac/Pi-CEO/`. 10 skills authored once in Pi-Dev-Ops, available globally via symlinks, callable from any project (Synthex, Pi-SEO, RestoreAssist, future repos) with that project's own API keys. Composes with the **Remotion Skills Package** for any video deliverable.
 
 ## How to invoke from any project

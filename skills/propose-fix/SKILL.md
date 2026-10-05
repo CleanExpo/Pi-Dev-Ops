@@ -1,6 +1,6 @@
 ---
 name: propose-fix
-description: Produce the repair as a diff plus a regression test, never applied directly. Bounded to three attempts, each materially different, then it stops and reports the diagnosis rather than the error. Use only after `classify` returns proceed.
+description: Produce the repair as a diff plus a regression test, never applied directly. Bounded to three attempts, each materially different, then it stops and reports the diagnosis rather than the error. Use only after `classify` returns proceed. Use when a diagnosed bug, failing check or incident has been through `classify` with a proceed result and the user or pipeline needs a repair drafted as a reviewable diff plus a failing-first regression test, such as after `diagnose` produces a minimised repro, with nothing applied to the working tree, a cap of three materially different attempts, and a report of the proven cause if all fail.
 ---
 
 # propose-fix

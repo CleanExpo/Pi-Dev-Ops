@@ -1,6 +1,6 @@
 ---
 name: tao-codebase-wiki
-description: Self-updating per-directory WIKI.md files driven by post-merge git history. Port of @0xkobold/pi-codebase-wiki. Compounds — every merge refreshes context for the next TAO session.
+description: Self-updating per-directory WIKI.md files driven by post-merge git history. Port of @0xkobold/pi-codebase-wiki. Compounds — every merge refreshes context for the next TAO session. Use when a task involves refreshing per-directory WIKI.md files from recent git history after a merge, such as running the post-merge codebase-wiki GitHub Action, calling scripts/run_codebase_wiki.py with a since SHA, or invoking update_wiki programmatically with a per-directory cost budget, dry run, or kill-switch bypass.
 ---
 
 # tao-codebase-wiki

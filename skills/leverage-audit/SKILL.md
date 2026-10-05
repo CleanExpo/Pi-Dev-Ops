@@ -1,6 +1,6 @@
 ---
 name: leverage-audit
-description: 12 Leverage Points diagnostic for agent autonomy — with explicit scoring rubrics and ROI guidance.
+description: 12 Leverage Points diagnostic for agent autonomy — with explicit scoring rubrics and ROI guidance. Use when the user asks to audit, score or diagnose an agent system's autonomy, mentions the 12 Leverage Points, ZTE level or Zero Touch maturity, or wants to know which dimensions (spec quality, context precision, model selection, tool availability, feedback loops, error recovery, session continuity, quality gating, cost efficiency, trigger automation, knowledge retention, workflow standardization) to improve first for the highest ROI.
 ---
 
 # 12 Leverage Points Diagnostic
