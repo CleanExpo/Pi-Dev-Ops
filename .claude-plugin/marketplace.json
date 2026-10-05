@@ -8,6 +8,12 @@
       "source": "./mods/mc-lane",
       "description": "Reports each Claude Code lane's tool calls (names and timings only), context use and cost to Mission Control.",
       "author": { "name": "Unite-Group" }
+    },
+    {
+      "name": "synthex-main-status",
+      "source": "./mods/synthex-main-status",
+      "description": "In CleanExpo/Synthex sessions, shows a status line while Synthex main CI is red (read-only gh run list every two minutes).",
+      "author": { "name": "Unite-Group" }
     }
   ]
 }
