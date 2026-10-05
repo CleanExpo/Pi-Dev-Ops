@@ -116,7 +116,9 @@ Manifest changes ship through normal git review. Values never enter the diff bec
 
 ## Runtime injection — the security boundary
 
-This is the hot path called by `sandcastle-runner` at launch time:
+This is the hot path called by `sandcastle-runner` at launch time.
+
+**The agent env and the sandbox env must be disjoint.** `sandcastle_run.mts` passes them to `run()` as `agentEnv` (into `claudeCode({ env })`) and `sandboxEnv` (into the sandbox provider's `env`). `run()` in @ai-hero/sandcastle@0.12.0 throws `Overlapping env keys between agent provider and sandbox provider: <KEYS>` if any key appears in both, so assign every manifest var to exactly one side.
 
 ```python
 def resolve_for_run(*, project_slug: str, run_id: str) -> tuple[dict[str, str], str]:
