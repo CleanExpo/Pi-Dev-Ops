@@ -22,6 +22,12 @@
       "author": { "name": "Unite-Group" }
     },
     {
+      "name": "mission-control",
+      "source": "./mods/mission-control",
+      "description": "Read-only fleet view: /mc opens a pane with each machine's status and heartbeat age, open claims and recent ships; fleet_status gives Claude the same summary. A failed read shows as unknown, never as a healthy fleet.",
+      "author": { "name": "Unite-Group" }
+    },
+    {
       "name": "fleet-guard",
       "source": "./mods/fleet-guard",
       "description": "Keeps subagents and agent-team teammates on allowed models (FLEET_GUARD_MODELS) and caps concurrent teammates (FLEET_GUARD_MAX_TEAMMATES). Inert when both are unset.",
