@@ -86,6 +86,10 @@ const PROTECTED_API_PREFIXES = [
   // HTTP 200 for an anonymous POST, which a scanner reads as success. Gate the
   // prefix so unauthenticated callers get 401 before any handler runs.
   "/api/attachments",
+  // Flow board: lists open PRs with the server's GITHUB_TOKEN, consumed only by the
+  // protected /control page. It reached main unclassified (3c2d756b), so anonymous
+  // callers could spend the token's rate limit and CI went red on main.
+  "/api/flow-board",
 ];
 
 // Public API routes — never require session
