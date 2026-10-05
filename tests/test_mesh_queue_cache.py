@@ -167,8 +167,13 @@ def test_a_ticket_blocked_after_the_shared_read_is_not_claimed(monkeypatch, tmp_
     claim, labels, reads, gql, _, route_cache = _blockable_route(monkeypatch, tmp_path)
     assert [n["identifier"] for n in route_cache.candidates(gql)[0]] == ["RA-T"]  # eligible when the shared read ran
     labels.append({"name": "pi-dev:blocked-reason:manual"})  # a human blocks it, inside the TTL
+    warm_state = dict(route_cache._state, value=None)
     assert claim()["claimed"] is None
-    assert sum(r.startswith("query{issues") for r in reads) == 1  # still one shared queue read
+    from app.server.routes import mesh as routes_mesh
+    seen = {"reads": reads, "warm": warm_state, "after": dict(route_cache._state, value=None),
+            "route_uses_this_cache": routes_mesh.claim_self.__globals__["mesh_queue_cache"] is route_cache,
+            "sys_modules_cache_is_this": sys.modules.get("app.server.mesh_queue_cache") is route_cache}
+    assert sum(r.startswith("query{issues") for r in reads) == 1, seen  # still one shared queue read
 
 
 def test_an_unblocked_ticket_is_still_claimed_after_its_fresh_read(monkeypatch, tmp_path):
