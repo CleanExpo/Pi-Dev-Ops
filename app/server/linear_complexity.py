@@ -78,10 +78,13 @@ def error_detail(exc: Exception) -> str:
     read = getattr(exc, "read", None)
     if getattr(exc, "code", None) is None or not callable(read):
         return ""
+    # Called inside the caller's own except block: nothing here may raise.
     try:
-        body = json.loads(read() or b"{}")
+        body = json.loads(read(65536) or b"{}")
+        errors = body.get("errors") if isinstance(body, dict) else None
+        if not isinstance(errors, list):
+            return ": <no error message>"
+        msgs = [str(x.get("message", ""))[:300] for x in errors if isinstance(x, dict)]
+        return ": " + ("; ".join(m for m in msgs if m) or "<no error message>")
     except Exception:  # noqa: BLE001
         return ": <unreadable error body>"
-    errors = body.get("errors") if isinstance(body, dict) else None
-    msgs = [str(x.get("message", ""))[:300] for x in errors or [] if isinstance(x, dict)]
-    return ": " + ("; ".join(m for m in msgs if m) or "<no error message>")

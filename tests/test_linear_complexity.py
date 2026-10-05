@@ -4,6 +4,8 @@ from __future__ import annotations
 import io
 import urllib.error
 
+import pytest
+
 from app.server import mesh_lanes
 from app.server.autonomy_queue import PAGE_SIZE, TODO_ISSUES_QUERY
 from app.server.linear_complexity import LINEAR_MAX_COMPLEXITY, error_detail, estimate
@@ -42,3 +44,18 @@ def test_error_detail_surfaces_linears_message():
                                  io.BytesIO(body))
     assert error_detail(err) == ": Query too complex"
     assert error_detail(ValueError("boom")) == ""
+
+
+@pytest.mark.parametrize("body", [b'{"errors":7}', b'{"errors":"x"}', b"[1]", b"not json", b""])
+def test_malformed_linear_error_body_cannot_crash_the_claim_route(monkeypatch, body):
+    """Codex review of RA-7910: {"errors":7} raised TypeError out of the except block."""
+    from app.server import config
+    from app.server.routes import mesh
+
+    def refuse(*_a, **_k):
+        raise urllib.error.HTTPError("https://api.linear.app/graphql", 400, "Bad Request", {},
+                                     io.BytesIO(body))
+
+    monkeypatch.setattr(config, "LINEAR_API_KEY", "lin_test_not_a_key", raising=False)
+    monkeypatch.setattr(mesh.urllib.request, "urlopen", refuse)
+    assert mesh._linear_graphql("query{issues{nodes{id}}}") == {}
