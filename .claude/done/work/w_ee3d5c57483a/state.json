@@ -1,0 +1,101 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "FAILED",
+  "verification_status": "FAIL",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": null,
+  "updated_at_utc": "2026-10-05T16:28:44Z",
+  "last_verify": {
+    "head": "e683c64c0e1bfc970819a8cb254b4c44585df565",
+    "at_utc": "2026-10-05T16:28:44Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; git grep -nE 'npx sandcastle (run|init)' -- skills/sandcastle-runner scripts/sandcastle-bootstrap.sh agentskills.json agentskills.yaml; test $? -eq 1\"",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 0.2,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_ee3d5c57483a\\e683c64c0e1b\\C1-ab861dc170dc-e3b0c44298fc1c14.log",
+        "output_tail": ""
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; grep -q '@ai-hero/sandcastle@0.12.0' scripts/sandcastle-bootstrap.sh && ! grep -q '0\\.5\\.7' scripts/sandcastle-bootstrap.sh && bash -n scripts/sandcastle-bootstrap.sh\"",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 0.1,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_ee3d5c57483a\\e683c64c0e1b\\C2-9685eb765661-e3b0c44298fc1c14.log",
+        "output_tail": ""
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; cp scripts/sandcastle_run.mts /c/Users/DISAST~1/AppData/Local/Temp/sc012/ && cd /c/Users/DISAST~1/AppData/Local/Temp/sc012 && npx --no-install tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext --skipLibCheck --types node sandcastle_run.mts\"",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 1.9,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_ee3d5c57483a\\e683c64c0e1b\\C3-8a214cef6d47-e3b0c44298fc1c14.log",
+        "output_tail": ""
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; cp scripts/sandcastle_run.mts /c/Users/DISAST~1/AppData/Local/Temp/sc012/ && cd /c/Users/DISAST~1/AppData/Local/Temp/sc012 && touch hs.flag && printf '{\\x22cwd\\x22:\\x22.\\x22,\\x22prompt\\x22:\\x22x\\x22,\\x22model\\x22:\\x22claude-sonnet-4-6\\x22,\\x22sandbox\\x22:\\x22noSandbox\\x22}' > cfg.json && TAO_HARD_STOP_FILE=$PWD/hs.flag npx --no-install tsx sandcastle_run.mts cfg.json > out.json; test $? -eq 3 && grep -q 'status.:.killed' out.json\"",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 2.8,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_ee3d5c57483a\\e683c64c0e1b\\C4-08d1623c441b-e3b0c44298fc1c14.log",
+        "output_tail": ""
+      },
+      {
+        "id": "C5",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; env -u PYTHONUTF8 python -m swarm.agentskills_manifest > /dev/null && git diff --quiet -- agentskills.json agentskills.yaml\"",
+        "exit_code": 1,
+        "timeout_s": 900,
+        "duration_s": 0.5,
+        "output_digest": "df917408fa5a3fb6bbb0e9c40932f6057081f90ebc38570ba94f5a27b88826d4",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_ee3d5c57483a\\e683c64c0e1b\\C5-1d96682bdb05-df917408fa5a3fb6.log",
+        "output_tail": "warning: in the working copy of 'agentskills.json', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'agentskills.yaml', CRLF will be replaced by LF the next time Git touches it"
+      },
+      {
+        "id": "C6",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; grep -qi 'disjoint' skills/vercel-env-puller/SKILL.md\"",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 0.1,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_ee3d5c57483a\\e683c64c0e1b\\C6-90fce73cb7c1-e3b0c44298fc1c14.log",
+        "output_tail": ""
+      },
+      {
+        "id": "C7",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; python .github/scripts/file_length_lint.py\"",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 0.6,
+        "output_digest": "4bf2ba2efe07825b41b30773683ab2a47cefdf3c31ea9635bb2e3348669ed370",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_ee3d5c57483a\\e683c64c0e1b\\C7-f167717fb2ed-4bf2ba2efe07825b.log",
+        "output_tail": "warn  app/server/agents/anthropic_intel_refresh.py: shrank 310 -> 268; lower the baseline (--update)\nwarn  app/server/agents/board_meeting.py: shrank 2612 -> 2578; lower the baseline (--update)\nwarn  app/server/agents/pi_seo_monitor.py: shrank 721 -> 718; lower the baseline (--update)\nwarn  app/server/agents/plan_discovery.py: shrank 359 -> 321; lower the baseline (--update)\nwarn  app/server/autonomy.py: shrank 1174 -> 1120; lower the baseline (--update)\nwarn  app/server/orchestrator.py: shrank 320 -> 291; lower the baseline (--update)\nwarn  app/server/pipeline.py: shrank 746 -> 707; lower the baseline (--update)\nwarn  app/server/provider_nex_n2.py: shrank 334 -> 285; lower the baseline (--update)\nwarn  app/server/provider_router.py: shrank 728 -> 495; lower the baseline (--update)\nwarn  app/server/session_evaluator.py: shrank 587 -> 549; lower the baseline (--update)\nwarn  app/server/session_phases.py: shrank 1875 -> 1872; lower the baseline (--update)\nwarn  app/server/session_sdk.py: shrank 436 -> 239; lower the baseline (--update)\nwarn  app/server/spec_pipeline/__init__.py: shrank 389 -> 313; lower the baseline (--update)\nwarn  dashboard/app/(main)/builds/page.tsx: shrank 473 -> 416; lower the baseline (--update)\nwarn  dashboard/app/(main)/overview/page.tsx: shrank 488 -> 331; lower the baseline (--update)\nwarn  dashboard/app/api/analyze/route.ts: shrank 569 -> 544; lower the baseline (--update)\nwarn  dashboard/app/api/telegram/route.ts: shrank 518 -> 496; lower the baseline (--update)\nwarn  dashboard/components/control/HealthGrid.tsx: shrank 746 -> 734; lower the baseline (--update)\nwarn  dashboard/components/control/KillSwitchPanel.tsx: shrank 485 -> 469; lower the baseline (--update)\nwarn  dashboard/components/control/LiveActivityFeed.tsx: shrank 343 -> 329; lower the baseline (--update)\nwarn  dashboard/components/control/MargotAssetsPanel.tsx: shrank 312 -> 311; lower the baseline (--update)\nwarn  scripts/plaud_ingest.py: shrank 655 -> 650; lower the baseline (--update)\nwarn  scripts/smoke_test.py: shrank 523 -> 518; lower the baseline (--update)\nwarn  scripts/smoke_test_e2e.py: shrank 402 -> 399; lower the baseline (--update)\nwarn  swarm/agentskills_manifest.py: shrank 385 -> 370; lower the baseline (--update)\nwarn  swarm/inbox/preamble_trainer.py: shrank 512 -> 498; lower the baseline (--update)\nwarn  swarm/model_router.py: shrank 507 -> 487; lower the baseline (--update)\nwarn  tests/swarm/test_model_router.py: shrank 354 -> 342; lower the baseline (--update)\nwarn  tests/test_docs_stale_watchdog_ra7027.py: shrank 513 -> 512; lower the baseline (--update)\nwarn  tests/test_provider_nex_n2.py: shrank 397 -> 393; lower the baseline (--update)\nwarn  tests/test_provider_openrouter.py: shrank 328 -> 230; lower the baseline (--update)\nwarn  tests/test_provider_router.py: shrank 553 -> 428; lower the baseline (--update)\nwarn  tests/test_workspace_verify.py: shrank 310 -> 167; lower the baseline (--update)\nfile-length gate passed â€” 1883 source files, 177 grandfathered over 300 lines, 0 new, 0 grown.\n76 file(s) exempt, not merely grandfathered: node_modules/, /dist/, /skills-library/, remotion-studio/src/compositions/\n33 file(s) shrank â€” run --update to ratchet the baseline down."
+      }
+    ],
+    "blockers": [
+      "the tree moved while recipes ran (HEAD e683c64c0 -> e683c64c0, or new dirt) - evidence does not bind to one revision"
+    ]
+  }
+}

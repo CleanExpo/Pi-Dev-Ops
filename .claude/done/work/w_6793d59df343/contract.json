@@ -1,0 +1,58 @@
+{
+  "schema": "done/1",
+  "work_id": "w_6793d59df343",
+  "version": 6,
+  "supersedes": "w_267b20703f11",
+  "goal": "v6: C5 restores the manifests after comparing, so the CRLF rewrite on Windows does not dirty the tree",
+  "created_at_utc": "2026-10-05T16:29:50Z",
+  "identity_key": "mesh/phill_desktop/uni-2926-7e43db43@C:\\Users\\Disaster Recovery 4\\.local\\share\\nexus-mesh\\pdo-runtime\\.git\\worktrees\\mesh-UNI-2926-7e43db43",
+  "baseline_observed": {
+    "head": "e683c64c0e1bfc970819a8cb254b4c44585df565",
+    "branch": "mesh/phill_desktop/uni-2926-7e43db43",
+    "dirty_count": 11
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "text": "no 'npx sandcastle run' / bare 'npx sandcastle init' remains in the runner skill, bootstrap script or manifests (git grep exit 1 = no match)",
+      "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; git grep -nE 'npx sandcastle (run|init)' -- skills/sandcastle-runner scripts/sandcastle-bootstrap.sh agentskills.json agentskills.yaml; test $? -eq 1\""
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "text": "bootstrap pins @ai-hero/sandcastle@0.12.0, no 0.5.7 left, and parses as bash",
+      "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; grep -q '@ai-hero/sandcastle@0.12.0' scripts/sandcastle-bootstrap.sh && ! grep -q '0\\.5\\.7' scripts/sandcastle-bootstrap.sh && bash -n scripts/sandcastle-bootstrap.sh\""
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "text": "scripts/sandcastle_run.mts typechecks (tsc --strict) against the real @ai-hero/sandcastle@0.12.0 types",
+      "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; cp scripts/sandcastle_run.mts /c/Users/DISAST~1/AppData/Local/Temp/sc012/ && cd /c/Users/DISAST~1/AppData/Local/Temp/sc012 && npx --no-install tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext --skipLibCheck --types node sandcastle_run.mts\""
+    },
+    {
+      "id": "C4",
+      "required": true,
+      "text": "with the hard-stop kill-switch file present, the runner prints status=killed JSON and exits 3 before any setup",
+      "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; cp scripts/sandcastle_run.mts /c/Users/DISAST~1/AppData/Local/Temp/sc012/ && cd /c/Users/DISAST~1/AppData/Local/Temp/sc012 && touch hs.flag && printf '{\\x22cwd\\x22:\\x22.\\x22,\\x22prompt\\x22:\\x22x\\x22,\\x22model\\x22:\\x22claude-sonnet-4-6\\x22,\\x22sandbox\\x22:\\x22noSandbox\\x22}' > cfg.json && TAO_HARD_STOP_FILE=$PWD/hs.flag npx --no-install tsx sandcastle_run.mts cfg.json > out.json; test $? -eq 3 && grep -q 'status.:.killed' out.json\""
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "text": "agentskills.json/yaml are regenerated with PyYAML importable, as in CI (regeneration leaves no git diff)",
+      "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; export APPDATA=C:/Users/DISAST~1/AppData/Roaming; python -c 'import yaml' && python -m swarm.agentskills_manifest > /dev/null && git diff --quiet -- agentskills.json agentskills.yaml; r=$?; git checkout -- agentskills.json agentskills.yaml; exit $r\""
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "text": "vercel-env-puller states agent env and sandbox env key sets must be disjoint",
+      "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; grep -qi 'disjoint' skills/vercel-env-puller/SKILL.md\""
+    },
+    {
+      "id": "C7",
+      "required": true,
+      "text": "file-length lint passes",
+      "recipe": "C:\\PROGRA~1\\Git\\bin\\bash.exe -c \"export PATH=/usr/bin:/ucrt64/bin:/c/PROGRA~1/nodejs:/c/PROGRA~1/Python311:$PATH PYTHONUTF8=1; python .github/scripts/file_length_lint.py\""
+    }
+  ]
+}
