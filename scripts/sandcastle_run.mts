@@ -94,6 +94,11 @@ function loadConfig(path: string | undefined): RunConfig {
   if (typeof cfg.branch !== "string" || !cfg.branch.trim()) {
     emit("failed", 2, { error: "config needs a non-empty branch (never the host's current branch)" });
   }
+  // run() auto-loads <cwd>/.sandcastle/.env into the agent and sandbox env,
+  // bypassing the per-run agentEnv/sandboxEnv allow-list. Refuse to run with one.
+  if (existsSync(join(cfg.cwd, ".sandcastle", ".env"))) {
+    emit("failed", 2, { error: ".sandcastle/.env exists; secrets must come only from agentEnv/sandboxEnv in the run config" });
+  }
   if (cfg.branch === hostBranch(cfg.cwd)) {
     emit("failed", 2, { error: `branch ${cfg.branch} is the host checkout's current branch` });
   }

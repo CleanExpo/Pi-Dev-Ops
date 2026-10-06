@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.25.6
-  generated_at: "2026-10-06T04:49:30.252553+00:00"
+  version: 1.25.7
+  generated_at: "2026-10-06T05:13:50.270675+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -1929,7 +1929,7 @@ skills:
     owner_role: Builder
     status: wave-5
     path: skills/sandcastle-runner/SKILL.md
-    sha256: 8426ce264604afe2e86c25ff0155007e3c38f8bb05b747c59bcabf4d081f553c
+    sha256: 981a04073e4d61c9dd8b6da43482f72712658e0a885122fc3263f6d126a5d955
     dependencies:
       tools: []
       skills: []
