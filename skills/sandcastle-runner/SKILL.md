@@ -33,9 +33,9 @@ sandcastle_runner.run_sandcastle(SandcastleRunRequest)
   ├── write Sandcastle config to /dev/shm/sandcastle-{rid}.json (mode 0600)
   ├── audit_emit.row("sandcastle_run_started", ...)
   ├── asyncio.create_subprocess_exec("npx", "--no-install", "tsx", ".sandcastle/sandcastle_run.mts", config_path)
-  ├── readline-stream stdout → regex-strip secrets → parse_event → session.logs
+  ├── readline-stream stderr (status lines) → regex-strip secrets → session.logs
   ├── on subprocess exit:
-  │     ├── parse final RunResult JSON
+  │     ├── parse final RunResult JSON from stdout only (exactly one line)
   │     ├── audit_emit.row("sandcastle_run_ok" | "sandcastle_run_failed", ...)
   │     └── return SandcastleRunResult to caller
   └── finally: os.unlink(/dev/shm/sandcastle-{rid}.json), decrement counter
@@ -152,11 +152,13 @@ Existing `audit_emit._maybe_redact` handles long-string redaction; we add the re
 proc = await asyncio.create_subprocess_exec(
     "npx", "--no-install", "tsx", ".sandcastle/sandcastle_run.mts", config_path,
     cwd=req.repo_workdir,
-    stdout=asyncio.subprocess.PIPE,
-    stderr=asyncio.subprocess.STDOUT,
+    stdout=asyncio.subprocess.PIPE,   # exactly one line: the run_complete JSON
+    stderr=asyncio.subprocess.PIPE,   # Sandcastle status lines; stream to session.logs
     env=PROC_ENV,  # PATH only; never includes Pi-CEO secrets
 )
 ```
+
+Keep the two pipes separate. Sandcastle prints status lines ("[Agent] Started on branch ...", "tail -f <log>"), which the runner routes to stderr; merging stderr into stdout breaks `json.loads` on the result line.
 
 `PROC_ENV` includes only `PATH`, `HOME`, `NODE_NO_WARNINGS=1` and `TAO_HARD_STOP_FILE`. All secrets enter Sandcastle through the config JSON file (which is on tmpfs and unlinked in `finally`), NOT through `process.env` of the subprocess. This is the bright line: even if Sandcastle misbehaves, `os.environ` was never the channel.
 
