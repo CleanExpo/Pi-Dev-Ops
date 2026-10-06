@@ -1,0 +1,99 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "FAILED",
+  "verification_status": "FAIL",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": "e683c64c0e1bfc970819a8cb254b4c44585df565",
+  "updated_at_utc": "2026-10-05T16:26:35Z",
+  "last_verify": {
+    "head": "e683c64c0e1bfc970819a8cb254b4c44585df565",
+    "at_utc": "2026-10-05T16:26:35Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "! git grep -nE 'npx sandcastle (run|init)' -- skills/sandcastle-runner scripts/sandcastle-bootstrap.sh agentskills.json agentskills.yaml",
+        "exit_code": 255,
+        "timeout_s": 900,
+        "duration_s": 0.0,
+        "output_digest": "87205a3c5c3a106b82abac17171f3cffc7f3bd043c1d0e1c0fdcbf9cd86d80cd",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_d25166159b11\\e683c64c0e1b\\C1-ab861dc170dc-87205a3c5c3a106b.log",
+        "output_tail": "'!' is not recognized as an internal or external command,\noperable program or batch file."
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "grep -q '@ai-hero/sandcastle@0.12.0' scripts/sandcastle-bootstrap.sh && ! grep -q '0\\.5\\.7' scripts/sandcastle-bootstrap.sh && bash -n scripts/sandcastle-bootstrap.sh",
+        "exit_code": 1,
+        "timeout_s": 900,
+        "duration_s": 0.0,
+        "output_digest": "c702fe1b907f4a0e7255d8a39c97a0e38997ef650c247ad95e7c70c3aea889d6",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_d25166159b11\\e683c64c0e1b\\C2-9685eb765661-c702fe1b907f4a0e.log",
+        "output_tail": "'grep' is not recognized as an internal or external command,\noperable program or batch file."
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "cp scripts/sandcastle_run.mts /tmp/sc012/ && cd /tmp/sc012 && npx --no-install tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext --skipLibCheck --types node sandcastle_run.mts",
+        "exit_code": 1,
+        "timeout_s": 900,
+        "duration_s": 0.0,
+        "output_digest": "64999a876639bec226fe71fc002d54679c89148512ab8a3317c6b0a08f10ee00",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_d25166159b11\\e683c64c0e1b\\C3-8a214cef6d47-64999a876639bec2.log",
+        "output_tail": "'cp' is not recognized as an internal or external command,\noperable program or batch file."
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "cp scripts/sandcastle_run.mts /tmp/sc012/ && cd /tmp/sc012 && touch hs.flag && printf '{\"cwd\":\".\",\"prompt\":\"x\",\"model\":\"claude-sonnet-4-6\",\"sandbox\":\"noSandbox\"}' > cfg.json && TAO_HARD_STOP_FILE=$PWD/hs.flag npx --no-install tsx sandcastle_run.mts cfg.json > out.json; test $? -eq 3 && grep -q '\"status\":\"killed\"' out.json",
+        "exit_code": 1,
+        "timeout_s": 900,
+        "duration_s": 0.0,
+        "output_digest": "64999a876639bec226fe71fc002d54679c89148512ab8a3317c6b0a08f10ee00",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_d25166159b11\\e683c64c0e1b\\C4-08d1623c441b-64999a876639bec2.log",
+        "output_tail": "'cp' is not recognized as an internal or external command,\noperable program or batch file."
+      },
+      {
+        "id": "C5",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "cat agentskills.json agentskills.yaml | sha256sum > /tmp/as_before && python -m swarm.agentskills_manifest >/dev/null && cat agentskills.json agentskills.yaml | sha256sum | cmp -s - /tmp/as_before",
+        "exit_code": 255,
+        "timeout_s": 900,
+        "duration_s": 0.0,
+        "output_digest": "a2609e9259abb6056b122ad8b87ead0fa2f42f1883fd4b6f7a53b00fe4327ec9",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_d25166159b11\\e683c64c0e1b\\C5-1d96682bdb05-a2609e9259abb605.log",
+        "output_tail": "'cat' is not recognized as an internal or external command,\noperable program or batch file."
+      },
+      {
+        "id": "C6",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "grep -qi 'disjoint' skills/vercel-env-puller/SKILL.md",
+        "exit_code": 1,
+        "timeout_s": 900,
+        "duration_s": 0.0,
+        "output_digest": "c702fe1b907f4a0e7255d8a39c97a0e38997ef650c247ad95e7c70c3aea889d6",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_d25166159b11\\e683c64c0e1b\\C6-90fce73cb7c1-c702fe1b907f4a0e.log",
+        "output_tail": "'grep' is not recognized as an internal or external command,\noperable program or batch file."
+      },
+      {
+        "id": "C7",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "git add -N scripts/sandcastle_run.mts && python .github/scripts/file_length_lint.py",
+        "exit_code": 1,
+        "timeout_s": 900,
+        "duration_s": 0.0,
+        "output_digest": "23e443ae52d6fcebca66f1404776e09fa0dc9e7e0f62c6822865c28059a99671",
+        "output_log": "C:\\Users\\Disaster Recovery 4\\.cache\\donectl\\w_d25166159b11\\e683c64c0e1b\\C7-f167717fb2ed-23e443ae52d6fceb.log",
+        "output_tail": "'git' is not recognized as an internal or external command,\noperable program or batch file."
+      }
+    ],
+    "blockers": []
+  }
+}

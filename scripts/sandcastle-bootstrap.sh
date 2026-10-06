@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # sandcastle-bootstrap.sh — RA-1856 (Wave 5)
 #
-# Installs @ai-hero/sandcastle into a target business repo and runs
-# `npx sandcastle init` with Pi-CEO standard preferences:
+# Installs @ai-hero/sandcastle@0.12.0 (exact pin) into a target business repo,
+# runs its `sandcastle init` bin with Pi-CEO standard preferences, and copies
+# Pi-Dev-Ops's scripts/sandcastle_run.mts into .sandcastle/ (UNI-2926):
 #   - agent: claude-code
 #   - sandbox: docker
-#   - backlog: github-issues
+#   - issue tracker: github-issues
 #   - template: parallel-planner-with-review
-#   - label: sandcastle:high-isolation  (matches Pi-CEO Linear label)
+#
+# Never call bare `npx sandcastle`: the unscoped npm name is an unrelated
+# package. The bin is only reached via `npx --no-install` after the local
+# install. @ai-hero/sandcastle has no `run` command; jobs run through
+# .sandcastle/sandcastle_run.mts, which calls the JS `run()` API.
 #
 # Usage:
 #   ./scripts/sandcastle-bootstrap.sh <target_repo_path>
@@ -16,7 +21,7 @@
 #   ./scripts/sandcastle-bootstrap.sh /tmp/pi-ceo-workspaces/ra-1839-ios-fix
 #
 # Idempotent: re-run is safe. Won't re-init if .sandcastle/ already exists.
-# Won't reinstall if @ai-hero/sandcastle is already in package.json devDeps.
+# Won't reinstall if @ai-hero/sandcastle 0.12.0 is already in package.json.
 #
 # Pre-flight checks:
 #   - Docker installed
@@ -26,6 +31,9 @@
 #   - GH_TOKEN env var present (sandcastle backlog manager needs it)
 
 set -euo pipefail
+
+SANDCASTLE_VERSION="0.12.0"
+RUNNER_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/sandcastle_run.mts"
 
 # ── Argument parsing ────────────────────────────────────────────────────────
 TARGET="${1:-}"
@@ -96,11 +104,11 @@ if [[ -z "${GH_TOKEN:-}" ]] && [[ -z "${GITHUB_TOKEN:-}" ]]; then
 fi
 
 # ── Step 1: install @ai-hero/sandcastle ─────────────────────────────────────
-if grep -q '"@ai-hero/sandcastle"' package.json 2>/dev/null; then
-  echo "→ @ai-hero/sandcastle already in package.json — skipping install"
+if grep -q "\"@ai-hero/sandcastle\": \"$SANDCASTLE_VERSION\"" package.json 2>/dev/null; then
+  echo "→ @ai-hero/sandcastle@$SANDCASTLE_VERSION already in package.json — skipping install"
 else
-  echo "→ installing @ai-hero/sandcastle@0.5.7 + tsx"
-  npm install --save-dev @ai-hero/sandcastle@0.5.7 tsx
+  echo "→ installing @ai-hero/sandcastle@$SANDCASTLE_VERSION + tsx"
+  npm install --save-dev --save-exact "@ai-hero/sandcastle@$SANDCASTLE_VERSION" tsx
 fi
 
 # ── Step 2: sandcastle init ─────────────────────────────────────────────────
@@ -108,28 +116,38 @@ if [[ -d .sandcastle ]]; then
   echo "→ .sandcastle/ already exists — skipping init"
   echo "  (delete .sandcastle/ to re-init from scratch)"
 else
-  echo "→ running 'npx sandcastle init' with Pi-CEO standard preferences"
-  # Note: sandcastle init is interactive in v0.5.7. We pre-create the answers
-  # file so the prompts auto-resolve. If the CLI surface changes in 0.6.x,
-  # update this section.
-  npx sandcastle init \
+  echo "→ running 'sandcastle init' (local @ai-hero/sandcastle bin) with Pi-CEO standard preferences"
+  # Flags verified against `sandcastle init --help` in 0.12.0. Step 5 builds
+  # the image, so init does not.
+  npx --no-install sandcastle init \
     --agent claude-code \
     --sandbox docker \
-    --backlog github-issues \
+    --issue-tracker github-issues \
     --template parallel-planner-with-review \
-    --label "sandcastle:high-isolation" \
-    --yes \
+    --create-label false \
+    --build-image false \
+    --install-template-deps true \
     || {
-      echo "⚠ 'npx sandcastle init' non-interactive mode failed."
-      echo "  Run interactively:  npx sandcastle init"
+      echo "⚠ 'sandcastle init' non-interactive mode failed."
+      echo "  Run interactively:  npx --no-install sandcastle init --wizard"
       echo "  Pi-CEO standard answers:"
-      echo "    Agent:    Claude Code"
-      echo "    Sandbox:  Docker"
-      echo "    Backlog:  GitHub Issues"
-      echo "    Template: Parallel planner with review"
-      echo "    Label:    sandcastle:high-isolation"
+      echo "    Agent:         Claude Code"
+      echo "    Sandbox:       Docker"
+      echo "    Issue tracker: GitHub Issues"
+      echo "    Template:      parallel-planner-with-review"
       exit 1
     }
+fi
+
+# ── Step 2b: install the Pi-CEO runner (UNI-2926) ───────────────────────────
+# Copied on every run so the target always has the current runner. It must
+# live inside the target: it imports @ai-hero/sandcastle from node_modules here.
+if [[ -f "$RUNNER_SRC" ]]; then
+  cp "$RUNNER_SRC" .sandcastle/sandcastle_run.mts
+  echo "→ installed .sandcastle/sandcastle_run.mts"
+else
+  echo "❌ runner not found: $RUNNER_SRC" >&2
+  exit 1
 fi
 
 # ── Step 3: append Pi-CEO Dockerfile addendum ───────────────────────────────
@@ -202,5 +220,5 @@ echo "  1. Set required env vars in .sandcastle/.env (use .sandcastle/.env.examp
 echo "     → ANTHROPIC_API_KEY (or claude subscription per .sandcastle docs)"
 echo "     → GH_TOKEN  (for GitHub-issues backlog manager)"
 echo "  2. Add the 'sandcastle:high-isolation' label to a target GitHub issue"
-echo "  3. From this repo:  npx sandcastle run-template parallel-planner-with-review"
+echo "  3. From this repo:  npx tsx .sandcastle/sandcastle_run.mts <config.json>"
 echo "  4. Or trigger via Pi-CEO autonomy.py once Wave 5 #6 (run_build branch point) ships"

@@ -1,0 +1,58 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d25166159b11",
+  "version": 2,
+  "supersedes": "w_d76e94cf32ce",
+  "goal": "v2: runner file is scripts/sandcastle_run.mts (package is ESM-only; .ts under a CommonJS package.json cannot import it)",
+  "created_at_utc": "2026-10-05T16:17:40Z",
+  "identity_key": "mesh/phill_desktop/uni-2926-7e43db43@C:\\Users\\Disaster Recovery 4\\.local\\share\\nexus-mesh\\pdo-runtime\\.git\\worktrees\\mesh-UNI-2926-7e43db43",
+  "baseline_observed": {
+    "head": "e1c8c55a4c3c0e3e814f6be701e7d5212e22350f",
+    "branch": "mesh/phill_desktop/uni-2926-7e43db43",
+    "dirty_count": 5
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "required": true,
+      "text": "no 'npx sandcastle run' / bare 'npx sandcastle init' remains in the runner skill, bootstrap script or manifests",
+      "recipe": "! git grep -nE 'npx sandcastle (run|init)' -- skills/sandcastle-runner scripts/sandcastle-bootstrap.sh agentskills.json agentskills.yaml"
+    },
+    {
+      "id": "C2",
+      "required": true,
+      "text": "bootstrap pins @ai-hero/sandcastle@0.12.0, no 0.5.7 left, and parses as bash",
+      "recipe": "grep -q '@ai-hero/sandcastle@0.12.0' scripts/sandcastle-bootstrap.sh && ! grep -q '0\\.5\\.7' scripts/sandcastle-bootstrap.sh && bash -n scripts/sandcastle-bootstrap.sh"
+    },
+    {
+      "id": "C3",
+      "required": true,
+      "text": "scripts/sandcastle_run.mts typechecks (tsc --strict) against the real @ai-hero/sandcastle@0.12.0 types",
+      "recipe": "cp scripts/sandcastle_run.mts /tmp/sc012/ && cd /tmp/sc012 && npx --no-install tsc --noEmit --strict --target es2022 --module nodenext --moduleResolution nodenext --skipLibCheck --types node sandcastle_run.mts"
+    },
+    {
+      "id": "C4",
+      "required": true,
+      "text": "with the hard-stop kill-switch file present, the runner prints status=killed JSON and exits 3 before any setup",
+      "recipe": "cp scripts/sandcastle_run.mts /tmp/sc012/ && cd /tmp/sc012 && touch hs.flag && printf '{\"cwd\":\".\",\"prompt\":\"x\",\"model\":\"claude-sonnet-4-6\",\"sandbox\":\"noSandbox\"}' > cfg.json && TAO_HARD_STOP_FILE=$PWD/hs.flag npx --no-install tsx sandcastle_run.mts cfg.json > out.json; test $? -eq 3 && grep -q '\"status\":\"killed\"' out.json"
+    },
+    {
+      "id": "C5",
+      "required": true,
+      "text": "agentskills.json/yaml are regenerated (regeneration changes nothing)",
+      "recipe": "cat agentskills.json agentskills.yaml | sha256sum > /tmp/as_before && python -m swarm.agentskills_manifest >/dev/null && cat agentskills.json agentskills.yaml | sha256sum | cmp -s - /tmp/as_before"
+    },
+    {
+      "id": "C6",
+      "required": true,
+      "text": "vercel-env-puller states agent env and sandbox env key sets must be disjoint",
+      "recipe": "grep -qi 'disjoint' skills/vercel-env-puller/SKILL.md"
+    },
+    {
+      "id": "C7",
+      "required": true,
+      "text": "file-length lint passes with the new .ts file staged",
+      "recipe": "git add -N scripts/sandcastle_run.mts && python .github/scripts/file_length_lint.py"
+    }
+  ]
+}

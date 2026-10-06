@@ -1,6 +1,6 @@
 ---
 name: sandcastle-runner
-description: The primitive. Wraps a single Sandcastle invocation (`npx sandcastle run`) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 item 1 (RA-1856 epic). Use when a Pi-CEO orchestrator needs to run a code-executing AFK agent through `npx sandcastle run` in an isolated Docker, Podman, Vercel Firecracker or Daytona sandbox, such as for Linear tickets labelled sandcastle:high-isolation, parallel implementer or reviewer runs, or work needing a kill-switch check, concurrency cap and stdout streamed into session.logs.
+description: The primitive. Wraps a single Sandcastle job (`npx tsx .sandcastle/sandcastle_run.mts`, which calls the pinned @ai-hero/sandcastle@0.12.0 `run()` API) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 item 1 (RA-1856 epic). Use when a Pi-CEO orchestrator needs to run a code-executing AFK agent through the pinned Sandcastle `run()` API in an isolated Docker, Podman, Vercel Firecracker or Daytona sandbox, such as for Linear tickets labelled sandcastle:high-isolation, parallel implementer or reviewer runs, or work needing a kill-switch check, concurrency cap and stdout streamed into session.logs.
 owner_role: Builder
 status: wave-5
 ---
@@ -13,7 +13,11 @@ The Pi-CEO ↔ Sandcastle bridge. One subprocess boundary. Every other Wave 5 sk
 
 Pi-CEO's existing AFK pipeline runs code in `/tmp/pi-ceo-workspaces/{sid}/` git clones — branch isolation only, no container, no resource limits, no permission gating. Acceptable for low-risk autonomy; insufficient for real AFK execution against real production secrets.
 
-Matt Pocock's [Sandcastle](https://github.com/mattpocock/sandcastle) ships container isolation + a parallel-implementer pattern + provider-pluggable agents. We treat it as a binary: one `npx sandcastle run` per code-executing job, parsed via JSON stdout, stdout streamed into existing `session.logs` so the dashboard SSE keeps working unchanged.
+Matt Pocock's [Sandcastle](https://github.com/mattpocock/sandcastle) ships container isolation + a parallel-implementer pattern + provider-pluggable agents. One `npx tsx .sandcastle/sandcastle_run.mts <config.json>` per code-executing job, parsed via its one-line JSON stdout, agent output streamed into existing `session.logs` so the dashboard SSE keeps working unchanged.
+
+**Never call bare `npx sandcastle`.** `@ai-hero/sandcastle` has no `run` command (its CLI is only `init` and `docker|podman build-image|remove-image`), and the unscoped npm name `sandcastle` is an unrelated 2022 package that `npx` would download and execute.
+
+The runner source is `scripts/sandcastle_run.mts` in Pi-Dev-Ops. `scripts/sandcastle-bootstrap.sh` copies it into the target repo's `.sandcastle/` on every run, because it must import `@ai-hero/sandcastle` from that repo's `node_modules` (Pi-Dev-Ops has no `package.json`). It is `.mts` because the package is ESM-only.
 
 ## Topology
 
@@ -28,7 +32,7 @@ sandcastle_runner.run_sandcastle(SandcastleRunRequest)
   ├── resolve env-manifest in-memory via vercel-env-puller skill
   ├── write Sandcastle config to /dev/shm/sandcastle-{rid}.json (mode 0600)
   ├── audit_emit.row("sandcastle_run_started", ...)
-  ├── asyncio.create_subprocess_exec("npx", "sandcastle", "run", "--config", ...)
+  ├── asyncio.create_subprocess_exec("npx", "tsx", ".sandcastle/sandcastle_run.mts", config_path)
   ├── readline-stream stdout → regex-strip secrets → parse_event → session.logs
   ├── on subprocess exit:
   │     ├── parse final RunResult JSON
@@ -146,9 +150,7 @@ Existing `audit_emit._maybe_redact` handles long-string redaction; we add the re
 
 ```python
 proc = await asyncio.create_subprocess_exec(
-    "npx", "sandcastle", "run",
-    "--config", config_path,
-    "--json",
+    "npx", "tsx", ".sandcastle/sandcastle_run.mts", config_path,
     cwd=req.repo_workdir,
     stdout=asyncio.subprocess.PIPE,
     stderr=asyncio.subprocess.STDOUT,
@@ -156,7 +158,13 @@ proc = await asyncio.create_subprocess_exec(
 )
 ```
 
-`PROC_ENV` includes only `PATH`, `HOME`, `NODE_NO_WARNINGS=1`. All secrets enter Sandcastle through the `--config` JSON file (which is on tmpfs and unlinked in `finally`), NOT through `process.env` of the subprocess. This is the bright line: even if Sandcastle misbehaves, `os.environ` was never the channel.
+`PROC_ENV` includes only `PATH`, `HOME`, `NODE_NO_WARNINGS=1` and `TAO_HARD_STOP_FILE`. All secrets enter Sandcastle through the config JSON file (which is on tmpfs and unlinked in `finally`), NOT through `process.env` of the subprocess. This is the bright line: even if Sandcastle misbehaves, `os.environ` was never the channel.
+
+Config keys (see the header of `scripts/sandcastle_run.mts`): `cwd`, `prompt` or `promptFile`, `model`, `sandbox`, `sandboxOptions` (e.g. `{"imageName": ...}` — `imageName` lives in the provider since 0.6), `agentEnv`, `sandboxEnv` (key sets MUST be disjoint — `run()` throws on overlap), `maxIterations`, `idleTimeoutSeconds` (default 600), `completionTimeoutSeconds` (default 60), `killSwitchFiles` (pass `.harness/swarm/kill_switch.flag`).
+
+The runner uses `claudeCode(model, { permissionMode: "auto" })` — never a skip-permissions flag. It polls `TAO_HARD_STOP_FILE` (default `~/.claude/HARD_STOP`) and every `killSwitchFiles` entry each second and aborts `run()` through its `signal`; SIGTERM/SIGINT abort it the same way. `run()` has no concurrency cap, so `MAX_CONCURRENT_SANDCASTLE_RUNS` stays with the caller.
+
+Exit codes: `0` ok · `1` failed · `2` bad usage/config · `3` killed. stdout is exactly one line, `{"type":"run_complete","result":{"status": ..., "branch", "commits", "iterations", "logFilePath", ...}}`; agent output goes to `result.logFilePath`. `iterations` is a count (`RunResult.iterations.length`; 0.5.7's `iterationsRun` no longer exists).
 
 Timeout enforcement via `asyncio.wait_for(proc.wait(), timeout=req.timeout_minutes * 60)`. On timeout: `proc.terminate()` → 5 s grace → `proc.kill()`.
 
@@ -172,7 +180,7 @@ Timeout enforcement via `asyncio.wait_for(proc.wait(), timeout=req.timeout_minut
 
 | Failure | Status | Action |
 |---|---|---|
-| Sandcastle binary missing (`npx sandcastle` not found) | `failed` | Log + audit; admin must install |
+| Runner or package missing (`.sandcastle/sandcastle_run.mts` or `node_modules/@ai-hero/sandcastle` absent) | `failed` | Log + audit; re-run `scripts/sandcastle-bootstrap.sh` |
 | Config JSON write failed (tmpfs full) | `failed` | Log + audit; alert |
 | Subprocess exit code ≠ 0 | `failed` | Capture `log_tail`, parse stderr if any |
 | Timeout reached | `timeout` | terminate → kill; capture partial result |
@@ -211,7 +219,7 @@ This skill ships the contract + the subprocess + the audit. The plumbing on eith
 
 ## References
 
-- Sandcastle source: https://github.com/mattpocock/sandcastle (MIT, 0.5.7, HEAD May 1 2026)
+- Sandcastle source: https://github.com/mattpocock/sandcastle (MIT, pinned 0.12.0, released 2026-06-29)
 - Approved plan: `~/.claude/plans/breezy-wiggling-map.md`
 - Senior-Agent blueprint: `~/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md`
 - Existing kill-switch substrate: `swarm/kill_switch.py`

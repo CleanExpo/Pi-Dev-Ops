@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.25.2",
-    "generated_at": "2026-10-05T16:19:01.202789+00:00",
+    "version": "1.25.3",
+    "generated_at": "2026-10-06T05:27:24.285433+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -2445,11 +2445,11 @@
     },
     {
       "id": "sandcastle-runner",
-      "description": "The primitive. Wraps a single Sandcastle invocation (`npx sandcastle run`) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 item 1 (RA-1856 epic). Use when a Pi-CEO orchestrator needs to run a code-executing AFK agent through `npx sandcastle run` in an isolated Docker, Podman, Vercel Firecracker or Daytona sandbox, such as for Linear tickets labelled sandcastle:high-isolation, parallel implementer or reviewer runs, or work needing a kill-switch check, concurrency cap and stdout streamed into session.logs.",
+      "description": "The primitive. Wraps a single Sandcastle job (`npx tsx .sandcastle/sandcastle_run.mts`, which calls the pinned @ai-hero/sandcastle@0.12.0 `run()` API) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 item 1 (RA-1856 epic). Use when a Pi-CEO orchestrator needs to run a code-executing AFK agent through the pinned Sandcastle `run()` API in an isolated Docker, Podman, Vercel Firecracker or Daytona sandbox, such as for Linear tickets labelled sandcastle:high-isolation, parallel implementer or reviewer runs, or work needing a kill-switch check, concurrency cap and stdout streamed into session.logs.",
       "owner_role": "Builder",
       "status": "wave-5",
       "path": "skills/sandcastle-runner/SKILL.md",
-      "sha256": "eca34859193205c93ee04e7ba219758c942fa5f2ad4cb23ebd447e835e2fefcd",
+      "sha256": "9bf001a930f1d1d653e174f9cc8fca6e6f96f2fbcd5d8b7615587d30c2057901",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -3128,7 +3128,7 @@
       "owner_role": "CISO (binds in front of every Sandcastle launch)",
       "status": "wave-5",
       "path": "skills/vercel-env-puller/SKILL.md",
-      "sha256": "e6a8bfe29119e900a04c62ed729f69f856af30879ca593a56c1702666e0e96c5",
+      "sha256": "5f41243ac583fbc4ccebf2c4114a0ad08a3eb57cecd485597f3b39b4c965f918",
       "dependencies": {
         "tools": [],
         "skills": []
