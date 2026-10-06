@@ -37,7 +37,7 @@ export function LaneList() {
               {lane.host}{lane.repo ? ` · ${lane.repo}` : ""}{lane.lastTool ? ` · ${lane.lastTool}` : ""}
             </span>
             <span className={styles.meta}>
-              ctx {pct(lane.ctxPct)} · limit {pct(lane.ratePct)} · {cost} · {lane.toolCalls} calls{lane.toolFails ? ` (${lane.toolFails} failed)` : ""} · {ago(heard, now)}
+              ctx {pct(lane.ctxPct)} · limit {pct(lane.ratePct)} · {cost} · {lane.toolCalls} calls{lane.toolFails ? ` (${lane.toolFails} failed)` : ""}{lane.agents ? ` · ${lane.agents} ${lane.agents === 1 ? "agent" : "agents"}` : ""} · {ago(heard, now)}
             </span>
           </div>
         );

@@ -1,9 +1,10 @@
 """mesh_queue_cache.py — one Linear read of the mesh queue, shared by every claim (RA-7910).
 
 WHY. Every `POST /api/mesh/claim/self` used to read the whole claimable queue
-from Linear: ~10 pages of 25 tickets, each page one request. Two runners poll
-every ~40 s, so claiming alone spent ~1,800 requests an hour from one key whose
-budget is 2,500 an hour shared with every other Pi-CEO feature. Once it ran out
+from Linear, one request per page: ~10 pages of 25, and since #896 kept each page
+under the complexity cap, up to 50 pages of 10. Three runners poll every ~40 s,
+so claiming alone could outspend one key whose budget is 2,500 requests an hour,
+shared with every other Pi-CEO feature. Once it ran out
 Linear answered every page with HTTP 400 "Rate limit exceeded", the read came
 back incomplete, and every claim was a 503 — the fleet could not take any work.
 
@@ -22,7 +23,7 @@ from __future__ import annotations
 import os
 import threading
 import time
-from typing import Any, Callable
+from typing import Any, Callable, Iterable, Iterator
 
 from . import mesh_lanes
 
@@ -54,23 +55,67 @@ def forget(identifier: str) -> None:
             _state["value"] = ([n for n in nodes if n.get("identifier") != identifier], repos)
 
 
+def _refuse_inside_backoff(t: float) -> None:
+    """Raise IncompleteRead while a failed Linear read's back-off runs. Call under _lock."""
+    if _state["failed_at"] is not None and t - _state["failed_at"] < BACKOFF_S:
+        raise mesh_lanes.IncompleteRead(
+            f"Linear read failed {int(t - _state['failed_at'])}s ago; backing off for {int(BACKOFF_S)}s")
+
+
 def candidates(graphql: Callable[[str], dict], now: Callable[[], float] = time.monotonic):
     """`mesh_lanes.candidates(graphql, strict=True)`, read at most once per TTL_S.
 
     Raises mesh_lanes.IncompleteRead for a failed read, and for any call inside the
-    back-off window after one — the queue is unknown, never empty.
+    back-off window after one — the queue is unknown, never empty. The back-off is
+    checked before the cache: after a failed fresh re-read (`rechecked`) a cached
+    queue would only lead the caller straight back to a rate-limited Linear.
     """
     with _lock:
         t = now()
+        _refuse_inside_backoff(t)
         if _state["value"] is not None and t - _state["at"] < TTL_S:
             return _state["value"]
-        if _state["failed_at"] is not None and t - _state["failed_at"] < BACKOFF_S:
-            raise mesh_lanes.IncompleteRead(
-                f"Linear read failed {int(t - _state['failed_at'])}s ago; backing off for {int(BACKOFF_S)}s")
         try:
             value = mesh_lanes.candidates(graphql, strict=True)
         except mesh_lanes.IncompleteRead:
-            _state.update(failed_at=t)
+            _state.update(failed_at=now())  # back off from when it failed: a slow read can take minutes
             raise
         _state.update(at=t, value=value, failed_at=None)
         return value
+
+
+def rechecked(graphql: Callable[[str], dict], ranked: Iterable[dict],
+              now: Callable[[], float] = time.monotonic) -> Iterator[dict]:
+    """Each cached candidate re-read from Linear and re-admitted before it is claimed.
+
+    The shared read can be up to TTL_S old. A ticket blocked, labelled or moved in
+    Linear since then must not be claimed from the stale copy, so each one goes
+    through `mesh_lanes.explicit` — the same fresh read and admission rule dispatch
+    uses — and is dropped from the cache when refused. Lazy: a claim that succeeds
+    on the first candidate costs one request. Uncapped: a failed read stops the walk
+    at once, and a refusal is a ticket changed inside the TTL, dropped after one read.
+
+    Only a ticket Linear actually returned can be refused. Anything else — {} from
+    `_linear_graphql` on a failure, or `issue: null` beside a GraphQL error, or a
+    deleted ticket — raises IncompleteRead: unknown is not refused, so the ticket stays cached and the
+    caller answers 503, never "queue empty". It starts the same BACKOFF_S as a
+    failed queue read, so the next polls do not go back to Linear.
+    """
+    for node in ranked:
+        with _lock:  # a peer's failed read may have started the back-off since this walk began
+            _refuse_inside_backoff(now())
+        answered: list[bool] = []
+
+        def read(query: str) -> dict:
+            data = graphql(query) or {}
+            answered.append(isinstance(data, dict) and isinstance(data.get("issue"), dict))
+            return data if isinstance(data, dict) else {}
+        fresh = mesh_lanes.explicit(read, [node["identifier"]])
+        if not answered or not all(answered):
+            with _lock:
+                _state.update(failed_at=now())
+            raise mesh_lanes.IncompleteRead(f"fresh Linear read of {node['identifier']} failed")
+        if fresh:
+            yield fresh[0]
+        else:
+            forget(node["identifier"])

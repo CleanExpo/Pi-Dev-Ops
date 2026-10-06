@@ -1,0 +1,7 @@
+{
+  "name": "synthex-main-status",
+  "description": "In CleanExpo/Synthex sessions, shows a status line while Synthex main CI is red (read-only gh run list every two minutes)",
+  "author": {
+    "name": "Unite-Group"
+  }
+}

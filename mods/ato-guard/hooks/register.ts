@@ -11,6 +11,13 @@
 //      ~/.ato-guard/audit.jsonl — names and counts only (hooks/audit.ts).
 // No network, no credentials. An audit failure never breaks the tool call.
 //
+// It also judges other mods as they load (`plugin.register`, hooks/policy.ts):
+// in the ATO repository a non-built-in mod that hooks tool.call, tool.check,
+// tool.describe, prompt.*, classic.PreToolUse/PostToolUse or engine.create is
+// refused, except `tool.call` alone for mods named in ATO_GUARD_ALLOW_MODS
+// (default mc-lane). A hook sees only the mods admitted after it, so this is
+// only airtight when ato-guard is first in managed `prependPlugins` (README).
+//
 // Functions that take `$` are top-level declarations: the engine scans the
 // module before loading it and refuses `$` handed to anything else.
 
@@ -18,6 +25,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { AUDIT_DIR, AUDIT_FILE, auditLine, needsRoll, rollName } from './audit'
 import { decide, isAtoRemote } from './guard'
 import { maskValue, total, type Counts } from './mask'
+import { parseAllow, refuseReason } from './policy'
 
 // Module state. A reload starts it over, and scope is looked up again.
 const st = {
@@ -76,7 +84,26 @@ async function audit($: EngineInterface, tool: string, decision: string, counts:
   }
 }
 
+// plugin.register: refuse a mod that could rewrite what Claude runs or reads.
+async function judgeMod(
+  $: EngineInterface,
+  e: { name: string; provenance: string; tier: string; uses: { events: readonly string[] } },
+): Promise<string | null> {
+  if (e.tier === 'builtin' || !(await inScope($))) return null
+  const allow = parseAllow(await $.env.get('ATO_GUARD_ALLOW_MODS'))
+  return refuseReason({ name: e.name, provenance: e.provenance, tier: e.tier, events: e.uses.events }, allow)
+}
+
 export const register: Register = on => {
+  on('plugin.register', async ($, e, next) => {
+    const reason = await judgeMod($, e)
+    return reason === null ? next(e) : { refuse: reason }
+  }).catch(async ($, e, next) => {
+    // Fail closed, but only where the guard is known to be in scope.
+    if (e.tier === 'builtin' || st.active !== true) return next(e)
+    return { refuse: 'the ATO repository mod check failed, so this mod was not loaded' }
+  })
+
   on('session.start', async ($, e, next) => {
     st.active = undefined
     return next(e)

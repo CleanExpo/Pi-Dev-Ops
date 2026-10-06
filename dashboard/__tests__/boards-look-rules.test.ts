@@ -88,7 +88,10 @@ describe("no new write path (G2, G3)", () => {
     const diff = execFileSync("git", ["-C", REPO, "diff", "--name-status", "origin/main...HEAD"], { encoding: "utf8" });
     const added = diff.split("\n").filter((l) => l.startsWith("A\t")).map((l) => l.slice(2));
     expect(added.filter((f) => f.startsWith("dashboard/app/api/"))).toEqual([]);
-    expect(added.filter((f) => /^(supabase|mesh\/schema)\//.test(f))).toEqual([]);
+    // Spec G2 forbids a new table, not every new migration: an added schema file may alter an
+    // existing table (e.g. widen a CHECK) but must not create one.
+    const addedSql = added.filter((f) => /^(supabase|mesh\/schema)\/.*\.sql$/.test(f));
+    expect(addedSql.filter((f) => /create\s+table/i.test(readFileSync(path.join(REPO, f), "utf8")))).toEqual([]);
     const patch = execFileSync("git", ["-C", REPO, "diff", "origin/main...HEAD", "--", "dashboard/app/api", "supabase", "mesh/schema", "app/server/routes"], { encoding: "utf8" });
     const addedLines = patch.split("\n").filter((l) => l.startsWith("+") && !l.startsWith("+++"));
     expect(addedLines.filter((l) => /export\s+(async\s+)?function\s+(POST|PUT|PATCH|DELETE)\b|create\s+table/i.test(l))).toEqual([]);

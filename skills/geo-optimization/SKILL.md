@@ -341,3 +341,10 @@ The AEO KPI is **citation presence, not rank**. Run the target query set through
 - `accessibility-audit` — accessibility tree well-formedness overlaps with §6 audit 1
 - `synthex-client-audit` (forthcoming) — will invoke this skill's §7 checklist as its core engine
 - `eeat` — E-E-A-T author authority + entity trust signals feed AEO citation confidence (§11.3)
+
+## Ship gate (Prove mode)
+
+When this skill changes something that already exists in a way a person would judge (wording, behaviour,
+design, a model or prompt, a cost line), the change ships only after it beats the current version. Call the
+Skill tool with "gauntlet-loop" and follow its Prove mode. Mechanical fixes that a hard check proves (a
+broken link repaired, a failing test made to pass) do not need it.

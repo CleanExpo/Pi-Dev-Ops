@@ -31,7 +31,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from mesh_helpers import Break as _Break  # noqa: E402
 from mesh_helpers import SHIPPED, ImmediateProc as _ImmediateProc  # noqa: E402
-from mesh_helpers import load_module as _load  # noqa: E402
+from mesh_helpers import is_issue_read, issue_by_id, load_module as _load  # noqa: E402
 
 
 # ── Fake Supabase enforcing the partial unique index ─────────────────────────
@@ -88,7 +88,7 @@ class FakeLinear:
             issue_id = query.split('id:"')[1].split('"')[0]
             self.started.add(issue_id)
             return {"issueUpdate": {"success": True}}
-        return {}
+        return issue_by_id(query, [n for i, n in self.pool.items() if i not in self.started]) if is_issue_read(query) else {}
 
 
 @pytest.fixture
@@ -212,7 +212,7 @@ def test_dispatch_transitions_issue_out_of_pool(mesh_client):
 
 
 def monkeypatch_linear(mesh, data):
-    mesh._linear_graphql = lambda q: data
+    mesh._linear_graphql = lambda q: issue_by_id(q, (data.get("issues") or {}).get("nodes", [])) if is_issue_read(q) else data
 
 
 def monkeypatch_open(mesh, ids):

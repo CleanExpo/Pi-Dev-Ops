@@ -1,0 +1,7 @@
+{
+  "name": "mission-control",
+  "description": "Read-only Mission Control fleet view: /mc pane (machines, heartbeat age, open claims, recent ships) and a fleet_status tool",
+  "author": {
+    "name": "Unite-Group"
+  }
+}
