@@ -23,6 +23,8 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from mesh_helpers import is_issue_read, issue_by_id  # noqa: E402
+
 HDR = {"X-Pi-CEO-Secret": "test-secret"}
 
 
@@ -55,6 +57,8 @@ def _claim(client, mesh, *, title: str, description: str) -> dict:
         {"team": {"states": {"nodes": [{"id": "st", "type": "started", "position": 1}]}}}
         if q.startswith("query{team") else
         {"issueUpdate": {"success": True}} if q.startswith("mutation") else
+        issue_by_id(q, [{"id": "UNI-9", "identifier": "UNI-9", "title": title, "description": description,
+                         "priority": 1, "team": {"id": "team-1"}}]) if is_issue_read(q) else
         {"issues": {"nodes": [{"id": "UNI-9", "identifier": "UNI-9", "title": title,
                                "description": description, "priority": 1,
                                "team": {"id": "team-1"}}]}}

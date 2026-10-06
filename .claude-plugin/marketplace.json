@@ -12,13 +12,25 @@
     {
       "name": "ato-guard",
       "source": "./mods/ato-guard",
-      "description": "In the ATO repository only: masks taxpayer identifiers (TFN, ABN, bank details) and Xero/Bearer tokens before Claude reads them, blocks Xero and SBR/lodgement writes, and keeps a local audit of counts only.",
+      "description": "In the ATO repository only: masks taxpayer identifiers (TFN, ABN, bank details) and Xero/Bearer tokens before Claude reads them, blocks Xero and SBR/lodgement writes, refuses other mods that rewrite tool calls or prompts, and keeps a local audit of counts only.",
       "author": { "name": "Unite-Group" }
     },
     {
       "name": "synthex-main-status",
       "source": "./mods/synthex-main-status",
       "description": "In CleanExpo/Synthex sessions, shows a status line while Synthex main CI is red (read-only gh run list every two minutes).",
+      "author": { "name": "Unite-Group" }
+    },
+    {
+      "name": "mission-control",
+      "source": "./mods/mission-control",
+      "description": "Read-only fleet view: /mc opens a pane with each machine's status and heartbeat age, open claims and recent ships; fleet_status gives Claude the same summary. A failed read shows as unknown, never as a healthy fleet.",
+      "author": { "name": "Unite-Group" }
+    },
+    {
+      "name": "fleet-guard",
+      "source": "./mods/fleet-guard",
+      "description": "Keeps subagents and agent-team teammates on allowed models (FLEET_GUARD_MODELS) and caps concurrent teammates (FLEET_GUARD_MAX_TEAMMATES). Inert when both are unset.",
       "author": { "name": "Unite-Group" }
     }
   ]

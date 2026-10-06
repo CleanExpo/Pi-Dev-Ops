@@ -32,12 +32,13 @@ def _ready(identifier: str, extra_labels: list[str], priority: int, issue_id: st
         "state": {"name": "Ready for Pi-Dev"},
         "labels": {"nodes": labels},
         "priority": priority,
+        "project": {"id": "p1"},
     }
 
 
 def _gql_nodes(nodes: list[dict]):
     def _fake_gql(_key, _query, _vars):
-        return {"project": {"issues": {"nodes": nodes}}}
+        return {"issues": {"nodes": nodes}}
     return _fake_gql
 
 

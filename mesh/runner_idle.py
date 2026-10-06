@@ -54,7 +54,7 @@ class Log:
 
 def hold(rt: SimpleNamespace, health: node_health.NodeHealth, once: bool) -> int | None:
     """Report a node that may not claim. An exit code for --once, else None after the poll wait."""
-    rt.write_state(None, health.state)  # the heartbeat reports blocked/quarantined
+    rt.write_state(None, health.state, hold_reason=health.reason or None)  # heartbeat reports the hold
     rt.LOG.holds += 1
     print(rt.LOG.line(health, runner=rt.HOST, status=health.state.upper(), reason=health.reason,
                       holds=rt.LOG.holds), flush=True)
@@ -88,5 +88,6 @@ def idle(rt: SimpleNamespace, updater: self_update.Updater | None,
                     return 0
                 except OSError:
                     rt.time.sleep(rt.POLL_INTERVAL)
-    rt.write_state(None, "idle" if health.state == "healthy" else health.state)
+    held = health.state != "healthy"
+    rt.write_state(None, health.state if held else "idle", hold_reason=(health.reason or None) if held else None)
     return None

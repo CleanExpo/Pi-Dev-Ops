@@ -8,13 +8,15 @@ Locks the behavior of the multi-project autonomy poller:
     `projects.json` is missing or malformed.
   - `fetch_todo_issues()` iterates every project, annotates issues with
     `_repo_url` + `_team_id` + `_project_name`, and dedupes by issue id.
-  - `fetch_todo_issues()` keeps going when one project's fetch fails.
+  - `fetch_todo_issues()` claims nothing when its one portfolio read fails (RA-7931).
   - `_extract_repo_url()` prioritises explicit `repo:` labels over the
     mapped annotation, and the mapped annotation over the Pi-Dev-Ops default.
 """
 import json
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from app.server import autonomy
 
@@ -107,23 +109,24 @@ def test_fetch_todo_issues_iterates_and_annotates(tmp_path):
          "linear_project_id": "proj-beta", "linear_team_id": "team-beta",
          "linear_project_name": "Beta"},
     ])
+    calls: list[dict] = []
 
     def fake_gql(api_key, query, variables):
-        project_id = variables["projectId"]
-        if project_id == "proj-alpha":
-            return {"project": {"issues": {"nodes": [
-                _ready_issue(id="a1", identifier="A-1", title="A one", priority=2),
-            ]}}}
-        if project_id == "proj-beta":
-            return {"project": {"issues": {"nodes": [
-                _ready_issue(id="b1", identifier="B-1", title="B one", priority=1),
-            ]}}}
-        return {"project": None}
+        calls.append(variables)
+        # RA-7931: one read for every project; each node names its own project.
+        assert variables["projectIds"] == ["proj-alpha", "proj-beta"]
+        return {"issues": {"nodes": [
+            _ready_issue(id="a1", identifier="A-1", title="A one", priority=2,
+                         project={"id": "proj-alpha"}),
+            _ready_issue(id="b1", identifier="B-1", title="B one", priority=1,
+                         project={"id": "proj-beta"}),
+        ]}}
 
     with patch.object(autonomy, "_PROJECTS_JSON", registry), \
          patch.object(autonomy, "_gql", side_effect=fake_gql):
         issues = autonomy.fetch_todo_issues("fake-key")
 
+    assert len(calls) == 1
     ids = [i["identifier"] for i in issues]
     assert set(ids) == {"A-1", "B-1"}
     # Urgent (priority=1) sorts before High (priority=2)
@@ -136,48 +139,48 @@ def test_fetch_todo_issues_iterates_and_annotates(tmp_path):
     assert by_id["B-1"]["_team_id"] == "team-beta"
 
 
-def test_fetch_todo_issues_survives_single_project_failure(tmp_path):
+def test_fetch_todo_issues_failed_read_claims_nothing(tmp_path):
+    """RA-7931: the queue is one read, so a failure leaves nothing to claim —
+    never a partial queue; strict callers get the error."""
     registry = _write_registry(tmp_path, [
         {"id": "alpha", "repo": "acme/alpha",
          "linear_project_id": "proj-alpha", "linear_team_id": "team-alpha"},
-        {"id": "beta", "repo": "acme/beta",
-         "linear_project_id": "proj-beta", "linear_team_id": "team-beta"},
     ])
 
     def fake_gql(api_key, query, variables):
-        if variables["projectId"] == "proj-alpha":
-            raise RuntimeError("Linear HTTP 500")
-        return {"project": {"issues": {"nodes": [
-            _ready_issue(id="b1", identifier="B-1", title="B one", priority=2),
-        ]}}}
+        raise RuntimeError("Linear HTTP 500")
 
     with patch.object(autonomy, "_PROJECTS_JSON", registry), \
          patch.object(autonomy, "_gql", side_effect=fake_gql):
-        issues = autonomy.fetch_todo_issues("fake-key")
+        assert autonomy.fetch_todo_issues("fake-key") == []
+        with pytest.raises(RuntimeError, match="portfolio scan failed"):
+            autonomy.fetch_todo_issues("fake-key", fail_on_error=True)
 
-    # Alpha failed but Beta still returned
-    assert [i["identifier"] for i in issues] == ["B-1"]
 
-
-def test_fetch_todo_issues_dedupes_cross_project(tmp_path):
-    """Same issue ID across two project results should appear once."""
+def test_fetch_todo_issues_dedupes_and_first_registry_row_wins(tmp_path):
+    """The same issue on two pages appears once; a project id registered twice
+    maps to its first registry row, as the per-project loop's order did."""
     registry = _write_registry(tmp_path, [
         {"id": "alpha", "repo": "acme/alpha",
          "linear_project_id": "proj-alpha", "linear_team_id": "team-alpha"},
-        {"id": "beta", "repo": "acme/beta",
-         "linear_project_id": "proj-beta", "linear_team_id": "team-beta"},
+        {"id": "alpha-2", "repo": "acme/alpha-two",
+         "linear_project_id": "proj-alpha", "linear_team_id": "team-other"},
     ])
-    shared = _ready_issue(id="shared-1", identifier="X-1", title="Shared", priority=2)
+    shared = _ready_issue(id="shared-1", identifier="X-1", title="Shared", priority=2,
+                          project={"id": "proj-alpha"})
 
     def fake_gql(api_key, query, variables):
-        return {"project": {"issues": {"nodes": [shared]}}}
+        assert variables["projectIds"] == ["proj-alpha"]
+        if variables.get("after"):
+            return {"issues": {"nodes": [dict(shared)], "pageInfo": {"hasNextPage": False}}}
+        return {"issues": {"nodes": [dict(shared)],
+                           "pageInfo": {"hasNextPage": True, "endCursor": "c1"}}}
 
     with patch.object(autonomy, "_PROJECTS_JSON", registry), \
          patch.object(autonomy, "_gql", side_effect=fake_gql):
         issues = autonomy.fetch_todo_issues("fake-key")
 
     assert len(issues) == 1
-    # First-seen wins — Alpha was iterated first
     assert issues[0]["_team_id"] == "team-alpha"
 
 

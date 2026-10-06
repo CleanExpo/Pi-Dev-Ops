@@ -1,6 +1,6 @@
 # Claude Code mods — vendored developer docs
 
-Pulled 2026-10-04 from the official Claude Code docs (`code.claude.com/docs/en/plugins/mods/*.md`)
+Pulled 2026-10-04, re-checked 2026-10-06 (pages unchanged; still written against v2.1.289) from the official Claude Code docs (`code.claude.com/docs/en/plugins/mods/*.md`)
 and the `anthropics/claude-code` CHANGELOG. Docs are written against **Claude Code v2.1.289**
 (stated at the top of `reference.md`). Mods shipped in **v2.1.287** ("Added Claude Mods: plugins may
 now modify deeper behavior"); launch post: https://claude.com/blog/claude-code-mods (1 Oct 2026).
@@ -21,7 +21,8 @@ changelog is moving fast (2.1.288 and 2.1.289 are mostly mod fixes).
 | `troubleshoot.md` | /plugins/mods/troubleshoot | Refusal messages, debug log |
 | `admin.md` | /plugins/mods/admin | Managed settings: `allowManagedModsOnly`, `allowManagedHooksOnly`, `disableAllHooks`, org mods |
 | `plugins-overview.md` | /plugins | Plugin packaging (mods ship inside plugins) |
-| `CHANGELOG-2.1.287-289.md` | anthropics/claude-code CHANGELOG | Launch + two follow-up releases |
+| `CHANGELOG-2.1.287-289.md` | anthropics/claude-code CHANGELOG | Launch + two follow-up releases, unfiltered |
+| `CHANGELOG-2.1.288-289.md` | anthropics/claude-code CHANGELOG | 2.1.288 and 2.1.289, mod and plugin entries only (e.g. `agent.spawn` for teammates) |
 
 Refresh: `for p in overview create interface gallery events api reference test troubleshoot admin; do curl -fsSL -o $p.md https://code.claude.com/docs/en/plugins/mods/$p.md; done`
 
