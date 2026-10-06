@@ -9,6 +9,7 @@ from __future__ import annotations
 import io
 import json
 import sys
+import time
 import urllib.error
 from pathlib import Path
 
@@ -170,9 +171,10 @@ def test_a_ticket_blocked_after_the_shared_read_is_not_claimed(monkeypatch, tmp_
     warm_state = dict(route_cache._state, value=None)
     assert claim()["claimed"] is None
     from app.server.routes import mesh as routes_mesh
-    seen = {"reads": reads, "warm": warm_state, "after": dict(route_cache._state, value=None),
-            "route_uses_this_cache": routes_mesh.claim_self.__globals__["mesh_queue_cache"] is route_cache,
-            "sys_modules_cache_is_this": sys.modules.get("app.server.mesh_queue_cache") is route_cache}
+    seen = (f"warm_at={warm_state['at']} after_at={route_cache._state['at']} ttl={route_cache.TTL_S} "
+            f"same_route={routes_mesh.claim_self.__globals__['mesh_queue_cache'] is route_cache} "
+            f"same_sys={sys.modules.get('app.server.mesh_queue_cache') is route_cache} "
+            f"clock_real={route_cache.candidates.__defaults__[0] is time.monotonic} reads={reads}")
     assert sum(r.startswith("query{issues") for r in reads) == 1, seen  # still one shared queue read
 
 
