@@ -22,6 +22,7 @@
  * Concurrency: run() has no cap. The caller (sandcastle-runner) keeps the
  * MAX_CONCURRENT_SANDCASTLE_RUNS counter; this script runs exactly one job.
  */
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -34,6 +35,10 @@ interface RunConfig {
   prompt?: string;
   promptFile?: string;
   model: string;
+  /** Named branch the job commits to. Required: without it run() defaults to
+   *  merge-to-head (isolated) or head (bind-mount) and writes into the host's
+   *  current branch. */
+  branch: string;
   sandbox: SandboxName;
   /** Provider options, e.g. { imageName } for docker/podman (moved here in 0.6+). */
   sandboxOptions?: Record<string, unknown>;
@@ -71,6 +76,12 @@ function loadConfig(path: string | undefined): RunConfig {
   if (!cfg.cwd || !cfg.model || !Object.hasOwn(PROVIDER_MODULES, cfg.sandbox)) {
     emit("failed", 2, { error: "config needs cwd, model and a known sandbox" });
   }
+  if (typeof cfg.branch !== "string" || !cfg.branch.trim()) {
+    emit("failed", 2, { error: "config needs a non-empty branch (never the host's current branch)" });
+  }
+  if (cfg.branch === hostBranch(cfg.cwd)) {
+    emit("failed", 2, { error: `branch ${cfg.branch} is the host checkout's current branch` });
+  }
   if (cfg.sandbox === "noSandbox" && cfg.allowUnisolated !== true) {
     emit("failed", 2, { error: "noSandbox runs on the host with no isolation; set allowUnisolated: true (dry-run/smoke only)" });
   }
@@ -78,6 +89,18 @@ function loadConfig(path: string | undefined): RunConfig {
     emit("failed", 2, { error: "config needs exactly one of prompt / promptFile" });
   }
   return cfg;
+}
+
+/** The host checkout's current branch, or null when detached / not a repo. */
+function hostBranch(cwd: string): string | null {
+  try {
+    return execFileSync("git", ["-C", cwd, "symbolic-ref", "--quiet", "--short", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
+  }
 }
 
 /** Same flags the Python kill switches read: TAO_HARD_STOP_FILE plus caller-supplied ones. */
@@ -111,6 +134,7 @@ async function main(): Promise<void> {
       agent: claudeCode(cfg.model, { permissionMode: "auto", env: cfg.agentEnv ?? {} }),
       sandbox: await loadSandbox(cfg),
       cwd: cfg.cwd,
+      branchStrategy: { type: "branch", branch: cfg.branch },
       ...(cfg.prompt ? { prompt: cfg.prompt } : { promptFile: cfg.promptFile }),
       maxIterations: cfg.maxIterations ?? 1,
       idleTimeoutSeconds: cfg.idleTimeoutSeconds ?? 600,
