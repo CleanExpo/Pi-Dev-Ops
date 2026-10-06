@@ -32,7 +32,7 @@ log = logging.getLogger("pi-ceo.mesh_run_record")
 # Mirrors `mesh/run_record`: a closed set of literals. No suffix, no pattern —
 # an exception class name is text somebody chose, and it once carried a secret.
 _ERROR_CODES = frozenset({"agent_exit", "timeout", "repo_missing", "worktree_add_failed",
-                          "runner_exception", "runner_exception_os"})
+                          "runner_exception", "runner_exception_os", "agent_quota"})
 # Exactly what the runner generates (uuid4().hex[:8]); a longer hex string is
 # not a run id, it is text of unknown origin. Shape cannot prove a value is not
 # a secret — it only bounds what can be stored to what the runner produces.

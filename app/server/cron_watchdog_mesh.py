@@ -7,6 +7,9 @@ Two signals now cover it, read from the `mesh_fleet` view every watchdog cycle:
   * `runner-down`: the node's heartbeat reports its runner breadcrumb has not
     updated for 15 min (mesh/node_health.py `runner_down`).
   * silent: no heartbeat at all for 15 min (machine off, asleep or heartbeat dead).
+  * `quota` (RA-7930): the node's Claude account is out of quota, so its runner
+    claims nothing until the reset. The fleet view carries the status only; the
+    reset time is in the node's runner log and breadcrumb `hold_reason`.
 
 Each problem pages once per outage: Telegram through the shared edge-triggered
 sender, and a red Linear ticket (so the alert exists even with Telegram switched
@@ -48,6 +51,9 @@ def problems(rows: list[dict], reason: str | None, now: float) -> dict[str, str]
         elif row.get("status") == "runner-down":
             out[f"runner-down:{host}"] = (f"{host}: mesh runner has not polled for 15+ min "
                                           "(heartbeat is alive). Restart it with mesh/bootstrap.sh.")
+        elif row.get("status") == "quota":
+            out[f"quota:{host}"] = (f"{host}: Claude quota exhausted; its mesh runner claims nothing "
+                                    "until the reset (time in the runner log hold_reason), then re-runs preflight.")
     return out
 
 
