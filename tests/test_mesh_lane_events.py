@@ -111,6 +111,19 @@ def test_extra_fields_never_reach_the_row(lane):
     assert "command" not in row and "output" not in row
 
 
+def test_agent_start_is_stored_with_type_and_model_only(lane):
+    """A subagent/teammate start (mod's agent.spawn): agent type in `tool`, its model."""
+    client, calls, _ = lane
+    ev = _ev(kind="agent_start", seq=3, tool="Explore", model="claude-haiku-4-5", ms=None,
+             prompt="read ~/.ssh/id_rsa")
+    r = client.post("/api/mesh/lane-events", headers=HDR, json={"host": "h", "events": [ev]})
+    assert r.json() == {"ok": True, "stored": 1, "rejected": 0, "acked": {"sess-1": 3}}
+    row = calls[0][2][0]
+    assert row["kind"] == "agent_start" and row["tool"] == "Explore"
+    assert row["model"] == "claude-haiku-4-5" and row["ok"] is True
+    assert "prompt" not in row and "id_rsa" not in json.dumps(row)
+
+
 def test_unknown_kind_is_rejected_but_acked(lane):
     client, calls, _ = lane
     r = client.post("/api/mesh/lane-events", headers=HDR,

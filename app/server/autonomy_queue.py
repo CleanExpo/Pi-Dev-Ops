@@ -32,7 +32,7 @@ from app.server.autonomy_eligibility import (
 log = logging.getLogger("pi-ceo.autonomy")
 
 PAGE_SIZE = 10  # three 50-node guard connections per issue; 25 exceeded Linear's 10,000 (RA-7910)
-MAX_PAGES = 50  # 500 tickets per project/label; a runaway cursor cannot spin forever
+MAX_PAGES = 50  # 500 Ready tickets across the portfolio; a runaway cursor cannot spin forever
 TOKEN_CAP_LABEL = "pi-dev:blocked-reason:token-cap"
 START_FAILED_LABEL = "pi-dev:blocked-reason:start-failed"
 SESSION_FAILED_LABEL = "pi-dev:blocked-reason:session-failed"
@@ -41,26 +41,30 @@ SESSION_FAILED_LABEL = "pi-dev:blocked-reason:session-failed"
 _UNKNOWN_SESSION_SPEND = 100_000
 _DEFAULT_TICKET_TOKEN_CAP = 300_000  # three default session budgets
 
+# RA-7931: ONE read across every portfolio project and both autonomy labels. The
+# old read ran per project x per label (15 x 2 = 30+ requests every poll, ~360+/h
+# of the fleet key's 2,500/h). Every filter key is an AND of field comparators —
+# no top-level ``or``, which Linear silently ignored in RA-7910 (it matched every
+# issue). ``project.id.in`` and ``labels.name.in`` were verified live to filter.
 TODO_ISSUES_QUERY = """
-query AutonomyQueueIssues($projectId: String!, $statusName: String!, $autonomyLabel: String!, $after: String) {
-    project(id: $projectId) {
-        issues(filter: {
-            state: { name: { eq: $statusName } }
-            labels: { name: { eq: $autonomyLabel } }
-        }, first: %d, after: $after, orderBy: updatedAt) {
-            pageInfo { hasNextPage endCursor }
-            nodes {
-                id
-                identifier
-                title
-                description
-                priority
-                url
-                estimate
-                state { id name type }
-                labels { nodes { name } }
-                %s
-            }
+query AutonomyQueueIssues($projectIds: [ID!]!, $statusName: String!, $labelNames: [String!]!, $after: String) {
+    issues(filter: {
+        project: { id: { in: $projectIds } }
+        state: { name: { eq: $statusName } }
+        labels: { name: { in: $labelNames } }
+    }, first: %d, after: $after, orderBy: updatedAt) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+            id
+            identifier
+            title
+            description
+            priority
+            url
+            estimate
+            state { id name type }
+            labels { nodes { name } }
+            %s
         }
     }
 }
@@ -68,11 +72,11 @@ query AutonomyQueueIssues($projectId: String!, $statusName: String!, $autonomyLa
 
 
 def issue_pages(gql: Callable[..., dict], api_key: str, variables: dict) -> Iterator[dict]:
-    """Yield every issue node of one project/label read, following ``pageInfo``."""
+    """Yield every issue node of the portfolio queue read, following ``pageInfo``."""
     after = None
     for _ in range(MAX_PAGES):
         data = gql(api_key, TODO_ISSUES_QUERY, {**variables, "after": after})
-        nodes, more, after = page_of((data.get("project") or {}).get("issues"))
+        nodes, more, after = page_of(data.get("issues"))
         yield from nodes
         if not more:
             return

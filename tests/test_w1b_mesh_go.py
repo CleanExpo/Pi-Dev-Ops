@@ -32,14 +32,19 @@ def test_mesh_candidates_take_autonomous_todo_and_ready_under_shared_rule(monkey
     queries: list = []
 
     def gql(q):
+        # One query per branch since RA-7910: the build/plan branch is served empty here,
+        # the autonomous branch carries every fixture node over two pages.
         queries.append(q)
+        if '"pi-dev:autonomous"' not in q:
+            return {"issues": {"nodes": [], "pageInfo": {"hasNextPage": False}}}
         if "after:" not in q:
             return {"issues": {"nodes": _mesh_nodes()[:3], "pageInfo": {"hasNextPage": True, "endCursor": "c1"}}}
         return {"issues": {"nodes": _mesh_nodes()[3:], "pageInfo": {"hasNextPage": False}}}
 
     nodes, repos = mesh_lanes.candidates(gql)
     assert [n["identifier"] for n in nodes] == ["UNI-2801", "UNI-TODO", "UNI-MESH"]
-    assert '"pi-dev:autonomous"' in queries[0] and 'after:"c1"' in queries[1]
+    auto = [q for q in queries if '"pi-dev:autonomous"' in q]
+    assert len(auto) == 2 and 'after:"c1"' in auto[1]
     assert mesh_lanes.repo_of(nodes[0], repos) == "CleanExpo/ATO"
     assert mesh_lanes.repo_of(nodes[2], repos) is None
 
@@ -203,7 +208,7 @@ def test_an_incomplete_linear_read_is_refused_not_served_partial(monkeypatch):
     assert mesh_lanes.candidates(lambda _q: no_cursor)[0] == []
 
     def gql(_k, _q, _v):
-        return {"project": {"issues": {"nodes": [{"id": "a"}], "pageInfo": {"hasNextPage": True, "endCursor": "c"}}}}
+        return {"issues": {"nodes": [{"id": "a"}], "pageInfo": {"hasNextPage": True, "endCursor": "c"}}}
 
     with pytest.raises(RuntimeError):
         list(autonomy_queue.issue_pages(gql, "k", {}))
@@ -233,7 +238,7 @@ def test_a_graphql_error_inside_a_200_is_an_incomplete_read(monkeypatch):
     pages = iter([{"issues": first}, {"issues": None}])  # claim/self: unknown, not empty -> 503
     with pytest.raises(AE.IncompleteRead):
         mesh_lanes.candidates(lambda _q: next(pages), strict=True)
-    seq = iter([{"project": {"issues": first}}, {"project": {"issues": None}}])
+    seq = iter([{"issues": first}, {"issues": None}])
     with pytest.raises(AE.IncompleteRead):
         list(autonomy_queue.issue_pages(lambda *_a: next(seq), "k", {}))
     monkeypatch.setattr(linear_tools, "_resolve_team", lambda _t: {"id": "team"})

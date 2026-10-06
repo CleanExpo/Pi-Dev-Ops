@@ -48,7 +48,10 @@ mc_router = APIRouter(prefix="/api/mission-control", tags=["mission-control"])
 MAX_BATCH = 200          # mods/mc-lane/hooks/lane.ts MAX_BATCH — keep equal
 MAX_READ = 500
 
-KINDS = {"session_start", "tool", "usage", "session_end"}
+# agent_start: a subagent or agent-team teammate started (mod's agent.spawn hook);
+# `tool` carries the agent type's name, `model` what it runs on. Needs
+# mesh/schema/0005_mesh_lane_events_agent_start.sql applied (kind CHECK).
+KINDS = {"session_start", "tool", "agent_start", "usage", "session_end"}
 _TOOL = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _REPO = re.compile(r"^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$")
 _MODEL = re.compile(r"^[A-Za-z0-9_.:\[\]-]{1,80}$")

@@ -77,12 +77,10 @@ _ROW = {"project_id": _PROJECT, "team_id": "team-a", "repo_url": "https://github
 def _paged_gql(pages: list[list[dict]], seen: list):
     def fake(_key, query, variables=None):
         seen.append((query, dict(variables or {})))
-        if variables.get("autonomyLabel") != "pi-dev:autonomous":
-            return {"project": {"issues": {"nodes": [], "pageInfo": {"hasNextPage": False}}}}
         idx = int(variables.get("after") or 0)
         more = idx + 1 < len(pages)
-        return {"project": {"issues": {"nodes": pages[idx], "pageInfo": {
-            "hasNextPage": more, "endCursor": str(idx + 1) if more else None}}}}
+        return {"issues": {"nodes": pages[idx], "pageInfo": {
+            "hasNextPage": more, "endCursor": str(idx + 1) if more else None}}}
     return fake
 
 
