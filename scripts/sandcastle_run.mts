@@ -26,7 +26,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { claudeCode, run, type SandboxProvider } from "@ai-hero/sandcastle";
+// Imported dynamically in main() so a missing package still yields the JSON result line.
+import type { SandboxProvider } from "@ai-hero/sandcastle";
 
 type SandboxName = "docker" | "podman" | "noSandbox" | "vercel" | "daytona";
 
@@ -78,7 +79,15 @@ function emit(status: string, exitCode: number, extra: Record<string, unknown>):
 
 function loadConfig(path: string | undefined): RunConfig {
   if (!path) emit("failed", 2, { error: "usage: sandcastle_run.mts <config.json>" });
-  const cfg = JSON.parse(readFileSync(path, "utf8")) as RunConfig;
+  let cfg: RunConfig;
+  try {
+    cfg = JSON.parse(readFileSync(path, "utf8")) as RunConfig;
+  } catch (err) {
+    emit("failed", 2, { error: `cannot read config: ${err instanceof Error ? err.message : String(err)}` });
+  }
+  if (typeof cfg !== "object" || cfg === null || Array.isArray(cfg)) {
+    emit("failed", 2, { error: "config must be a JSON object" });
+  }
   if (!cfg.cwd || !cfg.model || !Object.hasOwn(PROVIDER_MODULES, cfg.sandbox)) {
     emit("failed", 2, { error: "config needs cwd, model and a known sandbox" });
   }
@@ -136,6 +145,7 @@ async function main(): Promise<void> {
     process.on(sig, () => controller.abort(new Error(`signal: ${sig}`)));
   }
   try {
+    const { claudeCode, run } = await import("@ai-hero/sandcastle");
     const result = await run({
       agent: claudeCode(cfg.model, { permissionMode: "auto", env: cfg.agentEnv ?? {} }),
       sandbox: await loadSandbox(cfg),
@@ -163,4 +173,6 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+main().catch((err: unknown) => {
+  emit("failed", 1, { error: err instanceof Error ? err.message : String(err) });
+});
