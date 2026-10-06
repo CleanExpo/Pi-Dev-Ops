@@ -3,7 +3,7 @@
  * Reads /api/sessions through fetchProxyJSON; null means the backend did not
  * answer, which must never read as "every role idle".
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchProxyJSON = vi.fn<(path: string, init?: unknown) => Promise<unknown>>();
@@ -37,8 +37,9 @@ describe("AgentRolesPanel", () => {
   it("EMPTY: no sessions says idle, marks it honestly, and records no runs", async () => {
     fetchProxyJSON.mockResolvedValue([]);
     render(<AgentRolesPanel />);
-    const idle = await screen.findByText("idle");
-    expect(idle.getAttribute("data-mc-empty")).toBe("no build session is running right now");
+    // "idle" also renders while loading, before data-mc-empty is set: wait for the loaded state.
+    await waitFor(() =>
+      expect(screen.getByText("idle").getAttribute("data-mc-empty")).toBe("no build session is running right now"));
     expect(screen.getAllByText("no runs recorded yet").length).toBe(6);
   });
 
