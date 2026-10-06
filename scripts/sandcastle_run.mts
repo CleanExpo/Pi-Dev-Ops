@@ -65,8 +65,14 @@ const PROVIDER_MODULES: Record<SandboxName, [string, string]> = {
 
 const KILL_POLL_MS = 1000;
 
+// stdout belongs to the one JSON result line. Sandcastle prints status lines
+// ("[Agent] Started on branch ...", "tail -f <log>") with console.log, so every
+// other in-process stdout write is routed to stderr.
+const writeResult = process.stdout.write.bind(process.stdout);
+process.stdout.write = process.stderr.write.bind(process.stderr) as typeof process.stdout.write;
+
 function emit(status: string, exitCode: number, extra: Record<string, unknown>): never {
-  process.stdout.write(JSON.stringify({ type: "run_complete", result: { status, ...extra } }) + "\n");
+  writeResult(JSON.stringify({ type: "run_complete", result: { status, ...extra } }) + "\n");
   process.exit(exitCode);
 }
 
