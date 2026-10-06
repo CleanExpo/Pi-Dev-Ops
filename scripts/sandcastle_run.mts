@@ -72,8 +72,18 @@ const KILL_POLL_MS = 1000;
 const writeResult = process.stdout.write.bind(process.stdout);
 process.stdout.write = process.stderr.write.bind(process.stderr) as typeof process.stdout.write;
 
+// Values from the config's agentEnv/sandboxEnv. Agent and provider errors can
+// echo them (e.g. "claude-code exited with code 1:\n<agent output>"), so every
+// one is masked in the result line before it is written.
+const secretValues: string[] = [];
+
+function redact(text: string): string {
+  return secretValues.reduce((acc, v) => acc.split(v).join("[REDACTED]"), text);
+}
+
 function emit(status: string, exitCode: number, extra: Record<string, unknown>): never {
-  writeResult(JSON.stringify({ type: "run_complete", result: { status, ...extra } }) + "\n");
+  const line = JSON.stringify({ type: "run_complete", result: { status, ...extra } });
+  writeResult(redact(line) + "\n");
   process.exit(exitCode);
 }
 
@@ -137,6 +147,13 @@ async function loadSandbox(cfg: RunConfig): Promise<SandboxProvider> {
 
 async function main(): Promise<void> {
   const cfg = loadConfig(process.argv[2]);
+  for (const env of [cfg.agentEnv, cfg.sandboxEnv]) {
+    for (const v of Object.values(env ?? {})) {
+      // JSON-escaped form too, since the line is redacted after stringify.
+      if (typeof v === "string" && v.length >= 4) secretValues.push(JSON.stringify(v).slice(1, -1));
+    }
+  }
+  secretValues.sort((a, b) => b.length - a.length);
   const controller = new AbortController();
   const files = killSwitchFiles(cfg);
   const checkKill = (): void => {
