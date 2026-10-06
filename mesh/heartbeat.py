@@ -219,7 +219,7 @@ def node_status(agents: list, crumb: dict, down: bool = False) -> str:
     """A runner that stopped polling, then one that gated itself, say so above working/online (RA-7802)."""
     if down:
         return "runner-down"
-    if crumb.get("state") in ("blocked", "quarantined", "stuck"):
+    if crumb.get("state") in ("blocked", "quarantined", "stuck", "quota"):
         return crumb["state"]
     return "working" if agents else "online"
 

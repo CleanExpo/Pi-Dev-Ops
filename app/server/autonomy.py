@@ -46,6 +46,7 @@ from app.server.autonomy_eligibility import (
     READY_STATUS_NAME as _READY_STATUS_NAME,
 )
 from app.server import autonomy_queue as _aq
+from app.server.autonomy_portfolio import portfolio_issues as _portfolio_issues
 from .autonomy_orphan_queries import _IN_PROGRESS_QUERY, _RECOVERY_TARGET_QUERY
 from .autonomy_orphan_support import (
     issue_pages, needs_recovery_success, orphan_completion, recovery_comment_present,
@@ -301,33 +302,16 @@ def fetch_todo_issues(api_key: str, *, fail_on_error: bool = False,
                       refused: list | None = None) -> list[dict]:
     """Claimable queue, every page. Repeat-claim refusals go to ``refused``."""
     projects = _load_portfolio_projects()
-    seen: set[str] = set()
-    merged: list[dict] = []
-    for p in projects:
-        for label in (_AUTONOMY_LABEL, _MACHINE_SHIP_LABEL):
-            try:
-                nodes = list(_aq.issue_pages(_gql, api_key, {
-                    "projectId": p["project_id"],
-                    "statusName": _READY_STATUS_NAME,
-                    "autonomyLabel": label,
-                }))
-            except LinearRateLimitError:
-                raise
-            except Exception as exc:
-                if fail_on_error:
-                    raise RuntimeError("Linear portfolio scan failed") from None
-                log.warning("Autonomy: project %s label %s fetch failed: %s", p["name"], label, exc)
-                continue
-            for issue in nodes:
-                iid = issue.get("id")
-                if not iid or iid in seen:
-                    continue
-                seen.add(iid)
-                issue["_repo_url"] = p["repo_url"]
-                issue["_team_id"] = p["team_id"]
-                issue["_project_name"] = p["name"]
-                issue["_project_id"] = p["project_id"]
-                merged.append(issue)
+    try:  # RA-7931: one paginated read for every project and both labels
+        merged = _portfolio_issues(_gql, api_key, projects, _READY_STATUS_NAME,
+                                   (_AUTONOMY_LABEL, _MACHINE_SHIP_LABEL))
+    except LinearRateLimitError:
+        raise
+    except Exception as exc:
+        if fail_on_error:
+            raise RuntimeError("Linear portfolio scan failed") from None
+        log.warning("Autonomy: portfolio queue fetch failed, claiming nothing: %s", exc)
+        return []  # a failed or partial read is never the whole queue
     merged = _aq.claimable_or_refused(
         merged, refused,
         registered_project_ids={p["project_id"] for p in projects},

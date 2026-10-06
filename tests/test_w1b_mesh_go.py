@@ -208,7 +208,7 @@ def test_an_incomplete_linear_read_is_refused_not_served_partial(monkeypatch):
     assert mesh_lanes.candidates(lambda _q: no_cursor)[0] == []
 
     def gql(_k, _q, _v):
-        return {"project": {"issues": {"nodes": [{"id": "a"}], "pageInfo": {"hasNextPage": True, "endCursor": "c"}}}}
+        return {"issues": {"nodes": [{"id": "a"}], "pageInfo": {"hasNextPage": True, "endCursor": "c"}}}
 
     with pytest.raises(RuntimeError):
         list(autonomy_queue.issue_pages(gql, "k", {}))
@@ -238,7 +238,7 @@ def test_a_graphql_error_inside_a_200_is_an_incomplete_read(monkeypatch):
     pages = iter([{"issues": first}, {"issues": None}])  # claim/self: unknown, not empty -> 503
     with pytest.raises(AE.IncompleteRead):
         mesh_lanes.candidates(lambda _q: next(pages), strict=True)
-    seq = iter([{"project": {"issues": first}}, {"project": {"issues": None}}])
+    seq = iter([{"issues": first}, {"issues": None}])
     with pytest.raises(AE.IncompleteRead):
         list(autonomy_queue.issue_pages(lambda *_a: next(seq), "k", {}))
     monkeypatch.setattr(linear_tools, "_resolve_team", lambda _t: {"id": "team"})

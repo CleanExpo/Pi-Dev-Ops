@@ -27,15 +27,14 @@ from app.server import autonomy
 
 # ── Block A — autonomy queue filter -----------------------------------------
 def test_fetch_todo_issues_filter_requires_status_and_label():
-    """fetch_todo_issues must send both statusName + autonomyLabel variables to
-    the GraphQL query. It queries each project once per autonomy label — the
-    `pi-dev:autonomous` and `pi-dev:machine-ship` queues (b45da6aa) — so a single
-    project yields two calls, one per label."""
+    """fetch_todo_issues must send statusName + both autonomy labels to the
+    GraphQL query. Since RA-7931 it is ONE read covering every project and both
+    the `pi-dev:autonomous` and `pi-dev:machine-ship` queues (b45da6aa)."""
     captured: list[dict] = []
 
     def fake_gql(api_key, query, variables=None):
         captured.append({"query": query, "variables": variables or {}})
-        return {"project": {"issues": {"nodes": []}}}
+        return {"issues": {"nodes": []}}
 
     # Use the single Pi-Dev-Ops fallback project so the test is deterministic
     # whether or not projects.json is available on the CI runner.
@@ -48,25 +47,21 @@ def test_fetch_todo_issues_filter_requires_status_and_label():
         with patch.object(autonomy, "_gql", side_effect=fake_gql):
             autonomy.fetch_todo_issues("k")
 
-    # One call per autonomy label for the single project.
-    assert len(captured) == 2
-    for cap in captured:
-        q = cap["query"]
-        v = cap["variables"]
-        # Query shape: status name filter + labels filter (the two MUST-haves).
-        assert "state: { name: { eq: $statusName }" in q
-        assert "labels: { name: { eq: $autonomyLabel }" in q
-        # Old filter disallowed — no state.type and no priority filter any more.
-        assert "type: { in:" not in q, "old state.type filter must be removed"
-        assert "priority:" not in q, "priority filter was removed (label + status is the contract signal)"
-        assert v["statusName"] == "Ready for Pi-Dev"
-        assert v["projectId"]  == "proj-a"
-
-    # Both autonomy queues are polled, exactly once each.
-    assert {cap["variables"]["autonomyLabel"] for cap in captured} == {
-        "pi-dev:autonomous",
-        "pi-dev:machine-ship",
-    }
+    # One call for the whole portfolio and both labels.
+    assert len(captured) == 1
+    q = captured[0]["query"]
+    v = captured[0]["variables"]
+    # Query shape: status name filter + labels filter (the two MUST-haves).
+    assert "state: { name: { eq: $statusName }" in q
+    assert "labels: { name: { in: $labelNames }" in q
+    assert "project: { id: { in: $projectIds }" in q
+    # Old filter disallowed — no state.type and no priority filter any more.
+    assert "type: { in:" not in q, "old state.type filter must be removed"
+    assert "priority:" not in q, "priority filter was removed (label + status is the contract signal)"
+    assert v["statusName"] == "Ready for Pi-Dev"
+    assert v["projectIds"] == ["proj-a"]
+    # Both autonomy queues are read in that one call.
+    assert set(v["labelNames"]) == {"pi-dev:autonomous", "pi-dev:machine-ship"}
 
 
 def test_autonomy_constants_match_contract():
