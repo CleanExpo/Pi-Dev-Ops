@@ -1,6 +1,6 @@
 ---
 name: sandcastle-runner
-description: The primitive. Wraps a single Sandcastle job (`npx tsx .sandcastle/sandcastle_run.mts`, which calls the pinned @ai-hero/sandcastle@0.12.0 `run()` API) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 item 1 (RA-1856 epic). Use when a Pi-CEO orchestrator needs to run a code-executing AFK agent through the pinned Sandcastle `run()` API in an isolated Docker, Podman, Vercel Firecracker or Daytona sandbox, such as for Linear tickets labelled sandcastle:high-isolation, parallel implementer or reviewer runs, or work needing a kill-switch check, concurrency cap and stdout streamed into session.logs.
+description: The primitive. Wraps a single Sandcastle job (`npx --no-install tsx .sandcastle/sandcastle_run.mts`, which calls the pinned @ai-hero/sandcastle@0.12.0 `run()` API) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 item 1 (RA-1856 epic). Use when a Pi-CEO orchestrator needs to run a code-executing AFK agent through the pinned Sandcastle `run()` API in an isolated Docker, Podman, Vercel Firecracker or Daytona sandbox, such as for Linear tickets labelled sandcastle:high-isolation, parallel implementer or reviewer runs, or work needing a kill-switch check, concurrency cap and stdout streamed into session.logs.
 owner_role: Builder
 status: wave-5
 ---
@@ -13,7 +13,7 @@ The Pi-CEO ↔ Sandcastle bridge. One subprocess boundary. Every other Wave 5 sk
 
 Pi-CEO's existing AFK pipeline runs code in `/tmp/pi-ceo-workspaces/{sid}/` git clones — branch isolation only, no container, no resource limits, no permission gating. Acceptable for low-risk autonomy; insufficient for real AFK execution against real production secrets.
 
-Matt Pocock's [Sandcastle](https://github.com/mattpocock/sandcastle) ships container isolation + a parallel-implementer pattern + provider-pluggable agents. One `npx tsx .sandcastle/sandcastle_run.mts <config.json>` per code-executing job, parsed via its one-line JSON stdout, agent output streamed into existing `session.logs` so the dashboard SSE keeps working unchanged.
+Matt Pocock's [Sandcastle](https://github.com/mattpocock/sandcastle) ships container isolation + a parallel-implementer pattern + provider-pluggable agents. One `npx --no-install tsx .sandcastle/sandcastle_run.mts <config.json>` per code-executing job, parsed via its one-line JSON stdout, agent output streamed into existing `session.logs` so the dashboard SSE keeps working unchanged.
 
 **Never call bare `npx sandcastle`.** `@ai-hero/sandcastle` has no `run` command (its CLI is only `init` and `docker|podman build-image|remove-image`), and the unscoped npm name `sandcastle` is an unrelated 2022 package that `npx` would download and execute.
 
@@ -32,7 +32,7 @@ sandcastle_runner.run_sandcastle(SandcastleRunRequest)
   ├── resolve env-manifest in-memory via vercel-env-puller skill
   ├── write Sandcastle config to /dev/shm/sandcastle-{rid}.json (mode 0600)
   ├── audit_emit.row("sandcastle_run_started", ...)
-  ├── asyncio.create_subprocess_exec("npx", "tsx", ".sandcastle/sandcastle_run.mts", config_path)
+  ├── asyncio.create_subprocess_exec("npx", "--no-install", "tsx", ".sandcastle/sandcastle_run.mts", config_path)
   ├── readline-stream stdout → regex-strip secrets → parse_event → session.logs
   ├── on subprocess exit:
   │     ├── parse final RunResult JSON
@@ -150,7 +150,7 @@ Existing `audit_emit._maybe_redact` handles long-string redaction; we add the re
 
 ```python
 proc = await asyncio.create_subprocess_exec(
-    "npx", "tsx", ".sandcastle/sandcastle_run.mts", config_path,
+    "npx", "--no-install", "tsx", ".sandcastle/sandcastle_run.mts", config_path,
     cwd=req.repo_workdir,
     stdout=asyncio.subprocess.PIPE,
     stderr=asyncio.subprocess.STDOUT,

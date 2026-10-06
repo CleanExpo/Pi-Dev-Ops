@@ -33,6 +33,7 @@
 set -euo pipefail
 
 SANDCASTLE_VERSION="0.12.0"
+TSX_VERSION="4.23.15"
 RUNNER_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/sandcastle_run.mts"
 
 # ── Argument parsing ────────────────────────────────────────────────────────
@@ -104,18 +105,24 @@ if [[ -z "${GH_TOKEN:-}" ]] && [[ -z "${GITHUB_TOKEN:-}" ]]; then
 fi
 
 # ── Step 1: install @ai-hero/sandcastle ─────────────────────────────────────
-installed_sandcastle_version() {
-  node -p 'require("./node_modules/@ai-hero/sandcastle/package.json").version' 2>/dev/null || true
+installed_version() {
+  node -p "require('./node_modules/$1/package.json').version" 2>/dev/null || true
+}
+deps_installed() {
+  [[ "$(installed_version @ai-hero/sandcastle)" == "$SANDCASTLE_VERSION" ]] \
+    && [[ "$(installed_version tsx)" == "$TSX_VERSION" ]] \
+    && [[ -x node_modules/.bin/tsx ]]
 }
 if grep -q "\"@ai-hero/sandcastle\": \"$SANDCASTLE_VERSION\"" package.json 2>/dev/null \
-   && [[ "$(installed_sandcastle_version)" == "$SANDCASTLE_VERSION" ]]; then
-  echo "→ @ai-hero/sandcastle@$SANDCASTLE_VERSION already installed — skipping install"
+   && grep -q "\"tsx\": \"$TSX_VERSION\"" package.json 2>/dev/null \
+   && deps_installed; then
+  echo "→ @ai-hero/sandcastle@$SANDCASTLE_VERSION + tsx@$TSX_VERSION already installed — skipping install"
 else
-  echo "→ installing @ai-hero/sandcastle@$SANDCASTLE_VERSION + tsx"
-  npm install --save-dev --save-exact "@ai-hero/sandcastle@$SANDCASTLE_VERSION" tsx
+  echo "→ installing @ai-hero/sandcastle@$SANDCASTLE_VERSION + tsx@$TSX_VERSION"
+  npm install --save-dev --save-exact "@ai-hero/sandcastle@$SANDCASTLE_VERSION" "tsx@$TSX_VERSION"
 fi
-if [[ "$(installed_sandcastle_version)" != "$SANDCASTLE_VERSION" ]]; then
-  echo "✗ node_modules/@ai-hero/sandcastle is not version $SANDCASTLE_VERSION after install" >&2
+if ! deps_installed; then
+  echo "✗ node_modules lacks @ai-hero/sandcastle@$SANDCASTLE_VERSION or tsx@$TSX_VERSION (with .bin/tsx) after install" >&2
   exit 1
 fi
 
@@ -228,5 +235,5 @@ echo "  1. Set required env vars in .sandcastle/.env (use .sandcastle/.env.examp
 echo "     → ANTHROPIC_API_KEY (or claude subscription per .sandcastle docs)"
 echo "     → GH_TOKEN  (for GitHub-issues backlog manager)"
 echo "  2. Add the 'sandcastle:high-isolation' label to a target GitHub issue"
-echo "  3. From this repo:  npx tsx .sandcastle/sandcastle_run.mts <config.json>"
+echo "  3. From this repo:  npx --no-install tsx .sandcastle/sandcastle_run.mts <config.json>"
 echo "  4. Or trigger via Pi-CEO autonomy.py once Wave 5 #6 (run_build branch point) ships"

@@ -5,7 +5,8 @@
  * (`run()`), because the package's CLI has no `run` command. Never call bare
  * `npx sandcastle`: the unscoped npm name is an unrelated package.
  *
- * Usage:  npx tsx scripts/sandcastle_run.mts <config.json>
+ * Usage:  npx --no-install tsx .sandcastle/sandcastle_run.mts <config.json>
+ *         (bootstrap installs the pinned tsx locally; --no-install stops npx fetching one)
  *
  * `.mts` on purpose: the package is ESM-only, and a `.ts` file under a default
  * (CommonJS) package.json cannot import it.
