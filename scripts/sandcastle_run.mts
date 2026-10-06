@@ -5,7 +5,8 @@
  * (`run()`), because the package's CLI has no `run` command. Never call bare
  * `npx sandcastle`: the unscoped npm name is an unrelated package.
  *
- * Usage:  npx tsx scripts/sandcastle_run.mts <config.json>
+ * Usage:  npx --no-install tsx .sandcastle/sandcastle_run.mts <config.json>
+ *         (bootstrap installs the pinned tsx locally; --no-install stops npx fetching one)
  *
  * `.mts` on purpose: the package is ESM-only, and a `.ts` file under a default
  * (CommonJS) package.json cannot import it.
@@ -21,10 +22,12 @@
  * Concurrency: run() has no cap. The caller (sandcastle-runner) keeps the
  * MAX_CONCURRENT_SANDCASTLE_RUNS counter; this script runs exactly one job.
  */
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { claudeCode, run, type SandboxProvider } from "@ai-hero/sandcastle";
+// Imported dynamically in main() so a missing package still yields the JSON result line.
+import type { SandboxProvider } from "@ai-hero/sandcastle";
 
 type SandboxName = "docker" | "podman" | "noSandbox" | "vercel" | "daytona";
 
@@ -33,6 +36,10 @@ interface RunConfig {
   prompt?: string;
   promptFile?: string;
   model: string;
+  /** Named branch the job commits to. Required: without it run() defaults to
+   *  merge-to-head (isolated) or head (bind-mount) and writes into the host's
+   *  current branch. */
+  branch: string;
   sandbox: SandboxName;
   /** Provider options, e.g. { imageName } for docker/podman (moved here in 0.6+). */
   sandboxOptions?: Record<string, unknown>;
@@ -45,6 +52,8 @@ interface RunConfig {
   completionTimeoutSeconds?: number;
   /** Extra flag files whose existence aborts the run (e.g. .harness/swarm/kill_switch.flag). */
   killSwitchFiles?: string[];
+  /** Must be exactly true for sandbox "noSandbox", which runs the agent on the host. Dry-run/smoke only. */
+  allowUnisolated?: boolean;
 }
 
 const PROVIDER_MODULES: Record<SandboxName, [string, string]> = {
@@ -57,21 +66,71 @@ const PROVIDER_MODULES: Record<SandboxName, [string, string]> = {
 
 const KILL_POLL_MS = 1000;
 
+// stdout belongs to the one JSON result line. Sandcastle prints status lines
+// ("[Agent] Started on branch ...", "tail -f <log>") with console.log, so every
+// other in-process stdout write is routed to stderr.
+const writeResult = process.stdout.write.bind(process.stdout);
+process.stdout.write = process.stderr.write.bind(process.stderr) as typeof process.stdout.write;
+
+// Values from the config's agentEnv/sandboxEnv. Agent and provider errors can
+// echo them (e.g. "claude-code exited with code 1:\n<agent output>"), so every
+// one is masked in the result line before it is written.
+const secretValues: string[] = [];
+
+function redact(text: string): string {
+  return secretValues.reduce((acc, v) => acc.split(v).join("[REDACTED]"), text);
+}
+
 function emit(status: string, exitCode: number, extra: Record<string, unknown>): never {
-  process.stdout.write(JSON.stringify({ type: "run_complete", result: { status, ...extra } }) + "\n");
+  const line = JSON.stringify({ type: "run_complete", result: { status, ...extra } });
+  writeResult(redact(line) + "\n");
   process.exit(exitCode);
 }
 
 function loadConfig(path: string | undefined): RunConfig {
   if (!path) emit("failed", 2, { error: "usage: sandcastle_run.mts <config.json>" });
-  const cfg = JSON.parse(readFileSync(path, "utf8")) as RunConfig;
-  if (!cfg.cwd || !cfg.model || !(cfg.sandbox in PROVIDER_MODULES)) {
+  let cfg: RunConfig;
+  try {
+    cfg = JSON.parse(readFileSync(path, "utf8")) as RunConfig;
+  } catch (err) {
+    emit("failed", 2, { error: `cannot read config: ${err instanceof Error ? err.message : String(err)}` });
+  }
+  if (typeof cfg !== "object" || cfg === null || Array.isArray(cfg)) {
+    emit("failed", 2, { error: "config must be a JSON object" });
+  }
+  if (!cfg.cwd || !cfg.model || !Object.hasOwn(PROVIDER_MODULES, cfg.sandbox)) {
     emit("failed", 2, { error: "config needs cwd, model and a known sandbox" });
+  }
+  if (typeof cfg.branch !== "string" || !cfg.branch.trim()) {
+    emit("failed", 2, { error: "config needs a non-empty branch (never the host's current branch)" });
+  }
+  // run() auto-loads <cwd>/.sandcastle/.env into the agent and sandbox env,
+  // bypassing the per-run agentEnv/sandboxEnv allow-list. Refuse to run with one.
+  if (existsSync(join(cfg.cwd, ".sandcastle", ".env"))) {
+    emit("failed", 2, { error: ".sandcastle/.env exists; secrets must come only from agentEnv/sandboxEnv in the run config" });
+  }
+  if (cfg.branch === hostBranch(cfg.cwd)) {
+    emit("failed", 2, { error: `branch ${cfg.branch} is the host checkout's current branch` });
+  }
+  if (cfg.sandbox === "noSandbox" && cfg.allowUnisolated !== true) {
+    emit("failed", 2, { error: "noSandbox runs on the host with no isolation; set allowUnisolated: true (dry-run/smoke only)" });
   }
   if (!cfg.prompt === !cfg.promptFile) {
     emit("failed", 2, { error: "config needs exactly one of prompt / promptFile" });
   }
   return cfg;
+}
+
+/** The host checkout's current branch, or null when detached / not a repo. */
+function hostBranch(cwd: string): string | null {
+  try {
+    return execFileSync("git", ["-C", cwd, "symbolic-ref", "--quiet", "--short", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
+  }
 }
 
 /** Same flags the Python kill switches read: TAO_HARD_STOP_FILE plus caller-supplied ones. */
@@ -88,6 +147,13 @@ async function loadSandbox(cfg: RunConfig): Promise<SandboxProvider> {
 
 async function main(): Promise<void> {
   const cfg = loadConfig(process.argv[2]);
+  for (const env of [cfg.agentEnv, cfg.sandboxEnv]) {
+    for (const v of Object.values(env ?? {})) {
+      // JSON-escaped form too, since the line is redacted after stringify.
+      if (typeof v === "string" && v.length >= 4) secretValues.push(JSON.stringify(v).slice(1, -1));
+    }
+  }
+  secretValues.sort((a, b) => b.length - a.length);
   const controller = new AbortController();
   const files = killSwitchFiles(cfg);
   const checkKill = (): void => {
@@ -101,10 +167,12 @@ async function main(): Promise<void> {
     process.on(sig, () => controller.abort(new Error(`signal: ${sig}`)));
   }
   try {
+    const { claudeCode, run } = await import("@ai-hero/sandcastle");
     const result = await run({
       agent: claudeCode(cfg.model, { permissionMode: "auto", env: cfg.agentEnv ?? {} }),
       sandbox: await loadSandbox(cfg),
       cwd: cfg.cwd,
+      branchStrategy: { type: "branch", branch: cfg.branch },
       ...(cfg.prompt ? { prompt: cfg.prompt } : { promptFile: cfg.promptFile }),
       maxIterations: cfg.maxIterations ?? 1,
       idleTimeoutSeconds: cfg.idleTimeoutSeconds ?? 600,
@@ -112,6 +180,7 @@ async function main(): Promise<void> {
       signal: controller.signal,
     });
     emit("ok", 0, {
+      isolated: cfg.sandbox !== "noSandbox",
       branch: result.branch,
       commits: result.commits,
       iterations: result.iterations.length,
@@ -126,4 +195,6 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+main().catch((err: unknown) => {
+  emit("failed", 1, { error: err instanceof Error ? err.message : String(err) });
+});
