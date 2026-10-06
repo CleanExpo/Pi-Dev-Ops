@@ -11,6 +11,6 @@ This shim preserves the import surface expected by app_factory.py and
 routes/triggers.py so neither file requires changes.
 """
 from .cron_store import create_trigger, delete_trigger, list_triggers
-from .cron_scheduler import cron_loop
+from .cron_scheduler import cron_loop, maybe_start_cron_loop
 
-__all__ = ["list_triggers", "create_trigger", "delete_trigger", "cron_loop"]
+__all__ = ["list_triggers", "create_trigger", "delete_trigger", "cron_loop", "maybe_start_cron_loop"]

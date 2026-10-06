@@ -9,7 +9,9 @@ Contains:
 import asyncio
 import datetime
 import logging
+import os
 import time
+from collections.abc import Callable
 
 from .cron_store import _load_triggers, _save_triggers
 from .cron_outputs import should_fire_on_boot
@@ -87,6 +89,61 @@ def _run_watchdogs_blocking(triggers: list[dict], log: logging.Logger) -> None:
     watchdog can delay only the watchdogs after it, never a request.
     """
     asyncio.run(_run_watchdogs(triggers, log))
+
+
+def railway_cron_environment() -> str:
+    """Railway environment name, or "" when this process is not on Railway.
+
+    RAILWAY_ENVIRONMENT_NAME is the name (`production`, `pr-904`).
+    RAILWAY_ENVIRONMENT is the fallback the Telegram webhook gate already
+    treats as that name. Empty means local dev, CI, or tests.
+    """
+    name = os.environ.get("RAILWAY_ENVIRONMENT_NAME", "").strip()
+    if name:
+        return name
+    return os.environ.get("RAILWAY_ENVIRONMENT", "").strip()
+
+
+def cron_scheduler_allowed() -> bool:
+    """True for local dev and the production Railway environment.
+
+    Preview deploys share production Supabase and Linear, so the scheduler
+    must not run there. TAO_CRON_ALLOW_NON_PRODUCTION=1 overrides that.
+    """
+    if os.environ.get("TAO_CRON_ALLOW_NON_PRODUCTION", "").strip() == "1":
+        return True
+    name = railway_cron_environment()
+    if not name:
+        return True
+    return name.lower() == "production"
+
+
+def maybe_start_cron_loop(start: Callable, log: logging.Logger) -> None:
+    """Start cron_loop via `start` when this deploy may run production crons.
+
+    TAO_CRON_ENABLED=0 still wins, including over the preview override.
+    """
+    from . import config  # noqa: PLC0415 — config reads env at import
+
+    if not config.CRON_ENABLED:
+        log.info("cron_loop not started — TAO_CRON_ENABLED=0")
+        return
+    env_name = railway_cron_environment()
+    if not cron_scheduler_allowed():
+        log.warning(
+            "cron_loop not started — Railway environment %r is not production. "
+            "Preview deploys share production Supabase and Linear, so they must "
+            "not run these crons. Set TAO_CRON_ALLOW_NON_PRODUCTION=1 to override.",
+            env_name,
+        )
+        return
+    if env_name and env_name.lower() != "production":
+        log.warning(
+            "cron_loop starting on non-production Railway environment %r "
+            "because TAO_CRON_ALLOW_NON_PRODUCTION=1",
+            env_name,
+        )
+    start(cron_loop)
 
 
 async def cron_loop() -> None:

@@ -89,6 +89,7 @@ def test_claim_machine_collapses_cloud_replicas(monkeypatch):
     from app.server import session_lease
 
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
-    assert session_lease.claim_machine() == "railway"
+    assert session_lease.CLOUD_CLAIM_MACHINE == "railway"
+    assert session_lease.claim_machine() == session_lease.CLOUD_CLAIM_MACHINE
     monkeypatch.delenv("RAILWAY_ENVIRONMENT")
     assert session_lease.claim_machine() == session_lease.local_host()
