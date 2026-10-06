@@ -121,7 +121,8 @@ This is the hot path called by `sandcastle-runner` at launch time.
 **The agent env and the sandbox env must be disjoint.** `sandcastle_run.mts` passes them to `run()` as `agentEnv` (into `claudeCode({ env })`) and `sandboxEnv` (into the sandbox provider's `env`). `run()` in @ai-hero/sandcastle@0.12.0 throws `Overlapping env keys between agent provider and sandbox provider: <KEYS>` if any key appears in both, so assign every manifest var to exactly one side.
 
 ```python
-def resolve_for_run(*, project_slug: str, run_id: str) -> tuple[dict[str, str], str]:
+def resolve_for_run(*, project_slug: str, run_id: str, cwd: str, model: str,
+                    branch: str, prompt: str) -> tuple[dict[str, str], str]:
     """
     Returns (env_dict, config_file_path).
     The dict contains ACTUAL VALUES — caller must never log it, never persist it.
@@ -168,10 +169,16 @@ def resolve_for_run(*, project_slug: str, run_id: str) -> tuple[dict[str, str], 
                   if sys.platform == "linux" \
                   else f"/tmp/sandcastle-config-{run_id}.json"
     
+    # Shape read by scripts/sandcastle_run.mts (see sandcastle-runner SKILL.md).
     config = {
-        "agent": {"name": "claudeCode", "env": filtered},
-        "sandbox": {"name": "docker"},
-        # ... rest of Sandcastle config
+        "cwd": cwd,
+        "model": model,
+        "branch": branch,            # named job branch, never the host's current one
+        "prompt": prompt,
+        "sandbox": "docker",
+        "agentEnv": filtered,        # every manifest var on exactly one side
+        "sandboxEnv": {},
+        "killSwitchFiles": [".harness/swarm/kill_switch.flag"],
     }
     
     with open(config_path, "w") as f:
