@@ -46,6 +46,7 @@ from app.server.autonomy_eligibility import (
     READY_STATUS_NAME as _READY_STATUS_NAME,
 )
 from app.server import autonomy_queue as _aq
+from app.server.autonomy_portfolio import portfolio_issues as _portfolio_issues
 from .autonomy_orphan_queries import _IN_PROGRESS_QUERY, _RECOVERY_TARGET_QUERY
 from .autonomy_orphan_support import (
     issue_pages, needs_recovery_success, orphan_completion, recovery_comment_present,
@@ -302,8 +303,8 @@ def fetch_todo_issues(api_key: str, *, fail_on_error: bool = False,
     """Claimable queue, every page. Repeat-claim refusals go to ``refused``."""
     projects = _load_portfolio_projects()
     try:  # RA-7931: one paginated read for every project and both labels
-        merged = _aq.portfolio_issues(_gql, api_key, projects, _READY_STATUS_NAME,
-                                      (_AUTONOMY_LABEL, _MACHINE_SHIP_LABEL))
+        merged = _portfolio_issues(_gql, api_key, projects, _READY_STATUS_NAME,
+                                   (_AUTONOMY_LABEL, _MACHINE_SHIP_LABEL))
     except LinearRateLimitError:
         raise
     except Exception as exc:

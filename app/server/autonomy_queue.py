@@ -86,38 +86,6 @@ def issue_pages(gql: Callable[..., dict], api_key: str, variables: dict) -> Iter
     raise IncompleteRead(f"Linear queue read exceeded {MAX_PAGES} pages")
 
 
-def portfolio_issues(gql: Callable[..., dict], api_key: str, projects: list[dict],
-                     status_name: str, labels: tuple[str, ...]) -> list[dict]:
-    """The whole Ready queue of every portfolio project, annotated, deduped by id.
-
-    One paginated read (RA-7931), not one per project x label. Each node is mapped
-    back to its registry row by ``project { id }``; the first row registered for a
-    project id wins, as the per-project loop's iteration order did. Raises on any
-    failed or partial page: the caller never sees a part of the queue.
-    """
-    rows: dict[str, dict] = {}
-    for p in projects:
-        rows.setdefault(p["project_id"], p)
-    if not rows:
-        return []
-    seen: set[str] = set()
-    merged: list[dict] = []
-    for issue in issue_pages(gql, api_key, {
-        "projectIds": list(rows), "statusName": status_name, "labelNames": list(labels),
-    }):
-        iid = issue.get("id")
-        p = rows.get(((issue.get("project") or {}).get("id")) or "")
-        if not iid or iid in seen or p is None:
-            continue
-        seen.add(iid)
-        issue["_repo_url"] = p["repo_url"]
-        issue["_team_id"] = p["team_id"]
-        issue["_project_name"] = p["name"]
-        issue["_project_id"] = p["project_id"]
-        merged.append(issue)
-    return merged
-
-
 def _autonomy():
     from app.server import autonomy  # noqa: PLC0415 — autonomy imports this module
     return autonomy

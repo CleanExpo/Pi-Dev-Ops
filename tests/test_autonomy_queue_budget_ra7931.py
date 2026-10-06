@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pytest
 
 from app.server import autonomy, autonomy_queue
+from app.server.autonomy_portfolio import portfolio_issues
 from app.server.autonomy_eligibility import IncompleteRead
 
 _LABELS = ("pi-dev:autonomous", "pi-dev:machine-ship")
@@ -87,7 +88,7 @@ def _old_loop(gql, projects) -> list[dict]:
 
 def test_one_query_per_page_not_per_project_or_label():
     fake = _FakeLinear(_fixture() + [_node(1000 + i, "proj-alpha", (_LABELS[0],)) for i in range(15)])
-    got = autonomy_queue.portfolio_issues(fake, "k", _PROJECTS, "Ready for Pi-Dev", _LABELS)
+    got = portfolio_issues(fake, "k", _PROJECTS, "Ready for Pi-Dev", _LABELS)
     # 12 Ready+labelled fixture issues on registered projects + 15 more = 27 -> 3 pages.
     assert len(got) == 27
     assert len(fake.calls) == 3
@@ -100,7 +101,7 @@ def test_same_result_set_as_the_old_per_project_loop():
     issues = _fixture()
     old_fake, new_fake = _FakeLinear(issues), _FakeLinear(issues)
     old = _old_loop(old_fake, _PROJECTS)
-    new = autonomy_queue.portfolio_issues(new_fake, "k", _PROJECTS, "Ready for Pi-Dev", _LABELS)
+    new = portfolio_issues(new_fake, "k", _PROJECTS, "Ready for Pi-Dev", _LABELS)
     assert {i["identifier"] for i in new} == {i["identifier"] for i in old}
     assert len(new) == len({i["id"] for i in new})  # deduped: both-label issues once
     assert {(i["identifier"], i["_team_id"], i["_repo_url"]) for i in new} == \
@@ -134,7 +135,7 @@ def test_a_partial_read_is_never_the_whole_queue(second_page):
         return lambda *_b: next(pages)
 
     with pytest.raises(IncompleteRead):
-        autonomy_queue.portfolio_issues(gql(), "k", _PROJECTS, "Ready for Pi-Dev", _LABELS)
+        portfolio_issues(gql(), "k", _PROJECTS, "Ready for Pi-Dev", _LABELS)
     with patch.object(autonomy, "_load_portfolio_projects", return_value=_PROJECTS), \
          patch.object(autonomy, "_gql", side_effect=gql()):
         assert autonomy.fetch_todo_issues("k") == []
@@ -153,13 +154,13 @@ def test_a_runaway_cursor_is_refused():
         return endless
 
     with pytest.raises(IncompleteRead):
-        autonomy_queue.portfolio_issues(gql, "k", _PROJECTS, "Ready for Pi-Dev", _LABELS)
+        portfolio_issues(gql, "k", _PROJECTS, "Ready for Pi-Dev", _LABELS)
     assert len(calls) == autonomy_queue.MAX_PAGES
 
 
 def test_no_projects_means_no_request():
     calls = []
-    assert autonomy_queue.portfolio_issues(lambda *a: calls.append(a), "k", [], "x", _LABELS) == []
+    assert portfolio_issues(lambda *a: calls.append(a), "k", [], "x", _LABELS) == []
     assert calls == []
 
 
