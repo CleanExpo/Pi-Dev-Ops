@@ -25,6 +25,7 @@ from .cron_watchdogs import (
     _watchdog_vercel_deploy_failures,
 )
 from .cron_watchdog_zte import _watchdog_zte_reality_check
+from .cron_watchdog_mesh import _watchdog_mesh_runners
 # RA-1668 — weekly NotebookLM source-refresh (driven by freshness staleness check).
 from .agents.notebooklm_refresh import refresh_all_notebooks
 
@@ -72,6 +73,7 @@ async def _run_watchdogs(triggers: list[dict], log: logging.Logger) -> None:
     await _watchdog_vercel_deploy_failures(log)   # RA-1742
     await _watchdog_linear_auth(log)              # RA-1908
     await _watchdog_health_full(log)              # RA-1910
+    await _watchdog_mesh_runners(log)             # RA-7910: a dead runner pages
 
 
 def _run_watchdogs_blocking(triggers: list[dict], log: logging.Logger) -> None:

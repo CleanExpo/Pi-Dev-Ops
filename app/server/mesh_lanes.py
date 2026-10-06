@@ -51,16 +51,20 @@ _PAGE_ARGS = "first:10"
 # Two branches, so the autonomous lane is read by state NAME (Todo / Ready for Pi-Dev)
 # and 195 finished pi-dev:autonomous tickets never ride along on every 30s poll.
 _STATE_NAMES = ",".join(f'"{n}"' for n in sorted(MESH_STATES))
-SELF_CLAIM_QUERY = (
-    f'query{{issues({_PAGE_ARGS},filter:{{or:['
-    f'{{labels:{{name:{{in:["{BUILD_LABEL}","{PLAN_LABEL}"]}}}},'
-    'state:{type:{in:["backlog","unstarted"]}}},'
-    f'{{labels:{{name:{{eq:"{AUTONOMY_LABEL}"}}}},state:{{name:{{in:[{_STATE_NAMES}]}}}}}}'
-    ']}){pageInfo{hasNextPage endCursor} nodes{'
-)
 _NODE_FIELDS = (f'id identifier title description priority team{{id}} state{{name type}} '
                 f'labels{{nodes{{name}}}} {GUARD_FIELDS}')
-SELF_CLAIM_QUERY += _NODE_FIELDS + "}}}"
+# One query per branch, merged in code. Linear ignored the single `filter:{or:[...]}`
+# form: every issue in the workspace matched, the read hit _MAX_PAGES on every call,
+# claim/self answered 503 and each attempt spent 50 requests of the key's 2,500/hour
+# (RA-7910, measured 05/10: 12 real candidates, 500+ served). Each branch alone filters.
+_BRANCH_FILTERS = (
+    f'labels:{{name:{{in:["{BUILD_LABEL}","{PLAN_LABEL}"]}}}},state:{{type:{{in:["backlog","unstarted"]}}}}',
+    f'labels:{{name:{{eq:"{AUTONOMY_LABEL}"}}}},state:{{name:{{in:[{_STATE_NAMES}]}}}}',
+)
+SELF_CLAIM_QUERIES = tuple(
+    f'query{{issues({_PAGE_ARGS},filter:{{{f}}}){{pageInfo{{hasNextPage endCursor}} nodes{{{_NODE_FIELDS}}}}}}}'
+    for f in _BRANCH_FILTERS)
+SELF_CLAIM_QUERY = SELF_CLAIM_QUERIES[0]  # the build/plan branch; kept for the complexity budget test
 _MAX_PAGES = 50  # 500 candidates at 10 a page, the reach 20 x 25 had
 _OPEN_STATE_TYPES = frozenset({"backlog", "unstarted"})
 # The idea-pipeline store lives under the repo root, as routes/idea_pipeline.py has it.
@@ -153,8 +157,20 @@ def candidates(graphql, strict: bool = False) -> tuple[list[dict], dict[str, str
     ``strict`` an incomplete read raises IncompleteRead instead of claiming nothing.
     """
     repos = registry_repos()
+    seen: dict[str, dict] = {}
+    for base in SELF_CLAIM_QUERIES:
+        batch = _read_branch(graphql, base, strict)
+        if batch is None:
+            return [], repos
+        for n in batch:
+            seen.setdefault(n.get("id") or n.get("identifier"), n)
+    return [n for n in seen.values() if eligible(n, repos)], repos
+
+
+def _read_branch(graphql, base: str, strict: bool) -> list[dict] | None:
+    """Every page of one branch query; None (or IncompleteRead with strict) when unproven."""
     nodes: list[dict] = []
-    query = SELF_CLAIM_QUERY
+    query = base
     for _ in range(_MAX_PAGES):
         try:
             batch, more, cursor = page_of((graphql(query) or {}).get("issues"))
@@ -164,15 +180,15 @@ def candidates(graphql, strict: bool = False) -> tuple[list[dict], dict[str, str
             break
         nodes.extend(batch)
         if not more:
-            return [n for n in nodes if eligible(n, repos)], repos
+            return nodes
         if not cursor:
             break
-        query = SELF_CLAIM_QUERY.replace(_PAGE_ARGS, f"{_PAGE_ARGS},after:{json.dumps(cursor)}", 1)
+        query = base.replace(_PAGE_ARGS, f"{_PAGE_ARGS},after:{json.dumps(cursor)}", 1)
     # An incomplete read is refused, never served as the whole queue.
     if strict:
         raise IncompleteRead(f"Linear read incomplete after {_MAX_PAGES} pages")
     log.error("mesh candidates: Linear read incomplete after %d pages; claiming nothing", _MAX_PAGES)
-    return [], repos
+    return None
 
 
 def explicit(graphql, identifiers: list[str]) -> list[dict]:

@@ -22,6 +22,8 @@ export interface LaneRow {
   toolCalls: number;
   toolFails: number;
   lastTool: string | null;
+  /** Subagents and agent-team teammates this lane started (`agent_start` events read). */
+  agents: number;
   ctxPct: number | null;
   ratePct: number | null;
   costUsd: number | null;
@@ -71,7 +73,7 @@ export function projectLanes(raw: unknown, checkedAt: string): LanesView {
     if (!row) {
       row = {
         sessionId, host: str(ev.host) ?? "unknown", repo: null, model: null, lastAt: null, ended: false,
-        toolCalls: 0, toolFails: 0, lastTool: null, ctxPct: null, ratePct: null, costUsd: null,
+        toolCalls: 0, toolFails: 0, lastTool: null, agents: 0, ctxPct: null, ratePct: null, costUsd: null,
         usageAt: null, toolAt: null,
       };
       rows.set(sessionId, row);
@@ -89,6 +91,9 @@ export function projectLanes(raw: unknown, checkedAt: string): LanesView {
         row.toolCalls += 1;
         if (ev.ok === false) row.toolFails += 1;
         if (newer(at, row.toolAt)) { row.toolAt = at; row.lastTool = str(ev.tool); }
+        break;
+      case "agent_start":
+        row.agents += 1;
         break;
       case "usage":
         if (newer(at, row.usageAt)) {

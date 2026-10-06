@@ -15,6 +15,7 @@ it instead of it quietly burning the queue.
 """
 from __future__ import annotations
 
+import json
 import os
 import time
 from typing import Callable
@@ -86,3 +87,25 @@ class NodeHealth:
             return self._preflight() or ""
         except Exception as exc:  # noqa: BLE001 — any crash means the node is not proven
             return f"preflight raised {type(exc).__name__}"
+
+
+# A runner idle longer than this has stopped polling: the Mac mini runner sat dead
+# for days in October 2026 while its heartbeat kept the node "online".
+RUNNER_STALE_S = float(os.environ.get("MESH_RUNNER_STALE_S", "900"))
+
+
+def runner_down(breadcrumb_path: str, agents: list, now: Callable[[], float] = time.time) -> bool:
+    """True when this node's runner breadcrumb stopped updating.
+
+    The runner rewrites it on every poll but only once at the start of a build, so
+    an old "working" breadcrumb with a live agent session is a long build, not a
+    dead runner. No readable breadcrumb means no runner on this node: not down."""
+    try:
+        with open(breadcrumb_path) as f:
+            data = json.loads(f.read())
+        age = now() - float(data.get("ts") or 0)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return False
+    if age <= RUNNER_STALE_S:
+        return False
+    return not (data.get("state") == "working" and agents)

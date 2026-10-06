@@ -33,3 +33,10 @@ Any score below 3 blocks production render until revised.
 - [ ] Viewer understands the offer in 5 seconds.
 - [ ] CTA is singular.
 - [ ] Brand system is respected.
+
+## Ship gate (Prove mode)
+
+When this skill changes something that already exists in a way a person would judge (wording, behaviour,
+design, a model or prompt, a cost line), the change ships only after it beats the current version. Call the
+Skill tool with "gauntlet-loop" and follow its Prove mode. Mechanical fixes that a hard check proves (a
+broken link repaired, a failing test made to pass) do not need it.
