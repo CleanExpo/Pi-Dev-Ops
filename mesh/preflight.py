@@ -11,7 +11,8 @@ put in a heartbeat.
                  file in a scratch worktree of the repo it builds in. Catches an
                  agent that cannot act: on 28/09 the Mini's new runtime folder
                  was never trusted by Claude Code, so the repo's permissions
-                 were ignored and every run ended "no commits".
+                 were ignored and every run ended "no commits". An agent out of
+                 quota (RA-7930) returns quota.problem(), which NodeHealth holds on.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
@@ -28,6 +30,7 @@ from typing import Callable, Optional
 import agent_sandbox
 import claim_lifecycle
 import left_running
+import quota
 import run_record
 
 PROBE_PROMPT = ("Create a file named {name} in the current directory containing "
@@ -104,10 +107,12 @@ def _probe(worktree: Path, repo_dir: Path, agent_cmd: str,
     agent = agent_run(agent_sandbox.agent_argv(agent_cmd, PROBE_PROMPT.format(name=probe.name)),
                       cwd=str(worktree), env=agent_sandbox.agent_env(),
                       capture_output=True, text=True, check=False, timeout=AGENT_TIMEOUT)
-    if UNTRUSTED in f"{agent.stdout or ''}{agent.stderr or ''}":
+    said = f"{agent.stdout or ''}{agent.stderr or ''}"
+    if UNTRUSTED in said:
         return untrusted(repo_dir, agent_cmd)
-    if agent.returncode != 0:
-        return f"agent exited {agent.returncode}"
+    if agent.returncode != 0:  # RA-7930: an exhausted quota holds until its reset, named
+        until = quota.quota_reset(said, time.time())
+        return quota.problem(until) if until is not None else f"agent exited {agent.returncode}"
     if not probe.is_file() or probe.read_text(errors="replace").strip().lower() != "ok":
         return "agent could not write a file"
     return ""

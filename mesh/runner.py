@@ -36,6 +36,7 @@ import claim_lifecycle  # noqa: E402
 import left_running  # noqa: E402
 import node_health  # noqa: E402
 import preflight  # noqa: E402
+import quota  # noqa: E402
 import run_record  # noqa: E402
 import runner_idle  # noqa: E402
 import self_update  # noqa: E402
@@ -101,7 +102,7 @@ def killed() -> bool:
     return HARD_STOP.exists()
 
 
-def write_state(current_task, state: str, session_id: str | None = None) -> None:
+def write_state(current_task, state: str, session_id: str | None = None, hold_reason: str | None = None) -> None:
     """Write the runner breadcrumb consumed by the heartbeat/Mission Control.
 
     ``session_id`` is this claim's run id. The heartbeat forwards it into
@@ -116,6 +117,7 @@ def write_state(current_task, state: str, session_id: str | None = None) -> None
             "current_task": current_task,
             "session_id": session_id,
             "state": state,
+            "hold_reason": hold_reason,  # why a held node claims nothing; a quota hold names its reset
             "version": RUNTIME_VERSION,
             "ts": int(time.time()),
         }))
@@ -199,8 +201,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     plan = {"linear_id": linear_id, "claim_id": claim.get("id"), "repo_dir": str(repo_dir),
             "branch": branch, "agent": AGENT_CMD}
     if dry_run:
-        plan["dry_run"] = True
-        return plan
+        return {**plan, "dry_run": True}
     if not (repo_dir / ".git").exists():
         return _fail_claim(plan, linear_id, branch, f"repo missing: {repo_dir}")
 
@@ -216,6 +217,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
             run_record.run_agent(
                 lambda: agent_sandbox.agent_argv(AGENT_CMD, build_prompt(claim, linear_id, branch)),
                 str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent, held)
+            quota.release_if_quota(held, plan, time.time())  # RA-7930: requeued, never a failure
             claim_lifecycle.deliver(  # RA-7780: `done` means pushed, checked before the worktree goes
                 lambda: ship_run.settle(plan, start, worktree, branch, linear_id, HOST), plan)
         else:  # a failed add can still leave a partial worktree; the finally removes it
