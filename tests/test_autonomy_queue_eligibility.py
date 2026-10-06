@@ -104,7 +104,7 @@ def test_priority_axis_drops_unlabelled_when_filter_set() -> None:
 
 def _gql_nodes(nodes: list[dict]):
     def fake_gql(_key: str, _query: str, _vars: dict | None = None) -> dict:
-        return {"project": {"issues": {"nodes": [dict(n) for n in nodes]}}}
+        return {"issues": {"nodes": [dict(n) for n in nodes]}}
     return fake_gql
 
 

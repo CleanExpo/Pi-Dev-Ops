@@ -122,13 +122,14 @@ def test_quota_after_partial_result_drops_all_and_skips_remaining(monkeypatch):
         {"project_id": "b", "repo_url": "https://example.test/b", "team_id": "t", "name": "B"},
     ]
     calls = []
-    def gql(_key, _query, variables):
-        calls.append((variables["projectId"], variables["autonomyLabel"]))
+    def gql(_key, _query, variables):  # RA-7931: one portfolio read, quota on its page 2
+        calls.append((tuple(variables["projectIds"]), variables["after"]))
         if len(calls) == 2:
             raise autonomy.LinearRateLimitError("Linear rate limited; retry after cooldown")
-        return {"project": {"issues": {"nodes": [{"id": "a1", "priority": 1,
+        return {"issues": {"nodes": [{"id": "a1", "priority": 1, "project": {"id": "a"},
             "state": {"name": "Ready for Pi-Dev", "type": "unstarted"},
-            "labels": {"nodes": [{"name": "pi-dev:autonomous"}]}}]}}}
+            "labels": {"nodes": [{"name": "pi-dev:autonomous"}]}}],
+            "pageInfo": {"hasNextPage": True, "endCursor": "c1"}}}
     monkeypatch.setattr(autonomy, "_load_portfolio_projects", lambda: projects)
     monkeypatch.setattr(autonomy, "_gql", gql)
 
@@ -272,7 +273,7 @@ def test_failed_portfolio_scan_is_not_cached_as_empty_queue(monkeypatch, caplog)
         calls.append(1)
         if len(calls) == 1:
             raise RuntimeError("Linear HTTP 500 customer@example.com")
-        return {"project": {"issues": {"nodes": [issue]}}}
+        return {"issues": {"nodes": [{**issue, "project": {"id": "a"}}]}}
     monkeypatch.setattr(autonomy, "_gql", gql)
 
     with caplog.at_level("DEBUG", logger="pi-ceo.mission_control"):
@@ -280,6 +281,6 @@ def test_failed_portfolio_scan_is_not_cached_as_empty_queue(monkeypatch, caplog)
     assert mission_control._queue_cache is None
     assert "customer@example.com" not in caplog.text
     assert mission_control._cached_queue_snapshot()["next_issue_id"] == "RA-1"
-    assert len(calls) == 3
+    assert len(calls) == 2  # the failure + one portfolio read (RA-7931)
     assert mission_control._cached_queue_snapshot()["next_issue_id"] == "RA-1"
-    assert len(calls) == 3
+    assert len(calls) == 2

@@ -32,7 +32,7 @@ from app.server.autonomy_eligibility import (
 log = logging.getLogger("pi-ceo.autonomy")
 
 PAGE_SIZE = 10  # three 50-node guard connections per issue; 25 exceeded Linear's 10,000 (RA-7910)
-MAX_PAGES = 50  # 500 tickets per project/label; a runaway cursor cannot spin forever
+MAX_PAGES = 50  # 500 Ready tickets across the portfolio; a runaway cursor cannot spin forever
 TOKEN_CAP_LABEL = "pi-dev:blocked-reason:token-cap"
 START_FAILED_LABEL = "pi-dev:blocked-reason:start-failed"
 SESSION_FAILED_LABEL = "pi-dev:blocked-reason:session-failed"
@@ -41,26 +41,30 @@ SESSION_FAILED_LABEL = "pi-dev:blocked-reason:session-failed"
 _UNKNOWN_SESSION_SPEND = 100_000
 _DEFAULT_TICKET_TOKEN_CAP = 300_000  # three default session budgets
 
+# RA-7931: ONE read across every portfolio project and both autonomy labels. The
+# old read ran per project x per label (15 x 2 = 30+ requests every poll, ~360+/h
+# of the fleet key's 2,500/h). Every filter key is an AND of field comparators —
+# no top-level ``or``, which Linear silently ignored in RA-7910 (it matched every
+# issue). ``project.id.in`` and ``labels.name.in`` were verified live to filter.
 TODO_ISSUES_QUERY = """
-query AutonomyQueueIssues($projectId: String!, $statusName: String!, $autonomyLabel: String!, $after: String) {
-    project(id: $projectId) {
-        issues(filter: {
-            state: { name: { eq: $statusName } }
-            labels: { name: { eq: $autonomyLabel } }
-        }, first: %d, after: $after, orderBy: updatedAt) {
-            pageInfo { hasNextPage endCursor }
-            nodes {
-                id
-                identifier
-                title
-                description
-                priority
-                url
-                estimate
-                state { id name type }
-                labels { nodes { name } }
-                %s
-            }
+query AutonomyQueueIssues($projectIds: [ID!]!, $statusName: String!, $labelNames: [String!]!, $after: String) {
+    issues(filter: {
+        project: { id: { in: $projectIds } }
+        state: { name: { eq: $statusName } }
+        labels: { name: { in: $labelNames } }
+    }, first: %d, after: $after, orderBy: updatedAt) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+            id
+            identifier
+            title
+            description
+            priority
+            url
+            estimate
+            state { id name type }
+            labels { nodes { name } }
+            %s
         }
     }
 }
@@ -68,11 +72,11 @@ query AutonomyQueueIssues($projectId: String!, $statusName: String!, $autonomyLa
 
 
 def issue_pages(gql: Callable[..., dict], api_key: str, variables: dict) -> Iterator[dict]:
-    """Yield every issue node of one project/label read, following ``pageInfo``."""
+    """Yield every issue node of the portfolio queue read, following ``pageInfo``."""
     after = None
     for _ in range(MAX_PAGES):
         data = gql(api_key, TODO_ISSUES_QUERY, {**variables, "after": after})
-        nodes, more, after = page_of((data.get("project") or {}).get("issues"))
+        nodes, more, after = page_of(data.get("issues"))
         yield from nodes
         if not more:
             return
@@ -80,6 +84,38 @@ def issue_pages(gql: Callable[..., dict], api_key: str, variables: dict) -> Iter
             raise IncompleteRead("Linear said more pages but gave no cursor")
     # An incomplete read is refused, never served as the whole queue.
     raise IncompleteRead(f"Linear queue read exceeded {MAX_PAGES} pages")
+
+
+def portfolio_issues(gql: Callable[..., dict], api_key: str, projects: list[dict],
+                     status_name: str, labels: tuple[str, ...]) -> list[dict]:
+    """The whole Ready queue of every portfolio project, annotated, deduped by id.
+
+    One paginated read (RA-7931), not one per project x label. Each node is mapped
+    back to its registry row by ``project { id }``; the first row registered for a
+    project id wins, as the per-project loop's iteration order did. Raises on any
+    failed or partial page: the caller never sees a part of the queue.
+    """
+    rows: dict[str, dict] = {}
+    for p in projects:
+        rows.setdefault(p["project_id"], p)
+    if not rows:
+        return []
+    seen: set[str] = set()
+    merged: list[dict] = []
+    for issue in issue_pages(gql, api_key, {
+        "projectIds": list(rows), "statusName": status_name, "labelNames": list(labels),
+    }):
+        iid = issue.get("id")
+        p = rows.get(((issue.get("project") or {}).get("id")) or "")
+        if not iid or iid in seen or p is None:
+            continue
+        seen.add(iid)
+        issue["_repo_url"] = p["repo_url"]
+        issue["_team_id"] = p["team_id"]
+        issue["_project_name"] = p["name"]
+        issue["_project_id"] = p["project_id"]
+        merged.append(issue)
+    return merged
 
 
 def _autonomy():
