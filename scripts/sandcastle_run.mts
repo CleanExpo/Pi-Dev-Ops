@@ -45,6 +45,8 @@ interface RunConfig {
   completionTimeoutSeconds?: number;
   /** Extra flag files whose existence aborts the run (e.g. .harness/swarm/kill_switch.flag). */
   killSwitchFiles?: string[];
+  /** Must be exactly true for sandbox "noSandbox", which runs the agent on the host. Dry-run/smoke only. */
+  allowUnisolated?: boolean;
 }
 
 const PROVIDER_MODULES: Record<SandboxName, [string, string]> = {
@@ -65,8 +67,11 @@ function emit(status: string, exitCode: number, extra: Record<string, unknown>):
 function loadConfig(path: string | undefined): RunConfig {
   if (!path) emit("failed", 2, { error: "usage: sandcastle_run.mts <config.json>" });
   const cfg = JSON.parse(readFileSync(path, "utf8")) as RunConfig;
-  if (!cfg.cwd || !cfg.model || !(cfg.sandbox in PROVIDER_MODULES)) {
+  if (!cfg.cwd || !cfg.model || !Object.hasOwn(PROVIDER_MODULES, cfg.sandbox)) {
     emit("failed", 2, { error: "config needs cwd, model and a known sandbox" });
+  }
+  if (cfg.sandbox === "noSandbox" && cfg.allowUnisolated !== true) {
+    emit("failed", 2, { error: "noSandbox runs on the host with no isolation; set allowUnisolated: true (dry-run/smoke only)" });
   }
   if (!cfg.prompt === !cfg.promptFile) {
     emit("failed", 2, { error: "config needs exactly one of prompt / promptFile" });
@@ -112,6 +117,7 @@ async function main(): Promise<void> {
       signal: controller.signal,
     });
     emit("ok", 0, {
+      isolated: cfg.sandbox !== "noSandbox",
       branch: result.branch,
       commits: result.commits,
       iterations: result.iterations.length,

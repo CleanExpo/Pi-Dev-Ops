@@ -104,11 +104,19 @@ if [[ -z "${GH_TOKEN:-}" ]] && [[ -z "${GITHUB_TOKEN:-}" ]]; then
 fi
 
 # ── Step 1: install @ai-hero/sandcastle ─────────────────────────────────────
-if grep -q "\"@ai-hero/sandcastle\": \"$SANDCASTLE_VERSION\"" package.json 2>/dev/null; then
-  echo "→ @ai-hero/sandcastle@$SANDCASTLE_VERSION already in package.json — skipping install"
+installed_sandcastle_version() {
+  node -p 'require("./node_modules/@ai-hero/sandcastle/package.json").version' 2>/dev/null || true
+}
+if grep -q "\"@ai-hero/sandcastle\": \"$SANDCASTLE_VERSION\"" package.json 2>/dev/null \
+   && [[ "$(installed_sandcastle_version)" == "$SANDCASTLE_VERSION" ]]; then
+  echo "→ @ai-hero/sandcastle@$SANDCASTLE_VERSION already installed — skipping install"
 else
   echo "→ installing @ai-hero/sandcastle@$SANDCASTLE_VERSION + tsx"
   npm install --save-dev --save-exact "@ai-hero/sandcastle@$SANDCASTLE_VERSION" tsx
+fi
+if [[ "$(installed_sandcastle_version)" != "$SANDCASTLE_VERSION" ]]; then
+  echo "✗ node_modules/@ai-hero/sandcastle is not version $SANDCASTLE_VERSION after install" >&2
+  exit 1
 fi
 
 # ── Step 2: sandcastle init ─────────────────────────────────────────────────
