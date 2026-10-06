@@ -113,16 +113,22 @@ deps_installed() {
     && [[ "$(installed_version tsx)" == "$TSX_VERSION" ]] \
     && [[ -x node_modules/.bin/tsx ]]
 }
-if grep -q "\"@ai-hero/sandcastle\": \"$SANDCASTLE_VERSION\"" package.json 2>/dev/null \
-   && grep -q "\"tsx\": \"$TSX_VERSION\"" package.json 2>/dev/null \
+# The exact version must be declared in dependencies or devDependencies.
+declared_version() {
+  node -p "const p=require('./package.json'); (p.devDependencies||{})['$1'] || (p.dependencies||{})['$1'] || ''" 2>/dev/null || true
+}
+if [[ "$(declared_version @ai-hero/sandcastle)" == "$SANDCASTLE_VERSION" ]] \
+   && [[ "$(declared_version tsx)" == "$TSX_VERSION" ]] \
    && deps_installed; then
   echo "→ @ai-hero/sandcastle@$SANDCASTLE_VERSION + tsx@$TSX_VERSION already installed — skipping install"
 else
   echo "→ installing @ai-hero/sandcastle@$SANDCASTLE_VERSION + tsx@$TSX_VERSION"
   npm install --save-dev --save-exact "@ai-hero/sandcastle@$SANDCASTLE_VERSION" "tsx@$TSX_VERSION"
 fi
-if ! deps_installed; then
-  echo "✗ node_modules lacks @ai-hero/sandcastle@$SANDCASTLE_VERSION or tsx@$TSX_VERSION (with .bin/tsx) after install" >&2
+if ! deps_installed \
+   || [[ "$(declared_version @ai-hero/sandcastle)" != "$SANDCASTLE_VERSION" ]] \
+   || [[ "$(declared_version tsx)" != "$TSX_VERSION" ]]; then
+  echo "✗ after install, package.json does not declare or node_modules does not hold @ai-hero/sandcastle@$SANDCASTLE_VERSION and tsx@$TSX_VERSION (with .bin/tsx)" >&2
   exit 1
 fi
 
