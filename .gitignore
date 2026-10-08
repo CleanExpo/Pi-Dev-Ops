@@ -105,6 +105,8 @@ ehthumbs.db
 # ── MCP / Claude tooling ──────────────────────────────────────────────
 .claude/settings.local.json
 mcp/node_modules/
+mcp/estate-connector/node_modules/
+mcp/estate-connector/data/
 .playwright-mcp/
 # Playwright run output (WP-02 live suite writes receipts; CI uploads them as artifacts)
 dashboard/test-results/
