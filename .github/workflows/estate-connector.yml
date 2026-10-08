@@ -1,0 +1,39 @@
+name: Estate connector
+
+on:
+  pull_request:
+    paths:
+      - "mcp/estate-connector/**"
+      - ".github/workflows/estate-connector.yml"
+  push:
+    branches: [main]
+    paths:
+      - "mcp/estate-connector/**"
+      - ".github/workflows/estate-connector.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: estate-connector-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    name: Node tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: mcp/estate-connector
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mcp/estate-connector/package-lock.json
+      - run: npm ci
+      - run: npm test
