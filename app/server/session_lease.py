@@ -80,6 +80,11 @@ def is_cloud() -> bool:
     )
 
 
+# One mesh_machines row for every cloud replica. The claim upsert writes
+# host and status only, so last_seen stays at insert time. Not a runner.
+CLOUD_CLAIM_MACHINE = "railway"
+
+
 def claim_machine() -> str:
     """Fleet-registry name for this worker — the `mesh_work_claims.machine` value.
 
@@ -87,9 +92,9 @@ def claim_machine() -> str:
     primary key the heartbeat daemon keeps one row per *physical* node in, and
     `mesh_work_claims.machine` is a foreign key onto it; a per-deploy Railway
     container id would leave a new dead `mesh_machines` row behind on every
-    redeploy that no heartbeat ever refreshes.
+    redeploy that no heartbeat ever refreshes. The label is CLOUD_CLAIM_MACHINE.
     """
-    return "railway" if is_cloud() else local_host()
+    return CLOUD_CLAIM_MACHINE if is_cloud() else local_host()
 
 
 def _cap_list(value: Any) -> list:

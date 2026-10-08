@@ -15,7 +15,7 @@ from starlette.requests import ClientDisconnect, Request
 
 from .sessions import restore_sessions, _sessions
 from .gc import gc_loop
-from .cron import cron_loop
+from .cron import maybe_start_cron_loop
 from .autonomy import linear_todo_poller
 from .agents.build_stall_watchdog import stall_watchdog_loop  # RA-1104
 from .integration_health import integration_health_loop      # RA-1293
@@ -164,13 +164,13 @@ async def on_startup():
     except Exception as exc:
         log.warning("RA-1407 startup recovery failed (non-fatal): %s", exc)
     asyncio.create_task(_resilient(lambda: gc_loop(_sessions), "gc_loop"))
-    # Gated so a server started for TESTING does not fire the startup catch-up,
-    # which runs a real board meeting and real script triggers. Default is on,
-    # so production is unchanged; the smoke path sets TAO_CRON_ENABLED=0.
-    if config.CRON_ENABLED:
-        asyncio.create_task(_resilient(cron_loop, "cron_loop"))
-    else:
-        log.info("cron_loop not started — TAO_CRON_ENABLED=0")
+    # Local dev and production run crons. Preview Railway deploys do not:
+    # they share production Supabase and Linear. TAO_CRON_ENABLED=0 still
+    # suppresses the loop for test servers (smoke path).
+    maybe_start_cron_loop(
+        lambda loop: asyncio.create_task(_resilient(loop, "cron_loop")),
+        log,
+    )
     asyncio.create_task(_resilient(linear_todo_poller, "linear_todo_poller"))
     asyncio.create_task(_resilient(stall_watchdog_loop, "stall_watchdog_loop"))  # RA-1104
     asyncio.create_task(_resilient(integration_health_loop, "integration_health_loop"))  # RA-1293

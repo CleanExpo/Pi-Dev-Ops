@@ -123,3 +123,74 @@ def test_an_unreadable_fleet_is_a_problem_not_healthy(sent, fetch):
 def test_the_watchdog_runs_every_cycle():
     src = (REPO / "app" / "server" / "cron_scheduler.py").read_text()
     assert "await _watchdog_mesh_runners(log)" in src
+
+
+# ── false pages: placeholder and retired rows (RA-7926/7927/7928) ────────────
+
+def test_placeholder_claim_row_is_skipped():
+    """The cloud claim row is skipped by the constant, not by claim_machine().
+
+    Off-cloud, claim_machine() is this process's hostname. Comparing against
+    that would page the railway placeholder and ignore the real machine.
+    """
+    from app.server import session_lease
+
+    assert session_lease.claim_machine() != session_lease.CLOUD_CLAIM_MACHINE or session_lease.is_cloud()
+    rows = [{"host": session_lease.CLOUD_CLAIM_MACHINE, "status": "online",
+             "last_seen": _iso(wd.SILENT_S + 60)}]
+    assert wd.problems(rows, None, NOW) == {}
+
+
+def test_retired_row_older_than_seven_days_is_ignored():
+    rows = [{"host": "Mac", "status": "runner-down", "last_seen": _iso(wd.RETIRED_S + 60)},
+            {"host": "claude-cloud", "status": "online", "last_seen": _iso(wd.RETIRED_S + 1)}]
+    assert wd.problems(rows, None, NOW) == {}
+
+
+def test_live_silent_row_pages():
+    rows = [{"host": "Phills-Mac-mini", "status": "online", "last_seen": _iso(wd.SILENT_S + 60)}]
+    found = wd.problems(rows, None, NOW)
+    assert "silent:Phills-Mac-mini" in found
+    assert "16 min" in found["silent:Phills-Mac-mini"]
+
+
+def test_a_runner_silent_within_seven_days_still_pages():
+    rows = [{"host": "Phills-Mac-mini", "status": "online", "last_seen": _iso(6 * 24 * 3600)}]
+    assert "silent:Phills-Mac-mini" in wd.problems(rows, None, NOW)
+
+
+def test_healthy_row_does_not_page():
+    rows = [{"host": "Phills-MacBook-Pro", "status": "online", "last_seen": _iso(30)}]
+    assert wd.problems(rows, None, NOW) == {}
+
+
+@pytest.mark.parametrize("last_seen", [None, "", "not-a-timestamp"])
+def test_missing_last_seen_is_not_paged(last_seen):
+    rows = [{"host": "Mac", "status": "online", "last_seen": last_seen}]
+    assert wd.problems(rows, None, NOW) == {}
+
+
+def test_retired_cutoff_env_is_what_the_cycle_uses(sent, monkeypatch):
+    monkeypatch.setenv("MESH_RUNNER_RETIRED_S", "1000")
+    rows = [{"host": "Mac", "status": "online", "last_seen": _iso(1200)}]
+    assert wd.run(_fetch(rows), NOW, LOG) == {}
+
+
+def test_a_cutoff_inside_the_silence_window_is_refused(monkeypatch):
+    monkeypatch.setenv("MESH_RUNNER_RETIRED_S", "60")
+    assert wd.retired_cutoff_s() == wd.RETIRED_S
+    monkeypatch.setenv("MESH_RUNNER_RETIRED_S", "nope")
+    assert wd.retired_cutoff_s() == wd.RETIRED_S
+
+
+def test_only_the_live_silent_runner_pages_in_a_mixed_fleet():
+    from app.server.session_lease import CLOUD_CLAIM_MACHINE
+
+    rows = [
+        {"host": "Mac", "status": "online", "last_seen": _iso(wd.RETIRED_S + 86400)},
+        {"host": "claude-cloud", "status": "online", "last_seen": _iso(wd.RETIRED_S + 3600)},
+        {"host": CLOUD_CLAIM_MACHINE, "status": "online", "last_seen": _iso(wd.SILENT_S + 60)},
+        {"host": "Phills-Mac-mini", "status": "online", "last_seen": _iso(30)},
+        {"host": "Phills-MacBook-Pro", "status": "online", "last_seen": _iso(wd.SILENT_S + 120)},
+    ]
+    assert list(wd.problems(rows, None, NOW)) == ["silent:Phills-MacBook-Pro"]
