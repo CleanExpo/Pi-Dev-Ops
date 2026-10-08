@@ -78,7 +78,7 @@ a clear rationale in the PR body. Evaluator score must be ≥ 8/10 before auto-s
 | `dashboard/lib/supabase/` | Supabase client factory | Schema changes need migration + type regen |
 | `supabase/migrations/` | Database migrations | New migration per schema change; never edit existing |
 | `.github/workflows/` | CI pipeline | Changes must not remove any of the three jobs |
-| `railway.toml` | Railway deploy config | Never remove health check path |
+| `railway.pi-dev-ops.toml` | Railway deploy config for the Python service. Do not put a `railway.toml` back at the repo root: every service in this repo would build the Python image. | Never remove health check path |
 | `Dockerfile` | Container build | Keep `TAO_USE_AGENT_SDK=1` ENV |
 
 ---

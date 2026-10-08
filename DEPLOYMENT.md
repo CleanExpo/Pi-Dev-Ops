@@ -36,7 +36,7 @@ Single source of truth for production services, hosting, env vars, and rollback 
 | pi-ceo (FastAPI) | `pi-ceo` | pi-dev-ops-production.up.railway.app | CleanExpo/Pi-Dev-Ops Dockerfile |
 | pi-ceo-telegram-bot | `pi-ceo-telegram-bot` | (internal) | Separate Railway project |
 
-Railway config: [`railway.toml`](railway.toml), [`Dockerfile`](Dockerfile)
+Railway config for the Python service: [`railway.pi-dev-ops.toml`](railway.pi-dev-ops.toml), [`Dockerfile`](Dockerfile)
 
 ### GitHub (CI/CD)
 

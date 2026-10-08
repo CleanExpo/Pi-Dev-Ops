@@ -20,7 +20,12 @@ EXPECTED = {
 EXPECTED_OPTIONS = {
     "build.dockerfilePath": {"Dockerfile", "/Dockerfile"},
 }
-EXPECTED_CONFIG_FILES = {"/railway.toml", "/railway.json"}
+EXPECTED_CONFIG_FILES = {
+    "/railway.toml",
+    "/railway.json",
+    "/railway.pi-dev-ops.toml",
+    "/railway.pi-dev-ops.json",
+}
 
 
 def _run_status() -> dict[str, Any]:

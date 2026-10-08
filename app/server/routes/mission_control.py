@@ -152,7 +152,7 @@ _OBSERVABILITY_ACTIONS = {
         "owner": "Deploy/infra operator",
         "severity": "high",
         "next_action": "Restore Railway's repo-backed deploy contract: Dockerfile builder, guarded model-fabric bootstrap, and /health healthcheck.",
-        "evidence_required": ["railway.toml contract check passes", "Railway latest deployment manifest matches Dockerfile + guarded bootstrap + /health"],
+        "evidence_required": ["railway.pi-dev-ops.toml contract check passes", "Railway latest deployment manifest matches Dockerfile + guarded bootstrap + /health"],
     },
     "hermes_gateway": {"owner": "Hermes/Codex operator", "severity": "high", "next_action": "Start or repair the Mac Mini Hermes heartbeat writer so .harness/hermes/heartbeat.jsonl updates within five minutes.", "evidence_required": ["fresh heartbeat.jsonl row", "Mission Control fully_observed recalculation"]},
     "margot_route": {"owner": "Margot operator", "severity": "medium", "next_action": "Run a Margot turn or sync conversation evidence so .harness/margot/conversations has a fresh record.", "evidence_required": ["fresh Margot conversation JSONL", "last_turn_at within 24h"]},
@@ -167,13 +167,13 @@ def _repo_root() -> Path:
 
 
 def _railway_deploy_config_component() -> dict:
-    path = _repo_root() / "railway.toml"
+    path = _repo_root() / "railway.pi-dev-ops.toml"
     if not path.exists():
-        return {"ok": False, "observed": True, "status": "missing", "error": "railway.toml is missing"}
+        return {"ok": False, "observed": True, "status": "missing", "error": "railway.pi-dev-ops.toml is missing"}
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as exc:
-        return {"ok": False, "observed": True, "status": "invalid", "error": f"railway.toml unreadable: {exc}"}
+        return {"ok": False, "observed": True, "status": "invalid", "error": f"railway.pi-dev-ops.toml unreadable: {exc}"}
 
     build = data.get("build") if isinstance(data.get("build"), dict) else {}
     deploy = data.get("deploy") if isinstance(data.get("deploy"), dict) else {}
@@ -197,7 +197,7 @@ def _railway_deploy_config_component() -> dict:
         "ok": not mismatches,
         "observed": True,
         "status": "configured" if not mismatches else "drift",
-        "note": "railway.toml deploy contract is present" if not mismatches else "railway.toml deploy contract drift",
+        "note": "railway.pi-dev-ops.toml deploy contract is present" if not mismatches else "railway.pi-dev-ops.toml deploy contract drift",
         "mismatches": mismatches,
     }
 

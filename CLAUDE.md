@@ -61,7 +61,7 @@ Generator and evaluator run through `claude_agent_sdk`. `TAO_USE_AGENT_SDK=0` ra
 | Harness state | JSONL / JSON | `.harness/` |
 | Skills | `SKILL.md` files | `skills/` |
 | Database | Supabase (PostgreSQL) | `supabase/migration.sql` **and** `supabase/migrations/*.sql` |
-| Deploy | Vercel (FE) · Railway (BE) | `dashboard/vercel.json`, `railway.toml` |
+| Deploy | Vercel (FE) · Railway (BE) | `dashboard/vercel.json`, `railway.pi-dev-ops.toml` |
 
 Shared packages: `packages/brand-config/` (brand-token SSOT) and `packages/ui/` (shadcn New York
 primitives, built with `tsup`). Consume via `"@unite-group/ui": "file:../packages/ui"`.
