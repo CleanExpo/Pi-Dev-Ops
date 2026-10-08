@@ -4,7 +4,7 @@ Done means:
   * GET /api/health/ready runs bounded ``git ls-remote`` with the configured token
   * 200 on success, 503 on failure (missing token, auth reject, timeout)
   * /health never 503s for disk — it is Railway's healthcheckPath
-  * railway.toml / railway.json healthcheckPath stays ``/health``
+  * railway.pi-dev-ops.toml / railway.pi-dev-ops.json healthcheckPath stays ``/health``
   * the token never appears in the response or in git argv
 """
 from __future__ import annotations
@@ -196,10 +196,10 @@ def test_health_stays_liveness_200_when_disk_check_fails(monkeypatch):
 
 def test_railway_healthcheck_path_stays_liveness():
     """A 503 on Railway's healthcheckPath deploy-loops. That path stays /health."""
-    toml = (REPO / "railway.toml").read_text(encoding="utf-8")
+    toml = (REPO / "railway.pi-dev-ops.toml").read_text(encoding="utf-8")
     assert 'healthcheckPath = "/health"' in toml
     assert "/api/health/ready" not in toml
-    manifest = json.loads((REPO / "railway.json").read_text(encoding="utf-8"))
+    manifest = json.loads((REPO / "railway.pi-dev-ops.json").read_text(encoding="utf-8"))
     assert manifest["deploy"]["healthcheckPath"] == "/health"
     audit = (REPO / "scripts" / "railway_manifest_audit.py").read_text(encoding="utf-8")
     assert '"deploy.healthcheckPath": "/health"' in audit

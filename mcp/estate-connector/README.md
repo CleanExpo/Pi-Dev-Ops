@@ -104,19 +104,21 @@ Then the local address is `http://127.0.0.1:8787/mcp?bot=queue`. Bots on the int
 
 ## Deploy on Railway
 
-Do this in the Railway project that already hosts Pi-Dev-Ops. Do not change the existing Python service.
+The connector service is already in the Pi-Dev-Ops Railway project. Its folder (`mcp/estate-connector`), start command (`npm start`), and health check (`/healthz`) are already set. The failed builds used the Python image because a file named `railway.toml` at the top of the repo applies to every service. Railway does not look inside the service folder for that file. New services also cannot be pointed at their own config file.
 
-1. Add a **new service** from the same GitHub repo. Leave the existing Python service as it is.
-2. Set the service **root directory** to `mcp/estate-connector`. If the root stays the repo root, Railway builds the Python app instead of this connector.
-3. Set the start command to `npm start` and the health check path to `/healthz`. Builder should be Nixpacks (or Railpack), not the Dockerfile.
-4. Add a variable named `ESTATE_MCP_TOKEN`. Paste a long random password. Keep a copy for the bots. Do not commit it.
-5. Optional, for live Mission Control and Pi-Dev-Ops health: `PICEO_BASE_URL` = the existing backend address, and `PICEO_BEARER_TOKEN` = the password that backend already uses.
-6. Optional, for live Unite-Group: `UNITE_BASE_URL` = `https://unite-group.vercel.app`.
-7. Add a **volume** mounted at `/data`, and set `ESTATE_MCP_DATA_DIR=/data`. Without a volume, the shared notes disappear the next time the service is redeployed.
-8. Deploy. Copy the public `https://` address Railway shows.
-9. In each bot, register `https://<that address>/mcp?bot=<bot-name>` and the bearer token from step 4.
+This repo now keeps the same Python settings in `railway.pi-dev-ops.toml`, and the connector folder has its own `Dockerfile`. Railway builds a `Dockerfile` it finds at the root of the service folder.
 
-This does not merge the pull request, does not create the token for you, and does not turn the service on.
+One dashboard change is still required, on the existing **Pi-Dev-Ops** service (the Python app that is already running), not on the connector:
+
+1. Open that service → **Settings** → **Config file** (the Railway config-as-code path).
+2. Set it to `/railway.pi-dev-ops.toml`.
+3. Merge the pull request that renames the file in the same sitting, then let that merge deploy. Do not press Redeploy before the merge is on `main`.
+
+Those two have to land together. The running service's start command and `/health` check live only in that file. Saving the new path while `main` still has `railway.toml` makes a deploy look for a file that is not there yet. Merging the rename while the setting is still blank makes the next Python deploy forget the start command and the health check.
+
+Leave the connector alone. Root directory `mcp/estate-connector`, start command `npm start`, and health check `/healthz` are already set. So are `ESTATE_MCP_TOKEN`, the data directory, and the volume mounted at `/data`. After the merge deploy finishes, copy the public `https://` address and register `https://<that address>/mcp?bot=<bot-name>` in each bot, with the bearer token already stored on the service.
+
+Optional, only if a live read comes back empty: `PICEO_BEARER_TOKEN` for the Pi-Dev-Ops password, and `UNITE_BEARER_TOKEN` if Unite-Group's status page is private. `PICEO_BASE_URL` and `UNITE_BASE_URL` are already set.
 
 ## Adding a project later
 

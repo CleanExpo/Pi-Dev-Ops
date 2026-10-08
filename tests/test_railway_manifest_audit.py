@@ -104,6 +104,11 @@ def test_audit_fails_when_railway_ignores_config_as_code():
     assert report["ok"] is False
     assert report["results"][0]["mismatches"][0] == {
         "path": "configFile",
-        "expected": ["/railway.json", "/railway.toml"],
+        "expected": [
+            "/railway.json",
+            "/railway.pi-dev-ops.json",
+            "/railway.pi-dev-ops.toml",
+            "/railway.toml",
+        ],
         "actual": None,
     }
