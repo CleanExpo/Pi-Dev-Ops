@@ -72,8 +72,10 @@ test("startup refuses a missing token", () => {
   assert.throws(() => buildApp({ token: "short", env: {}, dataDir, repoRoot: REPO_ROOT }), /ESTATE_MCP_TOKEN/);
 });
 
-test("lists read and write tools for the three systems only", async () => {
-  assert.deepEqual(adapters.map((adapter) => adapter.id), ["coord", "pidevops", "unite", "mc"]);
+test("lists read and write tools for the registered systems only", async () => {
+  assert.deepEqual(adapters.map((adapter) => adapter.id), [
+    "coord", "pidevops", "unite", "mc", "restoreassist", "synthex", "drnrpg",
+  ]);
   const client = await connect();
   try {
     const listed = await client.listTools();
@@ -81,6 +83,8 @@ test("lists read and write tools for the three systems only", async () => {
     assert.deepEqual(names, [
       "coord_activity",
       "coord_post_note",
+      "drnrpg_health",
+      "drnrpg_post_note",
       "mc_claim_work",
       "mc_live",
       "mc_post_note",
@@ -91,6 +95,10 @@ test("lists read and write tools for the three systems only", async () => {
       "pidevops_health",
       "pidevops_post_status",
       "pidevops_projects",
+      "restoreassist_health",
+      "restoreassist_post_note",
+      "synthex_health",
+      "synthex_post_note",
       "unite_post_note",
       "unite_projects",
       "unite_status",
@@ -153,6 +161,25 @@ test("mc_post_note writes the shared feed and an audit line", async () => {
     assert.equal(entry.bot, "queue");
     assert.ok(entry.ts);
     assert.equal(audit.includes(TOKEN), false);
+  } finally {
+    await client.close();
+  }
+});
+
+test("a project note lands on the shared feed", async () => {
+  const client = await connect();
+  try {
+    const wrote = toolText(await client.callTool({
+      name: "restoreassist_post_note",
+      arguments: { text: "RestoreAssist health checked" },
+    }));
+    assert.equal(wrote.system, "restoreassist");
+    assert.equal(wrote.bot, "queue");
+    const feed = toolText(await client.callTool({
+      name: "coord_activity",
+      arguments: { system: "restoreassist" },
+    }));
+    assert.equal(feed.notes.some((item) => item.id === wrote.id), true);
   } finally {
     await client.close();
   }
