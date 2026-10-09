@@ -10,3 +10,4 @@ Auto-stub: `docs/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
 - docs/RESEARCH-unlazy-model-routing-2026-08-21.md — touched in recent commits
+- [LLM operations modernization, 10 October 2026](operations/llm-modernization-2026-10-10/README.md) — offline inventory, current vendor baseline, task/evidence templates and runtime rollout gates.
