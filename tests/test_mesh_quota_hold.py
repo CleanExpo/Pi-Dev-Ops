@@ -99,8 +99,11 @@ def _agent_says(stdout: str, code: int = 1):
     return run
 
 
-def test_preflight_names_an_exhausted_quota_and_its_reset():
+def test_preflight_names_an_exhausted_quota_and_its_reset(monkeypatch):
     pf = load_module("mesh_preflight_quota", "mesh/preflight.py")
+    # The sample reset is 9 Oct 2026 01:00 Brisbane. After that moment a live
+    # clock no longer parses it as that reset, so the test keeps the 6 Oct clock.
+    monkeypatch.setattr(pf.time, "time", lambda: NOW)
     problem = pf.agent_writes(Path("/repo"), "claude", run=_agent_says(WEEKLY))
     assert quota.held_until(problem) == _at(2026, 10, 9, 1, 0), problem
     # control: any other non-zero exit is still the plain exit
