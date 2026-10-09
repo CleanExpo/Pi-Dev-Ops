@@ -20,6 +20,17 @@ export function httpProjectAdapter(config) {
   };
 }
 
+/** Health read plus a shared-board note. Base URL falls back to defaultBase. */
+export function healthNoteAdapter(config) {
+  return {
+    id: config.id,
+    title: config.title,
+    tools() {
+      return [healthTool(config), noteTool({ ...config, prefix: config.prefix || config.id })];
+    },
+  };
+}
+
 function statusTool(config) {
   return {
     name: `${config.prefix}_status`,
@@ -39,6 +50,23 @@ function statusTool(config) {
       }
       const statusPath = ctx.env[config.statusPathEnv] || config.statusPathDefault;
       const live = await fetchJson(joinUrl(base, statusPath), ctx.env[config.tokenEnv]);
+      return ok({ ...live, registry });
+    },
+  };
+}
+
+function healthTool(config) {
+  const prefix = config.prefix || config.id;
+  return {
+    name: `${prefix}_health`,
+    title: `${config.title} health`,
+    description: `[READ] Live health for ${config.title}. ${config.baseEnv} overrides the default site. A bearer token is sent only when ${config.tokenEnv} is set.`,
+    readOnly: true,
+    inputSchema: {},
+    async handler(_args, ctx) {
+      const registry = projectById(ctx.repoRoot, config.registryId).project;
+      const base = ctx.env[config.baseEnv] || config.defaultBase;
+      const live = await fetchJson(joinUrl(base, "/api/health"), ctx.env[config.tokenEnv]);
       return ok({ ...live, registry });
     },
   };

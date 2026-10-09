@@ -1,6 +1,6 @@
 # Estate connector
 
-One web address that Queue, Scout, Sentinel, Critic, Margot, and Projects Manager can all use. They read Unite-Group, Pi-Dev-Ops, and Mission Control through it, and they leave notes on one shared board so they can see what the others just did.
+One web address that Queue, Scout, Sentinel, Critic, Margot, and Projects Manager can all use. They read Unite-Group, Pi-Dev-Ops, Mission Control, RestoreAssist, Synthex, and DR-NRPG through it, and they leave notes on one shared board so they can see what the others just did.
 
 This is a remote connector (the current MCP "Streamable HTTP" style). It does not call a paid language model. It does not deploy, merge, or delete anything.
 
@@ -46,7 +46,7 @@ Read tools only look. Write tools are marked `[WRITE]`, check the input, and app
 | Tool | Kind | What it does |
 |---|---|---|
 | `coord_activity` | Read | Recent notes on the shared board. Optional filter by system. |
-| `coord_post_note` | Write | Add a note. Requires a system tag: `coord`, `pidevops`, `unite`, or `mc`. |
+| `coord_post_note` | Write | Add a note. Requires a system tag: `coord`, `pidevops`, `unite`, `mc`, `restoreassist`, `synthex`, or `drnrpg`. |
 | `pidevops_health` | Read | Live health of the Pi-Dev-Ops backend, when `PICEO_BASE_URL` is set. |
 | `pidevops_projects` | Read | Project list already stored in this repo (`config/harness/projects.json`). |
 | `pidevops_deployments` | Read | Deployment addresses from that same list. Does not deploy. |
@@ -60,6 +60,12 @@ Read tools only look. Write tools are marked `[WRITE]`, check the input, and app
 | `mc_update_queue_item` | Write | Create or update a queue item. Status can be `open`, `blocked`, or `done`. |
 | `mc_claim_work` | Write | Take an existing item. Other bots see the owner's name. |
 | `mc_release_work` | Write | Put an item you claimed back to `open`. The item stays. |
+| `restoreassist_health` | Read | Live health of RestoreAssist. Default `https://restoreassist.app/api/health`. |
+| `restoreassist_post_note` | Write | Post a RestoreAssist note on the shared board. Does not change the live site. |
+| `synthex_health` | Read | Live health of Synthex. Default `https://synthex.social/api/health`. |
+| `synthex_post_note` | Write | Post a Synthex note on the shared board. Does not change the live site. |
+| `drnrpg_health` | Read | Live health of DR-NRPG. Default `https://dr-nrpg-platform.vercel.app/api/health`. |
+| `drnrpg_post_note` | Write | Post a DR-NRPG note on the shared board. Does not change the live site. |
 
 There is no delete tool. A finished item is marked `done`.
 
@@ -83,8 +89,14 @@ Set these on the host. Do not put the real token in git. Empty names are in `.en
 | `UNITE_BEARER_TOKEN` | No | Sent only to Unite-Group, and only if that site requires a login. |
 | `UNITE_STATUS_PATH` | No | Default `/api/health`. |
 | `UNITE_PROJECTS_PATH` | No | Path for a live Unite project list. Leave empty to use the saved project row. |
+| `RESTOREASSIST_BASE_URL` | No | Site origin for RestoreAssist health. Default `https://restoreassist.app`. |
+| `RESTOREASSIST_BEARER_TOKEN` | No | Sent only to RestoreAssist, and only if that health page requires a login. |
+| `SYNTHEX_BASE_URL` | No | Site origin for Synthex health. Default `https://synthex.social`. |
+| `SYNTHEX_BEARER_TOKEN` | No | Sent only to Synthex, and only if that health page requires a login. |
+| `DRNRPG_BASE_URL` | No | Site origin for DR-NRPG health. Default `https://dr-nrpg-platform.vercel.app`. |
+| `DRNRPG_BEARER_TOKEN` | No | Sent only to DR-NRPG, and only if that health page requires a login. |
 
-Without the optional URLs, read tools still answer. They say the live site is not configured and return what is already in this repo. Notes and the queue work either way, because they are stored by this connector.
+Without the optional Pi-Dev-Ops and Unite URLs, those read tools still answer. They say the live site is not configured and return what is already in this repo. RestoreAssist, Synthex, and DR-NRPG health reads use the default sites above when their URL is unset. A health page that is down, or that does not return JSON, comes back as data on the tool (`ok: false` and the status code). It does not crash the connector. Notes and the queue work either way, because they are stored by this connector.
 
 ## Run a check on your machine
 
@@ -126,14 +138,11 @@ One folder per project, registered in one file: `adapters/registry.js`.
 
 Unite-Group is the pattern to copy. `adapters/unite/index.js` is a few lines that call `httpProjectAdapter(...)`. A later project is the same: new folder, one export, one line in the registry. Read tools should use a base URL from the environment. Write tools should only post notes or queue updates on this shared board, and must go through the audited write helper. Do not add delete, deploy, or merge tools.
 
-These are not connected in this version. What each one still needs:
+RestoreAssist, Synthex, and DR-NRPG are connected for health and notes. These are not connected yet. What each one still needs:
 
 | Project | Registry id | Already known | Still needed before live reads work |
 |---|---|---|---|
-| RestoreAssist | `restoreassist` | Repo `CleanExpo/RestoreAssist`. Site `https://restoreassist.app`. | A status path on that site, then `RESTOREASSIST_BASE_URL`. A bearer token only if the path is private. |
-| Synthex | `synthex` | Repo `CleanExpo/Synthex`. Site `https://synthex.social`. | A status path, then `SYNTHEX_BASE_URL`. |
 | CCW-CRM | `ccw-crm` | Repo `CleanExpo/CCW-CRM`. Linear name CCW-ERP/CRM. | The project list has no public address yet. Need the live URL and a status path. |
-| DR-NRPG | `dr-nrpg` | Repo `CleanExpo/DR-NRPG`. A probe in this repo already calls `https://dr-nrpg-platform.vercel.app/api/health`. | Point the adapter at that health URL after confirming it is still the right one. |
 | Disaster-Recovery | `disaster-recovery` | The registry row now points at sandbox repo `CleanExpo/DR-Sandbox` (the old repo was `CleanExpo/Disaster-Recovery`). | No deployment address is stored. Need the public site URL and a status path. |
 | ATO | `ato` | Repo `CleanExpo/ATO`. | No deployment address is stored. Need the public site URL and a status path. |
 | CARSI | `carsi` | Repo `CleanExpo/carsi`. The name `carsi.com.au` appears in Margot's notes. | No deployment address is stored. Confirm the public URL and a status path. |

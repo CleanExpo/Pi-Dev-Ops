@@ -8,4 +8,4 @@ export const botField = z
 export const systemField = z
   .string()
   .optional()
-  .describe("System id: coord, pidevops, unite, or mc.");
+  .describe("System id: coord, pidevops, unite, mc, restoreassist, synthex, or drnrpg.");
