@@ -1,12 +1,17 @@
 # mcp — Wiki
 
-_Last updated: 2026-08-03T07:48:00Z (commits 51c984b..cff9ddc)_
+_Last updated: 2026-10-09T03:27:51Z (commits 651c8d3..0820926)_
 
 ## Recent changes
-- cff9ddc — Fix/lessons seed 611 remainder (#613)
+- 0820926 — feat(mcp): health reads for RestoreAssist, Synthex, and DR-NRPG (#921)
 
 ## Architecture (current)
 Auto-stub: `mcp/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- mcp/pi-ceo-server.js — touched in recent commits
+- mcp/estate-connector/.env.example — touched in recent commits
+- mcp/estate-connector/README.md — touched in recent commits
+- mcp/estate-connector/adapters/coord/index.js — touched in recent commits
+- mcp/estate-connector/adapters/drnrpg/index.js — touched in recent commits
+- mcp/estate-connector/adapters/http-project.js — touched in recent commits
+- mcp/estate-connector/adapters/registry.js — touched in recent commits
