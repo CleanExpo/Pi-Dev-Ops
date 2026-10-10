@@ -78,7 +78,7 @@ Both numbers are printed in §7.
 | **Unanimous criticism** | split = 0 with non-`pass` verdicts (any overlap) | fold ALL must_fix, synthesize, no round 2 — round 2 exists to resolve contradictions, not unanimity |
 | **Convergent criticism** | split ≤ 0.25 AND overlap ≥ 0.5 | fold the agreed must_fix into the spec; no round 2 |
 | **Divergent** | split ≥ 0.5, OR (overlap < 0.2 AND ≥1 non-pass) | **RAMP UP**: escalate synthesis to Opus 5; add the judge seat if absent; run round 2 (final); round-2 briefs carry peers' round-1 must_fix (cooperation gate) |
-| **Hard floor** | any `fail` with confidence ≥ 0.8 from the security seat, or on an irreversibility finding | the spec **cannot receive APPROVE BUILD at any score** until the finding is resolved — regardless of the other seats' consensus |
+| **Hard floor** | any `fail` with confidence ≥ 0.8 from the security seat, or on an irreversibility finding | the spec **cannot receive development/experiment or promotion approval at any score** until the finding is resolved — regardless of the other seats' consensus |
 
 Additional ramp triggers:
 

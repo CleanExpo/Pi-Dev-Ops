@@ -1,4 +1,4 @@
-"""Judge ↔ CEO-board ↔ SPM liaison loop until score 100 or honest ceiling."""
+"""Judge ↔ CEO-board ↔ SPM liaison with bounded, explicit stage qualification."""
 from __future__ import annotations
 
 import logging
@@ -7,7 +7,10 @@ from typing import Any
 
 from . import persistence as persist
 from .ceo_board_liaison import run_ceo_board_liaison
-from .prebuild_judge import APPROVAL_FLOOR, EvidenceRow, JudgeReport, is_build_approved, iterate_to_100
+from .prebuild_judge import (
+    ApprovalStage, QUALITY_TARGET, EvidenceRow, JudgeReport, approval_floor,
+    is_stage_approved, iterate_to_100, validate_stage,
+)
 from .proposal_validator import ProposalValidationError, validate_proposal_text
 from .spm_runner import extract_refined_proposal, run_spm_gap_resolution
 
@@ -34,12 +37,14 @@ async def judge_with_liaison(
     *,
     repo_context: str,
     stages: list[dict[str, Any]],
+    stage: ApprovalStage = "promotion",
 ) -> tuple[str, JudgeReport, list[JudgeReport], list[EvidenceRow]]:
     """
-    Run judge; on gaps invoke ceo-board + SPM; re-judge until 100 or ceiling.
+    Run Judge and gap liaison until the stage qualifies or a hard ceiling applies.
 
     Returns (working_proposal, final_judge, judge_history, merged_evidence).
     """
+    stage = validate_stage(stage)
     max_liaison = int(os.environ.get("TAO_SPEC_LIAISON_ROUNDS", "3"))
     judge_iters = int(os.environ.get("TAO_SPEC_JUDGE_ITERS", "5"))
     working_proposal = proposal
@@ -53,24 +58,28 @@ async def judge_with_liaison(
             evidence=merged_evidence,
             repo_context=repo_context,
             max_iters=judge_iters,
+            **({"stage": stage} if stage == "development" else {}),
         )
-        if final_judge.score >= APPROVAL_FLOOR and not is_build_approved(final_judge):
+        if final_judge.score >= approval_floor(stage) and not is_stage_approved(final_judge, stage):
             final_judge.decision = "NOT_APPROVED"
         offset = len(judge_history)
         for i, rep in enumerate(round_history, 1):
             persist.write_json(
                 pipeline_id,
                 f"02-judge-iter-{offset + i}.json",
-                rep.to_dict(),
+                {**rep.to_dict(), "stage": stage, "approval_floor": approval_floor(stage),
+                 "quality_target": QUALITY_TARGET},
             )
         judge_history.extend(round_history)
 
-        if is_build_approved(final_judge):
-            final_judge.decision = "APPROVE_BUILD"
+        if is_stage_approved(final_judge, stage):
+            final_judge.decision = "APPROVE_EXPERIMENT" if stage == "development" else "APPROVE_BUILD"
             stages.append({
                 "stage": "judge",
                 "status": "ok",
                 "score": final_judge.score,
+                "approval_stage": stage,
+                "approval_floor": approval_floor(stage),
                 "liaison_rounds": liaison_round,
             })
             return working_proposal, final_judge, judge_history, merged_evidence

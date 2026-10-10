@@ -35,7 +35,7 @@ If genuinely no isolation exists for a step (rare), the spec must say so explici
 1. classify every claim that step would have proven as `observed, not proven`
    (proof-discipline classes), never `proven`;
 2. gate the affected acceptance criteria on a human-run check in §15;
-3. have the judge seat treat the gap as a standing must_fix — APPROVE BUILD at any score
+3. have the judge seat treat the gap as a standing must_fix — development/experiment and promotion approval at any score
    requires either the sandbox or the explicit human gate, never silence.
 
 ## Receipt

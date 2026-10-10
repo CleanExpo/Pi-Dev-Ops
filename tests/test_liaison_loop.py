@@ -165,3 +165,36 @@ async def test_board_rejection_still_blocks_before_spm(monkeypatch, tmp_path):
     assert final.honest_ceiling
     assert final.score == 94
     assert stages[-1]["status"] == "rejected"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("score", [85, 94, 95, 100])
+async def test_development_liaison_returns_preparation_decision_and_stage(monkeypatch, tmp_path, score):
+    from app.server.spec_pipeline import liaison_loop as ll
+    from app.server.spec_pipeline import persistence as persist
+
+    monkeypatch.setattr(persist, "PIPELINES_ROOT", tmp_path / ".harness" / "spec-pipelines")
+    report = JudgeReport("proposal", score, "APPROVE_EXPERIMENT",
+                         evidence=[EvidenceRow("gate", status="SUPPORTED")],
+                         nonblocking_gaps=[] if score == 100 else [
+                             NonBlockingGap("receipt", "owner", "clarify", "PLANNED: check", "ux_clarity")])
+
+    async def fake_iterate(*_a, **kwargs):
+        assert kwargs["stage"] == "development"
+        return report, [report]
+
+    async def forbidden(*_a, **_k):
+        raise AssertionError("qualified development packet must stop local convergence")
+
+    monkeypatch.setattr(ll, "iterate_to_100", fake_iterate)
+    monkeypatch.setattr(ll, "run_ceo_board_liaison", forbidden)
+    monkeypatch.setattr(ll, "run_spm_gap_resolution", forbidden)
+    stages = []
+    _, final, history, _ = await ll.judge_with_liaison("dev", "proposal", [],
+                                                      repo_context="ctx", stages=stages,
+                                                      stage="development")
+    assert final.score == score and final.decision == "APPROVE_EXPERIMENT"
+    assert len(history) == 1 and stages[-1]["approval_stage"] == "development"
+    stored = persist.read_json("dev", "02-judge-iter-1.json")
+    assert stored["stage"] == "development" and stored["approval_floor"] == 85
+    assert stored["score"] == score and stored["nonblocking_gaps"] == final.to_dict()["nonblocking_gaps"]

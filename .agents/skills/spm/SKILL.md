@@ -115,12 +115,14 @@ Decision: REJECT, REDUCE SCOPE, APPROVE EXPERIMENT, APPROVE BUILD.
 Thresholds:
 
 - 0–69 = REJECT
-- 70–94 = REDUCE SCOPE or APPROVE EXPERIMENT — NOT a build authorisation
-- 95–100, with no hard block and all mandatory build criteria satisfied = APPROVE BUILD;
-  target 100. Apply `.judge/approval-policy.md` and retain separate user/project authority.
-- 0–94 is NOT BUILD APPROVED. A bounded experiment requires its own explicit authority.
-- At 95–99, name each remaining non-blocking gap, owner, closure action, and required evidence
-  before any dependent stage. Claim 100 only when earned; future checks are not passed evidence.
+- 70–84 = REDUCE SCOPE; below the bounded local development minimum.
+- 85–94 = APPROVE EXPERIMENT only for the named reversible local scope with explicit authority.
+- 95–100 = eligible for ordinary build/promotion with every hard guard cleared; target 100.
+  Existing callers default to promotion. Apply `.judge/approval-policy.md`.
+- At 85–99, record complete deductions with name, owner, closure action, required evidence,
+  and one of the four permitted categories before each dependent stage. Never round up.
+- The machine development stage stops at a preparation packet before SDK implementation,
+  workspace creation, oracles, Git, shipping or activation; it does not promote the scope.
 - Billing/spend, workspace trust, privacy, security, authority, and mandatory `must_fix` blockers
   prevent approval regardless of score. Build approval does not approve activation or release.
 

@@ -111,7 +111,7 @@ turns.
 - **Honest degradation**: all seats fail → run the old inline persona pass, label the spec
   §7 `bench degraded — inline persona pass`, and say so in the final recommendation. Opus
   unavailable for the security seat → run it on Sonnet, mark §12 `reduced assurance`, and
-  block APPROVE BUILD regardless of score.
+  block development/experiment and promotion approval regardless of score.
 - **Kill-switches**: honour `~/.claude/HARD_STOP` and `TAO_MAX_COST_USD` per leveling.md §5.
 
 ## Task-shape → seat mapping (mirrors the nexus G4 menu)

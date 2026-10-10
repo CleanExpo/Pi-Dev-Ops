@@ -4,8 +4,9 @@
 
 ## 2. Decision
 
-Apply `.judge/approval-policy.md`: build floor 95/100, target 100/100. 0–94 is NOT BUILD
-APPROVED. State the judged scope, hard-block status, and separate authority still required;
+Apply `.judge/approval-policy.md`: bounded local development floor 85/100, promotion floor
+95/100, quality target 100/100. State the requested stage, scope, earned score, hard-block
+status, and separate authority; 85–94 permits only the explicit reversible local scope,
 no score waives billing, workspace trust, privacy, security, activation, or release gates.
 
 ## 3. Score
@@ -20,7 +21,9 @@ no score waives billing, workspace trust, privacy, security, activation, or rele
 | Testability | /10 | |
 | Cost/control simplicity | /5 | |
 
-For 95–99, record every remaining non-blocking gap and its closure plan. Claim 100 only
+For 85–99, record each complete nonblocking deduction (name, owner, closure action, required
+evidence, and one of the four permitted categories) and its dependent-stage boundary.
+A development_ready packet has executed no SDK implementation or promotion. Claim 100 only
 when earned for this stage; future tests are not passed evidence.
 
 | Remaining gap | Owner | Closure action | Required evidence / dependent stage |

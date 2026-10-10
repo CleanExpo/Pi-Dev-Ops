@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from pathlib import Path
 
 from app.server.spec_pipeline.prebuild_judge import EvidenceRow, JudgeReport, NonBlockingGap
+from app.server.spec_pipeline import _repo_context as actual_repo_context
 
 
 @pytest.fixture(autouse=True)
@@ -16,7 +17,7 @@ def isolated_metadata(monkeypatch, tmp_path):
     monkeypatch.setattr(persist, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(persist, "PIPELINES_ROOT", tmp_path / ".harness" / "spec-pipelines")
     monkeypatch.setattr(pipeline, "REPO_ROOT", tmp_path)
-    monkeypatch.setattr(pipeline, "_repo_context", lambda: "offline test context")
+    monkeypatch.setattr(pipeline, "_repo_context", lambda **_k: "offline test context")
     monkeypatch.setattr(pipeline, "_log_machine_gate", lambda *_a: None)
 
 
@@ -211,3 +212,101 @@ async def test_pipeline_uses_same_blocking_predicate_before_spm_or_board(pipelin
     assert persist.read_json("blocked", "meta.json")["judge_score"] == result.judge_score
     assert f"**Judge score:** {result.judge_score}" in (root / ".harness/spec-pipelines/blocked/08-handoff.md").read_text()
     assert state["actions"] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("score", [85, 94, 95, 100])
+@pytest.mark.parametrize("dry_run", [True, False])
+async def test_development_packet_never_enters_builder_or_shipping(pipeline_case, monkeypatch, score, dry_run):
+    pipeline, persist, state, root = pipeline_case
+    state["report"].score = score
+    state["report"].decision = "APPROVE_EXPERIMENT"
+    if score == 100:
+        state["report"].nonblocking_gaps = []
+    monkeypatch.setenv("TAO_MACHINE_SHIP_MODE", "1")
+
+    def forbidden(*_a, **_k):
+        raise AssertionError("development preparation must not reach execution")
+
+    for name in ("machine_ship_enabled", "run_until_done", "run_oracles", "run_review",
+                 "scan_diff_boundary", "open_pr_and_merge", "resolve_planner_loop_kwargs"):
+        monkeypatch.setattr(pipeline, name, forbidden)
+    monkeypatch.setattr(pipeline.subprocess, "run", forbidden)
+    monkeypatch.setattr(pipeline.shutil, "copytree", forbidden)
+    monkeypatch.setattr(pipeline.shutil, "rmtree", forbidden)
+    result = await pipeline.run_pipeline(state["report"].proposal, pipeline_id="dev",
+                                         stage="development", dry_run=dry_run)
+    assert result.status == "development_ready"
+    assert result.stage == "development" and result.approval_floor == 85
+    assert result.judge_score == score
+    assert result.nonblocking_gaps == state["report"].to_dict()["nonblocking_gaps"]
+    assert state["actions"] == ["spm"]
+    assert state["gate_logs"][0][0]["machine_judge_approved"] is (score >= 95)
+    meta = persist.read_json("dev", "meta.json")
+    assert meta["stage"] == "development" and meta["approval_floor"] == 85
+    assert meta["judge_score"] == score and meta["nonblocking_gaps"] == result.nonblocking_gaps
+    assert meta["implementation_executed"] is False and meta["promotion_performed"] is False
+    handoff = (root / ".harness/spec-pipelines/dev/08-handoff.md").read_text()
+    assert "**Requested stage:** development" in handoff
+    assert "**Stage floor / quality target:** 85 / 100" in handoff
+    assert "no SDK implementation executed" in handoff
+    assert f"**Judge score:** {score}" in handoff
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("score", [84, 85, 94])
+async def test_default_promotion_keeps_95_floor(pipeline_case, score):
+    pipeline, persist, state, _root = pipeline_case
+    state["report"].score = score
+    result = await pipeline.run_pipeline(state["report"].proposal, pipeline_id="promotion")
+    assert result.status == "blocked"
+    assert result.stage == "promotion" and result.approval_floor == 95
+    assert persist.read_json("promotion", "meta.json")["approval_floor"] == 95
+    assert state["actions"] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stage", ["unknown", None, True, 85])
+async def test_unknown_stage_has_no_persistence_or_external_effect(pipeline_case, monkeypatch, stage):
+    pipeline, persist, state, root = pipeline_case
+
+    def forbidden(*_a, **_k):
+        raise AssertionError("invalid stage must fail before persistence")
+
+    monkeypatch.setattr(persist, "new_pipeline_id", forbidden)
+    monkeypatch.setattr(persist, "write_text", forbidden)
+    monkeypatch.setattr(persist, "write_json", forbidden)
+    with pytest.raises(ValueError):
+        await pipeline.run_pipeline("Add an offline packet", stage=stage)
+    assert state["actions"] == []
+    assert not (root / ".harness").exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("changes", [{"score": 84}, {"gaps": ["must_fix"]},
+                                    {"honest_ceiling": True}, {"evidence": []},
+                                    {"nonblocking_gaps": []}])
+async def test_development_blocked_paths_preserve_stage_and_score(pipeline_case, changes):
+    pipeline, persist, state, root = pipeline_case
+    state["report"].score = 85
+    for name, value in changes.items():
+        setattr(state["report"], name, value)
+    result = await pipeline.run_pipeline(state["report"].proposal, pipeline_id="dev-blocked",
+                                         stage="development")
+    assert result.status == "blocked" and state["actions"] == []
+    assert result.stage == "development" and result.approval_floor == 85
+    meta = persist.read_json("dev-blocked", "meta.json")
+    assert meta["stage"] == result.stage and meta["judge_score"] == result.judge_score
+    assert "**Requested stage:** development" in (root / ".harness/spec-pipelines/dev-blocked/08-handoff.md").read_text()
+
+
+def test_development_context_does_not_invoke_git(monkeypatch, tmp_path):
+    from app.server import spec_pipeline as pipeline
+    (tmp_path / "README.md").write_text("offline context")
+    monkeypatch.setattr(pipeline, "REPO_ROOT", tmp_path)
+
+    def forbidden(*_a, **_k):
+        raise AssertionError("development context must not invoke Git")
+
+    monkeypatch.setattr(pipeline.subprocess, "run", forbidden)
+    assert "offline context" in actual_repo_context(include_git=False)

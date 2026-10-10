@@ -185,7 +185,8 @@ def test_gap_dataclass_round_trip_and_unknown_top_level_hard_record():
 
 def test_prompt_preserves_floor_target_and_planned_evidence_boundary():
     prompt = _build_prompt("Add an offline receipt", [], "ctx", 1)
-    assert "Approval floor 95; quality target 100" in prompt
+    assert "Promotion floor 95; development floor 85; quality target 100" in prompt
+    assert "Requested stage promotion; stage floor 95" in prompt
     assert "planned tests are never passed evidence" in prompt
     assert "must_fix gaps block at every score" in prompt
     assert "nonblocking_gaps" in prompt
@@ -222,3 +223,57 @@ async def test_explicit_ceiling_remains_blocking_at_qualified_numeric_score(monk
     assert len(history) == 1
     assert final.honest_ceiling
     assert not is_build_approved(final)
+
+
+@pytest.mark.parametrize("score,development,promotion", [(84, False, False), (85, True, False),
+                                                        (94, True, False), (95, True, True),
+                                                        (100, True, True)])
+def test_stages_have_distinct_floors_with_identical_validity(score, development, promotion):
+    from app.server.spec_pipeline.prebuild_judge import is_development_approved
+    report = _parse_report("p", payload(score), 1, stage="development")
+    assert is_development_approved(report) is development
+    assert is_build_approved(report) is promotion
+    if development:
+        assert report.decision == "APPROVE_EXPERIMENT"
+
+
+@pytest.mark.parametrize("score", [85, 95, 100])
+@pytest.mark.parametrize("changes", [
+    {"gaps": ["must_fix"]}, {"honest_ceiling": True}, {"evidence": []},
+    {"evidence": [{"claim": "x", "status": "UNSUPPORTED"}]},
+    {"nonblocking_gaps": [deduction(category="security_privacy")]},
+    {"nonblocking_gaps": [{"name": "incomplete"}]},
+])
+def test_development_does_not_relax_any_hard_validity(score, changes):
+    from app.server.spec_pipeline.prebuild_judge import is_development_approved
+    report = _parse_report("p", payload(score, **changes), 1, stage="development")
+    assert not is_development_approved(report)
+    assert not is_build_approved(report)
+    assert report.decision == "NOT_APPROVED"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("score", [85, 94, 95, 100])
+async def test_development_convergence_stops_at_first_qualified_packet(monkeypatch, score):
+    from app.server.spec_pipeline import prebuild_judge as pj
+    calls = []
+
+    async def fake_score(*_a, **kwargs):
+        calls.append(kwargs)
+        return _parse_report("p", payload(score), kwargs["iteration"], stage=kwargs["stage"])
+
+    monkeypatch.setattr(pj, "score_proposal", fake_score)
+    final, history = await pj.iterate_to_100("p", evidence=[], repo_context="ctx",
+                                          stage="development", max_iters=3)
+    assert len(calls) == len(history) == 1
+    assert final.score == score
+    assert final.decision == "APPROVE_EXPERIMENT"
+    assert not final.honest_ceiling
+
+
+@pytest.mark.parametrize("stage", ["unknown", None, True, 85])
+def test_unknown_stage_fails_closed_before_scoring(stage):
+    from app.server.spec_pipeline.prebuild_judge import validate_stage, is_stage_approved
+    with pytest.raises(ValueError):
+        validate_stage(stage)
+    assert not is_stage_approved(_parse_report("p", payload(), 1), stage)

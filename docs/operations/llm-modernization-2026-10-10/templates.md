@@ -13,6 +13,8 @@ Owner: <one writer for these files or responsibility>
 Scope: <allowed paths, exact change, existing capability to reuse>
 Evidence to read: <2–5 first-source paths or vendor URLs>
 Acceptance: <checks that would detect a wrong implementation>
+Stage: <development, promotion or release; applicable floor and actual Judge result>
+Allowed gaps: <noncritical gap, evidence, owner, closure action and next review trigger>
 Runtime contract: <CLI/API, requested model, permissions, working directory>
 Budget: <included access only, wall time, output cap, max retries>
 Stop: <missing authority, unavailable included route, irreversible action>
@@ -41,6 +43,12 @@ earlier review/test evidence.
 {
   "task_id": "fixture-or-ticket-id",
   "source_revision": "exact-sha",
+  "candidate_hashes": {},
+  "stage": "development-or-promotion-or-release",
+  "judge_score": null,
+  "applicable_floor": null,
+  "quality_target": 100,
+  "noncritical_gaps": [],
   "substrate": "codex-cli-or-claude-cli-or-api",
   "requested_model": "documented-id-or-alias",
   "observed_model": null,
@@ -50,6 +58,10 @@ earlier review/test evidence.
   "started_at": "timestamp",
   "finished_at": "timestamp",
   "usage": null,
+  "acceptance_passed": null,
+  "human_interventions": null,
+  "elapsed_seconds": null,
+  "comparison_id": null,
   "evidence_paths": [],
   "remaining_blocker": "condition-that-clears-it"
 }
@@ -58,6 +70,17 @@ earlier review/test evidence.
 Null means unknown. A requested model, an old status file, a healthy URL, zero exit
 status, or a self-scored response does not prove model identity, deployed revision,
 quality, usage or completion. Do not store secrets or customer data in the receipt.
+
+Record the stage that was actually approved. A development allowance does not
+approve promotion or release. Each permitted gap needs a named owner, evidence,
+closure action and the next check (for example, before promotion, after the next
+fixture run or by a specified date). Re-evaluate when the scope, source tree,
+runtime, account or dependency changes; do not carry the old score onto new work.
+
+For a host input application, also record native home, source pack hash, target
+preimages and modes, backup location, per-file readback, and Git HEAD/index hashes
+before and after. Keep input installation, optional profile selection, runtime
+activation and output-quality measurement as explicit receipt fields.
 
 ## Independent review
 

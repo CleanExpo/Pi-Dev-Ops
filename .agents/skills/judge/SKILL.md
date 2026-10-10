@@ -61,23 +61,28 @@ Score out of 100:
 | Testability | 10 |
 | Cost/control simplicity | 5 |
 
-Decision rules (build floor 95/100; target 100/100):
+Decision rules (bounded development floor 85/100; promotion floor 95/100; target 100/100):
 
-- **APPROVE BUILD requires an earned score of 95–100 and no hard block.** Apply
-  `.judge/approval-policy.md`; the score covers only the named scope and checked evidence.
-- 0–69 = REJECT; 70–94 = REDUCE SCOPE or APPROVE EXPERIMENT. **0–94 is NOT BUILD APPROVED.**
-  An experiment needs its own bounded scope and explicit authority; it cannot bypass a blocker.
-- At 95–99, list every remaining non-blocking gap, its closure action, owner, and evidence
-  required before any dependent stage. Continue pursuing 100; never round up or invent it.
-- Security, privacy, billing/spend, workspace trust, authority, and other mandatory `must_fix`
-  blockers prevent approval regardless of score. A numerical pass does not authorise
-  implementation, activation, push, or release; retain the separate user and project gates.
+- **APPROVE EXPERIMENT at 85–94** permits only the named reversible local development scope
+  with separate explicit user/project authority, a concrete test plan, and no hard block.
+  It is not ordinary build/promotion approval. Apply `.judge/approval-policy.md`.
+- **APPROVE BUILD requires an earned 95–100 and no hard block.** Existing callers and
+  promotion requests retain 95; no numerical pass approves push, activation, or release.
+- 0–69 = REJECT; 70–84 = REDUCE SCOPE. Below 85, reshape the development scope before proceeding.
+- At 85–99, name each remaining non-blocking gap, owner, closure action, and required evidence
+  before its dependent stage. Only clear_problem, reuse_existing, ux_clarity, and testability
+  deductions qualify; missing/unsupported evidence and mandatory findings stay blocking.
+- Security, privacy, billing/spend, workspace trust, authority, isolation, rollback,
+  irreversibility and `must_fix` blockers prevent either stage at every score.
 
-## Convergence — clear blockers, earn 95, keep pursuing 100
+## Convergence — develop at 85, promote at 95, pursue 100
 
-Iterate: score → anchor each gap to first-source evidence → close blockers, gather evidence,
-reduce scope or bloat → re-score. A qualifying 95–99 may proceed through the existing approval
-process with its explicit gap-closure plan; the target remains a real 100.
+Iterate: score → anchor gaps to first-source evidence → close blockers, gather evidence,
+reduce scope or bloat → re-score. A qualifying development scope can stop at 85–94 and improve
+through separately authorised local implementation. Promotion must earn 95+ with its gap plan.
+The quality target remains a real 100; never inflate scores or fabricate passed tests.
+The machine development stage produces a preparation packet and stops before the uncontained
+SDK builder, workspace mutation, test execution, Git, shipping, and runtime activation.
 
 A 100 is valid only when all criteria for the judged stage are satisfied:
 - **Real data:** every present-state claim is SUPPORTED by first-source evidence; no unresolved

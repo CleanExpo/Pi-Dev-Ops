@@ -58,9 +58,9 @@ agents:
     status: shadow
 accepted_projection_drift:
   - id: judge
-    agents_sha256: 5d8495dd77bd5402c7e2db364b9f51898b39f70d249c8269c773f010d5834ad3
-    canonical_sha256: 4e74db5cc6234d7cacf7372116ff33203f66928f3fdee9b1527fb3e34d67d1ae
-    rationale: Both forms implement Phill's 2026-10-10 ratified 95-point build floor and earned 100 target in independently reviewed local policy commit 8bfda705ffe0dbdd4bf6fed2e1439357b7d73ce1, preserving mandatory blockers and stage authority. Retain existing editorial and metadata differences and detect further changes without rewriting either file.
+    agents_sha256: 66792112f01000ee3a07d23658ef202a05fe0a21d76b84417830b4d62c00b725
+    canonical_sha256: 1c85b8cd05d5d01643109dac274cfabcca473f7592949cb1b2525a022662f261
+    rationale: Both forms retain the historical 95-point ratification baseline from policy commit 8bfda705ffe0dbdd4bf6fed2e1439357b7d73ce1 and incorporate the later 2026-10-10 instruction for bounded local development at 85, promotion at 95, and an earned 100 target, preserving mandatory blockers and separate stage authority. Retain existing editorial and metadata differences and detect further changes without rewriting either file.
   - id: resume-from-handoff
     agents_sha256: 55de621b44ac9b1434a0283e8ddc4378e8b1fd062b621045c9f4dfbb523349b7
     canonical_sha256: 6349c54e6aaaa8a6e61e5a69db783503e1db6004b7292e57e323d60a30d2ae9c
@@ -70,6 +70,6 @@ accepted_projection_drift:
     canonical_sha256: d1f6611756d2ca64955d979c9a1282bff392a2a406075c3a5a2c154a15197aa9
     rationale: The canonical skill contains newer completion classification and fork-slice policy; detect projection drift without treating it as source.
   - id: spm
-    agents_sha256: 6249566b155fb0f062305381f68dc83df6e99b0591dd4e2b91de697eebdfb750
-    canonical_sha256: 10489f48b41f571d2eb03006cdfe456fa307387c8581ee6cd6339577fcde7aa0
-    rationale: Both forms implement Phill's 2026-10-10 ratified 95-point build floor and earned 100 target in independently reviewed local policy commit 8bfda705ffe0dbdd4bf6fed2e1439357b7d73ce1, preserving mandatory blockers and stage authority. The canonical skill retains its self-leveling bench and closed-loop validation; detect further projection drift without treating the projection as source.
+    agents_sha256: 5b149b705b7de660a30434fe04fea002dc4407d15dd5a8a05ab7bc62d2734687
+    canonical_sha256: 5312a51b5e8945d7266d70d79facaf316529a94042d35b7479e217587cf17743
+    rationale: Both forms retain the historical 95-point ratification baseline from policy commit 8bfda705ffe0dbdd4bf6fed2e1439357b7d73ce1 and incorporate the later 2026-10-10 instruction for bounded local development at 85, promotion at 95, and an earned 100 target, preserving mandatory blockers and separate stage authority. The canonical skill retains its self-leveling bench and closed-loop validation; detect further projection drift without treating the projection as source.

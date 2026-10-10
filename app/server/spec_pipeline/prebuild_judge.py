@@ -1,9 +1,9 @@
-"""Pre-build judge — a 95 approval floor, pursuing an earned 100."""
+"""Judge: bounded development at 85, promotion at 95, pursuing an earned 100."""
 from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from .llm import complete, parse_json_object
 from .proposal_validator import enrich_proposal_for_judge
@@ -11,7 +11,22 @@ from .proposal_validator import enrich_proposal_for_judge
 log = logging.getLogger("pi-ceo.spec_pipeline.prebuild_judge")
 
 APPROVAL_FLOOR = 95
+DEVELOPMENT_FLOOR = 85
 QUALITY_TARGET = 100
+ApprovalStage = Literal["development", "promotion"]
+
+
+def validate_stage(stage: object) -> ApprovalStage:
+    """Reject an unknown stage before callers perform any side effects."""
+    if type(stage) is not str or stage not in ("development", "promotion"):
+        raise ValueError("stage must be development or promotion")
+    return "development" if stage == "development" else "promotion"
+
+
+def approval_floor(stage: ApprovalStage = "promotion") -> int:
+    return DEVELOPMENT_FLOOR if validate_stage(stage) == "development" else APPROVAL_FLOOR
+
+
 NONBLOCKING_CATEGORIES = frozenset({
     "clear_problem", "reuse_existing", "ux_clarity", "testability",
 })
@@ -108,11 +123,11 @@ class JudgeReport:
         )
 
 
-def is_build_approved(report: JudgeReport) -> bool:
-    """The shared gate; a score never clears evidence or mandatory blockers."""
+def _is_quality_approved(report: JudgeReport, minimum: int) -> bool:
+    """Both stages retain the same evidence and mandatory blockers."""
     if (
         type(report.score) is not int
-        or not APPROVAL_FLOOR <= report.score <= QUALITY_TARGET
+        or not minimum <= report.score <= QUALITY_TARGET
         or report.honest_ceiling is not False
         or not isinstance(report.gaps, list) or report.gaps
         or report.has_open_evidence_gaps()
@@ -127,11 +142,31 @@ def is_build_approved(report: JudgeReport) -> bool:
     )
 
 
+def is_build_approved(report: JudgeReport) -> bool:
+    """Ordinary build/promotion eligibility remains at 95, never at 85."""
+    return _is_quality_approved(report, APPROVAL_FLOOR)
+
+
+def is_development_approved(report: JudgeReport) -> bool:
+    """Eligibility for a bounded preparation packet, not an automated builder."""
+    return _is_quality_approved(report, DEVELOPMENT_FLOOR)
+
+
+def is_stage_approved(report: JudgeReport, stage: ApprovalStage = "promotion") -> bool:
+    if type(stage) is not str or stage not in ("development", "promotion"):
+        return False
+    return is_development_approved(report) if stage == "development" else is_build_approved(report)
+
+
+def _stage_decision(stage: ApprovalStage) -> str:
+    return "APPROVE_EXPERIMENT" if stage == "development" else "APPROVE_BUILD"
+
+
 def _decision_for_score(score: int) -> str:
     """Numeric classification only; build authorization uses is_build_approved."""
     if score < 70:
         return "REJECT"
-    if score < 85:
+    if score < DEVELOPMENT_FLOOR:
         return "REDUCE_SCOPE"
     if score < APPROVAL_FLOOR:
         return "APPROVE_EXPERIMENT"
@@ -143,7 +178,9 @@ def _build_prompt(
     evidence: list[EvidenceRow],
     repo_context: str,
     iteration: int,
+    stage: ApprovalStage = "promotion",
 ) -> str:
+    stage = validate_stage(stage)
     proposal = enrich_proposal_for_judge(proposal)
     ev_lines = "\n".join(
         f"- [{e.status}] {e.claim} | {e.source_title} {e.source_url}".strip()
@@ -165,9 +202,12 @@ def _build_prompt(
         '"closure_action":"","required_evidence":"","category":""}],'
         '"honest_ceiling":<bool>,"ceiling_reason":""}\n\n'
         "Nonblocking records require exactly those five nonblank string fields. "
-        f"Approval floor {APPROVAL_FLOOR}; quality target {QUALITY_TARGET}. "
+        f"Requested stage {stage}; stage floor {approval_floor(stage)}. "
+        f"Promotion floor {APPROVAL_FLOOR}; development floor {DEVELOPMENT_FLOOR}; quality target {QUALITY_TARGET}. "
+        "Development approves only bounded reversible preparation/local work with separate authority; "
+        "it never approves automated SDK implementation, push, merge, deployment or live activation. "
         "Require nonempty evidence, valid nonblank claims and every row SUPPORTED. "
-        "Every legacy gaps item is blocking. At 95–99 explain deductions with at least one "
+        "Every legacy gaps item is blocking. At 85–99 explain deductions with at least one "
         f"complete nonblocking record; permitted categories: {', '.join(sorted(NONBLOCKING_CATEGORIES))}. "
         "Unknown/malformed or security, privacy, billing/spend, workspace trust, authority, "
         "isolation, rollback, irreversibility or must_fix gaps block at every score. "
@@ -178,7 +218,9 @@ def _build_prompt(
     )
 
 
-def _parse_report(proposal: str, data: dict[str, Any], iteration: int) -> JudgeReport:
+def _parse_report(proposal: str, data: dict[str, Any], iteration: int,
+                  stage: ApprovalStage = "promotion") -> JudgeReport:
+    stage = validate_stage(stage)
     gaps: list[str] = []
     if not isinstance(data, dict):
         data = {}
@@ -266,7 +308,9 @@ def _parse_report(proposal: str, data: dict[str, Any], iteration: int) -> JudgeR
     if report.score == QUALITY_TARGET and not is_build_approved(report):
         report.score = QUALITY_TARGET - 1
         report.gaps.append("score capped: claimed 100 has unresolved or invalid requirements")
-    if report.score >= APPROVAL_FLOOR and not is_build_approved(report):
+    if is_stage_approved(report, stage):
+        report.decision = _stage_decision(stage)
+    elif report.score >= approval_floor(stage):
         report.decision = "NOT_APPROVED"
     return report
 
@@ -277,13 +321,15 @@ async def score_proposal(
     evidence: list[EvidenceRow],
     repo_context: str,
     iteration: int = 1,
+    stage: ApprovalStage = "promotion",
 ) -> JudgeReport:
+    stage = validate_stage(stage)
     text, _ = await complete(
-        prompt=_build_prompt(proposal, evidence, repo_context, iteration),
+        prompt=_build_prompt(proposal, evidence, repo_context, iteration, stage),
         role="prebuild_judge",
         max_tokens=3000,
     )
-    return _parse_report(proposal, parse_json_object(text), iteration)
+    return _parse_report(proposal, parse_json_object(text), iteration, stage)
 
 
 async def iterate_to_100(
@@ -292,8 +338,10 @@ async def iterate_to_100(
     evidence: list[EvidenceRow],
     repo_context: str,
     max_iters: int = 5,
+    stage: ApprovalStage = "promotion",
 ) -> tuple[JudgeReport, list[JudgeReport]]:
-    """Pursue 100; retain qualified 95–99 at the bound without inventing a ceiling."""
+    """Promotion pursues 100; development stops at its first qualified packet."""
+    stage = validate_stage(stage)
     if max_iters < 1:
         raise ValueError("max_iters must be at least 1")
     history: list[JudgeReport] = []
@@ -304,13 +352,17 @@ async def iterate_to_100(
             evidence=current_evidence,
             repo_context=repo_context,
             iteration=i,
+            **({"stage": stage} if stage == "development" else {}),
         )
-        if report.score >= APPROVAL_FLOOR and not is_build_approved(report):
+        if report.score >= approval_floor(stage) and not is_stage_approved(report, stage):
             report.decision = "NOT_APPROVED"
         history.append(report)
         if report.honest_ceiling:
             return report, history
-        approved = is_build_approved(report)
+        approved = is_stage_approved(report, stage)
+        if stage == "development" and approved:
+            report.decision = "APPROVE_EXPERIMENT"
+            return report, history
         if report.score == QUALITY_TARGET and approved:
             report.decision = "APPROVE_BUILD"
             return report, history
@@ -318,7 +370,7 @@ async def iterate_to_100(
             report.decision = "APPROVE_BUILD"
             return report, history
         if i == max_iters:
-            if report.score >= APPROVAL_FLOOR:
+            if report.score >= approval_floor(stage):
                 report.decision = "NOT_APPROVED"
             report.honest_ceiling = True
             report.ceiling_reason = report.ceiling_reason or (
