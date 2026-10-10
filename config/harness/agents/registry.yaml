@@ -58,9 +58,9 @@ agents:
     status: shadow
 accepted_projection_drift:
   - id: judge
-    agents_sha256: 68e5e32f59315f590ea82592d19d26e69b657b05d08fa706776fe15dc5bb574f
-    canonical_sha256: 14f127e8b5003c04172f2bf9d657e87ee30c7f08eacbda9f3421f967d50dac23
-    rationale: The existing Codex projection differs from the stricter canonical judge policy; detect changes without rewriting either file.
+    agents_sha256: 5d8495dd77bd5402c7e2db364b9f51898b39f70d249c8269c773f010d5834ad3
+    canonical_sha256: 4e74db5cc6234d7cacf7372116ff33203f66928f3fdee9b1527fb3e34d67d1ae
+    rationale: Both forms implement Phill's 2026-10-10 ratified 95-point build floor and earned 100 target in independently reviewed local policy commit 8bfda705ffe0dbdd4bf6fed2e1439357b7d73ce1, preserving mandatory blockers and stage authority. Retain existing editorial and metadata differences and detect further changes without rewriting either file.
   - id: resume-from-handoff
     agents_sha256: 55de621b44ac9b1434a0283e8ddc4378e8b1fd062b621045c9f4dfbb523349b7
     canonical_sha256: 6349c54e6aaaa8a6e61e5a69db783503e1db6004b7292e57e323d60a30d2ae9c
@@ -70,6 +70,6 @@ accepted_projection_drift:
     canonical_sha256: d1f6611756d2ca64955d979c9a1282bff392a2a406075c3a5a2c154a15197aa9
     rationale: The canonical skill contains newer completion classification and fork-slice policy; detect projection drift without treating it as source.
   - id: spm
-    agents_sha256: c234d2ce7c63078d6e249c9bf7669b489389003341f8bafbc33cd80b0d7ef1ad
-    canonical_sha256: 8593aea14e9febdf7506c0c37605422bccc6e1f5a6f5fc9032c87ce212322207
-    rationale: The canonical skill contains newer self-leveling bench and closed-loop policy; detect projection drift without treating it as source.
+    agents_sha256: 6249566b155fb0f062305381f68dc83df6e99b0591dd4e2b91de697eebdfb750
+    canonical_sha256: 10489f48b41f571d2eb03006cdfe456fa307387c8581ee6cd6339577fcde7aa0
+    rationale: Both forms implement Phill's 2026-10-10 ratified 95-point build floor and earned 100 target in independently reviewed local policy commit 8bfda705ffe0dbdd4bf6fed2e1439357b7d73ce1, preserving mandatory blockers and stage authority. The canonical skill retains its self-leveling bench and closed-loop validation; detect further projection drift without treating the projection as source.
