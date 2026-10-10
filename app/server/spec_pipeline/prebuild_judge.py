@@ -1,4 +1,4 @@
-"""Pre-build judge — structured 0–100 scoring with iteration to honest 100."""
+"""Pre-build judge — a 95 approval floor, pursuing an earned 100."""
 from __future__ import annotations
 
 import logging
@@ -9,6 +9,12 @@ from .llm import complete, parse_json_object
 from .proposal_validator import enrich_proposal_for_judge
 
 log = logging.getLogger("pi-ceo.spec_pipeline.prebuild_judge")
+
+APPROVAL_FLOOR = 95
+QUALITY_TARGET = 100
+NONBLOCKING_CATEGORIES = frozenset({
+    "clear_problem", "reuse_existing", "ux_clarity", "testability",
+})
 
 EVIDENCE_STATUSES = frozenset({
     "SUPPORTED", "PARTIAL", "UNSUPPORTED", "CONFLICTING", "NOT CHECKED",
@@ -36,6 +42,36 @@ class EvidenceRow:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+    def is_supported(self) -> bool:
+        return (
+            isinstance(self.claim, str) and bool(self.claim.strip())
+            and self.status == "SUPPORTED"
+            and all(isinstance(value, str) for value in (
+                self.source_url, self.source_title, self.perspective,
+            ))
+        )
+
+
+@dataclass
+class NonBlockingGap:
+    name: str
+    owner: str
+    closure_action: str
+    required_evidence: str
+    category: str
+
+    def is_valid(self) -> bool:
+        return (
+            all(isinstance(value, str) and bool(value.strip()) for value in (
+                self.name, self.owner, self.closure_action, self.required_evidence,
+                self.category,
+            ))
+            and self.category in NONBLOCKING_CATEGORIES
+        )
+
+    def to_dict(self) -> dict[str, str]:
+        return asdict(self)
+
 
 @dataclass
 class JudgeReport:
@@ -48,6 +84,7 @@ class JudgeReport:
     iteration: int = 1
     honest_ceiling: bool = False
     ceiling_reason: str = ""
+    nonblocking_gaps: list[NonBlockingGap] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -60,21 +97,43 @@ class JudgeReport:
             "iteration": self.iteration,
             "honest_ceiling": self.honest_ceiling,
             "ceiling_reason": self.ceiling_reason,
+            "nonblocking_gaps": [g.to_dict() for g in self.nonblocking_gaps],
         }
 
     def has_open_evidence_gaps(self) -> bool:
-        return any(
-            e.status in ("UNSUPPORTED", "NOT CHECKED")
-            for e in self.evidence
+        return (
+            not isinstance(self.evidence, list) or not self.evidence
+            or any(not isinstance(e, EvidenceRow) or not e.is_supported()
+                   for e in self.evidence)
         )
 
 
+def is_build_approved(report: JudgeReport) -> bool:
+    """The shared gate; a score never clears evidence or mandatory blockers."""
+    if (
+        type(report.score) is not int
+        or not APPROVAL_FLOOR <= report.score <= QUALITY_TARGET
+        or report.honest_ceiling is not False
+        or not isinstance(report.gaps, list) or report.gaps
+        or report.has_open_evidence_gaps()
+        or not isinstance(report.nonblocking_gaps, list)
+    ):
+        return False
+    if report.score == QUALITY_TARGET:
+        return not report.nonblocking_gaps
+    return bool(report.nonblocking_gaps) and all(
+        isinstance(gap, NonBlockingGap) and gap.is_valid()
+        for gap in report.nonblocking_gaps
+    )
+
+
 def _decision_for_score(score: int) -> str:
+    """Numeric classification only; build authorization uses is_build_approved."""
     if score < 70:
         return "REJECT"
     if score < 85:
         return "REDUCE_SCOPE"
-    if score < 100:
+    if score < APPROVAL_FLOOR:
         return "APPROVE_EXPERIMENT"
     return "APPROVE_BUILD"
 
@@ -102,45 +161,113 @@ def _build_prompt(
         "Schema:\n"
         '{"score":<int 0-100>,"category_scores":{...},'
         '"evidence":[{"claim":"","source_url":"","source_title":"","perspective":"","status":"SUPPORTED|PARTIAL|UNSUPPORTED|CONFLICTING|NOT CHECKED"}],'
-        '"gaps":["..."],"honest_ceiling":<bool>,"ceiling_reason":""}\n\n'
-        "Rules: score 100 ONLY if every evidence row is SUPPORTED and gaps empty. "
-        "Never inflate; set honest_ceiling true if 100 is unreachable."
+        '"gaps":["..."],"nonblocking_gaps":[{"name":"","owner":"",'
+        '"closure_action":"","required_evidence":"","category":""}],'
+        '"honest_ceiling":<bool>,"ceiling_reason":""}\n\n'
+        "Nonblocking records require exactly those five nonblank string fields. "
+        f"Approval floor {APPROVAL_FLOOR}; quality target {QUALITY_TARGET}. "
+        "Require nonempty evidence, valid nonblank claims and every row SUPPORTED. "
+        "Every legacy gaps item is blocking. At 95–99 explain deductions with at least one "
+        f"complete nonblocking record; permitted categories: {', '.join(sorted(NONBLOCKING_CATEGORIES))}. "
+        "Unknown/malformed or security, privacy, billing/spend, workspace trust, authority, "
+        "isolation, rollback, irreversibility or must_fix gaps block at every score. "
+        "Required evidence describes closure work; planned tests are never passed evidence. "
+        "Score 100 ONLY with supported nonempty evidence and no blocking/nonblocking gaps. "
+        "Never inflate. Set honest_ceiling true only for an explicit substantive ceiling, "
+        "not merely because an iteration bound was reached; it blocks approval."
     )
 
 
 def _parse_report(proposal: str, data: dict[str, Any], iteration: int) -> JudgeReport:
-    score = int(data.get("score", 0))
-    score = max(0, min(100, score))
+    gaps: list[str] = []
+    if not isinstance(data, dict):
+        data = {}
+        gaps.append("invalid judge report object")
+    if set(data) - frozenset(JudgeReport.__dataclass_fields__):
+        gaps.append("unknown judge report fields")
+    raw_score = data.get("score", 0)
+    if type(raw_score) is int and 0 <= raw_score <= QUALITY_TARGET:
+        score = raw_score
+    else:
+        score = 0
+        gaps.append("invalid score")
+    raw_gaps = data.get("gaps", [])
+    if not isinstance(raw_gaps, list):
+        gaps.append("invalid blocking gaps collection")
+    else:
+        for gap in raw_gaps:
+            if isinstance(gap, str) and gap.strip():
+                gaps.append(gap)
+            else:
+                gaps.append("invalid blocking gap record")
     evidence = []
-    for row in data.get("evidence") or []:
-        if not isinstance(row, dict):
+    raw_evidence = data.get("evidence")
+    if not isinstance(raw_evidence, list) or not raw_evidence:
+        gaps.append("missing or malformed evidence collection")
+        raw_evidence = []
+    evidence_fields = frozenset(EvidenceRow.__dataclass_fields__)
+    for row in raw_evidence:
+        if (
+            not isinstance(row, dict) or set(row) - evidence_fields
+            or not isinstance(row.get("claim"), str) or not row["claim"].strip()
+            or not isinstance(row.get("status"), str)
+            or row["status"].upper() not in EVIDENCE_STATUSES
+            or any(not isinstance(value, str) for value in row.values())
+        ):
+            gaps.append("invalid evidence row")
             continue
-        st = str(row.get("status", "NOT CHECKED")).upper()
-        if st not in EVIDENCE_STATUSES:
-            st = "NOT CHECKED"
         evidence.append(EvidenceRow(
-            claim=str(row.get("claim", "")),
-            source_url=str(row.get("source_url", "")),
-            source_title=str(row.get("source_title", "")),
-            perspective=str(row.get("perspective", "")),
-            status=st,
+            claim=row["claim"], source_url=row.get("source_url", ""),
+            source_title=row.get("source_title", ""),
+            perspective=row.get("perspective", ""), status=row["status"].upper(),
         ))
+    nonblocking_gaps = []
+    raw_nonblocking = data.get("nonblocking_gaps", [])
+    if not isinstance(raw_nonblocking, list):
+        gaps.append("invalid nonblocking gaps collection")
+    else:
+        fields = frozenset(NonBlockingGap.__dataclass_fields__)
+        for row in raw_nonblocking:
+            if not isinstance(row, dict) or set(row) != fields:
+                gaps.append("invalid nonblocking gap fields")
+                continue
+            gap = NonBlockingGap(**row)
+            if not gap.is_valid():
+                gaps.append("invalid or mandatory nonblocking gap classification")
+                continue
+            nonblocking_gaps.append(gap)
+    category_scores = {}
+    raw_categories = data.get("category_scores", {})
+    if not isinstance(raw_categories, dict):
+        raw_categories = {}
+        gaps.append("invalid category scores")
+    for category, maximum in CATEGORIES:
+        value = raw_categories.get(category, 0)
+        if type(value) is not int or not 0 <= value <= maximum:
+            value = 0
+            gaps.append("invalid category score")
+        category_scores[category] = value
+    honest_ceiling = data.get("honest_ceiling", False)
+    if type(honest_ceiling) is not bool:
+        honest_ceiling = True
+        gaps.append("invalid honest ceiling")
     report = JudgeReport(
         proposal=proposal,
         score=score,
         decision=_decision_for_score(score),
-        category_scores={k: int((data.get("category_scores") or {}).get(k, 0))
-                         for k, _ in CATEGORIES},
+        category_scores=category_scores,
         evidence=evidence,
-        gaps=[str(g) for g in (data.get("gaps") or [])],
+        gaps=gaps,
         iteration=iteration,
-        honest_ceiling=bool(data.get("honest_ceiling")),
+        honest_ceiling=honest_ceiling,
         ceiling_reason=str(data.get("ceiling_reason", "")),
+        nonblocking_gaps=nonblocking_gaps,
     )
-    if report.score == 100 and report.has_open_evidence_gaps():
-        report.score = 99
-        report.decision = _decision_for_score(report.score)
-        report.gaps.append("score capped: open UNSUPPORTED/NOT CHECKED evidence")
+    if report.score == QUALITY_TARGET and not is_build_approved(report):
+        report.score = QUALITY_TARGET - 1
+        report.gaps.append("score capped: claimed 100 has unresolved or invalid requirements")
+    if report.score >= APPROVAL_FLOOR and not is_build_approved(report):
+        report.decision = "NOT_APPROVED"
     return report
 
 
@@ -166,7 +293,9 @@ async def iterate_to_100(
     repo_context: str,
     max_iters: int = 5,
 ) -> tuple[JudgeReport, list[JudgeReport]]:
-    """Iterate judge until score 100 or honest ceiling. Returns final + history."""
+    """Pursue 100; retain qualified 95–99 at the bound without inventing a ceiling."""
+    if max_iters < 1:
+        raise ValueError("max_iters must be at least 1")
     history: list[JudgeReport] = []
     current_evidence = list(evidence)
     for i in range(1, max_iters + 1):
@@ -176,13 +305,21 @@ async def iterate_to_100(
             repo_context=repo_context,
             iteration=i,
         )
+        if report.score >= APPROVAL_FLOOR and not is_build_approved(report):
+            report.decision = "NOT_APPROVED"
         history.append(report)
         if report.honest_ceiling:
             return report, history
-        if report.score >= 100 and not report.has_open_evidence_gaps():
+        approved = is_build_approved(report)
+        if report.score == QUALITY_TARGET and approved:
             report.decision = "APPROVE_BUILD"
             return report, history
-        if i == max_iters and report.score < 100:
+        if i == max_iters and approved:
+            report.decision = "APPROVE_BUILD"
+            return report, history
+        if i == max_iters:
+            if report.score >= APPROVAL_FLOOR:
+                report.decision = "NOT_APPROVED"
             report.honest_ceiling = True
             report.ceiling_reason = report.ceiling_reason or (
                 f"max_iters={max_iters} reached at score {report.score}"

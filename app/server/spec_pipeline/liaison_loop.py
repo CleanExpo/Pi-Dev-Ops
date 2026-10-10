@@ -7,7 +7,7 @@ from typing import Any
 
 from . import persistence as persist
 from .ceo_board_liaison import run_ceo_board_liaison
-from .prebuild_judge import EvidenceRow, JudgeReport, iterate_to_100
+from .prebuild_judge import APPROVAL_FLOOR, EvidenceRow, JudgeReport, is_build_approved, iterate_to_100
 from .proposal_validator import ProposalValidationError, validate_proposal_text
 from .spm_runner import extract_refined_proposal, run_spm_gap_resolution
 
@@ -54,6 +54,8 @@ async def judge_with_liaison(
             repo_context=repo_context,
             max_iters=judge_iters,
         )
+        if final_judge.score >= APPROVAL_FLOOR and not is_build_approved(final_judge):
+            final_judge.decision = "NOT_APPROVED"
         offset = len(judge_history)
         for i, rep in enumerate(round_history, 1):
             persist.write_json(
@@ -63,11 +65,7 @@ async def judge_with_liaison(
             )
         judge_history.extend(round_history)
 
-        if (
-            final_judge.score >= 100
-            and not final_judge.has_open_evidence_gaps()
-            and not final_judge.honest_ceiling
-        ):
+        if is_build_approved(final_judge):
             final_judge.decision = "APPROVE_BUILD"
             stages.append({
                 "stage": "judge",

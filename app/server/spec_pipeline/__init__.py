@@ -28,6 +28,7 @@ from .ship_gate import (
 from .spm_runner import run_spm
 from .storm_evidence import gather_evidence
 from .liaison_loop import judge_with_liaison
+from .prebuild_judge import APPROVAL_FLOOR, QUALITY_TARGET, JudgeReport, is_build_approved
 from .proposal_validator import ProposalValidationError, validate_proposal_text
 
 log = logging.getLogger("pi-ceo.spec_pipeline")
@@ -45,6 +46,7 @@ class PipelineResult:
     boardroom_decision: str = ""
     pr_url: str = ""
     stages: list[dict[str, Any]] = field(default_factory=list)
+    nonblocking_gaps: list[dict[str, str]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -55,6 +57,7 @@ class PipelineResult:
             "boardroom_decision": self.boardroom_decision,
             "pr_url": self.pr_url,
             "stages": self.stages,
+            "nonblocking_gaps": self.nonblocking_gaps,
         }
 
 
@@ -82,6 +85,7 @@ def _persist_meta(
     proposal: str = "",
     reason: str = "",
     stages: list[dict[str, Any]] | None = None,
+    judge_report: JudgeReport | None = None,
     **extra: Any,
 ) -> None:
     payload: dict[str, Any] = {
@@ -89,12 +93,24 @@ def _persist_meta(
         "status": status,
         "reason": reason,
         "stages": stages or [],
+        "judge_score": 0,
+        "judge_status": "NOT CHECKED",
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     if proposal:
         payload["proposal"] = proposal
     payload.update(extra)
+    if judge_report is not None:
+        payload.update(_judge_fields(judge_report))
+        payload["judge_status"] = "CHECKED"
     persist.write_json(pipeline_id, "meta.json", payload)
+
+
+def _judge_fields(report: JudgeReport) -> dict[str, Any]:
+    return {
+        "judge_score": report.score,
+        "nonblocking_gaps": [gap.to_dict() for gap in report.nonblocking_gaps],
+    }
 
 
 def _write_handoff(
@@ -104,12 +120,15 @@ def _write_handoff(
     proposal: str,
     reason: str,
     extra: dict[str, Any],
+    judge_report: JudgeReport | None = None,
 ) -> None:
     lines = [
         "# Session Handoff — Machine Spec Pipeline",
         f"**Pipeline:** `{pipeline_id}`",
         f"**Status:** {status}",
         f"**Reason:** {reason}",
+        f"**Judge score:** {judge_report.score if judge_report is not None else 'NOT CHECKED'}",
+        f"**Build floor / quality target:** {APPROVAL_FLOOR} / {QUALITY_TARGET}",
         "",
         "## Proposal",
         proposal,
@@ -122,6 +141,13 @@ def _write_handoff(
         "",
         f"Generated: {datetime.now(timezone.utc).isoformat()}",
     ]
+    if judge_report is not None and judge_report.nonblocking_gaps:
+        lines.extend(["", "## Remaining nonblocking deductions"])
+        for gap in judge_report.nonblocking_gaps:
+            lines.append(
+                f"- {gap.name} ({gap.category}); owner: {gap.owner}; "
+                f"closure: {gap.closure_action}; required evidence: {gap.required_evidence}"
+            )
     persist.write_text(pipeline_id, "08-handoff.md", "\n".join(lines))
 
 
@@ -157,6 +183,8 @@ async def run_pipeline(
         "issue_id": issue_id,
         "dry_run": dry_run,
         "status": "running",
+        "judge_score": 0,
+        "judge_status": "NOT CHECKED",
         "updated_at": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -195,9 +223,10 @@ async def run_pipeline(
         stages=stages,
     )
 
-    if final_judge.score < 100 or final_judge.has_open_evidence_gaps() or final_judge.honest_ceiling:
+    if not is_build_approved(final_judge):
         reason = final_judge.ceiling_reason or f"judge score {final_judge.score}"
-        _write_handoff(pipeline_id, status="BLOCKED", proposal=working_proposal, reason=reason, extra={})
+        _write_handoff(pipeline_id, status="BLOCKED", proposal=working_proposal, reason=reason,
+                       extra={}, judge_report=final_judge)
         _persist_meta(
             pipeline_id,
             status="blocked",
@@ -205,10 +234,11 @@ async def run_pipeline(
             reason=reason,
             stages=stages,
             judge_score=final_judge.score,
+            judge_report=final_judge,
         )
         return PipelineResult(
             pipeline_id, "blocked", reason,
-            judge_score=final_judge.score, stages=stages,
+            stages=stages, **_judge_fields(final_judge),
         )
 
     spec = await run_spm(working_proposal, final_judge)
@@ -244,13 +274,14 @@ async def run_pipeline(
         "build_complete": False,
         "tests_passed": False,
         "review_passed": False,
-        "machine_judge_100": final_judge.score >= 100,
+        "machine_judge_approved": is_build_approved(final_judge),
         "boardroom_approve": boardroom.decision == "APPROVE_BUILD",
     }, float(final_judge.score))
 
     if not approved:
         reason = f"boardroom {boardroom.decision}"
-        _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
+        _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason,
+                       extra={}, judge_report=final_judge)
         _persist_meta(
             pipeline_id,
             status="blocked",
@@ -258,11 +289,12 @@ async def run_pipeline(
             reason=reason,
             stages=stages,
             judge_score=final_judge.score,
+            judge_report=final_judge,
             boardroom_decision=boardroom.decision,
         )
         return PipelineResult(
             pipeline_id, "blocked", reason,
-            judge_score=final_judge.score,
+            **_judge_fields(final_judge),
             boardroom_decision=boardroom.decision,
             stages=stages,
         )
@@ -271,19 +303,19 @@ async def run_pipeline(
         reason = "dry_run" if dry_run else "TAO_MACHINE_SHIP_MODE off"
         _write_handoff(pipeline_id, status="DRY_COMPLETE", proposal=proposal, reason=reason, extra={
             "pickup": "Set TAO_MACHINE_SHIP_MODE=1 and re-run without --dry-run to build.",
-        })
+        }, judge_report=final_judge)
         _persist_meta(
             pipeline_id,
             status="dry_complete",
             proposal=proposal,
             reason=reason,
             stages=stages,
-            judge_score=100,
+            judge_report=final_judge,
             boardroom_decision=boardroom.decision,
         )
         return PipelineResult(
             pipeline_id, "dry_complete", reason,
-            judge_score=100, boardroom_decision=boardroom.decision, stages=stages,
+            boardroom_decision=boardroom.decision, stages=stages, **_judge_fields(final_judge),
         )
 
     ws_root = os.environ.get("TAO_WORKSPACE", "/tmp/pi-ceo-workspaces")
@@ -321,12 +353,14 @@ async def run_pipeline(
     diff_boundary = scan_diff_boundary(workspace)
     if diff_boundary.tier == "blocked":
         reason = f"diff boundary: {diff_boundary.blocked_paths}"
-        _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
+        _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason,
+                       extra={}, judge_report=final_judge)
         _persist_meta(
             pipeline_id, status="blocked", proposal=proposal, reason=reason,
-            stages=stages, judge_score=100,
+            stages=stages, judge_report=final_judge,
         )
-        return PipelineResult(pipeline_id, "blocked", reason, judge_score=100, stages=stages)
+        return PipelineResult(pipeline_id, "blocked", reason, stages=stages,
+                              **_judge_fields(final_judge))
 
     oracles = run_oracles(workspace)
     review = run_review(workspace, oracles=oracles)
@@ -335,12 +369,14 @@ async def run_pipeline(
 
     if review.verdict == "BLOCKED":
         reason = "; ".join(review.blockers)
-        _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
+        _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason,
+                       extra={}, judge_report=final_judge)
         _persist_meta(
             pipeline_id, status="blocked", proposal=proposal, reason=reason,
-            stages=stages, judge_score=100,
+            stages=stages, judge_report=final_judge,
         )
-        return PipelineResult(pipeline_id, "blocked", reason, judge_score=100, stages=stages)
+        return PipelineResult(pipeline_id, "blocked", reason, stages=stages,
+                              **_judge_fields(final_judge))
 
     branch = f"pidev/auto-{pipeline_id[:8]}"
     subprocess.run(["git", "checkout", "-b", branch], cwd=workspace, check=False)
@@ -378,7 +414,7 @@ async def run_pipeline(
     _write_handoff(pipeline_id, status=status.upper(), proposal=proposal,
                    reason=str(ship.get("status", "")), extra={
                        "pickup": ship.get("pr_url", ""),
-                   })
+                   }, judge_report=final_judge)
     _persist_meta(
         pipeline_id,
         status=status,
@@ -386,13 +422,13 @@ async def run_pipeline(
         reason=str(ship.get("status", "")),
         stages=stages,
         pr_url=ship.get("pr_url", ""),
-        judge_score=100,
+        judge_report=final_judge,
         boardroom_decision=boardroom.decision,
     )
     return PipelineResult(
         pipeline_id, status,
         reason=str(ship.get("status", "")),
-        judge_score=100,
+        **_judge_fields(final_judge),
         boardroom_decision=boardroom.decision,
         pr_url=ship.get("pr_url", ""),
         stages=stages,

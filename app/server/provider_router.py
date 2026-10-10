@@ -187,8 +187,7 @@ def _tier_default(tier: str) -> tuple[Provider, str]:
 
     Top/mid tier resolution order:
       1. TAO_{TOP,MID}_USE_CLAUDE_PRINT=1 → route through `claude --print`
-         subprocess ($0 marginal under Claude Max plan, per
-         `[[feedback-model-routing-max-first]]`).
+         subprocess; account inclusion and billing require current evidence.
       2. TAO_{TOP,MID}_MODEL env model_id (or default).
       3. Provider: anthropic.
 
@@ -441,25 +440,27 @@ CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
 
 
 async def _run_via_claude_print(
-    prompt: str, *, timeout_s: int = 120,
+    prompt: str, *, model: str, timeout_s: int = 120,
 ) -> tuple[int, str, float, str | None]:
     """Dispatch one prompt to `claude --print`. Returns (rc, text, cost_usd, error).
 
-    Always reports cost_usd=0.0 — `claude --print` runs under the active Claude
-    Code Max session, which has no per-call billing. Subprocess overhead is
-    ~3-5s for cold start; acceptable for the cron-launched workers that this
-    router fronts.
-
-    The model arg is intentionally NOT passed — `claude --print` uses whatever
-    model is configured in the user's Claude Code config (set via `/model` or
-    settings.json). The model_id surfaces via the ProviderModel for audit /
-    observability only.
+    Forward the requested model verbatim; availability and the model that answers
+    remain the CLI's concern. The numeric cost slot is a legacy, unobserved 0.0
+    placeholder for caller compatibility, not measured billing or free usage.
     """
+    if (
+        not isinstance(model, str)
+        or not model.strip()
+        or model.lstrip().startswith("-")
+        or any(ord(char) < 32 or 127 <= ord(char) <= 159 for char in model)
+    ):
+        return 2, "", 0.0, "claude --print invalid model identifier"
+
     def _blocking_run() -> tuple[int, str, str]:
         import subprocess as _sp  # noqa: PLC0415
         try:
             r = _sp.run(
-                [CLAUDE_CLI, "--print", prompt],
+                [CLAUDE_CLI, "--print", prompt, "--model", model],
                 capture_output=True, text=True, timeout=timeout_s, check=False,
             )
             return r.returncode, r.stdout, r.stderr
@@ -467,6 +468,8 @@ async def _run_via_claude_print(
             return 127, "", f"claude CLI not found at {CLAUDE_CLI}"
         except _sp.TimeoutExpired:
             return 124, "", f"claude --print timed out after {timeout_s}s"
+        except OSError as exc:
+            return 126, "", f"claude CLI launch failed ({type(exc).__name__})"
 
     rc, stdout, stderr = await asyncio.to_thread(_blocking_run)
     if rc != 0:
@@ -517,16 +520,11 @@ async def run_via_provider(prompt: str, *, role: str,
             )
         return (0 if r.ok else 1), r.text, r.cost_usd, r.error
 
-    # claude --print path ($0 marginal under Max plan)
+    # Claude print forwards the requested model; its cost slot is unobserved.
     if pm.provider == "claude_print":
         rc, text, cost, err = await _run_via_claude_print(
-            prompt, timeout_s=timeout_s,
+            prompt, model=pm.model_id, timeout_s=timeout_s,
         )
-        if rc == 0:
-            _record_cost_safe(
-                provider="claude_print", role=role, model=pm.model_id,
-                cost_usd=cost,
-            )
         return rc, text, cost, err
 
     if pm.provider == "anthropic":

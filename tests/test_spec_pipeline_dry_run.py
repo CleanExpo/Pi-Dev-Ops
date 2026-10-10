@@ -2,8 +2,22 @@
 from __future__ import annotations
 
 import pytest
+from types import SimpleNamespace
+from pathlib import Path
 
-from app.server.spec_pipeline.prebuild_judge import EvidenceRow, JudgeReport
+from app.server.spec_pipeline.prebuild_judge import EvidenceRow, JudgeReport, NonBlockingGap
+
+
+@pytest.fixture(autouse=True)
+def isolated_metadata(monkeypatch, tmp_path):
+    from app.server import spec_pipeline as pipeline
+    from app.server.spec_pipeline import persistence as persist
+
+    monkeypatch.setattr(persist, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(persist, "PIPELINES_ROOT", tmp_path / ".harness" / "spec-pipelines")
+    monkeypatch.setattr(pipeline, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(pipeline, "_repo_context", lambda: "offline test context")
+    monkeypatch.setattr(pipeline, "_log_machine_gate", lambda *_a: None)
 
 
 @pytest.mark.asyncio
@@ -27,6 +41,8 @@ async def test_pipeline_blocked_persists_stages_in_meta(monkeypatch):
     assert result.status == "blocked"
     meta = persist.read_json(result.pipeline_id, "meta.json")
     assert meta is not None
+    assert meta["judge_score"] == 0
+    assert meta["judge_status"] == "NOT CHECKED"
     assert meta.get("reason", "").startswith("proposal validation")
     stages = meta.get("stages") or []
     assert any(s.get("stage") == "proposal_validator" for s in stages)
@@ -69,3 +85,129 @@ async def test_pipeline_dry_run_happy_path(monkeypatch):
     assert result.status == "dry_complete"
     assert result.judge_score == 100
     assert result.boardroom_decision == "APPROVE_BUILD"
+
+
+@pytest.fixture
+def pipeline_case(monkeypatch, tmp_path):
+    from app.server import spec_pipeline as pipeline
+    from app.server.spec_pipeline import persistence as persist
+    from app.server.spec_pipeline.spm_runner import SpmSpec
+
+    monkeypatch.setattr(persist, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(persist, "PIPELINES_ROOT", tmp_path / ".harness" / "spec-pipelines")
+    monkeypatch.setattr(pipeline, "REPO_ROOT", tmp_path)
+
+    report = JudgeReport(
+        "Add an offline receipt panel", 95, "APPROVE_BUILD",
+        evidence=[EvidenceRow("existing gate", status="SUPPORTED")],
+        nonblocking_gaps=[NonBlockingGap("receipt clarity", "implementer", "clarify", "PLANNED: check", "ux_clarity")],
+    )
+    state = {"report": report, "board": "APPROVE_BUILD", "diff": "allowed",
+             "review": "PASS", "ship": "merged", "actions": [], "gate_logs": []}
+
+    async def evidence(*_a, **_k):
+        return report.evidence
+
+    async def liaison(*_a, stages, **_k):
+        stages.append({"stage": "judge", "score": report.score})
+        return report.proposal, report, [report], report.evidence
+
+    async def spm(*_a, **_k):
+        state["actions"].append("spm")
+        return SpmSpec("# offline spec", "/goal verify offline receipt")
+
+    async def board(**_k):
+        return SimpleNamespace(decision=state["board"], min_pairwise_similarity=0.8,
+                               escalated=False, to_dict=lambda: {"decision": state["board"]})
+
+    async def build(**_k):
+        state["actions"].append("build")
+        return SimpleNamespace(done=True, reason="mocked", iters=1, cost_usd=0.0)
+
+    def review(*_a, **_k):
+        state["actions"].append("review")
+        return SimpleNamespace(verdict=state["review"], blockers=["mocked oracle failure"],
+                               to_dict=lambda: {"verdict": state["review"]})
+
+    def ship(**_k):
+        state["actions"].append("ship")
+        return {"status": state["ship"], "pr_url": "https://example.invalid/offline-fixture"}
+
+    def fake_git(argv, **_kwargs):
+        state["actions"].append(tuple(argv))
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(pipeline, "gather_evidence", evidence)
+    monkeypatch.setattr(pipeline, "judge_with_liaison", liaison)
+    monkeypatch.setattr(pipeline, "run_spm", spm)
+    monkeypatch.setattr(pipeline, "boardroom_query", board)
+    monkeypatch.setattr(pipeline, "run_until_done", build)
+    monkeypatch.setattr(pipeline, "scan_diff_boundary", lambda _p: SimpleNamespace(
+        tier=state["diff"], blocked_paths=["app/server/config.py"]))
+    monkeypatch.setattr(pipeline, "run_oracles", lambda _p: {"pytest_ok": state["review"] == "PASS"})
+    monkeypatch.setattr(pipeline, "run_review", review)
+    monkeypatch.setattr(pipeline, "open_pr_and_merge", ship)
+    monkeypatch.setattr(pipeline, "machine_ship_enabled", lambda: True)
+    monkeypatch.setattr(pipeline, "resolve_planner_loop_kwargs", lambda: {})
+    monkeypatch.setattr(pipeline.subprocess, "run", fake_git)
+    monkeypatch.setattr(pipeline.shutil, "copytree", lambda _src, dest, **_k: Path(dest).mkdir(parents=True))
+    monkeypatch.setattr(pipeline, "_log_machine_gate", lambda _pid, gates, score: state["gate_logs"].append((gates, score)))
+    monkeypatch.setenv("TAO_WORKSPACE", str(tmp_path / "workspaces"))
+    monkeypatch.setenv("GITHUB_TOKEN", "")
+    return pipeline, persist, state, tmp_path
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("score", [95, 99])
+@pytest.mark.parametrize("outcome", ["dry", "ship_mode_off", "board", "diff", "review", "ship_blocked", "complete"])
+async def test_actual_score_and_deductions_survive_all_downstream_paths(pipeline_case, monkeypatch, score, outcome):
+    pipeline, persist, state, root = pipeline_case
+    state["report"].score = score
+    if outcome == "ship_mode_off":
+        monkeypatch.setattr(pipeline, "machine_ship_enabled", lambda: False)
+    elif outcome == "board":
+        state["board"] = "REJECT"
+    elif outcome == "diff":
+        state["diff"] = "blocked"
+    elif outcome == "review":
+        state["review"] = "BLOCKED"
+    elif outcome == "ship_blocked":
+        state["ship"] = "blocked"
+    result = await pipeline.run_pipeline(state["report"].proposal, pipeline_id="case", dry_run=outcome == "dry")
+    expected = {"dry": "dry_complete", "ship_mode_off": "dry_complete", "board": "blocked",
+                "diff": "blocked", "review": "blocked", "ship_blocked": "ship_blocked", "complete": "complete"}
+    assert result.status == expected[outcome]
+    assert result.judge_score == result.to_dict()["judge_score"] == score
+    records = state["report"].to_dict()["nonblocking_gaps"]
+    assert result.to_dict()["nonblocking_gaps"] == records
+    meta = persist.read_json("case", "meta.json")
+    assert meta["judge_score"] == score
+    assert meta["nonblocking_gaps"] == records
+    handoff = (root / ".harness/spec-pipelines/case/08-handoff.md").read_text()
+    assert f"**Judge score:** {score}" in handoff
+    for gap in records:
+        assert all(value in handoff for value in gap.values())
+    assert state["gate_logs"][0][0]["machine_judge_approved"] is True
+    assert "machine_judge_100" not in state["gate_logs"][0][0]
+    assert all(log_score == float(score) for _checks, log_score in state["gate_logs"])
+    if outcome in ("dry", "ship_mode_off", "board"):
+        assert "build" not in state["actions"]
+    if outcome not in ("complete", "ship_blocked"):
+        assert "ship" not in state["actions"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("changes", [
+    {"score": 94}, {"honest_ceiling": True}, {"gaps": ["must_fix"]},
+    {"evidence": []}, {"nonblocking_gaps": []},
+])
+async def test_pipeline_uses_same_blocking_predicate_before_spm_or_board(pipeline_case, changes):
+    pipeline, persist, state, root = pipeline_case
+    for key, value in changes.items():
+        setattr(state["report"], key, value)
+    result = await pipeline.run_pipeline(state["report"].proposal, pipeline_id="blocked", dry_run=True)
+    assert result.status == "blocked"
+    assert result.judge_score == state["report"].score
+    assert persist.read_json("blocked", "meta.json")["judge_score"] == result.judge_score
+    assert f"**Judge score:** {result.judge_score}" in (root / ".harness/spec-pipelines/blocked/08-handoff.md").read_text()
+    assert state["actions"] == []

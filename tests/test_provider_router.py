@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
 import sys
+import threading
 import types
 from pathlib import Path
 
@@ -395,7 +397,7 @@ def test_tao_top_use_claude_print_routes_top_via_claude_print(monkeypatch):
     pm = PR.select_provider_model("planner")
     assert pm.tier == "top"
     assert pm.provider == "claude_print"
-    assert pm.model_id == PR.DEFAULT_TOP_MODEL  # label preserved for audit
+    assert pm.model_id == PR.DEFAULT_TOP_MODEL  # requested model preserved
 
 
 def test_tao_mid_use_claude_print_routes_mid_via_claude_print(monkeypatch):
@@ -437,25 +439,31 @@ def test_run_via_provider_claude_print_path(monkeypatch):
     monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "1")
 
     captured: dict = {}
+    recorded: list = []
 
     def fake_run(argv, **kw):
         captured["argv"] = argv
         captured["kw"] = kw
-        return types.SimpleNamespace(returncode=0, stdout="max-output\n", stderr="")
+        return types.SimpleNamespace(returncode=0, stdout="cli-output\n", stderr="")
 
     import subprocess
     monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(PR, "_record_cost_safe", lambda **kw: recorded.append(kw))
 
     rc, text, cost, error = asyncio.run(PR.run_via_provider(
         prompt="hello world", role="planner", session_id="s1",
     ))
     assert rc == 0
-    assert text == "max-output"
-    assert cost == 0.0  # $0 marginal under Max plan
+    assert text == "cli-output"
+    assert cost == 0.0  # legacy unobserved placeholder, not measured billing
     assert error is None
-    # Verify the subprocess was constructed correctly
-    assert captured["argv"][1] == "--print"
-    assert captured["argv"][2] == "hello world"
+    assert captured["argv"] == [
+        PR.CLAUDE_CLI, "--print", "hello world", "--model", PR.DEFAULT_TOP_MODEL,
+    ]
+    assert captured["kw"] == {
+        "capture_output": True, "text": True, "timeout": 120, "check": False,
+    }
+    assert recorded == []
 
 
 def test_run_via_provider_claude_print_nonzero_exit(monkeypatch):
@@ -489,6 +497,143 @@ def test_run_via_provider_claude_print_cli_missing(monkeypatch):
     ))
     assert rc == 127
     assert "not found" in error.lower()
+
+
+@pytest.mark.parametrize("model", [
+    "opus", "claude-opus-5-5", "unknown-model-name",
+    "custom/deployment:v1",
+    "arn:aws:bedrock:us-east-1:000000000000:inference-profile/example",
+])
+def test_claude_print_forwards_selected_model_verbatim(monkeypatch, model):
+    pm = PR.ProviderModel(provider="claude_print", model_id=model, tier="top",
+                          role="planner", source="test")
+    monkeypatch.setattr(PR, "select_provider_model", lambda *a, **kw: pm)
+    captured = []
+
+    def fake_run(argv, **kw):
+        captured.append((argv, kw))
+        return types.SimpleNamespace(returncode=0, stdout="reply", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(PR, "_record_cost_safe", lambda **kw: pytest.fail("invented cost"))
+    result = asyncio.run(PR.run_via_provider("prompt", role="planner", timeout_s=7))
+    assert result == (0, "reply", 0.0, None)
+    assert captured == [(
+        [PR.CLAUDE_CLI, "--print", "prompt", "--model", model],
+        {"capture_output": True, "text": True, "timeout": 7, "check": False},
+    )]
+    assert pm.model_id == model
+
+
+@pytest.mark.parametrize("model", [
+    None, 1, {}, [], "", "   ", "--model", " -option",
+    "opus\x00", "sonnet\nother", "opus\t", "opus\x7f", "opus\x85",
+])
+def test_claude_print_invalid_model_returns_error_without_dispatch(monkeypatch, model):
+    pm = PR.ProviderModel(provider="claude_print", model_id=model, tier="top",
+                          role="planner", source="test")
+    monkeypatch.setattr(PR, "select_provider_model", lambda *a, **kw: pm)
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: pytest.fail("CLI dispatch"))
+    monkeypatch.setattr(PR, "_record_cost_safe", lambda **kw: pytest.fail("cost write"))
+    sdk = types.ModuleType("app.server.session_sdk")
+    sdk._run_claude_via_sdk = lambda **kw: pytest.fail("SDK fallback")
+    monkeypatch.setitem(sys.modules, "app.server.session_sdk", sdk)
+    rc, text, cost, error = asyncio.run(PR.run_via_provider("prompt", role="planner"))
+    assert rc == 2
+    assert text == ""
+    assert cost == 0.0
+    assert error == "claude --print invalid model identifier"
+
+
+@pytest.mark.parametrize("prompt", [
+    "  spaces\nCafé 🤖\tend  ", "--model opus", "large-" + "x" * 131072,
+])
+def test_claude_print_preserves_prompt_as_one_argument(monkeypatch, prompt):
+    captured = []
+
+    def fake_run(argv, **kw):
+        captured.append(argv)
+        return types.SimpleNamespace(returncode=0, stdout="reply\n", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = asyncio.run(PR._run_via_claude_print(prompt, model="sonnet"))
+    assert result == (0, "reply", 0.0, None)
+    assert captured == [[PR.CLAUDE_CLI, "--print", prompt, "--model", "sonnet"]]
+
+
+def test_claude_print_timeout_returns_error_without_fallback(monkeypatch):
+    monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "1")
+
+    def fake_run(argv, **kw):
+        raise subprocess.TimeoutExpired(argv, kw["timeout"], output="private partial")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(PR, "_record_cost_safe", lambda **kw: pytest.fail("cost write"))
+    result = asyncio.run(PR.run_via_provider("prompt", role="planner", timeout_s=7))
+    assert result == (124, "", 0.0, "claude --print timed out after 7s")
+
+
+@pytest.mark.parametrize("failure", [PermissionError, OSError])
+def test_claude_print_launch_oserror_returns_error(monkeypatch, failure):
+    monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "1")
+
+    def fake_run(argv, **kw):
+        raise failure("fixture-sensitive-launch-details")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(PR, "_record_cost_safe", lambda **kw: pytest.fail("cost write"))
+    result = asyncio.run(PR.run_via_provider("prompt", role="planner"))
+    assert result == (126, "", 0.0, f"claude CLI launch failed ({failure.__name__})")
+
+
+def test_claude_print_blocking_tuple_compatibility(monkeypatch):
+    pm = PR.ProviderModel(provider="claude_print", model_id="sonnet", tier="mid",
+                          role="generator", source="test")
+    monkeypatch.setattr(PR, "select_provider_model", lambda *a, **kw: pm)
+    monkeypatch.setattr(subprocess, "run", lambda *a, **kw: types.SimpleNamespace(
+        returncode=0, stdout="reply", stderr=""))
+    monkeypatch.setattr(PR, "_record_cost_safe", lambda **kw: pytest.fail("cost write"))
+    assert PR.run_via_provider_blocking("prompt", "generator", 7) == (
+        0, "reply", 0.0, None, pm,
+    )
+
+
+def test_claude_print_repeated_and_concurrent_calls_keep_models_separate(monkeypatch):
+    routes = {
+        "first": PR.ProviderModel(provider="claude_print", model_id="opus", tier="top",
+                                  role="first", source="test"),
+        "second": PR.ProviderModel(provider="claude_print", model_id="custom:v1", tier="mid",
+                                   role="second", source="test"),
+    }
+    monkeypatch.setattr(PR, "select_provider_model", lambda role, **kw: routes[role])
+    monkeypatch.setattr(PR, "_record_cost_safe", lambda **kw: pytest.fail("cost write"))
+    captured = []
+    lock = threading.Lock()
+
+    def fake_run(argv, **kw):
+        with lock:
+            captured.append((argv, kw))
+        return types.SimpleNamespace(returncode=0, stdout=argv[2], stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    async def calls():
+        repeated = [await PR.run_via_provider("first", role="first") for _ in range(2)]
+        concurrent = await asyncio.gather(
+            PR.run_via_provider("first", role="first"),
+            PR.run_via_provider("second", role="second"),
+        )
+        return repeated + concurrent
+
+    assert asyncio.run(calls()) == [
+        (0, "first", 0.0, None), (0, "first", 0.0, None),
+        (0, "first", 0.0, None), (0, "second", 0.0, None),
+    ]
+    assert len(captured) == 4
+    assert len({id(argv) for argv, _ in captured}) == 4
+    for argv, kw in captured:
+        assert argv == [PR.CLAUDE_CLI, "--print", argv[2], "--model", routes[argv[2]].model_id]
+        assert kw == {"capture_output": True, "text": True, "timeout": 120, "check": False}
 
 
 # ── Tier-0 gathering-lane execution wiring (UNI-2212) ────────────────────────
