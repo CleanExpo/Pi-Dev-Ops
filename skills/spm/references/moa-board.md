@@ -33,7 +33,7 @@ way to ask for more than its brief).
 }
 ```
 
-Rules: `must_fix` items become **mandatory 100/100 criteria** in spec §15 unless explicitly
+Rules: `must_fix` items become **mandatory build criteria, regardless of score**, in spec §15 unless explicitly
 retired by evidence in a later round. `confidence` is the seat's own calibration (0–1).
 A malformed contract gets ONE re-ask, then the seat abstains (excluded from divergence
 math, noted in §7). Seat failures are reported, never swallowed (boardroom rule).
@@ -111,7 +111,7 @@ turns.
 - **Honest degradation**: all seats fail → run the old inline persona pass, label the spec
   §7 `bench degraded — inline persona pass`, and say so in the final recommendation. Opus
   unavailable for the security seat → run it on Sonnet, mark §12 `reduced assurance`, and
-  block APPROVE BUILD 100/100.
+  block APPROVE BUILD regardless of score.
 - **Kill-switches**: honour `~/.claude/HARD_STOP` and `TAO_MAX_COST_USD` per leveling.md §5.
 
 ## Task-shape → seat mapping (mirrors the nexus G4 menu)

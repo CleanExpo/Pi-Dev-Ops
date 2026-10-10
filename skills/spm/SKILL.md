@@ -43,7 +43,7 @@ the full spec. Still `No spec. No build.` — it produces the micro-spec, not th
 2. Inspect current project state (read-only: `git branch`/`status`/`log`/`diff`, README, CLAUDE.md, AGENTS.md, `.judge/`, `.session-handoff/`, `.resume-from-handoff/`, `.spm/`, `skills/`, `scripts/`, `tests/`, `.harness/`, relevant `app/`/`dashboard/`/`mcp/`/`src/`).
 3. Review existing capabilities (do not rebuild what exists).
 4. Convene the **self-leveling MOA bench**: score the 5-axis rubric (F/I/N/X/S) from step-2 recon → tier T0–T3 per `references/leveling.md` → seat the bench from `references/moa-board.md` (a project-local `.spm/agent-board.md` overrides the roster) → dispatch seats as **parallel read-only subagents in one message**, each wrapped in `~/.claude/skills/nexus/references/NEXUS_PROMPT.md` at its calibrated tier + effort → collect consult contracts, measure divergence, ramp up/down (max 2 rounds) → synthesize into spec §7. **T0 = zero seats. Never role-play a board you didn't convene** — a board that wasn't dispatched is reported as "T0/inline", not simulated.
-5. Apply judge-style pushback (score out of 100; REJECT / REDUCE SCOPE / APPROVE EXPERIMENT / APPROVE BUILD). At T2+ the §8 judge challenge **is the devils-advocate-judge seat's contract** — its `must_fix` items become mandatory 100/100 criteria; at T0/T1 run the judge rubric inline. **Hard line: APPROVE BUILD requires a real 100/100 — every mandatory criterion satisfied. Below 100 is never a build authorisation; iterate to a real 100 or report the honest ceiling.** A security-seat `fail` at confidence ≥0.8 blocks 100/100 regardless of consensus.
+5. Apply judge-style pushback (score out of 100; REJECT / REDUCE SCOPE / APPROVE EXPERIMENT / APPROVE BUILD). At T2+ the §8 judge challenge **is the devils-advocate-judge seat's contract** — its `must_fix` items remain mandatory build criteria; at T0/T1 run the judge rubric inline. **APPROVE BUILD requires an earned 95–100 and no hard block; the target remains 100. 0–94 is NOT BUILD APPROVED.** Apply `.judge/approval-policy.md`: at 95–99 record remaining non-blocking gaps, owners, closure actions, and evidence needed before dependent stages. Security, privacy, billing/spend, workspace trust, authority, and mandatory `must_fix` blockers prevent approval regardless of score. A security-seat `fail` at confidence ≥0.8 blocks APPROVE BUILD regardless of consensus. Retain separate user/project approval and activation/release gates.
 6. Define scope, risks, UX, security, testing, and acceptance criteria.
 7. Produce a high-quality SPM Spec (template: `.spm/spec-template.md` if the project ships one, else the section list under Required output).
 8. Generate the exact `/goal` command to implement the spec (template: `.spm/goal-template.md` if present, else spec §16 conventions). The spec's verification plan (§13–14) must satisfy `references/sandbox-policy.md` — isolation named, prod untouched.
@@ -68,7 +68,10 @@ the full spec. Still `No spec. No build.` — it produces the micro-spec, not th
 Prefer first-source evidence (repo source > tests/logs/schemas/CI > official docs/SDK/changelogs
 > standards > expert material > blogs as discovery leads). LLM memory is not evidence. Mark any
 unsupported claim `UNSUPPORTED`. Do not hide uncertainty. Do not claim verification passed unless
-it was actually run.
+it was actually run. Label future verification `PLANNED`; a concrete test plan supports
+pre-build testability, never passed execution evidence. Claim 100 only when earned for the
+judged stage. Completion and release require the applicable executed checks on the actual
+candidate; §13–15 must distinguish those gates from planned pre-build checks.
 
 ## Required output
 

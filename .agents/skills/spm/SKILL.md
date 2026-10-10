@@ -55,6 +55,8 @@ Use subagents where available and helpful, especially when repo inspection can b
 ## Evidence policy
 
 Prefer first-source evidence. Any unsupported claim must be marked `UNSUPPORTED`.
+Mark future verification `PLANNED`; a test plan supports pre-build testability, not a claim
+that tests passed. Completion and release require executed checks on the actual candidate.
 
 ## Required output
 
@@ -113,8 +115,14 @@ Decision: REJECT, REDUCE SCOPE, APPROVE EXPERIMENT, APPROVE BUILD.
 Thresholds:
 
 - 0–69 = REJECT
-- 70–99 = REDUCE SCOPE or APPROVE EXPERIMENT — NOT a build authorisation
-- 100 (all mandatory criteria pass) = APPROVE BUILD. There is no 85 pass; iterate to a real 100.
+- 70–94 = REDUCE SCOPE or APPROVE EXPERIMENT — NOT a build authorisation
+- 95–100, with no hard block and all mandatory build criteria satisfied = APPROVE BUILD;
+  target 100. Apply `.judge/approval-policy.md` and retain separate user/project authority.
+- 0–94 is NOT BUILD APPROVED. A bounded experiment requires its own explicit authority.
+- At 95–99, name each remaining non-blocking gap, owner, closure action, and required evidence
+  before any dependent stage. Claim 100 only when earned; future checks are not passed evidence.
+- Billing/spend, workspace trust, privacy, security, authority, and mandatory `must_fix` blockers
+  prevent approval regardless of score. Build approval does not approve activation or release.
 
 ## 9. Proposed solution
 
@@ -135,6 +143,8 @@ Include: auth, permissions, secrets, PII/data handling, prompt injection risk, e
 ## 13. Verification plan
 
 Include exact commands where possible. Group by: static checks, unit tests, integration tests, UI/browser verification, smoke tests, manual review, evidence required before declaring done.
+Label each check `PLANNED`, `PASSED`, `FAILED`, or `NOT RUN`; passed requires observed output
+for the actual candidate. State which executed checks gate completion, activation, and release.
 
 ## 14. Loop testing and stress testing
 

@@ -61,34 +61,39 @@ Score out of 100:
 | Testability | 10 |
 | Cost/control simplicity | 5 |
 
-Decision rules (HARD LINE — 100/100 is the only build bar):
+Decision rules (build floor 95/100; target 100/100):
 
-- **APPROVE BUILD requires a real 100/100** — every mandatory Convergence criterion satisfied.
-  There is no 85 pass; 85–99 is a list of gaps to close, not an approval.
-- 0–99 = **NOT APPROVED.** Iterate per Convergence until a real 100 is earned, or halt and
-  report the honest ceiling with the exact blocker. Never approve below 100, never inflate.
-- REJECT (0–69) / REDUCE SCOPE / APPROVE EXPERIMENT (70–99) are iteration states only; none
-  authorise a production build. Only a real 100 does.
+- **APPROVE BUILD requires an earned score of 95–100 and no hard block.** Apply
+  `.judge/approval-policy.md`; the score covers only the named scope and checked evidence.
+- 0–69 = REJECT; 70–94 = REDUCE SCOPE or APPROVE EXPERIMENT. **0–94 is NOT BUILD APPROVED.**
+  An experiment needs its own bounded scope and explicit authority; it cannot bypass a blocker.
+- At 95–99, list every remaining non-blocking gap, its closure action, owner, and evidence
+  required before any dependent stage. Continue pursuing 100; never round up or invent it.
+- Security, privacy, billing/spend, workspace trust, authority, and other mandatory `must_fix`
+  blockers prevent approval regardless of score. A numerical pass does not authorise
+  implementation, activation, push, or release; retain the separate user and project gates.
 
-## Convergence — do not stop until a REAL 100/100
+## Convergence — clear blockers, earn 95, keep pursuing 100
 
-`/judge` does not end at the first score. It iterates: score → list every gap with its
-first-source anchor → drive the real fix (gather the missing evidence, reduce or reshape
-scope, clean cache and bloat, correct any false claim) → re-score. Repeat until the proposal
-genuinely earns 100/100.
+Iterate: score → anchor each gap to first-source evidence → close blockers, gather evidence,
+reduce scope or bloat → re-score. A qualifying 95–99 may proceed through the existing approval
+process with its explicit gap-closure plan; the target remains a real 100.
 
-A 100 is valid ONLY when ALL of these hold — never by inflation:
-- **Real data:** every evidence row is SUPPORTED by first-source; zero UNSUPPORTED / PARTIAL /
-  NOT CHECKED remain. Checked, not asserted.
-- **Cache and bloat cleaned:** no dead code, duplication, sediment, unused abstraction, or
-  stale copy survives the deletion test.
-- **True and correct:** every claim is verified against the source at real scale — no
-  plausible-but-unproven statement counts.
-- **No open blocker:** all review passes clear.
+A 100 is valid only when all criteria for the judged stage are satisfied:
+- **Real data:** every present-state claim is SUPPORTED by first-source evidence; no unresolved
+  evidence gap is hidden in the score.
+- **Cache and bloat reviewed:** no unnecessary duplication, dead code, or stale copy remains
+  in the proposed scope.
+- **True and correct:** claims of verification reflect checks actually executed and observed.
+- **No open gap or blocker:** all mandatory review findings and scored quality gaps are closed.
 
-**Honesty rail (non-negotiable):** if the scope cannot honestly reach 100, do NOT fake the
-number — reshape it until a real 100 is reachable, or halt and report the honest ceiling with
-the exact reason and what would lift it. A fabricated 100 is a gate failure, not a pass.
+**Evidence timing:** a concrete test plan can satisfy pre-build testability. Mark future tests
+`PLANNED`, never passed; do not award execution evidence for them. Completion and release still
+require the applicable checks to run on the actual candidate and pass before those claims.
+
+**Honesty rail:** report the earned score and exact remaining gaps even when 100 is unreachable.
+Reshape blocked scope or report the blocker and recovery evidence. A fabricated 100 is a gate
+failure, not a pass.
 
 ## Output format
 
