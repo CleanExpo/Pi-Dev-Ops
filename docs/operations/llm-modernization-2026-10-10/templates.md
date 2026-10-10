@@ -71,8 +71,12 @@ Null means unknown. A requested model, an old status file, a healthy URL, zero e
 status, or a self-scored response does not prove model identity, deployed revision,
 quality, usage or completion. Do not store secrets or customer data in the receipt.
 
-Record the stage that was actually approved. A development allowance does not
-approve promotion or release. Each permitted gap needs a named owner, evidence,
+Record the stage that was actually approved. The machine pipeline's development
+stage returns a preparation packet at the 85 floor and stops before builder,
+workspace, SDK execution or shipping, including when its score is 95 or 100.
+Actual bounded local candidate work needs separate authority and applicable
+trust, rollback and verification. A development allowance does not approve
+promotion or release. Each permitted gap needs a named owner, evidence,
 closure action and the next check (for example, before promotion, after the next
 fixture run or by a specified date). Re-evaluate when the scope, source tree,
 runtime, account or dependency changes; do not carry the old score onto new work.

@@ -26,11 +26,13 @@ and preserved constraints; token/latency improvements count only when measured.
 
 ## Development flow and measured improvement
 
-Use the approved stage policy in `.judge/approval-policy.md`. Bounded development
-can proceed at its lower floor with owned noncritical gaps. Promotion retains
-95+ and the target remains 100. This changes when a reversible candidate may be
-built; it does not excuse missing security, authority, billing, workspace trust,
-rollback or required evidence. The fixture acceptance bar stays fixed across the
+Use the approved stage policy in `.judge/approval-policy.md`. The development
+floor is 85 with owned noncritical gaps. The machine pipeline returns preparation
+only at that stage and stops before builder, workspace, SDK execution or shipping,
+even at 95 or 100. Separately authorised bounded local candidate work must satisfy
+its scope, trust, rollback and verification requirements. Default promotion
+retains 95+ and the target remains 100. The lower preparation floor does not excuse
+missing security, authority, billing, workspace trust, rollback or required evidence. The fixture acceptance bar stays fixed across the
 comparison, even when the development-stage Judge floor changes.
 
 For each fixture pair, record both prompt hashes, exact starting revision,

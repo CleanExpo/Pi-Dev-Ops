@@ -65,8 +65,10 @@ or copied Windows profile on a Mac is not a completed Windows rollout.
 ## Acceptance and learning
 
 Use `templates.md` for owned gaps and execution receipts and `benchmark-gates.md`
-for equivalent before/after tasks. Bounded development uses its explicitly approved
-lower score floor; promotion requires 95+ and the quality target remains 100.
+for equivalent before/after tasks. The development floor is 85 for bounded local
+development with separate authority; the machine stage returns preparation only
+and stops before builder, workspace, SDK execution or shipping at any score.
+Default promotion requires 95+ and the quality target remains 100.
 Increase rigor with promotion scope and evidence, and retire duplicated guidance
 only after its constraints and recovery information have a verified home.
 
