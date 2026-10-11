@@ -112,138 +112,37 @@ true?); and **selection** (is this the whole picture or a curated slice?).
 
 ## 5. KNOWING WHAT YOU DON'T KNOW (the gap engine)
 
-This is the core capability. Run all three passes on any non-trivial evaluation.
-
-**Known unknowns — maintain a live list.** For the current question, what specific facts are
-missing, and how much would each, if known, move the conclusion? Rank by leverage, not by ease.
-
-**Unknown unknowns — surface them deliberately:**
-- **Premortem.** "It is 18 months from now and this decision was a disaster. Write the story of
-  why." The reasons you generate are your blind spots; go collect against them now.
-- **Outside view / base rates.** Before estimating *this* case, ask: what normally happens to
-  ventures/products/claims *like this one*? Reference-class first, specifics second. Most optimism
-  errors come from ignoring the base rate.
-- **Cross-disciplinary reframe.** Re-ask the question as a financier, a psychologist, an engineer,
-  a regulator, and a hostile competitor would. Each lens exposes data the others miss.
-- **Adversarial/red-team pass.** Assign part of the analysis to argue the founder is wrong, and
-  collect the evidence that would prove it. If that evidence is hard to find, confidence goes *up*.
-
-**Negative-space audit of any dataset:**
-- **Survivorship bias** — are we only seeing the winners/survivors? Where are the failures recorded?
-- **Selection bias** — who or what is excluded from this sample, and would including them flip the result?
-- **Publication/availability bias** — is this easy to find *because* it's true, or because it's loud?
-- State plainly: "This dataset cannot tell us X, because X was never in it."
+Read references/gap-engine.md when running the gap-scan pass (known unknowns, premortem, base rates, negative-space audit) on a non-trivial evaluation.
 
 ---
 
 ## 6. PATHWAYS TO MISSING DATA (how to actually find it)
 
-When a needed fact is absent, route it through this decision tree rather than giving up.
-
-**Step 1 — Is it knowable?**
-- *Exists somewhere* → go to Step 2.
-- *Cannot be known now* (future, private, never recorded) → go to Step 3 (estimate it).
-
-**Step 2 — Acquisition pathways, in order of preference:**
-1. **Primary holder.** Who literally has this? (regulator, registry, company filing, the person who
-   did it). Often closer than expected — annual reports, court records, patent/IP filings, gov
-   statistics, standards bodies, academic preprints.
-2. **Public proxy.** Can't get the exact number? Find a measurable thing that moves with it
-   (e.g. hiring postings as a proxy for a competitor's expansion; web traffic as a proxy for demand).
-3. **Triangulation.** Estimate the same unknown from two or three *independent* angles. If they
-   converge, confidence rises sharply; if they diverge, you've found a question worth chasing.
-4. **Expert elicitation.** Identify who would know and what one question to ask them. Capture the
-   reasoning, not just the answer, so it can be checked.
-5. **Natural experiment.** Has the thing you want to test already happened somewhere — a comparable
-   market, an earlier rollout, a competitor's mistake? Observed reality beats opinion.
-
-**Step 3 — When it must be estimated, estimate honestly:**
-- **Fermi decomposition.** Break the unknown into knowable pieces, estimate each, recombine.
-- **Bounding.** Give a defensible best-case and worst-case; the truth lives between them, and the
-  *width* of that gap tells you how much more collection is worth.
-- **Reference class.** Anchor on comparable known cases, then adjust.
-- Whatever method you use, **state the method and the error bars.** An estimate with stated
-  uncertainty is intelligence; an estimate pretending to be a fact is a trap.
+Read references/missing-data-pathways.md when a needed fact is absent and you must decide how to acquire or estimate it.
 
 ---
 
 ## 7. MULTIPLE ANGLES (strengthening or overturning the evaluation)
 
-Never collect only the evidence that confirms the current view. That is the single most common
-analytic failure.
-
-- **Analysis of Competing Hypotheses (ACH).** List *all* plausible explanations, not just the
-  favoured one. Then seek the evidence that **discriminates between them** — facts that are
-  consistent with one hypothesis and inconsistent with another. Disconfirming evidence is worth
-  more than confirming evidence.
-- **Steelman the opposite.** Build the strongest possible version of the conclusion you'd least
-  like to be true, then see if your evidence still beats it.
-- **Inversion.** Instead of "how does this succeed," ask "how would this *certainly* fail," and
-  collect against each failure mode.
-- **Disconfirmation test.** For your leading conclusion, ask: "What single piece of evidence, if it
-  existed, would force me to abandon this?" Then go look for it.
+Read references/competing-hypotheses.md when stress-testing a leading conclusion (ACH, steelman, inversion, disconfirmation test).
 
 ---
 
 ## 8. THINKING 15–20 MOVES AHEAD (consequence & strategy)
 
-- **Second- and third-order effects.** For any move, ask "...and then what?" at least three times.
-  First-order effects are obvious and usually already priced in by others; the edge is downstream.
-- **Game-theoretic, not static.** The world reacts. Model the *rational response* of competitors,
-  customers, regulators, and partners to your move — then their response to that. A plan that
-  assumes everyone else stands still is a fantasy.
-- **Scenario planning.** Don't forecast one future; build 3–4 distinct, internally-coherent ones
-  (e.g. base / upside / downside / wildcard). Identify which signals would tell you early which
-  world you're entering, and watch for them.
-- **Reversibility (one-way vs two-way doors).** Classify each move: cheap to reverse, or permanent?
-  Move fast on reversible decisions; collect far more before irreversible ones. Prefer moves that
-  *preserve future options* when uncertainty is high.
+Read references/consequence-and-strategy.md when evaluating a move for second-order effects, scenarios or reversibility.
 
 ---
 
 ## 9. DOMAIN LENSES (run the question through each that applies)
 
-Compact checklists. Use the ones relevant to the question; don't force-fit.
-
-**Business / strategy:** unit economics (does each unit make money?), the moat (what stops a
-competitor copying this?), market structure (who holds power — supplier, buyer, platform?),
-distribution (how does it actually reach the customer?), and the *real* job the customer is hiring
-the product to do.
-
-**Finance:** cash flow vs profit vs accounting (a profitable company can die of no cash), time
-value (a dollar now ≠ a dollar later), risk-adjusted return (not just upside — what's the downside
-and how likely?), and incentives (follow the money: who is paid to say this?).
-
-**Psychology / human behaviour:** the cognitive biases at play (anchoring, loss aversion, social
-proof, recency), stated vs revealed preference (what people *say* vs what they *do* — trust the
-doing), and the incentive structure people are actually responding to.
-
-**Human interaction / negotiation / trust:** what each party wants vs what they need, what signal
-an action sends regardless of intent, where trust is being built or spent, and the BATNA (each
-side's best alternative — power sits with whoever can walk away).
-
-**Software engineering:** the real tradeoff being made (speed vs correctness vs maintainability),
-where technical debt is accruing and what it will cost later, failure modes and blast radius,
-and whether the system degrades safely or catastrophically.
-
-**Mathematics / science / quantification:** what's the base rate, what's the mechanism (correlation
-is not cause — what's the causal pathway?), what's the sample size and is it significant, what are
-the units and orders of magnitude, and what would the experiment be that settles it.
+Read references/domain-lenses.md when the question touches business, finance, psychology, negotiation, software or quantitative analysis.
 
 ---
 
 ## 10. SELF-AUDIT (check your own reasoning before you ship)
 
-Before finalising any evaluation, run this on yourself:
-- **Confirmation bias** — did I seek evidence for the favoured answer, or evidence that tests it?
-- **Anchoring** — is my estimate just a small adjustment from the first number I saw?
-- **Motivated reasoning** — would I reach this conclusion if the founder wanted the opposite?
-- **Narrative seduction** — is this conclusion appealing because it's a good *story*, or because
-  it's *true*? Good stories are dangerous; reality is often messier and less satisfying.
-- **Sunk cost** — am I defending this because we've already invested in it?
-- **Recency** — am I over-weighting the latest, loudest input?
-
-If any fire, name it in the output and correct for it.
+Read references/self-audit.md when finalising an evaluation and checking your own reasoning for bias.
 
 ---
 
@@ -274,18 +173,7 @@ inconvenient truth — early enough and well-evidenced enough to do something ab
 
 ## Collection layer routing
 
-When tasking collectors, dispatch via `growth-sustainability-data` skill routing table. Analyst
-owns FRAME → TASK → EVALUATE → SYNTHESISE; collectors own raw acquisition only.
-
-| Question type | Primary collectors |
-|---|---|
-| Growth / channel / CAC | `cmo-growth`, `marketing-analytics-attribution`, `marketing-seo-researcher` |
-| Financial sustainability | `cfo`, `analyzing-customer-patterns` |
-| Technical sustainability | `cto`, `pi-seo-health-monitor`, `leverage-audit` |
-| Customer retention | `cs-tier1` |
-| External / market intel | `margot-bridge`, `wiki-query`, Scout (`app/server/agents/scout.py`) |
-| Portfolio brand research | `marketing-icp-research`, `marketing-positioning` |
-| Compounding context | `wiki-ingest` (write-back after synthesis) |
+Read references/collector-routing.md when tasking collector skills and choosing which collector fits a question type.
 
 ## References
 

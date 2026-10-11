@@ -1,6 +1,6 @@
 ---
 name: design-iterate
-description: Iteration loop driver for brand design. Calls design-board to generate N variants, renders each at three breakpoints (mobile/tablet/desktop) via the preview-canvas + Claude Preview MCP, presents screenshots to the client (the user) via AskUserQuestion, captures feedback, refines, and repeats until the user approves a variant. The visible canvas the client uses to actually SEE designs. Use when the user asks to design a brand, iterate on a design, get design variants to pick from, or see designs for a brand, or when a new brand dossier from remotion-brand-research needs visual directions or an existing brand's identity needs a refresh, and the client must review variants at mobile, tablet and desktop breakpoints before approving one.
+description: Iteration loop driver for brand design. Calls design-board for N variants, renders each at mobile, tablet and desktop via preview-canvas + Claude Preview MCP, presents screenshots to the client via AskUserQuestion, captures feedback, refines, and repeats until a variant is approved. Use to design a brand, iterate on a design, or get variants to pick from, when a remotion-brand-research dossier needs visual directions, or when an existing brand identity needs a refresh.
 automation: manual
 intents: design-iterate, iterate-design, design-loop, refine-brand-design, run-design-board-loop
 ---

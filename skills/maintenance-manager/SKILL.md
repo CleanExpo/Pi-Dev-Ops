@@ -1,6 +1,6 @@
 ---
 name: maintenance-manager
-description: "Senior Maintenance Manager (15+ years production systems). Evaluates dependency freshness, technical debt severity, upgrade paths, observability coverage, and produces a maintenance calendar with prioritised debt items and SLA recommendations. Use when the user asks for a maintenance audit of a production system: checking dependency freshness (npm, pip, system packages), inventorying and scoring technical debt, assessing observability gaps such as logging, alerting and health checks, analysing upgrade paths, or producing a prioritised maintenance calendar with SLA recommendations."
+description: "Senior Maintenance Manager (15+ years production systems). Evaluates dependency freshness, technical debt severity, upgrade paths and observability coverage, and produces a maintenance calendar with prioritised debt items and SLA recommendations. Use when the user asks for a maintenance audit of a production system: dependency freshness (npm, pip, system packages), technical debt inventory and scoring, observability gaps (logging, alerting, health checks), upgrade path analysis, or a prioritised maintenance calendar with SLA recommendations."
 ---
 
 # Maintenance Manager Skill
@@ -133,37 +133,11 @@ Health Score = 100 - min(Debt Score, 100)
 
 ### 2. OpenAI Structured Output Schema
 
-Every invocation emits JSON matching the skill-specific schema. Common fields across all skills:
-
-```json
-{
-  "version": "3.1",
-  "skill_name": "",
-  "invoked_at": "ISO-8601",
-  "task_summary": "",
-  "model_used": "",
-  "duration_seconds": 0.0,
-  "tool_calls": {},
-  "tokens": {"prompt": 0, "completion": 0},
-  "self_review_score": 0.0,
-  "confidence": 0.0,
-  "success": true,
-  "audit_trace_hash": "sha256",
-  "improvement_queued": false
-}
-```
+Read references/structured-output-schema.md when emitting the structured JSON output for a maintenance audit.
 
 ### 3. Multi-Tool Selection Matrix
 
-| Signal | Primary | Fallback | Verification |
-|--------|---------|----------|-------------|
-| File analysis | read_file | search_files | Terminal (wc -l, grep) |
-| Code quality | Terminal (lint) | execute_code | verify-test |
-| Security scan | security-audit | Terminal (grep secrets) | search_files (patterns) |
-| Test execution | Terminal (pytest) | execute_code | verify-test |
-| Web research | tavily | browser_navigate | web_search |
-| Visual review | vision_analyse | image_generate | browser_vision |
-| Data extraction | search_files | read_file | execute_code (pandas) |
+Read references/tool-selection-matrix.md when choosing tools for dependency, debt or observability checks.
 
 ### 4. Self-Critique Loop
 
@@ -201,12 +175,7 @@ If total < 5 → halt and handoff.
 
 ### 8. Cross-Model Fallbacks
 
-| Use case | Primary | Fallback |
-|----------|---------|----------|
-| Routine | Sonnet/Haiku | Default |
-| Complex analysis | Sonnet | DeepSeek/Claude-4 |
-| Board-facing | Opus | Boardroom MOA |
-| Fast inline | Haiku | Sonnet |
+Read references/cross-model-fallbacks.md when the primary model or tool is unavailable.
 
 ### 9. Observability
 
