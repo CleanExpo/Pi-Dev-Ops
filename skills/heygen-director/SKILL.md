@@ -1,6 +1,6 @@
 ---
 name: heygen-director
-description: HeyGen specialist agent — owns avatar / talking-head / spokesperson video via the HyperFrames-by-HeyGen MCP, with a structured status contract the video-director and specialist-council can consult. Use for presenter-led explainers, multilingual avatar localization, UGC-style spokesperson clips, and programmatic HTML video projects. Triggers on "HeyGen", "avatar video", "talking head", "AI presenter", "spokesperson video", "hyperframes". CRITICAL BOUNDARY: this is NOT for generative cinematic b-roll — the video skills prohibit "AI slop frames" for client hero footage; HeyGen here means a real-looking presenter avatar, not synthetic scenery.
+description: "HeyGen specialist agent. Owns avatar, talking-head and spokesperson video via the HyperFrames-by-HeyGen MCP, with a structured status contract for video-director and specialist-council. Use for presenter-led explainers, multilingual localization, UGC-style spokesperson clips and programmatic HTML video projects. Triggers: 'HeyGen', 'avatar video', 'talking head', 'AI presenter', 'spokesperson video', 'hyperframes'. NOT for generative cinematic b-roll: the video skills prohibit 'AI slop frames' for client hero footage; HeyGen here means a real-looking presenter avatar, not synthetic scenery."
 ---
 
 # heygen-director — HeyGen / HyperFrames specialist

@@ -120,90 +120,11 @@ Only include gates that make sense for the project. Do not bloat the scope with 
 
 ## Specialist board selection
 
-Always include:
+Read `references/specialist-board.md` when choosing which specialists sit on the board for this project type.
 
-- Senior Product Manager
-- Senior Software Architect
-- Senior Security Engineer
-- Senior UX Reviewer
-- Senior QA/Test Lead
-- Devil’s Advocate / Judge
+## Forbidden behaviour and claims
 
-Then add project-specific roles.
-
-For SaaS/product apps, consider:
-
-- Senior Payments Engineer
-- Senior Mobile Engineer
-- Senior Supabase/Postgres/RLS Engineer
-- Senior Release Manager
-- Senior Customer Success Manager
-
-For authority sites, consider:
-
-- Senior SEO/GEO Strategist
-- Senior Content Strategist
-- Senior Compliance Reviewer
-- Senior Conversion Rate Optimisation Specialist
-- Senior Brand/Trust Reviewer
-
-For contractor/member networks, consider:
-
-- Senior Membership Manager
-- Senior Contractor Network Manager
-- Senior CRM/Data Architect
-- Senior Trust and Safety Reviewer
-- Senior Revenue Operations Manager
-
-For AI agent systems, consider:
-
-- Senior Agentic Systems Engineer
-- Senior Permissions/Policy Engineer
-- Senior Evidence/Audit Engineer
-- Senior Workflow Orchestrator
-- Senior Tooling/MCP Engineer
-
-For training platforms, consider:
-
-- Senior Instructional Designer
-- Senior Compliance/Standards Reviewer
-- Senior Learning Experience Designer
-- Senior Assessment/Quiz Designer
-- Senior Certification Pathway Reviewer
-
-## Forbidden behaviour
-
-Do not let the scope become:
-
-- Finish everything
-- Build the whole ecosystem
-- Make it perfect
-- Add every nice-to-have feature
-- Rewrite the app
-- Redesign everything
-- Ship without verification
-- Assume production readiness
-- Assume connectors work
-- Assume security is fine
-
-Always reduce vague requests into measurable readiness gates.
-
-## Forbidden claims
-
-Block or mark unsupported:
-
-- Guaranteed leads
-- Guaranteed revenue
-- Guaranteed insurance outcomes
-- Guaranteed claim approval
-- Certified status unless evidenced
-- National coverage unless evidenced
-- Security-ready unless verified
-- Production-ready unless verified
-- Works on all devices unless tested
-- Client results unless proven
-- Compliance claims without source evidence
-- Contractor quality guarantees without vetting process
+Read `references/forbidden.md` before writing the output. It lists the forbidden behaviours and the forbidden claims.
 
 ## Required output structure
 

@@ -1,6 +1,6 @@
 ---
 name: session-handoff
-description: Durable session handoff (/session-handoff). Gates the tree green via scripts/handoff-loop.sh, classifies the session SHIPPED / READY-TO-SHIP / WIP-BLOCKED against a Definition-of-Done, then generates a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent, or resuming later. Refuses to present unfinished work as a clean stop; for ready work hands off the exact merge-gate-guarded ship command. Writes a durable report + healthcheck log; the "1" of the 1-2 combo with /resume-from-handoff. Captures what was done, decisions locked, what shipped, key files, running state, verification, deferred/open questions, exact pickup point, risk notes, and a quality check.
+description: "Durable session handoff (/session-handoff). Gates the tree green via scripts/handoff-loop.sh, classifies the session SHIPPED / READY-TO-SHIP / WIP-BLOCKED against a Definition-of-Done, then writes a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent or resuming later. Refuses to present unfinished work as a clean stop; for ready work it hands off the exact merge-gate-guarded ship command. Pairs with /resume-from-handoff. Writes a durable report and healthcheck log."
 owner_role: Tier-Architect (end-of-session handoff; gate-then-report)
 status: active
 automation: manual

@@ -1,6 +1,6 @@
 ---
 name: eeat
-description: E-E-A-T specialist — a first-class UPSTREAM consult lens that scores content for Google's Experience, Expertise, Authoritativeness, and Trust signals BEFORE it's finalized, and returns structured fixes. Use when producing or auditing any content, page, or claim that needs to rank / be cited / be trusted (blog, landing page, YMYL, client deliverable). Consumed by the specialist-council, marketing, seo, and geo-optimization; complements source-ingest (credibility of sources) and brand-guardian (terminal accuracy gate). Triggers on "E-E-A-T", "EEAT", "experience expertise authoritativeness trust", "trust signals", "author authority", "does this look credible/trustworthy".
+description: "E-E-A-T specialist and first-class UPSTREAM consult lens. Scores content for Google's Experience, Expertise, Authoritativeness and Trust signals BEFORE it is finalized and returns structured fixes. Use when producing or auditing any content, page or claim that must rank, be cited or be trusted (blog, landing page, YMYL, client deliverable). Used by specialist-council, marketing, seo and geo-optimization. Triggers: 'E-E-A-T', 'EEAT', 'experience expertise authoritativeness trust', 'trust signals', 'author authority', 'does this look credible/trustworthy'."
 ---
 
 # eeat — Experience · Expertise · Authoritativeness · Trust

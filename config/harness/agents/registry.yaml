@@ -67,7 +67,7 @@ accepted_projection_drift:
     rationale: The canonical skill includes the reconciled gate ordering and durable-log rules; detect projection drift without treating it as source.
   - id: session-handoff
     agents_sha256: 64e7b793f1796cebfe365ea94565ba3953d2d9cda1eade700f42a6d637d5d7bb
-    canonical_sha256: d1f6611756d2ca64955d979c9a1282bff392a2a406075c3a5a2c154a15197aa9
+    canonical_sha256: f0ffba682961acfbe992ab933ad21719e7eb71203107bb27e96d39e6883b0164
     rationale: The canonical skill contains newer completion classification and fork-slice policy; detect projection drift without treating it as source.
   - id: spm
     agents_sha256: 2981f21e84083ab0189ae2dab06c38313bc2f48c9799c8dac495ceb8a9c7dfb3
