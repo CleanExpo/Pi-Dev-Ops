@@ -1,6 +1,6 @@
 ---
 name: sandcastle-runner
-description: The primitive. Wraps a single Sandcastle job (`npx --no-install tsx .sandcastle/sandcastle_run.mts`, which calls the pinned @ai-hero/sandcastle@0.12.0 `run()` API) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 item 1 (RA-1856 epic). Use when a Pi-CEO orchestrator needs to run a code-executing AFK agent through the pinned Sandcastle `run()` API in an isolated Docker, Podman, Vercel Firecracker or Daytona sandbox, such as for Linear tickets labelled sandcastle:high-isolation, parallel implementer or reviewer runs, or work needing a kill-switch check, concurrency cap and stdout streamed into session.logs.
+description: Wraps a single Sandcastle job (`npx --no-install tsx .sandcastle/sandcastle_run.mts`, pinned @ai-hero/sandcastle@0.12.0 `run()` API) so the Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker, Podman, Vercel Firecracker or Daytona sandboxes, with pluggable agent and sandbox, a kill-switch check, a concurrency cap and stdout streamed into session.logs. Use for Linear tickets labelled sandcastle:high-isolation and parallel implementer or reviewer runs.
 owner_role: Builder
 status: wave-5
 ---
@@ -77,26 +77,11 @@ class SandcastleRunResult:
 
 ## Selection rules — sandbox provider
 
-| Environment | Default | Why |
-|---|---|---|
-| Local Mac workstation | `docker` | Fast iteration; Docker Desktop available |
-| Railway production (Pi-CEO host) | `vercel` (Firecracker microVM) | No Docker daemon on Railway; Vercel sandbox provider runs Firecracker microVMs |
-| CI / GitHub Actions | `noSandbox` (interactive only) | No need for nested isolation; CI is already a sandbox |
-| Smoke tests / dry-run | `noSandbox` | Fast, deterministic, no Docker pull |
-
-`podman` is a manual override for hosts without Docker (rootless, drop-in). `daytona` is for users with a Daytona account. `noSandbox` is **never used in autonomy paths** — only smoke tests + interactive sessions.
+Read references/selection-rules.md when choosing a sandbox provider or an agent provider for a run.
 
 ## Selection rules — agent provider
 
-| Use case | Default | Reason |
-|---|---|---|
-| Plan / decompose / Margot research | `claudeCode` (sonnet 4.6) | Best at structured JSON output + cited reasoning |
-| Implementer (parallel) | `claudeCode` (sonnet 4.6) | Pi-Dev-Ops model-routing policy: planner+orchestrator only opus; everything else sonnet |
-| Reviewer | `codex` | Different model for adversarial review (not the same model that wrote the code) |
-| Merger | `claudeCode` (opus 4.7) | Merge conflicts need the strongest model; merger is a "Senior Orchestrator" role per RA-1099 |
-| Research | `pi` | When the work is research, not code |
-
-Override per-job via `agent` field; defaults are conservative.
+Read references/selection-rules.md when choosing a sandbox provider or an agent provider for a run.
 
 ## Concurrency
 
@@ -134,17 +119,7 @@ Final stdout line should be a JSON `{"type": "run_complete", "result": {...}}`. 
 
 ## Audit events emitted
 
-Add to `swarm/audit_emit.py::_VALID_TYPES`:
-
-```python
-# Wave 5 / RA-1856 — Sandcastle
-"sandcastle_run_started",   # one per launch; fields: run_id, agent, sandbox, branch
-"sandcastle_run_ok",        # one per successful completion; fields: run_id, duration_s, commits_count
-"sandcastle_run_failed",    # one per failure; fields: run_id, failure_reason, exit_code
-"sandcastle_env_resolved",  # one per launch; fields: run_id, var_count, project_slug — NAMES NOT VALUES
-```
-
-Existing `audit_emit._maybe_redact` handles long-string redaction; we add the regex strip on top for the specific shape `KEY=value` that the redactor's >32-char heuristic might miss for short keys.
+Read references/audit-events.md when adding or reviewing the sandcastle audit event types.
 
 ## Process supervision
 
@@ -172,11 +147,7 @@ Timeout enforcement via `asyncio.wait_for(proc.wait(), timeout=req.timeout_minut
 
 ## Workspace placement
 
-| Environment | Worktree path | Reason |
-|---|---|---|
-| Local | `/tmp/pi-ceo-workspaces/sandcastle/{session_id}/` | Same root as existing weak-sandbox; gc.py covers it |
-| Railway | `/tmp/pi-ceo-workspaces/sandcastle/{session_id}/` | Railway tmpfs |
-| Vercel sandbox provider | inside microVM, not host | Sandcastle handles internally; we set `bindMount: false` |
+Read references/workspace-placement.md when deciding where a Sandcastle worktree lives per environment.
 
 ## Error taxonomy
 
@@ -198,26 +169,11 @@ Timeout enforcement via `asyncio.wait_for(proc.wait(), timeout=req.timeout_minut
 
 ## Verification (Wave 5 #1 close-out)
 
-1. **Compile + import smoke** — `python -m py_compile app/server/sandcastle_runner.py` green.
-2. **Dry-run mode** — invoke with `dry_run=True, sandbox="noSandbox", agent="claudeCode"`. Sandcastle must:
-   - return `status="ok"`
-   - produce `branch` non-empty
-   - have ≥1 entry in `commits`
-   - leave ZERO env-var names in `session.logs` after a `grep -E '[A-Z_]+_(KEY|TOKEN|SECRET|PASSWORD)\s*[=:]'`
-   - emit ≥3 audit rows (`started`, `env_resolved`, `ok`)
-3. **Kill-switch refusal** — set `TAO_SANDCASTLE_ENABLED=0`, call `run_sandcastle()` → returns `status="skipped"`, `skip_reason="sandcastle_disabled"`. No subprocess launch.
-4. **Concurrency cap** — fire 4 simultaneous calls → first 3 launch, 4th returns `status="skipped"`, `skip_reason="concurrency_cap"`.
-5. **Timeout** — set `timeout_minutes=0.05` (3 s), kick off a long-running prompt → returns `status="timeout"`, subprocess gone within 8 s of timeout fire.
-6. **Stdout secret-strip** — synthetic Sandcastle stdout containing `ANTHROPIC_API_KEY=sk-ant-fake-key-for-test` → after `regex_strip_secrets`, the line in `session.logs` reads `ANTHROPIC_API_KEY=***=[REDACTED]` or equivalent. ZERO key-shape strings in logs.
+Read references/verification.md when closing out or re-verifying the runner, or checking what is out of scope.
 
 ## Out of scope for Wave 5 #1
 
-- Real Vercel-sandbox-provider wire-up (Wave 5 #2 manifest needs to land first)
-- TMPFS / FIFO secret injection design details (Wave 5 #3 — `_resolve_env_manifest` is a stub here that returns `{}` until #2/#3 land)
-- Margot bridge (Wave 5 #4)
-- session_phases.run_build branch point (Wave 5 #6)
-
-This skill ships the contract + the subprocess + the audit. The plumbing on either side comes in subsequent tickets.
+Read references/verification.md when closing out or re-verifying the runner, or checking what is out of scope.
 
 ## References
 

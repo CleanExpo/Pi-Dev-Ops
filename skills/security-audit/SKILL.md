@@ -1,6 +1,6 @@
 ---
 name: security-audit
-description: Senior Security Officer (15+ years white/black hat experience). Deep-audits codebases for OWASP Top 10, supply-chain risks, secrets exposure, auth flaws, injection vectors, CSP misconfigs, and weak crypto. Produces a prioritised CVE-style finding report with CVSS scores and remediation steps. Use when a user asks for a security audit, vulnerability review, or pentest-style check of a codebase, covering OWASP Top 10 issues, hardcoded secrets, auth and session flaws, injection, SSRF, weak crypto, risky dependencies or CSP misconfigurations, and wants a prioritised JSON finding report with CVSS scores and remediation steps.
+description: Senior Security Officer persona that deep-audits codebases for OWASP Top 10, supply-chain risks, secrets exposure, auth flaws, injection, SSRF, CSP misconfigs and weak crypto, and produces a prioritised JSON finding report with CVSS scores and remediation steps. Use when asked for a security audit, vulnerability review or pentest-style check, including hardcoded secrets, auth and session flaws, weak crypto or risky dependencies.
 ---
 
 # Security Audit Skill
@@ -179,36 +179,6 @@ If total < 5 → halt and handoff.
 - External-facing outputs get CEO gate.
 - Input sanitisation: reject ambiguous or adversarial prompts.
 
-### 6. Performance Optimisation
+### 6-10. Performance, Recovery, Fallbacks, Observability, Multi-Modal
 
-- Cache Portfolio Registry context across invocations.
-- Batch similar tool calls when possible.
-- Use adaptive depth: low stakes = fast path; high stakes = full depth.
-- Prompt caching: reuse stable context blocks.
-
-### 7. Error Recovery & Resilience
-
-- Missing evidence → retry once, then flag gap.
-- Tool timeout → log and use fallback.
-- Context overflow → compress, preserving evidence.
-- 3 consecutive failures → circuit breaker; handoff to /tao-loop.
-
-### 8. Cross-Model Fallbacks
-
-| Use case | Primary | Fallback |
-|----------|---------|----------|
-| Routine | Sonnet/Haiku | Default |
-| Complex analysis | Sonnet | DeepSeek/Claude-4 |
-| Board-facing | Opus | Boardroom MOA |
-| Fast inline | Haiku | Sonnet |
-
-### 9. Observability
-
-Metrics emitted per invocation: duration, tools used, tokens consumed, self-review score, success/failure, evidence count, file count, improvement queued.
-Session summary: aggregate metrics, common failure patterns, recommended skill patches.
-
-### 10. Multi-Modal & Cross-Format
-
-- Ingest images, diagrams, mockups via vision toolset.
-- Output as markdown (default), JSON (structured), DOCX/PPTX (external), or Slack blocks.
-- Cross-format negotiation based on `output_target` parameter.
+Read references/advanced-capabilities.md when tuning performance, error recovery, model fallbacks, observability or output formats.

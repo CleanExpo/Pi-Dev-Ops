@@ -1,6 +1,6 @@
 ---
 name: design-intelligence
-description: Master design context skill. Reads/writes DESIGN.md, references 66 brand archetypes from getdesign.md, reverse-engineers any design system from a live site using npxskillui, and ensures every UI decision is grounded in explicit design intent rather than AI defaults. Use when starting any UI, dashboard, page or component work that needs a DESIGN.md read or created, when the user says make this look like Linear, Stripe or Vercel, wants a design system reverse-engineered from a live URL, codebase or screenshot using skillui, or asks to install a getdesign.md brand reference.
+description: Master design context skill. Reads/writes DESIGN.md, references 66 brand archetypes from getdesign.md, reverse-engineers a design system from a live URL, codebase or screenshot using npx skillui, and grounds every UI decision in explicit design intent rather than AI defaults. Use when starting UI, dashboard, page or component work that needs a DESIGN.md read or created, when the user says make this look like Linear, Stripe or Vercel, or asks to install a getdesign.md brand reference.
 automation: manual
 intents: design, feature
 ---
@@ -174,21 +174,7 @@ AI-default slop only if these laws hold:
 
 ## Scroll & motion styles (for animated / 3D sites)
 
-When a brief calls for a scroll-driven or 3D site, name the motion style up front — pick one,
-don't blend:
-
-| Style | Motion |
-|-------|--------|
-| **A — Loop** | Hero animation loops with no visible seam; alive at rest, never freezes |
-| **B — Scrub** | Scroll position scrubs a timeline (frames, not mp4 — WebP frames scrub smoother) |
-| **C — Cursor** | Elements react to cursor position |
-| **D — Horizontal** | Vertical scroll drives horizontal travel |
-| **E — Exploded** | Parts assemble/disassemble on scroll |
-| **F — Push-through** | Camera pushes through layered planes |
-| **G — Scrollytelling** | Copy beats pinned to scroll milestones |
-
-Motion render laws: locked camera, constant velocity, motion-blur off, `START = END` for any
-loop. A frozen hero reads as broken.
+Read references/scroll-motion-styles.md when a brief calls for a scroll-driven or 3D site and a motion style must be named.
 
 ---
 

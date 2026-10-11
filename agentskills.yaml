@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.25.4
-  generated_at: "2026-10-06T06:12:30.055397+00:00"
+  version: 1.25.5
+  generated_at: "2026-10-11T10:01:25.037976+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -141,7 +141,7 @@ skills:
     owner_role: Analyst
     status: wave-5
     path: skills/analyst/SKILL.md
-    sha256: a11111f7bee88114bcbf740221cadc8b82604d09bf1e48c3740956a7413e29ff
+    sha256: cc85caa5f1149b488f73f798484241a2333f63d0faed0533ae79ac2a60dfe219
     dependencies:
       tools: []
       skills: []
@@ -152,11 +152,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: analyzing-customer-patterns
-    description: "Outcome feedback loop analyser. Reads shipped feature records + post-ship signals, detects patterns in what worked vs what didn't, and writes outcome lessons back into the build pipeline. Feeds the BVI \"features delivered\" component. Use when a monthly or manual feedback cycle is needed to judge whether shipped Pi-CEO features worked, such as reading shipped-features.jsonl and Linear post-ship comments or bug tickets to classify outcomes as positive, negative, neutral or stale, flag recurring patterns, flag features stale after 30 days, write outcome lessons to lessons.jsonl, or supply the BVI features-delivered figure and the board meeting STATUS block."
+    description: "Outcome feedback loop analyser. Reads shipped feature records and post-ship signals, detects what worked vs what didn't, and writes outcome lessons back into the build pipeline. Feeds the BVI 'features delivered' component. Use for a monthly or manual feedback cycle: read shipped-features.jsonl and Linear post-ship comments or bug tickets, classify outcomes positive, negative, neutral or stale, flag recurring patterns and features stale after 30 days, write lessons to lessons.jsonl, supply the BVI features-delivered figure and board meeting STATUS block."
     owner_role: (unset)
     status: (unset)
     path: skills/analyzing-customer-patterns/SKILL.md
-    sha256: 579e04e4b19d205ea1bd1ef06b036782cb6220fe0d66c209bd71ce976f0aa1d8
+    sha256: f8fef368cb46af1e1d099b25f01a057970f0b7b2abe0ac7a724125e7d3ed92b4
     dependencies:
       tools: []
       skills: []
@@ -345,11 +345,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: cfo
-    description: Daily financial visibility across the 11 Unite-Group businesses. Computes burn multiple, NRR, CAC payback, gross margin from Stripe + Xero feeds. Drafts a 1-page financial brief into the daily 6-pager. Gates spend approvals >$1K through draft_review HITL. Closes Wave 4.1 of the senior-agent slate (RA-1850). Use when the user asks for daily financial visibility across the 11 Unite-Group businesses, such as the CFO daily brief, burn multiple, NRR, CAC payback, gross margin or runway checks, threshold-breach alerts, or approving a spend or invoice over the $1,000 ceiling through the draft_review gate.
+    description: Daily financial visibility across the 11 Unite-Group businesses. Computes burn multiple, NRR, CAC payback and gross margin from Stripe + Xero feeds, drafts a 1-page financial brief into the daily 6-pager, and gates spend approvals >$1K through draft_review HITL (Wave 4.1, RA-1850). Use for the CFO daily brief, burn multiple, NRR, CAC payback, gross margin or runway checks, threshold-breach alerts, or approving a spend or invoice over the $1,000 ceiling via the draft_review gate.
     owner_role: CFO
     status: wave-4
     path: skills/cfo/SKILL.md
-    sha256: 7c5e4cc8a73696487ae9c4cd8e290b856520568922226955e3533bfc00913f5f
+    sha256: 5b6dde34d114a841029d9b67a103bed0c2d72dd2a47522de3bb823252a219d1b
     dependencies:
       tools: []
       skills: []
@@ -375,11 +375,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: claim-verifier
-    description: "The runnable cite-or-cut gate for FINISHED Nexus copy — walks every checkable factual claim in a completed asset, resolves each to a substantiation record or cuts it, runs the Australian Consumer Law excluded-tactics deny-list, and freezes the Substantiation Ledger before publish. Use as the last gate before any copy asset ships — landing page, service page, ad, email, franchise-recruitment copy. Triggers on \"cite-or-cut\", \"substantiate this copy\", \"claim check\", \"can we publish this\", \"freeze the ledger\", \"is every claim proven\", \"ACL check the copy\". NOT research (that is `storm`), NOT trust scoring (that is `eeat`)."
+    description: "Runnable cite-or-cut gate for FINISHED Nexus copy. Walks every checkable factual claim, resolves each to a substantiation record or cuts it, runs the Australian Consumer Law excluded-tactics deny-list, and freezes the Substantiation Ledger before publish. Use as the last gate before copy ships (landing page, service page, ad, email, franchise copy). Triggers: 'cite-or-cut', 'substantiate this copy', 'claim check', 'can we publish this', 'freeze the ledger', 'is every claim proven', 'ACL check the copy'. NOT research (`storm`), NOT trust scoring (`eeat`)."
     owner_role: (unset)
     status: (unset)
     path: skills/claim-verifier/SKILL.md
-    sha256: 9560f775ca7b8373a8d4a3bc1b3d52ea982032d4ee49d95ede43de217fcc1ff7
+    sha256: c5c1e25704c79e36a23e11aa2d9afb6f03e676e02a1e7ab3ce9ad3d64cb00d5d
     dependencies:
       tools: []
       skills: []
@@ -461,11 +461,11 @@ skills:
       requires_hitl_gate: false
       pii_handling: pass-through
   - id: cmo-growth
-    description: "Daily marketing visibility across the 11 Unite-Group businesses. Computes LTV:CAC, blended CPA, channel concentration (HHI), attribution decay from ad-platform feeds. Drafts a 1-page CMO snippet into the daily 6-pager. Gates ad-spend over $5,000/day through draft_review HITL. Closes Wave 4 A2 of the senior-agent slate (RA-1860). Use when the user asks for daily marketing visibility across the Unite-Group businesses, such as LTV:CAC, blended CPA, channel concentration (HHI), attribution decay, or a CMO snippet for the daily 6-pager, or when an ad-spend request above $5,000/day needs routing through the draft_review approval gate."
+    description: "Daily marketing visibility across the 11 Unite-Group businesses. Computes LTV:CAC, blended CPA, channel concentration (HHI) and attribution decay from ad-platform feeds, drafts a 1-page CMO snippet into the daily 6-pager, and gates ad-spend over $5,000/day through draft_review HITL (Wave 4 A2, RA-1860). Use for LTV:CAC, blended CPA, channel concentration, attribution decay, the CMO snippet for the 6-pager, or an ad-spend request above $5,000/day needing the draft_review approval gate."
     owner_role: CMO
     status: wave-4
     path: skills/cmo-growth/SKILL.md
-    sha256: 74dee5bacf0526a0dd418c1f8207d8a2b9691a38be4f6c682f8d03c5f1bb51f3
+    sha256: 18001f3602ff2f29ebb830489ab9889be5ecddf609f8b0490d4465936d299ff1
     dependencies:
       tools: []
       skills: []
@@ -594,11 +594,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: cross-tool-flow
-    description: Declarative YAML/JSON authoring surface over dispatcher-core. Lets the user (or Margot, or Scribe) define multi-step cross-tool flows in plain text — chain Linear, Gmail, Calendar, Margot, Composio MCP tools — and run them via Dispatcher. Wave 2 surface; engine is dispatcher-core in Wave 1. Use when the user wants to author, validate, or run a declarative YAML or JSON flow file in Pi-Dev-Ops/flows/ that chains Linear, Gmail, Calendar, Margot or Composio tools into ordered steps with templated inputs, tool allowlists, and manual, telegram_command, cron or webhook triggers, including via the Telegram /flow command or POST /api/flows/{name}/run.
+    description: Declarative YAML/JSON authoring surface over dispatcher-core (Wave 2 surface, Wave 1 engine). Lets the user, Margot or Scribe define multi-step flows chaining Linear, Gmail, Calendar, Margot and Composio MCP tools, and run them via Dispatcher. Use to author, validate or run a flow file in Pi-Dev-Ops/flows/ with ordered steps, templated inputs, tool allowlists, and manual, telegram_command, cron or webhook triggers, including the Telegram /flow command or POST /api/flows/{name}/run.
     owner_role: Dispatcher
     status: wave-2
     path: skills/cross-tool-flow/SKILL.md
-    sha256: 3524e8d7bdb1caf0d517bc912079c86e4e7c74dd2aff03844a354174b2caa49f
+    sha256: 3617417dd17551675c39f6ce5750838164b5f60f7103dafa77e6b46b4e944232
     dependencies:
       tools: []
       skills: []
@@ -609,11 +609,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: cs-tier1
-    description: "Tier-1 customer support across the 11 portfolio brands. Computes NPS, First Contact Resolution (FCR), Gross Retention Rate (GRR), and avg first-response time. Drafts replies through telegram-draft-for-review. Approves refunds up to $100; routes anything larger through draft_review HITL. Closes Wave 4 A4 of the senior-agent slate (RA-1862). Use when handling inbound customer support for any of the 11 portfolio brands: drafting ticket replies, approving or escalating refund requests (auto-approve up to $100, larger amounts go through draft_review), assembling the daily CS brief, or computing NPS, FCR, GRR and first-response metrics and flagging enterprise churn threats."
+    description: "Tier-1 customer support across the 11 portfolio brands. Computes NPS, First Contact Resolution (FCR), Gross Retention Rate (GRR) and avg first-response time, drafts replies through telegram-draft-for-review, auto-approves refunds up to $100 and routes larger ones through draft_review HITL (Wave 4 A4, RA-1862). Use for inbound support on any portfolio brand: ticket replies, refund approval or escalation, the daily CS brief, NPS/FCR/GRR metrics, enterprise churn threats."
     owner_role: CS
     status: wave-4
     path: skills/cs-tier1/SKILL.md
-    sha256: 5b0bdfe89559257f55908bfb89a659ace96f44b4b562b4162f115a99aa9614a2
+    sha256: 72f0b6369eece7c4a14613c53552cf2386da9eb57642cebcdc19f212ae674a68
     dependencies:
       tools: []
       skills: []
@@ -624,11 +624,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: cto
-    description: Daily platform-health visibility across the 11 portfolio repos. Computes the DORA quartet (deploy frequency, lead time, MTTR, change-failure rate) plus p99 latency, uptime, and cost-per-request from GitHub Actions + Vercel observability feeds. Drafts a 1-page CTO snippet into the daily 6-pager. Gates production PR merges through draft_review HITL. Closes Wave 4 A3 of the senior-agent slate (RA-1861). Use when the user asks for platform health, DORA metrics (deploy frequency, lead time, MTTR, change-failure rate), p99 latency, uptime or cost-per-request across the portfolio repos, wants the daily CTO snippet for the 6-pager, or when a production PR merge needs the CTO dual-key HITL approval gate.
+    description: Daily platform-health visibility across the 11 portfolio repos. Computes DORA metrics (deploy frequency, lead time, MTTR, change-failure rate) plus p99 latency, uptime and cost-per-request from GitHub Actions + Vercel observability feeds, drafts a 1-page CTO snippet into the daily 6-pager, and gates production PR merges through draft_review HITL (Wave 4 A3, RA-1861). Use for platform health, DORA, p99, uptime or cost-per-request checks, the daily CTO snippet, or a production PR merge needing the CTO dual-key HITL gate.
     owner_role: CTO
     status: wave-4
     path: skills/cto/SKILL.md
-    sha256: 7a70c5c23abef5789efb87e54191edb78e8dfb948250307b2a1ff68149347393
+    sha256: 7d615c0a10885e1ee3ae18080482cedb989bf1f65b9d5c641ef98a485ba767f4
     dependencies:
       tools: []
       skills: []
@@ -699,11 +699,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: design-audit
-    description: DEPRECATED (RA-7057) — superseded by the installed pbakaus/impeccable skill v3.9.1. Use `impeccable` (`/impeccable audit`, `/impeccable critique`, `/impeccable polish`, `/impeccable bolder`) instead. Kept for the archaeological record; do not route new work here. Use when a task or user phrase calls for auditing, critiquing, polishing, making bolder or quieting a UI design (`/audit`, `/critique`, `/polish`, `/bolder`, `/quieter`, `/distill`), but note this skill is deprecated, so redirect to `impeccable` (`/impeccable audit`, `/impeccable critique`, `/impeccable polish`, `/impeccable bolder`) and do not route new work here.
+    description: "DEPRECATED (RA-7057), superseded by the installed pbakaus/impeccable skill v3.9.1. Do not route new work here; use `impeccable` (`/impeccable audit`, `/impeccable critique`, `/impeccable polish`, `/impeccable bolder`) instead. Kept for the archaeological record. Matches requests to audit, critique, polish, make bolder or quieter, or distill a UI design (`/audit`, `/critique`, `/polish`, `/bolder`, `/quieter`, `/distill`): redirect them to `impeccable`."
     owner_role: (unset)
     status: deprecated
     path: skills/design-audit/SKILL.md
-    sha256: c0bfb16800517fde6685b7381af9737133ae89679cbf01677948aeb54d024d21
+    sha256: 02862af12a606c940bf6fbc01bbcd8fd26b195198d954a1cf42f346de320c6ea
     dependencies:
       tools: []
       skills: []
@@ -729,11 +729,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: design-canvas-html
-    description: "Generates a self-contained `{slug}.html` preview file that demonstrates a brand's full design system (palette + WCAG contrast + typography scale + component recipes + motion samples + optional 3D scene) inline — no server, no build, opens directly in any browser. Used by design-approve to ship a portable canvas alongside the canonical spec files. Mirrors the routes in preview-canvas/app/brand/[slug] but flattened into one HTML file. Use when a brand's design spec (the .design.md file, with optional .motion.md and .scene.md) needs to become a single self-contained, offline-openable HTML preview showing palette, WCAG contrast, typography, component recipes, motion and an optional Three.js scene, such as when design-approve finishes writing canonical specs, or when the user says \"regenerate the HTML preview for {slug}\" or \"give me a single-file design preview I can send to {client}\"."
+    description: "Generates a self-contained `{slug}.html` preview of a brand's full design system (palette, WCAG contrast, typography scale, component recipes, motion samples, optional 3D scene), opens in any browser, no server or build. Used by design-approve to ship a portable canvas beside the spec files. Use when a .design.md (with optional .motion.md and .scene.md) needs a single offline HTML preview, after design-approve writes specs, or on \"regenerate the HTML preview for {slug}\" or \"give me a single-file design preview I can send to {client}\"."
     owner_role: (unset)
     status: (unset)
     path: skills/design-canvas-html/SKILL.md
-    sha256: 1445ac74bbc35c62b9a85eb31fd321e1a348fef8488d6841b0ac8d2d1032d237
+    sha256: 22ed6f2944eba1e3939362f2adb1cec08a4f32117f25c5a721e932db3a7787c9
     dependencies:
       tools: []
       skills: []
@@ -744,11 +744,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: design-family-coherence
-    description: "Cross-brand audit. Given a colour family (`restoration | safety | industrial | consumer | training`), reads every brand's `.design.md` + `.motion.md` and reports on family-level consistency — shared signature motion, shared spacing rhythm, shared typography weight ladder, palette saturation curve. Flags drift. Used after `design-approve` adds a new brand to the family, and as a standing monthly audit. Use when auditing a colour family (restoration, safety, industrial, consumer or training) for cross-brand consistency in `.design.md` and `.motion.md` specs, such as after `design-approve` adds a brand, on the monthly audit, or when asked to \"audit the safety family\", \"check family drift\" or whether brands are visually coherent."
+    description: "Cross-brand audit. Given a colour family (`restoration | safety | industrial | consumer | training`), reads every brand's `.design.md` + `.motion.md` and reports family-level consistency: shared signature motion, spacing rhythm, typography weight ladder, palette saturation curve. Flags drift. Use after `design-approve` adds a brand, for the standing monthly audit, or when asked to 'audit the safety family', 'check family drift' or whether brands are visually coherent."
     owner_role: (unset)
     status: (unset)
     path: skills/design-family-coherence/SKILL.md
-    sha256: 49b55cac29652e462d53779180937e949dfb8b3a23f9cec574922b255f3becde
+    sha256: 9c5421620476ba3d805568db7836062075bd14b40d994f860b17aa4ee4deab9a
     dependencies:
       tools: []
       skills: []
@@ -759,11 +759,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: design-intelligence
-    description: Master design context skill. Reads/writes DESIGN.md, references 66 brand archetypes from getdesign.md, reverse-engineers any design system from a live site using npxskillui, and ensures every UI decision is grounded in explicit design intent rather than AI defaults. Use when starting any UI, dashboard, page or component work that needs a DESIGN.md read or created, when the user says make this look like Linear, Stripe or Vercel, wants a design system reverse-engineered from a live URL, codebase or screenshot using skillui, or asks to install a getdesign.md brand reference.
+    description: Master design context skill. Reads/writes DESIGN.md, references 66 brand archetypes from getdesign.md, reverse-engineers a design system from a live URL, codebase or screenshot using npx skillui, and grounds every UI decision in explicit design intent rather than AI defaults. Use when starting UI, dashboard, page or component work that needs a DESIGN.md read or created, when the user says make this look like Linear, Stripe or Vercel, or asks to install a getdesign.md brand reference.
     owner_role: (unset)
     status: (unset)
     path: skills/design-intelligence/SKILL.md
-    sha256: d626ad415a84e34598e854f35023f7e0720b5f65745efbda28fc9e39bce6ce74
+    sha256: a40995c91bc5fdf8114ea86dda841b371738a3cdf23382f0a316c696c7d78238
     dependencies:
       tools: []
       skills: []
@@ -774,11 +774,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: design-iterate
-    description: "Iteration loop driver for brand design. Calls design-board to generate N variants, renders each at three breakpoints (mobile/tablet/desktop) via the preview-canvas + Claude Preview MCP, presents screenshots to the client (the user) via AskUserQuestion, captures feedback, refines, and repeats until the user approves a variant. The visible canvas the client uses to actually SEE designs. Use when the user asks to design a brand, iterate on a design, get design variants to pick from, or see designs for a brand, or when a new brand dossier from remotion-brand-research needs visual directions or an existing brand's identity needs a refresh, and the client must review variants at mobile, tablet and desktop breakpoints before approving one."
+    description: Iteration loop driver for brand design. Calls design-board for N variants, renders each at mobile, tablet and desktop via preview-canvas + Claude Preview MCP, presents screenshots to the client via AskUserQuestion, captures feedback, refines, and repeats until a variant is approved. Use to design a brand, iterate on a design, or get variants to pick from, when a remotion-brand-research dossier needs visual directions, or when an existing brand identity needs a refresh.
     owner_role: (unset)
     status: (unset)
     path: skills/design-iterate/SKILL.md
-    sha256: 38a607b8f4d863e88f635ab7bf781ee0c24584d0a4d125ec2f29f581822c1896
+    sha256: 37d0eff034e1a89fcc5dc7e6eec2abcdc3b7d8b97fdb1272abc4409d3bf3fa7f
     dependencies:
       tools: []
       skills: []
@@ -819,11 +819,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: dispatcher-core
-    description: "Cross-tool workflow primitive. Executes a declared sequence of steps that chain Linear, Gmail, Calendar, Margot, Composio, or any registered MCP tool. State persisted to .harness/dispatcher_state.json so kill-switch + crashes don't lose progress. Use when a task needs an ordered chain of two or more steps across tools such as Linear, Gmail, Calendar, Margot, Composio or other MCP tools or skills, with step outputs feeding later steps, resumable state in .harness/dispatcher_state.json, a kill-switch pause or an allowlist, but not for single-tool calls, standalone drafting, or code-generation and build flows."
+    description: "Cross-tool workflow primitive. Executes a declared ordered sequence of steps that chain Linear, Gmail, Calendar, Margot, Composio, or any registered MCP tool, journalling state to .harness/dispatcher_state.json so kill-switch pauses and crashes don't lose progress. Use when a task needs two or more ordered steps across tools, with step outputs feeding later steps, resumable state, a kill-switch pause or an allowlist, but not for single-tool calls, standalone drafting, or code-generation and build flows."
     owner_role: Dispatcher
     status: wave-1
     path: skills/dispatcher-core/SKILL.md
-    sha256: ab155373abe2eafaca069d8c1393f52badd67b071ae84deede565e1988373fbc
+    sha256: a6691a85e86e865ecdb1fc67722fa56b70370542f28f0bcbd9d709afade822ae
     dependencies:
       tools: []
       skills:
@@ -879,11 +879,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: forward-planner
-    description: "Research a project and plan 15+ moves ahead before building anything. Establishes the win condition (Definition of Done), reads the board (repo + PORTFOLIO registry + live external research), computes the gap, lays a roadmap spine of 15+ verifiable moves, forks branch points where outcomes are contingent, and red-teams the end-state to surface the \"move-16 surprise\" before it bites. Produces BOTH a human-readable foresight brief AND a machine-readable structured plan the swarm can execute. Use this FIRST whenever you (or the autonomous loop) are about to build, scope, or roadmap a project — and whenever someone asks \"what's the full path to X\", \"what are we missing\", \"plan N moves ahead\", \"think this through\", or talks about strategy, foresight, lookahead, sequencing, dependencies, or roadmaps. Use it even when the request just says \"build project X\" — map the whole path before executing the first step."
+    description: "Research a project and plan 15+ moves ahead before building anything. Sets the win condition (Definition of Done), reads the board (repo, PORTFOLIO registry, live research), lays 15+ moves, forks contingent branches, and red-teams the end-state for the \"move-16 surprise\". Emits a human foresight brief plus a machine-readable plan. Use FIRST before any build, scope or roadmap, and on \"what's the full path to X\", \"what are we missing\", \"plan N moves ahead\", \"think this through\", strategy, foresight, sequencing, dependencies, roadmaps, or \"build project X\"."
     owner_role: Strategist
     status: wave-5
     path: skills/forward-planner/SKILL.md
-    sha256: 4178e8b73310edfd56e0fc3157915d2b1e9a6da37957b0d978f47d565ff74e8a
+    sha256: 87744d82ba8036d853e137ca2712860763ea421fbf74b1147bb3f7bb4b790925
     dependencies:
       tools: []
       skills: []
@@ -1074,11 +1074,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: launch-enhance-debloat
-    description: "Make existing code stronger, leaner, and more secure without over-engineering — deletion is often the best change. Finds dead weight, weak spots on critical paths, and security issues; proposes a ranked reversible change list and applies only approved changes in a sandbox with tests passing. Use on \"clean up\", \"remove bloat\", \"strengthen\", \"secure it\", or as step 4 of /ship-it. Use when the user says \"clean up\", \"remove bloat\", \"strengthen\", \"secure it\" or \"make it better\", when step 4 of /ship-it runs, or when a continuous-improvement cron fires, to hunt dead code, unused dependencies and weak spots on critical paths and propose a ranked, reversible change list that is applied only once approved."
+    description: "Make existing code stronger, leaner and more secure without over-engineering; deletion is often the best change. Finds dead weight, weak spots on critical paths and security issues, proposes a ranked reversible change list, and applies only approved changes in a sandbox with tests passing. Use on \"clean up\", \"remove bloat\", \"strengthen\", \"secure it\", \"make it better\", as step 4 of /ship-it, or when a continuous-improvement cron fires."
     owner_role: Builder
     status: wave-4
     path: skills/launch-enhance-debloat/SKILL.md
-    sha256: 985d1fe7eed928493462ad8b65f2ec5b59c1cb02b9feb432141dd47cb35d4ec8
+    sha256: dadd334eef02ed86ed7476a7b229fbb26ef299744f8e4622562fafc456afd3d9
     dependencies:
       tools: []
       skills: []
@@ -1089,11 +1089,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: launch-project-audit
-    description: "Scan the codebase and produce a plain-English map of every feature — what's built, stubbed, orphaned (built-disconnected), wired, or tested — plus how far each piece has travelled toward production. Cheap model for the bulk pass, frontier only for ambiguous calls. Use on \"what's actually built\", \"scan the project\", \"what's left\", or as step 2 of /ship-it. Use when the user asks \"scan my project\", \"what's built\", \"what's left\", or \"is this ready\", or as step 2 of /ship-it after launch-charter, to get a read-only, evidence-cited map of each feature's build state (stubbed, built-disconnected, wired, tested) and pipeline stage toward production."
+    description: "Scan the codebase and produce a plain-English, read-only, evidence-cited map of every feature (built, stubbed, orphaned or built-disconnected, wired, tested), plus how far each has travelled toward production. Cheap model for the bulk pass, frontier only for ambiguous calls. Use on \"scan the project\", \"scan my project\", \"what's actually built\", \"what's built\", \"what's left\", \"is this ready\", or as step 2 of /ship-it after launch-charter."
     owner_role: Curator
     status: wave-4
     path: skills/launch-project-audit/SKILL.md
-    sha256: 48af2210a4f571972886ad2eb2f1117f796c38fcae85963f6ff94513e394163b
+    sha256: 8814ee8ec9f09a8e562d24b1fdd5087698b0f835e4041db028553eba0c736ae9
     dependencies:
       tools: []
       skills: []
@@ -1104,11 +1104,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: launch-review
-    description: "Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses — PM journey, growth/SEO, engineering, design — adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, impeccable, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on \"is this ready to launch\" or as the review step of /ship-it. Use when the user asks to review a product, asks \"is this ready to launch\", wants a launch-readiness pass, or when running the review step of /ship-it after the audit, to get one prioritized report that covers the PM journey and growth/SEO conversion lenses and fans out to security-audit, impeccable, agentic-review and leverage-audit, without making any fixes."
+    description: "Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses (PM journey, growth/SEO, engineering, design). Adds only the two lenses nothing else covers (end-to-end PM journey, growth/SEO conversion) and fans out to security-audit, impeccable, agentic-review and leverage-audit for the rest. Review only; never fixes. Use on \"is this ready to launch\", when asked to review a product or run a launch-readiness pass, or as the review step of /ship-it after the audit."
     owner_role: Guardian
     status: wave-4
     path: skills/launch-review/SKILL.md
-    sha256: 1f26b9dc22f96395c96283b2e9484da3ec394bc9bd50b1ed50421ede09f74a7e
+    sha256: 87d1e4aa70aa15a792045f6e6c397baf736c61df4623e31cc6c50fadeb88797e
     dependencies:
       tools: []
       skills: []
@@ -1134,11 +1134,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: maintenance-manager
-    description: "Senior Maintenance Manager (15+ years production systems). Evaluates dependency freshness, technical debt severity, upgrade paths, observability coverage, and produces a maintenance calendar with prioritised debt items and SLA recommendations. Use when the user asks for a maintenance audit of a production system: checking dependency freshness (npm, pip, system packages), inventorying and scoring technical debt, assessing observability gaps such as logging, alerting and health checks, analysing upgrade paths, or producing a prioritised maintenance calendar with SLA recommendations."
+    description: "Senior Maintenance Manager (15+ years production systems). Evaluates dependency freshness, technical debt severity, upgrade paths and observability coverage, and produces a maintenance calendar with prioritised debt items and SLA recommendations. Use when the user asks for a maintenance audit of a production system: dependency freshness (npm, pip, system packages), technical debt inventory and scoring, observability gaps (logging, alerting, health checks), upgrade path analysis, or a prioritised maintenance calendar with SLA recommendations."
     owner_role: (unset)
     status: (unset)
     path: skills/maintenance-manager/SKILL.md
-    sha256: bf6b9ebdf067c5ea4f40a53be348a91f69606d0012f529017d1ce77abb998ad1
+    sha256: 32fbf1a835ed661f515c40dd21a9a1dc58f95ab08660ec9695328bd02fdfa985
     dependencies:
       tools: []
       skills: []
@@ -1179,11 +1179,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: margot-sandcastle-bridge
-    description: "After a Margot Deep Research finding completes, classify \"action-shaped vs informational\" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On 👍, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 item 4 (RA-1856 epic). This is what makes Margot autonomous. Use when a completed Margot deep research finding (deep_research or deep_research_max output) needs classifying as action-shaped or informational via intent_router, then drafting a Linear ticket and routing it through the draft_review HITL gate so an approved one reaches autonomy.py and sandcastle-runner."
+    description: "Turns a completed Margot Deep Research finding into a tracked action: classify action-shaped vs informational via intent_router, draft a Linear ticket body, and route it through the draft_review HITL gate. On a 👍 it creates the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels, which the autonomy.py poller picks up and sandcastle-runner runs in an isolated container. Use when a deep_research or deep_research_max output needs that classification and draft."
     owner_role: Margot (research) → Chief of Staff (HITL) → Builder (execution)
     status: wave-5
     path: skills/margot-sandcastle-bridge/SKILL.md
-    sha256: 3cd24bdfec05175659ef355ac4c330563fb323a1d460d382ed99217482f21930
+    sha256: 6d1571e8486092c2d4587d984dc149682f50f9befa0a6088a5a528bf98b53dde
     dependencies:
       tools: []
       skills: []
@@ -1404,11 +1404,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: northstar-shipit
-    description: "NorthStar add-on for /northstar and /ship-it. Removes noisy branches, picks the highest-value straight path to ShipIt, and hands only the approved launch-ready lane into the existing launch-charter → ship-it → ship-chain machinery. Use when the user types /northstar or says things like \"what is the straight path\", \"remove the noise\", \"get this to shipit\", \"what is the one thing to ship\", \"cut through the clutter\" or \"take this from idea to production\", and an agent must narrow scattered project context into one default ShipIt lane with a gate status before handing off to launch-charter, ship-it, launch-project-audit, launch-review or ship-chain."
+    description: "NorthStar add-on for /northstar and /ship-it. Removes noisy branches, picks the highest-value straight path to ShipIt, and hands only the approved lane into the launch-charter → ship-it → ship-chain machinery. Use on /northstar or \"what is the straight path\", \"remove the noise\", \"get this to shipit\", \"what is the one thing to ship\", \"cut through the clutter\", \"take this from idea to production\", to narrow scattered context into one ShipIt lane with a gate status before handoff to launch-charter, ship-it, launch-project-audit, launch-review or ship-chain."
     owner_role: Senior PM
     status: wave-6
     path: skills/northstar-shipit/SKILL.md
-    sha256: 0232c01d1db6246fc8129298b3cd2b5c35952f6c1fcb251e3ca94e3440260ad8
+    sha256: 340df4148832f7dca8a2ff95bc3d44429f0c53095503da598cf3d7b39d871c30
     dependencies:
       tools: []
       skills: []
@@ -1468,7 +1468,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/pi-dev-linear-contract/SKILL.md
-    sha256: a0f0640d053e6f7a6a8ae8091ac47cfdeadb0accf8ddd677084dc069ab80dcd2
+    sha256: 5f3248399aaa008e21074214628e0ce99c0b9ed6899dc443837dfb0f770090e0
     dependencies:
       tools: []
       skills: []
@@ -1522,11 +1522,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: pi-seo-remediation
-    description: "Remediation advisor for Pi-SEO findings that cannot be auto-fixed. Produces per-finding remediation cards with tier classification, step-by-step fix instructions, before/after code examples, verification commands, and effort estimates. Use when Pi-SEO scanner findings (leaked API keys, hardcoded passwords or secrets, private keys, DB connection strings, shell=True, eval(), dangerouslySetInnerHTML, innerHTML, debug=True, 0.0.0.0 binding, security TODOs, # nosec suppressions) cannot be auto-fixed by autopr.py and need Tier 2-4 remediation cards with fix steps, before/after code, verification commands and effort estimates."
+    description: "Remediation advisor for Pi-SEO findings that cannot be auto-fixed. Produces per-finding remediation cards with tier classification, step-by-step fix instructions, before/after code, verification commands and effort estimates. Use when Pi-SEO scanner findings (leaked API keys, hardcoded passwords or secrets, private keys, DB connection strings, shell=True, eval(), dangerouslySetInnerHTML, innerHTML, debug=True, 0.0.0.0 binding, security TODOs, # nosec suppressions) cannot be auto-fixed by autopr.py and need Tier 2-4 cards."
     owner_role: (unset)
     status: (unset)
     path: skills/pi-seo-remediation/SKILL.md
-    sha256: 742b3ae9638b2e104ab86e5dec01bcd41df2a26ed8bb24d4dbcc8046b9763333
+    sha256: abc5db2f968c46659c16957715e6074b2a59172cdcfa3d310f719f0061166812
     dependencies:
       tools: []
       skills: []
@@ -1537,11 +1537,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: pi-seo-scanner
-    description: Scan interpretation specialist for Pi-SEO findings. Applies blast-radius scoring to prioritise findings, detects false positives, classifies into fix-now/schedule/suppress/investigate buckets, and recommends scan config changes per project. Use when a Pi-SEO autonomous scan has produced findings that need interpreting, such as scoring blast radius from severity, exposure and auto-fixability, sorting findings into fix-now, schedule, suppress or investigate buckets, spotting false positives like console.log in test files or secrets in .env.example, or recommending per-project scan frequency changes based on health score trends.
+    description: Scan interpretation specialist for Pi-SEO findings. Applies blast-radius scoring (severity, exposure, auto-fixability) to prioritise findings, detects false positives, classifies into fix-now/schedule/suppress/investigate buckets, and recommends scan config changes per project. Use when a Pi-SEO autonomous scan has produced findings to interpret, such as sorting them into buckets, spotting false positives like console.log in test files or secrets in .env.example, or changing per-project scan frequency based on health score trends.
     owner_role: (unset)
     status: (unset)
     path: skills/pi-seo-scanner/SKILL.md
-    sha256: 079509f6d8e2dc7757c8d1621fc918bff1a0a788d62b0e905e55e4c942953e97
+    sha256: cd774e8b3b6658eb794b7ef87ebfdd21c36d725b9be9dc18495473279366516d
     dependencies:
       tools: []
       skills: []
@@ -1580,11 +1580,11 @@ skills:
       requires_hitl_gate: false
       pii_handling: pass-through
   - id: product-manager
-    description: Senior Product Manager Engineer (15+ years SaaS delivery). Audits feature completeness vs advertised capabilities, identifies user journey gaps, evaluates documentation quality, and produces a prioritised product backlog aligned with business outcomes. Use when auditing a product or repo for feature completeness against what the README, landing page or marketing copy advertises, mapping user journey gaps (happy, error, empty, loading and success states), reviewing documentation and developer onboarding quality, or turning findings into a RICE-prioritised backlog, quick wins and roadmap with a 1-5 gaps matrix.
+    description: Senior Product Manager Engineer (15+ years SaaS delivery). Audits feature completeness vs advertised capabilities, finds user journey gaps, evaluates documentation quality, and produces a prioritised product backlog aligned with business outcomes. Use when auditing a product or repo against what the README, landing page or marketing copy advertises, mapping journey gaps (happy, error, empty, loading, success states), reviewing docs and developer onboarding, or producing a RICE-prioritised backlog, quick wins, roadmap and 1-5 gaps matrix.
     owner_role: (unset)
     status: (unset)
     path: skills/product-manager/SKILL.md
-    sha256: 702ba9a5bf80c3fc44d01ec9d282caf9a5e8f5112a227d981912b714a2c1722e
+    sha256: 3fab7bfabf453efea2ec1d086955e0afa25791986810061828a28959bc909cd2
     dependencies:
       tools: []
       skills: []
@@ -1655,11 +1655,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: remotion-brand-codify
-    description: "Converts a BrandResearch dossier into THREE artifacts — (1) typed BrandConfig TypeScript at Synthex/packages/brand-config/src/brands/{slug}.ts (runtime/behaviour — voice, voiceover, motion, audience, channel, forbiddenWords); (2) spec-conformant {slug}.design.md at Synthex/packages/brand-config/src/brands/{slug}.design.md (visual tokens — colour, typography, spacing, components, layout, elevation); (3) human-readable 9-section .md projection at Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md derived from BOTH. Boundary contract at Pi-Dev-Ops/remotion-studio/src/brands/CONTRACT.md. Triggered after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false — a human reviews before merge."
+    description: "Converts a BrandResearch dossier into three artifacts — (1) typed BrandConfig TypeScript at Synthex/packages/brand-config/src/brands/{slug}.ts (voice, voiceover, motion, audience, channel, forbiddenWords); (2) a spec-conformant {slug}.design.md beside it (colour, typography, spacing, components, layout, elevation); (3) a 9-section .md projection at Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md derived from both, under CONTRACT.md in that folder. Use after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false; a human reviews."
     owner_role: (unset)
     status: (unset)
     path: skills/remotion-brand-codify/SKILL.md
-    sha256: e5438f5c3bea8533f560944b5c90c496abe518a85f57d3e9af418d2dc0e9cf35
+    sha256: dc9ded2508823aab435e820efbe5a6af8731b631866cb5d16f089cce8cf6d288
     dependencies:
       tools: []
       skills: []
@@ -1925,11 +1925,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: sandcastle-runner
-    description: "The primitive. Wraps a single Sandcastle job (`npx --no-install tsx .sandcastle/sandcastle_run.mts`, which calls the pinned @ai-hero/sandcastle@0.12.0 `run()` API) so Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker / Podman / Vercel-Firecracker / Daytona sandboxes. Pluggable agent (Claude Code / Codex / Pi / OpenCode) and pluggable sandbox provider. Stream stdout into session.logs. Pre-flight kill-switch + concurrency cap. Closes Wave 5 item 1 (RA-1856 epic). Use when a Pi-CEO orchestrator needs to run a code-executing AFK agent through the pinned Sandcastle `run()` API in an isolated Docker, Podman, Vercel Firecracker or Daytona sandbox, such as for Linear tickets labelled sandcastle:high-isolation, parallel implementer or reviewer runs, or work needing a kill-switch check, concurrency cap and stdout streamed into session.logs."
+    description: "Wraps a single Sandcastle job (`npx --no-install tsx .sandcastle/sandcastle_run.mts`, pinned @ai-hero/sandcastle@0.12.0 `run()` API) so the Pi-CEO orchestrator can spawn AFK code-executing agents in isolated Docker, Podman, Vercel Firecracker or Daytona sandboxes, with pluggable agent and sandbox, a kill-switch check, a concurrency cap and stdout streamed into session.logs. Use for Linear tickets labelled sandcastle:high-isolation and parallel implementer or reviewer runs."
     owner_role: Builder
     status: wave-5
     path: skills/sandcastle-runner/SKILL.md
-    sha256: fd6b30336e41a61b2890c0c7e230fb95f2782549e64d9e1b5a08fccab58b292c
+    sha256: ce22b497431bca288affa755a3544750c0f5652a8042039cfd73bfea9a5e4c10
     dependencies:
       tools: []
       skills: []
@@ -1970,11 +1970,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: security-audit
-    description: Senior Security Officer (15+ years white/black hat experience). Deep-audits codebases for OWASP Top 10, supply-chain risks, secrets exposure, auth flaws, injection vectors, CSP misconfigs, and weak crypto. Produces a prioritised CVE-style finding report with CVSS scores and remediation steps. Use when a user asks for a security audit, vulnerability review, or pentest-style check of a codebase, covering OWASP Top 10 issues, hardcoded secrets, auth and session flaws, injection, SSRF, weak crypto, risky dependencies or CSP misconfigurations, and wants a prioritised JSON finding report with CVSS scores and remediation steps.
+    description: Senior Security Officer persona that deep-audits codebases for OWASP Top 10, supply-chain risks, secrets exposure, auth flaws, injection, SSRF, CSP misconfigs and weak crypto, and produces a prioritised JSON finding report with CVSS scores and remediation steps. Use when asked for a security audit, vulnerability review or pentest-style check, including hardcoded secrets, auth and session flaws, weak crypto or risky dependencies.
     owner_role: (unset)
     status: (unset)
     path: skills/security-audit/SKILL.md
-    sha256: edab5012952430d3b8800ec88fed02cc61bf7fdef723e2a8b1bafacbd9fdea23
+    sha256: a4b2d5a3960a9ee80c4e4011c52f74e124fa5a0d41d963cfbbf6f95f4d3d4e58
     dependencies:
       tools: []
       skills: []
@@ -2269,11 +2269,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: tao-tdd-pipeline
-    description: "Test-first iteration pipeline. Composes on tao-loop + tao-judge to enforce red→green→refactor discipline. The judge is bound to \"all tests pass + new test files modified\". Without test files in the diff, GOAL_MET is rejected. Use when a user issues a TDD-style brief that mentions tests, scenarios, red/green, or asks for \"test-first\" or \"test-driven\" work, or when an orchestrator needs stronger guarantees than plain tao-loop for ambiguous goals like fixing a bug by adding a regression test first, since it rejects GOAL_MET unless pytest-convention test files are in the git diff and `pytest tests/` passes."
+    description: "Test-first iteration pipeline. Composes on tao-loop + tao-judge to enforce red→green→refactor discipline. The judge is bound to \"all tests pass + new test files modified\"; without test files in the diff, GOAL_MET is rejected. Use when a brief mentions tests, scenarios, red/green, \"test-first\" or \"test-driven\" work, or when an orchestrator needs stronger guarantees than plain tao-loop, e.g. fixing a bug by adding a regression test first; GOAL_MET needs pytest-convention test files in the diff and `pytest tests/` passing."
     owner_role: Tier-Orchestrator (uses generator + evaluator at sonnet per RA-1099)
     status: wave-2
     path: skills/tao-tdd-pipeline/SKILL.md
-    sha256: e6ab0e85d8f1528b6a6fd625cb84f78ff9068276b886ee8497c7b27d8fd24770
+    sha256: 7912424be4320dfd5c142c9492a92caaaa7a38cb973150140833d1e292df7aa5
     dependencies:
       tools: []
       skills: []
@@ -2428,11 +2428,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: unite-group-ci-recovery
-    description: "How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG, RestoreAssist, ATO, CARSI, CCW-CRM, Unite-Hub, synthex-mcp-app) without falling into the same CI / Vercel / Supabase / convention traps every session. Captures the recurring failure modes hit on 2026-05-25 across PRs 295–299 so future agents don't relearn them. Use when opening a PR against any Unite-Group repo (Synthex, Pi-Dev-Ops, RestoreAssist, CARSI and others), or when a check shows skipping unexpectedly, a Vercel sandbox build fails or hits OOM exit 137, a Supabase migration will not apply, or a pre-existing red check blocks a PR."
+    description: How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG, RestoreAssist, ATO, CARSI, CCW-CRM, Unite-Hub, synthex-mcp-app) without repeating the same CI, Vercel, Supabase and convention traps (failure modes from PRs 295–299, 2026-05-25). Use when opening a PR against any Unite-Group repo, or when a check shows skipping unexpectedly, a Vercel sandbox build fails or hits OOM exit 137, a Supabase migration will not apply, or a pre-existing red check blocks a PR.
     owner_role: (unset)
     status: (unset)
     path: skills/unite-group-ci-recovery/SKILL.md
-    sha256: 2c7ecbc771f1e0fe38e8cf31092ad0c2c2a08fd13b5433444c34c26cd1ea0aee
+    sha256: e476212c54539276cd8e6b4a62ed9f7db0e4e2f5480f12cee3573270978ca009
     dependencies:
       tools: []
       skills: []
@@ -2458,11 +2458,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: vercel-env-puller
-    description: "Per-project Vercel env-var manifests (NAMES + targets only — never values). At Sandcastle launch time, resolves the named vars in-memory via `vercel env pull`, injects into the sandbox via Sandcastle's `agent.env`+`sandbox.env`, and never writes a secret to disk inside Pi-CEO. Closes Wave 5 item 2 (RA-1856 epic). Use when an AI agent needs to supply production secrets to an AFK Sandcastle run, or when creating, refreshing or reviewing per-project Vercel env manifests under `.harness/env-manifests/{project-slug}.json`, which hold var names, targets, categories and criticality (blocker, degraded, optional, skip) but never values."
+    description: "Per-project Vercel env-var manifests (NAMES + targets only, never values). At Sandcastle launch, resolves the named vars in-memory via `vercel env pull` and injects them through Sandcastle's `agent.env` + `sandbox.env`; never writes a secret to disk inside Pi-CEO. Use when an AI agent must supply production secrets to an AFK Sandcastle run, or when creating, refreshing or reviewing manifests under `.harness/env-manifests/{project-slug}.json` (var names, targets, categories, criticality: blocker, degraded, optional, skip)."
     owner_role: CISO (binds in front of every Sandcastle launch)
     status: wave-5
     path: skills/vercel-env-puller/SKILL.md
-    sha256: 60c1ee0980fab570215521f716315c70c90196dd96501c4407796520b53e4be4
+    sha256: 13d1f079c9d05fbcd09b3dd0709dc63570c6ec342aa3d9a4f521b251337f4a8c
     dependencies:
       tools: []
       skills: []
@@ -2492,7 +2492,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/verify-test/SKILL.md
-    sha256: 6ab9cf813c5e9196a1ed3779785f4a4eb1bbeb09485a41913b85a155d8aa3da6
+    sha256: 2c7713a35f7a9ee8583e723c8f6d135938a4f9d776476c12c9fb1ee1106269e8
     dependencies:
       tools: []
       skills: []
@@ -2507,7 +2507,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/visual-qa/SKILL.md
-    sha256: 20323621201fbddd5301f9c77ce1546cf6524d06484a1b28dc9716fd0942644d
+    sha256: 9f5d543eb455b26cf5fed9e8d1a05f2a2e855bbb8175a78472052b8836062cc4
     dependencies:
       tools: []
       skills: []

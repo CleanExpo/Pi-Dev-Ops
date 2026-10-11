@@ -1,6 +1,6 @@
 ---
 name: design-audit
-description: DEPRECATED (RA-7057) — superseded by the installed pbakaus/impeccable skill v3.9.1. Use `impeccable` (`/impeccable audit`, `/impeccable critique`, `/impeccable polish`, `/impeccable bolder`) instead. Kept for the archaeological record; do not route new work here. Use when a task or user phrase calls for auditing, critiquing, polishing, making bolder or quieting a UI design (`/audit`, `/critique`, `/polish`, `/bolder`, `/quieter`, `/distill`), but note this skill is deprecated, so redirect to `impeccable` (`/impeccable audit`, `/impeccable critique`, `/impeccable polish`, `/impeccable bolder`) and do not route new work here.
+description: "DEPRECATED (RA-7057), superseded by the installed pbakaus/impeccable skill v3.9.1. Do not route new work here; use `impeccable` (`/impeccable audit`, `/impeccable critique`, `/impeccable polish`, `/impeccable bolder`) instead. Kept for the archaeological record. Matches requests to audit, critique, polish, make bolder or quieter, or distill a UI design (`/audit`, `/critique`, `/polish`, `/bolder`, `/quieter`, `/distill`): redirect them to `impeccable`."
 automation: manual
 status: deprecated
 superseded-by: impeccable

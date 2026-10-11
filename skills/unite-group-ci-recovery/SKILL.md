@@ -1,6 +1,6 @@
 ---
 name: unite-group-ci-recovery
-description: How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG, RestoreAssist, ATO, CARSI, CCW-CRM, Unite-Hub, synthex-mcp-app) without falling into the same CI / Vercel / Supabase / convention traps every session. Captures the recurring failure modes hit on 2026-05-25 across PRs 295–299 so future agents don't relearn them. Use when opening a PR against any Unite-Group repo (Synthex, Pi-Dev-Ops, RestoreAssist, CARSI and others), or when a check shows skipping unexpectedly, a Vercel sandbox build fails or hits OOM exit 137, a Supabase migration will not apply, or a pre-existing red check blocks a PR.
+description: "How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG, RestoreAssist, ATO, CARSI, CCW-CRM, Unite-Hub, synthex-mcp-app) without repeating the same CI, Vercel, Supabase and convention traps (failure modes from PRs 295–299, 2026-05-25). Use when opening a PR against any Unite-Group repo, or when a check shows skipping unexpectedly, a Vercel sandbox build fails or hits OOM exit 137, a Supabase migration will not apply, or a pre-existing red check blocks a PR."
 ---
 
 # Unite-Group CI Recovery Playbook
@@ -92,111 +92,11 @@ Append these to every PR body — under `## Agent metadata` works. Example:
 
 ## 2 — Vercel sandbox patterns
 
-The Unite-Group org has TWO Vercel projects per repo: `<repo>` (production) and `<repo>-sandbox` (preview/sandbox). Sandboxes have a documented history of brittleness — 5 of them were broken at the start of this session per memory item SBX.
-
-### 2.1 JWT_SECRET required at build time
-
-Synthex's `/api/auth/oauth/github/callback` route reads `process.env.JWT_SECRET` at module init. Next.js's "Collecting page data" phase executes that module, so **`npm run build` will fail without JWT_SECRET set** with:
-
-```
-Error: JWT_SECRET must be set in production environment
-  ... in app/api/auth/oauth/github/callback/route.ts
-```
-
-Fixes:
-- **For local builds**: `JWT_SECRET=any-string npm run build` (the value isn't validated, only its presence)
-- **For Vercel project**: add `JWT_SECRET` env var via Vercel Dashboard → project → Settings → Environment Variables (Production scope). User added it to `synthex-sandbox` 2026-05-25 — was the JWT_SECRET fix that turned the sandbox green on PRs #296, #297, #299.
-
-If a NEW Vercel project gets created (sandbox spin-up for a new repo), this gap will re-appear.
-
-### 2.2 OOM (exit 137) on sandbox builds
-
-Symptom in Vercel logs:
-```
-Error: Command "npm run build:vercel" exited with 137
-At least one "Out of Memory" ("OOM") event was detected during the build.
-```
-
-Cause: sandbox projects use the default build machine size which has less RAM headroom than production. `NODE_OPTIONS=--max-old-space-size=7680 next build --webpack` plus TypeScript checking on the full Synthex codebase can saturate it. Production builds succeed because they use a larger machine.
-
-What to do:
-1. If sandbox OOMs and production passed: it's environmental — document in a PR comment + admin-merge if your PR is docs/test only
-2. Permanent fix is "Enable Enhanced Builds" in Vercel project settings (UI work, not code). Tracked in [DR-852](https://linear.app/unite-group/issue/DR-852) per memory item SBX.
-
-### 2.3 `vercel pull` skips Sensitive vars
-
-GHA workflows that do `vercel pull && vercel build` will SILENTLY miss env vars marked Sensitive in the Vercel project. The Vercel native git integration handles them fine; the CLI doesn't. Often misdiagnosed as "missing env vars" — actually the workflow architecture is wrong. Per memory `reference_vercel_pull_skips_sensitive`.
-
-### 2.4 `vercel.json` `rootDirectory` is ignored
-
-`rootDirectory` is project-level only — must be set in Vercel UI, never in `vercel.json`. Sandbox projects often inherit a default `rootDirectory` that doesn't match the app subdirectory. Per memory `reference_vercel_rootdirectory_project_level`.
+Read references/vercel-sandbox-patterns.md when a Vercel build or sandbox fails (JWT_SECRET at build, OOM exit 137, vercel pull missing Sensitive vars, rootDirectory).
 
 ## 3 — Supabase migration playbook
 
-### 3.1 Use the MCP `apply_migration` tool, NOT the CLI for multi-statement files
-
-The Supabase CLI's `supabase db query --linked -f <file>` wraps the file body in JSON for the Management API. **Multi-statement migrations (especially with `DO $$ ... $$` blocks or PL/pgSQL functions) break with:**
-
-```
-Failed to run sql query: ERROR: 42601: syntax error at or near "["
-LINE 1: [
-        ^
-```
-
-The `[` is the start of the JSON wrapper hitting Postgres as raw SQL.
-
-**Correct path for multi-statement migrations:**
-
-```typescript
-mcp__21d7de5d-7115-4af8-a6c3-2b86769b05fb__apply_migration({
-  project_id: "znyjoyjsvjotlzjppzal",  // Synthex; see reference_supabase_project_ids
-  name: "add_marketing_agent",          // snake_case, no date prefix
-  query: "<full multi-statement SQL>"
-})
-```
-
-The CLI is fine for one-off inline SELECTs (`supabase db query --linked "SELECT ..."`). Avoid it for `-f <file>` unless the file is a single statement.
-
-### 3.2 Standing Supabase auth (granted 2026-05-25)
-
-The user granted standing authorization for SQL ops on linked projects. Per memory `feedback_standing_supabase_auth`:
-- Routine reads, idempotent DDL with `IF NOT EXISTS`, RLS adds: proceed
-- Show the SQL inline before applying any non-trivial migration
-- Pause for genuinely destructive ops (`DROP TABLE`, `TRUNCATE`, `DELETE` without narrow WHERE)
-- Pause for prod writes to customer-owned data
-
-### 3.3 Prereq detection — always check FK targets exist before applying
-
-The 2026-05-25 trap: PR #295's `20260525_add_marketing_agent` had a FK to `marketing_agency_qa_reports`. That table was declared in `prisma/schema.prisma` but **never had a CREATE TABLE in any migration file** (latent gap going back months). Apply failed with:
-
-```
-ERROR: 42P01: relation "public.marketing_agency_qa_reports" does not exist
-```
-
-**Before applying any migration with FKs to other tables, run a `to_regclass()` check** to confirm targets exist on the target DB:
-
-```sql
-SELECT to_regclass('public.<parent_table>')::text AS parent;
-```
-
-If null, write a prereq migration that creates the missing table(s) first. See PR #297 for the template (`20260524_add_marketing_agency_core_tables`).
-
-### 3.4 Project ID quick reference
-
-Always verify the project ID matches the repo before any DDL. From memory `reference_supabase_project_ids`:
-
-| Repo | Project ID |
-|---|---|
-| Pi-CEO / Pi-Dev-Ops | `zbryrmxmgfmslqzizsto` |
-| Synthex | `znyjoyjsvjotlzjppzal` |
-| Disaster-Recovery | `zwzbglqzmpyfzdkblxyf` |
-| RestoreAssist | `oxeiaavuspvpvanzcrjc` |
-| Unite-Group | `lksfwktwtmyznckodsau` |
-| ATO | `xwqymjisxmtcmaebcehw` |
-| DR-NRPG | `lccqasmurmsisnnjqqmr` (separate org `jobkjtecrxliqfnrcssa`) |
-| CARSI | `ofzafxvxobjggjisrbsa` (separate org `pmsatfzevrriaylbsifp`) |
-
-`pwwwhoaxxtkmowifpuwf` (NodeJS Starter V1) is NOT a real project — it's where the single-project MCP `c879c796` is bound. Never write to it expecting it to be Pi-CEO. The 2026-05-24 incident applied a migration here by mistake.
+Read references/supabase-migration-playbook.md when applying or debugging a Supabase migration, or needing project IDs and the standing auth grant.
 
 ## 4 — Admin-merge discipline
 
@@ -258,76 +158,23 @@ Pi-Dev-Ops `Vercel – pi-dev-ops-sandbox` failed 20 consecutive deployments (PR
 
 ### How to use this skill agentically (added 2026-05-25)
 
-The skill is not a label to slap on a PR comment — it's a callable procedure. Before admin-merging any failing check, spawn an investigator agent with this prompt template:
-
-```
-You are applying the unite-group-ci-recovery skill at
-/Users/phillmcgurk/Pi-CEO/skills/unite-group-ci-recovery/SKILL.md.
-
-Read it end-to-end, then for the failure at <PR URL>:
-1. Use Vercel MCP get_project + list_deployments + get_deployment_build_logs
-   to determine the actual root cause (with log evidence)
-2. Determine which class from §2 (JWT_SECRET / OOM / rootDirectory / framework=null / etc)
-3. Count consecutive failures on the same project — apply §4 STOP rule if ≥5
-4. Report: (a) fixable now via MCP, (b) fixable in <5 min by user UI work,
-   (c) needs escalation per STOP rule, (d) truly waits on backlog.
-
-Do not cite any Linear ticket unless you've confirmed the ticket's failure mode
-matches the current failure mode exactly.
-```
-
-This prevents the parent agent from reflexively pattern-matching "sandbox red → DR-852 → admin-merge".
+Read references/agentic-investigator.md when you are about to admin-merge a failing check and should spawn an investigator agent first.
 
 ## 5 — Migration prereq detection workflow
 
-Before opening a PR that adds a Prisma migration:
-
-```bash
-# 1. List existing tables on prod for any new schema you reference
-supabase db query --linked "SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE 'marketing_agency_%' ORDER BY table_name;"
-
-# 2. Cross-check vs prisma schema declarations
-grep -E "^model MarketingAgency" prisma/schema.prisma | wc -l
-
-# 3. If counts don't match → there's a latent gap; write a prereq migration first
-```
+Read references/migration-prereq-workflow.md when a migration references tables that may not exist on prod.
 
 ## 6 — Skipping checks reference
 
-| Check | Repo where it lives | Why it skips | Fix |
-|---|---|---|---|
-| `validate-agent-metadata` | Synthex | Branch != `feature/agent-*` | Adopt convention (§1) |
-| `run-quality-checks` | Synthex | Branch != `feature/agent-*` | Adopt convention (§1) |
-| `security-scan` (lowercase, from agent-pr-checks) | Synthex | Branch != `feature/agent-*` | Adopt convention (§1). The Title-Case `Security Scan` from `security.yml` runs on all PRs — different check |
-| `update-pr-status` | Synthex | Branch != `feature/agent-*` | Adopt convention (§1) |
-| `Supabase Preview` | Synthex | No supabase/migrations diff for preview branch | Intentional — leave alone unless you're touching `supabase/migrations/*.sql` |
-| `CodeQL` | Synthex | Path filter or push-only trigger | Intentional — leave alone |
-| `Smoke test (prod)` | Pi-Dev-Ops | Only fires on push to main (not on PRs) | Intentional — leave alone |
+Read references/skipping-checks-reference.md when a check shows skipping and you need to know whether that is intentional.
 
 ## 7 — Standing memories to reference
 
-- [[feedback_standing_supabase_auth]] — SQL ops consent
-- [[reference_supabase_project_ids]] — project ID table
-- [[reference_dr_db_not_reachable]] — DR prod DB needs direct connection (DR-851)
-- [[reference_vercel_rootdirectory_project_level]] — rootDirectory is UI-only
-- [[reference_vercel_pull_skips_sensitive]] — sensitive env vars + GHA pitfall
-- [[feedback_close_verification_gaps]] — don't surface "should I wait" when you can verify yourself
-- [[feedback_act_on_own_recommendations]] — state the rec then execute
-- [[feedback_verify_red_checks_before_dismissing]] — prove environmental before calling pass
-- [[project_synthex_positioning]] — Synthex = Primary Marketing Agency; agentic features go INSIDE Synthex
+Read references/standing-memories.md when you need the standing memories this playbook relies on.
 
 ## 8 — Worked example: applying this skill to "fix a small bug in Synthex"
 
-1. Open Linear, identify ticket (e.g. SYN-XXX)
-2. Cut branch: `git checkout -b feature/agent-syn-xxx-short-desc`
-3. Make changes
-4. Run pre-flight checklist (§0)
-5. Open PR with full metadata block (§1)
-6. Watch CI via Monitor poll loop
-7. If sandbox fails: check §2 for known patterns, document + admin-merge if environmental
-8. If migration fails: §3 (run prereq detection + use MCP not CLI)
-9. Once green, squash-merge + delete branch
-10. Update Linear ticket to Done + drop comment with the PR URL
+Read references/worked-example.md when you want a worked example of applying this playbook to a small Synthex bug fix.
 
 ## 9 — Verification
 

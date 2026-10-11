@@ -1,6 +1,6 @@
 ---
 name: margot-sandcastle-bridge
-description: After a Margot Deep Research finding completes, classify "action-shaped vs informational" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On 👍, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 item 4 (RA-1856 epic). This is what makes Margot autonomous. Use when a completed Margot deep research finding (deep_research or deep_research_max output) needs classifying as action-shaped or informational via intent_router, then drafting a Linear ticket and routing it through the draft_review HITL gate so an approved one reaches autonomy.py and sandcastle-runner.
+description: "Turns a completed Margot Deep Research finding into a tracked action: classify action-shaped vs informational via intent_router, draft a Linear ticket body, and route it through the draft_review HITL gate. On a 👍 it creates the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels, which the autonomy.py poller picks up and sandcastle-runner runs in an isolated container. Use when a deep_research or deep_research_max output needs that classification and draft."
 owner_role: Margot (research) → Chief of Staff (HITL) → Builder (execution)
 status: wave-5
 ---
@@ -85,59 +85,7 @@ Below confidence 0.75 → bridge defaults to informational, drafts a Telegram su
 
 ## The Linear ticket body template
 
-Bridge renders this using research body + extracted action:
-
-```markdown
-# {{proposed_action}}
-
-> Originated by Margot (`mcp__margot__deep_research_max`) — interaction `{{interaction_id}}`
-> Approved by Founder via Telegram draft `{{draft_id}}` on {{ts}}
-> Routed to AFK execution via Sandcastle (`sandcastle:high-isolation`)
-
-## Research summary
-
-{{research_body}}
-
-## Proposed action
-
-{{proposed_action_detail}}
-
-**Target repo:** `{{target_repo}}`
-**Proposed branch:** `{{proposed_branch}}`
-**Complexity tier:** `{{complexity_tier}}` (basic/detailed/advanced)
-**Estimated max files modified:** {{max_files}}
-
-## Acceptance criteria
-
-{{acceptance_criteria}}
-
-## Out of scope
-
-{{out_of_scope}}
-
-## How this will run
-
-1. autonomy.py picks up this ticket (label `pi-dev:autonomous`, status `Ready for Pi-Dev`)
-2. session_phases.run_build hits the branch point (label `sandcastle:high-isolation` present)
-3. sandcastle-runner spawns Sandcastle in Docker container with the parallel-planner-with-review template
-4. Sandcastle internally: plan → 3 parallel implementers → reviewer → merger → final branch
-5. Pi-CEO _phase_evaluate scores the result; _phase_push opens a PR
-6. Founder reviews PR, merges via dual-key gate
-
-Kill-switch: `TAO_SANDCASTLE_ENABLED=0` falls through to weak-sandbox path.
-
-## References
-
-- Original Margot interaction: `{{interaction_id}}`
-- Bridge skill: `Pi-Dev-Ops/skills/margot-sandcastle-bridge/SKILL.md`
-- Sandcastle runner: `Pi-Dev-Ops/skills/sandcastle-runner/SKILL.md`
-- Wave 5 epic: <issue id="RA-1856">RA-1856</issue>
-```
-
-The `target_repo` is extracted from the research body via:
-- Explicit mention (e.g. "we should fix RestoreAssist's Stripe webhook" → `CleanExpo/RestoreAssist`)
-- Match against `config/harness/projects.json` repo names
-- Fallback: ask the founder via the draft body itself ("Confirm target repo? Detected: [list of candidates]")
+Read references/ticket-template.md when rendering the Linear ticket body or extracting target_repo.
 
 ## Why two-step (draft → ticket → poll → run) instead of direct
 
@@ -151,39 +99,7 @@ Going direct from Margot to Sandcastle would reinvent every one of those. The pl
 
 ## Contract
 
-### Input (per-research-completion)
-
-```python
-class MargotResearchCompletion:
-    interaction_id: str
-    body: str  # the research output from Margot
-    originated_at: str  # ISO timestamp
-    originating_session_id: str  # Pi-CEO session that requested the research
-```
-
-### Output (per-research-completion)
-
-```python
-class MargotIntentResult:
-    interaction_id: str
-    classification: Literal["action_shaped", "informational", "unknown"]
-    confidence: float
-    action_summary: str | None  # populated when action_shaped
-    target_repo: str | None  # populated when action_shaped
-    draft_id: str | None  # populated when action_shaped + draft posted
-    skipped_reason: str | None  # populated when not action_shaped
-```
-
-### Output (post-reaction, when 👍)
-
-```python
-class MargotActionAccepted:
-    interaction_id: str
-    draft_id: str
-    linear_issue_id: str  # the newly created issue
-    linear_issue_identifier: str  # e.g. "RA-1900"
-    labels_applied: list[str]
-```
+Read references/contract.md when you need the input and output type definitions.
 
 ## State files
 
@@ -224,22 +140,11 @@ Add to `swarm/audit_emit.py::_VALID_TYPES` (additive):
 
 ## Verification (Wave 5 #4 close-out)
 
-1. **Compile + import smoke** — `python -m py_compile swarm/margot_sandcastle.py` green.
-2. **Classification smoke** — paste 10 synthetic Margot research outputs (3 action-shaped, 3 informational, 2 unknown, 2 ambiguous) into `process_completed_research()`. Verify ≥8/10 classified correctly with confidence consistent with expectation.
-3. **Action-shaped + 👍 path (TEST_MODE)** — synthetic research → drafts Linear body → `draft_review.mark_reaction("👍")` → mock `linear_create_issue` returns RA-VERIFY-1 → `margot_intent_accepted` audit row → ledger row written.
-4. **Action-shaped + ❌ path** — same synthetic, but `mark_reaction("❌")` → `margot_intent_rejected` audit row → no Linear issue created → ledger row written.
-5. **Informational path** — synthetic research with no action verbs → confidence-too-low → `margot_intent_classified` row only, no draft posted.
-6. **Destructive verb gate** — synthetic research containing "delete the customers table" with confidence 0.80 → suppressed (below the 0.90 destructive threshold).
-7. **Repo allowlist** — synthetic research targeting `random/repo-not-in-portfolio` → `margot_intent_rejected` with reason `repo_not_allowed`.
-8. **Rate limit** — fire 6 action-shaped drafts in 24h → 6th queues with status `queued_rate_limit`.
-9. **Loop detection** — reject draft for `interaction_id=X`; immediately re-classify same → suppressed with reason `recently_rejected`.
+Read references/verification.md when closing out or re-verifying the bridge, or checking what is out of scope.
 
 ## Out of scope for Wave 5 #4
 
-- The `destination_kind="linear_issue"` extension to `draft_review` (Wave 5 #5)
-- The new audit event types (added in Wave 5 #1 + this skill, both ship together)
-- The actual Sandcastle execution (Wave 5 #1)
-- The autonomy.py label pickup (Wave 5 #6 + #7)
+Read references/verification.md when closing out or re-verifying the bridge, or checking what is out of scope.
 
 ## References
 

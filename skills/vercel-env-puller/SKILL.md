@@ -1,6 +1,6 @@
 ---
 name: vercel-env-puller
-description: Per-project Vercel env-var manifests (NAMES + targets only — never values). At Sandcastle launch time, resolves the named vars in-memory via `vercel env pull`, injects into the sandbox via Sandcastle's `agent.env`+`sandbox.env`, and never writes a secret to disk inside Pi-CEO. Closes Wave 5 item 2 (RA-1856 epic). Use when an AI agent needs to supply production secrets to an AFK Sandcastle run, or when creating, refreshing or reviewing per-project Vercel env manifests under `.harness/env-manifests/{project-slug}.json`, which hold var names, targets, categories and criticality (blocker, degraded, optional, skip) but never values.
+description: "Per-project Vercel env-var manifests (NAMES + targets only, never values). At Sandcastle launch, resolves the named vars in-memory via `vercel env pull` and injects them through Sandcastle's `agent.env` + `sandbox.env`; never writes a secret to disk inside Pi-CEO. Use when an AI agent must supply production secrets to an AFK Sandcastle run, or when creating, refreshing or reviewing manifests under `.harness/env-manifests/{project-slug}.json` (var names, targets, categories, criticality: blocker, degraded, optional, skip)."
 owner_role: CISO (binds in front of every Sandcastle launch)
 status: wave-5
 ---
@@ -22,60 +22,7 @@ This skill enforces:
 
 ## Manifest format
 
-`Pi-Dev-Ops/.harness/env-manifests/{project-slug}.json`:
-
-```json
-{
-  "version": "1.0",
-  "generated_at": "2026-05-02T07:30:00Z",
-  "vercel_team": "unite-group",
-  "vercel_project_id": "prj_AbCdEf123",
-  "project_slug": "restoreassist",
-  "vars": [
-    {
-      "name": "ANTHROPIC_API_KEY",
-      "target": "production",
-      "category": "ai-provider",
-      "criticality": "blocker"
-    },
-    {
-      "name": "DATABASE_URL",
-      "target": "production",
-      "category": "database",
-      "criticality": "blocker"
-    },
-    {
-      "name": "STRIPE_SECRET_KEY",
-      "target": "production",
-      "category": "payments",
-      "criticality": "blocker"
-    },
-    {
-      "name": "NEXT_PUBLIC_SUPABASE_URL",
-      "target": "production",
-      "category": "client-public",
-      "criticality": "skip"
-    }
-  ],
-  "skipped": [
-    "DASHBOARD_PASSWORD",
-    "TAO_PASSWORD",
-    "TELEGRAM_BOT_TOKEN",
-    "TELEGRAM_CHAT_ID",
-    "PLAUSIBLE_*",
-    "POSTHOG_*",
-    "NEXT_PUBLIC_*"
-  ]
-}
-```
-
-### Field semantics
-
-| Field | Allowed values | Effect |
-|---|---|---|
-| `category` | `ai-provider`, `database`, `payments`, `observability`, `analytics`, `client-public`, `dashboard-only`, `telegram-only`, `unknown` | Drives default skipped behaviour + auth-failure routing |
-| `criticality` | `blocker`, `degraded`, `optional`, `skip` | `blocker` failure → halt all in-flight runs; `degraded` → continue + alert; `optional` → silent fallback; `skip` → never injected |
-| `target` | `production`, `preview`, `development` | Which Vercel target to pull from. Default `production` for autonomy runs. |
+Read references/manifest-format.md when creating, editing or reviewing a manifest under .harness/env-manifests/.
 
 ## Least-privilege filter (hardwired)
 
@@ -205,24 +152,7 @@ def resolve_for_run(*, project_slug: str, run_id: str, cwd: str, model: str,
 
 ## Auth-failure detection (CFO-bot integration)
 
-After every Sandcastle run, the runner inspects `log_tail` for these patterns:
-
-```
-401 Unauthorized
-403 Forbidden
-Invalid API key
-Authentication failed
-authentication_error
-permission_denied
-```
-
-If found AND the run consumed any var with `criticality: "blocker"`:
-
-1. `audit_emit.row("cfo_alert", ..., alert_type="env_var_auth_failed", project_slug=..., var_name=NAME)` — name only, never value.
-2. `draft_review.post_draft(draft_text=f"🚨 Auth failure on {project_slug}: {var_name} likely rotated", drafted_by_role="CFO", ...)` — Telegram alert.
-3. Set in-memory escalation lock: no new Sandcastle runs against that project until manifest review.
-
-The lock auto-expires after 1 hour OR when the operator manually clears it via Telegram `/sandcastle clear-lock {project_slug}`.
+Read references/auth-failure-detection.md when wiring or debugging auth-failure detection and the cfo_alert escalation.
 
 ## Per-project isolation
 
@@ -234,38 +164,11 @@ Each Sandcastle run gets exactly ONE manifest. The runner:
 
 ## Initial bootstrap manifests (Wave 5 #2 ships)
 
-Per the recon — 9 projects to seed. Phase A ships these 9 manifests:
-
-| project_slug | source repo | manifest priority |
-|---|---|---|
-| restoreassist | CleanExpo/RestoreAssist | High — already debugging Cloudinary + Xero today |
-| pi-dev-ops | CleanExpo/Pi-Dev-Ops | High — Pi-CEO eats own dogfood |
-| synthex | CleanExpo/Synthex | High — has Stripe + Anthropic |
-| ccw-crm | CleanExpo/CCW-CRM | Medium |
-| disaster-recovery | CleanExpo/DR-Sandbox | Medium |
-| dr-nrpg | CleanExpo/DR-NRPG | Medium |
-| nrpg-onboarding | CleanExpo/NRPG-Onboarding-Framework | Low |
-| carsi | CleanExpo/CARSI | Low |
-| unite-group | CleanExpo/Unite-Group | Low |
-
-Initial seed: run `vercel env ls --json --environment=production` for each, classify auto, commit manifest, operator reviews PR before merge.
+Read references/bootstrap-manifests.md when seeding or refreshing the initial per-project manifests.
 
 ## Verification (Wave 5 #2 close-out)
 
-1. **Manifest schema lint** — every manifest validates against `.harness/env-manifests/manifest.schema.json`.
-2. **Refresh dry-run** — run `scripts/refresh_env_manifest.py --slug pi-dev-ops --dry-run`, verify diff output names new vars without values.
-3. **Resolve smoke** — call `resolve_for_run(project_slug="pi-dev-ops", run_id="smoke-1")` → returned dict has the expected names; config file exists at `/dev/shm/sandcastle-config-smoke-1.json` (mode 0600); after `os.unlink`, file gone; `audit_emit` row written with `var_names` array but NO values.
-4. **Skip-pattern enforcement** — synthetic manifest with `NEXT_PUBLIC_TEST_KEY` → resolve filters it out; not in returned dict.
-5. **Cross-project isolation** — call `resolve_for_run(project_slug="restoreassist")` then `resolve_for_run(project_slug="synthex")` in the same Pi-CEO process → returned dicts share no overlapping non-public keys (tested by intersection).
-6. **Auth-failure escalation simulation** — feed a synthetic Sandcastle log_tail containing `401 Unauthorized` → verify `cfo_alert` audit row + draft posted via draft_review (TEST_MODE) within 60 s.
-7. **Secret-leak grep over all artefacts**:
-   ```
-   grep -RE '(?:[A-Z_]{4,}_(?:KEY|TOKEN|SECRET|PASSWORD))[^A-Z_]+[A-Za-z0-9/+=]{16,}' \
-     .harness/swarm/swarm.jsonl \
-     .harness/env-manifests/ \
-     /tmp/pi-ceo-workspaces/sandcastle/
-   ```
-   → must return ZERO matches across 10 consecutive smoke runs.
+Read references/verification.md when closing out or re-verifying the env-puller implementation.
 
 ## Out of scope for Wave 5 #2
 

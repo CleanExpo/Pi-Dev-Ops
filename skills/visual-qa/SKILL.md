@@ -121,47 +121,13 @@ npx playwright test --update-snapshots
 
 ## Multi-Device Screenshot Matrix
 
-Run this before shipping any design change:
-
-```bash
-# Standard 4-breakpoint matrix
-for config in \
-  "375,812,mobile" \
-  "768,1024,tablet" \
-  "1280,800,desktop" \
-  "1920,1080,wide"; do
-  w=${config%%,*}; rest=${config#*,}; h=${rest%%,*}; label=${rest#*,}
-  npx playwright screenshot http://localhost:3000 "qa-${label}.png" \
-    --full-page --viewport-size "$w, $h" --wait-for-timeout 1500
-done
-
-# Dark + light
-npx playwright screenshot http://localhost:3000 qa-desktop-dark.png \
-  --full-page --viewport-size "1280, 800" --color-scheme dark
-```
+Read references/multi-device-matrix.md when capturing screenshots across the standard breakpoint and colour-scheme matrix.
 
 ---
 
 ## Font Load Verification
 
-**Always wait for fonts before capturing:**
-```ts
-// In Playwright test
-await page.evaluate(() => document.fonts.ready);
-
-// Or wait for specific font
-await page.evaluate(() => document.fonts.load('16px Geist'));
-```
-
-**Font regression — tight threshold:**
-```ts
-// Typography changes very little, so use tighter threshold
-await expect(page.locator('h1')).toHaveScreenshot('heading.png', {
-  threshold: 0.05,             // very tight — font rendering should be stable
-  maxDiffPixels: 10,
-  animations: 'disabled',
-});
-```
+Read references/font-load-verification.md when screenshots may be taken before web fonts have loaded.
 
 ---
 
@@ -184,32 +150,7 @@ await expect(page.locator('h1')).toHaveScreenshot('heading.png', {
 
 ## CI Integration (GitHub Actions)
 
-```yaml
-# .github/workflows/visual-regression.yml
-name: Visual Regression
-
-on:
-  pull_request:
-    paths: ['dashboard/**', 'DESIGN.md']
-
-jobs:
-  visual:
-    runs-on: ubuntu-latest  # ALWAYS Linux for consistent baselines
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: npm ci
-      - run: npx playwright install chromium
-      - run: npx playwright test tests/visual/
-        env:
-          BASE_URL: ${{ secrets.VERCEL_PREVIEW_URL }}
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: visual-diff-report
-          path: playwright-report/
-```
+Read references/ci-integration.md when setting up the GitHub Actions visual-regression workflow.
 
 ---
 

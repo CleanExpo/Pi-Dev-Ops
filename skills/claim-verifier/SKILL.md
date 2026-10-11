@@ -1,6 +1,6 @@
 ---
 name: claim-verifier
-description: The runnable cite-or-cut gate for FINISHED Nexus copy — walks every checkable factual claim in a completed asset, resolves each to a substantiation record or cuts it, runs the Australian Consumer Law excluded-tactics deny-list, and freezes the Substantiation Ledger before publish. Use as the last gate before any copy asset ships — landing page, service page, ad, email, franchise-recruitment copy. Triggers on "cite-or-cut", "substantiate this copy", "claim check", "can we publish this", "freeze the ledger", "is every claim proven", "ACL check the copy". NOT research (that is `storm`), NOT trust scoring (that is `eeat`).
+description: "Runnable cite-or-cut gate for FINISHED Nexus copy. Walks every checkable factual claim, resolves each to a substantiation record or cuts it, runs the Australian Consumer Law excluded-tactics deny-list, and freezes the Substantiation Ledger before publish. Use as the last gate before copy ships (landing page, service page, ad, email, franchise copy). Triggers: 'cite-or-cut', 'substantiate this copy', 'claim check', 'can we publish this', 'freeze the ledger', 'is every claim proven', 'ACL check the copy'. NOT research (`storm`), NOT trust scoring (`eeat`)."
 ---
 
 # claim-verifier — the cite-or-cut gate
