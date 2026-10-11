@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.25.5",
-    "generated_at": "2026-10-11T10:01:25.037976+00:00",
+    "version": "1.25.6",
+    "generated_at": "2026-10-11T21:22:51.148768+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -535,11 +535,11 @@
     },
     {
       "id": "claude-max-runtime",
-      "description": "Execute TAO natively within Claude Max subscription. Use when a task asks to run the TAO loop natively inside a Claude Max subscription, or needs the tier mapping of Opus 4.7 orchestrator, Sonnet 4.6 specialist and evaluator, and Haiku 4.5 worker subagents at zero API cost.",
+      "description": "Execute TAO natively within Claude Max subscription. Use when a task asks to run the TAO loop natively inside a Claude Max subscription, or needs the tier mapping of Opus-tier orchestrator, Sonnet-tier specialist and evaluator, and Haiku-tier worker subagents at zero API cost.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/claude-max-runtime/SKILL.md",
-      "sha256": "cf5606b9929a853180c8bdff0f79a3cff62c0c60c6b2959226104afa5a25102c",
+      "sha256": "a2779e6600d518fd655f2b3b32eeaabe3e472143cb81aa171503b91f33a58384",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -913,7 +913,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/design-board/SKILL.md",
-      "sha256": "3f410f16f4a383d365652311e6b221e5fe59b52ebd14da7aebfbd4b1678cb2f9",
+      "sha256": "3275167bf56ac99bd2a9dd5c872a5f8026d82740ff6202f3753ece0c4511544d",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1636,7 +1636,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/marketing-orchestrator/SKILL.md",
-      "sha256": "bd79725e73e75a801fe8701cc8af5fd26a162aa39fd4efcc39ba174ff81b3ecc",
+      "sha256": "53dbcf13831494c06c74b6bf7b2ce3073c5dc55158da90379377c65072f3b53c",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2183,7 +2183,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/remotion-designer/SKILL.md",
-      "sha256": "de55e2a7291e3e31e42785a41a4ef5257133524258e40baf5002c716d4f86ae4",
+      "sha256": "93a7f1fa64aebf56c6dc6577c13a6776ab7ea5f2fc8956c8228dcc981f788007",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2297,7 +2297,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/remotion-orchestrator/SKILL.md",
-      "sha256": "aef5b6f8c2b1c6735f96a72b3b06d22e95a18805b1573bc00dbd3f85c1d68776",
+      "sha256": "db801919300a59f64e1786e230c3c16101f7bcc709ab592fda9bb1dfc32612ee",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -3031,11 +3031,11 @@
     },
     {
       "id": "token-budgeter",
-      "description": "Track and enforce token budgets per tier. Use when a task involves tracking or enforcing token budgets per tier, comparing model costs for Opus, Sonnet or Haiku output and cache tokens, or deciding how spend differs on Claude Max where execution via the claude CLI subprocess costs $0.",
+      "description": "Track and enforce token budgets per tier. Use when a task involves tracking or enforcing token budgets per tier, comparing model costs for Opus, Sonnet or Haiku output and cache tokens, or deciding how spend differs on Claude Max where Agent SDK execution bills the subscription, not per token.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/token-budgeter/SKILL.md",
-      "sha256": "d6261caedee63c47bf0bc6773538b60d6bacc23341b8fcaa400f4fe50ac562e1",
+      "sha256": "bd6dc466e4b0a093794456a09377e0696fb43b37d20a76725fb12c3c4e7e02ff",
       "dependencies": {
         "tools": [],
         "skills": []

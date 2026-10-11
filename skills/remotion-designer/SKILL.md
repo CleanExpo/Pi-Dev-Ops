@@ -49,7 +49,7 @@ After writing the layout spec, run `npx --prefix Pi-Dev-Ops/remotion-studio desi
 
 ## 5-D critique gate (mandatory before emitting layout spec)
 
-Adopted from `nexu-io/open-design` (Apache-2.0). Spawn an Opus 4.7 subagent via the `opus-adversary` pattern to score the proposed layout across five orthogonal dimensions, each 0–10 with cited evidence. Write the verdict to `.research/design/{compositionId}-{brandSlug}.critique.json` alongside the layout spec.
+Adopted from `nexu-io/open-design` (Apache-2.0). Spawn an Opus-tier subagent via the `opus-adversary` pattern to score the proposed layout across five orthogonal dimensions, each 0–10 with cited evidence. Write the verdict to `.research/design/{compositionId}-{brandSlug}.critique.json` alongside the layout spec.
 
 ### Dimensions
 
@@ -71,7 +71,7 @@ Adopted from `nexu-io/open-design` (Apache-2.0). Spawn an Opus 4.7 subagent via 
 
 ### Reused pattern
 
-Use the `opus-adversary` skill — same Opus 4.7 subagent spawn, same evidence-citation discipline. Do not write a parallel critique harness.
+Use the `opus-adversary` skill — same Opus-tier subagent spawn, same evidence-citation discipline. Do not write a parallel critique harness.
 
 ## Boundaries
 
