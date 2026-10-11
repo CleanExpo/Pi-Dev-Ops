@@ -1,6 +1,6 @@
 ---
 name: control-scope
-description: Use when a check has RUN and you are about to say what it proved, or when choosing where to plant a canary, narrow a search, or enumerate the surface a guard covers. Answers ONE question, what did the instrument actually look at and what sentence am I permitted to write. Catches searches aimed at the wrong name, checks that enumerate a fixed set and go stale, canaries planted where the instrument was already known to reach, and claims upgraded from "within targeted scope" to "by discovery". Triggers on "confirmed", "nothing found", "scanned clean", "no matches", "I searched for", "-maxdepth", "--include", "sampled", "the broad search timed out", "we use discovery now".
+description: "Use when a check has RUN and you are about to say what it proved, or when planting a canary, narrowing a search or enumerating what a guard covers. Answers ONE question: what did the instrument look at, and what may I write. Catches searches aimed at the wrong name, fixed-set checks gone stale, canaries planted where the instrument already reached, and claims upgraded from 'within targeted scope' to 'by discovery'. Triggers: 'confirmed', 'nothing found', 'scanned clean', 'no matches', 'I searched for', '-maxdepth', '--include', 'sampled', 'the broad search timed out', 'we use discovery now'."
 ---
 
 # Control Scope — what did it look at, and what may I claim?

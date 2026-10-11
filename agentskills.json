@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.25.6",
-    "generated_at": "2026-10-11T21:22:51.148768+00:00",
+    "version": "1.25.7",
+    "generated_at": "2026-10-11T22:38:49.407296+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -47,11 +47,11 @@
     },
     {
       "id": "agent-browser",
-      "description": "Browser automation CLI for AI agents. Use when the user needs to interact with websites, including navigating pages, filling forms, clicking buttons, taking screenshots, extracting data, testing web apps, or automating any browser task. Triggers include requests to \"open a website\", \"fill out a form\", \"click a button\", \"take a screenshot\", \"test this web app\", \"login to a site\", \"automate browser actions\", or any task requiring programmatic web interaction. Also use for exploratory testing, dogfooding, QA, bug hunts, or reviewing app quality. Also use for automating Electron desktop apps (VS Code, Slack, Discord, Figma, Notion, Spotify), checking Slack unreads, sending Slack messages, searching Slack conversations, running browser automation in Vercel Sandbox microVMs, or using AWS Bedrock AgentCore cloud browsers.",
+      "description": "Browser automation CLI for AI agents. Use when the user needs to navigate pages, fill forms, click buttons, take screenshots, extract data, test web apps or log in to sites. Triggers: 'open a website', 'fill out a form', 'click a button', 'take a screenshot', 'test this web app', 'login to a site', 'automate browser actions'. Also for exploratory testing, QA, bug hunts, Electron desktop apps (VS Code, Slack, Discord, Figma, Notion, Spotify), Slack unreads and messages, Vercel Sandbox microVMs and AWS Bedrock AgentCore cloud browsers.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/agent-browser/SKILL.md",
-      "sha256": "771a030d8c028c2fc9908b84c7f2aeb6d229efe82c13cec8b1b4d21b0819d104",
+      "sha256": "3f0c1d8f1651fda3df4f443d920a48082e2ee0b6a511e436886195ec46441a43",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -233,11 +233,11 @@
     },
     {
       "id": "artlist-mcp",
-      "description": "Use when a task needs AI image or video generation \u2014 campaign visuals, hero shots, product or social video, thumbnails, ad creative, localized variants \u2014 through the official Artlist MCP (mcp.artlist.io, 100+ models incl. Nano Banana Pro, Seedance 2.0, Kling 3.0, Veo 3.1, Sora 2). The model catalog is discovered live from the server every session, never a stored or cached list. Use also before any autonomous run that could touch media generation, because it carries the credit-spend gate. Covers connection per surface, live model selection, the iterate-in-conversation loop, and failure handling.",
+      "description": "Use when a task needs AI image or video generation (campaign visuals, hero shots, product or social video, thumbnails, ad creative, localized variants) through the official Artlist MCP (mcp.artlist.io, 100+ models). The model catalog is discovered live every session, never cached. Use also before any autonomous run that could touch media generation, because it carries the credit-spend gate. Covers connection per surface, live model selection, the iterate loop and failure handling.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/artlist-mcp/SKILL.md",
-      "sha256": "a70361438aa413c38a65650b66e73bbe3bff604547632b9bf8d00168e9f72080",
+      "sha256": "d290b66b99e31cfb1f5ceacd6e0a23372d9cb389894f46fe10510a5d63aafde0",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -288,11 +288,11 @@
     },
     {
       "id": "autonomy-ladder",
-      "description": "Capability-tiered autonomy gating for all agent action \u2014 maps the DeepMind AGI\u2192ASI continuum (arXiv:2606.12683) onto four autonomy tiers (L0 advise \u2192 L3 strategic/irreversible), each with an explicit gate. Use to decide \"can this agent do this action un-gated, or must it stop for a human/Board?\" before any autonomous or multi-move execution, and to design where the gate is ENFORCED. Triggers on \"autonomy ladder\", \"autonomy gate\", \"can the agent do X autonomously\", \"gate this action\", \"should this escalate\", multi-move executor design. The formal, capability-scaled version of the decision-rights matrix.",
+      "description": "Capability-tiered autonomy gating for all agent action. Maps the DeepMind AGI to ASI continuum (arXiv:2606.12683) onto four tiers (L0 advise to L3 strategic/irreversible), each with an explicit gate. Use to decide 'can this agent do this action un-gated, or must it stop for a human/Board?' before autonomous or multi-move execution, and to design where the gate is ENFORCED. Triggers: 'autonomy ladder', 'autonomy gate', 'can the agent do X autonomously', 'gate this action', 'should this escalate'. The formal version of the decision-rights matrix.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/autonomy-ladder/SKILL.md",
-      "sha256": "4bedf8e3b496b5c6869591a7d61ef3869a4c2573440ae6e933ce68a5ae645a7e",
+      "sha256": "acf8f65a8a016c28e980ae0cf08915dc4d4c1d3fb18d0d6119eec8bb4141b5bb",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -704,7 +704,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/control-design/SKILL.md",
-      "sha256": "3ef208f29c1a26c5363d21cbe56b25db5af9e89c06c7157ec19026daf4fb0a37",
+      "sha256": "c1ea858a35f883ec12659db99b2103b792b7fe06ea586344591468eb203d7fc3",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -719,11 +719,11 @@
     },
     {
       "id": "control-scope",
-      "description": "Use when a check has RUN and you are about to say what it proved, or when choosing where to plant a canary, narrow a search, or enumerate the surface a guard covers. Answers ONE question, what did the instrument actually look at and what sentence am I permitted to write. Catches searches aimed at the wrong name, checks that enumerate a fixed set and go stale, canaries planted where the instrument was already known to reach, and claims upgraded from \"within targeted scope\" to \"by discovery\". Triggers on \"confirmed\", \"nothing found\", \"scanned clean\", \"no matches\", \"I searched for\", \"-maxdepth\", \"--include\", \"sampled\", \"the broad search timed out\", \"we use discovery now\".",
+      "description": "Use when a check has RUN and you are about to say what it proved, or when planting a canary, narrowing a search or enumerating what a guard covers. Answers ONE question: what did the instrument look at, and what may I write. Catches searches aimed at the wrong name, fixed-set checks gone stale, canaries planted where the instrument already reached, and claims upgraded from 'within targeted scope' to 'by discovery'. Triggers: 'confirmed', 'nothing found', 'scanned clean', 'no matches', 'I searched for', '-maxdepth', '--include', 'sampled', 'the broad search timed out', 'we use discovery now'.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/control-scope/SKILL.md",
-      "sha256": "f5ea807a708b16e7100beeb87c4804dc23526e20fc86c3dce0bd67cb311c4061",
+      "sha256": "bcf83feef6d3b99c7e46add63565ad7776ad0a65d39e0185c01556ddd6efd8ca",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1062,11 +1062,11 @@
     },
     {
       "id": "eeat",
-      "description": "E-E-A-T specialist \u2014 a first-class UPSTREAM consult lens that scores content for Google's Experience, Expertise, Authoritativeness, and Trust signals BEFORE it's finalized, and returns structured fixes. Use when producing or auditing any content, page, or claim that needs to rank / be cited / be trusted (blog, landing page, YMYL, client deliverable). Consumed by the specialist-council, marketing, seo, and geo-optimization; complements source-ingest (credibility of sources) and brand-guardian (terminal accuracy gate). Triggers on \"E-E-A-T\", \"EEAT\", \"experience expertise authoritativeness trust\", \"trust signals\", \"author authority\", \"does this look credible/trustworthy\".",
+      "description": "E-E-A-T specialist and first-class UPSTREAM consult lens. Scores content for Google's Experience, Expertise, Authoritativeness and Trust signals BEFORE it is finalized and returns structured fixes. Use when producing or auditing any content, page or claim that must rank, be cited or be trusted (blog, landing page, YMYL, client deliverable). Used by specialist-council, marketing, seo and geo-optimization. Triggers: 'E-E-A-T', 'EEAT', 'experience expertise authoritativeness trust', 'trust signals', 'author authority', 'does this look credible/trustworthy'.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/eeat/SKILL.md",
-      "sha256": "7baf844e2a351b3b6ceebe25120a16909ad98116da9cbdf01e0e8f704fa9f748",
+      "sha256": "cdaeae22dca26bd96f537de4b7527e644108de720ca15059f445d572be7e27f8",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1195,11 +1195,11 @@
     },
     {
       "id": "heygen-director",
-      "description": "HeyGen specialist agent \u2014 owns avatar / talking-head / spokesperson video via the HyperFrames-by-HeyGen MCP, with a structured status contract the video-director and specialist-council can consult. Use for presenter-led explainers, multilingual avatar localization, UGC-style spokesperson clips, and programmatic HTML video projects. Triggers on \"HeyGen\", \"avatar video\", \"talking head\", \"AI presenter\", \"spokesperson video\", \"hyperframes\". CRITICAL BOUNDARY: this is NOT for generative cinematic b-roll \u2014 the video skills prohibit \"AI slop frames\" for client hero footage; HeyGen here means a real-looking presenter avatar, not synthetic scenery.",
+      "description": "HeyGen specialist agent. Owns avatar, talking-head and spokesperson video via the HyperFrames-by-HeyGen MCP, with a structured status contract for video-director and specialist-council. Use for presenter-led explainers, multilingual localization, UGC-style spokesperson clips and programmatic HTML video projects. Triggers: 'HeyGen', 'avatar video', 'talking head', 'AI presenter', 'spokesperson video', 'hyperframes'. NOT for generative cinematic b-roll: the video skills prohibit 'AI slop frames' for client hero footage; HeyGen here means a real-looking presenter avatar, not synthetic scenery.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/heygen-director/SKILL.md",
-      "sha256": "9ceda3b4693b190756640850192bb8b896ccec04e00bd0f2aa18aa350712ab0e",
+      "sha256": "bf805741ee577efba5d2b00bb157f46b94877586c88ea4a7243195873d4d41b0",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1803,11 +1803,11 @@
     },
     {
       "id": "orchestrator",
-      "description": "Continuity spine from idea to ship. Runs an OUTER loop that pushes work hub-to-spoke out to estate projects, and an INNER loop that audits itself against the constitution \u2014 trimming cache, flagging hallucinations, tightening code generation. Does NOT do the work; it routes, gates and carries state. Pulls a skill only when a stage needs it and releases it immediately, to protect context. The constitution is a hard gate checked before every self-modifying action. Stops for exactly two things \u2014 spending money and touching production. A denied action is terminal. Use when running a project end-to-end, resuming a stalled build, or dispatching work across multiple estate repos.",
+      "description": "Continuity spine from idea to ship. An OUTER loop pushes work hub-to-spoke to estate projects; an INNER loop audits itself against the constitution (trims cache, flags hallucinations, tightens code generation). Does NOT do the work: it routes, gates and carries state, pulling a skill only when a stage needs it. The constitution is a hard gate before every self-modifying action. Stops for exactly two things: spending money and touching production. A denied action is terminal. Use to run a project end-to-end, resume a stalled build, or dispatch work across estate repos.",
       "owner_role": "Orchestrator",
       "status": "wave-1",
       "path": "skills/orchestrator/SKILL.md",
-      "sha256": "3e49b3cefeb5ddfa5db89a4f089572a72f892729549c2302124e54f968706992",
+      "sha256": "0b971d9c8a80a99f871164a36c000b2330caa66435bdfcac84eae69e0f001808",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1879,11 +1879,11 @@
     },
     {
       "id": "pi-dev-ops-model-farm",
-      "description": "Multi-CLI agent farm orchestrator. Manages Claude Code (3x Max Plan accounts) and OpenAI Codex CLI (1x Max/Plus account) as tmux-based background workers. Receives routing requests from Pi-Dev-Ops /nexus, dispatches tasks, monitors health, and returns structured outputs via JSON-over-file IPC. Enables hybrid Claude+OpenAI execution without API billing. Use when a task needs Claude Code or Codex CLI work dispatched to tmux-based background workers, such as a Pi-Dev-Ops /nexus routing request for /judge, /boardroom, /storm or /spm, checking farm health or restarting a worker with pi-dev-ops-farm, or running hybrid Claude+OpenAI jobs without API billing.",
+      "description": "Multi-CLI agent farm orchestrator. Runs Claude Code (3x Max Plan accounts) and OpenAI Codex CLI (1x Max/Plus account) as tmux-based background workers, with JSON-over-file IPC and no API billing. Use when a task needs Claude Code or Codex CLI work dispatched to those workers: a Pi-Dev-Ops /nexus routing request for /judge, /boardroom, /storm or /spm, a farm health check, restarting a worker with pi-dev-ops-farm, or hybrid Claude+OpenAI jobs.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/pi-dev-ops-model-farm/SKILL.md",
-      "sha256": "49226447e7a0560d75a3d38f7fd28357e645a80114cc4656eb075a65b2511e02",
+      "sha256": "06fc23cb9b3f061e52370b0e6dec2b75d888cb6d03422c75a0fb1dc0a31d9a63",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2046,11 +2046,11 @@
     },
     {
       "id": "propose-fix",
-      "description": "Produce the repair as a diff plus a regression test, never applied directly. Bounded to three attempts, each materially different, then it stops and reports the diagnosis rather than the error. Use only after `classify` returns proceed. Use when a diagnosed bug, failing check or incident has been through `classify` with a proceed result and the user or pipeline needs a repair drafted as a reviewable diff plus a failing-first regression test, such as after `diagnose` produces a minimised repro, with nothing applied to the working tree, a cap of three materially different attempts, and a report of the proven cause if all fail.",
+      "description": "Produce the repair as a diff plus a failing-first regression test, never applied directly. Bounded to three materially different attempts, then it stops and reports the proven cause rather than the error. Use only after `classify` returns proceed: a diagnosed bug, failing check or incident (for example after `diagnose` produces a minimised repro) that needs a reviewable diff with nothing applied to the working tree.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/propose-fix/SKILL.md",
-      "sha256": "4bed27574f5ec5be13226b6b7c4cd7fb65fe2054f7db60f2ba688316f3778e86",
+      "sha256": "990ca31e24ad47c796f1c9befcff62624deef450acadd0e78671944fc3c20dc9",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2088,7 +2088,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/readiness-architect/SKILL.md",
-      "sha256": "1b135d2339c7bf5c2a6049dd84c893387a219ceb734b798c6727d518666ea777",
+      "sha256": "77d53723b7855ace3d27fe28ce9583664eda7e0bc7c56197b4170f9b04c73bad",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2525,7 +2525,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/senior-harness/SKILL.md",
-      "sha256": "b68d3fb81ee02d0500d1244f8cce8bb0d59b3cc035797a99e4691ed398ddacbc",
+      "sha256": "0c5143337c4a769e080830469887e89da38fdeb89f801dd54b3412224e85803e",
       "dependencies": {
         "tools": [],
         "skills": [
@@ -2541,11 +2541,11 @@
     },
     {
       "id": "session-handoff",
-      "description": "Durable session handoff (/session-handoff). Gates the tree green via scripts/handoff-loop.sh, classifies the session SHIPPED / READY-TO-SHIP / WIP-BLOCKED against a Definition-of-Done, then generates a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent, or resuming later. Refuses to present unfinished work as a clean stop; for ready work hands off the exact merge-gate-guarded ship command. Writes a durable report + healthcheck log; the \"1\" of the 1-2 combo with /resume-from-handoff. Captures what was done, decisions locked, what shipped, key files, running state, verification, deferred/open questions, exact pickup point, risk notes, and a quality check.",
+      "description": "Durable session handoff (/session-handoff). Gates the tree green via scripts/handoff-loop.sh, classifies the session SHIPPED / READY-TO-SHIP / WIP-BLOCKED against a Definition-of-Done, then writes a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent or resuming later. Refuses to present unfinished work as a clean stop; for ready work it hands off the exact merge-gate-guarded ship command. Pairs with /resume-from-handoff. Writes a durable report and healthcheck log.",
       "owner_role": "Tier-Architect (end-of-session handoff; gate-then-report)",
       "status": "active",
       "path": "skills/session-handoff/SKILL.md",
-      "sha256": "1acf10c157b5889304c3779a78026e551cf65288203f10aafffa02975d04f3b8",
+      "sha256": "dbaf8754fbe31884588b8f71c1abab26452de5622336b83dd6f45eaa951b8413",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2674,11 +2674,11 @@
     },
     {
       "id": "specialist-council",
-      "description": "AI Communication Intelligence layer \u2014 the bidirectional cross-specialist consultation protocol that makes specialist agents TALK TO EACH OTHER before an artifact is finalized. Use when a task spans domains and the output needs input from multiple specialists (e.g. marketing copy that must satisfy SEO + GEO + E-E-A-T + brand voice, or a video that needs Remotion + HeyGen + design + brand). Any orchestrator or /spm invokes it to pull structured input from the RIGHT specialists and fold it back in. Triggers on \"AI communication intelligence\", \"agents talking to each other\", \"cross-specialist\", \"specialists should consult each other\", \"get input from all relevant specialists\", \"council\". NOT a builder and NOT a replacement for the single-domain orchestrators \u2014 it is the round-trip consultation they lack.",
+      "description": "AI Communication Intelligence layer: the bidirectional consultation protocol that makes specialist agents consult each other BEFORE an artifact is finalized. Use when a task spans domains and needs input from several specialists (copy needing SEO + GEO + E-E-A-T + brand voice; video needing Remotion + HeyGen + design). Orchestrators and /spm invoke it to pull input from the RIGHT specialists. Triggers: 'AI communication intelligence', 'agents talking to each other', 'cross-specialist', 'specialists should consult each other', 'get input from all relevant specialists', 'council'. NOT a builder.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/specialist-council/SKILL.md",
-      "sha256": "078b9ba443644d166360cdf2e3b14bcd7d5d868dc05aa1aa9bb9c68a3777a071",
+      "sha256": "7423d44e4e93e6c1341d9c62058b830220df211fe425dfa9062e135111a3b14a",
       "dependencies": {
         "tools": [],
         "skills": [
@@ -2731,11 +2731,11 @@
     },
     {
       "id": "tao",
-      "description": "The Tao is the autonomous execution engine that ties self-direction with governance. It orchestrates /nexus (routing), /tao-loop (iterate-generate-deploy), /tao-judge (iterative-evaluator-calibrator), and /session-handoff (continuity/escrow) into a single cohesive autonomous mission-runner. The Tao handles autonomous overnight execution for complex projects. Use when the user asks to run something autonomously or overnight, when a task spans more than one skill or domain and needs closed-loop execution with judging and checkpointing, when prior work must be resumed from a handoff, or when the user grants full authority for exhaustive autonomous action.",
+      "description": "The Tao is the autonomous execution engine that ties self-direction with governance. It orchestrates /nexus (routing), /tao-loop (iterate-generate-deploy), /tao-judge (evaluator-calibrator) and /session-handoff (continuity) into one mission-runner for autonomous overnight execution. Use when the user asks to run something autonomously or overnight, when a task spans more than one skill or domain and needs closed-loop execution with judging and checkpointing, when work must resume from a handoff, or when the user grants full authority for exhaustive autonomous action.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/tao/SKILL.md",
-      "sha256": "c335a6d4faf398fffc90088b3116f04b9f074eb41e802866bca6eaa9317318fc",
+      "sha256": "823ade1ce590023024e6d2a4c3af2b81a688f4e8b6dd8b1e7542df4555250b0f",
       "dependencies": {
         "tools": [],
         "skills": []

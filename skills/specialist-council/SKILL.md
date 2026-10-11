@@ -1,6 +1,6 @@
 ---
 name: specialist-council
-description: AI Communication Intelligence layer — the bidirectional cross-specialist consultation protocol that makes specialist agents TALK TO EACH OTHER before an artifact is finalized. Use when a task spans domains and the output needs input from multiple specialists (e.g. marketing copy that must satisfy SEO + GEO + E-E-A-T + brand voice, or a video that needs Remotion + HeyGen + design + brand). Any orchestrator or /spm invokes it to pull structured input from the RIGHT specialists and fold it back in. Triggers on "AI communication intelligence", "agents talking to each other", "cross-specialist", "specialists should consult each other", "get input from all relevant specialists", "council". NOT a builder and NOT a replacement for the single-domain orchestrators — it is the round-trip consultation they lack.
+description: "AI Communication Intelligence layer: the bidirectional consultation protocol that makes specialist agents consult each other BEFORE an artifact is finalized. Use when a task spans domains and needs input from several specialists (copy needing SEO + GEO + E-E-A-T + brand voice; video needing Remotion + HeyGen + design). Orchestrators and /spm invoke it to pull input from the RIGHT specialists. Triggers: 'AI communication intelligence', 'agents talking to each other', 'cross-specialist', 'specialists should consult each other', 'get input from all relevant specialists', 'council'. NOT a builder."
 ---
 
 # specialist-council — AI Communication Intelligence

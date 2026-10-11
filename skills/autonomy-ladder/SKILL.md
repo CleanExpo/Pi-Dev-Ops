@@ -1,6 +1,6 @@
 ---
 name: autonomy-ladder
-description: Capability-tiered autonomy gating for all agent action — maps the DeepMind AGI→ASI continuum (arXiv:2606.12683) onto four autonomy tiers (L0 advise → L3 strategic/irreversible), each with an explicit gate. Use to decide "can this agent do this action un-gated, or must it stop for a human/Board?" before any autonomous or multi-move execution, and to design where the gate is ENFORCED. Triggers on "autonomy ladder", "autonomy gate", "can the agent do X autonomously", "gate this action", "should this escalate", multi-move executor design. The formal, capability-scaled version of the decision-rights matrix.
+description: "Capability-tiered autonomy gating for all agent action. Maps the DeepMind AGI to ASI continuum (arXiv:2606.12683) onto four tiers (L0 advise to L3 strategic/irreversible), each with an explicit gate. Use to decide 'can this agent do this action un-gated, or must it stop for a human/Board?' before autonomous or multi-move execution, and to design where the gate is ENFORCED. Triggers: 'autonomy ladder', 'autonomy gate', 'can the agent do X autonomously', 'gate this action', 'should this escalate'. The formal version of the decision-rights matrix."
 ---
 
 # autonomy-ladder — how much autonomy, gated by capability × reversibility

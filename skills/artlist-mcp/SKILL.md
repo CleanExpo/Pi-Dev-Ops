@@ -1,6 +1,6 @@
 ---
 name: artlist-mcp
-description: Use when a task needs AI image or video generation — campaign visuals, hero shots, product or social video, thumbnails, ad creative, localized variants — through the official Artlist MCP (mcp.artlist.io, 100+ models incl. Nano Banana Pro, Seedance 2.0, Kling 3.0, Veo 3.1, Sora 2). The model catalog is discovered live from the server every session, never a stored or cached list. Use also before any autonomous run that could touch media generation, because it carries the credit-spend gate. Covers connection per surface, live model selection, the iterate-in-conversation loop, and failure handling.
+description: "Use when a task needs AI image or video generation (campaign visuals, hero shots, product or social video, thumbnails, ad creative, localized variants) through the official Artlist MCP (mcp.artlist.io, 100+ models). The model catalog is discovered live every session, never cached. Use also before any autonomous run that could touch media generation, because it carries the credit-spend gate. Covers connection per surface, live model selection, the iterate loop and failure handling."
 ---
 
 # Artlist MCP
