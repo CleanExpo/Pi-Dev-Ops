@@ -149,7 +149,7 @@ def test_notify_started_moves_issue_to_in_progress(monkeypatch):
 
     called_states: list[str] = []
 
-    def _capture(issue_id, state):
+    def _capture(issue_id, state, **_):
         called_states.append(state)
 
     session = _make_session(issue_id="issue-start-test")

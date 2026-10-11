@@ -1,0 +1,21 @@
+{
+  "schema": "done/1",
+  "work_id": "w_04c58ca4e1df",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-7962: _notify_linear_session_started must not move a ticket already in a Pi-Dev: state; manual Todo start still moves to In Progress; proven by pytest tests/test_ra6502_linear_outbound.py",
+  "created_at_utc": "2026-10-11T22:05:01Z",
+  "identity_key": "mesh/phill_desktop/ra-7962-9d759e83@C:\\Users\\Disaster Recovery 4\\.local\\share\\nexus-mesh\\pdo-runtime\\.git\\worktrees\\mesh-RA-7962-9d759e83",
+  "baseline_observed": {
+    "head": "391e206c614addbd4892b8ecc2e747b24c97d7d2",
+    "branch": "mesh/phill_desktop/ra-7962-9d759e83",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "Session-start hook leaves Pi-Dev: states alone; Todo still moves",
+      "recipe": "python -m pytest tests/test_ra6502_linear_outbound.py -q"
+    }
+  ]
+}
