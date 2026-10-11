@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.25.8",
-    "generated_at": "2026-10-11T23:20:20.599805+00:00",
+    "version": "1.25.9",
+    "generated_at": "2026-10-11T23:25:29.175222+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -3031,11 +3031,11 @@
     },
     {
       "id": "token-budgeter",
-      "description": "Track and enforce token budgets per tier. Use when a task involves tracking or enforcing token budgets per tier, comparing model costs for Opus, Sonnet or Haiku output and cache tokens, or deciding how spend differs on Claude Max where Agent SDK execution bills the subscription, not per token.",
+      "description": "Track and enforce token budgets per tier. Use when a task involves tracking or enforcing token budgets per tier, comparing model costs for Opus, Sonnet or Haiku output and cache tokens, or deciding how spend differs between Claude Code on a Max plan (plan usage limits) and Agent SDK runs (finite API credits, never the plan).",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/token-budgeter/SKILL.md",
-      "sha256": "bd6dc466e4b0a093794456a09377e0696fb43b37d20a76725fb12c3c4e7e02ff",
+      "sha256": "21d863aa7fcca73062a41961543e8eec9c6e0c81e14a39c658648e7dc6c496bc",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -3044,7 +3044,9 @@
         "requires_kill_switch": false,
         "requires_hitl_gate": false,
         "pii_handling": "pass-through"
-      }
+      },
+      "inferred": true,
+      "low_confidence": true
     },
     {
       "id": "ui-component-builder",
