@@ -157,7 +157,7 @@ It only plans + delegates.
 
 ## 5-D critique gate (mandatory before final wave emission)
 
-Adopted from `nexu-io/open-design` (Apache-2.0). After the final wave's deliverables land in `<calling-project>/.marketing/{job_id}/`, spawn an Opus 4.7 subagent via `opus-adversary` to score the campaign across five dimensions, each 0–10 with cited evidence:
+Adopted from `nexu-io/open-design` (Apache-2.0). After the final wave's deliverables land in `<calling-project>/.marketing/{job_id}/`, spawn an Opus-tier subagent via `opus-adversary` to score the campaign across five dimensions, each 0–10 with cited evidence:
 
 1. **Philosophy consistency** — does the campaign carry one positioning thesis through every artifact (landing page hook, email sequence opening line, social hook, video script)? Cite the thesis from `marketing-positioning` output and check each artifact echoes it.
 2. **Visual hierarchy** — across artifacts, does the eye land on the same hero stat/promise first? Cite which artifact breaks the order.

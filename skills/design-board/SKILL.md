@@ -27,7 +27,7 @@ Five-persona brand-design deliberation. Modelled on `~/.claude/skills/ceo-board/
 
 ## Method
 
-Three rounds, persona definitions in [`references/personas.md`](references/personas.md). Each persona is a Sonnet 4.6 subagent (Critic is Opus 4.7).
+Three rounds, persona definitions in [`references/personas.md`](references/personas.md). Each persona is a Sonnet-tier subagent (Critic is Opus-tier).
 
 ### Round 1 — Propose
 

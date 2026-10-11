@@ -75,7 +75,7 @@ Brief contains any of: `video`, `explainer`, `promo`, `ad`, `reel`, `intro`, `ou
 
 ## Inputs
 
-The Pi-Dev-Ops planner (Opus 4.7) calls this skill with:
+The Pi-Dev-Ops planner calls this skill with:
 - `brief` — original free-text request
 - `repo_url` — usually `local:Pi-Dev-Ops/remotion-studio`
 - `linear_team_id`, `linear_project_id` — pre-resolved from `config/harness/projects.json`
