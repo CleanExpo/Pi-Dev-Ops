@@ -50,8 +50,8 @@ def _outbound_enabled() -> bool:
 
 # ── GraphQL helpers ────────────────────────────────────────────────────────────
 
-def _update_linear_state(issue_id: str, state_name: str) -> None:
-    """Move a Linear issue to the named workflow state.
+def _update_linear_state(issue_id: str, state_name: str, *, keep_prefix: str | None = None) -> None:
+    """Move a Linear issue to the named workflow state, unless it is in a keep_prefix state (RA-7962).
 
     Uses urllib only (no extra dependencies).  Never raises — failures are
     logged and silently swallowed so a Linear outage cannot break a build.
@@ -79,12 +79,7 @@ def _update_linear_state(issue_id: str, state_name: str) -> None:
 
     def _gql(query: str, variables: dict) -> dict:
         payload = json.dumps({"query": query, "variables": variables}).encode("utf-8")
-        req = urllib.request.Request(
-            "https://api.linear.app/graphql",
-            data=payload,
-            headers=headers,
-            method="POST",
-        )
+        req = urllib.request.Request("https://api.linear.app/graphql", data=payload, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=15) as resp:
             return json.loads(resp.read().decode("utf-8"))
 
@@ -94,12 +89,16 @@ def _update_linear_state(issue_id: str, state_name: str) -> None:
 query GetIssueTeam($id: String!) {
   issue(id: $id) {
     team { id }
+    state { name }
   }
 }"""
         result = _gql(fetch_q, {"id": issue_id})
-        team_id = (result.get("data") or {}).get("issue", {}).get("team", {}).get("id")
+        issue = (result.get("data") or {}).get("issue") or {}
+        team_id = (issue.get("team") or {}).get("id")
         if not team_id:
             _log.warning("Linear: could not resolve team for issue %s — skipping state update", issue_id)
+            return
+        if keep_prefix and ((issue.get("state") or {}).get("name") or "").startswith(keep_prefix):
             return
 
         # Step 2: find the workflow state ID whose name matches state_name
@@ -309,8 +308,8 @@ def _notify_linear_session_started(session) -> None:
     if not issue_id:
         return
     try:
-        _update_linear_state(issue_id, "In Progress")
-        _log.info("RA-6502: Linear issue %s moved to 'In Progress' on session start", issue_id)
+        _update_linear_state(issue_id, "In Progress", keep_prefix="Pi-Dev:")
+        _log.info("RA-6502: Linear issue %s start-sync to 'In Progress' done", issue_id)
     except Exception as exc:
         _log.warning("RA-6502: Failed to mark Linear issue %s In Progress on start: %s", issue_id, exc)
 
