@@ -24,9 +24,9 @@ Read [Built for the Hard Day](docs/governance/NEXUS-NORTH-STAR.md) before planni
 
 | Path | What it is |
 |------|-----------|
-| `app/server/routes/` | All 8 focused route modules (auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, health) |
+| `app/server/routes/` | All route modules (`ls app/server/routes/`) |
 | `app/server/models.py` | Pydantic request models — add/edit/remove freely |
-| `app/server/main.py` | Thin assembler (~25L) — only registers routers, safe to reorder |
+| `app/server/main.py` | Thin assembler — re-exports `app` from `app_factory` and registers routers; keep the `app` re-export |
 | `app/server/agents/` | Board meeting, scout, plan discovery, feedback loop agents |
 | `app/server/session_evaluator.py` | Evaluator runners — safe to tune thresholds |
 | `app/server/session_phases.py` | Build phase pipeline — add/remove phases, tune prompts |
@@ -77,7 +77,7 @@ a clear rationale in the PR body. Evaluator score must be ≥ 8/10 before auto-s
 | `dashboard/app/api/cron/` | Scheduled job routes | Keep Vercel cron header validation |
 | `dashboard/lib/supabase/` | Supabase client factory | Schema changes need migration + type regen |
 | `supabase/migrations/` | Database migrations | New migration per schema change; never edit existing |
-| `.github/workflows/` | CI pipeline | Changes must not remove any of the three jobs |
+| `.github/workflows/` | CI pipeline | Changes must not remove any existing job in `ci.yml` |
 | `railway.pi-dev-ops.toml` | Railway deploy config for the Python service. Do not put a `railway.toml` back at the repo root: every service in this repo would build the Python image. | Never remove health check path |
 | `Dockerfile` | Container build | Keep `TAO_USE_AGENT_SDK=1` ENV |
 
@@ -112,8 +112,8 @@ a clear rationale in the PR body. Evaluator score must be ≥ 8/10 before auto-s
 🚫 Override for: config.py, auth.py
 ```
 
-Run `python -m pytest tests/ -x -q` before committing any change to `app/server/`.
-Also run `python -c "from app.server.main import app"` — must print `<class 'fastapi.applications.FastAPI'>`.
+Run `.venv/bin/python -m pytest tests/ -x -q` before committing any change to `app/server/`.
+Also run `.venv/bin/python -c "from app.server.main import app"` — must print `<class 'fastapi.applications.FastAPI'>`.
 
 ### `dashboard/app/api/` override
 
@@ -138,8 +138,8 @@ Run `npx tsc --noEmit && npm run build` before committing any change to `dashboa
 3. **File count ceiling.** The default scope contract (`max_files_modified: 5`) applies
    to all auto-triggered sessions. Violations trigger a Telegram alert + scope gate.
 
-4. **Test gate.** `run_cmd(["python", "-m", "pytest", "tests/", "-x", "-q"])` must exit 0
-   before any push. If tests fail after generation, classify the failure and attempt one
+4. **Test gate.** The ship gate (`app/server/spec_pipeline/ship_gate.py`) runs `pytest tests/ -x -q`;
+   it must exit 0 before any push. If tests fail after generation, classify the failure and attempt one
    targeted repair before escalating.
 
 5. **No credentials in generated code.** Any snippet containing `sk-`, `lin_api_`,
@@ -254,6 +254,3 @@ Recommended command chain:
 /resume-from-handoff
 ```
 
----
-
-Last updated: 2026-04-14 (MARATHON-4 / RA-588)
