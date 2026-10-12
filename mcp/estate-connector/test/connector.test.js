@@ -74,13 +74,17 @@ test("startup refuses a missing token", () => {
 
 test("lists read and write tools for the registered systems only", async () => {
   assert.deepEqual(adapters.map((adapter) => adapter.id), [
-    "coord", "pidevops", "unite", "mc", "restoreassist", "synthex", "drnrpg",
+    "coord", "pidevops", "unite", "mc", "restoreassist", "synthex", "drnrpg", "ato", "carsi",
   ]);
   const client = await connect();
   try {
     const listed = await client.listTools();
     const names = listed.tools.map((tool) => tool.name).sort();
     assert.deepEqual(names, [
+      "ato_health",
+      "ato_post_note",
+      "carsi_health",
+      "carsi_post_note",
       "coord_activity",
       "coord_post_note",
       "drnrpg_health",

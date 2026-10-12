@@ -37,7 +37,7 @@ function postTool() {
     readOnly: false,
     inputSchema: {
       text: z.string().describe("Note text, up to 2000 characters."),
-      system: z.string().describe("System id: coord, pidevops, unite, mc, restoreassist, synthex, or drnrpg."),
+      system: z.string().describe("System id: coord, pidevops, unite, mc, restoreassist, synthex, drnrpg, ato, or carsi."),
       bot: botField,
     },
     handler(args, ctx) {
