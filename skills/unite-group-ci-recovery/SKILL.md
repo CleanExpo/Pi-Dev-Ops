@@ -78,7 +78,7 @@ Append these to every PR body — under `## Agent metadata` works. Example:
 
 ```markdown
 ## Agent metadata
-- Agent ID: claude-opus-4-7-<session-id-prefix>
+- Agent ID: claude-opus-5-5-<session-id-prefix>
 - Task ID: SYN-975
 - Verifier ID: self-verified via /code-review (3 finder angles + 1 verifier per finding)
 - Agentic Layer: builder

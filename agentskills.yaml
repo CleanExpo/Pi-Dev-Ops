@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.25.7
-  generated_at: "2026-10-11T22:38:49.407296+00:00"
+  version: 1.25.9
+  generated_at: "2026-10-11T23:25:29.175222+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -1483,7 +1483,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/pi-dev-ops-model-farm/SKILL.md
-    sha256: 06fc23cb9b3f061e52370b0e6dec2b75d888cb6d03422c75a0fb1dc0a31d9a63
+    sha256: fa87251dd1ac36f8f71d6e2eeeabb0b788ed6ff37790df95f2aab6a6391ad2b2
     dependencies:
       tools: []
       skills: []
@@ -2385,11 +2385,11 @@ skills:
       requires_hitl_gate: false
       pii_handling: pass-through
   - id: token-budgeter
-    description: Track and enforce token budgets per tier. Use when a task involves tracking or enforcing token budgets per tier, comparing model costs for Opus, Sonnet or Haiku output and cache tokens, or deciding how spend differs on Claude Max where Agent SDK execution bills the subscription, not per token.
+    description: Track and enforce token budgets per tier. Use when a task involves tracking or enforcing token budgets per tier, comparing model costs for Opus, Sonnet or Haiku output and cache tokens, or deciding how spend differs between Claude Code on a Max plan (plan usage limits) and Agent SDK runs (finite API credits, never the plan).
     owner_role: (unset)
     status: (unset)
     path: skills/token-budgeter/SKILL.md
-    sha256: bd6dc466e4b0a093794456a09377e0696fb43b37d20a76725fb12c3c4e7e02ff
+    sha256: 21d863aa7fcca73062a41961543e8eec9c6e0c81e14a39c658648e7dc6c496bc
     dependencies:
       tools: []
       skills: []
@@ -2397,6 +2397,8 @@ skills:
       requires_kill_switch: false
       requires_hitl_gate: false
       pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: ui-component-builder
     description: Senior-level UI implementation skill. Generates multi-variant React/Tailwind components grounded in DESIGN.md, applies taste-skill quality constraints (banning AI-default slop), and uses 21st.dev Magic patterns for component discovery and generation. Use when building or reviewing React/Tailwind UI components, dashboards, landing pages or admin screens that must match DESIGN.md, including requests for multi-variant components, loading skeletons, empty and error states, 21st.dev Magic component discovery, or banning AI-default styling like Inter, hex codes in JSX and generic gray backgrounds.
     owner_role: (unset)
@@ -2432,7 +2434,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/unite-group-ci-recovery/SKILL.md
-    sha256: e476212c54539276cd8e6b4a62ed9f7db0e4e2f5480f12cee3573270978ca009
+    sha256: 8f39360ae03b507928b27f8dfbbf108585454a1e84e82cf2dcc6445eee2f2e26
     dependencies:
       tools: []
       skills: []
