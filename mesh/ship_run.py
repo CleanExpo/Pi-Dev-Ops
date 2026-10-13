@@ -35,6 +35,9 @@ from typing import NamedTuple
 
 REMOTE = "origin"
 _TIMEOUT = 120
+# Files the Done harness writes during any run. A diff of only these is no work, and
+# a merged PR carrying the ticket id would close the ticket as Done (RA-7989).
+BOOKKEEPING_PREFIXES = (".claude/done/",)
 
 
 class Start(NamedTuple):
@@ -94,6 +97,11 @@ def ship(start: Start, worktree: Path, branch: str, linear_id: str,
     ahead = _git(Path(worktree), "rev-list", "--count", f"{start.sha}..HEAD").stdout.strip()
     if not start.sha or ahead in ("", "0"):
         return "no commits: agent exited 0 but changed nothing"
+    changed = _git(Path(worktree), "diff", "--name-only", f"{start.sha}..HEAD")
+    if changed.returncode != 0:
+        return f"diff failed: {changed.stderr.strip()[:200]}"
+    if all(p.startswith(BOOKKEEPING_PREFIXES) for p in changed.stdout.split()):
+        return "no commits: agent changed nothing"
     if not start.url:
         return "no push URL was readable before the agent ran"
     pushed = _git(Path(worktree), "push", "-q", "--no-follow-tags", start.url,

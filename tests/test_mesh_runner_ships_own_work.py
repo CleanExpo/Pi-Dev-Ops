@@ -77,6 +77,29 @@ def test_uncommitted_agent_output_is_committed_and_pushed(fleet):
     assert _git(wt, "status", "--porcelain") == ""
 
 
+def test_bookkeeping_only_run_is_refused_and_not_pushed(fleet):
+    """RA-7989: Done-harness files alone are not work; a merged PR would close the ticket."""
+    _repo, wt, origin, start = fleet
+    (wt / ".claude" / "done" / "work").mkdir(parents=True)
+    (wt / ".claude" / "done" / "ACTIVE.json").write_text("{}\n")
+    (wt / ".claude" / "done" / "work" / "state.json").write_text("{}\n")
+
+    error = ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE")
+
+    assert error == "no commits: agent changed nothing"
+    assert _remote_has(origin, BRANCH) == ""
+
+
+def test_bookkeeping_plus_real_change_still_ships(fleet):
+    _repo, wt, origin, start = fleet
+    (wt / ".claude" / "done").mkdir(parents=True)
+    (wt / ".claude" / "done" / "ACTIVE.json").write_text("{}\n")
+    (wt / "marker").write_text("x\n")
+
+    assert ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE") is None
+    assert _remote_has(origin, BRANCH) == _git(wt, "rev-parse", "HEAD")
+
+
 def test_work_the_agent_committed_itself_is_pushed(fleet):
     """RA-7376's shape: a disciplined agent commits, leaving a clean tree."""
     _repo, wt, origin, start = fleet
