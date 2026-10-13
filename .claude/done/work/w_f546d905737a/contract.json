@@ -1,0 +1,15 @@
+{
+  "schema": "done/1",
+  "work_id": "w_f546d905737a",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-7965 Mac mini: every product repo in projects.json resolves via repo_dir_for to a real checkout; receipt docs/receipts/RA-7965.md records Round 0 verdict and lookup output",
+  "created_at_utc": "2026-10-13T01:42:40Z",
+  "identity_key": "mesh/phills-mac-mini/ra-7965-95ffae0c@/Volumes/Storage Unit/Application-Data/nexus-mesh/pdo-runtime/.git/worktrees/mesh-RA-7965-95ffae0c",
+  "baseline_observed": {
+    "head": "2a820f036eb6d7e751902d90180d671a87e3a7d6",
+    "branch": "mesh/phills-mac-mini/ra-7965-95ffae0c",
+    "dirty_count": 0
+  },
+  "criteria": []
+}
