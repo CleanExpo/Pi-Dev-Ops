@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
 import types
 from pathlib import Path
 
@@ -38,6 +39,10 @@ def test_r2_a_failed_launching_write_never_starts_the_agent(runner, monkeypatch,
     real, writes = runner.run_journal.write, []
 
     def first_only(*a):
+        """Only the main thread's writes count (r3 P2: a heartbeat could land between them);
+        the first succeeds, every later write, the heartbeat's included, fails."""
+        if threading.current_thread() is not threading.main_thread():
+            return False
         writes.append(a[2].get("phase"))
         return real(*a) if len(writes) == 1 else False
 
