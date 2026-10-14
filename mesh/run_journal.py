@@ -25,7 +25,6 @@ and host. Work that could not be kept keeps its claim, worktree and journal.
 """
 from __future__ import annotations
 
-import contextlib
 import json
 import os
 import re
@@ -38,6 +37,7 @@ from typing import Any, Callable, Optional
 import claim_lifecycle
 import left_running
 import ship_run
+from run_settle import Outcome, replay, settling  # noqa: F401 — Outcome for runner.py
 
 BEAT_SECONDS = float(os.environ.get("MESH_RUN_BEAT_S", "5"))
 RECONCILE_EVERY_S = float(os.environ.get("MESH_RECONCILE_EVERY_S", "300"))  # retry of held settlements
@@ -60,10 +60,25 @@ def write(base_dir: Path, run_id: str, entry: dict) -> bool:
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
         with os.fdopen(fd, "w") as fh:
             fh.write(json.dumps(entry))
+            fh.flush()
+            os.fsync(fh.fileno())  # r4: the bytes, then the rename, must survive a power cut
         os.replace(tmp, target)
+        _fsync_dir(target.parent)
         return True
     except Exception:  # noqa: BLE001 — any failure, including a planted link at tmp
         return False
+
+
+def _fsync_dir(directory: Path) -> None:
+    """Make the rename durable. Windows cannot open a directory; there the replace stands alone."""
+    try:
+        fd = os.open(directory, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 def clear(base_dir: Path, run_id: str) -> None:
@@ -87,6 +102,12 @@ class Beat:
         """Record the run's phase synchronously; True only once it is on disk."""
         with self._lock:
             self.entry["phase"] = phase
+        return self.beat()
+
+    def note(self, **fields: Any) -> bool:
+        """Add fields to the journal synchronously; True only once they are on disk."""
+        with self._lock:
+            self.entry.update(fields)
         return self.beat()
 
     def launching(self) -> None:
@@ -211,33 +232,17 @@ def settle_orphan(base_dir: Path, entry: dict, api: Callable[..., Any], pause: f
     if not claim_lifecycle.remove_worktree(Path(entry["repo_dir"]), worktree):
         result["held"] = "worktree remove failed"  # review r2 P1: never release over a leftover
         return result
-    result["released"] = claim_lifecycle.report(lambda: api("POST", _UPDATE, {
+    payload = replay(entry) or {  # r4: the ending's own update; a bare release only if none
         "linear_id": entry["linear_id"], "state": "released", "branch": entry["branch"],
-        "host": entry["host"], "claim_id": entry["claim_id"], "run_id": entry["run_id"]}), pause)
+        "host": entry["host"], "claim_id": entry["claim_id"], "run_id": entry["run_id"]}
+    result["released"] = claim_lifecycle.report(lambda: api("POST", _UPDATE, payload), pause)
     if result["released"]:
         clear(base_dir, entry["run_id"])
     return result
 
 
-@contextlib.contextmanager
-def _settling(journal: Path):
-    """Yield True while this process alone holds the journal's settlement lock, else False."""
-    try:
-        import fcntl
-    except ImportError:  # no flock (Windows): such journals hold anyway, having no process group
-        yield False
-        return
-    with open(journal.with_suffix(".lock"), "a+") as fh:
-        try:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except OSError:
-            yield False
-            return
-        yield True
-
-
 def _one(base_dir: Path, p: Path, host: str, api: Callable[..., Any], pause: float, own: bool) -> dict:
-    with _settling(p) as mine:
+    with settling(p) as mine:
         if not mine:
             return {"journal": p.name, "held": "being settled elsewhere"}
         try:  # read under the lock: another runner may have settled it meanwhile

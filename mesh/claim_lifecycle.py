@@ -2,10 +2,15 @@
 
 Split out of run_record.py at the 300-line convention. The invariant: from the
 moment `run_claim` reports a claim `working`, every way out of it — success,
-failure, any exception, even an interrupt — sends one terminal update, removes
-the worktree and marks the runner idle, each step running even if the one
-before it raised. The single exception is an agent that could not be stopped:
-its claim and its worktree are left in place, because the agent is still in it.
+failure, any exception, even an interrupt — ends in one of two states, and the
+runner is marked idle either way, each step running even if the one before it raised:
+
+  * ended: the work is kept, the worktree is removed, and only then the terminal
+    update is sent and the run journal cleared;
+  * held (UNI-2963): the work could not be kept, the worktree would not go, an agent
+    could not be stopped, or the server refused the update. Nothing terminal is sent
+    over a worktree still on disk; the claim stays `working`, and the run journal,
+    which carries the intended terminal update, lets `run_journal.Ticker` finish it later.
 """
 from __future__ import annotations
 
@@ -181,14 +186,16 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
         sent: list = []
         finish(lambda: kept.append(preserve()),
                lambda: gone.append(remove()) if kept == [None] else _hold(kept),
-               lambda: sent.append(report(send, pause)) if gone == [True] else _held_by(gone),
+               lambda: sent.append(report(send, pause)) if gone == [True] else _held_by(kept, gone),
                lambda: forget() if sent == [True] else None, idle, then)
 
 
-def _held_by(gone: list) -> None:
-    if gone:  # an empty list means the work was not kept, already reported by _hold
-        print("mesh: the worktree would not go; its claim stays working and its journal is kept",
-              file=sys.stderr)
+def _held_by(kept: list, gone: list) -> None:
+    if kept != [None]:
+        return  # the work was not kept, and _hold already said so
+    why = "would not go" if gone else "removal raised"  # r4: a raised removal is logged too
+    print(f"mesh: the worktree {why}; its claim stays working and its journal is kept",
+          file=sys.stderr)
 
 
 def _hold(kept: list) -> None:

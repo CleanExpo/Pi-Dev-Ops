@@ -226,12 +226,12 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
             plan.update(state="failed", error="git worktree add failed")
     finally:
         rec = beat.held[0] if beat.held else None
-        claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", {
-            "linear_id": linear_id, "branch": branch, "host": HOST, "claim_id": plan["claim_id"],
-            **run_record.terminal(rec, plan)}),
+        final = run_journal.Outcome(beat, lambda: {"linear_id": linear_id, "branch": branch, "host": HOST,
+                                                   "claim_id": plan["claim_id"], **run_record.terminal(rec, plan)})
+        claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", final()),
             lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
             agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS, then=lambda: run_record.release_interrupt(rec),
-            preserve=lambda: run_journal.keep_wip(plan, worktree, HOST, ship_run), forget=beat.clear,  # UNI-2963: WIP on every exit
+            preserve=lambda: final.record() or run_journal.keep_wip(plan, worktree, HOST, ship_run), forget=beat.clear,  # UNI-2963: WIP on every exit
             first=lambda: (beat.stop(), left_running.track(rec)))  # RA-7798: never self-update away from an unstopped agent
     return plan
 
