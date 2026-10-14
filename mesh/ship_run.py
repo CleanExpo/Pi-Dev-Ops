@@ -49,8 +49,9 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
                           text=True, timeout=_TIMEOUT, check=False)
 
 
-def _commit_leftovers(worktree: Path, linear_id: str, host: str) -> str | None:
-    """Commit uncommitted agent output. The identity is set only for this commit,
+def commit_leftovers(worktree: Path, linear_id: str, host: str,
+                     subject: str = "mesh run output") -> str | None:
+    """Commit uncommitted agent output; run_journal.keep_wip's WIP commit too (UNI-2963). The identity is set only for this commit,
     so a node with no git identity configured still ships. A failed status or stage
     is an error, never "nothing to commit": either one left work behind that the
     worktree removal would then destroy."""
@@ -64,7 +65,7 @@ def _commit_leftovers(worktree: Path, linear_id: str, host: str) -> str | None:
         return f"stage failed: {staged.stderr.strip()[:200]}"
     done = _git(worktree, "-c", f"user.name=Nexus Mesh ({host})",
                 "-c", "user.email=mesh@unite-group.invalid",
-                "commit", "-q", "-m", f"{linear_id}: mesh run output from {host}")
+                "commit", "-q", "-m", f"{linear_id}: {subject} from {host}")
     return None if done.returncode == 0 else f"commit failed: {done.stderr.strip()[:200]}"
 
 
@@ -88,7 +89,7 @@ def ship(start: Start, worktree: Path, branch: str, linear_id: str,
     """Put this run's branch on the remote. None on success, else why not."""
     if not branch.startswith("mesh/"):
         return f"refusing to push non-mesh branch {branch}"
-    error = _commit_leftovers(Path(worktree), linear_id, host)
+    error = commit_leftovers(Path(worktree), linear_id, host)
     if error:
         return error
     ahead = _git(Path(worktree), "rev-list", "--count", f"{start.sha}..HEAD").stdout.strip()

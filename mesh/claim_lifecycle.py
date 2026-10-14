@@ -151,11 +151,13 @@ def sigint_held(caught: list):
 
 def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], None],
         *, agent_alive: bool, pause: float, then: Callable[[], None] = lambda: None,
-        first: Callable[[], None] = lambda: None) -> None:
-    """End a claim: report it, remove its worktree, mark the runner idle, then run `then`
-    (which re-raises an interrupt held while the claim was ending).
+        first: Callable[[], None] = lambda: None, preserve: Callable[[], Any] = lambda: None,
+        forget: Callable[[], None] = lambda: None) -> None:
+    """End a claim: keep its uncommitted work (`preserve`), report it, remove its worktree,
+    `forget` its run journal once the report was accepted, mark the runner idle, then run
+    `then` (which re-raises an interrupt held while the claim was ending).
 
-    An agent that could not be stopped keeps its claim, its worktree and the
+    An agent that could not be stopped keeps its claim, its worktree, its journal and the
     runner's `working` breadcrumb: reporting the claim terminal would free the
     ticket for another node while this agent still writes to that worktree.
     """
@@ -165,4 +167,6 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
             print("mesh: the agent could not be stopped; its claim and worktree are left in place",
                   file=sys.stderr)
             return then()
-        finish(lambda: report(send, pause), remove, idle, then)
+        sent: list = []  # UNI-2963: an unaccepted report keeps the journal for the next start
+        finish(preserve, lambda: sent.append(report(send, pause)), remove,
+               lambda: forget() if sent == [True] else None, idle, then)
