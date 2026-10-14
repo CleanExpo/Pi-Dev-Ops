@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 REPORT_ATTEMPTS = 3
+GIT_TIMEOUT = 120  # seconds; the same bound ship_run puts on every git call
 
 
 def temp_root() -> Path:
@@ -77,12 +78,14 @@ def remove_worktree(repo_dir: Path, worktree: Path) -> bool:
     """`git worktree remove --force`, never raising: cleanup failing must not strand the claim.
 
     Any exception, not only OSError: a claim id with a NUL byte makes subprocess
-    raise ValueError before git ever starts.
+    raise ValueError before git ever starts. Bounded by GIT_TIMEOUT (UNI-2963 r3): the poll
+    loop's reconcile calls this, and a hung git must not stall the runner; a timed-out remove
+    leaves the path, so it reads as not removed.
     """
     try:
         subprocess.run(
             ["git", "-C", str(repo_dir), "worktree", "remove", "--force", str(worktree)],
-            capture_output=True, check=False,
+            capture_output=True, check=False, timeout=GIT_TIMEOUT,
         )
     except Exception:  # noqa: BLE001 — cleanup is best-effort; the terminal update is not
         pass
@@ -154,9 +157,11 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
         *, agent_alive: bool, pause: float, then: Callable[[], None] = lambda: None,
         first: Callable[[], None] = lambda: None, preserve: Callable[[], Any] = lambda: None,
         forget: Callable[[], None] = lambda: None) -> None:
-    """End a claim: keep its uncommitted work (`preserve`), report it, remove its worktree,
-    `forget` its run journal once the report was accepted, mark the runner idle, then run
-    `then` (which re-raises an interrupt held while the claim was ending).
+    """End a claim: keep its uncommitted work (`preserve`), remove its worktree, report it
+    terminal only once `remove` returned True (UNI-2963 review r3: never a finished claim
+    over a worktree still on disk), `forget` its run journal once the report was accepted,
+    mark the runner idle, then run `then` (which re-raises an interrupt held while the
+    claim was ending). A step that did not succeed holds everything after it except idle.
 
     An agent that could not be stopped keeps its claim, its worktree, its journal and the
     runner's `working` breadcrumb: reporting the claim terminal would free the
@@ -168,16 +173,22 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
             print("mesh: the agent could not be stopped; its claim and worktree are left in place",
                   file=sys.stderr)
             return then()
-        # UNI-2963: `preserve` returns None once the work is kept. Anything else (an error, or
-        # an interrupt) holds the claim, worktree and journal (review r1); an unaccepted report
-        # keeps the journal for the next start.
+        # UNI-2963: `preserve` returns None once the work is kept, `remove` True once the
+        # worktree is gone. Anything else (an error, or an interrupt) sends nothing and keeps
+        # the journal for the poll loop's retry (reviews r1-r3).
         kept: list = []
+        gone: list = []
         sent: list = []
-        gone: list = []  # r2: a worktree that would not go stays journaled for the loop's retry
         finish(lambda: kept.append(preserve()),
-               lambda: sent.append(report(send, pause)) if kept == [None] else _hold(kept),
-               lambda: gone.append(remove()) if kept == [None] else None,
-               lambda: forget() if sent == [True] and gone != [False] else None, idle, then)
+               lambda: gone.append(remove()) if kept == [None] else _hold(kept),
+               lambda: sent.append(report(send, pause)) if gone == [True] else _held_by(gone),
+               lambda: forget() if sent == [True] else None, idle, then)
+
+
+def _held_by(gone: list) -> None:
+    if gone:  # an empty list means the work was not kept, already reported by _hold
+        print("mesh: the worktree would not go; its claim stays working and its journal is kept",
+              file=sys.stderr)
 
 
 def _hold(kept: list) -> None:
