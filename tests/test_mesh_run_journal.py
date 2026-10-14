@@ -275,7 +275,7 @@ def test_reconcile_keeps_the_journal_when_the_server_rejects_the_release(runner,
 def test_reconcile_runs_at_startup_before_any_claim(runner, monkeypatch):
     order: list = []
 
-    class Stop(Exception):
+    class Stop(BaseException):  # on_start absorbs an Exception (review r1 P2); this must escape
         pass
 
     def fake_reconcile(base_dir, host, api):

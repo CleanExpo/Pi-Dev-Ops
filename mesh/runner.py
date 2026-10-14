@@ -207,7 +207,8 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         return _fail_claim(plan, linear_id, branch, f"repo missing: {repo_dir}")
 
     worktree = claim_lifecycle.worktree_path(linear_id, run_id)
-    beat = run_journal.start(STATE_FILE.parent, run_id, plan, HOST, worktree)  # UNI-2963: journal before act
+    if not (beat := run_journal.start(STATE_FILE.parent, run_id, plan, HOST, worktree)).ok:  # UNI-2963: journal before act
+        return _fail_claim(plan, linear_id, branch, "run journal unwritable")  # never `working` unjournaled
     try:  # from `working` on, every way out — even an interrupt — ends the claim in the finally
         write_state(linear_id, "working", session_id=run_id)
         _api("POST", "/api/mesh/claim/update", {

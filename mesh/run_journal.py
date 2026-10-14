@@ -7,24 +7,29 @@ the server reaper skips any machine whose heartbeat daemon is fresh, and
 work sat in a temp worktree nobody would look at again.
 
 So each run writes `<state dir>/mesh-runs/<run_id>.json` (beside its log, 0600)
-BEFORE it reports `working`: claim id, ticket, branch, worktree, repo, host and the
-runner's pid. A heartbeat thread refreshes `ts` while the run lasts and records the
-agent's pid and process group the moment it has one. The journal is deleted only
-once the server has accepted the claim's terminal update. No schema change: the
-heartbeat lives on this machine, which is the only place a run can be resumed from.
+BEFORE it reports `working`, and a run whose journal cannot be written never reports
+`working` at all. The journal holds claim id, ticket, branch, worktree, repo, host and
+the runner's pid. A heartbeat thread refreshes `ts` and records the agent's pid and
+process group the moment it has one; a failed heartbeat write is reported on stderr.
+The journal is deleted only once the server has accepted the claim's terminal update,
+and never brought back by a late heartbeat. No schema change.
 
-`reconcile` runs when a runner starts. A journal whose runner is gone (pid proven
-dead, or a heartbeat older than STALE_SECONDS, which also covers a pid reused after a
-reboot) AND whose agent is proven gone is an orphan: its work is committed on the
-run's own branch, the worktree removed, and the claim reported `released` with its
-claim id and host, which returns the ticket to the pool. Anything unknown counts as
-alive, as in left_running.py: an agent that may still be writing keeps its claim.
+`reconcile` runs when a runner starts. A journal is an orphan only when its runner pid
+is PROVEN dead and its agent's process group is PROVEN empty. `ts` is never evidence of
+death (review r1: a live runner whose writes failed was released), and a run with no
+recorded process group is held, because a dead direct pid says nothing about what it
+started. Anything unknown counts as alive, as in left_running.py. An orphan's work is
+first kept on a ref named after the run's own branch (ship_run.keep); only once that is
+verified is the worktree removed and the claim reported `released` with its claim id
+and host. Work that could not be kept keeps its claim, worktree and journal.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
+import sys
 import threading
 import time
 from pathlib import Path
@@ -34,7 +39,6 @@ import claim_lifecycle
 import left_running
 import ship_run
 
-STALE_SECONDS = float(os.environ.get("MESH_RUN_STALE_S", "1800"))  # beyond any ship/report window
 BEAT_SECONDS = float(os.environ.get("MESH_RUN_BEAT_S", "5"))
 _FIRST_BEAT = 0.05  # until the agent's pid is recorded: keeps the unrecorded window tiny
 _RUN_ID = re.compile(r"[0-9a-f]{8}")
@@ -47,8 +51,7 @@ def path(base_dir: Path, run_id: str) -> Path:
 
 
 def write(base_dir: Path, run_id: str, entry: dict) -> bool:
-    """Replace the journal atomically, owner-only. Never raises: a journal that cannot be
-    written costs the run its recovery, never the run itself."""
+    """Replace the journal atomically, owner-only. Never raises; False means not written."""
     target = path(base_dir, run_id)
     tmp = target.with_name(f".{run_id}.json.tmp")
     try:
@@ -75,6 +78,7 @@ class Beat:
     def __init__(self, base_dir: Path, run_id: str, entry: dict):
         self.base_dir, self.run_id, self.entry = base_dir, run_id, entry
         self.held: list = []  # run_agent's RunRecord, kept even when an interrupt escapes run_agent
+        self.ok, self.cleared, self.write_failures = True, False, 0
         self._halt, self._lock = threading.Event(), threading.Lock()
         self._thread = threading.Thread(target=self._loop, name=f"mesh-beat-{run_id}", daemon=True)
 
@@ -85,14 +89,20 @@ class Beat:
         self.beat()
 
     def beat(self) -> None:
-        """One heartbeat. Locked: the thread and `mark` share the entry and the temp file."""
+        """One heartbeat. Locked: the thread, `mark` and `clear` share the entry and the file."""
         with self._lock:
+            if self.cleared:
+                return  # review r1: a late write must never bring a cleared journal back
             rec = self.held[0] if self.held else None
             pid = getattr(getattr(rec, "proc", None), "pid", None)
             if isinstance(pid, int):
                 self.entry.update(agent_pid=pid, agent_pgid=getattr(rec, "pgid", None), phase="agent")
             self.entry["ts"] = time.time()
-            write(self.base_dir, self.run_id, dict(self.entry))
+            if not write(self.base_dir, self.run_id, dict(self.entry)):
+                self.write_failures += 1
+                if self.write_failures % 60 == 1:
+                    print(f"mesh: run {self.run_id} heartbeat could not write its journal "
+                          f"({self.write_failures} failures)", file=sys.stderr)
 
     def _loop(self) -> None:
         while not self._halt.wait(BEAT_SECONDS if "agent_pid" in self.entry else _FIRST_BEAT):
@@ -107,38 +117,52 @@ class Beat:
             self._thread.join(timeout=BEAT_SECONDS + 1)
 
     def clear(self) -> None:
+        """Stop beating and delete the journal. Under the write lock, so no write in flight can
+        land after the unlink; a lock that cannot be had keeps the journal (fail toward retry)."""
         self.stop()
-        clear(self.base_dir, self.run_id)
+        if not self._lock.acquire(timeout=BEAT_SECONDS + 5):
+            print(f"mesh: run {self.run_id} journal kept: its heartbeat is stuck in a write", file=sys.stderr)
+            return
+        try:
+            self.cleared = True
+            clear(self.base_dir, self.run_id)
+        finally:
+            self._lock.release()
 
 
 def start(base_dir: Path, run_id: str, plan: dict, host: str, worktree: Path) -> Beat:
-    """Write the journal (journal before act), then start its heartbeat. Never raises an Exception."""
+    """Write the journal (journal before act), then start its heartbeat. `ok` is False when the
+    first write failed: the caller must not report `working` then. Never raises an Exception."""
     entry = {**{k: plan.get(k) for k in _FIELDS}, "host": host, "worktree": str(worktree),
              "run_id": run_id, "owner_pid": os.getpid(), "phase": "preparing", "ts": time.time()}
     beat = Beat(base_dir, run_id, entry)
-    write(base_dir, run_id, entry)
-    try:
-        beat._thread.start()
-    except RuntimeError:  # no thread to spare: the journal still exists, it just stops ageing
-        pass
+    beat.ok = write(base_dir, run_id, entry)
+    if beat.ok:
+        try:
+            beat._thread.start()
+        except RuntimeError:  # no thread to spare: the journal still exists, it just stops ageing
+            pass
     return beat
 
 
 def keep_wip(plan: dict, worktree: Path, host: str) -> Optional[str]:
-    """Commit what a run that did not end `done` left uncommitted, on its own branch, before
-    the worktree is force-removed. `done` already committed in ship_run.settle. Never raises
-    an Exception: the claim must still end. Returns why nothing was kept, or None."""
-    state = plan.get("state")
-    if state == "done" or not Path(worktree).is_dir():
+    """Keep what a run that did not end `done` left, on a ref named after its own branch,
+    before the worktree goes (ship_run.keep). `done` already shipped. None means kept or
+    nothing to keep; anything else means hold the claim. Never raises an Exception."""
+    if plan.get("state") == "done":
         return None
     try:
-        return ship_run.commit_leftovers(Path(worktree), plan.get("linear_id") or "?", host,
-                                         f"WIP, mesh run ended {state or 'unknown'}")
+        return ship_run.keep(Path(worktree), plan.get("branch") or "", plan.get("linear_id") or "?",
+                             host, f"WIP, mesh run ended {plan.get('state') or 'unknown'}")
     except Exception as exc:  # noqa: BLE001 — git missing, timed out, or a faked subprocess
         return f"wip commit raised {type(exc).__name__}"
 
 
-def blocker(entry: dict, host: str, now: float) -> str:
+def _pid(value: Any) -> Optional[int]:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def blocker(entry: dict, host: str) -> str:
     """Why this journal must be left alone, or "" when its run is provably dead."""
     if entry.get("host") != host:
         return "another host"
@@ -146,70 +170,96 @@ def blocker(entry: dict, host: str, now: float) -> str:
         return "incomplete journal"
     if not entry["branch"].startswith("mesh/"):
         return "not a mesh branch"
-    owner = entry.get("owner_pid")
+    owner = _pid(entry.get("owner_pid"))
     if owner == os.getpid():
         return "this runner's own run"
-    fresh = now - float(entry.get("ts") or 0) <= STALE_SECONDS
-    if fresh and (not isinstance(owner, int) or left_running._alive(owner)):
+    if owner is None or left_running._alive(owner):  # a live pid always wins, whatever `ts` says
         return "runner alive"
-    return _agent_blocker(entry)
-
-
-def _agent_blocker(entry: dict) -> str:
     pid, pgid = entry.get("agent_pid"), entry.get("agent_pgid")
     if pid is None and pgid is None:
         return "" if entry.get("phase") == "preparing" else "agent may be running unrecorded"
-    if isinstance(pgid, int) and left_running._group_alive(pgid):
+    if _pid(pgid) is None:  # review r1: a dead pid says nothing about what it started
+        return "no process group to prove the agent's descendants gone"
+    if left_running._group_alive(pgid):
         return "agent group alive"
-    if not isinstance(pid, int) or left_running._alive(pid):
+    if _pid(pid) is None or left_running._alive(pid):
         return "agent alive"
     return ""
 
 
 def settle_orphan(base_dir: Path, entry: dict, api: Callable[..., Any], pause: float) -> dict:
-    """Keep a dead run's work, then release its claim. The journal goes only once the
-    server accepted the release; until then the next start retries it."""
+    """Keep a dead run's work, and only then remove its worktree and release its claim. The
+    journal goes once the server accepted the release; until then the next start retries."""
     worktree = Path(entry["worktree"])
-    error = keep_wip({"state": "orphaned", "linear_id": entry["linear_id"]}, worktree, entry["host"])
-    accepted = claim_lifecycle.report(lambda: api("POST", _UPDATE, {
+    result = {"linear_id": entry["linear_id"], "claim_id": entry["claim_id"],
+              "branch": entry["branch"], "released": False, "wip_error": None}
+    result["wip_error"] = keep_wip({"state": "orphaned", "linear_id": entry["linear_id"],
+                                    "branch": entry["branch"]}, worktree, entry["host"])
+    if result["wip_error"] is not None:
+        return result  # review r1: never release a claim whose work was not kept
+    claim_lifecycle.remove_worktree(Path(entry["repo_dir"]), worktree)
+    result["released"] = claim_lifecycle.report(lambda: api("POST", _UPDATE, {
         "linear_id": entry["linear_id"], "state": "released", "branch": entry["branch"],
         "host": entry["host"], "claim_id": entry["claim_id"], "run_id": entry["run_id"]}), pause)
-    if error is None:
-        claim_lifecycle.remove_worktree(Path(entry["repo_dir"]), worktree)
-        if accepted:
-            clear(base_dir, entry["run_id"])
-    return {"linear_id": entry["linear_id"], "claim_id": entry["claim_id"],
-            "branch": entry["branch"], "released": accepted, "wip_error": error}
+    if result["released"]:
+        clear(base_dir, entry["run_id"])
+    return result
+
+
+@contextlib.contextmanager
+def _settling(journal: Path):
+    """Yield True while this process alone holds the journal's settlement lock, else False."""
+    try:
+        import fcntl
+    except ImportError:  # no flock (Windows): such journals hold anyway, having no process group
+        yield False
+        return
+    with open(journal.with_suffix(".lock"), "a+") as fh:
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            yield False
+            return
+        yield True
+
+
+def _one(base_dir: Path, p: Path, host: str, api: Callable[..., Any], pause: float) -> dict:
+    with _settling(p) as mine:
+        if not mine:
+            return {"journal": p.name, "held": "being settled elsewhere"}
+        try:  # read under the lock: another runner may have settled it meanwhile
+            entry = json.loads(p.read_text())
+        except (OSError, ValueError):
+            return {"journal": p.name, "held": "unreadable or already settled"}
+        if not isinstance(entry, dict) or entry.get("run_id") != p.stem:
+            return {"journal": p.name, "held": "malformed"}
+        why = blocker(entry, host)
+        return {"journal": p.name, "held": why} if why else settle_orphan(base_dir, entry, api, pause)
 
 
 def reconcile(base_dir: Path, host: str, api: Callable[..., Any], pause: float = 1.0) -> list[dict]:
     """Settle every orphaned run this machine journaled. Returns one line per journal acted on
-    or held, so the runner can log why a claim was left `working`."""
+    or held, so the runner can log why a claim was left `working`. One bad journal never
+    stops the others."""
     out: list[dict] = []
     for p in sorted((Path(base_dir) / "mesh-runs").glob("*.json")):
         if not _RUN_ID.fullmatch(p.stem):
             continue
         try:
-            entry = json.loads(p.read_text())
-        except (OSError, ValueError):
-            out.append({"journal": p.name, "held": "unreadable"})
-            continue
-        if not isinstance(entry, dict) or entry.get("run_id") != p.stem:
-            out.append({"journal": p.name, "held": "malformed"})
-            continue
-        why = blocker(entry, host, time.time())
-        if why:
-            out.append({"journal": p.name, "held": why})
-        else:
-            out.append(settle_orphan(base_dir, entry, api, pause))
+            out.append(_one(base_dir, p, host, api, pause))
+        except Exception as exc:  # noqa: BLE001 — held, and the next journal still runs
+            out.append({"journal": p.name, "held": f"reconcile raised {type(exc).__name__}"})
     return out
 
 
 def on_start(rt: Any, dry_run: bool) -> None:
     """The runner's startup reconcile, given its globals as `rt` (as runner_idle takes them).
-    Not under HARD_STOP, which means do nothing, nor on a dry run."""
+    Not under HARD_STOP, which means do nothing, nor on a dry run. Never stops the runner."""
     if dry_run or rt.killed():
         return
-    settled = reconcile(rt.STATE_FILE.parent, rt.HOST, rt._api)
+    try:
+        settled = reconcile(rt.STATE_FILE.parent, rt.HOST, rt._api)
+    except Exception as exc:  # noqa: BLE001 — a broken journal dir must not keep the node down
+        settled = [{"held": f"reconcile raised {type(exc).__name__}"}]
     if settled:
         print(rt.LOG.line(None, runner=rt.HOST, status="RECONCILED", runs=settled), flush=True)

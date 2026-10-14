@@ -167,6 +167,17 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
             print("mesh: the agent could not be stopped; its claim and worktree are left in place",
                   file=sys.stderr)
             return then()
-        sent: list = []  # UNI-2963: an unaccepted report keeps the journal for the next start
-        finish(preserve, lambda: sent.append(report(send, pause)), remove,
+        # UNI-2963: `preserve` returns None once the work is kept. Anything else (an error, or
+        # an interrupt) holds the claim, worktree and journal (review r1); an unaccepted report
+        # keeps the journal for the next start.
+        kept: list = []
+        sent: list = []
+        finish(lambda: kept.append(preserve()),
+               lambda: sent.append(report(send, pause)) if kept == [None] else _hold(kept),
+               lambda: remove() if kept == [None] else None,
                lambda: forget() if sent == [True] else None, idle, then)
+
+
+def _hold(kept: list) -> None:
+    print(f"mesh: the run's work could not be kept ({kept[0] if kept else 'interrupted'}); "
+          "its claim, worktree and journal are left in place", file=sys.stderr)

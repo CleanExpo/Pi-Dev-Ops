@@ -69,6 +69,33 @@ def commit_leftovers(worktree: Path, linear_id: str, host: str,
     return None if done.returncode == 0 else f"commit failed: {done.stderr.strip()[:200]}"
 
 
+def _holds(worktree: Path, ref: str, tip: str) -> bool:
+    return _git(worktree, "merge-base", "--is-ancestor", tip, ref).returncode == 0
+
+
+def keep(worktree: Path, branch: str, linear_id: str, host: str, subject: str) -> str | None:
+    """Keep a run's work where removing its worktree cannot lose it (UNI-2963): commit any
+    leftovers, then make sure a ref under `refs/heads/<branch>` holds the result. The agent
+    may have detached HEAD or switched branch (review r1), so a commit on HEAD alone can be
+    unreachable; such a tip gets its own `<branch>-wip-<sha>` ref. None once a ref is VERIFIED
+    to contain the tip, else why not. A path git never made a worktree of holds nothing."""
+    if not worktree.is_dir() or not (worktree / ".git").exists():
+        return None
+    if not branch.startswith("mesh/"):
+        return f"refusing to keep work on non-mesh branch {branch}"
+    error = commit_leftovers(worktree, linear_id, host, subject)
+    if error:
+        return error
+    tip = _git(worktree, "rev-parse", "--verify", "-q", "HEAD^{commit}").stdout.strip()
+    if not tip:
+        return "no commit to keep: HEAD unreadable"
+    ref = f"refs/heads/{branch}"
+    if not _holds(worktree, ref, tip):
+        ref = f"refs/heads/{branch}-wip-{tip[:12]}"
+        _git(worktree, "update-ref", ref, tip, "")  # "" = create only, never move an existing ref
+    return None if _holds(worktree, ref, tip) else f"WIP {tip[:12]} is on no ref"
+
+
 def start_point(repo_dir: Path) -> Start:
     """The checkout's HEAD, which `worktree add -b` branches the run from, and the
     URL `origin` pushes to. Call it BEFORE the agent launches and keep the value.
