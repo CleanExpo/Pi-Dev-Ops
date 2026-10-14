@@ -181,3 +181,27 @@ def test_a_sigkilled_runner_leaves_a_committed_wip_branch_and_a_released_claim(t
     assert git(repo, "branch", "--list", entry["branch"]), "the WIP branch must survive"
     assert not Path(entry["worktree"]).exists() and _journal(tmp_path) is None
     assert out[0]["released"] is True
+
+
+def test_a_terminal_report_the_server_rejected_keeps_the_journal(monkeypatch, tmp_path):
+    """The claim is still `working` on the server, so the next start must still find it."""
+    monkeypatch.delenv("MESH_REPO_DIR", raising=False)
+    runner = load_module("mesh_runner_rejected", "mesh/runner.py")
+    repo = make_repo(tmp_path)
+    (tmp_path / "wts").mkdir()
+    agent = tmp_path / "agent.sh"
+    agent.write_text("#!/bin/sh\necho kept > wip.txt\nexit 2\n")
+    agent.chmod(0o755)
+    for name, value in (("HOST", HOST), ("STATE_FILE", tmp_path / "home" / "state.json"),
+                        ("HARD_STOP", tmp_path / "HARD_STOP"), ("AGENT_CMD", str(agent)),
+                        ("MESH_KILL_POLL_SECONDS", 0.01)):
+        monkeypatch.setattr(runner, name, value)
+    monkeypatch.setattr(runner.claim_lifecycle, "temp_root", lambda: tmp_path / "wts")
+    monkeypatch.setattr(runner, "_api", lambda m, p, b=None: {"error": "HTTP 502"}
+                        if (b or {}).get("state") == "failed" else {})
+
+    plan = runner.run_claim({"linear_id": "UNI-RJ", "id": CLAIM_ID, "repo_dir": str(repo),
+                             "title": "t", "description": "d"}, dry_run=False)
+
+    assert plan["state"] == "failed" and show(repo, plan["branch"], "wip.txt") == "kept\n"
+    assert (_journal(tmp_path) or {}).get("claim_id") == CLAIM_ID
