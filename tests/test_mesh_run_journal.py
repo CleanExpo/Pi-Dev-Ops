@@ -278,7 +278,7 @@ def test_reconcile_runs_at_startup_before_any_claim(runner, monkeypatch):
     class Stop(BaseException):  # on_start absorbs an Exception (review r1 P2); this must escape
         pass
 
-    def fake_reconcile(base_dir, host, api):
+    def fake_reconcile(base_dir, host, api, **_kw):
         order.append(("reconcile", host))
         raise Stop
 

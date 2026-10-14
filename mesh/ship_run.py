@@ -29,6 +29,7 @@ reading as done.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import NamedTuple
@@ -78,9 +79,12 @@ def keep(worktree: Path, branch: str, linear_id: str, host: str, subject: str) -
     leftovers, then make sure a ref under `refs/heads/<branch>` holds the result. The agent
     may have detached HEAD or switched branch (review r1), so a commit on HEAD alone can be
     unreachable; such a tip gets its own `<branch>-wip-<sha>` ref. None once a ref is VERIFIED
-    to contain the tip, else why not. A path git never made a worktree of holds nothing."""
-    if not worktree.is_dir() or not (worktree / ".git").exists():
+    to contain the tip, else why not. No worktree at all holds nothing; one that exists without
+    its `.git` is damaged, not empty, and is held (review r2)."""
+    if not os.path.lexists(worktree):
         return None
+    if not (worktree / ".git").exists():
+        return "worktree metadata missing (.git gone); its files are left in place"
     if not branch.startswith("mesh/"):
         return f"refusing to keep work on non-mesh branch {branch}"
     error = commit_leftovers(worktree, linear_id, host, subject)

@@ -217,7 +217,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         start = ship_run.start_point(repo_dir)  # RA-7780: held where the agent cannot move it
         if claim_lifecycle.add_worktree(repo_dir, branch, worktree):
             run_record.run_agent(  # the journal says `launching` before the agent can exist
-                lambda: beat.mark("launching") or agent_sandbox.agent_argv(AGENT_CMD, build_prompt(claim, linear_id, branch)),
+                lambda: beat.launching() or agent_sandbox.agent_argv(AGENT_CMD, build_prompt(claim, linear_id, branch)),
                 str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent, beat.held)
             quota.release_if_quota(beat.held, plan, time.time())  # RA-7930: requeued, never a failure
             claim_lifecycle.deliver(  # RA-7780: `done` means pushed, checked before the worktree goes
@@ -231,7 +231,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
             **run_record.terminal(rec, plan)}),
             lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
             agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS, then=lambda: run_record.release_interrupt(rec),
-            preserve=lambda: run_journal.keep_wip(plan, worktree, HOST), forget=beat.clear,  # UNI-2963: WIP on every exit
+            preserve=lambda: run_journal.keep_wip(plan, worktree, HOST, ship_run), forget=beat.clear,  # UNI-2963: WIP on every exit
             first=lambda: (beat.stop(), left_running.track(rec)))  # RA-7798: never self-update away from an unstopped agent
     return plan
 
@@ -263,9 +263,8 @@ def main() -> int:
         print(LOG.line(None, runner=HOST, status="REFUSED", reason=problem))
         return 2
     check = (lambda: preflight.check(DEFAULT_REPO_DIR, AGENT_CMD)) if PREFLIGHT_ENABLED else (lambda: "")
-    health, processed = node_health.NodeHealth(check), 0
+    health, processed, tick = node_health.NodeHealth(check), 0, run_journal.Ticker()  # UNI-2963
     updater = self_update.Updater(CODE_DIR, AGENT_CMD) if SELF_UPDATE_ENABLED else None
-    run_journal.on_start(types.SimpleNamespace(**globals()), args.dry_run)  # UNI-2963: settle runs a kill left
     while True:
         stop = _stop_status(processed)
         if stop:
@@ -274,6 +273,7 @@ def main() -> int:
             # A clean exit keeps launchd from restarting the runner, right for HARD_STOP and
             # STUCK; at the claim cap the Mini just stopped for good (audit 30/09 #18).
             return 4 if stop["status"] == "MAX_CLAIMS" else 0
+        tick(types.SimpleNamespace(**globals()), args.dry_run)  # UNI-2963: settle dead runs, retry held ones
         if not args.dry_run and not health.may_claim():
             code = runner_idle.hold(types.SimpleNamespace(**globals()), health, args.once)
             if code is not None:

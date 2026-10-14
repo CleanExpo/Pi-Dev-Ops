@@ -40,6 +40,7 @@ import left_running
 import ship_run
 
 BEAT_SECONDS = float(os.environ.get("MESH_RUN_BEAT_S", "5"))
+RECONCILE_EVERY_S = float(os.environ.get("MESH_RECONCILE_EVERY_S", "300"))  # retry of held settlements
 _FIRST_BEAT = 0.05  # until the agent's pid is recorded: keeps the unrecorded window tiny
 _RUN_ID = re.compile(r"[0-9a-f]{8}")
 _FIELDS = ("linear_id", "claim_id", "branch", "repo_dir", "worktree", "host")
@@ -82,27 +83,36 @@ class Beat:
         self._halt, self._lock = threading.Event(), threading.Lock()
         self._thread = threading.Thread(target=self._loop, name=f"mesh-beat-{run_id}", daemon=True)
 
-    def mark(self, phase: str) -> None:
-        """Record the run's phase synchronously: `launching` is written before the agent starts."""
+    def mark(self, phase: str) -> bool:
+        """Record the run's phase synchronously; True only once it is on disk."""
         with self._lock:
             self.entry["phase"] = phase
-        self.beat()
+        return self.beat()
 
-    def beat(self) -> None:
+    def launching(self) -> None:
+        """The checked precondition of starting the agent (review r2 P0): the journal must say
+        `launching` on disk first, or a later reconcile could take a live agent for one that
+        never started. Raising here fails the run before Popen."""
+        if not self.mark("launching"):
+            raise RuntimeError("run journal unwritable at launch; the agent was not started")
+
+    def beat(self) -> bool:
         """One heartbeat. Locked: the thread, `mark` and `clear` share the entry and the file."""
         with self._lock:
             if self.cleared:
-                return  # review r1: a late write must never bring a cleared journal back
+                return False  # review r1: a late write must never bring a cleared journal back
             rec = self.held[0] if self.held else None
             pid = getattr(getattr(rec, "proc", None), "pid", None)
             if isinstance(pid, int):
                 self.entry.update(agent_pid=pid, agent_pgid=getattr(rec, "pgid", None), phase="agent")
             self.entry["ts"] = time.time()
-            if not write(self.base_dir, self.run_id, dict(self.entry)):
-                self.write_failures += 1
-                if self.write_failures % 60 == 1:
-                    print(f"mesh: run {self.run_id} heartbeat could not write its journal "
-                          f"({self.write_failures} failures)", file=sys.stderr)
+            if write(self.base_dir, self.run_id, dict(self.entry)):
+                return True
+            self.write_failures += 1
+            if self.write_failures % 60 == 1:
+                print(f"mesh: run {self.run_id} heartbeat could not write its journal "
+                      f"({self.write_failures} failures)", file=sys.stderr)
+            return False
 
     def _loop(self) -> None:
         while not self._halt.wait(BEAT_SECONDS if "agent_pid" in self.entry else _FIRST_BEAT):
@@ -145,14 +155,14 @@ def start(base_dir: Path, run_id: str, plan: dict, host: str, worktree: Path) ->
     return beat
 
 
-def keep_wip(plan: dict, worktree: Path, host: str) -> Optional[str]:
+def keep_wip(plan: dict, worktree: Path, host: str, shipper: Any = ship_run) -> Optional[str]:
     """Keep what a run that did not end `done` left, on a ref named after its own branch,
     before the worktree goes (ship_run.keep). `done` already shipped. None means kept or
     nothing to keep; anything else means hold the claim. Never raises an Exception."""
     if plan.get("state") == "done":
         return None
     try:
-        return ship_run.keep(Path(worktree), plan.get("branch") or "", plan.get("linear_id") or "?",
+        return shipper.keep(Path(worktree), plan.get("branch") or "", plan.get("linear_id") or "?",
                              host, f"WIP, mesh run ended {plan.get('state') or 'unknown'}")
     except Exception as exc:  # noqa: BLE001 — git missing, timed out, or a faked subprocess
         return f"wip commit raised {type(exc).__name__}"
@@ -162,8 +172,9 @@ def _pid(value: Any) -> Optional[int]:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
-def blocker(entry: dict, host: str) -> str:
-    """Why this journal must be left alone, or "" when its run is provably dead."""
+def blocker(entry: dict, host: str, own: bool = False) -> str:
+    """Why this journal must be left alone, or "" when its run is provably dead. `own` lets the
+    runner's loop settle its own earlier runs: between claims none of them is in flight."""
     if entry.get("host") != host:
         return "another host"
     if not all(isinstance(entry.get(k), str) and entry[k] for k in _FIELDS):
@@ -171,13 +182,13 @@ def blocker(entry: dict, host: str) -> str:
     if not entry["branch"].startswith("mesh/"):
         return "not a mesh branch"
     owner = _pid(entry.get("owner_pid"))
-    if owner == os.getpid():
+    if owner == os.getpid() and not own:
         return "this runner's own run"
-    if owner is None or left_running._alive(owner):  # a live pid always wins, whatever `ts` says
+    if owner is None or (owner != os.getpid() and left_running._alive(owner)):  # a live pid always wins, whatever `ts` says
         return "runner alive"
     pid, pgid = entry.get("agent_pid"), entry.get("agent_pgid")
-    if pid is None and pgid is None:
-        return "" if entry.get("phase") == "preparing" else "agent may be running unrecorded"
+    if pid is None and pgid is None:  # review r2 P0: `preparing` too; uncertain is not dead
+        return "agent may be running unrecorded"
     if _pid(pgid) is None:  # review r1: a dead pid says nothing about what it started
         return "no process group to prove the agent's descendants gone"
     if left_running._group_alive(pgid):
@@ -197,7 +208,9 @@ def settle_orphan(base_dir: Path, entry: dict, api: Callable[..., Any], pause: f
                                     "branch": entry["branch"]}, worktree, entry["host"])
     if result["wip_error"] is not None:
         return result  # review r1: never release a claim whose work was not kept
-    claim_lifecycle.remove_worktree(Path(entry["repo_dir"]), worktree)
+    if not claim_lifecycle.remove_worktree(Path(entry["repo_dir"]), worktree):
+        result["held"] = "worktree remove failed"  # review r2 P1: never release over a leftover
+        return result
     result["released"] = claim_lifecycle.report(lambda: api("POST", _UPDATE, {
         "linear_id": entry["linear_id"], "state": "released", "branch": entry["branch"],
         "host": entry["host"], "claim_id": entry["claim_id"], "run_id": entry["run_id"]}), pause)
@@ -223,7 +236,7 @@ def _settling(journal: Path):
         yield True
 
 
-def _one(base_dir: Path, p: Path, host: str, api: Callable[..., Any], pause: float) -> dict:
+def _one(base_dir: Path, p: Path, host: str, api: Callable[..., Any], pause: float, own: bool) -> dict:
     with _settling(p) as mine:
         if not mine:
             return {"journal": p.name, "held": "being settled elsewhere"}
@@ -233,11 +246,17 @@ def _one(base_dir: Path, p: Path, host: str, api: Callable[..., Any], pause: flo
             return {"journal": p.name, "held": "unreadable or already settled"}
         if not isinstance(entry, dict) or entry.get("run_id") != p.stem:
             return {"journal": p.name, "held": "malformed"}
-        why = blocker(entry, host)
-        return {"journal": p.name, "held": why} if why else settle_orphan(base_dir, entry, api, pause)
+        why = blocker(entry, host, own)
+        if why:
+            return {"journal": p.name, "held": why}
+        result = settle_orphan(base_dir, entry, api, pause)
+        if not p.exists():  # settled: drop the lock file too, while still holding it (r2 P2)
+            p.with_suffix(".lock").unlink(missing_ok=True)
+        return result
 
 
-def reconcile(base_dir: Path, host: str, api: Callable[..., Any], pause: float = 1.0) -> list[dict]:
+def reconcile(base_dir: Path, host: str, api: Callable[..., Any], pause: float = 1.0,
+              own: bool = False) -> list[dict]:
     """Settle every orphaned run this machine journaled. Returns one line per journal acted on
     or held, so the runner can log why a claim was left `working`. One bad journal never
     stops the others."""
@@ -246,20 +265,30 @@ def reconcile(base_dir: Path, host: str, api: Callable[..., Any], pause: float =
         if not _RUN_ID.fullmatch(p.stem):
             continue
         try:
-            out.append(_one(base_dir, p, host, api, pause))
+            out.append(_one(base_dir, p, host, api, pause, own))
         except Exception as exc:  # noqa: BLE001 — held, and the next journal still runs
             out.append({"journal": p.name, "held": f"reconcile raised {type(exc).__name__}"})
     return out
 
 
-def on_start(rt: Any, dry_run: bool) -> None:
-    """The runner's startup reconcile, given its globals as `rt` (as runner_idle takes them).
-    Not under HARD_STOP, which means do nothing, nor on a dry run. Never stops the runner."""
-    if dry_run or rt.killed():
-        return
-    try:
-        settled = reconcile(rt.STATE_FILE.parent, rt.HOST, rt._api)
-    except Exception as exc:  # noqa: BLE001 — a broken journal dir must not keep the node down
-        settled = [{"held": f"reconcile raised {type(exc).__name__}"}]
-    if settled:
-        print(rt.LOG.line(None, runner=rt.HOST, status="RECONCILED", runs=settled), flush=True)
+class Ticker:
+    """The runner's reconcile: at startup, then again at most every RECONCILE_EVERY_S from the
+    poll loop, so a settlement held by a transient failure is retried while the runner lives
+    (review r2 P1), not only at its next restart. Called with the runner's globals as `rt`
+    (as runner_idle takes them), between claims, so the runner's own journals count too. Not
+    under HARD_STOP, which means do nothing, nor on a dry run. Never stops the runner."""
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic):
+        self._clock, self._last = clock, None
+
+    def __call__(self, rt: Any, dry_run: bool) -> None:
+        now = self._clock()
+        if dry_run or rt.killed() or (self._last is not None and now - self._last < RECONCILE_EVERY_S):
+            return
+        first, self._last = self._last is None, now
+        try:
+            settled = reconcile(rt.STATE_FILE.parent, rt.HOST, rt._api, own=True)
+        except Exception as exc:  # noqa: BLE001 — a broken journal dir must not keep the node down
+            settled = [{"held": f"reconcile raised {type(exc).__name__}"}]
+        if settled and (first or any("released" in r for r in settled)):
+            print(rt.LOG.line(None, runner=rt.HOST, status="RECONCILED", runs=settled), flush=True)

@@ -176,7 +176,7 @@ def test_a_ship_that_raises_fails_the_run_and_ships_before_removal(monkeypatch, 
 
     real_remove = runner.claim_lifecycle.remove_worktree
     monkeypatch.setattr(runner, "ship_run", types.SimpleNamespace(
-        start_point=lambda *_a: "0" * 40, settle=settle))
+        start_point=lambda *_a: "0" * 40, settle=settle, keep=lambda *_a: None))  # UNI-2963 keep
     monkeypatch.setattr(runner.claim_lifecycle, "remove_worktree",
                         lambda *a: order.append("remove") or real_remove(*a))
     if isinstance(error, KeyboardInterrupt):

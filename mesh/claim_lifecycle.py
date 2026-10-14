@@ -73,7 +73,7 @@ def deliver(settle: Callable[[], None], plan: dict) -> None:
         raise
 
 
-def remove_worktree(repo_dir: Path, worktree: Path) -> None:
+def remove_worktree(repo_dir: Path, worktree: Path) -> bool:
     """`git worktree remove --force`, never raising: cleanup failing must not strand the claim.
 
     Any exception, not only OSError: a claim id with a NUL byte makes subprocess
@@ -86,6 +86,7 @@ def remove_worktree(repo_dir: Path, worktree: Path) -> None:
         )
     except Exception:  # noqa: BLE001 — cleanup is best-effort; the terminal update is not
         pass
+    return not os.path.lexists(worktree)  # UNI-2963 r2: True only once nothing is left there
 
 
 def finish(*steps: Callable[[], Any]) -> None:
@@ -172,10 +173,11 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
         # keeps the journal for the next start.
         kept: list = []
         sent: list = []
+        gone: list = []  # r2: a worktree that would not go stays journaled for the loop's retry
         finish(lambda: kept.append(preserve()),
                lambda: sent.append(report(send, pause)) if kept == [None] else _hold(kept),
-               lambda: remove() if kept == [None] else None,
-               lambda: forget() if sent == [True] else None, idle, then)
+               lambda: gone.append(remove()) if kept == [None] else None,
+               lambda: forget() if sent == [True] and gone != [False] else None, idle, then)
 
 
 def _hold(kept: list) -> None:

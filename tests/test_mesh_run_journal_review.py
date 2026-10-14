@@ -214,10 +214,10 @@ def test_review_a_journal_that_raises_is_held_and_the_rest_still_settle(runner, 
     bad.write_text(json.dumps({**json.loads(path.read_text()), "run_id": "00000000"}))
     real = runner.run_journal.blocker
 
-    def blocker(entry, host):
+    def blocker(entry, host, own=False):
         if entry["run_id"] == "00000000":
             raise RuntimeError("boom")
-        return real(entry, host)
+        return real(entry, host, own)
 
     monkeypatch.setattr(runner.run_journal, "blocker", blocker)
     out, calls = reconcile(runner)

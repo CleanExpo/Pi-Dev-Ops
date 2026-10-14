@@ -117,7 +117,8 @@ class InterruptOnce:
 # and a run must ship before it lands `done`. The module's own behaviour is proven
 # against real git in tests/test_mesh_runner_ships_own_work.py.
 SHIPPED = types.SimpleNamespace(start_point=lambda *a, **k: "0" * 40,
-                                settle=lambda *a, **k: None)
+                                settle=lambda *a, **k: None,
+                                keep=lambda *a, **k: None)  # UNI-2963: WIP keep, faked with the ship
 
 
 def short_temp_alias(tmp_path: Path) -> tuple[Path, Path]:
