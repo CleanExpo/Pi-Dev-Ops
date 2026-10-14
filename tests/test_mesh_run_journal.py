@@ -251,17 +251,17 @@ def test_reconcile_releases_a_run_killed_before_its_agent_started(runner, tmp_pa
     assert [c["state"] for c in calls] == ["released"] and not path.exists()
 
 
-def test_reconcile_treats_a_stale_heartbeat_as_dead_even_if_the_pid_was_reused(runner, tmp_path):
-    """After a reboot the old runner's pid can belong to anything; the heartbeat cannot lie."""
+def test_reconcile_a_stale_heartbeat_never_outvotes_a_live_runner_pid(runner, tmp_path):
+    """Review r1 P0: a live owner whose heartbeat writes failed was released. A pid reused
+    after a reboot now holds the claim instead, which fails safe."""
     live = sleeper()
     try:
-        stale = time.time() - runner.run_journal.STALE_SECONDS - 60
-        _entry, _wt, path = orphan(runner, tmp_path, owner_pid=live.pid, ts=stale)
+        _entry, wt, path = orphan(runner, tmp_path, owner_pid=live.pid, ts=time.time() - 10 * 24 * 3600)
         _out, calls = reconcile(runner)
     finally:
         live.kill()
         live.wait()
-    assert [c["state"] for c in calls] == ["released"] and not path.exists()
+    assert calls == [] and wt.exists() and path.exists()
 
 
 def test_reconcile_keeps_the_journal_when_the_server_rejects_the_release(runner, tmp_path):
