@@ -12,12 +12,61 @@ before its ending began.
 from __future__ import annotations
 
 import contextlib
+import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 _TERMINAL = ("done", "failed", "released")
-_IDENTITY = ("linear_id", "claim_id", "host", "branch")
+_IDENTITY = ("linear_id", "claim_id", "host", "branch", "run_id")
+_KEYS = _IDENTITY + ("state", "duration_s", "exit_code", "error_code")  # r5: nothing else is replayed
+# r5: outcomes this process knows but could not journal, by run id. Settlement in the same
+# runner (the Ticker) sends them; a runner that died with one pending leaves `ending` in its
+# journal, and that journal is held, never released bare.
+PENDING: dict = {}
+
+
+# Journal file I/O, moved here from run_journal.py (which re-exports it) at the 300-line limit.
+def path(base_dir: Path, run_id: str) -> Path:
+    return Path(base_dir) / "mesh-runs" / f"{run_id}.json"
+
+
+def write(base_dir: Path, run_id: str, entry: dict) -> bool:
+    """Replace the journal atomically, owner-only. Never raises; False means not written."""
+    target = path(base_dir, run_id)
+    tmp = target.with_name(f".{run_id}.json.tmp")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "w") as fh:
+            fh.write(json.dumps(entry))
+            fh.flush()
+            os.fsync(fh.fileno())  # r4: the bytes, then the rename, must survive a power cut
+        os.replace(tmp, target)
+        _fsync_dir(target.parent)
+        return True
+    except Exception:  # noqa: BLE001 — any failure, including a planted link at tmp
+        return False
+
+
+def _fsync_dir(directory: Path) -> None:
+    """Make the rename durable; raising when it cannot (r5: unsynced is not written). Windows
+    cannot open a directory at all, so there the replace stands alone."""
+    if os.name == "nt":
+        return
+    fd = os.open(directory, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def clear(base_dir: Path, run_id: str) -> None:
+    try:
+        path(base_dir, run_id).unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 class Outcome:
@@ -31,12 +80,17 @@ class Outcome:
             self._payload = self._build()
         return self._payload
 
-    def record(self) -> None:
-        """Journal the payload before cleanup. A failed write is reported, never raised: the
-        ending then still sends the update itself if its worktree goes."""
-        if not self._beat.note(outcome=self()):
-            print(f"mesh: run {self._beat.run_id} could not journal its terminal update; "
-                  "a held ending would settle as a plain release", file=sys.stderr)
+    def record(self) -> Optional[str]:
+        """Journal that the ending began, then its payload, before any cleanup. None once both
+        are on disk; otherwise why not, which holds the whole ending (review r5): no removal,
+        no report. The payload stays in PENDING so this runner's Ticker can still send it."""
+        payload = self()
+        PENDING[self._beat.run_id] = payload
+        if self._beat.note(ending=True) and self._beat.note(outcome=payload):
+            return None
+        print(f"mesh: run {self._beat.run_id} could not journal its terminal update; "
+              "its ending is held", file=sys.stderr)
+        return "terminal update not journaled"
 
 
 def replay(entry: dict) -> Optional[dict]:
@@ -44,7 +98,9 @@ def replay(entry: dict) -> Optional[dict]:
     sent = entry.get("outcome")
     if not isinstance(sent, dict) or sent.get("state") not in _TERMINAL:
         return None
-    return sent if all(sent.get(k) == entry.get(k) for k in _IDENTITY) else None
+    if not all(sent.get(k) == entry.get(k) for k in _IDENTITY):
+        return None
+    return {k: sent[k] for k in _KEYS if k in sent}
 
 
 @contextlib.contextmanager

@@ -37,7 +37,7 @@ from typing import Any, Callable, Optional
 import claim_lifecycle
 import left_running
 import ship_run
-from run_settle import Outcome, replay, settling  # noqa: F401 — Outcome for runner.py
+from run_settle import PENDING, Outcome, clear, path, replay, settling, write  # noqa: F401 — re-exported
 
 BEAT_SECONDS = float(os.environ.get("MESH_RUN_BEAT_S", "5"))
 RECONCILE_EVERY_S = float(os.environ.get("MESH_RECONCILE_EVERY_S", "300"))  # retry of held settlements
@@ -45,47 +45,6 @@ _FIRST_BEAT = 0.05  # until the agent's pid is recorded: keeps the unrecorded wi
 _RUN_ID = re.compile(r"[0-9a-f]{8}")
 _FIELDS = ("linear_id", "claim_id", "branch", "repo_dir", "worktree", "host")
 _UPDATE = "/api/mesh/claim/update"
-
-
-def path(base_dir: Path, run_id: str) -> Path:
-    return Path(base_dir) / "mesh-runs" / f"{run_id}.json"
-
-
-def write(base_dir: Path, run_id: str, entry: dict) -> bool:
-    """Replace the journal atomically, owner-only. Never raises; False means not written."""
-    target = path(base_dir, run_id)
-    tmp = target.with_name(f".{run_id}.json.tmp")
-    try:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
-        with os.fdopen(fd, "w") as fh:
-            fh.write(json.dumps(entry))
-            fh.flush()
-            os.fsync(fh.fileno())  # r4: the bytes, then the rename, must survive a power cut
-        os.replace(tmp, target)
-        _fsync_dir(target.parent)
-        return True
-    except Exception:  # noqa: BLE001 — any failure, including a planted link at tmp
-        return False
-
-
-def _fsync_dir(directory: Path) -> None:
-    """Make the rename durable. Windows cannot open a directory; there the replace stands alone."""
-    try:
-        fd = os.open(directory, os.O_RDONLY)
-    except OSError:
-        return
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
-
-
-def clear(base_dir: Path, run_id: str) -> None:
-    try:
-        path(base_dir, run_id).unlink(missing_ok=True)
-    except OSError:
-        pass
 
 
 class Beat:
@@ -225,6 +184,10 @@ def settle_orphan(base_dir: Path, entry: dict, api: Callable[..., Any], pause: f
     worktree = Path(entry["worktree"])
     result = {"linear_id": entry["linear_id"], "claim_id": entry["claim_id"],
               "branch": entry["branch"], "released": False, "wip_error": None}
+    known = replay(entry) or replay({**entry, "outcome": PENDING.get(entry["run_id"])})
+    if known is None and entry.get("ending"):  # r5: an ending began; never guess its outcome
+        result["held"] = "ending began but its outcome was never journaled"
+        return result
     result["wip_error"] = keep_wip({"state": "orphaned", "linear_id": entry["linear_id"],
                                     "branch": entry["branch"]}, worktree, entry["host"])
     if result["wip_error"] is not None:
@@ -232,12 +195,13 @@ def settle_orphan(base_dir: Path, entry: dict, api: Callable[..., Any], pause: f
     if not claim_lifecycle.remove_worktree(Path(entry["repo_dir"]), worktree):
         result["held"] = "worktree remove failed"  # review r2 P1: never release over a leftover
         return result
-    payload = replay(entry) or {  # r4: the ending's own update; a bare release only if none
+    payload = known or {  # r4: the ending's own update; a bare release only if none began
         "linear_id": entry["linear_id"], "state": "released", "branch": entry["branch"],
         "host": entry["host"], "claim_id": entry["claim_id"], "run_id": entry["run_id"]}
     result["released"] = claim_lifecycle.report(lambda: api("POST", _UPDATE, payload), pause)
     if result["released"]:
         clear(base_dir, entry["run_id"])
+        PENDING.pop(entry["run_id"], None)
     return result
 
 

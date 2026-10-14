@@ -125,8 +125,36 @@ def report(send: Callable[[], Any], pause: float) -> bool:
     return False
 
 
+class SigintHold:
+    """Hold Ctrl-C (SIGINT) from construction until `restore` (UNI-2963 review r5). run_claim
+    starts one as the first thing in its finally, so an interrupt landing before end() begins
+    is held too instead of skipping the ending. Off the main thread nothing can be installed."""
+
+    def __init__(self):
+        self.caught: list = []
+        try:
+            self._previous, self.active = signal.signal(signal.SIGINT, lambda *_: self.caught.append(True)), True
+        except ValueError:
+            self.active = False
+
+    def restore(self) -> None:
+        if self.active:
+            signal.signal(signal.SIGINT, self._previous)
+            self.active = False
+
+    def __enter__(self) -> "SigintHold":
+        return self
+
+    def __exit__(self, exc_type, *_exc) -> None:
+        """Always restore, even when end() never ran; raise a held Ctrl-C nobody raised yet."""
+        self.restore()
+        if self.caught and exc_type is None:
+            self.caught.clear()
+            raise KeyboardInterrupt
+
+
 @contextlib.contextmanager
-def _sigint_deferred():
+def _sigint_deferred(hold: "SigintHold | None" = None):
     """Hold a Ctrl-C (SIGINT) that arrives while a claim is ending, then raise it.
 
     Review rounds 12-20 each found one more point where a KeyboardInterrupt cut
@@ -135,10 +163,13 @@ def _sigint_deferred():
     report, the removal and the idle state all run, then the interrupt is raised.
     Off the main thread a handler cannot be installed, and the ending runs as before.
     """
-    caught: list = []
-    with sigint_held(caught):
+    hold = hold if hold is not None else SigintHold()
+    try:
         yield
-    if caught:
+    finally:
+        hold.restore()
+    if hold.caught:
+        hold.caught.clear()  # raised once, here; the runner's `with` must not raise it again
         raise KeyboardInterrupt
 
 
@@ -161,7 +192,7 @@ def sigint_held(caught: list):
 def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], None],
         *, agent_alive: bool, pause: float, then: Callable[[], None] = lambda: None,
         first: Callable[[], None] = lambda: None, preserve: Callable[[], Any] = lambda: None,
-        forget: Callable[[], None] = lambda: None) -> None:
+        forget: Callable[[], None] = lambda: None, held: "SigintHold | None" = None) -> None:
     """End a claim: keep its uncommitted work (`preserve`), remove its worktree, report it
     terminal only once `remove` returned True (UNI-2963 review r3: never a finished claim
     over a worktree still on disk), `forget` its run journal once the report was accepted,
@@ -172,7 +203,7 @@ def end(send: Callable[[], Any], remove: Callable[[], None], idle: Callable[[], 
     runner's `working` breadcrumb: reporting the claim terminal would free the
     ticket for another node while this agent still writes to that worktree.
     """
-    with _sigint_deferred():
+    with _sigint_deferred(held):
         first()  # RA-7798: recording an unstopped agent is part of the ending, never before it
         if agent_alive:
             print("mesh: the agent could not be stopped; its claim and worktree are left in place",

@@ -51,7 +51,9 @@ def test_r2_a_failed_launching_write_never_starts_the_agent(runner, monkeypatch,
 
     assert writes[:2] == ["preparing", "launching"]
     assert not marker.exists(), "the agent started although its journal never said `launching`"
-    assert plan["state"] == "failed" and states(runner) == ["working", "failed"]
+    # r5: with the journal unwritable the ending is held too; the outcome waits in PENDING
+    assert plan["state"] == "failed" and states(runner) == ["working"]
+    assert [o["state"] for o in runner.run_journal.PENDING.values()][-1:] == ["failed"]
 
 
 def test_r2_a_preparing_journal_without_a_pid_is_held(runner, tmp_path):
