@@ -245,10 +245,10 @@ def test_reconcile_holds_an_agent_that_may_have_started_unrecorded(runner, tmp_p
     assert calls == [] and wt.exists() and path.exists()
 
 
-def test_reconcile_releases_a_run_killed_before_its_agent_started(runner, tmp_path):
+def test_reconcile_holds_a_run_killed_before_its_agent_was_recorded(runner, tmp_path):  # review r2 P0
     _entry, wt, path = orphan(runner, tmp_path, phase="preparing", agent_pid=None, agent_pgid=None)
     _out, calls = reconcile(runner)
-    assert [c["state"] for c in calls] == ["released"] and not path.exists()
+    assert calls == [] and wt.exists() and path.exists()
 
 
 def test_reconcile_a_stale_heartbeat_never_outvotes_a_live_runner_pid(runner, tmp_path):

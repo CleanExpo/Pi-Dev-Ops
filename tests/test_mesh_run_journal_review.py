@@ -15,7 +15,6 @@ One test (or more) per blocking finding, each written to fail on 0dc92e2e:
 """
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import subprocess
@@ -227,6 +226,7 @@ def test_review_a_journal_that_raises_is_held_and_the_rest_still_settle(runner, 
 
 
 def test_review_a_journal_being_settled_elsewhere_is_held(runner, tmp_path):
+    import fcntl  # here, not at the top: collection must survive Windows, where the skip applies (r2 P2)
     _entry, wt, path = orphan(runner, tmp_path)
     with open(path.with_suffix(".lock"), "a+") as fh:
         fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
