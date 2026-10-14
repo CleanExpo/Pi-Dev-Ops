@@ -82,6 +82,19 @@ def test_review_wip_on_another_branch_stays_reachable(runner, monkeypatch, tmp_p
     assert kept, "the WIP must hang off the run's own mesh/ branch name"
 
 
+def test_review_an_unverified_wip_ref_holds_the_claim(runner, monkeypatch, tmp_path):
+    """If the WIP ref cannot be created, nothing may claim the work is kept."""
+    agent(runner, monkeypatch, tmp_path, "git checkout -q --detach\necho d > d.txt\nexit 1")
+    ship_run, real = runner.run_journal.ship_run, runner.run_journal.ship_run._git
+    monkeypatch.setattr(ship_run, "_git", lambda wt, *a: subprocess.CompletedProcess(a, 1, "", "locked")
+                        if a[0] == "update-ref" else real(wt, *a))
+
+    run(runner)
+
+    assert states(runner) == ["working"]
+    assert len(list((tmp_path / "wts").iterdir())) == 1 and len(journals(runner)) == 1
+
+
 # ── P0 LIVE-RUNNER-FALSE-RELEASE ─────────────────────────────────────────────
 
 @pytest.mark.parametrize("phase", ["agent", "preparing"])
@@ -112,8 +125,9 @@ def test_review_heartbeat_write_failures_are_surfaced(runner, monkeypatch, tmp_p
 def test_review_no_process_group_holds_the_claim(runner, tmp_path):
     """Without a group there is no proof the agent's descendants are gone (the Windows path)."""
     _entry, wt, path = orphan(runner, tmp_path, agent_pgid=None)
-    _out, calls = reconcile(runner)
+    out, calls = reconcile(runner)
     assert calls == [] and wt.exists() and path.exists()
+    assert out[0]["held"] == "no process group to prove the agent's descendants gone", out
 
 
 def test_review_a_dead_leader_with_a_live_group_holds_the_claim(runner, tmp_path):
@@ -193,6 +207,23 @@ def test_review_a_malformed_journal_does_not_stop_reconcile(runner, tmp_path):
     out, calls = reconcile(runner)
     assert [c["state"] for c in calls] == ["released"], out
     assert bad.exists()
+
+
+def test_review_a_journal_that_raises_is_held_and_the_rest_still_settle(runner, monkeypatch, tmp_path):
+    _entry, _wt, path = orphan(runner, tmp_path)
+    bad = path.with_name("00000000.json")
+    bad.write_text(json.dumps({**json.loads(path.read_text()), "run_id": "00000000"}))
+    real = runner.run_journal.blocker
+
+    def blocker(entry, host):
+        if entry["run_id"] == "00000000":
+            raise RuntimeError("boom")
+        return real(entry, host)
+
+    monkeypatch.setattr(runner.run_journal, "blocker", blocker)
+    out, calls = reconcile(runner)
+    assert [c["state"] for c in calls] == ["released"] and bad.exists()
+    assert {"journal": "00000000.json", "held": "reconcile raised RuntimeError"} in out
 
 
 def test_review_a_journal_being_settled_elsewhere_is_held(runner, tmp_path):
