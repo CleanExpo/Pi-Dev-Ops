@@ -192,3 +192,17 @@ def test_r7_the_proof_comes_from_one_place_only():
     assert "NEVER_LAUNCHED.add(" not in src
     assert subprocess.run(["grep", "-c", "NEVER_LAUNCHED.add(", str(REPO_ROOT / "mesh" / "run_settle.py")],
                           capture_output=True, text=True).stdout.strip() == "1"
+
+
+@pytest.mark.parametrize("held, proof", [
+    ([], True),                                                                       # e, f
+    ([types.SimpleNamespace(proc=None, reaped=True)], True),                          # a-d
+    ([types.SimpleNamespace(proc=object(), reaped=True)], True),                      # h
+    ([types.SimpleNamespace(proc=object(), reaped=None)], False),                     # never stopped
+    ([types.SimpleNamespace(proc=object(), reaped=False)], False),                    # unstoppable
+    ([types.SimpleNamespace(proc=None, reaped=None, unseen_agent=True)], False),      # g
+], ids=["no-record", "no-process", "reaped", "not-stopped", "unreaped", "unseen-child"])
+def test_r7_no_agent_rule_table(runner, held, proof):
+    """The one rule, directly: in run_claim an unseen child is already gated by agent_alive, so
+    the `unseen_agent` clause is pinned here (it is the rule's own statement, not dead weight)."""
+    assert sys.modules["run_settle"].no_agent(held) is proof
