@@ -33,6 +33,7 @@ from typing import Any, Callable, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agent_sandbox  # noqa: E402
+import left_running  # noqa: E402
 from private_log import open_private as _open_private  # noqa: E402 — tests patch it here
 
 # run_claim's ids are uuid4().hex[:8]. Anything else never becomes a path.
@@ -266,7 +267,7 @@ def release_interrupt(rec: Optional[RunRecord]) -> None:
 
 def unreaped(rec: Optional[RunRecord]) -> bool:
     """True if stop() could not prove the agent exited: it may still be running in the worktree."""
-    return rec is not None and getattr(rec, "reaped", None) is False
+    return left_running.may_be_running(rec)  # r9: alive unless stop() PROVED it reaped
 
 
 def fields(rec: Optional[RunRecord], plan: dict) -> dict:

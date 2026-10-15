@@ -146,17 +146,34 @@ def _writable() -> bool:
         return False
 
 
+def may_be_running(rec) -> bool:
+    """THE liveness rule for a run's record (UNI-2963 review r9): alive unless PROVEN reaped.
+
+    A record holding a process handle, or one that may have started a child it never saw
+    (`unseen_agent`), counts as running until stop() set `reaped is True`. A stop() cut short by
+    an interrupt (`reaped` None) or one that could not prove the group empty (False) never reads
+    as gone, so the verdict no longer depends on how far stop() got. An explicit `reaped is False`
+    (preflight, plan lane, stop()) is always alive. No record, or no handle, nothing unseen and no
+    verdict, means no agent was started."""
+    if rec is None or getattr(rec, "reaped", None) is True:
+        return False
+    if getattr(rec, "reaped", None) is False:
+        return True
+    return getattr(rec, "proc", None) is not None or bool(getattr(rec, "unseen_agent", False))
+
+
 def track(rec) -> None:
-    """Record an agent whose stop could not be proven (`reaped is False`). Never raises:
+    """Record an agent that may still be running (`may_be_running`). Never raises:
     it runs in the claim's cleanup path, which must still end the claim."""
-    if rec is None or getattr(rec, "reaped", None) is not False:
+    if not may_be_running(rec):
         return
     proc = getattr(rec, "proc", None)
     pgid = getattr(rec, "pgid", None)
-    entries = [("pid", int(getattr(proc, "pid", 0) or 0))]
-    if isinstance(pgid, int):  # the agent may have exited while a descendant did not
-        entries.append(("pgid", pgid))
     try:
+        pid = getattr(proc, "pid", 0)  # r9: inside the try; a handle that cannot say counts as pid 0
+        entries = [("pid", int(pid or 0) if isinstance(pid, int) or pid is None else 0)]
+        if isinstance(pgid, int):  # the agent may have exited while a descendant did not
+            entries.append(("pgid", pgid))
         with _locked():
             _save(_load() + entries)
     except Exception:  # noqa: BLE001 — never raise in claim cleanup; block instead

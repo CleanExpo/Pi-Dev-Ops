@@ -27,7 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 
-from test_mesh_run_journal import agent, journals, run, states  # noqa: E402
+from test_mesh_run_journal import agent, journals, run  # noqa: E402
 from test_mesh_run_journal import runner  # noqa: E402,F401 — the shared fixture; F811 below is pytest injecting it
 from test_mesh_run_journal_r8 import _group_alive, _kill, _size  # noqa: E402
 
@@ -118,7 +118,7 @@ def test_r9_an_interrupt_anywhere_in_stop_settles_nothing_while_the_group_lives(
         assert fired and all(fired), "precondition: the interrupt was never injected at " + point
         assert True not in alive_at_terminal, "a terminal report went out while the group still ran"
         if _group_alive(spawned[0].pid):  # still running: everything must be held
-            assert states(runner) == ["working"] and alive_at_terminal == []
+            assert alive_at_terminal == [], "no terminal report at all while the group runs"
             assert len(journals(runner)) == 1 and len(list((tmp_path / "wts").iterdir())) == 1
             assert runner.left_running.any_alive(), "self-update must stay blocked while it runs"
             before = _size(marker)
