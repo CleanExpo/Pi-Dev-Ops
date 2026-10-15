@@ -98,13 +98,21 @@ HELD_AT_END = {"stop-entry", "end_group"}
 WRITERS = {"term-resistant": "trap '' TERM; ", "term-responsive": ""}
 
 
-def _wait_group_gone(pgid: int, timeout: float = GROW_TIMEOUT) -> bool:
+def _wait_group_gone(pgid: int, timeout: float = 4 * GROW_TIMEOUT) -> bool:
+    """Bounded; generous because the last members are orphans launchd reaps, slowly at loadavg 80+."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if not _group_alive(pgid):
             return True
         time.sleep(0.02)
     return False
+
+
+def _members(pgid: int) -> str:
+    """What is left in the group, for the failure message (diagnosis, not a check)."""
+    import subprocess
+    out = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,comm="], capture_output=True, text=True).stdout
+    return "\n".join(line for line in out.splitlines() if line.split()[2:3] == [str(pgid)]) or "(none listed)"
 
 
 def _assert_settled(runner, tmp_path, pgid, alive_at_terminal) -> None:
@@ -124,7 +132,7 @@ def _assert_held_then_settled(runner, tmp_path, leader, marker, writer_alive: bo
     else:  # TERM already ended it; the claim is still held until the group is proven empty
         assert not _grows(marker, 1.0), "precondition: SIGTERM really ended the TERM-responsive writer"
     leader.wait(timeout=GROW_TIMEOUT)  # the runner's own child: an unreaped leader is a zombie member
-    assert _wait_group_gone(pgid), "the agent's group never emptied"
+    assert _wait_group_gone(pgid), "the agent's group never emptied:\n" + _members(pgid)
     sent: list = []
     runner.run_journal.Ticker()(_rt(runner, lambda m, p, b=None: sent.append(b) or {}), False)
     assert [b["state"] for b in sent] == ["released"], "the held run settles once, with no outcome recorded"
