@@ -25,6 +25,10 @@ _KEYS = _IDENTITY + ("state", "duration_s", "exit_code", "error_code")  # r5: no
 # runner (the Ticker) sends them; a runner that died with one pending leaves `ending` in its
 # journal, and that journal is held, never released bare.
 PENDING: dict = {}
+# r6: runs whose launch this process aborted before Popen (the `launching` write failed), so it
+# KNOWS no agent exists. Only with this proof, and only for its own journal with a PENDING
+# outcome, does the runner settle a `preparing`/no-pid journal; every other such journal holds.
+NEVER_LAUNCHED: set = set()
 
 
 # Journal file I/O, moved here from run_journal.py (which re-exports it) at the 300-line limit.

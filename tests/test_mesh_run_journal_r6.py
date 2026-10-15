@@ -128,3 +128,21 @@ def test_r6_a_held_ending_settles_through_the_real_server_with_zero_rows(runner,
     assert [r.status_code for r in replies] == [200] and patches[0]["state"] == state == plan["state"]
     assert requeued == [], "a PATCH that matched no row must not requeue anything"
     assert journals(runner) == [] and runner.run_journal.PENDING == {}
+
+
+@pytest.mark.parametrize("own, launched, pending", [(False, True, True), (True, False, True), (True, True, False)],
+                         ids=["not-own", "no-launch-proof", "nothing-pending"])
+def test_r6_the_bypass_needs_all_three_proofs(runner, tmp_path, own, launched, pending):
+    """Own journal, in-process proof the launch was aborted, and a PENDING outcome: all, or hold."""
+    entry, wt, path = orphan(runner, tmp_path, phase="preparing", agent_pid=None, agent_pgid=None, owner_pid=os.getpid())
+    rj, calls = runner.run_journal, []
+    if launched:
+        rj.NEVER_LAUNCHED.add(entry["run_id"])
+    if pending:
+        rj.PENDING[entry["run_id"]] = {k: entry[k] for k in ("linear_id", "branch", "host", "claim_id", "run_id")} | {
+            "state": "failed"}
+    try:
+        out = rj.reconcile(runner.STATE_FILE.parent, HOST, lambda *a, **k: calls.append(a) or {}, own=own)
+    finally:
+        rj.NEVER_LAUNCHED.discard(entry["run_id"])
+    assert calls == [] and wt.exists() and path.exists(), out

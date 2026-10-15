@@ -37,7 +37,7 @@ from typing import Any, Callable, Optional
 import claim_lifecycle
 import left_running
 import ship_run
-from run_settle import PENDING, Outcome, clear, path, replay, settling, write  # noqa: F401 — re-exported
+from run_settle import NEVER_LAUNCHED, PENDING, Outcome, clear, path, replay, settling, write  # noqa: F401
 
 BEAT_SECONDS = float(os.environ.get("MESH_RUN_BEAT_S", "5"))
 RECONCILE_EVERY_S = float(os.environ.get("MESH_RECONCILE_EVERY_S", "300"))  # retry of held settlements
@@ -74,6 +74,7 @@ class Beat:
         `launching` on disk first, or a later reconcile could take a live agent for one that
         never started. Raising here fails the run before Popen."""
         if not self.mark("launching"):
+            NEVER_LAUNCHED.add(self.run_id)  # r6: in-process proof that no agent was started
             raise RuntimeError("run journal unwritable at launch; the agent was not started")
 
     def beat(self) -> bool:
@@ -116,6 +117,8 @@ class Beat:
         try:
             self.cleared = True
             clear(self.base_dir, self.run_id)
+            PENDING.pop(self.run_id, None)  # r6: an ended run leaves nothing in memory either
+            NEVER_LAUNCHED.discard(self.run_id)
         finally:
             self._lock.release()
 
@@ -168,7 +171,8 @@ def blocker(entry: dict, host: str, own: bool = False) -> str:
         return "runner alive"
     pid, pgid = entry.get("agent_pid"), entry.get("agent_pgid")
     if pid is None and pgid is None:  # review r2 P0: `preparing` too; uncertain is not dead
-        return "agent may be running unrecorded"
+        proven = own and entry["run_id"] in NEVER_LAUNCHED and entry["run_id"] in PENDING  # r6
+        return "" if proven else "agent may be running unrecorded"
     if _pid(pgid) is None:  # review r1: a dead pid says nothing about what it started
         return "no process group to prove the agent's descendants gone"
     if left_running._group_alive(pgid):
@@ -202,6 +206,7 @@ def settle_orphan(base_dir: Path, entry: dict, api: Callable[..., Any], pause: f
     if result["released"]:
         clear(base_dir, entry["run_id"])
         PENDING.pop(entry["run_id"], None)
+        NEVER_LAUNCHED.discard(entry["run_id"])
     return result
 
 

@@ -148,7 +148,7 @@ class SigintHold:
     def __exit__(self, exc_type, *_exc) -> None:
         """Always restore, even when end() never ran; raise a held Ctrl-C nobody raised yet."""
         self.restore()
-        if self.caught and exc_type is None:
+        if self.caught:  # r6: raised even over another exception, chained to it
             self.caught.clear()
             raise KeyboardInterrupt
 
@@ -166,8 +166,13 @@ def _sigint_deferred(hold: "SigintHold | None" = None):
     hold = hold if hold is not None else SigintHold()
     try:
         yield
-    finally:
+    except BaseException as exc:  # r6: an ending that raised must not swallow a held Ctrl-C
         hold.restore()
+        if hold.caught:
+            hold.caught.clear()
+            raise KeyboardInterrupt from exc
+        raise
+    hold.restore()
     if hold.caught:
         hold.caught.clear()  # raised once, here; the runner's `with` must not raise it again
         raise KeyboardInterrupt
