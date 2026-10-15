@@ -63,11 +63,11 @@ class ProcProxy:
         return getattr(self._proc, name)
 
 
-def _inject(runner, monkeypatch, point: str, proxies: list, spawned: list, pid_file) -> list:
+def _inject(runner, monkeypatch, point: str, proxies: list, spawned: list, ready) -> list:
     """Arm the interrupt at `point`; returns the Once objects, so the test can prove it fired."""
     rr = runner.run_record
     if point == "popen-unseen":  # the pid is never readable (unseen child), then stop() is cut at entry
-        _unreadable_agent_pid(runner, monkeypatch, spawned, pid_file)
+        _unreadable_agent_pid(runner, monkeypatch, spawned, ready)
         point = "stop-entry"
     if point == "stop-entry":  # the reviewer's case: before stop() takes a single step
         once = Once(lambda self: None)
@@ -91,7 +91,7 @@ def _inject(runner, monkeypatch, point: str, proxies: list, spawned: list, pid_f
     return []
 
 
-def _unreadable_agent_pid(runner, monkeypatch, spawned: list, pid_file) -> None:
+def _unreadable_agent_pid(runner, monkeypatch, spawned: list, ready) -> None:
     real = runner.run_record.subprocess.Popen
 
     def popen(cmd, *a, **k):
@@ -99,14 +99,14 @@ def _unreadable_agent_pid(runner, monkeypatch, spawned: list, pid_file) -> None:
         if not (cmd and cmd[0] == runner.AGENT_CMD):
             return proc
         spawned.append(proc)
-        _wait_for_file(pid_file)
+        _wait_for_file(ready)
         return NoPid(proc)
 
     monkeypatch.setattr(runner.run_record.subprocess, "Popen", popen)
 
 
 def _wait_for_file(path) -> None:
-    deadline = time.monotonic() + GROW_TIMEOUT
+    deadline = time.monotonic() + 4 * GROW_TIMEOUT  # bounded; a starved fork can take seconds at loadavg 80+
     while not path.exists() and time.monotonic() < deadline:
         time.sleep(0.01)
     assert path.exists(), "precondition: the descendant writer never started"
@@ -175,12 +175,14 @@ def _assert_held_then_settled(runner, tmp_path, leader, marker, writer_alive: bo
 @pytest.mark.parametrize("point", POINTS)
 def test_r9_an_interrupt_anywhere_in_stop_settles_nothing_while_the_group_lives(runner, monkeypatch, tmp_path,
                                                                                point, mode):
-    marker, pid_file = tmp_path / "descendant-writes", tmp_path / "descendant-pid"
+    marker = tmp_path / "descendant-writes"
     agent(runner, monkeypatch, tmp_path, f"({WRITERS[mode]}while :; do echo x >> {shlex.quote(str(marker))}; "
-          f"sleep 0.05; done) & echo $! > {shlex.quote(str(pid_file))}; sleep 30")
+          f"sleep 0.05; done) & sleep 30")
     proxies, spawned = [], []
-    onces = _inject(runner, monkeypatch, point, proxies, spawned, pid_file)
-    alive_at_terminal = _interrupt_the_run(runner, monkeypatch, pid_file, proxies, spawned)
+    # Wait for the writer's FIRST WRITE, not its pid: the write comes after its `trap` is in place, so a
+    # Ctrl-C can never land between the fork and the trap (2/30 runs at loadavg ~78 did exactly that).
+    onces = _inject(runner, monkeypatch, point, proxies, spawned, marker)
+    alive_at_terminal = _interrupt_the_run(runner, monkeypatch, marker, proxies, spawned)
     try:
         with pytest.raises(KeyboardInterrupt):
             run(runner)
@@ -197,13 +199,13 @@ def test_r9_an_interrupt_anywhere_in_stop_settles_nothing_while_the_group_lives(
         _kill(spawned)
 
 
-def _interrupt_the_run(runner, monkeypatch, pid_file, proxies, spawned: list) -> list:
+def _interrupt_the_run(runner, monkeypatch, ready, proxies, spawned: list) -> list:
     """The agent runs until its descendant exists, then a Ctrl-C arrives, so run_agent calls stop()."""
     alive_at_terminal: list = []
 
     def wait(proc, _plan):
         spawned.append(proc)
-        _wait_for_file(pid_file)
+        _wait_for_file(ready)
         for proxy in proxies:
             proxy.armed = True
         raise KeyboardInterrupt("Ctrl-C during the run")
