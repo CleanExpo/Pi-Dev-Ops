@@ -118,11 +118,9 @@ def test_r8_g2_no_report_while_the_agents_group_still_runs(runner, monkeypatch, 
         before = _size(marker)
         time.sleep(0.3)
         assert _size(marker) == before, "a descendant is still writing after the run ended"
-        assert True not in alive_at_terminal, "a terminal report went out while the group still ran"
-        if not alive_at_terminal:  # held instead: everything must still be there
-            assert len(journals(runner)) == 1 and len(list((tmp_path / "wts").iterdir())) == 1
-        else:
-            assert not _group_alive(spawned[0].pid)
+        # layer 1: the adopted handle lets stop() end the whole group, and only then is `failed` sent
+        assert alive_at_terminal == [False], "a terminal report went out while the group still ran"
+        assert not _group_alive(spawned[0].pid)
     finally:
         _kill(spawned)
 
