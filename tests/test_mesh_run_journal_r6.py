@@ -23,6 +23,7 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 
 from mesh_helpers import load_module  # noqa: E402
+from test_mesh_kill9_recovery import dead_pid  # noqa: E402
 from test_mesh_run_journal import agent, journals, orphan, reconcile, run, states  # noqa: E402
 from test_mesh_run_journal import runner  # noqa: E402,F401 — the shared fixture; F811 below is pytest injecting it
 
@@ -133,8 +134,10 @@ def test_r6_a_held_ending_settles_through_the_real_server_with_zero_rows(runner,
 @pytest.mark.parametrize("own, launched, pending", [(False, True, True), (True, False, True), (True, True, False)],
                          ids=["not-own", "no-launch-proof", "nothing-pending"])
 def test_r6_the_bypass_needs_all_three_proofs(runner, tmp_path, own, launched, pending):
-    """Own journal, in-process proof the launch was aborted, and a PENDING outcome: all, or hold."""
-    entry, wt, path = orphan(runner, tmp_path, phase="preparing", agent_pid=None, agent_pgid=None, owner_pid=os.getpid())
+    """Own journal, in-process proof the launch was aborted, and a PENDING outcome: all, or hold.
+    `not-own` is a DEAD foreign runner's journal, so only the bypass's own check can hold it."""
+    owner = os.getpid() if own else dead_pid()
+    entry, wt, path = orphan(runner, tmp_path, phase="preparing", agent_pid=None, agent_pgid=None, owner_pid=owner)
     rj, calls = runner.run_journal, []
     if launched:
         rj.NEVER_LAUNCHED.add(entry["run_id"])
