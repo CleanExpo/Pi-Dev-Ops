@@ -30,6 +30,7 @@ sys.path.insert(0, str(REPO_ROOT / "tests"))
 from test_mesh_run_journal import agent, journals, run  # noqa: E402
 from test_mesh_run_journal import runner  # noqa: E402,F401 — the shared fixture; F811 below is pytest injecting it
 from test_mesh_run_journal_r8 import GROW_TIMEOUT, _group_alive, _grows, _kill  # noqa: E402
+from test_mesh_run_journal_r7 import _rt  # noqa: E402
 
 pytestmark = pytest.mark.skipif(not hasattr(os, "killpg"), reason="POSIX process groups")
 HOST = "TESTNODE"
@@ -87,45 +88,93 @@ def _inject(runner, monkeypatch, point: str, proxies: list) -> list:
 
 
 POINTS = ["stop-entry", "poll", "signal_group", "terminate", "wait", "end_group", "close"]
+# Derived from RunRecord.stop(): an interrupt at its entry leaves `reaped` None, and one inside
+# end_group leaves the group unproven (`reaped` False). Both hold the claim (agent_alive) and record
+# no outcome. At every other point stop() still reaches end_group's SIGKILL and proves the group
+# empty, so the run settles: one terminal report, worktree removed, journal cleared.
+HELD_AT_END = {"stop-entry", "end_group"}
+# TERM-resistant: only end_group's SIGKILL can end the writer (proves a LIVE hold). TERM-responsive:
+# stop()'s SIGTERM ends it (the ordinary exit path, where the group dies before end_group).
+WRITERS = {"term-resistant": "trap '' TERM; ", "term-responsive": ""}
 
 
+def _wait_group_gone(pgid: int, timeout: float = GROW_TIMEOUT) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not _group_alive(pgid):
+            return True
+        time.sleep(0.02)
+    return False
+
+
+def _assert_settled(runner, tmp_path, pgid, alive_at_terminal) -> None:
+    assert alive_at_terminal == [False], "expected exactly one terminal report, sent after the group was gone"
+    assert journals(runner) == [] and not any((tmp_path / "wts").iterdir()), "settled runs leave nothing behind"
+    assert not _group_alive(pgid)
+
+
+def _assert_held_then_settled(runner, tmp_path, leader, marker, writer_alive: bool, alive_at_terminal) -> None:
+    pgid = leader.pid
+    assert alive_at_terminal == [], "no terminal report at all while the agent is unproven"
+    assert len(journals(runner)) == 1 and len(list((tmp_path / "wts").iterdir())) == 1
+    if writer_alive:  # the hold really protects a live writer; then the agent ends
+        assert runner.left_running.any_alive(), "self-update must stay blocked while it runs"
+        assert _grows(marker), "precondition: the held case really has a live writer"
+        os.killpg(pgid, 9)
+    else:  # TERM already ended it; the claim is still held until the group is proven empty
+        assert not _grows(marker, 1.0), "precondition: SIGTERM really ended the TERM-responsive writer"
+    leader.wait(timeout=GROW_TIMEOUT)  # the runner's own child: an unreaped leader is a zombie member
+    assert _wait_group_gone(pgid), "the agent's group never emptied"
+    sent: list = []
+    runner.run_journal.Ticker()(_rt(runner, lambda m, p, b=None: sent.append(b) or {}), False)
+    assert [b["state"] for b in sent] == ["released"], "the held run settles once, with no outcome recorded"
+    assert journals(runner) == [] and not any((tmp_path / "wts").iterdir())
+
+
+@pytest.mark.parametrize("mode", list(WRITERS))
 @pytest.mark.parametrize("point", POINTS)
-def test_r9_an_interrupt_anywhere_in_stop_settles_nothing_while_the_group_lives(runner, monkeypatch, tmp_path, point):
+def test_r9_an_interrupt_anywhere_in_stop_settles_nothing_while_the_group_lives(runner, monkeypatch, tmp_path,
+                                                                               point, mode):
     marker, pid_file = tmp_path / "descendant-writes", tmp_path / "descendant-pid"
-    # The writer ignores SIGTERM, so only end_group's SIGKILL can end it: whether it is alive no
-    # longer depends on when stop()'s SIGTERM lands (the cause of the end_group flake, not timing).
-    agent(runner, monkeypatch, tmp_path, f"(trap '' TERM; while :; do echo x >> {shlex.quote(str(marker))}; sleep 0.05; "
-          f"done) & echo $! > {shlex.quote(str(pid_file))}; sleep 30")
+    agent(runner, monkeypatch, tmp_path, f"({WRITERS[mode]}while :; do echo x >> {shlex.quote(str(marker))}; "
+          f"sleep 0.05; done) & echo $! > {shlex.quote(str(pid_file))}; sleep 30")
     proxies: list = []
     onces = _inject(runner, monkeypatch, point, proxies)
-    spawned: list = []
-
-    def wait(proc, _plan):  # the agent is running; then a Ctrl-C arrives, so run_agent calls stop()
-        spawned.append(proc)
-        deadline = time.monotonic() + GROW_TIMEOUT
-        while not pid_file.exists() and time.monotonic() < deadline:
-            time.sleep(0.01)
-        for proxy in proxies:
-            proxy.armed = True
-        raise KeyboardInterrupt("Ctrl-C during the run")
-
-    alive_at_terminal: list = []
-    monkeypatch.setattr(runner, "_wait_for_agent", wait)
-    monkeypatch.setattr(runner, "_api", lambda _m, _p, b=None: alive_at_terminal.append(
-        _group_alive(spawned[0].pid)) if (b or {}).get("state") in ("done", "failed", "released") else {})
+    spawned, alive_at_terminal = _interrupt_the_run(runner, monkeypatch, pid_file, proxies)
     try:
         with pytest.raises(KeyboardInterrupt):
             run(runner)
         fired = [o.fired for o in onces + [p._once for p in proxies]]
         assert fired and all(fired), "precondition: the interrupt was never injected at " + point
         assert True not in alive_at_terminal, "a terminal report went out while the group still ran"
-        if _group_alive(spawned[0].pid):  # still running: everything must be held
-            assert alive_at_terminal == [], "no terminal report at all while the group runs"
-            assert len(journals(runner)) == 1 and len(list((tmp_path / "wts").iterdir())) == 1
-            assert runner.left_running.any_alive(), "self-update must stay blocked while it runs"
-            assert _grows(marker), "precondition: the held case really has a live writer"
+        if point in HELD_AT_END:
+            writer_alive = point == "stop-entry" or mode == "term-resistant"
+            _assert_held_then_settled(runner, tmp_path, spawned[0], marker, writer_alive, alive_at_terminal)
+        else:
+            _assert_settled(runner, tmp_path, spawned[0].pid, alive_at_terminal)
     finally:
         _kill(spawned)
+
+
+def _interrupt_the_run(runner, monkeypatch, pid_file, proxies):
+    """The agent runs until its descendant exists, then a Ctrl-C arrives, so run_agent calls stop()."""
+    spawned: list = []
+    alive_at_terminal: list = []
+
+    def wait(proc, _plan):
+        spawned.append(proc)
+        deadline = time.monotonic() + GROW_TIMEOUT
+        while not pid_file.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert pid_file.exists(), "precondition: the descendant writer never started"
+        for proxy in proxies:
+            proxy.armed = True
+        raise KeyboardInterrupt("Ctrl-C during the run")
+
+    monkeypatch.setattr(runner, "_wait_for_agent", wait)
+    monkeypatch.setattr(runner, "_api", lambda _m, _p, b=None: alive_at_terminal.append(
+        _group_alive(spawned[0].pid)) if (b or {}).get("state") in ("done", "failed", "released") else {})
+    return spawned, alive_at_terminal
 
 
 def test_r9_the_rule_is_alive_unless_proven_reaped(runner):
