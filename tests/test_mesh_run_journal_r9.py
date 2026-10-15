@@ -29,7 +29,7 @@ sys.path.insert(0, str(REPO_ROOT / "tests"))
 
 from test_mesh_run_journal import agent, journals, run  # noqa: E402
 from test_mesh_run_journal import runner  # noqa: E402,F401 — the shared fixture; F811 below is pytest injecting it
-from test_mesh_run_journal_r8 import _group_alive, _kill, _size  # noqa: E402
+from test_mesh_run_journal_r8 import GROW_TIMEOUT, _group_alive, _grows, _kill  # noqa: E402
 
 pytestmark = pytest.mark.skipif(not hasattr(os, "killpg"), reason="POSIX process groups")
 HOST = "TESTNODE"
@@ -92,15 +92,17 @@ POINTS = ["stop-entry", "poll", "signal_group", "terminate", "wait", "end_group"
 @pytest.mark.parametrize("point", POINTS)
 def test_r9_an_interrupt_anywhere_in_stop_settles_nothing_while_the_group_lives(runner, monkeypatch, tmp_path, point):
     marker, pid_file = tmp_path / "descendant-writes", tmp_path / "descendant-pid"
-    agent(runner, monkeypatch, tmp_path, f"(while :; do echo x >> {shlex.quote(str(marker))}; sleep 0.05; done) & "
-          f"echo $! > {shlex.quote(str(pid_file))}; sleep 30")
+    # The writer ignores SIGTERM, so only end_group's SIGKILL can end it: whether it is alive no
+    # longer depends on when stop()'s SIGTERM lands (the cause of the end_group flake, not timing).
+    agent(runner, monkeypatch, tmp_path, f"(trap '' TERM; while :; do echo x >> {shlex.quote(str(marker))}; sleep 0.05; "
+          f"done) & echo $! > {shlex.quote(str(pid_file))}; sleep 30")
     proxies: list = []
     onces = _inject(runner, monkeypatch, point, proxies)
     spawned: list = []
 
     def wait(proc, _plan):  # the agent is running; then a Ctrl-C arrives, so run_agent calls stop()
         spawned.append(proc)
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + GROW_TIMEOUT
         while not pid_file.exists() and time.monotonic() < deadline:
             time.sleep(0.01)
         for proxy in proxies:
@@ -121,9 +123,7 @@ def test_r9_an_interrupt_anywhere_in_stop_settles_nothing_while_the_group_lives(
             assert alive_at_terminal == [], "no terminal report at all while the group runs"
             assert len(journals(runner)) == 1 and len(list((tmp_path / "wts").iterdir())) == 1
             assert runner.left_running.any_alive(), "self-update must stay blocked while it runs"
-            before = _size(marker)
-            time.sleep(0.2)
-            assert _size(marker) > before, "precondition: the held case really has a live writer"
+            assert _grows(marker), "precondition: the held case really has a live writer"
     finally:
         _kill(spawned)
 

@@ -81,7 +81,7 @@ def _wrap_agent_popen(runner, monkeypatch, wrap, ready=None) -> list:
         if not (cmd and cmd[0] == runner.AGENT_CMD):
             return proc
         spawned.append(proc)
-        deadline = time.monotonic() + 3
+        deadline = time.monotonic() + GROW_TIMEOUT
         while ready is not None and not ready.exists() and time.monotonic() < deadline:
             time.sleep(0.01)
         return wrap(proc)
@@ -103,6 +103,21 @@ def _size(path) -> int:
     return path.stat().st_size if path.exists() else 0
 
 
+GROW_TIMEOUT = 15.0  # bounded: a loaded machine may starve a 50 ms writer for seconds, never forever
+
+
+def _grows(path, timeout: float = GROW_TIMEOUT) -> bool:
+    """True as soon as `path` grows past its current size; False only after `timeout`. A live
+    writer is PROVEN by observed growth, not assumed from one fixed sleep (which flaked under load:
+    17/20 at loadavg 14-23). "Still writing" polls until it is seen; "not writing" waits it out."""
+    start, deadline = _size(path), time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _size(path) > start:
+            return True
+        time.sleep(0.02)
+    return False
+
+
 def test_r8_g2_no_report_while_the_agents_group_still_runs(runner, monkeypatch, tmp_path):
     """A real agent forks a writer, then the interrupt lands right after Popen returned."""
     marker, pid_file = tmp_path / "descendant-writes", tmp_path / "descendant-pid"
@@ -115,9 +130,7 @@ def test_r8_g2_no_report_while_the_agents_group_still_runs(runner, monkeypatch, 
     try:
         with pytest.raises(KeyboardInterrupt):
             run(runner)
-        before = _size(marker)
-        time.sleep(0.3)
-        assert _size(marker) == before, "a descendant is still writing after the run ended"
+        assert not _grows(marker, 1.0), "a descendant is still writing after the run ended"
         # layer 1: the adopted handle lets stop() end the whole group, and only then is `failed` sent
         assert alive_at_terminal == [False], "a terminal report went out while the group still ran"
         assert not _group_alive(spawned[0].pid)
@@ -141,7 +154,7 @@ def test_r8_stop_falls_back_to_the_leaders_pid_for_the_group(runner, tmp_path):
     child = subprocess.Popen(["sh", "-c", f"(while :; do echo x >> '{marker}'; sleep 0.05; done) & sleep 30"],
                              start_new_session=True)
     try:
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + GROW_TIMEOUT
         while not marker.exists() and time.monotonic() < deadline:  # the descendant must exist first
             time.sleep(0.01)
         assert marker.exists(), "precondition: the descendant never started"

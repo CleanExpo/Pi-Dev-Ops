@@ -34,7 +34,7 @@ sys.path.insert(0, str(REPO_ROOT / "tests"))
 from test_mesh_run_journal import agent, journals, run  # noqa: E402
 from test_mesh_run_journal import runner  # noqa: E402,F401 — the shared fixture; F811 below is pytest injecting it
 from test_mesh_run_journal_r7 import _no_pid_in_journal, _reject_terminal, _rt  # noqa: E402
-from test_mesh_run_journal_r8 import InterruptOnPid, _group_alive, _kill, _size, _wrap_agent_popen  # noqa: E402
+from test_mesh_run_journal_r8 import GROW_TIMEOUT, InterruptOnPid, _group_alive, _grows, _kill, _wrap_agent_popen  # noqa: E402
 
 pytestmark = pytest.mark.skipif(not hasattr(os, "killpg"), reason="POSIX process groups")
 
@@ -63,16 +63,14 @@ def test_r10_a_handle_without_a_pid_is_never_reaped(runner, tmp_path):
                             start_new_session=True)
     try:
         proc.wait(timeout=5)
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + GROW_TIMEOUT
         while not pulse.exists() and time.monotonic() < deadline:
             time.sleep(0.01)
         rec = runner.run_record.RunRecord("abcd1234", tmp_path)
         rec.proc = MissingPid(proc)  # a SEEN agent: no unseen_agent flag
         rec.stop()
         assert rec.reaped is not True and runner.run_record.unreaped(rec), "an unknown group was counted gone"
-        before = _size(pulse)
-        time.sleep(0.2)
-        assert _size(pulse) > before, "precondition: the descendant is really still writing"
+        assert _grows(pulse), "precondition: the descendant is really still writing"
     finally:
         if _group_alive(proc.pid):
             os.killpg(proc.pid, signal.SIGKILL)
@@ -123,9 +121,7 @@ def test_r10_accepted_limit_a_setsid_child_escapes_the_group(runner, monkeypatch
           f"{shlex.quote(str(pulse))} {shlex.quote(str(pidfile))} & sleep 0.5; exit 1")
     try:
         run(runner)
-        before = _size(pulse)
-        time.sleep(0.3)
-        assert _size(pulse) == before, "a detached descendant is still writing after the run ended"
+        assert not _grows(pulse), "a detached descendant is still writing after the run ended"
     finally:
         if pidfile.exists():
             try:
