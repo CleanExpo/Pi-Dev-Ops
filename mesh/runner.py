@@ -226,8 +226,8 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     finally:
         with claim_lifecycle.SigintHold() as sig:  # UNI-2963 r5: Ctrl-C is held from here until the ending ran
             rec = beat.held[0] if beat.held else None
-            final = run_journal.Outcome(beat, lambda: {"linear_id": linear_id, "branch": branch, "host": HOST,
-                                                       "claim_id": plan["claim_id"], **run_record.terminal(rec, plan)})
+            final = run_journal.Outcome(beat, lambda: {"linear_id": linear_id, "branch": branch, "host": HOST,  # r7: run_id
+                                                       "claim_id": plan["claim_id"], "run_id": run_id, **run_record.terminal(rec, plan)})
             claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", final()),
                 lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
                 agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS, then=lambda: run_record.release_interrupt(rec),

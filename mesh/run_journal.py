@@ -74,7 +74,6 @@ class Beat:
         `launching` on disk first, or a later reconcile could take a live agent for one that
         never started. Raising here fails the run before Popen."""
         if not self.mark("launching"):
-            NEVER_LAUNCHED.add(self.run_id)  # r6: in-process proof that no agent was started
             raise RuntimeError("run journal unwritable at launch; the agent was not started")
 
     def beat(self) -> bool:

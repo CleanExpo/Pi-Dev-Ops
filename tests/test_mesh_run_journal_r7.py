@@ -27,6 +27,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import types
 from pathlib import Path
 
@@ -76,8 +77,8 @@ def _path_a(runner, monkeypatch, tmp_path):
     """Only the `launching` write itself fails; storage then works (as in the reviewer's helper)."""
     real, failed = runner.run_journal.write, [False]
 
-    def write(b, r, e):
-        if e.get("phase") == "launching" and not failed[0]:
+    def write(b, r, e):  # main thread only: a heartbeat landing first must not use up the failure
+        if e.get("phase") == "launching" and not failed[0] and threading.current_thread() is threading.main_thread():
             failed[0] = True
             return False
         return real(b, r, e)
@@ -147,8 +148,12 @@ def test_r7_g_an_interrupt_inside_popen_gets_no_proof_and_holds(runner, monkeypa
     """A KeyboardInterrupt inside Popen may leave a child nobody saw: never a proof."""
     agent(runner, monkeypatch, tmp_path, "exit 0")
 
-    def popen(*a, **k):
-        raise KeyboardInterrupt
+    real = runner.run_record.subprocess.Popen
+
+    def popen(cmd, *a, **k):  # only the agent's start is interrupted; git keeps working
+        if cmd and cmd[0] == runner.AGENT_CMD:
+            raise KeyboardInterrupt
+        return real(cmd, *a, **k)
 
     monkeypatch.setattr(runner.run_record.subprocess, "Popen", popen)
     with pytest.raises(KeyboardInterrupt):

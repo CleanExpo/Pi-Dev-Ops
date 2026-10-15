@@ -25,10 +25,31 @@ _KEYS = _IDENTITY + ("state", "duration_s", "exit_code", "error_code")  # r5: no
 # runner (the Ticker) sends them; a runner that died with one pending leaves `ending` in its
 # journal, and that journal is held, never released bare.
 PENDING: dict = {}
-# r6: runs whose launch this process aborted before Popen (the `launching` write failed), so it
-# KNOWS no agent exists. Only with this proof, and only for its own journal with a PENDING
-# outcome, does the runner settle a `preparing`/no-pid journal; every other such journal holds.
+# r6/r7: runs for which this process PROVED that no agent process exists (see no_agent). Only
+# with this proof, and only for its own journal with a PENDING outcome, does the runner settle a
+# journal that names no agent pid; every other such journal holds, as does every journal after a
+# restart, when this memory is gone.
 NEVER_LAUNCHED: set = set()
+
+
+def no_agent(held: list) -> bool:
+    """True only when the run's own RunRecord proves no agent process exists (review r7). One rule
+    for every path out of run_agent, taken once, in the ending:
+
+      * no RunRecord at all: run_agent was never called (worktree add failed, or anything
+        before it) or could not build one, so Popen never ran;
+      * a RunRecord without a process: building the command raised (the `launching` write,
+        the prompt, the argv) or Popen raised an Exception, and Popen reaps a child that
+        failed to exec;
+      * a process that stop() proved gone, its whole group included (`reaped` True).
+
+    An interrupt inside Popen (`unseen_agent`) may have left a child nobody saw: never proof."""
+    rec = held[0] if held else None
+    if rec is None:
+        return True
+    if getattr(rec, "unseen_agent", False):
+        return False
+    return getattr(rec, "proc", None) is None or getattr(rec, "reaped", None) is True
 
 
 # Journal file I/O, moved here from run_journal.py (which re-exports it) at the 300-line limit.
@@ -90,6 +111,8 @@ class Outcome:
         no report. The payload stays in PENDING so this runner's Ticker can still send it."""
         payload = self()
         PENDING[self._beat.run_id] = payload
+        if no_agent(self._beat.held):  # r7: the one place the no-agent proof is taken
+            NEVER_LAUNCHED.add(self._beat.run_id)
         if self._beat.note(ending=True) and self._beat.note(outcome=payload):
             return None
         print(f"mesh: run {self._beat.run_id} could not journal its terminal update; "
