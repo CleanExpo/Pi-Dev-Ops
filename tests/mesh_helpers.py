@@ -19,6 +19,7 @@ import types
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+_REAL_POPEN = __import__("subprocess").Popen  # captured before any test patches it
 
 
 def load_module(name: str, rel: str):
@@ -42,7 +43,22 @@ class Break(Exception):
     """
 
 
-class ImmediateProc:
+class GroupLeaderPid:
+    """A real pid for a fake agent handle (UNI-2963 review r10): on POSIX a handle without a pid
+    is now never reaped, so fakes carry the pid of a process that led its own group, exited and
+    was reaped. Its group is provably empty, so stop()'s end_group() answers "gone" honestly.
+    One short-lived `true` per handle keeps the pid-reuse window to the length of a test."""
+
+    @property
+    def pid(self):
+        if "_pid" not in self.__dict__:  # the REAL Popen: tests patch subprocess.Popen to return fakes
+            leader = _REAL_POPEN(["true"], start_new_session=hasattr(__import__("os"), "killpg"))
+            leader.wait()
+            self.__dict__["_pid"] = leader.pid
+        return self.__dict__["_pid"]
+
+
+class ImmediateProc(GroupLeaderPid):
     """A fake agent process that has already exited cleanly on first poll.
 
     `returncode` is set as well as `poll()` because `_wait_for_agent` reads

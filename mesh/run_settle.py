@@ -47,9 +47,9 @@ def no_agent(held: list) -> bool:
     rec = held[0] if held else None
     if rec is None:
         return True
-    if getattr(rec, "unseen_agent", False):
-        return False
-    return getattr(rec, "proc", None) is None or getattr(rec, "reaped", None) is True
+    if getattr(rec, "proc", None) is not None:  # r10: a saved handle is proof only once stop() reaped it,
+        return getattr(rec, "reaped", None) is True  # even if its start was interrupted (unseen_agent)
+    return not getattr(rec, "unseen_agent", False)  # no handle: proof unless a child may exist unseen
 
 
 # Journal file I/O, moved here from run_journal.py (which re-exports it) at the 300-line limit.

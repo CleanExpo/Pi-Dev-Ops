@@ -194,7 +194,7 @@ class RunRecord:
         an unseen agent with an unknown group is never gone. Fail closed: hold the claim."""
         if self.pgid is not None or not agent_sandbox.GROUPS:
             return agent_sandbox.end_group(self.pgid)
-        return not getattr(self, "unseen_agent", False)
+        return False  # r10: on POSIX a handle whose group is unknown is never gone, seen or not
 
     def close(self) -> None:
         """Close the log. Never raises: a failed flush must not cost the claim its terminal update.
