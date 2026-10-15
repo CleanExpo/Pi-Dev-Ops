@@ -47,27 +47,34 @@ def _group_alive(pgid: int) -> bool:
     return True
 
 
-def test_r8_g2_no_report_while_the_agents_group_still_runs(runner, monkeypatch, tmp_path):
-    """A real agent forks a writer, then the interrupt lands right after Popen returned."""
-    marker, pid_file = tmp_path / "descendant-writes", tmp_path / "descendant-pid"
-    agent(runner, monkeypatch, tmp_path,
-          f"(while :; do echo x >> {shlex.quote(str(marker))}; sleep 0.05; done) & "
-          f"echo $! > {shlex.quote(str(pid_file))}; sleep 30")
+class InterruptOnPid:
+    """The reviewer's probe: the first read of .pid raises the interrupt, after Popen returned."""
+
+    def __init__(self, proc):
+        self.proc, self.raised = proc, False
+
+    @property
+    def pid(self):
+        if not self.raised:
+            self.raised = True
+            raise KeyboardInterrupt("after Popen returned")
+        return self.proc.pid
+
+    def __getattr__(self, name):
+        return getattr(self.proc, name)
+
+
+class NoPid(InterruptOnPid):
+    """The pid is never readable: the group cannot be learned at all."""
+
+    @property
+    def pid(self):
+        raise KeyboardInterrupt("pid never readable")
+
+
+def _wrap_agent_popen(runner, monkeypatch, wrap, ready=None) -> list:
+    """Start the agent for real, wait for `ready` to exist, then hand back `wrap(proc)`."""
     real, spawned = runner.run_record.subprocess.Popen, []
-
-    class InterruptOnPid:  # the reviewer's probe: the first read of .pid raises the interrupt
-        def __init__(self, proc):
-            self.proc, self.raised = proc, False
-
-        @property
-        def pid(self):
-            if not self.raised:
-                self.raised = True
-                raise KeyboardInterrupt("after Popen returned")
-            return self.proc.pid
-
-        def __getattr__(self, name):
-            return getattr(self.proc, name)
 
     def popen(cmd, *a, **k):
         proc = real(cmd, *a, **k)
@@ -75,37 +82,49 @@ def test_r8_g2_no_report_while_the_agents_group_still_runs(runner, monkeypatch, 
             return proc
         spawned.append(proc)
         deadline = time.monotonic() + 3
-        while not pid_file.exists() and time.monotonic() < deadline:
+        while ready is not None and not ready.exists() and time.monotonic() < deadline:
             time.sleep(0.01)
-        return InterruptOnPid(proc)
-
-    alive_at_terminal: list = []
-
-    def api(_m, _p, body=None):
-        if (body or {}).get("state") in ("done", "failed", "released"):
-            alive_at_terminal.append(_group_alive(spawned[0].pid))
-        return {}
+        return wrap(proc)
 
     monkeypatch.setattr(runner.run_record.subprocess, "Popen", popen)
-    monkeypatch.setattr(runner, "_api", api)
+    return spawned
+
+
+def _kill(spawned) -> None:
+    for proc in spawned:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        proc.wait(timeout=5)
+
+
+def _size(path) -> int:
+    return path.stat().st_size if path.exists() else 0
+
+
+def test_r8_g2_no_report_while_the_agents_group_still_runs(runner, monkeypatch, tmp_path):
+    """A real agent forks a writer, then the interrupt lands right after Popen returned."""
+    marker, pid_file = tmp_path / "descendant-writes", tmp_path / "descendant-pid"
+    agent(runner, monkeypatch, tmp_path, f"(while :; do echo x >> {shlex.quote(str(marker))}; sleep 0.05; done) & "
+          f"echo $! > {shlex.quote(str(pid_file))}; sleep 30")
+    spawned = _wrap_agent_popen(runner, monkeypatch, InterruptOnPid, ready=pid_file)
+    alive_at_terminal: list = []
+    monkeypatch.setattr(runner, "_api", lambda _m, _p, b=None: alive_at_terminal.append(
+        _group_alive(spawned[0].pid)) if (b or {}).get("state") in ("done", "failed", "released") else {})
     try:
         with pytest.raises(KeyboardInterrupt):
             run(runner)
-        before = marker.stat().st_size if marker.exists() else 0
+        before = _size(marker)
         time.sleep(0.3)
-        after = marker.stat().st_size if marker.exists() else 0
-        assert after == before, "a descendant is still writing after the run ended"
+        assert _size(marker) == before, "a descendant is still writing after the run ended"
         assert True not in alive_at_terminal, "a terminal report went out while the group still ran"
-        if states_held := not alive_at_terminal:  # held instead: everything must still be there
+        if not alive_at_terminal:  # held instead: everything must still be there
             assert len(journals(runner)) == 1 and len(list((tmp_path / "wts").iterdir())) == 1
-        assert states_held or not _group_alive(spawned[0].pid)
+        else:
+            assert not _group_alive(spawned[0].pid)
     finally:
-        for proc in spawned:
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            proc.wait(timeout=5)
+        _kill(spawned)
 
 
 def test_r8_an_unseen_agent_whose_group_is_unknown_is_never_reaped(runner, tmp_path):
@@ -149,27 +168,7 @@ def test_r8_g2_held_run_stays_held_for_the_ticker(runner, monkeypatch, tmp_path)
     """When the group cannot be learned at all, the claim is held and the Ticker holds it too:
     with no pid on record nothing can later prove the child gone (fail closed, by design)."""
     agent(runner, monkeypatch, tmp_path, "sleep 30")
-    real, spawned = runner.run_record.subprocess.Popen, []
-
-    class NoPid:
-        def __init__(self, proc):
-            self.proc = proc
-
-        @property
-        def pid(self):
-            raise KeyboardInterrupt("pid never readable")
-
-        def __getattr__(self, name):
-            return getattr(self.proc, name)
-
-    def popen(cmd, *a, **k):
-        proc = real(cmd, *a, **k)
-        if cmd and cmd[0] == runner.AGENT_CMD:
-            spawned.append(proc)
-            return NoPid(proc)
-        return proc
-
-    monkeypatch.setattr(runner.run_record.subprocess, "Popen", popen)
+    spawned = _wrap_agent_popen(runner, monkeypatch, NoPid)
     try:
         with pytest.raises(KeyboardInterrupt):
             run(runner)
@@ -181,9 +180,4 @@ def test_r8_g2_held_run_stays_held_for_the_ticker(runner, monkeypatch, tmp_path)
         runner.run_journal.Ticker()(rt, False)
         assert sent == [] and len(journals(runner)) == 1
     finally:
-        for proc in spawned:
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            proc.wait(timeout=5)
+        _kill(spawned)
