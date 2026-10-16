@@ -22,7 +22,7 @@ Shipping a log tail safely is UNI-2800.
 """
 from __future__ import annotations
 
-import os
+import os  # noqa: F401 — tests reach os.fchmod through this module; the log opener moved to private_log
 import re
 import signal
 import subprocess
@@ -33,6 +33,8 @@ from typing import Any, Callable, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agent_sandbox  # noqa: E402
+import left_running  # noqa: E402
+from private_log import open_private as _open_private  # noqa: E402 — tests patch it here
 
 # run_claim's ids are uuid4().hex[:8]. Anything else never becomes a path.
 _RUN_ID = re.compile(r"[0-9a-f]{8}")
@@ -85,36 +87,6 @@ def _attempt(action: Callable[[], Any], held: list) -> bool:
         return False
 
 
-def _open_private(path: Path) -> Any:
-    """Create `path` new, owner-only from the first byte, or return DEVNULL.
-
-    O_EXCL: an existing file at this path — an earlier run's transcript under a
-    repeated id, or a hard link planted there — is never opened, let alone
-    truncated. The run then goes ahead without a log. The mode is set at
-    creation, so there is no window with the umask's wider mode. Any failure
-    after creating the file removes it.
-
-    O_NOFOLLOW and fchmod do not exist on Windows (RA-7801): there the flag is
-    left out and the mode given to os.open is the only one applied. O_EXCL still
-    refuses anything already at the path, symlink included.
-    """
-    fd = -1
-    try:
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
-        fd = os.open(path, flags, 0o600)
-        if hasattr(os, "fchmod"):
-            os.fchmod(fd, 0o600)
-        return os.fdopen(fd, "wb")
-    except OSError:
-        if fd >= 0:
-            os.close(fd)
-            try:
-                path.unlink()
-            except OSError:
-                pass
-        return subprocess.DEVNULL
-
-
 class RunRecord:
     """One agent run: owns its log file, its process, and the fields it reports.
 
@@ -153,20 +125,33 @@ class RunRecord:
         that failed to exec. An interrupt can land after the child started but
         before Popen returned its handle (review round 18), leaving an agent this
         record cannot see; stop() then reports it as not reaped.
+
+        UNI-2963 review r8 ("g2"): an interrupt landing AFTER Popen returned but before the
+        group was saved left a handle with no group, and stop() then counted the agent's
+        descendants as gone. The handle and its group are now adopted together, and an
+        interrupt there adopts them again before it propagates, so stop() can end the group.
         """
+        proc = None
         try:
-            self.proc = subprocess.Popen(cmd, cwd=cwd, stdout=self._log, stderr=subprocess.STDOUT,
-                                         env=agent_sandbox.agent_env(),
-                                         start_new_session=agent_sandbox.GROUPS)
-            pid = getattr(self.proc, "pid", None)
-            if agent_sandbox.GROUPS and isinstance(pid, int):
-                self.pgid = pid  # start_new_session made the agent its group's leader
+            proc = subprocess.Popen(cmd, cwd=cwd, stdout=self._log, stderr=subprocess.STDOUT,
+                                    env=agent_sandbox.agent_env(),
+                                    start_new_session=agent_sandbox.GROUPS)
+            self._adopt(proc)
         except Exception:
             raise
         except BaseException:
             self.unseen_agent = True
+            if proc is not None:  # Popen returned: keep its handle and group for stop()
+                _attempt(lambda: self._adopt(proc), [])
             raise
         return self.proc
+
+    def _adopt(self, proc: subprocess.Popen) -> None:
+        """Group first, handle second: a handle is never visible without its group."""
+        pid = getattr(proc, "pid", None)
+        if agent_sandbox.GROUPS and isinstance(pid, int):
+            self.pgid = pid  # start_new_session made the agent its group's leader
+        self.proc = proc
 
     def stop(self) -> None:
         """End a still-running agent and everything it started, reap it, then close the log.
@@ -182,6 +167,9 @@ class RunRecord:
         proc = self.proc
         if proc is None and getattr(self, "unseen_agent", False):
             self.reaped = False  # an agent may be running with no handle to stop it
+        if proc is not None and self.pgid is None and agent_sandbox.GROUPS:
+            pid = getattr(proc, "pid", None)  # r8: the agent leads its own group
+            self.pgid = pid if isinstance(pid, int) else None
         if proc is not None:
             exited: list = []
             _attempt(lambda: exited.append(proc.poll() is not None), held)
@@ -193,11 +181,20 @@ class RunRecord:
                     _attempt(proc.wait, held)
             gone: list = []
             _attempt(lambda: gone.append(proc.poll() is not None), held)
-            _attempt(lambda: gone.append(agent_sandbox.end_group(self.pgid)), held)
+            _attempt(lambda: gone.append(self._group_gone()), held)
             self.reaped = gone == [True, True]
         _attempt(self.close, held)
         if held:
             raise held[0]
+
+    def _group_gone(self) -> bool:
+        """The agent's group is proven empty (r8). On POSIX `end_group(None)` proves nothing, so a
+        handle whose group is still unknown after stop()'s pid fallback (its pid is not an int,
+        so it is no process this OS started) counts only if this record saw the agent start;
+        an unseen agent with an unknown group is never gone. Fail closed: hold the claim."""
+        if self.pgid is not None or not agent_sandbox.GROUPS:
+            return agent_sandbox.end_group(self.pgid)
+        return False  # r10: on POSIX a handle whose group is unknown is never gone, seen or not
 
     def close(self) -> None:
         """Close the log. Never raises: a failed flush must not cost the claim its terminal update.
@@ -270,7 +267,7 @@ def release_interrupt(rec: Optional[RunRecord]) -> None:
 
 def unreaped(rec: Optional[RunRecord]) -> bool:
     """True if stop() could not prove the agent exited: it may still be running in the worktree."""
-    return rec is not None and getattr(rec, "reaped", None) is False
+    return left_running.may_be_running(rec)  # r9: alive unless stop() PROVED it reaped
 
 
 def fields(rec: Optional[RunRecord], plan: dict) -> dict:

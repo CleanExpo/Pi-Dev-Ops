@@ -129,8 +129,10 @@ def test_a_claim_failed_before_running_sends_only_its_code(monkeypatch, tmp_path
     assert _token() not in repr(calls)
 
 
-def test_a_worktree_removal_failure_still_ends_the_claim(monkeypatch, tmp_path):
-    """Round 6: the terminal update used to sit behind an unguarded `git worktree remove`."""
+def test_a_worktree_removal_failure_holds_the_claim_for_the_journal_retry(monkeypatch, tmp_path):
+    """Round 6: the terminal update used to sit behind an unguarded `git worktree remove`.
+    UNI-2963 review r3 reverses the outcome on purpose: a finished claim over a worktree still
+    on disk is the defect now, and the run journal (kept) is what un-strands it later."""
     runner, calls, _removed, repo = _runner(monkeypatch, tmp_path)
     real_git = runner.subprocess.run
 
@@ -148,8 +150,9 @@ def test_a_worktree_removal_failure_still_ends_the_claim(monkeypatch, tmp_path):
     agent.chmod(0o755)
     monkeypatch.setattr(runner, "AGENT_CMD", str(agent))
     runner.run_claim({"linear_id": "UNI-R", "repo_dir": str(repo)}, dry_run=False)
-    assert [b["state"] for b in _updates(calls)] == ["working", "done"]
+    assert [b["state"] for b in _updates(calls)] == ["working"]
     assert attempts, "removal was never attempted"
+    assert list((tmp_path / "mesh-runs").glob("*.json")), "the journal must stay for the retry"
 
 
 def test_a_failed_worktree_add_is_still_cleaned_up(monkeypatch, tmp_path):
@@ -279,7 +282,7 @@ def test_a_wait_failure_ends_the_claim_with_the_agent_dead_before_cleanup(
 
     def remove(repo_dir, worktree):
         alive_at["remove"] = started[0].poll() is None
-        real_remove(repo_dir, worktree)
+        return real_remove(repo_dir, worktree)  # UNI-2963 r3: the terminal report waits on this
 
     monkeypatch.setattr(runner, "_wait_for_agent", interrupted_wait)
     monkeypatch.setattr(runner, "_api", api)

@@ -29,6 +29,7 @@ reading as done.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import NamedTuple
@@ -49,8 +50,9 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
                           text=True, timeout=_TIMEOUT, check=False)
 
 
-def _commit_leftovers(worktree: Path, linear_id: str, host: str) -> str | None:
-    """Commit uncommitted agent output. The identity is set only for this commit,
+def commit_leftovers(worktree: Path, linear_id: str, host: str,
+                     subject: str = "mesh run output") -> str | None:
+    """Commit uncommitted agent output; run_journal.keep_wip's WIP commit too (UNI-2963). The identity is set only for this commit,
     so a node with no git identity configured still ships. A failed status or stage
     is an error, never "nothing to commit": either one left work behind that the
     worktree removal would then destroy."""
@@ -64,8 +66,38 @@ def _commit_leftovers(worktree: Path, linear_id: str, host: str) -> str | None:
         return f"stage failed: {staged.stderr.strip()[:200]}"
     done = _git(worktree, "-c", f"user.name=Nexus Mesh ({host})",
                 "-c", "user.email=mesh@unite-group.invalid",
-                "commit", "-q", "-m", f"{linear_id}: mesh run output from {host}")
+                "commit", "-q", "-m", f"{linear_id}: {subject} from {host}")
     return None if done.returncode == 0 else f"commit failed: {done.stderr.strip()[:200]}"
+
+
+def _holds(worktree: Path, ref: str, tip: str) -> bool:
+    return _git(worktree, "merge-base", "--is-ancestor", tip, ref).returncode == 0
+
+
+def keep(worktree: Path, branch: str, linear_id: str, host: str, subject: str) -> str | None:
+    """Keep a run's work where removing its worktree cannot lose it (UNI-2963): commit any
+    leftovers, then make sure a ref under `refs/heads/<branch>` holds the result. The agent
+    may have detached HEAD or switched branch (review r1), so a commit on HEAD alone can be
+    unreachable; such a tip gets its own `<branch>-wip-<sha>` ref. None once a ref is VERIFIED
+    to contain the tip, else why not. No worktree at all holds nothing; one that exists without
+    its `.git` is damaged, not empty, and is held (review r2)."""
+    if not os.path.lexists(worktree):
+        return None
+    if not (worktree / ".git").exists():
+        return "worktree metadata missing (.git gone); its files are left in place"
+    if not branch.startswith("mesh/"):
+        return f"refusing to keep work on non-mesh branch {branch}"
+    error = commit_leftovers(worktree, linear_id, host, subject)
+    if error:
+        return error
+    tip = _git(worktree, "rev-parse", "--verify", "-q", "HEAD^{commit}").stdout.strip()
+    if not tip:
+        return "no commit to keep: HEAD unreadable"
+    ref = f"refs/heads/{branch}"
+    if not _holds(worktree, ref, tip):
+        ref = f"refs/heads/{branch}-wip-{tip[:12]}"
+        _git(worktree, "update-ref", ref, tip, "")  # "" = create only, never move an existing ref
+    return None if _holds(worktree, ref, tip) else f"WIP {tip[:12]} is on no ref"
 
 
 def start_point(repo_dir: Path) -> Start:
@@ -88,7 +120,7 @@ def ship(start: Start, worktree: Path, branch: str, linear_id: str,
     """Put this run's branch on the remote. None on success, else why not."""
     if not branch.startswith("mesh/"):
         return f"refusing to push non-mesh branch {branch}"
-    error = _commit_leftovers(Path(worktree), linear_id, host)
+    error = commit_leftovers(Path(worktree), linear_id, host)
     if error:
         return error
     ahead = _git(Path(worktree), "rev-list", "--count", f"{start.sha}..HEAD").stdout.strip()

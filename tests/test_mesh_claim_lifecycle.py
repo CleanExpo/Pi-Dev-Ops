@@ -83,7 +83,7 @@ def test_an_interrupt_anywhere_after_working_still_ends_the_claim(monkeypatch, t
     monkeypatch.setattr(runner.subprocess, "run", git)
     with pytest.raises(KeyboardInterrupt):
         runner.run_claim({"linear_id": "UNI-K", "repo_dir": str(repo)}, dry_run=False)
-    assert [b["state"] for b in _updates(calls)] == ["working", "failed"]
+    assert [b["state"] for b in _updates(calls)] == ["working", "failed"][:1 if where == "failed-add cleanup" else 2]  # r3
     assert removals, "worktree removal was never attempted"
     assert _state(tmp_path) == "idle"
 
@@ -176,7 +176,7 @@ def test_a_ship_that_raises_fails_the_run_and_ships_before_removal(monkeypatch, 
 
     real_remove = runner.claim_lifecycle.remove_worktree
     monkeypatch.setattr(runner, "ship_run", types.SimpleNamespace(
-        start_point=lambda *_a: "0" * 40, settle=settle))
+        start_point=lambda *_a: "0" * 40, settle=settle, keep=lambda *_a: None))  # UNI-2963 keep
     monkeypatch.setattr(runner.claim_lifecycle, "remove_worktree",
                         lambda *a: order.append("remove") or real_remove(*a))
     if isinstance(error, KeyboardInterrupt):
@@ -259,9 +259,9 @@ def test_ctrl_c_while_a_claim_ends_waits_until_every_step_ran():
         return {}
 
     with pytest.raises(KeyboardInterrupt):
-        cl.end(report_and_get_interrupted, lambda: ran.append("remove"), lambda: ran.append("idle"),
+        cl.end(report_and_get_interrupted, lambda: ran.append("remove") or True, lambda: ran.append("idle"),
                agent_alive=False, pause=0)
-    assert ran == ["report", "report finished", "remove", "idle"]
+    assert ran == ["remove", "report", "report finished", "idle"]  # UNI-2963 r3: remove, then report
     assert signal.getsignal(signal.SIGINT) is signal.default_int_handler
 
 

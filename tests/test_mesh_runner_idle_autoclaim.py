@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 
 from mesh_helpers import Break as _Break  # noqa: E402
-from mesh_helpers import SHIPPED, ImmediateProc as _ImmediateProc  # noqa: E402
+from mesh_helpers import SHIPPED, GroupLeaderPid, ImmediateProc as _ImmediateProc  # noqa: E402
 from mesh_helpers import is_issue_read, issue_by_id, load_module as _load  # noqa: E402
 
 
@@ -352,7 +352,7 @@ def test_run_claim_branch_unique_per_run(runner):
     assert p1["branch"].startswith("mesh/testnode/uni-a-")
 
 
-class _FakeAgentProc:
+class _FakeAgentProc(GroupLeaderPid):  # r10: a real, reaped group-leader pid
     """Controllable stand-in for the Popen handle of an in-flight agent run.
 
     `running_polls` is how many times poll() reports "still running" (None)

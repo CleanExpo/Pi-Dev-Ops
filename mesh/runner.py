@@ -37,6 +37,7 @@ import left_running  # noqa: E402
 import node_health  # noqa: E402
 import preflight  # noqa: E402
 import quota  # noqa: E402
+import run_journal  # noqa: E402
 import run_record  # noqa: E402
 import runner_idle  # noqa: E402
 import self_update  # noqa: E402
@@ -204,33 +205,34 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         return {**plan, "dry_run": True}
     if not (repo_dir / ".git").exists():
         return _fail_claim(plan, linear_id, branch, f"repo missing: {repo_dir}")
-
     worktree = claim_lifecycle.worktree_path(linear_id, run_id)
-    held: list = []  # the run record, kept even when an interrupt escapes run_agent
+    if not (beat := run_journal.start(STATE_FILE.parent, run_id, plan, HOST, worktree)).ok:  # UNI-2963: journal before act
+        return _fail_claim(plan, linear_id, branch, "run journal unwritable")  # never `working` unjournaled
     try:  # from `working` on, every way out — even an interrupt — ends the claim in the finally
         write_state(linear_id, "working", session_id=run_id)
         _api("POST", "/api/mesh/claim/update", {
             "linear_id": linear_id, "state": "working", "branch": branch, "host": HOST,
-            "claim_id": plan["claim_id"]})
+            "claim_id": plan["claim_id"], "run_id": run_id})
         start = ship_run.start_point(repo_dir)  # RA-7780: held where the agent cannot move it
         if claim_lifecycle.add_worktree(repo_dir, branch, worktree):
-            run_record.run_agent(
-                lambda: agent_sandbox.agent_argv(AGENT_CMD, build_prompt(claim, linear_id, branch)),
-                str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent, held)
-            quota.release_if_quota(held, plan, time.time())  # RA-7930: requeued, never a failure
+            run_record.run_agent(  # the journal says `launching` before the agent can exist
+                lambda: beat.launching() or agent_sandbox.agent_argv(AGENT_CMD, build_prompt(claim, linear_id, branch)),
+                str(worktree), STATE_FILE.parent, run_id, plan, _wait_for_agent, beat.held)
+            quota.release_if_quota(beat.held, plan, time.time())  # RA-7930: requeued, never a failure
             claim_lifecycle.deliver(  # RA-7780: `done` means pushed, checked before the worktree goes
                 lambda: ship_run.settle(plan, start, worktree, branch, linear_id, HOST), plan)
         else:  # a failed add can still leave a partial worktree; the finally removes it
             plan.update(state="failed", error="git worktree add failed")
     finally:
-        rec = held[0] if held else None
-        claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", {
-            "linear_id": linear_id, "branch": branch, "host": HOST, "claim_id": plan["claim_id"],
-            **run_record.terminal(rec, plan)}),
-            lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
-            agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS,
-            then=lambda: run_record.release_interrupt(rec),
-            first=lambda: left_running.track(rec))  # RA-7798: never self-update away from an unstopped agent
+        with claim_lifecycle.SigintHold() as sig:  # UNI-2963 r5: Ctrl-C is held from here until the ending ran
+            rec = beat.held[0] if beat.held else None
+            final = run_journal.Outcome(beat, lambda: {"linear_id": linear_id, "branch": branch, "host": HOST,  # r7: run_id
+                                                       "claim_id": plan["claim_id"], "run_id": run_id, **run_record.terminal(rec, plan)})
+            claim_lifecycle.end(lambda: _api("POST", "/api/mesh/claim/update", final()),
+                lambda: claim_lifecycle.remove_worktree(repo_dir, worktree), lambda: write_state(None, "idle"),
+                agent_alive=run_record.unreaped(rec), pause=MESH_KILL_POLL_SECONDS, then=lambda: run_record.release_interrupt(rec),
+                preserve=lambda: final.record() or run_journal.keep_wip(plan, worktree, HOST, ship_run), forget=beat.clear,  # WIP on every exit
+                first=lambda: (beat.stop(), left_running.track(rec)), held=sig)  # RA-7798: never self-update away from an unstopped agent
     return plan
 
 
@@ -257,12 +259,11 @@ def main() -> int:
     args = _parse_args()
     problem = default_repo_dir_problem()
     if problem:
-        # Non-zero on purpose: KeepAlive{SuccessfulExit:false} retries it, so
-        # the node keeps announcing this and resumes once it is fixed.
+        # Non-zero on purpose: KeepAlive{SuccessfulExit:false} retries it, so the node resumes once fixed.
         print(LOG.line(None, runner=HOST, status="REFUSED", reason=problem))
         return 2
     check = (lambda: preflight.check(DEFAULT_REPO_DIR, AGENT_CMD)) if PREFLIGHT_ENABLED else (lambda: "")
-    health, processed = node_health.NodeHealth(check), 0
+    health, processed, tick = node_health.NodeHealth(check), 0, run_journal.Ticker()  # UNI-2963
     updater = self_update.Updater(CODE_DIR, AGENT_CMD) if SELF_UPDATE_ENABLED else None
     while True:
         stop = _stop_status(processed)
@@ -272,6 +273,7 @@ def main() -> int:
             # A clean exit keeps launchd from restarting the runner, right for HARD_STOP and
             # STUCK; at the claim cap the Mini just stopped for good (audit 30/09 #18).
             return 4 if stop["status"] == "MAX_CLAIMS" else 0
+        tick(types.SimpleNamespace(**globals()), args.dry_run)  # UNI-2963: settle dead runs, retry held ones
         if not args.dry_run and not health.may_claim():
             code = runner_idle.hold(types.SimpleNamespace(**globals()), health, args.once)
             if code is not None:

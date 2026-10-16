@@ -385,7 +385,7 @@ jobs:
           python -m uvicorn app.server.main:app \
             --host 127.0.0.1 --port 7777 \
             --log-level warning > /tmp/server-local.log 2>&1 &
-          echo "SERVER_PID=$!" >> $GITHUB_ENV
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
 
       - name: Wait for server to be ready
         run: |

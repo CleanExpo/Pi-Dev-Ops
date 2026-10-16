@@ -71,8 +71,10 @@ def group_empty(pgid: Optional[int], timeout: float) -> bool:
     covers the moment they are zombies still counted in the group. A member this
     user cannot signal is also "not empty": the run is then reported unreaped.
     """
-    if pgid is None or not GROUPS:
+    if not GROUPS:
         return True
+    if pgid is None:  # r8: on POSIX an unknown group is never proof that it is empty
+        return False
     deadline = time.monotonic() + timeout
     while True:
         try:
@@ -92,8 +94,10 @@ def end_group(pgid: Optional[int]) -> bool:
     The kill is resent until the group is empty: darwin can refuse a group signal
     with EPERM while a zombie is in it, and a process may fork while it is sent.
     """
-    if pgid is None or not GROUPS:
+    if not GROUPS:
         return True
+    if pgid is None:  # r8: on POSIX an unknown group is never proof that it is empty
+        return False
     deadline = time.monotonic() + EMPTY_TIMEOUT
     while True:
         signal_group(pgid, signal.SIGKILL)
