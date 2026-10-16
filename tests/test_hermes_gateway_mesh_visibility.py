@@ -54,14 +54,28 @@ def _ago(seconds: int) -> str:
 
 
 def test_fresh_mesh_row_is_live(monkeypatch, tmp_path):
-    r = _mesh(monkeypatch, tmp_path, 200, [{"machine": "Phills-Mac-mini.local", "updated_at": _ago(30)}])
+    r = _mesh(monkeypatch, tmp_path, 200,
+              [{"machine": "Phills-Mac-mini.local", "state": "working", "updated_at": _ago(30)}])
     assert (r["ok"], r["observed"], r["status"]) == (True, True, "live")
     assert r["machine"] == "Phills-Mac-mini.local"
 
 
 def test_old_mesh_row_is_stale_and_red(monkeypatch, tmp_path):
-    r = _mesh(monkeypatch, tmp_path, 200, [{"machine": "m", "updated_at": _ago(3600)}])
+    r = _mesh(monkeypatch, tmp_path, 200, [{"machine": "m", "state": "working", "updated_at": _ago(3600)}])
     assert (r["ok"], r["observed"], r["status"]) == (False, True, "stale")
+
+
+def test_gateway_gone_while_mac_alive_is_down(monkeypatch, tmp_path):
+    """Heartbeat still beating, gateway process gone: the server marks the row idle."""
+    r = _mesh(monkeypatch, tmp_path, 200, [{"machine": "m", "state": "idle", "updated_at": _ago(30)}])
+    assert (r["ok"], r["observed"], r["status"]) == (False, True, "down")
+
+
+def test_postgrest_timestamp_format_parses(monkeypatch, tmp_path):
+    ts = (datetime.datetime.now(datetime.UTC) - datetime.timedelta(seconds=5)).strftime(
+        "%Y-%m-%dT%H:%M:%S.%f+00:00")
+    r = _mesh(monkeypatch, tmp_path, 200, [{"machine": "m", "state": "working", "updated_at": ts}])
+    assert r["status"] == "live"
 
 
 def test_no_row_is_not_observed(monkeypatch, tmp_path):
