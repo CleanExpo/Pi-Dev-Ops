@@ -19,7 +19,6 @@ import json
 import ipaddress
 import os
 import platform
-import re
 import shutil
 import socket
 import subprocess
@@ -31,6 +30,7 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from env_file import from_env_file as _from_env_file, resolve_key  # noqa: E402  (RA-7905)
 from node_health import runner_down  # noqa: E402
+from agent_scan import scan_agent_processes  # noqa: E402
 
 
 PI_CEO_API_URL = (os.environ.get("PI_CEO_API_URL") or _from_env_file("PI_CEO_API_URL")
@@ -174,40 +174,11 @@ def runtimes_present() -> list[dict]:
     return out
 
 
-# The gateway is a Python interpreter running `-m hermes_cli.main gateway run`.
-# Anchored on the executable so a grep, an echo or `python -c "..."` that merely
-# mentions the command cannot fabricate a live gateway. The executable path may
-# contain spaces ("/Volumes/Storage Unit/..."), but a continuation word never
-# starts with "/" or "-", which is where an argument to another program would.
-_HERMES_GATEWAY = re.compile(
-    r"^\s*\d+\s+\S*?(?: [^\s/-]\S*?)*?/python[\d.]*\s+-m\s+hermes_cli\.main\s+gateway\s+run(?:\s|$)")
-
-
-def _scan_agent_processes(ps: str) -> list[dict]:
-    """Match agent runtime binaries in `ps -axo pid=,command=` output."""
-    sessions: list[dict] = []
-    for line in ps.splitlines():
-        low = line.lower()
-        for rt in ("claude", "codex", "hermes"):
-            # match the runtime binary, not arbitrary substrings
-            if f"/{rt}" in low or low.split()[1:2] == [rt] if len(low.split()) > 1 else False:
-                if rt == "claude" and "claude" not in low.split("/")[-1][:20]:
-                    continue
-                sessions.append({"runtime": rt, "state": "working"})
-                break
-        # The Telegram-facing Hermes gateway gets its own row: a bare "hermes"
-        # match is any Hermes process (MCP watchers too), not the bot itself.
-        # Mission Control's hermes_gateway health reads it (app/server/hermes_mesh_health.py).
-        if _HERMES_GATEWAY.match(line):
-            sessions.append({"runtime": "hermes-gateway", "state": "working"})
-    return sessions
-
-
 def running_agent_sessions() -> list[dict]:
     """Cheap proc scan for live agent processes → mesh_agents rows."""
     sessions: list[dict] = []
     if platform.system() in ("Darwin", "Linux"):
-        sessions = _scan_agent_processes(_run(["ps", "-axo", "pid=,command="], timeout=6))
+        sessions = scan_agent_processes(_run(["ps", "-axo", "pid=,command="], timeout=6))
     # de-dup by runtime, cap noise
     seen, uniq = set(), []
     for s in sessions:
