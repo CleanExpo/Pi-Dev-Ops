@@ -102,9 +102,17 @@ class Beat:
                 pass
 
     def stop(self) -> None:
+        """Halt the heartbeat, then write once more: an agent started inside the first-beat window
+        (an interrupt within _FIRST_BEAT of Popen) would otherwise stay journaled without its pid,
+        and so be held forever. Skipped while the thread is still stuck in a write (holds the lock)."""
         self._halt.set()
         if self._thread.is_alive():
             self._thread.join(timeout=BEAT_SECONDS + 1)
+        if not self._thread.is_alive():
+            try:
+                self.beat()
+            except Exception:  # noqa: BLE001 — stopping a heartbeat never takes the run down
+                pass
 
     def clear(self) -> None:
         """Stop beating and delete the journal. Under the write lock, so no write in flight can
