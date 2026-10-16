@@ -122,8 +122,44 @@ HELD_AT_END = {"stop-entry", "end_group", "popen-unseen"}
 # after the group empties the Ticker keeps holding (fail closed; the owner's decision for unknowns).
 HELD_FOREVER = {"popen-unseen"}
 # TERM-resistant: only end_group's SIGKILL can end the writer (proves a LIVE hold). TERM-responsive:
-# stop()'s SIGTERM ends it (the ordinary exit path, where the group dies before end_group).
-WRITERS = {"term-resistant": "trap '' TERM; ", "term-responsive": ""}
+# stop()'s SIGTERM ends it, and its handler leaves a mark first, so the graceful exit is OBSERVED.
+WRITERS = {"term-resistant": "trap '' TERM; ", "term-responsive": "trap 'echo term >> {term}; exit 0' TERM; "}
+# Derived from RunRecord.stop(): it sends the group SIGTERM right after its first poll, so an interrupt at
+# poll, terminate, wait or close still lets SIGTERM through before end_group (and end_group itself comes
+# after it). stop-entry and popen-unseen never run stop(), and at signal_group that very SIGTERM is the
+# interrupted call: none of those three may see a TERM.
+TERM_POINTS = {"poll", "terminate", "wait", "end_group", "close"}
+
+
+def _wait_until(check, timeout: float = 4 * GROW_TIMEOUT) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if check():
+            return True
+        time.sleep(0.02)
+    return False
+
+
+def _observe_end_group(runner, monkeypatch, term_file) -> list:
+    """Before end_group's SIGKILL: did the writer take the TERM path, and was its group already gone?"""
+    real, seen = runner.run_record.agent_sandbox.end_group, []
+
+    def observed(pgid):
+        if not seen:
+            seen.append((_wait_until(term_file.exists), _wait_group_gone(pgid)))
+        return real(pgid)
+
+    monkeypatch.setattr(runner.run_record.agent_sandbox, "end_group", observed)
+    return seen
+
+
+def _assert_term_path(point: str, term_file, before_kill: list) -> None:
+    if point not in TERM_POINTS:
+        assert not term_file.exists(), "no SIGTERM may reach the writer at " + point
+    elif point == "end_group":  # the interrupted call: the TERM sent before it must still have ended the writer
+        assert _wait_until(term_file.exists), "the writer never took the TERM path"
+    else:
+        assert before_kill == [(True, True)], "TERM must end the writer and empty the group before end_group's SIGKILL"
 
 
 def _wait_group_gone(pgid: int, timeout: float = 4 * GROW_TIMEOUT) -> bool:
@@ -139,7 +175,11 @@ def _wait_group_gone(pgid: int, timeout: float = 4 * GROW_TIMEOUT) -> bool:
 def _members(pgid: int) -> str:
     """What is left in the group, for the failure message (diagnosis, not a check)."""
     import subprocess
-    out = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,comm="], capture_output=True, text=True).stdout
+    try:  # r13: a hung ps must not hang the failure path
+        out = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,comm="], capture_output=True, text=True,
+                             timeout=10).stdout
+    except subprocess.TimeoutExpired:
+        return "(ps timed out)"
     return "\n".join(line for line in out.splitlines() if line.split()[2:3] == [str(pgid)]) or "(none listed)"
 
 
@@ -175,9 +215,13 @@ def _assert_held_then_settled(runner, tmp_path, leader, marker, writer_alive: bo
 @pytest.mark.parametrize("point", POINTS)
 def test_r9_an_interrupt_anywhere_in_stop_settles_nothing_while_the_group_lives(runner, monkeypatch, tmp_path,
                                                                                point, mode):
-    marker = tmp_path / "descendant-writes"
-    agent(runner, monkeypatch, tmp_path, f"({WRITERS[mode]}while :; do echo x >> {shlex.quote(str(marker))}; "
+    marker, term_file = tmp_path / "descendant-writes", tmp_path / "writer-got-term"
+    writer = WRITERS[mode].format(term=shlex.quote(str(term_file)))
+    agent(runner, monkeypatch, tmp_path, f"({writer}while :; do echo x >> {shlex.quote(str(marker))}; "
           f"sleep 0.05; done) & sleep 30")
+    responsive = mode == "term-responsive"
+    before_kill = (_observe_end_group(runner, monkeypatch, term_file)
+                   if responsive and point in TERM_POINTS - {"end_group"} else [])
     proxies, spawned = [], []
     # Wait for the writer's FIRST WRITE, not its pid: the write comes after its `trap` is in place, so a
     # Ctrl-C can never land between the fork and the trap (2/30 runs at loadavg ~78 did exactly that).
@@ -189,6 +233,8 @@ def test_r9_an_interrupt_anywhere_in_stop_settles_nothing_while_the_group_lives(
         fired = [o.fired for o in onces + [p._once for p in proxies]]
         assert fired and all(fired), "precondition: the interrupt was never injected at " + point
         assert True not in alive_at_terminal, "a terminal report went out while the group still ran"
+        if responsive:
+            _assert_term_path(point, term_file, before_kill)
         if point in HELD_AT_END:
             writer_alive = point != "end_group" or mode == "term-resistant"  # no signal reached the others
             _assert_held_then_settled(runner, tmp_path, spawned[0], marker, writer_alive, alive_at_terminal,
