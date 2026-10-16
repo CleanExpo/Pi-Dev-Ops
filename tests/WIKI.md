@@ -1,13 +1,17 @@
 # tests — Wiki
 
-_Last updated: 2026-09-21T00:45:37Z (commits ed2d67a..6abe949)_
+_Last updated: 2026-10-16T08:44:36Z (commits 150da3c..8ec8743)_
 
 ## Recent changes
-- 6abe949 — fix(smoke): RA-7596 treat fail-closed verify as A4 terminal (#794)
+- 8ec8743 — UNI-2963: durable agent harness slice 1 - the mesh runner stops losing work (#931)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_delivery_gate.py — touched in recent commits
-- tests/test_smoke_pipeline_a4_verify.py — touched in recent commits
+- tests/mesh_helpers.py — touched in recent commits
+- tests/test_mesh_claim_lifecycle.py — touched in recent commits
+- tests/test_mesh_kill9_recovery.py — touched in recent commits
+- tests/test_mesh_run_journal.py — touched in recent commits
+- tests/test_mesh_run_journal_r10.py — touched in recent commits
+- tests/test_mesh_run_journal_r2.py — touched in recent commits
