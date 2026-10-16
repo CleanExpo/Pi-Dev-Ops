@@ -178,7 +178,8 @@ def running_agent_sessions() -> list[dict]:
     """Cheap proc scan for live agent processes → mesh_agents rows."""
     sessions: list[dict] = []
     if platform.system() in ("Darwin", "Linux"):
-        sessions = scan_agent_processes(_run(["ps", "-axo", "pid=,command="], timeout=6))
+        sessions = scan_agent_processes(_run(["ps", "-axo", "pid=,command="], timeout=6),
+                                        _run(["ps", "-axo", "pid=,comm="], timeout=6))
     # de-dup by runtime, cap noise
     seen, uniq = set(), []
     for s in sessions:
