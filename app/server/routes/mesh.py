@@ -21,13 +21,13 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, linear_complexity, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_queue_cache, mesh_reaper, mesh_requeue, mesh_run_record
+from .. import config, linear_complexity, mesh_agent_sync, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_queue_cache, mesh_reaper, mesh_requeue, mesh_run_record
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -42,8 +42,6 @@ router = APIRouter(prefix="/api/mesh", tags=["mesh"])
 # runner is still legitimately working. Unlike MESH_MAX_CLAIMS, an explicit
 # "0" here is NOT a special case: every configured value is clamped.
 MESH_CLAIM_TTL_MINUTES = max(int(os.environ.get("MESH_CLAIM_TTL_MINUTES", "90")), 65)
-# How long a machine's idle agent rows are kept before the heartbeat prunes them.
-MESH_AGENT_RETENTION_HOURS = max(int(os.environ.get("MESH_AGENT_RETENTION_HOURS", "24")), 1)
 
 
 def _check_secret(secret: Optional[str]) -> None:
@@ -83,23 +81,6 @@ def _get(path: str) -> tuple[int, str]:
     dropped on the way to the rows. See RA-7405 and `mesh_fleet.read`.
     """
     return _sb("GET", path)
-
-
-def _prune_idle_agents(host: str) -> None:
-    """Drop this machine's long-idle agent rows.
-
-    `mesh_agents` is unique on (machine, runtime, session_id) and nothing ever
-    deleted from it. That was harmless while session_id was the runtime name —
-    one row per runtime, upserted forever. Now the runner reports its real
-    per-claim run id, so every claim would leave a permanent idle row behind.
-    Rows are only removed once they have been idle past the retention window,
-    so a live agent is never pruned out from under Mission Control.
-    """
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=MESH_AGENT_RETENTION_HOURS)).isoformat()
-    _sb("DELETE",
-        f"mesh_agents?machine=eq.{urllib.parse.quote(host)}&state=eq.idle"
-        f"&updated_at=lt.{urllib.parse.quote(cutoff)}",
-        prefer="return=minimal")
 
 
 class AgentState(BaseModel):
@@ -143,20 +124,7 @@ def heartbeat(
     if status >= 300:
         raise HTTPException(502, f"machine upsert failed ({status})")
 
-    # Reconcile this machine's agent rows: mark all idle, then upsert the live ones.
-    _sb("PATCH", f"mesh_agents?machine=eq.{urllib.parse.quote(hb.host)}",
-        {"state": "idle"}, prefer="return=minimal")
-    _prune_idle_agents(hb.host)
-    for a in hb.agents:
-        row = {"machine": hb.host, "runtime": a.runtime, "session_id": a.session_id or a.runtime,
-               "repo": a.repo, "branch": a.branch, "current_task": a.current_task, "state": a.state,
-               "updated_at": datetime.now(timezone.utc).isoformat()}
-        # on_conflict targets the (machine, runtime, session_id) UNIQUE constraint —
-        # merge-duplicates alone resolves only against the uuid PK, so every repeat
-        # heartbeat 409'd instead of upserting. updated_at is stamped explicitly for
-        # the same reason last_seen is above: column defaults only fire on INSERT.
-        _sb("POST", "mesh_agents?on_conflict=machine,runtime,session_id", row,
-            prefer="resolution=merge-duplicates,return=minimal")
+    mesh_agent_sync.reconcile(_sb, hb.host, hb.agents)
     return {"ok": True, "host": hb.host, "agents": len(hb.agents)}
 
 

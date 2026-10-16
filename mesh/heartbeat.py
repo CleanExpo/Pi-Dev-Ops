@@ -30,6 +30,7 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from env_file import from_env_file as _from_env_file, resolve_key  # noqa: E402  (RA-7905)
 from node_health import runner_down  # noqa: E402
+from agent_scan import scan_agent_processes  # noqa: E402
 
 
 PI_CEO_API_URL = (os.environ.get("PI_CEO_API_URL") or _from_env_file("PI_CEO_API_URL")
@@ -175,19 +176,10 @@ def runtimes_present() -> list[dict]:
 
 def running_agent_sessions() -> list[dict]:
     """Cheap proc scan for live agent processes → mesh_agents rows."""
-    sysname = platform.system()
     sessions: list[dict] = []
-    if sysname in ("Darwin", "Linux"):
-        ps = _run(["ps", "-axo", "pid=,command="], timeout=6)
-        for line in ps.splitlines():
-            low = line.lower()
-            for rt in ("claude", "codex", "hermes"):
-                # match the runtime binary, not arbitrary substrings
-                if f"/{rt}" in low or low.split()[1:2] == [rt] if len(low.split()) > 1 else False:
-                    if rt == "claude" and "claude" not in low.split("/")[-1][:20]:
-                        continue
-                    sessions.append({"runtime": rt, "state": "working"})
-                    break
+    if platform.system() in ("Darwin", "Linux"):
+        sessions = scan_agent_processes(_run(["ps", "-axo", "pid=,command="], timeout=6),
+                                        _run(["ps", "-axo", "pid=,comm="], timeout=6))
     # de-dup by runtime, cap noise
     seen, uniq = set(), []
     for s in sessions:
