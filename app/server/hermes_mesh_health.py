@@ -7,11 +7,25 @@ production. mesh/heartbeat.py on the Mac reports the gateway process as a
 """
 from __future__ import annotations
 
+import asyncio
 import datetime
 import time
 from typing import Any
 
 from app.server import supabase_log
+
+# Below health_full's 2 s per-component deadline, so a slow read is reported
+# here as not observed instead of being cancelled into a red "timeout".
+_READ_TIMEOUT_S = 1.5
+
+
+async def observe_hermes_gateway() -> dict[str, Any]:
+    """Run the mesh read; any failure to read is "not observed", never "down"."""
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(hermes_gateway_from_mesh), _READ_TIMEOUT_S)
+    except Exception as exc:  # noqa: BLE001 — every read failure maps to one contract
+        return {"ok": False, "observed": False, "status": "not_observed",
+                "error": f"mesh_agents read failed ({type(exc).__name__})"}
 
 
 def hermes_gateway_from_mesh() -> dict[str, Any]:

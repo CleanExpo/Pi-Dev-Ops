@@ -26,7 +26,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from ..auth import require_auth
-from ..hermes_mesh_health import hermes_gateway_from_mesh
+from ..hermes_mesh_health import observe_hermes_gateway
 from .health_aggregate import classify, run_with_timeout
 
 
@@ -56,7 +56,7 @@ async def _check_hermes_gateway() -> dict[str, Any]:
             # RA-1939 (rerun): Hermes runs on the Mac mini, not on Railway, so the
             # file is absent in production. The Mac's mesh heartbeat reports the
             # gateway process as a mesh_agents row instead — read that.
-            return await asyncio.to_thread(hermes_gateway_from_mesh)
+            return await observe_hermes_gateway()
         last_line = ""
         with path.open("r", encoding="utf-8") as fh:
             for line in fh:

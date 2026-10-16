@@ -19,6 +19,7 @@ import json
 import ipaddress
 import os
 import platform
+import re
 import shutil
 import socket
 import subprocess
@@ -173,6 +174,15 @@ def runtimes_present() -> list[dict]:
     return out
 
 
+# The gateway is a Python interpreter running `-m hermes_cli.main gateway run`.
+# Anchored on the executable so a grep, an echo or `python -c "..."` that merely
+# mentions the command cannot fabricate a live gateway. The executable path may
+# contain spaces ("/Volumes/Storage Unit/..."), but a continuation word never
+# starts with "/" or "-", which is where an argument to another program would.
+_HERMES_GATEWAY = re.compile(
+    r"^\s*\d+\s+\S*?(?: [^\s/-]\S*?)*?/python[\d.]*\s+-m\s+hermes_cli\.main\s+gateway\s+run(?:\s|$)")
+
+
 def _scan_agent_processes(ps: str) -> list[dict]:
     """Match agent runtime binaries in `ps -axo pid=,command=` output."""
     sessions: list[dict] = []
@@ -188,7 +198,7 @@ def _scan_agent_processes(ps: str) -> list[dict]:
         # The Telegram-facing Hermes gateway gets its own row: a bare "hermes"
         # match is any Hermes process (MCP watchers too), not the bot itself.
         # Mission Control's hermes_gateway health reads it (app/server/hermes_mesh_health.py).
-        if "hermes_cli.main gateway run" in low:
+        if _HERMES_GATEWAY.match(line):
             sessions.append({"runtime": "hermes-gateway", "state": "working"})
     return sessions
 
