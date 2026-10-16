@@ -104,12 +104,15 @@ def test_hermes_gateway_probe_ok_when_heartbeat_file_absent(monkeypatch, tmp_pat
     observed components only, and is asserted in
     tests/test_health_full_unobserved_is_not_ok.py.
     """
+    from app.server import supabase_log
+
     monkeypatch.setattr(health_full, "_HARNESS", tmp_path)  # tmp_path has no hermes/heartbeat.jsonl
+    monkeypatch.setattr(supabase_log, "_request", lambda *a, **k: (200, []))  # no mesh row either
     result = asyncio.run(health_full._check_hermes_gateway())
     assert result["ok"] is False
     assert result["observed"] is False
     assert result["status"] == "not_observed"
-    assert "no_heartbeat_file" in result.get("note", "")
+    assert "no_hermes_gateway_row" in result.get("note", "")
 
 
 def test_hermes_gateway_probe_ok_when_heartbeat_file_empty(monkeypatch, tmp_path):

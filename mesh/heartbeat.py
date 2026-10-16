@@ -173,21 +173,31 @@ def runtimes_present() -> list[dict]:
     return out
 
 
+def _scan_agent_processes(ps: str) -> list[dict]:
+    """Match agent runtime binaries in `ps -axo pid=,command=` output."""
+    sessions: list[dict] = []
+    for line in ps.splitlines():
+        low = line.lower()
+        for rt in ("claude", "codex", "hermes"):
+            # match the runtime binary, not arbitrary substrings
+            if f"/{rt}" in low or low.split()[1:2] == [rt] if len(low.split()) > 1 else False:
+                if rt == "claude" and "claude" not in low.split("/")[-1][:20]:
+                    continue
+                sessions.append({"runtime": rt, "state": "working"})
+                break
+        # The Telegram-facing Hermes gateway gets its own row: a bare "hermes"
+        # match is any Hermes process (MCP watchers too), not the bot itself.
+        # Mission Control's hermes_gateway health reads it (app/server/hermes_mesh_health.py).
+        if "hermes_cli.main gateway run" in low:
+            sessions.append({"runtime": "hermes-gateway", "state": "working"})
+    return sessions
+
+
 def running_agent_sessions() -> list[dict]:
     """Cheap proc scan for live agent processes → mesh_agents rows."""
-    sysname = platform.system()
     sessions: list[dict] = []
-    if sysname in ("Darwin", "Linux"):
-        ps = _run(["ps", "-axo", "pid=,command="], timeout=6)
-        for line in ps.splitlines():
-            low = line.lower()
-            for rt in ("claude", "codex", "hermes"):
-                # match the runtime binary, not arbitrary substrings
-                if f"/{rt}" in low or low.split()[1:2] == [rt] if len(low.split()) > 1 else False:
-                    if rt == "claude" and "claude" not in low.split("/")[-1][:20]:
-                        continue
-                    sessions.append({"runtime": rt, "state": "working"})
-                    break
+    if platform.system() in ("Darwin", "Linux"):
+        sessions = _scan_agent_processes(_run(["ps", "-axo", "pid=,command="], timeout=6))
     # de-dup by runtime, cap noise
     seen, uniq = set(), []
     for s in sessions:

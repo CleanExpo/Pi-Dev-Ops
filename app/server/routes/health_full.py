@@ -26,6 +26,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from ..auth import require_auth
+from ..hermes_mesh_health import hermes_gateway_from_mesh
 from .health_aggregate import classify, run_with_timeout
 
 
@@ -52,17 +53,10 @@ async def _check_hermes_gateway() -> dict[str, Any]:
     try:
         path = _HARNESS / "hermes" / "heartbeat.jsonl"
         if not path.exists():
-            # RA-1939 (rerun): Hermes runs on the Mac mini, not on Railway.
-            # The heartbeat file therefore won't exist on the production
-            # FastAPI host — that's expected, not a failure. Emit ok=true
-            # with a note so /api/health/full returns 200 (not 503) when
-            # the only "miss" is this expected-absent file.
-            return {
-                "ok": False,
-                "observed": False,
-                "status": "not_observed",
-                "note": "no_heartbeat_file_on_this_host",
-            }
+            # RA-1939 (rerun): Hermes runs on the Mac mini, not on Railway, so the
+            # file is absent in production. The Mac's mesh heartbeat reports the
+            # gateway process as a mesh_agents row instead — read that.
+            return await asyncio.to_thread(hermes_gateway_from_mesh)
         last_line = ""
         with path.open("r", encoding="utf-8") as fh:
             for line in fh:
