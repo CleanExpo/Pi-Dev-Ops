@@ -46,6 +46,13 @@ def agent_env(environ: Optional[Mapping[str, str]] = None) -> dict:
     return {name: value for name, value in source.items() if name.upper() in _AGENT_ENV}
 
 
+def config_dir(environ: Optional[Mapping[str, str]] = None) -> str:
+    """The Claude config folder the agent logs in from: CLAUDE_CONFIG_DIR, else ~/.claude.
+    A path, never a credential, so it is safe in log lines and the breadcrumb."""
+    source = os.environ if environ is None else environ
+    return source.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
+
+
 def agent_argv(agent_cmd: str, prompt: str) -> list:
     """ONE ``--allowedTools=a,b`` argument, as plan_lane passes --disallowedTools: the flag
     is variadic, and a single ``=`` argument cannot swallow a neighbouring one."""

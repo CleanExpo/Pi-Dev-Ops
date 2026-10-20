@@ -24,6 +24,7 @@ import uuid
 from datetime import date
 from pathlib import Path
 
+import agent_sandbox
 import claim_lifecycle
 from prompt import build_plan_prompt
 
@@ -65,7 +66,8 @@ def _run_agent(claim: dict, plan: dict, rt) -> str:
             tempfile.TemporaryFile("w+b") as out:
         proc = None
         try:
-            proc = subprocess.Popen(agent_argv(rt.AGENT_CMD, prompt), cwd=cwd, stdout=out)
+            proc = subprocess.Popen(agent_argv(rt.AGENT_CMD, prompt), cwd=cwd, stdout=out,
+                                    env=agent_sandbox.agent_env())  # as the build lane: no keys or tokens
             rt._wait_for_agent(proc, plan)
         except Exception as exc:  # noqa: BLE001
             plan.update(state="failed", error=str(exc))

@@ -119,7 +119,7 @@ def write_state(current_task, state: str, session_id: str | None = None, hold_re
             "session_id": session_id,
             "state": state,
             "hold_reason": hold_reason,  # why a held node claims nothing; a quota hold names its reset
-            "version": RUNTIME_VERSION,
+            "version": RUNTIME_VERSION, "claude_config_dir": agent_sandbox.config_dir(),  # a path
             "ts": int(time.time()),
         }))
     except OSError:

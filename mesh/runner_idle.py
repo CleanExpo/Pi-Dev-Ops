@@ -12,6 +12,7 @@ import sys
 import time
 from types import SimpleNamespace
 
+import agent_sandbox
 import node_health
 import self_update
 
@@ -42,7 +43,8 @@ class Log:
 
     def line(self, health: node_health.NodeHealth | None, **fields) -> str:
         held = health is not None and health.state != "healthy"
-        record = {"ts": int(self._clock()), **fields, "hold_reason": (health.reason or None) if held else None}
+        record = {"ts": int(self._clock()), **fields, "hold_reason": (health.reason or None) if held else None,
+                  "claude_config_dir": agent_sandbox.config_dir()}  # which login the agent runs as
         if self.poll:
             record.update(poll=self.poll, last_contact=self.last_contact)
         return json.dumps(record)
