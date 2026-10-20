@@ -70,7 +70,7 @@ fi
 ```
 Agent ID: <slug or claude session id>
 Task ID: <Linear ticket like SYN-975, or internal task id>
-Verifier ID: <who reviewed the diff — for solo runs, this is "self-verified via /code-review">
+Verifier ID: <the independent non-builder review lane that reviewed the exact head, per pr-release-gate — never "self-verified">
 Agentic Layer: <which layer wrote this — "planner", "builder", "verifier", or "ship-it">
 ```
 
@@ -80,7 +80,7 @@ Append these to every PR body — under `## Agent metadata` works. Example:
 ## Agent metadata
 - Agent ID: claude-opus-5-5-<session-id-prefix>
 - Task ID: SYN-975
-- Verifier ID: self-verified via /code-review (3 finder angles + 1 verifier per finding)
+- Verifier ID: codex (independent review lane via pr-release-gate, bound to the exact head)
 - Agentic Layer: builder
 ```
 
@@ -98,28 +98,18 @@ Read references/vercel-sandbox-patterns.md when a Vercel build or sandbox fails 
 
 Read references/supabase-migration-playbook.md when applying or debugging a Supabase migration, or needing project IDs and the standing auth grant.
 
-## 4 — Admin-merge discipline
+## 4 — Red-check discipline (no admin-merge)
 
-### When admin-merge IS OK
+**Never admin-merge, and never bypass a red or missing required check.** Not for docs-only PRs, not for "environmental" failures, not on a standing "merge it". A red or missing check is either fixed or reported as a founder gate.
 
-1. The failing check has been **proven environmental** with **actual log evidence**, not by reflex/ticket-citation
-2. The same check is failing on **main** prior to your PR (proves it's pre-existing)
-3. Your PR is **docs / test-only / migration-only** with no production runtime change, OR
-4. The user has explicitly said "100% green merged" or "merge it" giving standing consent
-
-Always:
-- Post a PR comment documenting the failure analysis BEFORE admin-merging
-- Reference the **correct, specific** Linear ticket — not a vaguely-related one
-- Use `gh pr merge <N> --squash --admin --delete-branch`
-
-Never admin-merge:
-- Code changes (even tiny) when a Build / Type Check / Unit Tests check is red — that's your change failing
-- When a security scan is red — investigate first
-- Without leaving a comment explaining why
+1. **Diagnose with log evidence**, not by reflex or ticket-citation (Vercel build logs, the job log, the same check's history on `main`).
+2. **Fix it** if the cause is in your change or in tooling you are authorised to repair, then let the check re-run green on the exact head.
+3. **Otherwise report it as a founder gate**: post a PR comment with the failure analysis and the **correct, specific** Linear ticket (not a vaguely-related one), and leave the PR open.
+4. **Merge stays with Phill** per `pr-release-gate` (human merge by default). Branch deletion is founder-only too.
 
 ### PRE-RULE — check branch protection FIRST (added 2026-05-25 after the rule-against-nothing incident)
 
-Before invoking the STOP rule or any admin-merge logic, **check whether the failing status check is actually a hard block**. Many Unite-Group repos have zero required-status-checks configured — failing checks show as a GitHub UI warning ("yellow banner: 1 check failing, merge anyway?") but a plain `gh pr merge --squash` still works.
+Before invoking the STOP rule, **check whether the failing status check is a required check**. Many Unite-Group repos have zero required-status-checks configured — failing checks show as a GitHub UI warning, not a hard block. That changes the diagnosis, never the rule above: a red check is still fixed or reported, and merge is still Phill's call.
 
 ```bash
 gh api repos/<owner>/<repo>/branches/main/protection 2>/dev/null \
@@ -132,22 +122,20 @@ gh api repos/<owner>/<repo>/rulesets --jq '[.[] | {id, name, enforcement}]'
 ```
 
 **Interpretation:**
-- `required.contexts: []` AND no rulesets enforcing checks → the failing check is **UI noise, not a hard block**. A plain `gh pr merge --squash` will work. Do NOT use `--admin`. Inform the user the check is non-blocking but recommend fixing the underlying cause anyway (file the Linear ticket, but ship the PR).
+- `required.contexts: []` AND no rulesets enforcing checks → the failing check is **not a hard block**. Surface it honestly ("X check is red but not required; recommend fixing via [ticket]") in the PR so Phill decides with the facts.
 - `required.contexts: [<check-name>]` → the check IS a hard block. Apply the STOP rule below.
 - Rulesets present with `enforcement: "active"` → check the ruleset's contexts; same logic.
 
-**Confirmed today (2026-05-25):**
+**Confirmed 2026-05-25 (re-check per repo; this goes stale):**
 - Pi-Dev-Ops main: `required.contexts: []`, no rulesets, no enforce_admins → all CI is UI-noise level. The 7-PR admin-merge cycle was theater.
 - Synthex main: status not checked in this session — assume hard block until verified per-repo.
 
-The STOP rule below ONLY applies when a hard block exists. When it's UI-noise, surface the failure honestly ("X check is red but doesn't block; recommend fixing via [ticket]") and proceed with normal merge — that's the honest, non-reflexive path.
-
 ### STOP rule — chronic-broken-check escalation (added 2026-05-25 after 7-PR admin-merge incident)
 
-**Before admin-merging past any failing check, count consecutive failures of that exact check on that exact project.**
+**When a required check is failing, count consecutive failures of that exact check on that exact project.**
 
-- If the same check has failed on **≥5 consecutive deployments / PRs**, you do NOT admin-merge with "environmental" reasoning. The check is *chronically broken*, not flaking. Doing so trains you (and the user) to ignore signal — the exact pathology this skill was meant to prevent.
-- Instead, **propose ONE of**:
+- If the same check has failed on **≥5 consecutive deployments / PRs**, it is *chronically broken*, not flaking. Do not wave it through with "environmental" reasoning — that trains you (and the user) to ignore signal, the exact pathology this skill was meant to prevent.
+- Instead, **propose ONE of** (options 1 and 2 change protection or infrastructure, so they are Phill's decision, never done by the agent):
   1. **Remove the check from required status checks** on the branch protection rule (GitHub → Settings → Branches → main rule → required checks). Stops the false-block immediately. Re-add when the check is fixed.
   2. **Disable / delete the broken Vercel project** if it's no longer serving a purpose.
   3. **Surface the actual root cause** (not the symptom) and ship the fix.
@@ -158,7 +146,7 @@ Pi-Dev-Ops `Vercel – pi-dev-ops-sandbox` failed 20 consecutive deployments (PR
 
 ### How to use this skill agentically (added 2026-05-25)
 
-Read references/agentic-investigator.md when you are about to admin-merge a failing check and should spawn an investigator agent first.
+Read references/agentic-investigator.md when a check is failing and you should spawn an investigator agent to find the root cause before reporting it.
 
 ## 5 — Migration prereq detection workflow
 
@@ -183,4 +171,4 @@ This skill is working when:
 - No PR opens without all 4 metadata fields
 - No agent re-runs `supabase db query --linked -f` on a multi-statement migration
 - Migration prereq detection happens BEFORE the migration is applied
-- Sandbox failures get one-comment-then-admin-merge treatment (not 3 round-trips of "should I?")
+- Sandbox failures get one evidence-backed diagnosis comment, then a fix or a founder-gate report (never an admin-merge, never 3 round-trips of "should I?")

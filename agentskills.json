@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.25.9",
-    "generated_at": "2026-10-11T23:25:29.175222+00:00",
+    "version": "1.25.10",
+    "generated_at": "2026-10-20T23:28:29.140054+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -218,7 +218,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/architecture/SKILL.md",
-      "sha256": "73f93ca2847b1a2c23f85bd69ade78f97dfb4e40906dfab4d6d6e28bc637cf87",
+      "sha256": "235ae41576f077d191acc0d5bf2033aab8f3cef636abde1808936875fe019848",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -440,11 +440,11 @@
     },
     {
       "id": "cfo",
-      "description": "Daily financial visibility across the 11 Unite-Group businesses. Computes burn multiple, NRR, CAC payback and gross margin from Stripe + Xero feeds, drafts a 1-page financial brief into the daily 6-pager, and gates spend approvals >$1K through draft_review HITL (Wave 4.1, RA-1850). Use for the CFO daily brief, burn multiple, NRR, CAC payback, gross margin or runway checks, threshold-breach alerts, or approving a spend or invoice over the $1,000 ceiling via the draft_review gate.",
+      "description": "Daily financial visibility across the 11 Unite-Group businesses. Computes burn multiple, NRR, CAC payback and gross margin from Stripe + Xero feeds, drafts a 1-page financial brief into the daily 6-pager, and drafts every spend request for Phill's approval through draft_review HITL \u2014 it never approves spend itself (Wave 4.1, RA-1850). Use for the CFO daily brief, burn multiple, NRR, CAC payback, gross margin or runway checks, threshold-breach alerts, or drafting a spend or invoice request for Phill's approval via the draft_review gate.",
       "owner_role": "CFO",
       "status": "wave-4",
       "path": "skills/cfo/SKILL.md",
-      "sha256": "5b6dde34d114a841029d9b67a103bed0c2d72dd2a47522de3bb823252a219d1b",
+      "sha256": "00a841907134e0deebbcb833c0030b785ffcfc9c969e9ba09894aa5b01329677",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -3092,7 +3092,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/unite-group-ci-recovery/SKILL.md",
-      "sha256": "8f39360ae03b507928b27f8dfbbf108585454a1e84e82cf2dcc6445eee2f2e26",
+      "sha256": "4809badd4087fef8f078cafdffb653149035242fd948d4e281462adeb39d395b",
       "dependencies": {
         "tools": [],
         "skills": []

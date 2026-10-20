@@ -30,7 +30,7 @@ At least one "Out of Memory" ("OOM") event was detected during the build.
 Cause: sandbox projects use the default build machine size which has less RAM headroom than production. `NODE_OPTIONS=--max-old-space-size=7680 next build --webpack` plus TypeScript checking on the full Synthex codebase can saturate it. Production builds succeed because they use a larger machine.
 
 What to do:
-1. If sandbox OOMs and production passed: it's environmental — document in a PR comment + admin-merge if your PR is docs/test only
+1. If sandbox OOMs and production passed: it's environmental — document it with log evidence in a PR comment and report it as a founder gate (never admin-merge; merge stays with Phill per `pr-release-gate`)
 2. Permanent fix is "Enable Enhanced Builds" in Vercel project settings (UI work, not code). Tracked in [DR-852](https://linear.app/unite-group/issue/DR-852) per memory item SBX.
 
 ### 2.3 `vercel pull` skips Sensitive vars
