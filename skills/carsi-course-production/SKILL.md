@@ -101,6 +101,12 @@ Scan the content and reject on any hit:
 - Silent trailer (no audio stream).
 Fix all before the course goes live. Prod publish/unpublish remains founder-gated.
 
+## Humanizer stage (MUST, founder rule 14/10/2026)
+After the scan above is clean and before anything is presented for approval or publish, run the
+`humanizer` skill over every lesson, quiz, trailer script and piece of course marketing copy. Then
+HOLD for human sign-off: a course whose copy has not passed the humanizer and been signed off by a
+person does not go to the founder for approval and never publishes.
+
 ## Governance
 Prod DB is unreachable locally; course data changes go via the founder's authed admin session (guarded
 full-echo PATCH — preserve modules/price/publish/introVideoUrl). `main = prod` (DO deploy_on_push).

@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.25.10
-  generated_at: "2026-10-20T23:28:29.140054+00:00"
+  version: 1.25.11
+  generated_at: "2026-10-20T23:36:16.035743+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -319,7 +319,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/carsi-course-production/SKILL.md
-    sha256: a9c0947c66131a4a7a17c3375582d932f8cb70fc66719aa5f096bf2c4dd30561
+    sha256: f33a24eba850ff6de4905db1d07b0739d5a44a454113368eb30993ef537a1ace
     dependencies:
       tools: []
       skills: []
