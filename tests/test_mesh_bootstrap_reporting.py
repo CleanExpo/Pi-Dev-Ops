@@ -21,6 +21,7 @@ tests touch no network and install nothing.
 """
 from __future__ import annotations
 
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -72,7 +73,7 @@ def _stub_bins(sandbox: Path, *, uname_s: str, heartbeat_ok: bool) -> Path:
         f"    exit {0 if heartbeat_ok else 1} ;;\n"
         "  esac\n"
         "done\n"
-        f'exec {sys.executable} "$@"\n',
+        f'exec {shlex.quote(sys.executable)} "$@"\n',
     )
     return binn
 

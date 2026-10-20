@@ -10,6 +10,7 @@ same, starts the agent in its own process group, and reaps that group.
 from __future__ import annotations
 
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -175,13 +176,16 @@ def _gone_within_group(pgid: int) -> bool:
 def _planted_agent(tmp_path: Path) -> tuple:
     """An executable 'agent' that starts a sleeping child, records its pid, then sleeps."""
     pid_file = tmp_path / "preflight-child.pid"
-    agent = tmp_path / "planted-agent"
-    agent.write_text(
-        f"#!{sys.executable}\n"
+    body = tmp_path / "planted-agent.py"
+    body.write_text(
         "import subprocess, sys, time\n"
         "g = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
         f"open({str(pid_file)!r}, 'w').write(str(g.pid))\n"
         "time.sleep(60)\n")
+    # A `#!` line cannot name an interpreter whose path holds a space, so a sh
+    # wrapper execs it: same pid, same process group.
+    agent = tmp_path / "planted-agent"
+    agent.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(body))} "$@"\n')
     agent.chmod(0o755)
     return str(agent), pid_file
 
