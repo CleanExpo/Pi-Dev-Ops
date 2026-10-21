@@ -134,9 +134,9 @@ Action requests today:
 1. Synthetic 7-day Stripe data → burn multiple computed correctly (within ±0.01x of hand-calc)
 2. Burn multiple drops 0.4 → 1.6 between cycles → alert fires + draft posted to review chat
 3. $5000 spend request → routes through draft_review, status `pending`, NO real send
-4. $500 spend request → today the runtime returns `approved` (the gap above). Target once the
-   runtime is changed: draft_review, status `pending`, no approval emitted. Until then this item
-   is expected to fail, and that failure is the gap, not a broken test.
+4. $500 spend request → same as any amount: draft_review, status `pending` (or `blocked` if the
+   review ask was not delivered), only `cfo_spend_blocked` emitted; it stays blocked unless Phill
+   approves it.
 5. Daily brief assembles in <30s with all 11 businesses' metrics
 6. Brief posts through pii-redactor — no raw vendor names if flagged
 7. `cfo` module compiles + imports clean alongside existing `swarm/*`

@@ -105,14 +105,23 @@ def mark_reaction(
             return target
         send_now = _decide(target, emoji, actor_user_id)
         _record(snap, target_id, target, emoji)
-    if not send_now:
-        return target
-    sent_ok = dr._do_send(target) if not dr.TEST_MODE else True
+    return _send_or_halt(target_id, target, emoji, actor_user_id) if send_now else target
+
+
+def _send_or_halt(target_id: str, target: dict[str, Any], emoji: str,
+                  actor: str | None) -> dict[str, Any]:
+    """Send a "sending" draft, re-checking the halt first: a /panic that lands
+    after "sending" was saved still stops it (saved "deferred", nothing sent)."""
+    dr = _dr()
+    if send_halted(dr.TEST_MODE):
+        to, reason = "deferred", "kill-switch active after approval; send halted"
+    else:
+        sent_ok = dr._do_send(target) if not dr.TEST_MODE else True
+        to, reason = ("sent", "approved") if sent_ok else ("revise", "send_failed")
     with snapshot_lock():
         snap = dr._load_snapshot()
         target = snap.get(target_id, target)
-        _transition(target, "sent" if sent_ok else "revise",
-                    "approved" if sent_ok else "send_failed", actor_user_id)
+        _transition(target, to, reason, actor)
         _record(snap, target_id, target, emoji)
     return target
 

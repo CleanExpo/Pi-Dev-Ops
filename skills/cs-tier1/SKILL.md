@@ -43,7 +43,7 @@ HITL (dual-key gate):
 |---|---|
 | Daily 06:00 UTC | Assemble brief → pii-redact → draft_review post |
 | Per inbound ticket | Draft reply → Scribe gate via telegram-draft-for-review |
-| Per refund request | Dual-key gate; emit `cs_refund_approved` or `cs_refund_blocked` |
+| Per refund request | Draft for Phill via draft_review; emit `cs_refund_blocked`; `pending`, and blocked unless Phill approves |
 
 ## Refund approval flow
 

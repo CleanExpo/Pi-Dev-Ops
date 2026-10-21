@@ -25,7 +25,7 @@ Defaults (overridable via env or constructor of bot wrapper):
   ALERT_MODEL_SPEND_RATIO  = 0.07
 
 Audit events emitted (see audit_emit allowlist):
-  cfo_metric_snapshot, cfo_alert, cfo_invoice_approved, cfo_spend_blocked
+  cfo_metric_snapshot, cfo_alert, cfo_spend_blocked   (cfo_invoice_approved: never)
 """
 from __future__ import annotations
 

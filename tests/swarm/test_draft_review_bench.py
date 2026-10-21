@@ -173,3 +173,26 @@ def test_auto_tier_defers_when_kill_switch_active(env):
                                   drafted_by_role="CoS", reversibility="reversible")
     assert out["status"] == "deferred"
     assert env.sends == []
+
+
+# ── Codex round on 7da9f064: a /panic after "sending" is saved still stops it ─
+
+def _panic_once_sending_is_saved(monkeypatch):
+    real_save = draft_review._save_snapshot
+
+    def save(snap):
+        real_save(snap)
+        if any(r.get("status") == "sending" for r in snap.values()) and not kill_switch.is_active():
+            kill_switch.trigger("telegram_panic", reason="panic during approval")
+    monkeypatch.setattr(draft_review, "_save_snapshot", save)
+
+
+def test_panic_after_sending_saved_defers_direct_approval(env, monkeypatch):
+    d = _cfo_pending()
+    _panic_once_sending_is_saved(monkeypatch)
+    out = draft_review.mark_reaction(review_message_id="555", emoji="👍",
+                                     actor_user_id=FOUNDER, chat_id=REVIEW_CHAT)
+    assert kill_switch.is_active()
+    assert env.sends == []
+    assert out["status"] == "deferred"
+    assert _status(d.draft_id) == "deferred"

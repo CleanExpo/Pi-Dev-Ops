@@ -24,7 +24,7 @@ HITL (dual-key gate):
 - Any ad-spend, at any amount (founder ruling 21/10/2026: nothing auto-approves)
 - Brand-message changes (tone, taglines, voice)
 - Pricing changes
-- New channel launch with budget > $10,000
+- New channel launch, at any budget
 
 ## Metrics owned
 
@@ -42,7 +42,7 @@ HITL (dual-key gate):
 |---|---|
 | Daily 06:00 UTC (configurable) | Assemble daily brief → pii-redact → draft_review post to REVIEW_CHAT_ID |
 | Per-cycle (5 min) | Recompute metrics; alert on breach |
-| Per ad-spend request | Dual-key gate; emit `cmo_adspend_approved` or `cmo_adspend_blocked` |
+| Per ad-spend request | Draft for Phill via draft_review; emit `cmo_adspend_blocked`; `pending`, and blocked unless Phill approves |
 
 ## Pipeline
 

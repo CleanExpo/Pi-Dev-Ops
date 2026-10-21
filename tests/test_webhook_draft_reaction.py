@@ -185,3 +185,21 @@ def test_webhook_reaction_without_an_integer_update_id_is_dropped(env, update_id
     assert resp.status_code == 200
     assert _status(draft_id) == "pending"
     assert sends == []
+
+
+def test_panic_after_sending_saved_defers_webhook_approval(env, monkeypatch):
+    """Codex round on 7da9f064: the halt is re-checked right before the send."""
+    draft_id, sends = env
+    dr = importlib.import_module("swarm.draft_review")
+    ks = importlib.import_module("swarm.kill_switch")
+    real_save = dr._save_snapshot
+
+    def save(snap):
+        real_save(snap)
+        if any(r.get("status") == "sending" for r in snap.values()) and not ks.is_active():
+            ks.trigger("telegram_panic", reason="panic during approval")
+    monkeypatch.setattr(dr, "_save_snapshot", save)
+    assert _post(user=FOUNDER).status_code == 200
+    assert ks.is_active()
+    assert sends == []
+    assert _status(draft_id) == "deferred"

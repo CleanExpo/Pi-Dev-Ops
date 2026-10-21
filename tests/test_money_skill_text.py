@@ -21,7 +21,11 @@ MONEY_SKILLS = ("cfo", "cmo-growth", "cs-tier1", "telegram-draft-for-review")
 AUTONOMOUS_MONEY = re.compile(
     r"auto-?approv\w*\s+(?:refunds?|spend|ad-?spend|invoices?|up to)"
     r"|(?:refunds?|spend|ad-?spend)\s+(?:over|above|under|below|up to)\s+\$\s?\d"
-    r"|request\s+(?:over|above)\s+\$\s?\d",
+    r"|request\s+(?:over|above)\s+\$\s?\d"
+    # Codex round on 7da9f064: a runtime said to return or emit an approval.
+    r"|returns?\s+`?approved\b"
+    r"|emits?\s+`?\w*(?:spend|refund|invoice)_approved\b"
+    r"|budget\s*(?:>|over|above)\s*\$\s?\d",
     re.IGNORECASE)
 
 
@@ -47,6 +51,11 @@ def test_manifests_advertise_no_autonomous_money_threshold(manifest):
     "a hard gate on any ad-spend request above $5k/day",
     "an ad-spend request above $5,000/day needing the gate",
     "approve_spend auto-approves up to $1,000",
+    "4. $500 spend request → today the runtime returns `approved` (the gap above). Target once the",
+    "| Per ad-spend request | Dual-key gate; emit `cmo_adspend_approved` or `cmo_adspend_blocked` |",
+    "| Per refund request | Dual-key gate; emit `cs_refund_approved` or `cs_refund_blocked` |",
+    "the bot emits cfo_invoice_approved once the amount clears",
+    "- New channel launch with budget > $10,000",
 ])
 def test_detector_catches_the_retired_wording(stale):
     assert offences(stale)
@@ -57,6 +66,9 @@ def test_detector_catches_the_retired_wording(stale):
     "**No refund auto-approval.** Every amount waits for the founder",
     "3. $5000 spend request → routes through draft_review, status `pending`",
     "3. $4,500/day ad-spend → routes through draft_review, status `pending`, no real action",
+    "Nothing is approved by an agent. Only Phill's own approval releases a spend.",
+    "# Never cmo_adspend_approved here: approval only comes from the founder.",
+    "| Per refund request | Draft for Phill; emit `cs_refund_blocked` (pending until he approves) |",
 ])
 def test_detector_allows_the_current_wording(ok):
     assert offences(ok) == []
