@@ -13,6 +13,9 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from app.server import provider_ollama as POL  # noqa: E402
 
+# Ollama adapter mechanics; the adapter is deleted in Ollama-removal STAGE 2.
+pytestmark = pytest.mark.usefixtures("legacy_loopback_ollama_transport")
+
 
 @pytest.fixture(autouse=True)
 def _clear_state(monkeypatch):

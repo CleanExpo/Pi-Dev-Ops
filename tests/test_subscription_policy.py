@@ -207,6 +207,7 @@ def test_cli_missing_or_multiple_reported_models_stays_unverified(monkeypatch):
     (42, ""),
 ])
 @pytest.mark.parametrize("via_client", [False, True])
+@pytest.mark.usefixtures("legacy_loopback_ollama_transport")  # stage-2 adapter mechanics
 def test_swarm_local_model_identity_is_observed_not_requested(monkeypatch, reported, observed, via_client):
     import io
     import urllib.request

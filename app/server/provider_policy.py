@@ -10,7 +10,6 @@ import json
 import os
 import subprocess
 from datetime import datetime, timezone
-from urllib.parse import urlsplit
 
 
 class ProviderPolicyError(RuntimeError):
@@ -45,9 +44,11 @@ FREE_OPENROUTER_SUFFIX = ":free"
 def require_transport(provider: str, *, endpoint_url: str | None = None,
                       cli_path: str | None = None, env: dict[str, str] | None = None,
                       role: str | None = None, model_id: str | None = None) -> dict:
-    """Authorize the actual execution transport immediately before dispatch."""
-    if provider == "ollama":
-        return _require_local(endpoint_url)
+    """Authorize the actual execution transport immediately before dispatch.
+
+    Ollama is no longer a permitted transport (founder ruling 21/10/2026); it
+    falls through to the blocked branch like any other unverified provider.
+    """
     if provider == "codex":
         return _require_codex()
     if provider == "openrouter" and _is_free_openrouter_margot(role, model_id):
@@ -55,17 +56,6 @@ def require_transport(provider: str, *, endpoint_url: str | None = None,
                 "source": "openrouter_free_margot_casual", "cost_verified": False,
                 "checked_at": datetime.now(timezone.utc).isoformat()}
     return _require_claude(provider, cli_path, env)
-
-
-def _require_local(endpoint_url):
-    try:
-        endpoint = urlsplit(endpoint_url if endpoint_url is not None else
-                            (os.environ.get("OLLAMA_BASE_URL") or "http://localhost:11434"))
-    except ValueError:
-        raise ProviderPolicyError("subscription_only: invalid Ollama endpoint") from None
-    if endpoint.scheme not in {"http", "https"} or endpoint.hostname not in {"localhost", "127.0.0.1", "::1"}:
-        raise ProviderPolicyError("subscription_only: unverified remote Ollama transport")
-    return {"billing_class": "local", "auth_verified": True, "source": "loopback_transport"}
 
 
 def _is_free_openrouter_margot(role, model_id) -> bool:

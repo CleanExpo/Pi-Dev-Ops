@@ -1,7 +1,8 @@
 """The one OpenRouter exception in provider_policy (founder ruling 21/10/2026).
 
 OpenRouter is allowed ONLY for role ``margot.casual`` with a model id that ends
-in ``:free``. Every other OpenRouter use stays blocked. Each blocked case below is a near-miss of the one
+in ``:free``. Every other OpenRouter use stays blocked, and Ollama is no longer
+a permitted transport at all. Each blocked case below is a near-miss of the one
 allowed case, so a widened exception turns at least one of them red.
 """
 from __future__ import annotations
@@ -70,10 +71,18 @@ def test_free_in_the_middle_but_not_at_the_end_is_blocked(model_id):
         policy.require_transport("openrouter", role="margot.casual", model_id=model_id)
 
 
-@pytest.mark.parametrize("provider", ["anthropic", "anthropic_api", "minimax", "gemini"])
+@pytest.mark.parametrize("provider", ["anthropic", "anthropic_api", "minimax", "ollama", "gemini"])
 def test_the_exception_is_openrouter_only(provider):
     with pytest.raises(policy.ProviderPolicyError, match="subscription_only"):
         policy.require_transport(provider, role="margot.casual", model_id=FREE_ID)
+
+
+@pytest.mark.parametrize("endpoint", [
+    None, "http://localhost:11434", "http://127.0.0.1:11434/v1", "http://[::1]:11434",
+])
+def test_loopback_ollama_is_no_longer_allowed(endpoint):
+    with pytest.raises(policy.ProviderPolicyError, match="subscription_only"):
+        policy.require_transport("ollama", endpoint_url=endpoint)
 
 
 def test_openrouter_adapter_passes_role_and_model_to_the_policy(monkeypatch):
@@ -152,3 +161,28 @@ def test_tier0_override_cannot_dispatch_an_off_ladder_free_id(monkeypatch):
     assert result.ok is False
     assert any(a.model_id == "vendor/nonladder:free" and "subscription_only" in (a.error or "")
                for a in result.attempts)
+
+
+def test_an_ollama_pinned_role_now_fails_closed_before_the_adapter(monkeypatch):
+    """Without the stage-2 stub, a role pinned to Ollama is refused by the real
+    policy and the Ollama adapter is never called."""
+    import types  # noqa: PLC0415
+    from app.server import provider_router as PR  # noqa: PLC0415
+
+    monkeypatch.setenv("TAO_CHEAP_PROVIDER", "ollama")
+    monkeypatch.setattr(PR, "_record_tier_downgrade", lambda *a, **kw: None)
+    called: list = []
+
+    async def call_with_evidence(**kw):
+        called.append(kw)
+        return PR.ProviderExecution(0, "should not happen", 0.0, None, {})
+
+    monkeypatch.setitem(sys.modules, "app.server.provider_ollama",
+                        types.SimpleNamespace(call_with_evidence=call_with_evidence,
+                                              is_reachable=lambda **kw: True))
+    pm = PR.select_provider_model("intent_classify", record_observation=False)
+    assert pm.provider == "ollama"
+    rc, text, _cost, error = asyncio.run(PR.run_via_provider(prompt="hi", role="intent_classify"))
+    assert rc != 0 and text == ""
+    assert "subscription_only" in error
+    assert called == []
