@@ -7,7 +7,7 @@ status: wave-4
 
 # cs-tier1
 
-Bottles 15+ years of CS leadership — de-escalating enterprise churn calls, the "Mom test" for feedback (recognising polite lies), recognising the difference between a complaint and a churn signal — into a deterministic daily brief + a refund dual-key gate.
+Bottles 15+ years of CS leadership — de-escalating enterprise churn calls, the "Mom test" for feedback (recognising polite lies), recognising the difference between a complaint and a churn signal — into a deterministic daily brief, with every refund waiting for Phill.
 
 ## Why this exists
 

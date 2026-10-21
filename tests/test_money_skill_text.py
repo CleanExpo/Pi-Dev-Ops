@@ -21,7 +21,8 @@ MONEY_SKILLS = ("cfo", "cmo-growth", "cs-tier1", "telegram-draft-for-review")
 _MONEY = (r"\b(?:credit\w*|refund\w*|(?:ad-?\s?)?spend\w*|pay(?:s|ing|outs?|ments?)?"
           r"|reimburs\w*|invoic\w*"
           # Codex on b021085d: value handed out without being called money.
-          r"|gift[-\s]?cards?|vouchers?|coupons?|rebates?|discounts?|fees?|waiv\w*)\b")
+          r"|gift[-\s]?cards?|vouchers?|coupons?|rebates?|discounts?|fees?|waiv\w*"
+          r"|budget\w*|cash)\b")
 # "No refund auto-approval" matches too: skill text states the rule positively
 # ("waits for Phill"), so a negation never has to be told apart from a grant.
 _UNGATED = (r"\b(?:automatic(?:ally)?|autonomously"
@@ -64,6 +65,23 @@ AUTONOMOUS_MONEY = re.compile(
 
 def offences(text: str) -> list[str]:
     return [m.group(0) for m in AUTONOMOUS_MONEY.finditer(text)]
+
+
+# Codex on 47db2420: grant verbs cannot be enumerated ("signs off", "distributes",
+# "buys", "sends" ...). So in a money skill, every sentence that names an agent AND
+# money must also name the founder gate; any verb is caught. The manifests are
+# generated from these SKILL.md files (generated-agentskills gate), so this covers
+# their money-skill entries too; the manifests' other skills are not money skills.
+_GATE = re.compile(r"\b(?:phill\w*|founders?|waits?|pending|\w+_blocked|blocked)\b", re.I)
+_AGENT_RE = re.compile(_AGENT, re.I)
+_MONEY_RE = re.compile(rf"{_MONEY}|[$€£¥]\s?\d", re.I)
+
+
+def ungated_money_sentences(text: str) -> list[str]:
+    """Sentences naming an agent and money but not the founder gate."""
+    sentences = re.split(r"(?<=[.!?])\s+|\n", text)
+    return [x.strip() for x in sentences
+            if _AGENT_RE.search(x) and _MONEY_RE.search(x) and not _GATE.search(x)]
 
 
 @pytest.mark.parametrize("skill", MONEY_SKILLS)
@@ -163,3 +181,32 @@ def test_detector_catches_the_retired_wording(stale):
 ])
 def test_detector_allows_the_current_wording(ok):
     assert offences(ok) == []
+
+
+@pytest.mark.parametrize("skill", MONEY_SKILLS)
+def test_every_agent_money_sentence_names_the_founder_gate(skill):
+    text = (ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
+    assert ungated_money_sentences(text) == []
+
+
+@pytest.mark.parametrize("grant", [
+    # Codex on 47db2420: direct grants with verbs no list had.
+    "CFO signs off vendor invoices below $1,000.",
+    "CS distributes $50 gift cards to loyal customers.",
+    "The CMO buys ad inventory within a $500 daily cap.",
+    "The support bot sends goodwill vouchers to churn-risk accounts.",
+    "The CFO settles supplier invoices on receipt.",
+    "Agents top up ad budgets when CPA is under target.",
+    "CFO signs off invoices under the $1,000 gate.",  # "gate" is not the founder gate
+])
+def test_ungated_agent_money_sentence_is_caught(grant):
+    assert ungated_money_sentences(grant)
+
+
+@pytest.mark.parametrize("ok", [
+    "CS drafts a refund request; it stays pending until Phill approves.",
+    "Every CFO spend waits for the founder.",
+    "The CMO bot emits cmo_adspend_blocked for every ad-spend request.",
+])
+def test_gated_agent_money_sentence_is_allowed(ok):
+    assert ungated_money_sentences(ok) == []

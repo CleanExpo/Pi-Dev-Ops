@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.25.21",
-    "generated_at": "2026-10-21T07:16:50.173432+00:00",
+    "version": "1.25.22",
+    "generated_at": "2026-10-21T09:33:10.563137+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -780,7 +780,7 @@
       "owner_role": "CS",
       "status": "wave-4",
       "path": "skills/cs-tier1/SKILL.md",
-      "sha256": "d73c9347e3356861e39493c19a70687cf17422fe4f3850a4e77cbe82bba8ea09",
+      "sha256": "1590e027bb69842c9a104d712bf4227f1d9f1f61068488b6a5e92290f713ae75",
       "dependencies": {
         "tools": [],
         "skills": []
