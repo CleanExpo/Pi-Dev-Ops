@@ -19,6 +19,7 @@ const initial = () => ({
   kill_switch_active: false,
   escalation_lock_active: false,
   panic_count_last_hour: 0,
+  panic_id: "",
   approver_allowlist: ["alice", "bob"],
   approver_totp_configured: ["alice", "bob"],
 });
@@ -48,7 +49,8 @@ function kill(body) {
     && digits(body.approver1_totp) && digits(body.approver2_totp);
   if (!ok) return [400, { error: "two different approvers with TOTP codes required" }];
   if (state.kill_switch_active) return [409, { error: "already halted" }];
-  state = { ...state, kill_switch_active: true, panic_count_last_hour: state.panic_count_last_hour + 1 };
+  const n = state.panic_count_last_hour + 1;
+  state = { ...state, kill_switch_active: true, panic_count_last_hour: n, panic_id: "p-" + n };
   return [200, { ok: true, kill_switch_active: true }];
 }
 
@@ -57,6 +59,7 @@ function resume(body) {
     return [400, { error: "approver and TOTP code required" }];
   }
   if (!state.kill_switch_active) return [409, { error: "not halted" }];
+  if (body.observed_panic_id !== state.panic_id) return [409, { error: "newer_panic" }];
   state = { ...state, kill_switch_active: false };
   return [200, { ok: true, kill_switch_active: false }];
 }
@@ -68,7 +71,10 @@ createServer(async (req, res) => {
   if (pathname === "/__control") {
     const body = await readBody(req);
     if ("failNext" in body) failNext = body.failNext ?? null;
-    if ("halted" in body) state = { ...state, kill_switch_active: Boolean(body.halted) };
+    if ("halted" in body) {
+      state = { ...state, kill_switch_active: Boolean(body.halted),
+                panic_id: body.halted ? "p-control" : "" };
+    }
     return json(res, 200, { failNext, halted: state.kill_switch_active });
   }
   if (pathname === "/api/login") {

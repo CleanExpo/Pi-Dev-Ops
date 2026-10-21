@@ -172,3 +172,79 @@ def test_concurrent_panics_engage_the_escalation_lock_at_the_limit(ks, monkeypat
     assert ks.panic_count_last_hour() == n
     assert ks.is_locked()
     assert ks.resume("telegram_resume").get("error") == "escalation_lock_active"
+
+
+# ── Codex round on da78588f ──────────────────────────────────────────────────
+
+@pytest.mark.parametrize("raw", [
+    b'{"id": "panic", "at": NaN}', b'{"id": "panic", "at": -Infinity}',
+    b'{"id": "panic", "at": Infinity}', b'{"id": "panic", "at": "NaN"}',
+    b'{"id": "panic", "at": true}', b'{"id": "panic", "at": 0}', b'{"id": "", "at": 5}',
+    b'{"id": 7, "at": 5}', b'["panic", 5]', b"\xff\xfe", b"",
+])
+def test_malformed_flag_refuses_resume(ks, raw):
+    _flag().parent.mkdir(parents=True, exist_ok=True)
+    _flag().write_bytes(raw)
+    assert ks.panic_id() == ks.UNREADABLE
+    out = ks.resume("dashboard", observed_id=ks.panic_id())
+    assert out.get("error") == "panic_state_unreadable"
+    assert ks.resume("telegram_resume").get("error") == "panic_state_unreadable"
+    assert ks.is_active()
+
+
+def _telegram(ks, monkeypatch):
+    import app.server.config as cfg
+    monkeypatch.setattr(cfg, "TELEGRAM_BOT_TOKEN", "bot-token")
+    monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
+    _flag().parent.mkdir(parents=True, exist_ok=True)
+    _flag().write_bytes(b"\xff")
+
+
+def test_webhook_panic_rewrites_an_undecodable_flag(ks, monkeypatch):
+    from app.server.routes.webhooks import router
+    _telegram(ks, monkeypatch)
+    app = FastAPI()
+    app.include_router(router)
+    resp = TestClient(app).post(
+        "/webhook/telegram", headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
+        json={"update_id": 80_001, "message": {"text": "/panic", "chat": {"id": 123}}})
+    assert resp.status_code == 200
+    assert ks.panic_id() not in ("", ks.UNREADABLE)
+
+
+def test_poller_panic_rewrites_an_undecodable_flag(ks, monkeypatch):
+    import json
+    import urllib.request
+    from swarm.bots import chief_of_staff
+    _telegram(ks, monkeypatch)
+    body = json.dumps({"ok": True, "result": [
+        {"update_id": 1, "message": {"text": "/panic", "chat": {"id": 123}}}]}).encode()
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return body
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: _Resp())
+    chief_of_staff._poll_telegram(0)
+    assert ks.panic_id() not in ("", ks.UNREADABLE)
+
+
+def test_dashboard_modal_payload_without_an_observation_is_refused(ks, monkeypatch):
+    """The exact body ResumeModal sent before this round: no observed_panic_id."""
+    from app.server.auth import require_auth, require_rate_limit
+    from app.server.routes import swarm as swarm_routes
+    monkeypatch.setattr(swarm_routes, "_verify_totp", lambda user, code: (True, "ok"))
+    ks.trigger("telegram_panic", reason="engaged")
+    app = FastAPI()
+    app.include_router(swarm_routes.router)
+    app.dependency_overrides[require_auth] = lambda: None
+    app.dependency_overrides[require_rate_limit] = lambda: None
+    resp = TestClient(app).post("/api/swarm/resume", json={
+        "approver_user": "phill", "approver_totp": "123456", "reason": "", "confirmed": False})
+    assert resp.status_code == 409
+    assert ks.is_active()

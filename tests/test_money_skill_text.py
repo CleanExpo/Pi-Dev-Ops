@@ -19,11 +19,17 @@ MONEY_SKILLS = ("cfo", "cmo-growth", "cs-tier1", "telegram-draft-for-review")
 # A claim that an agent approves money by itself, or that only amounts above
 # some figure need the founder.
 _MONEY = (r"\b(?:credit\w*|refund\w*|(?:ad-?\s?)?spend\w*|pay(?:s|ing|outs?|ments?)?"
-          r"|reimburs\w*)\b")
-_UNGATED = (r"\b(?:automatically|autonomously|without\b[^.\n]{0,25}\b(?:approval|asking|sign-?off)"
-            r"|at\s+(?:the|its|their|your)\s+(?:agent'?s?\s+|bot'?s?\s+|own\s+)?discretion)")
+          r"|reimburs\w*|invoic\w*)\b")
+# "No refund auto-approval" matches too: skill text states the rule positively
+# ("waits for Phill"), so a negation never has to be told apart from a grant.
+_UNGATED = (r"\b(?:automatic(?:ally)?|autonomously"
+            r"|auto[-\s]?(?:approv|issu|pay|refund|grant|appl|process|spend|reimburs)\w*"
+            r"|without\b[^.\n]{0,30}\b(?:approv\w*|ask\w*|sign-?off|permission|consent|review"
+            r"|check\w*|confirm\w*|founder|phill)"
+            r"|no\s+(?:\w+\s+)?(?:approv\w*|sign-?off|permission|consent|review)"
+            r"|at\s+(?:the|its|their|your)\s+(?:agent'?s?\s+|bot'?s?\s+|own\s+)?discretion)\b")
 AUTONOMOUS_MONEY = re.compile(
-    r"auto-?approv\w*\s+(?:refunds?|spend|ad-?spend|invoices?|(?:service\s+)?credits?|up to)"
+    r"auto-?approv\w*\s+(?:refunds?|spend|ad-?spend|invoices?|up to)"
     r"|(?:refunds?|spend|ad-?spend)\s+(?:over|above|under|below|up to)\s+\$\s?\d"
     r"|request\s+(?:over|above)\s+\$\s?\d"
     # Codex round on 7da9f064: a runtime said to return or emit an approval.
@@ -32,10 +38,10 @@ AUTONOMOUS_MONEY = re.compile(
     r"|budget\s*(?:>|over|above)\s*\$\s?\d"
     # Founder ruling 21/10/2026: every service credit waits for Phill, SLA ones too.
     r"|service\s+credits?\s+(?:beyond|above|over|outside|exceeding)\b"
-    r"|auto-?(?:issue|apply|grant)\w*\s+(?:service\s+)?credits?"
-    # Codex rounds on 590a54b6 and 9b8fc6d2: money handed out with no approval,
-    # in either word order, in one sentence. Negations match too; skill text
-    # states the rule positively ("waits for Phill").
+    # Codex rounds on 590a54b6, 9b8fc6d2 and da78588f: money handed out with no
+    # approval, in either word order, in one sentence. Negations match too; skill
+    # text states the rule positively ("waits for Phill").
+    r"|\b(?:autonomous|automatic)\s+(?:refund|spend|pay|credit|reimburs|invoic)\w*"
     rf"|{_MONEY}[^.\n]{{0,80}}{_UNGATED}"
     rf"|{_UNGATED}[^.\n]{{0,80}}{_MONEY}",
     re.IGNORECASE)
@@ -87,14 +93,30 @@ def test_manifests_advertise_no_autonomous_money_threshold(manifest):
     "Approve ad spend without asking Phill.",
     "Without sign-off, the bot pays out reimbursements under $50.",
     "Autonomously spend up to the daily budget on ads.",
+    # Codex round on da78588f: auto + verb with a space, payments, permission wording.
+    "Auto approve payments under $100.",
+    "Auto-approve all reimbursements.",
+    "The bot can issue a refund without seeking Phill's permission.",
+    "The bot can issue a refund without seeking permission.",
+    "Pay invoices with no approval needed.",
+    "Refunds need no sign-off from Phill.",
+    "Reimburse expenses without any founder review.",
+    "Auto-pay recurring vendor invoices.",
+    # Negations match too, by design: the skills state the rule positively.
+    "**No refund auto-approval.** Every amount waits for the founder",
+    "Any refund, at any amount (founder ruling 21/10/2026: nothing auto-approves)",
+    "Process autonomous refunds for duplicate charges.",
+    "Issue automatic refunds for duplicate charges.",
 ])
 def test_detector_catches_the_retired_wording(stale):
     assert offences(stale)
 
 
 @pytest.mark.parametrize("ok", [
-    "Any refund, at any amount (founder ruling 21/10/2026: nothing auto-approves)",
-    "**No refund auto-approval.** Every amount waits for the founder",
+    "Any refund, at any amount (founder ruling 21/10/2026: every amount waits for Phill)",
+    "**Every refund waits for the founder.** Every amount goes through draft_review",
+    "**Every spend waits for Phill.** Each spend request, at any amount, is drafted for Phill",
+    "because it carries the credit-spend risk of an autonomous run",
     "3. $5000 spend request → routes through draft_review, status `pending`",
     "3. $4,500/day ad-spend → routes through draft_review, status `pending`, no real action",
     "Nothing is approved by an agent. Only Phill's own approval releases a spend.",

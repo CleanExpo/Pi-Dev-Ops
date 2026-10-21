@@ -110,7 +110,8 @@ test("Resume swarm sends one resume, no kill, and survives a reload", async ({ p
     const all = await backendCalls(page);
     expect(only(all, "resume")).toEqual([{
       method: "POST", path: "/api/swarm/resume",
-      body: { approver_user: "alice", approver_totp: "123456", reason: "", confirmed: false },
+      body: { approver_user: "alice", approver_totp: "123456", reason: "", confirmed: false,
+              observed_panic_id: "p-control" },
     }]);
     expect(only(all, "kill")).toEqual([]);
 

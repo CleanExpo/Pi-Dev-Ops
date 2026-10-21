@@ -80,7 +80,8 @@ class ResumeRequest(BaseModel):
     reason: str = Field("", description="Reason")
     confirmed: bool = Field(False, description="Required when escalation lock is active")
     observed_panic_id: str | None = Field(
-        None, description="panic_id from /api/swarm/status; a different panic refuses the resume")
+        None, description="panic_id from /api/swarm/status when the operator reviewed the "
+                           "panic; required, and a different panic refuses the resume (409)")
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -197,6 +198,9 @@ async def swarm_resume(req: ResumeRequest) -> dict:
     except Exception as exc:
         raise HTTPException(503, f"swarm module unreachable: {exc!r}")
 
+    if req.observed_panic_id is None:  # the panel sends the panic its operator reviewed
+        raise HTTPException(409, {"error": "observed_panic_id_required",
+                                  "fix": "reload the kill-switch panel, then resume"})
     observed = kill_switch.panic_id()  # before the TOTP check: a later panic wins
     if req.observed_panic_id is not None and req.observed_panic_id != observed:
         observed = kill_switch.UNREADABLE  # the client saw another panic: refuse

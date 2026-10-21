@@ -61,7 +61,7 @@ read_metrics_provider()              ← thin abstraction (Stripe + Xero MCP, or
 
 ```
 incoming spend request {amount_usd, vendor, business_id, justification}
-  → (every amount — there is no autonomous ceiling; spend is founder-only)
+  → (every amount — spend is founder-only, with no ceiling below which an agent acts)
   → draft_review.post_draft(
        draft_text="🧾 Spend approval — ${amount} to {vendor} ({business_id})\n{justification}",
        destination_chat_id=REVIEW_CHAT_ID,
@@ -118,7 +118,7 @@ Action requests today:
 ## Safety bindings
 
 - **Read-mostly.** CFO bot calls Stripe + Xero in *read* scope only. No invoice creation, refund, or payment-method change without HITL.
-- **No autonomous spend ceiling.** Every spend request is drafted for Phill; no agent approves any amount. Introducing a ceiling is a founder decision, audit-trailed.
+- **Every spend waits for Phill.** Each spend request, at any amount, is drafted for Phill and only his approval releases it. Introducing a ceiling is a founder decision, audit-trailed.
 - **PII-redactor in front of every draft** — invoice descriptions / vendor names / customer names go through pii-redactor at strictness=standard before reaching the review chat.
 - **Hash-based deduplication** — alert for the same breach won't re-fire within 24h (uses last-snapshot diff).
 - **Kill-switch aware.** On `TAO_SWARM_ENABLED=0`, the daily brief is queued (not sent) until resume.

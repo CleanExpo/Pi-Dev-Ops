@@ -18,6 +18,7 @@ from __future__ import annotations
 import fcntl
 import json
 import logging
+import math
 import time
 import uuid
 from collections.abc import Iterator
@@ -56,23 +57,33 @@ def send_gate() -> Iterator[None]:
             fcntl.flock(fh, fcntl.LOCK_UN)
 
 
-def _parse(raw: str) -> tuple[str, float] | None:
+def _parse(raw: bytes) -> tuple[str, float] | None:
+    """(id, finite unix time) from the flag's bytes, or None when malformed:
+    undecodable bytes, a non-object, an empty id, or a time that is not a
+    finite positive number (NaN and infinity included) all read as None."""
     try:
-        rec = json.loads(raw)
-        if isinstance(rec, dict) and isinstance(rec.get("id"), str) and rec["id"]:
-            return rec["id"], float(rec["at"])
-    except (ValueError, TypeError, KeyError):
-        pass
-    try:  # a flag written before panic ids existed holds only a timestamp
-        return f"legacy:{raw.strip()}", datetime.fromisoformat(raw.strip()).timestamp()
-    except ValueError:
+        text = raw.decode("utf-8").strip()
+        rec = json.loads(text)
+    except UnicodeDecodeError:
         return None
+    except ValueError:
+        rec = None
+    if isinstance(rec, dict):
+        pid, at = rec.get("id"), rec.get("at")
+        ok = (isinstance(pid, str) and pid != "" and isinstance(at, (int, float))
+              and not isinstance(at, bool) and math.isfinite(at) and at > 0)
+        return (pid, float(at)) if ok else None
+    try:  # a flag written before panic ids existed holds only a timestamp
+        at = datetime.fromisoformat(text).timestamp()
+    except (ValueError, OverflowError, OSError):
+        return None
+    return (f"legacy:{text}", at) if math.isfinite(at) and at > 0 else None
 
 
 def flag_state() -> tuple[str, str, float]:
     """("absent", "", 0.0), ("ok", panic id, unix time) or ("unreadable", "", 0.0)."""
     try:
-        raw = flag_path().read_text(encoding="utf-8")
+        raw = flag_path().read_bytes()
     except FileNotFoundError:
         return "absent", "", 0.0
     except OSError as exc:

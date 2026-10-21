@@ -137,7 +137,8 @@ def test_dashboard_resume_cannot_clear_a_panic_that_completes_during_its_check(k
     ks.trigger("telegram_panic", reason="first")
     resp = _client(swarm_routes.router).post(
         "/api/swarm/resume",
-        json={"approver_user": "phill", "approver_totp": "123456", "reason": "ok"})
+        json={"approver_user": "phill", "approver_totp": "123456", "reason": "ok",
+              "observed_panic_id": ks.panic_id()})
     assert resp.status_code == 409
     assert ks.is_active()
 
@@ -148,7 +149,8 @@ def test_dashboard_resume_still_works_with_no_newer_panic(ks, monkeypatch):
     ks.trigger("telegram_panic", reason="first")
     resp = _client(swarm_routes.router).post(
         "/api/swarm/resume",
-        json={"approver_user": "phill", "approver_totp": "123456", "reason": "ok"})
+        json={"approver_user": "phill", "approver_totp": "123456", "reason": "ok",
+              "observed_panic_id": ks.panic_id()})
     assert resp.status_code == 200
     assert not ks.is_active()
 

@@ -21,7 +21,7 @@ Autonomous:
 - Alert on threshold breaches (also through draft_review)
 
 HITL (dual-key gate):
-- Any ad-spend, at any amount (founder ruling 21/10/2026: nothing auto-approves)
+- Any ad-spend, at any amount (founder ruling 21/10/2026: every amount waits for Phill)
 - Brand-message changes (tone, taglines, voice)
 - Pricing changes
 - New channel launch, at any budget
@@ -111,7 +111,7 @@ Per-business:
 ## Safety bindings
 
 - **Read-mostly.** CMO bot calls ad-platform APIs in *read* scope only. No campaign create/edit, no budget changes, no creative uploads without HITL.
-- **No ad-spend auto-approval.** Every amount waits for the founder via draft_review at reversibility "high" (a "low" draft would auto-send). No env var re-enables it.
+- **Every ad-spend waits for the founder.** Every amount goes through draft_review at reversibility "high" (a "low" draft would send by itself). No env var changes this.
 - **PII-redactor in front of every draft** — campaign names / customer-segment labels / partner names flow through pii-redactor at strictness=standard.
 - **24h alert dedup** — same breach won't re-fire within 24h (uses last-snapshot diff).
 - **Kill-switch aware.** On `TAO_SWARM_ENABLED=0`, the daily brief is queued (not sent) until resume.
