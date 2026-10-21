@@ -100,11 +100,12 @@ def _run_and_wait_for_descendants(cmd: list[str], env: dict, cwd, timeout: float
         finally:
             os.close(done_w)
         try:
-            out, _ = proc.communicate(timeout=timeout)
-            # Drain in small reads, each behind the same deadline: a holder that writes to
-            # the pipe must not turn the final wait into an unbounded read (Codex, ae351130).
+            out, _ = proc.communicate(timeout=max(0.0, deadline - time.monotonic()))
+            # Small reads, deadline checked every pass: a holder writing to or flooding the
+            # pipe must not outlast it (Codex reviews of ae351130 and 697c9201).
             while True:
-                ready, _, _ = select.select([done], [], [], max(0.0, deadline - time.monotonic()))
+                remaining = deadline - time.monotonic()
+                ready = remaining > 0 and select.select([done], [], [], remaining)[0]
                 if not ready:
                     raise TimeoutError(f"a descendant of {cmd} still held the pipe after {timeout}s")
                 if not os.read(done.fileno(), 4096):
