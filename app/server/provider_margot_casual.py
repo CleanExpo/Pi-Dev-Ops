@@ -81,15 +81,17 @@ def _margot_casual_refusal(provider: str, model_id: str) -> str | None:
 def _margot_casual_candidates() -> list[tuple[Provider, str, str]]:
     """Ordered (provider, model_id, source) margot.casual may use right now.
 
-    An override is a single candidate. Nothing here consults TAO_CHEAP_*.
+    An override is a single candidate; a set but unparseable one is refused.
+    Nothing here consults TAO_CHEAP_*.
     """
     raw = (os.environ.get(MARGOT_CASUAL_ENV) or "").strip()
     if raw:
         parsed = _pr()._parse_provider_spec(raw)
         if parsed is not None:
             return [(parsed[0], parsed[1], f"env:{MARGOT_CASUAL_ENV}")]
-        log.warning("provider_router: %s=%r is not provider:model — using the free ladder",
-                    MARGOT_CASUAL_ENV, raw)
+        raise RefusedModelError(
+            f"{MARGOT_CASUAL_ROLE}: {MARGOT_CASUAL_ENV}={raw!r} is not provider:model, "
+            f"so nothing was dispatched. Unset it or name a model on the ladder.")
     return [(prov, model, f"ladder-step-{n}")
             for n, (prov, model) in enumerate(MARGOT_CASUAL_LADDER, start=1)]
 

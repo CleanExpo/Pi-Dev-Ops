@@ -33,8 +33,23 @@ def test_guardian_pages_critical_on_a_confirmed_ollama_outage(tmp_path, monkeypa
     monkeypatch.setattr(guardian.config, "SWARM_LOG_DIR", tmp_path)
     monkeypatch.setattr(guardian, "list_models", lambda: [])
     monkeypatch.setattr(guardian, "chat", lambda *a, **k: "")
-    monkeypatch.setattr(guardian, "send", lambda *a, **k: True)
+    sent: list[dict] = []
+    monkeypatch.setattr(guardian, "send", lambda **k: sent.append(k) or True)
     results = [guardian.run_cycle(0) for _ in range(guardian.OLLAMA_DOWN_CONFIRM_STREAK)]
-    last = results[-1]
-    assert any("Ollama not responding" in f for f in last.get("critical_flags", []) + [str(last)])
-    assert last["severity"] == "critical"
+    assert results[-1]["severity"] == "critical"
+    # The page itself, not just the classification (Codex review of ead70313).
+    pages = [k for k in sent if k.get("severity") == "critical"]
+    assert len(pages) == 1
+    assert "Ollama not responding" in pages[0]["message"]
+
+
+def test_ollama_recovery_and_install_stay_until_stage_two():
+    """The RA-638 relaunch watchdog and the supervisor's Ollama install must survive
+    stage 1: the swarm and supervisor still run on Ollama (Codex review of ead70313)."""
+    from pathlib import Path  # noqa: PLC0415
+    root = Path(__file__).resolve().parents[2]
+    setup = (root / "scripts/setup_ra637_ra638.sh").read_text()
+    assert "com.piceo.ollama-watchdog" in setup
+    assert "launchctl load ~/Library/LaunchAgents/com.piceo.ollama-watchdog.plist" in setup
+    installer = (root / "scripts/supervisor/install-on-new-machine.sh").read_text()
+    assert "ollama pull mistral" in installer

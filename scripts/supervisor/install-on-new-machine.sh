@@ -6,13 +6,13 @@
 #     curl -fsSL https://raw.githubusercontent.com/CleanExpo/Pi-Dev-Ops/main/scripts/supervisor/install-on-new-machine.sh | bash
 #
 # It will:
-#   1. install tmux (brew on mac, apt on linux) if missing
-#   2. drop supervisor.py + launch_all_supervisors.sh into ~/.pi-ceo/supervisor/
-#   3. write a stub ~/.supervisor.env that you then edit with your project dir
-#   4. print next-step instructions
-#
-# It no longer installs a local model runtime or pulls a model (founder ruling
-# 21/10/2026: that runtime is being removed from the estate).
+#   1. install ollama + pull mistral
+#   2. install tmux (brew on mac, apt on linux) if missing
+#   3. drop supervisor.py + launch_all_supervisors.sh into ~/.pi-ceo/supervisor/
+#   4. write a stub ~/.supervisor.env that you then edit with your project dir
+#   5. print next-step instructions
+# Ollama stays here until stage 2 of the Ollama removal (founder ruling 21/10/2026):
+# the swarm bots and the supervisor still run on it. Margot's casual chat does not.
 set -euo pipefail
 
 INSTALL_DIR="$HOME/.pi-ceo/supervisor"
@@ -30,6 +30,16 @@ if ! command -v tmux >/dev/null 2>&1; then
     sudo apt-get update && sudo apt-get install -y tmux
   fi
 fi
+
+# ---- ollama ------------------------------------------------------
+if ! command -v ollama >/dev/null 2>&1; then
+  curl -fsSL https://ollama.com/install.sh | sh
+fi
+if ! pgrep -x ollama >/dev/null 2>&1; then
+  nohup ollama serve >"$HOME/.pi-ceo/ollama.log" 2>&1 &
+  sleep 3
+fi
+ollama pull mistral
 
 # ---- scripts -----------------------------------------------------
 for f in supervisor.py launch_all_supervisors.sh .supervisor.env.example; do
