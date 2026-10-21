@@ -85,11 +85,7 @@ def _run_and_wait_for_descendants(cmd: list[str], env: dict, cwd, timeout: float
     the read end means every one of them has closed it. A holder that outlives the deadline
     has its whole process group killed and fails the test (Codex review of c2b39b9a).
     """
-    import os  # noqa: PLC0415
-    import select  # noqa: PLC0415
-    import signal  # noqa: PLC0415
-    import subprocess  # noqa: PLC0415
-    import time  # noqa: PLC0415
+    import os, select, signal, subprocess, time  # noqa: E401, PLC0415
     deadline = time.monotonic() + timeout
     done_r, done_w = os.pipe()
     with os.fdopen(done_r, "rb") as done:
@@ -113,8 +109,10 @@ def _run_and_wait_for_descendants(cmd: list[str], env: dict, cwd, timeout: float
         finally:
             try:
                 os.killpg(proc.pid, signal.SIGKILL)
-            except (ProcessLookupError, PermissionError):  # group already empty
+            except ProcessLookupError:  # group already empty
                 pass
+            except PermissionError:  # group not ours to signal: kill our own child so the wait ends
+                proc.kill()
             proc.wait()
     return proc.returncode, out
 
