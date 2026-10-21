@@ -8,7 +8,7 @@
 4. Run pre-flight checklist (§0)
 5. Open PR with full metadata block (§1)
 6. Watch CI via Monitor poll loop
-7. If sandbox fails: check §2 for known patterns, document + admin-merge if environmental
+7. If sandbox fails: check §2 for known patterns, fix it or document it with log evidence as a founder gate (§4 — never admin-merge)
 8. If migration fails: §3 (run prereq detection + use MCP not CLI)
-9. Once green, squash-merge + delete branch
-10. Update Linear ticket to Done + drop comment with the PR URL
+9. Once every required check is green on the exact head, hand the PR to Phill to merge per `pr-release-gate` (branch deletion is his call too)
+10. After Phill merges, update the Linear ticket to Done + drop a comment with the PR URL

@@ -137,7 +137,7 @@ Sleep-first loops add the full interval delay after every Railway restart. Combi
 
 ## Full-Clearance Sprint Pattern
 
-**Full-clearance sprints outperform gated execution 10x.** All Priority 1+2 items complete faster in a single no-authority-gates sprint than issue-by-issue with approval loops.
+**Full-clearance sprints outperform issue-by-issue execution 10x.** Batching all approved Priority 1+2 items into a single sprint completes them faster than working them one approval loop at a time. Authority gates still apply inside the sprint: merge, prod deploy, spend and secrets stay with Phill, and every push still goes through `pr-release-gate`.
 
 **ZTE leverage points with highest ROI** (from Sprint 5→6 data):
 - CLAUDE.md population: +4 pts

@@ -1,12 +1,14 @@
-> Moved from SKILL.md. Read when you are about to admin-merge a failing check and should spawn an investigator agent first.
+> Moved from SKILL.md. Read when a check is failing and you should spawn an investigator agent to find the root cause before reporting it.
 
 ### How to use this skill agentically (added 2026-05-25)
 
-The skill is not a label to slap on a PR comment — it's a callable procedure. Before admin-merging any failing check, spawn an investigator agent with this prompt template:
+The skill is not a label to slap on a PR comment — it's a callable procedure. Before reporting on any failing check, spawn an investigator agent with this prompt template:
 
 ```
-You are applying the unite-group-ci-recovery skill at
-/Users/phillmcgurk/Pi-CEO/skills/unite-group-ci-recovery/SKILL.md.
+You are applying the unite-group-ci-recovery skill. Read the SKILL.md in the
+directory above this file (<this file's directory>/../SKILL.md), by that exact
+path. Do not load it by name and do not read any other copy: other installed
+copies may be older and still allow admin merges past red checks.
 
 Read it end-to-end, then for the failure at <PR URL>:
 1. Use Vercel MCP get_project + list_deployments + get_deployment_build_logs
@@ -20,4 +22,4 @@ Do not cite any Linear ticket unless you've confirmed the ticket's failure mode
 matches the current failure mode exactly.
 ```
 
-This prevents the parent agent from reflexively pattern-matching "sandbox red → DR-852 → admin-merge".
+This prevents the parent agent from reflexively pattern-matching "sandbox red → DR-852 → merge anyway". The outcome is a fix or a founder-gate report; merge stays with Phill per `pr-release-gate`.
