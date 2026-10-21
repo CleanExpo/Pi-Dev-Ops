@@ -61,7 +61,7 @@ read_metrics_provider()              ← thin abstraction (Stripe + Xero MCP, or
 
 ```
 incoming spend request {amount_usd, vendor, business_id, justification}
-  → (every amount — there is no autonomous ceiling; spend is founder-only)
+  → (every amount — spend is founder-only, with no ceiling below which an agent acts)
   → draft_review.post_draft(
        draft_text="🧾 Spend approval — ${amount} to {vendor} ({business_id})\n{justification}",
        destination_chat_id=REVIEW_CHAT_ID,
@@ -72,12 +72,11 @@ incoming spend request {amount_usd, vendor, business_id, justification}
 
 Nothing is approved by an agent. Only Phill's own approval releases a spend.
 
-**Runtime gap (21/10/2026).** The flow above is the policy, not yet the code. In Pi-Dev-Ops,
-`swarm/cfo.py` `approve_spend` still auto-approves any amount at or under
-`AUTONOMOUS_SPEND_CEILING` ($1,000), `swarm/bots/cfo.py` then emits its invoice-approved event, and
-its gate-integration test in Pi-Dev-Ops expects that. Until Phill approves the runtime change, never
-treat an `approved` result from `approve_spend` as permission to spend: post the request to
-draft_review and wait for Phill.
+**Runtime (21/10/2026).** `swarm/cfo.py` `approve_spend` has no ceiling: every amount goes to
+draft_review at reversibility "high" and returns `pending`, or `blocked` if the review ask was not
+delivered. `swarm/bots/cfo.py` only ever emits `cfo_spend_blocked`. A spend is released only by a reaction
+from the Telegram user in `TAO_FOUNDER_TELEGRAM_USER_ID`, in the chat the draft was posted to; with
+that variable unset, nothing is approved.
 
 ## Contract
 
@@ -119,14 +118,14 @@ Action requests today:
 ## Safety bindings
 
 - **Read-mostly.** CFO bot calls Stripe + Xero in *read* scope only. No invoice creation, refund, or payment-method change without HITL.
-- **No autonomous spend ceiling.** Every spend request is drafted for Phill; no agent approves any amount. Introducing a ceiling is a founder decision, audit-trailed.
+- **Every spend waits for Phill.** Each spend request, at any amount, is drafted for Phill and only his approval releases it. Introducing a ceiling is a founder decision, audit-trailed.
 - **PII-redactor in front of every draft** — invoice descriptions / vendor names / customer names go through pii-redactor at strictness=standard before reaching the review chat.
 - **Hash-based deduplication** — alert for the same breach won't re-fire within 24h (uses last-snapshot diff).
 - **Kill-switch aware.** On `TAO_SWARM_ENABLED=0`, the daily brief is queued (not sent) until resume.
 
 ## When NOT to use
 
-- Real-time treasury moves (wire transfers, FX hedging) — these need a human hand on the wheel; CFO bot escalates.
+- Real-time treasury moves (wire transfers, FX hedging) — these wait for Phill; CFO bot escalates.
 - IPO/buyout-stage SOX controls — that's the CCO bot's job (Wave 4 Phase B).
 - Cap-table changes — that's Head of IR (Wave 4 Phase B).
 
@@ -135,9 +134,9 @@ Action requests today:
 1. Synthetic 7-day Stripe data → burn multiple computed correctly (within ±0.01x of hand-calc)
 2. Burn multiple drops 0.4 → 1.6 between cycles → alert fires + draft posted to review chat
 3. $5000 spend request → routes through draft_review, status `pending`, NO real send
-4. $500 spend request → today the runtime returns `approved` (the gap above). Target once the
-   runtime is changed: draft_review, status `pending`, no approval emitted. Until then this item
-   is expected to fail, and that failure is the gap, not a broken test.
+4. $500 spend request → same as any amount: draft_review, status `pending` (or `blocked` if the
+   review ask was not delivered), only `cfo_spend_blocked` emitted; it stays blocked unless Phill
+   approves it.
 5. Daily brief assembles in <30s with all 11 businesses' metrics
 6. Brief posts through pii-redactor — no raw vendor names if flagged
 7. `cfo` module compiles + imports clean alongside existing `swarm/*`

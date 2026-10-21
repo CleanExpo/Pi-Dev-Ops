@@ -10,11 +10,13 @@ Public API:
   compute_metrics(raw)             -> Metrics
   detect_breaches(curr, prev)      -> list[Breach]
   assemble_daily_brief(snapshots, breaches) -> str
-  approve_spend(amount_usd, ...)   -> SpendDecision  # gates dual-key
+  approve_spend(amount_usd, ...)   -> SpendDecision  # every amount -> founder
   snapshot_to_dict(metrics)        -> dict           # for jsonl persistence
 
+Spend: there is no autonomous ceiling. Every amount routes to draft_review
+for founder approval (founder decision 21/10/2026).
+
 Defaults (overridable via env or constructor of bot wrapper):
-  AUTONOMOUS_SPEND_CEILING = 1000.0  # USD
   ALERT_BURN_MULTIPLE      = 1.5
   ALERT_NRR_B2B            = 1.10
   ALERT_NRR_PROSUMER       = 0.90
@@ -23,21 +25,22 @@ Defaults (overridable via env or constructor of bot wrapper):
   ALERT_MODEL_SPEND_RATIO  = 0.07
 
 Audit events emitted (see audit_emit allowlist):
-  cfo_metric_snapshot, cfo_alert, cfo_invoice_approved, cfo_spend_blocked
+  cfo_metric_snapshot, cfo_alert, cfo_spend_blocked   (cfo_invoice_approved: never)
 """
 from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Literal
 
+from .review_authority import review_undelivered
+
 log = logging.getLogger("swarm.cfo")
 
 # ── Defaults (constants — bot wrapper may override via env) ──────────────────
-AUTONOMOUS_SPEND_CEILING = 1000.0
 ALERT_BURN_MULTIPLE = 1.5
 ALERT_NRR_B2B = 1.10
 ALERT_NRR_PROSUMER = 0.90
@@ -322,7 +325,7 @@ def assemble_daily_brief(
     if pending_spend_count > 0:
         lines.append(
             f"📥 {pending_spend_count} spend approval"
-            f"{'s' if pending_spend_count != 1 else ''} queued (>${AUTONOMOUS_SPEND_CEILING:.0f})"
+            f"{'s' if pending_spend_count != 1 else ''} queued for founder approval"
         )
 
     return "\n".join(lines)
@@ -337,37 +340,25 @@ def approve_spend(
     vendor: str,
     business_id: str,
     justification: str,
-    spend_ceiling: float = AUTONOMOUS_SPEND_CEILING,
     post_draft: Callable[..., dict[str, Any]] | None = None,
     review_chat_id: str | None = None,
 ) -> SpendDecision:
-    """Gate a spend request through the dual-key threshold.
+    """Route a spend request to the founder. Nothing is auto-approved.
 
-    If amount_usd <= ceiling → auto-approve, return status='approved'.
-    If amount_usd > ceiling and post_draft callable supplied → route through
-    draft_review (HITL gate), return status='pending' with draft_id.
-    If amount_usd > ceiling and post_draft is None → return status='blocked'.
+    Founder decision 21/10/2026: every amount, whatever its size (including
+    $0, negative or non-finite), goes through draft_review for founder
+    approval. post_draft supplied -> status='pending' with draft_id.
+    post_draft is None -> status='blocked'. This function never returns
+    status='approved'.
     """
-    # Reversibility of a spend = whether it sits under the autonomous ceiling.
-    # Route the auto/HITL split through the central policy module
-    # (swarm.nexus.policy) so there is a single source of truth: <=ceiling is
-    # "low" (auto-approve, no human); over ceiling is "high" (route to HITL).
-    from swarm.nexus.policy import classify_policy
-    reversibility = "low" if amount_usd <= spend_ceiling else "high"
-
-    if classify_policy(reversibility) == "auto":
-        log.info("CFO auto-approved $%.2f to %s for %s",
-                 amount_usd, vendor, business_id)
-        return SpendDecision(
-            status="approved",
-            amount_usd=amount_usd, vendor=vendor,
-            business_id=business_id, justification=justification,
-        )
+    # "high" is an approval-tier class in swarm.nexus.policy, so draft_review
+    # posts it for human review. A "low"/"reversible" class would be auto-sent.
+    reversibility = "high"
 
     if post_draft is None:
         log.warning(
-            "CFO spend $%.2f > ceiling $%.2f for %s — no draft_review provider, blocking",
-            amount_usd, spend_ceiling, vendor,
+            "CFO spend $%.2f to %s for %s: no draft_review provider, blocking",
+            amount_usd, vendor, business_id,
         )
         return SpendDecision(
             status="blocked",
@@ -387,8 +378,9 @@ def approve_spend(
         originating_intent_id=f"cfo-spend-{business_id}",
         reversibility=reversibility,
     )
+    undelivered = review_undelivered(out, f"CFO spend ${amount_usd:,.2f} to {vendor}")
     return SpendDecision(
-        status="pending",
+        status="blocked" if undelivered else "pending",
         amount_usd=amount_usd, vendor=vendor,
         business_id=business_id, justification=justification,
         draft_id=out.get("draft_id"),
@@ -442,7 +434,7 @@ __all__ = [
     "approve_spend", "snapshot_to_dict",
     "append_snapshot", "load_last_snapshot",
     # Constants
-    "AUTONOMOUS_SPEND_CEILING", "ALERT_BURN_MULTIPLE",
+    "ALERT_BURN_MULTIPLE",
     "ALERT_NRR_B2B", "ALERT_NRR_PROSUMER",
     "ALERT_GROSS_MARGIN", "ALERT_RUNWAY_MONTHS",
     "ALERT_MODEL_SPEND_RATIO", "ALERT_CAC_PAYBACK_MONTHS",

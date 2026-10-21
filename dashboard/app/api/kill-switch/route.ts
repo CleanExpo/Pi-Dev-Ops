@@ -21,6 +21,7 @@ interface KillSwitchStatus {
   kill_switch_active: boolean;
   escalation_lock_active: boolean;
   panic_count_last_hour: number;
+  panic_id: string;
   approver_allowlist: string[];
   approver_totp_configured: string[];
 }

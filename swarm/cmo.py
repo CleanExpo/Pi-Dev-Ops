@@ -9,12 +9,12 @@ Public API:
   compute_metrics(raw)            -> MarketingMetrics
   detect_breaches(curr, prev)     -> list[MarketingBreach]
   assemble_daily_brief(snapshots, breaches) -> str
-  approve_adspend(...)            -> AdSpendDecision   # gates dual-key
+  approve_adspend(...)            -> AdSpendDecision   # every amount -> founder
   snapshot_to_dict(metrics)       -> dict
   append_snapshot / load_last_snapshot
 
 Thresholds (overridable via env in bot wrapper):
-  AUTONOMOUS_ADSPEND_CEILING_USD_PER_DAY = 5000.0
+  (no ad-spend ceiling: every amount -> founder, decision 21/10/2026)
   ALERT_LTV_CAC_RATIO       = 3.0
   ALERT_CHANNEL_TOP_SHARE   = 0.70
   CRITICAL_CHANNEL_TOP_SHARE = 0.85
@@ -23,22 +23,22 @@ Thresholds (overridable via env in bot wrapper):
 
 Audit events emitted (whitelisted in audit_emit._VALID_TYPES):
   cmo_metric_snapshot, cmo_alert,
-  cmo_adspend_approved, cmo_adspend_blocked, cmo_brief_emitted
+  cmo_adspend_blocked, cmo_brief_emitted   (cmo_adspend_approved: never)
 """
 from __future__ import annotations
 
 import json
 import logging
-import math
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Literal
 
+from .review_authority import review_undelivered
+
 log = logging.getLogger("swarm.cmo")
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
-AUTONOMOUS_ADSPEND_CEILING_USD_PER_DAY = 5000.0
 ALERT_LTV_CAC_RATIO = 3.0
 ALERT_CHANNEL_TOP_SHARE = 0.70
 CRITICAL_CHANNEL_TOP_SHARE = 0.85
@@ -303,7 +303,7 @@ def assemble_daily_brief(
         lines.append(
             f"📥 {pending_adspend_count} ad-spend approval"
             f"{'s' if pending_adspend_count != 1 else ''} queued "
-            f"(>${AUTONOMOUS_ADSPEND_CEILING_USD_PER_DAY:.0f}/day)"
+            f"for founder approval"
         )
 
     return "\n".join(lines)
@@ -312,34 +312,31 @@ def assemble_daily_brief(
 # ── Ad-spend approval gate ───────────────────────────────────────────────────
 
 
+def _usd(amount: Any) -> str:
+    """Show an amount to the founder without ever raising on a malformed one."""
+    return f"${amount:,.2f}" if isinstance(amount, (int, float)) else repr(amount)
+
+
 def approve_adspend(
     *,
     amount_usd_per_day: float,
     channel: str,
     business_id: str,
     justification: str,
-    spend_ceiling: float = AUTONOMOUS_ADSPEND_CEILING_USD_PER_DAY,
     post_draft: Callable[..., dict[str, Any]] | None = None,
     review_chat_id: str | None = None,
 ) -> AdSpendDecision:
-    """Gate an ad-spend request through the dual-key threshold (default $5k/day).
+    """Route an ad-spend request to the founder. Nothing is auto-approved.
 
-    <= ceiling   → auto-approve
-    >  ceiling + post_draft → route through draft_review (HITL), status=pending
-    >  ceiling + no draft   → block (status=blocked)
+    Founder decision 21/10/2026: every amount, whatever its size (including
+    $0, negative, non-finite or non-numeric), goes through draft_review for
+    founder approval. post_draft supplied -> status='pending' with draft_id.
+    post_draft is None -> status='blocked'. Never returns status='approved'.
     """
-    if amount_usd_per_day <= spend_ceiling:
-        log.info("CMO auto-approved $%.2f/day on %s for %s",
-                 amount_usd_per_day, channel, business_id)
-        return AdSpendDecision(
-            status="approved", amount_usd_per_day=amount_usd_per_day,
-            channel=channel, business_id=business_id,
-            justification=justification,
-        )
     if post_draft is None:
         log.warning(
-            "CMO ad-spend $%.2f/day on %s for %s blocked — no draft_review",
-            amount_usd_per_day, channel, business_id,
+            "CMO ad-spend %s/day on %s for %s blocked: no draft_review provider",
+            _usd(amount_usd_per_day), channel, business_id,
         )
         return AdSpendDecision(
             status="blocked", amount_usd_per_day=amount_usd_per_day,
@@ -347,7 +344,7 @@ def approve_adspend(
             justification=justification,
         )
     draft_text = (
-        f"📈 Ad-spend approval — ${amount_usd_per_day:,.2f}/day on "
+        f"📈 Ad-spend approval — {_usd(amount_usd_per_day)}/day on "
         f"{channel} ({business_id})\n"
         f"\nJustification: {justification}\n"
         f"\nReact 👍 to approve · ❌ to reject · ⏳ to defer"
@@ -357,9 +354,13 @@ def approve_adspend(
         destination_chat_id=str(review_chat_id or "review"),
         drafted_by_role="CMO",
         originating_intent_id=f"cmo-adspend-{business_id}",
+        # "high" is an approval-tier class in swarm.nexus.policy: draft_review
+        # posts it for founder review ("low"/"reversible" would auto-send).
+        reversibility="high",
     )
+    undelivered = review_undelivered(out, f"CMO ad-spend {_usd(amount_usd_per_day)}/day on {channel}")
     return AdSpendDecision(
-        status="pending", amount_usd_per_day=amount_usd_per_day,
+        status="blocked" if undelivered else "pending", amount_usd_per_day=amount_usd_per_day,
         channel=channel, business_id=business_id,
         justification=justification,
         draft_id=out.get("draft_id"),
@@ -411,7 +412,6 @@ __all__ = [
     "compute_metrics", "detect_breaches", "assemble_daily_brief",
     "approve_adspend", "snapshot_to_dict",
     "append_snapshot", "load_last_snapshot",
-    "AUTONOMOUS_ADSPEND_CEILING_USD_PER_DAY",
     "ALERT_LTV_CAC_RATIO", "ALERT_CHANNEL_TOP_SHARE",
     "CRITICAL_CHANNEL_TOP_SHARE", "ALERT_BLENDED_CPA_USD",
     "ALERT_ATTR_DECAY_THRESHOLD",

@@ -1,13 +1,13 @@
 ---
 name: cs-tier1
-description: "Tier-1 customer support across the 11 portfolio brands. Computes NPS, First Contact Resolution (FCR), Gross Retention Rate (GRR) and avg first-response time, drafts replies through telegram-draft-for-review, auto-approves refunds up to $100 and routes larger ones through draft_review HITL (Wave 4 A4, RA-1862). Use for inbound support on any portfolio brand: ticket replies, refund approval or escalation, the daily CS brief, NPS/FCR/GRR metrics, enterprise churn threats."
+description: "Tier-1 customer support across the 11 portfolio brands. Computes NPS, First Contact Resolution (FCR), Gross Retention Rate (GRR) and avg first-response time, drafts replies through telegram-draft-for-review, and drafts every refund for Phill's approval through draft_review HITL; it never approves a refund itself, at any amount (Wave 4 A4, RA-1862; founder ruling 21/10/2026). Use for inbound support on any portfolio brand: ticket replies, drafting a refund for Phill's approval, escalation, the daily CS brief, NPS/FCR/GRR metrics, enterprise churn threats."
 owner_role: CS
 status: wave-4
 ---
 
 # cs-tier1
 
-Bottles 15+ years of CS leadership — de-escalating enterprise churn calls, the "Mom test" for feedback (recognising polite lies), recognising the difference between a complaint and a churn signal — into a deterministic daily brief + a refund dual-key gate.
+Bottles 15+ years of CS leadership — de-escalating enterprise churn calls, the "Mom test" for feedback (recognising polite lies), recognising the difference between a complaint and a churn signal — into a deterministic daily brief, with every refund waiting for Phill.
 
 ## Why this exists
 
@@ -19,13 +19,12 @@ Autonomous:
 - Compute + emit CS metrics every cycle
 - Draft daily CS brief (routes through pii-redactor + draft_review)
 - Draft replies for inbound tickets (routes through telegram-draft-for-review — Scribe gate)
-- Approve refunds up to $100 (configurable via `TAO_CS_REFUND_CEILING`)
 - Alert on threshold breaches
 
 HITL (dual-key gate):
-- Refund > $100 (any single transaction)
+- Any refund, at any amount (founder ruling 21/10/2026: every amount waits for Phill)
 - Public apology / postmortem
-- Service credits beyond standard SLA terms
+- Any service credit, at any amount, including credits within standard SLA terms (founder ruling 21/10/2026)
 - Enterprise churn-save offer (any concession to a flagged customer)
 
 ## Metrics owned
@@ -44,16 +43,14 @@ HITL (dual-key gate):
 |---|---|
 | Daily 06:00 UTC | Assemble brief → pii-redact → draft_review post |
 | Per inbound ticket | Draft reply → Scribe gate via telegram-draft-for-review |
-| Per refund request | Dual-key gate; emit `cs_refund_approved` or `cs_refund_blocked` |
+| Per refund request | Draft for Phill via draft_review; emit `cs_refund_blocked`; `pending`, and blocked unless Phill approves |
 
 ## Refund approval flow
 
 ```
 incoming refund request {amount_usd, customer_id, business_id, justification}
-  → if amount_usd <= AUTONOMOUS_REFUND_CEILING_USD ($100):
-       emit cs_refund_approved → return approved
-  → else:
-       draft_review.post_draft(
+  → every amount, no ceiling:
+       draft_review.post_draft(reversibility="high",
          draft_text="💬 Refund approval — ${amount} to {customer} ({biz})",
          destination_chat_id=REVIEW_CHAT_ID, drafted_by_role="CS")
        emit cs_refund_blocked (queued, awaiting reaction)
@@ -77,7 +74,7 @@ Per-business (worst NPS first):
 - synthex: NPS 12 | FCR 71% | GRR 84% | first-response 92m
 - ...
 
-📥 2 refund approvals queued (>$100)
+📥 2 refund approvals queued
 ```
 
 **Metric snapshot row** (per cycle, written to `.harness/swarm/cs_state.jsonl`):
@@ -97,7 +94,8 @@ Per-business (worst NPS first):
 ## Safety bindings
 
 - **All outbound replies route through telegram-draft-for-review (Scribe gate).** No autonomous send.
-- **Refund ceiling persisted** ($100). Editing requires user approval, audit-trailed.
+- **Every refund waits for the founder.** Every amount goes through draft_review at reversibility "high" (a "low" draft would send by itself). No env var changes this.
+- **Every service credit waits for the founder** (founder ruling 21/10/2026), including credits within standard SLA terms. There is no separate credit path: a credit is drafted for Phill as a refund request through `approve_refund` / draft_review, `cs_refund_blocked` is recorded, and it stays pending until he approves.
 - **PII-redactor in front of every draft** — customer names, emails, ticket IDs go through pii-redactor at strictness=standard.
 - **Enterprise churn threats are critical the moment they're opened** — escalates to founder via daily brief.
 - **Kill-switch aware.** On `TAO_SWARM_ENABLED=0`, the daily brief is queued (not sent).
@@ -114,7 +112,7 @@ Per-business (worst NPS first):
 2. GRR < 85% → critical alert fires
 3. First response > 240m → critical alert fires
 4. Open enterprise threats >= 3 → critical alert fires
-5. $50 refund → auto-approves
+5. $50 refund → routes through draft_review, status `pending`
 6. $200 refund without draft_review → blocked
 7. $200 refund with draft_review → pending, no real refund issued
 8. Daily brief assembles cleanly with all 11 businesses

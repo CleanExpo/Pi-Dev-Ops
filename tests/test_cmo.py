@@ -8,9 +8,10 @@ Covers:
 5. detect_breaches: low LTV:CAC fires warning
 6. detect_breaches: high CPA fires warning
 7. assemble_daily_brief contains expected scaffold
-8. approve_adspend: <= ceiling auto-approves
-9. approve_adspend: > ceiling + draft routes to pending
-10. approve_adspend: > ceiling + no draft blocks
+8. approve_adspend: a small amount (old ceiling) no longer auto-approves
+9. approve_adspend: + draft routes to pending
+10. approve_adspend: no draft blocks
+   (full founder-gate coverage: tests/swarm/test_adspend_refund_founder_gate.py)
 11. Registry: select_marketing_provider default is synthetic
 12. Bot _default_marketing_provider non-empty under default env
 13. Bot degrades to [] on provider crash
@@ -174,12 +175,14 @@ def test_assemble_daily_brief_renders():
 # ── Ad-spend approval ───────────────────────────────────────────────────────
 
 
-def test_approve_adspend_under_ceiling_auto_approves():
+def test_approve_adspend_small_amount_never_auto_approves():
+    # Founder decision 21/10/2026: $4,500/day was under the old $5,000/day
+    # auto ceiling. With no draft_review provider it must now be blocked.
     d = _cmo.approve_adspend(
         amount_usd_per_day=4500.0, channel="google-ads",
         business_id="bid", justification="hit Q2 NRR target",
     )
-    assert d.status == "approved"
+    assert d.status == "blocked"
     assert d.draft_id is None
 
 
@@ -188,7 +191,7 @@ def test_approve_adspend_over_ceiling_with_draft_pends():
 
     def fake_post_draft(**kwargs):
         captured.update(kwargs)
-        return {"draft_id": "drft-cmo-001"}
+        return {"draft_id": "drft-cmo-001", "review_message_id": "m-drft-cmo-001", "status": "pending"}
 
     d = _cmo.approve_adspend(
         amount_usd_per_day=7500.0, channel="linkedin",

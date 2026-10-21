@@ -2,7 +2,8 @@
 swarm/draft_review.py — RA-1839: HITL gate state machine for outbound Telegram.
 
 Implements telegram-draft-for-review SKILL.md:
-  pending → sent (👍) | revise (❌) | deferred (⏳) | expired (no-reaction-24h)
+  pending → sending → sent (👍) | revise (❌) | deferred (⏳) | expired (no-reaction-24h)
+  (reactions and expiry live in draft_decision.py, re-exported here)
 
 State persisted to .harness/swarm/telegram_drafts.jsonl (append-only).
 Active drafts kept in .harness/swarm/telegram_drafts.json (latest snapshot).
@@ -16,20 +17,22 @@ Design rules:
 """
 from __future__ import annotations
 
+import html
 import json
 import logging
 import os
-import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
 from swarm.nexus.types import Reversibility
+from swarm.review_authority import review_chat_id
 
 log = logging.getLogger("swarm.draft_review")
 
-DraftStatus = Literal["pending", "sent", "revise", "deferred", "expired", "queued", "aborted_pii"]
+DraftStatus = Literal["pending", "sending", "sent", "revise", "deferred", "expired", "queued",
+                      "aborted_pii"]
 ReactionEmoji = Literal["👍", "❌", "⏳"]
 
 DEFAULT_TIMEOUT_HOURS = 24
@@ -93,7 +96,7 @@ def _post_review_message(text: str) -> str | None:
     if TEST_MODE:
         return f"test-msg-{uuid.uuid4().hex[:8]}"
     cfg = _config()
-    review_chat = os.environ.get("REVIEW_CHAT_ID") or cfg.TELEGRAM_CHAT_ID
+    review_chat = review_chat_id()
     token = cfg.TELEGRAM_BOT_TOKEN
     if not (review_chat and token):
         log.warning("REVIEW_CHAT_ID + TELEGRAM_BOT_TOKEN required for draft review")
@@ -118,6 +121,14 @@ def _post_review_message(text: str) -> str | None:
         return None
 
 
+def _store(draft_id: str, record: dict[str, Any]) -> None:
+    from .draft_decision import snapshot_lock
+    with snapshot_lock():
+        snap = _load_snapshot()
+        snap[draft_id] = record
+        _save_snapshot(snap)
+
+
 def post_draft(
     *,
     draft_text: str,
@@ -138,6 +149,10 @@ def post_draft(
     precision drops below 0.95, the draft is aborted with audit row and never
     reaches the review chat. The destination chat receives a re-redaction at
     strictness=high in _do_send when REVIEW_CHAT_ID differs.
+
+    Nothing sends itself: every draft waits for the founder's reaction, whatever
+    `reversibility` the caller claims (founder ruling 21/10/2026; the old
+    reversible auto tier let money talk out unreviewed). It is kept on the record.
     """
     from . import pii_redactor
     pii_pre = pii_redactor.redact(
@@ -172,59 +187,10 @@ def post_draft(
     now = _now_iso()
     expires = (datetime.now(timezone.utc) + timedelta(hours=timeout_hours)).isoformat()
 
-    # Autonomous reversibility gate (swarm.nexus.policy): a reversible action
-    # needs no human — auto-approve and send immediately, honouring the SAME
-    # TAO_SWARM_ENABLED kill-switch the 👍 reaction path uses. Medium / high /
-    # irreversible fall through to the HITL review below.
-    from swarm.nexus.policy import classify_policy
-    if classify_policy(reversibility) == "auto":
-        record = {
-            "draft_id": draft_id,
-            "review_message_id": None,
-            "destination_chat_id": destination_chat_id,
-            "destination_thread_id": destination_thread_id,
-            "drafted_by_role": drafted_by_role,
-            "originating_intent_id": originating_intent_id,
-            "draft_text": draft_text,
-            "status": "pending",
-            "drafted_at": now,
-            "expires_at": expires,
-            "transitions": [],
-            "policy_level": "auto",
-            "reversibility": reversibility,
-        }
-        swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "0") == "1"
-        if swarm_enabled or TEST_MODE:
-            sent_ok = _do_send(record) if not TEST_MODE else True
-            record["status"] = "sent" if sent_ok else "revise"
-            reason = "auto-approved (reversible)" if sent_ok else "auto-send failed"
-        else:
-            record["status"] = "deferred"
-            reason = "auto-approved but kill-switch active; send halted"
-        record["transitions"].append(
-            {"ts": _now_iso(), "to": record["status"], "reason": reason}
-        )
-        _append_jsonl(_drafts_jsonl(), {**record, "audit_event": "draft_auto_approved"})
-        from . import audit_emit
-        audit_emit.row("draft_auto_approved", drafted_by_role,
-                       draft_id=draft_id, reversibility=reversibility,
-                       status=record["status"])
-        snap = _load_snapshot()
-        snap[draft_id] = record
-        _save_snapshot(snap)
-        log.info("Draft %s auto-approved (reversible=%s) -> %s",
-                 draft_id, reversibility, record["status"])
-        return {
-            "draft_id": draft_id,
-            "review_message_id": None,
-            "status": record["status"],
-            "policy_level": "auto",
-        }
-
     review_text = (
-        f"✏️ <b>DRAFT</b> ({drafted_by_role}) — for chat <code>{destination_chat_id}</code>\n"
-        f"─────────────────────────────────\n"
-        f"{draft_text}\n"
+        f"✏️ <b>DRAFT</b> ({html.escape(drafted_by_role)}) — for chat "
+        f"<code>{html.escape(str(destination_chat_id))}</code>\n─────────────────────────────────\n"
+        f"{html.escape(draft_text)}\n"
         f"─────────────────────────────────\n"
         f"React 👍 to send · ❌ to revise · ⏳ to delay 24h"
     )
@@ -232,7 +198,7 @@ def post_draft(
 
     record = {
         "draft_id": draft_id,
-        "review_message_id": review_message_id,
+        "review_message_id": review_message_id, "review_chat_id": review_chat_id(),
         "destination_chat_id": destination_chat_id,
         "destination_thread_id": destination_thread_id,
         "drafted_by_role": drafted_by_role,
@@ -242,6 +208,7 @@ def post_draft(
         "drafted_at": now,
         "expires_at": expires,
         "transitions": [],
+        "reversibility": reversibility,  # recorded only; it never skips review
     }
 
     _append_jsonl(_drafts_jsonl(), {**record, "audit_event": "draft_posted"})
@@ -250,73 +217,13 @@ def post_draft(
                    draft_id=draft_id,
                    destination_chat_id=destination_chat_id)
 
-    snap = _load_snapshot()
-    snap[draft_id] = record
-    _save_snapshot(snap)
-
+    _store(draft_id, record)
     log.info("Draft %s queued for review (msg=%s)", draft_id, review_message_id)
     return {
         "draft_id": draft_id,
         "review_message_id": review_message_id,
         "status": record["status"],
     }
-
-
-def mark_reaction(
-    *,
-    review_message_id: str,
-    emoji: ReactionEmoji,
-) -> dict[str, Any] | None:
-    """Apply a 👍/❌/⏳ reaction to a draft. Returns the updated draft record."""
-    snap = _load_snapshot()
-    target = None
-    target_id = None
-    for did, rec in snap.items():
-        if str(rec.get("review_message_id")) == str(review_message_id):
-            target = rec
-            target_id = did
-            break
-    if not target:
-        log.debug("reaction on unknown review_message_id=%s", review_message_id)
-        return None
-
-    if target["status"] not in ("pending", "deferred"):
-        log.info("ignoring reaction on draft %s in state %s", target_id, target["status"])
-        return target
-
-    cfg = _config()
-    swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "0") == "1"
-
-    if emoji == "👍":
-        if not swarm_enabled and not TEST_MODE:
-            target["status"] = "deferred"
-            target["transitions"].append({"ts": _now_iso(), "to": "deferred",
-                                          "reason": "kill-switch active; send halted"})
-        else:
-            sent_ok = _do_send(target) if not TEST_MODE else True
-            target["status"] = "sent" if sent_ok else "revise"
-            target["transitions"].append({"ts": _now_iso(),
-                                          "to": target["status"],
-                                          "reason": "approved" if sent_ok else "send_failed"})
-    elif emoji == "❌":
-        target["status"] = "revise"
-        target["transitions"].append({"ts": _now_iso(), "to": "revise",
-                                      "reason": "rejected"})
-    elif emoji == "⏳":
-        new_expires = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
-        target["expires_at"] = new_expires
-        target["status"] = "deferred"
-        target["transitions"].append({"ts": _now_iso(), "to": "deferred",
-                                      "reason": "delayed +24h",
-                                      "new_expires_at": new_expires})
-
-    _append_jsonl(_drafts_jsonl(), {**target, "audit_event": "draft_reaction"})
-    from . import audit_emit
-    audit_emit.row("draft_reaction", target.get("drafted_by_role", "Scribe"),
-                   draft_id=target_id, emoji=emoji, status=target["status"])
-    snap[target_id] = target
-    _save_snapshot(snap)
-    return target
 
 
 def _do_send(record: dict[str, Any]) -> bool:
@@ -380,36 +287,12 @@ def _do_send(record: dict[str, Any]) -> bool:
         return False
 
 
-def expire_overdue() -> int:
-    """Sweep pending drafts past expires_at — mark expired. Returns count expired."""
-    now = datetime.now(timezone.utc)
-    snap = _load_snapshot()
-    expired = 0
-    for did, rec in snap.items():
-        if rec["status"] not in ("pending", "deferred"):
-            continue
-        try:
-            exp = datetime.fromisoformat(rec["expires_at"])
-        except Exception:
-            continue
-        if exp < now:
-            rec["status"] = "expired"
-            rec["transitions"].append({"ts": _now_iso(), "to": "expired",
-                                       "reason": "no reaction in window"})
-            _append_jsonl(_drafts_jsonl(), {**rec, "audit_event": "draft_expired"})
-            from . import audit_emit
-            audit_emit.row("draft_expired", rec.get("drafted_by_role", "Scribe"),
-                           draft_id=did)
-            expired += 1
-    if expired:
-        _save_snapshot(snap)
-    return expired
-
-
 def list_pending() -> list[dict[str, Any]]:
     """Return all pending or deferred drafts."""
     snap = _load_snapshot()
     return [r for r in snap.values() if r["status"] in ("pending", "deferred")]
 
+
+from .draft_decision import expire_overdue, mark_reaction  # noqa: E402
 
 __all__ = ["post_draft", "mark_reaction", "expire_overdue", "list_pending"]

@@ -36,6 +36,7 @@ def _poll_telegram(state_offset: int) -> tuple[list[dict], int]:
     chat_id = config.TELEGRAM_CHAT_ID
     if not token or not chat_id:
         return [], state_offset
+    observed = _kill_switch.panic_id()  # a panic after this fetch beats any /resume in it
     url = f"https://api.telegram.org/bot{token}/getUpdates"
     body = json.dumps({
         "offset": state_offset + 1,
@@ -63,16 +64,11 @@ def _poll_telegram(state_offset: int) -> tuple[list[dict], int]:
 
         # ── message_reaction — HITL draft approval via 👍/❌/⏳ ─────────────────
         reaction = u.get("message_reaction")
+        # From the alert chat or a separate review chat; review_authority
+        # binds it to the founder and to the chat the draft was posted to.
         if reaction:
-            msg_id = str(reaction.get("message_id", ""))
-            chat_id_r = str((reaction.get("chat") or {}).get("id", ""))
-            if chat_id_r == str(chat_id) and msg_id:
-                from .. import draft_review as _dr  # noqa: PLC0415
-                for r in reaction.get("new_reaction", []):
-                    emoji_str = r.get("emoji", "")
-                    if emoji_str in ("👍", "❌", "⏳"):
-                        _dr.mark_reaction(review_message_id=msg_id, emoji=emoji_str)
-                        log.info("CoS: reaction %s on msg %s", emoji_str, msg_id)
+            from .. import review_authority  # noqa: PLC0415
+            review_authority.forward_reaction(reaction)
             continue
 
         msg = u.get("message")
@@ -86,21 +82,13 @@ def _poll_telegram(state_offset: int) -> tuple[list[dict], int]:
             continue
 
         # ── /panic, /resume, /resume-confirm — kill-switch handlers ─────────
-        # Run BEFORE the /ack-skip so they fire even on a halted swarm.
+        # Run BEFORE the /ack-skip so they fire even on a halted swarm. Same handler and
+        # founder check as the production webhook (review_authority.command_context).
+        from .. import review_authority  # noqa: PLC0415
+        if _kill_switch.handle_command(text, observed_id=observed,
+                                       **review_authority.command_context(msg)):
+            continue
         lower = text.lower()
-        if lower.startswith("/panic"):
-            reason = text[len("/panic"):].strip() or "operator-initiated"
-            _kill_switch.trigger("telegram_panic", reason=reason)
-            continue
-        if lower.startswith("/resume-confirm"):
-            reason = text[len("/resume-confirm"):].strip() or "manual recovery"
-            _kill_switch.resume("telegram_resume_confirm",
-                                reason=reason, confirmed=True)
-            continue
-        if lower.startswith("/resume"):
-            reason = text[len("/resume"):].strip()
-            _kill_switch.resume("telegram_resume", reason=reason)
-            continue
 
         # Skip /ack and /turbopack — those go to the orchestrator's listener
         if lower.startswith(("/ack", "/turbopack")):

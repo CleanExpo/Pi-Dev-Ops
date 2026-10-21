@@ -249,30 +249,29 @@ def request_refund_approval(
     business_id: str,
     justification: str,
 ) -> _cs.RefundDecision:
-    """Public entry-point — refunds <= $100 auto-approve, above route HITL."""
-    refund_ceiling = float(os.environ.get(
-        "TAO_CS_REFUND_CEILING", _cs.AUTONOMOUS_REFUND_CEILING_USD))
+    """Public entry-point. Every refund routes through draft_review for
+    founder approval; nothing is auto-approved and no env var can change that.
+    """
 
     post_draft = None
     try:
         from .. import draft_review
         post_draft = draft_review.post_draft
     except Exception as exc:
-        log.debug("cs: draft_review unavailable (%s)", exc)
+        log.debug("cs: draft_review unavailable (%s) — refund will be blocked", exc)
 
     decision = _cs.approve_refund(
         amount_usd=amount_usd, customer_id=customer_id,
         business_id=business_id, justification=justification,
-        refund_ceiling=refund_ceiling,
         post_draft=post_draft,
         review_chat_id=os.environ.get("REVIEW_CHAT_ID"),
     )
 
     try:
         from .. import audit_emit
+        # Never cs_refund_approved here: approval only comes from the founder.
         audit_emit.row(
-            "cs_refund_approved" if decision.status == "approved"
-            else "cs_refund_blocked",
+            "cs_refund_blocked",
             "CS",
             business_id=business_id, customer_id=customer_id,
             amount_usd=amount_usd,

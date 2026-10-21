@@ -54,6 +54,8 @@ export interface KillSwitchStatus {
   kill_switch_active?: boolean;
   escalation_lock_active?: boolean;
   panic_count_last_hour?: number;
+  /** Id of the current panic; resume sends the one its operator reviewed. */
+  panic_id?: string;
   approver_allowlist?: string[];
   approver_totp_configured?: string[];
   error?: string;

@@ -1,0 +1,272 @@
+"""Founder ruling 21/10/2026: CFO spend, CMO ad spend and CS refunds all wait for
+the founder; nothing auto-approves at any amount.
+
+Agents read skill descriptions from the catalogue (src/tao/skills.py) and from
+agentskills.json / agentskills.yaml, so a stale threshold there is authority
+guidance that contradicts the code. These pin that no money skill or manifest
+advertises an autonomous money threshold.
+"""
+from __future__ import annotations
+
+import hashlib
+import re
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+MONEY_SKILLS = ("cfo", "cmo-growth", "cs-tier1", "telegram-draft-for-review")
+
+# A claim that an agent approves money by itself, or that only amounts above
+# some figure need the founder.
+_MONEY = (r"\b(?:credit\w*|refund\w*|(?:ad-?\s?)?spend\w*|pay(?:s|ing|outs?|ments?)?"
+          r"|reimburs\w*|invoic\w*"
+          # Codex on b021085d: value handed out without being called money.
+          r"|gift[-\s]?cards?|vouchers?|coupons?|rebates?|discounts?|fees?|waiv\w*"
+          r"|budget\w*|cash|money|funds?|transfer\w*)\b")
+# "No refund auto-approval" matches too: skill text states the rule positively
+# ("waits for Phill"), so a negation never has to be told apart from a grant.
+_UNGATED = (r"\b(?:automatic(?:ally)?|autonomously"
+            r"|auto[-\s]?(?:approv|issu|pay|refund|grant|appl|process|spend|reimburs)\w*"
+            r"|without\b[^.\n]{0,30}\b(?:approv\w*|ask\w*|sign-?off|permission|consent|review"
+            r"|check\w*|confirm\w*|founder|phill)"
+            r"|no\s+(?:\w+\s+)?(?:approv\w*|sign-?off|permission|consent|review)"
+            r"|at\s+(?:the|its|their|your)\s+(?:agent'?s?\s+|bot'?s?\s+|own\s+)?discretion)\b")
+# An agent given standing authority: "CFO may approve invoices below $1,000".
+_AUTH = (r"\b(?:may|can|could|will|(?:is|are)\s+(?:allowed|permitted|authori[sz]ed|free)\s+to)"
+         r"\s+(?:\w+\s+){0,2}?")
+_GRANT = (r"(?:(?:approv|grant|issu|releas|authori[sz]|rais|increas|appl|process|offer|giv)\w*"
+          rf"[^.\n]{{0,60}}{_MONEY}|(?:refund|reimburs|pay|spend)\w*\b)")
+# An agent acting on money in the present tense: "CS issues refunds on ...".
+_AGENT = r"\b(?:cfo|cmo|cto|cs|tier[- ]?1|agents?|bots?|assistant|swarm|runtime)\b"
+_ACTS = (r"(?:(?:approv|grant|issu|releas|authori[sz]|rais|increas|appli|process|offer|giv|waiv)e?s"
+         rf"\b[^.\n]{{0,60}}{_MONEY}|(?:refund|reimburs|pay|spend)e?s\b)")
+AUTONOMOUS_MONEY = re.compile(
+    r"auto-?approv\w*\s+(?:refunds?|spend|ad-?spend|invoices?|up to)"
+    r"|(?:refunds?|spend|ad-?spend)\s+(?:over|above|under|below|up to)\s+\$\s?\d"
+    r"|request\s+(?:over|above)\s+\$\s?\d"
+    # Codex round on 7da9f064: a runtime said to return or emit an approval.
+    r"|returns?\s+`?approved\b"
+    r"|emits?\s+`?\w*(?:spend|refund|invoice)_approved\b"
+    r"|budget\s*(?:>|over|above)\s*\$\s?\d"
+    # Founder ruling 21/10/2026: every service credit waits for Phill, SLA ones too.
+    r"|service\s+credits?\s+(?:beyond|above|over|outside|exceeding)\b"
+    # Codex rounds on 590a54b6, 9b8fc6d2 and da78588f: money handed out with no
+    # approval, in either word order, in one sentence. Negations match too; skill
+    # text states the rule positively ("waits for Phill").
+    r"|\b(?:autonomous|automatic)\s+(?:refund|spend|pay|credit|reimburs|invoic)\w*"
+    rf"|{_MONEY}[^.\n]{{0,80}}{_UNGATED}"
+    rf"|{_UNGATED}[^.\n]{{0,80}}{_MONEY}"
+    # Codex helper findings on 93ee19ff: standing authority to act on money.
+    rf"|{_AUTH}{_GRANT}"
+    # Codex on 10900da2: direct present-tense authority, "CFO approves invoices".
+    rf"|{_AGENT}\s+(?:\w+\s+){{0,2}}?{_ACTS}",
+    re.IGNORECASE)
+
+
+def offences(text: str) -> list[str]:
+    return [m.group(0) for m in AUTONOMOUS_MONEY.finditer(text)]
+
+
+# Codex on 47db2420: grant verbs cannot be enumerated ("signs off", "distributes",
+# "buys", "sends" ...). So in a money skill, every sentence that names an agent AND
+# money must also name the founder gate; any verb is caught. The manifests are
+# generated from these SKILL.md files (generated-agentskills gate), so this covers
+# their money-skill entries too; the manifests' other skills are not money skills.
+_GATE = re.compile(r"\b(?:phill\w*|founders?|waits?|pending|\w+_blocked|blocked)\b", re.I)
+# Telling Phill afterwards is not his approval (Codex on 69a8dfbb).
+_POSTHOC = re.compile(r"\b(?:after(?:wards?)?|then\s+(?:tells?|informs?|notif\w+|reports?)"
+                      r"|informs?|notif(?:y|ies)|lets\s+\w+\s+know|reports?\s+(?:it\s+)?to)\b", re.I)
+_AGENT_RE = re.compile(_AGENT, re.I)
+_MONEY_RE = re.compile(rf"{_MONEY}|[$€£¥]\s?\d", re.I)
+_ITEM = re.compile(r"(?:[-*+]|\d+[.)]|\||#)\s*")
+
+
+def _units(text: str) -> list[str]:
+    """Sentences, with wrapped lines rejoined and each list item, table row or
+    heading prefixed by the last line ending in ':' above it in its block."""
+    out: list[str] = []
+    head, buf = "", []
+    for line in [*text.splitlines(), ""]:
+        s = line.strip()
+        if buf and (not s or _ITEM.match(s)):
+            out += re.split(r"(?<=[.!?])\s+", " ".join(buf))
+            buf = []
+        if not s:
+            head = ""
+        elif _ITEM.match(s):
+            out += [f"{head} {x}".strip() for x in re.split(r"(?<=[.!?])\s+", s)]
+        else:
+            buf.append(s)
+        if s.endswith(":"):
+            head = " ".join(buf) or s
+    return out
+
+
+def ungated_money_sentences(text: str) -> list[str]:
+    """Sentences naming an agent and money but not a prior founder gate."""
+    return [x.strip() for x in _units(text)
+            if _AGENT_RE.search(x) and _MONEY_RE.search(x)
+            and (not _GATE.search(x) or _POSTHOC.search(x))]
+
+
+@pytest.mark.parametrize("skill", MONEY_SKILLS)
+def test_money_skill_text_advertises_no_autonomous_threshold(skill):
+    text = (ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
+    assert offences(text) == []
+
+
+@pytest.mark.parametrize("manifest", ("agentskills.json", "agentskills.yaml"))
+def test_manifests_advertise_no_autonomous_money_threshold(manifest):
+    text = (ROOT / manifest).read_text(encoding="utf-8")
+    assert offences(text) == []
+
+
+@pytest.mark.parametrize("stale", [
+    "drafts replies, auto-approves refunds up to $100 and routes larger ones",
+    "gates ad-spend over $5,000/day through draft_review",
+    "a hard gate on any ad-spend request above $5k/day",
+    "an ad-spend request above $5,000/day needing the gate",
+    "approve_spend auto-approves up to $1,000",
+    "4. $500 spend request → today the runtime returns `approved` (the gap above). Target once the",
+    "| Per ad-spend request | Dual-key gate; emit `cmo_adspend_approved` or `cmo_adspend_blocked` |",
+    "| Per refund request | Dual-key gate; emit `cs_refund_approved` or `cs_refund_blocked` |",
+    "the bot emits cfo_invoice_approved once the amount clears",
+    "- New channel launch with budget > $10,000",
+    "- Service credits beyond standard SLA terms",
+    "SLA credits within standard terms are issued automatically",
+    "Credits under the standard SLA are applied without Phill's approval",
+    "the bot auto-issues service credits up to one month's fee",
+    "cs auto-approves service credits for enterprise accounts",
+    "Issue service credits within standard SLA terms automatically.",
+    "Apply SLA credits automatically when uptime drops below 99.9%.",
+    "Automatically issue a service credit for any outage over an hour.",
+    "Grant goodwill credits at the agent's discretion.",
+    "Give the customer an account credit without Phill's approval.",
+    "Without asking Phill, offer a credit to any churn-risk account.",
+    "At its own discretion the bot grants a service credit of up to one month.",
+    # Codex round on 9b8fc6d2: refunds and spend, not only credits.
+    "Automatically issue refunds for billing errors.",
+    "Refund duplicate charges automatically.",
+    "Process refunds at the agent's discretion.",
+    "Approve ad spend without asking Phill.",
+    "Without sign-off, the bot pays out reimbursements under $50.",
+    "Autonomously spend up to the daily budget on ads.",
+    # Codex round on da78588f: auto + verb with a space, payments, permission wording.
+    "Auto approve payments under $100.",
+    "Auto-approve all reimbursements.",
+    "The bot can issue a refund without seeking Phill's permission.",
+    "Issue a refund without seeking permission.",
+    "Pay invoices with no approval needed.",
+    "Refunds need no sign-off from Phill.",
+    "Reimburse expenses without any founder review.",
+    "Auto-pay recurring vendor invoices.",
+    # Negations match too, by design: the skills state the rule positively.
+    "**No refund auto-approval.** Every amount waits for the founder",
+    "Any refund, at any amount (founder ruling 21/10/2026: nothing auto-approves)",
+    "Process autonomous refunds for duplicate charges.",
+    "Issue automatic refunds for duplicate charges.",
+    # Codex helper findings on 93ee19ff: an agent's standing authority.
+    "CFO may approve invoices below $1,000.",
+    "The support bot may grant service credits within standard SLA terms.",
+    "CS can issue refunds for orders under 30 days old.",
+    "The CMO bot is allowed to raise ad spend by 10% a week.",
+    "Agents are authorised to release payments to known vendors.",
+    # Codex on 10900da2: direct present-tense authority.
+    "CFO approves invoices below $1,000.",
+    "CS issues refunds on duplicate orders.",
+    "The support bot grants service credits within standard SLA terms.",
+    "The CMO bot raises ad spend by 10% a week.",
+    "CS refunds duplicate orders.",
+    "The agent pays vendor invoices on receipt.",
+    # Codex on b021085d: gift cards, vouchers and other value handed out.
+    "CS grants $50 gift cards on demand.",
+    "The support bot may issue goodwill vouchers for billing errors.",
+    "CS offers discount coupons to churn-risk accounts.",
+    "The bot waives late fees for loyal customers.",
+    "Agents can apply rebates to enterprise invoices.",
+])
+def test_detector_catches_the_retired_wording(stale):
+    assert offences(stale)
+
+
+@pytest.mark.parametrize("ok", [
+    "Any refund, at any amount (founder ruling 21/10/2026: every amount waits for Phill)",
+    "**Every refund waits for the founder.** Every amount goes through draft_review",
+    "**Every spend waits for Phill.** Each spend request, at any amount, is drafted for Phill",
+    "because it carries the credit-spend risk of an autonomous run",
+    "3. $5000 spend request → routes through draft_review, status `pending`",
+    "3. $4,500/day ad-spend → routes through draft_review, status `pending`, no real action",
+    "Nothing is approved by an agent. Only Phill's own approval releases a spend.",
+    "# Never cmo_adspend_approved here: approval only comes from the founder.",
+    "| Per refund request | Draft for Phill; emit `cs_refund_blocked` (pending until he approves) |",
+    "- Any service credit, at any amount, including credits within standard SLA terms",
+    "a credit is drafted for Phill as a refund request, and it stays pending until he approves.",
+    "Phill approves every refund himself.",
+    "CS drafts a refund request for Phill; it stays pending until he approves.",
+])
+def test_detector_allows_the_current_wording(ok):
+    assert offences(ok) == []
+
+
+@pytest.mark.parametrize("skill", MONEY_SKILLS)
+def test_every_agent_money_sentence_names_the_founder_gate(skill):
+    text = (ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
+    assert ungated_money_sentences(text) == []
+
+
+@pytest.mark.parametrize("grant", [
+    # Codex on 47db2420: direct grants with verbs no list had.
+    "CFO signs off vendor invoices below $1,000.",
+    "CS distributes $50 gift cards to loyal customers.",
+    "The CMO buys ad inventory within a $500 daily cap.",
+    "The support bot sends goodwill vouchers to churn-risk accounts.",
+    "The CFO settles supplier invoices on receipt.",
+    "Agents top up ad budgets when CPA is under target.",
+    "CFO signs off invoices under the $1,000 gate.",  # "gate" is not the founder gate
+    # Codex on 69a8dfbb: the founder told afterwards, money/funds, line breaks.
+    "The CFO settles supplier invoices on receipt and informs Phill afterward.",
+    "The CFO pays vendors, then tells Phill.",
+    "The agent transfers money to vendors on receipt.",
+    "The bot moves funds between accounts.",
+    "CFO approves:\n- supplier invoices below $1,000.",
+    "The CFO settles supplier\ninvoices on receipt.",
+])
+def test_ungated_agent_money_sentence_is_caught(grant):
+    assert ungated_money_sentences(grant)
+
+
+@pytest.mark.parametrize("ok", [
+    "CS drafts a refund request; it stays pending until Phill approves.",
+    "Every CFO spend waits for the founder.",
+    "The CMO bot emits cmo_adspend_blocked for every ad-spend request.",
+])
+def test_gated_agent_money_sentence_is_allowed(ok):
+    assert ungated_money_sentences(ok) == []
+
+
+# Codex rounds 10-15 kept finding wordings no detector covered, and imperative
+# skill text ("Settle supplier invoices on receipt.") names no agent at all. So
+# the money skills are also PINNED: any edit fails here until the digest below is
+# updated in the same diff, which puts every changed money sentence in front of
+# the release review. The manifests are generated from these files (the
+# generated-agentskills gate keeps them in step).
+PINNED_SHA256 = {
+    "cfo": "85cf5491bee02bd107bb6b3bec5c919d1dbf5fea7f08fd1d186fde22dabfba18",
+    "cmo-growth": "c4ee28966c229a696280613ab893d907ff52e94091fe231a5be86bece2107033",
+    "cs-tier1": "1590e027bb69842c9a104d712bf4227f1d9f1f61068488b6a5e92290f713ae75",
+    "telegram-draft-for-review": "92c83dd21341c3c9e23b9b57a69ebb3722cacf9dbada1c3a3bf2aa8b4a9480b5",
+}
+
+
+def test_every_money_skill_is_pinned():
+    assert set(PINNED_SHA256) == set(MONEY_SKILLS)
+
+
+@pytest.mark.parametrize("skill", MONEY_SKILLS)
+def test_money_skill_text_is_unchanged_since_review(skill):
+    digest = hashlib.sha256((ROOT / "skills" / skill / "SKILL.md").read_bytes()).hexdigest()
+    assert digest == PINNED_SHA256[skill], (
+        f"skills/{skill}/SKILL.md changed: check every money sentence against the founder "
+        "ruling (every spend, refund, credit and payment waits for Phill), then update "
+        "PINNED_SHA256 in this file in the same commit")

@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.25.14",
-    "generated_at": "2026-10-21T00:38:02.892573+00:00",
+    "version": "1.25.23",
+    "generated_at": "2026-10-21T10:03:15.796427+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -444,7 +444,7 @@
       "owner_role": "CFO",
       "status": "wave-4",
       "path": "skills/cfo/SKILL.md",
-      "sha256": "bd6f02162789a92b042a1fffc840ca1727b7f8f0009ca500399a6c7118ac4fb5",
+      "sha256": "85cf5491bee02bd107bb6b3bec5c919d1dbf5fea7f08fd1d186fde22dabfba18",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -588,11 +588,11 @@
     },
     {
       "id": "cmo-growth",
-      "description": "Daily marketing visibility across the 11 Unite-Group businesses. Computes LTV:CAC, blended CPA, channel concentration (HHI) and attribution decay from ad-platform feeds, drafts a 1-page CMO snippet into the daily 6-pager, and gates ad-spend over $5,000/day through draft_review HITL (Wave 4 A2, RA-1860). Use for LTV:CAC, blended CPA, channel concentration, attribution decay, the CMO snippet for the 6-pager, or an ad-spend request above $5,000/day needing the draft_review approval gate.",
+      "description": "Daily marketing visibility across the 11 Unite-Group businesses. Computes LTV:CAC, blended CPA, channel concentration (HHI) and attribution decay from ad-platform feeds, drafts a 1-page CMO snippet into the daily 6-pager, and drafts every ad-spend request for Phill's approval through draft_review HITL; it never approves ad spend itself, at any amount (Wave 4 A2, RA-1860; founder ruling 21/10/2026). Use for LTV:CAC, blended CPA, channel concentration, attribution decay, the CMO snippet for the 6-pager, or drafting an ad-spend request for Phill's approval via the draft_review gate.",
       "owner_role": "CMO",
       "status": "wave-4",
       "path": "skills/cmo-growth/SKILL.md",
-      "sha256": "18001f3602ff2f29ebb830489ab9889be5ecddf609f8b0490d4465936d299ff1",
+      "sha256": "c4ee28966c229a696280613ab893d907ff52e94091fe231a5be86bece2107033",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -776,11 +776,11 @@
     },
     {
       "id": "cs-tier1",
-      "description": "Tier-1 customer support across the 11 portfolio brands. Computes NPS, First Contact Resolution (FCR), Gross Retention Rate (GRR) and avg first-response time, drafts replies through telegram-draft-for-review, auto-approves refunds up to $100 and routes larger ones through draft_review HITL (Wave 4 A4, RA-1862). Use for inbound support on any portfolio brand: ticket replies, refund approval or escalation, the daily CS brief, NPS/FCR/GRR metrics, enterprise churn threats.",
+      "description": "Tier-1 customer support across the 11 portfolio brands. Computes NPS, First Contact Resolution (FCR), Gross Retention Rate (GRR) and avg first-response time, drafts replies through telegram-draft-for-review, and drafts every refund for Phill's approval through draft_review HITL; it never approves a refund itself, at any amount (Wave 4 A4, RA-1862; founder ruling 21/10/2026). Use for inbound support on any portfolio brand: ticket replies, drafting a refund for Phill's approval, escalation, the daily CS brief, NPS/FCR/GRR metrics, enterprise churn threats.",
       "owner_role": "CS",
       "status": "wave-4",
       "path": "skills/cs-tier1/SKILL.md",
-      "sha256": "72f0b6369eece7c4a14613c53552cf2386da9eb57642cebcdc19f212ae674a68",
+      "sha256": "1590e027bb69842c9a104d712bf4227f1d9f1f61068488b6a5e92290f713ae75",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2925,7 +2925,7 @@
       "owner_role": "Scribe (CoS shares)",
       "status": "wave-1",
       "path": "skills/telegram-draft-for-review/SKILL.md",
-      "sha256": "9c06c12313c994f321db98dd6105fa01bc453433c1744a456d9cb9ab1eba3a7b",
+      "sha256": "92c83dd21341c3c9e23b9b57a69ebb3722cacf9dbada1c3a3bf2aa8b4a9480b5",
       "dependencies": {
         "tools": [],
         "skills": []

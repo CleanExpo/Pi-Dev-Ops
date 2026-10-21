@@ -288,6 +288,9 @@ function ResumeModal(p: ModalProps) {
   const [totp, setTotp] = useState("");
   const [reason, setReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  // The panic the operator is looking at when the modal opens. The backend
+  // refuses the resume if a different panic is in force by the time it lands.
+  const [seenPanicId] = useState(p.status?.panic_id);
 
   const lockActive = p.status?.escalation_lock_active === true;
 
@@ -304,6 +307,10 @@ function ResumeModal(p: ModalProps) {
       p.setActionError("Escalation lock active — confirm + reason required");
       return;
     }
+    if (typeof seenPanicId !== "string") {
+      p.setActionError("Kill-switch status not loaded — close this and try again");
+      return;
+    }
     p.setBusy(true);
     p.setActionError(null);
     try {
@@ -315,6 +322,7 @@ function ResumeModal(p: ModalProps) {
           approver_totp: totp,
           reason,
           confirmed: lockActive ? confirmed : false,
+          observed_panic_id: seenPanicId,
         }),
       });
       const data = await r.json().catch(() => ({}));

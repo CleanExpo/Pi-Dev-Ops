@@ -9,11 +9,11 @@ Public API:
   compute_metrics(raw)            -> CsMetrics
   detect_breaches(curr, prev)     -> list[CsBreach]
   assemble_daily_brief(snapshots, breaches) -> str
-  approve_refund(...)             -> RefundDecision   # gates dual-key >$100
+  approve_refund(...)             -> RefundDecision   # every amount -> founder
   snapshot_to_dict / append_snapshot / load_last_snapshot
 
 Thresholds (overridable via env in bot wrapper):
-  AUTONOMOUS_REFUND_CEILING_USD   = 100.0
+  (no refund ceiling: every amount -> founder, decision 21/10/2026)
   ALERT_NPS                       = 30.0
   ALERT_FCR_PCT                   = 0.65
   ALERT_GRR_PCT                   = 0.90
@@ -23,7 +23,7 @@ Thresholds (overridable via env in bot wrapper):
 
 Audit events emitted (whitelisted in audit_emit._VALID_TYPES):
   cs_metric_snapshot, cs_alert,
-  cs_refund_approved, cs_refund_blocked, cs_brief_emitted
+  cs_refund_blocked, cs_brief_emitted   (cs_refund_approved: never)
 """
 from __future__ import annotations
 
@@ -34,10 +34,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Literal
 
+from .review_authority import review_undelivered
+
 log = logging.getLogger("swarm.cs")
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
-AUTONOMOUS_REFUND_CEILING_USD = 100.0
 ALERT_NPS = 30.0
 ALERT_FCR_PCT = 0.65
 ALERT_GRR_PCT = 0.90
@@ -294,7 +295,7 @@ def assemble_daily_brief(
         lines.append(
             f"📥 {pending_refund_count} refund approval"
             f"{'s' if pending_refund_count != 1 else ''} queued "
-            f"(>${AUTONOMOUS_REFUND_CEILING_USD:.0f})"
+            f"for founder approval"
         )
 
     return "\n".join(lines)
@@ -303,42 +304,37 @@ def assemble_daily_brief(
 # ── Refund approval gate ─────────────────────────────────────────────────────
 
 
+def _usd(amount: Any) -> str:
+    """Show an amount to the founder without ever raising on a malformed one."""
+    return f"${amount:,.2f}" if isinstance(amount, (int, float)) else repr(amount)
+
+
 def approve_refund(
     *,
     amount_usd: float,
     customer_id: str,
     business_id: str,
     justification: str,
-    refund_ceiling: float = AUTONOMOUS_REFUND_CEILING_USD,
     post_draft: Callable[..., dict[str, Any]] | None = None,
     review_chat_id: str | None = None,
 ) -> RefundDecision:
-    """Gate a refund through the dual-key threshold (default $100).
+    """Route a refund request to the founder. Nothing is auto-approved.
 
-    <= ceiling → auto-approve
-    >  ceiling + post_draft → route through draft_review (HITL)
-    >  ceiling + no draft → block
+    Founder decision 21/10/2026: every amount, whatever its size (including
+    $0, negative, non-finite or non-numeric), goes through draft_review for
+    founder approval. post_draft supplied -> status='pending' with draft_id.
+    post_draft is None -> status='blocked'. Never returns status='approved'.
     """
-    if amount_usd <= refund_ceiling:
-        log.info("CS auto-approved $%.2f refund for %s (%s)",
-                 amount_usd, customer_id, business_id)
-        return RefundDecision(
-            status="approved", amount_usd=amount_usd,
-            customer_id=customer_id, business_id=business_id,
-            justification=justification,
-        )
     if post_draft is None:
-        log.warning(
-            "CS refund $%.2f blocked — no draft_review (customer %s, biz %s)",
-            amount_usd, customer_id, business_id,
-        )
+        log.warning("CS refund %s blocked: no draft_review provider (customer %s, biz %s)",
+                    _usd(amount_usd), customer_id, business_id)
         return RefundDecision(
             status="blocked", amount_usd=amount_usd,
             customer_id=customer_id, business_id=business_id,
             justification=justification,
         )
     draft_text = (
-        f"💬 Refund approval — ${amount_usd:,.2f} to {customer_id} "
+        f"💬 Refund approval — {_usd(amount_usd)} to {customer_id} "
         f"({business_id})\n"
         f"\nJustification: {justification}\n"
         f"\nReact 👍 to approve · ❌ to reject · ⏳ to defer"
@@ -348,9 +344,13 @@ def approve_refund(
         destination_chat_id=str(review_chat_id or "review"),
         drafted_by_role="CS",
         originating_intent_id=f"cs-refund-{business_id}-{customer_id}",
+        # "high" is an approval-tier class in swarm.nexus.policy: draft_review
+        # posts it for founder review ("low"/"reversible" would auto-send).
+        reversibility="high",
     )
+    undelivered = review_undelivered(out, f"CS refund {_usd(amount_usd)} to {customer_id}")
     return RefundDecision(
-        status="pending", amount_usd=amount_usd,
+        status="blocked" if undelivered else "pending", amount_usd=amount_usd,
         customer_id=customer_id, business_id=business_id,
         justification=justification,
         draft_id=out.get("draft_id"),
@@ -401,7 +401,6 @@ __all__ = [
     "compute_metrics", "detect_breaches", "assemble_daily_brief",
     "approve_refund", "snapshot_to_dict",
     "append_snapshot", "load_last_snapshot",
-    "AUTONOMOUS_REFUND_CEILING_USD",
     "ALERT_NPS", "ALERT_FCR_PCT", "ALERT_GRR_PCT", "CRITICAL_GRR_PCT",
     "ALERT_FIRST_RESPONSE_MINUTES", "CRITICAL_FIRST_RESPONSE_MINUTES",
 ]
