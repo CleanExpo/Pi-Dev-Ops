@@ -43,27 +43,29 @@ def _client(router):
 
 def test_resume_refused_when_a_newer_panic_was_recorded(ks):
     ks.trigger("telegram_panic", reason="one")
-    seen = ks.panic_seq()
+    seen = ks.panic_id()
     ks.trigger("telegram_panic", reason="two")
-    out = ks.resume("telegram_resume", observed_seq=seen)
+    out = ks.resume("telegram_resume", observed_id=seen)
     assert out.get("error") == "newer_panic"
     assert ks.is_active()
-    assert "error" not in ks.resume("telegram_resume", observed_seq=ks.panic_seq())
+    assert "error" not in ks.resume("telegram_resume", observed_id=ks.panic_id())
     assert not ks.is_active()
 
 
 def test_resume_sent_before_the_latest_panic_is_refused(ks):
     ks.trigger("telegram_panic", reason="one")
     out = ks.resume("telegram_resume", sent_at=0.0)
-    assert out.get("error") == "newer_panic"
+    assert out.get("error") == "too_soon_after_panic"
     assert ks.is_active()
 
 
-def test_panic_seq_increases_on_every_trigger_even_when_engaged(ks):
-    start = ks.panic_seq()
+def test_panic_id_changes_on_every_trigger_even_when_engaged(ks):
+    ids = {ks.panic_id()}
     ks.trigger("telegram_panic", reason="a")
+    ids.add(ks.panic_id())
     ks.trigger("telegram_panic", reason="b")
-    assert ks.panic_seq() == start + 2
+    ids.add(ks.panic_id())
+    assert len(ids) == 3
 
 
 # ── webhook ──────────────────────────────────────────────────────────────────
@@ -151,15 +153,15 @@ def test_dashboard_resume_still_works_with_no_newer_panic(ks, monkeypatch):
     assert not ks.is_active()
 
 
-def test_unreadable_panic_state_still_panics_and_refuses_resume(ks):
-    state = importlib.import_module("swarm.config").SWARM_LOG_DIR / "kill_switch.panic_seq.json"
-    state.parent.mkdir(parents=True, exist_ok=True)
-    state.write_text("{not json")
-    out = ks.resume("telegram_resume", observed_seq=10**9)
+def test_unreadable_flag_still_panics_and_refuses_resume(ks):
+    flag = importlib.import_module("swarm.config").SWARM_LOG_DIR / "kill_switch.flag"
+    flag.parent.mkdir(parents=True, exist_ok=True)
+    flag.write_text("{not json")
+    out = ks.resume("telegram_resume", observed_id=ks.panic_id())
     assert out.get("error") == "panic_state_unreadable"
-    ks.trigger("telegram_panic", reason="state was corrupt")
+    ks.trigger("telegram_panic", reason="flag was corrupt")
     assert ks.is_active()
-    assert ks.panic_seq() >= 1
+    assert ks.panic_id() not in ("", ks.UNREADABLE)
 
 
 def test_panic_cannot_slip_between_the_resume_check_and_the_clear(ks, monkeypatch):
@@ -167,8 +169,8 @@ def test_panic_cannot_slip_between_the_resume_check_and_the_clear(ks, monkeypatc
     starts while a resume is past its check waits, then re-engages."""
     import threading
     ks.trigger("telegram_panic", reason="first")
-    seen, checked = ks.panic_seq(), threading.Event()
-    real_state = ks.panic_state
+    seen, checked = ks.panic_id(), threading.Event()
+    real_state = ks.flag_state
 
     def state_then_pause():
         out = real_state()
@@ -176,9 +178,9 @@ def test_panic_cannot_slip_between_the_resume_check_and_the_clear(ks, monkeypatc
             checked.set()
             threading.Event().wait(0.3)  # the panic thread runs in this gap
         return out
-    monkeypatch.setattr(ks, "panic_state", state_then_pause)
+    monkeypatch.setattr(ks, "flag_state", state_then_pause)
     resumer = threading.Thread(name="resumer", target=lambda: ks.resume(
-        "telegram_resume", observed_seq=seen))
+        "telegram_resume", observed_id=seen))
     resumer.start()
     assert checked.wait(timeout=5)
     panic = threading.Thread(target=lambda: ks.trigger("telegram_panic", reason="in the gap"))

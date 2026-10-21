@@ -1,13 +1,17 @@
-"""swarm/kill_switch_state.py — the send gate and the panic sequence.
+"""swarm/kill_switch_state.py — the send gate and the panic flag's identity.
 
 Split out of kill_switch.py (file-length limit); kill_switch re-exports
-send_gate and panic_seq, so callers are unchanged.
+send_gate and panic_id, so callers import from one place.
 
 send_gate() is one flock. Outbound sends hold it from the last halt check
-through the send; trigger() holds it while it records a panic and raises the
-flag; resume() holds it while it checks and clears. So a send never starts
-after a completed panic, and a resume never clears a panic recorded after
-the caller observed panic_seq().
+through the send; trigger() holds it while it raises the flag; resume() holds
+it while it checks and clears; panic_id() holds it while it observes.
+
+Every panic writes a fresh random id and its time into the flag file itself
+(Codex rounds on 9b8fc6d2 and 1922fa7f). A resume clears only the panic whose
+id it observed, so nothing depends on a second file, on a counter surviving
+corruption, or on the clock moving forward. An unreadable flag refuses every
+resume and never blocks a panic, which rewrites it.
 """
 from __future__ import annotations
 
@@ -15,17 +19,25 @@ import fcntl
 import json
 import logging
 import time
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
 log = logging.getLogger("swarm.kill_switch")
+
+UNREADABLE = "!unreadable"  # an observation of an unreadable flag; matches no panic id
 
 
 def _dir() -> Path:
     from . import config
     config.SWARM_LOG_DIR.mkdir(parents=True, exist_ok=True)
     return config.SWARM_LOG_DIR
+
+
+def flag_path() -> Path:
+    return _dir() / "kill_switch.flag"
 
 
 @contextmanager
@@ -44,38 +56,54 @@ def send_gate() -> Iterator[None]:
             fcntl.flock(fh, fcntl.LOCK_UN)
 
 
-def panic_state() -> tuple[int, float] | None:
-    """(sequence, unix time) of the latest panic; (0, 0.0) if none; None if unreadable."""
+def _parse(raw: str) -> tuple[str, float] | None:
     try:
-        state = json.loads((_dir() / "kill_switch.panic_seq.json").read_text())
-        return int(state["seq"]), float(state["at"])
-    except FileNotFoundError:
-        return 0, 0.0
-    except Exception as exc:
-        log.error("kill_switch.panic_seq.json unreadable (%s): resumes refused until a "
-                  "panic rewrites it", exc)
+        rec = json.loads(raw)
+        if isinstance(rec, dict) and isinstance(rec.get("id"), str) and rec["id"]:
+            return rec["id"], float(rec["at"])
+    except (ValueError, TypeError, KeyError):
+        pass
+    try:  # a flag written before panic ids existed holds only a timestamp
+        return f"legacy:{raw.strip()}", datetime.fromisoformat(raw.strip()).timestamp()
+    except ValueError:
         return None
 
 
-def panic_seq() -> int:
-    """Monotonic count of panics. A resume passes the value it saw when it decided."""
-    return (panic_state() or (0, 0.0))[0]
+def flag_state() -> tuple[str, str, float]:
+    """("absent", "", 0.0), ("ok", panic id, unix time) or ("unreadable", "", 0.0)."""
+    try:
+        raw = flag_path().read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return "absent", "", 0.0
+    except OSError as exc:
+        log.error("kill_switch.flag unreadable (%s): resumes refused until a panic", exc)
+        return "unreadable", "", 0.0
+    parsed = _parse(raw)
+    if parsed is None:
+        log.error("kill_switch.flag unreadable: resumes refused until a panic rewrites it")
+        return "unreadable", "", 0.0
+    return "ok", parsed[0], parsed[1]
 
 
-def record_panic() -> None:
-    """Bump the panic sequence and stamp its time (caller holds send_gate()).
-
-    The sequence never goes backward. If the state is unreadable, the new
-    sequence jumps to the current time in microseconds, which is above every
-    earlier value (a small counter, or an earlier jump plus a few panics), so
-    no observation made before the corruption can match or exceed it.
-    """
-    path = _dir() / "kill_switch.panic_seq.json"
-    prev = panic_state()
-    seq = prev[0] + 1 if prev is not None else time.time_ns() // 1000
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"seq": seq, "at": time.time()}))
-    tmp.replace(path)
+def panic_id() -> str:
+    """What a resume must observe: the current panic's id, "" when none, or
+    UNREADABLE. Taken under send_gate(), so it only sees a completed panic."""
+    with send_gate():
+        status, pid, _ = flag_state()
+    return UNREADABLE if status == "unreadable" else pid
 
 
-__all__ = ["panic_seq", "panic_state", "record_panic", "send_gate"]
+def write_flag() -> str:
+    """Write a fresh panic id and time into the flag (caller holds send_gate()).
+
+    Returns "engaged" or "already_engaged". Every panic changes the id, so no
+    resume observed before it can clear it."""
+    flag = flag_path()
+    action = "already_engaged" if flag.exists() else "engaged"
+    tmp = flag.with_name(flag.name + ".tmp")
+    tmp.write_text(json.dumps({"id": uuid.uuid4().hex, "at": time.time()}), encoding="utf-8")
+    tmp.replace(flag)
+    return action
+
+
+__all__ = ["UNREADABLE", "flag_path", "flag_state", "panic_id", "send_gate", "write_flag"]

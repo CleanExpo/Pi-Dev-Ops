@@ -36,7 +36,7 @@ def _poll_telegram(state_offset: int) -> tuple[list[dict], int]:
     chat_id = config.TELEGRAM_CHAT_ID
     if not token or not chat_id:
         return [], state_offset
-    observed = _kill_switch.panic_seq()  # a panic after this fetch beats any /resume in it
+    observed = _kill_switch.panic_id()  # a panic after this fetch beats any /resume in it
     url = f"https://api.telegram.org/bot{token}/getUpdates"
     body = json.dumps({
         "offset": state_offset + 1,
@@ -85,7 +85,7 @@ def _poll_telegram(state_offset: int) -> tuple[list[dict], int]:
         # Run BEFORE the /ack-skip so they fire even on a halted swarm.
         # Same handler as the production webhook (kill_switch.handle_command).
         sent = msg.get("date") if isinstance(msg.get("date"), (int, float)) else None
-        if _kill_switch.handle_command(text, observed_seq=observed, sent_at=sent):
+        if _kill_switch.handle_command(text, observed_id=observed, sent_at=sent):
             continue
         lower = text.lower()
 

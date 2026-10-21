@@ -79,8 +79,8 @@ class ResumeRequest(BaseModel):
     approver_totp: str = Field(..., min_length=6, max_length=8, description="TOTP code")
     reason: str = Field("", description="Reason")
     confirmed: bool = Field(False, description="Required when escalation lock is active")
-    observed_panic_seq: int | None = Field(
-        None, description="panic_seq from /api/swarm/status; a newer panic refuses the resume")
+    observed_panic_id: str | None = Field(
+        None, description="panic_id from /api/swarm/status; a different panic refuses the resume")
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ async def swarm_status() -> dict:
         # Same default as swarm/config.SHADOW_MODE: shadow unless explicitly "0" (RA-7849).
         "swarm_shadow_env": os.environ.get("TAO_SWARM_SHADOW", "1") == "1",
         "kill_switch_active": kill_switch.is_active(),
-        "panic_seq": kill_switch.panic_seq(),
+        "panic_id": kill_switch.panic_id(),
         "escalation_lock_active": kill_switch.is_locked(),
         "panic_count_last_hour": kill_switch.panic_count_last_hour(),
         "approver_allowlist": _approver_allowlist(),
@@ -197,9 +197,9 @@ async def swarm_resume(req: ResumeRequest) -> dict:
     except Exception as exc:
         raise HTTPException(503, f"swarm module unreachable: {exc!r}")
 
-    observed = kill_switch.panic_seq()  # before the TOTP check: a later panic wins
-    if req.observed_panic_seq is not None:
-        observed = min(observed, req.observed_panic_seq)
+    observed = kill_switch.panic_id()  # before the TOTP check: a later panic wins
+    if req.observed_panic_id is not None and req.observed_panic_id != observed:
+        observed = kill_switch.UNREADABLE  # the client saw another panic: refuse
     ok, msg = _verify_totp(req.approver_user, req.approver_totp)
     if not ok:
         log.warning("kill-switch resume rejection: %s=%s", req.approver_user, msg)
@@ -209,7 +209,7 @@ async def swarm_resume(req: ResumeRequest) -> dict:
         "dashboard",
         reason=req.reason,
         confirmed=req.confirmed,
-        observed_seq=observed,
+        observed_id=observed,
     )
     if "error" in record:
         raise HTTPException(409, record)

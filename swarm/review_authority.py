@@ -120,7 +120,7 @@ def webhook_kill_switch(update: dict[str, Any]) -> dict[str, Any] | None:
     None when the update is not one of these commands from the alert chat.
     """
     from . import config, kill_switch
-    observed = kill_switch.panic_seq()  # before any check: a later panic wins
+    observed = kill_switch.panic_id()  # before any check: a later panic wins
     msg = update.get("message") or {}
     text = (msg.get("text") or "").strip()
     alert_chat = str(config.TELEGRAM_CHAT_ID or "")
@@ -135,7 +135,7 @@ def webhook_kill_switch(update: dict[str, Any]) -> dict[str, Any] | None:
         return {"ok": True, "ignored": "stale or missing update_id"}
     sent_at = msg.get("date") if isinstance(msg.get("date"), (int, float)) else None
     return {"ok": True, "kill_switch": kill_switch.handle_command(
-        text, observed_seq=observed, sent_at=sent_at)}
+        text, observed_id=observed, sent_at=sent_at)}
 
 
 def _claim_update_id(uid: int) -> bool:
