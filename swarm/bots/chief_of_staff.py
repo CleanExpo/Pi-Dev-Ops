@@ -82,10 +82,11 @@ def _poll_telegram(state_offset: int) -> tuple[list[dict], int]:
             continue
 
         # ── /panic, /resume, /resume-confirm — kill-switch handlers ─────────
-        # Run BEFORE the /ack-skip so they fire even on a halted swarm.
-        # Same handler as the production webhook (kill_switch.handle_command).
-        sent = msg.get("date") if isinstance(msg.get("date"), (int, float)) else None
-        if _kill_switch.handle_command(text, observed_id=observed, sent_at=sent):
+        # Run BEFORE the /ack-skip so they fire even on a halted swarm. Same handler and
+        # founder check as the production webhook (review_authority.command_context).
+        from .. import review_authority  # noqa: PLC0415
+        if _kill_switch.handle_command(text, observed_id=observed,
+                                       **review_authority.command_context(msg)):
             continue
         lower = text.lower()
 

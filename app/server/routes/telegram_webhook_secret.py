@@ -21,6 +21,11 @@ def require_telegram_secret(request: Request) -> None:
     # webhook secret (webhooks.py).
     if not expected_secret:
         raise HTTPException(500, "Telegram webhook secret not configured")
+    # The bot id (the token's prefix) is what config falls back to when no
+    # secret is set, and it is not secret: it authorises nothing here.
+    bot_id = (config.TELEGRAM_BOT_TOKEN or "").split(":", 1)[0]
+    if bot_id and hmac.compare_digest(expected_secret, bot_id):
+        raise HTTPException(500, "set TELEGRAM_WEBHOOK_SECRET explicitly; the bot id is public")
     secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
     # RA-1004 follow-up: use hmac.compare_digest to avoid a timing-side-channel
     # leak of the configured secret. Same pattern as the morning-intel handler.

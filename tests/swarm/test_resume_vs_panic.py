@@ -15,6 +15,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 ALERT_CHAT = "123"
+FOUNDER = "8000001"
+T = 1_700_000_000
+# The founder, in person, with Telegram dates: the racing panic below is dated
+# BEFORE the resume, so the Telegram clock rule passes and only the observed
+# panic id can refuse the resume.
+_RESUME = {"text": "/resume", "date": T + 5, "chat": {"id": int(ALERT_CHAT)},
+           "from": {"id": int(FOUNDER), "is_bot": False}}
 
 
 @pytest.fixture
@@ -25,6 +32,7 @@ def ks(monkeypatch, tmp_path):
     monkeypatch.setattr(swarm_config, "TELEGRAM_CHAT_ID", ALERT_CHAT)
     monkeypatch.setattr(swarm_config, "TELEGRAM_BOT_TOKEN", "test-token-not-real")
     monkeypatch.setattr(draft_review, "_state_dir", lambda: tmp_path)
+    monkeypatch.setenv("TAO_FOUNDER_TELEGRAM_USER_ID", FOUNDER)
     for var in ("LANGFUSE_HOST", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"):
         monkeypatch.delenv(var, raising=False)
     return importlib.import_module("swarm.kill_switch")
@@ -55,7 +63,7 @@ def test_resume_refused_when_a_newer_panic_was_recorded(ks):
 def test_resume_sent_before_the_latest_panic_is_refused(ks):
     ks.trigger("telegram_panic", reason="one")
     out = ks.resume("telegram_resume", sent_at=0.0)
-    assert out.get("error") == "too_soon_after_panic"
+    assert out.get("error") == "telegram_time_unknown"
     assert ks.is_active()
 
 
@@ -76,19 +84,21 @@ def test_webhook_resume_cannot_clear_a_panic_that_completes_after_its_check(ks, 
     ra = importlib.import_module("swarm.review_authority")
     monkeypatch.setattr(cfg, "TELEGRAM_BOT_TOKEN", "bot-token")
     monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
-    ks.trigger("telegram_panic", reason="first")
+    ks.trigger("telegram_panic", reason="first", telegram_sent_at=float(T))
     real_claim = ra._claim_update_id
 
     def claim_then_panic(uid):
         ok = real_claim(uid)
         if uid == 70_001:
-            ks.trigger("telegram_panic", reason="lands after the resume's check")
+            ks.trigger("telegram_panic", reason="lands after the resume's check",
+                       telegram_sent_at=float(T + 4))
         return ok
     monkeypatch.setattr(ra, "_claim_update_id", claim_then_panic)
     resp = _client(router).post(
         "/webhook/telegram", headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
-        json={"update_id": 70_001, "message": {"text": "/resume", "chat": {"id": int(ALERT_CHAT)}}})
+        json={"update_id": 70_001, "message": _RESUME})
     assert resp.status_code == 200
+    assert resp.json().get("kill_switch") == "refused: newer_panic"
     assert ks.is_active()
 
 
@@ -112,13 +122,13 @@ def test_poller_resume_cannot_clear_a_panic_that_completes_after_its_fetch(ks, m
     import json
     import urllib.request
     from swarm.bots import chief_of_staff
-    ks.trigger("telegram_panic", reason="first")
-    body = json.dumps({"ok": True, "result": [
-        {"update_id": 1, "message": {"text": "/resume", "chat": {"id": int(ALERT_CHAT)}}}]}).encode()
+    ks.trigger("telegram_panic", reason="first", telegram_sent_at=float(T))
+    body = json.dumps({"ok": True, "result": [{"update_id": 1, "message": _RESUME}]}).encode()
 
     def fetch_then_panic(req, timeout=None):
         resp = _Resp(body)
-        ks.trigger("telegram_panic", reason="dashboard panic after the fetch")
+        ks.trigger("telegram_panic", reason="Telegram panic landing after the fetch",
+                   telegram_sent_at=float(T + 4))
         return resp
     monkeypatch.setattr(urllib.request, "urlopen", fetch_then_panic)
     chief_of_staff._poll_telegram(0)

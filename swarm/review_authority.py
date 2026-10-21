@@ -13,6 +13,10 @@ draft_review.mark_reaction, so this module binds that decision:
     chat (saved before chats were recorded) is never decided; re-post it.
   * A review ask that never reached the founder (post failure, PII abort,
     or any non-"pending" result) is reported so money callers can block.
+  * A Telegram /resume or /resume-confirm counts only when the founder sent it
+    in person (sent_by_founder): not another member, not an anonymous admin or
+    a channel (sender_chat), not a bot, never with the founder ID unset.
+    /panic stays open to anyone in the alert chat: it fails safe.
 """
 from __future__ import annotations
 
@@ -48,6 +52,28 @@ def founder_telegram_user_id() -> str:
         log.error("%s is not a positive decimal Telegram user ID; no reaction "
                   "can approve anything until it is fixed", FOUNDER_TELEGRAM_USER_ID_ENV)
     return founder or ""
+
+
+def sent_by_founder(msg: dict[str, Any]) -> bool:
+    """True only for a message the founder sent in person: a `from` user that is
+    not a bot, whose ID equals TAO_FOUNDER_TELEGRAM_USER_ID, with no sender_chat
+    (a message sent on behalf of a chat: an anonymous admin or a channel).
+    False when the founder ID is unset or malformed (fail closed)."""
+    founder = founder_telegram_user_id()
+    sender = msg.get("from")
+    if not founder or msg.get("sender_chat") is not None or not isinstance(sender, dict):
+        return False
+    if sender.get("is_bot") is not False:
+        return False
+    return telegram_user_id(sender.get("id")) == founder
+
+
+def command_context(msg: dict[str, Any]) -> dict[str, Any]:
+    """kill_switch.handle_command keywords for a Telegram message: its own date
+    (Telegram's clock) and whether the founder sent it in person."""
+    date = msg.get("date")
+    sent_at = float(date) if isinstance(date, (int, float)) and not isinstance(date, bool) else None
+    return {"sent_at": sent_at, "from_founder": sent_by_founder(msg)}
 
 
 def review_chat_id() -> str:
@@ -133,9 +159,8 @@ def webhook_kill_switch(update: dict[str, Any]) -> dict[str, Any] | None:
     if text.lower().startswith("/resume") and not fresh:
         log.warning("webhook %s update_id=%r dropped: stale or missing", text.split()[0], uid)
         return {"ok": True, "ignored": "stale or missing update_id"}
-    sent_at = msg.get("date") if isinstance(msg.get("date"), (int, float)) else None
     return {"ok": True, "kill_switch": kill_switch.handle_command(
-        text, observed_id=observed, sent_at=sent_at)}
+        text, observed_id=observed, **command_context(msg))}
 
 
 def _claim_update_id(uid: int) -> bool:

@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.25.20
-  generated_at: "2026-10-21T06:58:50.497066+00:00"
+  version: 1.25.21
+  generated_at: "2026-10-21T07:16:50.173432+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -349,7 +349,7 @@ skills:
     owner_role: CFO
     status: wave-4
     path: skills/cfo/SKILL.md
-    sha256: 89db9c02ad4e78c2da2bbf8b507fa6fb51d59df860914c209019ff8abadbf164
+    sha256: 37a1554a1bece025794d0ef44ee804e2c6a506ce14931d7ae93f738c86f7958a
     dependencies:
       tools: []
       skills: []

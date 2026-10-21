@@ -61,6 +61,7 @@ def env(monkeypatch, tmp_path):
 
 
 _UPDATE_IDS = itertools.count(1)  # each call is a new Telegram update unless replayed
+_DATES = itertools.count(1_700_000_000)  # Telegram message dates, one second apart
 
 
 def _post(*, user, chat=REVIEW_CHAT, secret="hook-secret", update_id=None):
@@ -212,7 +213,8 @@ def _post_text(text, *, chat="123", update_id=None):
         "/webhook/telegram",
         headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
         json={"update_id": update_id or next(_UPDATE_IDS), "message": {
-            "text": text, "chat": {"id": int(chat)}, "from": {"id": int(FOUNDER)}}})
+            "text": text, "chat": {"id": int(chat)}, "date": next(_DATES),
+            "from": {"id": int(FOUNDER), "is_bot": False}}})
 
 
 def test_webhook_panic_engages_kill_switch_and_blocks_approval(env):

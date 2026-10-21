@@ -6,9 +6,8 @@ a counter surviving corruption, or on the host clock moving forward:
 - an unreadable flag refuses every resume, the public default included;
 - a panic after an observation always changes the id, even when the switch
   is already engaged, even with the clock set back;
-- a Telegram /resume sent within RESUME_AFTER_PANIC_S of the panic (by the
-  two clocks) is refused, so a few seconds of host skew cannot let a resume
-  sent before a panic clear it;
+- a Telegram /resume is ordered against the panic by Telegram's own clock
+  (tests/swarm/test_telegram_resume_clock.py), never the host's;
 - panic_id() waits for an in-flight panic, so it only observes completed ones;
 - the counted history record is appended in the same locked step as the
   count, so concurrent panics engage the escalation lock at the limit.
@@ -83,26 +82,6 @@ def test_clock_set_back_cannot_reuse_an_observation(ks, monkeypatch):
     ks.trigger("telegram_panic", reason="two, clock set back after corruption")
     assert ks.resume("dashboard", observed_id=seen).get("error") == "newer_panic"
     assert ks.is_active()
-
-
-def test_resume_sent_just_before_a_panic_is_refused_despite_host_skew(ks, monkeypatch):
-    """Host clock 5 s behind Telegram's: the panic is stamped 100, a /resume
-    sent before it (by real time) carries Telegram's 103."""
-    state = importlib.import_module("swarm.kill_switch_state")
-    monkeypatch.setattr(state.time, "time", lambda: 1_700_000_100.0)
-    ks.trigger("dashboard_2fa", reason="dashboard panic", approvers=["a", "b"])
-    out = ks.resume("telegram_resume", observed_id=ks.panic_id(), sent_at=1_700_000_103.0)
-    assert out.get("error") == "too_soon_after_panic"
-    assert ks.is_active()
-
-
-def test_resume_sent_well_after_the_panic_still_works(ks, monkeypatch):
-    state = importlib.import_module("swarm.kill_switch_state")
-    monkeypatch.setattr(state.time, "time", lambda: 1_700_000_100.0)
-    ks.trigger("telegram_panic", reason="engaged")
-    sent = 1_700_000_100.0 + ks.RESUME_AFTER_PANIC_S + 1
-    assert "error" not in ks.resume("telegram_resume", observed_id=ks.panic_id(), sent_at=sent)
-    assert not ks.is_active()
 
 
 def test_panic_id_waits_for_an_in_flight_panic(ks):
@@ -181,6 +160,8 @@ def test_concurrent_panics_engage_the_escalation_lock_at_the_limit(ks, monkeypat
     b'{"id": "panic", "at": Infinity}', b'{"id": "panic", "at": "NaN"}',
     b'{"id": "panic", "at": true}', b'{"id": "panic", "at": 0}', b'{"id": "", "at": 5}',
     b'{"id": 7, "at": 5}', b'["panic", 5]', b"\xff\xfe", b"",
+    b'{"id": "p", "at": 5, "tg_at": "x"}', b'{"id": "p", "at": 5, "tg_at": NaN}',
+    b'{"id": "p", "at": 5, "tg_at": 0}',
 ])
 def test_malformed_flag_refuses_resume(ks, raw):
     _flag().parent.mkdir(parents=True, exist_ok=True)

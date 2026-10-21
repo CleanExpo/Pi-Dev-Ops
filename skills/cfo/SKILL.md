@@ -74,9 +74,9 @@ Nothing is approved by an agent. Only Phill's own approval releases a spend.
 
 **Runtime (21/10/2026).** `swarm/cfo.py` `approve_spend` has no ceiling: every amount goes to
 draft_review at reversibility "high" and returns `pending`, or `blocked` if the review ask was not
-delivered. `swarm/bots/cfo.py` only ever emits `cfo_spend_blocked`. Only a reaction from the Telegram
-user in `TAO_FOUNDER_TELEGRAM_USER_ID`, in the chat the draft was posted to, can release a spend; with
-that variable unset, nothing can be approved.
+delivered. `swarm/bots/cfo.py` only ever emits `cfo_spend_blocked`. A spend is released only by a reaction
+from the Telegram user in `TAO_FOUNDER_TELEGRAM_USER_ID`, in the chat the draft was posted to; with
+that variable unset, nothing is approved.
 
 ## Contract
 

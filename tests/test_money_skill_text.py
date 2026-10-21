@@ -28,6 +28,11 @@ _UNGATED = (r"\b(?:automatic(?:ally)?|autonomously"
             r"|check\w*|confirm\w*|founder|phill)"
             r"|no\s+(?:\w+\s+)?(?:approv\w*|sign-?off|permission|consent|review)"
             r"|at\s+(?:the|its|their|your)\s+(?:agent'?s?\s+|bot'?s?\s+|own\s+)?discretion)\b")
+# An agent given standing authority: "CFO may approve invoices below $1,000".
+_AUTH = (r"\b(?:may|can|could|will|(?:is|are)\s+(?:allowed|permitted|authori[sz]ed|free)\s+to)"
+         r"\s+(?:\w+\s+){0,2}?")
+_GRANT = (r"(?:(?:approv|grant|issu|releas|authori[sz]|rais|increas|appl|process|offer|giv)\w*"
+          rf"[^.\n]{{0,60}}{_MONEY}|(?:refund|reimburs|pay|spend)\w*\b)")
 AUTONOMOUS_MONEY = re.compile(
     r"auto-?approv\w*\s+(?:refunds?|spend|ad-?spend|invoices?|up to)"
     r"|(?:refunds?|spend|ad-?spend)\s+(?:over|above|under|below|up to)\s+\$\s?\d"
@@ -43,7 +48,9 @@ AUTONOMOUS_MONEY = re.compile(
     # text states the rule positively ("waits for Phill").
     r"|\b(?:autonomous|automatic)\s+(?:refund|spend|pay|credit|reimburs|invoic)\w*"
     rf"|{_MONEY}[^.\n]{{0,80}}{_UNGATED}"
-    rf"|{_UNGATED}[^.\n]{{0,80}}{_MONEY}",
+    rf"|{_UNGATED}[^.\n]{{0,80}}{_MONEY}"
+    # Codex helper findings on 93ee19ff: standing authority to act on money.
+    rf"|{_AUTH}{_GRANT}",
     re.IGNORECASE)
 
 
@@ -97,7 +104,7 @@ def test_manifests_advertise_no_autonomous_money_threshold(manifest):
     "Auto approve payments under $100.",
     "Auto-approve all reimbursements.",
     "The bot can issue a refund without seeking Phill's permission.",
-    "The bot can issue a refund without seeking permission.",
+    "Issue a refund without seeking permission.",
     "Pay invoices with no approval needed.",
     "Refunds need no sign-off from Phill.",
     "Reimburse expenses without any founder review.",
@@ -107,6 +114,12 @@ def test_manifests_advertise_no_autonomous_money_threshold(manifest):
     "Any refund, at any amount (founder ruling 21/10/2026: nothing auto-approves)",
     "Process autonomous refunds for duplicate charges.",
     "Issue automatic refunds for duplicate charges.",
+    # Codex helper findings on 93ee19ff: an agent's standing authority.
+    "CFO may approve invoices below $1,000.",
+    "The support bot may grant service credits within standard SLA terms.",
+    "CS can issue refunds for orders under 30 days old.",
+    "The CMO bot is allowed to raise ad spend by 10% a week.",
+    "Agents are authorised to release payments to known vendors.",
 ])
 def test_detector_catches_the_retired_wording(stale):
     assert offences(stale)

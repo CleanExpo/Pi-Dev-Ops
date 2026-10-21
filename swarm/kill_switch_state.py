@@ -11,7 +11,9 @@ Every panic writes a fresh random id and its time into the flag file itself
 (Codex rounds on 9b8fc6d2 and 1922fa7f). A resume clears only the panic whose
 id it observed, so nothing depends on a second file, on a counter surviving
 corruption, or on the clock moving forward. An unreadable flag refuses every
-resume and never blocks a panic, which rewrites it.
+resume and never blocks a panic, which rewrites it. A /panic sent in Telegram
+also stores its Telegram message date (tg_at), so a Telegram /resume is
+ordered against it by Telegram's clock alone, never the host's.
 """
 from __future__ import annotations
 
@@ -57,10 +59,15 @@ def send_gate() -> Iterator[None]:
             fcntl.flock(fh, fcntl.LOCK_UN)
 
 
-def _parse(raw: bytes) -> tuple[str, float] | None:
-    """(id, finite unix time) from the flag's bytes, or None when malformed:
-    undecodable bytes, a non-object, an empty id, or a time that is not a
-    finite positive number (NaN and infinity included) all read as None."""
+def _time(v: object) -> bool:
+    return (isinstance(v, (int, float)) and not isinstance(v, bool)
+            and math.isfinite(v) and v > 0)
+
+
+def _parse(raw: bytes) -> tuple[str, float, float | None] | None:
+    """(id, unix time, Telegram date or None) from the flag's bytes, or None
+    when malformed: undecodable bytes, a non-object, an empty id, or a time
+    that is not a finite positive number (NaN and infinity included)."""
     try:
         text = raw.decode("utf-8").strip()
         rec = json.loads(text)
@@ -69,50 +76,54 @@ def _parse(raw: bytes) -> tuple[str, float] | None:
     except ValueError:
         rec = None
     if isinstance(rec, dict):
-        pid, at = rec.get("id"), rec.get("at")
-        ok = (isinstance(pid, str) and pid != "" and isinstance(at, (int, float))
-              and not isinstance(at, bool) and math.isfinite(at) and at > 0)
-        return (pid, float(at)) if ok else None
+        pid, at, tg_at = rec.get("id"), rec.get("at"), rec.get("tg_at")
+        ok = (isinstance(pid, str) and pid != "" and _time(at)
+              and (tg_at is None or _time(tg_at)))
+        return (pid, float(at), None if tg_at is None else float(tg_at)) if ok else None
     try:  # a flag written before panic ids existed holds only a timestamp
         at = datetime.fromisoformat(text).timestamp()
     except (ValueError, OverflowError, OSError):
         return None
-    return (f"legacy:{text}", at) if math.isfinite(at) and at > 0 else None
+    return (f"legacy:{text}", at, None) if _time(at) else None
 
 
-def flag_state() -> tuple[str, str, float]:
-    """("absent", "", 0.0), ("ok", panic id, unix time) or ("unreadable", "", 0.0)."""
+def flag_state() -> tuple[str, str, float, float | None]:
+    """(status, panic id, unix time, Telegram date of a Telegram /panic or None);
+    status is "absent", "ok" or "unreadable" (then id "" and times 0.0/None)."""
     try:
         raw = flag_path().read_bytes()
     except FileNotFoundError:
-        return "absent", "", 0.0
+        return "absent", "", 0.0, None
     except OSError as exc:
         log.error("kill_switch.flag unreadable (%s): resumes refused until a panic", exc)
-        return "unreadable", "", 0.0
+        return "unreadable", "", 0.0, None
     parsed = _parse(raw)
     if parsed is None:
         log.error("kill_switch.flag unreadable: resumes refused until a panic rewrites it")
-        return "unreadable", "", 0.0
-    return "ok", parsed[0], parsed[1]
+        return "unreadable", "", 0.0, None
+    return "ok", *parsed
 
 
 def panic_id() -> str:
     """What a resume must observe: the current panic's id, "" when none, or
     UNREADABLE. Taken under send_gate(), so it only sees a completed panic."""
     with send_gate():
-        status, pid, _ = flag_state()
+        status, pid, _, _ = flag_state()
     return UNREADABLE if status == "unreadable" else pid
 
 
-def write_flag() -> str:
+def write_flag(tg_at: float | None = None) -> str:
     """Write a fresh panic id and time into the flag (caller holds send_gate()).
 
+    `tg_at` is the Telegram date of a /panic sent in Telegram, else None.
     Returns "engaged" or "already_engaged". Every panic changes the id, so no
     resume observed before it can clear it."""
     flag = flag_path()
     action = "already_engaged" if flag.exists() else "engaged"
     tmp = flag.with_name(flag.name + ".tmp")
-    tmp.write_text(json.dumps({"id": uuid.uuid4().hex, "at": time.time()}), encoding="utf-8")
+    rec = {"id": uuid.uuid4().hex, "at": time.time(),
+           "tg_at": tg_at if tg_at is not None and _time(tg_at) else None}
+    tmp.write_text(json.dumps(rec), encoding="utf-8")
     tmp.replace(flag)
     return action
 

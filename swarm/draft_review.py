@@ -183,12 +183,12 @@ def post_draft(
     now = _now_iso()
     expires = (datetime.now(timezone.utc) + timedelta(hours=timeout_hours)).isoformat()
 
-    # Autonomous reversibility gate (swarm.nexus.policy): a reversible action
-    # needs no human — auto-approve and send immediately, honouring the SAME
-    # send_halted() check (swarm off or kill switch) the 👍 path uses. Medium / high /
-    # irreversible fall through to the HITL review below.
+    # Autonomous reversibility gate (swarm.nexus.policy): a reversible action that
+    # does not mention money auto-sends, honouring the SAME send_halted() check the 👍
+    # path uses. Money, medium, high and irreversible go to the HITL review below.
     from swarm.nexus.policy import classify_policy
-    if classify_policy(reversibility) == "auto":
+    from .money_text import mentions_money
+    if classify_policy(reversibility) == "auto" and not mentions_money(draft_text):
         record = {
             "draft_id": draft_id,
             "review_message_id": None,
