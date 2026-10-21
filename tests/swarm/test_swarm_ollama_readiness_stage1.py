@@ -68,11 +68,24 @@ def _run_sandboxed(script: str, tmp_path) -> list[str]:
         extra += ('out=""; prev=""; for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done; '
                   '[ -n "$out" ] && : > "$out"\n') if name == "curl" else ""
         rc = "1" if name == "pgrep" else "0"
-        stub.write_text(f'#!/bin/sh\necho "{name} $*" >> "{log}"\n{extra}exit {rc}\n')
+        # A slow backgrounded `ollama serve` makes the race below certain rather than rare,
+        # so dropping the wait fails here every time, not one CI run in many.
+        delay = '[ "$1" = serve ] && /bin/sleep 1\n' if name == "ollama" else ""
+        stub.write_text(f'#!/bin/sh\n{delay}echo "{name} $*" >> "{log}"\n{extra}exit {rc}\n')
         stub.chmod(0o755)
     env = {"HOME": str(home), "PATH": f"{fake}:/usr/bin:/bin", "TERM": "dumb"}
-    r = subprocess.run(["/bin/bash", str(root / script)], env=env, cwd=tmp_path,
-                       capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL)
+    # The installer backgrounds `ollama serve`, so the script can exit before that stub has
+    # logged (main CI, 82096e66). Every descendant inherits this pipe's write end; reading it
+    # to EOF waits until the last of them has exited, however slow.
+    done_r, done_w = os.pipe()
+    with os.fdopen(done_r, "rb") as done:
+        try:
+            r = subprocess.run(["/bin/bash", str(root / script)], env=env, cwd=tmp_path,
+                               capture_output=True, text=True, timeout=60,
+                               stdin=subprocess.DEVNULL, pass_fds=(done_w,))
+        finally:
+            os.close(done_w)
+        done.read()
     assert r.returncode == 0, r.stdout + r.stderr
     return log.read_text().splitlines() if log.exists() else []
 
