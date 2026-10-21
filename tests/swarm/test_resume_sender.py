@@ -130,6 +130,31 @@ def test_panic_stays_open_to_any_member(ks, monkeypatch, path, who):
     assert ks.is_active()
 
 
+@pytest.mark.parametrize("path", PATHS)
+@pytest.mark.parametrize("text", ["/panic\nurgent", "/panic\tnow", "/panic\n",
+                                  "/panic@pi_bot\nnow", "/PANIC\r\nnow"])
+def test_panic_followed_by_any_whitespace_is_honoured(ks, monkeypatch, path, text):
+    # Codex helper on c985e091: splitting only at a space ignored "/panic\nurgent".
+    send = PATHS[path](monkeypatch)
+    send(text, T, SENDERS["another_member"])
+    assert ks.is_active()
+
+
+@pytest.mark.parametrize("path", PATHS)
+@pytest.mark.parametrize("text", ["/resume\nnow", "/resume-confirm\nmanual"])
+def test_founder_resume_followed_by_a_newline_works(ks, monkeypatch, path, text):
+    send = PATHS[path](monkeypatch)
+    send("/panic", T, {"from": FOUNDER_FROM})
+    send(text, T + 5, {"from": FOUNDER_FROM})
+    assert not ks.is_active()
+
+
+@pytest.mark.parametrize("text", ["/panicking", "/resumeX", "/resume-confirmed\nx", "panic", "/ panic"])
+def test_lookalikes_after_whitespace_split_do_nothing(ks, text):
+    assert ks.handle_command(text, sent_at=float(T), from_founder=True) is None
+    assert not ks.is_active()
+
+
 def test_handle_command_refuses_resume_by_default(ks):
     ks.handle_command("/panic", sent_at=float(T))
     assert ks.handle_command("/resume", observed_id=ks.panic_id(),

@@ -11,7 +11,9 @@ import re
 
 _MONEY = re.compile(
     r"\b(?:refund\w*|credit\w*|reimburs\w*|payments?|pay(?:s|ing|outs?|able)?|paid"
-    r"|invoic\w*|spend\w*|charge[sd]?|billing|budget\w*|discount\w*|price\w*|cost\w*)\b"
+    r"|invoic\w*|spend\w*|charge[sd]?|billing|budget\w*|discount\w*|price\w*|cost\w*"
+    r"|fees?|waiv\w*|vouchers?|rebates?|compensat\w*|complimentary|coupons?|promo\w*"
+    r"|gift[- ]?cards?|balances?|writ\w*[- ]off|money|cash|funds?|bucks|cents?)\b"
     r"|[$€£¥]\s?\d|\b\d[\d,.]*\s?(?:AUD|USD|NZD|EUR|GBP|dollars?)\b",
     re.IGNORECASE)
 

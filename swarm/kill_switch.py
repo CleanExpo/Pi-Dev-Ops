@@ -161,7 +161,7 @@ def handle_command(text: str, *, observed_id: str | None = None,
     (the message's own date) let resume() refuse to clear a newer panic.
     A resume needs `from_founder` (review_authority.sent_by_founder); /panic does not.
     """
-    word, _, rest = text.strip().partition(" ")
+    word, rest = (text.split(None, 1) + ["", ""])[:2]  # split at any whitespace
     command, rest = word.split("@", 1)[0].lower(), rest.strip()  # exact word only
     if command == "/panic":
         trigger("telegram_panic", reason=rest or "operator-initiated", telegram_sent_at=sent_at)

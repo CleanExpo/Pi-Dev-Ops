@@ -22,6 +22,16 @@ env = base.env
     "Ad spend raised to 4,000 a day.",
     "Invoice INV-77 approved for payment.",
     "Your refund is on its way.",
+    # Codex helper on c985e091: money without a listed money word.
+    "We have waived the late fee.",
+    "Here is a goodwill voucher for the trouble.",
+    "A rebate is on its way.",
+    "Your next month is complimentary.",
+    "We will compensate you for the delay.",
+    "Use this coupon at checkout.",
+    "Your account balance has been adjusted.",
+    "We have written off the outstanding amount.",
+    "Here is a gift card for 20 bucks.",
 ])
 def test_reversible_money_draft_goes_to_review(env, text):
     out = draft_review.post_draft(draft_text=text, destination_chat_id="42",
