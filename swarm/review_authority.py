@@ -5,9 +5,12 @@ the founder, with zero auto-approval. They all resolve through
 draft_review.mark_reaction, so this module binds that decision:
 
   * Only the Telegram user named by TAO_FOUNDER_TELEGRAM_USER_ID may decide.
-    Unset -> no reaction decides anything (fail closed, logged as an error).
+    Unset or not a positive decimal user ID -> no reaction decides anything
+    (fail closed, logged as an error). A reactor with no valid integer ID
+    never matches.
   * A reaction counts only in the chat the draft was posted to. Telegram
-    message ids are unique per chat, not globally.
+    message ids are unique per chat, not globally. A draft with no recorded
+    chat (saved before chats were recorded) is never decided; re-post it.
   * A review ask that never reached the founder (post failure, PII abort,
     or any non-"pending" result) is reported so money callers can block.
 """
@@ -15,17 +18,32 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any
 
 log = logging.getLogger("swarm.review_authority")
 
 FOUNDER_TELEGRAM_USER_ID_ENV = "TAO_FOUNDER_TELEGRAM_USER_ID"
 REACTION_EMOJI = ("👍", "❌", "⏳")
+_TELEGRAM_USER_ID = re.compile(r"[1-9][0-9]{0,19}")
+
+
+def telegram_user_id(value: Any) -> str | None:
+    """`value` as a positive decimal Telegram user ID, else None (null, bool, junk)."""
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        return None
+    text = str(value).strip()
+    return text if _TELEGRAM_USER_ID.fullmatch(text) else None
 
 
 def founder_telegram_user_id() -> str:
-    """The only Telegram user whose reaction may decide a draft. "" if unset."""
-    return (os.environ.get(FOUNDER_TELEGRAM_USER_ID_ENV) or "").strip()
+    """The only Telegram user whose reaction may decide a draft. "" if unset or malformed."""
+    raw = os.environ.get(FOUNDER_TELEGRAM_USER_ID_ENV) or ""
+    founder = telegram_user_id(raw)
+    if raw.strip() and founder is None:
+        log.error("%s is not a positive decimal Telegram user ID; no reaction "
+                  "can approve anything until it is fixed", FOUNDER_TELEGRAM_USER_ID_ENV)
+    return founder or ""
 
 
 def review_chat_id() -> str:
@@ -39,7 +57,7 @@ def forward_reaction(reaction: dict[str, Any]) -> None:
     from . import draft_review
     msg_id = str(reaction.get("message_id", ""))
     chat_id = str((reaction.get("chat") or {}).get("id", ""))
-    actor_id = str((reaction.get("user") or {}).get("id", "")) or None
+    actor_id = telegram_user_id((reaction.get("user") or {}).get("id"))
     if not (msg_id and chat_id):
         return
     for r in reaction.get("new_reaction", []):
@@ -58,9 +76,17 @@ def find_reviewed_draft(
     if chat_id is None:
         return None, None
     for did, rec in snap.items():
-        posted_chat = str(rec.get("review_chat_id") or review_chat_id())
-        if (str(rec.get("review_message_id")) == str(review_message_id)
-                and str(chat_id) == posted_chat):
+        if str(rec.get("review_message_id")) != str(review_message_id):
+            continue
+        posted_chat = rec.get("review_chat_id")
+        if not posted_chat:
+            # Saved before the posting chat was recorded: the same message id
+            # in another chat is a different message, so it cannot be bound.
+            log.warning("draft %s: reaction REJECTED: no recorded review chat; "
+                        "re-post it for review", did)
+            _audit_rejection(did, rec, None, None,
+                             "draft has no recorded review chat; re-post it for review")
+        elif str(chat_id) == str(posted_chat):
             return did, rec
     return None, None
 
@@ -70,18 +96,24 @@ def authorise_reaction(
 ) -> bool:
     """True only if the founder made this reaction. Rejections are audited."""
     founder_id = founder_telegram_user_id()
-    actor = str(actor_user_id or "").strip()
+    actor = telegram_user_id(actor_user_id)
     if founder_id and actor == founder_id:
         return True
     if not founder_id:
         reason = "founder Telegram user ID not configured"
-        log.error("draft %s: %s reaction REJECTED: %s is unset, so no reaction "
-                  "can approve anything until it is set",
+        log.error("draft %s: %s reaction REJECTED: %s is unset or malformed, so no "
+                  "reaction can approve anything until it is set",
                   draft_id, emoji, FOUNDER_TELEGRAM_USER_ID_ENV)
     else:
         reason = "reaction not from the founder"
         log.warning("draft %s: %s reaction from user %s REJECTED (%s)",
                     draft_id, emoji, actor or "?", reason)
+    _audit_rejection(draft_id, record, emoji, actor, reason)
+    return False
+
+
+def _audit_rejection(draft_id: str, record: dict[str, Any], emoji: str | None,
+                     actor: str | None, reason: str) -> None:
     from . import audit_emit, draft_review
     draft_review._append_jsonl(draft_review._drafts_jsonl(), {
         **record, "audit_event": "draft_reaction_rejected",
@@ -89,7 +121,15 @@ def authorise_reaction(
     audit_emit.row("draft_reaction_rejected", record.get("drafted_by_role", "Scribe"),
                    draft_id=draft_id, emoji=emoji, actor_user_id=actor or None,
                    reason=reason)
-    return False
+
+
+def send_halted(test_mode: bool) -> bool:
+    """True when an approved draft must not send now: swarm off (outside test
+    mode) or the kill switch engaged. Called right before the send, so a /panic
+    earlier in the same update batch, or from the dashboard, still stops it."""
+    from . import kill_switch
+    swarm_off = os.environ.get("TAO_SWARM_ENABLED", "0") != "1" and not test_mode
+    return swarm_off or kill_switch.is_active()
 
 
 def review_undelivered(out: Any, what: str) -> str:
@@ -119,4 +159,6 @@ __all__ = [
     "founder_telegram_user_id",
     "review_chat_id",
     "review_undelivered",
+    "send_halted",
+    "telegram_user_id",
 ]

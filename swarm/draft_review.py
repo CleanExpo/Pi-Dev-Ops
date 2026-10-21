@@ -25,7 +25,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 from swarm.nexus.types import Reversibility
-from swarm.review_authority import authorise_reaction, find_reviewed_draft, review_chat_id
+from swarm.review_authority import (authorise_reaction, find_reviewed_draft, review_chat_id,
+                                     send_halted)
 
 log = logging.getLogger("swarm.draft_review")
 
@@ -284,10 +285,8 @@ def mark_reaction(
         log.info("ignoring reaction on draft %s in state %s", target_id, target["status"])
         return target
 
-    swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "0") == "1"
-
     if emoji == "👍":
-        if not swarm_enabled and not TEST_MODE:
+        if send_halted(TEST_MODE):
             target["status"] = "deferred"
             target["transitions"].append({"ts": _now_iso(), "to": "deferred",
                                           "reason": "kill-switch active; send halted"})

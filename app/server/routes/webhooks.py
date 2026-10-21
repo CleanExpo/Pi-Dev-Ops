@@ -14,6 +14,7 @@ from ..auth import require_auth, require_rate_limit
 from ..sessions import create_session
 from .phone_gate_callback import handle_gate_callback
 from .telegram_drain import drain_telegram_update as _drain_telegram_update
+from .telegram_webhook_secret import require_telegram_secret
 from ..supabase_log import (
     find_accepted_gate_check,
     find_gate_check_by_merge_sha,
@@ -692,18 +693,7 @@ async def telegram_webhook(request: Request):
     Secured via X-Telegram-Bot-Api-Secret-Token (set when registering webhook).
     """
     token = config.TELEGRAM_BOT_TOKEN
-    expected_secret = config.TELEGRAM_WEBHOOK_SECRET
-    # RA-1004: Require the secret to be configured. If it is absent the endpoint
-    # would otherwise be open to anyone — mirror the pattern used for GitHub
-    # webhook secret (lines 53-54).
-    if not expected_secret:
-        raise HTTPException(500, "Telegram webhook secret not configured")
-    secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-    # RA-1004 follow-up: use hmac.compare_digest to avoid a timing-side-channel
-    # leak of the configured secret. Same pattern as morning-intel handler above.
-    import hmac as _hmac  # noqa: PLC0415
-    if not _hmac.compare_digest(secret, expected_secret):
-        raise HTTPException(401, "Invalid Telegram webhook secret")
+    require_telegram_secret(request)  # RA-1004: 500 if unset, 401 if wrong
 
     try:
         data = await request.json()
@@ -713,6 +703,13 @@ async def telegram_webhook(request: Request):
     # RA-7530: a phone-gate button tap is a callback_query, never a message.
     if data.get("callback_query"):
         return await handle_gate_callback(token, data["callback_query"])
+
+    # A 👍/❌/⏳ on a draft_review ask. review_authority binds it to the founder
+    # and the posting chat; mark_reaction re-checks the kill switch.
+    if data.get("message_reaction"):
+        from swarm import review_authority  # noqa: PLC0415
+        review_authority.forward_reaction(data["message_reaction"])
+        return {"ok": True}
 
     message = data.get("message", {})
     text = (message.get("text") or "").strip()
