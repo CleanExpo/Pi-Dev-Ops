@@ -248,33 +248,30 @@ def request_spend_approval(
 ) -> _cfo.SpendDecision:
     """Public entry-point for any other bot to request a spend approval.
 
-    Auto-approves <= ceiling. Above ceiling → routes through draft_review HITL.
+    Every amount routes through draft_review for founder approval; nothing
+    is auto-approved and no env var can change that.
     """
-    spend_ceiling = float(os.environ.get(
-        "TAO_CFO_SPEND_CEILING", _cfo.AUTONOMOUS_SPEND_CEILING))
-
     post_draft = None
     try:
         from .. import draft_review
         post_draft = draft_review.post_draft
     except Exception as exc:
-        log.debug("cfo: draft_review unavailable (%s) — only auto-approve path open", exc)
+        log.debug("cfo: draft_review unavailable (%s) — spend will be blocked", exc)
 
     decision = _cfo.approve_spend(
         amount_usd=amount_usd,
         vendor=vendor,
         business_id=business_id,
         justification=justification,
-        spend_ceiling=spend_ceiling,
         post_draft=post_draft,
         review_chat_id=os.environ.get("REVIEW_CHAT_ID"),
     )
 
     try:
         from .. import audit_emit
+        # Never cfo_invoice_approved here: approval only comes from the founder.
         audit_emit.row(
-            "cfo_invoice_approved" if decision.status == "approved"
-            else "cfo_spend_blocked",
+            "cfo_spend_blocked",
             "CFO",
             business_id=business_id,
             amount_usd=amount_usd,

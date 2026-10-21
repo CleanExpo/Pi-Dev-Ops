@@ -1,8 +1,8 @@
 """Integration: cfo.approve_spend + draft_review.post_draft repointed onto
 the autonomous reversibility gate (swarm.nexus.policy).
 
-- approve_spend sources its auto/HITL split from classify_policy and threads
-  reversibility into post_draft.
+- approve_spend sends every amount to draft_review with an approval-tier
+  reversibility; nothing is auto-approved (founder decision 21/10/2026).
 - post_draft short-circuits the human gate for reversible (auto-tier) drafts
   and sends immediately (honouring TAO_SWARM_ENABLED); medium/high keep HITL.
 """
@@ -15,20 +15,68 @@ from swarm import draft_review
 
 
 # ---- cfo.approve_spend ----
+# Founder decision 21/10/2026: every amount goes to draft_review. The old
+# autonomous ceiling was $1,000; amounts either side of it, exactly at it, $0,
+# negative and non-finite must all wait for the founder.
 
-def test_spend_under_ceiling_auto_approves():
-    captured = {}
+ALL_AMOUNTS = [0.01, 200.0, 999.99, 1000.0, 1000.01, 5000.0,
+               0.0, -50.0, float("nan"), float("inf")]
+
+
+@pytest.mark.parametrize("amount", ALL_AMOUNTS)
+def test_every_spend_routes_to_draft_review(amount):
+    calls = []
 
     def fake_post_draft(**kw):
-        captured.update(kw)
+        calls.append(kw)
         return {"draft_id": "d1"}
 
     d = cfo.approve_spend(
-        amount_usd=200.0, vendor="OpenRouter", business_id="biz1",
+        amount_usd=amount, vendor="OpenRouter", business_id="biz1",
         justification="tokens", post_draft=fake_post_draft,
     )
-    assert d.status == "approved"
-    assert captured == {}          # HITL never invoked for reversible spend
+    assert d.status == "pending"
+    assert d.draft_id == "d1"
+    assert len(calls) == 1
+    assert calls[0]["reversibility"] == "high"   # approval tier, never auto
+
+
+@pytest.mark.parametrize("amount", ALL_AMOUNTS)
+def test_no_provider_blocks_every_spend(amount):
+    d = cfo.approve_spend(
+        amount_usd=amount, vendor="OpenRouter", business_id="biz1",
+        justification="tokens", post_draft=None,
+    )
+    assert d.status == "blocked"
+
+
+@pytest.mark.parametrize("amount", [1.0, 1000.0, 0.0])
+def test_small_spend_through_real_draft_review_waits_for_human(amount, monkeypatch):
+    monkeypatch.setattr(draft_review, "TEST_MODE", True)
+    d = cfo.approve_spend(
+        amount_usd=amount, vendor="OpenRouter", business_id="biz1",
+        justification="tokens", post_draft=draft_review.post_draft,
+    )
+    assert d.status == "pending"
+    assert d.draft_id
+
+
+def test_bot_env_ceiling_cannot_reenable_auto_approve(monkeypatch):
+    from swarm import audit_emit
+    from swarm.bots import cfo as cfo_bot
+
+    events = []
+    monkeypatch.setenv("TAO_CFO_SPEND_CEILING", "1000000000")
+    monkeypatch.setattr(draft_review, "post_draft", lambda **kw: {"draft_id": "d9"})
+    monkeypatch.setattr(audit_emit, "row", lambda ev, *a, **k: events.append(ev))
+    for amount in (1.0, 1000.0, 0.0):
+        d = cfo_bot.request_spend_approval(
+            amount_usd=amount, vendor="OpenRouter", business_id="biz1",
+            justification="tokens",
+        )
+        assert d.status == "pending"
+    assert "cfo_invoice_approved" not in events
+    assert events == ["cfo_spend_blocked"] * 3
 
 
 def test_spend_over_ceiling_routes_to_hitl_with_reversibility():
