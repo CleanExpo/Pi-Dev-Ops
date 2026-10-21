@@ -84,9 +84,9 @@ def _margot_casual_candidates() -> list[tuple[Provider, str, str]]:
     An override is a single candidate; a set but unparseable one is refused.
     Nothing here consults TAO_CHEAP_*.
     """
-    raw = (os.environ.get(MARGOT_CASUAL_ENV) or "").strip()
+    raw = os.environ.get(MARGOT_CASUAL_ENV) or ""  # only unset or "" means: use the ladder
     if raw:
-        parsed = _pr()._parse_provider_spec(raw)
+        parsed = _pr()._parse_provider_spec(raw.strip()) if raw.strip() else None
         if parsed is not None:
             return [(parsed[0], parsed[1], f"env:{MARGOT_CASUAL_ENV}")]
         raise RefusedModelError(

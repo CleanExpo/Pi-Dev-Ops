@@ -43,13 +43,49 @@ def test_guardian_pages_critical_on_a_confirmed_ollama_outage(tmp_path, monkeypa
     assert "Ollama not responding" in pages[0]["message"]
 
 
-def test_ollama_recovery_and_install_stay_until_stage_two():
-    """The RA-638 relaunch watchdog and the supervisor's Ollama install must survive
-    stage 1: the swarm and supervisor still run on Ollama (Codex review of ead70313)."""
+
+# Every command either script could reach that touches the machine, the network or
+# privileges. Each stub only appends its argv to the log; none of them does anything.
+_STUBS = ("sudo", "pmset", "launchctl", "curl", "open", "ollama", "pgrep", "sleep",
+          "tmux", "brew", "apt-get")
+
+
+def _run_sandboxed(script: str, tmp_path) -> list[str]:
+    """Run a repo shell script with a temp HOME and fake commands first on PATH."""
+    import os  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
     from pathlib import Path  # noqa: PLC0415
     root = Path(__file__).resolve().parents[2]
-    setup = (root / "scripts/setup_ra637_ra638.sh").read_text()
-    assert "com.piceo.ollama-watchdog" in setup
-    assert "launchctl load ~/Library/LaunchAgents/com.piceo.ollama-watchdog.plist" in setup
-    installer = (root / "scripts/supervisor/install-on-new-machine.sh").read_text()
-    assert "ollama pull mistral" in installer
+    home, fake, log = tmp_path / "home", tmp_path / "bin", tmp_path / "calls.log"
+    (home / "Library/LaunchAgents").mkdir(parents=True)  # present in any real macOS home
+    fake.mkdir()
+    for name in _STUBS:
+        stub = fake / name
+        # pmset -g feeds a grep in the setup script; give it a line to match.
+        extra = 'if [ "$1" = "-g" ]; then echo " sleep 0"; fi\n' if name == "pmset" else ""
+        # curl -o FILE must leave a file behind for the installer's chmod/cp.
+        extra += ('out=""; prev=""; for a in "$@"; do [ "$prev" = "-o" ] && out="$a"; prev="$a"; done; '
+                  '[ -n "$out" ] && : > "$out"\n') if name == "curl" else ""
+        rc = "1" if name == "pgrep" else "0"
+        stub.write_text(f'#!/bin/sh\necho "{name} $*" >> "{log}"\n{extra}exit {rc}\n')
+        stub.chmod(0o755)
+    env = {"HOME": str(home), "PATH": f"{fake}:/usr/bin:/bin", "TERM": "dumb"}
+    r = subprocess.run(["/bin/bash", str(root / script)], env=env, cwd=tmp_path,
+                       capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL)
+    assert r.returncode == 0, r.stdout + r.stderr
+    return log.read_text().splitlines() if log.exists() else []
+
+
+def test_watchdog_setup_still_loads_the_ollama_relaunch_agent(tmp_path):
+    """RA-638 must survive stage 1: the swarm still runs on Ollama (Codex review of
+    10309ddd: a text match passed with the load line commented out)."""
+    calls = _run_sandboxed("scripts/setup_ra637_ra638.sh", tmp_path)
+    plist = tmp_path / "home/Library/LaunchAgents/com.piceo.ollama-watchdog.plist"
+    assert f"launchctl load {plist}" in calls
+    assert plist.exists()
+
+
+def test_installer_still_pulls_the_supervisor_model(tmp_path):
+    calls = _run_sandboxed("scripts/supervisor/install-on-new-machine.sh", tmp_path)
+    assert "ollama pull mistral" in calls
+    assert "ollama serve" in calls

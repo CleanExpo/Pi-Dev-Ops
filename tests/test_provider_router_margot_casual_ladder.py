@@ -188,7 +188,7 @@ def test_override_env_is_honoured_when_it_names_a_ladder_step(monkeypatch):
     assert pm.source == "env:TAO_MODEL_MARGOT_CASUAL"
 
 
-@pytest.mark.parametrize("spec", ["no-colon-here", ":", "openrouter:", ":model"])
+@pytest.mark.parametrize("spec", ["no-colon-here", ":", "openrouter:", ":model", "   ", "\t"])
 def test_malformed_override_fails_closed(monkeypatch, spec):
     """A set but unparseable override is a refusal, never a silent fall to the ladder
     (Codex review of ead70313: it used to answer on ladder step 1 with only a log line)."""
@@ -229,3 +229,27 @@ def test_refused_override_fails_closed(monkeypatch, spec):
     assert "margot.casual" in msg
     assert "TAO_MODEL_MARGOT_CASUAL" in msg
     assert "RA-7434" in msg
+
+
+@pytest.mark.parametrize("spec", ["   ", "\t\n", "no-colon-here"])
+def test_set_but_unusable_override_dispatches_nothing_via_run_via_provider(monkeypatch, spec):
+    """Codex review of 10309ddd: three spaces fell through to ladder step 1. Only an
+    unset or exactly empty override means "use the ladder"."""
+    import asyncio  # noqa: PLC0415
+    monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", spec)
+    calls: list = []
+
+    async def _never(*a, **k):
+        calls.append((a, k))
+        return 0, "reply", 0.0, None
+
+    monkeypatch.setattr(MC, "_call_ladder_step", _never)
+    rc, text, _cost, err = asyncio.run(PR.run_via_provider("hello", role="margot.casual"))
+    assert (rc, text) == (1, "") and "margot_casual_refused" in (err or "")
+    assert calls == []
+
+
+def test_exactly_empty_override_uses_the_ladder(monkeypatch):
+    monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", "")
+    pm = PR.select_provider_model("margot.casual")
+    assert pm.source == "ladder-step-1"
