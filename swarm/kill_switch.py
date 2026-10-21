@@ -24,16 +24,15 @@ Public API:
 """
 from __future__ import annotations
 
-import fcntl
 import json
 import logging
 import os
 import time
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+from .kill_switch_state import panic_seq, panic_state, record_panic, send_gate
 
 log = logging.getLogger("swarm.kill_switch")
 
@@ -105,26 +104,15 @@ def panic_count_last_hour() -> int:
     return count
 
 
-@contextmanager
-def send_gate() -> Iterator[None]:
-    """Hold from the last halt check through an outbound send.
-
-    trigger() takes the same lock before raising the flag, so a panic either
-    lands first (the send sees it and stops) or waits for the in-flight send
-    to finish. A send never starts after a panic has completed. Not re-entrant.
-    """
-    cfg = _config()
-    cfg.SWARM_LOG_DIR.mkdir(parents=True, exist_ok=True)
-    with (cfg.SWARM_LOG_DIR / "kill_switch.send_gate.lock").open("a") as fh:
-        fcntl.flock(fh, fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(fh, fcntl.LOCK_UN)
-
-
 def _raise_flag() -> str:
+    """Record a panic and raise the flag, under send_gate() (loop guard included)."""
     with send_gate():
+        panics_now = panic_count_last_hour()
+        if panics_now >= PANIC_RATE_LIMIT and not is_locked():
+            _lock_file().write_text(_now_iso())
+            log.warning("kill-switch loop guard engaged: %d panics in %ds window",
+                        panics_now, PANIC_WINDOW_S)
+        record_panic()
         flag = _flag_file()
         if flag.exists():
             return "already_engaged"
@@ -132,10 +120,38 @@ def _raise_flag() -> str:
         return "engaged"
 
 
-def handle_command(text: str) -> str | None:
+def _clear_flag(*, confirmed: bool, reason: str, observed_seq: int | None,
+                sent_at: float | None) -> tuple[str, bool]:
+    """Check and clear in one step under send_gate(), the lock trigger() takes.
+
+    Returns (outcome, had_escalation_lock); outcome is "resumed", "no_op",
+    "escalation_lock_active" or "newer_panic" (a panic recorded after the
+    caller observed observed_seq, or after the command was sent at sent_at)."""
+    with send_gate():
+        locked = is_locked()
+        if locked and not (confirmed and reason):
+            return "escalation_lock_active", locked
+        seq, at = panic_state() or (2**63, float("inf"))  # unreadable: refuse
+        if ((observed_seq is not None and seq > observed_seq)
+                or (sent_at is not None and at > sent_at)):
+            return "newer_panic", locked
+        flag = _flag_file()
+        outcome = "no_op"
+        if flag.exists():
+            flag.unlink()
+            outcome = "resumed"
+        if locked:
+            _lock_file().unlink()
+        return outcome, locked
+
+
+def handle_command(text: str, *, observed_seq: int | None = None,
+                   sent_at: float | None = None) -> str | None:
     """Apply a Telegram /panic, /resume-confirm or /resume; return which, else None.
 
     Shared by the CoS poller and the production webhook so both behave the same.
+    `observed_seq` (panic_seq() when the command was received) and `sent_at`
+    (the message's own date) let resume() refuse to clear a newer panic.
     """
     text = text.strip()
     lower = text.lower()
@@ -143,12 +159,14 @@ def handle_command(text: str) -> str | None:
         trigger("telegram_panic", reason=text[len("/panic"):].strip() or "operator-initiated")
         return "panic"
     if lower.startswith("/resume-confirm"):
-        resume("telegram_resume_confirm",
-               reason=text[len("/resume-confirm"):].strip() or "manual recovery", confirmed=True)
-        return "resume-confirm"
+        out = resume("telegram_resume_confirm", confirmed=True, observed_seq=observed_seq,
+                     sent_at=sent_at,
+                     reason=text[len("/resume-confirm"):].strip() or "manual recovery")
+        return "resume-confirm" if "error" not in out else f"refused: {out['error']}"
     if lower.startswith("/resume"):
-        resume("telegram_resume", reason=text[len("/resume"):].strip())
-        return "resume"
+        out = resume("telegram_resume", reason=text[len("/resume"):].strip(),
+                     observed_seq=observed_seq, sent_at=sent_at)
+        return "resume" if "error" not in out else f"refused: {out['error']}"
     return None
 
 
@@ -167,13 +185,7 @@ def trigger(
         return {"error": "dashboard_2fa requires >=2 approvers",
                 "approvers_received": approvers}
 
-    # Loop guard: too many panics → engage lock and require manual recovery
-    panics_now = panic_count_last_hour()
-    if panics_now >= PANIC_RATE_LIMIT and not is_locked():
-        _lock_file().write_text(_now_iso())
-        log.warning("kill-switch loop guard engaged: %d panics in %ds window",
-                   panics_now, PANIC_WINDOW_S)
-
+    # Loop guard, panic sequence and flag, under send_gate() (see _raise_flag)
     action = _raise_flag()
 
     record = {
@@ -211,25 +223,24 @@ def resume(
     *,
     reason: str = "",
     confirmed: bool = False,
+    observed_seq: int | None = None,
+    sent_at: float | None = None,
 ) -> dict[str, Any]:
-    """Disengage the kill switch.
+    """Disengage the kill switch, unless a newer panic has been recorded.
 
     If escalation lock is active, requires `confirmed=True` AND `reason`
-    to be non-empty (mirrors `/resume-confirm <reason>` semantics).
+    to be non-empty (mirrors `/resume-confirm <reason>` semantics). Every
+    caller passes `observed_seq`, the panic_seq() it saw when it decided to
+    resume; the check and the clear are one step under send_gate().
     """
-    locked = is_locked()
-    if locked and not (confirmed and reason):
-        return {"error": "escalation_lock_active",
-                "fix": "delete .harness/swarm/kill_switch.flag manually AND "
-                       "call resume(source, reason='<why>', confirmed=True)"}
-
-    flag = _flag_file()
-    action = "no_op"
-    if flag.exists():
-        flag.unlink()
-        action = "resumed"
-    if locked:
-        _lock_file().unlink()
+    action, locked = _clear_flag(confirmed=confirmed, reason=reason,
+                                 observed_seq=observed_seq, sent_at=sent_at)
+    if action == "escalation_lock_active":
+        return {"error": action, "fix": "delete .harness/swarm/kill_switch.flag manually AND "
+                                        "call resume(source, reason='<why>', confirmed=True)"}
+    if action == "newer_panic":
+        log.warning("kill-switch resume by %s REFUSED: a newer panic was recorded", source)
+        return {"error": action, "fix": "re-send the resume after checking why it panicked"}
 
     record = {
         "ts": _now_iso(),
@@ -258,5 +269,5 @@ def resume(
     return record
 
 
-__all__ = ["is_active", "is_locked", "panic_count_last_hour",
-           "trigger", "resume"]
+__all__ = ["handle_command", "is_active", "is_locked", "panic_count_last_hour",
+           "panic_seq", "resume", "send_gate", "trigger"]

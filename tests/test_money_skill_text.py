@@ -18,6 +18,9 @@ MONEY_SKILLS = ("cfo", "cmo-growth", "cs-tier1", "telegram-draft-for-review")
 
 # A claim that an agent approves money by itself, or that only amounts above
 # some figure need the founder.
+_GIVE = r"\b(?:issue|apply|grant|give|offer|credit)(?:s|ing|ed)?\b"
+_UNGATED = (r"\b(?:automatically|autonomously|without\b[^.\n]{0,25}\b(?:approval|asking|sign-?off)"
+            r"|at\s+(?:the|its|their|your)\s+(?:agent'?s?\s+|bot'?s?\s+|own\s+)?discretion)")
 AUTONOMOUS_MONEY = re.compile(
     r"auto-?approv\w*\s+(?:refunds?|spend|ad-?spend|invoices?|(?:service\s+)?credits?|up to)"
     r"|(?:refunds?|spend|ad-?spend)\s+(?:over|above|under|below|up to)\s+\$\s?\d"
@@ -29,7 +32,10 @@ AUTONOMOUS_MONEY = re.compile(
     # Founder ruling 21/10/2026: every service credit waits for Phill, SLA ones too.
     r"|service\s+credits?\s+(?:beyond|above|over|outside|exceeding)\b"
     r"|credits?\b[^.\n]{0,40}\b(?:issued|applied|granted|given)\s+(?:automatically|autonomously|without)"
-    r"|auto-?(?:issue|apply|grant)\w*\s+(?:service\s+)?credits?",
+    r"|auto-?(?:issue|apply|grant)\w*\s+(?:service\s+)?credits?"
+    # Codex round on 590a54b6: instruction forms, in either word order.
+    rf"|{_GIVE}[^.\n]{{0,60}}\bcredits?\b[^.\n]{{0,60}}{_UNGATED}"
+    rf"|{_UNGATED}[^.\n]{{0,60}}{_GIVE}[^.\n]{{0,60}}\bcredits?\b",
     re.IGNORECASE)
 
 
@@ -65,6 +71,13 @@ def test_manifests_advertise_no_autonomous_money_threshold(manifest):
     "Credits under the standard SLA are applied without Phill's approval",
     "the bot auto-issues service credits up to one month's fee",
     "cs auto-approves service credits for enterprise accounts",
+    "Issue service credits within standard SLA terms automatically.",
+    "Apply SLA credits automatically when uptime drops below 99.9%.",
+    "Automatically issue a service credit for any outage over an hour.",
+    "Grant goodwill credits at the agent's discretion.",
+    "Give the customer an account credit without Phill's approval.",
+    "Without asking Phill, offer a credit to any churn-risk account.",
+    "At its own discretion the bot grants a service credit of up to one month.",
 ])
 def test_detector_catches_the_retired_wording(stale):
     assert offences(stale)
