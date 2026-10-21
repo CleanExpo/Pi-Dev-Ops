@@ -72,6 +72,13 @@ incoming spend request {amount_usd, vendor, business_id, justification}
 
 Nothing is approved by an agent. Only Phill's own approval releases a spend.
 
+**Runtime gap (21/10/2026).** The flow above is the policy, not yet the code. In Pi-Dev-Ops,
+`swarm/cfo.py` `approve_spend` still auto-approves any amount at or under
+`AUTONOMOUS_SPEND_CEILING` ($1,000), `swarm/bots/cfo.py` then emits `cfo_invoice_approved`, and
+its gate-integration test in Pi-Dev-Ops expects that. Until Phill approves the runtime change, never
+treat an `approved` result from `approve_spend` as permission to spend: post the request to
+draft_review and wait for Phill.
+
 ## Contract
 
 **Daily brief output** (passes to draft_review):
@@ -127,8 +134,10 @@ Action requests today:
 
 1. Synthetic 7-day Stripe data → burn multiple computed correctly (within ±0.01x of hand-calc)
 2. Burn multiple drops 0.4 → 1.6 between cycles → alert fires + draft posted to review chat
-3. $500 spend request → routes through draft_review, status `pending`, NO approval emitted, audit row written
-4. $5000 spend request → routes through draft_review, status `pending`, NO real send
+3. $5000 spend request → routes through draft_review, status `pending`, NO real send
+4. $500 spend request → today the runtime returns `approved` (the gap above). Target once the
+   runtime is changed: draft_review, status `pending`, no approval emitted. Until then this item
+   is expected to fail, and that failure is the gap, not a broken test.
 5. Daily brief assembles in <30s with all 11 businesses' metrics
 6. Brief posts through pii-redactor — no raw vendor names if flagged
 7. `cfo` module compiles + imports clean alongside existing `swarm/*`
