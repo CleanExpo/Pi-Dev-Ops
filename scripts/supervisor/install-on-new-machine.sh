@@ -12,7 +12,8 @@
 #   4. write a stub ~/.supervisor.env that you then edit with your project dir
 #   5. print next-step instructions
 # Ollama stays here until stage 2 of the Ollama removal (founder ruling 21/10/2026):
-# the swarm bots and the supervisor still run on it. Margot's casual chat does not.
+# the swarm bots and the supervisor still run on it. Margot's Phase-1 casual role
+# (margot.casual) does not; a Margot research turn still can, via swarm.wiki_query.
 set -euo pipefail
 
 INSTALL_DIR="$HOME/.pi-ceo/supervisor"

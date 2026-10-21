@@ -28,8 +28,10 @@ OMNIROUTE_PORT = "20128"
 # closed. The key is left exactly as the environment supplies it.
 _ROUTER_OWNED_KEYS = {"TAO_MODEL_MARGOT_CASUAL"}
 
-# Every Ollama key is stripped, including the margot.casual one: that ladder no
-# longer has a local step (founder ruling 21/10/2026), so nothing may keep it.
+# The keys listed here are stripped, now including MARGOT_OLLAMA_BASE_URL: the
+# margot.casual ladder no longer has a local step (founder ruling 21/10/2026).
+# Other Ollama keys (OLLAMA_URL, OLLAMA_MODEL, OLLAMA_BRIEF_MODEL) are not
+# listed and pass through; the swarm reads them until stage 2.
 _OLLAMA_ENV_KEYS = {
     "OLLAMA_BASE_URL",
     "MARGOT_OLLAMA_BASE_URL",

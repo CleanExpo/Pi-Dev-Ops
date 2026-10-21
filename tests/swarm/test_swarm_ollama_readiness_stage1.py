@@ -44,8 +44,9 @@ def test_guardian_pages_critical_on_a_confirmed_ollama_outage(tmp_path, monkeypa
 
 
 
-# Every command either script could reach that touches the machine, the network or
-# privileges. Each stub only appends its argv to the log; none of them does anything.
+# The privileged, network, service and package commands either script calls. Each stub
+# only appends its argv to the log. Ordinary utilities (bash, nohup, cp, mkdir, cat)
+# run for real, but only inside the temp HOME the scripts are given.
 _STUBS = ("sudo", "pmset", "launchctl", "curl", "open", "ollama", "pgrep", "sleep",
           "tmux", "brew", "apt-get")
 

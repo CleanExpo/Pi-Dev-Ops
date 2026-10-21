@@ -100,6 +100,25 @@ def test_guard_then_router_still_keeps_work_lanes_off_ollama(monkeypatch) -> Non
         assert pm.model_id == guard.SAFE_CHEAP_MODEL
 
 
+def test_guard_strips_only_its_listed_ollama_keys() -> None:
+    """The guard's comment names what it strips and what it leaves (Codex review of
+    81d4d5f8): OLLAMA_URL, OLLAMA_MODEL and OLLAMA_BRIEF_MODEL are not on the list and
+    pass through until stage 2; MARGOT_OLLAMA_BASE_URL is on it and goes."""
+    env = {
+        "OLLAMA_URL": "http://127.0.0.1:11434",
+        "OLLAMA_MODEL": "mistral",
+        "OLLAMA_BRIEF_MODEL": "mistral",
+        "MARGOT_OLLAMA_BASE_URL": "http://margot-ollama:11434/v1",
+        "OLLAMA_BASE_URL": "http://127.0.0.1:11434/v1",
+    }
+    changed = guard.sanitise_environment(env)
+    assert env["OLLAMA_URL"] == "http://127.0.0.1:11434"
+    assert env["OLLAMA_MODEL"] == "mistral"
+    assert env["OLLAMA_BRIEF_MODEL"] == "mistral"
+    assert "MARGOT_OLLAMA_BASE_URL" not in env and "OLLAMA_BASE_URL" not in env
+    assert {"MARGOT_OLLAMA_BASE_URL", "OLLAMA_BASE_URL"} <= set(changed)
+
+
 def test_model_fabric_uses_serve_subcommand(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
     monkeypatch.setenv("DATA_DIR", str(tmp_path))

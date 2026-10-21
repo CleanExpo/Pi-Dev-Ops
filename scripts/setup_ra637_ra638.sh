@@ -3,7 +3,8 @@
 # RA-637: Mac Mini sleep prevention + auto-restart after power failure
 # RA-638: Ollama watchdog (relaunches Ollama.app if port 11434 goes silent)
 # Ollama stays here until stage 2 of the Ollama removal (founder ruling 21/10/2026):
-# the swarm bots and the supervisor still run on it. Margot's casual chat does not.
+# the swarm bots and the supervisor still run on it. Margot's Phase-1 casual role
+# (margot.casual) does not; a Margot research turn still can, via swarm.wiki_query.
 set -e
 
 echo "=== Pi-CEO | RA-637 + RA-638 Setup ==="
