@@ -152,6 +152,14 @@ if [ -d .github/scripts ]; then
     || skip "size-function-length" "python deps absent"
   [ "$PY_OK" = 1 ] && gate "size-proxy-fallback" "$PY" .github/scripts/proxy_fallback_lint.py \
     || skip "size-proxy-fallback" "python deps absent"
+  # Consolidation freeze — the ci.yml job "frozen-paths". CI diffs against the PR
+  # base SHA; locally the same three-dot diff runs against origin/main.
+  [ "$PY_OK" = 1 ] && gate "frozen-paths-manifest" "$PY" scripts/check_frozen_paths.py \
+      --verify-manifest --min-files 91 \
+    || skip "frozen-paths-manifest" "python deps absent"
+  [ "$PY_OK" = 1 ] && gate "frozen-paths-diff" "$PY" scripts/check_frozen_paths.py \
+      --base origin/main --head HEAD \
+    || skip "frozen-paths-diff" "python deps absent"
   # The parity checker itself, and it must run LAST of the size gates: it is the only
   # gate whose subject is this runner's own completeness. The comment above claimed it
   # "now fails if that set ever diverges again, so this cannot rot back silently" — but

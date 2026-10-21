@@ -99,6 +99,13 @@
     "ci.yml::Run smoke test against production": {
       "local_gate": "not-runnable-locally",
       "reason": "probes the live Railway deployment. Runs after merge, so no local gate can predict it — and by design nothing on a laptop should be able to."
+    },
+    "ci.yml::Manifest has no dead entries": {
+      "local_gate": "frozen-paths-manifest"
+    },
+    "ci.yml::PR changes no frozen path": {
+      "local_gate": "frozen-paths-diff",
+      "note": "CI passes the PR base SHA; the local gate diffs against origin/main."
     }
   }
 }
