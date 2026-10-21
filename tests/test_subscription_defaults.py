@@ -10,6 +10,9 @@ import pytest
 
 from app.server import provider_policy, provider_router, provider_ollama
 
+# Ollama adapter mechanics; the adapter is deleted in Ollama-removal STAGE 2.
+pytestmark = pytest.mark.usefixtures("legacy_loopback_ollama_transport")
+
 
 @pytest.fixture(autouse=True)
 def clean_routes(monkeypatch):

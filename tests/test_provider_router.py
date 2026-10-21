@@ -299,6 +299,7 @@ def test_metered_or_unverified_dispatch_is_blocked(monkeypatch, role):
     assert "subscription_only" in error
 
 
+@pytest.mark.usefixtures("legacy_loopback_ollama_transport")  # stage-2 dispatch mechanics
 def test_run_via_provider_ollama_path(monkeypatch):
     """role pinned to ollama → provider_ollama.call dispatched."""
     monkeypatch.setenv("TAO_CHEAP_PROVIDER", "ollama")
@@ -319,6 +320,7 @@ def test_run_via_provider_ollama_path(monkeypatch):
     assert error is None
 
 
+@pytest.mark.usefixtures("legacy_loopback_ollama_transport")  # stage-2 dispatch mechanics
 def test_run_via_provider_ollama_failure_propagates(monkeypatch):
     monkeypatch.setenv("TAO_CHEAP_PROVIDER", "ollama")
 
