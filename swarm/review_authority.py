@@ -26,6 +26,8 @@ import os
 import re
 from typing import Any
 
+from .telegram_in_person import not_in_person
+
 log = logging.getLogger("swarm.review_authority")
 
 FOUNDER_TELEGRAM_USER_ID_ENV = "TAO_FOUNDER_TELEGRAM_USER_ID"
@@ -54,22 +56,17 @@ def founder_telegram_user_id() -> str:
     return founder or ""
 
 
-# A forward keeps the original sender in these fields but gets a fresh date and
-# `from` = whoever forwarded it, so it is never the founder's own command.
-_FORWARD_KEYS = ("forward_origin", "forward_from", "forward_from_chat",
-                 "forward_sender_name", "forward_date", "is_automatic_forward")
-
-
 def sent_by_founder(msg: dict[str, Any]) -> bool:
     """True only for a message the founder sent in person: a `from` user that is
     not a bot, whose ID equals TAO_FOUNDER_TELEGRAM_USER_ID, with no sender_chat
-    (a message sent on behalf of a chat: an anonymous admin or a channel), and
-    not a forward. False when the founder ID is unset or malformed (fail closed)."""
+    (a message sent on behalf of a chat: an anonymous admin or a channel), not a
+    forward, not scheduled or sent offline, and not sent through another bot.
+    False when the founder ID is unset or malformed (fail closed)."""
     founder = founder_telegram_user_id()
     sender = msg.get("from")
     if not founder or msg.get("sender_chat") is not None or not isinstance(sender, dict):
         return False
-    if sender.get("is_bot") is not False or any(k in msg for k in _FORWARD_KEYS):
+    if sender.get("is_bot") is not False or not_in_person(msg):
         return False
     return telegram_user_id(sender.get("id")) == founder
 

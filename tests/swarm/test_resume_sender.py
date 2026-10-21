@@ -38,6 +38,15 @@ SENDERS = {
     "forwarded_hidden_user": {"from": FOUNDER_FROM, "forward_sender_name": "Someone",
                               "forward_date": T - 1000},
     "automatic_forward": {"from": FOUNDER_FROM, "is_automatic_forward": True},
+    # Codex on 72299e4f: a scheduled message (or an away/greeting business message)
+    # arrives with is_from_offline and the DELIVERY date, so a /resume scheduled
+    # before a panic would land "after" it although the founder never saw the panic.
+    "scheduled_founder": {"from": FOUNDER_FROM, "is_from_offline": True},
+    "scheduled_founder_truthy": {"from": FOUNDER_FROM, "is_from_offline": 1},
+    "founder_via_business_bot": {"from": FOUNDER_FROM, "sender_business_bot": {
+        "id": 7000001, "is_bot": True, "username": "SomeBusinessBot"}},
+    "founder_via_inline_bot": {"from": FOUNDER_FROM, "via_bot": {
+        "id": 7000002, "is_bot": True, "username": "SomeInlineBot"}},
 }
 
 
@@ -129,6 +138,15 @@ def test_founder_in_person_resumes(ks, monkeypatch, path):
     send = PATHS[path](monkeypatch)
     send("/panic", T, {"from": FOUNDER_FROM})
     send("/resume", T + 5, {"from": FOUNDER_FROM})
+    assert not ks.is_active()
+
+
+@pytest.mark.parametrize("path", PATHS)
+def test_founder_resume_with_is_from_offline_false_still_resumes(ks, monkeypatch, path):
+    """Positive control for the scheduled-message refusal: an explicit false is in person."""
+    send = PATHS[path](monkeypatch)
+    send("/panic", T, {"from": FOUNDER_FROM})
+    send("/resume", T + 5, {"from": FOUNDER_FROM, "is_from_offline": False})
     assert not ks.is_active()
 
 
