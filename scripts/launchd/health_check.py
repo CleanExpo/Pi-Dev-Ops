@@ -5,13 +5,14 @@ RA-640 | RA-3753 (Pi-CEO FastAPI probe + auto-restart added 2026-05-12)
 Runs every 5 minutes via launchd (com.piceo.healthcheck)
 
 Probes:
-  - Ollama        http://localhost:11434/api/tags
   - n8n           http://localhost:5678/healthz
   - Pi-CEO API    http://localhost:7777/health    ← RA-3753
 
 If Pi-CEO API is down: attempts auto-restart via `launchctl kickstart`
 before alerting. Telegram alert always fires on any service-down state
 that does not auto-recover in this tick.
+
+The Ollama probe was removed with Ollama (founder ruling 21/10/2026).
 
 Alerts: Telegram via @piceoagent_bot
 """
@@ -30,7 +31,6 @@ TELEGRAM_BOT_TOKEN = os.environ.get("PICEO_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 TELEGRAM_CHAT_ID   = os.environ.get("PICEO_CHAT_ID",   "YOUR_CHAT_ID_HERE")
 
 SERVICES = {
-    "Ollama":     "http://localhost:11434/api/tags",
     "n8n":        "http://localhost:5678/healthz",
     "Pi-CEO API": "http://localhost:7777/health",   # RA-3753 — was missing, caused silent outage 2026-05-12 05:56-06:16 UTC
 }

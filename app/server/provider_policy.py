@@ -33,13 +33,26 @@ def check_claude_configuration(env: dict[str, str] | None = None) -> None:
         raise ProviderPolicyError("subscription_only: child API credentials or provider override present")
 
 
+# The one OpenRouter use this boundary admits (founder ruling 21/10/2026): the
+# margot.casual role on a model id that ends ":free". Exact role match, exact
+# suffix match, no normalisation. Every other role, and every other id, is
+# blocked exactly as before.
+FREE_OPENROUTER_ROLE = "margot.casual"
+FREE_OPENROUTER_SUFFIX = ":free"
+
+
 def require_transport(provider: str, *, endpoint_url: str | None = None,
-                      cli_path: str | None = None, env: dict[str, str] | None = None) -> dict:
+                      cli_path: str | None = None, env: dict[str, str] | None = None,
+                      role: str | None = None, model_id: str | None = None) -> dict:
     """Authorize the actual execution transport immediately before dispatch."""
     if provider == "ollama":
         return _require_local(endpoint_url)
     if provider == "codex":
         return _require_codex()
+    if provider == "openrouter" and _is_free_openrouter_margot(role, model_id):
+        return {"billing_class": "free", "auth_verified": False,
+                "source": "openrouter_free_margot_casual", "cost_verified": False,
+                "checked_at": datetime.now(timezone.utc).isoformat()}
     return _require_claude(provider, cli_path, env)
 
 
@@ -52,6 +65,11 @@ def _require_local(endpoint_url):
     if endpoint.scheme not in {"http", "https"} or endpoint.hostname not in {"localhost", "127.0.0.1", "::1"}:
         raise ProviderPolicyError("subscription_only: unverified remote Ollama transport")
     return {"billing_class": "local", "auth_verified": True, "source": "loopback_transport"}
+
+
+def _is_free_openrouter_margot(role, model_id) -> bool:
+    return (role == FREE_OPENROUTER_ROLE and isinstance(model_id, str)
+            and model_id.endswith(FREE_OPENROUTER_SUFFIX))
 
 
 def _require_codex():

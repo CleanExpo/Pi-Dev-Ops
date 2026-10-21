@@ -16,11 +16,53 @@ def test_disabled_by_default(monkeypatch):
     assert MF.role_allowed("margot.casual") is False
 
 
-def test_margot_role_enabled_explicitly(monkeypatch):
+def test_listed_role_enabled_explicitly(monkeypatch):
+    monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+    monkeypatch.setenv("OMNIROUTE_ROLES", "planner")
+    assert MF.role_allowed("planner") is True
+    assert MF.role_allowed("generator") is False
+
+
+def test_default_roles_are_empty(monkeypatch):
+    monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+    monkeypatch.delenv("OMNIROUTE_ROLES", raising=False)
+    assert MF.allowed_roles() == set()
+
+
+def test_margot_casual_is_never_routed_even_when_listed(monkeypatch):
+    """Founder ruling 21/10/2026: margot.casual runs only on its ':free' ladder.
+    The Dockerfile still sets OMNIROUTE_ROLES=margot.casual and
+    OMNIROUTE_STRENGTHEN_MARGOT=smart; neither may reach a paid model."""
+    monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+    monkeypatch.setenv("OMNIROUTE_ROLES", "margot.casual,planner")
+    monkeypatch.setenv("OMNIROUTE_STRENGTHEN_MARGOT", "always")
+    assert MF.role_allowed("margot.casual") is False
+    assert "margot.casual" not in MF.allowed_roles()
+    monkeypatch.setattr(MF, "_get_json", lambda *a, **kw: (False, "offline"))
+    assert "margot.casual" not in MF.status_snapshot()["allowed_roles"]
+
+    def no_call(**kw):
+        raise AssertionError("margot.casual must not reach the fabric")
+
+    monkeypatch.setattr(MF, "_chat_once", no_call)
+    rc, text, _cost, error = MF.complete(prompt="fix the production issue", role="margot.casual")
+    assert (rc, text, error) == (1, "", "omniroute_role_not_enabled")
+
+
+def test_openrouter_adapter_never_hands_margot_casual_to_the_fabric(monkeypatch):
+    """The only caller of the fabric is provider_openrouter._try_model_fabric."""
+    import asyncio  # noqa: PLC0415
+    from app.server import provider_openrouter  # noqa: PLC0415
+
     monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
     monkeypatch.setenv("OMNIROUTE_ROLES", "margot.casual")
-    assert MF.role_allowed("margot.casual") is True
-    assert MF.role_allowed("planner") is False
+    reached: list = []
+    # Record rather than raise: _try_model_fabric swallows exceptions, so a
+    # raising fake would pass even when the fabric IS reached.
+    monkeypatch.setattr(MF, "complete", lambda **kw: reached.append(kw) or (0, "paid", 0.0, None))
+    assert asyncio.run(provider_openrouter._try_model_fabric(
+        "hi", "margot.casual", "", 5, 64)) is None
+    assert reached == []
 
 
 def test_default_founder_ladder_blocks_ollama_and_gemma(monkeypatch):
@@ -42,17 +84,13 @@ def test_env_ladder_filters_banned_models(monkeypatch):
     ]
 
 
-def test_ladder_falls_back_then_strengthens(monkeypatch):
+def test_ladder_falls_back_for_a_listed_role(monkeypatch):
     monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
-    monkeypatch.setenv("OMNIROUTE_ROLES", "margot.casual")
+    monkeypatch.setenv("OMNIROUTE_ROLES", "planner")
     monkeypatch.setenv(
-        "OMNIROUTE_MODELS_FOUNDER_CHAT",
+        "OMNIROUTE_MODELS_INTERNAL_WORK",
         "openrouter/free-one,openrouter/cheap-two",
     )
-    monkeypatch.setenv(
-        "OMNIROUTE_MODEL_STRENGTHEN", "openrouter/strong-reviewer"
-    )
-    monkeypatch.setenv("OMNIROUTE_STRENGTHEN_MARGOT", "always")
     monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
 
     calls: list[str] = []
@@ -63,23 +101,17 @@ def test_ladder_falls_back_then_strengthens(monkeypatch):
             return False, "", model, "openrouter", 10, "rate_limited"
         if model == "openrouter/cheap-two":
             return True, "draft answer", model, "openrouter", 20, None
-        if model == "openrouter/strong-reviewer":
-            return True, "strengthened answer", model, "openrouter", 30, None
         raise AssertionError(model)
 
     monkeypatch.setattr(MF, "_chat_once", fake_chat_once)
 
     rc, text, cost, error = MF.complete(
         prompt="Please fix and finalise the production issue",
-        role="margot.casual",
+        role="planner",
         session_id="test",
     )
-    assert (rc, text, cost, error) == (0, "strengthened answer", 0.0, None)
-    assert calls == [
-        "openrouter/free-one",
-        "openrouter/cheap-two",
-        "openrouter/strong-reviewer",
-    ]
+    assert (rc, text, cost, error) == (0, "draft answer", 0.0, None)
+    assert calls == ["openrouter/free-one", "openrouter/cheap-two"]
 
 
 def test_banned_strength_model_is_disabled(monkeypatch):

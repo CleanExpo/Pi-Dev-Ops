@@ -2,7 +2,7 @@
 """
 Pi-CEO Enhanced — Health Check & Telegram Alerting
 RA-640 | Runs every 5 minutes via launchd
-Checks: Ollama /api/tags + n8n /healthz
+Checks: n8n /healthz (the Ollama probe was removed with Ollama, 21/10/2026)
 
 Alert rules:
   - Only fires after 2 consecutive failures (avoids restart false positives)
@@ -21,7 +21,6 @@ TELEGRAM_BOT_TOKEN = os.environ.get("PICEO_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 TELEGRAM_CHAT_ID   = os.environ.get("PICEO_CHAT_ID",   "YOUR_CHAT_ID_HERE")
 
 SERVICES = {
-    "Ollama": "http://localhost:11434/api/tags",
     "n8n":    "http://localhost:5678/healthz",
 }
 

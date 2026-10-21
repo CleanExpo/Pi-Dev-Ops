@@ -51,11 +51,12 @@ cases:
     tier: mid
     provider: claude_print
     model_id: claude-sonnet-5
-  # Margot keeps its named ladder selection; OpenRouter execution stays blocked.
+  # Margot keeps its named ':free' ladder (founder ruling 21/10/2026). OpenRouter
+  # execution stays blocked for every role except margot.casual on an id ending ':free'.
   - role: margot.casual
     tier: cheap
     provider: openrouter
-    model_id: google/gemma-4-26b-a4b-it:free
+    model_id: nvidia/nemotron-3-super-120b-a12b:free
     not_anthropic: true
   # Other cheap roles use the subscription CLI, without a local probe or paid fallback.
   - role: intent_classify

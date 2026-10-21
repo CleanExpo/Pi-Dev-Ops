@@ -1,8 +1,9 @@
 """tests/test_provider_router_margot_casual_ladder.py — RA-7434.
 
 Founder ruling (03/09/2026): ``margot.casual`` (the Telegram persona) runs on a
-fixed free ladder — Ollama gemma4 → OpenRouter gemma free → OpenRouter GLM
-flash — never Kimi, never an Anthropic model. Every other role keeps the
+fixed free ladder — never Kimi, never an Anthropic model. Founder ruling
+(21/10/2026): "Remove Ollama entirely", "No Gemma"; the ladder is now OpenRouter
+nemotron-3-super :free → OpenRouter minimax-m3.1-flash :free → an error. Every other role keeps the
 resolution it had before this change, byte for byte; the snapshot test at the
 bottom is the control for that claim.
 """
@@ -135,68 +136,38 @@ def test_every_other_role_resolves_exactly_as_before_ra7434():
 # ── margot.casual: the free ladder ──────────────────────────────────────────
 
 FREE_LADDER = (
-    ("ollama", "gemma4:latest"),
-    ("openrouter", "google/gemma-4-26b-a4b-it:free"),
-    ("openrouter", "z-ai/glm-4.7-flash"),
+    ("openrouter", "nvidia/nemotron-3-super-120b-a12b:free"),
+    ("openrouter", "minimax/minimax-m3.1-flash:free"),
 )
 
 
 def test_ladder_is_exactly_the_founder_ruling():
+    """Pins the 21/10/2026 chain: two OpenRouter ':free' steps, nothing else."""
     assert MC.MARGOT_CASUAL_LADDER == FREE_LADDER
     for prov, model in MC.MARGOT_CASUAL_LADDER:
+        assert prov == "openrouter"
+        assert model.endswith(":free")
+        assert "gemma" not in model.lower()
         assert MC._margot_casual_refusal(prov, model) is None
 
 
-def test_step1_ollama_when_base_url_configured_and_reachable(monkeypatch):
+def test_step1_is_nemotron_free_even_when_a_local_model_is_up(monkeypatch):
+    """No local step: a reachable Ollama and a configured base URL change nothing."""
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.local:11434/v1")
+    monkeypatch.setenv("MARGOT_OLLAMA_BASE_URL", "http://margot-ollama:11434/v1")
     monkeypatch.setattr(_ollama_module(), "is_reachable", lambda **kw: True)
     pm = PR.select_provider_model("margot.casual")
-    assert (pm.provider, pm.model_id) == ("ollama", "gemma4:latest")
+    assert (pm.provider, pm.model_id) == FREE_LADDER[0]
     assert pm.source == "ladder-step-1"
     assert pm.tier == "cheap"
 
 
-def test_step1_prefers_margot_ollama_base_url_and_threads_it_to_the_call(monkeypatch, tmp_path):
-    from app.server import provider_policy
-    monkeypatch.setattr(provider_policy, "require_transport", lambda *a, **kw: {})
-    """Round-2 P1: Railway's start guard strips OLLAMA_BASE_URL from every work
-    lane, so step 1 has its own key. The probe AND the call must target it."""
-    import asyncio  # noqa: PLC0415
-    import types  # noqa: PLC0415
-    monkeypatch.setenv("BUDGET_TRACKER_LOG_PATH", str(tmp_path / "llm-cost.jsonl"))
-    monkeypatch.setenv("MARGOT_OLLAMA_BASE_URL", "http://margot-ollama:11434/v1")
-    seen: dict = {}
-
-    def is_reachable(**kw):
-        seen["probe"] = kw
-        return True
-
-    async def call(*, prompt, model_id, timeout_s=120, role="", session_id="", base_url=None):
-        seen["call"] = (model_id, base_url)
-        return 0, "hi from gemma", 0.0, None
-
-    monkeypatch.setitem(sys.modules, "app.server.provider_ollama",
-                        types.SimpleNamespace(is_reachable=is_reachable, call=call))
+def test_ladder_never_probes_a_local_model(monkeypatch):
+    def probe(**kw):
+        raise AssertionError("margot.casual must not probe a local model server")
+    monkeypatch.setattr(_ollama_module(), "is_reachable", probe)
     pm = PR.select_provider_model("margot.casual")
     assert pm.source == "ladder-step-1"
-    assert seen["probe"] == {"base_url": "http://margot-ollama:11434/v1"}
-    rc, text, _cost, _err = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
-    assert (rc, text) == (0, "hi from gemma")
-    assert seen["call"] == ("gemma4:latest", "http://margot-ollama:11434/v1")
-
-
-def test_step2_when_ollama_base_url_unset_even_if_probe_is_up(monkeypatch):
-    """Railway has no OLLAMA_BASE_URL; a stray localhost probe must not pick Ollama."""
-    monkeypatch.setattr(_ollama_module(), "is_reachable", lambda **kw: True)
-    pm = PR.select_provider_model("margot.casual")
-    assert (pm.provider, pm.model_id) == ("openrouter", "google/gemma-4-26b-a4b-it:free")
-    assert pm.source == "ladder-step-2"
-
-
-def test_step2_when_ollama_configured_but_unreachable(monkeypatch):
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.local:11434/v1")
-    pm = PR.select_provider_model("margot.casual")
-    assert pm.source == "ladder-step-2"
 
 
 def test_ladder_ignores_every_tao_cheap_knob(monkeypatch):
@@ -206,21 +177,21 @@ def test_ladder_ignores_every_tao_cheap_knob(monkeypatch):
     monkeypatch.setenv("TAO_CHEAP_LOCAL_MODEL", "qwen3.5:latest")
     monkeypatch.setenv("TAO_CHEAP_MODEL", "claude-haiku-4-5")
     pm = PR.select_provider_model("margot.casual")
-    assert (pm.provider, pm.model_id) == ("openrouter", "google/gemma-4-26b-a4b-it:free")
-    assert pm.source == "ladder-step-2"
+    assert (pm.provider, pm.model_id) == FREE_LADDER[0]
+    assert pm.source == "ladder-step-1"
 
 
-def test_override_env_is_honoured_when_free(monkeypatch):
-    monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", "openrouter:nvidia/nemotron-3-super-120b-a12b:free")
+def test_override_env_is_honoured_when_it_names_a_ladder_step(monkeypatch):
+    monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", "openrouter:minimax/minimax-m3.1-flash:free")
     pm = PR.select_provider_model("margot.casual")
-    assert (pm.provider, pm.model_id) == ("openrouter", "nvidia/nemotron-3-super-120b-a12b:free")
+    assert (pm.provider, pm.model_id) == FREE_LADDER[1]
     assert pm.source == "env:TAO_MODEL_MARGOT_CASUAL"
 
 
 def test_malformed_override_falls_to_ladder(monkeypatch):
     monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", "no-colon-here")
     pm = PR.select_provider_model("margot.casual")
-    assert pm.source == "ladder-step-2"
+    assert pm.source == "ladder-step-1"
 
 
 @pytest.mark.parametrize("spec", [

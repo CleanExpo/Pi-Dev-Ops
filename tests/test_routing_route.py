@@ -72,17 +72,18 @@ def test_routing_lists_every_role_with_provider_model_source(client):
     assert set(data["roles"]) == set(PR.ROLE_TIER)
     margot = data["roles"]["margot.casual"]
     assert margot["provider"] == "openrouter"
-    assert margot["model"] == "google/gemma-4-26b-a4b-it:free"
-    assert margot["source"] == "ladder-step-2"
+    assert margot["model"] == "nvidia/nemotron-3-super-120b-a12b:free"
+    assert margot["source"] == "ladder-step-1"
     assert margot["error"] is None
     planner = data["roles"]["planner"]
     assert planner["provider"] == "claude_print"
     assert planner["source"] == "code-default"
     assert data["margot_casual"]["ladder"] == [
-        "ollama:gemma4:latest",
-        "openrouter:google/gemma-4-26b-a4b-it:free",
-        "openrouter:z-ai/glm-4.7-flash",
+        "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
+        "openrouter:minimax/minimax-m3.1-flash:free",
     ]
+    assert "ollama_configured" not in data["margot_casual"]
+    assert "ollama_env" not in data["margot_casual"]
 
 
 def test_routing_source_names_the_env_var_that_decided(client, monkeypatch):

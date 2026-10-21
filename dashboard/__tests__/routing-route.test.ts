@@ -26,7 +26,7 @@ describe("GET /api/routing", () => {
       cost_source: null,
       cost_reason: "supabase not configured",
       roles: { planner: { provider: "anthropic", model: "claude-sonnet-5" } },
-      margot_casual: { ladder: [], ollama_configured: false },
+      margot_casual: { ladder: [], refused_markers: [] },
     };
     piCeoFetch.mockResolvedValue(
       new Response(JSON.stringify(payload), {

@@ -90,25 +90,19 @@ def test_run_via_provider_refusal_returns_error_tuple(monkeypatch, cost_log):
 
 def test_run_via_provider_walks_the_ladder_on_failure(monkeypatch, cost_log, isolated_policy):
     import asyncio  # noqa: PLC0415
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.local:11434/v1")
-    monkeypatch.setattr(_ollama_module(), "is_reachable", lambda **kw: True)
     calls: list = []
-    monkeypatch.setitem(sys.modules, "app.server.provider_ollama", _fake_provider(
-        "ollama", calls, [(1, "", 0.0, "ollama_call_raised: refused")]))
+    monkeypatch.setitem(sys.modules, "app.server.provider_ollama", _fake_provider("ollama", calls, []))
     monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", _fake_provider(
         "openrouter", calls, [(1, "", 0.0, "openrouter_http_429: free pool"), (0, "hello", 0.0, None)]))
-    # is_reachable lives on the real module we just shadowed — give the fake one too
-    sys.modules["app.server.provider_ollama"].is_reachable = lambda **kw: True
     rc, text, cost, err = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
     assert (rc, text, cost, err) == (0, "hello", 0.0, None)
     assert calls == [
-        ("ollama", "gemma4:latest"),
-        ("openrouter", "google/gemma-4-26b-a4b-it:free"),
-        ("openrouter", "z-ai/glm-4.7-flash"),
+        ("openrouter", "nvidia/nemotron-3-super-120b-a12b:free"),
+        ("openrouter", "minimax/minimax-m3.1-flash:free"),
     ]
     row = json.loads(cost_log.read_text().splitlines()[-1])
     assert (row["provider"], row["role"], row["model"], row["cost_usd"]) == (
-        "openrouter", "margot.casual", "z-ai/glm-4.7-flash", 0.0)
+        "openrouter", "margot.casual", "minimax/minimax-m3.1-flash:free", 0.0)
 
 
 def test_run_via_provider_ladder_exhausted_is_an_error_not_a_paid_fallback(monkeypatch, cost_log, isolated_policy):
@@ -120,7 +114,10 @@ def test_run_via_provider_ladder_exhausted_is_an_error_not_a_paid_fallback(monke
     rc, text, cost, err = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
     assert rc == 1
     assert err.startswith("margot_casual_ladder_exhausted:")
-    assert [c[0] for c in calls] == ["openrouter", "openrouter"]
+    assert calls == [
+        ("openrouter", "nvidia/nemotron-3-super-120b-a12b:free"),
+        ("openrouter", "minimax/minimax-m3.1-flash:free"),
+    ], "two free steps, then an error: no third step and no paid fallback"
 
 
 def test_run_via_provider_override_is_a_single_attempt(monkeypatch, cost_log, isolated_policy):
@@ -141,20 +138,33 @@ def isolated_policy(monkeypatch):
     monkeypatch.setattr(provider_policy, "require_transport", lambda *a, **kw: {})
 
 
-@pytest.mark.parametrize("override", [
-    "openrouter:google/gemma-4-26b-a4b-it:free",
-    "openrouter:z-ai/glm-4.7-flash",
-    "ollama:gemma4:latest",
+def test_ladder_passes_the_real_policy_and_reaches_openrouter(monkeypatch, cost_log):
+    """No isolated_policy here: the production transport policy must admit the
+    margot.casual ':free' ladder, or every Telegram turn fails closed."""
+    import asyncio  # noqa: PLC0415
+    calls: list = []
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", _fake_provider(
+        "openrouter", calls, [(0, "hello", 0.0, None)]))
+    rc, text, _cost, err = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
+    assert (rc, text, err) == (0, "hello", None)
+    assert calls == [("openrouter", "nvidia/nemotron-3-super-120b-a12b:free")]
+
+
+@pytest.mark.parametrize("model", [
+    "z-ai/glm-4.7-flash",
+    "minimax/minimax-m3.1-flash",
+    "nvidia/nemotron-3-super-120b-a12b:free:x",
 ])
-def test_ladder_policy_blocks_remote_transports_before_adapter(monkeypatch, override):
-    import asyncio
-    monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", override)
-    monkeypatch.setenv("MARGOT_OLLAMA_BASE_URL", "https://remote.invalid/v1")
-    calls = []
-    for provider in ("openrouter", "ollama"):
-        monkeypatch.setitem(sys.modules, f"app.server.provider_{provider}",
-                            _fake_provider(provider, calls, []))
-    rc, _, _, error = asyncio.run(PR.run_via_provider("hi", role="margot.casual"))
+def test_real_policy_blocks_a_paid_id_at_dispatch(monkeypatch, model):
+    """Second line of defence: even if a non-':free' id reached the dispatch
+    step, the transport policy refuses it before the adapter is called."""
+    import asyncio  # noqa: PLC0415
+    from app.server import provider_margot_casual as MC  # noqa: PLC0415
+    calls: list = []
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter",
+                        _fake_provider("openrouter", calls, []))
+    rc, _, _, error = asyncio.run(
+        MC._call_ladder_step("openrouter", model, "hi", timeout_s=5, session_id=""))
     assert rc == 1
     assert "subscription_only" in error
     assert calls == []
