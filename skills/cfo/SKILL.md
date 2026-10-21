@@ -74,7 +74,7 @@ Nothing is approved by an agent. Only Phill's own approval releases a spend.
 
 **Runtime gap (21/10/2026).** The flow above is the policy, not yet the code. In Pi-Dev-Ops,
 `swarm/cfo.py` `approve_spend` still auto-approves any amount at or under
-`AUTONOMOUS_SPEND_CEILING` ($1,000), `swarm/bots/cfo.py` then emits `cfo_invoice_approved`, and
+`AUTONOMOUS_SPEND_CEILING` ($1,000), `swarm/bots/cfo.py` then emits its invoice-approved event, and
 its gate-integration test in Pi-Dev-Ops expects that. Until Phill approves the runtime change, never
 treat an `approved` result from `approve_spend` as permission to spend: post the request to
 draft_review and wait for Phill.
