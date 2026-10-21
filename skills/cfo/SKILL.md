@@ -72,12 +72,11 @@ incoming spend request {amount_usd, vendor, business_id, justification}
 
 Nothing is approved by an agent. Only Phill's own approval releases a spend.
 
-**Runtime gap (21/10/2026).** The flow above is the policy, not yet the code. In Pi-Dev-Ops,
-`swarm/cfo.py` `approve_spend` still auto-approves any amount at or under
-`AUTONOMOUS_SPEND_CEILING` ($1,000), `swarm/bots/cfo.py` then emits its invoice-approved event, and
-its gate-integration test in Pi-Dev-Ops expects that. Until Phill approves the runtime change, never
-treat an `approved` result from `approve_spend` as permission to spend: post the request to
-draft_review and wait for Phill.
+**Runtime (21/10/2026).** `swarm/cfo.py` `approve_spend` has no ceiling: every amount goes to
+draft_review at reversibility "high" and returns `pending`, or `blocked` if the review ask was not
+delivered. `swarm/bots/cfo.py` only ever emits `cfo_spend_blocked`. Only a reaction from the Telegram
+user in `TAO_FOUNDER_TELEGRAM_USER_ID`, in the chat the draft was posted to, can release a spend; with
+that variable unset, nothing can be approved.
 
 ## Contract
 

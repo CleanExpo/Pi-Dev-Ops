@@ -46,7 +46,10 @@ This skill is the gate. It posts a draft to a private review chat (or a dedicate
    }
 
 4. The orchestrator's existing reaction listener (extended in Wave 2)
-   matches reactions on review_message_id:
+   matches reactions on review_message_id, counting only a reaction from the
+   Telegram user in `TAO_FOUNDER_TELEGRAM_USER_ID`, in the chat the draft was
+   posted to (anyone else's reaction is rejected and audited; with the variable
+   unset, no reaction decides anything):
    - 👍 → status=sent → call existing send_telegram() path → audit log
    - ❌ → status=revise → notify originating role, optionally Margot for re-research
    - ⏳ → status=deferred, expires_at extended +24h
@@ -69,7 +72,7 @@ This skill is the gate. It posts a draft to a private review chat (or a dedicate
 
 ## Where the review chat lives
 
-`REVIEW_CHAT_ID` is a new env var. Recommendation: a private 1:1 chat between Phill and Pi-CEO bot, separate from the existing swarm alert chat. Setting it up is a one-time config — flag if missing on first invocation.
+`REVIEW_CHAT_ID` is a new env var. Recommendation: a private 1:1 chat between Phill and Pi-CEO bot, separate from the existing swarm alert chat. Setting it up is a one-time config — flag if missing on first invocation. Each draft records the chat it was posted to, and the listener accepts reactions only there. `TAO_FOUNDER_TELEGRAM_USER_ID` (Phill's Telegram user id) must also be set, or no draft can be approved.
 
 ## When NOT to use this skill
 
