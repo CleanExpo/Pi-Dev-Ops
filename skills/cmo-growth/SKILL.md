@@ -19,10 +19,9 @@ Autonomous:
 - Compute + emit marketing metrics every cycle
 - Draft daily marketing brief (routes through pii-redactor + draft_review)
 - Alert on threshold breaches (also through draft_review)
-- Approve ad-spend up to $5,000/day (configurable via `TAO_CMO_ADSPEND_CEILING`)
 
 HITL (dual-key gate):
-- Ad-spend > $5,000/day on any single channel
+- Any ad-spend, at any amount (founder ruling 21/10/2026: nothing auto-approves)
 - Brand-message changes (tone, taglines, voice)
 - Pricing changes
 - New channel launch with budget > $10,000
@@ -61,10 +60,8 @@ read_marketing_provider()             ← thin abstraction (Google Ads + LinkedI
 
 ```
 incoming request {amount_usd_per_day, channel, business_id, justification}
-  → if amount_usd_per_day <= AUTONOMOUS_ADSPEND_CEILING_USD_PER_DAY:
-       emit cmo_adspend_approved → return approved
-  → else:
-       draft_review.post_draft(
+  → every amount, no ceiling:
+       draft_review.post_draft(reversibility="high",
          draft_text="📈 Ad-spend approval — ${amount}/day on {channel} ...",
          destination_chat_id=REVIEW_CHAT_ID,
          drafted_by_role="CMO")
@@ -90,7 +87,7 @@ Per-business:
 - ccw-crm:      $2,100 spend | L:C 3.1 | CPA $112 | top: linkedin 42%
 - ...
 
-📥 2 ad-spend approvals queued (>$5,000/day)
+📥 2 ad-spend approvals queued
 ```
 
 **Metric snapshot row** (per cycle, written to `.harness/swarm/cmo_state.jsonl`):
@@ -114,7 +111,7 @@ Per-business:
 ## Safety bindings
 
 - **Read-mostly.** CMO bot calls ad-platform APIs in *read* scope only. No campaign create/edit, no budget changes, no creative uploads without HITL.
-- **Ad-spend ceiling persisted** (`AUTONOMOUS_ADSPEND_CEILING_USD_PER_DAY = $5,000/day`). Editing requires user approval, audit-trailed.
+- **No ad-spend auto-approval.** Every amount waits for the founder via draft_review at reversibility "high" (a "low" draft would auto-send). No env var re-enables it.
 - **PII-redactor in front of every draft** — campaign names / customer-segment labels / partner names flow through pii-redactor at strictness=standard.
 - **24h alert dedup** — same breach won't re-fire within 24h (uses last-snapshot diff).
 - **Kill-switch aware.** On `TAO_SWARM_ENABLED=0`, the daily brief is queued (not sent) until resume.
@@ -130,7 +127,7 @@ Per-business:
 
 1. Synthetic data → LTV:CAC computed correctly (within ±0.05x of hand-calc)
 2. Top-channel share > 85% → critical alert fires
-3. $4,500/day ad-spend → auto-approves
+3. $4,500/day ad-spend → routes through draft_review, status `pending`, no real action
 4. $7,500/day ad-spend → routes through draft_review, status `pending`, no real action
 5. Daily brief assembles in <30s with all 11 businesses
 6. Brief posts through pii-redactor — sensitive segment names redacted if flagged

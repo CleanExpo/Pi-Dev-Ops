@@ -19,11 +19,10 @@ Autonomous:
 - Compute + emit CS metrics every cycle
 - Draft daily CS brief (routes through pii-redactor + draft_review)
 - Draft replies for inbound tickets (routes through telegram-draft-for-review — Scribe gate)
-- Approve refunds up to $100 (configurable via `TAO_CS_REFUND_CEILING`)
 - Alert on threshold breaches
 
 HITL (dual-key gate):
-- Refund > $100 (any single transaction)
+- Any refund, at any amount (founder ruling 21/10/2026: nothing auto-approves)
 - Public apology / postmortem
 - Service credits beyond standard SLA terms
 - Enterprise churn-save offer (any concession to a flagged customer)
@@ -50,10 +49,8 @@ HITL (dual-key gate):
 
 ```
 incoming refund request {amount_usd, customer_id, business_id, justification}
-  → if amount_usd <= AUTONOMOUS_REFUND_CEILING_USD ($100):
-       emit cs_refund_approved → return approved
-  → else:
-       draft_review.post_draft(
+  → every amount, no ceiling:
+       draft_review.post_draft(reversibility="high",
          draft_text="💬 Refund approval — ${amount} to {customer} ({biz})",
          destination_chat_id=REVIEW_CHAT_ID, drafted_by_role="CS")
        emit cs_refund_blocked (queued, awaiting reaction)
@@ -77,7 +74,7 @@ Per-business (worst NPS first):
 - synthex: NPS 12 | FCR 71% | GRR 84% | first-response 92m
 - ...
 
-📥 2 refund approvals queued (>$100)
+📥 2 refund approvals queued
 ```
 
 **Metric snapshot row** (per cycle, written to `.harness/swarm/cs_state.jsonl`):
@@ -97,7 +94,7 @@ Per-business (worst NPS first):
 ## Safety bindings
 
 - **All outbound replies route through telegram-draft-for-review (Scribe gate).** No autonomous send.
-- **Refund ceiling persisted** ($100). Editing requires user approval, audit-trailed.
+- **No refund auto-approval.** Every amount waits for the founder via draft_review at reversibility "high" (a "low" draft would auto-send). No env var re-enables it.
 - **PII-redactor in front of every draft** — customer names, emails, ticket IDs go through pii-redactor at strictness=standard.
 - **Enterprise churn threats are critical the moment they're opened** — escalates to founder via daily brief.
 - **Kill-switch aware.** On `TAO_SWARM_ENABLED=0`, the daily brief is queued (not sent).
@@ -114,7 +111,7 @@ Per-business (worst NPS first):
 2. GRR < 85% → critical alert fires
 3. First response > 240m → critical alert fires
 4. Open enterprise threats >= 3 → critical alert fires
-5. $50 refund → auto-approves
+5. $50 refund → routes through draft_review, status `pending`
 6. $200 refund without draft_review → blocked
 7. $200 refund with draft_review → pending, no real refund issued
 8. Daily brief assembles cleanly with all 11 businesses
