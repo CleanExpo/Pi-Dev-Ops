@@ -122,3 +122,20 @@ def test_verify_manifest_min_files(repo):
 
 def test_git_error_exits_2(repo):
     assert run("no-such-rev", "HEAD") == 2
+
+
+def test_rename_into_a_frozen_name_fails(repo, capsys):
+    r, base = repo
+    sh(r, "mv", "app/server/mesh_lanes.py", "app/server/tao_new.py")
+    assert run(base, commit(r, "rename open file into a frozen name")) == 1
+    assert "app/server/tao_new.py" in capsys.readouterr().out
+
+
+def test_no_manifest_at_either_end_passes(tmp_path, monkeypatch):
+    sh(tmp_path, "init", "-q")
+    write(tmp_path, "app/server/tao_loop.py", "x = 1\n")
+    base = commit(tmp_path, "base without a manifest")
+    write(tmp_path, "app/server/tao_loop.py", "x = 2\n")
+    head = commit(tmp_path, "edit, still no manifest")
+    monkeypatch.chdir(tmp_path)
+    assert run(base, head) == 0
