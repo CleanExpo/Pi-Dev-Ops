@@ -125,7 +125,7 @@ Action requests today:
 
 ## When NOT to use
 
-- Real-time treasury moves (wire transfers, FX hedging) — these need a human hand on the wheel; CFO bot escalates.
+- Real-time treasury moves (wire transfers, FX hedging) — these wait for Phill; CFO bot escalates.
 - IPO/buyout-stage SOX controls — that's the CCO bot's job (Wave 4 Phase B).
 - Cap-table changes — that's Head of IR (Wave 4 Phase B).
 

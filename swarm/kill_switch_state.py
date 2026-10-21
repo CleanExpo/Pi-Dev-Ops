@@ -117,12 +117,20 @@ def write_flag(tg_at: float | None = None) -> str:
 
     `tg_at` is the Telegram date of a /panic sent in Telegram, else None.
     Returns "engaged" or "already_engaged". Every panic changes the id, so no
-    resume observed before it can clear it."""
+    resume observed before it can clear it.
+
+    While already engaged the Telegram date never moves back: a panic with no
+    Telegram date (dashboard, API) keeps it None, so Telegram resumes stay
+    refused; otherwise the later date wins. A late-delivered older /panic
+    therefore cannot let an older /resume clear a newer stop."""
     flag = flag_path()
     action = "already_engaged" if flag.exists() else "engaged"
     tmp = flag.with_name(flag.name + ".tmp")
-    rec = {"id": uuid.uuid4().hex, "at": time.time(),
-           "tg_at": tg_at if tg_at is not None and _time(tg_at) else None}
+    new_tg = tg_at if tg_at is not None and _time(tg_at) else None
+    status, _, _, cur_tg = flag_state()
+    if status == "ok":
+        new_tg = None if cur_tg is None or new_tg is None else max(cur_tg, new_tg)
+    rec = {"id": uuid.uuid4().hex, "at": time.time(), "tg_at": new_tg}
     tmp.write_text(json.dumps(rec), encoding="utf-8")
     tmp.replace(flag)
     return action

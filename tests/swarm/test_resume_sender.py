@@ -224,6 +224,29 @@ def test_webhook_resume_is_dropped_when_the_draft_lock_is_broken(ks, monkeypatch
     assert ks.is_active()
 
 
+@pytest.mark.parametrize("path", PATHS)
+def test_delayed_telegram_panic_cannot_erase_a_newer_dashboard_panic(ks, monkeypatch, path):
+    # Codex on 69a8dfbb: a /panic dated before a dashboard stop, delivered after
+    # it, rewrote the flag with the older Telegram date; a resume dated after that
+    # old panic then cleared the dashboard stop too.
+    ks.trigger("dashboard_2fa", reason="dashboard stop", approvers=["a", "b"])
+    send = PATHS[path](monkeypatch)
+    send("/panic", T - 100, SENDERS["another_member"])
+    send("/resume", T - 99, {"from": FOUNDER_FROM})
+    assert ks.is_active()
+
+
+@pytest.mark.parametrize("path", PATHS)
+def test_delayed_telegram_panic_cannot_move_the_panic_date_back(ks, monkeypatch, path):
+    send = PATHS[path](monkeypatch)
+    send("/panic", T, {"from": FOUNDER_FROM})
+    send("/panic", T - 50, SENDERS["another_member"])  # older, delivered late
+    send("/resume", T - 40, {"from": FOUNDER_FROM})
+    assert ks.is_active()
+    send("/resume", T + 1, {"from": FOUNDER_FROM})
+    assert not ks.is_active()
+
+
 def test_handle_command_refuses_resume_by_default(ks):
     ks.handle_command("/panic", sent_at=float(T))
     assert ks.handle_command("/resume", observed_id=ks.panic_id(),

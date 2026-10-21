@@ -8,6 +8,7 @@ advertises an autonomous money threshold.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 
@@ -22,7 +23,7 @@ _MONEY = (r"\b(?:credit\w*|refund\w*|(?:ad-?\s?)?spend\w*|pay(?:s|ing|outs?|ment
           r"|reimburs\w*|invoic\w*"
           # Codex on b021085d: value handed out without being called money.
           r"|gift[-\s]?cards?|vouchers?|coupons?|rebates?|discounts?|fees?|waiv\w*"
-          r"|budget\w*|cash)\b")
+          r"|budget\w*|cash|money|funds?|transfer\w*)\b")
 # "No refund auto-approval" matches too: skill text states the rule positively
 # ("waits for Phill"), so a negation never has to be told apart from a grant.
 _UNGATED = (r"\b(?:automatic(?:ally)?|autonomously"
@@ -73,15 +74,40 @@ def offences(text: str) -> list[str]:
 # generated from these SKILL.md files (generated-agentskills gate), so this covers
 # their money-skill entries too; the manifests' other skills are not money skills.
 _GATE = re.compile(r"\b(?:phill\w*|founders?|waits?|pending|\w+_blocked|blocked)\b", re.I)
+# Telling Phill afterwards is not his approval (Codex on 69a8dfbb).
+_POSTHOC = re.compile(r"\b(?:after(?:wards?)?|then\s+(?:tells?|informs?|notif\w+|reports?)"
+                      r"|informs?|notif(?:y|ies)|lets\s+\w+\s+know|reports?\s+(?:it\s+)?to)\b", re.I)
 _AGENT_RE = re.compile(_AGENT, re.I)
 _MONEY_RE = re.compile(rf"{_MONEY}|[$€£¥]\s?\d", re.I)
+_ITEM = re.compile(r"(?:[-*+]|\d+[.)]|\||#)\s*")
+
+
+def _units(text: str) -> list[str]:
+    """Sentences, with wrapped lines rejoined and each list item, table row or
+    heading prefixed by the last line ending in ':' above it in its block."""
+    out: list[str] = []
+    head, buf = "", []
+    for line in [*text.splitlines(), ""]:
+        s = line.strip()
+        if buf and (not s or _ITEM.match(s)):
+            out += re.split(r"(?<=[.!?])\s+", " ".join(buf))
+            buf = []
+        if not s:
+            head = ""
+        elif _ITEM.match(s):
+            out += [f"{head} {x}".strip() for x in re.split(r"(?<=[.!?])\s+", s)]
+        else:
+            buf.append(s)
+        if s.endswith(":"):
+            head = " ".join(buf) or s
+    return out
 
 
 def ungated_money_sentences(text: str) -> list[str]:
-    """Sentences naming an agent and money but not the founder gate."""
-    sentences = re.split(r"(?<=[.!?])\s+|\n", text)
-    return [x.strip() for x in sentences
-            if _AGENT_RE.search(x) and _MONEY_RE.search(x) and not _GATE.search(x)]
+    """Sentences naming an agent and money but not a prior founder gate."""
+    return [x.strip() for x in _units(text)
+            if _AGENT_RE.search(x) and _MONEY_RE.search(x)
+            and (not _GATE.search(x) or _POSTHOC.search(x))]
 
 
 @pytest.mark.parametrize("skill", MONEY_SKILLS)
@@ -198,6 +224,13 @@ def test_every_agent_money_sentence_names_the_founder_gate(skill):
     "The CFO settles supplier invoices on receipt.",
     "Agents top up ad budgets when CPA is under target.",
     "CFO signs off invoices under the $1,000 gate.",  # "gate" is not the founder gate
+    # Codex on 69a8dfbb: the founder told afterwards, money/funds, line breaks.
+    "The CFO settles supplier invoices on receipt and informs Phill afterward.",
+    "The CFO pays vendors, then tells Phill.",
+    "The agent transfers money to vendors on receipt.",
+    "The bot moves funds between accounts.",
+    "CFO approves:\n- supplier invoices below $1,000.",
+    "The CFO settles supplier\ninvoices on receipt.",
 ])
 def test_ungated_agent_money_sentence_is_caught(grant):
     assert ungated_money_sentences(grant)
@@ -210,3 +243,30 @@ def test_ungated_agent_money_sentence_is_caught(grant):
 ])
 def test_gated_agent_money_sentence_is_allowed(ok):
     assert ungated_money_sentences(ok) == []
+
+
+# Codex rounds 10-15 kept finding wordings no detector covered, and imperative
+# skill text ("Settle supplier invoices on receipt.") names no agent at all. So
+# the money skills are also PINNED: any edit fails here until the digest below is
+# updated in the same diff, which puts every changed money sentence in front of
+# the release review. The manifests are generated from these files (the
+# generated-agentskills gate keeps them in step).
+PINNED_SHA256 = {
+    "cfo": "85cf5491bee02bd107bb6b3bec5c919d1dbf5fea7f08fd1d186fde22dabfba18",
+    "cmo-growth": "c4ee28966c229a696280613ab893d907ff52e94091fe231a5be86bece2107033",
+    "cs-tier1": "1590e027bb69842c9a104d712bf4227f1d9f1f61068488b6a5e92290f713ae75",
+    "telegram-draft-for-review": "92c83dd21341c3c9e23b9b57a69ebb3722cacf9dbada1c3a3bf2aa8b4a9480b5",
+}
+
+
+def test_every_money_skill_is_pinned():
+    assert set(PINNED_SHA256) == set(MONEY_SKILLS)
+
+
+@pytest.mark.parametrize("skill", MONEY_SKILLS)
+def test_money_skill_text_is_unchanged_since_review(skill):
+    digest = hashlib.sha256((ROOT / "skills" / skill / "SKILL.md").read_bytes()).hexdigest()
+    assert digest == PINNED_SHA256[skill], (
+        f"skills/{skill}/SKILL.md changed: check every money sentence against the founder "
+        "ruling (every spend, refund, credit and payment waits for Phill), then update "
+        "PINNED_SHA256 in this file in the same commit")
