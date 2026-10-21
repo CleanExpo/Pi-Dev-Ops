@@ -53,8 +53,6 @@ _STUBS = ("sudo", "pmset", "launchctl", "curl", "open", "ollama", "pgrep", "slee
 
 def _run_sandboxed(script: str, tmp_path) -> list[str]:
     """Run a repo shell script with a temp HOME and fake commands first on PATH."""
-    import os  # noqa: PLC0415
-    import subprocess  # noqa: PLC0415
     from pathlib import Path  # noqa: PLC0415
     root = Path(__file__).resolve().parents[2]
     home, fake, log = tmp_path / "home", tmp_path / "bin", tmp_path / "calls.log"
@@ -74,20 +72,46 @@ def _run_sandboxed(script: str, tmp_path) -> list[str]:
         stub.write_text(f'#!/bin/sh\n{delay}echo "{name} $*" >> "{log}"\n{extra}exit {rc}\n')
         stub.chmod(0o755)
     env = {"HOME": str(home), "PATH": f"{fake}:/usr/bin:/bin", "TERM": "dumb"}
-    # The installer backgrounds `ollama serve`, so the script can exit before that stub has
-    # logged (main CI, 82096e66). Every descendant inherits this pipe's write end; reading it
-    # to EOF waits until the last of them has exited, however slow.
+    rc, out = _run_and_wait_for_descendants(["/bin/bash", str(root / script)], env, tmp_path)
+    assert rc == 0, out
+    return log.read_text().splitlines() if log.exists() else []
+
+
+def _run_and_wait_for_descendants(cmd: list[str], env: dict, cwd, timeout: float = 60.0):
+    """Run cmd, then wait for every process it left behind, all within one deadline.
+
+    The installer backgrounds `ollama serve`, so the script can exit before that stub has
+    logged (main CI, 82096e66). Every descendant inherits this pipe's write end, so EOF on
+    the read end means every one of them has closed it. A holder that outlives the deadline
+    has its whole process group killed and fails the test (Codex review of c2b39b9a).
+    """
+    import os  # noqa: PLC0415
+    import select  # noqa: PLC0415
+    import signal  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+    import time  # noqa: PLC0415
+    deadline = time.monotonic() + timeout
     done_r, done_w = os.pipe()
     with os.fdopen(done_r, "rb") as done:
         try:
-            r = subprocess.run(["/bin/bash", str(root / script)], env=env, cwd=tmp_path,
-                               capture_output=True, text=True, timeout=60,
-                               stdin=subprocess.DEVNULL, pass_fds=(done_w,))
+            proc = subprocess.Popen(cmd, env=env, cwd=cwd, stdin=subprocess.DEVNULL,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                    pass_fds=(done_w,), start_new_session=True)
         finally:
             os.close(done_w)
-        done.read()
-    assert r.returncode == 0, r.stdout + r.stderr
-    return log.read_text().splitlines() if log.exists() else []
+        try:
+            out, _ = proc.communicate(timeout=timeout)
+            ready, _, _ = select.select([done], [], [], max(0.0, deadline - time.monotonic()))
+            if not ready:
+                raise TimeoutError(f"a descendant of {cmd} still held the pipe after {timeout}s")
+            done.read()
+        finally:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):  # group already empty
+                pass
+            proc.wait()
+    return proc.returncode, out
 
 
 def test_watchdog_setup_still_loads_the_ollama_relaunch_agent(tmp_path):
