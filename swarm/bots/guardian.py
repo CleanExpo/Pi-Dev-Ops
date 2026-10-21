@@ -2,12 +2,16 @@
 swarm/bots/guardian.py — RA-650: Guardian Bot.
 
 Responsibilities:
-  - Monitor swarm health (bot cycle times, error rates)
+  - Monitor swarm health (Ollama liveness, bot cycle times, error rates)
   - Enforce the kill-switch (TAO_SWARM_ENABLED) and auto-suspend logic
   - Escalate to Telegram on CRITICAL/HIGH events
   - Log all observations to .harness/swarm/guardian.jsonl
 
 Shadow mode: observes and reports, does NOT take any remediation actions.
+
+The Ollama probe stays until stage 2 of the Ollama removal (founder ruling
+21/10/2026): the swarm bots still call swarm.ollama_client, so a down daemon
+is still an outage. Margot's casual chat no longer uses Ollama.
 """
 from __future__ import annotations
 
@@ -19,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .. import config
-from ..ollama_client import chat
+from ..ollama_client import chat, health_check, list_models
 from ..telegram_alerts import send
 
 log = logging.getLogger("swarm.guardian")
@@ -77,15 +81,40 @@ def _save_last_sig(sig: str) -> None:
         log.warning("guardian: could not persist escalation signature: %s", exc)
 
 
+# A single Ollama liveness check can be a stale/momentary read (e.g. the
+# daemon hasn't finished starting after the Mac woke from sleep, or one
+# `GET /api/tags` call raced a restart). Require the outage to be confirmed
+# across consecutive cycles before paging CRITICAL, instead of trusting one
+# stale sample.
+OLLAMA_DOWN_CONFIRM_STREAK = 2
+
+
+def _ollama_streak_path() -> Path:
+    return config.SWARM_LOG_DIR / "guardian_ollama_streak.json"
+
+
+def _load_ollama_streak() -> int:
+    try:
+        return int(json.loads(_ollama_streak_path().read_text(encoding="utf-8")).get("streak", 0))
+    except Exception:
+        return 0
+
+
+def _save_ollama_streak(streak: int) -> None:
+    try:
+        _ollama_streak_path().write_text(json.dumps({"streak": streak}), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("guardian: could not persist ollama streak: %s", exc)
+
+
 def run_cycle(unacked_count: int) -> dict:
     """Execute one Guardian observation cycle.
 
     Checks:
-      1. Unacknowledged iteration count vs MAX_UNACKED_ITERATIONS
-      2. .harness/ log file recency (builder/scribe activity)
-
-    The Ollama liveness and model-presence checks were removed with Ollama
-    (founder ruling 21/10/2026); a missing daemon is no longer an outage.
+      1. Ollama service liveness
+      2. All required bot models are available
+      3. Unacknowledged iteration count vs MAX_UNACKED_ITERATIONS
+      4. .harness/ log file recency (builder/scribe activity)
 
     Args:
         unacked_count: Current count of consecutive unacknowledged iterations.
@@ -97,7 +126,30 @@ def run_cycle(unacked_count: int) -> dict:
     critical_flags: list[str] = []
     high_flags: list[str] = []
 
-    # 1 — Unacknowledged iteration count.
+    # 1 — Ollama liveness
+    available_models = list_models()
+    if not available_models:
+        streak = _load_ollama_streak() + 1
+        _save_ollama_streak(streak)
+        if streak >= OLLAMA_DOWN_CONFIRM_STREAK:
+            critical_flags.append("Ollama not responding — swarm LLM backend is DOWN")
+        else:
+            observations.append(
+                f"Ollama check failed ({streak}/{OLLAMA_DOWN_CONFIRM_STREAK}) — "
+                "treating as a possibly-stale read, confirming before escalating"
+            )
+    else:
+        _save_ollama_streak(0)
+        observations.append(f"Ollama live — {len(available_models)} model(s) available")
+
+    # 2 — Required models present
+    for bot, model in config.BOT_MODELS.items():
+        if available_models and model not in available_models:
+            high_flags.append(f"Model for {bot} bot missing: {model}")
+        elif available_models:
+            observations.append(f"{bot.capitalize()} model OK: {model}")
+
+    # 3 — Unacknowledged iteration count.
     # Phill explicitly silenced the "Approaching auto-suspend" warning
     # 2026-05-12 — it was firing every 5min cycle from ~iter 202 onward
     # (70% threshold) which was pure Telegram noise during autonomous
@@ -114,7 +166,7 @@ def run_cycle(unacked_count: int) -> dict:
             f"Unacked iterations: {unacked_count}/{config.MAX_UNACKED_ITERATIONS}"
         )
 
-    # 2 — .harness/ recency check (are Pi-CEO logs being written?)
+    # 4 — .harness/ recency check (are Pi-CEO logs being written?)
     latest_md = Path(config.SWARM_LOG_DIR).parent / "LATEST.md"
     if latest_md.exists():
         age_s = time.time() - latest_md.stat().st_mtime
@@ -178,7 +230,7 @@ def run_cycle(unacked_count: int) -> dict:
     _log_observation(result)
 
     # Escalate via Telegram for high/critical — but only when the situation
-    # CHANGES. A persistent condition (e.g. stale logs) must not
+    # CHANGES. A persistent condition (e.g. Ollama down, stale logs) must not
     # re-page every 5-min cycle: Guardian logged 632 identical CRITICAL pings
     # that way and the founder asked for it to stop (2026-06-15). Edge-trigger
     # on the underlying flag signature, not the severity level.

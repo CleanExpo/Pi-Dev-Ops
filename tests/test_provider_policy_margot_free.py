@@ -99,3 +99,56 @@ def test_openrouter_adapter_passes_role_and_model_to_the_policy(monkeypatch):
     assert paid[0] == 1 and "subscription_only" in paid[3]
     assert seen == [("openrouter", "margot.casual", FREE_ID), ("openrouter", "monitor", FREE_ID)]
 
+
+
+@pytest.mark.parametrize("model_id", [
+    "vendor/nonladder:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "z-ai/glm-4.5-air:free",
+])
+def test_an_off_ladder_free_id_is_blocked_for_margot_casual(model_id):
+    """A ':free' suffix is necessary, not sufficient: only the two ladder ids pass."""
+    with pytest.raises(policy.ProviderPolicyError, match="paid or unverified transport blocked"):
+        policy.require_transport("openrouter", role="margot.casual", model_id=model_id)
+
+
+def test_both_ladder_ids_are_allowed():
+    from app.server.provider_margot_casual import MARGOT_CASUAL_LADDER  # noqa: PLC0415
+    assert len(MARGOT_CASUAL_LADDER) == 2
+    for _provider, model_id in MARGOT_CASUAL_LADDER:
+        assert policy.require_transport("openrouter", role="margot.casual",
+                                        model_id=model_id)["billing_class"] == "free"
+
+
+def test_tier0_override_cannot_dispatch_an_off_ladder_free_id(monkeypatch):
+    """Codex repro on 6231afc4: TAO_TIER0_FREE_CHAIN pointed at an off-ladder ':free'
+    id and run_tier0(role="margot.casual") POSTed it. No OpenRouter request may leave.
+    (The chain's later local lane is stage-2 Ollama and out of scope here.)"""
+    import httpx  # noqa: PLC0415
+    from app.server import tier0_runner  # noqa: PLC0415
+
+    monkeypatch.setenv("TAO_TIER0_FREE_CHAIN", "vendor/nonladder:free")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "review-stub")
+    posted: list = []
+
+    class _Client:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def post(self, url, **kw):
+            if "openrouter" in url:
+                posted.append(kw.get("json", {}).get("model"))
+            raise RuntimeError("no network in this test")
+
+    monkeypatch.setattr(httpx, "Client", _Client)
+    result = asyncio.run(tier0_runner.run_tier0("hi", role="margot.casual"))
+    assert posted == []
+    assert result.ok is False
+    assert any(a.model_id == "vendor/nonladder:free" and "subscription_only" in (a.error or "")
+               for a in result.attempts)

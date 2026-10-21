@@ -34,9 +34,10 @@ def check_claude_configuration(env: dict[str, str] | None = None) -> None:
 
 
 # The one OpenRouter use this boundary admits (founder ruling 21/10/2026): the
-# margot.casual role on a model id that ends ":free". Exact role match, exact
-# suffix match, no normalisation. Every other role, and every other id, is
-# blocked exactly as before.
+# margot.casual role on one of the two ladder ids in provider_margot_casual,
+# each of which ends ":free". Exact role match, exact id match, no
+# normalisation. A ":free" id off the ladder (e.g. from a tier-0 env override)
+# is blocked, as is every other role and id.
 FREE_OPENROUTER_ROLE = "margot.casual"
 FREE_OPENROUTER_SUFFIX = ":free"
 
@@ -68,8 +69,11 @@ def _require_local(endpoint_url):
 
 
 def _is_free_openrouter_margot(role, model_id) -> bool:
-    return (role == FREE_OPENROUTER_ROLE and isinstance(model_id, str)
-            and model_id.endswith(FREE_OPENROUTER_SUFFIX))
+    if role != FREE_OPENROUTER_ROLE or not isinstance(model_id, str):
+        return False
+    from .provider_margot_casual import MARGOT_CASUAL_LADDER  # noqa: PLC0415
+    ladder = {m for prov, m in MARGOT_CASUAL_LADDER if prov == "openrouter"}
+    return model_id in ladder and model_id.endswith(FREE_OPENROUTER_SUFFIX)
 
 
 def _require_codex():
