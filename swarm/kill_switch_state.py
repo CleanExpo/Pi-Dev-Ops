@@ -67,7 +67,16 @@ def _time(v: object) -> bool:
 def _parse(raw: bytes) -> tuple[str, float, float | None] | None:
     """(id, unix time, Telegram date or None) from the flag's bytes, or None
     when malformed: undecodable bytes, a non-object, an empty id, or a time
-    that is not a finite positive number (NaN and infinity included)."""
+    that is not a finite positive number (NaN and infinity included). Numbers
+    too large for a float and nesting too deep for json are malformed too:
+    reading the flag never raises, so a /panic can always rewrite it."""
+    try:
+        return _parse_unchecked(raw)
+    except (OverflowError, RecursionError, ValueError, TypeError):
+        return None
+
+
+def _parse_unchecked(raw: bytes) -> tuple[str, float, float | None] | None:
     try:
         text = raw.decode("utf-8").strip()
         rec = json.loads(text)

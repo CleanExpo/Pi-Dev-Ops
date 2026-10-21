@@ -155,6 +155,14 @@ def test_concurrent_panics_engage_the_escalation_lock_at_the_limit(ks, monkeypat
 
 # ── Codex round on da78588f ──────────────────────────────────────────────────
 
+# Codex on f982abe2: numbers too large for a float, and nesting too deep for
+# json, raised instead of reading as unreadable, so /panic could not repair them.
+_OVERSIZED = {
+    "huge_tg_at": b'{"id": "x", "at": 1, "tg_at": ' + b"9" * 1000 + b"}",
+    "huge_at": b'{"id": "x", "at": ' + b"9" * 1000 + b"}",
+    "deep_nesting": b'{"id": "x", "at": 1, "n": ' + b"[" * 100_000 + b"]" * 100_000 + b"}",
+}
+
 @pytest.mark.parametrize("raw", [
     b'{"id": "panic", "at": NaN}', b'{"id": "panic", "at": -Infinity}',
     b'{"id": "panic", "at": Infinity}', b'{"id": "panic", "at": "NaN"}',
@@ -162,6 +170,7 @@ def test_concurrent_panics_engage_the_escalation_lock_at_the_limit(ks, monkeypat
     b'{"id": 7, "at": 5}', b'["panic", 5]', b"\xff\xfe", b"",
     b'{"id": "p", "at": 5, "tg_at": "x"}', b'{"id": "p", "at": 5, "tg_at": NaN}',
     b'{"id": "p", "at": 5, "tg_at": 0}',
+    *[pytest.param(r, id=i) for i, r in _OVERSIZED.items()],
 ])
 def test_malformed_flag_refuses_resume(ks, raw):
     _flag().parent.mkdir(parents=True, exist_ok=True)
@@ -173,17 +182,21 @@ def test_malformed_flag_refuses_resume(ks, raw):
     assert ks.is_active()
 
 
-def _telegram(ks, monkeypatch):
+def _telegram(ks, monkeypatch, raw=b"\xff"):
     import app.server.config as cfg
     monkeypatch.setattr(cfg, "TELEGRAM_BOT_TOKEN", "bot-token")
     monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
     _flag().parent.mkdir(parents=True, exist_ok=True)
-    _flag().write_bytes(b"\xff")
+    _flag().write_bytes(raw)
 
 
-def test_webhook_panic_rewrites_an_undecodable_flag(ks, monkeypatch):
+_REPAIRABLE = [b"\xff", *_OVERSIZED.values()]
+
+
+@pytest.mark.parametrize("raw", _REPAIRABLE, ids=["undecodable", *_OVERSIZED])
+def test_webhook_panic_rewrites_an_undecodable_flag(ks, monkeypatch, raw):
     from app.server.routes.webhooks import router
-    _telegram(ks, monkeypatch)
+    _telegram(ks, monkeypatch, raw)
     app = FastAPI()
     app.include_router(router)
     resp = TestClient(app).post(
@@ -193,11 +206,12 @@ def test_webhook_panic_rewrites_an_undecodable_flag(ks, monkeypatch):
     assert ks.panic_id() not in ("", ks.UNREADABLE)
 
 
-def test_poller_panic_rewrites_an_undecodable_flag(ks, monkeypatch):
+@pytest.mark.parametrize("raw", _REPAIRABLE, ids=["undecodable", *_OVERSIZED])
+def test_poller_panic_rewrites_an_undecodable_flag(ks, monkeypatch, raw):
     import json
     import urllib.request
     from swarm.bots import chief_of_staff
-    _telegram(ks, monkeypatch)
+    _telegram(ks, monkeypatch, raw)
     body = json.dumps({"ok": True, "result": [
         {"update_id": 1, "message": {"text": "/panic", "chat": {"id": 123}}}]}).encode()
 
