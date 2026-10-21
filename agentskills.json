@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.25.19",
-    "generated_at": "2026-10-21T05:01:34.294093+00:00",
+    "version": "1.25.20",
+    "generated_at": "2026-10-21T06:58:50.497066+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -444,7 +444,7 @@
       "owner_role": "CFO",
       "status": "wave-4",
       "path": "skills/cfo/SKILL.md",
-      "sha256": "ceeb0a1ad16f4f2bb85107e12f561ec4f51f8a5e83c41b26f73cadf0aaf76df3",
+      "sha256": "89db9c02ad4e78c2da2bbf8b507fa6fb51d59df860914c209019ff8abadbf164",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -592,7 +592,7 @@
       "owner_role": "CMO",
       "status": "wave-4",
       "path": "skills/cmo-growth/SKILL.md",
-      "sha256": "80a99b27cab7c1f5e6fbd59143fe28aa73e5cfca72b4dcfa7b353a342ef2fa4c",
+      "sha256": "c4ee28966c229a696280613ab893d907ff52e94091fe231a5be86bece2107033",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -780,7 +780,7 @@
       "owner_role": "CS",
       "status": "wave-4",
       "path": "skills/cs-tier1/SKILL.md",
-      "sha256": "79aaa0c4fcaaa83eeea2e42883806dcab3a07c085f0e430acead533ccf174cfa",
+      "sha256": "d73c9347e3356861e39493c19a70687cf17422fe4f3850a4e77cbe82bba8ea09",
       "dependencies": {
         "tools": [],
         "skills": []
