@@ -11,6 +11,8 @@ sys.modules, and the route imports whatever is current at call time.
 from __future__ import annotations
 
 import importlib
+import itertools
+import json
 
 import pytest
 from fastapi import FastAPI
@@ -34,9 +36,9 @@ def _client() -> TestClient:
 @pytest.fixture
 def env(monkeypatch, tmp_path):
     import app.server.config as cfg
-    audit_emit, cfo, draft_review, review_authority, swarm_config = (
+    cfo, draft_review, review_authority, swarm_config = (
         importlib.import_module(f"swarm.{m}")
-        for m in ("audit_emit", "cfo", "draft_review", "review_authority", "config"))
+        for m in ("cfo", "draft_review", "review_authority", "config"))
 
     monkeypatch.setattr(cfg, "TELEGRAM_BOT_TOKEN", "bot-token")
     monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
@@ -47,7 +49,8 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setenv("REVIEW_CHAT_ID", REVIEW_CHAT)
     monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
     monkeypatch.setenv(review_authority.FOUNDER_TELEGRAM_USER_ID_ENV, FOUNDER)
-    monkeypatch.setattr(audit_emit, "row", lambda *a, **k: None)
+    for var in ("LANGFUSE_HOST", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"):
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(draft_review, "_post_review_message", lambda text: "555")
     sends: list[str] = []
     monkeypatch.setattr(draft_review, "_do_send", lambda rec: sends.append(rec["draft_id"]) or True)
@@ -57,11 +60,14 @@ def env(monkeypatch, tmp_path):
     return d.draft_id, sends
 
 
-def _post(*, user, chat=REVIEW_CHAT, secret="hook-secret"):
+_UPDATE_IDS = itertools.count(1)  # each call is a new Telegram update unless replayed
+
+
+def _post(*, user, chat=REVIEW_CHAT, secret="hook-secret", update_id=None):
     return _client().post(
         "/webhook/telegram",
         headers={"X-Telegram-Bot-Api-Secret-Token": secret},
-        json={"update_id": 1, "message_reaction": {
+        json={"update_id": update_id or next(_UPDATE_IDS), "message_reaction": {
             "chat": {"id": int(chat)}, "message_id": 555, "user": {"id": int(user)},
             "new_reaction": [{"type": "emoji", "emoji": "👍"}]}},
     )
@@ -108,7 +114,7 @@ def _post_raw_user(user_id):
     return _client().post(
         "/webhook/telegram",
         headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
-        json={"update_id": 1, "message_reaction": {
+        json={"update_id": next(_UPDATE_IDS), "message_reaction": {
             "chat": {"id": int(REVIEW_CHAT)}, "message_id": 555, "user": {"id": user_id},
             "new_reaction": [{"type": "emoji", "emoji": "👍"}]}},
     )
@@ -128,5 +134,54 @@ def test_padded_founder_env_by_webhook_does_nothing(env, monkeypatch, padded):
 def test_padded_reactor_id_by_webhook_does_nothing(env, padded):
     draft_id, sends = env
     assert _post_raw_user(padded).status_code == 200
+    assert _status(draft_id) == "pending"
+    assert sends == []
+
+
+# Security bench on ef4819fa ─────────────────────────────────────────────────
+
+def _audit_types():
+    p = importlib.import_module("swarm.config").SWARM_LOG_DIR / "swarm.jsonl"
+    return [json.loads(line)["type"] for line in p.read_text().splitlines()] if p.exists() else []
+
+
+def test_rejected_reaction_by_webhook_is_audited_not_a_500(env):
+    """The real audit_emit.row once raised on draft_reaction_rejected, so a
+    non-founder 👍 by webhook returned 500."""
+    draft_id, sends = env
+    assert _post(user=OTHER).status_code == 200
+    assert "draft_reaction_rejected" in _audit_types()
+    assert _status(draft_id) == "pending"
+    assert sends == []
+
+
+def test_replayed_webhook_update_cannot_re_approve(env):
+    """A 👍 deferred by the kill switch, replayed after /resume with the same
+    or an older update_id, must not send. A new update still can."""
+    draft_id, sends = env
+    ks = importlib.import_module("swarm.kill_switch")
+    ks.trigger("telegram_panic", reason="test")
+    assert _post(user=FOUNDER, update_id=10_000).status_code == 200
+    assert _status(draft_id) == "deferred"
+    ks.resume("test", reason="test", confirmed=True)
+    for replay in (10_000, 9_999):
+        assert _post(user=FOUNDER, update_id=replay).status_code == 200
+    assert _status(draft_id) == "deferred"
+    assert sends == []
+    assert _post(user=FOUNDER, update_id=10_001).status_code == 200
+    assert _status(draft_id) == "sent"
+    assert sends == [draft_id]
+
+
+@pytest.mark.parametrize("update_id", [None, "10", True, 1.5])
+def test_webhook_reaction_without_an_integer_update_id_is_dropped(env, update_id):
+    draft_id, sends = env
+    resp = _client().post(
+        "/webhook/telegram",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
+        json={"update_id": update_id, "message_reaction": {
+            "chat": {"id": int(REVIEW_CHAT)}, "message_id": 555, "user": {"id": int(FOUNDER)},
+            "new_reaction": [{"type": "emoji", "emoji": "👍"}]}})
+    assert resp.status_code == 200
     assert _status(draft_id) == "pending"
     assert sends == []

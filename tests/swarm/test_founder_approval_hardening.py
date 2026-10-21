@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import pytest
 
-from swarm import audit_emit, config, draft_review, review_authority
+from swarm import config, draft_review, review_authority
 from swarm.bots import chief_of_staff
 
 import test_founder_approval_path as base
 from test_founder_approval_path import (
-    ALERT_CHAT, FOUNDER, REVIEW_CHAT, _cfo_pending, _reaction_update, _status)
+    ALERT_CHAT, FOUNDER, REVIEW_CHAT, _audit_types, _cfo_pending, _reaction_update, _status)
 
 env = base.env  # the shared fixture, registered in this module too
 
@@ -28,16 +28,14 @@ def _legacy_pending(env):
     return d
 
 
-def test_draft_without_recorded_chat_never_approves(env, monkeypatch):
+def test_draft_without_recorded_chat_never_approves(env):
     d = _legacy_pending(env)
-    rejected = []
-    monkeypatch.setattr(audit_emit, "row", lambda ev, *a, **k: rejected.append(ev))
     for chat in (REVIEW_CHAT, ALERT_CHAT):
         env.updates = [_reaction_update(1, chat=chat, user=FOUNDER)]
         chief_of_staff._poll_telegram(0)
     assert _status(d.draft_id) == "pending"
     assert env.sends == []
-    assert "draft_reaction_rejected" in rejected
+    assert "draft_reaction_rejected" in _audit_types()
 
 
 @pytest.mark.parametrize("bad", ["None", "null", "0", "-5", "12a", "+8000001", "8000001.0", "1" * 21, "abc"])

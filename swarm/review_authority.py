@@ -16,6 +16,7 @@ draft_review.mark_reaction, so this module binds that decision:
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -55,21 +56,76 @@ def review_chat_id() -> str:
     return str(os.environ.get("REVIEW_CHAT_ID") or config.TELEGRAM_CHAT_ID or "")
 
 
+def added_emoji(reaction: dict[str, Any]) -> list[str]:
+    """Review emoji in new_reaction that were not in old_reaction, in order.
+
+    A 👍 still on the card (say, from before a kill-switch deferral) is in both
+    lists, so adding or removing another emoji never re-fires it."""
+    def emoji(key: str) -> list[str]:
+        return [r.get("emoji", "") for r in reaction.get(key) or [] if isinstance(r, dict)]
+    old = set(emoji("old_reaction"))
+    return [e for e in dict.fromkeys(emoji("new_reaction")) if e in REACTION_EMOJI and e not in old]
+
+
 def forward_reaction(reaction: dict[str, Any]) -> None:
-    """Pass a Telegram message_reaction to draft_review with its chat and actor."""
+    """Pass each emoji the reactor just added to draft_review, with chat and actor.
+
+    Never raises: a failure is logged and audited, so the poller still writes
+    its offset (and reaches /panic later in the batch) and the webhook answers."""
     from . import draft_review
     msg_id = str(reaction.get("message_id", ""))
     chat_id = str((reaction.get("chat") or {}).get("id", ""))
     actor_id = telegram_user_id((reaction.get("user") or {}).get("id"))
     if not (msg_id and chat_id):
         return
-    for r in reaction.get("new_reaction", []):
-        emoji = r.get("emoji", "")
-        if emoji in REACTION_EMOJI:
+    for emoji in added_emoji(reaction):
+        try:
             draft_review.mark_reaction(review_message_id=msg_id, emoji=emoji,
                                        actor_user_id=actor_id, chat_id=chat_id)
             log.info("reaction %s on msg %s chat %s from user %s",
                      emoji, msg_id, chat_id, actor_id)
+        except Exception as exc:
+            log.exception("reaction %s on msg %s chat %s from user %s FAILED; the draft "
+                          "may be unchanged or part-way", emoji, msg_id, chat_id, actor_id)
+            try:
+                from . import audit_emit
+                audit_emit.row("draft_reaction_failed", "Scribe", emoji=emoji,
+                               actor_user_id=actor_id, review_message_id=msg_id,
+                               chat_id=chat_id, error=f"{type(exc).__name__}: {exc}")
+            except Exception:
+                log.exception("could not audit the failed reaction")
+
+
+def webhook_reaction(update: dict[str, Any]) -> dict[str, Any]:
+    """Webhook entry for a message_reaction update; drops replays.
+
+    Telegram redelivers updates, and a captured one can be replayed. The last
+    processed update_id is persisted; an update at or below it, or with no
+    integer update_id, is dropped, so a replayed founder 👍 cannot re-approve."""
+    uid = update.get("update_id")
+    if isinstance(uid, bool) or not isinstance(uid, int) or not _claim_update_id(uid):
+        log.warning("webhook reaction update_id=%r dropped: replayed, stale or missing", uid)
+        return {"ok": True, "ignored": "stale or missing update_id"}
+    forward_reaction(update["message_reaction"])
+    return {"ok": True}
+
+
+def _claim_update_id(uid: int) -> bool:
+    """Record uid as processed. False if it is not newer than the last one (or unreadable)."""
+    from . import draft_decision, draft_review
+    path = draft_review._state_dir() / "telegram_webhook_update_id.json"
+    with draft_decision.snapshot_lock():
+        try:
+            last = int(json.loads(path.read_text())["last_update_id"]) if path.exists() else -1
+        except Exception:
+            log.error("%s unreadable; dropping webhook reactions until it is fixed", path)
+            return False
+        if uid <= last:
+            return False
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"last_update_id": uid}))
+        tmp.replace(path)
+    return True
 
 
 def find_reviewed_draft(
@@ -156,6 +212,7 @@ def review_undelivered(out: Any, what: str) -> str:
 
 __all__ = [
     "FOUNDER_TELEGRAM_USER_ID_ENV",
+    "added_emoji",
     "authorise_reaction",
     "find_reviewed_draft",
     "forward_reaction",
@@ -164,4 +221,5 @@ __all__ = [
     "review_undelivered",
     "send_halted",
     "telegram_user_id",
+    "webhook_reaction",
 ]

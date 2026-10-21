@@ -21,7 +21,7 @@ import types
 
 import pytest
 
-from swarm import audit_emit, cfo, cmo, config, cs, draft_review
+from swarm import cfo, cmo, config, cs, draft_review
 from swarm import pii_redactor, review_authority
 from swarm.bots import chief_of_staff
 
@@ -55,7 +55,11 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setenv("REVIEW_CHAT_ID", REVIEW_CHAT)
     monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
     monkeypatch.setenv(review_authority.FOUNDER_TELEGRAM_USER_ID_ENV, FOUNDER)
-    monkeypatch.setattr(audit_emit, "row", lambda *a, **k: None)
+    # The real audit_emit.row, writing to a temp log dir: an audit type it
+    # rejects must fail these tests, not be hidden by a stub.
+    monkeypatch.setattr(config, "SWARM_LOG_DIR", tmp_path / "swarmlog")
+    for var in ("LANGFUSE_HOST", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"):
+        monkeypatch.delenv(var, raising=False)
 
     state = types.SimpleNamespace(sends=[], updates=[], other_requests=[])
 
@@ -83,6 +87,12 @@ def _cfo_pending():
 
 def _status(draft_id):
     return draft_review._load_snapshot()[draft_id]["status"]
+
+
+def _audit_types():
+    """Types of the audit rows the real audit_emit.row wrote in this test."""
+    p = config.SWARM_LOG_DIR / "swarm.jsonl"
+    return [json.loads(line)["type"] for line in p.read_text().splitlines()] if p.exists() else []
 
 
 def _reaction_update(update_id, *, chat, user, msg="555", emoji="👍"):

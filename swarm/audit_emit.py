@@ -37,6 +37,7 @@ log = logging.getLogger("swarm.audit_emit")
 _VALID_TYPES: set[str] = {
     # draft_review
     "draft_posted", "draft_reaction", "draft_expired",
+    "draft_reaction_rejected", "draft_reaction_failed",
     "draft_pii_aborted", "draft_send_pii_aborted", "draft_auto_approved",
     # flow_engine
     "flow_start", "flow_end",

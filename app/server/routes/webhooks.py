@@ -704,12 +704,11 @@ async def telegram_webhook(request: Request):
     if data.get("callback_query"):
         return await handle_gate_callback(token, data["callback_query"])
 
-    # A 👍/❌/⏳ on a draft_review ask. review_authority binds it to the founder
-    # and the posting chat; mark_reaction re-checks the kill switch.
+    # A 👍/❌/⏳ on a draft_review ask: replays dropped, bound to the founder and
+    # the posting chat; mark_reaction re-checks the kill switch.
     if data.get("message_reaction"):
         from swarm import review_authority  # noqa: PLC0415
-        review_authority.forward_reaction(data["message_reaction"])
-        return {"ok": True}
+        return review_authority.webhook_reaction(data)
 
     message = data.get("message", {})
     text = (message.get("text") or "").strip()
