@@ -110,6 +110,31 @@ def webhook_reaction(update: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True}
 
 
+def webhook_kill_switch(update: dict[str, Any]) -> dict[str, Any] | None:
+    """/panic, /resume, /resume-confirm sent to the webhook from the alert chat.
+
+    In webhook mode getUpdates receives nothing, so the poller's handler never
+    runs; this applies the same kill_switch.handle_command. /panic is always
+    honoured, even late or redelivered. A /resume must carry an update_id newer
+    than the last processed one, so a stale /resume cannot undo a later panic.
+    None when the update is not one of these commands from the alert chat.
+    """
+    from . import config, kill_switch
+    msg = update.get("message") or {}
+    text = (msg.get("text") or "").strip()
+    alert_chat = str(config.TELEGRAM_CHAT_ID or "")
+    if not (alert_chat and str((msg.get("chat") or {}).get("id", "")) == alert_chat):
+        return None
+    if not text.lower().startswith(("/panic", "/resume")):
+        return None
+    uid = update.get("update_id")
+    fresh = not isinstance(uid, bool) and isinstance(uid, int) and _claim_update_id(uid)
+    if text.lower().startswith("/resume") and not fresh:
+        log.warning("webhook %s update_id=%r dropped: stale or missing", text.split()[0], uid)
+        return {"ok": True, "ignored": "stale or missing update_id"}
+    return {"ok": True, "kill_switch": kill_switch.handle_command(text)}
+
+
 def _claim_update_id(uid: int) -> bool:
     """Record uid as processed. False if it is not newer than the last one (or unreadable)."""
     from . import draft_decision, draft_review
@@ -221,5 +246,6 @@ __all__ = [
     "review_undelivered",
     "send_halted",
     "telegram_user_id",
+    "webhook_kill_switch",
     "webhook_reaction",
 ]

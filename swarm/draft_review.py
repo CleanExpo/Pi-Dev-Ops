@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from swarm.nexus.types import Reversibility
-from swarm.review_authority import review_chat_id, send_halted
+from swarm.review_authority import review_chat_id
 
 log = logging.getLogger("swarm.draft_review")
 
@@ -204,8 +204,7 @@ def post_draft(
             "policy_level": "auto",
             "reversibility": reversibility,
         }
-        if not send_halted(TEST_MODE):
-            sent_ok = _do_send(record) if not TEST_MODE else True
+        if (sent_ok := send_unless_halted(record)) is not None:
             record["status"] = "sent" if sent_ok else "revise"
             reason = "auto-approved (reversible)" if sent_ok else "auto-send failed"
         else:
@@ -334,6 +333,6 @@ def list_pending() -> list[dict[str, Any]]:
     return [r for r in snap.values() if r["status"] in ("pending", "deferred")]
 
 
-from .draft_decision import expire_overdue, mark_reaction  # noqa: E402  (re-export)
+from .draft_decision import expire_overdue, mark_reaction, send_unless_halted  # noqa: E402
 
 __all__ = ["post_draft", "mark_reaction", "expire_overdue", "list_pending"]

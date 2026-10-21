@@ -108,15 +108,28 @@ def mark_reaction(
     return _send_or_halt(target_id, target, emoji, actor_user_id) if send_now else target
 
 
+def send_unless_halted(record: dict[str, Any]) -> bool | None:
+    """Send now unless halted: None when halted (nothing sent), else whether it sent.
+
+    Holds kill_switch.send_gate() from the halt check through the send, so a
+    /panic that has completed always stops it."""
+    from . import kill_switch
+    dr = _dr()
+    with kill_switch.send_gate():
+        if send_halted(dr.TEST_MODE):
+            return None
+        return dr._do_send(record) if not dr.TEST_MODE else True
+
+
 def _send_or_halt(target_id: str, target: dict[str, Any], emoji: str,
                   actor: str | None) -> dict[str, Any]:
     """Send a "sending" draft, re-checking the halt first: a /panic that lands
     after "sending" was saved still stops it (saved "deferred", nothing sent)."""
     dr = _dr()
-    if send_halted(dr.TEST_MODE):
+    sent_ok = send_unless_halted(target)
+    if sent_ok is None:
         to, reason = "deferred", "kill-switch active after approval; send halted"
     else:
-        sent_ok = dr._do_send(target) if not dr.TEST_MODE else True
         to, reason = ("sent", "approved") if sent_ok else ("revise", "send_failed")
     with snapshot_lock():
         snap = dr._load_snapshot()
@@ -155,4 +168,4 @@ def expire_overdue() -> int:
     return len(expired)
 
 
-__all__ = ["expire_overdue", "mark_reaction", "snapshot_lock"]
+__all__ = ["expire_overdue", "mark_reaction", "send_unless_halted", "snapshot_lock"]

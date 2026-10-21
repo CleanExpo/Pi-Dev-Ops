@@ -82,20 +82,10 @@ def _poll_telegram(state_offset: int) -> tuple[list[dict], int]:
 
         # ── /panic, /resume, /resume-confirm — kill-switch handlers ─────────
         # Run BEFORE the /ack-skip so they fire even on a halted swarm.
+        # Same handler as the production webhook (kill_switch.handle_command).
+        if _kill_switch.handle_command(text):
+            continue
         lower = text.lower()
-        if lower.startswith("/panic"):
-            reason = text[len("/panic"):].strip() or "operator-initiated"
-            _kill_switch.trigger("telegram_panic", reason=reason)
-            continue
-        if lower.startswith("/resume-confirm"):
-            reason = text[len("/resume-confirm"):].strip() or "manual recovery"
-            _kill_switch.resume("telegram_resume_confirm",
-                                reason=reason, confirmed=True)
-            continue
-        if lower.startswith("/resume"):
-            reason = text[len("/resume"):].strip()
-            _kill_switch.resume("telegram_resume", reason=reason)
-            continue
 
         # Skip /ack and /turbopack — those go to the orchestrator's listener
         if lower.startswith(("/ack", "/turbopack")):

@@ -710,6 +710,9 @@ async def telegram_webhook(request: Request):
         from swarm import review_authority  # noqa: PLC0415
         return review_authority.webhook_reaction(data)
 
+    from swarm import review_authority  # noqa: PLC0415
+    if (kill := review_authority.webhook_kill_switch(data)) is not None:
+        return kill  # /panic and /resume from the alert chat, as the poller does
     message = data.get("message", {})
     text = (message.get("text") or "").strip()
     chat_id = (message.get("chat") or {}).get("id")

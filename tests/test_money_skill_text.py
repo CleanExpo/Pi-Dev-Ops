@@ -19,13 +19,17 @@ MONEY_SKILLS = ("cfo", "cmo-growth", "cs-tier1", "telegram-draft-for-review")
 # A claim that an agent approves money by itself, or that only amounts above
 # some figure need the founder.
 AUTONOMOUS_MONEY = re.compile(
-    r"auto-?approv\w*\s+(?:refunds?|spend|ad-?spend|invoices?|up to)"
+    r"auto-?approv\w*\s+(?:refunds?|spend|ad-?spend|invoices?|(?:service\s+)?credits?|up to)"
     r"|(?:refunds?|spend|ad-?spend)\s+(?:over|above|under|below|up to)\s+\$\s?\d"
     r"|request\s+(?:over|above)\s+\$\s?\d"
     # Codex round on 7da9f064: a runtime said to return or emit an approval.
     r"|returns?\s+`?approved\b"
     r"|emits?\s+`?\w*(?:spend|refund|invoice)_approved\b"
-    r"|budget\s*(?:>|over|above)\s*\$\s?\d",
+    r"|budget\s*(?:>|over|above)\s*\$\s?\d"
+    # Founder ruling 21/10/2026: every service credit waits for Phill, SLA ones too.
+    r"|service\s+credits?\s+(?:beyond|above|over|outside|exceeding)\b"
+    r"|credits?\b[^.\n]{0,40}\b(?:issued|applied|granted|given)\s+(?:automatically|autonomously|without)"
+    r"|auto-?(?:issue|apply|grant)\w*\s+(?:service\s+)?credits?",
     re.IGNORECASE)
 
 
@@ -56,6 +60,11 @@ def test_manifests_advertise_no_autonomous_money_threshold(manifest):
     "| Per refund request | Dual-key gate; emit `cs_refund_approved` or `cs_refund_blocked` |",
     "the bot emits cfo_invoice_approved once the amount clears",
     "- New channel launch with budget > $10,000",
+    "- Service credits beyond standard SLA terms",
+    "SLA credits within standard terms are issued automatically",
+    "Credits under the standard SLA are applied without Phill's approval",
+    "the bot auto-issues service credits up to one month's fee",
+    "cs auto-approves service credits for enterprise accounts",
 ])
 def test_detector_catches_the_retired_wording(stale):
     assert offences(stale)
@@ -69,6 +78,8 @@ def test_detector_catches_the_retired_wording(stale):
     "Nothing is approved by an agent. Only Phill's own approval releases a spend.",
     "# Never cmo_adspend_approved here: approval only comes from the founder.",
     "| Per refund request | Draft for Phill; emit `cs_refund_blocked` (pending until he approves) |",
+    "- Any service credit, at any amount, including credits within standard SLA terms",
+    "a credit is drafted for Phill as a refund request, and it stays pending until he approves.",
 ])
 def test_detector_allows_the_current_wording(ok):
     assert offences(ok) == []

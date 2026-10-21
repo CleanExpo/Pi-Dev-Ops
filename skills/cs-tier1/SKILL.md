@@ -24,7 +24,7 @@ Autonomous:
 HITL (dual-key gate):
 - Any refund, at any amount (founder ruling 21/10/2026: nothing auto-approves)
 - Public apology / postmortem
-- Service credits beyond standard SLA terms
+- Any service credit, at any amount, including credits within standard SLA terms (founder ruling 21/10/2026)
 - Enterprise churn-save offer (any concession to a flagged customer)
 
 ## Metrics owned
@@ -95,6 +95,7 @@ Per-business (worst NPS first):
 
 - **All outbound replies route through telegram-draft-for-review (Scribe gate).** No autonomous send.
 - **No refund auto-approval.** Every amount waits for the founder via draft_review at reversibility "high" (a "low" draft would auto-send). No env var re-enables it.
+- **No service-credit auto-approval** (founder ruling 21/10/2026), including credits within standard SLA terms. There is no separate credit path: a credit is drafted for Phill as a refund request through `approve_refund` / draft_review, `cs_refund_blocked` is recorded, and it stays pending until he approves.
 - **PII-redactor in front of every draft** — customer names, emails, ticket IDs go through pii-redactor at strictness=standard.
 - **Enterprise churn threats are critical the moment they're opened** — escalates to founder via daily brief.
 - **Kill-switch aware.** On `TAO_SWARM_ENABLED=0`, the daily brief is queued (not sent).

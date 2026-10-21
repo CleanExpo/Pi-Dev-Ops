@@ -203,3 +203,50 @@ def test_panic_after_sending_saved_defers_webhook_approval(env, monkeypatch):
     assert ks.is_active()
     assert sends == []
     assert _status(draft_id) == "deferred"
+
+
+# Codex round on a29d60a3 ────────────────────────────────────────────────────
+
+def _post_text(text, *, chat="123", update_id=None):
+    return _client().post(
+        "/webhook/telegram",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
+        json={"update_id": update_id or next(_UPDATE_IDS), "message": {
+            "text": text, "chat": {"id": int(chat)}, "from": {"id": int(FOUNDER)}}})
+
+
+def test_webhook_panic_engages_kill_switch_and_blocks_approval(env):
+    """In webhook mode getUpdates is silent, so /panic must be handled here."""
+    draft_id, sends = env
+    ks = importlib.import_module("swarm.kill_switch")
+    assert _post_text("/panic stop").status_code == 200
+    assert ks.is_active()
+    assert _post(user=FOUNDER).status_code == 200
+    assert sends == []
+    assert _status(draft_id) == "deferred"
+
+
+def test_webhook_panic_from_another_chat_is_not_a_command(env, monkeypatch):
+    ks = importlib.import_module("swarm.kill_switch")
+    drain = importlib.import_module("app.server.routes.webhooks")
+    monkeypatch.setattr(drain, "_drain_telegram_update", lambda data: {"ingested": 0})
+    assert _post_text("/panic stop", chat="777").status_code == 200
+    assert not ks.is_active()
+
+
+def test_webhook_resume_works_and_a_replayed_resume_cannot_undo_a_later_panic(env):
+    ks = importlib.import_module("swarm.kill_switch")
+    assert _post_text("/panic one", update_id=50_000).status_code == 200
+    assert _post_text("/resume", update_id=50_001).status_code == 200
+    assert not ks.is_active()
+    assert _post_text("/panic two", update_id=50_002).status_code == 200
+    assert _post_text("/resume", update_id=50_001).status_code == 200
+    assert ks.is_active()
+
+
+def test_late_webhook_panic_is_never_dropped_as_stale(env):
+    ks = importlib.import_module("swarm.kill_switch")
+    draft_id, _ = env
+    assert _post(user=OTHER, update_id=60_000).status_code == 200
+    assert _post_text("/panic late", update_id=59_999).status_code == 200
+    assert ks.is_active()

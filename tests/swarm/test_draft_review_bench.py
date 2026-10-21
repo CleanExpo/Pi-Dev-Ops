@@ -196,3 +196,41 @@ def test_panic_after_sending_saved_defers_direct_approval(env, monkeypatch):
     assert env.sends == []
     assert out["status"] == "deferred"
     assert _status(d.draft_id) == "deferred"
+
+
+# ── Codex round on a29d60a3: a panic that completes before the send stops it ──
+
+def _pause_after_final_check(monkeypatch, checked):
+    """Pause the approving thread right after its final halt check returns False."""
+    from swarm import draft_decision
+    real, calls = draft_decision.send_halted, []
+
+    def halted(test_mode):
+        out = real(test_mode)
+        calls.append(out)
+        if len(calls) == 2 and not out:
+            checked.set()
+            threading.Event().wait(0.3)  # the panic thread runs in this gap
+        return out
+    monkeypatch.setattr(draft_decision, "send_halted", halted)
+
+
+def test_panic_during_final_check_never_overlaps_the_send(env, monkeypatch):
+    """Either the panic lands first and nothing sends, or it waits for the
+    in-flight send; the send never starts with the kill switch already on."""
+    d = _cfo_pending()
+    checked, active_at_send = threading.Event(), []
+    _pause_after_final_check(monkeypatch, checked)
+    monkeypatch.setattr(draft_review, "_do_send",
+                        lambda rec: active_at_send.append(kill_switch.is_active()) or True)
+    approve = threading.Thread(target=lambda: draft_review.mark_reaction(
+        review_message_id="555", emoji="👍", actor_user_id=FOUNDER, chat_id=REVIEW_CHAT))
+    approve.start()
+    assert checked.wait(timeout=5)
+    panic = threading.Thread(target=lambda: kill_switch.trigger("telegram_panic", reason="race"))
+    panic.start()
+    approve.join(timeout=5)
+    panic.join(timeout=5)
+    assert kill_switch.is_active()
+    assert active_at_send in ([False], [])
+    assert _status(d.draft_id) in ("sent", "deferred")

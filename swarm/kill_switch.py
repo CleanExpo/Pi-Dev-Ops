@@ -24,10 +24,13 @@ Public API:
 """
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
 import os
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -102,6 +105,53 @@ def panic_count_last_hour() -> int:
     return count
 
 
+@contextmanager
+def send_gate() -> Iterator[None]:
+    """Hold from the last halt check through an outbound send.
+
+    trigger() takes the same lock before raising the flag, so a panic either
+    lands first (the send sees it and stops) or waits for the in-flight send
+    to finish. A send never starts after a panic has completed. Not re-entrant.
+    """
+    cfg = _config()
+    cfg.SWARM_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    with (cfg.SWARM_LOG_DIR / "kill_switch.send_gate.lock").open("a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
+
+
+def _raise_flag() -> str:
+    with send_gate():
+        flag = _flag_file()
+        if flag.exists():
+            return "already_engaged"
+        flag.write_text(_now_iso())
+        return "engaged"
+
+
+def handle_command(text: str) -> str | None:
+    """Apply a Telegram /panic, /resume-confirm or /resume; return which, else None.
+
+    Shared by the CoS poller and the production webhook so both behave the same.
+    """
+    text = text.strip()
+    lower = text.lower()
+    if lower.startswith("/panic"):
+        trigger("telegram_panic", reason=text[len("/panic"):].strip() or "operator-initiated")
+        return "panic"
+    if lower.startswith("/resume-confirm"):
+        resume("telegram_resume_confirm",
+               reason=text[len("/resume-confirm"):].strip() or "manual recovery", confirmed=True)
+        return "resume-confirm"
+    if lower.startswith("/resume"):
+        resume("telegram_resume", reason=text[len("/resume"):].strip())
+        return "resume"
+    return None
+
+
 def trigger(
     source: str,
     *,
@@ -124,12 +174,7 @@ def trigger(
         log.warning("kill-switch loop guard engaged: %d panics in %ds window",
                    panics_now, PANIC_WINDOW_S)
 
-    flag = _flag_file()
-    if not flag.exists():
-        flag.write_text(_now_iso())
-        action = "engaged"
-    else:
-        action = "already_engaged"
+    action = _raise_flag()
 
     record = {
         "ts": _now_iso(),
