@@ -63,16 +63,11 @@ def _poll_telegram(state_offset: int) -> tuple[list[dict], int]:
 
         # ── message_reaction — HITL draft approval via 👍/❌/⏳ ─────────────────
         reaction = u.get("message_reaction")
+        # From the alert chat or a separate review chat; review_authority
+        # binds it to the founder and to the chat the draft was posted to.
         if reaction:
-            msg_id = str(reaction.get("message_id", ""))
-            chat_id_r = str((reaction.get("chat") or {}).get("id", ""))
-            if chat_id_r == str(chat_id) and msg_id:
-                from .. import draft_review as _dr  # noqa: PLC0415
-                for r in reaction.get("new_reaction", []):
-                    emoji_str = r.get("emoji", "")
-                    if emoji_str in ("👍", "❌", "⏳"):
-                        _dr.mark_reaction(review_message_id=msg_id, emoji=emoji_str)
-                        log.info("CoS: reaction %s on msg %s", emoji_str, msg_id)
+            from .. import review_authority  # noqa: PLC0415
+            review_authority.forward_reaction(reaction)
             continue
 
         msg = u.get("message")

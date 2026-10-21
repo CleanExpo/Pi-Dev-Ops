@@ -31,10 +31,12 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Literal
+
+from .review_authority import review_undelivered
 
 log = logging.getLogger("swarm.cfo")
 
@@ -376,8 +378,9 @@ def approve_spend(
         originating_intent_id=f"cfo-spend-{business_id}",
         reversibility=reversibility,
     )
+    undelivered = review_undelivered(out, f"CFO spend ${amount_usd:,.2f} to {vendor}")
     return SpendDecision(
-        status="pending",
+        status="blocked" if undelivered else "pending",
         amount_usd=amount_usd, vendor=vendor,
         business_id=business_id, justification=justification,
         draft_id=out.get("draft_id"),

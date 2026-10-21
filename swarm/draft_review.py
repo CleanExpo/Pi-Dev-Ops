@@ -19,13 +19,13 @@ from __future__ import annotations
 import json
 import logging
 import os
-import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
 from swarm.nexus.types import Reversibility
+from swarm.review_authority import authorise_reaction, find_reviewed_draft, review_chat_id
 
 log = logging.getLogger("swarm.draft_review")
 
@@ -93,7 +93,7 @@ def _post_review_message(text: str) -> str | None:
     if TEST_MODE:
         return f"test-msg-{uuid.uuid4().hex[:8]}"
     cfg = _config()
-    review_chat = os.environ.get("REVIEW_CHAT_ID") or cfg.TELEGRAM_CHAT_ID
+    review_chat = review_chat_id()
     token = cfg.TELEGRAM_BOT_TOKEN
     if not (review_chat and token):
         log.warning("REVIEW_CHAT_ID + TELEGRAM_BOT_TOKEN required for draft review")
@@ -232,7 +232,7 @@ def post_draft(
 
     record = {
         "draft_id": draft_id,
-        "review_message_id": review_message_id,
+        "review_message_id": review_message_id, "review_chat_id": review_chat_id(),
         "destination_chat_id": destination_chat_id,
         "destination_thread_id": destination_thread_id,
         "drafted_by_role": drafted_by_role,
@@ -266,25 +266,24 @@ def mark_reaction(
     *,
     review_message_id: str,
     emoji: ReactionEmoji,
+    actor_user_id: str | None = None,
+    chat_id: str | None = None,
 ) -> dict[str, Any] | None:
-    """Apply a 👍/❌/⏳ reaction to a draft. Returns the updated draft record."""
+    """Apply the founder's 👍/❌/⏳ to the draft posted as review_message_id in chat_id.
+
+    Anyone else, another chat, or no founder ID configured -> None, nothing changes."""
     snap = _load_snapshot()
-    target = None
-    target_id = None
-    for did, rec in snap.items():
-        if str(rec.get("review_message_id")) == str(review_message_id):
-            target = rec
-            target_id = did
-            break
+    target_id, target = find_reviewed_draft(snap, review_message_id, chat_id)
     if not target:
         log.debug("reaction on unknown review_message_id=%s", review_message_id)
+        return None
+    if not authorise_reaction(target_id, target, emoji, actor_user_id):
         return None
 
     if target["status"] not in ("pending", "deferred"):
         log.info("ignoring reaction on draft %s in state %s", target_id, target["status"])
         return target
 
-    cfg = _config()
     swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "0") == "1"
 
     if emoji == "👍":
@@ -310,10 +309,11 @@ def mark_reaction(
                                       "reason": "delayed +24h",
                                       "new_expires_at": new_expires})
 
+    target["transitions"][-1]["actor_user_id"] = target["decided_by_user_id"] = actor_user_id
     _append_jsonl(_drafts_jsonl(), {**target, "audit_event": "draft_reaction"})
     from . import audit_emit
-    audit_emit.row("draft_reaction", target.get("drafted_by_role", "Scribe"),
-                   draft_id=target_id, emoji=emoji, status=target["status"])
+    audit_emit.row("draft_reaction", target.get("drafted_by_role", "Scribe"), draft_id=target_id,
+                   emoji=emoji, status=target["status"], actor_user_id=actor_user_id)
     snap[target_id] = target
     _save_snapshot(snap)
     return target

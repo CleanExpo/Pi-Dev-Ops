@@ -29,7 +29,7 @@ def test_every_spend_routes_to_draft_review(amount):
 
     def fake_post_draft(**kw):
         calls.append(kw)
-        return {"draft_id": "d1"}
+        return {"draft_id": "d1", "review_message_id": "m-d1", "status": "pending"}
 
     d = cfo.approve_spend(
         amount_usd=amount, vendor="OpenRouter", business_id="biz1",
@@ -67,7 +67,7 @@ def test_bot_env_ceiling_cannot_reenable_auto_approve(monkeypatch):
 
     events = []
     monkeypatch.setenv("TAO_CFO_SPEND_CEILING", "1000000000")
-    monkeypatch.setattr(draft_review, "post_draft", lambda **kw: {"draft_id": "d9"})
+    monkeypatch.setattr(draft_review, "post_draft", lambda **kw: {"draft_id": "d9", "review_message_id": "m-d9", "status": "pending"})
     monkeypatch.setattr(audit_emit, "row", lambda ev, *a, **k: events.append(ev))
     for amount in (1.0, 1000.0, 0.0):
         d = cfo_bot.request_spend_approval(
@@ -84,7 +84,7 @@ def test_spend_over_ceiling_routes_to_hitl_with_reversibility():
 
     def fake_post_draft(**kw):
         captured.update(kw)
-        return {"draft_id": "d2"}
+        return {"draft_id": "d2", "review_message_id": "m-d2", "status": "pending"}
 
     d = cfo.approve_spend(
         amount_usd=5000.0, vendor="BigCorp", business_id="biz1",

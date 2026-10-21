@@ -29,11 +29,12 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Literal
+
+from .review_authority import review_undelivered
 
 log = logging.getLogger("swarm.cmo")
 
@@ -353,13 +354,13 @@ def approve_adspend(
         destination_chat_id=str(review_chat_id or "review"),
         drafted_by_role="CMO",
         originating_intent_id=f"cmo-adspend-{business_id}",
-        # "high" is an approval-tier class in swarm.nexus.policy, so
-        # draft_review posts it for human review. "low"/"reversible" would
-        # be auto-sent with no human.
+        # "high" is an approval-tier class in swarm.nexus.policy: draft_review
+        # posts it for founder review ("low"/"reversible" would auto-send).
         reversibility="high",
     )
+    undelivered = review_undelivered(out, f"CMO ad-spend {_usd(amount_usd_per_day)}/day on {channel}")
     return AdSpendDecision(
-        status="pending", amount_usd_per_day=amount_usd_per_day,
+        status="blocked" if undelivered else "pending", amount_usd_per_day=amount_usd_per_day,
         channel=channel, business_id=business_id,
         justification=justification,
         draft_id=out.get("draft_id"),

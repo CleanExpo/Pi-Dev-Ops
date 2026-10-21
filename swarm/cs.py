@@ -34,6 +34,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Literal
 
+from .review_authority import review_undelivered
+
 log = logging.getLogger("swarm.cs")
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
@@ -324,10 +326,8 @@ def approve_refund(
     post_draft is None -> status='blocked'. Never returns status='approved'.
     """
     if post_draft is None:
-        log.warning(
-            "CS refund %s blocked: no draft_review provider (customer %s, biz %s)",
-            _usd(amount_usd), customer_id, business_id,
-        )
+        log.warning("CS refund %s blocked: no draft_review provider (customer %s, biz %s)",
+                    _usd(amount_usd), customer_id, business_id)
         return RefundDecision(
             status="blocked", amount_usd=amount_usd,
             customer_id=customer_id, business_id=business_id,
@@ -344,13 +344,13 @@ def approve_refund(
         destination_chat_id=str(review_chat_id or "review"),
         drafted_by_role="CS",
         originating_intent_id=f"cs-refund-{business_id}-{customer_id}",
-        # "high" is an approval-tier class in swarm.nexus.policy, so
-        # draft_review posts it for human review. "low"/"reversible" would
-        # be auto-sent with no human.
+        # "high" is an approval-tier class in swarm.nexus.policy: draft_review
+        # posts it for founder review ("low"/"reversible" would auto-send).
         reversibility="high",
     )
+    undelivered = review_undelivered(out, f"CS refund {_usd(amount_usd)} to {customer_id}")
     return RefundDecision(
-        status="pending", amount_usd=amount_usd,
+        status="blocked" if undelivered else "pending", amount_usd=amount_usd,
         customer_id=customer_id, business_id=business_id,
         justification=justification,
         draft_id=out.get("draft_id"),

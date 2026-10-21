@@ -170,7 +170,7 @@ def test_approve_refund_over_ceiling_with_draft_pends():
 
     def fake_post_draft(**kwargs):
         captured.update(kwargs)
-        return {"draft_id": "drft-cs-001"}
+        return {"draft_id": "drft-cs-001", "review_message_id": "m-drft-cs-001", "status": "pending"}
 
     d = _cs.approve_refund(
         amount_usd=200.0, customer_id="cust-1",

@@ -28,7 +28,7 @@ def _recorder():
 
     def fake_post_draft(**kw):
         calls.append(kw)
-        return {"draft_id": "d1"}
+        return {"draft_id": "d1", "review_message_id": "m-d1", "status": "pending"}
 
     return calls, fake_post_draft
 

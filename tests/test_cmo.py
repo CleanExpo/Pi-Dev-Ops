@@ -191,7 +191,7 @@ def test_approve_adspend_over_ceiling_with_draft_pends():
 
     def fake_post_draft(**kwargs):
         captured.update(kwargs)
-        return {"draft_id": "drft-cmo-001"}
+        return {"draft_id": "drft-cmo-001", "review_message_id": "m-drft-cmo-001", "status": "pending"}
 
     d = _cmo.approve_adspend(
         amount_usd_per_day=7500.0, channel="linkedin",
