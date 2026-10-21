@@ -18,7 +18,8 @@ MONEY_SKILLS = ("cfo", "cmo-growth", "cs-tier1", "telegram-draft-for-review")
 
 # A claim that an agent approves money by itself, or that only amounts above
 # some figure need the founder.
-_GIVE = r"\b(?:issue|apply|grant|give|offer|credit)(?:s|ing|ed)?\b"
+_MONEY = (r"\b(?:credit\w*|refund\w*|(?:ad-?\s?)?spend\w*|pay(?:s|ing|outs?|ments?)?"
+          r"|reimburs\w*)\b")
 _UNGATED = (r"\b(?:automatically|autonomously|without\b[^.\n]{0,25}\b(?:approval|asking|sign-?off)"
             r"|at\s+(?:the|its|their|your)\s+(?:agent'?s?\s+|bot'?s?\s+|own\s+)?discretion)")
 AUTONOMOUS_MONEY = re.compile(
@@ -31,11 +32,12 @@ AUTONOMOUS_MONEY = re.compile(
     r"|budget\s*(?:>|over|above)\s*\$\s?\d"
     # Founder ruling 21/10/2026: every service credit waits for Phill, SLA ones too.
     r"|service\s+credits?\s+(?:beyond|above|over|outside|exceeding)\b"
-    r"|credits?\b[^.\n]{0,40}\b(?:issued|applied|granted|given)\s+(?:automatically|autonomously|without)"
     r"|auto-?(?:issue|apply|grant)\w*\s+(?:service\s+)?credits?"
-    # Codex round on 590a54b6: instruction forms, in either word order.
-    rf"|{_GIVE}[^.\n]{{0,60}}\bcredits?\b[^.\n]{{0,60}}{_UNGATED}"
-    rf"|{_UNGATED}[^.\n]{{0,60}}{_GIVE}[^.\n]{{0,60}}\bcredits?\b",
+    # Codex rounds on 590a54b6 and 9b8fc6d2: money handed out with no approval,
+    # in either word order, in one sentence. Negations match too; skill text
+    # states the rule positively ("waits for Phill").
+    rf"|{_MONEY}[^.\n]{{0,80}}{_UNGATED}"
+    rf"|{_UNGATED}[^.\n]{{0,80}}{_MONEY}",
     re.IGNORECASE)
 
 
@@ -78,6 +80,13 @@ def test_manifests_advertise_no_autonomous_money_threshold(manifest):
     "Give the customer an account credit without Phill's approval.",
     "Without asking Phill, offer a credit to any churn-risk account.",
     "At its own discretion the bot grants a service credit of up to one month.",
+    # Codex round on 9b8fc6d2: refunds and spend, not only credits.
+    "Automatically issue refunds for billing errors.",
+    "Refund duplicate charges automatically.",
+    "Process refunds at the agent's discretion.",
+    "Approve ad spend without asking Phill.",
+    "Without sign-off, the bot pays out reimbursements under $50.",
+    "Autonomously spend up to the daily budget on ads.",
 ])
 def test_detector_catches_the_retired_wording(stale):
     assert offences(stale)

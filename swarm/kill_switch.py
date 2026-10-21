@@ -104,8 +104,10 @@ def panic_count_last_hour() -> int:
     return count
 
 
-def _raise_flag() -> str:
-    """Record a panic and raise the flag, under send_gate() (loop guard included)."""
+def _raise_flag(source: str, reason: str, approvers: list[str]) -> dict[str, Any]:
+    """Count, record the panic, raise the flag and append the counted history
+    record, all in one step under send_gate(): concurrent panics are counted
+    one after another, so the loop guard engages at the limit."""
     with send_gate():
         panics_now = panic_count_last_hour()
         if panics_now >= PANIC_RATE_LIMIT and not is_locked():
@@ -114,10 +116,14 @@ def _raise_flag() -> str:
                         panics_now, PANIC_WINDOW_S)
         record_panic()
         flag = _flag_file()
-        if flag.exists():
-            return "already_engaged"
-        flag.write_text(_now_iso())
-        return "engaged"
+        action = "already_engaged" if flag.exists() else "engaged"
+        if action == "engaged":
+            flag.write_text(_now_iso())
+        record = {"ts": _now_iso(), "event": "trigger", "source": source, "reason": reason,
+                  "approvers": approvers, "action": action,
+                  "loop_guard_locked": is_locked()}
+        _append_history(record)  # what panic_count_last_hour() counts
+        return record
 
 
 def _clear_flag(*, confirmed: bool, reason: str, observed_seq: int | None,
@@ -125,13 +131,16 @@ def _clear_flag(*, confirmed: bool, reason: str, observed_seq: int | None,
     """Check and clear in one step under send_gate(), the lock trigger() takes.
 
     Returns (outcome, had_escalation_lock); outcome is "resumed", "no_op",
-    "escalation_lock_active" or "newer_panic" (a panic recorded after the
+    "panic_state_unreadable", "escalation_lock_active" or "newer_panic" (a panic recorded after the
     caller observed observed_seq, or after the command was sent at sent_at)."""
     with send_gate():
         locked = is_locked()
+        state = panic_state()
+        if state is None:  # unreadable: refuse every resume until a panic rewrites it
+            return "panic_state_unreadable", locked
         if locked and not (confirmed and reason):
             return "escalation_lock_active", locked
-        seq, at = panic_state() or (2**63, float("inf"))  # unreadable: refuse
+        seq, at = state
         if ((observed_seq is not None and seq > observed_seq)
                 or (sent_at is not None and at > sent_at)):
             return "newer_panic", locked
@@ -185,19 +194,9 @@ def trigger(
         return {"error": "dashboard_2fa requires >=2 approvers",
                 "approvers_received": approvers}
 
-    # Loop guard, panic sequence and flag, under send_gate() (see _raise_flag)
-    action = _raise_flag()
-
-    record = {
-        "ts": _now_iso(),
-        "event": "trigger",
-        "source": source,
-        "reason": reason,
-        "approvers": approvers or [],
-        "action": action,
-        "loop_guard_locked": is_locked(),
-    }
-    _append_history(record)
+    # Loop guard, panic sequence, flag and history, under send_gate() (see _raise_flag)
+    record = _raise_flag(source, reason, approvers or [])
+    action = record["action"]
 
     # Audit-emit so the row lands in the central audit boundary too
     try:
@@ -218,6 +217,14 @@ def trigger(
     return record
 
 
+_REFUSALS = {  # _clear_flag() outcomes that leave the switch engaged
+    "escalation_lock_active": "delete .harness/swarm/kill_switch.flag manually AND "
+                              "call resume(source, reason='<why>', confirmed=True)",
+    "newer_panic": "re-send the resume after checking why it panicked",
+    "panic_state_unreadable": "send /panic to rewrite the state, then /resume",
+}
+
+
 def resume(
     source: str,
     *,
@@ -235,12 +242,9 @@ def resume(
     """
     action, locked = _clear_flag(confirmed=confirmed, reason=reason,
                                  observed_seq=observed_seq, sent_at=sent_at)
-    if action == "escalation_lock_active":
-        return {"error": action, "fix": "delete .harness/swarm/kill_switch.flag manually AND "
-                                        "call resume(source, reason='<why>', confirmed=True)"}
-    if action == "newer_panic":
-        log.warning("kill-switch resume by %s REFUSED: a newer panic was recorded", source)
-        return {"error": action, "fix": "re-send the resume after checking why it panicked"}
+    if action in _REFUSALS:
+        log.warning("kill-switch resume by %s REFUSED: %s", source, action)
+        return {"error": action, "fix": _REFUSALS[action]}
 
     record = {
         "ts": _now_iso(),

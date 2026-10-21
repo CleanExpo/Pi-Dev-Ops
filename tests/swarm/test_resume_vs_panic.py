@@ -156,7 +156,7 @@ def test_unreadable_panic_state_still_panics_and_refuses_resume(ks):
     state.parent.mkdir(parents=True, exist_ok=True)
     state.write_text("{not json")
     out = ks.resume("telegram_resume", observed_seq=10**9)
-    assert out.get("error") == "newer_panic"
+    assert out.get("error") == "panic_state_unreadable"
     ks.trigger("telegram_panic", reason="state was corrupt")
     assert ks.is_active()
     assert ks.panic_seq() >= 1

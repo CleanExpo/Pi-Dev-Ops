@@ -63,10 +63,18 @@ def panic_seq() -> int:
 
 
 def record_panic() -> None:
-    """Bump the panic sequence and stamp its time (caller holds send_gate())."""
+    """Bump the panic sequence and stamp its time (caller holds send_gate()).
+
+    The sequence never goes backward. If the state is unreadable, the new
+    sequence jumps to the current time in microseconds, which is above every
+    earlier value (a small counter, or an earlier jump plus a few panics), so
+    no observation made before the corruption can match or exceed it.
+    """
     path = _dir() / "kill_switch.panic_seq.json"
+    prev = panic_state()
+    seq = prev[0] + 1 if prev is not None else time.time_ns() // 1000
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"seq": panic_seq() + 1, "at": time.time()}))
+    tmp.write_text(json.dumps({"seq": seq, "at": time.time()}))
     tmp.replace(path)
 
 
