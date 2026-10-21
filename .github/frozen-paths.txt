@@ -1,0 +1,74 @@
+# Frozen paths — Mission Control consolidation, ratified by the founder 22/10/2026
+# ("commit to the consolidation"). Board ruling + reasons: 2nd Brain vault
+# Wiki/nexus-mission-control/11-consolidation-recommendations.md and
+# Decisions/2026-10-22-mission-control-consolidation.md.
+#
+# FROZEN = no new commits. Code keeps running as it does today; this only stops
+# changes. scripts/check_frozen_paths.py fails any PR that adds, edits, renames or
+# deletes a path matched below.
+#
+# To unfreeze: open a PR that changes ONLY this file. The guard reads the
+# manifest at the PR's base AND head, so an edit here cannot unfreeze a path in
+# the same PR that changes it. Deleting frozen code stays a founder decision.
+#
+# Syntax: one pattern per line. `*` matches inside one path segment; a trailing
+# `/**` freezes a whole directory. Every pattern must match a tracked file
+# (`--verify-manifest`), so an entry cannot go stale silently.
+
+# Self-judging loops (14) — not on the one pathway
+app/server/tao_*.py
+
+# Model / provider routing (17) — collapses to ONE router later; slice 1 is Claude on the Mini
+app/server/model_fabric.py
+app/server/model_policy.py
+app/server/model_registry.py
+app/server/provider_execution.py
+app/server/provider_execution_types.py
+app/server/provider_margot_casual.py
+app/server/provider_nex_n2.py
+app/server/provider_ollama.py
+app/server/provider_openrouter.py
+app/server/provider_policy.py
+app/server/provider_router.py
+app/server/provider_router_helpers.py
+app/server/provider_sdk_messages.py
+app/server/provider_whisper.py
+app/server/routing_schema.py
+app/server/skill_routing.py
+app/server/task_routing.py
+
+# Machine-ship spec pipeline (storm -> judge -> spm -> boardroom), already flag-off
+app/server/spec_pipeline/**
+
+# Idea pipeline Board-packet GO. go_ticket.py stays open: it files the labelled
+# Linear ticket, which is the intake the Board kept.
+app/server/idea_pipeline/__init__.py
+app/server/idea_pipeline/constants.py
+app/server/idea_pipeline/dispose.py
+app/server/idea_pipeline/examine.py
+app/server/idea_pipeline/intake.py
+app/server/idea_pipeline/mesh_packet.py
+app/server/idea_pipeline/packet.py
+app/server/idea_pipeline/store.py
+
+# Cron modules (12 of 13) — cron_fire_mesh.py stays open: it is the mesh dispatch path
+app/server/cron.py
+app/server/cron_fire_agents.py
+app/server/cron_fire_script.py
+app/server/cron_fire_wiki.py
+app/server/cron_handler_registry.py
+app/server/cron_outputs.py
+app/server/cron_scheduler.py
+app/server/cron_store.py
+app/server/cron_triggers.py
+app/server/cron_watchdog_mesh.py
+app/server/cron_watchdog_zte.py
+app/server/cron_watchdogs.py
+
+# Swarm reporting surfaces (23). The /idea intake lives in app/server/mesh_lanes.py
+# and scripts/, not in these files.
+swarm/margot_*.py
+swarm/portfolio_pulse*.py
+swarm/six_pager*.py
+swarm/tmux_*.py
+swarm/telegram_*.py

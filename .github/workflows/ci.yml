@@ -41,6 +41,36 @@ jobs:
       - name: Ruff lint
         run: ruff check app/ --output-format=github
 
+  # ── Frozen paths: the Mission Control consolidation freeze ─────────────────
+  # Founder ratified the Board's consolidation on 22/10/2026 ("commit to the
+  # consolidation"). .github/frozen-paths.txt lists the duplicate machinery that
+  # takes no new commits; this job fails a PR that adds, edits, renames or
+  # deletes any of it. The manifest is read at base AND head, so a PR cannot
+  # unfreeze a path and change it at once — unfreezing is a manifest-only PR.
+  # PR-only: a direct push to main is not checked here (branch protection is
+  # what stops those).
+  frozen-paths:
+    name: Frozen paths (consolidation freeze)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Manifest has no dead entries
+        run: python3 scripts/check_frozen_paths.py --verify-manifest --min-files 91
+
+      - name: PR changes no frozen path
+        run: python3 scripts/check_frozen_paths.py --base ${{ github.event.pull_request.base.sha }} --head ${{ github.event.pull_request.head.sha }}
+
   # ── File length: the 300-line convention, ratcheted ─────────────────────────
   # CLAUDE.md § Conventions was prose only; nothing measured it and 186 files
   # were already over. Ruff has no file-length rule (pylint's C0302 is not among
