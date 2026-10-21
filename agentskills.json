@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.25.16",
-    "generated_at": "2026-10-21T02:18:07.336616+00:00",
+    "version": "1.25.17",
+    "generated_at": "2026-10-21T03:09:58.500425+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -588,11 +588,11 @@
     },
     {
       "id": "cmo-growth",
-      "description": "Daily marketing visibility across the 11 Unite-Group businesses. Computes LTV:CAC, blended CPA, channel concentration (HHI) and attribution decay from ad-platform feeds, drafts a 1-page CMO snippet into the daily 6-pager, and gates ad-spend over $5,000/day through draft_review HITL (Wave 4 A2, RA-1860). Use for LTV:CAC, blended CPA, channel concentration, attribution decay, the CMO snippet for the 6-pager, or an ad-spend request above $5,000/day needing the draft_review approval gate.",
+      "description": "Daily marketing visibility across the 11 Unite-Group businesses. Computes LTV:CAC, blended CPA, channel concentration (HHI) and attribution decay from ad-platform feeds, drafts a 1-page CMO snippet into the daily 6-pager, and drafts every ad-spend request for Phill's approval through draft_review HITL; it never approves ad spend itself, at any amount (Wave 4 A2, RA-1860; founder ruling 21/10/2026). Use for LTV:CAC, blended CPA, channel concentration, attribution decay, the CMO snippet for the 6-pager, or drafting an ad-spend request for Phill's approval via the draft_review gate.",
       "owner_role": "CMO",
       "status": "wave-4",
       "path": "skills/cmo-growth/SKILL.md",
-      "sha256": "935ba5336777df15c6b2776610c362bc4226911bc054299ebbfdcb2075f35bf1",
+      "sha256": "a56d723ea87bac221a028f88548d6f12c9c9b97a4886276d81248641b32d51b9",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -776,11 +776,11 @@
     },
     {
       "id": "cs-tier1",
-      "description": "Tier-1 customer support across the 11 portfolio brands. Computes NPS, First Contact Resolution (FCR), Gross Retention Rate (GRR) and avg first-response time, drafts replies through telegram-draft-for-review, auto-approves refunds up to $100 and routes larger ones through draft_review HITL (Wave 4 A4, RA-1862). Use for inbound support on any portfolio brand: ticket replies, refund approval or escalation, the daily CS brief, NPS/FCR/GRR metrics, enterprise churn threats.",
+      "description": "Tier-1 customer support across the 11 portfolio brands. Computes NPS, First Contact Resolution (FCR), Gross Retention Rate (GRR) and avg first-response time, drafts replies through telegram-draft-for-review, and drafts every refund for Phill's approval through draft_review HITL; it never approves a refund itself, at any amount (Wave 4 A4, RA-1862; founder ruling 21/10/2026). Use for inbound support on any portfolio brand: ticket replies, drafting a refund for Phill's approval, escalation, the daily CS brief, NPS/FCR/GRR metrics, enterprise churn threats.",
       "owner_role": "CS",
       "status": "wave-4",
       "path": "skills/cs-tier1/SKILL.md",
-      "sha256": "43b67063ea2924a3cda436dec64e83bc23690cb32c318936f0b59ce11a3d820c",
+      "sha256": "bc6f3e729e94b40c330d1ca76489247e77e638ddf2e8a05db0a88afae4284873",
       "dependencies": {
         "tools": [],
         "skills": []

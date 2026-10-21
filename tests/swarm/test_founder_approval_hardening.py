@@ -114,3 +114,37 @@ def test_swarm_disabled_defers_founder_approval(env, monkeypatch):
     assert out["status"] == "deferred"
     assert _status(d.draft_id) == "deferred"
     assert env.sends == []
+
+
+# Review round on ef4819fa: a padded ID normalised to the founder's must not
+# approve. These configure values that strip() would turn into FOUNDER, so the
+# parser itself is what has to reject them.
+PADDED = [" 8000001", "8000001 ", " 8000001 ", "8000001\n", "\t8000001", "8000001\r\n"]
+
+
+@pytest.mark.parametrize("padded", PADDED)
+def test_padded_founder_id_authorises_nothing_through_poller(env, monkeypatch, padded):
+    monkeypatch.setenv(review_authority.FOUNDER_TELEGRAM_USER_ID_ENV, padded)
+    d = _cfo_pending()
+    env.updates = [_reaction_update(1, chat=REVIEW_CHAT, user=FOUNDER)]
+    chief_of_staff._poll_telegram(0)
+    assert _status(d.draft_id) == "pending"
+    assert env.sends == []
+
+
+@pytest.mark.parametrize("padded", PADDED)
+def test_padded_reactor_id_authorises_nothing_through_poller(env, monkeypatch, padded):
+    d = _cfo_pending()
+    upd = _reaction_update(1, chat=REVIEW_CHAT, user=FOUNDER)
+    upd["message_reaction"]["user"] = {"id": padded}
+    env.updates = [upd]
+    chief_of_staff._poll_telegram(0)
+    assert _status(d.draft_id) == "pending"
+    assert env.sends == []
+
+
+@pytest.mark.parametrize("padded", PADDED)
+def test_padded_ids_parse_as_invalid(monkeypatch, padded):
+    assert review_authority.telegram_user_id(padded) is None
+    monkeypatch.setenv(review_authority.FOUNDER_TELEGRAM_USER_ID_ENV, padded)
+    assert review_authority.founder_telegram_user_id() == ""

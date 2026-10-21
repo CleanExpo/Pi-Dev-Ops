@@ -29,10 +29,13 @@ _TELEGRAM_USER_ID = re.compile(r"[1-9][0-9]{0,19}")
 
 
 def telegram_user_id(value: Any) -> str | None:
-    """`value` as a positive decimal Telegram user ID, else None (null, bool, junk)."""
+    """`value` as a positive decimal Telegram user ID, else None (null, bool, junk).
+
+    Matched exactly, never trimmed: a padded value such as " 8000001" is malformed.
+    """
     if isinstance(value, bool) or not isinstance(value, (int, str)):
         return None
-    text = str(value).strip()
+    text = str(value)
     return text if _TELEGRAM_USER_ID.fullmatch(text) else None
 
 
@@ -40,7 +43,7 @@ def founder_telegram_user_id() -> str:
     """The only Telegram user whose reaction may decide a draft. "" if unset or malformed."""
     raw = os.environ.get(FOUNDER_TELEGRAM_USER_ID_ENV) or ""
     founder = telegram_user_id(raw)
-    if raw.strip() and founder is None:
+    if raw and founder is None:
         log.error("%s is not a positive decimal Telegram user ID; no reaction "
                   "can approve anything until it is fixed", FOUNDER_TELEGRAM_USER_ID_ENV)
     return founder or ""

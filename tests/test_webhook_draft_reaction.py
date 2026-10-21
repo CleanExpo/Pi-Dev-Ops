@@ -99,3 +99,34 @@ def test_webhook_reaction_after_kill_switch_does_not_send(env):
     assert _post(user=FOUNDER).status_code == 200
     assert sends == []
     assert _status(draft_id) != "sent"
+
+
+PADDED = [" 8000001", "8000001 ", "8000001\n", "\t8000001"]
+
+
+def _post_raw_user(user_id):
+    return _client().post(
+        "/webhook/telegram",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
+        json={"update_id": 1, "message_reaction": {
+            "chat": {"id": int(REVIEW_CHAT)}, "message_id": 555, "user": {"id": user_id},
+            "new_reaction": [{"type": "emoji", "emoji": "👍"}]}},
+    )
+
+
+@pytest.mark.parametrize("padded", PADDED)
+def test_padded_founder_env_by_webhook_does_nothing(env, monkeypatch, padded):
+    draft_id, sends = env
+    ra = importlib.import_module("swarm.review_authority")
+    monkeypatch.setenv(ra.FOUNDER_TELEGRAM_USER_ID_ENV, padded)
+    assert _post(user=FOUNDER).status_code == 200
+    assert _status(draft_id) == "pending"
+    assert sends == []
+
+
+@pytest.mark.parametrize("padded", PADDED)
+def test_padded_reactor_id_by_webhook_does_nothing(env, padded):
+    draft_id, sends = env
+    assert _post_raw_user(padded).status_code == 200
+    assert _status(draft_id) == "pending"
+    assert sends == []

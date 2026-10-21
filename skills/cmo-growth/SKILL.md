@@ -1,6 +1,6 @@
 ---
 name: cmo-growth
-description: Daily marketing visibility across the 11 Unite-Group businesses. Computes LTV:CAC, blended CPA, channel concentration (HHI) and attribution decay from ad-platform feeds, drafts a 1-page CMO snippet into the daily 6-pager, and gates ad-spend over $5,000/day through draft_review HITL (Wave 4 A2, RA-1860). Use for LTV:CAC, blended CPA, channel concentration, attribution decay, the CMO snippet for the 6-pager, or an ad-spend request above $5,000/day needing the draft_review approval gate.
+description: Daily marketing visibility across the 11 Unite-Group businesses. Computes LTV:CAC, blended CPA, channel concentration (HHI) and attribution decay from ad-platform feeds, drafts a 1-page CMO snippet into the daily 6-pager, and drafts every ad-spend request for Phill's approval through draft_review HITL; it never approves ad spend itself, at any amount (Wave 4 A2, RA-1860; founder ruling 21/10/2026). Use for LTV:CAC, blended CPA, channel concentration, attribution decay, the CMO snippet for the 6-pager, or drafting an ad-spend request for Phill's approval via the draft_review gate.
 owner_role: CMO
 status: wave-4
 ---
@@ -11,7 +11,7 @@ Bottles 15+ years of CMO/Growth expertise — iOS 14.5 attribution decay, brand-
 
 ## Why this exists
 
-Eleven businesses, eleven marketing P&Ls. The founder needs LTV:CAC, blended CPA, and channel concentration in one glance every morning, plus a hard gate on any ad-spend request above $5k/day. Everything else flows into the daily 6-pager (`daily-6-pager` skill, RA-1863).
+Eleven businesses, eleven marketing P&Ls. The founder needs LTV:CAC, blended CPA, and channel concentration in one glance every morning, plus a hard gate: every ad-spend request, at any amount, waits for the founder. Everything else flows into the daily 6-pager (`daily-6-pager` skill, RA-1863).
 
 ## Decision rights
 
