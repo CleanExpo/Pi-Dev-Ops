@@ -229,19 +229,15 @@ def request_adspend_approval(
 ) -> _cmo.AdSpendDecision:
     """Public entry-point for any other bot to request ad-spend approval.
 
-    Auto-approves <= ceiling. Above ceiling → routes through draft_review HITL.
+    Every amount routes through draft_review for founder approval; nothing
+    is auto-approved and no env var can change that.
     """
-    spend_ceiling = float(os.environ.get(
-        "TAO_CMO_ADSPEND_CEILING",
-        _cmo.AUTONOMOUS_ADSPEND_CEILING_USD_PER_DAY,
-    ))
-
     post_draft = None
     try:
         from .. import draft_review
         post_draft = draft_review.post_draft
     except Exception as exc:
-        log.debug("cmo: draft_review unavailable (%s) — only auto-approve open",
+        log.debug("cmo: draft_review unavailable (%s) — ad spend will be blocked",
                   exc)
 
     decision = _cmo.approve_adspend(
@@ -249,16 +245,15 @@ def request_adspend_approval(
         channel=channel,
         business_id=business_id,
         justification=justification,
-        spend_ceiling=spend_ceiling,
         post_draft=post_draft,
         review_chat_id=os.environ.get("REVIEW_CHAT_ID"),
     )
 
     try:
         from .. import audit_emit
+        # Never cmo_adspend_approved here: approval only comes from the founder.
         audit_emit.row(
-            "cmo_adspend_approved" if decision.status == "approved"
-            else "cmo_adspend_blocked",
+            "cmo_adspend_blocked",
             "CMO",
             business_id=business_id,
             amount_usd_per_day=amount_usd_per_day,

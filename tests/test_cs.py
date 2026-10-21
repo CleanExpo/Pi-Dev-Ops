@@ -147,12 +147,14 @@ def test_assemble_daily_brief_renders():
 # ── Refund gate ─────────────────────────────────────────────────────────────
 
 
-def test_approve_refund_under_ceiling_auto():
+def test_approve_refund_small_amount_never_auto_approves():
+    # Founder decision 21/10/2026: $50 was under the old $100 auto ceiling.
+    # With no draft_review provider it must now be blocked.
     d = _cs.approve_refund(
         amount_usd=50.0, customer_id="cust-1",
         business_id="bid", justification="...",
     )
-    assert d.status == "approved"
+    assert d.status == "blocked"
 
 
 def test_approve_refund_over_ceiling_no_draft_blocks():
