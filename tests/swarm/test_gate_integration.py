@@ -110,21 +110,10 @@ def draft_test_mode(monkeypatch):
     monkeypatch.setattr(draft_review, "TEST_MODE", True)
 
 
-@pytest.mark.parametrize("rev", ["reversible", "low"])
-def test_post_draft_auto_tier_skips_human(rev, draft_test_mode):
-    out = draft_review.post_draft(
-        draft_text="routine status note",
-        destination_chat_id="123",
-        drafted_by_role="Scribe",
-        reversibility=rev,
-    )
-    assert out["policy_level"] == "auto"
-    assert out["review_message_id"] is None     # no human review posted
-    assert out["status"] == "sent"              # auto-sent in TEST_MODE
-
-
-@pytest.mark.parametrize("rev", ["medium", "high", "irreversible"])
-def test_post_draft_non_auto_keeps_hitl(rev, draft_test_mode):
+# The reversible auto tier was removed (Codex FAIL on b021085d): "reversible"
+# and "low" drafts wait for the founder like every other draft.
+@pytest.mark.parametrize("rev", ["reversible", "low", "medium", "high", "irreversible"])
+def test_post_draft_every_tier_keeps_hitl(rev, draft_test_mode):
     out = draft_review.post_draft(
         draft_text="needs a human",
         destination_chat_id="123",

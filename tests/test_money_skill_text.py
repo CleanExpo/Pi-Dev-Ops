@@ -19,7 +19,9 @@ MONEY_SKILLS = ("cfo", "cmo-growth", "cs-tier1", "telegram-draft-for-review")
 # A claim that an agent approves money by itself, or that only amounts above
 # some figure need the founder.
 _MONEY = (r"\b(?:credit\w*|refund\w*|(?:ad-?\s?)?spend\w*|pay(?:s|ing|outs?|ments?)?"
-          r"|reimburs\w*|invoic\w*)\b")
+          r"|reimburs\w*|invoic\w*"
+          # Codex on b021085d: value handed out without being called money.
+          r"|gift[-\s]?cards?|vouchers?|coupons?|rebates?|discounts?|fees?|waiv\w*)\b")
 # "No refund auto-approval" matches too: skill text states the rule positively
 # ("waits for Phill"), so a negation never has to be told apart from a grant.
 _UNGATED = (r"\b(?:automatic(?:ally)?|autonomously"
@@ -35,7 +37,7 @@ _GRANT = (r"(?:(?:approv|grant|issu|releas|authori[sz]|rais|increas|appl|process
           rf"[^.\n]{{0,60}}{_MONEY}|(?:refund|reimburs|pay|spend)\w*\b)")
 # An agent acting on money in the present tense: "CS issues refunds on ...".
 _AGENT = r"\b(?:cfo|cmo|cto|cs|tier[- ]?1|agents?|bots?|assistant|swarm|runtime)\b"
-_ACTS = (r"(?:(?:approv|grant|issu|releas|authori[sz]|rais|increas|appli|process|offer|giv)e?s"
+_ACTS = (r"(?:(?:approv|grant|issu|releas|authori[sz]|rais|increas|appli|process|offer|giv|waiv)e?s"
          rf"\b[^.\n]{{0,60}}{_MONEY}|(?:refund|reimburs|pay|spend)e?s\b)")
 AUTONOMOUS_MONEY = re.compile(
     r"auto-?approv\w*\s+(?:refunds?|spend|ad-?spend|invoices?|up to)"
@@ -133,6 +135,12 @@ def test_manifests_advertise_no_autonomous_money_threshold(manifest):
     "The CMO bot raises ad spend by 10% a week.",
     "CS refunds duplicate orders.",
     "The agent pays vendor invoices on receipt.",
+    # Codex on b021085d: gift cards, vouchers and other value handed out.
+    "CS grants $50 gift cards on demand.",
+    "The support bot may issue goodwill vouchers for billing errors.",
+    "CS offers discount coupons to churn-risk accounts.",
+    "The bot waives late fees for loyal customers.",
+    "Agents can apply rebates to enterprise invoices.",
 ])
 def test_detector_catches_the_retired_wording(stale):
     assert offences(stale)

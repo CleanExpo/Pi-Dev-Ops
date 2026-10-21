@@ -161,12 +161,26 @@ def webhook_kill_switch(update: dict[str, Any]) -> dict[str, Any] | None:
     if not text.lower().startswith(("/panic", "/resume")):
         return None
     uid = update.get("update_id")
-    fresh = not isinstance(uid, bool) and isinstance(uid, int) and _claim_update_id(uid)
-    if text.lower().startswith("/resume") and not fresh:
+    if not text.lower().startswith("/resume"):  # /panic: raised before any draft-state lock
+        out = kill_switch.handle_command(text, observed_id=observed, **command_context(msg))
+        _claim_quietly(uid)
+        return {"ok": True, "kill_switch": out}
+    if not _claim_quietly(uid):
         log.warning("webhook %s update_id=%r dropped: stale or missing", text.split()[0], uid)
         return {"ok": True, "ignored": "stale or missing update_id"}
     return {"ok": True, "kill_switch": kill_switch.handle_command(
         text, observed_id=observed, **command_context(msg))}
+
+
+def _claim_quietly(uid: Any) -> bool:
+    """_claim_update_id for an integer uid; a fault in the claim reads as not fresh."""
+    if isinstance(uid, bool) or not isinstance(uid, int):
+        return False
+    try:
+        return _claim_update_id(uid)
+    except Exception:  # noqa: BLE001 - a broken draft-state lock must not stop a /panic
+        log.exception("webhook update_id=%r claim failed; treated as stale", uid)
+        return False
 
 
 def _claim_update_id(uid: int) -> bool:

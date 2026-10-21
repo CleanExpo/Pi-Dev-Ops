@@ -203,6 +203,27 @@ def test_panic_addressed_to_another_bot_still_panics(ks, monkeypatch, path):
     assert ks.is_active()
 
 
+def test_webhook_panic_engages_when_the_draft_lock_is_broken(ks, monkeypatch):
+    # Codex on b021085d: the update_id claim takes the draft-state lock; a fault
+    # there (here the lock path is a directory) must never stop a /panic.
+    from swarm import draft_review
+    draft_review._drafts_snapshot().with_suffix(".lock").mkdir(parents=True)
+    send = _via_webhook(monkeypatch)
+    send("/panic", T, SENDERS["another_member"])
+    assert ks.is_active()
+
+
+def test_webhook_resume_is_dropped_when_the_draft_lock_is_broken(ks, monkeypatch):
+    from swarm import draft_review
+    send = _via_webhook(monkeypatch)
+    send("/panic", T, {"from": FOUNDER_FROM})
+    lock = draft_review._drafts_snapshot().with_suffix(".lock")
+    lock.unlink(missing_ok=True)
+    lock.mkdir(parents=True)
+    send("/resume", T + 5, {"from": FOUNDER_FROM})
+    assert ks.is_active()
+
+
 def test_handle_command_refuses_resume_by_default(ks):
     ks.handle_command("/panic", sent_at=float(T))
     assert ks.handle_command("/resume", observed_id=ks.panic_id(),

@@ -149,6 +149,10 @@ def post_draft(
     precision drops below 0.95, the draft is aborted with audit row and never
     reaches the review chat. The destination chat receives a re-redaction at
     strictness=high in _do_send when REVIEW_CHAT_ID differs.
+
+    Nothing sends itself: every draft waits for the founder's reaction, whatever
+    `reversibility` the caller claims (founder ruling 21/10/2026; the old
+    reversible auto tier let money talk out unreviewed). It is kept on the record.
     """
     from . import pii_redactor
     pii_pre = pii_redactor.redact(
@@ -183,51 +187,6 @@ def post_draft(
     now = _now_iso()
     expires = (datetime.now(timezone.utc) + timedelta(hours=timeout_hours)).isoformat()
 
-    # Autonomous reversibility gate (swarm.nexus.policy): a reversible action that
-    # does not mention money auto-sends, honouring the SAME send_halted() check the 👍
-    # path uses. Money, medium, high and irreversible go to the HITL review below.
-    from swarm.nexus.policy import classify_policy
-    from .money_text import mentions_money
-    if classify_policy(reversibility) == "auto" and not mentions_money(draft_text):
-        record = {
-            "draft_id": draft_id,
-            "review_message_id": None,
-            "destination_chat_id": destination_chat_id,
-            "destination_thread_id": destination_thread_id,
-            "drafted_by_role": drafted_by_role,
-            "originating_intent_id": originating_intent_id,
-            "draft_text": draft_text,
-            "status": "pending",
-            "drafted_at": now,
-            "expires_at": expires,
-            "transitions": [],
-            "policy_level": "auto",
-            "reversibility": reversibility,
-        }
-        if (sent_ok := send_unless_halted(record)) is not None:
-            record["status"] = "sent" if sent_ok else "revise"
-            reason = "auto-approved (reversible)" if sent_ok else "auto-send failed"
-        else:
-            record["status"] = "deferred"
-            reason = "auto-approved but kill-switch active; send halted"
-        record["transitions"].append(
-            {"ts": _now_iso(), "to": record["status"], "reason": reason}
-        )
-        _append_jsonl(_drafts_jsonl(), {**record, "audit_event": "draft_auto_approved"})
-        from . import audit_emit
-        audit_emit.row("draft_auto_approved", drafted_by_role,
-                       draft_id=draft_id, reversibility=reversibility,
-                       status=record["status"])
-        _store(draft_id, record)
-        log.info("Draft %s auto-approved (reversible=%s) -> %s",
-                 draft_id, reversibility, record["status"])
-        return {
-            "draft_id": draft_id,
-            "review_message_id": None,
-            "status": record["status"],
-            "policy_level": "auto",
-        }
-
     review_text = (
         f"✏️ <b>DRAFT</b> ({html.escape(drafted_by_role)}) — for chat "
         f"<code>{html.escape(str(destination_chat_id))}</code>\n─────────────────────────────────\n"
@@ -249,6 +208,7 @@ def post_draft(
         "drafted_at": now,
         "expires_at": expires,
         "transitions": [],
+        "reversibility": reversibility,  # recorded only; it never skips review
     }
 
     _append_jsonl(_drafts_jsonl(), {**record, "audit_event": "draft_posted"})
@@ -333,6 +293,6 @@ def list_pending() -> list[dict[str, Any]]:
     return [r for r in snap.values() if r["status"] in ("pending", "deferred")]
 
 
-from .draft_decision import expire_overdue, mark_reaction, send_unless_halted  # noqa: E402
+from .draft_decision import expire_overdue, mark_reaction  # noqa: E402
 
 __all__ = ["post_draft", "mark_reaction", "expire_overdue", "list_pending"]

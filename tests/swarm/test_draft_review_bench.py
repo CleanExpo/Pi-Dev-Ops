@@ -165,13 +165,14 @@ def test_review_card_escapes_draft_markup(env, monkeypatch):
         assert raw not in card
 
 
-# ── 6. the auto tier honours the kill switch ─────────────────────────────────
+# ── 6. a reversible draft sends nothing by itself, kill switch or not ────────
+# (the auto tier was removed: Codex FAIL on b021085d, see test_no_auto_send_tier.py)
 
-def test_auto_tier_defers_when_kill_switch_active(env):
+def test_reversible_draft_waits_when_kill_switch_active(env):
     kill_switch.trigger("telegram_panic", reason="bench")
     out = draft_review.post_draft(draft_text="reversible note", destination_chat_id="42",
                                   drafted_by_role="CoS", reversibility="reversible")
-    assert out["status"] == "deferred"
+    assert out["status"] == "pending"
     assert env.sends == []
 
 
