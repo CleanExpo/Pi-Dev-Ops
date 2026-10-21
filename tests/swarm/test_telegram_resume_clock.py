@@ -155,7 +155,8 @@ def test_lookalike_panic_does_not_panic(ks):
     assert not ks.is_active()
 
 
-def test_bot_addressed_commands_still_work(ks):
+def test_bot_addressed_commands_still_work(ks, monkeypatch):
+    monkeypatch.setenv("TAO_TELEGRAM_BOT_USERNAME", "PiCeoBot")
     assert ks.handle_command("/panic@PiCeoBot now", sent_at=float(T)) == "panic"
     out = ks.handle_command("/resume@PiCeoBot ok", observed_id=ks.panic_id(),
                             sent_at=float(T + 1), from_founder=True)

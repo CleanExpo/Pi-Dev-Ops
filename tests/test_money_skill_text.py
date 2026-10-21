@@ -33,6 +33,10 @@ _AUTH = (r"\b(?:may|can|could|will|(?:is|are)\s+(?:allowed|permitted|authori[sz]
          r"\s+(?:\w+\s+){0,2}?")
 _GRANT = (r"(?:(?:approv|grant|issu|releas|authori[sz]|rais|increas|appl|process|offer|giv)\w*"
           rf"[^.\n]{{0,60}}{_MONEY}|(?:refund|reimburs|pay|spend)\w*\b)")
+# An agent acting on money in the present tense: "CS issues refunds on ...".
+_AGENT = r"\b(?:cfo|cmo|cto|cs|tier[- ]?1|agents?|bots?|assistant|swarm|runtime)\b"
+_ACTS = (r"(?:(?:approv|grant|issu|releas|authori[sz]|rais|increas|appli|process|offer|giv)e?s"
+         rf"\b[^.\n]{{0,60}}{_MONEY}|(?:refund|reimburs|pay|spend)e?s\b)")
 AUTONOMOUS_MONEY = re.compile(
     r"auto-?approv\w*\s+(?:refunds?|spend|ad-?spend|invoices?|up to)"
     r"|(?:refunds?|spend|ad-?spend)\s+(?:over|above|under|below|up to)\s+\$\s?\d"
@@ -50,7 +54,9 @@ AUTONOMOUS_MONEY = re.compile(
     rf"|{_MONEY}[^.\n]{{0,80}}{_UNGATED}"
     rf"|{_UNGATED}[^.\n]{{0,80}}{_MONEY}"
     # Codex helper findings on 93ee19ff: standing authority to act on money.
-    rf"|{_AUTH}{_GRANT}",
+    rf"|{_AUTH}{_GRANT}"
+    # Codex on 10900da2: direct present-tense authority, "CFO approves invoices".
+    rf"|{_AGENT}\s+(?:\w+\s+){{0,2}}?{_ACTS}",
     re.IGNORECASE)
 
 
@@ -120,6 +126,13 @@ def test_manifests_advertise_no_autonomous_money_threshold(manifest):
     "CS can issue refunds for orders under 30 days old.",
     "The CMO bot is allowed to raise ad spend by 10% a week.",
     "Agents are authorised to release payments to known vendors.",
+    # Codex on 10900da2: direct present-tense authority.
+    "CFO approves invoices below $1,000.",
+    "CS issues refunds on duplicate orders.",
+    "The support bot grants service credits within standard SLA terms.",
+    "The CMO bot raises ad spend by 10% a week.",
+    "CS refunds duplicate orders.",
+    "The agent pays vendor invoices on receipt.",
 ])
 def test_detector_catches_the_retired_wording(stale):
     assert offences(stale)
@@ -137,6 +150,8 @@ def test_detector_catches_the_retired_wording(stale):
     "| Per refund request | Draft for Phill; emit `cs_refund_blocked` (pending until he approves) |",
     "- Any service credit, at any amount, including credits within standard SLA terms",
     "a credit is drafted for Phill as a refund request, and it stays pending until he approves.",
+    "Phill approves every refund himself.",
+    "CS drafts a refund request for Phill; it stays pending until he approves.",
 ])
 def test_detector_allows_the_current_wording(ok):
     assert offences(ok) == []

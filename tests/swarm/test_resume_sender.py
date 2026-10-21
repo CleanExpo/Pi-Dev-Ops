@@ -28,6 +28,16 @@ SENDERS = {
     "from_missing": {},
     "founder_id_as_bot": {"from": {"id": int(FOUNDER), "is_bot": True}},
     "is_bot_missing": {"from": {"id": int(FOUNDER)}},
+    # Codex on 10900da2: a forward carries a fresh date but is not the founder's own command.
+    "forwarded_founder": {"from": FOUNDER_FROM, "forward_origin": {
+        "type": "user", "date": T - 1000, "sender_user": FOUNDER_FROM}},
+    "forwarded_member": {"from": FOUNDER_FROM, "forward_origin": {
+        "type": "user", "date": T - 1000, "sender_user": {"id": 8000002, "is_bot": False}}},
+    "forwarded_legacy": {"from": FOUNDER_FROM, "forward_from": FOUNDER_FROM,
+                         "forward_date": T - 1000},
+    "forwarded_hidden_user": {"from": FOUNDER_FROM, "forward_sender_name": "Someone",
+                              "forward_date": T - 1000},
+    "automatic_forward": {"from": FOUNDER_FROM, "is_automatic_forward": True},
 }
 
 
@@ -153,6 +163,44 @@ def test_founder_resume_followed_by_a_newline_works(ks, monkeypatch, path, text)
 def test_lookalikes_after_whitespace_split_do_nothing(ks, text):
     assert ks.handle_command(text, sent_at=float(T), from_founder=True) is None
     assert not ks.is_active()
+
+
+@pytest.mark.parametrize("path", PATHS)
+@pytest.mark.parametrize("command", ["/resume@OtherBot", "/resume-confirm@OtherBot manual"])
+def test_resume_addressed_to_another_bot_is_refused(ks, monkeypatch, path, command):
+    # Codex on 10900da2: "/resume@OtherBot" cleared this bot's kill switch.
+    monkeypatch.setenv("TAO_TELEGRAM_BOT_USERNAME", "PiCeoBot")
+    send = PATHS[path](monkeypatch)
+    send("/panic", T, {"from": FOUNDER_FROM})
+    send(command, T + 5, {"from": FOUNDER_FROM})
+    assert ks.is_active()
+
+
+@pytest.mark.parametrize("path", PATHS)
+def test_addressed_resume_refused_while_the_bot_username_is_unset(ks, monkeypatch, path):
+    monkeypatch.delenv("TAO_TELEGRAM_BOT_USERNAME", raising=False)
+    send = PATHS[path](monkeypatch)
+    send("/panic", T, {"from": FOUNDER_FROM})
+    send("/resume@PiCeoBot", T + 5, {"from": FOUNDER_FROM})
+    assert ks.is_active()
+
+
+@pytest.mark.parametrize("path", PATHS)
+@pytest.mark.parametrize("command", ["/resume@PiCeoBot", "/resume@piceobot now", "/resume"])
+def test_resume_addressed_to_this_bot_or_bare_works(ks, monkeypatch, path, command):
+    monkeypatch.setenv("TAO_TELEGRAM_BOT_USERNAME", "PiCeoBot")
+    send = PATHS[path](monkeypatch)
+    send("/panic", T, {"from": FOUNDER_FROM})
+    send(command, T + 5, {"from": FOUNDER_FROM})
+    assert not ks.is_active()
+
+
+@pytest.mark.parametrize("path", PATHS)
+def test_panic_addressed_to_another_bot_still_panics(ks, monkeypatch, path):
+    monkeypatch.setenv("TAO_TELEGRAM_BOT_USERNAME", "PiCeoBot")
+    send = PATHS[path](monkeypatch)
+    send("/panic@OtherBot", T, SENDERS["another_member"])
+    assert ks.is_active()
 
 
 def test_handle_command_refuses_resume_by_default(ks):

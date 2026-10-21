@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -152,6 +153,13 @@ def _clear_flag(*, confirmed: bool, reason: str, observed_id: str | None,
         return outcome, locked
 
 
+def _addressed_to_us(addressee: str) -> bool:
+    """A bare command, or one addressed to TAO_TELEGRAM_BOT_USERNAME. With that
+    unset, an addressed command is taken as meant for another bot."""
+    ours = os.environ.get("TAO_TELEGRAM_BOT_USERNAME", "").strip().lstrip("@").lower()
+    return not addressee or (bool(ours) and addressee.lower() == ours)
+
+
 def handle_command(text: str, *, observed_id: str | None = None,
                    sent_at: float | None = None, from_founder: bool = False) -> str | None:
     """Apply a Telegram /panic, /resume-confirm or /resume; return which, else None.
@@ -162,13 +170,16 @@ def handle_command(text: str, *, observed_id: str | None = None,
     A resume needs `from_founder` (review_authority.sent_by_founder); /panic does not.
     """
     word, rest = (text.split(None, 1) + ["", ""])[:2]  # split at any whitespace
-    command, rest = word.split("@", 1)[0].lower(), rest.strip()  # exact word only
+    command, _, addressee = word.partition("@")
+    command, rest = command.lower(), rest.strip()  # exact word only
     if command == "/panic":
         trigger("telegram_panic", reason=rest or "operator-initiated", telegram_sent_at=sent_at)
         return "panic"
     if command in ("/resume", "/resume-confirm") and not from_founder:
         log.warning("kill-switch %s REFUSED: not sent by the founder in person", command)
         return "refused: not_founder"
+    if command in ("/resume", "/resume-confirm") and not _addressed_to_us(addressee):
+        return "refused: addressed_to_another_bot"
     if command in ("/resume", "/resume-confirm") and sent_at is None:
         return "refused: no_message_date"  # Telegram always dates a message
     if command == "/resume-confirm":

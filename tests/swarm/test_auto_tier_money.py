@@ -32,6 +32,17 @@ env = base.env
     "Your account balance has been adjusted.",
     "We have written off the outstanding amount.",
     "Here is a gift card for 20 bucks.",
+    # Codex on 10900da2: currency before the amount, bare amounts, value words.
+    "Transfer AUD 50 to the vendor.",
+    "Send US$75 to the supplier.",
+    "Transfer 50 to the vendor.",
+    "Here is a gift certificate.",
+    "We added loyalty points to your account.",
+    "Your next month is free.",
+    # No money word at all: only the amount or the currency symbol gives it away.
+    "Sending the vendor 50 today.",
+    "AUD 75 is on its way to you.",
+    "Sending € fifty your way.",
 ])
 def test_reversible_money_draft_goes_to_review(env, text):
     out = draft_review.post_draft(draft_text=text, destination_chat_id="42",
