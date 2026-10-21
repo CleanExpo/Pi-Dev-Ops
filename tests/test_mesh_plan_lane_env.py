@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -57,18 +59,24 @@ def runner(monkeypatch, tmp_path):
 
 
 @pytest.fixture
-def env_printer(tmp_path) -> Path:
+def env_printer(tmp_path):
     """An agent stand-in that prints the environment it received as JSON.
 
-    The shebang names the interpreter by absolute path through a symlink in tmp_path, so
-    a checkout path containing spaces cannot break the ``#!`` line.
+    The shebang names the interpreter through a symlink, so a checkout path containing
+    spaces cannot break the ``#!`` line. A ``#!`` line cannot hold a space either, and
+    tmp_path does when TMPDIR is on a spaced volume (the local CI mirror's), so the link
+    then lives in a space-free directory. A /bin/sh wrapper is no answer here: the shell
+    would add PWD and SHLVL to the very environment this test asserts on.
     """
-    py = tmp_path / "py"
+    link_dir = tmp_path if " " not in str(tmp_path) else Path(tempfile.mkdtemp(dir="/tmp"))
+    py = link_dir / "py"
     py.symlink_to(os.path.realpath(sys.executable))
     script = tmp_path / "print-env"
     script.write_text(f"#!{py}\nimport json, os, sys\nsys.stdout.write(json.dumps(dict(os.environ)))\n")
     script.chmod(0o755)
-    return script
+    yield script
+    if link_dir != tmp_path:
+        shutil.rmtree(link_dir, ignore_errors=True)
 
 
 def _child_env(runner, monkeypatch, env_printer) -> dict:
