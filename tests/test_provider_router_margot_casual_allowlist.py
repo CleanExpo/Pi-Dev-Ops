@@ -66,11 +66,18 @@ def _clean_env(monkeypatch):
     "openrouter:openai/gpt-4o",              # paid, matches no refused marker
     "openrouter:google/gemini-1.5-pro",      # paid, matches no refused marker
     "openrouter:meta-llama/llama-3.3-70b-instruct",
-    "openrouter:z-ai/glm-4.7",               # near-miss on a ladder entry
+    "openrouter:z-ai/glm-4.7",               # near-miss on a former ladder entry
+    "openrouter:z-ai/glm-4.7-flash",         # PAID; was ladder step 3 until 21/10/2026
+    "openrouter:minimax/minimax-m3.1-flash",  # ladder model without its ":free" suffix
+    "openrouter:nvidia/nemotron-3-super-120b-a12b:free:extra",  # ":free" not at the end
+    "openrouter:google/gemma-4-26b-a4b-it:free",  # free, but off the ladder (and Gemma)
+    "openrouter:meta-llama/llama-3.3-70b-instruct:free",  # free, but off the ladder
+    "ollama:qwen3.5:latest",                 # local models are no longer permitted
+    "ollama:gemma4:latest",
     "claude_print:gpt-x",                    # provider the ladder cannot dispatch
 ])
-def test_paid_override_outside_the_ladder_fails_closed(monkeypatch, spec):
-    """A model that is not on the ladder, not ollama and not ':free' is refused."""
+def test_override_outside_the_ladder_fails_closed(monkeypatch, spec):
+    """Only a ':free' ladder entry is permitted; everything else is refused."""
     monkeypatch.setenv("TAO_MODEL_MARGOT_CASUAL", spec)
     with pytest.raises(MC.RefusedModelError) as exc_info:
         PR.select_provider_model("margot.casual")
@@ -80,12 +87,10 @@ def test_paid_override_outside_the_ladder_fails_closed(monkeypatch, spec):
 
 
 @pytest.mark.parametrize("spec", [
-    "openrouter:google/gemma-4-26b-a4b-it:free",   # ladder step 2
-    "openrouter:z-ai/glm-4.7-flash",               # ladder step 3
-    "openrouter:nvidia/nemotron-3-super-120b-a12b:free",
-    "ollama:qwen3.5:latest",                       # local, costs nothing
+    "openrouter:nvidia/nemotron-3-super-120b-a12b:free",   # ladder step 1
+    "openrouter:minimax/minimax-m3.1-flash:free",          # ladder step 2
 ])
-def test_free_override_is_still_honoured(monkeypatch, spec):
+def test_ladder_override_is_still_honoured(monkeypatch, spec):
     """The allowlist must not refuse the things the ruling actually permits.
 
     Without this leg the previous test passes on a checker that refuses
@@ -97,8 +102,9 @@ def test_free_override_is_still_honoured(monkeypatch, spec):
     assert f"{pm.provider}:{pm.model_id}" == spec
 
 
-def test_run_via_provider_never_dispatches_an_unsupported_provider(monkeypatch):
-    """_call_ladder_step sends everything non-ollama to OpenRouter.
+@pytest.mark.parametrize("provider", ["claude_print", "ollama", "anthropic"])
+def test_run_via_provider_never_dispatches_an_unsupported_provider(monkeypatch, provider):
+    """_call_ladder_step used to send everything non-ollama to OpenRouter.
 
     The second P1: a claude_print or anthropic override that slipped the refusal
     list would have been executed by provider_openrouter under a model id that
@@ -120,7 +126,7 @@ def test_run_via_provider_never_dispatches_an_unsupported_provider(monkeypatch):
     monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", _record("openrouter"))
     monkeypatch.setitem(sys.modules, "app.server.provider_ollama", _record("ollama"))
     rc, text, cost, err = asyncio.run(
-        MC._call_ladder_step("claude_print", "gpt-x", "hi", timeout_s=5, session_id=""))
+        MC._call_ladder_step(provider, "gpt-x:free", "hi", timeout_s=5, session_id=""))
     assert rc == 1
     assert calls == [], "an unsupported provider must not reach any provider module"
-    assert "claude_print" in (err or "")
+    assert provider in (err or "")

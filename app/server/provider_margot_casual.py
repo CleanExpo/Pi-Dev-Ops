@@ -43,12 +43,14 @@ class RefusedModelError(RuntimeError):
 
 MARGOT_CASUAL_ROLE = "margot.casual"
 MARGOT_CASUAL_ENV = "TAO_MODEL_MARGOT_CASUAL"
-MARGOT_CASUAL_OLLAMA_ENV = "MARGOT_OLLAMA_BASE_URL"
+# Founder ruling 21/10/2026: the local-model step and the previous step-2 model
+# family are removed. Two OpenRouter ":free" models, then an error. There is no
+# third step and no paid fallback.
 MARGOT_CASUAL_LADDER: tuple[tuple[Provider, str], ...] = (
-    ("ollama", "gemma4:latest"),
-    ("openrouter", "google/gemma-4-26b-a4b-it:free"),
-    ("openrouter", "z-ai/glm-4.7-flash"),
+    ("openrouter", "nvidia/nemotron-3-super-120b-a12b:free"),
+    ("openrouter", "minimax/minimax-m3.1-flash:free"),
 )
+FREE_SUFFIX = ":free"
 MARGOT_CASUAL_REFUSED_MARKERS = ("kimi", "moonshot", "anthropic", "claude", "sonnet")
 
 
@@ -58,77 +60,40 @@ MARGOT_CASUAL_REFUSED_MARKERS = ("kimi", "moonshot", "anthropic", "claude", "son
 def _margot_casual_refusal(provider: str, model_id: str) -> str | None:
     """Why margot.casual may not run `provider:model_id`, or None when it may.
 
-    An ALLOWLIST, not a denylist. A denylist was the first shape and it was
-    wrong: `openrouter:openai/gpt-4o` matches none of the five refused markers,
-    so a role the founder ruling puts on $0 models could be pointed straight at
-    a paid one. A list of forbidden names can only ever be as complete as the
-    person writing it; the set of models that cost nothing is the one that can
-    be stated exactly. Three things are permitted and nothing else:
+    An ALLOWLIST of exactly the ladder entries, each of which must end ":free".
+    A denylist was the first shape and it was wrong: `openrouter:openai/gpt-4o`
+    matched none of the refused markers. Before 21/10/2026 the allowlist also
+    admitted any local model and any OpenRouter ":free" id; both are gone, so
+    an override can only re-select a ladder step.
 
-      * any (provider, model_id) on MARGOT_CASUAL_LADDER,
-      * any ollama model — it runs locally, so it costs nothing,
-      * any OpenRouter model whose id ends ":free".
-
-    The marker list still runs FIRST, because an Anthropic model served free
-    through OpenRouter is free and is still forbidden for this role by name.
+    The marker list still runs FIRST, so an Anthropic model is refused by name
+    even if someone puts it on the ladder.
     """
     probe = f"{provider}:{model_id}".lower()
     for marker in MARGOT_CASUAL_REFUSED_MARKERS:
         if marker in probe:
             return f"matches refused marker {marker!r}"
-    if (provider, model_id) in MARGOT_CASUAL_LADDER:
+    if (provider, model_id) in MARGOT_CASUAL_LADDER and model_id.endswith(FREE_SUFFIX):
         return None
-    if provider == "ollama":
-        return None
-    if provider == "openrouter" and model_id.lower().endswith(":free"):
-        return None
-    return ("is not on the free ladder, is not an ollama model, and is not an "
-            "OpenRouter ':free' model")
-
-
-def _margot_ollama_base_url() -> str:
-    """The Ollama margot.casual may use: MARGOT_OLLAMA_BASE_URL first, else the
-    global OLLAMA_BASE_URL (only present off Railway — the start guard strips it),
-    else "" meaning step 1 is not configured."""
-    return (
-        os.environ.get(MARGOT_CASUAL_OLLAMA_ENV) or os.environ.get("OLLAMA_BASE_URL") or ""
-    ).strip()
-
-
-def _ollama_configured_and_reachable() -> bool:
-    """Ladder step 1 needs an explicit base URL — the localhost default
-    provider_ollama falls back to is never a real Ollama on Railway."""
-    base_url = _margot_ollama_base_url()
-    if not base_url:
-        return False
-    try:
-        import sys as _sys  # noqa: PLC0415
-        ollama_mod = _sys.modules.get("app.server.provider_ollama")
-        if ollama_mod is None:
-            from . import provider_ollama as ollama_mod  # noqa: PLC0415
-        return bool(ollama_mod.is_reachable(base_url=base_url))
-    except Exception as exc:  # noqa: BLE001
-        log.debug("provider_router: margot.casual ollama probe failed (%s)", exc)
-        return False
+    return "is not a ':free' entry on the margot.casual ladder"
 
 
 def _margot_casual_candidates() -> list[tuple[Provider, str, str]]:
     """Ordered (provider, model_id, source) margot.casual may use right now.
 
-    An override is a single candidate; the ladder skips step 1 when Ollama is
-    not configured+reachable. Nothing here consults TAO_CHEAP_*.
+    An override is a single candidate; a set but unparseable one is refused.
+    Nothing here consults TAO_CHEAP_*.
     """
-    raw = (os.environ.get(MARGOT_CASUAL_ENV) or "").strip()
+    raw = os.environ.get(MARGOT_CASUAL_ENV) or ""  # only unset or "" means: use the ladder
     if raw:
-        parsed = _pr()._parse_provider_spec(raw)
+        parsed = _pr()._parse_provider_spec(raw.strip()) if raw.strip() else None
         if parsed is not None:
             return [(parsed[0], parsed[1], f"env:{MARGOT_CASUAL_ENV}")]
-        log.warning("provider_router: %s=%r is not provider:model — using the free ladder",
-                    MARGOT_CASUAL_ENV, raw)
-    steps = list(enumerate(MARGOT_CASUAL_LADDER, start=1))
-    if not _ollama_configured_and_reachable():
-        steps = [(n, s) for n, s in steps if s[0] != "ollama"]
-    return [(prov, model, f"ladder-step-{n}") for n, (prov, model) in steps]
+        raise RefusedModelError(
+            f"{MARGOT_CASUAL_ROLE}: {MARGOT_CASUAL_ENV}={raw!r} is not provider:model, "
+            f"so nothing was dispatched. Unset it or name a model on the ladder.")
+    return [(prov, model, f"ladder-step-{n}")
+            for n, (prov, model) in enumerate(MARGOT_CASUAL_LADDER, start=1)]
 
 
 def _refuse_if_forbidden(provider: str, model_id: str, source: str) -> None:
@@ -151,33 +116,24 @@ def _resolve_margot_casual() -> ProviderModel:
 
 async def _call_ladder_step(prov: str, model: str, prompt: str, *, timeout_s: int,
                             session_id: str) -> tuple[int, str, float, str | None]:
-    """Authorize the actual transport before each existing ladder step."""
+    """Authorize the actual transport before each ladder step.
+
+    OpenRouter is the only provider the ladder can dispatch. Anything else comes
+    back as an error, never routed to OpenRouter under a model id it never serves.
+    """
     import sys as _sys  # noqa: PLC0415
     from .provider_policy import require_transport
 
-    # Explicit, not "ollama else openrouter". The old shape sent EVERY other
-    # provider to provider_openrouter, so a claude_print or anthropic override
-    # that slipped the refusal list would have been issued to OpenRouter under a
-    # model id it never serves. _margot_casual_refusal refuses those first; this
-    # refuses them again at the point of dispatch.
-    if prov == "ollama":
-        mod_name = "app.server.provider_ollama"
-    elif prov == "openrouter":
-        mod_name = "app.server.provider_openrouter"
-    else:
+    if prov != "openrouter":
         return 1, "", 0.0, f"margot_casual_unsupported_provider: {prov}"
     try:
-        extra = {"base_url": _margot_ollama_base_url()} if prov == "ollama" else {}
-        require_transport(prov, endpoint_url=extra.get("base_url"))
-        provider_mod = _sys.modules.get(mod_name)
+        require_transport(prov, role=MARGOT_CASUAL_ROLE, model_id=model)
+        provider_mod = _sys.modules.get("app.server.provider_openrouter")
         if provider_mod is None:
-            if prov == "ollama":
-                from . import provider_ollama as provider_mod  # noqa: PLC0415
-            else:
-                from . import provider_openrouter as provider_mod  # noqa: PLC0415
+            from . import provider_openrouter as provider_mod  # noqa: PLC0415
         return await provider_mod.call(
             prompt=prompt, model_id=model, timeout_s=timeout_s,
-            role=MARGOT_CASUAL_ROLE, session_id=session_id, **extra,
+            role=MARGOT_CASUAL_ROLE, session_id=session_id,
         )
     except Exception as exc:  # noqa: BLE001
         return 1, "", 0.0, f"{prov}_call_raised: {exc}"

@@ -7,6 +7,11 @@ Checks: Ollama /api/tags + n8n /healthz
 Alert rules:
   - Only fires after 2 consecutive failures (avoids restart false positives)
   - 30-minute cooldown between alerts for the same service
+
+The Ollama probe stays until stage 2 of the Ollama removal (founder ruling
+21/10/2026): the swarm bots still call swarm.ollama_client, so a down daemon
+is still an outage. Margot's Phase-1 casual role (margot.casual) no longer
+uses Ollama; a Margot research turn still can, through swarm.wiki_query.
 """
 
 import urllib.request

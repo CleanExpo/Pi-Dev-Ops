@@ -159,8 +159,6 @@ async def routing(
         "margot_casual": {
             "ladder": [f"{p}:{m}" for p, m in MC.MARGOT_CASUAL_LADDER],
             "override_env": MC.MARGOT_CASUAL_ENV,
-            "ollama_env": MC.MARGOT_CASUAL_OLLAMA_ENV,
-            "ollama_configured": bool(MC._margot_ollama_base_url()),
             "refused_markers": list(MC.MARGOT_CASUAL_REFUSED_MARKERS),
         },
     }

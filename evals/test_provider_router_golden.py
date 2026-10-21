@@ -55,7 +55,19 @@ def test_explicit_paid_pins_remain_visible_but_cannot_dispatch(monkeypatch, prov
     assert result.provenance["model_verified"] is False
 
 
-def test_margot_free_label_does_not_bypass_subscription_policy():
+def test_margot_free_ladder_passes_policy_then_fails_loud_without_a_key(monkeypatch):
+    """margot.casual ':free' is the one OpenRouter use the policy admits. With no
+    key both ladder steps fail and the result is an error, never a paid fallback."""
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OMNIROUTE_ENABLED", raising=False)
     rc, text, _, error = asyncio.run(provider_router.run_via_provider("test", role="margot.casual"))
     assert rc != 0 and text == ""
-    assert "subscription_only" in error
+    assert error.startswith("margot_casual_ladder_exhausted:")
+    assert "openrouter_no_api_key" in error
+    assert "subscription_only" not in error
+
+
+def test_openrouter_stays_blocked_for_every_other_role(monkeypatch):
+    monkeypatch.setenv("TAO_MODEL_MONITOR", "openrouter:nvidia/nemotron-3-super-120b-a12b:free")
+    result = asyncio.run(provider_router.run_via_provider_with_evidence("test", role="monitor"))
+    assert result.rc != 0 and "subscription_only" in result.error

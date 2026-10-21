@@ -83,7 +83,7 @@ async def call(*, prompt: str, model_id: str,
                  ) -> tuple[int, str, float, str | None]:
     """One model call with Model Fabric first for explicitly approved roles."""
     try:
-        provider_policy.require_transport("openrouter")
+        provider_policy.require_transport("openrouter", role=role, model_id=model_id)
     except provider_policy.ProviderPolicyError as exc:
         return 1, "", 0.0, str(exc)
     fabric_result = await _try_model_fabric(prompt, role, session_id, timeout_s, max_tokens)

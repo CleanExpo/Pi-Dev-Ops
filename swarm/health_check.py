@@ -7,6 +7,11 @@ and Telegram alerts can reach the operator.
 Usage:
     python -m swarm.health_check          # from Pi-Dev-Ops root
     python swarm/health_check.py          # direct
+
+The Ollama probe stays until stage 2 of the Ollama removal (founder ruling
+21/10/2026): the swarm bots still call swarm.ollama_client, so a down daemon
+is still an outage. Margot's Phase-1 casual role (margot.casual) no longer
+uses Ollama; a Margot research turn still can, through swarm.wiki_query.
 """
 from __future__ import annotations
 

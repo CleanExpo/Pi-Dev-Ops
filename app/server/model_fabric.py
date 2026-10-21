@@ -2,13 +2,14 @@
 
 OmniRoute is infrastructure behind Mission Control, never the authority layer.
 This module supplies an explicit, allowlisted model ladder for selected roles,
-model-level failover, a Margot strengthening pass, and bounded telemetry for the
+model-level failover, and bounded telemetry for the
 native `/control/model` surface.
 
 Founder traffic invariants:
 - Ollama and Gemma are blocked.
 - Global OmniRoute `auto` is not used for founder traffic by default.
-- Only roles listed in OMNIROUTE_ROLES are routed through the fabric.
+- Only roles listed in OMNIROUTE_ROLES are routed through the fabric, and
+  margot.casual never is (EXCLUDED_ROLES).
 - A fabric failure returns an error so the existing direct high-trust provider
   path can take over; it never silently falls back to a banned model.
 """
@@ -17,7 +18,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 import threading
 import time
 import urllib.error
@@ -28,7 +28,10 @@ from typing import Any
 log = logging.getLogger("app.server.model_fabric")
 
 DEFAULT_BASE_URL = "http://127.0.0.1:20128"
-DEFAULT_ROLES = "margot.casual"
+DEFAULT_ROLES = ""
+# Never routed, whatever OMNIROUTE_ROLES says: margot.casual runs only on its own
+# ":free" ladder (provider_margot_casual, founder ruling 21/10/2026).
+EXCLUDED_ROLES = frozenset({"margot.casual"})
 
 DEFAULT_LANE_MODELS: dict[str, tuple[str, ...]] = {
     "founder-chat": (
@@ -55,13 +58,6 @@ DEFAULT_LANE_MODELS: dict[str, tuple[str, ...]] = {
 }
 DEFAULT_STRENGTH_MODEL = "openrouter/anthropic/claude-sonnet-latest"
 BANNED_MODEL_MARKERS = ("gemma", "ollama")
-
-_STRENGTH_SIGNALS = re.compile(
-    r"\b(?:finish|finalise|finalize|production|strategy|build|fix|repair|"
-    r"research|mission control|model|slack|telegram|issue|problem|deploy|"
-    r"security|legal|money|revenue|customer|critical|urgent|architecture)\b",
-    re.I,
-)
 
 
 @dataclass
@@ -99,11 +95,11 @@ def base_url() -> str:
 
 def allowed_roles() -> set[str]:
     raw = (os.environ.get("OMNIROUTE_ROLES") or DEFAULT_ROLES).strip()
-    return {item.strip() for item in raw.split(",") if item.strip()}
+    return {item.strip() for item in raw.split(",") if item.strip()} - EXCLUDED_ROLES
 
 
 def role_allowed(role: str) -> bool:
-    return enabled() and role in allowed_roles()
+    return enabled() and role not in EXCLUDED_ROLES and role in allowed_roles()
 
 
 def lane_for_role(role: str) -> str:
@@ -249,32 +245,6 @@ def _chat_once(
     return True, text, served_model, provider, latency_ms, None
 
 
-def _should_strengthen(role: str, prompt: str) -> bool:
-    if role != "margot.casual":
-        return False
-    mode = (
-        os.environ.get("OMNIROUTE_STRENGTHEN_MARGOT") or "smart"
-    ).strip().lower()
-    if mode in {"0", "off", "false", "no"}:
-        return False
-    if mode in {"1", "on", "true", "always"}:
-        return True
-    return len(prompt) >= 600 or bool(_STRENGTH_SIGNALS.search(prompt))
-
-
-def _strength_prompt(original_prompt: str, draft: str) -> str:
-    return (
-        "You are the senior strengthening pass for Phill McGurk's Mission Control. "
-        "Review the draft below against the original prompt. Correct lost context, "
-        "unsupported claims, shallow reasoning, uncompleted actions, and drift from "
-        "the operator's actual goal. Preserve useful detail but return ONE final, "
-        "direct answer suitable for Margot to send. Do not discuss this review step.\n\n"
-        f"ORIGINAL PROMPT:\n{original_prompt}\n\n"
-        f"DRAFT:\n{draft}\n\n"
-        "FINAL STRENGTHENED ANSWER:"
-    )
-
-
 def _post_slack_trace(call: FabricCall) -> None:
     token = (os.environ.get("SLACK_BOT_TOKEN") or "").strip()
     channel = (
@@ -355,26 +325,9 @@ def complete(
         _post_slack_trace(call)
         return 1, "", 0.0, last_error or "omniroute_ladder_exhausted"
 
+    # The Margot strengthening pass (a paid Sonnet re-write) only ever applied to
+    # margot.casual, which the fabric no longer routes (EXCLUDED_ROLES), so it is gone.
     strengthened = False
-    if _should_strengthen(role, prompt):
-        reviewer = strength_model()
-        if reviewer and reviewer != served_model:
-            attempts.append(reviewer)
-            ok, text, served, prov, latency_ms, error = _chat_once(
-                prompt=_strength_prompt(prompt, draft),
-                model=reviewer,
-                session_id=(
-                    f"{session_id}-strength" if session_id else "margot-strength"
-                ),
-                timeout_s=timeout_s,
-                max_tokens=max_tokens,
-            )
-            total_latency += latency_ms
-            if ok and text:
-                draft, served_model, provider = text, served, prov
-                strengthened = True
-            else:
-                last_error = error
 
     call = FabricCall(
         time.time(), role, lane, models[0], served_model, provider,

@@ -1480,7 +1480,7 @@ async def handle_turn(*, chat_id: str, user_text: str,
         for marker in ("[RESEARCH", "[TRUTH-CHECK", "[REALTIME")
     )
     # ── Phase 1: draft response ────────────────────────────────────────
-    # role=margot.casual → cheap tier by default (OpenRouter GLM 4.7 Flash).
+    # role=margot.casual → its ':free' OpenRouter ladder (provider_margot_casual).
     # If the message is clearly research-needing, the Phase 1 model will
     # emit a [RESEARCH] sentinel; Phase 2 then runs on top tier.
     #

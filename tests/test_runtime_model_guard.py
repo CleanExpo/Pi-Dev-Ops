@@ -29,12 +29,12 @@ def test_sanitise_environment_leaves_margot_casual_to_ra7434() -> None:
 
     The guard used to inject TAO_MODEL_MARGOT_CASUAL=<Sonnet> on every Railway
     boot. provider_router now refuses any Anthropic model for that role, so the
-    injection would fail every Telegram turn closed. The guard must neither pin
-    that key nor strip a gemma value from it — the router polices it.
+    injection would fail every Telegram turn closed. The guard must not pin
+    that key — the router polices it.
     """
-    env = {"TAO_MODEL_MARGOT_CASUAL": "openrouter:google/gemma-4-26b-a4b-it:free"}
+    env = {"TAO_MODEL_MARGOT_CASUAL": "openrouter:minimax/minimax-m3.1-flash:free"}
     changed = guard.sanitise_environment(env)
-    assert env["TAO_MODEL_MARGOT_CASUAL"] == "openrouter:google/gemma-4-26b-a4b-it:free"
+    assert env["TAO_MODEL_MARGOT_CASUAL"] == "openrouter:minimax/minimax-m3.1-flash:free"
     assert "TAO_MODEL_MARGOT_CASUAL" not in changed
 
     env = {}
@@ -52,28 +52,30 @@ def _apply_sanitised_env(monkeypatch, env: dict[str, str]) -> None:
         monkeypatch.setenv(k, v)
 
 
-def test_guard_then_router_keeps_margot_ladder_step_1(monkeypatch) -> None:
-    """Round-2 P1 (Codex): the guard is Railway's start command; if it deletes
-    OLLAMA_BASE_URL, margot.casual's step 1 can never fire on Railway even when
-    the founder configures it. After sanitise_environment a configured,
-    reachable Ollama must still resolve margot.casual to ladder-step-1."""
+def test_guard_strips_margot_ollama_base_url_and_router_uses_the_free_ladder(monkeypatch) -> None:
+    """Founder ruling 21/10/2026: the margot.casual ladder has no local step, so
+    the guard no longer preserves MARGOT_OLLAMA_BASE_URL, and the router resolves
+    margot.casual to the first ':free' OpenRouter step without probing anything."""
     from app.server import provider_ollama, provider_router  # noqa: PLC0415
 
     env = {
         "OLLAMA_BASE_URL": "http://ollama.local:11434/v1",
         "MARGOT_OLLAMA_BASE_URL": "http://margot-ollama:11434/v1",
     }
-    guard.sanitise_environment(env)
+    changed = guard.sanitise_environment(env)
     assert "OLLAMA_BASE_URL" not in env, "the work-lane strip must stay"
-    assert env["MARGOT_OLLAMA_BASE_URL"] == "http://margot-ollama:11434/v1"
+    assert "MARGOT_OLLAMA_BASE_URL" not in env
+    assert "MARGOT_OLLAMA_BASE_URL" in changed
 
     _apply_sanitised_env(monkeypatch, env)
+    monkeypatch.delenv("MARGOT_OLLAMA_BASE_URL", raising=False)
     probes: list = []
     monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: probes.append(kw) or True)
 
     pm = provider_router.select_provider_model("margot.casual")
-    assert (pm.provider, pm.model_id, pm.source) == ("ollama", "gemma4:latest", "ladder-step-1")
-    assert probes == [{"base_url": "http://margot-ollama:11434/v1"}]
+    assert (pm.provider, pm.model_id, pm.source) == (
+        "openrouter", "nvidia/nemotron-3-super-120b-a12b:free", "ladder-step-1")
+    assert probes == []
 
 
 def test_guard_then_router_still_keeps_work_lanes_off_ollama(monkeypatch) -> None:
@@ -96,6 +98,25 @@ def test_guard_then_router_still_keeps_work_lanes_off_ollama(monkeypatch) -> Non
         pm = provider_router.select_provider_model(role)
         assert pm.provider == "openrouter", (role, pm)
         assert pm.model_id == guard.SAFE_CHEAP_MODEL
+
+
+def test_guard_strips_only_its_listed_ollama_keys() -> None:
+    """The guard's comment names what it strips and what it leaves (Codex review of
+    81d4d5f8): OLLAMA_URL, OLLAMA_MODEL and OLLAMA_BRIEF_MODEL are not on the list and
+    pass through until stage 2; MARGOT_OLLAMA_BASE_URL is on it and goes."""
+    env = {
+        "OLLAMA_URL": "http://127.0.0.1:11434",
+        "OLLAMA_MODEL": "mistral",
+        "OLLAMA_BRIEF_MODEL": "mistral",
+        "MARGOT_OLLAMA_BASE_URL": "http://margot-ollama:11434/v1",
+        "OLLAMA_BASE_URL": "http://127.0.0.1:11434/v1",
+    }
+    changed = guard.sanitise_environment(env)
+    assert env["OLLAMA_URL"] == "http://127.0.0.1:11434"
+    assert env["OLLAMA_MODEL"] == "mistral"
+    assert env["OLLAMA_BRIEF_MODEL"] == "mistral"
+    assert "MARGOT_OLLAMA_BASE_URL" not in env and "OLLAMA_BASE_URL" not in env
+    assert {"MARGOT_OLLAMA_BASE_URL", "OLLAMA_BASE_URL"} <= set(changed)
 
 
 def test_model_fabric_uses_serve_subcommand(monkeypatch, tmp_path) -> None:

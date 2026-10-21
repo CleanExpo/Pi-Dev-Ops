@@ -1101,7 +1101,7 @@
         "roles",
         "margot_casual",
         "ladder",
-        "ollama_configured"
+        "refused_markers"
       ],
       "_comment": "RA-7434: read-only role -> provider -> model -> source -> cost-today view for Mission Control, so the founder can read which model answers each role without opening code. cost_source and cost_reason are asserted because the Supabase llm_costs read is allowed to fail: when it does, cost_today_usd is null with a stated reason and must never render as a fake 0. margot_casual carries the fixed free ladder this ruling pins, so a paid model reappearing in that role is visible on the surface rather than only in the bill."
     },
