@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { requestHasValidSession } from "@/lib/auth-secret";
 
 const PI_CEO_URL = (process.env.PI_CEO_URL ?? "http://127.0.0.1:7777").replace(/\/$/, "");
 const WEBHOOK_SECRET = process.env.TAO_WEBHOOK_SECRET ?? "";
@@ -11,8 +12,7 @@ interface BubbleBody {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const cookie = req.headers.get("cookie") ?? "";
-  if (!cookie.includes("tao_session=")) {
+  if (!(await requestHasValidSession(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

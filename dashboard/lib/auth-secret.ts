@@ -126,3 +126,18 @@ export async function verifySessionToken(
     return false;
   }
 }
+
+/**
+ * True when the request carries a `pi_session` cookie that verifies. For route handlers that
+ * check auth themselves as defence in depth behind proxy.ts. The cookie is parsed by name and
+ * verified — never matched as a substring of the Cookie header, which is what let
+ * `tao_session=x` through /api/margot/bubble.
+ */
+export async function requestHasValidSession(req: Request): Promise<boolean> {
+  const cookie = req.headers.get("cookie") ?? "";
+  const m = /(?:^|;\s*)pi_session=([^;]+)/.exec(cookie);
+  if (!m) return false;
+  let token = m[1];
+  try { token = decodeURIComponent(token); } catch { /* raw value will simply not verify */ }
+  return verifySessionToken(token);
+}

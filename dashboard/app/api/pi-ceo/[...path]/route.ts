@@ -3,6 +3,7 @@
 // Handles auth transparently — clients never see Pi CEO credentials.
 // SSE paths (/api/sessions/*/logs and /api/sessions/*/stream) are streamed without timeout.
 
+import { requestHasValidSession } from "@/lib/auth-secret";
 import { allowed } from "@/lib/pi-ceo-proxy-allowlist";
 import {
   PROXY_LOGIN_MS,
@@ -230,8 +231,21 @@ function refuse(pathStr: string): Response {
   );
 }
 
+// This route logs into Pi CEO with the server's own password, so it checks the caller's session
+// itself rather than trusting that proxy.ts ran. A decoded "?" or "#" inside a segment is
+// refused: it would move part of the path into the upstream query string past the allowlist.
+async function gate(request: Request, path: string[]): Promise<Response | null> {
+  if (!(await requestHasValidSession(request))) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (path.some((seg) => /[?#]/.test(seg))) return refuse("/" + path.join("/"));
+  return null;
+}
+
 export async function GET(request: Request, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
+  const denied = await gate(request, path);
+  if (denied) return denied;
   const url = new URL(request.url);
   const pathStr = "/" + path.join("/") + url.search;
 
@@ -245,6 +259,8 @@ export async function GET(request: Request, context: { params: Promise<{ path: s
 
 export async function POST(request: Request, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
+  const denied = await gate(request, path);
+  if (denied) return denied;
   const url = new URL(request.url);
   const pathStr = "/" + path.join("/") + url.search;
 

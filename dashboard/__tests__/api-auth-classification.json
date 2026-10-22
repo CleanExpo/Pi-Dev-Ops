@@ -1,10 +1,10 @@
 {
-  "_comment": "Every API METHOD must be classified. A path matched by PROTECTED_API_PREFIXES in proxy.ts has all of its methods gated and needs no entry. Everything else — including paths in PUBLIC_API_PREFIXES, which gate NOTHING — needs one entry per method, keyed 'METHOD /api/path'.",
+  "_comment": "Every API METHOD must be classified. proxy.ts is deny-by-default for /api: a path NOT on PUBLIC_API_ROUTES (lib/api-auth-policy.ts) has all of its methods gated and needs no entry. A path on PUBLIC_API_ROUTES gates NOTHING at the proxy, so it needs one entry per method, keyed 'METHOD /api/path'.",
   "_classifications": {
     "route-self-protected": "The proxy does not gate it; the handler authenticates the caller itself. unauth_status must be 401/403.",
     "deliberately-public": "Reachable anonymously on purpose, and that exposure was chosen. unauth_status is a success code.",
     "accepted-exposure-pending-remediation": "Anonymously reachable, adjudicated, and judged WRONG — but the fix is scheduled rather than immediate. unauth_status records the current (undesired) status and `remediation` names the change that closes it. This exists so that 'we looked and it should change' is expressible without either lying that it is fine or blocking on it.",
-    "proxy-protected": "Gated by PROTECTED_API_PREFIXES in proxy.ts — every method on the path requires a session. unauth_status must be 401. An entry is not required for these (the proxy classifies them), but one is kept where the decision to gate is itself worth recording."
+    "proxy-protected": "Gated by proxy.ts deny-by-default (not on PUBLIC_API_ROUTES) — every method on the path requires a session. unauth_status must be 401. An entry is not required for these, but one is kept where the decision to gate is itself worth recording."
   },
   "_provenance": {
     "decision": "Someone chose this posture for this method and signed for it. decided_by names them.",
@@ -56,42 +56,42 @@
     "GET /api/cron/analyze": {
       "classification": "route-self-protected",
       "unauth_status": 401,
-      "reason": "RA-1504: requires Authorization: Bearer CRON_SECRET. Called by the Vercel cron declared in vercel.json. A genuine prior decision — the credential requirement was specified, not observed after the fact.",
+      "reason": "RA-1504: requires Authorization: Bearer CRON_SECRET. Called by the Vercel cron declared in vercel.json. A genuine prior decision — the credential requirement was specified, not observed after the fact. 2026-10-22: the comparison was against `Bearer ${CRON_SECRET}`, which accepted 'Bearer undefined' when the secret was unset; now refuses when unset, constant-time otherwise.",
       "provenance": "decision",
       "decided_by": "RA-1504",
       "decided_on": "2026-08-02"
     },
     "POST /api/margot/bubble": {
-      "classification": "route-self-protected",
+      "classification": "proxy-protected",
       "unauth_status": 401,
-      "reason": "Requires TAO_WEBHOOK_SECRET before proxying to Railway; returns 401 without it.",
+      "reason": "CORRECTED 2026-10-22. The previous entry said the route 'requires TAO_WEBHOOK_SECRET ... returns 401 without it', which was FALSE: it accepted any Cookie header CONTAINING 'tao_session=' and then attached TAO_WEBHOOK_SECRET to a paid Margot turn upstream. Now gated by proxy.ts deny-by-default, and the handler verifies pi_session itself (requestHasValidSession) as defence in depth.",
       "provenance": "decision",
-      "decided_by": "margot bridge design",
-      "decided_on": "2026-08-02"
+      "decided_by": "claude-opus-5.5 builder, fix/control-auth-deny-default — PENDING FOUNDER RATIFICATION",
+      "decided_on": "2026-10-22"
     },
     "GET /api/phone/gate": {
-      "classification": "route-self-protected",
+      "classification": "proxy-protected",
       "unauth_status": 401,
-      "reason": "Shared handler checks the pi_session cookie before proxying to Railway. GET and POST are the same function (`export const GET = handle`), so the two methods cannot drift apart — the structural property the rest of this surface lacks.",
+      "reason": "CORRECTED 2026-10-22. 'Checks the pi_session cookie' was false: the handler accepted any Cookie header CONTAINING 'tao_session='. Now gated by proxy.ts deny-by-default, and the handler verifies pi_session itself (requestHasValidSession).",
       "provenance": "decision",
-      "decided_by": "phone gate design",
-      "decided_on": "2026-08-02"
+      "decided_by": "claude-opus-5.5 builder, fix/control-auth-deny-default — PENDING FOUNDER RATIFICATION",
+      "decided_on": "2026-10-22"
     },
     "POST /api/phone/gate": {
-      "classification": "route-self-protected",
+      "classification": "proxy-protected",
       "unauth_status": 401,
-      "reason": "Same shared handler as GET /api/phone/gate.",
+      "reason": "CORRECTED 2026-10-22. 'Checks the pi_session cookie' was false: the handler accepted any Cookie header CONTAINING 'tao_session='. Now gated by proxy.ts deny-by-default, and the handler verifies pi_session itself (requestHasValidSession).",
       "provenance": "decision",
-      "decided_by": "phone gate design",
-      "decided_on": "2026-08-02"
+      "decided_by": "claude-opus-5.5 builder, fix/control-auth-deny-default — PENDING FOUNDER RATIFICATION",
+      "decided_on": "2026-10-22"
     },
     "POST /api/phone/progress": {
-      "classification": "route-self-protected",
+      "classification": "proxy-protected",
       "unauth_status": 401,
-      "reason": "Checks the pi_session cookie before proxying to Railway.",
+      "reason": "CORRECTED 2026-10-22. 'Checks the pi_session cookie' was false: the handler accepted any Cookie header CONTAINING 'tao_session='. Now gated by proxy.ts deny-by-default, and the handler verifies pi_session itself (requestHasValidSession).",
       "provenance": "decision",
-      "decided_by": "phone gate design",
-      "decided_on": "2026-08-02"
+      "decided_by": "claude-opus-5.5 builder, fix/control-auth-deny-default — PENDING FOUNDER RATIFICATION",
+      "decided_on": "2026-10-22"
     },
     "POST /api/webhook/github": {
       "classification": "route-self-protected",
