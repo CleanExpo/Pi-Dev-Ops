@@ -7,8 +7,9 @@ The summary feeds the Mission Control project cards. Two rules keep a card hones
   it None ("scan date unknown"), never a guess.
 - A scan whose `error` is set crashed: it found nothing because it ran nothing.
   It is left out of `scores` and reported in `scan_errors`, so the card shows
-  the score UNAVAILABLE, never a clean 100. An unreadable record (half-written
-  or not a JSON object) is reported the same way, never silently dropped.
+  the score UNAVAILABLE, never a clean 100. An unreadable record (half-written,
+  not a JSON object, or with no `findings` list) is reported the same way,
+  never silently dropped or scored.
 - `deploy_check` passes through the last deployment_health record the scanner
   already wrote. It makes no HTTP call. No record is None ("not tracked"); an
   unreadable record is an error, never "no issues".
@@ -100,7 +101,10 @@ def summarise_project(proj: dict[str, Any], result_dir: Path, score_of: ScoreFn)
         if data.get("error"):
             scan_errors[scan_type] = str(data["error"])
             continue
-        raw = data.get("findings", [])
+        raw = data.get("findings")
+        if not isinstance(raw, list):
+            scan_errors[scan_type] = SCAN_UNREADABLE
+            continue
         findings_count[scan_type] = len(raw)
         scores[scan_type] = score_of(scan_type, raw)
         used.append(data)

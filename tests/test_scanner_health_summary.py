@@ -108,3 +108,21 @@ def test_no_scan_errors_is_an_empty_map(summary):
     root, run = summary
     _write(root, "2026-10-20-security.json", {"finished_at": "2026-10-20T01:00:00+00:00", "findings": [], "error": ""})
     assert run()["scan_errors"] == {}
+
+
+def test_a_record_without_a_findings_list_is_a_scan_error_not_a_clean_100(summary):
+    root, run = summary
+    _write(root, "2026-10-20-security.json", {"finished_at": "2026-10-20T01:00:00+00:00"})
+    row = run()
+    assert row["scores"] == {}
+    assert row["scan_errors"] == {"security": "scan record unreadable"}
+
+
+@pytest.mark.parametrize("bad", [None, "boom"])
+def test_a_non_list_findings_value_is_a_scan_error_not_a_crash(summary, bad):
+    root, run = summary
+    _write(root, "2026-10-20-security.json", {"finished_at": "2026-10-20T01:00:00+00:00", "findings": bad})
+    _write(root, "2026-10-21-deployment_health.json", {"finished_at": "2026-10-21T01:00:00+00:00", "findings": bad})
+    row = run()
+    assert row["scores"] == {}
+    assert row["scan_errors"] == {"security": "scan record unreadable", "deployment_health": "scan record unreadable"}

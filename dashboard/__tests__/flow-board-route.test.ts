@@ -6,6 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/flow-board/route";
+import { parseRepoTruth } from "@/lib/control/card-truth";
 import { resetRepoTruthCache } from "@/lib/control/repo-truth-server";
 
 const pull = (n: number) => ({
@@ -69,6 +70,18 @@ describe("GET /api/flow-board", () => {
     stubGithub(() => json([]), () => json({ data: { repository: null }, errors: [{ message: "Could not resolve" }] }));
     const body = await (await get("CleanExpo/carsi")).json();
     expect(body.ci).toEqual({ status: "unavailable", reason: "GitHub CI read failed: Could not resolve" });
+  });
+
+  it.each([
+    ["HTTP 403 on both reads", () => json({ message: "rate limited" }, 403), "GitHub CI HTTP 403"],
+    ["a GraphQL errors body", () => json({ data: null, errors: [{ message: "RATE_LIMITED" }] }), "GitHub CI read failed: RATE_LIMITED"],
+  ])("CARD TRUTH end to end: %s reaches the card as UNAVAILABLE, never 0 PRs or passing", async (_case, graphql, ciReason) => {
+    stubGithub(() => json({ message: "rate limited" }, 403), graphql);
+    const res = await get("CleanExpo/carsi");
+    expect(res.status).toBe(200);
+    const truth = parseRepoTruth(await res.json());
+    expect(truth?.pull_requests).toEqual({ status: "unavailable", reason: "GitHub pulls HTTP 403" });
+    expect(truth?.ci).toEqual({ status: "unavailable", reason: ciReason });
   });
 
   it("ERROR: no server token makes both fields unavailable", async () => {
