@@ -69,6 +69,23 @@ describe("FleetTile", () => {
     expect(screen.queryByText(/No machines enrolled/)).toBeNull();
   });
 
+  it("DEGRADED: a failed claims read shows claim unavailable, never 'claim none'", async () => {
+    const machine = {
+      host: "unite-mac-mini", revision: "mesh-runner@a1b2",
+      lastHeartbeat: "2026-09-13T11:59:40.000Z", currentClaim: null, stale: false,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({ status: "ok", checkedAt: "2026-09-13T12:00:00.000Z", claimsAvailable: false, machines: [machine] }),
+      ),
+    );
+    render(<FleetTile />);
+    expect(await screen.findByText("unite-mac-mini")).toBeTruthy();
+    expect(screen.getByText(/claim unavailable/)).toBeTruthy();
+    expect(screen.queryByText(/claim none/)).toBeNull();
+  });
+
   it("EMPTY (control): a genuine empty enrolment is not labelled unavailable", async () => {
     vi.stubGlobal(
       "fetch",

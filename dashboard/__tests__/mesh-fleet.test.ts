@@ -88,6 +88,27 @@ describe("projectFleet", () => {
     expect(projectFleet(null, CHECKED).status).toBe("unavailable");
   });
 
+  it("a failed claims read marks claims unavailable instead of 'claim none'", () => {
+    const view = projectFleet(
+      { ...UPSTREAM, claims: [], degraded: true, errors: [{ source: "claims", status: 401, reason: "http-error" }] },
+      CHECKED,
+    );
+    expect(view.status).toBe("ok");
+    if (view.status !== "ok") return;
+    expect(view.claimsAvailable).toBe(false);
+    expect(view.machines.every((m) => m.currentClaim === null)).toBe(true);
+  });
+
+  it("a non-list claims field is unavailable too, not an empty claim set", () => {
+    const view = projectFleet({ ...UPSTREAM, claims: { message: "permission denied" } }, CHECKED);
+    expect(view.status === "ok" && view.claimsAvailable).toBe(false);
+  });
+
+  it("control: a successful claims read reports claims available", () => {
+    const view = projectFleet(UPSTREAM, CHECKED);
+    expect(view.status === "ok" && view.claimsAvailable).toBe(true);
+  });
+
   it("keeps a genuine empty enrolment distinct from unavailable", () => {
     const view = projectFleet({ machines: [], claims: [], errors: [] }, CHECKED);
     expect(view.status).toBe("ok");

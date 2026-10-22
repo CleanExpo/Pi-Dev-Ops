@@ -6,6 +6,7 @@
  * the tile may show: revision, last heartbeat, current claim, plus the
  * BFF's own checkedAt. A missing or failed machines source is
  * `unavailable` — never an empty list that looks like "nobody enrolled".
+ * A failed claims source is `claimsAvailable: false` — never "claim none".
  */
 
 export interface FleetMachine {
@@ -19,6 +20,11 @@ export interface FleetMachine {
 export interface FleetOk {
   status: "ok";
   checkedAt: string;
+  /**
+   * False when the upstream `claims` source failed (mesh_fleet.py reports it in
+   * `errors`). Every `currentClaim` is then unknown, never "no claim".
+   */
+  claimsAvailable: boolean;
   machines: FleetMachine[];
 }
 
@@ -40,9 +46,9 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function machinesSourceFailed(errors: unknown): boolean {
+function sourceFailed(errors: unknown, source: string): boolean {
   if (!Array.isArray(errors)) return false;
-  return errors.some((entry) => asRecord(entry)?.source === "machines");
+  return errors.some((entry) => asRecord(entry)?.source === source);
 }
 
 function claimFor(host: string, claims: unknown[]): string | null {
@@ -72,14 +78,17 @@ export function projectFleet(raw: unknown, checkedAt: string): FleetView {
   if (!body || !Array.isArray(body.machines)) {
     return { status: "unavailable", checkedAt, reason: "fleet snapshot missing" };
   }
-  if (machinesSourceFailed(body.errors)) {
+  if (sourceFailed(body.errors, "machines")) {
     return { status: "unavailable", checkedAt, reason: "machines source failed" };
   }
-  const claims = Array.isArray(body.claims) ? body.claims : [];
+  // A failed claims read arrives as `claims: []` plus an errors entry. Reading
+  // only the list turned it into "claim none" on every machine.
+  const claimsAvailable = Array.isArray(body.claims) && !sourceFailed(body.errors, "claims");
+  const claims = claimsAvailable ? (body.claims as unknown[]) : [];
   const machines = body.machines
     .map((row) => projectMachine(row, claims))
     .filter((row): row is FleetMachine => row !== null);
-  return { status: "ok", checkedAt, machines };
+  return { status: "ok", checkedAt, claimsAvailable, machines };
 }
 
 export function unavailableFleet(reason: string, checkedAt: string): FleetUnavailable {
