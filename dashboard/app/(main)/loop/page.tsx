@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import FleetTile from "@/components/control/FleetTile";
 import TicketSweeperTile from "@/components/control/TicketSweeperTile";
 import { deriveNeeds } from "@/lib/control/loop-needs";
-import { completed24h, type MissionControlLive } from "@/lib/control/mission-control-live";
+import { completed24h, unavailableReason, type MissionControlLive } from "@/lib/control/mission-control-live";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { brisbaneDateTime, brisbaneTime } from "@/lib/brisbane-time";
 
@@ -121,6 +121,12 @@ export default function LoopPage() {
   const disconnected = !autonomy && !mc && !swarm && !routines;
 
   const burndownRuns = (routines?.runs ?? []).filter((r) => (r.name ?? "").toLowerCase().includes("burndown"));
+  // null = the read failed (session store / Linear): show unavailable, never 0 or empty.
+  const NA = "unavailable";
+  const queueDown = unavailableReason(mc?.queue);
+  const hourlyDown = mc?.throughput?.hourly === null;
+  const sessions = mc?.active_sessions;
+  const completions = mc?.recent_completions;
   const completed = completed24h(mc?.throughput?.hourly);
 
   return (
@@ -213,19 +219,21 @@ export default function LoopPage() {
 
           {/* Queue & throughput */}
           <Panel title="Queue & Throughput">
-            <Row label="Urgent queued" value={String(mc?.queue?.urgent ?? 0)} color={(mc?.queue?.urgent ?? 0) > 0 ? "var(--warning)" : undefined} />
-            <Row label="High queued" value={String(mc?.queue?.high ?? 0)} />
-            <Row label="Next ticket" value={mc?.queue?.next_issue_id ?? "—"} />
-            <Row label="Completed (24h)" value={String(completed)} color={completed > 0 ? "var(--success)" : undefined} />
-            <Row label="Active sessions" value={String(mc?.active_sessions?.length ?? 0)} />
+            <Row label="Urgent queued" value={queueDown ? `${NA} — ${queueDown}` : String(mc?.queue?.urgent ?? 0)} color={queueDown ? "var(--error)" : (mc?.queue?.urgent ?? 0) > 0 ? "var(--warning)" : undefined} />
+            <Row label="High queued" value={queueDown ? NA : String(mc?.queue?.high ?? 0)} color={queueDown ? "var(--error)" : undefined} />
+            <Row label="Next ticket" value={queueDown ? NA : mc?.queue?.next_issue_id ?? "—"} />
+            <Row label="Completed (24h)" value={hourlyDown ? NA : String(completed)} color={hourlyDown ? "var(--error)" : completed > 0 ? "var(--success)" : undefined} />
+            <Row label="Active sessions" value={sessions === null ? NA : String(sessions?.length ?? 0)} color={sessions === null ? "var(--error)" : undefined} />
           </Panel>
 
           {/* Active sessions */}
           <Panel title="Active Sessions">
-            {(mc?.active_sessions?.length ?? 0) === 0 ? (
+            {sessions === null ? (
+              <p className="text-sm" style={{ color: "var(--error)" }}>Session store unavailable — running sessions are unknown.</p>
+            ) : (sessions?.length ?? 0) === 0 ? (
               <p className="text-sm" style={{ color: "var(--text-dim)" }}>No sessions running.</p>
             ) : (
-              (mc?.active_sessions ?? []).map((s) => (
+              (sessions ?? []).map((s) => (
                 <div key={s.id} className="flex items-center justify-between gap-2 text-sm">
                   <span className="truncate" style={{ color: "var(--text)" }}>{s.repo ?? s.id}</span>
                   <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -263,10 +271,12 @@ export default function LoopPage() {
 
           {/* Recent completions */}
           <Panel title="Recent Completions">
-            {(mc?.recent_completions?.length ?? 0) === 0 ? (
+            {completions === null ? (
+              <p className="text-sm" style={{ color: "var(--error)" }}>Session store unavailable — recent completions are unknown.</p>
+            ) : (completions?.length ?? 0) === 0 ? (
               <p className="text-sm" style={{ color: "var(--text-dim)" }}>No completions yet.</p>
             ) : (
-              (mc?.recent_completions ?? []).slice(0, 8).map((c) => (
+              (completions ?? []).slice(0, 8).map((c) => (
                 <div key={c.id} className="flex items-center justify-between gap-2 text-sm">
                   <span className="truncate" style={{ color: "var(--text)" }}>{c.repo ?? c.id}</span>
                   <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>
