@@ -119,3 +119,28 @@ it("matches a live session to its project by owner/name, the shape the backend e
   await waitFor(() => expect(screen.getByRole("button", { name: /pi-dev-ops, work observed/ })).toBeTruthy());
   expect(screen.getByRole("button", { name: /margot, no active work observed/ })).toBeTruthy();
 });
+
+it("CARD TRUTH: each card reads its own repo's PRs and CI, and a failed read is UNAVAILABLE", async () => {
+  vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
+    ? [
+        { project_id: "carsi", repo: "CleanExpo/carsi", overall_health: 90, scores: { security: 90 }, findings_count: {}, deployments: {}, finished_at: null, deploy_check: null },
+        { project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist", overall_health: 90, scores: { security: 90 }, findings_count: {}, deployments: {}, finished_at: null, deploy_check: null },
+      ] as never
+    : path === "/api/pipelines" ? [] as never
+    : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [] } as never);
+  const fetchMock = vi.fn(async (url: string) => url.includes("carsi")
+    ? new Response(JSON.stringify({ repo: "CleanExpo/carsi", checked_at: "2026-10-22T00:00:00Z",
+        pull_requests: { status: "ok", value: { count: 0, capped: false } },
+        ci: { status: "ok", value: { branch: "main", sha: "abc", state: "success" } } }))
+    : new Response("boom", { status: 500 }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<PortfolioFocus />);
+  await waitFor(() => expect(screen.getByText("0 open PRs")).toBeTruthy());
+  expect(screen.getByText("CI main: passing")).toBeTruthy();
+  expect(screen.getByText("PRs UNAVAILABLE: flow board HTTP 500")).toBeTruthy();
+  expect(fetchMock.mock.calls.map((call) => String(call[0])).sort()).toEqual([
+    "/api/flow-board?repo=CleanExpo%2FRestoreAssist",
+    "/api/flow-board?repo=CleanExpo%2Fcarsi",
+  ]);
+  vi.unstubAllGlobals();
+});

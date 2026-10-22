@@ -4,7 +4,10 @@ import { useState, type ReactNode } from "react";
 import { useSource } from "@/lib/boards/sources";
 import type { MissionControlLive, MCSession } from "@/lib/control/mission-control-live";
 import { latestPipelineForRepo, PATHWAY, stageEvidence, type PipelineSummary } from "@/lib/control/project-pathway";
+import { deployCheckOf } from "@/lib/control/card-truth";
+import { useRepoTruth } from "@/lib/control/useRepoTruth";
 import FounderNorthStarReadout from "./FounderNorthStarReadout";
+import ProjectCardTruth from "./ProjectCardTruth";
 import styles from "./portfolio-focus.module.css";
 
 interface ProjectHealth {
@@ -12,6 +15,10 @@ interface ProjectHealth {
   repo: string;
   overall_health?: number;
   scores?: Record<string, number>;
+  deployments?: Record<string, string>;
+  /** Oldest finish time of the scans behind overall_health (scan_summary.py). */
+  finished_at?: string | null;
+  deploy_check?: unknown;
 }
 
 export function observedScanScore(project: ProjectHealth): number | null {
@@ -38,6 +45,7 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
     : null;
   const projectError = list === null;
   const projects = list ?? [];
+  const repoTruth = useRepoTruth(projects.map((project) => project.repo));
   const live = liveSource.value && !liveSource.value.error ? liveSource.value : null;
   // `active_sessions: null` = the session store could not be read. Unknown, not idle.
   const sessions = live && Array.isArray(live.active_sessions) ? live.active_sessions : null;
@@ -93,6 +101,12 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
                   <strong>{project.project_id}</strong>
                   <span className={styles.cardRepo}>{project.repo}</span>
                   <span className={styles.cardFoot}>SCAN HEALTH {scanScore === null ? "UNKNOWN" : `${scanScore}/100`}</span>
+                  <ProjectCardTruth
+                    truth={repoTruth[project.repo] ?? null}
+                    finishedAt={project.finished_at}
+                    deployments={project.deployments ?? {}}
+                    deployCheck={deployCheckOf(project.deploy_check)}
+                  />
                 </button>
               );
             })}
