@@ -104,3 +104,18 @@ it("shows five founder answers with linked evidence and an honest shipped unknow
   expect(screen.getByRole("link", { name: "Source: Idea pipeline" }).getAttribute("href")).toBe("#idea-pipeline");
   expect(screen.getByText(/This feed records build completions/)).toBeTruthy();
 });
+
+it("matches a live session to its project by owner/name, the shape the backend emits", async () => {
+  // mission_control_sessions.repo_slug emits `owner/name`, the same key as
+  // projects.json `repo`. It used to emit "Pi-Dev-Ops", so no card ever matched.
+  vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
+    ? [
+        { project_id: "pi-dev-ops", repo: "CleanExpo/Pi-Dev-Ops", overall_health: 100, scores: {}, findings_count: {}, deployments: {} },
+        { project_id: "margot", repo: "CleanExpo/Margot", overall_health: 100, scores: {}, findings_count: {}, deployments: {} },
+      ] as never
+    : path === "/api/pipelines" ? [] as never
+    : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [{ id: "run-9", repo: "CleanExpo/Pi-Dev-Ops", phase: "building", issue_id: "RA-9" }] } as never);
+  render(<PortfolioFocus />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /pi-dev-ops, work observed/ })).toBeTruthy());
+  expect(screen.getByRole("button", { name: /margot, no active work observed/ })).toBeTruthy();
+});

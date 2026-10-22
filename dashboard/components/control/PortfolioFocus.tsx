@@ -39,13 +39,15 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
   const projectError = list === null;
   const projects = list ?? [];
   const live = liveSource.value && !liveSource.value.error ? liveSource.value : null;
-  const activityError = live === null;
+  // `active_sessions: null` = the session store could not be read. Unknown, not idle.
+  const sessions = live && Array.isArray(live.active_sessions) ? live.active_sessions : null;
+  const activityError = sessions === null;
   const pipelineList = Array.isArray(pipelineSource.value) ? pipelineSource.value : null;
   const pipelines = pipelineList ?? [];
   const pipelineError = pipelineList === null;
 
   const selected = projects.find((project) => project.project_id === selectedId) ?? projects[0];
-  const session = selected && live ? matchingSession(selected, live.active_sessions ?? []) : undefined;
+  const session = selected && sessions ? matchingSession(selected, sessions) : undefined;
   const pipeline = selected ? latestPipelineForRepo(selected.repo, pipelines) : null;
   const score = selected ? observedScanScore(selected) : null;
 
@@ -73,7 +75,7 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
           <div className={styles.fan} role="group" aria-label="Select project">
             {projects.map((project, index) => {
               const raised = selected?.project_id === project.project_id;
-              const active = live && matchingSession(project, live.active_sessions ?? []);
+              const active = sessions && matchingSession(project, sessions);
               const scanScore = observedScanScore(project);
               const activityLabel = activityError ? "activity unknown" : active ? "work observed" : "no active work observed";
               return (
@@ -117,7 +119,7 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
               <div className={styles.work}>
                 <div>
                   <span className={styles.eyebrow}>Observed now</span>
-                  {activityError ? <p>Activity source unavailable. Current work is unknown.</p>
+                  {activityError ? <p>{live ? "Session store unavailable" : "Activity source unavailable"}. Current work is unknown.</p>
                     : session ? <p><strong>{session.phase || session.status || "Session active"}</strong> · {session.issue_id || session.id}</p>
                     : <p>No active session observed for this repository.</p>}
                 </div>

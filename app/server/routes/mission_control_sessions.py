@@ -10,6 +10,10 @@ while the smoke gate — which asserted key NAMES only — stayed green:
   * elapsed time parsed `started_at` (an epoch float) as an ISO string, inside a
     swallowed except, so it was always 0
   * the log tail read `last_log_line`; the field is `output_lines`
+
+A failed read returns None, never `[0]*24` or `[]`. Those are identical to a
+quiet system, so the panel showed "0" and "No completions yet" while the store
+was unreadable. None means "unknown", and the panel says UNAVAILABLE.
 """
 
 from __future__ import annotations
@@ -88,14 +92,28 @@ def last_log_line(sess) -> str:
     return str(lines[-1]).strip() if lines else ""
 
 
+def repo_slug(repo_url: object) -> str:
+    """`owner/name` from any GitHub URL spelling, or "?" when there is none.
+
+    Portfolio cards match sessions against projects.json `repo`, which is
+    `owner/name`. Emitting only the last segment ("Pi-Dev-Ops") meant no card
+    could ever match, so every project read NO ACTIVE WORK while work ran.
+    """
+    text = str(repo_url or "").strip().rstrip("/")
+    if text.endswith(".git"):
+        text = text[:-4]
+    parts = [p for p in text.replace(":", "/").split("/") if p]
+    return f"{parts[-2]}/{parts[-1]}" if len(parts) >= 2 else "?"
+
+
 def _store() -> dict:
     from .sessions import _sessions  # type: ignore
 
     return _sessions or {}
 
 
-def hourly_throughput_24h() -> list[int]:
-    """Completions per hour for the last 24h, oldest bucket first."""
+def hourly_throughput_24h() -> list[int] | None:
+    """Completions per hour for the last 24h, oldest bucket first. None = unreadable."""
     try:
         now = datetime.now(timezone.utc)
         buckets = [0] * 24
@@ -110,11 +128,11 @@ def hourly_throughput_24h() -> list[int]:
                 buckets[23 - hours_ago] += 1
         return buckets
     except Exception as exc:  # noqa: BLE001
-        log.debug("throughput read failed: %s", exc)
-        return [0] * 24
+        log.warning("throughput read failed: %s", exc)
+        return None
 
 
-def active_sessions() -> list[dict]:
+def active_sessions() -> list[dict] | None:
     try:
         out = []
         now = datetime.now(timezone.utc)
@@ -125,7 +143,7 @@ def active_sessions() -> list[dict]:
             started = as_datetime(_field(sess, "started_at"))
             out.append({
                 "id": sid[:12],
-                "repo": str(_field(sess, "repo_url", "")).split("/")[-1] or "?",
+                "repo": repo_slug(_field(sess, "repo_url")),
                 "phase": _field(sess, "phase", status),
                 "status": status,
                 "elapsed_s": max(0, int((now - started).total_seconds())) if started else 0,
@@ -134,11 +152,11 @@ def active_sessions() -> list[dict]:
             })
         return out
     except Exception as exc:  # noqa: BLE001
-        log.debug("active sessions read failed: %s", exc)
-        return []
+        log.warning("active sessions read failed: %s", exc)
+        return None
 
 
-def recent_completions(limit: int = 6) -> list[dict]:
+def recent_completions(limit: int = 6) -> list[dict] | None:
     try:
         completed = []
         for sid, sess in _store().items():
@@ -146,7 +164,7 @@ def recent_completions(limit: int = 6) -> list[dict]:
                 continue
             completed.append({
                 "id": sid[:12],
-                "repo": str(_field(sess, "repo_url", "")).split("/")[-1] or "?",
+                "repo": repo_slug(_field(sess, "repo_url")),
                 "branch": _field(sess, "branch"),
                 "score": _field(sess, "evaluator_score"),
                 "pr_url": _field(sess, "pr_url"),
@@ -156,5 +174,5 @@ def recent_completions(limit: int = 6) -> list[dict]:
         completed.sort(key=lambda x: x.get("completed_at") or "", reverse=True)
         return completed[:limit]
     except Exception as exc:  # noqa: BLE001
-        log.debug("recent completions read failed: %s", exc)
-        return []
+        log.warning("recent completions read failed: %s", exc)
+        return None

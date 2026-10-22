@@ -198,6 +198,13 @@ def test_pulse_reads_the_path_the_writer_writes(tmp_path, monkeypatch):
     # from the repo root; the reader must derive it the same way.
     monkeypatch.setattr(mission_control, "_repo_root", lambda: tmp_path)
     monkeypatch.setattr(linear_pulse, "_STATE_FILE", state_file, raising=False)
+    # Linear answers only for the id read from that file, so the identifier
+    # below can come from nowhere else. (An unanswered pulse read is now
+    # reported unavailable rather than echoing the id with a zero count.)
+    monkeypatch.setattr(
+        mission_control, "_linear_graphql",
+        lambda _q, v=None: {"issue": {"identifier": v["id"], "comments": {"nodes": []}}} if (v or {}).get("id") == "PULSE-1" else {},
+    )
 
     pulse = mission_control._pulse_status()
     assert pulse["pulse_issue_id"] == "PULSE-1", (

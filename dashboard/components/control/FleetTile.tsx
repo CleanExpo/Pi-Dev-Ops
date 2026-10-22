@@ -11,7 +11,7 @@ function fmtStamp(value: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? value : brisbaneDateTime(date);
 }
 
-function MachineRow({ machine }: { machine: FleetMachine }) {
+function MachineRow({ machine, claimsAvailable }: { machine: FleetMachine; claimsAvailable: boolean }) {
   const color = machine.stale ? "var(--warning)" : "var(--text)";
   return (
     <article className="flex flex-col gap-1 text-sm" style={{ color }}>
@@ -24,7 +24,7 @@ function MachineRow({ machine }: { machine: FleetMachine }) {
       <div className="grid grid-cols-1 gap-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
         <span>revision {machine.revision ?? "—"}</span>
         <span>heartbeat {fmtStamp(machine.lastHeartbeat)}</span>
-        <span>claim {machine.currentClaim ?? "none"}</span>
+        <span>claim {machine.currentClaim ?? (claimsAvailable ? "none" : "unavailable")}</span>
       </div>
     </article>
   );
@@ -57,7 +57,7 @@ export default function FleetTile() {
           <p className="text-sm" style={{ color: "var(--text-dim)" }}>No machines enrolled.</p>
         ) : (
           view.machines.map((machine) => (
-            <MachineRow key={machine.host} machine={machine} />
+            <MachineRow key={machine.host} machine={machine} claimsAvailable={view.claimsAvailable === true} />
           ))
         )}
         {view && (

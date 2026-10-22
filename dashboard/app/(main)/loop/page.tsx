@@ -9,8 +9,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import FleetTile from "@/components/control/FleetTile";
 import TicketSweeperTile from "@/components/control/TicketSweeperTile";
-import { deriveNeeds } from "@/lib/control/loop-needs";
-import { completed24h, type MissionControlLive } from "@/lib/control/mission-control-live";
+import { deriveNeeds, isAutonomyRead, isRoutinesRead, isSwarmRead, loopAvailability } from "@/lib/control/loop-needs";
+import { completed24h, unavailableReason, type MissionControlLive } from "@/lib/control/mission-control-live";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { brisbaneDateTime, brisbaneTime } from "@/lib/brisbane-time";
 
@@ -30,8 +30,8 @@ interface AutonomyStatus {
 
 interface SwarmStatus {
   swarm_enabled_env?: boolean;
-  kill_switch_active?: boolean;
-  escalation_lock_active?: boolean;
+  kill_switch_active: boolean;
+  escalation_lock_active: boolean;
   panic_count_last_hour?: number;
   pr_quota?: { used?: number; limit?: number };
 }
@@ -95,10 +95,11 @@ export default function LoopPage() {
       getJSON<SwarmStatus>("/api/swarm/status"),
       getJSON<RoutinesResp>("/api/routines?limit=20"),
     ]);
-    setAutonomy(a);
+    // A body that does not carry the fields a panel reads is not a read of it.
+    setAutonomy(isAutonomyRead(a) ? a : null);
     setMc(m);
-    setSwarm(s);
-    setRoutines(r);
+    setSwarm(isSwarmRead(s) ? s : null);
+    setRoutines(isRoutinesRead(r) ? r : null);
     setLastSync(brisbaneTime(new Date(), true));
   }, []);
 
@@ -108,8 +109,18 @@ export default function LoopPage() {
     return () => clearInterval(t);
   }, [refresh]);
 
+  // null = the read failed (session store / Linear): show unavailable, never 0 or empty.
+  const NA = "unavailable";
+  const queueDown = unavailableReason(mc?.queue);
+  // Not an array (null, or no live read at all) = unknown, never 0 or "none running".
+  const hourlyDown = !Array.isArray(mc?.throughput?.hourly);
+  const sessions = Array.isArray(mc?.active_sessions) ? mc.active_sessions : null;
+  const completions = Array.isArray(mc?.recent_completions) ? mc.recent_completions : null;
+  const completed = completed24h(mc?.throughput?.hourly);
+
   // ── "Needs me" — read-only flags derived from live state ──
   const needs = deriveNeeds({
+    availability: loopAvailability({ live: mc, autonomy, swarm, routines }),
     autonomy,
     swarm,
     actions: mc?.observability?.actions,
@@ -121,7 +132,6 @@ export default function LoopPage() {
   const disconnected = !autonomy && !mc && !swarm && !routines;
 
   const burndownRuns = (routines?.runs ?? []).filter((r) => (r.name ?? "").toLowerCase().includes("burndown"));
-  const completed = completed24h(mc?.throughput?.hourly);
 
   return (
     <div className="flex flex-col" style={{ height: "100vh", overflow: "hidden" }}>
@@ -213,19 +223,21 @@ export default function LoopPage() {
 
           {/* Queue & throughput */}
           <Panel title="Queue & Throughput">
-            <Row label="Urgent queued" value={String(mc?.queue?.urgent ?? 0)} color={(mc?.queue?.urgent ?? 0) > 0 ? "var(--warning)" : undefined} />
-            <Row label="High queued" value={String(mc?.queue?.high ?? 0)} />
-            <Row label="Next ticket" value={mc?.queue?.next_issue_id ?? "—"} />
-            <Row label="Completed (24h)" value={String(completed)} color={completed > 0 ? "var(--success)" : undefined} />
-            <Row label="Active sessions" value={String(mc?.active_sessions?.length ?? 0)} />
+            <Row label="Urgent queued" value={queueDown ? `${NA} — ${queueDown}` : String(mc?.queue?.urgent ?? 0)} color={queueDown ? "var(--error)" : (mc?.queue?.urgent ?? 0) > 0 ? "var(--warning)" : undefined} />
+            <Row label="High queued" value={queueDown ? NA : String(mc?.queue?.high ?? 0)} color={queueDown ? "var(--error)" : undefined} />
+            <Row label="Next ticket" value={queueDown ? NA : mc?.queue?.next_issue_id ?? "—"} />
+            <Row label="Completed (24h)" value={hourlyDown ? NA : String(completed)} color={hourlyDown ? "var(--error)" : completed > 0 ? "var(--success)" : undefined} />
+            <Row label="Active sessions" value={sessions === null ? NA : String(sessions?.length ?? 0)} color={sessions === null ? "var(--error)" : undefined} />
           </Panel>
 
           {/* Active sessions */}
           <Panel title="Active Sessions">
-            {(mc?.active_sessions?.length ?? 0) === 0 ? (
+            {sessions === null ? (
+              <p className="text-sm" style={{ color: "var(--error)" }}>Session store unavailable — running sessions are unknown.</p>
+            ) : (sessions?.length ?? 0) === 0 ? (
               <p className="text-sm" style={{ color: "var(--text-dim)" }}>No sessions running.</p>
             ) : (
-              (mc?.active_sessions ?? []).map((s) => (
+              (sessions ?? []).map((s) => (
                 <div key={s.id} className="flex items-center justify-between gap-2 text-sm">
                   <span className="truncate" style={{ color: "var(--text)" }}>{s.repo ?? s.id}</span>
                   <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -247,7 +259,9 @@ export default function LoopPage() {
                 </span>
               </div>
             )}
-            {(routines?.runs?.length ?? 0) === 0 ? (
+            {routines === null ? (
+              <p className="text-sm" style={{ color: "var(--error)" }}>Loop runs unavailable — recent runs are unknown.</p>
+            ) : (routines.runs?.length ?? 0) === 0 ? (
               <p className="text-sm" style={{ color: "var(--text-dim)" }}>No recent runs.</p>
             ) : (
               (routines?.runs ?? []).slice(0, 10).map((r, i) => (
@@ -263,10 +277,12 @@ export default function LoopPage() {
 
           {/* Recent completions */}
           <Panel title="Recent Completions">
-            {(mc?.recent_completions?.length ?? 0) === 0 ? (
+            {completions === null ? (
+              <p className="text-sm" style={{ color: "var(--error)" }}>Session store unavailable — recent completions are unknown.</p>
+            ) : (completions?.length ?? 0) === 0 ? (
               <p className="text-sm" style={{ color: "var(--text-dim)" }}>No completions yet.</p>
             ) : (
-              (mc?.recent_completions ?? []).slice(0, 8).map((c) => (
+              (completions ?? []).slice(0, 8).map((c) => (
                 <div key={c.id} className="flex items-center justify-between gap-2 text-sm">
                   <span className="truncate" style={{ color: "var(--text)" }}>{c.repo ?? c.id}</span>
                   <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>

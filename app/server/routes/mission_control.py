@@ -52,6 +52,16 @@ def _linear_graphql(query: str, variables: dict | None = None) -> dict:
     return autonomy._gql(key, query, variables, timeout=6)
 
 
+def _queue_unavailable(reason: str) -> dict:
+    """A queue we could not read. Nulls, never zeros: "0 urgent" is a measurement."""
+    return {"available": False, "error": reason, "urgent": None, "high": None, "next_issue_id": None, "next_issue_title": None}
+
+
+def _pulse_unavailable(reason: str) -> dict:
+    """A pulse we could not read. `comments_today: 0` would claim a silent day."""
+    return {"available": False, "error": reason, "last_at": None, "comments_today": None, "pulse_issue_id": None}
+
+
 def _queue_snapshot() -> dict:
     """Displayed queue is the claimable autonomy queue (UNI-2648).
 
@@ -60,27 +70,29 @@ def _queue_snapshot() -> dict:
     """
     key = os.environ.get("LINEAR_API_KEY", "").strip()
     if not key:
-        return queue_snapshot_from_issues([])
+        return _queue_unavailable("LINEAR_API_KEY is not set")
     registry = {p["project_id"] for p in autonomy._load_portfolio_projects()}
     issues = filter_claimable_issues(
         autonomy.fetch_todo_issues(key, fail_on_error=True),
         registered_project_ids=registry,
         priority_labels=autonomy._PRIORITY_FILTER,
     )
-    return queue_snapshot_from_issues(issues)
+    return {"available": True, "error": None, **queue_snapshot_from_issues(issues)}
 
 
 def _pulse_status() -> dict:
+    # This read parents[2] — <repo>/app — while linear_pulse writes to
+    # <repo>/.harness, so the heartbeat came from a path nothing ever wrote.
+    state_file = _repo_root() / ".harness" / "linear-pulse-state.json"
+    if not state_file.exists():
+        return _pulse_unavailable("no pulse state recorded")
     try:
-        # This read parents[2] — <repo>/app — while linear_pulse writes to
-        # <repo>/.harness, so the heartbeat came from a path nothing ever wrote.
-        state_file = _repo_root() / ".harness" / "linear-pulse-state.json"
-        state = json.loads(state_file.read_text()) if state_file.exists() else {}
-    except Exception:  # noqa: BLE001
-        state = {}
-    pulse_id = state.get("pulse_issue_id")
+        state = json.loads(state_file.read_text())
+    except Exception as exc:  # noqa: BLE001
+        return _pulse_unavailable(f"pulse state unreadable: {type(exc).__name__}")
+    pulse_id = state.get("pulse_issue_id") if isinstance(state, dict) else None
     if not pulse_id:
-        return {"last_at": None, "comments_today": 0, "pulse_issue_id": None}
+        return _pulse_unavailable("no pulse issue recorded")
     q = """
     query($id: String!) {
       issue(id: $id) {
@@ -90,31 +102,33 @@ def _pulse_status() -> dict:
     }
     """
     data = _linear_graphql(q, {"id": pulse_id})
-    issue = (data or {}).get("issue") or {}
+    issue = (data or {}).get("issue")
+    if not issue:
+        return _pulse_unavailable("pulse issue not returned by Linear")
     nodes = (issue.get("comments") or {}).get("nodes") or []
     today = datetime.now(timezone.utc).date().isoformat()
     comments_today = sum(1 for n in nodes if (n.get("createdAt") or "").startswith(today))
     last_at = nodes[0].get("createdAt") if nodes else None
-    return {"last_at": last_at, "comments_today": comments_today, "pulse_issue_id": issue.get("identifier") or pulse_id}
+    return {"available": True, "error": None, "last_at": last_at, "comments_today": comments_today, "pulse_issue_id": issue.get("identifier") or pulse_id}
 
 
 def _cached_queue_snapshot() -> dict:
     """Reuse the portfolio read across the 5-second live-view refreshes."""
     global _queue_cache
     if autonomy.linear_rate_limited():
-        return queue_snapshot_from_issues([])
+        return _queue_unavailable("Linear rate limited")
     if not os.environ.get("LINEAR_API_KEY", "").strip():
         return _queue_snapshot()
     with _queue_cache_lock:
         if autonomy.linear_rate_limited():
-            return queue_snapshot_from_issues([])
+            return _queue_unavailable("Linear rate limited")
         if _queue_cache is not None and time.monotonic() < _queue_cache[0]:
             return _queue_cache[1]
         try:
             snapshot = _queue_snapshot()
-        except Exception as exc:  # noqa: BLE001 — live panel is best-effort
-            log.debug("mission_control queue snapshot failed: %s", type(exc).__name__)
-            return queue_snapshot_from_issues([])
+        except Exception as exc:  # noqa: BLE001 — reported as unavailable, never as 0
+            log.warning("mission_control queue snapshot failed: %s", type(exc).__name__)
+            return _queue_unavailable(f"Linear queue read failed: {type(exc).__name__}")
         if not autonomy.linear_rate_limited():
             _queue_cache = (time.monotonic() + _QUEUE_CACHE_SECONDS, snapshot)
         return snapshot
@@ -123,19 +137,19 @@ def _cached_queue_snapshot() -> dict:
 def _cached_pulse_status() -> dict:
     global _pulse_cache
     if autonomy.linear_rate_limited():
-        return {"last_at": None, "comments_today": 0, "pulse_issue_id": None}
+        return _pulse_unavailable("Linear rate limited")
     if not os.environ.get("LINEAR_API_KEY", "").strip():
-        return _pulse_status()
+        return _pulse_unavailable("LINEAR_API_KEY is not set")
     with _pulse_cache_lock:
         if autonomy.linear_rate_limited():
-            return {"last_at": None, "comments_today": 0, "pulse_issue_id": None}
+            return _pulse_unavailable("Linear rate limited")
         if _pulse_cache is not None and time.monotonic() < _pulse_cache[0]:
             return _pulse_cache[1]
         try:
             snapshot = _pulse_status()
-        except Exception as exc:  # noqa: BLE001 — live panel is best-effort
-            log.debug("mission_control pulse fetch failed: %s", type(exc).__name__)
-            return {"last_at": None, "comments_today": 0, "pulse_issue_id": None}
+        except Exception as exc:  # noqa: BLE001 — reported as unavailable, never as 0
+            log.warning("mission_control pulse fetch failed: %s", type(exc).__name__)
+            return _pulse_unavailable(f"Linear pulse read failed: {type(exc).__name__}")
         if not autonomy.linear_rate_limited():
             _pulse_cache = (time.monotonic() + _PULSE_CACHE_SECONDS, snapshot)
         return snapshot

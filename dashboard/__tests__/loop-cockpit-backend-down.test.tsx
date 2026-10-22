@@ -100,8 +100,13 @@ function mockHealthyBackend() {
     "fetch",
     vi.fn(async (url: string) => {
       let body: unknown = {};
-      if (url.includes("/api/autonomy/status")) {
-        body = { enabled: true, linear_api_key: true };
+      // Bodies carry the fields the real endpoints always send (autonomy.py
+      // autonomy_status, routes/swarm.py swarm_status). A body without the
+      // kill-switch or poller state is not a read of it, so the all-clear is withheld.
+      if (url.includes("/api/swarm/status")) {
+        body = { swarm_enabled_env: true, kill_switch_active: false, escalation_lock_active: false };
+      } else if (url.includes("/api/autonomy/status")) {
+        body = { enabled: true, stale: false, poller_iteration_errors: 0, last_iteration_error: null, linear_api_key: true };
       } else if (url.includes("/api/mission-control/live")) {
         body = {
           ts: new Date().toISOString(),
