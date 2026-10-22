@@ -21,6 +21,10 @@ export interface NeedsInputs {
   swarm?: { kill_switch_active?: boolean; escalation_lock_active?: boolean } | null;
   actions?: MCAction[];
   nextIssueId?: string | null;
+  /** Reason the Linear queue read failed (`unavailableReason(queue)`), or null. */
+  queueUnavailable?: string | null;
+  /** True when any session-store read (sessions, completions, hourly) came back null. */
+  sessionStoreDown?: boolean;
 }
 
 export interface NeedItem {
@@ -43,8 +47,14 @@ export function actionToNeed(a: MCAction): NeedItem {
   };
 }
 
-export function deriveNeeds({ autonomy, swarm, actions, nextIssueId }: NeedsInputs): NeedItem[] {
+export function deriveNeeds({ autonomy, swarm, actions, nextIssueId, queueUnavailable, sessionStoreDown }: NeedsInputs): NeedItem[] {
   const needs: NeedItem[] = [];
+
+  // A failed read is never an all-clear: "nothing needs you" may only follow good reads.
+  if (queueUnavailable)
+    needs.push({ text: `Linear queue unavailable — ${queueUnavailable}`, color: ERROR });
+  if (sessionStoreDown)
+    needs.push({ text: "Session store unavailable — running work is unknown", color: ERROR });
 
   if (swarm?.kill_switch_active)
     needs.push({ text: "Kill-switch is ACTIVE — autonomous work is paused", color: ERROR });

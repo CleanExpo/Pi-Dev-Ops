@@ -108,19 +108,6 @@ export default function LoopPage() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  // ── "Needs me" — read-only flags derived from live state ──
-  const needs = deriveNeeds({
-    autonomy,
-    swarm,
-    actions: mc?.observability?.actions,
-    nextIssueId: mc?.queue?.next_issue_id,
-  });
-
-  // All four fetches null = we never reached the backend (unauthenticated or
-  // backend down). Absent data must NOT read as "healthy".
-  const disconnected = !autonomy && !mc && !swarm && !routines;
-
-  const burndownRuns = (routines?.runs ?? []).filter((r) => (r.name ?? "").toLowerCase().includes("burndown"));
   // null = the read failed (session store / Linear): show unavailable, never 0 or empty.
   const NA = "unavailable";
   const queueDown = unavailableReason(mc?.queue);
@@ -128,6 +115,22 @@ export default function LoopPage() {
   const sessions = mc?.active_sessions;
   const completions = mc?.recent_completions;
   const completed = completed24h(mc?.throughput?.hourly);
+
+  // ── "Needs me" — read-only flags derived from live state ──
+  const needs = deriveNeeds({
+    autonomy,
+    swarm,
+    actions: mc?.observability?.actions,
+    nextIssueId: mc?.queue?.next_issue_id,
+    queueUnavailable: queueDown,
+    sessionStoreDown: sessions === null || completions === null || hourlyDown,
+  });
+
+  // All four fetches null = we never reached the backend (unauthenticated or
+  // backend down). Absent data must NOT read as "healthy".
+  const disconnected = !autonomy && !mc && !swarm && !routines;
+
+  const burndownRuns = (routines?.runs ?? []).filter((r) => (r.name ?? "").toLowerCase().includes("burndown"));
 
   return (
     <div className="flex flex-col" style={{ height: "100vh", overflow: "hidden" }}>
