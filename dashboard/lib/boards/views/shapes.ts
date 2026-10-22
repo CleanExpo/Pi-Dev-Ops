@@ -33,7 +33,8 @@ export function stationCounts(stations: readonly Station[]): { green: number; re
 export interface ActivityEvent { key: string; text: string; atMs: number | null; tone: Tone; meta: string }
 
 export function activityEvents(live: MissionControlLive | null): ActivityEvent[] | null {
-  if (!live || live.error) return null;
+  // null = the session store could not be read; an empty list would claim "nothing ran".
+  if (!live || live.error || live.active_sessions === null || live.recent_completions === null) return null;
   const running = (live.active_sessions ?? []).map((s) => ({
     key: `run-${s.id}`, text: `${s.repo ?? "unknown repo"} — ${s.phase ?? s.status ?? "running"}`,
     atMs: typeof s.elapsed_s === "number" ? Date.now() - s.elapsed_s * 1000 : null, tone: "warn" as Tone,

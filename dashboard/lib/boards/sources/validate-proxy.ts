@@ -35,8 +35,14 @@ const isSession = (s: Row) => isText(s.id) && optText(s.repo) && optText(s.phase
   && optNum(s.elapsed_s) && optText(s.issue_id) && optText(s.last_log_tail);
 const isCompletion = (c: Row) => isText(c.id) && optText(c.repo) && optText(c.branch) && optNum(c.score)
   && optText(c.pr_url) && optText(c.issue_id) && optText(c.completed_at);
-const isQueue = (q: Row) => isNum(q.urgent) && isNum(q.high) && optText(q.next_issue_id) && optText(q.next_issue_title);
-const isPulse = (p: Row) => optText(p.last_at) && optNum(p.comments_today) && optText(p.pulse_issue_id);
+// `available: false` is a reported failed read: counts are null and `error` names why.
+const isReported = (r: Row) => (r.available === undefined || isBool(r.available)) && optText(r.error)
+  && (r.available !== false || isText(r.error));
+const isQueue = (q: Row) => isReported(q) && optText(q.next_issue_id) && optText(q.next_issue_title)
+  && (q.available === false ? optNum(q.urgent) && optNum(q.high) : isNum(q.urgent) && isNum(q.high));
+const isPulse = (p: Row) => isReported(p) && optText(p.last_at) && optNum(p.comments_today) && optText(p.pulse_issue_id);
+/** A list the backend could not read is `null`, never `[]`. */
+const rowsOrNull = (v: unknown, check: (r: Row) => boolean) => v === null || rows(v, check);
 const isAction = (a: Row) => optText(a.component) && optText(a.status) && optBool(a.ok) && optBool(a.observed)
   && optText(a.owner) && optText(a.severity) && optText(a.next_action) && optTextList(a.evidence_required) && optText(a.detail);
 const isObservability = (o: Row) => optText(o.source) && optBool(o.ok) && optBool(o.fully_observed)
@@ -45,8 +51,9 @@ const isObservability = (o: Row) => optText(o.source) && optBool(o.ok) && optBoo
 /** mission-control/live: routes/mission_control.py always sends the first six. */
 export function isMissionControlLive(b: Row): boolean {
   const throughput = record(b.throughput);
-  return isText(b.ts) && throughput !== null && Array.isArray(throughput.hourly) && throughput.hourly.every(isNum)
-    && rows(b.active_sessions, isSession) && rows(b.recent_completions, isCompletion)
+  const hourly = throughput?.hourly;
+  return isText(b.ts) && throughput !== null && (hourly === null || (Array.isArray(hourly) && hourly.every(isNum)))
+    && rowsOrNull(b.active_sessions, isSession) && rowsOrNull(b.recent_completions, isCompletion)
     && optRecord(b.queue, isQueue) && b.queue !== undefined && b.queue !== null
     && optRecord(b.pulse, isPulse) && b.pulse !== undefined && b.pulse !== null
     && optRecord(b.observability, isObservability);

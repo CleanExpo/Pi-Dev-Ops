@@ -12,15 +12,18 @@ import { useEffect, useState } from "react";
 
 import ThroughputSparkline from "./ThroughputSparkline";
 import { LiveDot, PhasePill } from "./LiveFeedMarks";
+import { PulseTile, QueueTile, Unavailable } from "./LiveQueuePulseTiles";
 import LiveWatchLinks from "./LiveWatchLinks";
 import { useSource } from "@/lib/boards/sources";
 import { fmtElapsed, fmtAgo } from "@/lib/control/activity-format";
-import { type MissionControlLive } from "@/lib/control/mission-control-live";
-import { asWatchInput, idleSessionsNote, watchBuildsHref, watchLoopHref, watchSwarmHref } from "@/lib/control/watchWork";
+import { type MissionControlLive, unavailableReason } from "@/lib/control/mission-control-live";
+import { asWatchInput, idleSessionsNote, watchBuildsHref, watchSwarmHref } from "@/lib/control/watchWork";
 
 // Backend key is `hourly` (mission_control.py). Types live in
 // mission-control-live.ts so a rename on one side fails the UNI-2647 fixture.
 type LiveData = MissionControlLive & { ts: string };
+// A null session list or throughput series means the backend could not read its store.
+const STORE_DOWN = "session store could not be read";
 
 export default function LiveActivityFeed() {
   const [data, setData] = useState<LiveData | null>(null);
@@ -99,55 +102,11 @@ export default function LiveActivityFeed() {
             {/* Throughput */}
             <div>
               <div className="text-xs uppercase text-text-muted mb-1">24h throughput</div>
-              <ThroughputSparkline data={data.throughput?.hourly ?? []} />
+              {data.throughput?.hourly === null ? <Unavailable reason={STORE_DOWN} />
+                : <ThroughputSparkline data={data.throughput?.hourly ?? []} />}
             </div>
-
-            {/* Queue */}
-            <div>
-              <div className="text-xs uppercase text-text-muted mb-1">Linear queue</div>
-              <div className="flex items-baseline gap-3">
-                <div>
-                  <span className="text-3xl font-bold text-rose-400 tabular-nums">
-                    {data.queue?.urgent ?? 0}
-                  </span>
-                  <span className="text-xs text-text-muted ml-1">urgent</span>
-                </div>
-                <div>
-                  <span className="text-2xl font-semibold text-amber-400 tabular-nums">
-                    {data.queue?.high ?? 0}
-                  </span>
-                  <span className="text-xs text-text-muted ml-1">high</span>
-                </div>
-              </div>
-              {data.queue?.next_issue_id && (
-                <div className="text-xs text-text-muted mt-2 truncate">
-                  next:{" "}
-                  <a href={watchLoopHref()} className="font-mono text-cyan-400 hover:underline">
-                    {data.queue.next_issue_id}
-                  </a>{" "}
-                  {data.queue.next_issue_title}
-                </div>
-              )}
-            </div>
-
-            {/* Pulse */}
-            <div>
-              <div className="text-xs uppercase text-text-muted mb-1">Pulse heartbeat</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-emerald-400 tabular-nums">
-                  {data.pulse?.comments_today ?? 0}
-                </span>
-                <span className="text-xs text-text-muted">comments today</span>
-              </div>
-              <div className="text-xs text-text-muted mt-1">
-                last: <span className="font-mono">{fmtAgo(data.pulse?.last_at ?? null)}</span>
-                {data.pulse?.pulse_issue_id && (
-                  <span className="ml-2 text-text-muted">
-                    → {data.pulse.pulse_issue_id}
-                  </span>
-                )}
-              </div>
-            </div>
+            <QueueTile queue={data.queue} />
+            <PulseTile pulse={data.pulse} />
           </div>
 
           {/* Observability action ledger */}
@@ -221,12 +180,13 @@ export default function LiveActivityFeed() {
             <div className="text-xs uppercase text-text-muted mb-2 flex items-center gap-2">
               Active sessions
               <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300 tabular-nums">
-                {(data.active_sessions ?? []).length}
+                {data.active_sessions === null ? "—" : (data.active_sessions ?? []).length}
               </span>
             </div>
-            {(data.active_sessions ?? []).length === 0 ? (
+            {data.active_sessions === null ? <Unavailable reason={STORE_DOWN} />
+              : (data.active_sessions ?? []).length === 0 ? (
               <div className="text-sm text-text-muted italic">
-                {idleSessionsNote(asWatchInput({
+                {unavailableReason(data.queue) ? "No active sessions. The Linear queue is unavailable, so waiting work is unknown." : idleSessionsNote(asWatchInput({
                   sessionCount: 0,
                   urgent: data.queue?.urgent,
                   high: data.queue?.high,
@@ -267,7 +227,8 @@ export default function LiveActivityFeed() {
             <div className="text-xs uppercase text-text-muted mb-2">
               Recent completions
             </div>
-            {(data.recent_completions ?? []).length === 0 ? (
+            {data.recent_completions === null ? <Unavailable reason={STORE_DOWN} />
+              : (data.recent_completions ?? []).length === 0 ? (
               <div className="text-sm text-text-muted italic">
                 No completions yet — first session in flight.
               </div>
