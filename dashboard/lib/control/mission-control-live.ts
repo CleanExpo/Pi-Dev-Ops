@@ -5,8 +5,9 @@
 // function actually emits. `hourly_24h` is not one of them. `actions` is a
 // list of objects, not strings.
 
+/** `hourly: null` = the session store could not be read; not 24 empty hours. */
 export interface MCThroughput {
-  hourly?: number[];
+  hourly?: number[] | null;
 }
 
 export interface MCAction {
@@ -41,16 +42,25 @@ export interface MCCompletion {
   completed_at?: string | null;
 }
 
+/**
+ * `available: false` means the Linear read failed: counts are null and `error`
+ * says why. Render UNAVAILABLE, never 0 — zero urgent is a measurement.
+ */
 export interface MCQueue {
-  urgent?: number;
-  high?: number;
+  available?: boolean;
+  error?: string | null;
+  urgent?: number | null;
+  high?: number | null;
   next_issue_id?: string | null;
-  next_issue_title?: string;
+  next_issue_title?: string | null;
 }
 
+/** Same rule as MCQueue: `available: false` is unknown, not a silent day. */
 export interface MCPulse {
+  available?: boolean;
+  error?: string | null;
   last_at?: string | null;
-  comments_today?: number;
+  comments_today?: number | null;
   pulse_issue_id?: string | null;
 }
 
@@ -98,8 +108,9 @@ export interface MissionControlLive {
   ts?: string;
   error?: string;
   throughput?: MCThroughput;
-  active_sessions?: MCSession[];
-  recent_completions?: MCCompletion[];
+  /** null = the session store could not be read; [] = read, nothing running. */
+  active_sessions?: MCSession[] | null;
+  recent_completions?: MCCompletion[] | null;
   queue?: MCQueue;
   idea_pipeline?: {
     awaiting?: number;
@@ -109,6 +120,12 @@ export interface MissionControlLive {
   observability?: MCObservability;
   nexus_one?: MCNexusOne;
   ticket_sweeper?: MCTicketSweeper;
+}
+
+/** Why a queue/pulse section could not be read, or null when it was read. */
+export function unavailableReason(section: { available?: boolean; error?: string | null } | null | undefined): string | null {
+  if (!section) return "not reported by the backend";
+  return section.available === false ? section.error || "read failed" : null;
 }
 
 /** Sum of the 24 hourly buckets the backend sends as `throughput.hourly`. */

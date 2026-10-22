@@ -75,17 +75,28 @@ def _return_call_names(path: Path, name: str) -> list[str]:
     return names
 
 
+def _spread_call_names(path: Path, name: str) -> list[str]:
+    """Names of functions spread into a returned dict literal: `{**foo(...)}`."""
+    names: list[str] = []
+    for node in _return_dicts(path, name):
+        for key, value in zip(node.keys, node.values):
+            if key is None and isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
+                names.append(value.func.id)
+    return names
+
+
 def _return_keys_following(path: Path, name: str, extra: tuple[Path, ...] = ()) -> set[str]:
     """Literal return keys, or the keys of a helper the function returns.
 
     UNI-2648 moved the queue dict into queue_snapshot_from_issues so the
     dashboard and the poller share one shape. `_queue_snapshot` now only
     returns that helper; a walker that stops at the wrapper sees nothing.
+    It also spreads the helper into a literal (`{"available": True,
+    **helper(...)}`) and returns `_queue_unavailable(...)` on failure, so
+    literal keys, spread callees and returned callees are all unioned.
     """
     keys = _return_keys(path, name)
-    if keys:
-        return keys
-    for callee in _return_call_names(path, name):
+    for callee in _return_call_names(path, name) + _spread_call_names(path, name):
         for candidate in (path, *extra):
             try:
                 keys |= _return_keys(candidate, callee)
@@ -242,18 +253,20 @@ def test_gate_detects_string_array_actions():
 def test_interface_parser_reads_the_real_types_file():
     """Null-result guard: a broken parser would report empty==empty as a match."""
     props = _interface_props(TYPES.read_text(encoding="utf-8"), "MCThroughput")
-    assert props == {"hourly": "number[]"}
+    assert props == {"hourly": "number[] | null"}
 
 
 def test_queue_walker_follows_the_claimable_snapshot_helper():
     """Positive control: empty keys from a wrapper-only walk is a miss, not a match."""
-    expected = {"urgent", "high", "next_issue_id", "next_issue_title"}
+    counts = {"urgent", "high", "next_issue_id", "next_issue_title"}
+    expected = counts | {"available", "error"}
     helper = _return_keys(ELIGIBILITY, "queue_snapshot_from_issues")
     followed = _return_keys_following(BACKEND, "_queue_snapshot", (ELIGIBILITY,))
-    assert helper == expected
+    assert helper == counts
     assert followed == expected
     assert _backend_keys()["queue"] == expected
-    # A walker that cannot see through `return queue_snapshot_from_issues(...)`
-    # would report [] and then fail the live contract. Keep that miss visible.
+    # A walker that cannot see through `**queue_snapshot_from_issues(...)`
+    # would report only the literal keys and miss every count. Keep that visible.
     wrapper_only = _return_keys(BACKEND, "_queue_snapshot")
-    assert wrapper_only in (set(), expected)
+    assert wrapper_only == {"available", "error"}
+    assert _return_keys(BACKEND, "_queue_unavailable") == expected

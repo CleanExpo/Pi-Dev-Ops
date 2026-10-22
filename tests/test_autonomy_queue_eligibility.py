@@ -155,7 +155,9 @@ def test_queue_snapshot_empty_when_only_ineligible(monkeypatch) -> None:
     )
     monkeypatch.setattr(autonomy, "_load_portfolio_projects", lambda: [_PROJECT_ROW])
     monkeypatch.setattr(autonomy, "_PRIORITY_FILTER", set())
+    # A real read that found nothing says so: available, and a measured zero.
     assert mission_control._queue_snapshot() == {
+        "available": True, "error": None,
         "urgent": 0, "high": 0, "next_issue_id": None, "next_issue_title": "",
     }
 
