@@ -21,8 +21,12 @@ import { isApiPath, isPublicApiPath } from "./lib/api-auth-policy";
 
 export const config = {
   matcher: [
-    // All routes except static assets and Next.js internals
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Every /api path, whatever it ends in. The static-asset exclusion below must never reach
+    // /api: "/api/pi-ceo/api/build%3F.png" skipped proxy() entirely and reached a handler
+    // with no session.
+    "/api/:path*",
+    // All other routes except static assets and Next.js internals
+    "/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
 

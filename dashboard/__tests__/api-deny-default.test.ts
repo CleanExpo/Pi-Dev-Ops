@@ -17,7 +17,8 @@ import { describe, it, expect } from "vitest";
 import { NextRequest } from "next/server";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { proxy } from "../proxy";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import { config, proxy } from "../proxy";
 import { PUBLIC_API_ROUTES } from "../lib/api-auth-policy";
 
 const ROOT = resolve(__dirname, "..");
@@ -100,6 +101,23 @@ describe("proxy is deny-by-default for /api", () => {
     expect(await outcome("/API/margot/bubble", "POST")).not.toBe("through");
     expect(await outcome("/%61pi/margot/bubble", "POST")).not.toBe("through");
     expect(await outcome("/api/margot/bubble/", "POST")).toBe("401");
+  });
+
+  // proxy() above is called directly, but Next only calls it for paths config.matcher selects.
+  // The old matcher skipped anything ending in an image extension, so "/api/x%3F.png" never
+  // reached the deny-by-default branch. Ask Next's own matcher.
+  it("Next runs proxy for every /api route, whatever it ends in", () => {
+    const variants = ROUTES.flatMap((r) => [r, `${r}.png`, `${r}%3F.svg`, `${r}/x.webp`]);
+    variants.push("/api/pi-ceo/api/build%3F.png", "/api/pi-ceo/api/spec-pipeline/spec-x.png", "/api");
+    const skipped = variants.filter(
+      (url) => !unstable_doesMiddlewareMatch({ config, url: `${BASE}${url}` }),
+    );
+    expect(skipped, `/api paths proxy never sees:\n${skipped.join("\n")}`).toEqual([]);
+  });
+
+  it("CONTROL: the matcher still skips static assets, so the check above can fail", () => {
+    expect(unstable_doesMiddlewareMatch({ config, url: `${BASE}/logo.png` })).toBe(false);
+    expect(unstable_doesMiddlewareMatch({ config, url: `${BASE}/control` })).toBe(true);
   });
 
   it("every public entry names a route that exists on disk", () => {
