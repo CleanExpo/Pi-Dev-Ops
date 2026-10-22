@@ -73,3 +73,19 @@ def test_deploy_check_reports_an_unreadable_record_as_an_error(summary):
     check = run()["deploy_check"]
     assert check["error"] == "deploy check record unreadable"
     assert check["finished_at"] is None
+
+
+def test_a_crashed_scan_is_not_scored_and_its_error_is_reported(summary):
+    root, run = summary
+    _write(root, "2026-10-20-security.json", {"finished_at": "2026-10-20T01:00:00+00:00", "findings": [], "error": "git clone failed"})
+    _write(root, "2026-10-21-code_quality.json", {"finished_at": "2026-10-21T01:00:00+00:00", "findings": []})
+    row = run()
+    assert "security" not in row["scores"]
+    assert row["scan_errors"] == {"security": "git clone failed"}
+    assert row["finished_at"] == "2026-10-21T01:00:00+00:00"
+
+
+def test_no_scan_errors_is_an_empty_map(summary):
+    root, run = summary
+    _write(root, "2026-10-20-security.json", {"finished_at": "2026-10-20T01:00:00+00:00", "findings": [], "error": ""})
+    assert run()["scan_errors"] == {}

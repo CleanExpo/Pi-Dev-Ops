@@ -144,3 +144,14 @@ it("CARD TRUTH: each card reads its own repo's PRs and CI, and a failed read is 
   ]);
   vi.unstubAllGlobals();
 });
+
+it("a crashed scan makes the score UNAVAILABLE with the error, never a clean 100", async () => {
+  vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
+    ? [{ project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 100, scores: { code_quality: 100 }, findings_count: {}, deployments: {},
+        scan_errors: { security: "git clone failed" } }] as never
+    : path === "/api/pipelines" ? [] as never
+    : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [] } as never);
+  render(<PortfolioFocus />);
+  await waitFor(() => expect(screen.getByText("SCAN HEALTH UNAVAILABLE: security: git clone failed")).toBeTruthy());
+  expect(screen.queryByText(/100\/100/)).toBeNull();
+});

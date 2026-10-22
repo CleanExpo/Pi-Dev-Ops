@@ -19,9 +19,18 @@ interface ProjectHealth {
   /** Oldest finish time of the scans behind overall_health (scan_summary.py). */
   finished_at?: string | null;
   deploy_check?: unknown;
+  /** Scans that crashed (scan_summary.py); their absence from scores is not a clean result. */
+  scan_errors?: Record<string, string>;
+}
+
+/** "security: git clone failed" when any scan behind the score crashed, else null. */
+export function scanFailure(project: ProjectHealth): string | null {
+  const entries = Object.entries(project.scan_errors ?? {}).filter(([, error]) => typeof error === "string" && error);
+  return entries.length ? entries.map(([type, error]) => `${type}: ${error}`).join("; ") : null;
 }
 
 export function observedScanScore(project: ProjectHealth): number | null {
+  if (scanFailure(project)) return null;
   const scores = project.scores;
   return scores && Object.values(scores).some((value) => typeof value === "number" && Number.isFinite(value))
     && typeof project.overall_health === "number" && Number.isFinite(project.overall_health)
@@ -58,6 +67,7 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
   const session = selected && sessions ? matchingSession(selected, sessions) : undefined;
   const pipeline = selected ? latestPipelineForRepo(selected.repo, pipelines) : null;
   const score = selected ? observedScanScore(selected) : null;
+  const selectedScanDown = selected ? scanFailure(selected) : null;
 
   return (
     <section className={styles.surface} aria-label="Portfolio focus">
@@ -85,6 +95,7 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
               const raised = selected?.project_id === project.project_id;
               const active = sessions && matchingSession(project, sessions);
               const scanScore = observedScanScore(project);
+              const scanDown = scanFailure(project);
               const activityLabel = activityError ? "activity unknown" : active ? "work observed" : "no active work observed";
               return (
                 <button
@@ -100,7 +111,7 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
                   <span className={styles.cardTop}><span>{String(index + 1).padStart(2, "0")}</span><span>{activityError ? "UNKNOWN" : active ? "WORKING" : "NO ACTIVE WORK"}</span></span>
                   <strong>{project.project_id}</strong>
                   <span className={styles.cardRepo}>{project.repo}</span>
-                  <span className={styles.cardFoot}>SCAN HEALTH {scanScore === null ? "UNKNOWN" : `${scanScore}/100`}</span>
+                  <span className={styles.cardFoot}>{scanDown ? `SCAN HEALTH UNAVAILABLE: ${scanDown}` : `SCAN HEALTH ${scanScore === null ? "UNKNOWN" : `${scanScore}/100`}`}</span>
                   <ProjectCardTruth
                     truth={repoTruth[project.repo] ?? null}
                     finishedAt={project.finished_at}
@@ -124,8 +135,8 @@ export default function PortfolioFocus({ children }: { children?: ReactNode }) {
                   <div className={styles.attention}>Needs Phill <strong>unknown</strong></div>
                   <div className={styles.metric}>
                     <span>SCAN HEALTH</span>
-                    <strong>{score === null ? "Unknown" : `${score}/100`}</strong>
-                    <small>{score === null ? "No scan evidence" : "Code scans · not release progress"}</small>
+                    <strong>{selectedScanDown ? "UNAVAILABLE" : score === null ? "Unknown" : `${score}/100`}</strong>
+                    <small>{selectedScanDown ? `Scan failed: ${selectedScanDown}` : score === null ? "No scan evidence" : "Code scans · not release progress"}</small>
                   </div>
                 </div>
               </div>
