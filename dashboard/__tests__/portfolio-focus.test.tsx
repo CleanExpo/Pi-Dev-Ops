@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import PortfolioFocus, { observedScanScore } from "@/components/control/PortfolioFocus";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import scanUnreadableRow from "./fixtures/scan-unreadable-row.json";
 
 vi.mock("@/lib/pi-ceo-fetch", () => ({ fetchProxyJSON: vi.fn() }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -153,5 +154,16 @@ it("a crashed scan makes the score UNAVAILABLE with the error, never a clean 100
     : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [] } as never);
   render(<PortfolioFocus />);
   await waitFor(() => expect(screen.getByText("SCAN HEALTH UNAVAILABLE: security: git clone failed")).toBeTruthy());
+  expect(screen.queryByText(/100\/100/)).toBeNull();
+});
+
+it("an unreadable scan record makes the score UNAVAILABLE, never a dated clean 100", async () => {
+  // The same row tests/test_scanner_health_summary.py asserts the scanner produces.
+  vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
+    ? [{ ...scanUnreadableRow, project_id: "CARSI", repo: "CleanExpo/CARSI" }] as never
+    : path === "/api/pipelines" ? [] as never
+    : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [] } as never);
+  render(<PortfolioFocus />);
+  await waitFor(() => expect(screen.getByText("SCAN HEALTH UNAVAILABLE: security: scan record unreadable")).toBeTruthy());
   expect(screen.queryByText(/100\/100/)).toBeNull();
 });

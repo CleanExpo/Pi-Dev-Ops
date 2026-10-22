@@ -87,6 +87,39 @@ describe("GET /api/flow-board", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("cache is keyed per repo: a second repo gets its own read, never the first repo's", async () => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.endsWith("/graphql")) return json(rollup("SUCCESS"));
+      return json(u.includes("/repos/CleanExpo/carsi/") ? [pull(1)] : [pull(1), pull(2), pull(3)]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const carsi = await (await get("CleanExpo/carsi")).json();
+    const ra = await (await get("CleanExpo/RestoreAssist")).json();
+    expect(carsi.repo).toBe("CleanExpo/carsi");
+    expect(carsi.pull_requests.value.count).toBe(1);
+    expect(ra.repo).toBe("CleanExpo/RestoreAssist");
+    expect(ra.pull_requests.value.count).toBe(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("cache expires after 60 s: a hit before it, a re-fetch after it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-10-22T00:00:00Z"));
+      const fetchMock = stubGithub(() => json([]), () => json(rollup("SUCCESS")));
+      await get("CleanExpo/carsi");
+      vi.setSystemTime(new Date("2026-10-22T00:00:59Z"));
+      await get("CleanExpo/carsi");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      vi.setSystemTime(new Date("2026-10-22T00:01:01Z"));
+      await get("CleanExpo/carsi");
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the Pi-Dev-Ops board when no repo is given", async () => {
     const fetchMock = stubGithub(() => json([]), () => json(rollup("SUCCESS")));
     const body = await (await get()).json();

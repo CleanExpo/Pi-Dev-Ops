@@ -6,6 +6,7 @@ record the scanner already writes, without making any new HTTP call.
 """
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -83,6 +84,24 @@ def test_a_crashed_scan_is_not_scored_and_its_error_is_reported(summary):
     assert "security" not in row["scores"]
     assert row["scan_errors"] == {"security": "git clone failed"}
     assert row["finished_at"] == "2026-10-21T01:00:00+00:00"
+
+
+CARD_FIXTURE = Path(__file__).resolve().parents[1] / "dashboard" / "__tests__" / "fixtures" / "scan-unreadable-row.json"
+
+
+@pytest.mark.parametrize("corrupt", ["{truncated", "[]"])
+def test_an_unreadable_scored_record_is_a_scan_error_not_dropped(summary, corrupt):
+    """A half-written record must make the score UNAVAILABLE, not a dated clean 100.
+
+    The dashboard renders the same row from CARD_FIXTURE, so the two stay in step.
+    """
+    root, run = summary
+    _write(root, "2026-10-21-security.json", corrupt)
+    _write(root, "2026-10-21-code_quality.json", {"finished_at": "2026-10-21T01:00:00+00:00", "findings": []})
+    row = run()
+    card = json.loads(CARD_FIXTURE.read_text())
+    assert row["scan_errors"] == card["scan_errors"] == {"security": "scan record unreadable"}
+    assert row["scores"] == card["scores"]
 
 
 def test_no_scan_errors_is_an_empty_map(summary):
