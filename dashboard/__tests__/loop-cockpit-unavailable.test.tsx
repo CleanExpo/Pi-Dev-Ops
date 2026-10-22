@@ -84,4 +84,22 @@ describe("Loop Cockpit — failed reads", () => {
     }
     expect(screen.queryByText(/Session store unavailable/i)).toBeNull();
   });
+
+  it("the whole live read failed (quietFallback 200 + X-Upstream-Status): panels say unavailable, not 0 or empty", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => String(url).includes("/api/routines")
+      ? new Response(JSON.stringify({ runs: [], total: 0, error: "down" }), { status: 200, headers: { "X-Upstream-Status": "502" } })
+      : String(url).includes("/api/mission-control/live")
+        ? new Response(JSON.stringify(GOOD), { status: 200, headers: { "X-Upstream-Status": "502" } })
+        : new Response("nope", { status: 404 })));
+    render(<LoopCockpit />);
+    await settle();
+    for (const label of ["Completed (24h)", "Active sessions"]) {
+      expect(valueText(label)).toMatch(/unavailable/i);
+      expect(valueText(label)).not.toMatch(/\d/);
+    }
+    expect(screen.queryByText("No sessions running.")).toBeNull();
+    expect(screen.queryByText("No completions yet.")).toBeNull();
+    expect(screen.queryByText("No recent runs.")).toBeNull();
+    expect(screen.getByText(/Loop runs unavailable/)).toBeTruthy();
+  });
 });

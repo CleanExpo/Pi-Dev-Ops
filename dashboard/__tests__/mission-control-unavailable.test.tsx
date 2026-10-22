@@ -93,6 +93,17 @@ describe("Mission Control live feed — failed reads render UNAVAILABLE", () => 
     expect((await tile("Pulse heartbeat")).getByText("0")).toBeTruthy();
     expect(screen.queryByText("UNAVAILABLE")).toBeNull();
     expect(screen.getByText(/No completions yet/)).toBeTruthy();
+    expect(screen.getByText("All companion signals observed.")).toBeTruthy();
+  });
+
+  it("observability with no actions list reported is unknown, never 'All companion signals observed.'", async () => {
+    const { actions: _omit, ...withoutActions } = OBS;
+    void _omit;
+    serve(failedReads({ observability: withoutActions }));
+    render(<LiveActivityFeed />);
+    await screen.findByText(/Observability readiness/i);
+    expect(screen.queryByText("All companion signals observed.")).toBeNull();
+    expect(screen.getByText(/companion signals not reported/)).toBeTruthy();
   });
 });
 

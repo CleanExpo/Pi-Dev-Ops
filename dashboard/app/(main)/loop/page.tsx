@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import FleetTile from "@/components/control/FleetTile";
 import TicketSweeperTile from "@/components/control/TicketSweeperTile";
-import { deriveNeeds } from "@/lib/control/loop-needs";
+import { deriveNeeds, isAutonomyRead, isRoutinesRead, isSwarmRead, loopAvailability } from "@/lib/control/loop-needs";
 import { completed24h, unavailableReason, type MissionControlLive } from "@/lib/control/mission-control-live";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
 import { brisbaneDateTime, brisbaneTime } from "@/lib/brisbane-time";
@@ -30,8 +30,8 @@ interface AutonomyStatus {
 
 interface SwarmStatus {
   swarm_enabled_env?: boolean;
-  kill_switch_active?: boolean;
-  escalation_lock_active?: boolean;
+  kill_switch_active: boolean;
+  escalation_lock_active: boolean;
   panic_count_last_hour?: number;
   pr_quota?: { used?: number; limit?: number };
 }
@@ -95,10 +95,11 @@ export default function LoopPage() {
       getJSON<SwarmStatus>("/api/swarm/status"),
       getJSON<RoutinesResp>("/api/routines?limit=20"),
     ]);
-    setAutonomy(a);
+    // A body that does not carry the fields a panel reads is not a read of it.
+    setAutonomy(isAutonomyRead(a) ? a : null);
     setMc(m);
-    setSwarm(s);
-    setRoutines(r);
+    setSwarm(isSwarmRead(s) ? s : null);
+    setRoutines(isRoutinesRead(r) ? r : null);
     setLastSync(brisbaneTime(new Date(), true));
   }, []);
 
@@ -111,19 +112,19 @@ export default function LoopPage() {
   // null = the read failed (session store / Linear): show unavailable, never 0 or empty.
   const NA = "unavailable";
   const queueDown = unavailableReason(mc?.queue);
-  const hourlyDown = mc?.throughput?.hourly === null;
-  const sessions = mc?.active_sessions;
-  const completions = mc?.recent_completions;
+  // Not an array (null, or no live read at all) = unknown, never 0 or "none running".
+  const hourlyDown = !Array.isArray(mc?.throughput?.hourly);
+  const sessions = Array.isArray(mc?.active_sessions) ? mc.active_sessions : null;
+  const completions = Array.isArray(mc?.recent_completions) ? mc.recent_completions : null;
   const completed = completed24h(mc?.throughput?.hourly);
 
   // ── "Needs me" — read-only flags derived from live state ──
   const needs = deriveNeeds({
+    availability: loopAvailability({ live: mc, autonomy, swarm, routines }),
     autonomy,
     swarm,
     actions: mc?.observability?.actions,
     nextIssueId: mc?.queue?.next_issue_id,
-    queueUnavailable: queueDown,
-    sessionStoreDown: sessions === null || completions === null || hourlyDown,
   });
 
   // All four fetches null = we never reached the backend (unauthenticated or
@@ -258,7 +259,9 @@ export default function LoopPage() {
                 </span>
               </div>
             )}
-            {(routines?.runs?.length ?? 0) === 0 ? (
+            {routines === null ? (
+              <p className="text-sm" style={{ color: "var(--error)" }}>Loop runs unavailable — recent runs are unknown.</p>
+            ) : (routines.runs?.length ?? 0) === 0 ? (
               <p className="text-sm" style={{ color: "var(--text-dim)" }}>No recent runs.</p>
             ) : (
               (routines?.runs ?? []).slice(0, 10).map((r, i) => (

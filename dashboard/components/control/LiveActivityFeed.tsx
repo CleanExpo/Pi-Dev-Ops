@@ -132,7 +132,9 @@ export default function LiveActivityFeed() {
                       : "red"}
                 </span>
               </div>
-              {(data.observability.actions ?? []).length === 0 ? (
+              {!Array.isArray(data.observability.actions) ? (
+                <Unavailable reason="companion signals not reported" />
+              ) : data.observability.actions.length === 0 ? (
                 <div className="text-sm text-emerald-400">
                   All companion signals observed.
                 </div>

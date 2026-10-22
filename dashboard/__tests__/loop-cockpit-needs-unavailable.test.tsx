@@ -1,24 +1,20 @@
-// Loop Cockpit "Needs me" — a failed Linear or session-store read must never
-// leave the panel saying "Nothing needs you — the loop is healthy."
-// (review round 2 P1, mc-truth-1: the page computed the unavailable state but
-// never passed it to deriveNeeds, so the all-clear showed over failed reads.)
+// Loop Cockpit "Needs me" — "Nothing needs you — the loop is healthy." may only
+// show when EVERY read the panel depends on succeeded.
+//
+// Three review rounds each found one more failed read that turned into the
+// all-clear: the Linear queue and session store (round 2), then the swarm
+// (kill-switch) and autonomy reads (round 3), which the proxy answers with
+// HTTP 200 + X-Upstream-Status: 502 when the backend is down. This file serves
+// each source failing ALONE in exactly that shape and asserts the all-clear is
+// withheld and the matching need appears. deriveNeeds now takes an availability
+// entry for every source, so a source nobody reported is unavailable too.
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import LoopCockpit from "@/app/(main)/loop/page";
-import { deriveNeeds } from "@/lib/control/loop-needs";
+import { deriveNeeds, NEEDS_SOURCES, type NeedsAvailability } from "@/lib/control/loop-needs";
 
-const FAILED = {
-  ts: new Date().toISOString(),
-  throughput: { hourly: null },
-  active_sessions: null,
-  recent_completions: null,
-  queue: { available: false, error: "Linear rate limited", urgent: null, high: null, next_issue_id: null },
-  pulse: { available: false, error: "Linear rate limited", comments_today: null },
-  observability: { fully_observed: false, degraded_components: [], actions: [] },
-};
-
-const GOOD = {
+const LIVE_GOOD = {
   ts: new Date().toISOString(),
   throughput: { hourly: Array.from({ length: 24 }, () => 0) },
   active_sessions: [],
@@ -28,10 +24,51 @@ const GOOD = {
   observability: { fully_observed: true, degraded_components: [], actions: [] },
 };
 
-function mockLive(body: unknown) {
-  vi.stubGlobal("fetch", vi.fn(async (url: string) => String(url).includes("/api/mission-control/live")
-    ? new Response(JSON.stringify(body), { status: 200 })
-    : new Response("nope", { status: 404 })));
+const AUTONOMY_GOOD = {
+  enabled: true, poll_interval_s: 300, last_poll_at: 1, last_poll_ago_s: 30,
+  stale: false, poll_count: 5, poller_iteration_errors: 0, last_iteration_error: null,
+};
+
+const SWARM_GOOD = {
+  swarm_enabled_env: true, kill_switch_active: false, escalation_lock_active: false,
+  panic_count_last_hour: 0, pr_quota: { used: 0, limit: 5 },
+};
+
+const ROUTINES_GOOD = { runs: [], total: 0 };
+
+const ENDPOINTS = {
+  live: "/api/mission-control/live",
+  autonomy: "/api/autonomy/status",
+  swarm: "/api/swarm/status",
+  routines: "/api/routines",
+} as const;
+type Endpoint = keyof typeof ENDPOINTS;
+
+const GOOD_BODY: Record<Endpoint, unknown> = {
+  live: LIVE_GOOD, autonomy: AUTONOMY_GOOD, swarm: SWARM_GOOD, routines: ROUTINES_GOOD,
+};
+
+/** What the proxy's quietFallback sends: 200, a placeholder body, X-Upstream-Status. */
+function quietFallback(name: Endpoint): Response {
+  const body = name === "live"
+    ? { ...LIVE_GOOD, error: "Pi CEO server unreachable" }
+    : name === "routines" ? { runs: [], total: 0, error: "Pi CEO server unreachable" }
+    : { error: "Pi CEO server unreachable" };
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json", "X-Upstream-Status": "502" },
+  });
+}
+
+/** Every endpoint answers good unless it is in `failed` or overridden in `bodies`. */
+function serve(failed: Endpoint[] = [], bodies: Partial<Record<Endpoint, unknown>> = {}) {
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    const name = (Object.keys(ENDPOINTS) as Endpoint[]).find((k) => String(url).includes(ENDPOINTS[k]));
+    if (!name) return new Response("nope", { status: 404 });
+    if (failed.includes(name)) return quietFallback(name);
+    const body = name in bodies ? bodies[name] : GOOD_BODY[name];
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  }));
 }
 
 async function settle() {
@@ -39,54 +76,141 @@ async function settle() {
   await waitFor(() => expect(synced.textContent).not.toMatch(/—/));
 }
 
-function needsPanel(): HTMLElement {
-  return screen.getByRole("region", { name: "Needs me" });
+async function needsText(): Promise<string> {
+  render(<LoopCockpit />);
+  await settle();
+  return screen.getByRole("region", { name: "Needs me" }).textContent ?? "";
 }
 
-describe("Loop Cockpit — Needs me over failed reads", () => {
+const ALL_CLEAR = /Nothing needs you/;
+
+const NEED_FOR: Record<Endpoint, RegExp> = {
+  live: /Mission Control live read unavailable/,
+  autonomy: /Autonomy status unavailable — poller state unknown/,
+  swarm: /Swarm status unavailable — kill-switch state unknown/,
+  routines: /Loop runs unavailable — recent loop runs unknown/,
+};
+
+describe("Loop Cockpit — Needs me withholds the all-clear over any failed read", () => {
   afterEach(() => { vi.unstubAllGlobals(); cleanup(); });
 
-  it("lists the failed reads instead of the all-clear", async () => {
-    mockLive(FAILED);
-    render(<LoopCockpit />);
-    await settle();
-    const text = needsPanel().textContent ?? "";
-    expect(text).not.toMatch(/Nothing needs you/);
+  it("positive control: every read good (autonomy and swarm included) shows the all-clear", async () => {
+    serve();
+    const text = await needsText();
+    expect(text).toMatch(ALL_CLEAR);
+    expect(text).not.toMatch(/unavailable/);
+  });
+
+  it.each(Object.keys(ENDPOINTS) as Endpoint[])("%s read failed alone (200 + X-Upstream-Status: 502)", async (name) => {
+    serve([name]);
+    const text = await needsText();
+    expect(text).not.toMatch(ALL_CLEAR);
+    expect(text).toMatch(NEED_FOR[name]);
+  });
+
+  it("reviewer probe: swarm AND autonomy failed, live good", async () => {
+    serve(["swarm", "autonomy"]);
+    const text = await needsText();
+    expect(text).not.toMatch(ALL_CLEAR);
+    expect(text).toMatch(NEED_FOR.swarm);
+    expect(text).toMatch(NEED_FOR.autonomy);
+  });
+
+  it("reviewer probe: swarm only failed, live and autonomy good", async () => {
+    serve(["swarm"]);
+    const text = await needsText();
+    expect(text).not.toMatch(ALL_CLEAR);
+    expect(text).toMatch(NEED_FOR.swarm);
+    expect(text).not.toMatch(NEED_FOR.autonomy);
+  });
+
+  it("a swarm body that does not report the kill-switch is not a read of it", async () => {
+    serve([], { swarm: { swarm_enabled_env: true } });
+    const text = await needsText();
+    expect(text).not.toMatch(ALL_CLEAR);
+    expect(text).toMatch(NEED_FOR.swarm);
+    // ...and the Swarm panel does not print "Clear" for a kill-switch it never read.
+    expect(screen.queryByText("Clear")).toBeNull();
+  });
+
+  it("an autonomy body that does not report the poller is not a read of it", async () => {
+    serve([], { autonomy: { poll_count: 3 } });
+    const text = await needsText();
+    expect(text).not.toMatch(ALL_CLEAR);
+    expect(text).toMatch(NEED_FOR.autonomy);
+  });
+
+  it("failed Linear queue section", async () => {
+    serve([], { live: { ...LIVE_GOOD, queue: { available: false, error: "Linear rate limited", urgent: null, high: null } } });
+    const text = await needsText();
+    expect(text).not.toMatch(ALL_CLEAR);
+    expect(text).toMatch(/Linear queue unavailable — Linear rate limited/);
+  });
+
+  it.each(["active_sessions", "recent_completions", "hourly"])("failed session-store read (%s)", async (field) => {
+    const live = field === "hourly" ? { ...LIVE_GOOD, throughput: { hourly: null } } : { ...LIVE_GOOD, [field]: null };
+    serve([], { live });
+    const text = await needsText();
+    expect(text).not.toMatch(ALL_CLEAR);
+    expect(text).toMatch(/Session store unavailable — running work is unknown/);
+  });
+
+  it("observability section missing", async () => {
+    serve([], { live: { ...LIVE_GOOD, observability: undefined } });
+    const text = await needsText();
+    expect(text).not.toMatch(ALL_CLEAR);
+    expect(text).toMatch(/Observability unavailable — component alerts unknown/);
+  });
+
+  it("queue and session store both failed (round 2 probe)", async () => {
+    serve([], { live: { ...LIVE_GOOD, throughput: { hourly: null }, active_sessions: null, recent_completions: null,
+      queue: { available: false, error: "Linear rate limited", urgent: null, high: null } } });
+    const text = await needsText();
+    expect(text).not.toMatch(ALL_CLEAR);
     expect(text).toMatch(/Linear queue unavailable — Linear rate limited/);
     expect(text).toMatch(/Session store unavailable — running work is unknown/);
   });
-
-  it.each(["active_sessions", "recent_completions", "hourly"])("one failed session-store read (%s) is enough to withhold the all-clear", async (field) => {
-    const body = field === "hourly" ? { ...GOOD, throughput: { hourly: null } } : { ...GOOD, [field]: null };
-    mockLive(body);
-    render(<LoopCockpit />);
-    await settle();
-    const text = needsPanel().textContent ?? "";
-    expect(text).not.toMatch(/Nothing needs you/);
-    expect(text).toMatch(/Session store unavailable — running work is unknown/);
-  });
-
-  it("positive control: good reads still show the all-clear", async () => {
-    mockLive(GOOD);
-    render(<LoopCockpit />);
-    await settle();
-    const text = needsPanel().textContent ?? "";
-    expect(text).toMatch(/Nothing needs you/);
-    expect(text).not.toMatch(/unavailable/);
-  });
 });
 
-describe("deriveNeeds — availability inputs", () => {
-  it("adds an error-level need for each failed read", () => {
-    const needs = deriveNeeds({ queueUnavailable: "Linear rate limited", sessionStoreDown: true });
-    expect(needs.map((n) => n.text)).toEqual([
-      "Linear queue unavailable — Linear rate limited",
-      "Session store unavailable — running work is unknown",
-    ]);
-    expect(needs.every((n) => n.color === "var(--error)")).toBe(true);
+// Built lazily so the page-level cases above still run (and go red) on a
+// loop-needs.ts that predates NEEDS_SOURCES; "names every source" pins the list.
+const SOURCES = [...(NEEDS_SOURCES ?? [])];
+const allOk = () => Object.fromEntries(SOURCES.map((s) => [s, null])) as NeedsAvailability;
+
+describe("deriveNeeds — one availability entry per source", () => {
+  it("names every source the panel reads", () => {
+    expect([...SOURCES].sort()).toEqual(
+      ["autonomy", "live", "observability", "queue", "routines", "sessionStore", "swarm"],
+    );
   });
 
-  it("adds nothing when the reads succeeded", () => {
-    expect(deriveNeeds({ queueUnavailable: null, sessionStoreDown: false })).toEqual([]);
+  it("adds nothing when every read succeeded", () => {
+    expect(deriveNeeds({ availability: allOk() })).toEqual([]);
+  });
+
+  it.each(SOURCES)("%s unavailable alone adds exactly one error-level need", (source) => {
+    const needs = deriveNeeds({ availability: { ...allOk(), [source]: "read failed" } });
+    expect(needs).toHaveLength(1);
+    expect(needs[0].color).toBe("var(--error)");
+    expect(needs[0].text).toMatch(/unavailable/);
+  });
+
+  it.each(SOURCES)("%s left out of the record fails closed", (source) => {
+    const partial: Partial<NeedsAvailability> = { ...allOk() };
+    delete partial[source];
+    const needs = deriveNeeds({ availability: partial as NeedsAvailability });
+    expect(needs.length).toBeGreaterThan(0);
+  });
+
+  it("does not read swarm or autonomy flags when that read is unavailable", () => {
+    const needs = deriveNeeds({
+      availability: { ...allOk(), swarm: "read failed", autonomy: "read failed" },
+      swarm: { kill_switch_active: false, escalation_lock_active: false },
+      autonomy: { enabled: true, stale: false, poller_iteration_errors: 0, last_iteration_error: null },
+    });
+    expect(needs.map((n) => n.text)).toEqual([
+      "Autonomy status unavailable — poller state unknown",
+      "Swarm status unavailable — kill-switch state unknown",
+    ]);
   });
 });
