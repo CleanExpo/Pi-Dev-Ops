@@ -3,12 +3,21 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { getSettings } from "@/lib/supabase/settings";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  // Verify Vercel cron secret
-  const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Verify Vercel cron secret. Fail closed when it is unset: the old comparison against
+  // `Bearer ${process.env.CRON_SECRET}` accepted the literal "Bearer undefined".
+  const secret = (process.env.CRON_SECRET ?? "").trim();
+  const auth = req.headers.get("authorization") ?? "";
+  if (
+    !secret ||
+    !timingSafeEqual(
+      createHash("sha256").update(auth).digest(),
+      createHash("sha256").update(`Bearer ${secret}`).digest(),
+    )
+  ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

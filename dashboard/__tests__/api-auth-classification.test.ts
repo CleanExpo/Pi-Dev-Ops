@@ -16,8 +16,8 @@
  * the route is "classified" and one of its methods is not.
  *
  * PROXY GRANULARITY IS PATHS, SO PUBLIC PATHS NEED PER-METHOD ADJUDICATION.
- * proxy.ts matches path prefixes. A path in PROTECTED_API_PREFIXES has every method gated, so
- * it needs no entry. A path in PUBLIC_API_PREFIXES has NO method gated — being public is not a
+ * proxy.ts is deny-by-default for /api: a path NOT on PUBLIC_API_ROUTES (lib/api-auth-policy.ts)
+ * has every method gated, so it needs no entry. A public path has NO method gated — being public is not a
  * decision about any particular method, so each one still has to be adjudicated here. That is
  * why `/api/telegram` needs two entries despite being deliberately public: the webhook has to
  * be reachable, its registration endpoint does not.
@@ -35,17 +35,11 @@
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { PUBLIC_API_ROUTES, isApiPath, isPublicApiPath } from "../lib/api-auth-policy";
 
 const ROOT = resolve(__dirname, "..");
 const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"] as const;
 
-/** Parse the prefix arrays out of proxy.ts. Never retype them — a copy goes stale silently. */
-function proxyPrefixes(name: string): string[] {
-  const src = readFileSync(join(ROOT, "proxy.ts"), "utf8");
-  const m = new RegExp(`${name}\\s*=\\s*\\[([^\\]]*)\\]`, "s").exec(src);
-  if (!m) return [];
-  return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
-}
 
 /**
  * Extract the HTTP methods a route file exports.
@@ -107,20 +101,19 @@ const DECLARED = JSON.parse(
   readFileSync(join(__dirname, "api-auth-classification.json"), "utf8"),
 ) as { surfaces: Record<string, Entry> };
 
-const PROTECTED = proxyPrefixes("PROTECTED_API_PREFIXES");
-const PUBLIC = proxyPrefixes("PUBLIC_API_PREFIXES");
+const PUBLIC = Object.keys(PUBLIC_API_ROUTES);
 const { surfaces: SURFACES, methodless: METHODLESS } = discoverSurfaces();
 
 const isProxyProtected = (path: string) =>
-  !PUBLIC.some((p) => path.startsWith(p)) && PROTECTED.some((p) => path.startsWith(p));
+  isApiPath(path) && !isPublicApiPath(path);
 
 describe("api auth classification (method-aware)", () => {
   it("positive control: prefixes parsed, surfaces discovered, both export forms seen", () => {
     // Any of these empty makes every assertion below vacuous. The last two matter most: if
     // method extraction silently returned nothing, every surface would look classified because
     // there would be no surfaces at all.
-    expect(PROTECTED.length, "parsed no PROTECTED_API_PREFIXES from proxy.ts").toBeGreaterThan(0);
-    expect(PUBLIC.length, "parsed no PUBLIC_API_PREFIXES from proxy.ts").toBeGreaterThan(0);
+    expect(PUBLIC.length, "PUBLIC_API_ROUTES is empty").toBeGreaterThan(0);
+    expect(isProxyProtected("/api/pi-ceo/x"), "a non-public API path is not gated").toBe(true);
     expect(SURFACES.length, "discovered no method surfaces").toBeGreaterThan(10);
 
     // Prove the parser sees BOTH export forms, not just the common one. Pointing a working
@@ -146,9 +139,9 @@ describe("api auth classification (method-aware)", () => {
     ).map((s) => s.key);
     expect(
       unclassified,
-      "these METHOD surfaces are not gated by PROTECTED_API_PREFIXES and have no entry in\n" +
+      "these METHOD surfaces are on PUBLIC_API_ROUTES (so the proxy gates none) and have no entry in\n" +
         "api-auth-classification.json, so nothing decides whether an anonymous caller may reach\n" +
-        "them. A path being in PUBLIC_API_PREFIXES does NOT classify its methods — the proxy\n" +
+        "them. A path being on PUBLIC_API_ROUTES does NOT classify its methods — the proxy\n" +
         "gates none of them, so each is adjudicated here. Classify each:\n" +
         unclassified.join("\n"),
     ).toEqual([]);

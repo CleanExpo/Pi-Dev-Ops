@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 // cookie signer (app/api/auth/login/route.ts) stay in sync. Edit there to
 // change behaviour.
 import { verifySessionToken } from "./lib/auth-secret";
+import { isApiPath, isPublicApiPath } from "./lib/api-auth-policy";
 
 export const config = {
   matcher: [
@@ -57,47 +58,12 @@ const PROTECTED_PAGE_PREFIXES = [
   "/placecards-prototype",
 ];
 
-const PROTECTED_API_PREFIXES = [
-  "/api/pi-ceo",
-  "/api/sessions",
-  "/api/analyze",
-  "/api/actions",
-  "/api/capabilities",
-  "/api/chat",
-  "/api/settings",
-  // Same reason as "/command-centre" above — this route serves the graph built
-  // from an RLS-bypassing read.
-  "/api/command-centre",
-  // Ratified on main: these internal status surfaces borrow upstream authority and
-  // are only consumed from the already-protected control page.
-  "/api/zte",
-  "/api/swarm-status",
-  "/api/curator-proposals",
-  // Mission Control Model Fabric exposes provider/model routing telemetry and
-  // is consumed only by the protected /control/model surface.
-  "/api/model-fabric",
-  // RA-7434: role → provider → model → cost-today. Proxies Railway /api/routing
-  // with a borrowed session, so an anonymous caller must not reach it.
-  "/api/routing",
-  // UNI-2649: server-side mesh fleet aggregate. Attaches X-Pi-CEO-Secret
-  // on the server; the browser never sees it.
-  "/api/mesh-fleet",
-  // RA-7487: attachments upload. Proxy default-open returned the app shell at
-  // HTTP 200 for an anonymous POST, which a scanner reads as success. Gate the
-  // prefix so unauthenticated callers get 401 before any handler runs.
-  "/api/attachments",
-  // Flow board: lists open PRs with the server's GITHUB_TOKEN, consumed only by the
-  // protected /control page. It reached main unclassified (3c2d756b), so anonymous
-  // callers could spend the token's rate limit and CI went red on main.
-  "/api/flow-board",
-];
-
-// Public API routes — never require session
-const PUBLIC_API_PREFIXES = [
-  "/api/auth/",
-  "/api/telegram",
-  "/api/webhook/",
-];
+// API auth is DENY-BY-DEFAULT: every /api request needs a valid session unless its exact
+// path is on PUBLIC_API_ROUTES in lib/api-auth-policy.ts, each with a written reason.
+// Until this inversion the proxy was allow-by-default (PROTECTED_API_PREFIXES): a route was
+// public unless someone remembered to list it, and /api/attachments, /api/flow-board and
+// /api/margot/bubble each reached main unprotected that way. A new route is now protected
+// the moment it exists. See __tests__/api-deny-default.test.ts.
 
 // Verification lives in lib/auth-secret.ts and is imported, NOT reimplemented here.
 //
@@ -126,8 +92,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse | Response> 
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   const isProtectedPage = PROTECTED_PAGE_PREFIXES.some((p) => pathname.startsWith(p));
-  const isPublicApi = PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
-  const isProtectedApi = !isPublicApi && PROTECTED_API_PREFIXES.some((p) => pathname.startsWith(p));
+  const isProtectedApi = isApiPath(pathname) && !isPublicApiPath(pathname);
 
   if (isProtectedPage || isProtectedApi) {
     const token = req.cookies.get(COOKIE_NAME)?.value ?? "";
