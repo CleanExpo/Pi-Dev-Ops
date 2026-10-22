@@ -8,6 +8,7 @@ from tests._senior_harness_setup_support import (
     SCRIPT_DIR,
     SetupError,
     _global_hook,
+    _start_hook_session,
     _tamper_env,
     handle_hook,
     json,
@@ -188,3 +189,77 @@ def test_global_hook_refuses_a_tampered_pending_prompt(tmp_path: Path) -> None:
     )
     assert output["permissionDecision"] == "deny"
     assert "pending startup objective is invalid" in output["permissionDecisionReason"]
+
+
+def _cursor(event: str, **fields: object) -> dict:
+    """A payload shaped like the one cursor-agent 2026.10.19 sends to Claude hooks."""
+    return {
+        "conversation_id": "cursor-conv",
+        "hook_event_name": event,
+        "cursor_version": "2026.10.19-6bbf2c4",
+        "workspace_roots": [str(REPO_ROOT)],
+        **fields,
+    }
+
+
+def test_cursor_payload_is_normalised_and_still_mediated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    prompt = "Review the auth change"
+    _start_hook_session(
+        tmp_path / "state", monkeypatch, session_id="cursor-conv", prompt=prompt
+    )
+    started = handle_hook(
+        _cursor("sessionStart", session_id="cursor-conv"),
+        surface="claude", event="SessionStart",
+    )
+    assert "permissionDecision" not in started["hookSpecificOutput"]
+
+    shell = handle_hook(
+        _cursor(
+            "preToolUse", cwd="", tool_name="Shell",
+            tool_input={"command": "echo hi", "cwd": "", "timeout": 30000},
+        ),
+        surface="claude", event="PreToolUse",
+    )["hookSpecificOutput"]
+    assert "permissionDecision" not in shell
+    assert repr(prompt) in shell["additionalContext"]
+
+
+def test_cursor_payload_with_a_real_mismatch_is_still_refused() -> None:
+    with pytest.raises(SetupError, match="event mismatch"):
+        handle_hook(
+            _cursor("preToolUse", session_id="s", tool_name="Shell"),
+            surface="claude", event="UserPromptSubmit",
+        )
+    with pytest.raises(SetupError, match="event mismatch"):
+        handle_hook(
+            {"session_id": "s", "cwd": str(REPO_ROOT), "hook_event_name": "preToolUse"},
+            surface="claude", event="PreToolUse",
+        )
+    with pytest.raises(SetupError, match="missing cwd"):
+        handle_hook(
+            _cursor("preToolUse", session_id="s", workspace_roots=["/a", "/b"]),
+            surface="claude", event="PreToolUse",
+        )
+
+
+def test_cursor_tool_without_a_frozen_objective_gets_a_deny_cursor_obeys(
+    tmp_path: Path,
+) -> None:
+    result = subprocess.run(
+        [
+            sys.executable, str(SCRIPT_DIR / "setup_driver.py"), "hook",
+            "--surface", "claude", "--event", "PreToolUse", "--allow-non-git",
+        ],
+        input=json.dumps(_cursor(
+            "preToolUse", session_id="cursor-no-prompt", cwd="",
+            tool_name="Shell", tool_input={"command": "touch marker.txt"},
+        )),
+        env=_tamper_env(tmp_path), capture_output=True, text=True, check=True,
+    )
+    # Cursor obeys this Claude-format deny (probed 22/10/2026: the Shell call
+    # was refused and no file was written); a non-deny JSON object is ignored.
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert output["permissionDecision"] == "deny"
+    assert "no startup receipt exists" in output["permissionDecisionReason"]

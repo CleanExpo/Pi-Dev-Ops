@@ -11,6 +11,32 @@ from setup_repository import _git
 from setup_state import _pending_state_path, _session_lock_path, _state_lock, _state_path
 
 
+# Cursor runs the hooks in .claude/settings.json but sends its own payload:
+# camelCase event names, no cwd (or "") with the checkout in workspace_roots,
+# and session_id documented only for session events (conversation_id always).
+CURSOR_EVENTS = {
+    "sessionStart": "SessionStart",
+    "beforeSubmitPrompt": "UserPromptSubmit",
+    "preToolUse": "PreToolUse",
+}
+
+
+def _normalise_cursor_payload(payload: Any) -> Any:
+    """Map a Cursor-originated payload onto the Claude hook contract, or leave it."""
+    if not isinstance(payload, dict) or "cursor_version" not in payload:
+        return payload
+    normalised = dict(payload)
+    observed = payload.get("hook_event_name")
+    if observed in CURSOR_EVENTS:
+        normalised["hook_event_name"] = CURSOR_EVENTS[observed]
+    if not payload.get("session_id") and isinstance(payload.get("conversation_id"), str):
+        normalised["session_id"] = payload["conversation_id"]
+    roots = payload.get("workspace_roots")
+    if not payload.get("cwd") and isinstance(roots, list) and len(roots) == 1:
+        normalised["cwd"] = roots[0]
+    return normalised
+
+
 def _validate_hook_input(payload: Any, surface: str, event: str) -> tuple[str, str]:
     if surface not in {"codex", "claude"}:
         raise SetupError([f"hook surface is unsupported: {surface}"])
@@ -53,6 +79,7 @@ def handle_hook(
     skill_search_roots: Iterable[str | Path] | None = None,
 ) -> dict[str, Any]:
     """Adapt one Codex/Claude lifecycle event to the portable startup contract."""
+    payload = _normalise_cursor_payload(payload)
     session_id, cwd = _validate_hook_input(payload, surface, event)
     root = Path(_git(Path(cwd).resolve(), "rev-parse", "--show-toplevel").strip()).resolve()
     state_path = _state_path(root, session_id)

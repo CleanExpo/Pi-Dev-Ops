@@ -48,6 +48,7 @@ from setup_common import _is_sha256_digest as _is_sha256_digest
 from setup_common import _normalise_tool_name as _normalise_tool_name
 from setup_common import _read_json as _read_json
 from setup_delivery import guard_dispatch as guard_dispatch
+from setup_hooks import _normalise_cursor_payload as _normalise_cursor_payload
 from setup_hooks import handle_hook as handle_hook
 from setup_receipts import _check_control_bindings as _check_control_bindings
 from setup_receipts import _control_binding_errors as _control_binding_errors
@@ -134,6 +135,7 @@ def _run_hook(args: argparse.Namespace) -> dict[str, Any]:
         return _hook_output(
             args.event, f"Senior Harness rejected malformed hook input: {exc}", deny=True
         )
+    payload = _normalise_cursor_payload(payload)
     try:
         return handle_hook(
             payload, surface=args.surface, event=args.event,
