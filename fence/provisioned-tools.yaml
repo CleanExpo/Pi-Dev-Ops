@@ -23,14 +23,12 @@ provisioned:
     note: "Local credential store; TTS via REST."
   - name: artlist
     aliases: ["artlist ai toolkit", "nano banana"]
-    note: "PRIMARY image/video substrate. Explicitly NOT Higgsfield (connections.md:56)."
+    note: "PRIMARY image/video substrate. Higgsfield is allowed again (founder, 23/10/2026)."
   - name: openrouter
     constraint: "Sub-agent tasks ONLY — never primary work (06-11 mandate)."
     note: "PROVISIONED. Corrects RA-7015's 'not provisioned' premise — does NOT block Cap 1."
 
 banned:
-  - name: higgsfield
-    reason: "Image/video — use Artlist instead (connections.md:56)."
   - name: zapier
     reason: "No third-party workflow tool — build posting on our own MCP/skills (RA-7015)."
   - name: blotato
