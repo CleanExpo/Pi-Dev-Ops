@@ -189,7 +189,7 @@ export default function RoutinesPage() {
       </div>
 
       {/* Summary bar — counts exist only once a read has succeeded; a later failed refresh keeps them, labelled */}
-      {hasCounts && <RoutineSummaryBar runs={runs} checking={checking} />}
+      {hasCounts && <RoutineSummaryBar runs={runs} checking={checking} failed={error !== null} />}
 
       {/* Error: a failed read is "couldn't check", never zero runs */}
       {error && (

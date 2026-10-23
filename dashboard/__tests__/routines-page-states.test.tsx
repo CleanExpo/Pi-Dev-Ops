@@ -108,6 +108,18 @@ describe("routines page", () => {
     expect(screen.getAllByText("daily").length).toBeGreaterThan(0);
   });
 
+  it("STALE EMPTY: a failed refresh after an empty read does not restate 'no runs' as current", async () => {
+    fetchProxy.mockResolvedValueOnce({ ok: true, data: { runs: [], total: 0 } });
+    fetchProxy.mockResolvedValueOnce({ ok: false, reason: "http", upstreamStatus: 503 });
+    render(<RoutinesPage />);
+    expect(await screen.findByText("No routine runs recorded yet.")).toBeTruthy();
+    fireEvent.click(screen.getByText("REFRESH"));
+    expect(await screen.findByText(/Couldn't check routines: HTTP 503/)).toBeTruthy();
+    expect(screen.queryByText("No runs recorded yet.")).toBeNull();
+    expect(screen.queryByText("No routine runs recorded yet.")).toBeNull();
+    expect(screen.getByText("None at the last good check.")).toBeTruthy();
+  });
+
   it("EMPTY: a successful read with no runs still says none recorded", async () => {
     fetchProxy.mockResolvedValue({ ok: true, data: { runs: [], total: 0 } });
     render(<RoutinesPage />);

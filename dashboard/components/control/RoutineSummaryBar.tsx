@@ -1,6 +1,6 @@
 // components/control/RoutineSummaryBar.tsx — counts strip for /routines (RA-1011).
-// Only rendered once a read has succeeded; while a refresh is unsettled it
-// does not restate an earlier empty read as fact.
+// Only rendered once a read has succeeded; while a refresh is unsettled, or
+// after one failed, it does not restate an earlier empty read as current.
 import { fmtTs } from "@/lib/control/routine-format";
 
 export interface RoutineRun {
@@ -14,7 +14,7 @@ export interface RoutineRun {
   ts: string;
 }
 
-export function RoutineSummaryBar({ runs, checking }: { runs: RoutineRun[]; checking: boolean }) {
+export function RoutineSummaryBar({ runs, checking, failed }: { runs: RoutineRun[]; checking: boolean; failed: boolean }) {
   const today = new Date().toISOString().slice(0, 10);
   const todayRuns = runs.filter((r) => r.ts.startsWith(today));
   const successCount = runs.filter((r) => r.status === "success").length;
@@ -66,7 +66,7 @@ export function RoutineSummaryBar({ runs, checking }: { runs: RoutineRun[]; chec
 
       {runs.length === 0 && !checking && (
         <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>
-          No runs recorded yet.
+          {failed ? "None at the last good check." : "No runs recorded yet."}
         </span>
       )}
 
