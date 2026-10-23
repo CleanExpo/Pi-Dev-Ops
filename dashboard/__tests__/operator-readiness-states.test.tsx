@@ -30,4 +30,22 @@ describe("OperatorReadiness service chip", () => {
     expect(screen.queryByText("blocked")).toBeNull();
     expect(screen.getByText("blocked, checking")).toBeTruthy();
   });
+
+  it("HEALTH DETAIL REFRESH: during a re-read, Generation, its blockers and Model documentation are marked as last reading", () => {
+    const h = { status: "ok", generation: { status: "blocked", blockers: ["quota"] }, model_documentation: { status: "fresh" } } as never;
+    render(<OperatorReadiness health={h} sessions={[]} healthError={false} sessionsError={false} healthChecking />);
+    expect(screen.queryByText("blocked")).toBeNull();
+    expect(screen.getByText("blocked, checking")).toBeTruthy();
+    expect(screen.queryByText("fresh")).toBeNull();
+    expect(screen.getByText("fresh, checking")).toBeTruthy();
+    expect(screen.getByText("Checking again; the values below are from the last health reading.")).toBeTruthy();
+  });
+
+  it("HEALTH DETAIL SETTLED: a settled read states Generation and Model documentation plainly", () => {
+    const h = { status: "ok", generation: { status: "blocked", blockers: [] }, model_documentation: { status: "fresh" } } as never;
+    render(<OperatorReadiness health={h} sessions={[]} healthError={false} sessionsError={false} healthChecking={false} />);
+    expect(screen.getByText("blocked")).toBeTruthy();
+    expect(screen.getByText("fresh")).toBeTruthy();
+    expect(screen.queryByText(/Checking again/)).toBeNull();
+  });
 });

@@ -112,6 +112,12 @@ describe("overview page — Agents On-Shift", () => {
     expect(screen.getByText(/Checking the backend again/)).toBeTruthy();
   });
 
+  it("LIMITED PAYLOAD REFRESH: during a re-read, the limited-payload banner is marked as the last reading", () => {
+    observations.mockReturnValue({ ...base, health: { status: "ok" }, healthChecking: true, sessionsError: false, sessionsLoaded: true, sessionsChecking: false });
+    render(<OverviewPage />);
+    expect(screen.getByText(/Limited health payload, checking/)).toBeTruthy();
+  });
+
   it("EMPTY: a successful read with nothing running still says no active builds", () => {
     observations.mockReturnValue({ ...base, sessionsError: false, sessionsLoaded: true, sessionsChecking: false });
     render(<OverviewPage />);

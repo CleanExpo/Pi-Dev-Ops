@@ -304,7 +304,7 @@ export default function OverviewPage() {
                     color: "var(--warning)",
                   }}
                 >
-                  <strong>Limited health payload</strong> — backend <code>/health</code> is
+                  <strong>Limited health payload{healthNote}</strong> — backend <code>/health</code> is
                   returning <code>{"{status:\"ok\"}"}</code> only. Tracked separately; Overview
                   renders the shell so the page doesn&apos;t crash.
                 </div>
