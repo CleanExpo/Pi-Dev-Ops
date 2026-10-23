@@ -63,6 +63,17 @@ describe("routines page", () => {
     expect(screen.getByText(/Showing the last good check/)).toBeTruthy();
   });
 
+  it("CHECKING: while a refresh is unsettled, an earlier empty read is not restated as fact", async () => {
+    fetchProxy.mockResolvedValueOnce({ ok: true, data: { runs: [], total: 0 } });
+    fetchProxy.mockReturnValueOnce(new Promise(() => {}));
+    render(<RoutinesPage />);
+    expect(await screen.findByText("No routine runs recorded yet.")).toBeTruthy();
+    fireEvent.click(screen.getByText("REFRESH"));
+    expect(await screen.findByText(/Checking again/)).toBeTruthy();
+    expect(screen.queryByText("No routine runs recorded yet.")).toBeNull();
+    expect(screen.queryByText("No runs recorded yet.")).toBeNull();
+  });
+
   it("EMPTY: a successful read with no runs still says none recorded", async () => {
     fetchProxy.mockResolvedValue({ ok: true, data: { runs: [], total: 0 } });
     render(<RoutinesPage />);

@@ -1,0 +1,80 @@
+// components/control/RoutineSummaryBar.tsx — counts strip for /routines (RA-1011).
+// Only rendered once a read has succeeded; while a refresh is unsettled it
+// does not restate an earlier empty read as fact.
+import { fmtTs } from "@/lib/control/routine-format";
+
+export interface RoutineRun {
+  routine_name: string;
+  repo: string;
+  trigger: string;
+  status: "success" | "failure" | "timeout";
+  duration_s: number;
+  run_url: string;
+  summary: string;
+  ts: string;
+}
+
+export function RoutineSummaryBar({ runs, checking }: { runs: RoutineRun[]; checking: boolean }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const todayRuns = runs.filter((r) => r.ts.startsWith(today));
+  const successCount = runs.filter((r) => r.status === "success").length;
+  const successRate = runs.length > 0 ? Math.round((successCount / runs.length) * 100) : null;
+  const lastFailure = runs.find((r) => r.status === "failure");
+
+  return (
+    <div
+      className="flex items-center gap-4 px-3 sm:px-4 py-2 flex-wrap"
+      style={{ borderBottom: "1px solid var(--border)", background: "var(--panel)" }}
+    >
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+          Today
+        </span>
+        <span className="font-mono text-xs font-semibold" style={{ color: "var(--text)" }}>
+          {todayRuns.length}
+        </span>
+      </div>
+
+      {successRate !== null && (
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+            Success
+          </span>
+          <span
+            className="font-mono text-xs font-semibold"
+            style={{ color: successRate >= 80 ? "#4ADE80" : successRate >= 50 ? "#FFD166" : "#F87171" }}
+          >
+            {successRate}%
+          </span>
+        </div>
+      )}
+
+      {lastFailure && (
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+            Last fail
+          </span>
+          <span
+            className="font-mono text-[10px] truncate max-w-[180px]"
+            style={{ color: "#F87171" }}
+            title={`${lastFailure.routine_name} @ ${lastFailure.ts}`}
+          >
+            {lastFailure.routine_name} — {fmtTs(lastFailure.ts)}
+          </span>
+        </div>
+      )}
+
+      {runs.length === 0 && !checking && (
+        <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>
+          No runs recorded yet.
+        </span>
+      )}
+
+      {checking && (
+        <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>
+          Checking again…
+        </span>
+      )}
+    </div>
+  );
+}
