@@ -76,6 +76,11 @@ describe("routines page", () => {
     expect(await screen.findByText(/Checking again/)).toBeTruthy();
     expect(screen.queryByText("No routine runs recorded yet.")).toBeNull();
     expect(screen.queryByText("No runs recorded yet.")).toBeNull();
+    // Retained counts are marked as being re-checked, never shown bare.
+    expect(screen.getByText(/0 total, checking/)).toBeTruthy();
+    expect(screen.getByText(/\(0, checking\)/)).toBeTruthy();
+    expect(screen.queryByText(/0 total$/)).toBeNull();
+    expect(screen.getByText("Today").nextSibling?.textContent).toBe("0, checking");
   });
 
   it("OVERLAP: an older read settling first does not end the newer read's checking state", async () => {

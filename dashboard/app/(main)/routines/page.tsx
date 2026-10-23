@@ -168,8 +168,8 @@ export default function RoutinesPage() {
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
             Routines
-            {hasCounts && <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total</span>}
-            {hasCounts && <span className="sm:hidden"> ({total})</span>}
+            {hasCounts && <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total{checking && ", checking"}</span>}
+            {hasCounts && <span className="sm:hidden"> ({total}{checking && ", checking"})</span>}
           </span>
         </div>
         <div className="flex items-center gap-3">

@@ -34,7 +34,7 @@ export function RoutineSummaryBar({ runs, checking, failed }: { runs: RoutineRun
           Today
         </span>
         <span className="font-mono text-xs font-semibold" style={{ color: "var(--text)" }}>
-          {todayRuns.length}
+          {todayRuns.length}{checking && ", checking"}
         </span>
       </div>
 
@@ -47,7 +47,7 @@ export function RoutineSummaryBar({ runs, checking, failed }: { runs: RoutineRun
             className="font-mono text-xs font-semibold"
             style={{ color: successRate >= 80 ? "#4ADE80" : successRate >= 50 ? "#FFD166" : "#F87171" }}
           >
-            {successRate}%
+            {successRate}%{checking && ", checking"}
           </span>
         </div>
       )}
