@@ -17,9 +17,8 @@ afterEach(() => {
 
 describe("RoutineSummaryBar Today count", () => {
   it("BRISBANE DAY: a 08:00 AEST run counts as today at 11:00 AEST, though it is yesterday in UTC", () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-10-23T01:00:00Z")); // 23/10 11:00 AEST
-    render(<RoutineSummaryBar runs={[run("2026-10-22T22:00:00Z")]} checking={false} failed={false} />);
+    const asOf = new Date("2026-10-23T01:00:00Z").getTime(); // 23/10 11:00 AEST
+    render(<RoutineSummaryBar runs={[run("2026-10-22T22:00:00Z")]} checking={false} failed={false} asOf={asOf} />);
     expect(screen.getByText("Today").nextSibling?.textContent).toBe("1");
   });
 
@@ -32,9 +31,8 @@ describe("RoutineSummaryBar Today count", () => {
   });
 
   it("BRISBANE DAY: a run late on the previous Brisbane day is not today", () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-10-23T01:00:00Z")); // 23/10 11:00 AEST
-    render(<RoutineSummaryBar runs={[run("2026-10-22T13:59:00Z")]} checking={false} failed={false} />); // 22/10 23:59 AEST
+    const asOf = new Date("2026-10-23T01:00:00Z").getTime(); // 23/10 11:00 AEST
+    render(<RoutineSummaryBar runs={[run("2026-10-22T13:59:00Z")]} checking={false} failed={false} asOf={asOf} />); // 22/10 23:59 AEST
     expect(screen.getByText("Today").nextSibling?.textContent).toBe("0");
   });
 });

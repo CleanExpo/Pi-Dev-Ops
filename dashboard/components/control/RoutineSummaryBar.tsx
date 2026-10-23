@@ -19,7 +19,7 @@ const brisbaneDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Aust
 
 // `asOf` is when `runs` was read: after a failed refresh the retained runs are counted against the day of
 // that read, never against a later day they cannot describe.
-export function RoutineSummaryBar({ runs, checking, failed, asOf = Date.now() }: { runs: RoutineRun[]; checking: boolean; failed: boolean; asOf?: number }) {
+export function RoutineSummaryBar({ runs, checking, failed, asOf }: { runs: RoutineRun[]; checking: boolean; failed: boolean; asOf: number }) {
   const today = brisbaneDay(new Date(asOf));
   const qualifier = checking ? ", checking" : failed ? ", last good check" : "";
   const todayRuns = runs.filter((r) => brisbaneDay(new Date(r.ts)) === today);

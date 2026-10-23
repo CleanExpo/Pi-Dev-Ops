@@ -62,7 +62,9 @@ describe("routines page", () => {
     expect(await screen.findByText(/1 total/)).toBeTruthy();
     fireEvent.click(screen.getByText("REFRESH"));
     expect(await screen.findByText(/Couldn't check routines: HTTP 503/)).toBeTruthy();
-    expect(screen.getByText(/1 total/)).toBeTruthy();
+    expect(screen.getByText(/1 total, last good check/)).toBeTruthy();
+    expect(screen.getByText("(1, last good check)")).toBeTruthy();
+    expect(screen.queryByText(/1 total$/)).toBeNull();
     expect(screen.getByText("Today")).toBeTruthy();
     expect(screen.getByText(/Showing the last good check/)).toBeTruthy();
   });
@@ -123,6 +125,8 @@ describe("routines page", () => {
     expect(screen.queryByText("No runs recorded yet.")).toBeNull();
     expect(screen.queryByText("No routine runs recorded yet.")).toBeNull();
     expect(screen.getByText("None at the last good check.")).toBeTruthy();
+    expect(screen.getByText(/0 total, last good check/)).toBeTruthy();
+    expect(screen.getByText("(0, last good check)")).toBeTruthy();
   });
 
   it("EMPTY: a successful read with no runs still says none recorded", async () => {

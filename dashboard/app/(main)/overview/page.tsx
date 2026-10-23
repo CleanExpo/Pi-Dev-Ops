@@ -41,6 +41,7 @@ export default function OverviewPage() {
       : !sessionsChecking ? `${n} ${noun}`
       : n === 0 ? "checking" : `${n} ${noun}, checking`;
   const checking = !sessionsLoaded || sessionsChecking;
+  const healthNote = healthChecking ? ", checking" : "";
 
   const activeSessions = sessions.filter(s =>
     ["cloning", "building", "evaluating", "created"].includes(s.status)
@@ -236,7 +237,7 @@ export default function OverviewPage() {
                     border: `1px solid ${health.status === "ok" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
                   }}
                 >
-                  {health.status.toUpperCase()}
+                  {health.status.toUpperCase()}{healthNote}
                 </span>
               )}
             </div>
@@ -245,7 +246,7 @@ export default function OverviewPage() {
               {/* Services checklist */}
               <div>
                 <p className="text-[9px] font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--text-dim)" }}>
-                  Services
+                  Services{healthNote}
                 </p>
                 {overviewServiceRows(health).map(({ label, mark }) => {
                   const shown = serviceMarkGlyph(mark);
@@ -268,13 +269,13 @@ export default function OverviewPage() {
                   </p>
                   <div className="flex flex-col gap-1">
                     {[
-                      ["State", health.autonomy.armed ? "Armed" : "Disarmed"],
-                      ["Poll count", String(health.autonomy.poll_count ?? "—") + (healthChecking ? ", checking" : "")],
+                      ["State", (health.autonomy.armed ? "Armed" : "Disarmed") + healthNote],
+                      ["Poll count", String(health.autonomy.poll_count ?? "—") + healthNote],
                       [
                         "Last poll",
                         health.autonomy.seconds_since_last_poll == null
-                          ? "Never"
-                          : `${health.autonomy.seconds_since_last_poll}s ago${healthChecking ? ", checking" : ""}`,
+                          ? `Never${healthNote}`
+                          : `${health.autonomy.seconds_since_last_poll}s ago${healthNote}`,
                       ],
                     ].map(([k, v]) => (
                       <div key={k} className="flex justify-between text-xs">
