@@ -14,9 +14,12 @@ export interface RoutineRun {
   ts: string;
 }
 
+// "Today" is the Brisbane calendar day, not the UTC one (a 08:00 AEST run is the previous UTC day).
+const brisbaneDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Australia/Brisbane" });
+
 export function RoutineSummaryBar({ runs, checking, failed }: { runs: RoutineRun[]; checking: boolean; failed: boolean }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const todayRuns = runs.filter((r) => r.ts.startsWith(today));
+  const today = brisbaneDay(new Date());
+  const todayRuns = runs.filter((r) => brisbaneDay(new Date(r.ts)) === today);
   const successCount = runs.filter((r) => r.status === "success").length;
   const successRate = runs.length > 0 ? Math.round((successCount / runs.length) * 100) : null;
   const lastFailure = runs.find((r) => r.status === "failure");

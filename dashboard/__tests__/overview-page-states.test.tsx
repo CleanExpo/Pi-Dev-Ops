@@ -52,6 +52,16 @@ describe("overview page — Agents On-Shift", () => {
     expect(screen.getAllByText("checking").length).toBe(2);
   });
 
+  it("REFRESH NONEMPTY: during a re-read, last seen sessions are labelled as being checked", () => {
+    const building = { id: "s1", status: "building", started: "2026-10-23T00:00:00Z", repo: "x", lastPhase: "" };
+    observations.mockReturnValue({ ...base, sessions: [building], sessionsError: false, sessionsLoaded: true, sessionsChecking: true });
+    render(<OverviewPage />);
+    expect(screen.queryByText("1 active")).toBeNull();
+    expect(screen.queryByText("1 sessions")).toBeNull();
+    expect(screen.getByText("1 active, checking")).toBeTruthy();
+    expect(screen.getByText("1 sessions, checking")).toBeTruthy();
+  });
+
   it("EMPTY: a successful read with nothing running still says no active builds", () => {
     observations.mockReturnValue({ ...base, sessionsError: false, sessionsLoaded: true, sessionsChecking: false });
     render(<OverviewPage />);

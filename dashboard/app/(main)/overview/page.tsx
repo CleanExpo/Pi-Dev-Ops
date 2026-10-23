@@ -34,9 +34,11 @@ function StatChip({ label, value, color }: { label: string; value: string; color
 export default function OverviewPage() {
   const observations = useOperatorObservations();
   const { health, sessions, sessionsError, sessionsLoaded, sessionsChecking } = observations;
-  // A zero is only stated from a settled read; during a re-read it says "checking".
+  // A count is only stated as current from a settled read; during a re-read it is marked as being checked.
   const countLabel = (n: number, noun: string) =>
-    sessionsError || !sessionsLoaded ? "unknown" : n === 0 && sessionsChecking ? "checking" : `${n} ${noun}`;
+    sessionsError || !sessionsLoaded ? "unknown"
+      : !sessionsChecking ? `${n} ${noun}`
+      : n === 0 ? "checking" : `${n} ${noun}, checking`;
   const checking = !sessionsLoaded || sessionsChecking;
 
   const activeSessions = sessions.filter(s =>
