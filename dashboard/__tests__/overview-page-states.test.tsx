@@ -86,6 +86,21 @@ describe("overview page — Agents On-Shift", () => {
     expect(screen.getByText("Services, checking")).toBeTruthy();
   });
 
+  it("HEALTH LEDE: during a /health re-read, the header does not call the overview live", () => {
+    const health = { status: "ok", sessions: { active: 0, max: 4 } };
+    observations.mockReturnValue({ ...base, health, healthChecking: true, sessionsError: false, sessionsLoaded: true, sessionsChecking: false });
+    render(<OverviewPage />);
+    expect(screen.queryByText(/^Live system overview/)).toBeNull();
+    expect(screen.getByText(/Checking the backend again/)).toBeTruthy();
+  });
+
+  it("HEALTH FAILED: a failed /health read says unavailable, never 'Connecting to backend'", () => {
+    observations.mockReturnValue({ ...base, healthError: true, sessionsError: false, sessionsLoaded: true, sessionsChecking: false });
+    render(<OverviewPage />);
+    expect(screen.queryByText(/Connecting to backend/)).toBeNull();
+    expect(screen.getByText("Health unavailable.")).toBeTruthy();
+  });
+
   it("EMPTY: a successful read with nothing running still says no active builds", () => {
     observations.mockReturnValue({ ...base, sessionsError: false, sessionsLoaded: true, sessionsChecking: false });
     render(<OverviewPage />);

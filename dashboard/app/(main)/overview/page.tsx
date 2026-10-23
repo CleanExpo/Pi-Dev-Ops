@@ -34,7 +34,7 @@ function StatChip({ label, value, color, checking }: { label: string; value: str
 
 export default function OverviewPage() {
   const observations = useOperatorObservations();
-  const { health, healthChecking, sessions, sessionsError, sessionsLoaded, sessionsChecking } = observations;
+  const { health, healthError, healthChecking, sessions, sessionsError, sessionsLoaded, sessionsChecking } = observations;
   // A count is only stated as current from a settled read; during a re-read it is marked as being checked.
   const countLabel = (n: number, noun: string) =>
     sessionsError || !sessionsLoaded ? "unknown"
@@ -65,7 +65,7 @@ export default function OverviewPage() {
             Command Centre
           </h1>
           <p className="text-[10px] mt-0.5 leading-none" style={{ color: "var(--text-dim)" }}>
-            {overviewLede(health)}
+            {healthChecking ? "Checking the backend again; values are from the last reading." : overviewLede(health)}
           </p>
         </div>
         <Link
@@ -138,9 +138,13 @@ export default function OverviewPage() {
             />
           </>
         ) : (
-          <span className="text-xs animate-pulse" style={{ color: "var(--text-dim)" }}>
-            Connecting to backend…
-          </span>
+          healthError ? (
+            <span className="text-xs" style={{ color: "var(--warning)" }}>Health unavailable.</span>
+          ) : (
+            <span className="text-xs animate-pulse" style={{ color: "var(--text-dim)" }}>
+              Connecting to backend…
+            </span>
+          )
         )}
       </div>
 

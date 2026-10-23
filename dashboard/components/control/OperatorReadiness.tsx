@@ -30,7 +30,7 @@ function SessionRow({ session }: { session: OperatorSession }) {
   );
 }
 
-export function OperatorReadiness({ health, sessions, healthError, sessionsError }: { health: OperatorHealth | null; sessions: OperatorSession[]; healthError: boolean; sessionsError: boolean }) {
+export function OperatorReadiness({ health, sessions, healthError, sessionsError, healthChecking = false }: { health: OperatorHealth | null; sessions: OperatorSession[]; healthError: boolean; sessionsError: boolean; healthChecking?: boolean }) {
   const attentionSessions = sessions.filter(s => needsAttention(s.status));
   const automation = automationLabel(health);
   const generationBlocked = health?.generation?.status === "blocked";
@@ -38,7 +38,7 @@ export function OperatorReadiness({ health, sessions, healthError, sessionsError
 
   return <>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 p-4" aria-live="polite">
-        <StatChip label="Service" value={healthError ? "Service status unavailable" : health ? health.status === "ok" ? "Service reachable" : "Service degraded" : "Checking service"} warning={healthError || Boolean(health && health.status !== "ok")} />
+        <StatChip label="Service" value={healthError ? "Service status unavailable" : health ? (health.status === "ok" ? "Service reachable" : "Service degraded") + (healthChecking ? ", checking" : "") : "Checking service"} warning={healthError || Boolean(health && health.status !== "ok")} />
         <StatChip label="Operations" value={readiness} warning={attentionSessions.length > 0 || generationBlocked} />
         <StatChip label="Delivery" value="Delivery not verified" />
         <StatChip label="Model usage" value="Billing not observed" />
