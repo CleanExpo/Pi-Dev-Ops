@@ -22,4 +22,14 @@ describe("landing page", () => {
     render(<LandingPage />);
     expect(document.body.textContent).not.toMatch(/OPUS 4\.8/i);
   });
+
+  it("opens straight on the focused password box, with no Enter step, and keeps the branding", () => {
+    render(<LandingPage />);
+    const input = screen.getByLabelText("Password");
+    expect(input.getAttribute("type")).toBe("password");
+    expect(document.activeElement).toBe(input);
+    expect(screen.queryByRole("button", { name: /Enter/ })).toBeNull();
+    expect(screen.getByText("Pi CEO")).toBeTruthy();
+    expect(screen.getByAltText("Pi CEO — cinematic hero")).toBeTruthy();
+  });
 });
