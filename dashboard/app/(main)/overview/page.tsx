@@ -153,7 +153,7 @@ export default function OverviewPage() {
                 className="text-[9px] font-mono px-1.5 py-0.5 rounded"
                 style={{ background: "var(--panel)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
               >
-                {activeSessions.length} active
+                {sessionsError ? "unknown" : `${activeSessions.length} active`}
               </span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
@@ -161,7 +161,7 @@ export default function OverviewPage() {
                 <div className="flex flex-col items-center justify-center flex-1 gap-2 py-8">
                   <span className="text-2xl opacity-20">⚙</span>
                   <p className="text-xs text-center" style={{ color: "var(--text-dim)" }}>
-                    No active builds.
+                    {sessionsError ? "Builds unavailable." : !sessionsLoaded ? "Checking sessions..." : "No active builds."}
                   </p>
                   <Link
                     href="/control/goal"

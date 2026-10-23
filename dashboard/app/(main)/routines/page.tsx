@@ -225,8 +225,8 @@ export default function RoutinesPage() {
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
             Routines
-            <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total</span>
-            <span className="sm:hidden"> ({total})</span>
+            {!error && <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total</span>}
+            {!error && <span className="sm:hidden"> ({total})</span>}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -245,16 +245,15 @@ export default function RoutinesPage() {
         </div>
       </div>
 
-      {/* Summary bar */}
-      <SummaryBar runs={runs} />
+      {/* Summary bar — counts only exist when the read succeeded */}
+      {!error && <SummaryBar runs={runs} />}
 
-      {/* Error */}
+      {/* Error: a failed read is "couldn't check", never zero runs */}
       {error && (
         <div className="px-3 sm:px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
           <span className="font-mono text-xs" style={{ color: "#F87171" }}>
-            {error.includes("unreachable") || error.includes("502")
-              ? "Pi CEO server offline. Start with: cd app && uvicorn server.main:app --host 127.0.0.1 --port 7777"
-              : error}
+            Couldn&apos;t check routines: {error}
+            {(error.includes("unreachable") || error.includes("502")) && " — Pi CEO server offline. Start with: cd app && uvicorn server.main:app --host 127.0.0.1 --port 7777"}
           </span>
         </div>
       )}

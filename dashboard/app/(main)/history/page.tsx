@@ -29,17 +29,28 @@ function QualityScore({ result }: { result: Partial<AnalysisResult> | null }) {
 
 export default async function HistoryPage() {
   let sessions: SessionRow[] = [];
+  let readError: string | null = null;
 
   try {
     const supabase = createServerClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("sessions")
       .select("id,repo_url,repo_name,branch,pr_url,status,trigger,started_at,completed_at,result")
       .order("started_at", { ascending: false })
       .limit(100);
-    sessions = (data ?? []) as SessionRow[];
-  } catch {
-    // Supabase not configured yet
+    if (error) readError = error.message;
+    else sessions = (data ?? []) as SessionRow[];
+  } catch (e) {
+    // Client unconfigured or threw: the read did not happen, so it is unknown, never "no sessions".
+    readError = e instanceof Error ? e.message : String(e);
+  }
+
+  if (readError !== null) {
+    return (
+      <div className="flex flex-col flex-1 items-center justify-center px-4 text-center">
+        <p className="font-mono text-xs" style={{ color: "#F87171" }}>History unavailable: {readError}</p>
+      </div>
+    );
   }
 
   if (sessions.length === 0) {
