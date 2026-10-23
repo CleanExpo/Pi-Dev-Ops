@@ -1,7 +1,7 @@
 "use client";
 // app/(main)/routines/page.tsx — Routine run outcome tracker (RA-1011)
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { fetchProxy } from "@/lib/pi-ceo-fetch";
 import {
   ROUTINES_LIST_NOTE, STATUS_COLOR, STATUS_ICON, TRIGGER_LABEL, fmtClock, fmtDuration, fmtTs, repoShort,
@@ -119,12 +119,17 @@ export default function RoutinesPage() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
 
+  // Refresh and the 60 s timer can overlap: only the latest request may update the page.
+  const latestRead = useRef(0);
+
   const fetchRuns = useCallback(async () => {
+    const read = ++latestRead.current;
     setChecking(true);
     try {
       // 200-with-empty from the proxy used to read as "no routines have run",
       // a claim about the scheduler nothing observed — lib/pi-ceo-fetch.ts.
       const r = await fetchProxy<RoutineRunsResponse>("/api/routines?limit=50");
+      if (read !== latestRead.current) return;
       if (!r.ok) {
         setError(r.reason === "unreachable" ? "Pi-CEO backend unreachable" : `HTTP ${r.upstreamStatus ?? "error"}`);
         return;
@@ -135,10 +140,12 @@ export default function RoutinesPage() {
       setError(null);
       setLastFetch(Date.now());
     } catch (e) {
-      setError(String(e));
+      if (read === latestRead.current) setError(String(e));
     } finally {
-      setChecking(false);
-      setLoading(false);
+      if (read === latestRead.current) {
+        setChecking(false);
+        setLoading(false);
+      }
     }
   }, []);
 
