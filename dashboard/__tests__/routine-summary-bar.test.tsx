@@ -36,3 +36,27 @@ describe("RoutineSummaryBar Today count", () => {
     expect(screen.getByText("Today").nextSibling?.textContent).toBe("0");
   });
 });
+
+describe("RoutineSummaryBar retained values", () => {
+  const asOf = new Date("2026-10-23T01:00:00Z").getTime();
+  const failedRun: RoutineRun = { ...run("2026-10-23T00:00:00Z"), status: "failure", routine_name: "old-failure" };
+  const runs = [run("2026-10-23T00:30:00Z"), failedRun];
+
+  it("CHECKING: during a re-read, Success and Last fail are marked as being checked", () => {
+    render(<RoutineSummaryBar runs={runs} checking failed={false} asOf={asOf} />);
+    expect(screen.getByText("Success").nextSibling?.textContent).toBe("50%, checking");
+    expect(screen.getByText("Last fail").nextSibling?.textContent).toMatch(/^old-failure .*, checking$/);
+  });
+
+  it("FAILED: after a failed refresh, Success and Last fail are from the last good check", () => {
+    render(<RoutineSummaryBar runs={runs} checking={false} failed asOf={asOf} />);
+    expect(screen.getByText("Success").nextSibling?.textContent).toBe("50%, last good check");
+    expect(screen.getByText("Last fail").nextSibling?.textContent).toMatch(/^old-failure .*, last good check$/);
+  });
+
+  it("SETTLED: a settled read states Success and Last fail plainly", () => {
+    render(<RoutineSummaryBar runs={runs} checking={false} failed={false} asOf={asOf} />);
+    expect(screen.getByText("Success").nextSibling?.textContent).toBe("50%");
+    expect(screen.getByText("Last fail").nextSibling?.textContent).not.toMatch(/checking|last good/);
+  });
+});

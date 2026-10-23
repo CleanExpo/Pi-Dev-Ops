@@ -65,7 +65,7 @@ export function RoutineSummaryBar({ runs, checking, failed, asOf }: { runs: Rout
             style={{ color: "#F87171" }}
             title={`${lastFailure.routine_name} @ ${lastFailure.ts}`}
           >
-            {lastFailure.routine_name} — {fmtTs(lastFailure.ts)}
+            {lastFailure.routine_name} — {fmtTs(lastFailure.ts)}{qualifier}
           </span>
         </div>
       )}

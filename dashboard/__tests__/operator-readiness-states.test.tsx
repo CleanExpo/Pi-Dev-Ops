@@ -38,6 +38,8 @@ describe("OperatorReadiness service chip", () => {
     expect(screen.getByText("blocked, checking")).toBeTruthy();
     expect(screen.queryByText("fresh")).toBeNull();
     expect(screen.getByText("fresh, checking")).toBeTruthy();
+    expect(screen.queryByText("quota")).toBeNull();
+    expect(screen.getByText("quota, checking")).toBeTruthy();
     expect(screen.getByText("Checking again; the values below are from the last health reading.")).toBeTruthy();
   });
 
