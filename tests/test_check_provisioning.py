@@ -27,7 +27,7 @@ _SSOT = {
         {"name": "artlist"},
     ],
     "banned": [
-        {"name": "higgsfield", "reason": "use Artlist"},
+        {"name": "ifttt", "reason": "build on our own MCP"},
         {"name": "zapier", "reason": "no workflow tool"},
         {"name": "blotato", "reason": "decide posting first"},
     ],
@@ -56,7 +56,7 @@ def test_load_ssot_normalises(fake_repo: Path) -> None:
     ssot = _ssot(fake_repo)
     assert ssot.provisioned == {"anthropic", "artlist"}
     assert ssot.aliases == {"claude": "anthropic"}
-    assert set(ssot.banned) == {"higgsfield", "zapier", "blotato"}
+    assert set(ssot.banned) == {"ifttt", "zapier", "blotato"}
 
 
 def test_clean_tree_passes(fake_repo: Path) -> None:
@@ -68,13 +68,13 @@ def test_clean_tree_passes(fake_repo: Path) -> None:
 
 def test_banned_token_is_flagged(fake_repo: Path) -> None:
     (fake_repo / "skills" / "demo" / "SKILL.md").write_text(
-        "Generate video via Higgsfield.", encoding="utf-8"
+        "Automate posting via IFTTT.", encoding="utf-8"
     )
     hits = cp.scan_banned(_ssot(fake_repo), root=fake_repo)
     assert len(hits) == 1
     rel, line_no, name, reason = hits[0]
-    assert name == "higgsfield" and line_no == 1
-    assert "Artlist" in reason
+    assert name == "ifttt" and line_no == 1
+    assert "MCP" in reason
 
 
 def test_case_insensitive_and_apostrophe_boundary(fake_repo: Path) -> None:
@@ -134,7 +134,7 @@ def test_main_exit_codes(fake_repo: Path, monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(cp, "SSOT_PATH", fake_repo / "fence" / "provisioned-tools.yaml")
     (fake_repo / "skills" / "demo" / "SKILL.md").write_text("Anthropic only.", encoding="utf-8")
     assert cp.main([]) == 0
-    (fake_repo / "skills" / "demo" / "SKILL.md").write_text("via Higgsfield", encoding="utf-8")
+    (fake_repo / "skills" / "demo" / "SKILL.md").write_text("via IFTTT", encoding="utf-8")
     assert cp.main([]) == 1
 
 
@@ -143,3 +143,10 @@ def test_real_repo_tree_passes_today() -> None:
     gate can never merge."""
     ssot = cp.load_ssot()
     assert cp.scan_banned(ssot) == []
+
+
+def test_higgsfield_is_not_banned() -> None:
+    """Founder reversed the 04/09/2026 Higgsfield ban on 23/10/2026."""
+    ssot = cp.load_ssot()
+    assert "higgsfield" not in ssot.banned
+    assert ssot.banned, "the live banned list must stay non-empty"
