@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from app.server import config_loader
+from app.server.scan_summary import summarise_project
 
 log = logging.getLogger("pi-ceo.scanner")
 
@@ -721,52 +722,30 @@ class ProjectScanner:
 
     def get_health_summary(self) -> list[dict[str, Any]]:
         """Read the latest scan results for each project and return health scores."""
-        projects = self.load_projects()
-        summary = []
-        for proj in projects:
-            pid = proj["id"]
-            result_dir = _RESULTS_ROOT / pid
-            scores: dict[str, int] = {}
-            findings_count: dict[str, int] = {}
-            if result_dir.exists():
-                for scan_type in ["security", "code_quality", "dependencies", "deployment_health"]:
-                    files = sorted(result_dir.glob(f"*-{scan_type}.json"))
-                    if files:
-                        try:
-                            data = json.loads(files[-1].read_text())
-                            raw_findings = data.get("findings", [])
-                            findings_count[scan_type] = len(raw_findings)
-                            # Recompute score from findings using current formula so cached
-                            # results from older scanner versions stay accurate after formula
-                            # or filter changes.
-                            findings = [
-                                Finding(
-                                    scan_type=f.get("scan_type", scan_type),
-                                    severity=f.get("severity", "info"),
-                                    title=f.get("title", ""),
-                                    description=f.get("description", ""),
-                                    file_path=f.get("file_path", ""),
-                                    line_number=f.get("line_number", 0),
-                                )
-                                for f in raw_findings
-                            ]
-                            dummy = ScanResult(
-                                project_id=pid, repo="", scan_type=scan_type,
-                                started_at="", finished_at="", findings=findings,
-                            )
-                            scores[scan_type] = dummy.health_score
-                        except (json.JSONDecodeError, OSError):
-                            pass
-            overall = int(sum(scores.values()) / len(scores)) if scores else 100
-            summary.append({
-                "project_id": pid,
-                "repo": proj["repo"],
-                "overall_health": overall,
-                "scores": scores,
-                "findings_count": findings_count,
-                "deployments": proj.get("deployments", {}),
-            })
-        return summary
+        return [
+            summarise_project(proj, _RESULTS_ROOT / proj["id"], _score_findings)
+            for proj in self.load_projects()
+        ]
+
+
+def _score_findings(scan_type: str, raw_findings: list[dict[str, Any]]) -> int:
+    """Recompute a score with the current formula, so cached results from older
+    scanner versions stay accurate after formula or filter changes."""
+    findings = [
+        Finding(
+            scan_type=f.get("scan_type", scan_type),
+            severity=f.get("severity", "info"),
+            title=f.get("title", ""),
+            description=f.get("description", ""),
+            file_path=f.get("file_path", ""),
+            line_number=f.get("line_number", 0),
+        )
+        for f in raw_findings
+    ]
+    return ScanResult(
+        project_id="", repo="", scan_type=scan_type,
+        started_at="", finished_at="", findings=findings,
+    ).health_score
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────

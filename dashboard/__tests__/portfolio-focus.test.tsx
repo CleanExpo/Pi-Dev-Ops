@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import PortfolioFocus, { observedScanScore } from "@/components/control/PortfolioFocus";
 import { fetchProxyJSON } from "@/lib/pi-ceo-fetch";
+import scanUnreadableRow from "./fixtures/scan-unreadable-row.json";
 
 vi.mock("@/lib/pi-ceo-fetch", () => ({ fetchProxyJSON: vi.fn() }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -118,4 +119,51 @@ it("matches a live session to its project by owner/name, the shape the backend e
   render(<PortfolioFocus />);
   await waitFor(() => expect(screen.getByRole("button", { name: /pi-dev-ops, work observed/ })).toBeTruthy());
   expect(screen.getByRole("button", { name: /margot, no active work observed/ })).toBeTruthy();
+});
+
+it("CARD TRUTH: each card reads its own repo's PRs and CI, and a failed read is UNAVAILABLE", async () => {
+  vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
+    ? [
+        { project_id: "carsi", repo: "CleanExpo/carsi", overall_health: 90, scores: { security: 90 }, findings_count: {}, deployments: {}, finished_at: null, deploy_check: null },
+        { project_id: "RestoreAssist", repo: "CleanExpo/RestoreAssist", overall_health: 90, scores: { security: 90 }, findings_count: {}, deployments: {}, finished_at: null, deploy_check: null },
+      ] as never
+    : path === "/api/pipelines" ? [] as never
+    : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [] } as never);
+  const fetchMock = vi.fn(async (url: string) => url.includes("carsi")
+    ? new Response(JSON.stringify({ repo: "CleanExpo/carsi", checked_at: "2026-10-22T00:00:00Z",
+        pull_requests: { status: "ok", value: { count: 0, capped: false } },
+        ci: { status: "ok", value: { branch: "main", sha: "abc", state: "success" } } }))
+    : new Response("boom", { status: 500 }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<PortfolioFocus />);
+  await waitFor(() => expect(screen.getByText("0 open PRs")).toBeTruthy());
+  expect(screen.getByText("CI main: passing")).toBeTruthy();
+  expect(screen.getByText("PRs UNAVAILABLE: flow board HTTP 500")).toBeTruthy();
+  expect(fetchMock.mock.calls.map((call) => String(call[0])).sort()).toEqual([
+    "/api/flow-board?repo=CleanExpo%2FRestoreAssist",
+    "/api/flow-board?repo=CleanExpo%2Fcarsi",
+  ]);
+  vi.unstubAllGlobals();
+});
+
+it("a crashed scan makes the score UNAVAILABLE with the error, never a clean 100", async () => {
+  vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
+    ? [{ project_id: "CARSI", repo: "CleanExpo/CARSI", overall_health: 100, scores: { code_quality: 100 }, findings_count: {}, deployments: {},
+        scan_errors: { security: "git clone failed" } }] as never
+    : path === "/api/pipelines" ? [] as never
+    : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [] } as never);
+  render(<PortfolioFocus />);
+  await waitFor(() => expect(screen.getByText("SCAN HEALTH UNAVAILABLE: security: git clone failed")).toBeTruthy());
+  expect(screen.queryByText(/100\/100/)).toBeNull();
+});
+
+it("an unreadable scan record makes the score UNAVAILABLE, never a dated clean 100", async () => {
+  // The same row tests/test_scanner_health_summary.py asserts the scanner produces.
+  vi.mocked(fetchProxyJSON).mockImplementation(async (path) => path === "/api/projects/health"
+    ? [{ ...scanUnreadableRow, project_id: "CARSI", repo: "CleanExpo/CARSI" }] as never
+    : path === "/api/pipelines" ? [] as never
+    : { ts: new Date().toISOString(), throughput: { hourly: [] }, recent_completions: [], queue: { urgent: 0, high: 0 }, pulse: {}, active_sessions: [] } as never);
+  render(<PortfolioFocus />);
+  await waitFor(() => expect(screen.getByText("SCAN HEALTH UNAVAILABLE: security: scan record unreadable")).toBeTruthy());
+  expect(screen.queryByText(/100\/100/)).toBeNull();
 });

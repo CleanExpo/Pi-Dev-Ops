@@ -27,7 +27,7 @@
 1098	87fc6cc60ab3	scripts/weekly_enhancement_loop.py
 903	e1b0315ce9b7	tests/test_unite_group_health_check.py
 821	fe92d6b64412	swarm/meta_curator.py
-819	18aa6216f092	app/server/scanner.py
+798	2fa40dd22913	app/server/scanner.py
 789	cfa6bd70c4f1	swarm/margot_tools.py
 775	1eba526ac25a	app/server/supabase_log.py
 752	a260764ef6e7	app/server/agents/feedback_loop.py
