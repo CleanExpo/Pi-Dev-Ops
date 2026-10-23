@@ -209,6 +209,9 @@ export default function RoutinesPage() {
     }
   }, []);
 
+  // lastFetch is set only on a successful read, so it marks counts that were actually observed.
+  const hasCounts = lastFetch > 0;
+
   useEffect(() => {
     void fetchRuns();
     const t = setInterval(fetchRuns, 60_000);
@@ -225,8 +228,8 @@ export default function RoutinesPage() {
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
             Routines
-            {!loading && !error && <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total</span>}
-            {!loading && !error && <span className="sm:hidden"> ({total})</span>}
+            {hasCounts && <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total</span>}
+            {hasCounts && <span className="sm:hidden"> ({total})</span>}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -245,8 +248,8 @@ export default function RoutinesPage() {
         </div>
       </div>
 
-      {/* Summary bar — counts only exist when the read succeeded */}
-      {!loading && !error && <SummaryBar runs={runs} />}
+      {/* Summary bar — counts exist only once a read has succeeded; a later failed refresh keeps them, labelled */}
+      {hasCounts && <SummaryBar runs={runs} />}
 
       {/* Error: a failed read is "couldn't check", never zero runs */}
       {error && (
@@ -254,6 +257,7 @@ export default function RoutinesPage() {
           <span className="font-mono text-xs" style={{ color: "#F87171" }}>
             Couldn&apos;t check routines: {error}
             {(error.includes("unreachable") || error.includes("502")) && " — Pi CEO server offline. Start with: cd app && uvicorn server.main:app --host 127.0.0.1 --port 7777"}
+            {hasCounts && ` Showing the last good check, from ${fmtClock(lastFetch)}.`}
           </span>
         </div>
       )}
