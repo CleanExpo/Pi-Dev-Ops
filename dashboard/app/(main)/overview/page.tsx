@@ -33,7 +33,11 @@ function StatChip({ label, value, color }: { label: string; value: string; color
 
 export default function OverviewPage() {
   const observations = useOperatorObservations();
-  const { health, sessions, sessionsError, sessionsLoaded } = observations;
+  const { health, sessions, sessionsError, sessionsLoaded, sessionsChecking } = observations;
+  // A zero is only stated from a settled read; during a re-read it says "checking".
+  const countLabel = (n: number, noun: string) =>
+    sessionsError || !sessionsLoaded ? "unknown" : n === 0 && sessionsChecking ? "checking" : `${n} ${noun}`;
+  const checking = !sessionsLoaded || sessionsChecking;
 
   const activeSessions = sessions.filter(s =>
     ["cloning", "building", "evaluating", "created"].includes(s.status)
@@ -153,7 +157,7 @@ export default function OverviewPage() {
                 className="text-[9px] font-mono px-1.5 py-0.5 rounded"
                 style={{ background: "var(--panel)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
               >
-                {sessionsError || !sessionsLoaded ? "unknown" : `${activeSessions.length} active`}
+                {countLabel(activeSessions.length, "active")}
               </span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
@@ -161,7 +165,7 @@ export default function OverviewPage() {
                 <div className="flex flex-col items-center justify-center flex-1 gap-2 py-8">
                   <span className="text-2xl opacity-20">⚙</span>
                   <p className="text-xs text-center" style={{ color: "var(--text-dim)" }}>
-                    {sessionsError ? "Builds unavailable." : !sessionsLoaded ? "Checking sessions..." : "No active builds."}
+                    {sessionsError ? "Builds unavailable." : checking ? "Checking sessions..." : "No active builds."}
                   </p>
                   <Link
                     href="/control/goal"
@@ -195,13 +199,13 @@ export default function OverviewPage() {
                 className="text-[9px] font-mono px-1.5 py-0.5 rounded"
                 style={{ background: "var(--panel)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
               >
-                {sessionsError || !sessionsLoaded ? "unknown" : `${recentSessions.length} sessions`}
+                {countLabel(recentSessions.length, "sessions")}
               </span>
             </div>
             <div className="flex-1 overflow-y-auto">
               {recentSessions.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-xs" style={{ color: "var(--text-dim)" }}>{sessionsError ? "Activity unavailable." : !sessionsLoaded ? "Checking sessions..." : "No sessions yet."}</p>
+                  <p className="text-xs" style={{ color: "var(--text-dim)" }}>{sessionsError ? "Activity unavailable." : checking ? "Checking sessions..." : "No sessions yet."}</p>
                 </div>
               ) : (
                 recentSessions.map((s, i) => (

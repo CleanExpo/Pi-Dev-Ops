@@ -42,8 +42,18 @@ describe("overview page — Agents On-Shift", () => {
     expect(screen.getAllByText("unknown").length).toBe(2);
   });
 
+  it("REFRESH: an unsettled refresh after an empty read says checking, never '0 active'", () => {
+    observations.mockReturnValue({ ...base, sessionsError: false, sessionsLoaded: true, sessionsChecking: true });
+    render(<OverviewPage />);
+    expect(screen.getAllByText("Checking sessions...").length).toBe(2);
+    expect(screen.queryByText("No active builds.")).toBeNull();
+    expect(screen.queryByText("0 active")).toBeNull();
+    expect(screen.queryByText("0 sessions")).toBeNull();
+    expect(screen.getAllByText("checking").length).toBe(2);
+  });
+
   it("EMPTY: a successful read with nothing running still says no active builds", () => {
-    observations.mockReturnValue({ ...base, sessionsError: false, sessionsLoaded: true });
+    observations.mockReturnValue({ ...base, sessionsError: false, sessionsLoaded: true, sessionsChecking: false });
     render(<OverviewPage />);
     expect(screen.getByText("No active builds.")).toBeTruthy();
     expect(screen.getByText("0 active")).toBeTruthy();

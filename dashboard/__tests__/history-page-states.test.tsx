@@ -32,6 +32,14 @@ describe("history page", () => {
     expect(screen.queryByText("No analysis sessions yet.")).toBeNull();
   });
 
+  it("NULL: no rows and no error is not an observed empty list", async () => {
+    // postgrest-js returns {data: null, error: null} for an empty-body 404.
+    query.mockResolvedValue({ data: null, error: null });
+    await renderPage();
+    expect(screen.getByText(/History unavailable/)).toBeTruthy();
+    expect(screen.queryByText("No analysis sessions yet.")).toBeNull();
+  });
+
   it("EMPTY: a successful read with no rows still says no sessions yet", async () => {
     query.mockResolvedValue({ data: [], error: null });
     await renderPage();

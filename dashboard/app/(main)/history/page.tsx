@@ -39,7 +39,9 @@ export default async function HistoryPage() {
       .order("started_at", { ascending: false })
       .limit(100);
     if (error) readError = error.message;
-    else sessions = (data ?? []) as SessionRow[];
+    // Only an array is an observed list: the SDK can answer {data: null, error: null}.
+    else if (Array.isArray(data)) sessions = data as SessionRow[];
+    else readError = "no session rows were returned";
   } catch (e) {
     // Client unconfigured or threw: the read did not happen, so it is unknown, never "no sessions".
     readError = e instanceof Error ? e.message : String(e);

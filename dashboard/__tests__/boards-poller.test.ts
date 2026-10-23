@@ -63,6 +63,24 @@ describe("shared poller", () => {
     expect(getSnapshot("t")?.value).toBe("after");
   });
 
+  it("CHECKING: a re-read after a finished read is flagged until it lands", async () => {
+    let release: () => void = () => {};
+    const read = vi.fn()
+      .mockImplementationOnce(async () => live([]))
+      .mockImplementation(() => new Promise<FeedRead<unknown>>((res) => { release = () => res(live(["s1"])); }));
+    subscribe(def(read, 60_000), () => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getSnapshot("t")?.checking).toBe(false);
+    const done = refresh("t");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getSnapshot("t")?.checking).toBe(true);
+    expect(getSnapshot("t")?.value).toEqual([]);
+    release();
+    await done;
+    expect(getSnapshot("t")?.checking).toBe(false);
+    expect(getSnapshot("t")?.value).toEqual(["s1"]);
+  });
+
   it("a read is aborted at 10 s and counts as failed", async () => {
     const read = vi.fn((signal: AbortSignal) => new Promise<FeedRead<unknown>>((res) => {
       signal.addEventListener("abort", () => res({ kind: "unreachable", value: null, reason: "aborted" }));
