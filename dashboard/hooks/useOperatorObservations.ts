@@ -10,6 +10,7 @@ export function useOperatorObservations() {
   const sessionsSource = useSource<unknown>("sessions");
   const health = healthSource.seq > 0 ? parseOperatorHealth(healthSource.value) : null;
   const healthError = healthSource.seq > 0 && !health;
+  const healthChecking = healthSource.checking === true;
   const parsedSessions = sessionsSource.seq > 0 ? parseOperatorSessions(sessionsSource.value) : null;
   const sessions = parsedSessions ?? [];
   const sessionsError = sessionsSource.seq > 0 && !parsedSessions;
@@ -20,5 +21,5 @@ export function useOperatorObservations() {
     ? new Date(Math.max(healthSource.fetchedAt ?? 0, sessionsSource.fetchedAt ?? 0)).toLocaleTimeString()
     : null;
 
-  return { health, sessions, healthError, sessionsError, sessionsLoaded, sessionsChecking, checkedAt };
+  return { health, sessions, healthError, healthChecking, sessionsError, sessionsLoaded, sessionsChecking, checkedAt };
 }

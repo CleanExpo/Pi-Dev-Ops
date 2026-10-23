@@ -17,8 +17,11 @@ export interface RoutineRun {
 // "Today" is the Brisbane calendar day, not the UTC one (a 08:00 AEST run is the previous UTC day).
 const brisbaneDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Australia/Brisbane" });
 
-export function RoutineSummaryBar({ runs, checking, failed }: { runs: RoutineRun[]; checking: boolean; failed: boolean }) {
-  const today = brisbaneDay(new Date());
+// `asOf` is when `runs` was read: after a failed refresh the retained runs are counted against the day of
+// that read, never against a later day they cannot describe.
+export function RoutineSummaryBar({ runs, checking, failed, asOf = Date.now() }: { runs: RoutineRun[]; checking: boolean; failed: boolean; asOf?: number }) {
+  const today = brisbaneDay(new Date(asOf));
+  const qualifier = checking ? ", checking" : failed ? ", last good check" : "";
   const todayRuns = runs.filter((r) => brisbaneDay(new Date(r.ts)) === today);
   const successCount = runs.filter((r) => r.status === "success").length;
   const successRate = runs.length > 0 ? Math.round((successCount / runs.length) * 100) : null;
@@ -34,7 +37,7 @@ export function RoutineSummaryBar({ runs, checking, failed }: { runs: RoutineRun
           Today
         </span>
         <span className="font-mono text-xs font-semibold" style={{ color: "var(--text)" }}>
-          {todayRuns.length}{checking && ", checking"}
+          {todayRuns.length}{qualifier}
         </span>
       </div>
 
@@ -47,7 +50,7 @@ export function RoutineSummaryBar({ runs, checking, failed }: { runs: RoutineRun
             className="font-mono text-xs font-semibold"
             style={{ color: successRate >= 80 ? "#4ADE80" : successRate >= 50 ? "#FFD166" : "#F87171" }}
           >
-            {successRate}%{checking && ", checking"}
+            {successRate}%{qualifier}
           </span>
         </div>
       )}

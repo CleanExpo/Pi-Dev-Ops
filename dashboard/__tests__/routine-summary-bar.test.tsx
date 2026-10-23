@@ -23,6 +23,14 @@ describe("RoutineSummaryBar Today count", () => {
     expect(screen.getByText("Today").nextSibling?.textContent).toBe("1");
   });
 
+  it("MIDNIGHT STALE: after a failed refresh past midnight, Today counts the last good read's day, labelled", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-23T14:05:00Z")); // 24/10 00:05 AEST
+    const asOf = new Date("2026-10-23T13:56:00Z").getTime(); // 23/10 23:56 AEST, the last good read
+    render(<RoutineSummaryBar runs={[run("2026-10-23T13:55:00Z")]} checking={false} failed asOf={asOf} />);
+    expect(screen.getByText("Today").nextSibling?.textContent).toBe("1, last good check");
+  });
+
   it("BRISBANE DAY: a run late on the previous Brisbane day is not today", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-23T01:00:00Z")); // 23/10 11:00 AEST

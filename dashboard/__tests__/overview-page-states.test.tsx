@@ -62,6 +62,17 @@ describe("overview page — Agents On-Shift", () => {
     expect(screen.getByText("1 sessions, checking")).toBeTruthy();
   });
 
+  it("HEALTH REFRESH: during a /health re-read, health-derived counts are marked as being checked", () => {
+    const health = { status: "ok", sessions: { active: 0, max: 4 }, autonomy: { armed: false, poll_count: 7, seconds_since_last_poll: 5 } };
+    observations.mockReturnValue({ ...base, health, healthChecking: true, sessionsError: false, sessionsLoaded: true, sessionsChecking: false });
+    render(<OverviewPage />);
+    expect(screen.queryByText("0 / 4")).toBeNull();
+    expect(screen.getByText("0 / 4, checking")).toBeTruthy();
+    // Poll count shows in the Polls chip and the Autonomy detail; both are marked.
+    expect(screen.getAllByText("7, checking").length).toBe(2);
+    expect(screen.queryByText("7")).toBeNull();
+  });
+
   it("EMPTY: a successful read with nothing running still says no active builds", () => {
     observations.mockReturnValue({ ...base, sessionsError: false, sessionsLoaded: true, sessionsChecking: false });
     render(<OverviewPage />);
