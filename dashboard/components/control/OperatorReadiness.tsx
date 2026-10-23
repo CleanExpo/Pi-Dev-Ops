@@ -12,7 +12,7 @@ function StatChip({ label, value, warning = false }: { label: string; value: str
   );
 }
 
-function SessionRow({ session }: { session: OperatorSession }) {
+function SessionRow({ session, checking }: { session: OperatorSession; checking: boolean }) {
   const time = sessionTime(session.started);
   const completed = ["complete", "done"].includes(session.status);
   return (
@@ -24,22 +24,24 @@ function SessionRow({ session }: { session: OperatorSession }) {
         </p>
       </div>
       <span className="text-xs" style={{ color: needsAttention(session.status) ? "var(--warning)" : "var(--text-muted)" }}>
-        {completed ? "Reported complete" : session.status}
+        {completed ? "Reported complete" : session.status}{checking && ", checking"}
       </span>
     </div>
   );
 }
 
-export function OperatorReadiness({ health, sessions, healthError, sessionsError, healthChecking = false }: { health: OperatorHealth | null; sessions: OperatorSession[]; healthError: boolean; sessionsError: boolean; healthChecking?: boolean }) {
+export function OperatorReadiness({ health, sessions, healthError, sessionsError, healthChecking = false, sessionsChecking = false }: { health: OperatorHealth | null; sessions: OperatorSession[]; healthError: boolean; sessionsError: boolean; healthChecking?: boolean; sessionsChecking?: boolean }) {
   const attentionSessions = sessions.filter(s => needsAttention(s.status));
   const automation = automationLabel(health);
   const generationBlocked = health?.generation?.status === "blocked";
   const readiness = attentionSessions.length ? "Work blocked" : generationBlocked ? "Generation blocked" : automation === "Paused" ? "Automation paused" : "Readiness unknown";
+  // Readiness is drawn from both reads; while either is re-read it is the last reading, not current.
+  const readinessNote = readiness !== "Readiness unknown" && (healthChecking || sessionsChecking) ? ", checking" : "";
 
   return <>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 p-4" aria-live="polite">
         <StatChip label="Service" value={healthError ? "Service status unavailable" : health ? (health.status === "ok" ? "Service reachable" : "Service degraded") + (healthChecking ? ", checking" : "") : "Checking service"} warning={healthError || Boolean(health && health.status !== "ok")} />
-        <StatChip label="Operations" value={readiness} warning={attentionSessions.length > 0 || generationBlocked} />
+        <StatChip label="Operations" value={readiness + readinessNote} warning={attentionSessions.length > 0 || generationBlocked} />
         <StatChip label="Delivery" value="Delivery not verified" />
         <StatChip label="Model usage" value="Billing not observed" />
       </div>
@@ -53,7 +55,7 @@ export function OperatorReadiness({ health, sessions, healthError, sessionsError
           {sessionsError && <p className="text-xs" style={{ color: "var(--warning)" }}>Session status unavailable</p>}
           {attentionSessions.map(s => (
             <div key={s.id}>
-              <SessionRow session={s} />
+              <SessionRow session={s} checking={sessionsChecking} />
               <Link href="/builds" className="inline-block py-2 text-xs underline" style={{ color: "var(--accent)" }}>Inspect build logs and recovery →</Link>
             </div>
           ))}

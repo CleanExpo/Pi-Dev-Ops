@@ -101,6 +101,17 @@ describe("overview page — Agents On-Shift", () => {
     expect(screen.getByText("Health unavailable.")).toBeTruthy();
   });
 
+  it("SESSIONS LIVE REFRESH: during a sessions re-read, a retained building session is not called live", () => {
+    const building = { id: "s1", status: "building", started: "2026-10-23T00:00:00Z", repo: "x", lastPhase: "" };
+    observations.mockReturnValue({ ...base, sessions: [building], sessionsError: false, sessionsLoaded: true, sessionsChecking: true, healthChecking: false });
+    render(<OverviewPage />);
+    expect(screen.queryByText("LIVE")).toBeNull();
+    expect(screen.getByText("LIVE, checking")).toBeTruthy();
+    expect(screen.queryByText("building")).toBeNull();
+    expect(screen.getByText("building, checking")).toBeTruthy();
+    expect(screen.getByText(/Checking the backend again/)).toBeTruthy();
+  });
+
   it("EMPTY: a successful read with nothing running still says no active builds", () => {
     observations.mockReturnValue({ ...base, sessionsError: false, sessionsLoaded: true, sessionsChecking: false });
     render(<OverviewPage />);

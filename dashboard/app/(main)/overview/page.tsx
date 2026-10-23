@@ -65,7 +65,7 @@ export default function OverviewPage() {
             Command Centre
           </h1>
           <p className="text-[10px] mt-0.5 leading-none" style={{ color: "var(--text-dim)" }}>
-            {healthChecking ? "Checking the backend again; values are from the last reading." : overviewLede(health)}
+            {healthChecking || sessionsChecking ? "Checking the backend again; values are from the last reading." : overviewLede(health)}
           </p>
         </div>
         <Link
@@ -184,12 +184,12 @@ export default function OverviewPage() {
                   </Link>
                 </div>
               ) : (
-                activeSessions.map(s => <AgentCard key={s.id} session={s} />)
+                activeSessions.map(s => <AgentCard key={s.id} session={s} checking={sessionsChecking} />)
               )}
 
               {/* Recent completed */}
               {sessions.filter(s => s.status === "complete" || s.status === "done").slice(0, 3).map(s => (
-                <AgentCard key={s.id} session={s} />
+                <AgentCard key={s.id} session={s} checking={sessionsChecking} />
               ))}
             </div>
           </div>
@@ -217,7 +217,7 @@ export default function OverviewPage() {
                 </div>
               ) : (
                 recentSessions.map((s, i) => (
-                  <ActivityRow key={s.id} session={s} index={i} />
+                  <ActivityRow key={s.id} session={s} index={i} checking={sessionsChecking} />
                 ))
               )}
             </div>
