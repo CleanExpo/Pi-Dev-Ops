@@ -153,7 +153,7 @@ export default function OverviewPage() {
                 className="text-[9px] font-mono px-1.5 py-0.5 rounded"
                 style={{ background: "var(--panel)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
               >
-                {sessionsError ? "unknown" : `${activeSessions.length} active`}
+                {sessionsError || !sessionsLoaded ? "unknown" : `${activeSessions.length} active`}
               </span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
@@ -195,7 +195,7 @@ export default function OverviewPage() {
                 className="text-[9px] font-mono px-1.5 py-0.5 rounded"
                 style={{ background: "var(--panel)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
               >
-                {recentSessions.length} sessions
+                {sessionsError || !sessionsLoaded ? "unknown" : `${recentSessions.length} sessions`}
               </span>
             </div>
             <div className="flex-1 overflow-y-auto">

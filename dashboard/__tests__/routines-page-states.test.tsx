@@ -31,10 +31,21 @@ describe("routines page", () => {
     expect(screen.queryByText(/No routine runs recorded yet/)).toBeNull();
   });
 
+  it("IN FLIGHT: before the read settles, the first paint shows no zero counts", () => {
+    fetchProxy.mockReturnValue(new Promise(() => {}));
+    render(<RoutinesPage />);
+    expect(screen.getByText(/Loading/)).toBeTruthy();
+    expect(screen.queryByText("Today")).toBeNull();
+    expect(screen.queryByText(/\(0\)/)).toBeNull();
+    expect(screen.queryByText(/0 total/)).toBeNull();
+    expect(screen.queryByText(/No runs recorded yet/)).toBeNull();
+  });
+
   it("EMPTY: a successful read with no runs still says none recorded", async () => {
     fetchProxy.mockResolvedValue({ ok: true, data: { runs: [], total: 0 } });
     render(<RoutinesPage />);
     expect(await screen.findByText("No routine runs recorded yet.")).toBeTruthy();
+    expect(screen.getByText(/0 total/)).toBeTruthy();
     expect(screen.queryByText(/Couldn't check routines/)).toBeNull();
   });
 });

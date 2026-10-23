@@ -30,6 +30,16 @@ describe("overview page — Agents On-Shift", () => {
     expect(screen.getByText("Builds unavailable.")).toBeTruthy();
     expect(screen.queryByText("No active builds.")).toBeNull();
     expect(screen.queryByText("0 active")).toBeNull();
+    expect(screen.queryByText("0 sessions")).toBeNull();
+  });
+
+  it("IN FLIGHT: a sessions read that has not settled shows no counts", () => {
+    observations.mockReturnValue({ ...base, sessionsError: false, sessionsLoaded: false });
+    render(<OverviewPage />);
+    expect(screen.getAllByText("Checking sessions...").length).toBeGreaterThan(0);
+    expect(screen.queryByText("0 active")).toBeNull();
+    expect(screen.queryByText("0 sessions")).toBeNull();
+    expect(screen.getAllByText("unknown").length).toBe(2);
   });
 
   it("EMPTY: a successful read with nothing running still says no active builds", () => {
@@ -37,5 +47,6 @@ describe("overview page — Agents On-Shift", () => {
     render(<OverviewPage />);
     expect(screen.getByText("No active builds.")).toBeTruthy();
     expect(screen.getByText("0 active")).toBeTruthy();
+    expect(screen.getByText("0 sessions")).toBeTruthy();
   });
 });

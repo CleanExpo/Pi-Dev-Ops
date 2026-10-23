@@ -225,8 +225,8 @@ export default function RoutinesPage() {
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
             Routines
-            {!error && <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total</span>}
-            {!error && <span className="sm:hidden"> ({total})</span>}
+            {!loading && !error && <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total</span>}
+            {!loading && !error && <span className="sm:hidden"> ({total})</span>}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -246,7 +246,7 @@ export default function RoutinesPage() {
       </div>
 
       {/* Summary bar — counts only exist when the read succeeded */}
-      {!error && <SummaryBar runs={runs} />}
+      {!loading && !error && <SummaryBar runs={runs} />}
 
       {/* Error: a failed read is "couldn't check", never zero runs */}
       {error && (
