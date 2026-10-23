@@ -1,86 +1,16 @@
 "use client";
 // app/(main)/routines/page.tsx — Routine run outcome tracker (RA-1011)
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { fetchProxy } from "@/lib/pi-ceo-fetch";
 import {
   ROUTINES_LIST_NOTE, STATUS_COLOR, STATUS_ICON, TRIGGER_LABEL, fmtClock, fmtDuration, fmtTs, repoShort,
 } from "@/lib/control/routine-format";
-
-interface RoutineRun {
-  routine_name: string;
-  repo: string;
-  trigger: string;
-  status: "success" | "failure" | "timeout";
-  duration_s: number;
-  run_url: string;
-  summary: string;
-  ts: string;
-}
+import { RoutineSummaryBar, type RoutineRun } from "@/components/control/RoutineSummaryBar";
 
 interface RoutineRunsResponse {
   runs: RoutineRun[];
   total: number;
-}
-
-
-function SummaryBar({ runs }: { runs: RoutineRun[] }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const todayRuns = runs.filter((r) => r.ts.startsWith(today));
-  const successCount = runs.filter((r) => r.status === "success").length;
-  const successRate = runs.length > 0 ? Math.round((successCount / runs.length) * 100) : null;
-  const lastFailure = runs.find((r) => r.status === "failure");
-
-  return (
-    <div
-      className="flex items-center gap-4 px-3 sm:px-4 py-2 flex-wrap"
-      style={{ borderBottom: "1px solid var(--border)", background: "var(--panel)" }}
-    >
-      <div className="flex items-center gap-1.5">
-        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
-          Today
-        </span>
-        <span className="font-mono text-xs font-semibold" style={{ color: "var(--text)" }}>
-          {todayRuns.length}
-        </span>
-      </div>
-
-      {successRate !== null && (
-        <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
-            Success
-          </span>
-          <span
-            className="font-mono text-xs font-semibold"
-            style={{ color: successRate >= 80 ? "#4ADE80" : successRate >= 50 ? "#FFD166" : "#F87171" }}
-          >
-            {successRate}%
-          </span>
-        </div>
-      )}
-
-      {lastFailure && (
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
-            Last fail
-          </span>
-          <span
-            className="font-mono text-[10px] truncate max-w-[180px]"
-            style={{ color: "#F87171" }}
-            title={`${lastFailure.routine_name} @ ${lastFailure.ts}`}
-          >
-            {lastFailure.routine_name} — {fmtTs(lastFailure.ts)}
-          </span>
-        </div>
-      )}
-
-      {runs.length === 0 && (
-        <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>
-          No runs recorded yet.
-        </span>
-      )}
-    </div>
-  );
 }
 
 function RunRow({ run }: { run: RoutineRun }) {
@@ -187,12 +117,19 @@ export default function RoutinesPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
+
+  // Refresh and the 60 s timer can overlap: only the latest request may update the page.
+  const latestRead = useRef(0);
 
   const fetchRuns = useCallback(async () => {
+    const read = ++latestRead.current;
+    setChecking(true);
     try {
       // 200-with-empty from the proxy used to read as "no routines have run",
       // a claim about the scheduler nothing observed — lib/pi-ceo-fetch.ts.
       const r = await fetchProxy<RoutineRunsResponse>("/api/routines?limit=50");
+      if (read !== latestRead.current) return;
       if (!r.ok) {
         setError(r.reason === "unreachable" ? "Pi-CEO backend unreachable" : `HTTP ${r.upstreamStatus ?? "error"}`);
         return;
@@ -203,11 +140,19 @@ export default function RoutinesPage() {
       setError(null);
       setLastFetch(Date.now());
     } catch (e) {
-      setError(String(e));
+      if (read === latestRead.current) setError(String(e));
     } finally {
-      setLoading(false);
+      if (read === latestRead.current) {
+        setChecking(false);
+        setLoading(false);
+      }
     }
   }, []);
+
+  // lastFetch is set only on a successful read, so it marks counts that were actually observed.
+  const hasCounts = lastFetch > 0;
+  // Retained totals say whether they are being re-read or are from the last good check.
+  const totalNote = checking ? ", checking" : error !== null ? ", last good check" : "";
 
   useEffect(() => {
     void fetchRuns();
@@ -225,8 +170,8 @@ export default function RoutinesPage() {
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
             Routines
-            <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total</span>
-            <span className="sm:hidden"> ({total})</span>
+            {hasCounts && <span className="hidden sm:inline"> — {ROUTINES_LIST_NOTE} {total} total{totalNote}</span>}
+            {hasCounts && <span className="sm:hidden"> ({total}{totalNote})</span>}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -245,16 +190,16 @@ export default function RoutinesPage() {
         </div>
       </div>
 
-      {/* Summary bar */}
-      <SummaryBar runs={runs} />
+      {/* Summary bar — counts exist only once a read has succeeded; a later failed refresh keeps them, labelled */}
+      {hasCounts && <RoutineSummaryBar runs={runs} checking={checking} failed={error !== null} asOf={lastFetch} />}
 
-      {/* Error */}
+      {/* Error: a failed read is "couldn't check", never zero runs */}
       {error && (
         <div className="px-3 sm:px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
           <span className="font-mono text-xs" style={{ color: "#F87171" }}>
-            {error.includes("unreachable") || error.includes("502")
-              ? "Pi CEO server offline. Start with: cd app && uvicorn server.main:app --host 127.0.0.1 --port 7777"
-              : error}
+            Couldn&apos;t check routines: {error}
+            {(error.includes("unreachable") || error.includes("502")) && " — Pi CEO server offline. Start with: cd app && uvicorn server.main:app --host 127.0.0.1 --port 7777"}
+            {hasCounts && ` Showing the last good check, from ${fmtClock(lastFetch)}.`}
           </span>
         </div>
       )}
@@ -286,7 +231,7 @@ export default function RoutinesPage() {
       )}
 
       {/* Empty */}
-      {!loading && !error && runs.length === 0 && (
+      {!loading && !error && !checking && runs.length === 0 && (
         <div className="flex flex-col flex-1 items-center justify-center px-4 text-center">
           <p className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>No routine runs recorded yet.</p>
           <p className="font-mono text-[10px] mt-2" style={{ color: "var(--text-dim)" }}>

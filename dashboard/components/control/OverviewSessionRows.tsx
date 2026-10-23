@@ -2,7 +2,8 @@ import { repoShort, skillFromPhase, statusDot } from "@/lib/control/overview-for
 import { sessionTime, type OperatorSession } from "@/lib/operator-status";
 import { brisbaneTime } from "@/lib/brisbane-time";
 
-export function AgentCard({ session }: { session: OperatorSession }) {
+// `checking`: the session list is being re-read, so this status is from the last reading, not current.
+export function AgentCard({ session, checking = false }: { session: OperatorSession; checking?: boolean }) {
   const live = ["cloning", "building", "evaluating", "created"].includes(session.status);
   return (
     <div
@@ -23,7 +24,7 @@ export function AgentCard({ session }: { session: OperatorSession }) {
             className="text-[8px] font-semibold uppercase tracking-wider"
             style={{ color: "var(--accent)" }}
           >
-            LIVE
+            LIVE{checking && ", checking"}
           </span>
         )}
       </div>
@@ -50,7 +51,7 @@ export function AgentCard({ session }: { session: OperatorSession }) {
   );
 }
 
-export function ActivityRow({ session, index }: { session: OperatorSession; index: number }) {
+export function ActivityRow({ session, index, checking = false }: { session: OperatorSession; index: number; checking?: boolean }) {
   const ts = new Date(sessionTime(session.started));
   const timeStr = brisbaneTime(ts);
   const live = ["cloning", "building", "evaluating", "created"].includes(session.status);
@@ -81,7 +82,7 @@ export function ActivityRow({ session, index }: { session: OperatorSession; inde
           border: `1px solid ${live ? "var(--accent)" : "var(--border)"}`,
         }}
       >
-        {["complete", "done"].includes(session.status) ? "Reported complete" : session.status}
+        {["complete", "done"].includes(session.status) ? "Reported complete" : session.status}{checking && ", checking"}
       </span>
     </div>
   );

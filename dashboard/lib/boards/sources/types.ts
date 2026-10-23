@@ -53,6 +53,8 @@ export interface SourceSnapshot<T> {
   lastGoodAt: number | null;
   /** Server timestamp of the latest live read, as epoch ms. */
   serverTs: number | null;
+  /** A re-read is in flight, so `value` is the previous answer, not the current one. */
+  checking?: boolean;
 }
 
 /** Ordering used to combine several sources into one module state. Worst first. */

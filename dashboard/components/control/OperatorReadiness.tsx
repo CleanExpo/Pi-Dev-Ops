@@ -12,7 +12,7 @@ function StatChip({ label, value, warning = false }: { label: string; value: str
   );
 }
 
-function SessionRow({ session }: { session: OperatorSession }) {
+function SessionRow({ session, checking }: { session: OperatorSession; checking: boolean }) {
   const time = sessionTime(session.started);
   const completed = ["complete", "done"].includes(session.status);
   return (
@@ -24,22 +24,25 @@ function SessionRow({ session }: { session: OperatorSession }) {
         </p>
       </div>
       <span className="text-xs" style={{ color: needsAttention(session.status) ? "var(--warning)" : "var(--text-muted)" }}>
-        {completed ? "Reported complete" : session.status}
+        {completed ? "Reported complete" : session.status}{checking && ", checking"}
       </span>
     </div>
   );
 }
 
-export function OperatorReadiness({ health, sessions, healthError, sessionsError }: { health: OperatorHealth | null; sessions: OperatorSession[]; healthError: boolean; sessionsError: boolean }) {
+export function OperatorReadiness({ health, sessions, healthError, sessionsError, healthChecking = false, sessionsChecking = false }: { health: OperatorHealth | null; sessions: OperatorSession[]; healthError: boolean; sessionsError: boolean; healthChecking?: boolean; sessionsChecking?: boolean }) {
   const attentionSessions = sessions.filter(s => needsAttention(s.status));
   const automation = automationLabel(health);
   const generationBlocked = health?.generation?.status === "blocked";
   const readiness = attentionSessions.length ? "Work blocked" : generationBlocked ? "Generation blocked" : automation === "Paused" ? "Automation paused" : "Readiness unknown";
+  // Readiness is drawn from both reads; while either is re-read it is the last reading, not current.
+  const healthNote = healthChecking ? ", checking" : "";
+  const readinessNote = readiness !== "Readiness unknown" && (healthChecking || sessionsChecking) ? ", checking" : "";
 
   return <>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 p-4" aria-live="polite">
-        <StatChip label="Service" value={healthError ? "Service status unavailable" : health ? health.status === "ok" ? "Service reachable" : "Service degraded" : "Checking service"} warning={healthError || Boolean(health && health.status !== "ok")} />
-        <StatChip label="Operations" value={readiness} warning={attentionSessions.length > 0 || generationBlocked} />
+        <StatChip label="Service" value={healthError ? "Service status unavailable" : health ? (health.status === "ok" ? "Service reachable" : "Service degraded") + healthNote : "Checking service"} warning={healthError || Boolean(health && health.status !== "ok")} />
+        <StatChip label="Operations" value={readiness + readinessNote} warning={attentionSessions.length > 0 || generationBlocked} />
         <StatChip label="Delivery" value="Delivery not verified" />
         <StatChip label="Model usage" value="Billing not observed" />
       </div>
@@ -53,7 +56,7 @@ export function OperatorReadiness({ health, sessions, healthError, sessionsError
           {sessionsError && <p className="text-xs" style={{ color: "var(--warning)" }}>Session status unavailable</p>}
           {attentionSessions.map(s => (
             <div key={s.id}>
-              <SessionRow session={s} />
+              <SessionRow session={s} checking={sessionsChecking} />
               <Link href="/builds" className="inline-block py-2 text-xs underline" style={{ color: "var(--accent)" }}>Inspect build logs and recovery →</Link>
             </div>
           ))}
@@ -63,9 +66,10 @@ export function OperatorReadiness({ health, sessions, healthError, sessionsError
       )}
 
       <div className="px-4 pb-4 text-xs" style={{ color: "var(--text-muted)" }}>
-        <p>Generation: <span>{health?.generation?.status ?? "Unknown"}</span></p>
-        {health?.generation?.blockers.map(reason => <p key={reason} style={{ color: "var(--warning)" }}>{reason}</p>)}
-        {health?.model_documentation && <><p>Model documentation: <span>{health.model_documentation.status}</span></p><p>Documentation freshness does not verify model availability or subscription access.</p></>}
+        {health && healthChecking && <p>Checking again; the values below are from the last health reading.</p>}
+        <p>Generation: <span>{health?.generation?.status ? health.generation.status + healthNote : "Unknown"}</span></p>
+        {health?.generation?.blockers.map(reason => <p key={reason} style={{ color: "var(--warning)" }}>{reason}{healthNote}</p>)}
+        {health?.model_documentation && <><p>Model documentation: <span>{health.model_documentation.status + healthNote}</span></p><p>Documentation freshness does not verify model availability or subscription access.</p></>}
       </div>
   </>;
 }

@@ -15,7 +15,8 @@ import {
   serviceMarkGlyph,
 } from "@/lib/control/overview-format";
 
-function StatChip({ label, value, color }: { label: string; value: string; color?: string }) {
+// A value from the previous /health read is marked while a re-read is in flight.
+function StatChip({ label, value, color, checking }: { label: string; value: string; color?: string; checking?: boolean }) {
   return (
     <div
       className="flex flex-col gap-0.5 px-3 py-2 rounded-lg"
@@ -25,7 +26,7 @@ function StatChip({ label, value, color }: { label: string; value: string; color
         {label}
       </span>
       <span className="text-sm font-mono font-bold leading-tight" style={{ color: color ?? "var(--text)" }}>
-        {value}
+        {value}{checking && ", checking"}
       </span>
     </div>
   );
@@ -33,7 +34,14 @@ function StatChip({ label, value, color }: { label: string; value: string; color
 
 export default function OverviewPage() {
   const observations = useOperatorObservations();
-  const { health, sessions, sessionsError, sessionsLoaded } = observations;
+  const { health, healthError, healthChecking, sessions, sessionsError, sessionsLoaded, sessionsChecking } = observations;
+  // A count is only stated as current from a settled read; during a re-read it is marked as being checked.
+  const countLabel = (n: number, noun: string) =>
+    sessionsError || !sessionsLoaded ? "unknown"
+      : !sessionsChecking ? `${n} ${noun}`
+      : n === 0 ? "checking" : `${n} ${noun}, checking`;
+  const checking = !sessionsLoaded || sessionsChecking;
+  const healthNote = healthChecking ? ", checking" : "";
 
   const activeSessions = sessions.filter(s =>
     ["cloning", "building", "evaluating", "created"].includes(s.status)
@@ -57,7 +65,7 @@ export default function OverviewPage() {
             Command Centre
           </h1>
           <p className="text-[10px] mt-0.5 leading-none" style={{ color: "var(--text-dim)" }}>
-            {overviewLede(health)}
+            {healthChecking || sessionsChecking ? "Checking the backend again; values are from the last reading." : overviewLede(health)}
           </p>
         </div>
         <Link
@@ -78,12 +86,12 @@ export default function OverviewPage() {
       >
         {health ? (
           <>
-            <StatChip
+            <StatChip checking={healthChecking}
               label="Uptime"
               value={health.uptime_s !== undefined ? formatUptime(health.uptime_s) : "—"}
               color="var(--success)"
             />
-            <StatChip
+            <StatChip checking={healthChecking}
               label="Active Builds"
               value={
                 health.sessions && typeof health.sessions.active === "number"
@@ -96,8 +104,8 @@ export default function OverviewPage() {
                   : "var(--text)"
               }
             />
-            <StatChip label="Swarm" value={swarm.label} color={swarm.color} />
-            <StatChip
+            <StatChip checking={healthChecking} label="Swarm" value={swarm.label} color={swarm.color} />
+            <StatChip checking={healthChecking}
               label="Autonomy"
               value={automationLabel(health)}
               color={
@@ -108,7 +116,7 @@ export default function OverviewPage() {
                     : "var(--warning)"
               }
             />
-            <StatChip
+            <StatChip checking={healthChecking}
               label="Polls"
               value={
                 typeof health.autonomy?.poll_count === "number"
@@ -117,22 +125,26 @@ export default function OverviewPage() {
               }
             />
             {health.disk_free_gb != null && (
-              <StatChip
+              <StatChip checking={healthChecking}
                 label="Disk Free"
                 value={`${health.disk_free_gb} GB`}
                 color={health.disk_free_gb < 10 ? "var(--warning)" : "var(--text-muted)"}
               />
             )}
-            <StatChip
+            <StatChip checking={healthChecking}
               label="Claude CLI"
               value={cli.value}
               color={cli.color}
             />
           </>
         ) : (
-          <span className="text-xs animate-pulse" style={{ color: "var(--text-dim)" }}>
-            Connecting to backend…
-          </span>
+          healthError ? (
+            <span className="text-xs" style={{ color: "var(--warning)" }}>Health unavailable.</span>
+          ) : (
+            <span className="text-xs animate-pulse" style={{ color: "var(--text-dim)" }}>
+              Connecting to backend…
+            </span>
+          )
         )}
       </div>
 
@@ -153,7 +165,7 @@ export default function OverviewPage() {
                 className="text-[9px] font-mono px-1.5 py-0.5 rounded"
                 style={{ background: "var(--panel)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
               >
-                {activeSessions.length} active
+                {countLabel(activeSessions.length, "active")}
               </span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
@@ -161,7 +173,7 @@ export default function OverviewPage() {
                 <div className="flex flex-col items-center justify-center flex-1 gap-2 py-8">
                   <span className="text-2xl opacity-20">⚙</span>
                   <p className="text-xs text-center" style={{ color: "var(--text-dim)" }}>
-                    No active builds.
+                    {sessionsError ? "Builds unavailable." : checking ? "Checking sessions..." : "No active builds."}
                   </p>
                   <Link
                     href="/control/goal"
@@ -172,12 +184,12 @@ export default function OverviewPage() {
                   </Link>
                 </div>
               ) : (
-                activeSessions.map(s => <AgentCard key={s.id} session={s} />)
+                activeSessions.map(s => <AgentCard key={s.id} session={s} checking={sessionsChecking} />)
               )}
 
               {/* Recent completed */}
               {sessions.filter(s => s.status === "complete" || s.status === "done").slice(0, 3).map(s => (
-                <AgentCard key={s.id} session={s} />
+                <AgentCard key={s.id} session={s} checking={sessionsChecking} />
               ))}
             </div>
           </div>
@@ -195,17 +207,17 @@ export default function OverviewPage() {
                 className="text-[9px] font-mono px-1.5 py-0.5 rounded"
                 style={{ background: "var(--panel)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
               >
-                {recentSessions.length} sessions
+                {countLabel(recentSessions.length, "sessions")}
               </span>
             </div>
             <div className="flex-1 overflow-y-auto">
               {recentSessions.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-xs" style={{ color: "var(--text-dim)" }}>{sessionsError ? "Activity unavailable." : !sessionsLoaded ? "Checking sessions..." : "No sessions yet."}</p>
+                  <p className="text-xs" style={{ color: "var(--text-dim)" }}>{sessionsError ? "Activity unavailable." : checking ? "Checking sessions..." : "No sessions yet."}</p>
                 </div>
               ) : (
                 recentSessions.map((s, i) => (
-                  <ActivityRow key={s.id} session={s} index={i} />
+                  <ActivityRow key={s.id} session={s} index={i} checking={sessionsChecking} />
                 ))
               )}
             </div>
@@ -229,7 +241,7 @@ export default function OverviewPage() {
                     border: `1px solid ${health.status === "ok" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
                   }}
                 >
-                  {health.status.toUpperCase()}
+                  {health.status.toUpperCase()}{healthNote}
                 </span>
               )}
             </div>
@@ -238,7 +250,7 @@ export default function OverviewPage() {
               {/* Services checklist */}
               <div>
                 <p className="text-[9px] font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--text-dim)" }}>
-                  Services
+                  Services{healthNote}
                 </p>
                 {overviewServiceRows(health).map(({ label, mark }) => {
                   const shown = serviceMarkGlyph(mark);
@@ -261,13 +273,13 @@ export default function OverviewPage() {
                   </p>
                   <div className="flex flex-col gap-1">
                     {[
-                      ["State", health.autonomy.armed ? "Armed" : "Disarmed"],
-                      ["Poll count", String(health.autonomy.poll_count ?? "—")],
+                      ["State", (health.autonomy.armed ? "Armed" : "Disarmed") + healthNote],
+                      ["Poll count", String(health.autonomy.poll_count ?? "—") + healthNote],
                       [
                         "Last poll",
                         health.autonomy.seconds_since_last_poll == null
-                          ? "Never"
-                          : `${health.autonomy.seconds_since_last_poll}s ago`,
+                          ? `Never${healthNote}`
+                          : `${health.autonomy.seconds_since_last_poll}s ago${healthNote}`,
                       ],
                     ].map(([k, v]) => (
                       <div key={k} className="flex justify-between text-xs">
@@ -292,8 +304,8 @@ export default function OverviewPage() {
                     color: "var(--warning)",
                   }}
                 >
-                  <strong>Limited health payload</strong> — backend <code>/health</code> is
-                  returning <code>{"{status:\"ok\"}"}</code> only. Tracked separately; Overview
+                  <strong>Limited health payload{healthNote}</strong> — backend <code>/health</code>{" "}
+                  {healthChecking ? "returned" : "is returning"} <code>{"{status:\"ok\"}"}</code> only{healthChecking ? " at the last reading" : ""}. Tracked separately; Overview
                   renders the shell so the page doesn&apos;t crash.
                 </div>
               )}

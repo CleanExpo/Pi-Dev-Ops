@@ -57,7 +57,7 @@ export function nextState(
   return "live";
 }
 
-function applyRead(entry: Entry, read: FeedRead<unknown>): void {
+function applyRead(entry: Entry, read: FeedRead<unknown>, checking = false): void {
   const now = Date.now();
   const prev = entry.snapshot;
   const live = read.kind === "live";
@@ -74,6 +74,7 @@ function applyRead(entry: Entry, read: FeedRead<unknown>): void {
     fetchedAt: now,
     lastGoodAt: live ? now : prev.lastGoodAt,
     serverTs,
+    checking,
   });
 }
 
@@ -88,6 +89,8 @@ function ageCheck(entry: Entry): void {
 function readOnce(entry: Entry): Promise<void> {
   if (entry.pending) return Promise.resolve();
   entry.pending = true;
+  // After a finished read, mark the shown value as being re-checked until this read lands.
+  if (entry.snapshot.seq > 0) emit(entry, { ...entry.snapshot, checking: true });
   const reading = runRead(entry);
   entry.inFlight = reading;
   return reading;
@@ -182,7 +185,7 @@ export async function refresh(id: string): Promise<void> {
 /** Feed a read observed elsewhere (the request-sharing tap) into a running feed. */
 export function publish(id: string, read: FeedRead<unknown>): void {
   const entry = entries.get(id);
-  if (entry && entry.timer !== null) applyRead(entry, read);
+  if (entry && entry.timer !== null) applyRead(entry, read, entry.pending);
 }
 
 /** Test hook: stop every poller and drop every cache. */
