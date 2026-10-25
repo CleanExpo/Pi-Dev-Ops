@@ -1,0 +1,26 @@
+{
+  "schema": "done/1",
+  "work_id": "w_8dcfc3bc9b2b",
+  "version": 2,
+  "supersedes": "w_48cc750d1900",
+  "goal": "RA-8096 multi-root repo lookup; recipes now use the main checkout venv because this worktree venv has no pytest",
+  "created_at_utc": "2026-10-25T22:14:53Z",
+  "identity_key": "mesh/phills-macbook-pro/ra-8096-290d7d35@/Users/phillmcgurk/Pi-Dev-Ops/.git/worktrees/mesh-RA-8096-290d7d35",
+  "baseline_observed": {
+    "head": "ca2cbd9fb657d3ca2d05178030ddb2884180be69",
+    "branch": "mesh/phills-macbook-pro/ra-8096-290d7d35",
+    "dirty_count": 8
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "repo_dir_for finds a matching checkout under a second root, still refuses a wrong-origin checkout, and returns a no-.git path when none match",
+      "recipe": "/Users/phillmcgurk/Pi-Dev-Ops/.venv/bin/python -m pytest -p no:cacheprovider /private/var/folders/r_/0yvybgpj4sv6m_gtv0gv2x500000gn/T/mesh-RA-8096-290d7d35/tests/test_mesh_repos_roots.py -q"
+    },
+    {
+      "id": "C2",
+      "text": "existing repo-guard and W1b tests still pass",
+      "recipe": "/Users/phillmcgurk/Pi-Dev-Ops/.venv/bin/python -m pytest -p no:cacheprovider /private/var/folders/r_/0yvybgpj4sv6m_gtv0gv2x500000gn/T/mesh-RA-8096-290d7d35/tests/test_mesh_runner_repo_guard.py /private/var/folders/r_/0yvybgpj4sv6m_gtv0gv2x500000gn/T/mesh-RA-8096-290d7d35/tests/test_mesh_repo_guard_origin_identity.py /private/var/folders/r_/0yvybgpj4sv6m_gtv0gv2x500000gn/T/mesh-RA-8096-290d7d35/tests/test_w1b_mesh_go.py -q"
+    }
+  ]
+}

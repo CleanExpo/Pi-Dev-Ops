@@ -1,0 +1,26 @@
+{
+  "schema": "done/1",
+  "work_id": "w_48cc750d1900",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8096: mesh runner finds a product checkout in any of several roots (MESH_REPOS_ROOT as an os.pathsep list; default home plus, on Windows, each drive root), still origin-verified",
+  "created_at_utc": "2026-10-25T22:12:34Z",
+  "identity_key": "mesh/phills-macbook-pro/ra-8096-290d7d35@/Users/phillmcgurk/Pi-Dev-Ops/.git/worktrees/mesh-RA-8096-290d7d35",
+  "baseline_observed": {
+    "head": "ca2cbd9fb657d3ca2d05178030ddb2884180be69",
+    "branch": "mesh/phills-macbook-pro/ra-8096-290d7d35",
+    "dirty_count": 1
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "repo_dir_for returns a matching checkout found under a second root, and still refuses a wrong-origin checkout and returns a no-.git path when none match",
+      "recipe": "/private/var/folders/r_/0yvybgpj4sv6m_gtv0gv2x500000gn/T/mesh-RA-8096-290d7d35/.venv/bin/python -m pytest /private/var/folders/r_/0yvybgpj4sv6m_gtv0gv2x500000gn/T/mesh-RA-8096-290d7d35/tests/test_mesh_repos_roots.py -q"
+    },
+    {
+      "id": "C2",
+      "text": "existing repo-guard and W1b tests still pass",
+      "recipe": "/private/var/folders/r_/0yvybgpj4sv6m_gtv0gv2x500000gn/T/mesh-RA-8096-290d7d35/.venv/bin/python -m pytest /private/var/folders/r_/0yvybgpj4sv6m_gtv0gv2x500000gn/T/mesh-RA-8096-290d7d35/tests/test_mesh_runner_repo_guard.py /private/var/folders/r_/0yvybgpj4sv6m_gtv0gv2x500000gn/T/mesh-RA-8096-290d7d35/tests/test_mesh_repo_guard_origin_identity.py /private/var/folders/r_/0yvybgpj4sv6m_gtv0gv2x500000gn/T/mesh-RA-8096-290d7d35/tests/test_w1b_mesh_go.py -q"
+    }
+  ]
+}
