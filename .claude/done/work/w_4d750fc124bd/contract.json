@@ -1,0 +1,46 @@
+{
+ "schema": "done/1",
+ "work_id": "w_4d750fc124bd",
+ "version": 6,
+ "supersedes": "w_1147eb1e8db4",
+ "goal": "Supersedes v5 (w_1147eb1e8db4), whose recipe file was v4's 15 mutants by mistake, so its PASS proves nothing new. Railway cloud-claim placeholder is never shown as a stale, fresh, reporting or alerting machine in any Mission Control fleet surface (plugin, Fleet tile, Fleet strip and list, Live Wall including its declared host list), matched exactly; the feed validator rejects a row without the flag or a placeholder that claims to be stale; real machines unchanged; full dashboard suite and type-check pass.",
+ "created_at_utc": "2026-10-26T03:49:50Z",
+ "identity_key": "fix/mc-fleet-cloud-claim-placeholder@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/mc-fleet-cloud-claim-placeholder",
+ "baseline_observed": {
+  "head": "42b61d6e9acd826b50340f561b48d8482f82aaf2",
+  "branch": "fix/mc-fleet-cloud-claim-placeholder",
+  "dirty_count": 5
+ },
+ "criteria": [
+  {
+   "id": "C1",
+   "text": "The mission-control plugin suite passes.",
+   "recipe": "/Users/phill-mac/.local/bin/claude plugin test mods/mission-control",
+   "timeout": 300
+  },
+  {
+   "id": "C2",
+   "text": "The mission-control plugin validates.",
+   "recipe": "/Users/phill-mac/.local/bin/claude plugin validate mods/mission-control",
+   "timeout": 120
+  },
+  {
+   "id": "C3",
+   "text": "The full dashboard vitest suite passes (exact packages from dashboard/package-lock.json via npm ci).",
+   "recipe": "cd dashboard && /Users/phill-mac/.local/bin/node node_modules/vitest/vitest.mjs run",
+   "timeout": 900
+  },
+  {
+   "id": "C4",
+   "text": "The dashboard type-checks with zero errors.",
+   "recipe": "cd dashboard && /Users/phill-mac/.local/bin/node node_modules/typescript/bin/tsc --noEmit -p .",
+   "timeout": 900
+  },
+  {
+   "id": "C5",
+   "text": "All 17 planted faults are caught: 4 in the plugin and 13 in the dashboard, including the wall declared-host filter removed and a case-insensitive wall match.",
+   "recipe": "/usr/bin/python3 .claude/done/work/w_4d750fc124bd/mutants_v6.py",
+   "timeout": 3600
+  }
+ ]
+}

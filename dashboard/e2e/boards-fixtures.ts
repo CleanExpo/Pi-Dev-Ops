@@ -7,9 +7,9 @@ const iso = (agoS = 0) => new Date(Date.now() - agoS * 1000).toISOString();
 export function healthyResponses(): Record<string, () => unknown> {
   return {
     "/api/mesh-fleet": () => ({ status: "ok", checkedAt: iso(), machines: [
-      { host: "Phill_Desktop", revision: "e3dff5e", lastHeartbeat: iso(8), currentClaim: "RA-7898", stale: false },
-      { host: "Phills-Mac-mini", revision: "e3dff5e", lastHeartbeat: iso(21), currentClaim: null, stale: false },
-      { host: "Phills-MacBook-Pro", revision: "d124c6a", lastHeartbeat: iso(900), currentClaim: null, stale: true },
+      { host: "Phill_Desktop", revision: "e3dff5e", lastHeartbeat: iso(8), currentClaim: "RA-7898", stale: false, placeholder: false },
+      { host: "Phills-Mac-mini", revision: "e3dff5e", lastHeartbeat: iso(21), currentClaim: null, stale: false, placeholder: false },
+      { host: "Phills-MacBook-Pro", revision: "d124c6a", lastHeartbeat: iso(900), currentClaim: null, stale: true, placeholder: false },
     ] }),
     "/api/mesh-fleet/wall": () => ({ generated_at: iso(1), banner: { red: 0, grey: 7 },
       fleet: { status: "ok", reason: "", others: [], machines: [

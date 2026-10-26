@@ -129,7 +129,8 @@ export const register: Register = on => {
         rows.push(Text({ bold: true, children: [`Machines (${sum.machines.length})`] }))
         if (sum.machines.length === 0) rows.push(Text({ dimColor: true, children: ['no machines have joined'] }))
         for (const m of sum.machines) {
-          const line = `${m.host}  ${m.status}  ${formatAge(m.ageS)}${m.stale ? '  stale' : ''}`
+          const note = m.placeholder ? '  cloud claim placeholder' : m.stale ? '  stale' : ''
+          const line = `${m.host}  ${m.status}  ${formatAge(m.ageS)}${note}`
           rows.push(Box({ key: `machine-${m.host}`, children: [Text(m.alert ? { color: 'red', children: [line] } : { children: [line] })] }))
         }
         rows.push(Text({ children: [`Open claims: ${sum.openClaims ?? 'unknown'}`] }))

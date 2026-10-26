@@ -34,6 +34,7 @@ describe("FleetTile", () => {
               lastHeartbeat: "2026-09-13T11:59:40.000Z",
               currentClaim: "UNI-2649",
               stale: false,
+              placeholder: false,
             },
           ],
         }),
@@ -45,6 +46,21 @@ describe("FleetTile", () => {
     expect(screen.getByText(/claim UNI-2649/)).toBeTruthy();
     expect(screen.getByText(/^checked /)).toBeTruthy();
     expect(screen.queryByText(/unavailable/i)).toBeNull();
+  });
+
+  it("PLACEHOLDER: the railway cloud claim row is labelled, never drawn stale", async () => {
+    const machine = {
+      host: "railway", revision: null, lastHeartbeat: "2026-10-08T00:00:00.000Z",
+      currentClaim: null, stale: false, placeholder: true,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ status: "ok", checkedAt: "2026-09-13T12:00:00.000Z", machines: [machine] })),
+    );
+    render(<FleetTile />);
+    expect(await screen.findByText("railway")).toBeTruthy();
+    expect(screen.getByText("cloud claim")).toBeTruthy();
+    expect(screen.queryByText("stale")).toBeNull();
   });
 
   it("ERROR: renders unavailable when the BFF says so — not an empty fleet", async () => {
@@ -72,7 +88,7 @@ describe("FleetTile", () => {
   it("DEGRADED: a failed claims read shows claim unavailable, never 'claim none'", async () => {
     const machine = {
       host: "unite-mac-mini", revision: "mesh-runner@a1b2",
-      lastHeartbeat: "2026-09-13T11:59:40.000Z", currentClaim: null, stale: false,
+      lastHeartbeat: "2026-09-13T11:59:40.000Z", currentClaim: null, stale: false, placeholder: false,
     };
     vi.stubGlobal(
       "fetch",
@@ -96,6 +112,29 @@ describe("FleetTile", () => {
     render(<FleetTile />);
     expect(await screen.findByText(/No machines enrolled/)).toBeTruthy();
     expect(screen.queryByText(/unavailable/i)).toBeNull();
+  });
+});
+
+describe("Fleet strip and compact list", () => {
+  it("PLACEHOLDER: both label the railway cloud claim row; a real stale host still reads stale", async () => {
+    const { FleetList, FleetStrip } = await import("@/components/boards/views/fleet-chain");
+    const machines = [
+      // A recent stamp, so a freshness bar would show if the placeholder guard were missing.
+      { host: "railway", revision: null, lastHeartbeat: new Date().toISOString(), currentClaim: null, stale: false, placeholder: true },
+      { host: "old-box", revision: null, lastHeartbeat: "2026-09-13T11:00:00.000Z", currentClaim: null, stale: true, placeholder: false },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ status: "ok", checkedAt: "2026-09-13T12:00:00.000Z", machines })),
+    );
+    render(<><FleetStrip /><FleetList /></>);
+    expect(await screen.findByText("cloud claim")).toBeTruthy();
+    expect(screen.getByText(/^cloud claim · /)).toBeTruthy();
+    expect(screen.getByTitle("Cloud claim").getAttribute("data-tone")).toBe("none");
+    expect(screen.queryByTitle("Fresh")).toBeNull();
+    const fill = screen.getByTitle(/^railway: heartbeat/).querySelector("div[style]") as HTMLElement;
+    expect(fill.style.width).toBe("0%");
+    expect(screen.getByTitle("Stale")).toBeTruthy();
   });
 });
 

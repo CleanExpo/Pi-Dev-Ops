@@ -1,0 +1,46 @@
+{
+ "schema": "done/1",
+ "work_id": "w_88139b1c7760",
+ "version": 4,
+ "supersedes": "w_064eb7c58f5c",
+ "goal": "Railway cloud-claim placeholder is never shown as a stale, fresh or alerting machine in any Mission Control fleet surface: the mission-control plugin, the dashboard Fleet tile, the Fleet strip and compact list, and the Live Wall; the feed validator rejects a row without the flag or a placeholder that claims to be stale; real machines unchanged; full dashboard suite and type-check pass.",
+ "created_at_utc": "2026-10-26T03:30:29Z",
+ "identity_key": "fix/mc-fleet-cloud-claim-placeholder@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/mc-fleet-cloud-claim-placeholder",
+ "baseline_observed": {
+  "head": "ef6225425758955b2511df8f72b18d900c30beff",
+  "branch": "fix/mc-fleet-cloud-claim-placeholder",
+  "dirty_count": 0
+ },
+ "criteria": [
+  {
+   "id": "C1",
+   "text": "The mission-control plugin suite passes.",
+   "recipe": "/Users/phill-mac/.local/bin/claude plugin test mods/mission-control",
+   "timeout": 300
+  },
+  {
+   "id": "C2",
+   "text": "The mission-control plugin validates.",
+   "recipe": "/Users/phill-mac/.local/bin/claude plugin validate mods/mission-control",
+   "timeout": 120
+  },
+  {
+   "id": "C3",
+   "text": "The full dashboard vitest suite passes (exact packages from dashboard/package-lock.json via npm ci).",
+   "recipe": "cd dashboard && /Users/phill-mac/.local/bin/node node_modules/vitest/vitest.mjs run",
+   "timeout": 900
+  },
+  {
+   "id": "C4",
+   "text": "The dashboard type-checks with zero errors.",
+   "recipe": "cd dashboard && /Users/phill-mac/.local/bin/node node_modules/typescript/bin/tsc --noEmit -p .",
+   "timeout": 900
+  },
+  {
+   "id": "C5",
+   "text": "All 15 planted faults are caught: 4 in the plugin, 3 in the Fleet tile, 6 in the Fleet strip, list and validator, and 2 more for the contradictory row and the Live Wall list.",
+   "recipe": "/usr/bin/python3 .claude/done/work/w_88139b1c7760/mutants_v4.py",
+   "timeout": 3000
+  }
+ ]
+}

@@ -6,7 +6,7 @@ export const FROZEN = new Date("2026-10-03T00:00:00Z");
 
 const iso = (agoS = 0) => new Date(FROZEN.getTime() - agoS * 1000).toISOString();
 export const A6_FEEDS: Record<string, unknown> = {
-  "/api/mesh-fleet": { status: "ok", checkedAt: iso(), machines: [{ host: "Phill_Desktop", revision: "e3dff5e", lastHeartbeat: iso(8), currentClaim: "RA-7898", stale: false }] },
+  "/api/mesh-fleet": { status: "ok", checkedAt: iso(), machines: [{ host: "Phill_Desktop", revision: "e3dff5e", lastHeartbeat: iso(8), currentClaim: "RA-7898", stale: false, placeholder: false }] },
   "/api/mesh-fleet/wall": { generated_at: iso(1), banner: { red: 0, grey: 7 }, fleet: { status: "ok", reason: "", others: [], machines: [] },
     stations: ["Capture", "Shape", "Contract", "Build", "Prove", "Ship", "Learn"].map((name) => ({ id: name.toLowerCase(), name, chip: "GREY", reason: "NO LIVE SOURCE YET" })) },
   "/api/model-fabric": { enabled: true, healthy: true, models_available: 3, totals: { calls: 10, failures: 1, fallbacks: 0, strengthened: 0 }, lanes: { review: { model: "m3", banned: false } } },

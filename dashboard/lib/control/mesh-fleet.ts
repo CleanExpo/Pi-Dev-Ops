@@ -9,12 +9,21 @@
  * A failed claims source is `claimsAvailable: false` — never "claim none".
  */
 
+/**
+ * The shared cloud claim row (app/server/session_lease.py CLOUD_CLAIM_MACHINE).
+ * Every cloud replica claims under it and nothing heartbeats it, so upstream
+ * `is_stale` is true by design. It is labelled, never shown as a stale machine.
+ */
+export const CLOUD_CLAIM_HOST = "railway";
+
 export interface FleetMachine {
   host: string;
   revision: string | null;
   lastHeartbeat: string | null;
   currentClaim: string | null;
   stale: boolean;
+  /** The CLOUD_CLAIM_HOST row: never heartbeats, so never stale. */
+  placeholder: boolean;
 }
 
 export interface FleetOk {
@@ -63,12 +72,14 @@ function projectMachine(row: unknown, claims: unknown[]): FleetMachine | null {
   const machine = asRecord(row);
   const host = text(machine?.host);
   if (!machine || !host) return null;
+  const placeholder = host === CLOUD_CLAIM_HOST;
   return {
     host,
     revision: text(machine.version),
     lastHeartbeat: text(machine.last_seen),
     currentClaim: claimFor(host, claims),
-    stale: machine.is_stale === true,
+    stale: !placeholder && machine.is_stale === true,
+    placeholder,
   };
 }
 

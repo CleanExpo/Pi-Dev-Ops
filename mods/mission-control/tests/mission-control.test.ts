@@ -11,6 +11,7 @@ const SNAPSHOT = {
     { host: 'Phills-Mac-mini', status: 'working', last_seen: ago(8), is_stale: false, active_agents: 2 },
     { host: 'unite-mbp', status: 'runner-down', last_seen: ago(20), is_stale: false, active_agents: 0 },
     { host: 'old-box', status: 'online', last_seen: ago(900), is_stale: true, active_agents: 0 },
+    { host: 'railway', status: 'online', last_seen: ago(1_538_116), is_stale: true, active_agents: 0 },
   ],
   agents: [],
   ships: Array.from({ length: 7 }, (_, i) => ({
@@ -78,10 +79,39 @@ describe('summarize', () => {
       ['Phills-Mac-mini', 'working', 8, false, false],
       ['unite-mbp', 'runner-down', 20, false, true],
       ['old-box', 'online', 900, true, true],
+      ['railway', 'online', 1_538_116, false, false],
     ])
     expect(s.openClaims).toBe(2)
     expect(s.recentShips.length).toBe(5)
     expect(s.recentShips[0]).toEqual({ machine: 'Phills-Mac-mini', repo: 'CleanExpo/Pi-Dev-Ops', subject: 'ship 0', sha: 'abcdef1', ageS: 60 })
+  })
+
+  test('the railway cloud claim placeholder never heartbeats, so it is never stale or an alert', () => {
+    // session_lease.CLOUD_CLAIM_MACHINE: one claim row for every cloud replica; last_seen stays at insert time.
+    const s = summarize(ok({ ...SNAPSHOT, machines: [
+      { host: 'railway', status: 'online', last_seen: ago(1_538_116), is_stale: true, active_agents: 0 },
+      { host: 'old-box', status: 'online', last_seen: ago(900), is_stale: true, active_agents: 0 },
+    ] }), NOW)
+    expect(s.machines.map(m => [m.host, m.placeholder, m.stale, m.alert])).toEqual([
+      ['railway', true, false, false],
+      ['old-box', false, true, true],
+    ])
+  })
+
+  test('the placeholder never alerts on its status and is matched exactly; real hosts keep both rules', () => {
+    // Exact match, as cron_watchdog_mesh.py does (host == CLOUD_CLAIM_MACHINE): another spelling is a real machine.
+    const s = summarize(ok({ ...SNAPSHOT, machines: [
+      { host: 'railway', status: 'runner-down', last_seen: ago(1_538_116), is_stale: true, active_agents: 0 },
+      { host: 'railway', status: 'offline', last_seen: ago(1_538_116), is_stale: true, active_agents: 0 },
+      { host: 'Railway', status: 'online', last_seen: ago(900), is_stale: true, active_agents: 0 },
+      { host: 'live-box', status: 'runner-down', last_seen: ago(5), is_stale: false, active_agents: 0 },
+    ] }), NOW)
+    expect(s.machines.map(m => [m.host, m.status, m.placeholder, m.stale, m.alert])).toEqual([
+      ['railway', 'runner-down', true, false, false],
+      ['railway', 'offline', true, false, false],
+      ['Railway', 'online', false, true, true],
+      ['live-box', 'runner-down', false, false, true],
+    ])
   })
 
   test('a heartbeat older than 60 s is stale even when the view says otherwise', () => {
@@ -141,7 +171,10 @@ describe('fleet_status tool', () => {
     expect(h.fetches[0].headers['X-Pi-CEO-Secret']).toBe('s3cret')
     const s = JSON.parse(out.result as string)
     expect(s.state).toBe('ok')
-    expect(s.machines.length).toBe(3)
+    expect(s.machines.length).toBe(4)
+    // The tool output is what other agents read: the cloud claim placeholder must not read as an alert.
+    const claim = s.machines.find((m: any) => m.host === 'railway')
+    expect([claim.placeholder, claim.stale, claim.alert]).toEqual([true, false, false])
     expect(s.openClaims).toBe(2)
   })
 
@@ -180,6 +213,10 @@ describe('/mc', () => {
     const fresh = await ui.find({ type: 'Text', text: 'Phills-Mac-mini  working  8s' })
     expect(fresh?.props.color).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: 'old-box  online  15m  stale' })).toBeDefined()
+    // The cloud claim placeholder is labelled, not drawn red as a dead machine.
+    const claim = await ui.find({ type: 'Text', text: 'railway  online  18d  cloud claim placeholder' })
+    expect(claim).toBeDefined()
+    expect(claim?.props.color).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: 'Open claims: 2' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /ship 4$/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /ship 5$/ })).toBeUndefined()

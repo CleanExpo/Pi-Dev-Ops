@@ -1,0 +1,40 @@
+{
+  "schema": "done/1",
+  "work_id": "w_1ef4c1fb555f",
+  "version": 1,
+  "supersedes": null,
+  "goal": "Mission Control fleet view stops alarming on the railway cloud-claim placeholder row, while stale real machines still alarm",
+  "created_at_utc": "2026-10-26T02:25:55Z",
+  "identity_key": "fix/mc-fleet-cloud-claim-placeholder@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/mc-fleet-cloud-claim-placeholder",
+  "baseline_observed": {
+    "head": "ca2cbd9fb657d3ca2d05178030ddb2884180be69",
+    "branch": "fix/mc-fleet-cloud-claim-placeholder",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The mission-control plugin test suite passes, including the new placeholder tests.",
+      "recipe": "/Users/phill-mac/.local/bin/claude plugin test mods/mission-control",
+      "timeout": 300
+    },
+    {
+      "id": "C2",
+      "text": "The mission-control plugin still validates.",
+      "recipe": "/Users/phill-mac/.local/bin/claude plugin validate mods/mission-control",
+      "timeout": 120
+    },
+    {
+      "id": "C3",
+      "text": "A named test covers the railway cloud claim placeholder (summary and pane).",
+      "recipe": "/usr/bin/grep -c 'cloud claim placeholder' mods/mission-control/tests/mission-control.test.ts | /usr/bin/grep -q -E '^[2-9]'",
+      "timeout": 30
+    },
+    {
+      "id": "C4",
+      "text": "Both planted faults are caught: placeholder never matching (railway alarms) and every host a placeholder (real stale hosts silent) each make the tests fail.",
+      "recipe": "/usr/bin/python3 .claude/done/work/w_1ef4c1fb555f/mutant_placeholder.py",
+      "timeout": 600
+    }
+  ]
+}

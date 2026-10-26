@@ -1,0 +1,63 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "PROVEN",
+  "verification_status": "PASS",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": "83775c123b87590987059b284b77cb7d54b4fcea",
+  "updated_at_utc": "2026-10-26T02:29:07Z",
+  "last_verify": {
+    "head": "83775c123b87590987059b284b77cb7d54b4fcea",
+    "at_utc": "2026-10-26T02:29:07Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/.local/bin/claude plugin test mods/mission-control",
+        "exit_code": 0,
+        "timeout_s": 300,
+        "duration_s": 1.2,
+        "output_digest": "0454d352997018449855a462e03cd534fb013cd7a6cc1b1dc6d3e92adc3727f4",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_1ef4c1fb555f/83775c123b87/C1-ab861dc170dc-0454d35299701844.log",
+        "output_tail": "tests/mission-control.test.ts:\n(pass) summarize > a healthy snapshot: machines, runner-down and stale flagged, claims counted, five ships [1.59ms]\n(pass) summarize > the railway cloud claim placeholder never heartbeats, so it is never stale or an alert [0.21ms]\n(pass) summarize > a heartbeat older than 60 s is stale even when the view says otherwise [0.16ms]\n(pass) summarize > 401 is unknown with the reason, never an empty healthy fleet [0.20ms]\n(pass) summarize > an HTML error page is unknown [0.12ms]\n(pass) summarize > JSON that is not the snapshot is unknown [0.14ms]\n(pass) summarize > a degraded snapshot is never healthy, and a failed claims source is not zero claims [0.16ms]\n(pass) summarize > formatAge [0.15ms]\n(pass) fleet_status tool > returns the summary as JSON, read with the secret header [25.19ms]\n(pass) fleet_status tool > unconfigured: still returns a result, says why, fetches nothing [14.84ms]\n(pass) fleet_status tool > a 401 comes back as an unknown result, not an error [15.13ms]\n(pass) /mc > opens the pane and draws one row per machine, runner-down in red [21.21ms]\n(pass) /mc > refreshes every 30 s while open [20.35ms]\n(pass) /mc > a 401 draws the unknown banner and no machine rows [19.25ms]\n(pass) /mc > unconfigured: says so and opens nothing [14.40ms]\n(pass) /mc > other panes are left alone [12.79ms]\n\n 16 pass\n 0 fail\nRan 16 tests across 1 file. [0.29s]"
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/.local/bin/claude plugin validate mods/mission-control",
+        "exit_code": 0,
+        "timeout_s": 120,
+        "duration_s": 0.7,
+        "output_digest": "58b8f7836207143db31e619d088e1bb62f1193efe1a0f2ae83f5f5545008efea",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_1ef4c1fb555f/83775c123b87/C2-9685eb765661-58b8f7836207143d.log",
+        "output_tail": "Validating plugin manifest: /Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/fix/mc-fleet-cloud-claim-placeholder/mods/mission-control/.claude-plugin/plugin.json\n\n⚠ Found 1 warning:\n\n  ❯ version: No version specified. Consider adding a version following semver (e.g., \"1.0.0\")\n\nValidating hooks: /Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/fix/mc-fleet-cloud-claim-placeholder/mods/mission-control/hooks/hooks.json\n\n  ❯ ./register.ts hooks: session.start, command.run{command=mc}, ui.close, tool.call{tool=mcp__mission-control__fleet_status}, ui.render{component=Pane}\n  ❯ ./register.ts answers its own command: command.run{command=mc}\n  ❯ ./register.ts gating hook without .catch: ui.close\n  ❯ ./register.ts gating hook without .catch: tool.call{tool=mcp__mission-control__fleet_status}\n  ❯ ./register.ts calls: $.clock.every, $.clock.now (via fetchSummary), $.command.register, $.env.get, $.http.fetch (via readFleet), $.tool.register, $.ui.invalidate (via refresh), $.ui.log, $.ui.open, $.ui.resolve\n  ❯ ./register.ts env writes: nothing\n  ❯ ./register.ts env reads: MC_LANE_SECRET, MC_LANE_URL\n\nPlugin directory checks for /Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/fix/mc-fleet-cloud-claim-placeholder/mods/mission-control. The plugin directory is the catalog that plugins are submitted to; this is a subset of what it runs.\n\n✘ Found 1 problem the plugin directory refuses a submission for:\n\n  ❯ LICENSE: License missing (LICENSE_MISSING). This plugin has no LICENSE file and plugin.json has no `license`. The directory requires one of them.\n    Fix: Add a LICENSE file to the plugin folder, or set `license` (an SPDX id) in plugin.json. A LICENSE at the repository root also counts for a plugin in a sub-folder.\n\n⚠ Found 1 plugin directory warning:\n\n  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.\n    Fix: Add a square PNG to the plugin folder at .claude-plugin/icon.png, or set `icon` in plugin.json to the path of a square PNG or JPEG in the plugin: 512 to 2048 px on each side, under 2 MB. SVG and WebP are not accepted. That file may become the listing icon only once: the first time the plugin is saved or submitted in the developer portal. Adding or changing it later does not change the icon.\n\nAbout these checks:\n\n  ❯ The repository root was taken to be /Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/fix/mc-fleet-cloud-claim-placeholder, the nearest parent folder with a .git folder or file. No license file that counts (a regular file with one of the file names the plugin directory accepts) was found there either. For a plugin submitted from a git repository, the repository root is the top folder of that repository, with only what is committed there, so check that the folder named above is that top folder.\n  ❯ hooks/hooks.json names a hooks module (a code file listed under `modules`). The plugin directory has rules of its own for such code, and these checks apply none of them, so passing here does not mean the directory accepts the plugin. The developer portal's own validation applies those rules.\n\nThese plugin directory checks do not change the result below. To fail on problems the directory refuses a submission for, run this command with --profile directory.\n\nThe directory also runs a safety scan and a policy review that this command does not.\n\n✔ Validation passed with warnings"
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/usr/bin/grep -c 'cloud claim placeholder' mods/mission-control/tests/mission-control.test.ts | /usr/bin/grep -q -E '^[2-9]'",
+        "exit_code": 0,
+        "timeout_s": 30,
+        "duration_s": 0.0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_1ef4c1fb555f/83775c123b87/C3-8a214cef6d47-e3b0c44298fc1c14.log",
+        "output_tail": ""
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/usr/bin/python3 .claude/done/work/w_1ef4c1fb555f/mutant_placeholder.py",
+        "exit_code": 0,
+        "timeout_s": 600,
+        "duration_s": 2.1,
+        "output_digest": "2b058c2d1df8731f0fa16479330a4877df534e723e4be0583e7ddcfd7e25e2d0",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_1ef4c1fb555f/83775c123b87/C4-08d1623c441b-2b058c2d1df8731f.log",
+        "output_tail": "placeholder-never-matches: rc=1 ::  12 pass |  4 fail | Ran 16 tests across 1 file. [0.28s]\neverything-is-placeholder: rc=1 ::  12 pass |  4 fail | Ran 16 tests across 1 file. [0.30s]\nboth mutants caught"
+      }
+    ],
+    "blockers": []
+  }
+}

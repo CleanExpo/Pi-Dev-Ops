@@ -21,8 +21,11 @@ describe("mesh-fleet", () => {
     const r = await readMeshFleet(signal);
     expect([r.kind, r.value.status]).toEqual(["unreachable", "unavailable"]);
   });
-  it.each([["no host", { stale: false, revision: null, lastHeartbeat: null, currentClaim: null }],
-    ["an object claim", { host: "mini", stale: false, revision: null, lastHeartbeat: null, currentClaim: {} }]])("a machine row with %s is unreachable", async (_k, row) => {
+  it.each([["no host", { stale: false, placeholder: false, revision: null, lastHeartbeat: null, currentClaim: null }],
+    ["an object claim", { host: "mini", stale: false, placeholder: false, revision: null, lastHeartbeat: null, currentClaim: {} }],
+    // Without the flag the cloud claim row would render as a fresh machine.
+    ["no placeholder flag", { host: "railway", stale: false, revision: null, lastHeartbeat: null, currentClaim: null }],
+    ["a placeholder that is also stale", { host: "railway", stale: true, placeholder: true, revision: null, lastHeartbeat: null, currentClaim: null }]])("a machine row with %s is unreachable", async (_k, row) => {
     serve({ status: "ok", checkedAt: "2026-10-04T00:00:00Z", machines: [row] });
     expect((await readMeshFleet(signal)).kind).toBe("unreachable");
   });
