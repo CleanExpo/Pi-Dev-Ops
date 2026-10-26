@@ -301,8 +301,9 @@ These cost real debugging time. Each is a behaviour of an external system, not a
 - **Path traversal** — `_safe_sid()` (`app/server/persistence.py:28`) strips non-alphanumerics from
   session IDs before any file-path use. **Webhook HMAC** — `hmac.compare_digest()` for GitHub and
   Linear signatures. The `pidev/` skip: `grep -n '"pidev/" in ref' app/server/routes/webhooks.py`.
-- **Recursive self-modification guard** — the webhook handler skips refs containing `pidev/` when
-  the repo is `CleanExpo/Pi-Dev-Ops`. Removing this produced 43 zombie branches on 2026-04-17.
+- **Recursive self-modification guard** — the webhook handler makes two separate skips. It skips
+  every ref containing `pidev/`, in every repo, and it skips every event whose repo is
+  `CleanExpo/Pi-Dev-Ops`. Removing the `pidev/` skip produced 43 zombie branches on 2026-04-17.
 - **Workspace isolation** — `TAO_WORKSPACE` must live outside any parent git repo (e.g.
   `/tmp/pi-ceo-workspaces`), or git uses the outer `.git` and pushes to the wrong remote. Plant a
   stub `CLAUDE.md` at the workspace root so Claude's upward search cannot inherit this file.
@@ -496,12 +497,14 @@ process, it is not autonomous.
 ## Linear routing
 
 `config/harness/projects.json` is canonical. **Route on `id`, never on `repo`.** `id` is unique
-across every entry; `repo` is not — `CleanExpo/Pi-Dev-Ops` deliberately carries two Linear
-projects (`pi-dev-ops` and `margot`), so a repo-keyed lookup would silently pick one. This is
+across every entry; `repo` is not — `CleanExpo/Pi-Dev-Ops` deliberately carries several Linear
+projects (today `pi-dev-ops`, `margot` and `mission-control`; count them with
+`grep -c '"CleanExpo/Pi-Dev-Ops"' config/harness/projects.json`), so a repo-keyed lookup would
+silently pick one. This is
 already how the code works, and it is correct:
 
 - `mcp/pi-ceo-server.js` — `resolveProjectRouting()` matches `p.id === project_key`
-- `app/server/autonomy.py` — `_load_portfolio_projects()` iterates every entry, so both projects get polled
+- `app/server/autonomy.py` — `_load_portfolio_projects()` iterates every entry, so every project that has a `linear_project_id` gets polled
 
 Primary team/project for this repo: team `a8a52f07-63cf-4ece-9ad2-3e3bd3c15673`, project
 `f45212be-3259-4bfb-89b1-54c122c939a7`. Ticket format `RA-xxx`.
