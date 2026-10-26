@@ -124,7 +124,7 @@ Found by direct check on 2026-08-18. Each is real and unfixed; treat as work, no
 
 | # | Defect | Evidence |
 |---|---|---|
-| 1 | `app/server/routes/webhooks.py` is by far the largest route module and breaches the 300-line convention, along with most of `routes/`. The old row's other two counts were wrong — `mission_control.py` has since dropped under the ceiling — and "four files" repo-wide understated it by two orders of magnitude. The ceiling is now enforced for Python as a ratchet, not a hard limit — existing files are grandfathered in `.github/file-length.baseline.txt`; CI fails on a new file over 300 or a baselined file that grows. Covers `.py`, `.ts` and `.tsx`. Count it, never read a count from here | `python3 .github/scripts/file_length_lint.py` |
+| 1 | `app/server/routes/webhooks.py` is by far the largest route module and breaches the 300-line convention, along with several other route modules. The old row's other two counts were wrong — `mission_control.py` has since dropped under the ceiling — and "four files" repo-wide understated it by two orders of magnitude. The ceiling is now enforced as a ratchet, not a hard limit — existing files are grandfathered in `.github/file-length.baseline.txt`; CI fails on a new file over 300 or a baselined file that grows. Covers `.py`, `.ts` and `.tsx`. Count it, never read a count from here | `python3 .github/scripts/file_length_lint.py` |
 
 `.harness/config.yaml` is absent by design (`.harness/` is gitignored, so it is not in a fresh clone or CI); the role→model map lives in `config_loader.HARNESS_SPEC` and a present file only overrides it.
 
