@@ -30,7 +30,7 @@ export function FleetStrip() {
         // The cloud claim row never heartbeats (mesh-fleet.ts CLOUD_CLAIM_HOST): no freshness bar, a label instead.
         const share = m.placeholder || age === null ? 0 : Math.max(0, 1 - age / FRESH_WINDOW_MS);
         return (
-          <div key={m.host} className={styles.bar} title={`${m.host}: heartbeat ${ago(m.heardMs, now)}`}>
+          <div key={m.host} className={styles.bar} title={m.placeholder ? `${m.host}: cloud claim, no heartbeat` : `${m.host}: heartbeat ${ago(m.heardMs, now)}`}>
             <span className={styles.truncate}>{m.host}</span>
             <div className={styles.track}><div className={styles.fill} data-tone={m.stale ? "bad" : undefined} style={{ width: `${share * 100}%` }} /></div>
             <span className={styles.value}>{m.placeholder ? "cloud claim" : m.stale ? "stale" : ago(m.heardMs, now).replace(" ago", "")}</span>
@@ -52,7 +52,7 @@ export function FleetList() {
         <div key={m.host} className={styles.row}>
           <Dot tone={m.placeholder ? "none" : m.stale ? "warn" : "ok"} label={m.placeholder ? "Cloud claim" : m.stale ? "Stale" : "Fresh"} />
           <span className={styles.truncate}>{m.host}{m.claim ? ` · ${m.claim}` : ""}</span>
-          <span className={styles.meta}>{m.placeholder ? "cloud claim · " : m.stale ? "stale · " : ""}{ago(m.heardMs, now)}</span>
+          <span className={styles.meta}>{m.placeholder ? "cloud claim" : `${m.stale ? "stale · " : ""}${ago(m.heardMs, now)}`}</span>
         </div>
       ))}
     </div>

@@ -61,6 +61,9 @@ describe("FleetTile", () => {
     expect(await screen.findByText("railway")).toBeTruthy();
     expect(screen.getByText("cloud claim")).toBeTruthy();
     expect(screen.queryByText("stale")).toBeNull();
+    // It never heartbeats, so an insert-time stamp must not read as a heartbeat.
+    expect(screen.getByText("heartbeat none (cloud claim)")).toBeTruthy();
+    expect(screen.queryByText(/^heartbeat (?!none)/)).toBeNull();
   });
 
   it("ERROR: renders unavailable when the BFF says so — not an empty fleet", async () => {
@@ -128,11 +131,13 @@ describe("Fleet strip and compact list", () => {
       vi.fn(async () => jsonResponse({ status: "ok", checkedAt: "2026-09-13T12:00:00.000Z", machines })),
     );
     render(<><FleetStrip /><FleetList /></>);
-    expect(await screen.findByText("cloud claim")).toBeTruthy();
-    expect(screen.getByText(/^cloud claim · /)).toBeTruthy();
+    // Strip value and list meta both read exactly "cloud claim": no heartbeat age beside it.
+    expect(await screen.findAllByText("cloud claim")).toHaveLength(2);
+    expect(screen.queryByText(/^cloud claim · /)).toBeNull();
     expect(screen.getByTitle("Cloud claim").getAttribute("data-tone")).toBe("none");
     expect(screen.queryByTitle("Fresh")).toBeNull();
-    const fill = screen.getByTitle(/^railway: heartbeat/).querySelector("div[style]") as HTMLElement;
+    expect(screen.queryByTitle(/^railway: heartbeat/)).toBeNull();
+    const fill = screen.getByTitle("railway: cloud claim, no heartbeat").querySelector("div[style]") as HTMLElement;
     expect(fill.style.width).toBe("0%");
     expect(screen.getByTitle("Stale")).toBeTruthy();
   });
