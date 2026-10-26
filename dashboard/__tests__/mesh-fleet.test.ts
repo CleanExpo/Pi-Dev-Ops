@@ -52,6 +52,7 @@ describe("projectFleet", () => {
         lastHeartbeat: "2026-09-13T11:59:40.000Z",
         currentClaim: "UNI-2649",
         stale: false,
+        placeholder: false,
       },
       {
         host: "phill-desktop",
@@ -59,6 +60,7 @@ describe("projectFleet", () => {
         lastHeartbeat: "2026-09-13T11:50:00.000Z",
         currentClaim: null,
         stale: true,
+        placeholder: false,
       },
       {
         host: "phills-macbook",
@@ -66,7 +68,27 @@ describe("projectFleet", () => {
         lastHeartbeat: "2026-09-13T11:59:50.000Z",
         currentClaim: null,
         stale: false,
+        placeholder: false,
       },
+    ]);
+  });
+
+  it("the railway cloud claim row is a placeholder, never stale; a real stale host still is", () => {
+    // session_lease.CLOUD_CLAIM_MACHINE never heartbeats. Matched exactly, as cron_watchdog_mesh.py does.
+    const machines = [
+      ...UPSTREAM.machines,
+      { host: "railway", version: null, last_seen: "2026-10-08T00:00:00.000Z", is_stale: true },
+      { host: "Railway", version: null, last_seen: "2026-09-13T11:00:00.000Z", is_stale: true },
+    ];
+    const view = projectFleet({ ...UPSTREAM, machines }, CHECKED);
+    expect(view.status).toBe("ok");
+    if (view.status !== "ok") return;
+    expect(view.machines.map((m) => [m.host, m.placeholder, m.stale])).toEqual([
+      ["unite-mac-mini", false, false],
+      ["phill-desktop", false, true],
+      ["phills-macbook", false, false],
+      ["railway", true, false],
+      ["Railway", false, true],
     ]);
   });
 

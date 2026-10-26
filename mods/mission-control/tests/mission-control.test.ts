@@ -98,6 +98,22 @@ describe('summarize', () => {
     ])
   })
 
+  test('the placeholder never alerts on its status and is matched exactly; real hosts keep both rules', () => {
+    // Exact match, as cron_watchdog_mesh.py does (host == CLOUD_CLAIM_MACHINE): another spelling is a real machine.
+    const s = summarize(ok({ ...SNAPSHOT, machines: [
+      { host: 'railway', status: 'runner-down', last_seen: ago(1_538_116), is_stale: true, active_agents: 0 },
+      { host: 'railway', status: 'offline', last_seen: ago(1_538_116), is_stale: true, active_agents: 0 },
+      { host: 'Railway', status: 'online', last_seen: ago(900), is_stale: true, active_agents: 0 },
+      { host: 'live-box', status: 'runner-down', last_seen: ago(5), is_stale: false, active_agents: 0 },
+    ] }), NOW)
+    expect(s.machines.map(m => [m.host, m.status, m.placeholder, m.stale, m.alert])).toEqual([
+      ['railway', 'runner-down', true, false, false],
+      ['railway', 'offline', true, false, false],
+      ['Railway', 'online', false, true, true],
+      ['live-box', 'runner-down', false, false, true],
+    ])
+  })
+
   test('a heartbeat older than 60 s is stale even when the view says otherwise', () => {
     const s = summarize(ok({ ...SNAPSHOT, machines: [{ host: 'h', status: 'online', last_seen: ago(61), is_stale: false }] }), NOW)
     expect(s.machines[0].stale).toBe(true)

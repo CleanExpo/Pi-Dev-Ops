@@ -1,0 +1,63 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "UNPROVEN",
+  "verification_status": "BLOCKED",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": null,
+  "updated_at_utc": "2026-10-26T02:53:42Z",
+  "last_verify": {
+    "head": "83775c123b87590987059b284b77cb7d54b4fcea",
+    "at_utc": "2026-10-26T02:53:28Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/.local/bin/claude plugin test mods/mission-control",
+        "exit_code": 0,
+        "timeout_s": 300,
+        "duration_s": 1.8,
+        "output_digest": "b15bfff65fe93efb72da2dd7b27801c3d12979e4f3ec5c84afa280bcf4ea4413",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_7a5621381cce/83775c123b87/C1-ab861dc170dc-b15bfff65fe93efb.log",
+        "output_tail": "tests/mission-control.test.ts:\n(pass) summarize > a healthy snapshot: machines, runner-down and stale flagged, claims counted, five ships [2.94ms]\n(pass) summarize > the railway cloud claim placeholder never heartbeats, so it is never stale or an alert [0.25ms]\n(pass) summarize > a heartbeat older than 60 s is stale even when the view says otherwise [0.17ms]\n(pass) summarize > 401 is unknown with the reason, never an empty healthy fleet [0.21ms]\n(pass) summarize > an HTML error page is unknown [0.12ms]\n(pass) summarize > JSON that is not the snapshot is unknown [0.15ms]\n(pass) summarize > a degraded snapshot is never healthy, and a failed claims source is not zero claims [0.17ms]\n(pass) summarize > formatAge [0.15ms]\n(pass) fleet_status tool > returns the summary as JSON, read with the secret header [53.20ms]\n(pass) fleet_status tool > unconfigured: still returns a result, says why, fetches nothing [17.91ms]\n(pass) fleet_status tool > a 401 comes back as an unknown result, not an error [21.25ms]\n(pass) /mc > opens the pane and draws one row per machine, runner-down in red [25.96ms]\n(pass) /mc > refreshes every 30 s while open [18.61ms]\n(pass) /mc > a 401 draws the unknown banner and no machine rows [19.75ms]\n(pass) /mc > unconfigured: says so and opens nothing [16.49ms]\n(pass) /mc > other panes are left alone [15.84ms]\n\n 16 pass\n 0 fail\nRan 16 tests across 1 file. [0.35s]"
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/.local/bin/claude plugin validate mods/mission-control",
+        "exit_code": 0,
+        "timeout_s": 120,
+        "duration_s": 0.7,
+        "output_digest": "58b8f7836207143db31e619d088e1bb62f1193efe1a0f2ae83f5f5545008efea",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_7a5621381cce/83775c123b87/C2-9685eb765661-58b8f7836207143d.log",
+        "output_tail": "Validating plugin manifest: /Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/fix/mc-fleet-cloud-claim-placeholder/mods/mission-control/.claude-plugin/plugin.json\n\n⚠ Found 1 warning:\n\n  ❯ version: No version specified. Consider adding a version following semver (e.g., \"1.0.0\")\n\nValidating hooks: /Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/fix/mc-fleet-cloud-claim-placeholder/mods/mission-control/hooks/hooks.json\n\n  ❯ ./register.ts hooks: session.start, command.run{command=mc}, ui.close, tool.call{tool=mcp__mission-control__fleet_status}, ui.render{component=Pane}\n  ❯ ./register.ts answers its own command: command.run{command=mc}\n  ❯ ./register.ts gating hook without .catch: ui.close\n  ❯ ./register.ts gating hook without .catch: tool.call{tool=mcp__mission-control__fleet_status}\n  ❯ ./register.ts calls: $.clock.every, $.clock.now (via fetchSummary), $.command.register, $.env.get, $.http.fetch (via readFleet), $.tool.register, $.ui.invalidate (via refresh), $.ui.log, $.ui.open, $.ui.resolve\n  ❯ ./register.ts env writes: nothing\n  ❯ ./register.ts env reads: MC_LANE_SECRET, MC_LANE_URL\n\nPlugin directory checks for /Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/fix/mc-fleet-cloud-claim-placeholder/mods/mission-control. The plugin directory is the catalog that plugins are submitted to; this is a subset of what it runs.\n\n✘ Found 1 problem the plugin directory refuses a submission for:\n\n  ❯ LICENSE: License missing (LICENSE_MISSING). This plugin has no LICENSE file and plugin.json has no `license`. The directory requires one of them.\n    Fix: Add a LICENSE file to the plugin folder, or set `license` (an SPDX id) in plugin.json. A LICENSE at the repository root also counts for a plugin in a sub-folder.\n\n⚠ Found 1 plugin directory warning:\n\n  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.\n    Fix: Add a square PNG to the plugin folder at .claude-plugin/icon.png, or set `icon` in plugin.json to the path of a square PNG or JPEG in the plugin: 512 to 2048 px on each side, under 2 MB. SVG and WebP are not accepted. That file may become the listing icon only once: the first time the plugin is saved or submitted in the developer portal. Adding or changing it later does not change the icon.\n\nAbout these checks:\n\n  ❯ The repository root was taken to be /Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/fix/mc-fleet-cloud-claim-placeholder, the nearest parent folder with a .git folder or file. No license file that counts (a regular file with one of the file names the plugin directory accepts) was found there either. For a plugin submitted from a git repository, the repository root is the top folder of that repository, with only what is committed there, so check that the folder named above is that top folder.\n  ❯ hooks/hooks.json names a hooks module (a code file listed under `modules`). The plugin directory has rules of its own for such code, and these checks apply none of them, so passing here does not mean the directory accepts the plugin. The developer portal's own validation applies those rules.\n\nThese plugin directory checks do not change the result below. To fail on problems the directory refuses a submission for, run this command with --profile directory.\n\nThe directory also runs a safety scan and a policy review that this command does not.\n\n✔ Validation passed with warnings"
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "cd dashboard && /Users/phill-mac/.local/bin/node node_modules/vitest/vitest.mjs run __tests__/mesh-fleet.test.ts __tests__/fleet-tile.test.tsx",
+        "exit_code": 0,
+        "timeout_s": 300,
+        "duration_s": 1.6,
+        "output_digest": "1a99ba47c3ab359169e587522b92617898bbe895b9086d3586e0ce49fb22a3c0",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_7a5621381cce/83775c123b87/C3-8a214cef6d47-1a99ba47c3ab3591.log",
+        "output_tail": "\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.4 \u001b[39m\u001b[90m/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/fix/mc-fleet-cloud-claim-placeholder/dashboard\u001b[39m\n\n \u001b[32m✓\u001b[39m __tests__/mesh-fleet.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 55\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m __tests__/fleet-tile.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 112\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (2)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 12:53:23\n\u001b[2m   Duration \u001b[22m 1.17s\u001b[2m (transform 182ms, setup 191ms, import 194ms, tests 167ms, environment 1.20s)\u001b[22m"
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "FAILED",
+        "recipe": "/usr/bin/python3 .claude/done/work/w_7a5621381cce/mutants_v2.py",
+        "exit_code": 2,
+        "timeout_s": 1500,
+        "duration_s": 3.6,
+        "output_digest": "0e10a987d31dc1d353343168e79ef54349869b302badec1e7a6fdaef25e8c6f6",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_7a5621381cce/83775c123b87/C4-08d1623c441b-0e10a987d31dc1d3.log",
+        "output_tail": "placeholder-never-matches: rc=1 ::  12 pass |  4 fail | Ran 16 tests across 1 file. [0.30s]\neverything-is-placeholder: rc=1 ::  12 pass |  4 fail | Ran 16 tests across 1 file. [0.29s]\nalert-guard-removed: rc=0 ::  16 pass |  0 fail | Ran 16 tests across 1 file. [0.33s]\ncase-insensitive-match: rc=0 ::  16 pass |  0 fail | Ran 16 tests across 1 file. [0.33s]\ndash-never-matches: CANNOT APPLY (target found 0 times in lib/control/mesh-fleet.ts)\ndash-everything-is-placeholder: CANNOT APPLY (target found 0 times in lib/control/mesh-fleet.ts)\ndash-label-dropped: CANNOT APPLY (target found 0 times in components/control/FleetTile.tsx)\nUNAPPLIED: ['dash-never-matches', 'dash-everything-is-placeholder', 'dash-label-dropped']"
+      }
+    ],
+    "blockers": []
+  }
+}

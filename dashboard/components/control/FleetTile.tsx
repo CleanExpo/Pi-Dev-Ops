@@ -18,7 +18,7 @@ function MachineRow({ machine, claimsAvailable }: { machine: FleetMachine; claim
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium truncate">{machine.host}</span>
         <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
-          {machine.stale ? "stale" : "fresh"}
+          {machine.placeholder ? "cloud claim" : machine.stale ? "stale" : "fresh"}
         </span>
       </div>
       <div className="grid grid-cols-1 gap-0.5 text-xs" style={{ color: "var(--text-muted)" }}>

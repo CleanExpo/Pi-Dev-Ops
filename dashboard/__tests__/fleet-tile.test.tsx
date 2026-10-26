@@ -47,6 +47,21 @@ describe("FleetTile", () => {
     expect(screen.queryByText(/unavailable/i)).toBeNull();
   });
 
+  it("PLACEHOLDER: the railway cloud claim row is labelled, never drawn stale", async () => {
+    const machine = {
+      host: "railway", revision: null, lastHeartbeat: "2026-10-08T00:00:00.000Z",
+      currentClaim: null, stale: false, placeholder: true,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ status: "ok", checkedAt: "2026-09-13T12:00:00.000Z", machines: [machine] })),
+    );
+    render(<FleetTile />);
+    expect(await screen.findByText("railway")).toBeTruthy();
+    expect(screen.getByText("cloud claim")).toBeTruthy();
+    expect(screen.queryByText("stale")).toBeNull();
+  });
+
   it("ERROR: renders unavailable when the BFF says so — not an empty fleet", async () => {
     vi.stubGlobal(
       "fetch",
