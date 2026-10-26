@@ -101,8 +101,8 @@ Findings about the gate itself route to `skills-library`, not to Pi-Dev-Ops (RA-
 `pr_release_gate.py` re-runs every command recorded in the receipt's `tests` array on each push.
 `scripts/handoff-loop.sh` already runs ruff, `pytest tests/` and `pytest swarm/` as its own gates
 (`lint-ruff`, `tests-python`, `tests-swarm`) among the rest (`grep -n 'gate "' scripts/handoff-loop.sh`).
-Recording those three *alongside* `handoff-loop.sh` runs the Python suite twice, which can exceed
-the 2-minute tool timeout and kill the push mid-gate.
+Recording those three *alongside* `handoff-loop.sh` runs the Python suite twice and makes every
+push slower.
 
 Record exactly this, and nothing else:
 
@@ -110,9 +110,11 @@ Record exactly this, and nothing else:
 bash scripts/handoff-loop.sh
 ```
 
-It is a strict superset of the four-command list and finishes inside the
-timeout. Verify with `wc -l` on the receipt's `tests` array: more than one entry means the next
-push will time out.
+It covers every command in the four-command list. It does **not** fit a 2-minute tool timeout:
+its `tests-python` gate alone measured 184-215 s on 2026-10-02 and is bounded at 420 s (see the
+comment above that gate in `scripts/handoff-loop.sh`). Run the push in the background or with the
+longest tool timeout available, never the 2-minute default. More than one entry in the receipt's
+`tests` array means the suite runs twice.
 
 Local auth: the dashboard password defaults to `dev` when `.env.local` holds unresolved `op://`
 refs. Override with `DASHBOARD_PASSWORD` in `dashboard/.env.local`. `.env.local` is gitignored —
