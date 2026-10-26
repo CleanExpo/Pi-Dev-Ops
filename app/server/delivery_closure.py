@@ -72,13 +72,6 @@ class Finding:
 
 
 REVIEW_STAGES = {Stage.REVIEW_WAIT}
-ACTIVE_STAGES = {
-    Stage.ACCEPTED, Stage.BUILDING, Stage.TESTED, Stage.REVIEW_WAIT,
-    Stage.APPROVAL_WAIT, Stage.MERGE_READY, Stage.MERGED, Stage.DEPLOYING,
-    Stage.VERIFIED_LIVE,
-}
-
-
 def _utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("stage_since/now must contain a timezone")
@@ -168,6 +161,8 @@ def project_can_close(items: list[Snapshot], *, expected_issue_ids: set[str]) ->
     if not expected_issue_ids:
         return False
     by_id = {i.issue_id: i for i in items}
+    if len(by_id) != len(items):
+        return False  # Duplicate snapshots are ambiguous, never choose the last one.
     return all(issue_id in by_id and by_id[issue_id].stage == Stage.DONE
                and can_finish(by_id[issue_id]) for issue_id in expected_issue_ids)
 

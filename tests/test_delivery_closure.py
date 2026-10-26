@@ -136,3 +136,49 @@ def test_blocked_is_not_done_and_has_explicit_owner():
     item = snapshot(stage=Stage.BLOCKED, blocked_reason="Waiting for human security approval")
     assert codes(item) == ["BLOCKED"]
     assert item.owner == "PC Worker"
+
+
+def test_project_rejects_cancelled_failed_and_duplicate_required_issues():
+    complete = snapshot(issue_id="RA-1", stage=Stage.DONE)
+    cancelled = snapshot(issue_id="RA-2", stage=Stage.CANCELLED)
+    failed = snapshot(issue_id="RA-2", stage=Stage.FAILED)
+    assert not project_can_close([complete, cancelled], expected_issue_ids={"RA-1", "RA-2"})
+    assert not project_can_close([complete, failed], expected_issue_ids={"RA-1", "RA-2"})
+    assert not project_can_close([complete, replace(complete)], expected_issue_ids={"RA-1"})
+
+
+def test_future_stage_timestamp_fails_closed():
+    item = snapshot(stage_since=NOW + timedelta(minutes=6))
+    assert codes(item) == ["INVALID_CLOCK"]
+
+
+def test_unverified_live_stage_refuses_missing_production_receipt():
+    item = snapshot(stage=Stage.VERIFIED_LIVE, verified_sha=None)
+    assert codes(item) == ["UNVERIFIED_RELEASE"]
+
+
+def test_merging_and_deploying_stages_need_correct_evidence():
+    deploying = snapshot(stage=Stage.DEPLOYING, stage_since=NOW - timedelta(hours=6),
+                         verified_sha=None)
+    assert codes(deploying) == ["DEPLOY_UNVERIFIED"]
+    merged = snapshot(stage=Stage.MERGED)
+    assert codes(merged) == ["CHECK_ACCEPTANCE"]
+
+
+def test_new_pending_approval_yields_no_automatic_transition():
+    pending = snapshot(stage=Stage.APPROVAL_WAIT, stage_since=NOW,
+                       authorised_head_sha=None)
+    assert assess(pending, NOW) == ()
+
+
+def test_artifact_done_requires_delivery_receipt():
+    item = snapshot(stage=Stage.DONE, delivery_kind="artifact",
+                    delivered_artifact_receipt=None)
+    assert codes(item) == ["FALSE_DONE"]
+
+
+def test_new_stage_invalidates_existing_alert_fingerprint():
+    item = snapshot(stage_since=NOW - timedelta(hours=7))
+    first = assess(item, NOW)[0]
+    next_stage = replace(item, stage=Stage.TESTED)
+    assert first.key != assess(next_stage, NOW)[0].key
