@@ -1,0 +1,46 @@
+{
+ "schema": "done/1",
+ "work_id": "w_064eb7c58f5c",
+ "version": 3,
+ "supersedes": "w_7a5621381cce",
+ "goal": "Railway cloud-claim placeholder is never shown as a stale, fresh or alerting machine in any Mission Control fleet surface: the mission-control plugin, the dashboard Fleet tile, and the dashboard Fleet strip and compact list; the feed validator rejects a row without the flag; real machines unchanged; full dashboard suite and type-check pass.",
+ "created_at_utc": "2026-10-26T03:08:11Z",
+ "identity_key": "fix/mc-fleet-cloud-claim-placeholder@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/mc-fleet-cloud-claim-placeholder",
+ "baseline_observed": {
+  "head": "04c2339c6a5399b06e9792ee3f623e0e032d4865",
+  "branch": "fix/mc-fleet-cloud-claim-placeholder",
+  "dirty_count": 0
+ },
+ "criteria": [
+  {
+   "id": "C1",
+   "text": "The mission-control plugin suite passes.",
+   "recipe": "/Users/phill-mac/.local/bin/claude plugin test mods/mission-control",
+   "timeout": 300
+  },
+  {
+   "id": "C2",
+   "text": "The mission-control plugin validates.",
+   "recipe": "/Users/phill-mac/.local/bin/claude plugin validate mods/mission-control",
+   "timeout": 120
+  },
+  {
+   "id": "C3",
+   "text": "The full dashboard vitest suite passes (exact packages from dashboard/package-lock.json via npm ci).",
+   "recipe": "cd dashboard && /Users/phill-mac/.local/bin/node node_modules/vitest/vitest.mjs run",
+   "timeout": 900
+  },
+  {
+   "id": "C4",
+   "text": "The dashboard type-checks with zero errors.",
+   "recipe": "cd dashboard && /Users/phill-mac/.local/bin/node node_modules/typescript/bin/tsc --noEmit -p .",
+   "timeout": 900
+  },
+  {
+   "id": "C5",
+   "text": "All 11 planted faults are caught: 4 in the plugin, 3 in the Fleet tile projection and label, and 4 in the second views and validator (rows dropping the flag, validator not requiring it, strip label dropped, list label dropped).",
+   "recipe": "/usr/bin/python3 .claude/done/work/w_064eb7c58f5c/mutants_v3.py",
+   "timeout": 2400
+  }
+ ]
+}

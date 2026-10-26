@@ -11,12 +11,13 @@ import { toEpochMs } from "@/lib/boards/sources/types";
 
 export type Tone = "ok" | "warn" | "bad" | "idle" | "none";
 
-export interface FleetRow { host: string; heardMs: number | null; stale: boolean; claim: string | null; revision: string | null }
+export interface FleetRow { host: string; heardMs: number | null; stale: boolean; placeholder: boolean; claim: string | null; revision: string | null }
 
 export function fleetRows(view: FleetView | null): FleetRow[] | null {
   if (!view || view.status !== "ok" || !Array.isArray(view.machines)) return null;
   return view.machines.map((m) => ({
-    host: m.host, heardMs: toEpochMs(m.lastHeartbeat), stale: m.stale, claim: m.currentClaim, revision: m.revision,
+    host: m.host, heardMs: toEpochMs(m.lastHeartbeat), stale: m.stale, placeholder: m.placeholder === true,
+    claim: m.currentClaim, revision: m.revision,
   }));
 }
 

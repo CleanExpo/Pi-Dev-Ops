@@ -34,6 +34,7 @@ describe("FleetTile", () => {
               lastHeartbeat: "2026-09-13T11:59:40.000Z",
               currentClaim: "UNI-2649",
               stale: false,
+              placeholder: false,
             },
           ],
         }),
@@ -87,7 +88,7 @@ describe("FleetTile", () => {
   it("DEGRADED: a failed claims read shows claim unavailable, never 'claim none'", async () => {
     const machine = {
       host: "unite-mac-mini", revision: "mesh-runner@a1b2",
-      lastHeartbeat: "2026-09-13T11:59:40.000Z", currentClaim: null, stale: false,
+      lastHeartbeat: "2026-09-13T11:59:40.000Z", currentClaim: null, stale: false, placeholder: false,
     };
     vi.stubGlobal(
       "fetch",
@@ -111,6 +112,26 @@ describe("FleetTile", () => {
     render(<FleetTile />);
     expect(await screen.findByText(/No machines enrolled/)).toBeTruthy();
     expect(screen.queryByText(/unavailable/i)).toBeNull();
+  });
+});
+
+describe("Fleet strip and compact list", () => {
+  it("PLACEHOLDER: both label the railway cloud claim row; a real stale host still reads stale", async () => {
+    const { FleetList, FleetStrip } = await import("@/components/boards/views/fleet-chain");
+    const machines = [
+      { host: "railway", revision: null, lastHeartbeat: "2026-10-08T00:00:00.000Z", currentClaim: null, stale: false, placeholder: true },
+      { host: "old-box", revision: null, lastHeartbeat: "2026-09-13T11:00:00.000Z", currentClaim: null, stale: true, placeholder: false },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ status: "ok", checkedAt: "2026-09-13T12:00:00.000Z", machines })),
+    );
+    render(<><FleetStrip /><FleetList /></>);
+    expect(await screen.findByText("cloud claim")).toBeTruthy();
+    expect(screen.getByText(/^cloud claim · /)).toBeTruthy();
+    expect(screen.getByTitle("Cloud claim")).toBeTruthy();
+    expect(screen.queryByTitle("Fresh")).toBeNull();
+    expect(screen.getByTitle("Stale")).toBeTruthy();
   });
 });
 

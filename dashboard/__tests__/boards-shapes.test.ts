@@ -23,6 +23,16 @@ describe("shapes return null for an unexpected payload", () => {
   ])("%s", (_n, fn) => expect(fn()).toBeNull());
 });
 
+describe("fleet rows", () => {
+  it("carry the placeholder flag, so the second views can label the cloud claim row", () => {
+    const rows = fleetRows({ status: "ok", checkedAt: "x", claimsAvailable: true, machines: [
+      { host: "railway", revision: null, lastHeartbeat: null, currentClaim: null, stale: false, placeholder: true },
+      { host: "mini", revision: null, lastHeartbeat: null, currentClaim: null, stale: true, placeholder: false },
+    ] });
+    expect(rows?.map((r) => [r.host, r.placeholder, r.stale])).toEqual([["railway", true, false], ["mini", false, true]]);
+  });
+});
+
 describe("scored projects", () => {
   it("a project with no scans has no score, never the scanner's default 100", () => {
     const rows = scoredProjects([
