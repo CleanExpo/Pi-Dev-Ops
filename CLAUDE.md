@@ -301,9 +301,12 @@ These cost real debugging time. Each is a behaviour of an external system, not a
 - **Path traversal** — `_safe_sid()` (`app/server/persistence.py:28`) strips non-alphanumerics from
   session IDs before any file-path use. **Webhook HMAC** — `hmac.compare_digest()` for GitHub and
   Linear signatures. The `pidev/` skip: `grep -n '"pidev/" in ref' app/server/routes/webhooks.py`.
-- **Recursive self-modification guard** — the webhook handler makes two separate skips. It skips
-  every ref containing `pidev/`, in every repo, and it skips every event whose repo is
-  `CleanExpo/Pi-Dev-Ops`. Removing the `pidev/` skip produced 43 zombie branches on 2026-04-17.
+- **Recursive self-modification guard** — the webhook handler first records outcome events
+  (merged pull requests, and revert commits pushed to the default branch), in every repo, and
+  returns. Only
+  after that does it skip starting a session, in two separate checks: any ref containing `pidev/`,
+  in every repo, and any event whose repo is `CleanExpo/Pi-Dev-Ops`. The skips stop building, not
+  recording. Removing the `pidev/` skip produced 43 zombie branches on 2026-04-17.
 - **Workspace isolation** — `TAO_WORKSPACE` must live outside any parent git repo (e.g.
   `/tmp/pi-ceo-workspaces`), or git uses the outer `.git` and pushes to the wrong remote. Plant a
   stub `CLAUDE.md` at the workspace root so Claude's upward search cannot inherit this file.
