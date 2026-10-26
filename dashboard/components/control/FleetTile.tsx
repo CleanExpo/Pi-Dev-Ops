@@ -23,7 +23,7 @@ function MachineRow({ machine, claimsAvailable }: { machine: FleetMachine; claim
       </div>
       <div className="grid grid-cols-1 gap-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
         <span>revision {machine.revision ?? "—"}</span>
-        <span>heartbeat {fmtStamp(machine.lastHeartbeat)}</span>
+        <span>heartbeat {machine.placeholder ? "none (cloud claim)" : fmtStamp(machine.lastHeartbeat)}</span>
         <span>claim {machine.currentClaim ?? (claimsAvailable ? "none" : "unavailable")}</span>
       </div>
     </article>
