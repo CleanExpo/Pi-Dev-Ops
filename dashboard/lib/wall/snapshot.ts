@@ -11,6 +11,13 @@
  */
 import { ageSeconds, isAbsent } from "./absent";
 
+/**
+ * The cloud claim row (app/server/session_lease.py CLOUD_CLAIM_MACHINE). Same value as
+ * lib/control/mesh-fleet.ts CLOUD_CLAIM_HOST, which this page graph may not import
+ * (__tests__/command-centre-readonly.test.ts); __tests__/wall-snapshot.test.ts pins the two equal.
+ */
+export const CLOUD_CLAIM_HOST = "railway";
+
 export type Chip = "GREEN" | "RED" | "GREY";
 
 export const MACHINE_STALE_S = 60;
@@ -91,7 +98,8 @@ export function fleetPanel(raw: unknown, hosts: string[], now: number, failure?:
   for (const r of body.machines.map(record)) if (r && !isAbsent(r.host)) rows.set(String(r.host), r);
   const agents = Array.isArray(body.agents) ? body.agents : [];
   const machines = hosts.map((h) => machineTile(h, rows.get(h), agents, now));
-  const others = [...rows.keys()].filter((h) => !hosts.includes(h)).sort();
+  // The cloud claim row is not a machine and nothing heartbeats it, so it is not "also reporting".
+  const others = [...rows.keys()].filter((h) => !hosts.includes(h) && h !== CLOUD_CLAIM_HOST).sort();
   return { status: "ok", reason: "", machines, others };
 }
 

@@ -5,7 +5,8 @@
 import { describe, expect, it } from "vitest";
 
 import { anyAbsent, isAbsent } from "@/lib/wall/absent";
-import { bannerCounts, buildSnapshot, fleetPanel, machineTile, stations } from "@/lib/wall/snapshot";
+import { CLOUD_CLAIM_HOST as PROJECTION_CLOUD_CLAIM_HOST } from "@/lib/control/mesh-fleet";
+import { bannerCounts, buildSnapshot, CLOUD_CLAIM_HOST, fleetPanel, machineTile, stations } from "@/lib/wall/snapshot";
 
 const NOW = Date.parse("2026-09-19T00:00:00Z");
 const ago = (s: number) => new Date(NOW - s * 1000).toISOString();
@@ -66,9 +67,14 @@ describe("fleet panel", () => {
     expect(fleetPanel({ machines: [], errors: [{ source: "machines" }] }, HOSTS, NOW).status).toBe("broken");
   });
   it("a declared host that never reported is GREY; strangers are listed, not counted", () => {
-    const p = fleetPanel({ machines: [{ host: "A", last_seen: ago(1) }, { host: "ghost", last_seen: ago(1) }] }, HOSTS, NOW);
+    // "railway" is the cloud claim row (session_lease.CLOUD_CLAIM_MACHINE): not a machine, never listed.
+    const p = fleetPanel({ machines: [{ host: "A", last_seen: ago(1) }, { host: "ghost", last_seen: ago(1) },
+      { host: "railway", last_seen: ago(1_538_116) }] }, HOSTS, NOW);
     expect(p.machines.map((m) => m.chip)).toEqual(["GREEN", "GREY", "GREY"]);
     expect(p.others).toEqual(["ghost"]);
+  });
+  it("the wall names the same cloud claim host as the fleet projection", () => {
+    expect(CLOUD_CLAIM_HOST).toBe(PROJECTION_CLOUD_CLAIM_HOST);
   });
 });
 

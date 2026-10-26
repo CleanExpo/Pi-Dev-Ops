@@ -26,7 +26,9 @@ const every = (v: unknown, check: (x: Record<string, unknown>) => boolean) =>
   Array.isArray(v) && v.every((x) => { const r = record(x); return r !== null && check(r); });
 
 /** mesh-fleet: FleetMachine rows. */
+// A placeholder is never stale (mesh-fleet.ts projectMachine); a row claiming both is not a shape we draw.
 export const isFleetMachines = (v: unknown) => every(v, (m) => isText(m.host) && isBool(m.stale) && isBool(m.placeholder)
+  && !(m.placeholder && m.stale)
   && isTextOrNull(m.revision) && isTextOrNull(m.lastHeartbeat) && isTextOrNull(m.currentClaim));
 
 const isAgent = (a: Record<string, unknown>) => isText(a.runtime) && isText(a.state) && isChip(a.chip) && isNumOrNull(a.ageSeconds);
