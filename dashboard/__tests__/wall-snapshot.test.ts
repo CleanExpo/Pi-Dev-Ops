@@ -69,9 +69,16 @@ describe("fleet panel", () => {
   it("a declared host that never reported is GREY; strangers are listed, not counted", () => {
     // "railway" is the cloud claim row (session_lease.CLOUD_CLAIM_MACHINE): not a machine, never listed.
     const p = fleetPanel({ machines: [{ host: "A", last_seen: ago(1) }, { host: "ghost", last_seen: ago(1) },
-      { host: "railway", last_seen: ago(1_538_116) }] }, HOSTS, NOW);
+      { host: "railway", last_seen: ago(1_538_116) }, { host: "Railway", last_seen: ago(1) }] }, HOSTS, NOW);
     expect(p.machines.map((m) => m.chip)).toEqual(["GREEN", "GREY", "GREY"]);
-    expect(p.others).toEqual(["ghost"]);
+    // Matched exactly, as the projection and cron_watchdog_mesh.py do: "Railway" is a real stranger.
+    expect(p.others).toEqual(["Railway", "ghost"]);
+  });
+  it("the cloud claim row is never a machine tile, even when the declared host list names it", () => {
+    const p = fleetPanel({ machines: [{ host: "railway", last_seen: ago(1) }] }, ["A", "railway"], NOW);
+    expect(p.machines.map((m) => m.host)).toEqual(["A"]);
+    expect(p.others).toEqual([]);
+    expect(fleetPanel(null, ["A", "railway"], NOW, { kind: "broken", reason: "x" }).machines.map((m) => m.host)).toEqual(["A"]);
   });
   it("the wall names the same cloud claim host as the fleet projection", () => {
     expect(CLOUD_CLAIM_HOST).toBe(PROJECTION_CLOUD_CLAIM_HOST);

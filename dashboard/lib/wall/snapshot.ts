@@ -85,8 +85,10 @@ export function machineTile(host: string, row: Record<string, unknown> | undefin
 
 /** Build the fleet panel from the raw upstream body. `null` body = the read failed. */
 export function fleetPanel(raw: unknown, hosts: string[], now: number, failure?: { kind: "broken" | "no_source"; reason: string }): FleetPanel {
+  // The cloud claim row is never a fleet machine, even when WALL_FLEET_HOSTS names it.
+  const declared = hosts.filter((h) => h !== CLOUD_CLAIM_HOST);
   const grey = (status: FleetPanel["status"], reason: string): FleetPanel => ({
-    status, reason, others: [], machines: hosts.map((h) => ({ ...machineTile(h, undefined, [], now), reason })),
+    status, reason, others: [], machines: declared.map((h) => ({ ...machineTile(h, undefined, [], now), reason })),
   });
   if (failure) return grey(failure.kind, failure.reason);
   const body = record(raw);
@@ -97,9 +99,9 @@ export function fleetPanel(raw: unknown, hosts: string[], now: number, failure?:
   const rows = new Map<string, Record<string, unknown>>();
   for (const r of body.machines.map(record)) if (r && !isAbsent(r.host)) rows.set(String(r.host), r);
   const agents = Array.isArray(body.agents) ? body.agents : [];
-  const machines = hosts.map((h) => machineTile(h, rows.get(h), agents, now));
+  const machines = declared.map((h) => machineTile(h, rows.get(h), agents, now));
   // The cloud claim row is not a machine and nothing heartbeats it, so it is not "also reporting".
-  const others = [...rows.keys()].filter((h) => !hosts.includes(h) && h !== CLOUD_CLAIM_HOST).sort();
+  const others = [...rows.keys()].filter((h) => !declared.includes(h) && h !== CLOUD_CLAIM_HOST).sort();
   return { status: "ok", reason: "", machines, others };
 }
 
