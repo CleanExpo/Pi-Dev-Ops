@@ -148,7 +148,7 @@ def test_workflow_does_not_construct_shell_source_from_dispatch_input():
 
 @pytest.mark.parametrize(
     "protected_path",
-    ["app/server/config.py", ".env", "dashboard/middleware.ts", "supabase/seed.sql"],
+    ["app/server/config.py", ".env", "dashboard/middleware.ts", "dashboard/proxy.ts", "supabase/seed.sql"],
 )
 def test_model_write_tool_rejects_protected_paths(loop, tmp_path, protected_path):
     result = loop._exec_tool("write_file", {"path": protected_path, "content": "test-only"}, tmp_path)

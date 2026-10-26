@@ -115,7 +115,7 @@ def test_protected_paths_are_denied_before_write(tmp_path):
         "config/.env.production",
         "app/server/auth.py",
         "app/server/config.py",
-        "dashboard/middleware.ts",
+        "dashboard/middleware.ts", "dashboard/proxy.ts",
         "dashboard/app/api/auth/route.ts",
         "dashboard/app/api/actions/kill/route.ts",
         "supabase/migrations/999_attack.sql",
