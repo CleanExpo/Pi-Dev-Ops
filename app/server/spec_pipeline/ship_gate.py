@@ -22,6 +22,7 @@ FORBIDDEN_PATHS = (
     "app/data/.password-hash",
     "app/data/.session-secret",
     "dashboard/middleware.ts",
+    "dashboard/proxy.ts",  # the live auth proxy; middleware.ts was migrated to it (b77c406d)
     "dashboard/app/api/actions/",
     "supabase/seed.sql",
 )

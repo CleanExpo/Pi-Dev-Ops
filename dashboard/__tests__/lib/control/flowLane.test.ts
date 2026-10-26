@@ -16,6 +16,11 @@ describe("UNI-2639 flow lanes", () => {
     expect(classifyLane(["/etc/passwd"], ["lane:flow<script>"])).toBe("unclassified");
   });
 
+  it("keeps the auth proxy dashboard/proxy.ts in the engineer lane, as middleware.ts was", () => {
+    expect(classifyLane(["dashboard/proxy.ts"], [])).toBe("engineer");
+    expect(classifyLane(["dashboard/proxy.ts"], ["lane:flow"])).toBe("engineer");
+  });
+
   it("ages red from day 5 and kill-or-lane from day 7", () => {
     expect(agingTone(4)).toBe("watch");
     expect(agingTone(5)).toBe("red");

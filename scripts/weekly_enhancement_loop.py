@@ -80,6 +80,7 @@ PROTECTED_EXACT = {
     "app/server/auth.py",
     "app/server/config.py",
     "dashboard/middleware.ts",
+    "dashboard/proxy.ts",  # the live auth proxy; middleware.ts was migrated to it (b77c406d)
     "app/data/.password-hash",
     "app/data/.session-secret",
 }

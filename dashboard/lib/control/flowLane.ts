@@ -24,6 +24,8 @@ export const DEFAULT_LANE_RULES: LaneRules = {
     "app/server/auth.py",
     "app/server/config.py",
     "dashboard/middleware.ts",
+    // The live auth proxy; middleware.ts was migrated to it (b77c406d).
+    "dashboard/proxy.ts",
   ],
   engineerLabels: ["lane:engineer"],
 };
