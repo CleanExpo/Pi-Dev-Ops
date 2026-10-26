@@ -1,10 +1,13 @@
-"""Mutant control for the railway placeholder fix, v7 (v6 plus PR #949 review: no heartbeat age or stamp on the placeholder):
+"""Mutant control for the railway placeholder fix, v8 (v7 plus PR #950 review: both suites must pass
+unmutated before any mutant counts as caught).
+v7: v6 plus PR #949 review: no heartbeat age or stamp on the placeholder.
 v6: v4 plus the wall's declared host list and its exact
 match, from the round-4 Cursor review. Every mutant must make its suite FAIL.
 
 Run from the worktree root. Exit 0 only when every mutant is caught. Exit 1 when one survives,
 2 when one cannot be applied (target text missing or duplicated, so that leg would be vacuous),
-3 when a dashboard file could not be restored to its original bytes.
+3 when a dashboard file could not be restored to its original bytes,
+4 when a suite fails with no mutation applied (every mutant would then read as caught).
 Plugin mutants run on a temporary copy. Dashboard mutants edit in place (vitest resolves the
 `@/` alias from dashboard/) and restore the original bytes in `finally`.
 """
@@ -56,6 +59,24 @@ def tail(cp):
     return " | ".join((cp.stdout + cp.stderr).strip().splitlines()[-3:])[:200]
 
 
+def plugin_suite(path):
+    return subprocess.run([CLAUDE, "plugin", "test", str(path)], capture_output=True, text=True, timeout=240)
+
+
+def dash_suite():
+    return subprocess.run([NODE, "node_modules/vitest/vitest.mjs", "run", *DASH_TESTS],
+                          cwd=DASH, capture_output=True, text=True, timeout=300)
+
+
+# Baseline: a suite that already fails would "catch" every mutant, so prove both pass unmutated first.
+for label, run in (("plugin", lambda: plugin_suite(MOD)), ("dashboard", dash_suite)):
+    cp = run()
+    print(f"baseline {label}: rc={cp.returncode} :: {tail(cp)}")
+    if cp.returncode != 0:
+        print(f"BASELINE FAILED: the {label} suite fails with no mutation applied")
+        sys.exit(4)
+
+
 survivors, unapplied = [], []
 src = (MOD / "hooks" / "fleet.ts").read_text(encoding="utf-8")
 for name, (old, new) in PLUGIN.items():
@@ -67,7 +88,7 @@ for name, (old, new) in PLUGIN.items():
         copy = pathlib.Path(td) / "mission-control"
         shutil.copytree(MOD, copy)
         (copy / "hooks" / "fleet.ts").write_text(src.replace(old, new), encoding="utf-8")
-        cp = subprocess.run([CLAUDE, "plugin", "test", str(copy)], capture_output=True, text=True, timeout=240)
+        cp = plugin_suite(copy)
     print(f"{name}: rc={cp.returncode} :: {tail(cp)}")
     if cp.returncode == 0:
         survivors.append(name)
@@ -82,8 +103,7 @@ for name, (rel, old, new) in DASHBOARD.items():
         continue
     try:
         path.write_text(text.replace(old, new), encoding="utf-8")
-        cp = subprocess.run([NODE, "node_modules/vitest/vitest.mjs", "run", *DASH_TESTS],
-                            cwd=DASH, capture_output=True, text=True, timeout=300)
+        cp = dash_suite()
     finally:
         path.write_bytes(original)
     if hashlib.sha256(path.read_bytes()).digest() != hashlib.sha256(original).digest():
