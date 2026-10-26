@@ -55,7 +55,7 @@ Generator and evaluator run through `claude_agent_sdk`. `TAO_USE_AGENT_SDK=0` ra
 |-------|------|----------|
 | Frontend | Next.js, React, Tailwind (versions in `dashboard/package.json`) | `dashboard/` |
 | Backend | FastAPI, Python `>=3.11` (`pyproject.toml`) | `app/server/` |
-| Routes | one module per router (`ls app/server/routes/*.py`) | `app/server/routes/` |
+| Routes | route modules plus helper modules (`ls app/server/routes/*.py`; routers: `grep -ln 'APIRouter(' app/server/routes/*.py`) | `app/server/routes/` |
 | MCP server | Node, `@modelcontextprotocol/sdk` | `mcp/pi-ceo-server.js` |
 | TAO engine | Python | `src/tao/` |
 | Harness state | JSONL / JSON | `.harness/` |
@@ -211,7 +211,7 @@ change, secret rotation, destructive migration, new service provisioning.
 |---|---|---|---|---|
 | `/judge` | Read-only challenge gate — decides *whether to build*. Scores out of 100. Never implements. | `.claude/skills/judge` → symlink to `.agents/skills/judge` | `.agents/skills/judge/SKILL.md` | `.judge/` |
 | `/spm` | Decision-grade spec before implementation. Read-only by default. | `.claude/skills/spm` → symlink to `.agents/skills/spm` | `.agents/skills/spm/SKILL.md` | `.spm/` |
-| `/session-handoff` | Gates the tree via `scripts/handoff-loop.sh`, then writes `docs/session-handoffs/handoff-<ts>.md`. Non-zero exit ⇒ write a BLOCKED handoff naming the failing gate. | `.claude/skills/session-handoff` → symlink to `.agents/skills/session-handoff` | `skills/session-handoff/SKILL.md` (runs the gate; the `.agents/` copy is read-only and runs none — canonical copy undecided) | `.session-handoff/` |
+| `/session-handoff` | Gates the tree via `scripts/handoff-loop.sh`, then writes `docs/session-handoffs/handoff-<ts>.md`. Non-zero exit ⇒ write a BLOCKED handoff naming the failing gate. | `.claude/skills/session-handoff` → symlink to `.agents/skills/session-handoff` | `.agents/skills/session-handoff/SKILL.md` | `.session-handoff/` |
 | `/resume-from-handoff` | Re-runs the same gate, reconciles drift, then resumes. Verification is read-only and mandatory first. | `.claude/skills/resume-from-handoff` → symlink to `.agents/skills/resume-from-handoff` | `.agents/skills/resume-from-handoff/SKILL.md` | `.resume-from-handoff/` |
 | `/plan-to-done` | Writes the whole-project delivery packet (intent → coverage → work packages → release and live checks). Planning only; never builds. **Candidate, quarantined** — not invocable until its evals run and it is promoted via `skills-library`. Routing it uses: `references/model-and-plan-routing.md` (reconciled against code in `docs/plans/idea-to-live/routing-reconciliation.md`). | **not installed** (by design) | package at `docs/plans/plan-to-done-v1.1/plan-to-done/SKILL.md` | `docs/plans/idea-to-live/` |
 
