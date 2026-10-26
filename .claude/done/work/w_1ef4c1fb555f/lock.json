@@ -1,0 +1,12 @@
+{
+  "schema": "done/1",
+  "work_id": "w_1ef4c1fb555f",
+  "contract_digest": "68e9debebe178ac7de347cffc799d1f61bb13b3f5019f61d8ad779b91369eb63",
+  "baseline_head": "ca2cbd9fb657d3ca2d05178030ddb2884180be69",
+  "identity_key": "fix/mc-fleet-cloud-claim-placeholder@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/mc-fleet-cloud-claim-placeholder",
+  "locked_at_utc": "2026-10-26T02:26:51Z",
+  "criteria_count": 4,
+  "recipe_pins": {
+    "work/w_1ef4c1fb555f/mutant_placeholder.py": "db3f3e3af29fb008103a7fb22f6e5a2e178f2dbcfdb87dc79901efc42a6e44fc"
+  }
+}

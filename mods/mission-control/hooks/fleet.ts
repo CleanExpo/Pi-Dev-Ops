@@ -17,7 +17,9 @@ export type MachineRow = {
   ageS: number | null
   /** The view's is_stale (no heartbeat in 60 s), an age over 60 s, or no age at all. */
   stale: boolean
-  /** Drawn red: stale, runner-down or offline. */
+  /** The cloud claim row (CLOUD_CLAIM_HOST): never heartbeats by design, so never stale or an alert. */
+  placeholder: boolean
+  /** Drawn red: stale, runner-down or offline. Never for the placeholder. */
   alert: boolean
   activeAgents: number | null
 }
@@ -45,6 +47,12 @@ export type Summary = {
 
 export const RECENT_SHIPS = 5
 export const STALE_AFTER_S = 60
+/**
+ * app/server/session_lease.py CLOUD_CLAIM_MACHINE: one mesh_machines row shared by every cloud
+ * replica so its claims satisfy the foreign key. The claim upsert writes host and status only, so
+ * last_seen stays at insert time. It is not a runner; app/server/cron_watchdog_mesh.py skips it too.
+ */
+export const CLOUD_CLAIM_HOST = 'railway'
 const DOWN = new Set(['runner-down', 'offline'])
 
 const str = (v: unknown, max = 80): string =>
@@ -63,15 +71,18 @@ export function unknown(reason: string): Summary {
 }
 
 function machineRow(r: Record<string, unknown>, nowMs: number): MachineRow {
+  const host = str(r.host, 64) || '?'
   const status = str(r.status, 32) || 'unknown'
   const ageS = ageSeconds(r.last_seen, nowMs)
-  const stale = r.is_stale === true || ageS === null || ageS > STALE_AFTER_S
+  const placeholder = host === CLOUD_CLAIM_HOST
+  const stale = !placeholder && (r.is_stale === true || ageS === null || ageS > STALE_AFTER_S)
   return {
-    host: str(r.host, 64) || '?',
+    host,
     status,
     ageS,
     stale,
-    alert: stale || DOWN.has(status),
+    placeholder,
+    alert: !placeholder && (stale || DOWN.has(status)),
     activeAgents: typeof r.active_agents === 'number' ? r.active_agents : null,
   }
 }
