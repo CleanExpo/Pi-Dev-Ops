@@ -79,8 +79,7 @@ REPO_RE = re.compile(r"^CleanExpo/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 PROTECTED_EXACT = {
     "app/server/auth.py",
     "app/server/config.py",
-    "dashboard/middleware.ts",
-    "dashboard/proxy.ts",  # the live auth proxy; middleware.ts was migrated to it (b77c406d)
+    "dashboard/middleware.ts", "dashboard/proxy.ts",  # proxy.ts: the live auth proxy since b77c406d
     "app/data/.password-hash",
     "app/data/.session-secret",
 }
