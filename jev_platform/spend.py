@@ -119,7 +119,7 @@ def reserve(caller: str, reserved_usd: float) -> int:
         raise
     except (sqlite3.Error, OSError, ValueError) as exc:
         _note("reserve_failed", caller, exc)
-        raise SpendUnrecorded(f"jev spend not recorded: {type(exc).__name__}") from exc
+        raise SpendUnrecorded(f"jev spend not recorded: {type(exc).__name__}")  # chained implicitly
 
 
 def finish(row: int, status: str, actual_usd: float | None = None, input_tokens: int | None = None) -> bool:
