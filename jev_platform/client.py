@@ -6,15 +6,19 @@ Every failure path returns `signal_unavailable` (or `budget_exhausted`); nothing
 from __future__ import annotations
 
 import json
+import os
 import re
 import threading
 import time
 import unicodedata
+import urllib.error
 import urllib.request
 import warnings
 
-from jev_platform import policy
+from jev_platform import policy, spend
 
+URL = "https://api.typesafe.ai/v1/systemone"
+CALLER = "jev_platform"
 MAX_REQUEST_BYTES = 64_000
 RESERVE_TOKENS = 64_000  # documented per-request limit (docs/vendor/typesafe/llms-full.txt:13008)
 USD_PER_TOKEN = 0.042 / 1_000_000
@@ -194,6 +198,30 @@ class Budget:
                 self.spent -= RESERVE_USD - tokens * USD_PER_TOKEN
 
 
+def _settled(data) -> tuple[str, float | None, int | None]:
+    """(status, actual_usd, input_tokens) for spend.finish: priced only from a valid reported token count."""
+    usage = (data or {}).get("usage") if isinstance(data, dict) else None
+    tokens = usage.get("input_tokens") if isinstance(usage, dict) else None
+    if isinstance(tokens, int) and not isinstance(tokens, bool) and 0 <= tokens <= RESERVE_TOKENS:
+        return "answered", tokens * USD_PER_TOKEN, tokens
+    return "answered", None, None  # no usable count: the row keeps its reserve
+
+
+def http_post(body: dict, timeout: float):
+    """The live TypeSafe transport. Reached only through send(), which records spend first."""
+    key = os.environ.get("TYPESAFE_API_KEY", "").strip()
+    req = urllib.request.Request(URL, data=json.dumps(body).encode(), method="POST",
+                                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+    try:
+        with open_url(req, timeout) as resp:
+            return resp.status, strict_json(resp.read().decode()), None
+    except ValueError:  # round 26: a duplicate-key reply is no signal, never a judgment
+        return 0, None, None
+    except urllib.error.HTTPError as e:
+        retry = e.headers.get("retry-after")
+        return e.code, None, float(retry) if retry and retry.replace(".", "", 1).isdigit() else None
+
+
 def build_request(state: str, rules: list[dict], model: str = "jev-latest") -> dict:
     return {"state": state, "model": model, "questions": {
         r["id"]: {"type": "noul", "instructions": r["question"],
@@ -226,13 +254,22 @@ def send(body: dict, post, budget: Budget, sleep=time.sleep) -> dict:
     for attempt in range(MAX_RETRIES + 1):
         if not budget.reserve():
             return {"error": "budget_exhausted"}
+        try:  # the machine ledger is written before the request leaves, or the request does not leave
+            row = spend.reserve(CALLER, RESERVE_USD)
+        except spend.SpendCapReached:
+            return {"error": "spend_cap_reached"}
+        except spend.SpendUnrecorded:
+            return {"error": "spend_unrecorded"}
         try:
             status, data, retry_after = post(body, min(REQUEST_TIMEOUT, budget.remaining_seconds()))
         except Exception:  # noqa: BLE001 — any transport failure is signal_unavailable, never a pass
+            spend.finish(row, "error")
             return {"error": "signal_unavailable:transport"}
         if status == 200:
             budget.settle(data)
+            spend.finish(row, *_settled(data))
             return {"data": data}
+        spend.finish(row, "error")
         wait = retry_after if isinstance(retry_after, (int, float)) else None
         if status != 429 or attempt == MAX_RETRIES or wait is None or wait >= budget.remaining_seconds():
             return {"error": f"signal_unavailable:http_{status}"}

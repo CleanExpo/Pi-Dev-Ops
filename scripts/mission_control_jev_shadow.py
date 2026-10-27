@@ -18,6 +18,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib import error, request
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from jev_platform import spend  # noqa: E402
+from scripts.jev_shadow_support import _caller, _ensure_spend_id, validate_answer  # noqa: E402,F401
+
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-1.13.0"  # Pinned so the reviewed price/context and evaluation remain comparable.
 USD_PER_MILLION_INPUT = 0.042
@@ -146,38 +150,18 @@ def prepare(snapshot: dict) -> tuple[dict, dict]:
     }
 
 
-def validate_answer(name: str, answer: object, question: dict) -> dict | None:
-    if not isinstance(answer, dict) or answer.get("type") != question["type"]:
-        return None
-    if question["type"] == "noul":
-        value = answer.get("noul")
-        return {"probability": value} if type(value) in (float, int) and 0 <= value <= 1 else None
-    probabilities, confidence = answer.get("probabilities"), answer.get("confidence")
-    if not isinstance(probabilities, dict) or type(confidence) not in (float, int) or not 0 <= confidence <= 1:
-        return None
-    expected = set(question["criteria"] if question["type"] == "choice" else map(str, range(len(question["criteria"]))))
-    if set(probabilities) != expected or any(type(value) not in (float, int) or not 0 <= value <= 1 for value in probabilities.values()):
-        return None
-    if abs(sum(probabilities.values()) - 1) > 0.02:
-        return None
-    if question["type"] == "choice":
-        choice = answer.get("choice")
-        if choice not in expected:
-            return None
-        return {"label": choice, "probabilities": probabilities, "confidence": confidence}
-    score = answer.get("score")
-    if type(score) not in (float, int) or not 0 <= score <= len(expected) - 1:
-        return None
-    return {"score": score, "probabilities": probabilities, "confidence": confidence}
-
-
 def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) -> int | None:
-    """Record each attempted call before egress; optionally enforce a daily ceiling."""
+    """Record each attempted call before egress; optionally enforce a daily ceiling.
+
+    This tool's own ledger (and its cap) commits first; then the machine spend ledger
+    (jev_platform.spend). No lock is held across the two files. A call this ledger's cap refuses
+    never reaches the machine ledger; a machine-ledger failure marks this row refused and raises."""
     ledger.parent.mkdir(parents=True, exist_ok=True)
     day = datetime.now(UTC).date().isoformat()
     charge = estimated_tokens * USD_PER_MILLION_INPUT / 1_000_000
     with sqlite3.connect(ledger, timeout=30, isolation_level=None) as db:
         db.execute("CREATE TABLE IF NOT EXISTS calls (id INTEGER PRIMARY KEY, day TEXT NOT NULL, reserved_usd REAL NOT NULL, actual_usd REAL, input_tokens INTEGER, status TEXT NOT NULL, created_at TEXT NOT NULL)")
+        _ensure_spend_id(db)
         db.execute("BEGIN IMMEDIATE")
         current = db.execute("SELECT COALESCE(SUM(reserved_usd), 0) FROM calls WHERE day=?", (day,)).fetchone()[0]
         if cap is not None and current + charge > cap:
@@ -188,6 +172,16 @@ def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) 
             (day, charge, "attempted", datetime.now(UTC).isoformat()),
         ).lastrowid
         db.execute("COMMIT")
+    try:
+        spend_id = spend.reserve(_caller(ledger), charge)
+    except (spend.SpendUnrecorded, spend.SpendCapReached) as exc:
+        with sqlite3.connect(ledger, timeout=30) as db:
+            db.execute("UPDATE calls SET status='refused', actual_usd=0 WHERE id=?", (call_id,))
+        if isinstance(exc, spend.SpendCapReached):
+            return None
+        raise
+    with sqlite3.connect(ledger, timeout=30) as db:
+        db.execute("UPDATE calls SET spend_id=? WHERE id=?", (spend_id, call_id))
     return call_id
 
 
@@ -198,6 +192,9 @@ def finish_call(ledger: Path, call_id: int, status: str, input_tokens: int | Non
             "UPDATE calls SET status=?, input_tokens=?, actual_usd=? WHERE id=?",
             (status, input_tokens, actual, call_id),
         )
+        row = db.execute("SELECT spend_id FROM calls WHERE id=?", (call_id,)).fetchone()
+    if row and row[0] is not None:
+        spend.finish(row[0], status, actual, input_tokens)
 
 
 def evaluate(payload: dict, api_key: str, opener=request.urlopen) -> dict:
@@ -230,7 +227,11 @@ def run_line(snapshot: dict, *, live: bool, key: str | None = None, ledger: Path
         receipt["reason"] = "KEY_OR_LEDGER_UNAVAILABLE"
         return receipt
     # Reserve the reviewed model maximum when an optional cap is configured.
-    call_id = reserve_call(ledger, RESERVED_INPUT_TOKENS_PER_CALL, cap)
+    try:
+        call_id = reserve_call(ledger, RESERVED_INPUT_TOKENS_PER_CALL, cap)
+    except spend.SpendUnrecorded:
+        receipt["reason"] = "SPEND_LEDGER_UNAVAILABLE"
+        return receipt
     if call_id is None:
         receipt["reason"] = "DAILY_BUDGET_EXHAUSTED"
         return receipt

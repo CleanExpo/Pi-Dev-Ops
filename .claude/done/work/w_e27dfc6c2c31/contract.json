@@ -1,0 +1,26 @@
+{
+  "schema": "done/1",
+  "work_id": "w_e27dfc6c2c31",
+  "version": 1,
+  "supersedes": null,
+  "goal": "spec: jev-spend-ledger (spec-work contract; the build contract supersedes it)",
+  "created_at_utc": "2026-10-27T22:10:32Z",
+  "identity_key": "worktree-jev-spend-ledger@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-spend-ledger",
+  "baseline_observed": {
+    "head": "41cf4aee7ccae09b675193ffcc44014e6974b4c3",
+    "branch": "worktree-jev-spend-ledger",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "S1",
+      "text": "The spec exists at .claude/done/spm/2026-10-28-jev-spend-ledger/spec.md",
+      "recipe": "test -s .claude/done/spm/2026-10-28-jev-spend-ledger/spec.md"
+    },
+    {
+      "id": "S2",
+      "text": "The engineering gate passes on the spec",
+      "recipe": "/opt/homebrew/bin/python3 /Users/phill-mac/.claude/skills/engineering-requirements/scripts/engineering_gate.py --spec .claude/done/spm/2026-10-28-jev-spend-ledger/spec.md"
+    }
+  ]
+}

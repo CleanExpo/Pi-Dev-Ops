@@ -37,10 +37,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from swarm.pii_redactor import redact as _redact_pii  # noqa: E402
 from swarm.tmux_validator import redact_secrets as _redact_secrets  # noqa: E402
 
+from jev_platform import spend  # noqa: E402
+
 log = logging.getLogger("jev_triage")
 
 ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
+CALLER = "jev_triage"
 PRICE_PER_MTOK_INPUT = 0.042  # docs.typesafe.ai/models, 2026-09-28; output tokens are free
 # Founder decision 2026-09-28: no daily cap on Jev while the system is used heavily.
 # Spend is still recorded per day; set JEV_DAILY_CAP_USD to reinstate a cap.
@@ -150,11 +153,23 @@ def evaluate(snap: dict, ledger: Ledger, transport: Transport, api_key: str) -> 
     tokens = estimate_tokens(body["state"] + json.dumps(body["questions"]))
     if not ledger.allows(tokens):
         return label_row(snap, None, None, "BUDGET_STOP")
+    try:  # the machine spend ledger is written before the request leaves, or it does not leave
+        row = spend.reserve(CALLER, tokens * PRICE_PER_MTOK_INPUT / 1e6)
+    except spend.SpendCapReached:
+        return label_row(snap, None, None, "SPEND_CAP")
+    except spend.SpendUnrecorded:
+        return label_row(snap, None, None, "SPEND_UNRECORDED")
     try:
         res = transport(body, api_key)
     except Exception as exc:  # noqa: BLE001 — advisory: a vendor failure is NOT_EVALUATED
         log.warning("jev call failed for %s: %s", snap.get("surface"), exc)
+        spend.finish(row, "error")  # the reserve stands: the request may have been billed
         return label_row(snap, None, None, "NOT_EVALUATED")
+    used = (res.get("usage") or {}).get("input_tokens")
+    if isinstance(used, int) and not isinstance(used, bool) and used >= 0:
+        spend.finish(row, "answered", used * PRICE_PER_MTOK_INPUT / 1e6, used)
+    else:
+        spend.finish(row, "answered")
     ledger.record(int((res.get("usage") or {}).get("input_tokens") or tokens))
     answer = (res.get("answers") or {}).get(snap["contract"].lower())
     return label_row(snap, answer, res.get("model"), "OK" if answer else "NOT_EVALUATED")
@@ -169,6 +184,9 @@ def run(snaps: list[dict], out: Path, ledger: Ledger, transport: Transport | Non
             print(json.dumps(build_body(snap)))
             continue
         rows.append(evaluate(snap, ledger, transport, api_key))
+        if rows[-1]["status"] in ("SPEND_UNRECORDED", "SPEND_CAP"):
+            log.error("stopped at snapshot %d of %d: %s", len(rows), len(snaps), rows[-1]["status"])
+            break
     if rows:
         out.write_text("".join(json.dumps(r) + "\n" for r in rows))
     return len(rows)

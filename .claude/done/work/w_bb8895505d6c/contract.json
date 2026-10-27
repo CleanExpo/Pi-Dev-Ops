@@ -1,0 +1,55 @@
+{
+  "schema": "done/1",
+  "work_id": "w_bb8895505d6c",
+  "version": 2,
+  "supersedes": "w_e27dfc6c2c31",
+  "goal": "Every Jev call this repo sends is recorded first in one canonical per-machine spend ledger, and the Guardian watcher reads it (spec rev 2)",
+  "identity_key": "worktree-jev-spend-ledger@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-spend-ledger",
+  "baseline_observed": {
+    "head": "41cf4aee7ccae09b675193ffcc44014e6974b4c3",
+    "branch": "worktree-jev-spend-ledger",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C7",
+      "text": "The engineering gate passes on spec rev 2",
+      "recipe": "/opt/homebrew/bin/python3 /Users/phill-mac/.claude/skills/engineering-requirements/scripts/engineering_gate.py --spec .claude/done/spm/2026-10-28-jev-spend-ledger/spec.md"
+    },
+    {
+      "id": "C1",
+      "text": "The new spend-ledger tests pass (spec section 15 C1 list)",
+      "recipe": "env -i HOME=/tmp/jev-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_ledger.py",
+      "timeout": 900
+    },
+    {
+      "id": "C2",
+      "text": "Existing Jev, shadow, skill-routing and placeholder tests pass",
+      "recipe": "env -i HOME=/tmp/jev-c2-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_mission_control_jev_shadow.py tests/test_skill_routing_modes.py tests/test_secrets_check_placeholder.py tests/test_jev_transport.py tests/test_jev_triage.py tests/test_jev_platform_writer.py tests/test_jev_platform_send_screen.py tests/test_jev_platform_scale.py tests/test_jev_platform_retry_snapshot.py tests/test_jev_platform_redirects.py tests/test_jev_platform_policy.py tests/test_jev_platform_payload_screen.py tests/test_jev_platform_level8_state.py tests/test_jev_platform_level10.py tests/test_jev_platform_harness_screen.py tests/test_jev_platform_guards_scout.py tests/test_jev_platform_guards_agent.py",
+      "timeout": 1200
+    },
+    {
+      "id": "C3",
+      "text": "The committed census test passes at HEAD (it was red at base 41cf4aee)",
+      "recipe": "env -i HOME=/tmp/jev-c3-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_census.py",
+      "timeout": 300
+    },
+    {
+      "id": "C4",
+      "text": "Every planted mutant is killed by an assertion in the new tests",
+      "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_bb8895505d6c/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+      "timeout": 3600
+    },
+    {
+      "id": "C5",
+      "text": "ruff passes on the changed Python files",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check jev_platform/spend.py jev_platform/client.py jev_platform/__main__.py scripts/mission_control_jev_shadow.py scripts/jev_triage.py evals/jev_constitution/harness.py app/server/skill_routing.py tests/test_jev_spend_ledger.py tests/test_jev_spend_census.py tests/conftest.py"
+    },
+    {
+      "id": "C6",
+      "text": "The real watcher (skills-library worktree) reports the exact sum of a ledger this code wrote, mirrored calls counted once",
+      "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_bb8895505d6c/seam.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python /Users/phill-mac/.claude-worktrees/jev-watcher-canonical/skills/guardian/scripts/jev-cap-watcher.py",
+      "timeout": 300
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schema": "done/1",
+  "work_id": "w_e27dfc6c2c31",
+  "contract_digest": "dcd7fd51dbe5b9b52d6344929c8ab9a9bcc92a6a495da856d2c8166f07ed8368",
+  "baseline_head": "41cf4aee7ccae09b675193ffcc44014e6974b4c3",
+  "identity_key": "worktree-jev-spend-ledger@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-spend-ledger",
+  "locked_at_utc": "2026-10-27T22:15:15Z",
+  "criteria_count": 2,
+  "recipe_pins": {
+    "work/w_e27dfc6c2c31/census.py": "9758bff4b39c3558ee7726f81e17089d7f416e33e7b5ddd8e5c8231525f71574",
+    "work/w_e27dfc6c2c31/mutants.py": "ea2f7142510a34b5efaf0b3262a6b1718c40e011172a8b4d96b93c7261b2758c",
+    "spm/2026-10-28-jev-spend-ledger/spec.md": "115549925f949eaca9f8dab65d439f97d911fc8cf5babfe44d73b64e51050d6c"
+  }
+}

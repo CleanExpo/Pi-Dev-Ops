@@ -23,7 +23,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from jev_platform import client
+from jev_platform import client, spend
 from jev_platform import committed as verified
 
 ROOT = Path(__file__).parent
@@ -33,6 +33,7 @@ CASES = ROOT / "cases"
 RESULTS = ROOT / "results"
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
+CALLER = "evals.jev_constitution"
 MIN_CASES = 1000
 MIN_SHARE = 0.30  # each label (comply / violate) must be at least 30% of a question's cases
 # Jev's documented weak spots; every question's cases must exercise each one.
@@ -132,11 +133,21 @@ def ask_jev(question: dict, state: str, key: str, post=_post) -> tuple[int, floa
         "criteria": {"true": question["criteria_true"], "false": question["criteria_false"]}}}}
     if client.credential_payload(body):
         return 0, None, 0.0  # round 22: a credential never leaves; an error, never a judgment
+    try:  # recorded in the machine spend ledger before it leaves, or it does not leave
+        row = spend.reserve(CALLER, client.RESERVE_USD)
+    except (spend.SpendUnrecorded, spend.SpendCapReached):
+        return 0, None, 0.0
     start = time.monotonic()
-    status, resp = post(body, key)
+    try:
+        status, resp = post(body, key)
+    except Exception:
+        spend.finish(row, "error")
+        raise
     elapsed = time.monotonic() - start
     if status != 200 or not isinstance(resp, dict):
+        spend.finish(row, "error")
         return status, None, elapsed
+    spend.finish(row, *client._settled(resp))
     return status, _valid_noul(resp), elapsed
 
 
