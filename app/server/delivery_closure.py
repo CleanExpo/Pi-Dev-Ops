@@ -102,13 +102,8 @@ def _finding(item: Snapshot, code: str, severity: Severity, owner: str, message:
     return Finding(item.issue_id, code, severity, owner, message, key)
 
 
-def assess(item: Snapshot, now: datetime, *, review_reminder_hours: int = 1,
-           review_escalation_hours: int = 4, founder_escalation_hours: int = 24) -> tuple[Finding, ...]:
-    """Prioritised advice. READ-ONLY; never self-authorises a release."""
-    age = _utc(now) - _utc(item.stage_since)
-    if age < timedelta(minutes=-5):
-        return (_finding(item, "INVALID_CLOCK", "critical", "SPM",
-                         "Stage timestamp is in the future; refuse to treat as fresh."),)
+def _disposition_findings(item: Snapshot) -> tuple[Finding, ...] | None:
+    """Done, closed, blocked and unowned items. None means: not decided here."""
     if item.stage == Stage.DONE:
         if not can_finish(item):
             return (_finding(item, "FALSE_DONE", "critical", "SPM",
@@ -122,6 +117,12 @@ def assess(item: Snapshot, now: datetime, *, review_reminder_hours: int = 1,
     if not item.owner:
         return (_finding(item, "UNOWNED", "escalation", "SPM",
                          "Every active deliverable needs a named accountable owner."),)
+    return None
+
+
+def _release_findings(item: Snapshot, age: timedelta, review_escalation_hours: int,
+                      founder_escalation_hours: int) -> tuple[Finding, ...] | None:
+    """Verified-live, approval and post-merge stages. None means: fall through to staleness."""
     if item.stage == Stage.VERIFIED_LIVE:
         if can_finish(item):
             return (_finding(item, "CLOSE_ELIGIBLE", "info", item.owner,
@@ -144,6 +145,21 @@ def assess(item: Snapshot, now: datetime, *, review_reminder_hours: int = 1,
         if age >= timedelta(hours=review_escalation_hours):
             return (_finding(item, "DEPLOY_UNVERIFIED", "escalation", item.owner,
                              "Merged code has no matching verified live revision."),)
+    return None
+
+
+def assess(item: Snapshot, now: datetime, *, review_reminder_hours: int = 1,
+           review_escalation_hours: int = 4, founder_escalation_hours: int = 24) -> tuple[Finding, ...]:
+    """Prioritised advice. READ-ONLY; never self-authorises a release."""
+    age = _utc(now) - _utc(item.stage_since)
+    if age < timedelta(minutes=-5):
+        return (_finding(item, "INVALID_CLOCK", "critical", "SPM",
+                         "Stage timestamp is in the future; refuse to treat as fresh."),)
+    decided = _disposition_findings(item)
+    if decided is None:
+        decided = _release_findings(item, age, review_escalation_hours, founder_escalation_hours)
+    if decided is not None:
+        return decided
     if age >= timedelta(hours=founder_escalation_hours):
         return (_finding(item, "STALE_24H", "founder", item.owner,
                          "No confirmed stage transition for 24 hours; founder oversight required."),)
