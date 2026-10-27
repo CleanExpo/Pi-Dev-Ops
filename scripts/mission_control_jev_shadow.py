@@ -150,6 +150,9 @@ def prepare(snapshot: dict) -> tuple[dict, dict]:
     }
 
 
+_SPEND_IDS: dict[tuple[str, int], int] = {}  # (ledger, call_id) -> machine-ledger row, settled first by finish_call
+
+
 def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) -> int | None:
     """Record each attempted call before egress; optionally enforce a daily ceiling.
 
@@ -180,21 +183,25 @@ def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) 
         if isinstance(exc, spend.SpendCapReached):
             return None
         raise
+    _SPEND_IDS[(str(ledger), call_id)] = spend_id
     with sqlite3.connect(ledger, timeout=30) as db:
         db.execute("UPDATE calls SET spend_id=? WHERE id=?", (spend_id, call_id))
     return call_id
 
 
 def finish_call(ledger: Path, call_id: int, status: str, input_tokens: int | None = None) -> None:
+    """Settle the machine row first, then this ledger best-effort: a failure here after a paid reply is
+    logged and the row keeps its reserve (overcounts), so the reply is never lost or resent."""
     actual = input_tokens * USD_PER_MILLION_INPUT / 1_000_000 if input_tokens is not None else None
-    with sqlite3.connect(ledger, timeout=30) as db:
-        db.execute(
-            "UPDATE calls SET status=?, input_tokens=?, actual_usd=? WHERE id=?",
-            (status, input_tokens, actual, call_id),
-        )
-        row = db.execute("SELECT spend_id FROM calls WHERE id=?", (call_id,)).fetchone()
-    if row and row[0] is not None:
-        spend.finish(row[0], status, actual, input_tokens)
+    spend_id = _SPEND_IDS.pop((str(ledger), call_id), None)
+    if spend_id is not None:
+        spend.finish(spend_id, status, actual, input_tokens)
+    try:
+        with sqlite3.connect(ledger, timeout=30) as db:
+            db.execute("UPDATE calls SET status=?, input_tokens=?, actual_usd=? WHERE id=?",
+                       (status, input_tokens, actual, call_id))
+    except sqlite3.Error as exc:
+        print(f"jev shadow: own ledger settle failed for call {call_id}: {type(exc).__name__}", file=sys.stderr)
 
 
 def evaluate(payload: dict, api_key: str, opener=request.urlopen) -> dict:
