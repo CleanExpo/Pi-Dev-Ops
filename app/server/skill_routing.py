@@ -68,18 +68,12 @@ def live_jev() -> Callable[[dict], dict] | None:
     if cap is None:
         log.warning("skill_router: SKILL_ROUTER_DAILY_CAP_USD is not a finite amount; Jev disabled")
         return None
-    from jev_platform import spend
     from scripts.mission_control_jev_shadow import (
         RESERVED_INPUT_TOKENS_PER_CALL, evaluate, finish_call, reserve_call)
 
     def call(payload: dict) -> dict:
         # Reserve the most one answer can bill (the validator's ceiling), never an estimate.
-        # reserve_call also records the call in the machine spend ledger before it is sent.
-        try:
-            call_id = reserve_call(LEDGER, RESERVED_INPUT_TOKENS_PER_CALL, cap)
-        except spend.SpendUnrecorded:
-            log.warning("skill_router: Jev spend ledger unwritable; routing without Jev")
-            raise
+        call_id = reserve_call(LEDGER, RESERVED_INPUT_TOKENS_PER_CALL, cap)
         if call_id is None:
             raise CapReached(f"daily Jev cap ${cap} reached")
         try:
