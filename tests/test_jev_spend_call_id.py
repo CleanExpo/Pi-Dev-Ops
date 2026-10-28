@@ -11,6 +11,7 @@ from evals.jev_constitution import harness
 from jev_platform import client, spend
 from scripts import jev_triage as triage
 from scripts import mission_control_jev_shadow as shadow
+from src.tao import skill_router
 from tests.jev_spend_support import BODY, QUESTION, SNAP, budget, ledger, rows, triage_ledger
 
 HEX32 = re.compile(r"[0-9a-f]{32}")
@@ -131,6 +132,17 @@ def test_triage_settles_its_own_call_after_a_reset(tmp_path):
         _collide()
         return {"model": "jev", "answers": {}, "usage": {"input_tokens": 1000}}
     triage.evaluate(SNAP, triage_ledger(tmp_path), transport, "k")
+    _assert_other_call_untouched()
+
+
+def test_skill_router_default_jev_settles_its_own_call_after_a_reset(monkeypatch):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-test-not-a-key")
+
+    def evaluate(payload, key, opener=None):
+        _collide()
+        return {"usage": {"input_tokens": 1000}}
+    monkeypatch.setattr(shadow, "evaluate", evaluate)
+    skill_router.default_jev()({"q": 1})
     _assert_other_call_untouched()
 
 
