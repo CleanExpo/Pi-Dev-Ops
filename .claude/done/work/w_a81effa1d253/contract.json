@@ -1,0 +1,39 @@
+{
+  "schema": "done/1",
+  "work_id": "w_a81effa1d253",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8125: the autonomy-ladder PreToolUse gate runs (and denies L3 and HARD_STOP) when invoked through a symlink or from a session launched outside the repo, instead of crashing with ModuleNotFoundError and failing open",
+  "created_at_utc": "2026-10-28T08:23:44Z",
+  "identity_key": "fix/RA-8125-autonomy-gate-path@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ra-8125-autonomy-gate",
+  "baseline_observed": {
+    "head": "c195d3e06783475df45e863a71c9f13279022a98",
+    "branch": "fix/RA-8125-autonomy-gate-path",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The RA-8125 regression tests pass: the hook invoked through a symlink from outside the repo denies under HARD_STOP and stays silent without it, and the settings.json command run with CLAUDE_PROJECT_DIR pointing away from the repo still runs the repo hook and denies under HARD_STOP",
+      "recipe": "env -i HOME=/tmp/ra8125-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_autonomy_gate_hook_paths.py",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "Every existing autonomy-gate test still passes",
+      "recipe": "env -i HOME=/tmp/ra8125-c2-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests swarm -k autonomy_gate",
+      "timeout": 900
+    },
+    {
+      "id": "C3",
+      "text": "Both planted defects (hook root by abspath; settings resolving the hook from the launch directory only) are killed by an assertion, and the unmutated export passes",
+      "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_a81effa1d253/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+      "timeout": 1200
+    },
+    {
+      "id": "C4",
+      "text": "ruff passes on the changed Python files and settings.json is valid JSON",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check .claude/hooks/autonomy_gate_hook.py tests/test_autonomy_gate_hook_paths.py && /usr/bin/python3 -c \"import json; json.load(open('.claude/settings.json'))\""
+    }
+  ]
+}

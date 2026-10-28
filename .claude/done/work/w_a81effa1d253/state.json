@@ -1,0 +1,63 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "PROVEN",
+  "verification_status": "PASS",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": "af9a78838ce32e7ecd4d820d422a36faa966b413",
+  "updated_at_utc": "2026-10-28T08:25:26Z",
+  "last_verify": {
+    "head": "af9a78838ce32e7ecd4d820d422a36faa966b413",
+    "at_utc": "2026-10-28T08:25:26Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -i HOME=/tmp/ra8125-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_autonomy_gate_hook_paths.py",
+        "exit_code": 0,
+        "timeout_s": 600,
+        "duration_s": 0.3,
+        "output_digest": "89d51992310087438e3d7b813830dc01b1c646bb4a2dae7649b85eb324c765c8",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_a81effa1d253/af9a78838ce3/C1-ab861dc170dc-89d5199231008743.log",
+        "output_tail": "..                                                                       [100%]\n2 passed in 0.15s"
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -i HOME=/tmp/ra8125-c2-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests swarm -k autonomy_gate",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 7.5,
+        "output_digest": "4ec5f64884967fbcfc7a66a3f3a1e681d9596c1a666f5fcdce8d180318893113",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_a81effa1d253/af9a78838ce3/C2-9685eb765661-4ec5f64884967fbc.log",
+        "output_tail": ".................................................                        [100%]\n=============================== warnings summary ===============================\napp/server/app_factory.py:129\n  /Users/phill-mac/Pi-Dev-Ops/.claude/worktrees/ra-8125-autonomy-gate/app/server/app_factory.py:129: DeprecationWarning: \n          on_event is deprecated, use lifespan event handlers instead.\n  \n          Read more about it in the\n          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).\n          \n    @app.on_event(\"startup\")\n\n../../../.venv/lib/python3.11/site-packages/fastapi/applications.py:4598\n../../../.venv/lib/python3.11/site-packages/fastapi/applications.py:4598\n../../../.venv/lib/python3.11/site-packages/fastapi/applications.py:4598\n../../../.venv/lib/python3.11/site-packages/fastapi/applications.py:4598\n  /Users/phill-mac/Pi-Dev-Ops/.venv/lib/python3.11/site-packages/fastapi/applications.py:4598: DeprecationWarning: \n          on_event is deprecated, use lifespan event handlers instead.\n  \n          Read more about it in the\n          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).\n          \n    return self.router.on_event(event_type)  # ty: ignore[deprecated]\n\napp/server/app_factory.py:277\n  /Users/phill-mac/Pi-Dev-Ops/.claude/worktrees/ra-8125-autonomy-gate/app/server/app_factory.py:277: DeprecationWarning: \n          on_event is deprecated, use lifespan event handlers instead.\n  \n          Read more about it in the\n          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).\n          \n    @app.on_event(\"shutdown\")\n\napp/server/routes/health.py:51\n  /Users/phill-mac/Pi-Dev-Ops/.claude/worktrees/ra-8125-autonomy-gate/app/server/routes/health.py:51: DeprecationWarning: \n          on_event is deprecated, use lifespan event handlers instead.\n  \n          Read more about it in the\n          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).\n          \n    @app.on_event(\"startup\")\n\napp/server/routes/telegram_intake.py:272\n  /Users/phill-mac/Pi-Dev-Ops/.claude/worktrees/ra-8125-autonomy-gate/app/server/routes/telegram_intake.py:272: DeprecationWarning: \n          on_event is deprecated, use lifespan event handlers instead.\n  \n          Read more about it in the\n          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).\n          \n    @app.on_event(\"startup\")\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n49 passed, 1 skipped, 9290 deselected, 8 warnings in 6.75s"
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_a81effa1d253/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+        "exit_code": 0,
+        "timeout_s": 1200,
+        "duration_s": 4.5,
+        "output_digest": "07863c9600cca4102d4c4ad9d81a7164dd28d52e541cdfd40e6f64b90f3d5864",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_a81effa1d253/af9a78838ce3/C3-8a214cef6d47-07863c9600cca410.log",
+        "output_tail": "unmutated: exit 0\nKILLED hook-root-by-abspath: FAILED tests/test_autonomy_gate_hook_paths.py::test_the_hook_reached_through_a_symlink_from_outside_the_repo_still_gates\nKILLED settings-launch-dir-only: FAILED tests/test_autonomy_gate_hook_paths.py::test_the_settings_command_finds_the_repo_hook_when_the_launch_dir_is_elsewhere"
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check .claude/hooks/autonomy_gate_hook.py tests/test_autonomy_gate_hook_paths.py && /usr/bin/python3 -c \"import json; json.load(open('.claude/settings.json'))\"",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 0.1,
+        "output_digest": "f0d0b1081d9d3ebb26c4c93543053ecdc0a58998f22c071dc4ddb26021b57645",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_a81effa1d253/af9a78838ce3/C4-08d1623c441b-f0d0b1081d9d3ebb.log",
+        "output_tail": "All checks passed!"
+      }
+    ],
+    "blockers": []
+  }
+}

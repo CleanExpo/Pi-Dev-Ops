@@ -1,0 +1,12 @@
+{
+  "schema": "done/1",
+  "work_id": "w_0859dd2c917d",
+  "contract_digest": "ccedc6bac844324ba6eba205374f4369f631190ee498d09041218c610685589a",
+  "baseline_head": "af9a78838ce32e7ecd4d820d422a36faa966b413",
+  "identity_key": "fix/RA-8125-autonomy-gate-path@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ra-8125-autonomy-gate",
+  "locked_at_utc": "2026-10-28T08:34:06Z",
+  "criteria_count": 4,
+  "recipe_pins": {
+    "work/w_0859dd2c917d/mutants.py": "80b9556573de44fb97ed42f08f1f6224fa37bf0f42da754a4a73306f904d02f0"
+  }
+}
