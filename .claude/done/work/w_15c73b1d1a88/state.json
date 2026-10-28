@@ -1,8 +1,97 @@
 {
   "schema": "done/1",
-  "criterion_evidence": "UNPROVEN",
-  "verification_status": "NOT_RUN",
+  "criterion_evidence": "PROVEN",
+  "verification_status": "PASS",
   "delivery_status": "NOT_STARTED",
-  "verified_head": null,
-  "updated_at_utc": "2026-10-28T05:25:13Z"
+  "verified_head": "1ed45211754cc3f4a5c9353c163872431ab36e53",
+  "updated_at_utc": "2026-10-28T05:29:29Z",
+  "last_partial": {
+    "head": "1ed45211754cc3f4a5c9353c163872431ab36e53",
+    "at_utc": "2026-10-28T05:26:28Z",
+    "ids": [
+      "C3"
+    ],
+    "matrix": [
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_cae13c9af03d/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+        "exit_code": 0,
+        "timeout_s": 3600,
+        "duration_s": 12.2,
+        "output_digest": "6515be7bc95be92dde45edbf7eaba1a7a97b8252bcd54227af8ac52594fca071",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_15c73b1d1a88/1ed45211754c/C3-8a214cef6d47-6515be7bc95be92d.log",
+        "output_tail": "unmutated: exit 0\nKILLED call-id-not-written: FAILED tests/test_jev_spend_call_id.py::test_every_row_gets_its_own_call_id\nKILLED call-id-reused: FAILED tests/test_jev_spend_call_id.py::test_every_row_gets_its_own_call_id\nKILLED call-id-not-unique: FAILED tests/test_jev_spend_call_id.py::test_call_ids_are_unique_in_the_ledger\nKILLED old-ledger-not-upgraded: FAILED tests/test_jev_spend_call_id.py::test_a_ledger_written_before_call_ids_is_upgraded_in_place\nKILLED reserve-returns-tuple: FAILED tests/test_jev_spend_call_id.py::test_reserve_still_returns_the_row_id_and_reserve_call_returns_the_call_id_too\nKILLED mirror-drops-call-id: FAILED tests/test_jev_spend_call_id.py::test_the_mirrored_legacy_row_stores_its_machine_rows_call_id\nKILLED mirror-stores-row-id: FAILED tests/test_jev_spend_call_id.py::test_the_mirrored_legacy_row_stores_its_machine_rows_call_id\nreal ledger untouched check: HOME for runs was /tmp/jev-mut-0q_ddww1/home; real path /Users/phill-mac/.local/state/jev/spend.sqlite"
+      }
+    ],
+    "tree_moved": false
+  },
+  "last_verify": {
+    "head": "1ed45211754cc3f4a5c9353c163872431ab36e53",
+    "at_utc": "2026-10-28T05:29:29Z",
+    "matrix": [
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -i HOME=/tmp/jev-cid-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_call_id.py",
+        "exit_code": 0,
+        "timeout_s": 600,
+        "duration_s": 0.3,
+        "output_digest": "2ede785f59c459cf06990a7b62328b5f8be2e637aae3cfa5008dc4de31858724",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_15c73b1d1a88/1ed45211754c/C1-ab861dc170dc-2ede785f59c459cf.log",
+        "output_tail": "......                                                                   [100%]\n6 passed in 0.08s"
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -i HOME=/tmp/jev-cid-c2-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_ledger.py tests/test_jev_spend_census.py tests/test_jev_spend_shadow_settle.py tests/test_mission_control_jev_shadow.py tests/test_skill_routing_modes.py tests/test_jev_transport.py tests/test_jev_triage.py",
+        "exit_code": 0,
+        "timeout_s": 1200,
+        "duration_s": 9.3,
+        "output_digest": "bda8e0b6d924c386e8e0a39d2b0f3c6f19c23866d9e825210157c0341d0e6656",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_15c73b1d1a88/1ed45211754c/C2-9685eb765661-bda8e0b6d924c386.log",
+        "output_tail": "........................................................................ [ 84%]\n.............                                                            [100%]\n85 passed in 9.15s"
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_cae13c9af03d/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+        "exit_code": 0,
+        "timeout_s": 3600,
+        "duration_s": 10.2,
+        "output_digest": "37114f56c6b86aaff420e3364d705c58317bea5b3d21fac4412a942b9be1752c",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_15c73b1d1a88/1ed45211754c/C3-8a214cef6d47-37114f56c6b86aaf.log",
+        "output_tail": "unmutated: exit 0\nKILLED call-id-not-written: FAILED tests/test_jev_spend_call_id.py::test_every_row_gets_its_own_call_id\nKILLED call-id-reused: FAILED tests/test_jev_spend_call_id.py::test_every_row_gets_its_own_call_id\nKILLED call-id-not-unique: FAILED tests/test_jev_spend_call_id.py::test_call_ids_are_unique_in_the_ledger\nKILLED old-ledger-not-upgraded: FAILED tests/test_jev_spend_call_id.py::test_a_ledger_written_before_call_ids_is_upgraded_in_place\nKILLED reserve-returns-tuple: FAILED tests/test_jev_spend_call_id.py::test_reserve_still_returns_the_row_id_and_reserve_call_returns_the_call_id_too\nKILLED mirror-drops-call-id: FAILED tests/test_jev_spend_call_id.py::test_the_mirrored_legacy_row_stores_its_machine_rows_call_id\nKILLED mirror-stores-row-id: FAILED tests/test_jev_spend_call_id.py::test_the_mirrored_legacy_row_stores_its_machine_rows_call_id\nreal ledger untouched check: HOME for runs was /tmp/jev-mut-bpeam5lj/home; real path /Users/phill-mac/.local/state/jev/spend.sqlite"
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check jev_platform/spend.py scripts/jev_shadow_support.py scripts/mission_control_jev_shadow.py tests/test_jev_spend_call_id.py",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 0.1,
+        "output_digest": "f0d0b1081d9d3ebb26c4c93543053ecdc0a58998f22c071dc4ddb26021b57645",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_15c73b1d1a88/1ed45211754c/C4-08d1623c441b-f0d0b1081d9d3ebb.log",
+        "output_tail": "All checks passed!"
+      },
+      {
+        "id": "C5",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_cae13c9af03d/seam.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python /Users/phill-mac/.claude-worktrees/jev-watcher-canonical/skills/guardian/scripts/jev-cap-watcher.py",
+        "exit_code": 0,
+        "timeout_s": 300,
+        "duration_s": 0.2,
+        "output_digest": "1263556967b4c47d11a6789415eb36f264d4fc59637b1c4eb911ffda3b64354f",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_15c73b1d1a88/1ed45211754c/C5-1d96682bdb05-1263556967b4c47d.log",
+        "output_tail": "{\"day\": \"2026-10-28\", \"ledger\": \"/tmp/jev-seam-6ui7y3b8/spend.sqlite\", \"newest\": \"2026-10-28T05:29:29.535888+00:00\", \"refusals_24h\": 0, \"spent\": 0.25021, \"stale_attempted\": 0, \"statuses\": {\"answered\": 2}, \"unknown\": []}\nexpected 0.250210000"
+      }
+    ],
+    "blockers": []
+  }
 }

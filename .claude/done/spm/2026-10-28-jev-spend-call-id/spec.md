@@ -46,12 +46,22 @@ A mirrored legacy row is skipped only when today's machine ledger holds a row wi
 other legacy row counts. A ledger reset can never make two different calls look like one.
 
 Hard-day case: the machine ledger is unreadable, reset mid-day, or still old-schema while legacy rows already carry
-ids. Each case must over-count (alert early) or report UNKNOWN, never under-count.
+ids. Each case must over-count (alert early) or report UNKNOWN, never a quiet under-count. A reset loses the
+spend of calls nothing mirrors (client.send, the eval harness, triage); no ledger can restore it, so the watcher
+reports the day UNKNOWN with a lower bound. Signs of a reset (engineering bench, boris and eng-test): a mirrored
+call id with no machine row on any day, fewer machine rows today than the last run saw, or a newer oldest machine
+row. Residual: a reset AND a refill to the same row count between two watcher runs, with no mirrored call that
+day and an unchanged oldest row, is not detectable; recorded in engineering.md.
+
+This change makes the alert truthful. It does not make the cap survive a reset: `JEV_DAILY_CAP_USD`, where set,
+sums only the current machine-ledger file, so a reset re-opens the day's allowance (eng-cost; follow-up ticket).
 
 Decision card:
 - Impact: the cap alert becomes trustworthy across resets.
 - Evidence: round-4 Codex repro (canonical id=1 $12, legacy spend_id=1 $12 -> 12 reported, true 24).
-- Unknowns: upgrade-day double counting of rows written by old code (bounded to one day, safe direction).
+- Unknowns: double counting of mirrored rows written by a writer checkout still on old code. It lasts until every
+  writer checkout on the Mini is updated, not one day (eng-failure, boris), so section 17 makes that a precondition
+  of installing the watcher.
 - Options: (a) keep patching the id+amount rule — rejected after 4 rounds; (b) unique id in the data — chosen.
 - Dissent: a uuid column is a schema change on a live local ledger; mitigated by an in-place `ALTER TABLE ADD COLUMN`
   that never rewrites or drops rows.
@@ -74,8 +84,12 @@ Decision card:
 - Installing on the Mini (`install_guardian.py`, `~/relint/pdo` update) — after Phill merges.
 
 ### Explicit non-goals
-- No change to `client.py`, the eval harness, or `finish()` signatures.
+- `finish()` keeps its positional signature; `call_id` is a new keyword. (Superseded by the bench: client.py, the
+  eval harness and triage now call `reserve_call` and settle by call id, so a reset mid-call cannot overwrite a
+  different call's amount.)
 - No Supabase or remote schema.
+- Not in this change, ticketed: the cap surviving a reset; per-kind refusal reporting (cap_reached informational,
+  settle_failed and settle_missing named); a watcher heartbeat; RA-8120 (refusal line with a non-string `at`).
 
 ### Assumptions
 - Machine and legacy rows are stamped with the same UTC day (both use UTC today).
@@ -127,8 +141,15 @@ Total 100. Decision: APPROVE BUILD. (North Star fit UNVERIFIED does not lower a 
 - Watcher flow: read the machine ledger first; if it has `call_id`, twins = set of today's call ids. For each
   legacy ledger: skip a row only if it has `spend_call_id` and that id is in twins; count everything else.
   If the machine ledger has no `call_id` column (old code), twins is empty and every legacy row counts.
-- Failure flow: machine ledger unreadable -> already reported in `bad` (UNKNOWN), unchanged.
-- Rollback: revert either PR. Columns are additive; old code ignores them.
+  The machine ledger's sum and call ids come from one SELECT (eng-concurrency): two reads let a call landing
+  between them be skipped in the legacy ledger and missing from the total.
+- Settle flow: `spend.finish(row, ..., call_id=)` updates `WHERE id=? AND call_id=?`; a settle matching no row
+  returns False and writes `settle_missing` beside the ledger (eng-data).
+- Failure flow: machine ledger unreadable -> already reported in `bad` (UNKNOWN), unchanged. A reset (section 4)
+  -> UNKNOWN for the rest of the UTC day.
+- Rollback: revert either PR. Columns are additive; old code ignores them. Reverting only Pi-Dev-Ops while the
+  new watcher stays installed over-counts every mirrored call (safe direction, noisy). Restore the watcher from
+  `~/.local/bin/jev-cap-watcher.py.bak-*` or reinstall, then run the post-install check (section 17).
 
 ## 10. UX requirements
 
@@ -171,7 +192,9 @@ enforced by the index.
 - [ ] C2 existing Jev/shadow/skill-routing suites pass.
 - [ ] C3 every planted mutant killed.
 - [ ] C4 ruff passes on changed Python files.
-- [ ] C5 the real watcher (rebased skills-library branch) reports the true sum on a reset ledger set written by this code.
+- [ ] C5 the watcher at the reviewed skills-library commit reports the exact sum before a reset, and after a reset
+  reports the machine ledger UNKNOWN with the lower bound that excludes only the lost unmirrored call (eng-test:
+  the earlier oracle passed on a total 1,000 tokens short). Control: the earlier watcher fails it.
 
 ## 16. Goal command
 
@@ -183,7 +206,16 @@ enforced by the index.
 
 1. Pi-Dev-Ops: spend.py column + `reserve_call`; shadow mirror; tests; mutants; seam. Review, gate, PR.
 2. skills-library: rebase onto main; call-id matching; tests; mutants. Review, gate, PR.
-3. After Phill merges both: update the Mini's Pi-Dev-Ops checkout used by the watcher and run `install_guardian.py`.
+3. After Phill merges both, in this order (eng-release, eng-failure, boris):
+   a. Record `git rev-parse HEAD` of every Jev writer checkout on the Mini: `~/Pi-Dev-Ops`, `~/relint/pdo`,
+      `/Volumes/Mini Mini 2T Storage/code/pdo-jev-runner`, plus any found by `launchctl list | grep -i jev`.
+   b. Update each to the merged commit (a descendant of this PR's head) and restart any process running it.
+      The watcher is not installed until every one is, because a checkout left on c195d3e0 is double-counted every
+      day and one left before #955 writes spend the watcher no longer reads.
+   c. Back up `~/.local/bin/jev-cap-watcher.py`, then run `install_guardian.py`.
+   d. Post-install check, first run against the current install so it is seen to fail: the installed watcher's
+      sha256 equals the merged file's, and the newest line of `~/Library/Logs/jev-cap-watcher.log` carries
+      `machine_call_id`, `orphan_links` and `reset`.
 
 ## 18. Session handoff seed
 
