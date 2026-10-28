@@ -1,0 +1,12 @@
+{
+  "schema": "done/1",
+  "work_id": "w_88f1ea7eeb6a",
+  "contract_digest": "0574eeaf606acff649839a1424cef1b354f74b83d10cc5d2978a4927de4e71d7",
+  "baseline_head": "c195d3e06783475df45e863a71c9f13279022a98",
+  "identity_key": "fix/RA-8127-hook-noise@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ra-8127-hook-noise",
+  "locked_at_utc": "2026-10-28T09:01:08Z",
+  "criteria_count": 4,
+  "recipe_pins": {
+    "work/w_88f1ea7eeb6a/mutants.py": "7c552644d595709138ff5760f9bfd3977c1954bda87d5a7b01402aa78f341158"
+  }
+}
