@@ -150,7 +150,7 @@ def prepare(snapshot: dict) -> tuple[dict, dict]:
     }
 
 
-_SPEND_IDS: dict[tuple[str, int], int] = {}  # (ledger, call_id) -> machine-ledger row, settled first by finish_call
+_SPEND_IDS: dict[tuple[str, int], tuple[int, str]] = {}  # (ledger, row) -> machine (row, call id), settled first
 
 
 def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) -> int | None:
@@ -183,7 +183,7 @@ def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) 
         if isinstance(exc, spend.SpendCapReached):
             return None
         raise
-    _SPEND_IDS[(str(ledger), call_id)] = spend_id
+    _SPEND_IDS[(str(ledger), call_id)] = (spend_id, spend_call_id)
     with sqlite3.connect(ledger, timeout=30) as db:
         db.execute("UPDATE calls SET spend_id=?, spend_call_id=? WHERE id=?", (spend_id, spend_call_id, call_id))
     return call_id
@@ -193,9 +193,9 @@ def finish_call(ledger: Path, call_id: int, status: str, input_tokens: int | Non
     """Settle the machine row first, then this ledger best-effort: a failure here after a paid reply is
     logged and the row keeps its reserve (overcounts), so the reply is never lost or resent."""
     actual = input_tokens * USD_PER_MILLION_INPUT / 1_000_000 if input_tokens is not None else None
-    spend_id = _SPEND_IDS.pop((str(ledger), call_id), None)
-    if spend_id is not None:
-        spend.finish(spend_id, status, actual, input_tokens)
+    machine = _SPEND_IDS.pop((str(ledger), call_id), None)
+    if machine is not None:
+        spend.finish(machine[0], status, actual, input_tokens, call_id=machine[1])
     try:
         with sqlite3.connect(ledger, timeout=30) as db:
             db.execute("UPDATE calls SET status=?, input_tokens=?, actual_usd=? WHERE id=?",

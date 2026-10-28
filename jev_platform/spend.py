@@ -103,14 +103,20 @@ def _connect(path: Path) -> sqlite3.Connection:
     return db
 
 
-def _ensure_call_id(db: sqlite3.Connection) -> None:
-    """A ledger written before call ids gains the column in place; its old rows keep a NULL id."""
-    if "call_id" not in {row[1] for row in db.execute("PRAGMA table_info(calls)")}:
+def add_column(db: sqlite3.Connection, name: str, kind: str) -> None:
+    """Add a column to `calls` in place unless it is there. Two processes upgrading one old ledger at the same
+    moment both see it missing; the second ALTER then fails with "duplicate column", which is success."""
+    if name not in {row[1] for row in db.execute("PRAGMA table_info(calls)")}:
         try:
-            db.execute("ALTER TABLE calls ADD COLUMN call_id TEXT")
-        except sqlite3.OperationalError as exc:  # another process added it first
+            db.execute(f"ALTER TABLE calls ADD COLUMN {name} {kind}")
+        except sqlite3.OperationalError as exc:
             if "duplicate column" not in str(exc):
                 raise
+
+
+def _ensure_call_id(db: sqlite3.Connection) -> None:
+    """A ledger written before call ids gains the column in place; its old rows keep a NULL id."""
+    add_column(db, "call_id", "TEXT")
     db.execute("CREATE UNIQUE INDEX IF NOT EXISTS calls_call_id ON calls(call_id)")
 
 
@@ -146,12 +152,20 @@ def reserve_call(caller: str, reserved_usd: float) -> tuple[int, str]:
         raise SpendUnrecorded(f"jev spend not recorded: {type(exc).__name__}")  # chained implicitly
 
 
-def finish(row: int, status: str, actual_usd: float | None = None, input_tokens: int | None = None) -> bool:
-    """Settle a reserved row. Never raises: on failure the row keeps its reserve and a line is logged."""
+def finish(row: int, status: str, actual_usd: float | None = None, input_tokens: int | None = None,
+           call_id: str | None = None) -> bool:
+    """Settle a reserved row. Never raises: on failure the row keeps its reserve and a line is logged.
+
+    Pass the call id from reserve_call(): a row id is reused once the ledger file is reset, so settling by row
+    id alone can overwrite a different call's amount. A settle that matches no row is reported, not assumed."""
+    where, key = ("id=? AND call_id=?", (row, call_id)) if call_id is not None else ("id=?", (row,))
     try:
         with contextlib.closing(_connect(ledger_path())) as db:
-            db.execute("UPDATE calls SET status=?, actual_usd=?, input_tokens=? WHERE id=?",
-                       (status, actual_usd, input_tokens, row))
+            hit = db.execute(f"UPDATE calls SET status=?, actual_usd=?, input_tokens=? WHERE {where}",
+                             (status, actual_usd, input_tokens, *key)).rowcount
+        if hit != 1:
+            _note("settle_missing", "finish", None, row)
+            return False
         return True
     except Exception as exc:  # noqa: BLE001 — a settle failure must never lose a paid reply
         _note("settle_failed", "finish", exc, row)

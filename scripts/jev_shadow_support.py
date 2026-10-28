@@ -7,6 +7,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+from jev_platform import spend
+
 
 def validate_answer(name: str, answer: object, question: dict) -> dict | None:
     if not isinstance(answer, dict) or answer.get("type") != question["type"]:
@@ -40,7 +42,5 @@ def _caller(ledger: Path) -> str:
 def _ensure_spend_id(db: sqlite3.Connection) -> None:
     """Legacy ledgers gain the canonical row id and call id. The watcher skips a mirrored row only when its
     call id is in today's machine ledger: a row id alone is reused after the machine ledger is reset."""
-    cols = {row[1] for row in db.execute("PRAGMA table_info(calls)")}
     for name, kind in (("spend_id", "INTEGER"), ("spend_call_id", "TEXT")):
-        if name not in cols:
-            db.execute(f"ALTER TABLE calls ADD COLUMN {name} {kind}")
+        spend.add_column(db, name, kind)

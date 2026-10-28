@@ -3,12 +3,15 @@
 The Guardian watcher skips a mirrored legacy row only when its call id is in today's machine ledger. A row id
 alone is reused after the machine ledger is reset, which let one $12 call hide another.
 """
+import json
 import re
 import sqlite3
 
-from jev_platform import spend
+from evals.jev_constitution import harness
+from jev_platform import client, spend
+from scripts import jev_triage as triage
 from scripts import mission_control_jev_shadow as shadow
-from tests.jev_spend_support import ledger, rows
+from tests.jev_spend_support import BODY, QUESTION, SNAP, budget, ledger, rows, triage_ledger
 
 HEX32 = re.compile(r"[0-9a-f]{32}")
 OLD_SCHEMA = ("CREATE TABLE calls (id INTEGER PRIMARY KEY, day TEXT NOT NULL, caller TEXT NOT NULL, "
@@ -78,3 +81,96 @@ def test_after_a_machine_ledger_reset_a_reused_row_id_gets_a_new_call_id(tmp_pat
     with sqlite3.connect(legacy) as db:
         mirrored = [r[0] for r in db.execute("SELECT spend_call_id FROM calls ORDER BY id")]
     assert mirrored == [before["call_id"], after["call_id"]]
+
+
+def _collide() -> None:
+    """The machine ledger is reset mid-call and a different call takes the same row id."""
+    ledger().unlink()
+    spend.reserve("other", 7.0)
+
+
+def _assert_other_call_untouched() -> None:
+    other = [r for r in rows() if r["caller"] == "other"]
+    assert len(other) == 1 and (other[0]["status"], other[0]["actual_usd"]) == ("attempted", None), rows()
+    notes = (ledger().parent / spend.REFUSALS).read_text().splitlines()
+    assert any(json.loads(n)["kind"] == "settle_missing" for n in notes), notes
+
+
+def test_settling_by_call_id_never_overwrites_a_different_call_after_a_reset():
+    row, call_id = spend.reserve_call("t", 1.0)
+    _collide()
+    assert rows()[0]["id"] == row
+    assert spend.finish(row, "answered", 0.5, 10, call_id=call_id) is False
+    _assert_other_call_untouched()
+
+
+def test_a_settle_that_matches_no_row_reports_it_even_without_a_call_id():
+    spend.reserve("t", 1.0)
+    assert spend.finish(99, "answered", 0.5, 10) is False
+    assert json.loads((ledger().parent / spend.REFUSALS).read_text())["kind"] == "settle_missing"
+
+
+def test_client_send_settles_its_own_call_after_a_reset():
+    def post(body, timeout):
+        _collide()
+        return 200, {"usage": {"input_tokens": 1000}, "answers": {}}, None
+    client.send(BODY, post, budget())
+    _assert_other_call_untouched()
+
+
+def test_harness_settles_its_own_call_after_a_reset():
+    def post(body, key):
+        _collide()
+        return 200, {"usage": {"input_tokens": 1000}}
+    harness.ask_jev(QUESTION, "state", "k", post=post)
+    _assert_other_call_untouched()
+
+
+def test_triage_settles_its_own_call_after_a_reset(tmp_path):
+    def transport(body, key):
+        _collide()
+        return {"model": "jev", "answers": {}, "usage": {"input_tokens": 1000}}
+    triage.evaluate(SNAP, triage_ledger(tmp_path), transport, "k")
+    _assert_other_call_untouched()
+
+
+def test_shadow_settles_its_own_machine_call_after_a_reset(tmp_path):
+    legacy = tmp_path / "jev-shadow-ledger.sqlite"
+    own = shadow.reserve_call(legacy, 1000, cap=None)
+    _collide()
+    shadow.finish_call(legacy, own, "answered", 100)
+    _assert_other_call_untouched()
+
+
+def test_a_legacy_ledger_that_already_has_spend_id_gains_spend_call_id(tmp_path):
+    """The live Mini state after #955: spend_id is there, spend_call_id is not."""
+    legacy = tmp_path / "jev-shadow-ledger.sqlite"
+    with sqlite3.connect(legacy) as db:
+        db.execute("CREATE TABLE calls (id INTEGER PRIMARY KEY, day TEXT NOT NULL, reserved_usd REAL NOT NULL, "
+                   "actual_usd REAL, input_tokens INTEGER, status TEXT NOT NULL, created_at TEXT NOT NULL, "
+                   "spend_id INTEGER)")
+    own = shadow.reserve_call(legacy, 1000, cap=None)
+    with sqlite3.connect(legacy) as db:
+        got = db.execute("SELECT spend_id, spend_call_id FROM calls WHERE id=?", (own,)).fetchone()
+    assert got == (rows()[0]["id"], rows()[0]["call_id"]) and HEX32.fullmatch(got[1] or "")
+
+
+class _RacedDb:
+    """Another process added the column between our PRAGMA and our ALTER."""
+
+    def __init__(self, db):
+        self.db = db
+
+    def execute(self, sql, *args):
+        return iter([]) if sql.startswith("PRAGMA") else self.db.execute(sql, *args)
+
+
+def test_adding_a_column_another_process_just_added_is_success():
+    db = sqlite3.connect(":memory:")
+    db.execute("CREATE TABLE calls (id INTEGER PRIMARY KEY, spend_call_id TEXT)")
+    spend.add_column(_RacedDb(db), "spend_call_id", "TEXT")
+    try:
+        spend.add_column(_RacedDb(db), "x", "NOT A TYPE (")
+    except sqlite3.OperationalError:
+        return
+    raise AssertionError("an ALTER that failed for another reason was swallowed")
