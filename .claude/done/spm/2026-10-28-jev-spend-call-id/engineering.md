@@ -30,6 +30,13 @@ is bound to. Codex round 2 then found two more, both in the same classes as abov
 (`src/tao/skill_router.py`, outside the first caller search) still settled by row id; and a legacy ledger that
 disappeared or lost rows dropped its spend from the total without UNKNOWN. Fixed at Pi-Dev-Ops a2ed6e93 and
 skills-library 9ea3d239; Done v5 (w_bd4aa96beefb) carries the extra mutants and pins C5 to 9ea3d239.
+Codex round 3 found two more of the same classes: the shadow keyed its own calls by its own reusable row id, so a
+reset of only the shadow ledger settled the wrong call; and a legacy ledger replaced by one with as many rows (but
+less money) was not UNKNOWN. Fixed at Pi-Dev-Ops 706e6aca (the handle is the machine call id, and both ledgers settle
+by it) and skills-library d42b10d9 (each legacy ledger's oldest row today is tracked, as for the machine ledger;
+falling dollars are deliberately not a signal, because settling lowers a row's amount). Done v6 (w_96d0d2e86f28):
+19 mutants, C5 pinned to d42b10d9. The machine-ledger half of that finding (same count, same oldest row, no mirrored
+call) is the residual already recorded under Invariants.
 
 ## Data model
 > `spend.finish(row, ..., call_id=)` updates `WHERE id=? AND call_id=?`; a settle matching no row returns False and writes `settle_missing` beside the ledger (eng-data).
