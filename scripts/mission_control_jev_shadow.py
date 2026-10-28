@@ -176,7 +176,7 @@ def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) 
         ).lastrowid
         db.execute("COMMIT")
     try:
-        spend_id = spend.reserve(_caller(ledger), charge)
+        spend_id, spend_call_id = spend.reserve_call(_caller(ledger), charge)
     except (spend.SpendUnrecorded, spend.SpendCapReached) as exc:
         with sqlite3.connect(ledger, timeout=30) as db:
             db.execute("UPDATE calls SET status='refused', actual_usd=0 WHERE id=?", (call_id,))
@@ -185,7 +185,7 @@ def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) 
         raise
     _SPEND_IDS[(str(ledger), call_id)] = spend_id
     with sqlite3.connect(ledger, timeout=30) as db:
-        db.execute("UPDATE calls SET spend_id=? WHERE id=?", (spend_id, call_id))
+        db.execute("UPDATE calls SET spend_id=?, spend_call_id=? WHERE id=?", (spend_id, spend_call_id, call_id))
     return call_id
 
 

@@ -38,6 +38,9 @@ def _caller(ledger: Path) -> str:
 
 
 def _ensure_spend_id(db: sqlite3.Connection) -> None:
-    """Legacy ledgers gain the canonical row id, so the watcher counts a mirrored call once."""
-    if "spend_id" not in {row[1] for row in db.execute("PRAGMA table_info(calls)")}:
-        db.execute("ALTER TABLE calls ADD COLUMN spend_id INTEGER")
+    """Legacy ledgers gain the canonical row id and call id. The watcher skips a mirrored row only when its
+    call id is in today's machine ledger: a row id alone is reused after the machine ledger is reset."""
+    cols = {row[1] for row in db.execute("PRAGMA table_info(calls)")}
+    for name, kind in (("spend_id", "INTEGER"), ("spend_call_id", "TEXT")):
+        if name not in cols:
+            db.execute(f"ALTER TABLE calls ADD COLUMN {name} {kind}")
