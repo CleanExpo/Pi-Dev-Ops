@@ -263,6 +263,18 @@ def default_jev() -> Callable[[dict], dict] | None:
     key = os.environ.get("TYPESAFE_API_KEY")
     if not key:
         return None
-    from scripts.mission_control_jev_shadow import evaluate
+    from jev_platform import client, spend
+    from scripts.mission_control_jev_shadow import RESERVED_INPUT_TOKENS_PER_CALL, USD_PER_MILLION_INPUT, evaluate
 
-    return lambda payload: evaluate(payload, key)
+    def call(payload: dict) -> dict:
+        # Recorded in the machine spend ledger before it leaves; SpendUnrecorded degrades like any Jev failure.
+        row = spend.reserve("skill_router", RESERVED_INPUT_TOKENS_PER_CALL * USD_PER_MILLION_INPUT / 1_000_000)
+        try:
+            result = evaluate(payload, key)
+        except Exception:
+            spend.finish(row, "error")
+            raise
+        spend.finish(row, *client._settled(result))
+        return result
+
+    return call

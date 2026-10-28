@@ -11,28 +11,14 @@ import json
 import os
 import subprocess
 import sys
-import urllib.error
-import urllib.request
 
 from jev_platform import agent, ask, cli_scale, client, engine
 from jev_platform import committed as verified
 from jev_platform import manifest as mf
 
-URL = "https://api.typesafe.ai/v1/systemone"
-
-
-def http_post(body: dict, timeout: float):
-    key = os.environ.get("TYPESAFE_API_KEY", "").strip()
-    req = urllib.request.Request(URL, data=json.dumps(body).encode(), method="POST",
-                                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
-    try:
-        with client.open_url(req, timeout) as resp:
-            return resp.status, client.strict_json(resp.read().decode()), None
-    except ValueError:  # round 26: a duplicate-key reply is no signal, never a judgment
-        return 0, None, None
-    except urllib.error.HTTPError as e:
-        retry = e.headers.get("retry-after")
-        return e.code, None, float(retry) if retry and retry.replace(".", "", 1).isdigit() else None
+# The transport lives in client.py beside send(), which records every request in the spend ledger first.
+URL = client.URL
+http_post = client.http_post
 
 
 def _live_ready() -> bool:

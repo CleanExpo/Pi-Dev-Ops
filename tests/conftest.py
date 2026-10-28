@@ -29,6 +29,33 @@ def _fresh_left_running_record(tmp_path, monkeypatch):
         monkeypatch.setattr(module, "_UNRECORDED", [False])
 
 
+_REAL_JEV_LEDGER = os.path.expanduser("~/.local/state/jev/spend.sqlite")
+
+
+def _ledger_fingerprint():
+    try:
+        st = os.stat(_REAL_JEV_LEDGER)
+        return (st.st_size, st.st_mtime_ns)
+    except FileNotFoundError:
+        return None
+
+
+_REAL_JEV_LEDGER_AT_START = _ledger_fingerprint()
+
+
+@pytest.fixture(autouse=True)
+def _isolated_jev_spend_ledger(tmp_path, monkeypatch):
+    """Fake Jev calls are recorded too; they must never reach the machine's real spend ledger."""
+    monkeypatch.setenv("JEV_SPEND_LEDGER", str(tmp_path / "jev-spend.sqlite"))
+    monkeypatch.delenv("JEV_DAILY_CAP_USD", raising=False)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    if _ledger_fingerprint() != _REAL_JEV_LEDGER_AT_START:
+        session.exitstatus = 1
+        print(f"\nFAIL: the test run changed the real Jev spend ledger {_REAL_JEV_LEDGER}")
+
+
 @pytest.fixture(autouse=True)
 def _fresh_mesh_queue_cache():
     """RA-7910: claim/self shares one Linear read per TTL; never let it leak between tests."""

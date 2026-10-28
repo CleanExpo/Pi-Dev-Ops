@@ -1,0 +1,99 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "PROVEN",
+  "verification_status": "PASS",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": "29baa460671af291b8607dc249f21d8024615523",
+  "updated_at_utc": "2026-10-27T22:59:54Z",
+  "last_verify": {
+    "head": "29baa460671af291b8607dc249f21d8024615523",
+    "at_utc": "2026-10-27T22:59:54Z",
+    "matrix": [
+      {
+        "id": "C7",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/opt/homebrew/bin/python3 /Users/phill-mac/.claude/skills/engineering-requirements/scripts/engineering_gate.py --spec .claude/done/spm/2026-10-28-jev-spend-ledger/spec.md",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 0.1,
+        "output_digest": "d2545f6e99e53ce324ddae16d8aad2491467c7952ad7d8befa63a29c3fa5de77",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_bb8895505d6c/29baa460671a/C7-f167717fb2ed-d2545f6e99e53ce3.log",
+        "output_tail": "ENGINEERING_GATE_PASS /Users/phill-mac/Pi-Dev-Ops/.claude/worktrees/jev-spend-ledger/.claude/done/spm/2026-10-28-jev-spend-ledger/engineering.md"
+      },
+      {
+        "id": "C1",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -i HOME=/tmp/jev-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_ledger.py",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 0.5,
+        "output_digest": "6eda73279afa8e6862d7bb22ba7e3c0d48f37af981baa45e4d5c186ea73dc46c",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_bb8895505d6c/29baa460671a/C1-ab861dc170dc-6eda73279afa8e68.log",
+        "output_tail": "...........................                                              [100%]\n27 passed in 0.22s"
+      },
+      {
+        "id": "C2",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -i HOME=/tmp/jev-c2-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_mission_control_jev_shadow.py tests/test_skill_routing_modes.py tests/test_secrets_check_placeholder.py tests/test_jev_transport.py tests/test_jev_triage.py tests/test_jev_platform_writer.py tests/test_jev_platform_send_screen.py tests/test_jev_platform_scale.py tests/test_jev_platform_retry_snapshot.py tests/test_jev_platform_redirects.py tests/test_jev_platform_policy.py tests/test_jev_platform_payload_screen.py tests/test_jev_platform_level8_state.py tests/test_jev_platform_level10.py tests/test_jev_platform_harness_screen.py tests/test_jev_platform_guards_scout.py tests/test_jev_platform_guards_agent.py",
+        "exit_code": 0,
+        "timeout_s": 1200,
+        "duration_s": 30.3,
+        "output_digest": "9eed1f80e7404a2cda3c2a18b26ceb30d94170819d70bff1924dc1a53fe3f138",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_bb8895505d6c/29baa460671a/C2-9685eb765661-9eed1f80e7404a2c.log",
+        "output_tail": "........................................................................ [ 23%]\n........................................................................ [ 47%]\n........................................................................ [ 71%]\n........................................................................ [ 95%]\n...............                                                          [100%]\n303 passed in 30.10s"
+      },
+      {
+        "id": "C3",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "env -i HOME=/tmp/jev-c3-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_census.py",
+        "exit_code": 0,
+        "timeout_s": 300,
+        "duration_s": 0.5,
+        "output_digest": "3f101629d3563a3d73c2070444b35f952871d8241135af206adc39e4158f538e",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_bb8895505d6c/29baa460671a/C3-8a214cef6d47-3f101629d3563a3d.log",
+        "output_tail": "....                                                                     [100%]\n4 passed in 0.31s"
+      },
+      {
+        "id": "C4",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_bb8895505d6c/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+        "exit_code": 0,
+        "timeout_s": 3600,
+        "duration_s": 20.1,
+        "output_digest": "41a4836487a69e41d53e931f7c3c9ac296595917c04f7d2ae4343a14794e9400",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_bb8895505d6c/29baa460671a/C4-08d1623c441b-41a4836487a69e41.log",
+        "output_tail": "unmutated: exit 0\nKILLED client-no-reserve: FAILED tests/test_jev_spend_ledger.py::test_client_send_records_before_the_request_and_settles_after\nKILLED client-reserve-after-send: FAILED tests/test_jev_spend_ledger.py::test_client_send_records_before_the_request_and_settles_after\nKILLED client-reserve-outside-retry: FAILED tests/test_jev_spend_ledger.py::test_client_send_records_one_row_per_attempt_including_a_429_retry\nKILLED client-settle-writes-reserve: FAILED tests/test_jev_spend_ledger.py::test_client_send_records_before_the_request_and_settles_after\nKILLED shadow-no-reserve: FAILED tests/test_jev_spend_ledger.py::test_shadow_records_both_ledgers_before_the_request_and_settles_both\nKILLED triage-no-reserve: FAILED tests/test_jev_spend_ledger.py::test_triage_records_before_the_request\nKILLED harness-no-reserve: FAILED tests/test_jev_spend_ledger.py::test_harness_records_before_the_request\nKILLED spend-local-day: FAILED tests/test_jev_spend_ledger.py::test_day_is_the_utc_date_even_when_local_date_differs\nKILLED spend-reserve-swallows: FAILED tests/test_jev_spend_ledger.py::test_bad_paths_are_refused_not_resolved_against_cwd[]\nKILLED spend-path-at-import: FAILED tests/test_jev_spend_ledger.py::test_reserve_writes_to_the_path_set_after_import\nKILLED spend-finish-raises: FAILED tests/test_jev_spend_ledger.py::test_settle_failure_after_a_paid_reply_returns_the_reply_once_and_never_retries\nKILLED spend-cap-check-removed: FAILED tests/test_jev_spend_ledger.py::test_a_machine_cap_stops_the_call_that_would_exceed_it\nKILLED shadow-canonical-first: FAILED tests/test_jev_spend_ledger.py::test_shadow_records_both_ledgers_before_the_request_and_settles_both\nreal ledger untouched check: HOME for runs was /tmp/jev-mut-1zugarc8/home; real path /Users/phill-mac/.local/state/jev/spend.sqlite"
+      },
+      {
+        "id": "C5",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check jev_platform/spend.py jev_platform/client.py jev_platform/__main__.py scripts/mission_control_jev_shadow.py scripts/jev_triage.py evals/jev_constitution/harness.py app/server/skill_routing.py tests/test_jev_spend_ledger.py tests/test_jev_spend_census.py tests/conftest.py",
+        "exit_code": 0,
+        "timeout_s": 900,
+        "duration_s": 0.1,
+        "output_digest": "f0d0b1081d9d3ebb26c4c93543053ecdc0a58998f22c071dc4ddb26021b57645",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_bb8895505d6c/29baa460671a/C5-1d96682bdb05-f0d0b1081d9d3ebb.log",
+        "output_tail": "All checks passed!"
+      },
+      {
+        "id": "C6",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_bb8895505d6c/seam.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python /Users/phill-mac/.claude-worktrees/jev-watcher-canonical/skills/guardian/scripts/jev-cap-watcher.py",
+        "exit_code": 0,
+        "timeout_s": 300,
+        "duration_s": 0.1,
+        "output_digest": "ab669e7d84650c510825c05b6e251a450d5781d0c9899623adeb32f4b2b349f5",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_bb8895505d6c/29baa460671a/C6-90fce73cb7c1-ab669e7d84650c51.log",
+        "output_tail": "{\"day\": \"2026-10-27\", \"ledger\": \"/tmp/jev-seam-4y994e5f/spend.sqlite\", \"newest\": \"2026-10-27T22:59:53.975579+00:00\", \"refusals_24h\": 0, \"spent\": 0.250126, \"stale_attempted\": 0, \"statuses\": {\"answered\": 2}, \"unknown\": []}\nexpected 0.250126000"
+      }
+    ],
+    "blockers": []
+  }
+}
