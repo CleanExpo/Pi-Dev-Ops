@@ -7,6 +7,8 @@ import json
 import re
 import sqlite3
 
+import pytest
+
 from evals.jev_constitution import harness
 from jev_platform import client, spend
 from scripts import jev_triage as triage
@@ -202,3 +204,61 @@ def test_adding_a_column_another_process_just_added_is_success():
     except sqlite3.OperationalError:
         return
     raise AssertionError("an ALTER that failed for another reason was swallowed")
+
+
+def test_a_caller_can_give_the_machine_row_its_call_id():
+    row, call_id = spend.reserve_call("t", 1.0, "f" * 32)
+    assert call_id == "f" * 32 and rows()[0]["call_id"] == "f" * 32 and rows()[0]["id"] == row
+
+
+def _reset_inside_the_machine_reserve(monkeypatch, legacy, outcome):
+    """Codex round 4: the shadow ledger is reset after call A writes its own row and before A's machine reserve
+    returns, and call B then takes A's local row id. `outcome` is what A's machine reserve does next."""
+    real, seen = spend.reserve_call, {}
+
+    def reserve(caller, usd, *call_id):
+        if seen:
+            return real(caller, usd, *call_id)
+        seen["started"] = True
+        legacy.unlink()
+        seen["b"] = shadow.reserve_call(legacy, 1000, cap=None)
+        return outcome(real, caller, usd, *call_id)
+    monkeypatch.setattr(spend, "reserve_call", reserve)
+    return seen
+
+
+def _own_row(legacy, call_id):
+    with sqlite3.connect(legacy) as db:
+        return db.execute("SELECT id, status, actual_usd, spend_id FROM calls WHERE spend_call_id=?",
+                          (call_id,)).fetchone()
+
+
+def test_a_shadow_reset_inside_the_reserve_leaves_the_call_that_took_the_row_alone(tmp_path, monkeypatch, capsys):
+    legacy = tmp_path / "jev-shadow-ledger.sqlite"
+    seen = _reset_inside_the_machine_reserve(monkeypatch, legacy, lambda real, *args: real(*args))
+    a = shadow.reserve_call(legacy, 1000, cap=None)
+    b = seen["b"]
+    machine = {r["call_id"]: r["id"] for r in rows()}
+    assert set(machine) == {a, b}
+    assert _own_row(legacy, b) == (1, "attempted", None, machine[b])
+    assert _own_row(legacy, a) is None and f"no row for call {a}" in capsys.readouterr().err
+    shadow.finish_call(legacy, a, "answered", 100)
+    assert _own_row(legacy, b) == (1, "attempted", None, machine[b])
+
+
+def test_a_refused_call_after_a_shadow_reset_leaves_the_call_that_took_the_row_alone(tmp_path, monkeypatch):
+    legacy = tmp_path / "jev-shadow-ledger.sqlite"
+
+    def refuse(real, *args):
+        raise spend.SpendCapReached("cap")
+    seen = _reset_inside_the_machine_reserve(monkeypatch, legacy, refuse)
+    assert shadow.reserve_call(legacy, 1000, cap=None) is None
+    assert _own_row(legacy, seen["b"])[:3] == (1, "attempted", None)
+
+
+def test_the_own_ledger_holds_each_call_id_once(tmp_path):
+    legacy = tmp_path / "jev-shadow-ledger.sqlite"
+    a = shadow.reserve_call(legacy, 1000, cap=None)
+    with sqlite3.connect(legacy) as db, pytest.raises(sqlite3.IntegrityError):
+        db.execute("INSERT INTO calls(day, reserved_usd, status, created_at, spend_call_id) "
+                   "VALUES ('d', 0, 'x', 'c', ?)", (a,))

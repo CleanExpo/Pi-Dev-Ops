@@ -5,6 +5,7 @@ keeps working."""
 from __future__ import annotations
 
 import sqlite3
+import sys
 from pathlib import Path
 
 from jev_platform import spend
@@ -44,3 +45,12 @@ def _ensure_spend_id(db: sqlite3.Connection) -> None:
     call id is in today's machine ledger: a row id alone is reused after the machine ledger is reset."""
     for name, kind in (("spend_id", "INTEGER"), ("spend_call_id", "TEXT")):
         spend.add_column(db, name, kind)
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS calls_spend_call_id ON calls(spend_call_id)")
+
+
+def link_own_row(ledger: Path, call_id: str, sql: str, params: tuple) -> None:
+    """Update this tool's own row for one call, matched by its never-reused call id. No row means this ledger was
+    reset mid-call: that is reported, never applied to whichever call holds the row id now (Codex round 4)."""
+    with sqlite3.connect(ledger, timeout=30) as db:
+        if db.execute(sql, params).rowcount != 1:
+            print(f"jev shadow: own ledger has no row for call {call_id} (reset?)", file=sys.stderr)

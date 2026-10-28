@@ -125,9 +125,11 @@ def reserve(caller: str, reserved_usd: float) -> int:
     return reserve_call(caller, reserved_usd)[0]
 
 
-def reserve_call(caller: str, reserved_usd: float) -> tuple[int, str]:
-    """As reserve(), and also return the row's call id, for a ledger that mirrors this call."""
-    call_id = uuid.uuid4().hex
+def reserve_call(caller: str, reserved_usd: float, call_id: str | None = None) -> tuple[int, str]:
+    """As reserve(), and also return the row's call id, for a ledger that mirrors this call. A mirror that writes
+    its own row first passes that row's call id, so both rows carry it from their first write."""
+    if call_id is None:
+        call_id = uuid.uuid4().hex
     try:
         target = ledger_path()
         cap = daily_cap()

@@ -14,13 +14,14 @@ import os
 import re
 import sqlite3
 import sys
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib import error, request
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from jev_platform import spend  # noqa: E402
-from scripts.jev_shadow_support import _caller, _ensure_spend_id, validate_answer  # noqa: E402,F401
+from scripts.jev_shadow_support import _caller, _ensure_spend_id, link_own_row, validate_answer  # noqa: E402,F401
 
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-1.13.0"  # Pinned so the reviewed price/context and evaluation remain comparable.
@@ -158,8 +159,9 @@ def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) 
 
     This tool's own ledger (and its cap) commits first, then the machine spend ledger (jev_platform.spend), with
     no lock across the two. A call this cap refuses never reaches the machine ledger; a machine-ledger failure
-    marks this row refused and raises. Returns the machine call id: either ledger reuses row ids after a reset."""
+    marks this row refused and raises. Returns the call id, in both rows from their first write (row ids reuse)."""
     ledger.parent.mkdir(parents=True, exist_ok=True)
+    call_id = uuid.uuid4().hex
     day = datetime.now(UTC).date().isoformat()
     charge = estimated_tokens * USD_PER_MILLION_INPUT / 1_000_000
     with sqlite3.connect(ledger, timeout=30, isolation_level=None) as db:
@@ -170,22 +172,20 @@ def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) 
         if cap is not None and current + charge > cap:
             db.execute("ROLLBACK")
             return None
-        row = db.execute(
-            "INSERT INTO calls(day, reserved_usd, status, created_at) VALUES (?, ?, ?, ?)",
-            (day, charge, "attempted", datetime.now(UTC).isoformat()),
-        ).lastrowid
+        db.execute(
+            "INSERT INTO calls(day, reserved_usd, status, created_at, spend_call_id) VALUES (?, ?, ?, ?, ?)",
+            (day, charge, "attempted", datetime.now(UTC).isoformat(), call_id),
+        )
         db.execute("COMMIT")
     try:
-        spend_id, call_id = spend.reserve_call(_caller(ledger), charge)
+        spend_id = spend.reserve_call(_caller(ledger), charge, call_id)[0]
     except (spend.SpendUnrecorded, spend.SpendCapReached) as exc:
-        with sqlite3.connect(ledger, timeout=30) as db:
-            db.execute("UPDATE calls SET status='refused', actual_usd=0 WHERE id=?", (row,))
+        link_own_row(ledger, call_id, "UPDATE calls SET status='refused', actual_usd=0 WHERE spend_call_id=?", (call_id,))
         if isinstance(exc, spend.SpendCapReached):
             return None
         raise
     _SPEND_IDS[(str(ledger), call_id)] = spend_id
-    with sqlite3.connect(ledger, timeout=30) as db:
-        db.execute("UPDATE calls SET spend_id=?, spend_call_id=? WHERE id=?", (spend_id, call_id, row))
+    link_own_row(ledger, call_id, "UPDATE calls SET spend_id=? WHERE spend_call_id=?", (spend_id, call_id))
     return call_id
 
 
