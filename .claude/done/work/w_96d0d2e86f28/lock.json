@@ -1,0 +1,13 @@
+{
+  "schema": "done/1",
+  "work_id": "w_96d0d2e86f28",
+  "contract_digest": "965172751d6695dee8b5d6995a036c2105d68d7d47eb86ed85a7e9eb9ece37e4",
+  "baseline_head": "706e6acad46890058c68bcbc6d86a03c75f0de02",
+  "identity_key": "fix/RA-8116-spend-call-id@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-spend-ledger",
+  "locked_at_utc": "2026-10-28T07:20:46Z",
+  "criteria_count": 5,
+  "recipe_pins": {
+    "work/w_96d0d2e86f28/mutants.py": "b02b3d30785895e308c0e3d8fdd7a024c42c316485d2fdf5388d396645aa479c",
+    "work/w_77f2243a8e50/seam.py": "0a6b9fe89f426dd8e7c29d25b6b9a719f53f9fef9141771b195eb3cad289dd73"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "schema": "done/1",
+  "work_id": "w_77f2243a8e50",
+  "version": 3,
+  "supersedes": "w_15c73b1d1a88",
+  "goal": "Every Jev spend call carries a unique call id and settles by it; the Guardian watcher matches mirrored rows on it and reports a machine-ledger reset as UNKNOWN (RA-8116 follow-up, spec .claude/done/spm/2026-10-28-jev-spend-call-id/spec.md). v3: engineering bench round 1 fixes",
+  "created_at_utc": "2026-10-28T05:59:15Z",
+  "identity_key": "fix/RA-8116-spend-call-id@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-spend-ledger",
+  "baseline_observed": {
+    "head": "44c6acfdbfa06f6c3460e744bed6d641789e0a6b",
+    "branch": "fix/RA-8116-spend-call-id",
+    "dirty_count": 1
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The call-id tests pass: unique id, in-place upgrade (incl. a legacy ledger that already has spend_id), reserve() still int, mirror stores the id, settle by call id never overwrites a colliding call after a reset (spend, client, harness, triage, shadow), a missed settle is reported, a raced ALTER is success",
+      "recipe": "env -i HOME=/tmp/jev-cid-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_call_id.py",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "Existing Jev spend, shadow, skill-routing and census tests pass",
+      "recipe": "env -i HOME=/tmp/jev-cid-c2-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_ledger.py tests/test_jev_spend_census.py tests/test_jev_spend_shadow_settle.py tests/test_mission_control_jev_shadow.py tests/test_skill_routing_modes.py tests/test_jev_transport.py tests/test_jev_triage.py",
+      "timeout": 1200
+    },
+    {
+      "id": "C3",
+      "text": "Every planted mutant (16: call id dropped/reused/not unique/not mirrored, upgrade skipped, reserve contract changed, settle by row id in spend and in each of four callers, missed settle unreported, raced ALTER raises, any ALTER failure swallowed, live-Mini legacy schema skipped) is killed by an assertion",
+      "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_77f2243a8e50/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+      "timeout": 3600
+    },
+    {
+      "id": "C4",
+      "text": "ruff passes on the changed Python files",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check jev_platform/spend.py jev_platform/client.py evals/jev_constitution/harness.py scripts/jev_triage.py scripts/jev_shadow_support.py scripts/mission_control_jev_shadow.py tests/test_jev_spend_call_id.py"
+    },
+    {
+      "id": "C5",
+      "text": "The watcher, extracted from the skills-library branch tip by git show, reports the exact total with nothing UNKNOWN before a machine-ledger reset, and after it reports the machine ledger UNKNOWN (blocker names a reset) with the lower bound that excludes only the lost unmirrored call. v4 pins this to the reviewed commit SHA",
+      "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_77f2243a8e50/seam.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python /Users/phill-mac/.claude-worktrees/jev-watcher-canonical fix/RA-8116-jev-watcher-canonical",
+      "timeout": 300
+    }
+  ]
+}

@@ -2,6 +2,9 @@
 
 Every TypeSafe request this repository sends reserves its worst case here before it leaves and settles
 after the reply. The Guardian watcher sums `COALESCE(actual_usd, reserved_usd)` by UTC `day`.
+Each row also carries `call_id`, a random id that is never reused, even after the ledger file is reset. Ledgers
+that mirror a call store it, so the watcher can tell a mirrored copy from a different call with the same row id
+(.claude/done/spm/2026-10-28-jev-spend-call-id/spec.md).
 
 Path: JEV_SPEND_LEDGER if set, else ~/.local/state/jev/spend.sqlite; resolved on every call, never at import.
 A reserve that cannot be written raises SpendUnrecorded and the caller must not send. A settle never raises:
@@ -17,6 +20,7 @@ import math
 import os
 import sqlite3
 import time
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -25,7 +29,8 @@ DEFAULT = "~/.local/state/jev/spend.sqlite"
 REFUSALS = "spend-refusals.jsonl"
 TIMEOUT_S = 10.0
 SCHEMA = ("CREATE TABLE IF NOT EXISTS calls (id INTEGER PRIMARY KEY, day TEXT NOT NULL, caller TEXT NOT NULL, "
-          "reserved_usd REAL NOT NULL, actual_usd REAL, input_tokens INTEGER, status TEXT NOT NULL, created_at TEXT NOT NULL)")
+          "reserved_usd REAL NOT NULL, actual_usd REAL, input_tokens INTEGER, status TEXT NOT NULL, created_at TEXT NOT NULL, "
+          "call_id TEXT)")
 _now = time.time  # tests freeze this; every day and timestamp comes from it, in UTC
 
 
@@ -94,11 +99,37 @@ def _connect(path: Path) -> sqlite3.Connection:
     db = sqlite3.connect(path, timeout=TIMEOUT_S, isolation_level=None)
     db.execute(SCHEMA)
     db.execute("CREATE INDEX IF NOT EXISTS calls_day ON calls(day)")
+    _ensure_call_id(db)
     return db
+
+
+def add_column(db: sqlite3.Connection, name: str, kind: str) -> None:
+    """Add a column to `calls` in place unless it is there. Two processes upgrading one old ledger at the same
+    moment both see it missing; the second ALTER then fails with "duplicate column", which is success."""
+    if name not in {row[1] for row in db.execute("PRAGMA table_info(calls)")}:
+        try:
+            db.execute(f"ALTER TABLE calls ADD COLUMN {name} {kind}")
+        except sqlite3.OperationalError as exc:
+            if "duplicate column" not in str(exc):
+                raise
+
+
+def _ensure_call_id(db: sqlite3.Connection) -> None:
+    """A ledger written before call ids gains the column in place; its old rows keep a NULL id."""
+    add_column(db, "call_id", "TEXT")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS calls_call_id ON calls(call_id)")
 
 
 def reserve(caller: str, reserved_usd: float) -> int:
     """Record one attempted request before it is sent; return its row id."""
+    return reserve_call(caller, reserved_usd)[0]
+
+
+def reserve_call(caller: str, reserved_usd: float, call_id: str | None = None) -> tuple[int, str]:
+    """As reserve(), and also return the row's call id, for a ledger that mirrors this call. A mirror that writes
+    its own row first passes that row's call id, so both rows carry it from their first write."""
+    if call_id is None:
+        call_id = uuid.uuid4().hex
     try:
         target = ledger_path()
         cap = daily_cap()
@@ -111,10 +142,11 @@ def reserve(caller: str, reserved_usd: float) -> int:
                 db.execute("ROLLBACK")
                 _note("cap_reached", caller, None)
                 raise SpendCapReached(f"daily Jev cap ${cap} reached")
-            row = db.execute("INSERT INTO calls(day, caller, reserved_usd, status, created_at) VALUES (?, ?, ?, 'attempted', ?)",
-                             (day, caller, float(reserved_usd), created)).lastrowid
+            row = db.execute("INSERT INTO calls(day, caller, reserved_usd, status, created_at, call_id) "
+                             "VALUES (?, ?, ?, 'attempted', ?, ?)",
+                             (day, caller, float(reserved_usd), created, call_id)).lastrowid
             db.execute("COMMIT")
-        return int(row)
+        return int(row), call_id
     except SpendCapReached:
         raise
     except (sqlite3.Error, OSError, ValueError) as exc:
@@ -122,12 +154,20 @@ def reserve(caller: str, reserved_usd: float) -> int:
         raise SpendUnrecorded(f"jev spend not recorded: {type(exc).__name__}")  # chained implicitly
 
 
-def finish(row: int, status: str, actual_usd: float | None = None, input_tokens: int | None = None) -> bool:
-    """Settle a reserved row. Never raises: on failure the row keeps its reserve and a line is logged."""
+def finish(row: int, status: str, actual_usd: float | None = None, input_tokens: int | None = None,
+           call_id: str | None = None) -> bool:
+    """Settle a reserved row. Never raises: on failure the row keeps its reserve and a line is logged.
+
+    Pass the call id from reserve_call(): a row id is reused once the ledger file is reset, so settling by row
+    id alone can overwrite a different call's amount. A settle that matches no row is reported, not assumed."""
+    where, key = ("id=? AND call_id=?", (row, call_id)) if call_id is not None else ("id=?", (row,))
     try:
         with contextlib.closing(_connect(ledger_path())) as db:
-            db.execute("UPDATE calls SET status=?, actual_usd=?, input_tokens=? WHERE id=?",
-                       (status, actual_usd, input_tokens, row))
+            hit = db.execute(f"UPDATE calls SET status=?, actual_usd=?, input_tokens=? WHERE {where}",
+                             (status, actual_usd, input_tokens, *key)).rowcount
+        if hit != 1:
+            _note("settle_missing", "finish", None, row)
+            return False
         return True
     except Exception as exc:  # noqa: BLE001 — a settle failure must never lose a paid reply
         _note("settle_failed", "finish", exc, row)

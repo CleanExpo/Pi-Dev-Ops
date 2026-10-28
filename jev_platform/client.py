@@ -255,7 +255,7 @@ def send(body: dict, post, budget: Budget, sleep=time.sleep) -> dict:
         if not budget.reserve():
             return {"error": "budget_exhausted"}
         try:  # the machine ledger is written before the request leaves, or the request does not leave
-            row = spend.reserve(CALLER, RESERVE_USD)
+            row, cid = spend.reserve_call(CALLER, RESERVE_USD)
         except spend.SpendCapReached:
             return {"error": "spend_cap_reached"}
         except spend.SpendUnrecorded:
@@ -263,13 +263,13 @@ def send(body: dict, post, budget: Budget, sleep=time.sleep) -> dict:
         try:
             status, data, retry_after = post(body, min(REQUEST_TIMEOUT, budget.remaining_seconds()))
         except Exception:  # noqa: BLE001 — any transport failure is signal_unavailable, never a pass
-            spend.finish(row, "error")
+            spend.finish(row, "error", call_id=cid)
             return {"error": "signal_unavailable:transport"}
         if status == 200:
             budget.settle(data)
-            spend.finish(row, *_settled(data))
+            spend.finish(row, *_settled(data), call_id=cid)
             return {"data": data}
-        spend.finish(row, "error")
+        spend.finish(row, "error", call_id=cid)
         wait = retry_after if isinstance(retry_after, (int, float)) else None
         if status != 429 or attempt == MAX_RETRIES or wait is None or wait >= budget.remaining_seconds():
             return {"error": f"signal_unavailable:http_{status}"}

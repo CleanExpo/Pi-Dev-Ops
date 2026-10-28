@@ -154,7 +154,7 @@ def evaluate(snap: dict, ledger: Ledger, transport: Transport, api_key: str) -> 
     if not ledger.allows(tokens):
         return label_row(snap, None, None, "BUDGET_STOP")
     try:  # the machine spend ledger is written before the request leaves, or it does not leave
-        row = spend.reserve(CALLER, tokens * PRICE_PER_MTOK_INPUT / 1e6)
+        row, cid = spend.reserve_call(CALLER, tokens * PRICE_PER_MTOK_INPUT / 1e6)
     except spend.SpendCapReached:
         return label_row(snap, None, None, "SPEND_CAP")
     except spend.SpendUnrecorded:
@@ -163,13 +163,13 @@ def evaluate(snap: dict, ledger: Ledger, transport: Transport, api_key: str) -> 
         res = transport(body, api_key)
     except Exception as exc:  # noqa: BLE001 — advisory: a vendor failure is NOT_EVALUATED
         log.warning("jev call failed for %s: %s", snap.get("surface"), exc)
-        spend.finish(row, "error")  # the reserve stands: the request may have been billed
+        spend.finish(row, "error", call_id=cid)  # the reserve stands: the request may have been billed
         return label_row(snap, None, None, "NOT_EVALUATED")
     used = (res.get("usage") or {}).get("input_tokens")
     if isinstance(used, int) and not isinstance(used, bool) and used >= 0:
-        spend.finish(row, "answered", used * PRICE_PER_MTOK_INPUT / 1e6, used)
+        spend.finish(row, "answered", used * PRICE_PER_MTOK_INPUT / 1e6, used, call_id=cid)
     else:
-        spend.finish(row, "answered")
+        spend.finish(row, "answered", call_id=cid)
     ledger.record(int((res.get("usage") or {}).get("input_tokens") or tokens))
     answer = (res.get("answers") or {}).get(snap["contract"].lower())
     return label_row(snap, answer, res.get("model"), "OK" if answer else "NOT_EVALUATED")
