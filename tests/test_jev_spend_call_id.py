@@ -67,8 +67,9 @@ def test_the_mirrored_legacy_row_stores_its_machine_rows_call_id(tmp_path):
     own = shadow.reserve_call(legacy, 1000, cap=None)
     machine = rows()[0]
     with sqlite3.connect(legacy) as db:
-        spend_id, spend_call_id = db.execute("SELECT spend_id, spend_call_id FROM calls WHERE id=?", (own,)).fetchone()
+        spend_id, spend_call_id = db.execute("SELECT spend_id, spend_call_id FROM calls WHERE id=1").fetchone()
     assert (spend_id, spend_call_id) == (machine["id"], machine["call_id"]) and HEX32.fullmatch(spend_call_id)
+    assert own == spend_call_id   # the handle is the call id, never the reusable row id
 
 
 def test_after_a_machine_ledger_reset_a_reused_row_id_gets_a_new_call_id(tmp_path):
@@ -154,6 +155,21 @@ def test_shadow_settles_its_own_machine_call_after_a_reset(tmp_path):
     _assert_other_call_untouched()
 
 
+def test_shadow_settles_its_own_calls_after_its_own_ledger_is_reset(tmp_path):
+    """Codex round 3: only the shadow ledger is reset mid-call, so call B takes call A's local row id.
+    Settling A must touch neither B's machine row nor B's shadow row."""
+    legacy = tmp_path / "jev-shadow-ledger.sqlite"
+    a = shadow.reserve_call(legacy, 1000, cap=None)
+    legacy.unlink()
+    b = shadow.reserve_call(legacy, 1000, cap=None)
+    shadow.finish_call(legacy, a, "answered", 100)
+    by_call = {r["call_id"]: r for r in rows()}
+    assert by_call[a]["status"] == "answered" and by_call[a]["input_tokens"] == 100
+    assert by_call[b]["status"] == "attempted" and by_call[b]["actual_usd"] is None
+    with sqlite3.connect(legacy) as db:
+        assert db.execute("SELECT status, actual_usd FROM calls WHERE spend_call_id=?", (b,)).fetchone() == ("attempted", None)
+
+
 def test_a_legacy_ledger_that_already_has_spend_id_gains_spend_call_id(tmp_path):
     """The live Mini state after #955: spend_id is there, spend_call_id is not."""
     legacy = tmp_path / "jev-shadow-ledger.sqlite"
@@ -163,8 +179,8 @@ def test_a_legacy_ledger_that_already_has_spend_id_gains_spend_call_id(tmp_path)
                    "spend_id INTEGER)")
     own = shadow.reserve_call(legacy, 1000, cap=None)
     with sqlite3.connect(legacy) as db:
-        got = db.execute("SELECT spend_id, spend_call_id FROM calls WHERE id=?", (own,)).fetchone()
-    assert got == (rows()[0]["id"], rows()[0]["call_id"]) and HEX32.fullmatch(got[1] or "")
+        got = db.execute("SELECT spend_id, spend_call_id FROM calls WHERE id=1").fetchone()
+    assert own == got[1] and got == (rows()[0]["id"], rows()[0]["call_id"]) and HEX32.fullmatch(got[1] or "")
 
 
 class _RacedDb:
