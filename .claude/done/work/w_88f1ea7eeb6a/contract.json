@@ -1,0 +1,39 @@
+{
+  "schema": "done/1",
+  "work_id": "w_88f1ea7eeb6a",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8127: Pi-Dev-Ops hook commands whose target file is missing (continuation-horizon via a launch-dir CLAUDE_PROJECT_DIR, senior-harness driver not installed) exit 0 silently instead of erroring on every message and stop, without activating either hook and without changing behaviour where the target exists",
+  "created_at_utc": "2026-10-28T09:00:24Z",
+  "identity_key": "fix/RA-8127-hook-noise@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ra-8127-hook-noise",
+  "baseline_observed": {
+    "head": "c195d3e06783475df45e863a71c9f13279022a98",
+    "branch": "fix/RA-8127-hook-noise",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The RA-8127 tests pass. Every .claude/settings.json hook command naming continuation_horizon_hook.py or run_setup_driver.sh, run the Mini way (CLAUDE_PROJECT_DIR and HOME pointing at a directory without the target), exits 0 with empty stderr. Only SessionStart prints, and it prints one line saying senior-harness is not installed. With the target present, each command still runs it, with its arguments, and propagates failure.",
+      "recipe": "env -i HOME=/tmp/ra8127-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_hook_missing_target_quiet.py",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "The existing hook and settings tests still pass (autonomy gate, continuation horizon, hook paths)",
+      "recipe": "env -i HOME=/tmp/ra8127-c2-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests -k 'hook or continuation or settings'",
+      "timeout": 900
+    },
+    {
+      "id": "C3",
+      "text": "Three planted defects are each killed by an assertion, and the unmutated tree passes: the Stop command unguarded (the old command), every guard short-circuiting even when the target exists, and the SessionStart notice removed",
+      "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_88f1ea7eeb6a/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+      "timeout": 1200
+    },
+    {
+      "id": "C4",
+      "text": "settings.json is valid JSON, the autonomy-gate command is byte-identical to origin/main, and ruff passes on the new test",
+      "recipe": "/usr/bin/python3 -c \"import json,subprocess as s;b=json.load(open('.claude/settings.json'));a=json.loads(s.check_output(['git','show','c195d3e0:.claude/settings.json']));g=lambda d:[h['command'] for x in d['hooks']['PreToolUse'] for h in x['hooks'] if 'autonomy_gate_hook' in h['command']];assert g(a)==g(b) and len(g(b))==1\" && /Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check tests/test_hook_missing_target_quiet.py"
+    }
+  ]
+}

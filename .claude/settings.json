@@ -57,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$HOME/.claude/skills/senior-harness/scripts/run_setup_driver.sh\" hook --surface claude --event SessionStart --allow-non-git"
+            "command": "f=\"$HOME/.claude/skills/senior-harness/scripts/run_setup_driver.sh\"; [ -f \"$f\" ] || { echo \"senior-harness is not installed on this machine ($f is missing), so its hooks are off (RA-8127).\"; exit 0; }; bash \"$f\" hook --surface claude --event SessionStart --allow-non-git"
           }
         ]
       }
@@ -67,11 +67,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$HOME/.claude/skills/senior-harness/scripts/run_setup_driver.sh\" hook --surface claude --event UserPromptSubmit --allow-non-git"
+            "command": "f=\"$HOME/.claude/skills/senior-harness/scripts/run_setup_driver.sh\"; [ -f \"$f\" ] || exit 0; bash \"$f\" hook --surface claude --event UserPromptSubmit --allow-non-git"
           },
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/continuation_horizon_hook.py\" || exit 1"
+            "command": "f=\"$CLAUDE_PROJECT_DIR/.claude/hooks/continuation_horizon_hook.py\"; [ -f \"$f\" ] || exit 0; python3 \"$f\" || exit 1"
           }
         ]
       }
@@ -82,7 +82,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$HOME/.claude/skills/senior-harness/scripts/run_setup_driver.sh\" hook --surface claude --event PreToolUse --allow-non-git"
+            "command": "f=\"$HOME/.claude/skills/senior-harness/scripts/run_setup_driver.sh\"; [ -f \"$f\" ] || exit 0; bash \"$f\" hook --surface claude --event PreToolUse --allow-non-git"
           }
         ]
       },
@@ -101,7 +101,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/continuation_horizon_hook.py\" || exit 1"
+            "command": "f=\"$CLAUDE_PROJECT_DIR/.claude/hooks/continuation_horizon_hook.py\"; [ -f \"$f\" ] || exit 0; python3 \"$f\" || exit 1"
           }
         ]
       }
