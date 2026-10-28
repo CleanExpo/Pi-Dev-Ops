@@ -11,8 +11,10 @@ import os
 import sys
 
 # Make ``swarm`` importable whether invoked from the repo root or elsewhere
-# (this file lives at <repo>/.claude/hooks/).
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# (this file lives at <repo>/.claude/hooks/). realpath, not abspath: a machine may run
+# this file through a symlink such as ~/.claude/hooks/autonomy_gate_hook.py, and abspath
+# keeps the link's directory, so the import failed and the gate failed open (RA-8125).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
