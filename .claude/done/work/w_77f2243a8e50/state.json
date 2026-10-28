@@ -1,0 +1,30 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "UNPROVEN",
+  "verification_status": "NOT_RUN",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": null,
+  "updated_at_utc": "2026-10-28T05:59:15Z",
+  "last_partial": {
+    "head": "44c6acfdbfa06f6c3460e744bed6d641789e0a6b",
+    "at_utc": "2026-10-28T06:02:18Z",
+    "ids": [
+      "C5"
+    ],
+    "matrix": [
+      {
+        "id": "C5",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_77f2243a8e50/seam.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python /Users/phill-mac/.claude-worktrees/jev-watcher-canonical fix/RA-8116-jev-watcher-canonical",
+        "exit_code": 0,
+        "timeout_s": 300,
+        "duration_s": 0.3,
+        "output_digest": "b278df11e3001960b4aa3c380de7820f4d8cb3c299d008fcd05e02c55ff84855",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_77f2243a8e50/44c6acfdbfa0/C5-1d96682bdb05-b278df11e3001960.log",
+        "output_tail": "watcher commit: fix/RA-8116-jev-watcher-canonical\n{\"day\": \"2026-10-28\", \"ledger\": \"/tmp/jev-seam-6spa4r79/spend.sqlite\", \"ledgers\": {\"/tmp/jev-seam-6spa4r79/old-ledger.sqlite\": {\"counted\": 1, \"unlinked\": 1, \"unlinked_usd\": 0.25}, \"/tmp/jev-seam-6spa4r79/skill-router-ledger.sqlite\": {\"counted\": 0, \"skipped_twin\": 1, \"skipped_twin_usd\": 8.4e-05}, \"/tmp/jev-seam-6spa4r79/spend.sqlite\": {\"counted\": 2}}, \"machine_call_id\": true, \"newest\": \"2026-10-28T06:02:17.947072+00:00\", \"oldest\": \"2026-10-28T06:02:17.942658+00:00\", \"optional_skipped\": [], \"orphan_links\": 0, \"readable\": true, \"refusals_24h\": 0, \"reset\": null, \"spent\": 0.250126, \"stale_attempted\": 0, \"statuses\": {\"answered\": 2}, \"unknown\": []}\n{\"day\": \"2026-10-28\", \"ledger\": \"/tmp/jev-seam-6spa4r79/spend.sqlite\", \"ledgers\": {\"/tmp/jev-seam-6spa4r79/old-ledger.sqlite\": {\"counted\": 1, \"unlinked\": 1, \"unlinked_usd\": 0.25}, \"/tmp/jev-seam-6spa4r79/skill-router-ledger.sqlite\": {\"counted\": 1, \"orphan\": 1, \"orphan_usd\": 8.4e-05, \"skipped_twin\": 1, \"skipped_twin_usd\": 8.4e-05}, \"/tmp/jev-seam-6spa4r79/spend.sqlite\": {\"counted\": 2}}, \"machine_call_id\": true, \"newest\": \"2026-10-28T06:02:18.049283+00:00\", \"oldest\": \"2026-10-28T06:02:18.047120+00:00\", \"optional_skipped\": [], \"orphan_links\": 1, \"readable\": true, \"refusals_24h\": 0, \"reset\": \"oldest machine-ledger row moved from 2026-10-28T06:02:17.942658+00:00 to 2026-10-28T06:02:18.047120+00:00\", \"spent\": 0.25021, \"stale_attempted\": 0, \"statuses\": {\"answered\": 2}, \"unknown\": [\"/tmp/jev-seam-6spa4r79/spend.sqlite\"]}\nrun 2: expected lower bound 0.250210000, machine ledger UNKNOWN, blocker names a reset"
+      }
+    ],
+    "tree_moved": false
+  }
+}

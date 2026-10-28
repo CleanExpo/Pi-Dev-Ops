@@ -14,13 +14,14 @@ import os
 import re
 import sqlite3
 import sys
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib import error, request
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from jev_platform import spend  # noqa: E402
-from scripts.jev_shadow_support import _caller, _ensure_spend_id, validate_answer  # noqa: E402,F401
+from scripts.jev_shadow_support import _caller, _ensure_spend_id, link_own_row, validate_answer  # noqa: E402,F401
 
 API_URL = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-1.13.0"  # Pinned so the reviewed price/context and evaluation remain comparable.
@@ -150,16 +151,17 @@ def prepare(snapshot: dict) -> tuple[dict, dict]:
     }
 
 
-_SPEND_IDS: dict[tuple[str, int], int] = {}  # (ledger, call_id) -> machine-ledger row, settled first by finish_call
+_SPEND_IDS: dict[tuple[str, str], int] = {}  # (ledger, machine call id) -> machine row, settled first
 
 
-def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) -> int | None:
+def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) -> str | None:
     """Record each attempted call before egress; optionally enforce a daily ceiling.
 
-    This tool's own ledger (and its cap) commits first; then the machine spend ledger
-    (jev_platform.spend). No lock is held across the two files. A call this ledger's cap refuses
-    never reaches the machine ledger; a machine-ledger failure marks this row refused and raises."""
+    This tool's own ledger (and its cap) commits first, then the machine spend ledger (jev_platform.spend), with
+    no lock across the two. A call this cap refuses never reaches the machine ledger; a machine-ledger failure
+    marks this row refused and raises. Returns the call id, in both rows from their first write (row ids reuse)."""
     ledger.parent.mkdir(parents=True, exist_ok=True)
+    call_id = uuid.uuid4().hex
     day = datetime.now(UTC).date().isoformat()
     charge = estimated_tokens * USD_PER_MILLION_INPUT / 1_000_000
     with sqlite3.connect(ledger, timeout=30, isolation_level=None) as db:
@@ -170,36 +172,35 @@ def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) 
         if cap is not None and current + charge > cap:
             db.execute("ROLLBACK")
             return None
-        call_id = db.execute(
-            "INSERT INTO calls(day, reserved_usd, status, created_at) VALUES (?, ?, ?, ?)",
-            (day, charge, "attempted", datetime.now(UTC).isoformat()),
-        ).lastrowid
+        db.execute(
+            "INSERT INTO calls(day, reserved_usd, status, created_at, spend_call_id) VALUES (?, ?, ?, ?, ?)",
+            (day, charge, "attempted", datetime.now(UTC).isoformat(), call_id),
+        )
         db.execute("COMMIT")
     try:
-        spend_id = spend.reserve(_caller(ledger), charge)
+        spend_id = spend.reserve_call(_caller(ledger), charge, call_id)[0]
     except (spend.SpendUnrecorded, spend.SpendCapReached) as exc:
-        with sqlite3.connect(ledger, timeout=30) as db:
-            db.execute("UPDATE calls SET status='refused', actual_usd=0 WHERE id=?", (call_id,))
+        link_own_row(ledger, call_id, "UPDATE calls SET status='refused', actual_usd=0 WHERE spend_call_id=?", (call_id,))
         if isinstance(exc, spend.SpendCapReached):
             return None
         raise
     _SPEND_IDS[(str(ledger), call_id)] = spend_id
-    with sqlite3.connect(ledger, timeout=30) as db:
-        db.execute("UPDATE calls SET spend_id=? WHERE id=?", (spend_id, call_id))
+    link_own_row(ledger, call_id, "UPDATE calls SET spend_id=? WHERE spend_call_id=?", (spend_id, call_id))
     return call_id
 
 
-def finish_call(ledger: Path, call_id: int, status: str, input_tokens: int | None = None) -> None:
-    """Settle the machine row first, then this ledger best-effort: a failure here after a paid reply is
-    logged and the row keeps its reserve (overcounts), so the reply is never lost or resent."""
+def finish_call(ledger: Path, call_id: str, status: str, input_tokens: int | None = None) -> None:
+    """Settle the machine row, then this ledger best-effort (a failure after a paid reply is logged and the row
+    keeps its reserve), both by call id: a reset mid-call leaves the call that reused the row id untouched."""
     actual = input_tokens * USD_PER_MILLION_INPUT / 1_000_000 if input_tokens is not None else None
-    spend_id = _SPEND_IDS.pop((str(ledger), call_id), None)
-    if spend_id is not None:
-        spend.finish(spend_id, status, actual, input_tokens)
+    if (machine := _SPEND_IDS.pop((str(ledger), call_id), None)) is not None:
+        spend.finish(machine, status, actual, input_tokens, call_id=call_id)
     try:
         with sqlite3.connect(ledger, timeout=30) as db:
-            db.execute("UPDATE calls SET status=?, input_tokens=?, actual_usd=? WHERE id=?",
-                       (status, input_tokens, actual, call_id))
+            n = db.execute("UPDATE calls SET status=?, input_tokens=?, actual_usd=? WHERE spend_call_id=?",
+                           (status, input_tokens, actual, call_id)).rowcount
+        if n != 1:
+            print(f"jev shadow: own ledger has no row for call {call_id} (reset?)", file=sys.stderr)
     except sqlite3.Error as exc:
         print(f"jev shadow: own ledger settle failed for call {call_id}: {type(exc).__name__}", file=sys.stderr)
 

@@ -134,20 +134,20 @@ def ask_jev(question: dict, state: str, key: str, post=_post) -> tuple[int, floa
     if client.credential_payload(body):
         return 0, None, 0.0  # round 22: a credential never leaves; an error, never a judgment
     try:  # recorded in the machine spend ledger before it leaves, or it does not leave
-        row = spend.reserve(CALLER, client.RESERVE_USD)
+        row, cid = spend.reserve_call(CALLER, client.RESERVE_USD)
     except (spend.SpendUnrecorded, spend.SpendCapReached):
         return 0, None, 0.0
     start = time.monotonic()
     try:
         status, resp = post(body, key)
     except Exception:
-        spend.finish(row, "error")
+        spend.finish(row, "error", call_id=cid)
         raise
     elapsed = time.monotonic() - start
     if status != 200 or not isinstance(resp, dict):
-        spend.finish(row, "error")
+        spend.finish(row, "error", call_id=cid)
         return status, None, elapsed
-    spend.finish(row, *client._settled(resp))
+    spend.finish(row, *client._settled(resp), call_id=cid)
     return status, _valid_noul(resp), elapsed
 
 

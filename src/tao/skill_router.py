@@ -268,13 +268,13 @@ def default_jev() -> Callable[[dict], dict] | None:
 
     def call(payload: dict) -> dict:
         # Recorded in the machine spend ledger before it leaves; SpendUnrecorded degrades like any Jev failure.
-        row = spend.reserve("skill_router", RESERVED_INPUT_TOKENS_PER_CALL * USD_PER_MILLION_INPUT / 1_000_000)
+        row, cid = spend.reserve_call("skill_router", RESERVED_INPUT_TOKENS_PER_CALL * USD_PER_MILLION_INPUT / 1_000_000)
         try:
             result = evaluate(payload, key)
         except Exception:
-            spend.finish(row, "error")
+            spend.finish(row, "error", call_id=cid)
             raise
-        spend.finish(row, *client._settled(result))
+        spend.finish(row, *client._settled(result), call_id=cid)
         return result
 
     return call

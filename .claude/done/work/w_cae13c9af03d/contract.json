@@ -1,0 +1,45 @@
+{
+  "schema": "done/1",
+  "work_id": "w_cae13c9af03d",
+  "version": 1,
+  "supersedes": null,
+  "goal": "Every Jev spend call carries a unique call id; the Guardian watcher matches mirrored rows on it (RA-8116 follow-up, spec .claude/done/spm/2026-10-28-jev-spend-call-id/spec.md)",
+  "created_at_utc": "2026-10-28T05:22:01Z",
+  "identity_key": "fix/RA-8116-spend-call-id@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-spend-ledger",
+  "baseline_observed": {
+    "head": "c195d3e06783475df45e863a71c9f13279022a98",
+    "branch": "fix/RA-8116-spend-call-id",
+    "dirty_count": 1
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The new call-id tests pass (spec section 13: unique id, in-place upgrade, reserve() still int, mirror stores the id, id differs after a reset)",
+      "recipe": "env -i HOME=/tmp/jev-cid-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_call_id.py",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "Existing Jev spend, shadow, skill-routing and census tests pass",
+      "recipe": "env -i HOME=/tmp/jev-cid-c2-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_ledger.py tests/test_jev_spend_census.py tests/test_jev_spend_shadow_settle.py tests/test_mission_control_jev_shadow.py tests/test_skill_routing_modes.py tests/test_jev_transport.py tests/test_jev_triage.py",
+      "timeout": 1200
+    },
+    {
+      "id": "C3",
+      "text": "Every planted mutant (call id dropped, not unique, not mirrored, reserve contract changed, upgrade skipped) is killed by an assertion",
+      "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_cae13c9af03d/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+      "timeout": 3600
+    },
+    {
+      "id": "C4",
+      "text": "ruff passes on the changed Python files",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check jev_platform/spend.py scripts/jev_shadow_support.py scripts/mission_control_jev_shadow.py tests/test_jev_spend_call_id.py"
+    },
+    {
+      "id": "C5",
+      "text": "The real watcher (rebased skills-library branch) reports the true sum over ledgers this code wrote, including a machine-ledger reset with a reused integer id and equal amount",
+      "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_cae13c9af03d/seam.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python /Users/phill-mac/.claude-worktrees/jev-watcher-canonical/skills/guardian/scripts/jev-cap-watcher.py",
+      "timeout": 300
+    }
+  ]
+}
