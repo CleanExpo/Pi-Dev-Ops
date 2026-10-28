@@ -5,6 +5,7 @@ reached through ~/.claude/hooks/autonomy_gate_hook.py, a symlink. The hook used 
 not import swarm, and every tool call ran with the L3 deny and the HARD_STOP kill switch silently off.
 """
 import json
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -57,8 +58,10 @@ def test_the_settings_command_runs_the_trusted_hook_never_one_from_the_cwd_repo(
     (foreign / ".claude" / "hooks" / "autonomy_gate_hook.py").write_text("print('FOREIGN_HOOK_SELECTED')\n")
     subprocess.run(["git", "init", "-q", str(foreign)], check=True)
     python_dir = Path(sys.executable).parent
-    command = commands[0].replace("python3 ", f"{python_dir}/python3 ", 1) if (python_dir / "python3").exists() \
-        else commands[0]
+    # Quoted: the interpreter can sit on a path with spaces (the Mini's CI mirror venv is under /Volumes/Mini Mini 2T
+    # Storage), and an unquoted path splits into "/Volumes/Mini" plus arguments.
+    command = commands[0].replace("python3 ", f"{shlex.quote(str(python_dir / 'python3'))} ", 1) \
+        if (python_dir / "python3").exists() else commands[0]
     result = _run(["/bin/bash", "-c", command], home, foreign, home)
     assert "FOREIGN_HOOK_SELECTED" not in result.stdout
     assert _decision(result) == "deny"
