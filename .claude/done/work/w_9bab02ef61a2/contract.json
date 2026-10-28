@@ -1,0 +1,51 @@
+{
+  "schema": "done/1",
+  "work_id": "w_9bab02ef61a2",
+  "version": 7,
+  "supersedes": "w_96d0d2e86f28",
+  "goal": "Every Jev spend call carries a unique call id and settles by it, including the shadow after its own ledger resets at any point in a call (its own row carries the call id from its first write, and the machine row takes that same id); the Guardian watcher matches on it and reports a machine-ledger reset, or a legacy ledger losing rows or being replaced, as UNKNOWN (RA-8116, spec .claude/done/spm/2026-10-28-jev-spend-call-id/spec.md). v7: Codex round 4 Pi-Dev-Ops fix; C5 still pinned to watcher d42b10d9",
+  "created_at_utc": "2026-10-28T07:53:56Z",
+  "identity_key": "fix/RA-8116-spend-call-id@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/jev-spend-ledger",
+  "baseline_observed": {
+    "head": "d672bdd175e83b3a388a200ebf21af443d583dad",
+    "branch": "fix/RA-8116-spend-call-id",
+    "dirty_count": 1
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The call-id tests pass: unique id, a caller-given id, in-place upgrade (incl. a legacy ledger that already has spend_id), reserve() still int, the shadow writes the call id into its own row and the machine row from their first write, settle by call id never overwrites a colliding call after a machine-ledger reset (spend, client, harness, triage, shadow, skill router) or a shadow-ledger reset (before settle, inside the machine reserve, and on a refused reserve), the own call id is unique, a missed link or settle is reported, a raced ALTER is success",
+      "recipe": "env -i HOME=/tmp/jev-cid-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_call_id.py",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "Existing Jev spend, shadow, skill-routing and census tests pass",
+      "recipe": "env -i HOME=/tmp/jev-cid-c2-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_jev_spend_ledger.py tests/test_jev_spend_census.py tests/test_jev_spend_shadow_settle.py tests/test_mission_control_jev_shadow.py tests/test_skill_routing_modes.py tests/test_jev_transport.py tests/test_jev_triage.py",
+      "timeout": 1200
+    },
+    {
+      "id": "C3",
+      "text": "Every planted mutant (24: the 16 of v3 with the two mirror anchors moved to the own-row INSERT, the skill router settling by row id, the shadow handing out its spend id, the shadow settling, linking or refusing any row, a missed link unreported, the own call id not unique, and the machine ledger ignoring a given call id) is killed by an assertion",
+      "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_9bab02ef61a2/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+      "timeout": 3600
+    },
+    {
+      "id": "C4",
+      "text": "ruff passes on the changed Python files",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check jev_platform/spend.py jev_platform/client.py evals/jev_constitution/harness.py scripts/jev_triage.py scripts/jev_shadow_support.py scripts/mission_control_jev_shadow.py src/tao/skill_router.py tests/test_jev_spend_call_id.py"
+    },
+    {
+      "id": "C5",
+      "text": "The watcher at the reviewed skills-library commit d42b10d9 (extracted by git show) reports the exact total with nothing UNKNOWN before a machine-ledger reset, and after it reports the machine ledger UNKNOWN (blocker names a reset) with the lower bound that excludes only the lost unmirrored call. Control: the same check against watcher 97bf51d0 exits 1",
+      "recipe": "/opt/homebrew/bin/python3 .claude/done/work/w_77f2243a8e50/seam.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python /Users/phill-mac/.claude-worktrees/jev-watcher-canonical d42b10d9e33c749eb229a816e03618839c2dbc05",
+      "timeout": 300
+    },
+    {
+      "id": "C6",
+      "text": "The file-length and function-length ratchets pass (the shadow script sits at the 300-line limit)",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python .github/scripts/file_length_lint.py && /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python .github/scripts/function_length_lint.py",
+      "timeout": 300
+    }
+  ]
+}

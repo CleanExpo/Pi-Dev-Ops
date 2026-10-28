@@ -116,3 +116,14 @@ against watcher 97bf51d0 exits 1 (it reports $0.25021 with nothing UNKNOWN). Mix
 `day-filter-dropped` mutant. The watcher mutants are committed beside its tests
 (`skills/guardian/tests/jev_cap_watcher_mutants.py`, 16 killed). Known weak kill, kept: `call-id-reused` is killed
 by the unique index raising, which is the behaviour the index exists for.
+
+## Codex round 4 (Pi-Dev-Ops head d672bdd1)
+> a shadow-ledger reset between the own-row INSERT and the `UPDATE ... WHERE id=?` link lets call B take row 1
+
+Fixed by removing the window, not narrowing it. The shadow makes the call id itself and writes it in the INSERT
+of its own row, then passes it to `spend.reserve_call(caller, usd, call_id)` (new optional argument; every other
+caller still lets spend make one). No later update picks a shadow row by its id: the link and the refused update
+match `spend_call_id` through `link_own_row`, and a link that matches nothing is printed, never applied to the call
+that now holds the row id. `spend_call_id` gained a unique index. Red first: on d672bdd1 the two new reset tests
+fail by assertion (B's row taken over; B's row marked refused). Done v7 (w_9bab02ef61a2) adds 8 mutants (24 in
+all); C5 stays pinned to watcher d42b10d9, which this change does not touch.
