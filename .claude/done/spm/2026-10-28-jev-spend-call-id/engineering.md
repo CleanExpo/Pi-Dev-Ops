@@ -26,7 +26,10 @@ disagreements:
 
 Round 1 ran against spec rev 1 and the code at Pi-Dev-Ops 1ed45211 / skills-library 97bf51d0. Every blocking
 finding is answered in spec rev 2 and the code at Pi-Dev-Ops 44c6acfd / skills-library 44cb639a, which this file
-is bound to.
+is bound to. Codex round 2 then found two more, both in the same classes as above and both fixed: the skill router
+(`src/tao/skill_router.py`, outside the first caller search) still settled by row id; and a legacy ledger that
+disappeared or lost rows dropped its spend from the total without UNKNOWN. Fixed at Pi-Dev-Ops a2ed6e93 and
+skills-library 9ea3d239; Done v5 (w_bd4aa96beefb) carries the extra mutants and pins C5 to 9ea3d239.
 
 ## Data model
 > `spend.finish(row, ..., call_id=)` updates `WHERE id=? AND call_id=?`; a settle matching no row returns False and writes `settle_missing` beside the ledger (eng-data).
