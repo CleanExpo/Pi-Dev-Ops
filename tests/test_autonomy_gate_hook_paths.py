@@ -43,13 +43,22 @@ def test_the_hook_reached_through_a_symlink_from_outside_the_repo_still_gates(tm
         assert _decision(_run([sys.executable, str(link)], home, home, home)) == expected
 
 
-def test_the_settings_command_finds_the_repo_hook_when_the_launch_dir_is_elsewhere(tmp_path):
+def test_the_settings_command_runs_the_trusted_hook_never_one_from_the_cwd_repo(tmp_path):
+    """Codex round 1: the hook must come from the launch dir's install (the Mini's ~/.claude/hooks link), never
+    from whichever git repository the session is standing in, or that repo's file replaces the gate."""
     settings = json.loads((REPO / ".claude" / "settings.json").read_text(encoding="utf-8"))
     commands = [h["command"] for g in settings["hooks"]["PreToolUse"] for h in g["hooks"]
                 if "autonomy_gate_hook.py" in h["command"]]
     assert len(commands) == 1, commands
     home = _home(tmp_path, hard_stop=True)
+    (home / ".claude" / "hooks" / "autonomy_gate_hook.py").symlink_to(HOOK)
+    foreign = tmp_path / "foreign"
+    (foreign / ".claude" / "hooks").mkdir(parents=True)
+    (foreign / ".claude" / "hooks" / "autonomy_gate_hook.py").write_text("print('FOREIGN_HOOK_SELECTED')\n")
+    subprocess.run(["git", "init", "-q", str(foreign)], check=True)
     python_dir = Path(sys.executable).parent
     command = commands[0].replace("python3 ", f"{python_dir}/python3 ", 1) if (python_dir / "python3").exists() \
         else commands[0]
-    assert _decision(_run(["/bin/bash", "-c", command], home, REPO, home)) == "deny"
+    result = _run(["/bin/bash", "-c", command], home, foreign, home)
+    assert "FOREIGN_HOOK_SELECTED" not in result.stdout
+    assert _decision(result) == "deny"

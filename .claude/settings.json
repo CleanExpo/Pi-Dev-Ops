@@ -91,7 +91,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=$(git rev-parse --show-toplevel 2>/dev/null); [ -f \"$d/.claude/hooks/autonomy_gate_hook.py\" ] || d=\"$CLAUDE_PROJECT_DIR\"; python3 \"$d/.claude/hooks/autonomy_gate_hook.py\""
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py\""
           }
         ]
       }
