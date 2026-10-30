@@ -1,0 +1,145 @@
+# jev-scout.yml — run TypeSafe Jev triage where its key actually lives.
+#
+# Why this exists (31/10/2026): the only working copy of TYPESAFE_API_KEY is this repo's
+# GitHub Actions secret. The Vercel copy is marked sensitive (cannot be pulled), the laptop and
+# Mini Keychains do not have it, and the Keychain item `jev-shadow-typesafe` returns HTTP 401.
+# So no agent could run Jev at all. This workflow runs it here, on demand, inside the founder's
+# Jev authority (28/10/2026) and its limits:
+#   - main only, first attempt only: the job refuses any other dispatch ref and any re-run;
+#   - a hard per-run cap: max_usd is clamped to 0.01..2.00 whatever is typed, and the run's
+#     title carries it (run-name) so later runs can read it back;
+#   - a $20 UTC-day cap across runs, by worst-case accounting with NO saved ledger
+#     (scripts/jev_scout_budget.py): every Jev step that finished or is still running at or
+#     after 00:00 UTC today, in any run and any attempt, is charged its FULL per-run cap, and
+#     this run may spend only what is left. Two review rounds broke every ledger-carrying design
+#     (midnight, re-runs, a lost cache, a long run history); this one over-counts by design and
+#     any GitHub API error fails the run before Jev is called;
+#   - one run at a time (concurrency);
+#   - only files and question templates in the committed .jev-approved.json can be sent
+#     (enforced by jev_platform against HEAD, not by this file);
+#   - answers are advisory; nothing here gates or merges anything;
+#   - a run with zero answered files is a FAILURE (a stale manifest skips every file, which
+#     must never read as success).
+# The key is exposed to the one Jev step only and is never echoed. Results and that run's spend
+# ledger are uploaded as an artifact so every run's real cost can be read back.
+#
+# Known limit, recorded not hidden: a repository secret is readable by any workflow a
+# write-capable user pushes on any branch, with or without this file. Sealing that needs the key
+# moved into a protected `jev` environment limited to main, which means re-entering its value:
+# founder-only. Until then the main-only guard below stops honest mis-dispatch, not a hostile
+# writer.
+
+name: Jev scout (manual)
+run-name: "Jev scout cap=${{ inputs.max_usd }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      glob:
+        description: "Manifest path glob to scout (matched against .jev-approved.json paths)"
+        required: true
+        default: "jev_platform/*.py"
+      question:
+        description: "Question template id from .jev-approved.json"
+        required: true
+        default: "makes-network-calls"
+      max_usd:
+        description: "Hard spend cap for this run in USD, a plain number such as 0.50 (clamped to 0.01..2.00)"
+        required: true
+        default: "0.50"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: jev-scout
+  cancel-in-progress: false
+
+jobs:
+  scout:
+    # Re-runs are refused: dispatch a fresh run instead. (A re-run would still be charged
+    # correctly, but one rule for the founder to remember beats two.)
+    if: github.ref == 'refs/heads/main' && github.run_attempt == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Work out today's remaining Jev budget
+        id: plan
+        env:
+          REQUESTED: ${{ inputs.max_usd }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python3 scripts/jev_scout_budget.py > plan.txt
+          cat plan.txt
+          cat plan.txt >> "$GITHUB_OUTPUT"
+          refuse=$(sed -n 's/^refuse=//p' plan.txt)
+          if [ -n "$refuse" ]; then
+            echo "::error::$refuse. It resets at 00:00 UTC."
+            exit 1
+          fi
+
+      - name: Run Jev scout
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          JEV_DAILY_CAP_USD: ${{ steps.plan.outputs.usd }}
+          GLOB: ${{ inputs.glob }}
+          QUESTION: ${{ inputs.question }}
+          MAX_USD: ${{ steps.plan.outputs.usd }}
+        run: |
+          export JEV_SPEND_LEDGER="$RUNNER_TEMP/jev-ledger/spend.sqlite"
+          mkdir -p "$RUNNER_TEMP/jev-ledger" out
+          if [ -z "$TYPESAFE_API_KEY" ]; then
+            echo "::error::TYPESAFE_API_KEY secret is not available to this run"
+            exit 2
+          fi
+          set +e
+          python3 -m jev_platform scout --repo "$GITHUB_WORKSPACE" \
+            --glob "$GLOB" --q "$QUESTION" --max-usd "$MAX_USD" \
+            > out/scout.json 2> out/scout.err
+          rc=$?
+          set -e
+          cp "$JEV_SPEND_LEDGER" out/ 2>/dev/null || true
+          tail -20 out/scout.err
+          python3 - <<'PY'
+          import json
+          try:
+              d = json.load(open("out/scout.json"))
+          except Exception as e:
+              print(f"::error::no JSON result from scout: {e}")
+              raise SystemExit(1)
+          results = d.get("results") or []
+          skipped = d.get("skipped") or []
+          bad = [x for x in results if x.get("unavailable")]
+          answered = len(results) - len(bad)
+          print(f"answered={answered} unavailable={len(bad)} skipped={len(skipped)} spent_usd={d.get('spent_usd')}")
+          for x in bad[:5]:
+              print(f"UNAVAILABLE {x.get('path')}: {x.get('unavailable')}")
+          for x in skipped[:10]:
+              print(f"SKIPPED {x}")
+          if answered == 0:
+              print("::error::Jev answered no file (all skipped or unavailable): nothing was triaged")
+              raise SystemExit(1)
+          PY
+          exit $rc
+
+      - name: Upload results and spend ledger
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jev-scout-${{ github.run_id }}
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 30
