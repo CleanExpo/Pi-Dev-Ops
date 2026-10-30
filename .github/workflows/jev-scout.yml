@@ -1,17 +1,30 @@
 # jev-scout.yml — run TypeSafe Jev triage where its key actually lives.
 #
 # Why this exists (31/10/2026): the only working copy of TYPESAFE_API_KEY is this repo's
-# GitHub Actions secret. Vercel holds it as "sensitive" (cannot be pulled), the laptop and
+# GitHub Actions secret. The Vercel copy is marked sensitive (cannot be pulled), the laptop and
 # Mini Keychains do not have it, and the Keychain item `jev-shadow-typesafe` returns HTTP 401.
 # So no agent could run Jev at all. This workflow runs it here, on demand, inside the founder's
 # Jev authority (28/10/2026) and its limits:
-#   - a hard per-run cap: max_usd is clamped to 2.00 whatever is typed;
-#   - one run at a time (concurrency), so runs cannot stack up spend in parallel;
+#   - main only: the job refuses any other dispatch ref;
+#   - a hard per-run cap: max_usd is clamped to 0.01..2.00 whatever is typed;
+#   - a $20 UTC-day cap across runs: the spend ledger is carried run to run in the Actions
+#     cache, JEV_DAILY_CAP_USD=20 makes jev_platform refuse a call that would cross it, and a
+#     run REFUSES when an earlier run today exists but its ledger cannot be restored (a lost
+#     ledger must never reset the day's count to zero);
+#   - one run at a time (concurrency), so the ledger has a single writer;
 #   - only files and question templates in the committed .jev-approved.json can be sent
-#     (enforced by jev_platform itself, against HEAD, not by this file);
-#   - answers are advisory; nothing here gates or merges anything.
-# The key is exposed to the one Jev step only and is never echoed. The results and the spend
-# ledger are uploaded as an artifact so every run's cost can be read back.
+#     (enforced by jev_platform against HEAD, not by this file);
+#   - answers are advisory; nothing here gates or merges anything;
+#   - a run with zero answered files is a FAILURE (a stale manifest skips every file, which
+#     must never read as success).
+# The key is exposed to the one Jev step only and is never echoed. Results and the ledger are
+# uploaded as an artifact so every run's cost can be read back.
+#
+# Known limit, recorded not hidden: a repository secret is readable by any workflow a
+# write-capable user pushes on any branch, with or without this file. Sealing that needs the key
+# moved into a protected `jev` environment limited to main, which means re-entering its value:
+# founder-only. Until then the main-only guard below stops honest mis-dispatch, not a hostile
+# writer.
 
 name: Jev scout (manual)
 
@@ -33,6 +46,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: jev-scout
@@ -40,6 +54,7 @@ concurrency:
 
 jobs:
   scout:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -52,30 +67,89 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Clamp the spend cap
-        id: cap
+      - name: Clamp the spend cap and find today's earlier run
+        id: plan
         env:
           REQUESTED: ${{ inputs.max_usd }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
+          day=$(date -u +%Y-%m-%d)
+          echo "day=$day" >> "$GITHUB_OUTPUT"
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import os
           try:
               v = float(os.environ["REQUESTED"])
           except ValueError:
               v = 0.50
-          v = max(0.01, min(v, 2.00))
-          print(f"usd={v:.2f}")
+          print(f"usd={max(0.01, min(v, 2.00)):.2f}")
           PY
+          # prev = the newest earlier run today whose ledger SAVE succeeded. Runs refused by the
+          # guard spent nothing and saved nothing, so they are skipped rather than locking out the
+          # rest of the day. A run that reached the Jev step but did NOT save is fatal: its spend
+          # would be missing from the restored ledger.
+          DAY="$day" python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, urllib.request
+          api = f"https://api.github.com/repos/{os.environ['REPO']}/actions"
+          head = {"Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "Accept": "application/vnd.github+json"}
+          def get(url):
+              with urllib.request.urlopen(urllib.request.Request(url, headers=head), timeout=30) as r:
+                  return json.load(r)
+          day, me = os.environ["DAY"], int(os.environ["RUN_ID"])
+          runs = get(f"{api}/workflows/jev-scout.yml/runs?branch=main&created=%3E%3D{day}&per_page=100")
+          ids = sorted((r["id"] for r in runs["workflow_runs"] if r["id"] != me), reverse=True)
+          prev, unsaved = "", ""
+          for rid in ids:
+              steps = {s["name"]: s.get("conclusion") for j in get(f"{api}/runs/{rid}/jobs")["jobs"]
+                       for s in j.get("steps", [])}
+              if steps.get("Save today's spend ledger") == "success":
+                  prev = str(rid)
+                  break
+              if steps.get("Run Jev scout") not in (None, "skipped"):
+                  unsaved = str(rid)
+                  break
+          print(f"prev={prev}")
+          print(f"unsaved={unsaved}")
+          PY
+
+      - name: Restore today's spend ledger
+        id: ledger
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/jev-ledger
+          key: jev-ledger-${{ steps.plan.outputs.day }}-${{ github.run_id }}
+          restore-keys: jev-ledger-${{ steps.plan.outputs.day }}-
+
+      - name: Refuse when today's ledger is missing
+        id: guard
+        env:
+          PREV: ${{ steps.plan.outputs.prev }}
+          UNSAVED: ${{ steps.plan.outputs.unsaved }}
+          DAY: ${{ steps.plan.outputs.day }}
+          MATCHED: ${{ steps.ledger.outputs.cache-matched-key }}
+        run: |
+          if [ -n "$UNSAVED" ]; then
+            echo "::error::run $UNSAVED called Jev today but did not save its ledger; its spend is unknown, so this run refuses until 00:00 UTC."
+            exit 1
+          fi
+          if [ -n "$PREV" ] && [ "$MATCHED" != "jev-ledger-$DAY-$PREV" ]; then
+            echo "::error::run $PREV already ran today but its ledger was not restored (got '${MATCHED:-none}'); refusing so the \$20 daily cap cannot be bypassed. It resets at 00:00 UTC."
+            exit 1
+          fi
+          echo "ledger ok: earlier run today=${PREV:-none}, restored=${MATCHED:-none (first run today)}"
 
       - name: Run Jev scout
         env:
           TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
-          JEV_SPEND_LEDGER: ${{ runner.temp }}/jev/spend.sqlite
+          JEV_DAILY_CAP_USD: "20"
           GLOB: ${{ inputs.glob }}
           QUESTION: ${{ inputs.question }}
-          MAX_USD: ${{ steps.cap.outputs.usd }}
+          MAX_USD: ${{ steps.plan.outputs.usd }}
         run: |
-          mkdir -p "$RUNNER_TEMP/jev" out
+          export JEV_SPEND_LEDGER="$HOME/jev-ledger/spend.sqlite"
+          mkdir -p "$HOME/jev-ledger" out
           if [ -z "$TYPESAFE_API_KEY" ]; then
             echo "::error::TYPESAFE_API_KEY secret is not available to this run"
             exit 2
@@ -87,24 +161,35 @@ jobs:
           rc=$?
           set -e
           cp "$JEV_SPEND_LEDGER" out/ 2>/dev/null || true
+          tail -20 out/scout.err
           python3 - <<'PY'
           import json
           try:
               d = json.load(open("out/scout.json"))
           except Exception as e:
-              print(f"no JSON result: {e}")
-              raise SystemExit(0)
-          r = d.get("results", [])
-          bad = [x for x in r if x.get("unavailable")]
-          print(f"results={len(r)} unavailable={len(bad)} spent_usd={d.get('spent_usd')}")
+              print(f"::error::no JSON result from scout: {e}")
+              raise SystemExit(1)
+          results = d.get("results") or []
+          skipped = d.get("skipped") or []
+          bad = [x for x in results if x.get("unavailable")]
+          answered = len(results) - len(bad)
+          print(f"answered={answered} unavailable={len(bad)} skipped={len(skipped)} spent_usd={d.get('spent_usd')}")
           for x in bad[:5]:
               print(f"UNAVAILABLE {x.get('path')}: {x.get('unavailable')}")
-          if r and len(bad) == len(r):
-              print("::error::every file came back unavailable (check the key and endpoint)")
+          for x in skipped[:10]:
+              print(f"SKIPPED {x}")
+          if answered == 0:
+              print("::error::Jev answered no file (all skipped or unavailable): nothing was triaged")
               raise SystemExit(1)
           PY
-          tail -20 out/scout.err
           exit $rc
+
+      - name: Save today's spend ledger
+        if: always() && steps.guard.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/jev-ledger
+          key: jev-ledger-${{ steps.plan.outputs.day }}-${{ github.run_id }}
 
       - name: Upload results and spend ledger
         if: always()
@@ -112,4 +197,5 @@ jobs:
         with:
           name: jev-scout-${{ github.run_id }}
           path: out/
+          if-no-files-found: ignore
           retention-days: 30
