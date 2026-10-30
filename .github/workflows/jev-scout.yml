@@ -44,7 +44,7 @@ on:
         required: true
         default: "makes-network-calls"
       max_usd:
-        description: "Hard spend cap for this run in USD (clamped to 0.01..2.00)"
+        description: "Hard spend cap for this run in USD, a plain number such as 0.50 (clamped to 0.01..2.00)"
         required: true
         default: "0.50"
 

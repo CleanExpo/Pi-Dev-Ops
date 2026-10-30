@@ -27,7 +27,8 @@ DAILY_CAP_USD = 20.00
 RUN_CAP_MIN, RUN_CAP_MAX = 0.01, 2.00
 JEV_STEP = "Run Jev scout"
 WORKFLOW = "jev-scout.yml"
-_CAP_IN_TITLE = re.compile(r"cap=([0-9]+(?:\.[0-9]+)?)")
+_TITLE_PREFIX = "Jev scout cap="  # must match run-name in jev-scout.yml
+_PLAIN_CAP = re.compile(r"[0-9]{1,2}(?:\.[0-9]{1,2})?")
 
 Fetch = Callable[[str], dict]
 
@@ -44,9 +45,16 @@ def clamp_cap(raw: str | None) -> float:
 
 
 def run_cap(display_title: str | None) -> float:
-    """A past run's cap, read back from its run-name; unknown means the maximum."""
-    match = _CAP_IN_TITLE.search(display_title or "")
-    return clamp_cap(match.group(1)) if match else RUN_CAP_MAX
+    """A past run's cap, read back from its run-name; unknown means the maximum.
+
+    The title is `Jev scout cap=<raw input>`, so the WHOLE raw input goes through the same
+    clamp the run applied. Searching for a number inside it would let an input such as
+    `0.01 cap=2` be charged 0.01 while the run, failing to parse it, used 2.00.
+    """
+    title = display_title or ""
+    if not title.startswith(_TITLE_PREFIX):
+        return RUN_CAP_MAX
+    return clamp_cap(title[len(_TITLE_PREFIX):])
 
 
 def _parse_time(stamp: str | None) -> datetime | None:
@@ -94,6 +102,10 @@ def spent_today(fetch: Fetch, api: str, now: datetime, me: tuple[int, int]) -> f
 
 def decide(requested: str | None, spent: float) -> tuple[float, str]:
     """(cap for this run, refusal reason or '')."""
+    # Only a plain short number may reach Jev, so the run title (which GitHub may shorten)
+    # always reads back as exactly the cap the run used.
+    if not _PLAIN_CAP.fullmatch(requested or ""):
+        return 0.0, f"max_usd must be a plain number such as 0.50, got {requested!r}"
     left = round(DAILY_CAP_USD - spent, 2)
     cap = min(clamp_cap(requested), left)
     if cap < RUN_CAP_MIN:

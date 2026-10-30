@@ -115,9 +115,16 @@ def test_history_query_starts_the_day_before_so_midnight_runs_are_seen():
     assert "created=%3E%3D2026-10-30" in fake.urls[0]
 
 
-@pytest.mark.parametrize("title", [None, "", "Jev scout", "Jev scout cap=abc", "Jev scout cap=9"])
+@pytest.mark.parametrize("title", [None, "", "Jev scout", "Jev scout cap=abc", "Jev scout cap=9",
+                                   "Jev scout cap=0.01 cap=2", "cap=0.01 Jev scout cap=2"])
 def test_an_unknown_or_oversized_cap_is_charged_at_the_maximum(title):
     assert budget.run_cap(title) == budget.RUN_CAP_MAX
+
+
+@pytest.mark.parametrize("raw", ["0.50", "0.01 cap=2", "1e-9", "nan", "-1", "7", " 0.3 ", "inf"])
+def test_a_run_is_charged_at_least_what_it_was_allowed_to_spend(raw):
+    """The charge read back from the title is never below the cap the run itself applied."""
+    assert budget.run_cap(budget._TITLE_PREFIX + raw) >= budget.clamp_cap(raw)
 
 
 @pytest.mark.parametrize("raw, expected", [
@@ -128,6 +135,13 @@ def test_requested_cap_is_clamped(raw, expected):
 
 def test_run_gets_only_what_is_left_of_twenty():
     assert budget.decide("2.00", 19.25) == (0.75, "")
+
+
+@pytest.mark.parametrize("raw", ["0.01 cap=2", "1e-9", "nan", "-1", " 0.3", "0.5" + " " * 300,
+                                 "", None, "0.123", "100"])
+def test_a_cap_that_is_not_a_plain_short_number_is_refused(raw):
+    cap, refuse = budget.decide(raw, 0.0)
+    assert cap == 0.0 and "plain number" in refuse
 
 
 def test_run_refuses_when_nothing_is_left():
