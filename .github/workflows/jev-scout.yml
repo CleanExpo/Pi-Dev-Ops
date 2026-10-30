@@ -1,0 +1,115 @@
+# jev-scout.yml — run TypeSafe Jev triage where its key actually lives.
+#
+# Why this exists (31/10/2026): the only working copy of TYPESAFE_API_KEY is this repo's
+# GitHub Actions secret. Vercel holds it as "sensitive" (cannot be pulled), the laptop and
+# Mini Keychains do not have it, and the Keychain item `jev-shadow-typesafe` returns HTTP 401.
+# So no agent could run Jev at all. This workflow runs it here, on demand, inside the founder's
+# Jev authority (28/10/2026) and its limits:
+#   - a hard per-run cap: max_usd is clamped to 2.00 whatever is typed;
+#   - one run at a time (concurrency), so runs cannot stack up spend in parallel;
+#   - only files and question templates in the committed .jev-approved.json can be sent
+#     (enforced by jev_platform itself, against HEAD, not by this file);
+#   - answers are advisory; nothing here gates or merges anything.
+# The key is exposed to the one Jev step only and is never echoed. The results and the spend
+# ledger are uploaded as an artifact so every run's cost can be read back.
+
+name: Jev scout (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      glob:
+        description: "Manifest path glob to scout (matched against .jev-approved.json paths)"
+        required: true
+        default: "jev_platform/*.py"
+      question:
+        description: "Question template id from .jev-approved.json"
+        required: true
+        default: "makes-network-calls"
+      max_usd:
+        description: "Hard spend cap for this run in USD (clamped to 2.00)"
+        required: true
+        default: "0.50"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jev-scout
+  cancel-in-progress: false
+
+jobs:
+  scout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Clamp the spend cap
+        id: cap
+        env:
+          REQUESTED: ${{ inputs.max_usd }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          try:
+              v = float(os.environ["REQUESTED"])
+          except ValueError:
+              v = 0.50
+          v = max(0.01, min(v, 2.00))
+          print(f"usd={v:.2f}")
+          PY
+
+      - name: Run Jev scout
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+          JEV_SPEND_LEDGER: ${{ runner.temp }}/jev/spend.sqlite
+          GLOB: ${{ inputs.glob }}
+          QUESTION: ${{ inputs.question }}
+          MAX_USD: ${{ steps.cap.outputs.usd }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/jev" out
+          if [ -z "$TYPESAFE_API_KEY" ]; then
+            echo "::error::TYPESAFE_API_KEY secret is not available to this run"
+            exit 2
+          fi
+          set +e
+          python3 -m jev_platform scout --repo "$GITHUB_WORKSPACE" \
+            --glob "$GLOB" --q "$QUESTION" --max-usd "$MAX_USD" \
+            > out/scout.json 2> out/scout.err
+          rc=$?
+          set -e
+          cp "$JEV_SPEND_LEDGER" out/ 2>/dev/null || true
+          python3 - <<'PY'
+          import json
+          try:
+              d = json.load(open("out/scout.json"))
+          except Exception as e:
+              print(f"no JSON result: {e}")
+              raise SystemExit(0)
+          r = d.get("results", [])
+          bad = [x for x in r if x.get("unavailable")]
+          print(f"results={len(r)} unavailable={len(bad)} spent_usd={d.get('spent_usd')}")
+          for x in bad[:5]:
+              print(f"UNAVAILABLE {x.get('path')}: {x.get('unavailable')}")
+          if r and len(bad) == len(r):
+              print("::error::every file came back unavailable (check the key and endpoint)")
+              raise SystemExit(1)
+          PY
+          tail -20 out/scout.err
+          exit $rc
+
+      - name: Upload results and spend ledger
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jev-scout-${{ github.run_id }}
+          path: out/
+          retention-days: 30
