@@ -1,8 +1,8 @@
 # Pi-Dev-Ops — Claude Code Guidance
 
-> **Every fact below was verified against this repo on 2026-08-18 at commit `d124c6af`.**
-> Each block names the command that re-derives it. If a command disagrees with the text, the
-> command is right and the text is stale — fix the text in the same PR.
+> Each fact below names the command that re-derives it. Run the command before relying on the
+> text: if a command disagrees with the text, the command is right and the text is stale — fix
+> the text in the same PR.
 > Claims that cannot be re-derived by a command are marked **POLICY** and are decisions, not facts.
 
 ## POLICY — Talking to the founder
@@ -53,9 +53,9 @@ Generator and evaluator run through `claude_agent_sdk`. `TAO_USE_AGENT_SDK=0` ra
 
 | Layer | Tech | Location |
 |-------|------|----------|
-| Frontend | Next.js `^16.2.3`, React `^19.0.0`, Tailwind `4.1.9` | `dashboard/` |
+| Frontend | Next.js, React, Tailwind (versions in `dashboard/package.json`) | `dashboard/` |
 | Backend | FastAPI, Python `>=3.11` (`pyproject.toml`) | `app/server/` |
-| Routes | 8 modules | `app/server/routes/` |
+| Routes | route modules plus helper modules (`ls app/server/routes/*.py`; routers: `grep -ln 'APIRouter(' app/server/routes/*.py`) | `app/server/routes/` |
 | MCP server | Node, `@modelcontextprotocol/sdk` | `mcp/pi-ceo-server.js` |
 | TAO engine | Python | `src/tao/` |
 | Harness state | JSONL / JSON | `.harness/` |
@@ -84,7 +84,7 @@ node mcp/pi-ceo-server.js
 
 # Gates — run in this order, first failure stops the work
 .venv/bin/python -c "from app.server.main import app"   # must print a FastAPI instance
-.venv/bin/python -m pytest tests/ -x -q                 # 250 test files
+.venv/bin/python -m pytest tests/ -x -q
 cd dashboard && npx tsc --noEmit && npm run build
 bash scripts/handoff-loop.sh                            # full definition-of-done gate
 ```
@@ -100,9 +100,9 @@ Findings about the gate itself route to `skills-library`, not to Pi-Dev-Ops (RA-
 
 `pr_release_gate.py` re-runs every command recorded in the receipt's `tests` array on each push.
 `scripts/handoff-loop.sh` already runs ruff, `pytest tests/` and `pytest swarm/` as its own gates
-(`lint-ruff`, `tests-python`, `tests-swarm`) plus 15 more. Recording those three *alongside*
-`handoff-loop.sh` runs the 75-second Python suite twice — ~140 s total, which exceeds the
-2-minute tool timeout and kills the push mid-gate. Two pushes died this way on 2026-08-18.
+(`lint-ruff`, `tests-python`, `tests-swarm`) among the rest (`grep -n 'gate "' scripts/handoff-loop.sh`).
+Recording those three *alongside* `handoff-loop.sh` runs the Python suite twice and makes every
+push slower.
 
 Record exactly this, and nothing else:
 
@@ -110,9 +110,11 @@ Record exactly this, and nothing else:
 bash scripts/handoff-loop.sh
 ```
 
-It is strictly stronger than the four-command list (18 gates versus 3) and finishes inside the
-timeout. Verify with `wc -l` on the receipt's `tests` array: more than one entry means the next
-push will time out.
+It covers every command in the four-command list. It does **not** fit a 2-minute tool timeout:
+its `tests-python` gate alone measured 184-215 s on 2026-10-02 and is bounded at 420 s (see the
+comment above that gate in `scripts/handoff-loop.sh`). Run the push in the background or with the
+longest tool timeout available, never the 2-minute default. More than one entry in the receipt's
+`tests` array means the suite runs twice.
 
 Local auth: the dashboard password defaults to `dev` when `.env.local` holds unresolved `op://`
 refs. Override with `DASHBOARD_PASSWORD` in `dashboard/.env.local`. `.env.local` is gitignored —
@@ -124,12 +126,9 @@ Found by direct check on 2026-08-18. Each is real and unfixed; treat as work, no
 
 | # | Defect | Evidence |
 |---|---|---|
-| 1 | ~~`.harness/config.yaml` **does not exist**~~ — **RETRACTED 2026-08-30, was never a defect.** Absence is correct by design. `.harness/` is gitignored (`.gitignore:220`), so the file is absent from every fresh clone and from CI — it is per-project runtime state. The role→model map it once carried now lives in code as `config_loader.HARNESS_SPEC`; a present file only overrides it. `ls .harness/` can never show it, so the old row was a null result mistaken for evidence. Untracking `.harness/` in `#607` is what silently dropped planner/orchestrator/adversary to sonnet for four days; `config_loader.py` exists so that absence resolves to the correct models instead | `python3 -c "from app.server import config_loader; print(config_loader.harness_config()['agents'])"` |
-| 2 | ~~`projects.json` repo→project lookup is ambiguous~~ — **RETRACTED, was never a defect.** `CleanExpo/Pi-Dev-Ops` legitimately carries two Linear projects (`pi-dev-ops`, `margot`). Every `id` value is unique and both consumers key on `id`, never `repo`. See the routing section | `python3 -c "import json;p=json.load(open('config/harness/projects.json'))['projects'];i=[x['id'] for x in p];print(len(i),len(set(i)))"` — the two numbers must match |
-| 3 | ~~Four `.claude/skills/*/SKILL.md` missing~~ — **FIXED 2026-08-18.** Added as symlinks to the `.agents/skills/` originals, matching the existing `skybridge` convention. Six routes now resolve | `ls -la .claude/skills/` |
-| 4 | ~~`HERMES.md` is **missing**, cited as Launch Crew governance~~ — **RETRACTED 2026-08-30.** The file is genuinely absent, but it is not governance and nothing depends on it: its only reference is one entry in an opportunistic inventory glob in `skills/launch-project-audit/SKILL.md`. Launch Crew governance is `skills/launch-charter/SKILL.md`, which exists | `git grep -n 'HERMES\.md'` |
-| 5 | `app/server/routes/webhooks.py` is by far the largest route module and breaches the 300-line convention, along with most of `routes/`. The old row's other two counts were wrong — `mission_control.py` has since dropped under the ceiling — and "four files" repo-wide understated it by two orders of magnitude. The ceiling is now enforced for Python as a ratchet, not a hard limit — existing files are grandfathered in `.github/file-length.baseline.txt`; CI fails on a new file over 300 or a baselined file that grows. Covers `.py`, `.ts` and `.tsx`. Count it, never read a count from here | `python3 .github/scripts/file_length_lint.py` |
-| 6 | ~~`Monorepo CI` on `main` red since 2026-08-14~~ — **RETRACTED 2026-08-30.** The claim was two weeks stale when checked: `main` had been green for many consecutive runs, and the most recent failure long predated the date the row named. The workflow's display name is also `CI`, not `Monorepo CI`. CI health rots by the hour — run the command, never trust a pasted verdict here | `gh run list --workflow ci.yml --branch main` |
+| 1 | `app/server/routes/webhooks.py` is by far the largest route module and breaches the 300-line convention, along with several other route modules. The old row's other two counts were wrong — `mission_control.py` has since dropped under the ceiling — and "four files" repo-wide understated it by two orders of magnitude. The ceiling is now enforced as a ratchet, not a hard limit — existing files are grandfathered in `.github/file-length.baseline.txt`; CI fails on a new file over 300 or a baselined file that grows. Covers `.py`, `.ts` and `.tsx`. Count it, never read a count from here | `python3 .github/scripts/file_length_lint.py` |
+
+`.harness/config.yaml` is absent by design (`.harness/` is gitignored, so it is not in a fresh clone or CI); the role→model map lives in `config_loader.HARNESS_SPEC` and a present file only overrides it.
 
 Do not paste per-file line counts into this document again. They were wrong in every row of the
 previous version — one claimed ~214 lines against an actual 1292. Run `wc -l` instead.
@@ -171,8 +170,8 @@ trust this sentence — enforcement lives in code, not in a config file:
 - `app/server/model_policy.py` — `select_model()` downshifts opus→sonnet for non-allowed roles and
   logs to `.harness/model-policy-violations.jsonl`
 - `app/server/config.py:193` — `OPUS_ALLOWED_ROLES`, overridable via `TAO_OPUS_ALLOWED_ROLES`
-- `app/server/model_policy.py:153` — `assert_model_allowed()`, called at
-  `app/server/session_sdk.py:234` so it raises before the wire
+- `app/server/model_policy.py` — `assert_model_allowed()`, called in
+  `_run_claude_via_sdk()` in `app/server/session_sdk.py` so it raises before the wire
 
 Never pass `model="claude-opus-*"` directly. Budget-tier escalation changes retries, threshold and
 timeout — never the model. The plan phase runs on Sonnet by intent: Haiku produced 5%-confidence
@@ -212,10 +211,10 @@ change, secret rotation, destructive migration, new service provisioning.
 
 | Command | Purpose | Claude Code | Codex | Shared docs |
 |---|---|---|---|---|
-| `/judge` | Read-only challenge gate — decides *whether to build*. Scores out of 100. Never implements. | `.claude/skills/judge` → symlink to `.agents/skills/judge` (defect 3 fixed) | `.agents/skills/judge/SKILL.md` | `.judge/` |
-| `/spm` | Decision-grade spec before implementation. Read-only by default. | `.claude/skills/spm` → symlink to `.agents/skills/spm` (defect 3 fixed) | `.agents/skills/spm/SKILL.md` | `.spm/` |
-| `/session-handoff` | Gates the tree via `scripts/handoff-loop.sh`, then writes `docs/session-handoffs/handoff-<ts>.md`. Non-zero exit ⇒ write a BLOCKED handoff naming the failing gate. | `.claude/skills/session-handoff` → symlink to `.agents/skills/session-handoff` (defect 3 fixed) | `.agents/skills/session-handoff/SKILL.md` | `.session-handoff/` |
-| `/resume-from-handoff` | Re-runs the same gate, reconciles drift, then resumes. Verification is read-only and mandatory first. | `.claude/skills/resume-from-handoff` → symlink to `.agents/skills/resume-from-handoff` (defect 3 fixed) | `.agents/skills/resume-from-handoff/SKILL.md` | `.resume-from-handoff/` |
+| `/judge` | Read-only challenge gate — decides *whether to build*. Scores out of 100. Never implements. | `.claude/skills/judge` → symlink to `.agents/skills/judge` | `.agents/skills/judge/SKILL.md` | `.judge/` |
+| `/spm` | Decision-grade spec before implementation. Read-only by default. | `.claude/skills/spm` → symlink to `.agents/skills/spm` | `.agents/skills/spm/SKILL.md` | `.spm/` |
+| `/session-handoff` | Produces a structured handoff (summary, locked decisions, verification commands, exact pickup point). Read-only by default (AGENTS.md). `scripts/handoff-loop.sh` writes `.handoff-logs/` and runs `clean-bloat`, so running it is a separate action that needs its own authorisation. | `.claude/skills/session-handoff` → symlink to `.agents/skills/session-handoff` | `.agents/skills/session-handoff/SKILL.md` | `.session-handoff/` |
+| `/resume-from-handoff` | Loads the latest handoff, verifies the repo against it read-only, reports drift, then resumes from the pickup point. No mutating command runs before verification and reconciliation are reported. | `.claude/skills/resume-from-handoff` → symlink to `.agents/skills/resume-from-handoff` | `.agents/skills/resume-from-handoff/SKILL.md` | `.resume-from-handoff/` |
 | `/plan-to-done` | Writes the whole-project delivery packet (intent → coverage → work packages → release and live checks). Planning only; never builds. **Candidate, quarantined** — not invocable until its evals run and it is promoted via `skills-library`. Routing it uses: `references/model-and-plan-routing.md` (reconciled against code in `docs/plans/idea-to-live/routing-reconciliation.md`). | **not installed** (by design) | package at `docs/plans/plan-to-done-v1.1/plan-to-done/SKILL.md` | `docs/plans/idea-to-live/` |
 
 Planning inputs are layered, not stacked side by side: method (plan-to-done, `/spm`) → portfolio
@@ -301,9 +300,13 @@ These cost real debugging time. Each is a behaviour of an external system, not a
   (`config.py:230`, default `14400` = 4 h).
 - **Path traversal** — `_safe_sid()` (`app/server/persistence.py:28`) strips non-alphanumerics from
   session IDs before any file-path use. **Webhook HMAC** — `hmac.compare_digest()` for GitHub and
-  Linear signatures. The `pidev/` skip is at `app/server/routes/webhooks.py:187`.
-- **Recursive self-modification guard** — the webhook handler skips refs containing `pidev/` when
-  the repo is `CleanExpo/Pi-Dev-Ops`. Removing this produced 43 zombie branches on 2026-04-17.
+  Linear signatures. The `pidev/` skip: `grep -n '"pidev/" in ref' app/server/routes/webhooks.py`.
+- **Recursive self-modification guard** — the webhook handler first records outcome events
+  (merged pull requests, and revert commits pushed to the default branch), in every repo, and
+  returns. Only
+  after that does it skip starting a session, in two separate checks: any ref containing `pidev/`,
+  in every repo, and any event whose repo is `CleanExpo/Pi-Dev-Ops`. The skips stop building, not
+  recording. Removing the `pidev/` skip produced 43 zombie branches on 2026-04-17.
 - **Workspace isolation** — `TAO_WORKSPACE` must live outside any parent git repo (e.g.
   `/tmp/pi-ceo-workspaces`), or git uses the outer `.git` and pushes to the wrong remote. Plant a
   stub `CLAUDE.md` at the workspace root so Claude's upward search cannot inherit this file.
@@ -497,14 +500,14 @@ process, it is not autonomous.
 ## Linear routing
 
 `config/harness/projects.json` is canonical. **Route on `id`, never on `repo`.** `id` is unique
-across every entry; `repo` is not — `CleanExpo/Pi-Dev-Ops` deliberately carries two Linear
-projects (`pi-dev-ops` and `margot`), so a repo-keyed lookup would silently pick one. This is
+across every entry; `repo` is not — `CleanExpo/Pi-Dev-Ops` deliberately carries several Linear
+projects (today `pi-dev-ops`, `margot` and `mission-control`; count them with
+`grep -c '"CleanExpo/Pi-Dev-Ops"' config/harness/projects.json`), so a repo-keyed lookup would
+silently pick one. This is
 already how the code works, and it is correct:
 
-- `mcp/pi-ceo-server.js:313` — `resolveProjectRouting()` matches `p.id === project_key`
-- `app/server/autonomy.py:82` — the poller iterates every entry, so both projects get polled
-
-The previous version of this file described the lookup as repo-keyed. It never was.
+- `mcp/pi-ceo-server.js` — `resolveProjectRouting()` matches `p.id === project_key`
+- `app/server/autonomy.py` — `_load_portfolio_projects()` iterates every entry, so every project that has a `linear_project_id` gets polled
 
 Primary team/project for this repo: team `a8a52f07-63cf-4ece-9ad2-3e3bd3c15673`, project
 `f45212be-3259-4bfb-89b1-54c122c939a7`. Ticket format `RA-xxx`.
@@ -528,12 +531,7 @@ resume #8. A domain change means a fresh agent, always.
 
 ## Keeping this file honest
 
-This document was rewritten on 2026-08-18 after an audit found twelve false claims in it, including
-a wrong canonical path, a table of twelve file line-counts where eleven were wrong, and four
-documented command routes pointing at files that do not exist. The failure mode was accumulation:
-each session appended without re-checking what was already there.
-
-Rules that prevent the recurrence:
+Facts in this file go stale when sessions append without re-checking. Rules:
 
 1. **No fact without a re-derivation command.** If it cannot be checked by a command, mark it POLICY.
 2. **No copied measurements.** Line counts, table lists and version numbers rot within days. Name
