@@ -27,6 +27,7 @@ DAILY_CAP_USD = 20.00
 RUN_CAP_MIN, RUN_CAP_MAX = 0.01, 2.00
 JEV_STEP = "Run Jev scout"
 WORKFLOW = "jev-scout.yml"
+SEARCH_LIMIT = 1000  # GitHub: a filtered List workflow runs search returns at most 1,000
 _TITLE_PREFIX = "Jev scout cap="  # must match run-name in jev-scout.yml
 _PLAIN_CAP = re.compile(r"[0-9]{1,2}(?:\.[0-9]{1,2})?")
 
@@ -62,16 +63,25 @@ def _parse_time(stamp: str | None) -> datetime | None:
 
 
 def _all_runs(fetch: Fetch, api: str, since_day: str) -> list[dict]:
-    runs, page = [], 1
+    """Every run created since since_day, or an error. A created-filtered search returns at
+    most SEARCH_LIMIT runs however many match, so a history at that size is refused rather than
+    counted from a window that may have dropped the runs that spent."""
+    runs, page, total = [], 1, None
     while True:
         body = fetch(f"{api}/workflows/{WORKFLOW}/runs?created=%3E%3D{since_day}&per_page=100&page={page}")
-        batch = body.get("workflow_runs")
-        if batch is None:
-            raise RuntimeError("workflow runs response has no workflow_runs")
+        batch, count = body.get("workflow_runs"), body.get("total_count")
+        if batch is None or not isinstance(count, int):
+            raise RuntimeError("workflow runs response has no workflow_runs or total_count")
+        total = count if total is None else max(total, count)
+        if total >= SEARCH_LIMIT:
+            raise RuntimeError(f"{total} runs since {since_day}: over the search limit, cannot count")
         runs.extend(batch)
         if len(batch) < 100:
-            return runs
+            break
         page += 1
+    if len(runs) < total:
+        raise RuntimeError(f"read {len(runs)} of {total} runs since {since_day}")
+    return runs
 
 
 def _jev_step_counts(step: dict, midnight: datetime) -> bool:

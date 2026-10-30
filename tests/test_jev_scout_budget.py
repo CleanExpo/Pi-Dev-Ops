@@ -31,7 +31,9 @@ class FakeGitHub:
         self.urls.append(url)
         if "/workflows/" in url:
             page = int(url.rsplit("page=", 1)[1])
-            return {"workflow_runs": self.runs[(page - 1) * 100:page * 100]}
+            visible = self.runs[:budget.SEARCH_LIMIT]  # GitHub's search cap
+            return {"total_count": len(self.runs),
+                    "workflow_runs": visible[(page - 1) * 100:page * 100]}
         run_id, attempt = url.split("/runs/", 1)[1].split("/jobs", 1)[0].split("/attempts/")
         steps = self.jobs.get((int(run_id), int(attempt)), [])
         return {"jobs": [{"steps": steps}]}
@@ -154,8 +156,32 @@ def test_missing_runs_key_fails_closed():
         _spent(lambda url: {"message": "Bad credentials"})
 
 
+def test_history_at_the_search_limit_fails_closed():
+    """1,000 newer cancelled runs must not hide older ones that spent."""
+    runs = [_run(i, "2.00") for i in range(1, 1011)]
+    jobs = {(i, 1): [_jev_step("2026-10-31T01:00:00Z", "2026-10-31T01:01:00Z")]
+            for i in range(1001, 1011)}
+    with pytest.raises(RuntimeError, match="search limit"):
+        _spent(FakeGitHub(runs, jobs))
+
+
+def test_a_short_read_against_total_count_fails_closed():
+    def fetch(url: str) -> dict:
+        if "/workflows/" in url:
+            return {"total_count": 5, "workflow_runs": [_run(1)]}
+        return {"jobs": []}
+    with pytest.raises(RuntimeError, match="read 1 of 5"):
+        _spent(fetch)
+
+
+def test_missing_total_count_fails_closed():
+    with pytest.raises(RuntimeError):
+        _spent(lambda url: {"workflow_runs": []})
+
+
 def test_missing_jobs_key_fails_closed():
     def fetch(url: str) -> dict:
-        return {"workflow_runs": [_run(1)]} if "/workflows/" in url else {"message": "nope"}
+        return ({"total_count": 1, "workflow_runs": [_run(1)]} if "/workflows/" in url
+                else {"message": "nope"})
     with pytest.raises(RuntimeError):
         _spent(fetch)
