@@ -7,6 +7,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from .git_auth import git_child_base_env
+
 _GIT = shutil.which("git")
 _GIT = str(Path(_GIT).resolve()) if _GIT else ""
 _SAFE_CONFIG = {
@@ -52,7 +54,9 @@ def prepare_git(cwd: str, args, env: dict | None = None) -> tuple[list[str], dic
     if not _GIT:
         raise RuntimeError("Trusted Git executable is unavailable")
     source = os.environ if env is None else env
-    child = {key: value for key, value in source.items() if not key.upper().startswith("GIT_")}
+    # RA-8133: allowlisted names only, so no parent secret reaches git.
+    base = git_child_base_env(source)
+    child = {key: value for key, value in base.items() if not key.upper().startswith("GIT_")}
     child.pop("SSH_ASKPASS", None)
     root = Path(cwd).resolve()
     child.update({

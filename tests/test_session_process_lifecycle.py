@@ -32,7 +32,8 @@ async def test_success_uses_isolated_group_and_preserves_output(monkeypatch, pro
         CREATE_NO_WINDOW=0x08000000, CREATE_NEW_PROCESS_GROUP=0x00000200,
     ))
     process.returncode = 0
-    assert await phases.run_cmd("workspace", "git", "status", env={"SAFE": "yes"}) == (
+    caller_env = {"LANG": "C.UTF-8", "UNLISTED": "dropped"}
+    assert await phases.run_cmd("workspace", "git", "status", env=caller_env) == (
         0, "output", "warning"
     )
     call = phases.asyncio.create_subprocess_exec.call_args
@@ -40,7 +41,9 @@ async def test_success_uses_isolated_group_and_preserves_output(monkeypatch, pro
     assert call.args[-1] == "status"
     assert "core.hooksPath=/dev/null" in call.args
     assert call.kwargs["cwd"] == "workspace"
-    assert call.kwargs["env"]["SAFE"] == "yes"
+    # RA-8133: allowlisted names pass through; anything else is dropped.
+    assert call.kwargs["env"]["LANG"] == "C.UTF-8"
+    assert "UNLISTED" not in set(call.kwargs["env"])
     assert call.kwargs["env"]["GIT_CONFIG_NOSYSTEM"] == "1"
     if platform == "nt":
         assert call.kwargs["creationflags"] == 0x08000200

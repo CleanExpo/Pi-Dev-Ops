@@ -54,7 +54,8 @@ def test_non_github_remote_does_not_require_a_token(monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     env = git_auth_env("https://gitlab.com/some/repo")
     assert env["GIT_TERMINAL_PROMPT"] == "0"
-    assert "GIT_CONFIG_VALUE_0" not in env
+    # Key set only: a whole-dict assert prints every value on failure (RA-8133).
+    assert "GIT_CONFIG_VALUE_0" not in set(env)
 
 
 def test_helper_never_logs_the_token(monkeypatch, caplog):

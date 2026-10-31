@@ -21,6 +21,38 @@ class GitAuthReason(str, Enum):
 
 MISSING_CREDENTIAL = GitAuthReason.MISSING
 
+# RA-8133: the only parent variables a git child may inherit. Everything else,
+# including every service secret the server holds, is dropped. Add a name here
+# when git genuinely needs it; never fall back to copying the whole environment.
+GIT_CHILD_ENV_NAMES = frozenset({
+    # process basics
+    "PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TMP", "TEMP", "TZ",
+    # Windows process basics (networking needs SYSTEMROOT; git finds HOME via
+    # HOMEDRIVE+HOMEPATH, then USERPROFILE)
+    "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "HOMEDRIVE", "HOMEPATH",
+    "USERPROFILE", "APPDATA",
+    "LOCALAPPDATA", "PROGRAMDATA",
+    # locale: git messages and path encoding
+    "LANG", "LANGUAGE", "LC_ALL", "LC_CTYPE", "LC_MESSAGES",
+    # git config location and commit identity
+    "XDG_CONFIG_HOME", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_NOSYSTEM",
+    "GIT_EXEC_PATH", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL",
+    "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
+    # askpass and ssh, for non-github remotes
+    "GIT_ASKPASS", "SSH_ASKPASS", "GIT_SSH", "GIT_SSH_COMMAND", "SSH_AUTH_SOCK",
+    # proxies
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+    "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+    # TLS trust
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "CURL_CA_BUNDLE", "GIT_SSL_CAINFO", "GIT_SSL_CAPATH",
+})
+
+
+def git_child_base_env(environ: Mapping[str, str] | None = None) -> dict[str, str]:
+    """The allowlisted subset of `environ` (default: the process env)."""
+    src = os.environ if environ is None else environ
+    return {k: v for k, v in src.items() if k in GIT_CHILD_ENV_NAMES}
+
 
 class GitAuthError(RuntimeError):
     """Named fail-closed error. `.reason` is the stable machine id."""
@@ -52,7 +84,7 @@ def git_auth_env(
     Non-github remotes get a prompt-disabled env and do not require a token.
     """
     src = os.environ if environ is None else environ
-    env = {**src, "GIT_TERMINAL_PROMPT": "0"}
+    env = {**git_child_base_env(src), "GIT_TERMINAL_PROMPT": "0"}
     if repo_url and not repo_url.startswith("https://github.com/"):
         return env
     token = resolved_github_token(src)
