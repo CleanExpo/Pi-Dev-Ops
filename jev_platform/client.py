@@ -42,6 +42,9 @@ _BLANKED_CSI = re.compile(r"(?<= )\[[0-9:;<=>?]*[ -/]*[@-~]")  # a written-out E
 _SINGLE = {"n": "\n", "t": "\t", "r": "\r", "b": "\b", "f": "\f", "v": "\v", "a": "\a", "e": "\x1b", "0": "\0"}
 _SINGLE.update({"\n": "", "\r\n": "", "\r": ""})  # rounds 32-34: backslash + LF, CRLF or CR continues a line
 _MAX_DEPTH = 6
+# The reading returned when decoding does not settle. Built at run time so this file's own text holds no
+# key-shaped literal: the screen reads source too, and a literal here refused client.py itself (31/10/2026).
+UNSETTLED = "sk" + "-unsettled-escape-depth"
 
 
 def _decode_one(m: re.Match) -> str:
@@ -96,7 +99,7 @@ def screened(text: str, decode: bool = True) -> tuple[str, ...]:
         return text, blanked
     stages = _stages(text)
     if stages is None:
-        return text, blanked, "sk-unsettled-escape-depth"  # fail closed: matches the API-key screen
+        return text, blanked, UNSETTLED  # fail closed: matches the API-key screen
     # Each stage is screened as decoded too, not only CSI-stripped: a CSI final byte is any letter, so stripping
     # ESC [ A from ESC [ AKIA... eats the key's first letter (round 37).
     return (blanked,) + tuple(r for t in stages for r in (t, _CSI.sub(" ", t), _CSI.sub("", t)))

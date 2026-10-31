@@ -1,0 +1,40 @@
+{
+  "schema": "done/1",
+  "work_id": "w_65c8f4a26638",
+  "version": 2,
+  "supersedes": "w_24e6b1fdcbd6",
+  "goal": "All four approved files match their sha256 AND pass admission (client.py no longer trips its own screen), while real, encoded and undecodable keys are still refused",
+  "created_at_utc": "2026-10-31T00:10:04Z",
+  "identity_key": "fix/jev-approved-refresh@/Users/phillmcgurk/Pi-Dev-Ops/.git/worktrees/pdo-jev-approved-refresh",
+  "baseline_observed": {
+    "head": "76f836137995928867bb0fe6ae52c9db2f14f183",
+    "branch": "fix/jev-approved-refresh",
+    "dirty_count": 4
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "Every approved file matches its manifest hash",
+      "recipe": "cd '/Users/phillmcgurk/.claude-worktrees/pdo-jev-approved-refresh' && '/Users/phillmcgurk/.claude-worktrees/pdo-jev-workflow/.venv/bin/python' -m pytest tests/test_jev_approved_manifest_current.py -q",
+      "timeout": 120
+    },
+    {
+      "id": "C2",
+      "text": "All four approved files pass admission; real, encoded and undecodable keys still refused; a changed file fails the hash",
+      "recipe": "cd '/Users/phillmcgurk/.claude-worktrees/pdo-jev-approved-refresh' && '/Users/phillmcgurk/.claude-worktrees/pdo-jev-workflow/.venv/bin/python' -m pytest tests/test_jev_approved_files_admitted.py -q",
+      "timeout": 120
+    },
+    {
+      "id": "C3",
+      "text": "Existing Jev platform tests still pass",
+      "recipe": "cd '/Users/phillmcgurk/.claude-worktrees/pdo-jev-approved-refresh' && '/Users/phillmcgurk/.claude-worktrees/pdo-jev-workflow/.venv/bin/python' -m pytest tests/ -q -k jev",
+      "timeout": 600
+    },
+    {
+      "id": "C4",
+      "text": "Manifest holds exactly four approved files",
+      "recipe": "cd '/Users/phillmcgurk/.claude-worktrees/pdo-jev-approved-refresh' && '/Users/phillmcgurk/.claude-worktrees/pdo-jev-workflow/.venv/bin/python' -c \"import json,sys;sys.exit(0 if len(json.load(open('.jev-approved.json'))['files'])==4 else 1)\"",
+      "timeout": 30
+    }
+  ]
+}

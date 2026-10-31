@@ -1,0 +1,9 @@
+{
+  "schema": "done/1",
+  "work_id": "w_65c8f4a26638",
+  "contract_digest": "5c995933b22a93265bbb1d882be05e85f39b66ba16c1c157647f23704880aaa1",
+  "baseline_head": "76f836137995928867bb0fe6ae52c9db2f14f183",
+  "identity_key": "fix/jev-approved-refresh@/Users/phillmcgurk/Pi-Dev-Ops/.git/worktrees/pdo-jev-approved-refresh",
+  "locked_at_utc": "2026-10-31T00:10:14Z",
+  "criteria_count": 4
+}
