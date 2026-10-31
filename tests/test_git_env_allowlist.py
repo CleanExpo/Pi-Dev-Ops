@@ -56,6 +56,14 @@ def test_needed_names_survive_with_their_values(monkeypatch):
     assert env["GIT_CONFIG_KEY_0"] == "http.https://github.com/.extraheader"
 
 
+def test_windows_home_fallback_names_survive():
+    """Git on Windows finds HOME via HOMEDRIVE+HOMEPATH, then USERPROFILE."""
+    parent = {"HOMEDRIVE": "C:", "HOMEPATH": "\\Users\\planted", "USERPROFILE": "C:\\Users\\planted"}
+    env = git_auth_env(_GITLAB, environ=parent)
+    for name, value in parent.items():
+        assert env.get(name) == value, name
+
+
 def test_inherited_git_config_pairs_are_dropped_for_other_remotes(monkeypatch):
     """A parent's own extraheader must not ride along to a non-github host."""
     monkeypatch.setenv("GIT_CONFIG_COUNT", "1")

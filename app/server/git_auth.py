@@ -27,8 +27,10 @@ MISSING_CREDENTIAL = GitAuthReason.MISSING
 GIT_CHILD_ENV_NAMES = frozenset({
     # process basics
     "PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TMP", "TEMP", "TZ",
-    # Windows process basics (networking needs SYSTEMROOT)
-    "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "USERPROFILE", "APPDATA",
+    # Windows process basics (networking needs SYSTEMROOT; git finds HOME via
+    # HOMEDRIVE+HOMEPATH, then USERPROFILE)
+    "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "HOMEDRIVE", "HOMEPATH",
+    "USERPROFILE", "APPDATA",
     "LOCALAPPDATA", "PROGRAMDATA",
     # locale: git messages and path encoding
     "LANG", "LANGUAGE", "LC_ALL", "LC_CTYPE", "LC_MESSAGES",
