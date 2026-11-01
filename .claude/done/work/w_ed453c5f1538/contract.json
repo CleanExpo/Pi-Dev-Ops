@@ -1,0 +1,64 @@
+{
+  "schema": "done/1",
+  "work_id": "w_ed453c5f1538",
+  "version": 2,
+  "supersedes": "w_6b0161a2b6f9",
+  "goal": "RA-8145 M1 v2: same 8 criteria as w_6b0161a2b6f9; handoff-loop recipe PATH now includes ~/.local/bin (last) so ffmpeg/ffprobe resolve for tests-sda-source, as on the builder's run. No criterion removed or weakened.",
+  "created_at_utc": "2026-11-01T23:46:06Z",
+  "identity_key": "feat/living-business-os-skill@/Users/phillmcgurk/Pi-Dev-Ops/.git/worktrees/pdo-lbos-m1",
+  "baseline_observed": {
+    "head": "1f09fbbd6a3253cf3f7876d737215b090480cdb2",
+    "branch": "feat/living-business-os-skill",
+    "dirty_count": 26
+  },
+  "criteria": [
+    {
+      "id": "source-byte-identical",
+      "text": "The three LBOS source files are byte-identical to Synthex 5445287f7",
+      "recipe": "git -C /Users/phillmcgurk/.claude-worktrees/ra-8145-syn-pub show 5445287f72b990f82b90808d942908a247786b66:lib/living-business-os/contracts.ts | cmp - packages/living-business-os/src/contracts.ts && git -C /Users/phillmcgurk/.claude-worktrees/ra-8145-syn-pub show 5445287f72b990f82b90808d942908a247786b66:lib/living-business-os/decision-engine.ts | cmp - packages/living-business-os/src/decision-engine.ts && git -C /Users/phillmcgurk/.claude-worktrees/ra-8145-syn-pub show 5445287f72b990f82b90808d942908a247786b66:lib/living-business-os/weekly-questions.ts | cmp - packages/living-business-os/src/weekly-questions.ts",
+      "timeout": 60
+    },
+    {
+      "id": "conformance",
+      "text": "npm run conformance exits 0: environment asserted, goldens byte-equal, rebuild file set identical",
+      "recipe": "export PATH=/Users/phillmcgurk/.nvm/versions/node/v22.22.3/bin:/usr/bin:/bin LC_ALL=C LANG=C TZ=UTC; cd packages/living-business-os && npm run conformance",
+      "timeout": 900
+    },
+    {
+      "id": "package-tests",
+      "text": "Package test suite (section 14 cases 14.2-14.8, CLI, integrity, compatibility, redaction) passes",
+      "recipe": "export PATH=/Users/phillmcgurk/.nvm/versions/node/v22.22.3/bin:/usr/bin:/bin LC_ALL=C LANG=C TZ=UTC; cd packages/living-business-os && npm test",
+      "timeout": 900
+    },
+    {
+      "id": "manifest-check",
+      "text": "MANIFEST matches the package on disk",
+      "recipe": "export PATH=/Users/phillmcgurk/.nvm/versions/node/v22.22.3/bin:/usr/bin:/bin LC_ALL=C LANG=C TZ=UTC; cd packages/living-business-os && node scripts/manifest.mjs --check",
+      "timeout": 120
+    },
+    {
+      "id": "smoke-version",
+      "text": "lbos version exits 0 with identity verified",
+      "recipe": "export PATH=/Users/phillmcgurk/.nvm/versions/node/v22.22.3/bin:/usr/bin:/bin LC_ALL=C LANG=C TZ=UTC; cd packages/living-business-os && node bin/lbos.mjs version | grep -q '\"identity\": *\"verified\"'",
+      "timeout": 60
+    },
+    {
+      "id": "mutation-log",
+      "text": "mutation-log.md records mutants (a)-(f) each RED on its named assertion",
+      "recipe": "for m in a b c d e f; do grep -Eq \"^\\| *\\($m\\).*RED\" packages/living-business-os/mutation-log.md || exit 1; done",
+      "timeout": 30
+    },
+    {
+      "id": "registration-pytest",
+      "text": "Registration pytest passes",
+      "recipe": "/Users/phillmcgurk/Pi-Dev-Ops/.venv/bin/python -m pytest -q tests/test_living_business_os_registration.py",
+      "timeout": 600
+    },
+    {
+      "id": "handoff-loop",
+      "text": "scripts/handoff-loop.sh exits 0",
+      "recipe": "export PATH=/Users/phillmcgurk/.nvm/versions/node/v22.22.3/bin:/Users/phillmcgurk/Pi-Dev-Ops/.venv/bin:/usr/bin:/bin:/Users/phillmcgurk/.local/bin; bash scripts/handoff-loop.sh",
+      "timeout": 3600
+    }
+  ]
+}
