@@ -1,0 +1,23 @@
+{
+  "name": "key-reject-invalid",
+  "kind": "reject",
+  "command": "idempotency-key",
+  "input": {
+    "sourceSystem": "unite_group",
+    "schemaVersion": 3,
+    "externalOrderId": "ord 7/a",
+    "organizationId": "org-demo-1",
+    "approvedPackageId": "pkg-1",
+    "authorisationReceiptId": "rcpt-1",
+    "requestedAssets": [
+      "website"
+    ],
+    "issuedAt": "2026-11-01T00:00:00+10:00"
+  },
+  "covers": [
+    "key.validates"
+  ],
+  "reject_path": [
+    "schemaVersion"
+  ]
+}

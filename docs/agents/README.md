@@ -82,5 +82,5 @@ Run tests, lint, builds, smoke checks, and capture reproducible exact-command ev
 - Status: `shadow`
 - Model policy role: `evaluator`
 - Risk tier ceiling: `L0`
-- Skills: `verify-test`
+- Skills: `verify-test`, `living-business-os`
 - Evidence: `test-results`, `lint-results`, `build-results`

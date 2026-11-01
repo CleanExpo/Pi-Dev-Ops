@@ -1,0 +1,20 @@
+{
+  "ok": [
+    {
+      "approvalStatus": "required",
+      "decision": "draft_for_review",
+      "estimatedInterventionCostAud": 50,
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "expectedGrossProfitAud": 400,
+      "organizationId": "org-demo-1",
+      "outcomeMetric": "catering enquiries per week",
+      "priorityIndex": 3.75,
+      "reasons": [],
+      "serviceId": "svc-catering",
+      "signalId": "sig-1",
+      "title": "Add a catering enquiry button to the card"
+    }
+  ]
+}

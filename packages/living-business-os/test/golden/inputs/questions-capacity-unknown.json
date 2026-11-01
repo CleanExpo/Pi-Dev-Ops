@@ -1,0 +1,31 @@
+{
+  "name": "questions-capacity-unknown",
+  "kind": "behaviour",
+  "command": "questions",
+  "input": {
+    "intent": {
+      "organizationId": "org-demo-1",
+      "businessName": "Demo Cafe",
+      "goals": [
+        "More weekday bookings"
+      ],
+      "serviceIds": [
+        "svc-catering"
+      ],
+      "capacity": {
+        "availableJobsPerWeek": null,
+        "bookedJobsPerWeek": null,
+        "updatedAt": null
+      },
+      "constraints": {
+        "maximumMonthlyAutomationCostAud": 50,
+        "publishing": "approval_required",
+        "customerDataReuse": "tenant_only"
+      }
+    },
+    "signals": []
+  },
+  "covers": [
+    "questions.capacity_current"
+  ]
+}

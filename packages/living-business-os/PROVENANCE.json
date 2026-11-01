@@ -1,0 +1,27 @@
+{
+  "capture": {
+    "collator_locale": "en-US",
+    "fixtures": 193,
+    "lang": "C",
+    "lc_all": "C",
+    "node": "v22.22.3",
+    "time_zone": "UTC",
+    "tsx": "4.22.0",
+    "zod": "4.4.3"
+  },
+  "source": {
+    "files": {
+      "contracts.ts": "ef6fc53a0435f08d12f6267273c9eb23fb7560dc648a9e5edafd1fafe6bb6c41",
+      "decision-engine.ts": "9d65b0c657ffa8c48ca39fd9aea8ad48595ad6b1915f0fd38987b886107e2046",
+      "weekly-questions.ts": "a5123382d375e18b65c64ead3060564a8d797aa14d64cfb44c767cff225a11e2"
+    },
+    "path": "lib/living-business-os/",
+    "repo": "CleanExpo/Synthex",
+    "sha": "5445287f72b990f82b90808d942908a247786b66"
+  },
+  "source_tests": {
+    "cases": 20,
+    "path": "tests/unit/living-business-os/contracts.test.ts",
+    "sha256": "dc6b48d8c2859eb3726e693e2e3ca5a2380620b043d7a45e52ad41c5ac620711"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "intent-accept-capacity-nulls",
+  "kind": "accept",
+  "command": "validate",
+  "contract": "business-intent",
+  "input": {
+    "organizationId": "org-demo-1",
+    "businessName": "Demo Cafe",
+    "goals": [
+      "More weekday bookings"
+    ],
+    "serviceIds": [
+      "svc-catering"
+    ],
+    "capacity": {
+      "availableJobsPerWeek": null,
+      "bookedJobsPerWeek": null,
+      "updatedAt": null
+    },
+    "constraints": {
+      "maximumMonthlyAutomationCostAud": 50,
+      "publishing": "approval_required",
+      "customerDataReuse": "tenant_only"
+    }
+  },
+  "covers": [
+    "intent.capacity.available.nullable",
+    "intent.capacity.booked.nullable",
+    "intent.capacity.updatedAt.nullable"
+  ]
+}

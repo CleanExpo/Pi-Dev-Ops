@@ -1,0 +1,8 @@
+{
+  "zod_issues": [
+    {
+      "code": "unrecognized_keys",
+      "path": []
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "name": "decide-dedupe-identical",
+  "kind": "behaviour",
+  "command": "decide",
+  "input": {
+    "intent": {
+      "organizationId": "org-demo-1",
+      "businessName": "Demo Cafe",
+      "goals": [
+        "More weekday bookings"
+      ],
+      "serviceIds": [
+        "svc-catering"
+      ],
+      "capacity": {
+        "availableJobsPerWeek": 10,
+        "bookedJobsPerWeek": 6,
+        "updatedAt": "2026-11-01T00:00:00+10:00"
+      },
+      "constraints": {
+        "maximumMonthlyAutomationCostAud": 50,
+        "publishing": "approval_required",
+        "customerDataReuse": "tenant_only"
+      }
+    },
+    "signals": [
+      {
+        "id": "sig-1",
+        "organizationId": "org-demo-1",
+        "serviceId": "svc-catering",
+        "title": "Add a catering enquiry button to the card",
+        "evidence": [
+          {
+            "id": "ev-1",
+            "kind": "card",
+            "capturedAt": "2026-10-30T09:00:00+10:00",
+            "dataClass": "owned",
+            "organizationId": "org-demo-1"
+          }
+        ],
+        "confidence": 0.8,
+        "risk": 0.2,
+        "expectedGrossProfitAud": 400,
+        "estimatedInterventionCostAud": 40,
+        "expectedAdditionalJobsPerWeek": 1,
+        "outcomeMetric": "catering enquiries per week",
+        "observedAt": "2026-10-31T09:00:00+10:00"
+      },
+      {
+        "id": "sig-1",
+        "organizationId": "org-demo-1",
+        "serviceId": "svc-catering",
+        "title": "Add a catering enquiry button to the card",
+        "evidence": [
+          {
+            "id": "ev-1",
+            "kind": "card",
+            "capturedAt": "2026-10-30T09:00:00+10:00",
+            "dataClass": "owned",
+            "organizationId": "org-demo-1"
+          }
+        ],
+        "confidence": 0.8,
+        "risk": 0.2,
+        "expectedGrossProfitAud": 400,
+        "estimatedInterventionCostAud": 40,
+        "expectedAdditionalJobsPerWeek": 1,
+        "outcomeMetric": "catering enquiries per week",
+        "observedAt": "2026-10-31T09:00:00+10:00"
+      }
+    ]
+  },
+  "covers": [
+    "decide.dedupe"
+  ]
+}

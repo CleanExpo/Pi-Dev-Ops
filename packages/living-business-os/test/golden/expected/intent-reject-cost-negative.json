@@ -1,0 +1,11 @@
+{
+  "zod_issues": [
+    {
+      "code": "too_small",
+      "path": [
+        "constraints",
+        "maximumMonthlyAutomationCostAud"
+      ]
+    }
+  ]
+}

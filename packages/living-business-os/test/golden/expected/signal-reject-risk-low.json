@@ -1,0 +1,10 @@
+{
+  "zod_issues": [
+    {
+      "code": "too_small",
+      "path": [
+        "risk"
+      ]
+    }
+  ]
+}

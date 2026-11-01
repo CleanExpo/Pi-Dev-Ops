@@ -1,0 +1,56 @@
+{
+  "ok": [
+    {
+      "approvalStatus": "required",
+      "decision": "draft_for_review",
+      "estimatedInterventionCostAud": 40,
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "expectedGrossProfitAud": 400,
+      "organizationId": "org-demo-1",
+      "outcomeMetric": "catering enquiries per week",
+      "priorityIndex": 3.77,
+      "reasons": [],
+      "serviceId": "svc-catering",
+      "signalId": "s1",
+      "title": "Add a catering enquiry button to the card"
+    },
+    {
+      "approvalStatus": "required",
+      "decision": "research_more",
+      "estimatedInterventionCostAud": 40,
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "expectedGrossProfitAud": 400,
+      "organizationId": "org-demo-1",
+      "outcomeMetric": "catering enquiries per week",
+      "priorityIndex": 1.41,
+      "reasons": [
+        "Elevated intervention risk requires additional review."
+      ],
+      "serviceId": "svc-catering",
+      "signalId": "s3",
+      "title": "Add a catering enquiry button to the card"
+    },
+    {
+      "approvalStatus": "required",
+      "decision": "research_more",
+      "estimatedInterventionCostAud": 40,
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "expectedGrossProfitAud": 400,
+      "organizationId": "org-demo-1",
+      "outcomeMetric": "catering enquiries per week",
+      "priorityIndex": 0.94,
+      "reasons": [
+        "Evidence insufficient for an intervention; verify with owned data."
+      ],
+      "serviceId": "svc-catering",
+      "signalId": "s2",
+      "title": "Add a catering enquiry button to the card"
+    }
+  ]
+}

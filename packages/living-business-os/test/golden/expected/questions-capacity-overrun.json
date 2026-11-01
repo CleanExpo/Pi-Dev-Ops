@@ -1,0 +1,16 @@
+{
+  "ok": [
+    {
+      "id": "capacity_overrun",
+      "priority": 95,
+      "purpose": "Preserve customer trust and margins when demand exceeds capacity.",
+      "text": "You appear over capacity. Should we focus on future bookings or higher-value work?"
+    },
+    {
+      "id": "service_priorities",
+      "priority": 80,
+      "purpose": "Guide customer fit rather than maximising enquiry volume.",
+      "text": "Which services do you most want to be known for, based on your quality and profitability?"
+    }
+  ]
+}

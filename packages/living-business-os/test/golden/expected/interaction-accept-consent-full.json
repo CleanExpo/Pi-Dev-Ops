@@ -1,0 +1,21 @@
+{
+  "ok": {
+    "channel": "living_card",
+    "crmContactId": "c-1",
+    "eventType": "booking",
+    "happenedAt": "2026-11-01T00:00:00+10:00",
+    "interactionId": "int-1",
+    "marketingConsent": true,
+    "marketingConsentReceiptId": "r-1",
+    "organizationId": "org-demo-1",
+    "pseudonymousSessionId": "sess-1",
+    "serviceId": "svc-catering",
+    "source": {
+      "capturedAt": "2026-11-01T00:00:00+10:00",
+      "dataClass": "owned",
+      "id": "card-1",
+      "kind": "card",
+      "organizationId": "org-demo-1"
+    }
+  }
+}

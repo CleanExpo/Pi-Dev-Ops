@@ -1,0 +1,30 @@
+{
+  "name": "intent-reject-goals-empty",
+  "kind": "reject",
+  "command": "validate",
+  "contract": "business-intent",
+  "input": {
+    "organizationId": "org-demo-1",
+    "businessName": "Demo Cafe",
+    "goals": [],
+    "serviceIds": [
+      "svc-catering"
+    ],
+    "capacity": {
+      "availableJobsPerWeek": 10,
+      "bookedJobsPerWeek": 6,
+      "updatedAt": "2026-11-01T00:00:00+10:00"
+    },
+    "constraints": {
+      "maximumMonthlyAutomationCostAud": 50,
+      "publishing": "approval_required",
+      "customerDataReuse": "tenant_only"
+    }
+  },
+  "covers": [
+    "intent.goals.min1"
+  ],
+  "reject_path": [
+    "goals"
+  ]
+}

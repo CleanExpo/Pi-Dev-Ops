@@ -1,0 +1,28 @@
+{
+  "name": "intent-reject-capacity-null",
+  "kind": "reject",
+  "command": "validate",
+  "contract": "business-intent",
+  "input": {
+    "organizationId": "org-demo-1",
+    "businessName": "Demo Cafe",
+    "goals": [
+      "More weekday bookings"
+    ],
+    "serviceIds": [
+      "svc-catering"
+    ],
+    "capacity": null,
+    "constraints": {
+      "maximumMonthlyAutomationCostAud": 50,
+      "publishing": "approval_required",
+      "customerDataReuse": "tenant_only"
+    }
+  },
+  "covers": [
+    "intent.capacity.required"
+  ],
+  "reject_path": [
+    "capacity"
+  ]
+}

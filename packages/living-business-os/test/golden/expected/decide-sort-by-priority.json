@@ -1,0 +1,52 @@
+{
+  "ok": [
+    {
+      "approvalStatus": "required",
+      "decision": "draft_for_review",
+      "estimatedInterventionCostAud": 40,
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "expectedGrossProfitAud": 400,
+      "organizationId": "org-demo-1",
+      "outcomeMetric": "catering enquiries per week",
+      "priorityIndex": 4.24,
+      "reasons": [],
+      "serviceId": "svc-catering",
+      "signalId": "b",
+      "title": "Add a catering enquiry button to the card"
+    },
+    {
+      "approvalStatus": "required",
+      "decision": "draft_for_review",
+      "estimatedInterventionCostAud": 40,
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "expectedGrossProfitAud": 400,
+      "organizationId": "org-demo-1",
+      "outcomeMetric": "catering enquiries per week",
+      "priorityIndex": 3.77,
+      "reasons": [],
+      "serviceId": "svc-catering",
+      "signalId": "c",
+      "title": "Add a catering enquiry button to the card"
+    },
+    {
+      "approvalStatus": "required",
+      "decision": "draft_for_review",
+      "estimatedInterventionCostAud": 40,
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "expectedGrossProfitAud": 400,
+      "organizationId": "org-demo-1",
+      "outcomeMetric": "catering enquiries per week",
+      "priorityIndex": 3.3,
+      "reasons": [],
+      "serviceId": "svc-catering",
+      "signalId": "a",
+      "title": "Add a catering enquiry button to the card"
+    }
+  ]
+}

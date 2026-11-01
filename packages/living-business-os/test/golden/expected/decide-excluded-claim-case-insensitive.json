@@ -1,0 +1,22 @@
+{
+  "ok": [
+    {
+      "approvalStatus": "required",
+      "decision": "research_more",
+      "estimatedInterventionCostAud": 40,
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "expectedGrossProfitAud": 400,
+      "organizationId": "org-demo-1",
+      "outcomeMetric": "catering enquiries per week",
+      "priorityIndex": 3.77,
+      "reasons": [
+        "Opportunity contains an owner-excluded marketing claim; revise before considering a draft."
+      ],
+      "serviceId": "svc-catering",
+      "signalId": "sig-1",
+      "title": "Guaranteed catering button"
+    }
+  ]
+}

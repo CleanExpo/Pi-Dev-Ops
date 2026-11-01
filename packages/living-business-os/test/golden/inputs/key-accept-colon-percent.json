@@ -1,0 +1,20 @@
+{
+  "name": "key-accept-colon-percent",
+  "kind": "accept",
+  "command": "idempotency-key",
+  "input": {
+    "sourceSystem": "unite_group",
+    "schemaVersion": 1,
+    "externalOrderId": "a:b%c",
+    "organizationId": "org:x/y",
+    "approvedPackageId": "pkg-1",
+    "authorisationReceiptId": "rcpt-1",
+    "requestedAssets": [
+      "website"
+    ],
+    "issuedAt": "2026-11-01T00:00:00+10:00"
+  },
+  "covers": [
+    "key.encode"
+  ]
+}

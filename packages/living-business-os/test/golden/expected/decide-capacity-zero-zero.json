@@ -1,0 +1,22 @@
+{
+  "ok": [
+    {
+      "approvalStatus": "required",
+      "decision": "defer_for_capacity",
+      "estimatedInterventionCostAud": 40,
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "expectedGrossProfitAud": 400,
+      "organizationId": "org-demo-1",
+      "outcomeMetric": "catering enquiries per week",
+      "priorityIndex": 3.77,
+      "reasons": [
+        "Booked capacity is full; preserve organic visibility and consider future bookings."
+      ],
+      "serviceId": "svc-catering",
+      "signalId": "sig-1",
+      "title": "Add a catering enquiry button to the card"
+    }
+  ]
+}

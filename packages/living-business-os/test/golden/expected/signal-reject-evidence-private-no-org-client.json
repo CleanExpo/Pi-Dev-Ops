@@ -1,0 +1,20 @@
+{
+  "zod_issues": [
+    {
+      "code": "custom",
+      "path": [
+        "evidence",
+        0,
+        "dataClass"
+      ]
+    },
+    {
+      "code": "custom",
+      "path": [
+        "evidence",
+        0,
+        "organizationId"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "interaction-reject-contact-blank",
+  "kind": "reject",
+  "command": "validate",
+  "contract": "customer-interaction",
+  "input": {
+    "organizationId": "org-demo-1",
+    "interactionId": "int-1",
+    "channel": "living_card",
+    "eventType": "service_interest",
+    "serviceId": "svc-catering",
+    "happenedAt": "2026-11-01T00:00:00+10:00",
+    "pseudonymousSessionId": "sess-1",
+    "source": {
+      "id": "card-1",
+      "kind": "card",
+      "capturedAt": "2026-11-01T00:00:00+10:00",
+      "dataClass": "owned",
+      "organizationId": "org-demo-1"
+    },
+    "crmContactId": " "
+  },
+  "covers": [
+    "interaction.contact.nonEmpty"
+  ],
+  "reject_path": [
+    "crmContactId"
+  ]
+}
