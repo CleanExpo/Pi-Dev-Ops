@@ -201,6 +201,23 @@ else
     [ "$PY_OK" = 1 ] && gate "tests-swarm" "$PY" -m pytest swarm/ -q \
       || { [ "$PY_OK" = 1 ] || skip "tests-swarm" "python deps absent"; }
   fi
+  # Exact same standalone SDA source suites as CI. No broad pytest scripts/
+  # collection (live smoke scripts live there); missing dependencies are SKIP.
+  if [ -f skills/visual-qa/scripts/test_sda_gate_core.py ]; then
+    if [ "$PY_OK" = 1 ]; then
+      gate "tests-sda-source" bash -c '
+        set -e
+        command -v ffmpeg
+        command -v ffprobe
+        "$PY" -B -m unittest discover -s skills/visual-qa/scripts -p "test_sda_*.py" -v
+        "$PY" -B -m unittest discover -s scripts -p "test_install_sda_visual_hook.py" -v
+        "$PY" -B -m unittest discover -s hooks -p "test_sda_visual_router.py" -v'
+    else
+      skip "tests-sda-source" "Python dependencies absent"
+    fi
+  else
+    skip "tests-sda-source" "SDA source suites absent"
+  fi
   # Two more CI steps this runner never stood in for, found by the same list
   # comparison that surfaced the size gates.
   if [ -f aip/src/mcp/test_run.sh ]; then

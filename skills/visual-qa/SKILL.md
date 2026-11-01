@@ -179,3 +179,35 @@ Read references/ci-integration.md when setting up the GitHub Actions visual-regr
   ```
 - **Threshold too loose** — `threshold: 0.5` masks real regressions
 - **No artifact upload on failure** — without the diff report, failures are impossible to debug
+
+
+---
+## SDA commercial visual acceptance (local verified extension, pending skills-library PR)
+
+**Design acceptance is NOT a synonym for green tests.** For any paid or public
+creative deliverable, before handing to `design-approve` or calling a render
+a final asset, apply the separate technical evidence and creative gates in
+[references/sda-commercial-acceptance.md](references/sda-commercial-acceptance.md). Historical failures and governance memory: [SDA design decision log](references/sda-design-decision-log.md).
+Use actual Playwright Chromium evidence at mobile, tablet and desktop and
+time-coded, actual-video frames. Record named SDA and independent reviewer
+critiques, prior frozen SHA baseline, scoped rights and exact-version founder
+approval. A screenshot without an actual reviewer verdict is a draft.
+
+Use an **exact SHA-reviewed clean Pi-Dev-Ops checkout**, never a potentially stale
+installed Claude copy. Set PI_DEV_OPS_ROOT to its absolute directory,
+verify git -C "$PI_DEV_OPS_ROOT" rev-parse HEAD matches the signed review
+receipt, and execute the repository script. Missing pin or mismatch is HOLD.
+
+Run the local fail-closed evidence utility:
+`python3 "$PI_DEV_OPS_ROOT/skills/visual-qa/scripts/sda_evidence_gate.py" /path/to/manifest.json --release --baseline-record /path/to/prior-approved-record.json --scope-record /path/to/independent-scope.json`
+
+Never automatically generate a 100-point score from passing browser checks.
+Never auto-promote a screenshot into an approved baseline. Missing/weak creative
+reviews, rights, authentic sources or founder sign-off are explicit HOLD.
+Max three targeted visual iterations before changing creative direction.
+
+
+**Scope guard:** Every technical pass also requires `--scope-record` from
+a page inventory outside the candidate evidence directory, otherwise
+the candidate can omit inconvenient screens and still seem to pass.
+This record is evidence of test scope, NOT actual creative approval.

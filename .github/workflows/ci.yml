@@ -183,6 +183,18 @@ jobs:
         run: pytest swarm/ -v --tb=short
         working-directory: .
 
+      # Exact-source SDA evidence, hook installer and router. Standalone
+      # unittest suites are excluded from default pytest testpaths, so run
+      # them explicitly. A missing FFmpeg tool is FAILURE, never a skip.
+      - name: SDA canonical source suites
+        run: |
+          command -v ffmpeg
+          command -v ffprobe
+          python -B -m unittest discover -s skills/visual-qa/scripts -p 'test_sda_*.py' -v
+          python -B -m unittest discover -s scripts -p 'test_install_sda_visual_hook.py' -v
+          python -B -m unittest discover -s hooks -p 'test_sda_visual_router.py' -v
+        working-directory: .
+
       - name: AIP MCP wrapper tests
         run: bash aip/src/mcp/test_run.sh
         working-directory: .
