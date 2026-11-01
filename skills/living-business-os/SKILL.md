@@ -28,13 +28,13 @@ With no `--input`, JSON is read from stdin. Use Node 22.x.
 | `version` | none | `{ "origin_sha": "<Synthex commit the rules were taken from>" }` |
 | `validate <contract>` | one object; contract is `business-intent`, `opportunity-signal`, `fulfilment-request` or `customer-interaction` | the parsed value (defaults applied, strings trimmed) |
 | `decide` | `{ "intent": {...}, "signals": [...] }` | ranked proposals; draft only, approval required |
-| `questions` | `{ "intent", "signals", "answeredQuestionIds"?: [...] }` | at most 3 owner questions |
+| `questions` | `{ "intent", "signals", "answeredQuestionIds": [...] }` (the field is required; the array may be empty; ids unique, at most 100) | at most 3 owner questions |
 | `idempotency-key` | one fulfilment request | `{ "key": "..." }` |
 
 Example, with a synthetic business:
 
 ```bash
-echo '{"intent": {"organizationId":"org-demo-1","businessName":"Demo Cafe","goals":["More weekday bookings"],"serviceIds":["svc-catering"],"capacity":{"availableJobsPerWeek":10,"bookedJobsPerWeek":6,"updatedAt":"2026-11-01T00:00:00+10:00"},"constraints":{"maximumMonthlyAutomationCostAud":50,"publishing":"approval_required","customerDataReuse":"tenant_only"}}, "signals": []}' \
+echo '{"intent": {"organizationId":"org-demo-1","businessName":"Demo Cafe","goals":["More weekday bookings"],"serviceIds":["svc-catering"],"capacity":{"availableJobsPerWeek":10,"bookedJobsPerWeek":6,"updatedAt":"2026-11-01T00:00:00+10:00"},"constraints":{"maximumMonthlyAutomationCostAud":50,"publishing":"approval_required","customerDataReuse":"tenant_only"}}, "signals": [], "answeredQuestionIds": []}' \
   | node packages/living-business-os/bin/lbos.mjs questions
 ```
 

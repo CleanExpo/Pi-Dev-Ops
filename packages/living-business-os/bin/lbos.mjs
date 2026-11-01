@@ -58,7 +58,7 @@ function wrapperIssues(command, obj) {
   if (unknown.length) issues.push({ path: [], code: 'unrecognized_keys', count: unknown.length });
   if (!isObject(obj.intent)) issues.push({ path: ['intent'], code: 'invalid_type' });
   if (!Array.isArray(obj.signals)) issues.push({ path: ['signals'], code: 'invalid_type' });
-  if (command === 'questions' && obj.answeredQuestionIds !== undefined) {
+  if (command === 'questions') {
     const a = obj.answeredQuestionIds;
     if (!Array.isArray(a)) issues.push({ path: ['answeredQuestionIds'], code: 'invalid_type' });
     else {
@@ -109,7 +109,7 @@ async function execute({ command, positionals, input }, pkg, manifest, schemaKey
     if (wi.length) return failure('INVALID_INPUT', wi);
     if (obj.signals.length > LIMITS.max_signals) return failure('INPUT_TOO_LARGE');
     if (command === 'decide') return { ok: true, result: pkg.rankImprovements(obj.intent, obj.signals) };
-    return { ok: true, result: pkg.selectWeeklyQuestions(obj.intent, obj.signals, new Set(obj.answeredQuestionIds ?? [])) };
+    return { ok: true, result: pkg.selectWeeklyQuestions(obj.intent, obj.signals, new Set(obj.answeredQuestionIds)) };
   } catch (e) {
     if (e && Array.isArray(e.issues)) {
       const issues = command === 'decide' || command === 'questions' ? attribute(pkg, obj, e) : e.issues;

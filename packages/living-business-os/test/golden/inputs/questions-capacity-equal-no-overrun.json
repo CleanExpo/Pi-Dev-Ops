@@ -23,7 +23,8 @@
         "customerDataReuse": "tenant_only"
       }
     },
-    "signals": []
+    "signals": [],
+    "answeredQuestionIds": []
   },
   "covers": [
     "questions.capacity_overrun"

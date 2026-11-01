@@ -43,8 +43,8 @@ describe('commands on the worked example', () => {
     expect(r.json.result[0]).toMatchObject({ decision: 'draft_for_review', priorityIndex: 3.77, approvalStatus: 'required' });
     expect(r.json.draft_only).toBe(true);
   });
-  it('questions accepts the same input without answered ids', () => {
-    const r = run(['questions'], JSON.stringify(decideInput()));
+  it('questions accepts the worked example with an empty answeredQuestionIds array', () => {
+    const r = run(['questions'], JSON.stringify({ ...decideInput(), answeredQuestionIds: [] }));
     expect(r.status).toBe(0);
     expect(r.json.result[0]).toMatchObject({ id: 'service_priorities', priority: 80 });
   });
@@ -156,6 +156,21 @@ describe('malformed, empty and wrongly shaped input (exit 2)', () => {
     expect(r.status).toBe(2);
     expect(r.json.error.issues[0]).toMatchObject({ path: ['signals'], code: 'invalid_type' });
   });
+  it('questions with answeredQuestionIds omitted is INVALID_INPUT (the field is required, only the array may be empty)', () => {
+    const r = run(['questions'], JSON.stringify(decideInput()));
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe('INVALID_INPUT');
+    expect(r.json.error.issues).toEqual([{ path: ['answeredQuestionIds'], code: 'invalid_type' }]);
+  });
+  it.each([['a string', 'service_priorities'], ['null', null], ['an object', {}], ['a number', 3]])('questions with answeredQuestionIds as %s is INVALID_INPUT', (_n, v) => {
+    const r = run(['questions'], JSON.stringify({ ...decideInput(), answeredQuestionIds: v }));
+    expect(r.status).toBe(2);
+    expect(r.json.error.issues).toEqual([{ path: ['answeredQuestionIds'], code: 'invalid_type' }]);
+  });
+  it('decide does not accept answeredQuestionIds', () => {
+    const r = run(['decide'], JSON.stringify({ ...decideInput(), answeredQuestionIds: [] }));
+    expect(r.status).toBe(2);
+  });
   it('duplicate answered question ids are refused', () => {
     const r = run(['questions'], JSON.stringify({ ...decideInput(), answeredQuestionIds: ['a', 'a'] }));
     expect(r.status).toBe(2);
@@ -177,7 +192,7 @@ describe('malformed, empty and wrongly shaped input (exit 2)', () => {
     expect(r.status).toBe(2);
   });
   it('questions input may not carry unknown keys', () => {
-    const r = run(['questions'], JSON.stringify({ ...decideInput(), nope: 1 }));
+    const r = run(['questions'], JSON.stringify({ ...decideInput(), answeredQuestionIds: [], nope: 1 }));
     expect(r.status).toBe(2);
   });
 });

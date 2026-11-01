@@ -46,7 +46,8 @@
         "outcomeMetric": "catering enquiries per week",
         "observedAt": "2026-10-31T09:00:00+10:00"
       }
-    ]
+    ],
+    "answeredQuestionIds": []
   },
   "covers": [
     "questions.tenant"

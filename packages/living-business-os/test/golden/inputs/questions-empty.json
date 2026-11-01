@@ -26,7 +26,8 @@
         ]
       }
     },
-    "signals": []
+    "signals": [],
+    "answeredQuestionIds": []
   },
   "covers": [
     "questions.zero"
