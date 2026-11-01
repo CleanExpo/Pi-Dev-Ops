@@ -67,6 +67,7 @@ jobs:
           # Run from app/ dir with full logging captured
           python -m uvicorn server.main:app \
             --host 127.0.0.1 --port "$TAO_SMOKE_PORT" \
+            --header "X-SDA-Smoke-Instance:$TAO_SMOKE_NONCE" \
             --log-level info > /tmp/server.log 2>&1 &
           echo "SERVER_PID=$!" >> "$GITHUB_ENV"
         working-directory: app
@@ -79,9 +80,7 @@ jobs:
               cat /tmp/server.log
               exit 1
             fi
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${TAO_SMOKE_PORT}/health 2>/dev/null || echo "000")
-            echo "[${i}s] health status: $STATUS"
-            if [ "$STATUS" = "200" ]; then
+            if python scripts/ci_smoke_port.py --check "$TAO_SMOKE_PORT" "$TAO_SMOKE_NONCE"; then
               echo "Server ready after ${i}s"
               exit 0
             fi

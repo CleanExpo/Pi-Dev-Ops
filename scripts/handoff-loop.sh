@@ -298,47 +298,48 @@ else skip "audit-secrets-mutation" "scripts/secrets_scan_mutation.py not present
 # actually executed here, while still reporting a tidy SKIP that reads like a considered
 # decision. ci.yml's `smoke-local` job starts its own server for exactly this reason.
 #
-# Start one when the port is free, reuse a developer's server when it is not, and always
-# clean up the process this script started.
+# Every audit starts its OWN test-only server; never borrow a developer or agent's
+# listener. The unpredictable response marker proves /health came from this instance,
+# even if another process binds the allocated port before uvicorn can start.
 _smoke_with_server() {
-  local pw pid rc
-  pw="ci-smoke-local-dummy-password"; pid=""
-  if ! curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null; then
-    # TAO_CRON_ENABLED=0 is load-bearing, not tidiness. TAO_AUTONOMY_ENABLED
-    # gates the Linear poller only; cron_loop is separate and, ten seconds
-    # after boot, fires every trigger whose last_fired_at is older than its
-    # schedule. Without this the gate runs a real board meeting (live model
-    # calls) and real script triggers, and writes into .harness/ — a gate must
-    # measure, not act. Observed doing exactly that before the flag existed.
-    TAO_PASSWORD="$pw" TAO_SESSION_SECRET="ci-session-secret-fixed-for-test" \
-    TAO_EVALUATOR_ENABLED=false TAO_SWARM_ENABLED=0 TAO_AUTONOMY_ENABLED=0 \
-    TAO_CRON_ENABLED=0 \
-    TAO_GC_MAX_AGE=3600 PYTHONPATH="$ROOT" \
-      "$PY" -m uvicorn app.server.main:app --host 127.0.0.1 --port 7777 \
-        --log-level warning >>"$LOG" 2>&1 &
-    pid=$!
-    # Trap armed IMMEDIATELY after the PID exists, before the readiness wait below.
-    # It used to be installed after that loop, leaving a 30-second window in which
-    # Ctrl-C leaked the uvicorn process — and a leaked server on :7777 is not a tidy
-    # failure: the NEXT run sees a listener, treats it as "someone else's server",
-    # and smoke-tests it with the wrong password, so the gate fails for a reason
-    # unrelated to the code. Flagged by the gpt-oss-120b cross-model review.
-    trap 'kill "$pid" 2>/dev/null; trap - INT TERM EXIT' INT TERM EXIT
-    for _ in $(seq 1 30); do
-      curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null && break
-      sleep 1
-    done
-  else
-    # Someone else's server — use their password, and never kill it.
-    pw="${TAO_PASSWORD:-dev}"
+  local pw pid rc port nonce allocation ready
+  pw="ci-smoke-local-dummy-password"; pid=""; ready=0
+  allocation=$("$PY" scripts/ci_smoke_port.py --emit-shell) || return 1
+  read -r port nonce <<< "$allocation"
+  if ! [[ "$port" =~ ^[0-9]+$ && "$nonce" =~ ^[0-9a-f]{32}$ ]]; then
+    return 1
   fi
-  "$PY" scripts/smoke_test.py --url http://127.0.0.1:7777 --password "$pw"
-  rc=$?
-  if [ -n "$pid" ]; then
-    kill "$pid" 2>/dev/null
+  # TAO_CRON_ENABLED=0 is essential: startup catch-up otherwise fires live
+  # triggers and model calls. CI smoke must never run a board meeting.
+  TAO_PASSWORD="$pw" TAO_SESSION_SECRET="ci-session-secret-fixed-for-test" \
+  TAO_EVALUATOR_ENABLED=false TAO_SWARM_ENABLED=0 TAO_AUTONOMY_ENABLED=0 \
+  TAO_CRON_ENABLED=0 TAO_GC_MAX_AGE=3600 PYTHONPATH="$ROOT" \
+    "$PY" -m uvicorn app.server.main:app --host 127.0.0.1 --port "$port" \
+      --header "X-SDA-Smoke-Instance:$nonce" \
+      --log-level warning >>"$LOG" 2>&1 &
+  pid=$!
+  # Only kill the child we created. Arm cleanup before waiting for readiness.
+  trap 'kill "$pid" 2>/dev/null; trap - INT TERM EXIT' INT TERM EXIT
+  for _ in $(seq 1 30); do
+    if ! kill -0 "$pid" 2>/dev/null; then break; fi
+    if "$PY" scripts/ci_smoke_port.py --check "$port" "$nonce"; then
+      ready=1
+      break
+    fi
+    sleep 1
+  done
+  if [ "$ready" -ne 1 ]; then
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
     trap - INT TERM EXIT
+    return 1
   fi
-  return $rc
+  "$PY" scripts/smoke_test.py --url "http://127.0.0.1:$port" --password "$pw"
+  rc=$?
+  kill "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  trap - INT TERM EXIT
+  return "$rc"
 }
 if [ "$PY_OK" = 1 ]; then
   gate "audit-smoke" _smoke_with_server
