@@ -422,17 +422,25 @@ jobs:
       - name: Install dependencies
         run: pip install --require-hashes -r app/requirements.lock
 
+      - name: Allocate isolated smoke port
+        run: python scripts/ci_smoke_port.py
+
       - name: Start Pi CEO server locally
         run: |
           python -m uvicorn app.server.main:app \
-            --host 127.0.0.1 --port 7777 \
+            --host 127.0.0.1 --port "$TAO_SMOKE_PORT" \
             --log-level warning > /tmp/server-local.log 2>&1 &
           echo "SERVER_PID=$!" >> "$GITHUB_ENV"
 
       - name: Wait for server to be ready
         run: |
           for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:7777/health 2>/dev/null || echo "000")
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "Smoke server exited before readiness"
+              cat /tmp/server-local.log
+              exit 1
+            fi
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${TAO_SMOKE_PORT}/health 2>/dev/null || echo "000")
             echo "[${i}s] health status: $STATUS"
             if [ "$STATUS" = "200" ]; then
               echo "Server ready after ${i}s"
@@ -450,7 +458,7 @@ jobs:
         # --emit-metrics excluded: post-deploy metrics not meaningful here
         run: |
           python scripts/smoke_test.py \
-            --url http://127.0.0.1:7777 \
+            --url "http://127.0.0.1:${TAO_SMOKE_PORT}" \
             --password "$TAO_PASSWORD"
 
       - name: Show server log on failure
