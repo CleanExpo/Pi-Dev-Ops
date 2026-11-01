@@ -107,6 +107,29 @@ Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md                 (9-section proje
 .research/design/approved/{slug}-{label}-{date}.snapshot.json  (cache)
 ```
 
+### Required SDA visual evidence before canonical approval
+
+For rendered app UI, web screens, business-card films, video art or visual media:
+- Set PI_DEV_OPS_ROOT to an absolute **clean, exact SHA-reviewed Pi-Dev-Ops
+  checkout** and verify its HEAD against the signed independent review.
+  Do not call an installed gate unless its source hash is independently
+  proven identical to the reviewed source; mismatches are HOLD.
+- Run `visual-qa` with real Playwright captures in three viewports, real asset
+  decode and actual-video frame inspection as applicable.
+- Declare deliverable_type=web for static website/UI evidence or
+  deliverable_type=film for moving media, then run `python3
+  "$PI_DEV_OPS_ROOT/skills/visual-qa/scripts/sda_evidence_gate.py"
+  /path/to/manifest.json --release --baseline-record /path/to/prior-approved-record.json
+  --scope-record /path/to/independent-scope.json` against immutable, SHA-verified
+  evidence. Web approvals use an exact SHA-bound PNG candidate, never
+  dummy video/audio. Film approvals require actual film and sound evidence.
+- A passing automated gate verifies *records*, not aesthetic merit. Require
+  genuine SDA critique, different independent challenger, rights evidence and
+  founder acceptance of the exact master hash.
+- If any item is missing, report **DESIGN REVIEW HOLD**, leave the existing
+  approved variant untouched and stop before step 3's canonical writes.
+- Three targeted iterations maximum; change direction if still rejected.
+
 ## Boundaries
 
 - **Never approve without all validators passing.** No "force-approve" mode.
@@ -124,3 +147,9 @@ Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md                 (9-section proje
 ## Hands off to
 
 `design-family-coherence` (post-merge audit) and the user (with the canvas link).
+
+
+**Scope guard:** Every technical pass also requires `--scope-record` from
+a page inventory outside the candidate evidence directory, otherwise
+the candidate can omit inconvenient screens and still seem to pass.
+This record is evidence of test scope, NOT actual creative approval.

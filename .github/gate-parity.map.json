@@ -1,6 +1,6 @@
 {
-  "_comment": "Maps every run: step in .github/workflows/ci.yml to the scripts/handoff-loop.sh gate that covers it locally. Read by .github/scripts/gate_parity_lint.py. An unmapped step FAILS — silence is not an exemption. Three categories: a gate name (covered), 'environment' (sets the stage, detects no defect in your code), or 'not-runnable-locally' WITH a reason (a real hole in local coverage, kept short on purpose).",
-  "_scope": "ci.yml only. The other PR-triggered workflows — design-lint, fail-open-check, pgtap-pilot, smoke_surface_gate, the drift checks — are path-filtered specialists that mostly need services a laptop lacks. They are NOT covered here, so a green handoff-loop.sh still does not predict their red. Named so it stays visible.",
+  "_comment": "Maps every run: step in .github/workflows/ci.yml to the scripts/handoff-loop.sh gate that covers it locally. Read by .github/scripts/gate_parity_lint.py. An unmapped step FAILS \u2014 silence is not an exemption. Three categories: a gate name (covered), 'environment' (sets the stage, detects no defect in your code), or 'not-runnable-locally' WITH a reason (a real hole in local coverage, kept short on purpose).",
+  "_scope": "ci.yml only. The other PR-triggered workflows \u2014 design-lint, fail-open-check, pgtap-pilot, smoke_surface_gate, the drift checks \u2014 are path-filtered specialists that mostly need services a laptop lacks. They are NOT covered here, so a green handoff-loop.sh still does not predict their red. Named so it stays visible.",
   "version": 1,
   "steps": {
     "ci.yml::Install ruff": {
@@ -63,6 +63,10 @@
     "ci.yml::Run secrets_check.py": {
       "local_gate": "audit-secrets"
     },
+    "ci.yml::Allocate isolated smoke port": {
+      "local_gate": "tests-python",
+      "note": "Verified by tests/test_ci_smoke_port.py; the new port environment step does not replace the live HTTP smoke test."
+    },
     "ci.yml::Start Pi CEO server locally": {
       "local_gate": "environment",
       "reason": "starts the server the smoke test then exercises"
@@ -98,7 +102,7 @@
     },
     "ci.yml::Run smoke test against production": {
       "local_gate": "not-runnable-locally",
-      "reason": "probes the live Railway deployment. Runs after merge, so no local gate can predict it — and by design nothing on a laptop should be able to."
+      "reason": "probes the live Railway deployment. Runs after merge, so no local gate can predict it \u2014 and by design nothing on a laptop should be able to."
     },
     "ci.yml::Manifest has no dead entries": {
       "local_gate": "frozen-paths-manifest"
@@ -106,6 +110,10 @@
     "ci.yml::PR changes no frozen path": {
       "local_gate": "frozen-paths-diff",
       "note": "CI passes the PR base SHA; the local gate diffs against origin/main."
+    },
+    "ci.yml::SDA canonical source suites": {
+      "local_gate": "tests-sda-source",
+      "note": "All 43 SDA source, 8 installer and 4 router unittest cases run explicitly under both CI and local handoff; a missing FFmpeg is failure in CI, skip only when the local dependency gate is absent."
     }
   }
 }
