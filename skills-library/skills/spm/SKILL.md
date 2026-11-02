@@ -75,3 +75,12 @@ command / implementation sequence / session-handoff seed / final recommendation)
 with no passing engineering gate is a draft.
 
 End with: `SPM spec complete. Engineering gate: PASS. Next safe action: <one sentence>.`
+
+## CleanExpo Premium Visual & Motion Standard (proposed, UNI-3140)
+
+When this skill touches any customer-facing page, the spec/review MUST cover and the build MUST pass:
+- Zero code-drawn TS/CSS/SVG/canvas graphics; real icon sets for UI only.
+- Media from client photos/video → self-hosted licensed stock → Higgsfield photoreal (`cinematic-au-restoration` preset) → offline Blender renders. All listed in `media.manifest.json` (source + credit + alt).
+- Every marketing page: `<PremiumHero>` with looping muted video (AV1/WebM/H.264 + poster) or real photo, ≥1 `<MotionSection>`, `<Carousel>` for galleries/services, View Transitions page transitions, prefers-reduced-motion honoured.
+- `check-visuals` passes (CI) and the SDA visual/commercial evidence gate passes (reduced-motion screenshots + video frame review).
+- Package: `@cleanexpo/premium-visuals` (Unite-Group `packages/premium-visuals`).
