@@ -1,0 +1,17 @@
+# Mutation log (spec 14.12)
+
+Each mutant was applied to the source file named, the rule tests were run
+(`vitest run test/contracts.test.ts test/cursor-regressions.test.ts test/codex-regressions.test.ts test/publishing-approval.test.ts test/golden.test.mjs`, `LC_ALL=C LANG=C TZ=UTC`, Node 22.22.3),
+and the file was then restored byte for byte. Baseline before every mutant: 220 tests, 220 passed.
+Before each mutation the pattern was checked to be present (a pattern that is absent aborts the run, so a mutant cannot silently apply nothing).
+
+| Mutant | Change | Result | Named test that went red | Assertion that failed |
+|---|---|---|---|---|
+| (a) | `src/contracts.ts`: provenance check `if (!ALLOWED_DATA_CLASSES[v.kind].includes(v.dataClass))` replaced by `if (false)` | RED (24 tests failed) | "rejects a competitor estimate labelled as owned data (review repro)" in `codex-regressions.test.ts` | `expect(messages(...)).toContain('provenance mismatch')` received only the private-evidence message; also red: "rejects research evidence claiming to be owned or client-approved", golden `provenance-reject-*` |
+| (b) | `src/contracts.ts`: private-evidence organisation check `if (PRIVATE_DATA_CLASSES.includes(v.dataClass) && !v.organizationId)` replaced by `if (false)` | RED (5 tests failed) | "requires private evidence to name its organisation" in `codex-regressions.test.ts` | `expect(...).toContain('must name its organisation')` received an empty string; also red: goldens `signal-reject-evidence-private-no-org-owned`, `interaction-reject-source-private-no-org` |
+| (c) | `src/contracts.ts`: `refuseForeignEvidence` made a no-op (early `return`) | RED (9 tests failed) | "refuses evidence that belongs to another tenant (review repro)" in `codex-regressions.test.ts` | `expect(...).toContain('another tenant')` received an empty string (the `rankImprovements` / `selectWeeklyQuestions` `toThrow(/another tenant/)` lines are behind it); also red: "refuses a customer interaction whose source belongs to another tenant", golden `decide-foreign-evidence` |
+| (d) | `src/decision-engine.ts`: `throw new Error('TENANT_MISMATCH')` removed from `rankImprovements` | RED (2 tests failed) | "halts a cross-tenant signal even if it looks profitable" in `contracts.test.ts` | `expect(() => rankImprovements(intent, [tenantB])).toThrow('TENANT_MISMATCH')`: expected function to throw an error; also red: golden `decide-tenant-mismatch` |
+| (e) | `src/contracts.ts`: `publishing: z.literal('approval_required')` changed to `z.string()` | RED (4 tests failed) | NEW "rejects an intent that does not require publishing approval" in `publishing-approval.test.ts` (written first) | `expect(r.success).toBe(false)`: received true, so no issue is raised at `["constraints","publishing"]`; also red: "rejects a malformed intent and conflicting signal ids", goldens `intent-reject-publishing-automatic`, `decide-invalid-intent` |
+| (f) | `src/decision-engine.ts`: `approvalStatus: 'required'` changed to `'not_required'` | RED (28 tests failed) | "always requires human approval for a good change" in `contracts.test.ts` | `expect(result[0].approvalStatus).toBe('required')`: received 'not_required'; the golden decide tests (`decide-worked-example` and 27 more) also went red |
+
+The mutated files were restored after each run; `src/*.ts` are byte-identical to Synthex `5445287f7` again (checked by `test/provenance.test.mjs` and by `scripts/capture-golden.mjs`).

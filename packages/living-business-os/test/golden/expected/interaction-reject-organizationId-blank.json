@@ -1,0 +1,17 @@
+{
+  "zod_issues": [
+    {
+      "code": "too_small",
+      "path": [
+        "organizationId"
+      ]
+    },
+    {
+      "code": "custom",
+      "path": [
+        "source",
+        "organizationId"
+      ]
+    }
+  ]
+}

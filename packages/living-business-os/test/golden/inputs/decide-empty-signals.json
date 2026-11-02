@@ -1,0 +1,31 @@
+{
+  "name": "decide-empty-signals",
+  "kind": "behaviour",
+  "command": "decide",
+  "input": {
+    "intent": {
+      "organizationId": "org-demo-1",
+      "businessName": "Demo Cafe",
+      "goals": [
+        "More weekday bookings"
+      ],
+      "serviceIds": [
+        "svc-catering"
+      ],
+      "capacity": {
+        "availableJobsPerWeek": 10,
+        "bookedJobsPerWeek": 6,
+        "updatedAt": "2026-11-01T00:00:00+10:00"
+      },
+      "constraints": {
+        "maximumMonthlyAutomationCostAud": 50,
+        "publishing": "approval_required",
+        "customerDataReuse": "tenant_only"
+      }
+    },
+    "signals": []
+  },
+  "covers": [
+    "decide.empty"
+  ]
+}

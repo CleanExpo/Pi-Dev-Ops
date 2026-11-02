@@ -1,0 +1,10 @@
+{
+  "zod_issues": [
+    {
+      "code": "invalid_type",
+      "path": [
+        "organizationId"
+      ]
+    }
+  ]
+}

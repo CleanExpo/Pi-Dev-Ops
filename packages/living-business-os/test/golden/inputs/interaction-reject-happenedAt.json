@@ -1,0 +1,28 @@
+{
+  "name": "interaction-reject-happenedAt",
+  "kind": "reject",
+  "command": "validate",
+  "contract": "customer-interaction",
+  "input": {
+    "organizationId": "org-demo-1",
+    "interactionId": "int-1",
+    "channel": "living_card",
+    "eventType": "service_interest",
+    "serviceId": "svc-catering",
+    "happenedAt": "noon",
+    "pseudonymousSessionId": "sess-1",
+    "source": {
+      "id": "card-1",
+      "kind": "card",
+      "capturedAt": "2026-11-01T00:00:00+10:00",
+      "dataClass": "owned",
+      "organizationId": "org-demo-1"
+    }
+  },
+  "covers": [
+    "interaction.happenedAt.datetime"
+  ],
+  "reject_path": [
+    "happenedAt"
+  ]
+}

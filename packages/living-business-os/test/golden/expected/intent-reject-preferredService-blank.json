@@ -1,0 +1,12 @@
+{
+  "zod_issues": [
+    {
+      "code": "too_small",
+      "path": [
+        "constraints",
+        "preferredServices",
+        0
+      ]
+    }
+  ]
+}

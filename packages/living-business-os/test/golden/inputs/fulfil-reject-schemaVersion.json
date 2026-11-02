@@ -1,0 +1,24 @@
+{
+  "name": "fulfil-reject-schemaVersion",
+  "kind": "reject",
+  "command": "validate",
+  "contract": "fulfilment-request",
+  "input": {
+    "sourceSystem": "unite_group",
+    "schemaVersion": 2,
+    "externalOrderId": "ord 7/a",
+    "organizationId": "org-demo-1",
+    "approvedPackageId": "pkg-1",
+    "authorisationReceiptId": "rcpt-1",
+    "requestedAssets": [
+      "website"
+    ],
+    "issuedAt": "2026-11-01T00:00:00+10:00"
+  },
+  "covers": [
+    "fulfil.schemaVersion.literal"
+  ],
+  "reject_path": [
+    "schemaVersion"
+  ]
+}

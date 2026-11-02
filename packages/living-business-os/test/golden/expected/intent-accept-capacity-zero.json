@@ -1,0 +1,24 @@
+{
+  "ok": {
+    "businessName": "Demo Cafe",
+    "capacity": {
+      "availableJobsPerWeek": 0,
+      "bookedJobsPerWeek": 0,
+      "updatedAt": "2026-11-01T00:00:00+10:00"
+    },
+    "constraints": {
+      "customerDataReuse": "tenant_only",
+      "excludedClaims": [],
+      "maximumMonthlyAutomationCostAud": 50,
+      "preferredServices": [],
+      "publishing": "approval_required"
+    },
+    "goals": [
+      "More weekday bookings"
+    ],
+    "organizationId": "org-demo-1",
+    "serviceIds": [
+      "svc-catering"
+    ]
+  }
+}

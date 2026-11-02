@@ -1,0 +1,11 @@
+{
+  "ok": [
+    {
+      "id": "verify_signal:sig-1",
+      "priority": 78,
+      "purpose": "Validate an estimated opportunity before altering marketing.",
+      "signalId": "sig-1",
+      "text": "We're seeing a possible opportunity for svc-catering. Are customers actually requesting this service, and what do they value most about it?"
+    }
+  ]
+}

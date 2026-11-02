@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.25.24
-  generated_at: "2026-11-01T03:27:19.698496+00:00"
+  version: 1.26.1
+  generated_at: "2026-11-01T23:46:02.224965+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -1124,6 +1124,21 @@ skills:
     status: (unset)
     path: skills/leverage-audit/SKILL.md
     sha256: 12599425da9c8e5c309acb5e6484b8f51ff6e760835052a1bf746e2aebf134d8
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: living-business-os
+    description: Run the Living Business OS rules (the Unite Group draft-only decision contracts) through the verified lbos command line, on synthetic data only. Use when a verifier or builder must check an LBOS input, rank improvement proposals, list the owner questions, or confirm the package identity before a consumer relies on it. It never publishes, never touches real customer data, and every result needs human approval.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/living-business-os/SKILL.md
+    sha256: a2898d79f89c5b25b120f154801690766a4f3050cdc92e383149089e6b99875e
     dependencies:
       tools: []
       skills: []

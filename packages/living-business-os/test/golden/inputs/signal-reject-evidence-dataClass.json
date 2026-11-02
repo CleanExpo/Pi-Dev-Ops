@@ -1,0 +1,36 @@
+{
+  "name": "signal-reject-evidence-dataClass",
+  "kind": "reject",
+  "command": "validate",
+  "contract": "opportunity-signal",
+  "input": {
+    "id": "sig-1",
+    "organizationId": "org-demo-1",
+    "serviceId": "svc-catering",
+    "title": "Add a catering enquiry button to the card",
+    "evidence": [
+      {
+        "id": "ev-1",
+        "kind": "card",
+        "capturedAt": "2026-10-30T09:00:00+10:00",
+        "dataClass": "secret",
+        "organizationId": "org-demo-1"
+      }
+    ],
+    "confidence": 0.8,
+    "risk": 0.2,
+    "expectedGrossProfitAud": 400,
+    "estimatedInterventionCostAud": 40,
+    "expectedAdditionalJobsPerWeek": 1,
+    "outcomeMetric": "catering enquiries per week",
+    "observedAt": "2026-10-31T09:00:00+10:00"
+  },
+  "covers": [
+    "source.dataClass.enum"
+  ],
+  "reject_path": [
+    "evidence",
+    0,
+    "dataClass"
+  ]
+}

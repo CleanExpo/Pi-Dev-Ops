@@ -1,0 +1,16 @@
+{
+  "ok": [
+    {
+      "id": "capacity_current",
+      "priority": 100,
+      "purpose": "Avoid sending more work than the business can fulfil.",
+      "text": "How many jobs can your team take next week, and how many are already booked?"
+    },
+    {
+      "id": "service_priorities",
+      "priority": 80,
+      "purpose": "Guide customer fit rather than maximising enquiry volume.",
+      "text": "Which services do you most want to be known for, based on your quality and profitability?"
+    }
+  ]
+}

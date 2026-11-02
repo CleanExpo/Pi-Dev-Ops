@@ -1,0 +1,10 @@
+{
+  "zod_issues": [
+    {
+      "code": "invalid_format",
+      "path": [
+        "issuedAt"
+      ]
+    }
+  ]
+}

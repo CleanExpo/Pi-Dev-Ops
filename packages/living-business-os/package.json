@@ -1,0 +1,48 @@
+{
+  "name": "@unite-group/living-business-os",
+  "version": "1.0.0",
+  "description": "Living Business OS contracts and deterministic decision code (draft-only decision support). Single owner of the rules; consumers verify the package identity before use.",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "lbos": "./bin/lbos.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "lib",
+    "src",
+    "scripts",
+    "MANIFEST.json",
+    "PROVENANCE.json",
+    "contract-surface.json"
+  ],
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "LC_ALL=C LANG=C TZ=UTC vitest run",
+    "conformance": "LC_ALL=C LANG=C TZ=UTC node scripts/conformance.mjs"
+  },
+  "peerDependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7",
+    "zod": "4.4.3"
+  }
+}

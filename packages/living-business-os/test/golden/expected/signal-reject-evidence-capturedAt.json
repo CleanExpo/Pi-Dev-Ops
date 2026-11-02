@@ -1,0 +1,12 @@
+{
+  "zod_issues": [
+    {
+      "code": "invalid_format",
+      "path": [
+        "evidence",
+        0,
+        "capturedAt"
+      ]
+    }
+  ]
+}

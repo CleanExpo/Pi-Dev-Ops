@@ -25,7 +25,7 @@ agents:
     purpose: Run tests, lint, builds, smoke checks, and capture reproducible exact-command evidence.
     model_policy_role: evaluator
     risk_tier_ceiling: 0
-    skills: [verify-test]
+    skills: [verify-test, living-business-os]
     evidence: [test-results, lint-results, build-results]
     status: shadow
   - id: reviewer

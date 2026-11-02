@@ -1,0 +1,12 @@
+{
+  "zod_issues": [
+    {
+      "code": "invalid_value",
+      "path": [
+        "evidence",
+        0,
+        "dataClass"
+      ]
+    }
+  ]
+}

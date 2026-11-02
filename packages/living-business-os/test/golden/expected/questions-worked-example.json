@@ -1,0 +1,10 @@
+{
+  "ok": [
+    {
+      "id": "service_priorities",
+      "priority": 80,
+      "purpose": "Guide customer fit rather than maximising enquiry volume.",
+      "text": "Which services do you most want to be known for, based on your quality and profitability?"
+    }
+  ]
+}

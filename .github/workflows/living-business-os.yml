@@ -1,0 +1,62 @@
+name: Living Business OS
+
+# Conformance for packages/living-business-os (RA-8145 M1): environment asserted, file
+# inventory verified, dist rebuilt outside the package and compared file for file, every
+# golden compared byte for byte, and (on pull requests) the version bump checked against
+# the base branch. Read-only: it checks, it does not publish or write.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/living-business-os/**"
+      - "skills/living-business-os/**"
+      - ".github/workflows/living-business-os.yml"
+  pull_request:
+    paths:
+      - "packages/living-business-os/**"
+      - "skills/living-business-os/**"
+      - ".github/workflows/living-business-os.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  LC_ALL: C
+  LANG: C
+  TZ: UTC
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/living-business-os
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # --compat reads the base branch's MANIFEST and goldens with git show
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.3"
+          cache: npm
+          cache-dependency-path: packages/living-business-os/package-lock.json
+
+      - name: Install pinned dependencies
+        run: npm ci
+
+      - name: Conformance
+        run: npm run conformance
+
+      - name: Tests
+        run: npm test
+
+      - name: Compatibility against the base branch
+        if: github.event_name == 'pull_request'
+        run: node scripts/manifest.mjs --compat origin/${{ github.base_ref }}

@@ -1,0 +1,28 @@
+{
+  "name": "interaction-reject-channel",
+  "kind": "reject",
+  "command": "validate",
+  "contract": "customer-interaction",
+  "input": {
+    "organizationId": "org-demo-1",
+    "interactionId": "int-1",
+    "channel": "fax",
+    "eventType": "service_interest",
+    "serviceId": "svc-catering",
+    "happenedAt": "2026-11-01T00:00:00+10:00",
+    "pseudonymousSessionId": "sess-1",
+    "source": {
+      "id": "card-1",
+      "kind": "card",
+      "capturedAt": "2026-11-01T00:00:00+10:00",
+      "dataClass": "owned",
+      "organizationId": "org-demo-1"
+    }
+  },
+  "covers": [
+    "interaction.channel.enum"
+  ],
+  "reject_path": [
+    "channel"
+  ]
+}

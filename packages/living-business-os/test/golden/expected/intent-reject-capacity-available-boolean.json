@@ -1,0 +1,11 @@
+{
+  "zod_issues": [
+    {
+      "code": "invalid_type",
+      "path": [
+        "capacity",
+        "availableJobsPerWeek"
+      ]
+    }
+  ]
+}

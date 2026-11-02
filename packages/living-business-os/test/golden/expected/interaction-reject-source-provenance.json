@@ -1,0 +1,11 @@
+{
+  "zod_issues": [
+    {
+      "code": "custom",
+      "path": [
+        "source",
+        "dataClass"
+      ]
+    }
+  ]
+}

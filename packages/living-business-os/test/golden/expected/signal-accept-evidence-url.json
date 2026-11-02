@@ -1,0 +1,25 @@
+{
+  "ok": {
+    "confidence": 0.8,
+    "estimatedInterventionCostAud": 40,
+    "evidence": [
+      {
+        "capturedAt": "2026-10-30T09:00:00+10:00",
+        "dataClass": "owned",
+        "id": "ev-1",
+        "kind": "card",
+        "organizationId": "org-demo-1",
+        "sourceUrl": "https://example.com/report"
+      }
+    ],
+    "expectedAdditionalJobsPerWeek": 1,
+    "expectedGrossProfitAud": 400,
+    "id": "sig-1",
+    "observedAt": "2026-10-31T09:00:00+10:00",
+    "organizationId": "org-demo-1",
+    "outcomeMetric": "catering enquiries per week",
+    "risk": 0.2,
+    "serviceId": "svc-catering",
+    "title": "Add a catering enquiry button to the card"
+  }
+}

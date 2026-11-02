@@ -1,0 +1,32 @@
+{
+  "name": "intent-reject-businessName-blank",
+  "kind": "reject",
+  "command": "validate",
+  "contract": "business-intent",
+  "input": {
+    "organizationId": "org-demo-1",
+    "businessName": "   ",
+    "goals": [
+      "More weekday bookings"
+    ],
+    "serviceIds": [
+      "svc-catering"
+    ],
+    "capacity": {
+      "availableJobsPerWeek": 10,
+      "bookedJobsPerWeek": 6,
+      "updatedAt": "2026-11-01T00:00:00+10:00"
+    },
+    "constraints": {
+      "maximumMonthlyAutomationCostAud": 50,
+      "publishing": "approval_required",
+      "customerDataReuse": "tenant_only"
+    }
+  },
+  "covers": [
+    "intent.businessName.nonEmpty"
+  ],
+  "reject_path": [
+    "businessName"
+  ]
+}
