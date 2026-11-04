@@ -207,3 +207,51 @@ def test_reset_discards_a_refresh_that_was_in_flight(monkeypatch, probe):
     release.set()
     worker.join(5)
     assert probe.snapshot() is None  # the pre-reset result was not published
+
+
+def test_a_display_read_that_contradicts_the_verdict_blocks(monkeypatch, probe):
+    """Codex round 2: frozen check passes on read 1, display read 2 says logged out."""
+    assert probe is not None, "cached auth probe is missing"
+    run = Mock(side_effect=[_status(**LIVE), _status(**{**LIVE, "loggedIn": False})])
+    monkeypatch.setattr(policy.subprocess, "run", run)
+    probe.refresh()
+    report = sdk.generation_readiness()
+    assert run.call_count == 2
+    assert report["status"] == "blocked" and report["auth_verified"] is False
+    assert report["auth"]["loggedIn"] is False
+
+
+@pytest.mark.parametrize("key", ["authMethod", "apiProvider", "subscriptionType"])
+@pytest.mark.parametrize("value", ["private@example.invalid", "sk-ant-fixture-not-a-real-token",
+                                   ["max"], {"nested": "x"}, 731994655])
+def test_unknown_field_values_never_leave_verbatim(monkeypatch, probe, key, value):
+    assert probe is not None, "cached auth probe is missing"
+    monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**{**LIVE, key: value})))
+    probe.refresh()
+    report = sdk.generation_readiness()
+    assert report["auth"][key] == "other"
+    assert report["status"] == "blocked"
+    _code, body = _authed_health()
+    assert json.dumps(value) not in body and str(value) not in body
+
+
+_DRIFT_TABLE = [
+    LIVE,
+    *({**LIVE, "subscriptionType": s} for s in ("pro", "team", "enterprise", "free", None)),
+    *({**LIVE, "authMethod": a} for a in ("none", "api_key", "oauth_token", "console")),
+    *({**LIVE, "apiProvider": p} for p in ("bedrock", "vertex", None)),
+    {**LIVE, "loggedIn": False}, {**LIVE, "loggedIn": "true"}, {},
+]
+
+
+@pytest.mark.parametrize("payload", _DRIFT_TABLE)
+def test_agreement_check_matches_the_frozen_rule(monkeypatch, payload):
+    """_agrees() may only AND with provider_policy; pin it so drift cannot hide."""
+    from app.server import claude_auth_probe as probe
+    monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**payload)))
+    try:
+        policy.require_transport("anthropic_agent_sdk", cli_path=sys.executable, env={})
+        frozen = True
+    except policy.ProviderPolicyError:
+        frozen = False
+    assert probe._agrees(probe._public(payload)) is frozen

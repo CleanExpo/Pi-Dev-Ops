@@ -24,8 +24,24 @@ from datetime import datetime, timezone
 REFRESH_S = 240  # background refresh period
 TTL_S = 300  # trust window; > REFRESH_S plus two 10 s CLI timeouts
 PUBLIC_FIELDS = ("loggedIn", "authMethod", "apiProvider", "subscriptionType")
+# Only these literal values are ever shown; any other string is reported as "other",
+# so free text (an email, a token) printed into one of these keys never leaves here.
+_SHOWN = {
+    "authMethod": frozenset({"claude.ai", "none", "api_key", "oauth_token", "console"}),
+    "apiProvider": frozenset({"firstParty", "bedrock", "vertex", "foundry", "anthropic_aws"}),
+    "subscriptionType": frozenset({"max", "pro", "team", "enterprise", "free"}),
+}
+# What the shown fields must say for a login provider_policy admits. Used only to
+# AND with the frozen verdict (never instead of it), so drift can add a block but
+# never admit; tests/test_claude_auth_readiness.py pins it to the frozen rule.
+_AGREES = {
+    "loggedIn": frozenset({True}), "authMethod": frozenset({"claude.ai"}),
+    "apiProvider": frozenset({"firstParty"}),
+    "subscriptionType": frozenset({"max", "pro", "team", "enterprise"}),
+}
 _UNREADABLE = "subscription_only: subscription login could not be verified"
 _STALE = "subscription_only: subscription login check is stale"
+_CHANGED = "subscription_only: subscription login changed during the check"
 
 log = logging.getLogger("pi-ceo.claude_auth_probe")
 _clock = time.monotonic
@@ -38,13 +54,18 @@ _epoch = 0  # bumped by reset() so an in-flight refresh cannot publish afterward
 
 
 def _public(payload: dict) -> dict:
-    """Keep only short scalar status values; anything else reads as unknown."""
-    out = {}
-    for key in PUBLIC_FIELDS:
+    """Map the CLI payload onto known literals only. Nothing else is ever kept."""
+    logged_in = payload.get("loggedIn")
+    out: dict = {"loggedIn": logged_in if isinstance(logged_in, bool) else None}
+    for key, allowed in _SHOWN.items():
         value = payload.get(key)
-        ok = value is None or isinstance(value, bool) or (isinstance(value, str) and len(value) <= 40)
-        out[key] = value if ok else None
+        out[key] = None if value is None else (value if isinstance(value, str) and value in allowed else "other")
     return out
+
+
+def _agrees(fields: dict) -> bool:
+    """True only when the shown fields describe a login the frozen check admits."""
+    return all(fields.get(key) in allowed for key, allowed in _AGREES.items())
 
 
 def _status_fields(cli: str, env: dict[str, str]) -> dict:
@@ -87,6 +108,8 @@ def refresh() -> dict:
         log.warning("claude auth probe failed: %s", type(exc).__name__)
         error = _UNREADABLE
     fields = _status_fields(cli, env) if cli and env is not None else dict.fromkeys(PUBLIC_FIELDS)
+    if error is None and not _agrees(fields):
+        error = _CHANGED  # the display read contradicts the verdict: never publish both
     snap = _snap(fields, error, datetime.now(timezone.utc).isoformat())
     with _lock:
         if epoch == _epoch:
