@@ -18,13 +18,9 @@ from typing import Any
 
 from setup_common import SEAL_PREFIX, SetupError
 from setup_receipts import _seal_key
-from setup_state import _session_key, _state_path, _state_root, _write_state
+from setup_state import _launch_record_path, _session_key, _state_path, _write_state
 
 LAUNCH_RECORD_KIND = "senior-harness-launch-root"
-
-
-def _launch_record_path(session_id: str) -> Path:
-    return _state_root() / "launch-root" / f"{_session_key(session_id)}.json"
 
 
 def _launch_seal(record: dict[str, Any]) -> str:

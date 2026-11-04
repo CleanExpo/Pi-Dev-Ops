@@ -123,3 +123,21 @@ def test_session_clear_discards_the_launch_record(tmp_path: Path) -> None:
 
     decision = _write_tool(session, outside, env)
     assert decision["permissionDecision"] == "deny"
+
+
+def test_clear_outside_git_still_denies_writes_outside_git(tmp_path: Path) -> None:
+    """A clear issued outside Git must not leave the launch receipt usable there."""
+    env = _tamper_env(tmp_path)
+    session = "launch-root-clear-outside"
+    _admit_in_repo_a(session, env)
+    outside = tmp_path / "not-git"
+    outside.mkdir()
+    assert _write_tool(session, outside, env).get("permissionDecision") != "deny"
+    _global_hook(
+        "SessionStart",
+        {"session_id": session, "cwd": str(outside), "source": "clear"},
+        env,
+    )
+
+    decision = _write_tool(session, outside, env)
+    assert decision["permissionDecision"] == "deny"
