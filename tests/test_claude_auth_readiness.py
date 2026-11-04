@@ -10,8 +10,10 @@ import asyncio
 import json
 import subprocess
 import sys
+import threading
+import time
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -45,8 +47,7 @@ def probe(monkeypatch):
     claude_auth_probe.reset()
     monkeypatch.setattr(claude_auth_probe, "_schedule", claude_auth_probe._start_refresh)
     yield claude_auth_probe
-    claude_auth_probe.wait_for_refresh(5)
-    claude_auth_probe.reset()
+    claude_auth_probe.reset()  # stops and joins the refresher
 
 
 def _settled(probe):
@@ -127,35 +128,82 @@ def test_probe_runs_the_dispatch_check_with_the_dispatch_cli_and_env(monkeypatch
     assert kwargs["timeout"] <= 10
 
 
-def test_readiness_never_runs_the_probe_inline_and_caches_it(monkeypatch, probe):
+def _probe_threads():
+    return [t for t in threading.enumerate() if t.name == "claude-auth-probe"]
+
+
+def test_readiness_never_waits_on_a_stuck_cli_and_keeps_one_refresher(monkeypatch, probe):
     assert probe is not None, "cached auth probe is missing"
-    run = Mock(return_value=_status(**LIVE))
+    release = threading.Event()
+
+    def stuck_cli(*_args, **_kwargs):
+        release.wait(10)
+        return _status(**LIVE)
+
+    run = Mock(side_effect=stuck_cli)
     monkeypatch.setattr(policy.subprocess, "run", run)
-    scheduled = Mock()
-    monkeypatch.setattr(probe, "_schedule", scheduled)
-    sdk.generation_readiness()
-    run.assert_not_called()  # /health and the poller never wait on the CLI
-    scheduled.assert_called_once_with()
-    probe.refresh()
-    probed = run.call_count
-    assert probed >= 1
-    scheduled.reset_mock()
+    started = time.monotonic()
+    for _ in range(5):
+        report = sdk.generation_readiness()
+    assert time.monotonic() - started < 2  # /health and the poller never wait on the CLI
+    assert report["status"] == "unverified" and report["auth_verified"] is False
+    assert len(_probe_threads()) == 1  # single-flight
+    release.set()
+    assert probe.wait_for_refresh(5)
+    calls = run.call_count
     for _ in range(5):
         assert sdk.generation_readiness()["auth_verified"] is True
-    scheduled.assert_not_called()  # fresh snapshot: no new probe for ~5 minutes
-    assert run.call_count == probed
+    assert run.call_count == calls  # cached: no extra CLI runs per request
 
 
-def test_stale_snapshot_is_refreshed_and_cannot_stay_verified(monkeypatch, probe):
+def test_refresh_lands_before_trust_expires():
+    from app.server import claude_auth_probe as probe
+    assert probe.REFRESH_S + 2 * 10 < probe.TTL_S <= 300
+
+
+def test_cached_success_expires_at_the_ttl_and_a_dead_refresh_blocks_at_once(monkeypatch, probe):
     assert probe is not None, "cached auth probe is missing"
+    monkeypatch.setattr(probe, "_schedule", Mock())  # faked clock: no real refresher racing it
     monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**LIVE)))
     probe.refresh()
-    scheduled = Mock()
-    monkeypatch.setattr(probe, "_schedule", scheduled)
     now = probe._clock()
-    monkeypatch.setattr(probe, "_clock", lambda: now + probe.TTL_S + 1)
-    assert sdk.generation_readiness()["auth_verified"] is True  # last good result, refreshing
-    scheduled.assert_called_once_with()
-    monkeypatch.setattr(probe, "_clock", lambda: now + probe.MAX_AGE_S + 1)
+    monkeypatch.setattr(probe, "_clock", lambda: now + probe.TTL_S - 1)
+    assert sdk.generation_readiness()["auth_verified"] is True
+    monkeypatch.setattr(probe, "_clock", lambda: now + probe.TTL_S)
     report = sdk.generation_readiness()
     assert report["status"] == "blocked" and report["auth_verified"] is False
+    monkeypatch.setattr(probe, "_clock", lambda: now)
+    monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**{**LIVE, "loggedIn": False})))
+    probe.refresh()  # login died after a good probe: the next refresh blocks immediately
+    report = sdk.generation_readiness()
+    assert report["status"] == "blocked" and report["auth"]["loggedIn"] is False
+
+
+def test_refresher_that_cannot_start_blocks_without_breaking_health(monkeypatch, probe):
+    assert probe is not None, "cached auth probe is missing"
+    monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**LIVE)))
+    with patch.object(threading.Thread, "start", side_effect=RuntimeError("can't start new thread")):
+        report = sdk.generation_readiness()
+        code, body = _authed_health()
+    assert report["status"] == "blocked" and report["auth_verified"] is False
+    assert code == 200 and json.loads(body)["status"] == "ok"
+    assert json.loads(body)["generation"]["status"] == "blocked"
+
+
+def test_reset_discards_a_refresh_that_was_in_flight(monkeypatch, probe):
+    assert probe is not None, "cached auth probe is missing"
+    entered, release = threading.Event(), threading.Event()
+
+    def slow_cli(*_args, **_kwargs):
+        entered.set()
+        release.wait(10)
+        return _status(**LIVE)
+
+    monkeypatch.setattr(policy.subprocess, "run", Mock(side_effect=slow_cli))
+    worker = threading.Thread(target=probe.refresh)
+    worker.start()
+    assert entered.wait(5)
+    probe.reset()
+    release.set()
+    worker.join(5)
+    assert probe.snapshot() is None  # the pre-reset result was not published
