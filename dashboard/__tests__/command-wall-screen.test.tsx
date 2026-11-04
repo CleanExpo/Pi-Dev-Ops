@@ -75,6 +75,9 @@ describe("CommandWall", () => {
     expect((await within(prs).findAllByText(/unavailable: GITHUB_TOKEN not set/)).length).toBe(6);
     expect(within(prs).queryByText("0")).toBeNull();
     expect(within(prs).getAllByText("unknown").length).toBe(24);
+    // Lane counts are label classifications, never presented as review activity.
+    expect(within(prs).queryByText("In review")).toBeNull();
+    expect(within(prs).getByText("Audit lane")).toBeTruthy();
   });
 
   it("the ticker names failed sources and never claims all clear while they are down", async () => {

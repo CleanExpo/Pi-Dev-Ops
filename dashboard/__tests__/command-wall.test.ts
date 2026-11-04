@@ -69,7 +69,7 @@ describe("fleet tiles", () => {
 describe("PR rows", () => {
   it("reads open, review, needs-Phill and aging counts from the board", () => {
     const r = prRow("CleanExpo/Synthex", board());
-    expect(r).toMatchObject({ name: "Synthex", open: 3, review: 1, needsPhill: 2, aging: 0, reason: null });
+    expect(r).toMatchObject({ name: "Synthex", open: 3, auditLane: 1, needsPhill: 2, aging: 0, reason: null });
     expect(r.ci).toEqual({ tone: "ok", text: "passing" });
   });
 
@@ -81,9 +81,10 @@ describe("PR rows", () => {
       ci: { status: "unavailable", reason: "GITHUB_TOKEN not set" },
     });
     const r = prRow("CleanExpo/Synthex", failed);
-    expect([r.open, r.review, r.needsPhill, r.aging]).toEqual([null, null, null, null]);
+    expect([r.open, r.auditLane, r.needsPhill, r.aging]).toEqual([null, null, null, null]);
     expect(r.reason).toBe("GITHUB_TOKEN not set");
     expect(r.ci.text).toBe("unavailable");
+    expect(r.ciReason).toBe("GITHUB_TOKEN not set");
     expect(prRow("CleanExpo/x", null, "flow board HTTP 500").reason).toBe("flow board HTTP 500");
   });
 
@@ -121,6 +122,16 @@ describe("alerts", () => {
     expect(text).toContain("Backend unreachable: Pi-CEO backend unreachable");
     expect(alerts[0].tone).toBe("bad");
     expect(alerts.at(-1)?.tone).toBe("warn");
+  });
+
+  it("an unavailable GitHub read is an alert, so the ticker can never read all clear over it", () => {
+    const down = prRow("CleanExpo/RestoreAssist", null, "flow board HTTP 500");
+    const ciDown = prRow("CleanExpo/Synthex", board({ ci: { status: "unavailable", reason: "GitHub CI HTTP 502" } }));
+    const pending = prRow("CleanExpo/carsi", null);
+    const text = deriveAlerts({ ...base, prs: [down, ciDown, pending] }).map((a) => a.text);
+    expect(text).toContain("RestoreAssist pull requests unavailable: flow board HTTP 500");
+    expect(text).toContain("Synthex main branch CI unavailable: GitHub CI HTTP 502");
+    expect(text.some((t) => t.startsWith("carsi"))).toBe(false);
   });
 
   it("an unreadable Linear queue is an alert, not a quiet queue", () => {

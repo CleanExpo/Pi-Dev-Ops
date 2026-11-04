@@ -87,10 +87,14 @@ export interface PrRow {
   /** Null = the read failed; never shown as zero. */
   open: number | null;
   capped: boolean;
-  review: number | null;
+  /** Flow-board "audit" column: a label classification, not review activity. */
+  auditLane: number | null;
   needsPhill: number | null;
   aging: number | null;
   ci: { tone: Tone; text: string };
+  /** Why main-branch CI could not be read; null when it was read. */
+  ciReason: string | null;
+  /** Why the pull requests could not be read; null when they were read. */
   reason: string | null;
 }
 
@@ -108,17 +112,18 @@ export function prRow(repo: string, board: RepoBoard | null | undefined, readFai
   const ci = board?.ci.status === "ok"
     ? { tone: CI_TEXT[board.ci.value.state][0], text: CI_TEXT[board.ci.value.state][1] }
     : { tone: "idle" as Tone, text: "unavailable" };
+  const ciReason = board?.ci.status === "unavailable" ? board.ci.reason : board ? null : readFailure ?? null;
   if (!board || board.pull_requests.status !== "ok" || !board.ok) {
     const reason = !board ? readFailure ?? "not read yet"
       : board.pull_requests.status === "unavailable" ? board.pull_requests.reason : board.error ?? "board read failed";
-    return { repo, name, open: null, capped: false, review: null, needsPhill: null, aging: null, ci, reason };
+    return { repo, name, open: null, capped: false, auditLane: null, needsPhill: null, aging: null, ci, ciReason, reason };
   }
   const c = board.columns;
   return {
-    repo, name, ci, reason: null,
+    repo, name, ci, ciReason, reason: null,
     open: board.pull_requests.value.count,
     capped: board.pull_requests.value.capped,
-    review: c.audit.length,
+    auditLane: c.audit.length,
     needsPhill: c.phill.length,
     aging: c.aging.length,
   };
@@ -146,6 +151,18 @@ function queueAlerts(queue: MCQueue | undefined): Alert[] {
   return (queue.urgent ?? 0) > 0 ? [{ id: "queue-urgent", tone: "bad", text: `${queue.urgent} urgent ticket(s) in the queue` }] : [];
 }
 
+/** Unreadable PR or CI evidence is an alert. A repo still on its first read is not. */
+function githubAlerts(p: PrRow): Alert[] {
+  const out: Alert[] = [];
+  if (p.open === null && p.reason && p.reason !== "not read yet") {
+    out.push({ id: `pr-${p.repo}`, tone: "warn", text: `${p.name} pull requests unavailable: ${p.reason}` });
+  }
+  if (p.ciReason && p.ciReason !== p.reason) {
+    out.push({ id: `cidown-${p.repo}`, tone: "warn", text: `${p.name} main branch CI unavailable: ${p.ciReason}` });
+  }
+  return out;
+}
+
 export interface AlertInputs {
   sources: { id: string; label: string; state: SourceState; reason: string | null }[];
   observability?: MCObservability;
@@ -170,7 +187,8 @@ export function deriveAlerts(input: AlertInputs): Alert[] {
     .map((t) => ({ id: `fleet-${t.host}`, tone: t.tone === "bad" ? "bad" as Tone : "warn" as Tone, text: `${t.label}: ${t.status} (last heartbeat ${ageText(t.ageSeconds)} ago)` }));
   const ci = input.prs.filter((p) => p.ci.tone === "bad")
     .map((p) => ({ id: `ci-${p.repo}`, tone: "bad" as Tone, text: `${p.name} main branch CI ${p.ci.text}` }));
-  const all = [...kill, ...observabilityAlerts(input.observability), ...queueAlerts(input.queue), ...ci, ...fleet, ...sourceAlerts];
+  const github = input.prs.flatMap((p) => githubAlerts(p));
+  const all = [...kill, ...observabilityAlerts(input.observability), ...queueAlerts(input.queue), ...ci, ...github, ...fleet, ...sourceAlerts];
   const rank: Record<Tone, number> = { bad: 0, warn: 1, idle: 2, ok: 3 };
   return all.sort((a, b) => rank[a.tone] - rank[b.tone]);
 }

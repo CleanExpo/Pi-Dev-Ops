@@ -48,9 +48,10 @@ export default function CommandWall() {
     fleet: tiles,
     prs: rows,
   });
-  const allClear = liveCount === sources.length
-    ? `No active alerts from ${sources.length} connected sources`
-    : `No alerts raised yet; ${sources.length - liveCount} of ${sources.length} sources still connecting`;
+  const reposRead = rows.filter((r) => r.open !== null && r.ciReason === null).length;
+  const allClear = liveCount === sources.length && reposRead === rows.length
+    ? `No active alerts from ${sources.length} connected sources and ${rows.length} repositories`
+    : `No alerts raised yet; ${sources.length - liveCount + rows.length - reposRead} of ${sources.length + rows.length} reads still connecting`;
   const pr = prTone(rows);
   const fleetFailure = wall.state === "unreachable" || wall.state === "no_source" ? `Fleet ${STATE_TEXT[wall.state]}: ${wall.reason ?? "no reason given"}` : null;
 
