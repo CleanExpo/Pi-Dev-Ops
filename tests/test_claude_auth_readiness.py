@@ -137,11 +137,13 @@ def test_readiness_never_runs_the_probe_inline_and_caches_it(monkeypatch, probe)
     run.assert_not_called()  # /health and the poller never wait on the CLI
     scheduled.assert_called_once_with()
     probe.refresh()
+    probed = run.call_count
+    assert probed >= 1
     scheduled.reset_mock()
     for _ in range(5):
         assert sdk.generation_readiness()["auth_verified"] is True
     scheduled.assert_not_called()  # fresh snapshot: no new probe for ~5 minutes
-    assert run.call_count == 1
+    assert run.call_count == probed
 
 
 def test_stale_snapshot_is_refreshed_and_cannot_stay_verified(monkeypatch, probe):

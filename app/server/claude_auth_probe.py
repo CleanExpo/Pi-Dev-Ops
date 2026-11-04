@@ -2,15 +2,18 @@
 
 Readiness used to check only config and the CLI binary, so /health read "ok" for
 four weeks while every generate was refused for a dead login. This runs the SAME
-check dispatch runs (provider_policy.read_claude_auth + check_claude_auth, with the
-dispatch CLI and child environment), on a background thread, at most once per
-TTL_S. Callers never wait on the CLI: they get the last result, or None before the
-first probe lands. Only four status fields and a timestamp are kept; email, orgId
-and anything else the CLI prints are dropped here and never reach /health or logs.
+check dispatch runs (provider_policy.require_transport("anthropic_agent_sdk") with
+the dispatch CLI and child environment, unchanged), on a background thread, at most
+once per TTL_S. Callers never wait on the CLI: they get the last result, or None
+before the first probe lands. Only four status fields and a timestamp are kept;
+email, orgId and anything else the CLI prints are dropped here and never reach
+/health or logs.
 """
 from __future__ import annotations
 
+import json
 import logging
+import subprocess
 import threading
 import time
 from datetime import datetime, timezone
@@ -38,22 +41,40 @@ def _public(payload: dict) -> dict:
     return out
 
 
+def _status_fields(cli: str, env: dict[str, str]) -> dict:
+    """Display-only read of the login fields. Never decides anything; never logs output.
+
+    provider_policy.py is frozen (founder ruling 22/10/2026), so its check cannot be
+    split to hand back the payload it reads. The verdict comes from that unchanged
+    check in refresh(); this second read only fills in which field failed.
+    """
+    try:
+        result = subprocess.run([cli, "auth", "status"], env=env, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=10, check=False,
+                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        payload = json.loads(result.stdout) if result.returncode == 0 else {}
+    except (OSError, ValueError, subprocess.SubprocessError):
+        payload = {}
+    return _public(payload if isinstance(payload, dict) else {})
+
+
 def refresh() -> dict:
-    """Run the dispatch auth check once and cache the redacted result."""
-    from .provider_policy import ProviderPolicyError, check_claude_auth, read_claude_auth
+    """Run dispatch's own auth check once, with dispatch's CLI and env, and cache it."""
+    from .provider_policy import ProviderPolicyError, require_transport
     from .sdk_execution_boundary import ExecutionBoundaryError, _child_environment, _execution_cli
-    payload: dict = {}
+    cli = env = None
     error = None
     try:
-        payload = read_claude_auth(_execution_cli(), _child_environment())
-        check_claude_auth("anthropic_agent_sdk", payload)
+        cli, env = _execution_cli(), _child_environment()
+        require_transport("anthropic_agent_sdk", cli_path=cli, env=env)
     except (ProviderPolicyError, ExecutionBoundaryError) as exc:
         error = str(exc)
     except Exception as exc:  # noqa: BLE001 - a probe defect must read as unverified, never ready
         log.warning("claude auth probe failed: %s", type(exc).__name__)
         error = _UNREADABLE
+    fields = _status_fields(cli, env) if cli and env is not None else dict.fromkeys(PUBLIC_FIELDS)
     checked_at = datetime.now(timezone.utc).isoformat()
-    snap = {"auth": {**_public(payload), "checked_at": checked_at},
+    snap = {"auth": {**fields, "checked_at": checked_at},
             "verified": error is None, "error": error, "at": _clock()}
     global _snapshot
     with _lock:
