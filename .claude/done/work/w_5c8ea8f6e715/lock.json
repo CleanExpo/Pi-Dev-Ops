@@ -1,0 +1,9 @@
+{
+  "schema": "done/1",
+  "work_id": "w_5c8ea8f6e715",
+  "contract_digest": "185d3059767359a0029eace82f8add3d1b864a1012944ea81180ae7e266d9228",
+  "baseline_head": "0190f49b2fe9c4c0a5ab1991d01ef261f155fc5b",
+  "identity_key": "fix/senior-harness-cd-root-recovery-only@/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.git/worktrees/wt",
+  "locked_at_utc": "2026-11-04T05:21:22Z",
+  "criteria_count": 2
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "done/1",
+  "work_id": "w_5c8ea8f6e715",
+  "version": 1,
+  "supersedes": null,
+  "goal": "senior-harness recovery-only: outside Git, exactly cd <project root> is allowed (RA-8135); cwd safety tests and all senior-harness tests pass on the exact head",
+  "created_at_utc": "2026-11-04T05:21:13Z",
+  "identity_key": "fix/senior-harness-cd-root-recovery-only@/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.git/worktrees/wt",
+  "baseline_observed": {
+    "head": "0190f49b2fe9c4c0a5ab1991d01ef261f155fc5b",
+    "branch": "fix/senior-harness-cd-root-recovery-only",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "Outside Git, exactly `cd <project root>` is allowed and every other outside-Git Bash call is still denied (cwd safety tests)",
+      "recipe": "cd '/Users/phillmcgurk/agent-work/pdo-cwd-recovery-only/wt' && '/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.venv/bin/python' -m pytest -q -p no:cacheprovider --basetemp=/Users/phillmcgurk/agent-work/pdo-cwd-recovery-only/pytest-tmp/c1 tests/test_senior_harness_cwd_safety.py",
+      "timeout": 180
+    },
+    {
+      "id": "C2",
+      "text": "Every existing senior-harness test still passes",
+      "recipe": "cd '/Users/phillmcgurk/agent-work/pdo-cwd-recovery-only/wt' && '/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.venv/bin/python' -m pytest -q -p no:cacheprovider --basetemp=/Users/phillmcgurk/agent-work/pdo-cwd-recovery-only/pytest-tmp/c2 tests/test_install_senior_harness.py tests/test_senior_harness_auditability.py tests/test_senior_harness_dispatch_fail_closed.py tests/test_senior_harness_entry_root_security.py tests/test_senior_harness_hook_security.py tests/test_senior_harness_installer_rollback.py tests/test_senior_harness_setup_capacity.py tests/test_senior_harness_setup_clear.py tests/test_senior_harness_setup_contract.py tests/test_senior_harness_setup_dispatch.py tests/test_senior_harness_setup_grill.py tests/test_senior_harness_setup_grill_cli.py tests/test_senior_harness_setup_hooks.py tests/test_senior_harness_setup_ordering.py tests/test_senior_harness_setup_parallel.py tests/test_senior_harness_setup_pending.py tests/test_senior_harness_setup_reconciliation.py tests/test_senior_harness_setup_recovery.py tests/test_senior_harness_setup_repository.py tests/test_senior_harness_setup_state_io.py tests/test_senior_harness_setup_validation.py tests/test_senior_harness_skill_slice.py tests/test_senior_harness_vendored_scripts.py",
+      "timeout": 900
+    }
+  ]
+}
