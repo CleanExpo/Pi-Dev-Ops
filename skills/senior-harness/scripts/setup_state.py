@@ -15,7 +15,7 @@ from typing import Any
 from setup_common import SEAL_PREFIX, SetupError, _hook_output
 from setup_receipts import _seal_key
 from setup_tools import _tool_is_recovery_safe
-from setup_cwd import is_cd_to_project_root
+from setup_cwd import is_cd_to_project_root, recovery_command
 
 
 def _state_root() -> Path:
@@ -165,11 +165,11 @@ def _outside_git_tool(payload: dict[str, Any], event: str) -> dict[str, Any]:
             event,
             "Senior Harness recovery-only read outside a Git project. No startup receipt exists, so this permits exact read-only discovery only and grants no mutation, provider, worker, business, or irreversible authority.",
         )
-    return _hook_output(
-        event,
-        "Senior Harness denied the tool outside Git: no startup receipt exists for this session.",
-        deny=True,
-    )
+    message = "Senior Harness denied the tool outside Git: no startup receipt exists for this session."
+    back = recovery_command()
+    if back is not None:
+        message += f" To return to the project root, run exactly this command and nothing else: {back}"
+    return _hook_output(event, message, deny=True)
 
 
 def _pending_prompt(
