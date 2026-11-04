@@ -7,20 +7,21 @@ outside Git, a Bash call whose whole text is one of a few exact strings is allow
 
 The check never parses the command or predicts Bash word expansion (shlex/pathlib got that
 wrong three ways: CDPATH, logical `..`, quoted `~`). It compares the text, with only
-surrounding spaces, tabs and newlines removed, against:
-
-- `cd "<root>"`, the literal value of CLAUDE_PROJECT_DIR in double quotes (this is the
-  form the deny message tells the agent, because Claude Code does not export
-  CLAUDE_PROJECT_DIR into the Bash tool environment);
-- `cd "$CLAUDE_PROJECT_DIR"` and `cd "${CLAUDE_PROJECT_DIR}"`.
+surrounding spaces, tabs and newlines removed, against exactly one string: `cd "<root>"`,
+the literal value of CLAUDE_PROJECT_DIR in double quotes (the form the deny message gives).
+Variable forms such as `cd "$CLAUDE_PROJECT_DIR"` are not accepted: Claude Code does not
+export CLAUDE_PROJECT_DIR into the Bash tool environment, so they expand to `cd ""`, which
+succeeds without moving the session back into Git.
 
 The root must be absolute, have no `..` component, contain no character that Bash treats
-specially inside double quotes, and be a Git checkout. For those strings Bash does no word
+specially inside double quotes, and be the top level of a Git checkout as Git itself reports
+it (`git rev-parse --show-toplevel`), not merely a directory holding a `.git` entry. For those strings Bash does no word
 splitting, globbing or tilde expansion, and an absolute path skips CDPATH.
 """
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -54,7 +55,23 @@ def project_root_text() -> str | None:
         root = Path(raw).resolve(strict=True)
     except (OSError, RuntimeError):
         return None
-    return raw if root.is_dir() and (root / ".git").exists() else None
+    if not root.is_dir():
+        return None
+    try:
+        probe = subprocess.run(
+            ["git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
+             "--no-pager", "-C", str(root), "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if probe.returncode != 0:
+        return None
+    try:
+        top = Path(probe.stdout.strip()).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    return raw if top == root else None
 
 
 def recovery_command() -> str | None:
@@ -69,5 +86,4 @@ def is_cd_to_project_root(payload: dict[str, Any]) -> bool:
     literal = recovery_command()
     if command is None or literal is None:
         return False
-    allowed = {literal, 'cd "$CLAUDE_PROJECT_DIR"', 'cd "${CLAUDE_PROJECT_DIR}"'}
-    return command.strip(_SURROUNDING_WS) in allowed
+    return command.strip(_SURROUNDING_WS) == literal

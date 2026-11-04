@@ -41,7 +41,7 @@ def real_bash(command, cwd, env_extra=None):
     return Path(run.stdout.strip().splitlines()[-1]).resolve() if run.returncode == 0 else None
 
 
-@pytest.mark.parametrize("cmd", ['cd "{root}"', *VAR_FORMS, '  cd "{root}"\n', '\tcd "$CLAUDE_PROJECT_DIR" '])
+@pytest.mark.parametrize("cmd", ['cd "{root}"', '  cd "{root}"\n', '\tcd "{root}" '])
 def test_exact_recovery_strings_allowed_and_land_in_root(repo, tmp_path, cmd):
     cmd = cmd.replace("{root}", str(repo))
     assert not denied(_outside_git_tool(bash(cmd, tmp_path), "PreToolUse"))
@@ -53,7 +53,7 @@ def test_exact_recovery_strings_allowed_and_land_in_root(repo, tmp_path, cmd):
 @pytest.mark.parametrize("cmd", ['cd "{root}" && rm -rf x', 'cd "{root}/sub"', "cd /tmp", "cd {root}",
                                  'cd "$CLAUDE_PROJECT_DIR"; touch x', "ls", "cd $HOME", "cd ~",
                                  "cd $CLAUDE_PROJECT_DIR", "cd ${{CLAUDE_PROJECT_DIR}}", "cd  \"{root}\"",
-                                 "cd '{root}'", 'cd "{root}"\r', 'cd "{root}"\xa0', 'cd "{root}/"', "", "cd"])
+                                 "cd '{root}'", 'cd "{root}"\r', *VAR_FORMS, '\tcd "$CLAUDE_PROJECT_DIR" ', 'cd "{root}"\xa0', 'cd "{root}/"', "", "cd"])
 def test_outside_git_denies_everything_else(repo, tmp_path, cmd):
     cmd = cmd.replace("{root}", str(repo)).replace("{{", "{").replace("}}", "}")
     assert denied(_outside_git_tool(bash(cmd, tmp_path), "PreToolUse"))
@@ -117,3 +117,30 @@ def test_cdpath_relative_name_stays_denied(repo, tmp_path):
     cmd = 'cd "proj"'
     assert real_bash(cmd, cwd, {"CDPATH": str(elsewhere)}) == (elsewhere / "proj").resolve()
     assert denied(_outside_git_tool(bash(cmd, cwd), "PreToolUse"))
+
+
+def test_variable_forms_denied_because_bash_lacks_the_variable(repo, tmp_path):
+    # Claude Code does not export CLAUDE_PROJECT_DIR to Bash: `cd ""` succeeds but stays put.
+    for cmd in VAR_FORMS:
+        assert real_bash(cmd, tmp_path) == tmp_path.resolve()
+        assert denied(_outside_git_tool(bash(cmd, tmp_path), "PreToolUse"))
+
+
+@pytest.mark.parametrize("kind", ["empty-dir", "stale-file"])
+def test_fake_git_entry_is_not_a_checkout(tmp_path, monkeypatch, kind):
+    root = tmp_path / "fake"
+    root.mkdir()
+    if kind == "empty-dir":
+        (root / ".git").mkdir()
+    else:
+        (root / ".git").write_text("gitdir: /nonexistent\n")
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(root))
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    out = _outside_git_tool(bash(f'cd "{root}"', tmp_path), "PreToolUse")
+    assert denied(out) and "run exactly" not in str(out)
+
+
+def test_subdirectory_of_checkout_is_not_the_root(repo, tmp_path, monkeypatch):
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(repo / "sub"))
+    out = _outside_git_tool(bash(f'cd "{repo / 'sub'}"', tmp_path), "PreToolUse")
+    assert denied(out) and "run exactly" not in str(out)
