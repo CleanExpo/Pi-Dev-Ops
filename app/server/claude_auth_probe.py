@@ -8,7 +8,8 @@ refreshes every REFRESH_S, so freshness never depends on how often anyone asks.
 
 A result is trusted for TTL_S only. Older than that, or a failed check, or a
 refresher that cannot start, reads as blocked, never as verified. Callers never
-wait on the CLI: they get the last result, or None before the first one lands.
+wait on the CLI: they get the last result, or a blocked "not yet verified" result
+before the first one lands.
 Only four status fields and a timestamp are kept; email, orgId and anything else
 the CLI prints are dropped here and never reach /health or logs.
 """
@@ -43,6 +44,8 @@ _AGREES = {
 _UNREADABLE = "subscription_only: subscription login could not be verified"
 _STALE = "subscription_only: subscription login check is stale"
 _CHANGED = "subscription_only: subscription login changed during the check"
+_PENDING = "subscription_only: subscription login not yet verified"
+_REBOUND = "subscription_only: subscription login not yet verified for the current CLI or environment"
 
 log = logging.getLogger("pi-ceo.claude_auth_probe")
 _clock = time.monotonic
@@ -140,8 +143,13 @@ def refresh() -> dict:
     return snap
 
 
-def snapshot() -> dict | None:
-    """Return the cached result without waiting. Stale or unschedulable reads as blocked."""
+def snapshot() -> dict:
+    """Return the cached result without waiting.
+
+    One rule: verified only for a passing check of the CURRENT CLI and child env,
+    younger than TTL_S. Every other state carries an error, so readiness blocks:
+    not yet checked, stale, CLI/env changed since the check, refresher unstartable.
+    """
     try:
         _schedule()
         started = True
@@ -150,13 +158,13 @@ def snapshot() -> dict | None:
         started = False
     with _lock:
         snap = _snapshot
-    if snap is not None and _clock() - snap["at"] >= TTL_S:
+    if snap is None:
+        return _snap(dict.fromkeys(PUBLIC_FIELDS), _PENDING if started else _UNREADABLE, None)
+    if _clock() - snap["at"] >= TTL_S:
         return {**snap, "verified": False, "error": _STALE}
-    if snap is None and not started:
-        return _snap(dict.fromkeys(PUBLIC_FIELDS), _UNREADABLE, None)
-    if snap is not None and snap["verified"] and snap["binding"] != _current_binding():
-        _kick.set()  # CLI or env changed since the check: unknown until re-checked
-        return {**snap, "verified": False, "error": None}
+    if snap["verified"] and snap["binding"] != _current_binding():
+        _kick.set()  # re-check the new CLI/env now rather than at the next period
+        return {**snap, "verified": False, "error": _REBOUND}
     return snap
 
 

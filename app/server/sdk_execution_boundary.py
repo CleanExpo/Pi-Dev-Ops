@@ -90,12 +90,13 @@ def generation_readiness() -> dict:
     """Admission facts without launching anything on the caller's thread.
 
     Config and the CLI binary are checked inline. The subscription login comes
-    from claude_auth_probe's cached background run of the dispatch auth check, so
-    a dead, unreadable or stale login is a blocker. Before the first probe lands
-    the login is unknown and the status stays "unverified", never ready. Dispatch
-    still re-verifies auth and isolation itself; this never authorises a run.
+    from claude_auth_probe's cached background run of the dispatch auth check.
+    Unless that check passed for the current CLI and environment within its TTL,
+    the login is a blocker: dead, unreadable, stale, not yet checked, or checked
+    against a different CLI/env. "unverified" (not blocked) still means only that
+    nothing known stops a run; dispatch re-verifies auth and isolation itself.
     """
-    from .claude_auth_probe import PUBLIC_FIELDS, snapshot
+    from .claude_auth_probe import snapshot
     from .provider_policy import ProviderPolicyError, check_claude_configuration
     blockers = []
     for check in (check_claude_configuration, _execution_cli):
@@ -103,16 +104,16 @@ def generation_readiness() -> dict:
             check()
         except (ProviderPolicyError, ExecutionBoundaryError) as exc:
             blockers.append(str(exc))
-    auth = snapshot()  # verified=False with no error means unknown (e.g. CLI changed)
-    if auth is not None and auth["error"] and auth["error"] not in blockers:
+    auth = snapshot()  # never None; anything not verified now carries an error
+    if not auth["verified"] and auth["error"] not in blockers:
         blockers.append(auth["error"])
     return {
         "transport": "anthropic_agent_sdk",
         "status": "blocked" if blockers else "unverified",
         "ready": False if blockers else None,
         "blockers": blockers,
-        "auth_verified": bool(auth and auth["verified"]) and not blockers,
-        "auth": auth["auth"] if auth else dict.fromkeys((*PUBLIC_FIELDS, "checked_at")),
+        "auth_verified": auth["verified"] and not blockers,
+        "auth": auth["auth"],
         "cost_verified": False,
     }
 

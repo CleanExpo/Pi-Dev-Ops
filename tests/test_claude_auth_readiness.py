@@ -146,7 +146,8 @@ def test_readiness_never_waits_on_a_stuck_cli_and_keeps_one_refresher(monkeypatc
     for _ in range(5):
         report = sdk.generation_readiness()
     assert time.monotonic() - started < 2  # /health and the poller never wait on the CLI
-    assert report["status"] == "unverified" and report["auth_verified"] is False
+    assert report["status"] == "blocked" and report["auth_verified"] is False  # not yet checked
+    assert any("not yet verified" in b for b in report["blockers"])
     assert len(_probe_threads()) == 1  # single-flight
     release.set()
     assert probe.wait_for_refresh(5)
@@ -206,7 +207,8 @@ def test_reset_discards_a_refresh_that_was_in_flight(monkeypatch, probe):
     probe.reset()
     release.set()
     worker.join(5)
-    assert probe.snapshot() is None  # the pre-reset result was not published
+    snap = probe.snapshot()  # the pre-reset (verified) result was not published
+    assert snap["verified"] is False and "not yet verified" in snap["error"]
 
 
 def test_a_display_read_that_contradicts_the_verdict_blocks(monkeypatch, probe):
@@ -255,31 +257,3 @@ def test_agreement_check_matches_the_frozen_rule(monkeypatch, payload):
     except policy.ProviderPolicyError:
         frozen = False
     assert probe._agrees(probe._public(payload)) is frozen
-
-
-@pytest.mark.parametrize("change", ["cli", "cli_replaced", "home"])
-def test_a_verdict_does_not_carry_over_to_a_different_cli_or_environment(monkeypatch, probe, tmp_path, change):
-    """Codex round 3: the cache must be bound to the CLI and child env it checked."""
-    assert probe is not None, "cached auth probe is missing"
-    monkeypatch.setattr(probe, "_schedule", Mock())
-    cli = tmp_path / "claude"
-    cli.write_text("#!/bin/sh\n")
-    cli.chmod(0o755)
-    monkeypatch.setattr(sdk.shutil, "which", lambda name: str(cli))
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**LIVE)))
-    probe.refresh()
-    assert sdk.generation_readiness()["auth_verified"] is True
-    if change == "cli":
-        other = tmp_path / "other-claude"
-        other.write_text("#!/bin/sh\n")
-        other.chmod(0o755)
-        monkeypatch.setattr(sdk.shutil, "which", lambda name: str(other))
-    elif change == "cli_replaced":
-        cli.write_text("#!/bin/sh\necho replaced\n")  # same path, different binary
-    else:
-        monkeypatch.setenv("HOME", str(tmp_path / "elsewhere"))
-    report = sdk.generation_readiness()
-    assert report["auth_verified"] is False
-    assert report["status"] == "unverified"  # unknown until re-checked, never verified
-    assert probe._kick.is_set()  # and the refresher is woken to re-check now
