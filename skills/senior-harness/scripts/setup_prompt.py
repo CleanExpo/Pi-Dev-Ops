@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from setup_common import GRILL_INTERACTIONS, SetupError, _hook_output, _interaction_for_objective
+from setup_launch import record_launch_root
 from setup_receipts import _check_control_bindings, admit_startup
 from setup_repository import _read_adapter_receipt, _surface_capabilities, build_setup_contract
 from setup_state import (
@@ -102,6 +103,7 @@ def _admit_prompt(
     contract = _new_contract(prompt, project_root, surface, roots, session_id)
     receipt = admit_startup(contract)
     _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
+    record_launch_root(session_id, surface, project_root)
     pending_path.unlink(missing_ok=True)
     interaction = contract["interaction"]
     grill = (

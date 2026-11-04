@@ -239,7 +239,9 @@ def test_grill_hook_rechecks_project_bytes_after_first_tool_and_session_ids_do_n
             event="UserPromptSubmit",
             skill_search_roots=roots,
         )
-    assert len(list(state_root.rglob("*.json"))) == 2
+    states = [p for p in state_root.rglob("*.json") if p.parent.name != "launch-root"]
+    assert len(states) == 2
+    assert len(list((state_root / "launch-root").glob("*.json"))) == 2
 
     base = {"session_id": "a/b", "cwd": str(project)}
     first = _grill_pretool(base, "Read", {}, roots)
