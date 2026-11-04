@@ -3,7 +3,7 @@
 // No new endpoint, no write. Every screen states its own source state.
 import { useSource, type KillSwitchStatus, type SourceState } from "@/lib/boards/sources";
 import {
-  CRM_REPO, SYNTHEX_REPO, WALL_REPOS, deriveAlerts, fleetTiles, prRow, type PrRow, type Tone,
+  CRM_REPO, SYNTHEX_REPO, WALL_REPOS, deriveAlerts, fleetFailureText, fleetTiles, prPipelineTone, prRow,
 } from "@/lib/control/command-wall";
 import type { FleetView } from "@/lib/control/mesh-fleet";
 import type { MissionControlLive } from "@/lib/control/mission-control-live";
@@ -17,12 +17,6 @@ import RevenueScreen from "./RevenueScreen";
 import StatusBar from "./StatusBar";
 import WallPanel, { STATE_TEXT, STATE_TONE } from "./WallPanel";
 import styles from "./command-wall.module.css";
-
-function prTone(rows: PrRow[]): { tone: Tone; text: string } {
-  const known = rows.filter((r) => r.open !== null).length;
-  if (known === 0) return rows.some((r) => r.reason === "not read yet") ? { tone: "idle", text: "connecting" } : { tone: "bad", text: "unavailable" };
-  return known === rows.length ? { tone: "ok", text: "live" } : { tone: "warn", text: `${known} of ${rows.length} repos read` };
-}
 
 export default function CommandWall() {
   const wall = useSource<WallSnapshot | null>("wall");
@@ -52,8 +46,8 @@ export default function CommandWall() {
   const allClear = liveCount === sources.length && reposRead === rows.length
     ? `No active alerts from ${sources.length} connected sources and ${rows.length} repositories`
     : `No alerts raised yet; ${sources.length - liveCount + rows.length - reposRead} of ${sources.length + rows.length} reads still connecting`;
-  const pr = prTone(rows);
-  const fleetFailure = wall.state === "unreachable" || wall.state === "no_source" ? `Fleet ${STATE_TEXT[wall.state]}: ${wall.reason ?? "no reason given"}` : null;
+  const pr = prPipelineTone(rows);
+  const fleetFailure = fleetFailureText(wall.state, wall.reason);
 
   return (
     <div className={styles.wall} data-testid="command-wall">

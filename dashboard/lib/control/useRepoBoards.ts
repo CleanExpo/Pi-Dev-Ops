@@ -19,14 +19,25 @@ export function parseRepoBoard(raw: unknown): RepoBoard | null {
   return { ...board, repo: truth.repo, pull_requests: truth.pull_requests, ci: truth.ci };
 }
 
-async function readBoard(repo: string, signal: AbortSignal): Promise<RepoBoardRead> {
+/** A read slower than this gives up, so a stalled request never outlives its poll. */
+export const REPO_BOARD_TIMEOUT_MS = 20_000;
+
+export async function readBoard(repo: string, signal: AbortSignal): Promise<RepoBoardRead> {
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, REPO_BOARD_TIMEOUT_MS);
+  const onAbort = () => ctrl.abort();
+  signal.addEventListener("abort", onAbort);
   try {
-    const res = await fetch(`/api/flow-board?repo=${encodeURIComponent(repo)}`, { cache: "no-store", signal });
+    const res = await fetch(`/api/flow-board?repo=${encodeURIComponent(repo)}`, { cache: "no-store", signal: ctrl.signal });
     if (!res.ok) return { board: null, reason: `flow board HTTP ${res.status}` };
     const board = parseRepoBoard(await res.json());
     return board ? { board, reason: null } : { board: null, reason: "flow board payload was not readable" };
   } catch {
-    return { board: null, reason: "flow board unreachable" };
+    return { board: null, reason: timedOut ? "flow board timed out" : "flow board unreachable" };
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
   }
 }
 

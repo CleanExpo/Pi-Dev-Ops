@@ -14,6 +14,29 @@ import type { MachineTile, WallSnapshot } from "@/lib/wall/snapshot";
 
 export type Tone = "ok" | "warn" | "bad" | "idle";
 
+/** Plain-words label for a feed state. "live" only when the source itself answered. */
+export const STATE_TEXT: Record<SourceState, string> = {
+  loading: "connecting",
+  live: "live",
+  stale: "stale",
+  unreachable: "unavailable",
+  no_source: "not connected",
+};
+
+export const STATE_TONE: Record<SourceState, Tone> = {
+  loading: "idle",
+  live: "ok",
+  stale: "warn",
+  unreachable: "bad",
+  no_source: "idle",
+};
+
+/** Why the fleet screen has nothing to show. Null while loading or live. */
+export function fleetFailureText(state: SourceState, reason: string | null): string | null {
+  if (state === "loading" || state === "live") return null;
+  return `Fleet ${STATE_TEXT[state]}: ${reason ?? "no reason given"}`;
+}
+
 /** Friendly names for the three declared fleet hosts (lib/wall/snapshot.ts DEFAULT_FLEET_HOSTS). */
 const HOST_NAMES: Record<string, string> = {
   "Phills-MacBook-Pro": "MacBook",
@@ -111,7 +134,7 @@ export function prRow(repo: string, board: RepoBoard | null | undefined, readFai
   const name = repo.split("/")[1] ?? repo;
   const ci = board?.ci.status === "ok"
     ? { tone: CI_TEXT[board.ci.value.state][0], text: CI_TEXT[board.ci.value.state][1] }
-    : { tone: "idle" as Tone, text: "unavailable" };
+    : { tone: "idle" as Tone, text: board === undefined && !readFailure ? "connecting" : "unavailable" };
   const ciReason = board?.ci.status === "unavailable" ? board.ci.reason : board ? null : readFailure ?? null;
   if (!board || board.pull_requests.status !== "ok" || !board.ok) {
     const reason = !board ? readFailure ?? "not read yet"
@@ -127,6 +150,16 @@ export function prRow(repo: string, board: RepoBoard | null | undefined, readFai
     needsPhill: c.phill.length,
     aging: c.aging.length,
   };
+}
+
+/** A repo counts as read only when both its pull requests and its main CI were read. */
+export function prPipelineTone(rows: PrRow[]): { tone: Tone; text: string } {
+  const known = rows.filter((r) => r.open !== null).length;
+  if (known === 0) {
+    return rows.some((r) => r.reason === "not read yet") ? { tone: "idle", text: "connecting" } : { tone: "bad", text: "unavailable" };
+  }
+  const read = rows.filter((r) => r.open !== null && r.ciReason === null).length;
+  return read === rows.length ? { tone: "ok", text: "live" } : { tone: "warn", text: `${read} of ${rows.length} repos read` };
 }
 
 export interface Alert {

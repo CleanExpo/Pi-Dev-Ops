@@ -164,6 +164,7 @@
 .tickerViewport { position: relative; flex: 1; min-width: 0; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
 .tickerTrack { display: flex; gap: 28px; width: max-content; margin: 0; padding: 0; list-style: none; animation: marquee var(--ticker-duration, 40s) linear infinite; }
 .tickerTrack[data-static="true"] { animation: none; flex-wrap: wrap; width: auto; }
+.tickerTrack[data-static="true"] .tickerItem { white-space: normal; }
 .tickerViewport:hover .tickerTrack, .tickerViewport:focus-within .tickerTrack { animation-play-state: paused; }
 .tickerItem { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 13px; color: var(--wall-ink-2); }
 @keyframes marquee { to { transform: translateX(-50%); } }
@@ -185,6 +186,8 @@
   .wall { grid-template-columns: minmax(0, 1fr); grid-template-areas: "status" "ticker" "fleet" "prs" "flow" "rev"; padding: 10px; gap: 10px; }
   .clock { font-size: 22px; }
   .title { font-size: 18px; }
+  /* Seven stages cannot share a phone width; keep each readable and let the track scroll. */
+  .node { min-width: 132px; }
 }
 
 @media (min-width: 1280px) and (max-width: 1499px) {

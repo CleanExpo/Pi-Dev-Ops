@@ -1,24 +1,8 @@
 import type { ReactNode } from "react";
-import type { SourceState } from "@/lib/boards/sources";
-import type { Tone } from "@/lib/control/command-wall";
+import { STATE_TEXT, STATE_TONE, type Tone } from "@/lib/control/command-wall";
 import styles from "./command-wall.module.css";
 
-/** Plain-words label for a feed state. "live" only when the source itself answered. */
-export const STATE_TEXT: Record<SourceState, string> = {
-  loading: "connecting",
-  live: "live",
-  stale: "stale",
-  unreachable: "unavailable",
-  no_source: "not connected",
-};
-
-export const STATE_TONE: Record<SourceState, Tone> = {
-  loading: "idle",
-  live: "ok",
-  stale: "warn",
-  unreachable: "bad",
-  no_source: "idle",
-};
+export { STATE_TEXT, STATE_TONE };
 
 export function Dot({ tone }: { tone: Tone }) {
   return <span className={styles.dot} data-tone={tone} aria-hidden="true" />;

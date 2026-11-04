@@ -2,6 +2,9 @@ import type { PrRow } from "@/lib/control/command-wall";
 import styles from "./command-wall.module.css";
 import { Dot } from "./WallPanel";
 
+/** prRow's reason before the first board read finishes. */
+const NOT_READ = "not read yet";
+
 function Count({ value, capped = false }: { value: number | null; capped?: boolean }) {
   if (value === null) return <span className={styles.unknown}>unknown</span>;
   return <span className={styles.big}>{value}{capped ? "+" : ""}</span>;
@@ -12,12 +15,15 @@ function Row({ row }: { row: PrRow }) {
     <tr>
       <td>
         <span className={styles.repo}>{row.name}</span>
-        {row.reason && <span className={styles.reason}>unavailable: {row.reason}</span>}
+        {row.reason && (
+          <span className={styles.reason}>{row.reason === NOT_READ ? "connecting" : `unavailable: ${row.reason}`}</span>
+        )}
       </td>
+      {/* Lane counts come from the same capped page as Open, so they carry its marker. */}
       <td><Count value={row.open} capped={row.capped} /></td>
-      <td><Count value={row.auditLane} /></td>
-      <td><Count value={row.needsPhill} /></td>
-      <td><Count value={row.aging} /></td>
+      <td><Count value={row.auditLane} capped={row.capped} /></td>
+      <td><Count value={row.needsPhill} capped={row.capped} /></td>
+      <td><Count value={row.aging} capped={row.capped} /></td>
       <td><span className={styles.ciCell}><Dot tone={row.ci.tone} />{row.ci.text}</span></td>
     </tr>
   );

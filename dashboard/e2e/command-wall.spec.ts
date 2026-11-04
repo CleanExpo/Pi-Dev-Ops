@@ -71,6 +71,11 @@ test("the /control wall renders five live screens with honest empty states", asy
   await page.screenshot({ path: "test-results/command-wall/laptop-1280.png", fullPage: false });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: "test-results/command-wall/phone-390.png", fullPage: false });
+  // On a phone each campaign stage keeps a readable width; the track scrolls instead.
+  const nodeWidths = await page.getByRole("list", { name: "CRM to Synthex campaign flow" }).evaluate((ol) =>
+    Array.from(ol.querySelectorAll("li > div")).map((el) => el.getBoundingClientRect().width));
+  expect(nodeWidths).toHaveLength(7);
+  for (const w of nodeWidths) expect(w).toBeGreaterThanOrEqual(132);
   expect(errors).toEqual([]);
 });
 
@@ -83,4 +88,7 @@ test("reduced motion: the ticker stops scrolling and drops its loop copy", async
   await expect(ticker.locator("ul")).toHaveAttribute("data-static", "true");
   const animation = await ticker.locator("ul").evaluate((el) => getComputedStyle(el).animationName);
   expect(animation).toBe("none");
+  // Static alerts wrap, so the reason at the end of a long alert is never clipped.
+  const wrap = await ticker.locator("li").first().evaluate((el) => getComputedStyle(el).whiteSpace);
+  expect(wrap).toBe("normal");
 });
