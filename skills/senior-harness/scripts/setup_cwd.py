@@ -44,6 +44,15 @@ def _bash_command(payload: dict[str, Any]) -> str | None:
     return command if isinstance(command, str) else None
 
 
+def _clean_git_env() -> dict[str, str]:
+    """The hook's environment minus every GIT_* override (GIT_DIR, GIT_WORK_TREE, ...).
+
+    Inherited overrides would make `rev-parse --show-toplevel` report a forced worktree
+    instead of proving the root is a checkout on its own.
+    """
+    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+
+
 def project_root_text() -> str | None:
     """CLAUDE_PROJECT_DIR verbatim, when it is safe to quote literally and is a Git checkout."""
     raw = os.environ.get("CLAUDE_PROJECT_DIR") or ""
@@ -62,6 +71,7 @@ def project_root_text() -> str | None:
             ["git", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false",
              "--no-pager", "-C", str(root), "rev-parse", "--show-toplevel"],
             capture_output=True, text=True, timeout=10, check=False,
+            env=_clean_git_env(),
         )
     except (OSError, subprocess.SubprocessError):
         return None

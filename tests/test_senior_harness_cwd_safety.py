@@ -144,3 +144,17 @@ def test_subdirectory_of_checkout_is_not_the_root(repo, tmp_path, monkeypatch):
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(repo / "sub"))
     out = _outside_git_tool(bash(f'cd "{repo / 'sub'}"', tmp_path), "PreToolUse")
     assert denied(out) and "run exactly" not in str(out)
+
+
+def test_inherited_git_overrides_cannot_fake_a_checkout(repo, tmp_path, monkeypatch):
+    fake = tmp_path / "fake"
+    fake.mkdir()
+    monkeypatch.setenv("GIT_DIR", str(repo / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(fake))
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(fake))
+    out = _outside_git_tool(bash(f'cd "{fake}"', tmp_path), "PreToolUse")
+    assert denied(out) and "run exactly" not in str(out)
+    # Positive control: the real checkout still recovers with the same overrides set.
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(repo))
+    assert not denied(_outside_git_tool(bash(f'cd "{repo}"', tmp_path), "PreToolUse"))
