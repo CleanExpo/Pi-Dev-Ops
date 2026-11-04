@@ -14,6 +14,7 @@ the CLI prints are dropped here and never reach /health or logs.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import subprocess
@@ -48,6 +49,7 @@ _clock = time.monotonic
 _lock = threading.Lock()
 _landed = threading.Event()
 _stop = threading.Event()
+_kick = threading.Event()  # wakes the refresher early
 _snapshot: dict | None = None
 _thread: threading.Thread | None = None
 _epoch = 0  # bumped by reset() so an in-flight refresh cannot publish afterwards
@@ -85,9 +87,28 @@ def _status_fields(cli: str, env: dict[str, str]) -> dict:
     return _public(payload if isinstance(payload, dict) else {})
 
 
-def _snap(fields: dict, error: str | None, checked_at: str | None) -> dict:
-    return {"auth": {**fields, "checked_at": checked_at},
-            "verified": error is None, "error": error, "at": _clock()}
+def _snap(fields: dict, error: str | None, checked_at: str | None, binding: str | None = None) -> dict:
+    return {"auth": {**fields, "checked_at": checked_at}, "verified": error is None,
+            "error": error, "at": _clock(), "binding": binding}
+
+
+def _binding(cli: str, env: dict[str, str]) -> str:
+    """Private fingerprint of exactly what was checked: CLI path, file identity, child env.
+
+    A verdict holds only for the binary and environment it ran against. Only this
+    digest is kept, inside the process; no path or environment value is exposed.
+    """
+    from .sdk_execution_boundary import _cli_identity
+    material = repr((cli, _cli_identity(cli), sorted(env.items())))
+    return hashlib.sha256(material.encode()).hexdigest()
+
+
+def _current_binding() -> str | None:
+    from .sdk_execution_boundary import _child_environment, _execution_cli
+    try:
+        return _binding(_execution_cli(), _child_environment())
+    except Exception:  # noqa: BLE001 - unknown binding never matches a cached verdict
+        return None
 
 
 def refresh() -> dict:
@@ -97,10 +118,11 @@ def refresh() -> dict:
     global _snapshot
     with _lock:
         epoch = _epoch
-    cli = env = None
+    cli = env = binding = None
     error = None
     try:
         cli, env = _execution_cli(), _child_environment()
+        binding = _binding(cli, env)
         require_transport("anthropic_agent_sdk", cli_path=cli, env=env)
     except (ProviderPolicyError, ExecutionBoundaryError) as exc:
         error = str(exc)
@@ -110,7 +132,7 @@ def refresh() -> dict:
     fields = _status_fields(cli, env) if cli and env is not None else dict.fromkeys(PUBLIC_FIELDS)
     if error is None and not _agrees(fields):
         error = _CHANGED  # the display read contradicts the verdict: never publish both
-    snap = _snap(fields, error, datetime.now(timezone.utc).isoformat())
+    snap = _snap(fields, error, datetime.now(timezone.utc).isoformat(), binding)
     with _lock:
         if epoch == _epoch:
             _snapshot = snap
@@ -132,17 +154,20 @@ def snapshot() -> dict | None:
         return {**snap, "verified": False, "error": _STALE}
     if snap is None and not started:
         return _snap(dict.fromkeys(PUBLIC_FIELDS), _UNREADABLE, None)
+    if snap is not None and snap["verified"] and snap["binding"] != _current_binding():
+        _kick.set()  # CLI or env changed since the check: unknown until re-checked
+        return {**snap, "verified": False, "error": None}
     return snap
 
 
-def _refresh_loop(stop: threading.Event) -> None:
-    while True:
+def _refresh_loop(stop: threading.Event, kick: threading.Event) -> None:
+    while not stop.is_set():
         try:
             refresh()
         except Exception as exc:  # noqa: BLE001 - the refresher must outlive one bad run
             log.warning("claude auth probe crashed: %s", type(exc).__name__)
-        if stop.wait(REFRESH_S):
-            return
+        kick.wait(REFRESH_S)
+        kick.clear()
 
 
 def _start_refresh() -> None:
@@ -151,7 +176,7 @@ def _start_refresh() -> None:
     with _lock:
         if _thread is not None and _thread.is_alive():
             return
-        _thread = threading.Thread(target=_refresh_loop, args=(_stop,),
+        _thread = threading.Thread(target=_refresh_loop, args=(_stop, _kick),
                                    name="claude-auth-probe", daemon=True)
         _thread.start()
 
@@ -166,11 +191,12 @@ def wait_for_refresh(timeout: float) -> bool:
 
 def reset() -> None:
     """Drop the cache and stop the refresher. An in-flight result is discarded."""
-    global _snapshot, _thread, _stop, _epoch
+    global _snapshot, _thread, _stop, _kick, _epoch
     with _lock:
         _stop.set()
+        _kick.set()
         thread = _thread
-        _snapshot, _thread, _stop = None, None, threading.Event()
+        _snapshot, _thread, _stop, _kick = None, None, threading.Event(), threading.Event()
         _epoch += 1
         _landed.clear()
     if thread is not None and thread.is_alive() and thread is not threading.current_thread():

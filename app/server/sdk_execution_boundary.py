@@ -103,8 +103,8 @@ def generation_readiness() -> dict:
             check()
         except (ProviderPolicyError, ExecutionBoundaryError) as exc:
             blockers.append(str(exc))
-    auth = snapshot()
-    if auth is not None and not auth["verified"] and auth["error"] not in blockers:
+    auth = snapshot()  # verified=False with no error means unknown (e.g. CLI changed)
+    if auth is not None and auth["error"] and auth["error"] not in blockers:
         blockers.append(auth["error"])
     return {
         "transport": "anthropic_agent_sdk",

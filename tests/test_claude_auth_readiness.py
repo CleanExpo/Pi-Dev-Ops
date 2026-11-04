@@ -255,3 +255,31 @@ def test_agreement_check_matches_the_frozen_rule(monkeypatch, payload):
     except policy.ProviderPolicyError:
         frozen = False
     assert probe._agrees(probe._public(payload)) is frozen
+
+
+@pytest.mark.parametrize("change", ["cli", "cli_replaced", "home"])
+def test_a_verdict_does_not_carry_over_to_a_different_cli_or_environment(monkeypatch, probe, tmp_path, change):
+    """Codex round 3: the cache must be bound to the CLI and child env it checked."""
+    assert probe is not None, "cached auth probe is missing"
+    monkeypatch.setattr(probe, "_schedule", Mock())
+    cli = tmp_path / "claude"
+    cli.write_text("#!/bin/sh\n")
+    cli.chmod(0o755)
+    monkeypatch.setattr(sdk.shutil, "which", lambda name: str(cli))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**LIVE)))
+    probe.refresh()
+    assert sdk.generation_readiness()["auth_verified"] is True
+    if change == "cli":
+        other = tmp_path / "other-claude"
+        other.write_text("#!/bin/sh\n")
+        other.chmod(0o755)
+        monkeypatch.setattr(sdk.shutil, "which", lambda name: str(other))
+    elif change == "cli_replaced":
+        cli.write_text("#!/bin/sh\necho replaced\n")  # same path, different binary
+    else:
+        monkeypatch.setenv("HOME", str(tmp_path / "elsewhere"))
+    report = sdk.generation_readiness()
+    assert report["auth_verified"] is False
+    assert report["status"] == "unverified"  # unknown until re-checked, never verified
+    assert probe._kick.is_set()  # and the refresher is woken to re-check now
