@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from setup_common import GRILL_INTERACTIONS, SetupError, _hook_output
+from setup_launch import record_launch_root
 from setup_prompt import _new_contract
 from setup_receipts import _check_control_bindings, admit_startup
 from setup_state import (
@@ -42,6 +43,7 @@ def _recover_pending(
         )
         receipt = admit_startup(contract)
         _write_state(state_path, {"receipt": receipt, "first_tool_admitted": False})
+        record_launch_root(session_id, surface, project_root)
         pending_path.unlink(missing_ok=True)
         return True, None
     except SetupError as exc:

@@ -4,7 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Iterable
 
-from setup_common import SetupError, _hook_output
+from setup_common import GitProbeError, SetupError, _hook_output
+from setup_launch import clear_launch_root, launch_root_state
 from setup_pretool import handle_pretool
 from setup_prompt import handle_prompt
 from setup_repository import _git
@@ -62,6 +63,7 @@ def _handle_session_start(
     if payload.get("source") == "clear":
         state_path.unlink(missing_ok=True)
         pending_path.unlink(missing_ok=True)
+        clear_launch_root(payload["session_id"])
         return _hook_output(
             "SessionStart",
             "Senior Harness cleared the prior objective lock, discarding both this project's "
@@ -74,6 +76,41 @@ def _handle_session_start(
     )
 
 
+def _git_root(cwd: str) -> Path:
+    return Path(_git(Path(cwd).resolve(), "rev-parse", "--show-toplevel").strip()).resolve()
+
+
+def _pretool_root(cwd: str, session_id: str, surface: str) -> tuple[Path, Path, bool]:
+    """Resolve the root whose receipt governs this tool call.
+
+    The cwd's own root wins whenever it holds state. Only when it holds none, or
+    the cwd is outside Git, does the sealed launch-root record get a say; with no
+    record the original outcome (missing-state deny, or GitProbeError) stands.
+    """
+    try:
+        root = _git_root(cwd)
+    except GitProbeError:
+        fallback = launch_root_state(session_id, surface)
+        if fallback is None:
+            raise
+        return (*fallback, True)
+    state_path = _state_path(root, session_id)
+    if state_path.is_file():
+        return root, state_path, False
+    fallback = launch_root_state(session_id, surface)
+    return (*fallback, True) if fallback else (root, state_path, False)
+
+
+def _note_fallback(response: dict[str, Any], root: Path) -> dict[str, Any]:
+    output = response.get("hookSpecificOutput", {})
+    if isinstance(output.get("additionalContext"), str):
+        output["additionalContext"] += (
+            " The current cwd has no receipt of its own, so this call is governed by "
+            f"the session's launch-root receipt at {root}."
+        )
+    return response
+
+
 def handle_hook(
     payload: dict[str, Any], *, surface: str, event: str,
     skill_search_roots: Iterable[str | Path] | None = None,
@@ -81,18 +118,20 @@ def handle_hook(
     """Adapt one Codex/Claude lifecycle event to the portable startup contract."""
     payload = _normalise_cursor_payload(payload)
     session_id, cwd = _validate_hook_input(payload, surface, event)
-    root = Path(_git(Path(cwd).resolve(), "rev-parse", "--show-toplevel").strip()).resolve()
-    state_path = _state_path(root, session_id)
     pending_path = _pending_state_path(session_id)
-    if event == "SessionStart":
-        with _state_lock(_session_lock_path(session_id)):
-            return _handle_session_start(payload, state_path, pending_path)
-    if event == "UserPromptSubmit":
-        return handle_prompt(
+    if event == "PreToolUse":
+        root, state_path, fallback = _pretool_root(cwd, session_id, surface)
+        response = handle_pretool(
             payload, project_root=root, surface=surface, session_id=session_id,
             state_path=state_path, pending_path=pending_path, roots=skill_search_roots,
         )
-    return handle_pretool(
+        return _note_fallback(response, root) if fallback else response
+    root = _git_root(cwd)
+    state_path = _state_path(root, session_id)
+    if event == "SessionStart":
+        with _state_lock(_session_lock_path(session_id)):
+            return _handle_session_start(payload, state_path, pending_path)
+    return handle_prompt(
         payload, project_root=root, surface=surface, session_id=session_id,
         state_path=state_path, pending_path=pending_path, roots=skill_search_roots,
     )
