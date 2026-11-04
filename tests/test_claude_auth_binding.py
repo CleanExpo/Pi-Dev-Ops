@@ -100,6 +100,8 @@ def _enter(state, monkeypatch, probe, tmp_path):
     if state == "stale":
         now = probe._clock()
         monkeypatch.setattr(probe, "_clock", lambda: now + probe.TTL_S)
+    elif state == "cached_then_unstartable":  # Codex round 6: refresher died after a good check
+        monkeypatch.setattr(probe, "_schedule", Mock(side_effect=RuntimeError("can't start new thread")))
     elif state == "rebound":
         other = tmp_path / "replacement-claude"
         other.write_text("#!/bin/sh\n")
@@ -109,7 +111,8 @@ def _enter(state, monkeypatch, probe, tmp_path):
 
 @pytest.mark.parametrize("reader", [_read_health, _read_admission, _read_autonomy_status],
                          ids=["health", "admission", "autonomy_status"])
-@pytest.mark.parametrize("state", ["verified", "pending", "dead", "stale", "rebound", "unstartable"])
+@pytest.mark.parametrize("state", ["verified", "pending", "dead", "stale", "rebound", "unstartable",
+                                   "cached_then_unstartable"])
 def test_every_reader_blocks_on_every_unverified_state(monkeypatch, probe, tmp_path, reader, state):
     assert probe is not None, "cached auth probe is missing"
     _enter(state, monkeypatch, probe, tmp_path)

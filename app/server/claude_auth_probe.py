@@ -147,8 +147,9 @@ def snapshot() -> dict:
     """Return the cached result without waiting.
 
     One rule: verified only for a passing check of the CURRENT CLI and child env,
-    younger than TTL_S. Every other state carries an error, so readiness blocks:
-    not yet checked, stale, CLI/env changed since the check, refresher unstartable.
+    younger than TTL_S, with the refresher running so a dying login is seen.
+    Every other state carries an error, so readiness blocks: not yet checked,
+    stale, CLI/env changed since the check, refresher unstartable (cached or not).
     """
     try:
         _schedule()
@@ -160,6 +161,8 @@ def snapshot() -> dict:
         snap = _snapshot
     if snap is None:
         return _snap(dict.fromkeys(PUBLIC_FIELDS), _PENDING if started else _UNREADABLE, None)
+    if not started:  # nothing would notice the login dying, so the cached pass is not trusted
+        return {**snap, "verified": False, "error": _UNREADABLE}
     if _clock() - snap["at"] >= TTL_S:
         return {**snap, "verified": False, "error": _STALE}
     if snap["verified"] and snap["binding"] != _current_binding():
