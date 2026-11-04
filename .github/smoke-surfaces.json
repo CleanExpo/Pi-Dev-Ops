@@ -31,6 +31,20 @@
       "_comment": "PR #828: authenticated landing page declares the project selector and idea inbox. This HTML assertion proves the surface renders; the synthetic browser receipt checks selection and unknown scan evidence separately."
     },
     {
+      "name": "control-command-wall-auth",
+      "path": "/control",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "PR pipeline",
+        "CRM to Synthex campaign flow",
+        "Revenue and funnel",
+        "No revenue or funnel source is connected to Mission Control."
+      ],
+      "_comment": "Command wall (components/control/wall/*) fills the top of /control. Read-only: every screen reads an existing GET feed (lib/boards/sources wall, mesh-fleet, mc-live, kill-switch; /api/flow-board?repo=). The server render carries every panel title and the honest revenue empty state before live data arrives; checked against a local next start on 2026-11-04, and absent from main before this change. Live values are client-polled and covered by e2e/command-wall.spec.ts with routed data."
+    },
+    {
       "name": "control-founder-five-answers-auth",
       "path": "/control",
       "method": "GET",
