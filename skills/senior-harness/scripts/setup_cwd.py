@@ -63,13 +63,18 @@ def is_cd_to_project_root(payload: dict[str, Any]) -> bool:
         argv = shlex.split(command)
     except ValueError:
         return False
-    if len(argv) != 2 or argv[0] != "cd" or not _is_absolute_target(argv[1]):
+    if len(argv) != 2 or argv[0] != "cd" or not _is_provable_target(argv[1]):
         return False
     return _resolve_target(argv[1], str(payload.get("cwd") or "/")) == root
 
 
-def _is_absolute_target(token: str) -> bool:
-    """Bash searches CDPATH for a relative name, so only an absolute target is provable."""
+def _is_provable_target(token: str) -> bool:
+    """Absolute and free of `..`, so Bash's logical cd and Path.resolve land in the same place.
+
+    Bash searches CDPATH for a relative name, and drops `link/..` as text before following any
+    symlink, while Path.resolve follows the link first; either can put Bash somewhere else.
+    """
     expanded = re.sub(r"\$\{CLAUDE_PROJECT_DIR\}|\$CLAUDE_PROJECT_DIR\b",
                       lambda _m: os.environ.get("CLAUDE_PROJECT_DIR", ""), token)
-    return expanded.startswith(("/", "~/")) or expanded == "~"
+    absolute = expanded.startswith(("/", "~/")) or expanded == "~"
+    return absolute and ".." not in Path(expanded).parts

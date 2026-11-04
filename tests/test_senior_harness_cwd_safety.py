@@ -65,3 +65,15 @@ def test_relative_cd_is_not_recovery(repo, tmp_path, monkeypatch, cmd):
     # Bash looks a relative name up in CDPATH first, so it may land outside the project root.
     monkeypatch.setenv("CDPATH", str(tmp_path / "elsewhere"))
     assert denied(_outside_git_tool(bash(cmd, tmp_path), "PreToolUse"))
+
+
+def test_symlink_then_parent_is_not_recovery(repo, tmp_path):
+    # Bash cd is logical: it drops `link/..` as text, so it lands in `other`, not in the project.
+    other = tmp_path / "other"
+    (other / ".git").mkdir(parents=True)
+    (other / "link").symlink_to(repo / "sub")
+    cmd = f"cd {other}/link/.."
+    landed = subprocess.run(["/bin/bash", "--noprofile", "--norc", "-c", f"{cmd} && pwd -P"],
+                            capture_output=True, text=True, check=True).stdout.strip()
+    assert Path(landed).resolve() == other.resolve()
+    assert denied(_outside_git_tool(bash(cmd, tmp_path), "PreToolUse"))
