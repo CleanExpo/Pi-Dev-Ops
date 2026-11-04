@@ -15,7 +15,7 @@ from typing import Any
 from setup_common import SEAL_PREFIX, SetupError, _hook_output
 from setup_receipts import _seal_key
 from setup_tools import _tool_is_recovery_safe
-from setup_cwd import is_cd_to_project_root, recovery_command
+from setup_cwd import matches_recovery_command, recovery_command
 
 
 def _state_root() -> Path:
@@ -155,7 +155,8 @@ def _clear_pending(event: str, path: Path) -> dict[str, Any]:
 
 
 def _outside_git_tool(payload: dict[str, Any], event: str) -> dict[str, Any]:
-    if is_cd_to_project_root(payload):
+    back = recovery_command()  # One Git probe, shared by the allow check and the deny message.
+    if matches_recovery_command(payload, back):
         return _hook_output(
             event,
             "Senior Harness allowed `cd` back to the session's project root (CLAUDE_PROJECT_DIR) from outside Git. This grants no other authority.",
@@ -166,7 +167,6 @@ def _outside_git_tool(payload: dict[str, Any], event: str) -> dict[str, Any]:
             "Senior Harness recovery-only read outside a Git project. No startup receipt exists, so this permits exact read-only discovery only and grants no mutation, provider, worker, business, or irreversible authority.",
         )
     message = "Senior Harness denied the tool outside Git: no startup receipt exists for this session."
-    back = recovery_command()
     if back is not None:
         message += f" To return to the project root, run exactly this command and nothing else: {back}"
     return _hook_output(event, message, deny=True)

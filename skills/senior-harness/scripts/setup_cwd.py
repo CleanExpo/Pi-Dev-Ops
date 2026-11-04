@@ -75,10 +75,12 @@ def project_root_text() -> str | None:
         )
     except (OSError, subprocess.SubprocessError):
         return None
-    if probe.returncode != 0:
+    out = probe.stdout
+    if probe.returncode != 0 or not out.endswith("\n"):
         return None
     try:
-        top = Path(probe.stdout.strip()).resolve(strict=True)
+        # Drop only Git's one trailing newline: a root may itself end in a space.
+        top = Path(out[:-1]).resolve(strict=True)
     except (OSError, RuntimeError):
         return None
     return raw if top == root else None
@@ -90,10 +92,16 @@ def recovery_command() -> str | None:
     return f'cd "{raw}"' if raw is not None else None
 
 
-def is_cd_to_project_root(payload: dict[str, Any]) -> bool:
-    """True only when the whole command text is one of the exact recovery strings."""
+def matches_recovery_command(payload: dict[str, Any], literal: str | None) -> bool:
+    """True only when the payload is Bash and its whole text is literal (from recovery_command)."""
     command = _bash_command(payload)
-    literal = recovery_command()
     if command is None or literal is None:
         return False
     return command.strip(_SURROUNDING_WS) == literal
+
+
+def is_cd_to_project_root(payload: dict[str, Any]) -> bool:
+    """True only when the whole command text is the exact recovery string."""
+    if _bash_command(payload) is None:
+        return False  # Not Bash: skip the Git probe entirely.
+    return matches_recovery_command(payload, recovery_command())
