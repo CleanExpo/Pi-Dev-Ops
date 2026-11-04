@@ -193,7 +193,17 @@ else
     # tests and a clean run took 184-215s, so the old bound killed passing runs
     # (rc=142 at 87% with no failure) and blocked every receipt. The jev suite
     # (feat/jev-constitution-eval) measured 170-185s on 30/09/2026, inside it.
-    [ "$PY_OK" = 1 ] && gate "tests-python" perl -e 'alarm shift; exec @ARGV' 420 "$PY" -m pytest tests/ -q \
+    # RA-8171 (04/11/2026): a fixed 420s still killed clean runs at ~89% on a
+    # 10-core machine at load 11-14 from other agents' suites. The bound now
+    # scales as 420 x max(1, load1/cpus), capped at 1500s, so a hang still dies.
+    # No env override by design. If the helper fails, the old 420s applies.
+    PYTEST_LIMIT=420; PYTEST_LIMIT_WHY="helper unavailable, using base"
+    if read -r _lim _why < <("$PY" scripts/pytest_time_limit.py 2>>"$LOG") \
+       && [[ "$_lim" =~ ^[0-9]+$ ]] && [ "$_lim" -ge 420 ] && [ "$_lim" -le 1500 ]; then
+      PYTEST_LIMIT="$_lim"; PYTEST_LIMIT_WHY="$_why"
+    fi
+    log ""; log "   tests-python time limit: ${PYTEST_LIMIT}s ($PYTEST_LIMIT_WHY)"
+    [ "$PY_OK" = 1 ] && gate "tests-python" perl -e 'alarm shift; exec @ARGV' "$PYTEST_LIMIT" "$PY" -m pytest tests/ -q \
       || { [ "$PY_OK" = 1 ] || skip "tests-python" "python deps absent"; }
   fi
   # CI runs `pytest swarm/` as its own step; this runner never did.
