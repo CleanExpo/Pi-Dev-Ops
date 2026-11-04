@@ -93,6 +93,16 @@ def _require_claude(provider, cli_path, env):
     ):
         raise ProviderPolicyError("subscription_only: SDK requires a bound CLI and execution environment")
     check_claude_configuration(env)
+    check_claude_auth(provider, read_claude_auth(cli_path, env))
+    return {
+        "billing_class": "subscription", "auth_verified": True,
+        "source": "claude_auth_status", "checked_at": datetime.now(timezone.utc).isoformat(),
+        "cost_verified": False,
+    }
+
+
+def read_claude_auth(cli_path: str | None, env: dict[str, str] | None) -> dict:
+    """Run `claude auth status` once. Raises when unreadable; the output is never logged."""
     try:
         status = subprocess.run(
             [cli_path or os.environ.get("CLAUDE_CLI", "claude"), "auth", "status"],
@@ -103,15 +113,15 @@ def _require_claude(provider, cli_path, env):
         payload = json.loads(status.stdout) if status.returncode == 0 else {}
     except (OSError, ValueError, subprocess.SubprocessError):
         raise ProviderPolicyError("subscription_only: subscription login could not be verified") from None
-    if not isinstance(payload, dict) or payload.get("loggedIn") is not True or payload.get("authMethod") != "claude.ai" or payload.get("subscriptionType") not in {"max", "pro", "team", "enterprise"}:
+    return payload if isinstance(payload, dict) else {}
+
+
+def check_claude_auth(provider: str, payload: dict) -> None:
+    """The one rule for an admissible Claude subscription login. Dispatch and readiness share it."""
+    if payload.get("loggedIn") is not True or payload.get("authMethod") != "claude.ai" or payload.get("subscriptionType") not in {"max", "pro", "team", "enterprise"}:
         raise ProviderPolicyError("subscription_only: active supported subscription login not verified")
     if provider == "anthropic_agent_sdk" and payload.get("apiProvider") != "firstParty":
         raise ProviderPolicyError("subscription_only: first-party subscription provider not verified")
-    return {
-        "billing_class": "subscription", "auth_verified": True,
-        "source": "claude_auth_status", "checked_at": datetime.now(timezone.utc).isoformat(),
-        "cost_verified": False,
-    }
 
 
 def independent_identity(primary: dict, secondary: dict) -> bool:

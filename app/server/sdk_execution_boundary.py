@@ -87,7 +87,15 @@ def _execution_cli() -> str:
 
 
 def generation_readiness() -> dict:
-    """Static admission facts only; dispatch still verifies auth and isolation."""
+    """Admission facts without launching anything on the caller's thread.
+
+    Config and the CLI binary are checked inline. The subscription login comes
+    from claude_auth_probe's cached background run of the dispatch auth check, so
+    a dead, unreadable or stale login is a blocker. Before the first probe lands
+    the login is unknown and the status stays "unverified", never ready. Dispatch
+    still re-verifies auth and isolation itself; this never authorises a run.
+    """
+    from .claude_auth_probe import PUBLIC_FIELDS, snapshot
     from .provider_policy import ProviderPolicyError, check_claude_configuration
     blockers = []
     for check in (check_claude_configuration, _execution_cli):
@@ -95,12 +103,17 @@ def generation_readiness() -> dict:
             check()
         except (ProviderPolicyError, ExecutionBoundaryError) as exc:
             blockers.append(str(exc))
+    auth = snapshot()
+    if auth is not None and not auth["verified"] and auth["error"] not in blockers:
+        blockers.append(auth["error"])
     return {
         "transport": "anthropic_agent_sdk",
         "status": "blocked" if blockers else "unverified",
         "ready": False if blockers else None,
         "blockers": blockers,
-        "auth_verified": False, "cost_verified": False,
+        "auth_verified": bool(auth and auth["verified"]) and not blockers,
+        "auth": auth["auth"] if auth else dict.fromkeys((*PUBLIC_FIELDS, "checked_at")),
+        "cost_verified": False,
     }
 
 
