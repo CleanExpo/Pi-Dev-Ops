@@ -16,7 +16,7 @@ Root need: reviews keep flowing overnight on the subscriptions Phill already pay
 
 ## How it decides
 
-1. `auth.json` in `$CODEX_HOME` (else `~/.codex`) is missing, unreadable, or not ChatGPT plan auth: the Mini is down (`codex.auth_file`). Codex is not run. Only `auth_mode` and whether an API key field is set are read, never a token.
+1. `auth.json` in `$CODEX_HOME` (else `~/.codex`) is missing or unreadable: the Mini is down (`codex.auth_file`). Codex is not run. The file holds tokens, so it is checked by metadata only and never opened.
 2. Otherwise Codex runs the brief (`codex exec --sandbox workspace-write --output-last-message <out>.last.md -`).
 3. A run that wrote a final message authenticated, whatever its transcript quotes.
 4. With no final message, a line that starts with a HEADROOM auth string is a dead login: `unexpected status 401 Unauthorized` (seen live on the Mini with no login, 5 Nov 2026) or `workspace is out of credits`.
@@ -25,7 +25,7 @@ Root need: reviews keep flowing overnight on the subscriptions Phill already pay
 ## The MacBook run
 
 - ssh alias `macbook` (`CODEX_FAILOVER_HOST` overrides), `BatchMode=yes`, so a missing key fails instead of prompting.
-- The commit travels as `git bundle create - HEAD` into a new folder, `~/agent-work/codex-failover/<ticket>-<sha12>-<epoch>`. The MacBook's own `~/Pi-Dev-Ops` is never touched.
+- The commit travels as `git bundle create - HEAD` into a new folder made by `mktemp -d`, `~/agent-work/codex-failover/<ticket>-<sha12>-XXXXXX`, so a folder is never reused. Codex refuses to start if a final message file is already there, so a reply can only come from this run. The MacBook's own `~/Pi-Dev-Ops` is never touched.
 - The folder's `HEAD` must equal the Mini's before Codex runs. A mismatch is exit 4.
 - The transcript goes to `--out` and the final message to `<out>.last.md`, the same files as a Mini run.
 - If the MacBook login is dead too, a second `auth_expired` event is written for `macbook` and the exit is 5.
@@ -58,3 +58,4 @@ The release gate's Codex lane (`lane_codex` in `~/.claude/skills/pr-release-gate
 
 - Only the two auth strings above are matched. Any other auth error text (for example a malformed `auth.json` printing `plan type is required`) reads as a plain failure, so the Mini is not held by mistake, and there is no failover for it.
 - A token that is expired but still in `auth.json` is caught only by the run's own output (step 4).
+- The pre-check cannot tell ChatGPT plan auth from API-key auth without opening the file. The Mini is pinned to its ChatGPT login (AR-01), and Codex runs exactly as the release gate's own Codex lane does today.

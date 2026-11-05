@@ -6,10 +6,11 @@ dead, it appends a HEADROOM `auth_expired` event (AR-02) so the picker (AR-03) h
 then runs the same brief on the MacBook against the same commit, carried over ssh as a bundle.
 
 It only detects. It never signs in or out (`guard` refuses any such command), never reads a
-token value, never falls back to an API key, and never touches the MacBook's own checkout.
+token value, and never touches the MacBook's own checkout.
 
 A dead login is told apart from every other failure like this:
-- auth.json missing, unreadable, or not ChatGPT plan auth: dead before anything runs.
+- auth.json missing or unreadable (checked by metadata only; the file is never opened): dead
+  before anything runs.
 - Otherwise a run that wrote a final model message authenticated, whatever it printed.
 - With no final message, a line STARTING with a known HEADROOM auth string
   (`unexpected status 401 Unauthorized`, `workspace is out of credits`) is a dead login.
@@ -40,6 +41,8 @@ REVIEW_TIMEOUT_S = 3600
 EXIT_OK, EXIT_REVIEW_FAILED, EXIT_USAGE, EXIT_AUTH_FAILED = 0, 1, 2, 3
 EXIT_FAILOVER_UNAVAILABLE, EXIT_BOTH_DOWN = 4, 5
 _SHA = re.compile(r"^[0-9a-f]{40}$")
+_REMOTE_DIR = re.compile(r"^" + re.escape(REMOTE_BASE)
+                         + r"/(?:[A-Z]{2,10}-\d{1,6}|adhoc)-[0-9a-f]{12}-[A-Za-z0-9]{6}$")
 _SIGN_IN = re.compile(r"\bcodex\s+(?:log(?:in|out))\b|^log(?:in|out)$")
 
 Run = Callable[..., tuple]  # (argv, stdin=bytes|None, cwd=str|None, timeout=s) -> (rc, stdout, stderr)
@@ -72,17 +75,14 @@ def _codex_home() -> Path:
 
 
 def auth_file_state(home: Optional[Path] = None) -> str:
-    """ok | missing | unreadable | not_chatgpt. Reads the mode only; never a token value."""
+    """ok | missing | unreadable, from the file's metadata alone.
+
+    The file holds tokens, so it is never opened here (review r1). Whether the login inside
+    it still works is learned from the Codex run itself (see `detect`)."""
     path = (home or _codex_home()) / "auth.json"
     if not path.is_file():
         return "missing"
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return "unreadable"
-    if not isinstance(data, dict):
-        return "unreadable"
-    return "ok" if data.get("auth_mode") == "chatgpt" and not data.get("OPENAI_API_KEY") else "not_chatgpt"
+    return "ok" if os.access(path, os.R_OK) else "unreadable"
 
 
 def detect(transcript: str, last_message: str, auth_state: str, now: float) -> dict:
@@ -129,31 +129,39 @@ def _ssh(run: Run, cmd: str, stdin: Optional[bytes] = None, timeout: int = 600) 
     return run([*SSH, REMOTE_HOST, cmd], stdin=b"" if stdin is None else stdin, timeout=timeout)
 
 
-def _stage_remote(repo: Path, head: str, brief: bytes, rdir: str, run: Run) -> str:
-    """Copy the commit and brief to a fresh MacBook folder. '' on success, else a reason."""
+def _stage_remote(repo: Path, head: str, brief: bytes, job: str, run: Run) -> tuple[str, str]:
+    """Copy the commit and brief into a NEW MacBook folder (mktemp, so never reused: review r1).
+
+    Returns (folder, '') on success, else ('', reason)."""
     rc, bundle, _ = run(["git", "-C", str(repo), "bundle", "create", "-", "HEAD"], timeout=600)
     if rc != 0 or not bundle:
-        return "bundle_failed"
+        return "", "bundle_failed"
+    tmpl = shlex.quote(f"{REMOTE_BASE}/{job}-{head[:12]}-XXXXXX")
+    rc, so, _ = _ssh(run, f"mkdir -p {REMOTE_BASE} && d=$(mktemp -d {tmpl}) && cat > \"$d/head.bundle\""
+                          f" && printf '%s\\n' \"$d\"", bundle)
+    rdir = _text(so).strip()
+    if rc != 0:
+        return "", "transport_failed"
+    if not _REMOTE_DIR.match(rdir):
+        return "", "stage_failed"
     q = shlex.quote(rdir)
-    steps = [(f"mkdir -p {q} && cat > {q}/head.bundle", bundle), (f"cat > {q}/brief.md", brief)]
-    for cmd, data in steps:
-        if _ssh(run, cmd, data)[0] != 0:
-            return "transport_failed"
+    if _ssh(run, f"cat > {q}/brief.md", brief)[0] != 0:
+        return "", "transport_failed"
     rc, so, _ = _ssh(run, f"cd {q} && git init -q repo && git -C repo fetch -q ../head.bundle HEAD"
                           f" && git -C repo checkout -q --detach {head} && git -C repo rev-parse HEAD")
     if rc == 255:
-        return "transport_failed"
-    return "" if rc == 0 and _text(so).strip() == head else "head_mismatch"
+        return "", "transport_failed"
+    return (rdir, "") if rc == 0 and _text(so).strip() == head else ("", "head_mismatch")
 
 
 def run_remote(repo: Path, head: str, brief: bytes, job: str, run: Run, now: float) -> tuple:
     """(status, rc, transcript, last). status: ok|failed|auth_failed|transport_failed|head_mismatch|..."""
-    rdir = f"{REMOTE_BASE}/{job}-{head[:12]}-{int(now)}"
-    why = _stage_remote(repo, head, brief, rdir, run)
+    rdir, why = _stage_remote(repo, head, brief, job, run)
     if why:
         return why, None, "", ""
     q = shlex.quote(rdir)
-    rc, so, se = _ssh(run, f"cd {q}/repo && {REMOTE_PATH} {' '.join(CODEX_EXEC)}"
+    # A final message must be written by THIS run: refuse to start if one already exists.
+    rc, so, se = _ssh(run, f"cd {q}/repo && test ! -e ../last.md && {REMOTE_PATH} {' '.join(CODEX_EXEC)}"
                            f" --output-last-message ../last.md - < ../brief.md", timeout=REVIEW_TIMEOUT_S)
     if rc == 255:
         return "transport_failed", rc, "", ""

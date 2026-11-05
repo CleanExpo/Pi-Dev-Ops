@@ -68,8 +68,14 @@ def _rules(local, remote_transcript="VERDICT: PASS\n", remote_last="VERDICT: PAS
     ]
 
 
+_SEQ = [0]
+
+
 def _ssh(argv, transcript, last, head):
     cmd = argv[-1]
+    if "mktemp -d" in cmd:
+        _SEQ[0] += 1
+        return (0, f"agent-work/codex-failover/RA-8191-{head[:12]}-Ab{_SEQ[0]:04d}\n".encode(), b"")
     if "rev-parse" in cmd:
         return (0, (head + "\n").encode(), b"")
     if "codex exec" in cmd:
@@ -98,17 +104,29 @@ def test_detect_missing_auth_file_is_auth_failed(tmp_path):
     assert cf.detect("", "", "missing", NOW)["status"] == "auth_failed"
 
 
-def test_detect_api_key_mode_is_auth_failed_never_paid(tmp_path):
-    assert cf.auth_file_state(_auth(tmp_path, mode="apikey")) == "not_chatgpt"
-    assert cf.auth_file_state(_auth(tmp_path, key="k")) == "not_chatgpt"
-    assert cf.auth_file_state(_auth(tmp_path)) == "ok"
+def test_detect_auth_file_is_never_opened(tmp_path, monkeypatch):
+    # Review r1 P1: the pre-check must not pull token values into this process. It stats only.
+    home = _auth(tmp_path)
+    (home / "auth.json").write_text('{"auth_mode": "chatgpt", "tokens": {"access_token": "SENTINEL"}}')
+
+    def boom(*a, **k):
+        raise AssertionError("auth.json was opened")
+    import builtins
+    import io
+    for mod, name in [(builtins, "open"), (io, "open"), (os, "open"), (Path, "open"),
+                      (Path, "read_text"), (Path, "read_bytes"), (json, "loads"), (json, "load")]:
+        monkeypatch.setattr(mod, name, boom)
+    assert cf.auth_file_state(home) == "ok"
 
 
 def test_detect_unreadable_auth_file(tmp_path):
-    home = tmp_path / "h"
-    home.mkdir()
-    (home / "auth.json").write_text("{not json")
-    assert cf.auth_file_state(home) == "unreadable"
+    home = _auth(tmp_path)
+    (home / "auth.json").chmod(0)
+    try:
+        assert cf.auth_file_state(home) == "unreadable"
+        assert cf.detect("", "", "unreadable", NOW)["status"] == "auth_failed"
+    finally:
+        (home / "auth.json").chmod(0o600)
 
 
 @pytest.mark.parametrize("text,pid", [(SEEN_401, "codex.unauthorized"), (CREDITS, "codex.workspace_credits")])
@@ -146,6 +164,25 @@ def test_failover_ssh_never_inherits_caller_stdin(tmp_path, monkeypatch):
     ssh_stdins = [s for c, s in zip(run.calls, run.stdins) if c[0] == "ssh"]
     assert ssh_stdins and all(isinstance(s, bytes) for s in ssh_stdins)
     assert b"Review the change.\n" in ssh_stdins  # the same brief, byte for byte
+
+
+def test_failover_remote_dir_is_fresh_per_attempt(tmp_path, monkeypatch):
+    # Review r1 P1: a reused folder let a stale last.md turn a 401 into a pass.
+    run = FakeRun(_rules(_local_codex(SEEN_401, "")))
+    for _ in range(2):  # same job, same HEAD, same second
+        cf.run_remote(tmp_path, HEAD, b"brief", "RA-8191", run, NOW)
+    codex = [c[-1] for c in run.calls if c[0] == "ssh" and "codex exec" in c[-1]]
+    assert len(codex) == 2 and codex[0] != codex[1]
+    assert all("test ! -e ../last.md" in c for c in codex)
+    staged = [c[-1] for c in run.calls if c[0] == "ssh" and "head.bundle" in c[-1] and "mktemp" in c[-1]]
+    assert len(staged) == 2
+
+
+def test_failover_bad_remote_dir_is_unavailable(tmp_path, monkeypatch):
+    rules = _rules(_local_codex(SEEN_401, ""))
+    rules[0] = ("ssh", lambda argv: (0, b"/etc\n", b"") if "mktemp" in argv[-1] else _ssh(argv, "x", "x", HEAD))
+    rc, summary, rows, _ = _review(tmp_path, monkeypatch, FakeRun(rules), _auth(tmp_path))
+    assert rc == cf.EXIT_FAILOVER_UNAVAILABLE and summary["macbook"] == "stage_failed"
 
 
 def test_failover_non_auth_failure_does_not_fail_over(tmp_path, monkeypatch):
