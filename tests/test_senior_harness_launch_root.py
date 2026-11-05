@@ -13,9 +13,14 @@ from tests._senior_harness_setup_support import (
     REPO_ROOT,
     _global_hook,
     _init_repo,
+    _start_hook_session,
     _tamper_env,
+    handle_hook,
     json,
+    pytest,
 )
+
+import setup_hooks  # noqa: E402  (importable once the support module sets sys.path)
 
 OBJECTIVE = "Develop the Senior Harness launch-root fallback"
 
@@ -141,3 +146,32 @@ def test_clear_outside_git_still_denies_writes_outside_git(tmp_path: Path) -> No
 
     decision = _write_tool(session, outside, env)
     assert decision["permissionDecision"] == "deny"
+
+
+def test_clear_between_fallback_lookup_and_lock_denies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The fallback must be re-checked under the session lock, not trusted from before it."""
+    monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
+    session = "launch-root-race"
+    _start_hook_session(tmp_path / "state", monkeypatch, session_id=session)
+    real = setup_hooks.launch_root_state
+    calls: list[int] = []
+
+    def lookup_then_clear(session_id: str, surface: str):  # noqa: ANN202
+        found = real(session_id, surface)
+        if not calls:
+            calls.append(1)
+            setup_hooks.clear_launch_root(session_id)
+        return found
+
+    monkeypatch.setattr(setup_hooks, "launch_root_state", lookup_then_clear)
+    outside = tmp_path / "not-git"
+    outside.mkdir()
+    decision = handle_hook(
+        {"session_id": session, "cwd": str(outside), "hook_event_name": "PreToolUse",
+         "tool_name": "Write", "tool_input": {}},
+        surface="claude", event="PreToolUse",
+    )
+    assert calls, "the injected clear never ran"
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from setup_common import GitProbeError, SetupError, _hook_output
 from setup_launch import clear_launch_root, launch_root_state
@@ -101,6 +101,13 @@ def _pretool_root(cwd: str, session_id: str, surface: str) -> tuple[Path, Path, 
     return (*fallback, True) if fallback else (root, state_path, False)
 
 
+def _still_routed(
+    session_id: str, surface: str, root: Path, state_path: Path
+) -> Callable[[], bool]:
+    """Re-read the launch record under the lock; a clear in between must win."""
+    return lambda: launch_root_state(session_id, surface) == (root, state_path)
+
+
 def _note_fallback(response: dict[str, Any], root: Path) -> dict[str, Any]:
     output = response.get("hookSpecificOutput", {})
     if isinstance(output.get("additionalContext"), str):
@@ -124,6 +131,8 @@ def handle_hook(
         response = handle_pretool(
             payload, project_root=root, surface=surface, session_id=session_id,
             state_path=state_path, pending_path=pending_path, roots=skill_search_roots,
+            still_routed=_still_routed(session_id, surface, root, state_path)
+            if fallback else None,
         )
         return _note_fallback(response, root) if fallback else response
     root = _git_root(cwd)

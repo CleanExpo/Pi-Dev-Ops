@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from setup_common import GRILL_INTERACTIONS, SetupError, _hook_output
 from setup_launch import record_launch_root
@@ -191,14 +191,29 @@ def handle_pretool(
     payload: dict[str, Any], *, project_root: Path, surface: str,
     session_id: str, state_path: Path, pending_path: Path,
     roots: Iterable[str | Path] | None,
+    still_routed: Callable[[], bool] | None = None,
 ) -> dict[str, Any]:
+    """still_routed, when given, re-checks a launch-root fallback under the lock.
+
+    The fallback is chosen before the lock is taken; a clear that lands in that gap
+    must win, so a fallback that no longer holds is treated as no state at all.
+    """
     recovery_safe = _tool_is_recovery_safe(payload)
     with _state_lock(_session_lock_path(session_id)):
+        if still_routed is not None and not _fallback_holds(still_routed):
+            return _missing_state_response(recovery_safe, None)
         return _handle_pretool_locked(
             payload, project_root=project_root, surface=surface,
             session_id=session_id, state_path=state_path,
             pending_path=pending_path, roots=roots, recovery_safe=recovery_safe,
         )
+
+
+def _fallback_holds(still_routed: Callable[[], bool]) -> bool:
+    try:
+        return still_routed()
+    except SetupError:
+        return False
 
 
 def _handle_pretool_locked(
