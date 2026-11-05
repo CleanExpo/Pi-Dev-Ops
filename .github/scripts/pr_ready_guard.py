@@ -42,6 +42,9 @@ class PR:
     checks: List[Check] = field(default_factory=list)
     head_sha: str = ""
     node_id: str = ""
+    unresolved: int = 0  # unresolved review threads
+    merge_state: str = ""  # GitHub mergeStateStatus: CLEAN, BLOCKED, DIRTY, BEHIND, DRAFT, ...
+    review_decision: str = ""  # APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | ""
 
 
 @dataclass
@@ -62,21 +65,31 @@ def _judge(pr: PR) -> Dict[str, List[str]]:
     }
 
 
+def _threads_reason(pr: PR) -> List[str]:
+    return ["{} unresolved review thread(s)".format(pr.unresolved)] if pr.unresolved else []
+
+
 def decide(pr: PR) -> Decision:
     """Pure decision: should this PR be drafted, marked ready, or left alone?"""
     p = _judge(pr)
-    bad = p["failing"] or p["pending"] or p["conflict"]
     reasons = (
         ["failing check: " + n for n in p["failing"]]
         + ["still running: " + n for n in p["pending"]]
         + p["conflict"]
     )
     if not pr.is_draft:
-        return Decision("draft", reasons) if bad else Decision("leave")
+        # Unresolved threads only count where GitHub is actually blocking the merge (the repo
+        # requires conversation resolution); otherwise they are ordinary review chatter.
+        if pr.merge_state == "BLOCKED":
+            reasons += _threads_reason(pr)
+            if not reasons and pr.review_decision not in ("REVIEW_REQUIRED", "CHANGES_REQUESTED"):
+                reasons.append("GitHub reports the merge as BLOCKED for a reason other than missing approval")
+        return Decision("draft", reasons) if reasons else Decision("leave")
     if LABEL not in pr.labels:
         return Decision("leave")  # intentional draft: never touched
-    if bad or p["unknown"] or not p["judged"]:
-        return Decision("leave", reasons or p["unknown"] or ["no checks reported yet"])
+    held = reasons + _threads_reason(pr)  # release needs zero unresolved threads, whatever the repo rules
+    if held or p["unknown"] or not p["judged"]:
+        return Decision("leave", held or p["unknown"] or ["no checks reported yet"])
     return Decision("ready")
 
 
@@ -108,7 +121,10 @@ def graphql(token: str, query: str, variables: dict) -> dict:
 
 PR_LIST = """query($o:String!,$n:String!,$after:String){repository(owner:$o,name:$n){
 pullRequests(states:OPEN,first:50,after:$after){pageInfo{hasNextPage endCursor}
-nodes{id number isDraft mergeable headRefOid labels(first:50){nodes{name}}}}}}"""
+nodes{id number isDraft mergeable mergeStateStatus reviewDecision headRefOid labels(first:50){nodes{name}}}}}}"""
+
+THREADS = """query($id:ID!,$after:String){node(id:$id){... on PullRequest{reviewThreads(first:100,after:$after){
+pageInfo{hasNextPage endCursor} nodes{isResolved}}}}}"""
 
 MERGEABLE = "query($id:ID!){node(id:$id){... on PullRequest{mergeable}}}"
 
@@ -145,6 +161,17 @@ def fetch_checks(token: str, node_id: str) -> List[Check]:
         after = ctx["pageInfo"]["endCursor"]
 
 
+def count_unresolved(token: str, node_id: str) -> int:
+    n = 0
+    after = None
+    while True:
+        t = graphql(token, THREADS, {"id": node_id, "after": after})["node"]["reviewThreads"]
+        n += sum(1 for x in t["nodes"] if not x["isResolved"])
+        if not t["pageInfo"]["hasNextPage"]:
+            return n
+        after = t["pageInfo"]["endCursor"]
+
+
 def fetch_prs(token: str, repo: str) -> List[PR]:
     owner, name = repo.split("/")
     prs: List[PR] = []
@@ -153,7 +180,8 @@ def fetch_prs(token: str, repo: str) -> List[PR]:
         page = graphql(token, PR_LIST, {"o": owner, "n": name, "after": after})["repository"]["pullRequests"]
         for n in page["nodes"]:
             prs.append(PR(n["number"], n["isDraft"], {x["name"] for x in n["labels"]["nodes"]},
-                          n["mergeable"], [], n["headRefOid"], n["id"]))
+                          n["mergeable"], [], n["headRefOid"], n["id"],
+                          0, n["mergeStateStatus"], n["reviewDecision"] or ""))
         if not page["pageInfo"]["hasNextPage"]:
             break
         after = page["pageInfo"]["endCursor"]
@@ -162,6 +190,7 @@ def fetch_prs(token: str, repo: str) -> List[PR]:
             time.sleep(3)
             pr.mergeable = graphql(token, MERGEABLE, {"id": pr.node_id})["node"]["mergeable"]
         pr.checks = fetch_checks(token, pr.node_id)
+        pr.unresolved = count_unresolved(token, pr.node_id)
     return prs
 
 
