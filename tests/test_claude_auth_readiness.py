@@ -12,7 +12,8 @@ import subprocess
 import sys
 import threading
 import time
-from types import SimpleNamespace
+from collections.abc import Iterator
+from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
@@ -28,12 +29,12 @@ LIVE = {"loggedIn": True, "authMethod": "claude.ai", "apiProvider": "firstParty"
 EXPOSED = {"loggedIn", "authMethod", "apiProvider", "subscriptionType", "checked_at"}
 
 
-def _status(**payload):
+def _status(**payload: object) -> Mock:
     return Mock(returncode=0, stdout=json.dumps({**PRIVATE, **payload}), stderr="")
 
 
 @pytest.fixture
-def probe(monkeypatch):
+def probe(monkeypatch: pytest.MonkeyPatch) -> Iterator[ModuleType | None]:
     """The real probe with its background refresh enabled, or None before the fix."""
     monkeypatch.setattr(sdk.sys, "platform", "darwin")
     monkeypatch.setattr(sdk.shutil, "which", lambda name: sys.executable)
@@ -50,14 +51,14 @@ def probe(monkeypatch):
     claude_auth_probe.reset()  # stops and joins the refresher
 
 
-def _settled(probe):
+def _settled(probe: ModuleType | None) -> dict:
     sdk.generation_readiness()  # first call may only schedule the probe
     if probe is not None:
         assert probe.wait_for_refresh(5), "probe refresh did not finish"
     return sdk.generation_readiness()
 
 
-def _authed_health():
+def _authed_health() -> tuple[int, str]:
     from app.server.auth import create_session_token
     from app.server.routes.health import health
     headers = {"Authorization": f"Bearer {create_session_token()}"}
@@ -71,7 +72,8 @@ def _authed_health():
     {**LIVE, "authMethod": "none"},
     {**LIVE, "subscriptionType": None},
 ])
-def test_dead_login_blocks_readiness_and_health_shows_it(monkeypatch, probe, dead):
+def test_dead_login_blocks_readiness_and_health_shows_it(
+        monkeypatch: pytest.MonkeyPatch, probe: ModuleType | None, dead: dict[str, object]) -> None:
     monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**dead)))
     report = _settled(probe)
     assert report["status"] == "blocked"
@@ -95,7 +97,9 @@ def test_dead_login_blocks_readiness_and_health_shows_it(monkeypatch, probe, dea
     Mock(returncode=1, stdout="", stderr="boom"),
     Mock(returncode=0, stdout="not json", stderr=""),
 ])
-def test_errored_or_timed_out_status_is_never_ready(monkeypatch, probe, failure):
+def test_errored_or_timed_out_status_is_never_ready(
+        monkeypatch: pytest.MonkeyPatch, probe: ModuleType | None,
+        failure: subprocess.TimeoutExpired | OSError | Mock) -> None:
     run = Mock(side_effect=failure) if isinstance(failure, BaseException) else Mock(return_value=failure)
     monkeypatch.setattr(policy.subprocess, "run", run)
     report = _settled(probe)
@@ -104,7 +108,8 @@ def test_errored_or_timed_out_status_is_never_ready(monkeypatch, probe, failure)
     assert report["auth_verified"] is False
 
 
-def test_live_max_login_stays_unblocked_and_exposes_only_safe_fields(monkeypatch, probe):
+def test_live_max_login_stays_unblocked_and_exposes_only_safe_fields(
+        monkeypatch: pytest.MonkeyPatch, probe: ModuleType | None) -> None:
     monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**LIVE)))
     report = _settled(probe)
     assert report["status"] != "blocked"
@@ -117,7 +122,8 @@ def test_live_max_login_stays_unblocked_and_exposes_only_safe_fields(monkeypatch
     assert "cost_verified" in report and report["cost_verified"] is False
 
 
-def test_probe_runs_the_dispatch_check_with_the_dispatch_cli_and_env(monkeypatch, probe):
+def test_probe_runs_the_dispatch_check_with_the_dispatch_cli_and_env(
+        monkeypatch: pytest.MonkeyPatch, probe: ModuleType | None) -> None:
     run = Mock(return_value=_status(**LIVE))
     monkeypatch.setattr(policy.subprocess, "run", run)
     _settled(probe)
@@ -128,15 +134,16 @@ def test_probe_runs_the_dispatch_check_with_the_dispatch_cli_and_env(monkeypatch
     assert kwargs["timeout"] <= 10
 
 
-def _probe_threads():
+def _probe_threads() -> list[threading.Thread]:
     return [t for t in threading.enumerate() if t.name == "claude-auth-probe"]
 
 
-def test_readiness_never_waits_on_a_stuck_cli_and_keeps_one_refresher(monkeypatch, probe):
+def test_readiness_never_waits_on_a_stuck_cli_and_keeps_one_refresher(
+        monkeypatch: pytest.MonkeyPatch, probe: ModuleType | None) -> None:
     assert probe is not None, "cached auth probe is missing"
     release = threading.Event()
 
-    def stuck_cli(*_args, **_kwargs):
+    def stuck_cli(*_args: object, **_kwargs: object) -> Mock:
         release.wait(10)
         return _status(**LIVE)
 
@@ -157,12 +164,13 @@ def test_readiness_never_waits_on_a_stuck_cli_and_keeps_one_refresher(monkeypatc
     assert run.call_count == calls  # cached: no extra CLI runs per request
 
 
-def test_refresh_lands_before_trust_expires():
+def test_refresh_lands_before_trust_expires() -> None:
     from app.server import claude_auth_probe as probe
     assert probe.REFRESH_S + 2 * 10 < probe.TTL_S <= 300
 
 
-def test_cached_success_expires_at_the_ttl_and_a_dead_refresh_blocks_at_once(monkeypatch, probe):
+def test_cached_success_expires_at_the_ttl_and_a_dead_refresh_blocks_at_once(
+        monkeypatch: pytest.MonkeyPatch, probe: ModuleType | None) -> None:
     assert probe is not None, "cached auth probe is missing"
     monkeypatch.setattr(probe, "_schedule", Mock())  # faked clock: no real refresher racing it
     monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**LIVE)))
@@ -180,7 +188,8 @@ def test_cached_success_expires_at_the_ttl_and_a_dead_refresh_blocks_at_once(mon
     assert report["status"] == "blocked" and report["auth"]["loggedIn"] is False
 
 
-def test_refresher_that_cannot_start_blocks_without_breaking_health(monkeypatch, probe):
+def test_refresher_that_cannot_start_blocks_without_breaking_health(
+        monkeypatch: pytest.MonkeyPatch, probe: ModuleType | None) -> None:
     assert probe is not None, "cached auth probe is missing"
     monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**LIVE)))
     with patch.object(threading.Thread, "start", side_effect=RuntimeError("can't start new thread")):
@@ -191,11 +200,12 @@ def test_refresher_that_cannot_start_blocks_without_breaking_health(monkeypatch,
     assert json.loads(body)["generation"]["status"] == "blocked"
 
 
-def test_reset_discards_a_refresh_that_was_in_flight(monkeypatch, probe):
+def test_reset_discards_a_refresh_that_was_in_flight(
+        monkeypatch: pytest.MonkeyPatch, probe: ModuleType | None) -> None:
     assert probe is not None, "cached auth probe is missing"
     entered, release = threading.Event(), threading.Event()
 
-    def slow_cli(*_args, **_kwargs):
+    def slow_cli(*_args: object, **_kwargs: object) -> Mock:
         entered.set()
         release.wait(10)
         return _status(**LIVE)
@@ -207,26 +217,32 @@ def test_reset_discards_a_refresh_that_was_in_flight(monkeypatch, probe):
     probe.reset()
     release.set()
     worker.join(5)
+    monkeypatch.setattr(probe, "_schedule", lambda: None)  # no new refresher may publish here
     snap = probe.snapshot()  # the pre-reset (verified) result was not published
     assert snap["verified"] is False and "not yet verified" in snap["error"]
 
 
-def test_a_display_read_that_contradicts_the_verdict_blocks(monkeypatch, probe):
+def test_a_display_read_that_contradicts_the_verdict_blocks(
+        monkeypatch: pytest.MonkeyPatch, probe: ModuleType | None) -> None:
     """Codex round 2: frozen check passes on read 1, display read 2 says logged out."""
     assert probe is not None, "cached auth probe is missing"
     run = Mock(side_effect=[_status(**LIVE), _status(**{**LIVE, "loggedIn": False})])
     monkeypatch.setattr(policy.subprocess, "run", run)
+    monkeypatch.setattr(probe, "_schedule", lambda: None)
     probe.refresh()
     report = sdk.generation_readiness()
     assert run.call_count == 2
     assert report["status"] == "blocked" and report["auth_verified"] is False
     assert report["auth"]["loggedIn"] is False
+    assert any("changed during the check" in b for b in report["blockers"])
 
 
 @pytest.mark.parametrize("key", ["authMethod", "apiProvider", "subscriptionType"])
 @pytest.mark.parametrize("value", ["private@example.invalid", "sk-ant-fixture-not-a-real-token",
                                    ["max"], {"nested": "x"}, 731994655])
-def test_unknown_field_values_never_leave_verbatim(monkeypatch, probe, key, value):
+def test_unknown_field_values_never_leave_verbatim(
+        monkeypatch: pytest.MonkeyPatch, probe: ModuleType | None, key: str,
+        value: str | list[str] | dict[str, str] | int) -> None:
     assert probe is not None, "cached auth probe is missing"
     monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**{**LIVE, key: value})))
     probe.refresh()
@@ -247,7 +263,8 @@ _DRIFT_TABLE = [
 
 
 @pytest.mark.parametrize("payload", _DRIFT_TABLE)
-def test_agreement_check_matches_the_frozen_rule(monkeypatch, payload):
+def test_agreement_check_matches_the_frozen_rule(
+        monkeypatch: pytest.MonkeyPatch, payload: dict[str, object]) -> None:
     """_agrees() may only AND with provider_policy; pin it so drift cannot hide."""
     from app.server import claude_auth_probe as probe
     monkeypatch.setattr(policy.subprocess, "run", Mock(return_value=_status(**payload)))

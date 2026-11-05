@@ -3,6 +3,7 @@ conftest.py — shared pytest fixtures for Pi-CEO unit tests.
 """
 import os
 import sys
+from collections.abc import Iterator
 
 import pytest
 
@@ -30,7 +31,7 @@ def _fresh_left_running_record(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _no_live_claude_auth_probe(monkeypatch):
+def _no_live_claude_auth_probe(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Readiness starts a background `claude auth status`; unit tests never run the real CLI."""
     from app.server import claude_auth_probe
     claude_auth_probe.reset()

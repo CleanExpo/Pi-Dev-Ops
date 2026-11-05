@@ -73,8 +73,8 @@ def _agrees(fields: dict) -> bool:
     return all(fields.get(key) in allowed for key, allowed in _AGREES.items())
 
 
-def _status_fields(cli: str, env: dict[str, str]) -> dict:
-    """Display-only read of the login fields. Never decides anything; never logs output.
+def _status_fields(cli: str, env: dict[str, str]) -> dict | None:
+    """Display-only read of the login fields. None when that read could not be parsed.
 
     provider_policy.py is frozen (founder ruling 22/10/2026), so its check cannot be
     split to hand back the payload it reads. The verdict comes from that unchanged
@@ -84,10 +84,14 @@ def _status_fields(cli: str, env: dict[str, str]) -> dict:
         result = subprocess.run([cli, "auth", "status"], env=env, stdin=subprocess.DEVNULL,
                                 capture_output=True, text=True, timeout=10, check=False,
                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        payload = json.loads(result.stdout) if result.returncode == 0 else {}
+        if result.returncode != 0:
+            return None
+        payload = json.loads(result.stdout)
     except (OSError, ValueError, subprocess.SubprocessError):
-        payload = {}
-    return _public(payload if isinstance(payload, dict) else {})
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return _public(payload)
 
 
 def _snap(fields: dict, error: str | None, checked_at: str | None, binding: str | None = None) -> dict:
@@ -114,13 +118,27 @@ def _current_binding() -> str | None:
         return None
 
 
-def refresh() -> dict:
+def _with_display(cli: str | None, env: dict[str, str] | None,
+                  error: str | None) -> tuple[dict, str | None]:
+    """Shown fields. An unreadable second read is not reported as a login change."""
+    read = _status_fields(cli, env) if cli and env is not None else None
+    if read is None:
+        return dict.fromkeys(PUBLIC_FIELDS), _UNREADABLE if error is None else error
+    if error is None and not _agrees(read):
+        return read, _CHANGED  # a parsed payload contradicts the verdict: never publish both
+    return read, error
+
+
+def refresh(generation: int | None = None) -> dict:
     """Run dispatch's own auth check once, with dispatch's CLI and env, and cache it."""
     from .provider_policy import ProviderPolicyError, require_transport
     from .sdk_execution_boundary import ExecutionBoundaryError, _child_environment, _execution_cli
     global _snapshot
     with _lock:
-        epoch = _epoch
+        # The refresher passes the epoch from when its thread started, so a
+        # worker that already passed its stop check cannot publish after reset().
+        # A direct call omits it and takes the epoch now.
+        epoch = _epoch if generation is None else generation
     cli = env = binding = None
     error = None
     try:
@@ -132,9 +150,7 @@ def refresh() -> dict:
     except Exception as exc:  # noqa: BLE001 - a probe defect must read as unverified, never ready
         log.warning("claude auth probe failed: %s", type(exc).__name__)
         error = _UNREADABLE
-    fields = _status_fields(cli, env) if cli and env is not None else dict.fromkeys(PUBLIC_FIELDS)
-    if error is None and not _agrees(fields):
-        error = _CHANGED  # the display read contradicts the verdict: never publish both
+    fields, error = _with_display(cli, env, error)
     snap = _snap(fields, error, datetime.now(timezone.utc).isoformat(), binding)
     with _lock:
         if epoch == _epoch:
@@ -165,16 +181,16 @@ def snapshot() -> dict:
         return {**snap, "verified": False, "error": _UNREADABLE}
     if _clock() - snap["at"] >= TTL_S:
         return {**snap, "verified": False, "error": _STALE}
-    if snap["verified"] and snap["binding"] != _current_binding():
+    if snap["binding"] != _current_binding():
         _kick.set()  # re-check the new CLI/env now rather than at the next period
         return {**snap, "verified": False, "error": _REBOUND}
     return snap
 
 
-def _refresh_loop(stop: threading.Event, kick: threading.Event) -> None:
+def _refresh_loop(stop: threading.Event, kick: threading.Event, epoch: int) -> None:
     while not stop.is_set():
         try:
-            refresh()
+            refresh(epoch)
         except Exception as exc:  # noqa: BLE001 - the refresher must outlive one bad run
             log.warning("claude auth probe crashed: %s", type(exc).__name__)
         kick.wait(REFRESH_S)
@@ -187,7 +203,7 @@ def _start_refresh() -> None:
     with _lock:
         if _thread is not None and _thread.is_alive():
             return
-        _thread = threading.Thread(target=_refresh_loop, args=(_stop, _kick),
+        _thread = threading.Thread(target=_refresh_loop, args=(_stop, _kick, _epoch),
                                    name="claude-auth-probe", daemon=True)
         _thread.start()
 
