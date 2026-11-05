@@ -23,8 +23,10 @@ STATUS_CMD = {"claude": "claude auth status", "codex": "codex login status", "cu
 LOGIN_CMD = {"claude": "claude auth login", "codex": "codex login", "cursor": "agent login"}
 # Flags that turn a subscription sign-in into an API-key, token or metered login.
 BANNED_IN_SHELL = re.compile(r"--with-api-key|--with-access-token|--console\b|_API_KEY\b|ACCESS_TOKEN\b")
-# A sign-in or sign-out command, as shell text or as split argv (["codex", "login"]).
-# `codex login status` is a read-only check, not a login.
+# A sign-in or sign-out command, as shell text or as split argv (["codex", "login"]),
+# on one line or across lines. `codex login status` is a read-only check, not a login.
+# Limit: this is a text scan of literal command words. A call assembled at run time
+# (string joins, variables) is out of its reach; review is the control for that.
 _Q = r"""["']"""
 _SEP = r"""["']\s*,\s*\[?\s*["']"""
 LOGIN_CALL = re.compile(
@@ -123,6 +125,12 @@ def test_w5_no_shell_block_uses_a_key_or_token_login(text):
         assert not BANNED_IN_SHELL.search(block), block
 
 
+def _login_hits(source: str) -> list[int]:
+    """Line numbers where a sign-in call starts. Whole-text search, so argv split
+    across lines still matches (the separators allow newlines)."""
+    return [source.count("\n", 0, m.start()) + 1 for m in LOGIN_CALL.finditer(source)]
+
+
 def _tracked_code_files() -> list[Path]:
     out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"],
                          capture_output=True, text=True, check=True).stdout
@@ -141,6 +149,12 @@ def test_w5_login_pattern_catches_real_calls():
         assert not LOGIN_CALL.search(safe), safe
 
 
+def test_w5_scan_catches_a_call_split_across_lines():
+    source = 'import subprocess\nsubprocess.run([\n    "codex",\n    "login",\n    "--device-auth",\n])\n'
+    assert _login_hits(source) == [3]
+    assert _login_hits('subprocess.run([\n    "codex",\n    "login",\n    "status",\n])\n') == []
+
+
 def test_w5_scan_covers_agent_hooks_and_the_whole_tracked_tree():
     scanned = {p.relative_to(ROOT).as_posix() for p in _tracked_code_files()}
     assert any(p.startswith(".claude/hooks/") for p in scanned), "agent hooks not scanned"
@@ -154,7 +168,6 @@ def test_w5_no_tracked_code_runs_a_sign_in_command():
     for path in files:
         if path == Path(__file__).resolve() or not path.is_file():
             continue
-        for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-            if LOGIN_CALL.search(line):
-                hits.append(f"{path.relative_to(ROOT)}:{n}")
+        for n in _login_hits(path.read_text(encoding="utf-8", errors="replace")):
+            hits.append(f"{path.relative_to(ROOT)}:{n}")
     assert not hits, hits
