@@ -146,3 +146,12 @@ def test_w4_event_names_are_exactly_the_five():
                               "billing_blocked", "on_demand_capped"}
     assert {p.event for p in he.PATTERNS} <= set(he.EVENTS)
     assert {p.source for p in he.PATTERNS} <= {"observed", "unverified"}
+
+
+def test_w3_unicode_line_separator_does_not_start_a_line():
+    assert events("progress note You've hit your usage limit", "codex", exit_code=0) == []
+    assert events("x\x0cLogin expired · Please run /login") == []
+
+
+def test_w3_json_error_field_is_read_for_cursor_only():
+    assert events('{"error":"Login expired · Please run /login"}', "claude") == []

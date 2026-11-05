@@ -48,6 +48,7 @@ PROVIDERS = ("claude", "codex", "cursor")
 TAIL_LINES = 60
 TAIL_BYTES = 65536
 MAX_LINE = 400
+LOCK_WAIT_S = 5.0  # a stuck lock fails the write; it never holds up the job
 EXIT_WRITE_FAILED = 3
 EXIT_READ_FAILED = 4
 # `claude -p` exits non-zero on these messages, so a clean Claude exit is a job that only
@@ -85,18 +86,20 @@ PATTERNS = (
 )
 
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+_NEWLINE = re.compile(r"\r\n|\r|\n")  # not str.splitlines: \u2028, \x0c etc. are not line starts
 _LEAD = re.compile(r"^(?:⎿\s*)?(?:(?:api\s+)?error:\s*)?", re.I)
 _UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
 
 
-def _candidates(text: str) -> Iterator[str]:
+def _candidates(text: str, provider: str) -> Iterator[str]:
     """The last TAIL_LINES lines, cleaned, with a JSON `error` field read as its line.
 
     Only a line that STARTS with a known message counts (after an optional `Error:`
-    or `API Error:`), so a report quoting one mid-sentence or in a bullet does not."""
-    for raw in text.splitlines()[-TAIL_LINES:]:
+    or `API Error:`), so a report quoting one mid-sentence or in a bullet does not.
+    JSON `error` fields are read only for Cursor, whose `agent` CLI reports limits that way."""
+    for raw in _NEWLINE.split(text)[-TAIL_LINES:]:
         line = _ANSI.sub("", raw).strip()
-        if line.startswith("{"):
+        if provider == "cursor" and line.startswith("{"):
             try:
                 obj = json.loads(line)
             except ValueError:
@@ -119,7 +122,7 @@ def classify(text: str, provider: str, now: float, exit_code: Optional[int] = No
         return []
     hits: dict[str, dict] = {}
     mine = [p for p in PATTERNS if p.provider == provider]
-    for line in _candidates(text or ""):
+    for line in _candidates(text or "", provider):
         p = next((p for p in mine if p.regex.match(line)), None)
         if p is None or p.id in hits:
             continue
@@ -155,15 +158,31 @@ def append_events(records: list[dict], path: Path) -> None:
     SSD fails loudly instead of growing a fake folder under /Volumes."""
     if not records:
         return
+    if not path.is_absolute():
+        raise OSError(f"log path must be absolute, got {path}")
     path.parent.mkdir(exist_ok=True)
     data = "".join(json.dumps(r, sort_keys=True) + "\n" for r in records).encode()
     fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
     try:
-        if fcntl is not None:
-            fcntl.flock(fd, fcntl.LOCK_EX)
+        _lock(fd)
         os.write(fd, data)
     finally:
         os.close(fd)
+
+
+def _lock(fd: int) -> None:
+    """Take the log's exclusive lock, or raise OSError after LOCK_WAIT_S."""
+    if fcntl is None:
+        return
+    deadline = time.monotonic() + LOCK_WAIT_S
+    while True:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                raise OSError(f"log lock still held after {LOCK_WAIT_S:g}s") from None
+            time.sleep(0.05)
 
 
 def default_machine() -> str:
@@ -174,9 +193,14 @@ def default_machine() -> str:
 
 
 def _read_tail(path: Path) -> str:
+    """The last TAIL_BYTES of a file, minus the first line when the cut lands inside it."""
     with open(path, "rb") as f:
-        f.seek(max(0, f.seek(0, 2) - TAIL_BYTES))
-        return f.read().decode(errors="replace")
+        start = max(0, f.seek(0, 2) - TAIL_BYTES)
+        f.seek(start)
+        data = f.read()
+    if start:
+        data = data[data.find(b"\n") + 1:] if b"\n" in data else b""
+    return data.decode(errors="replace")
 
 
 def _parse(argv: Optional[list[str]]) -> argparse.Namespace:

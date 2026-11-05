@@ -26,9 +26,11 @@ Codex usage-limit lines have no live sample on the Mini yet, so their events car
 
 Every value is built by the script. The CLI's own words are never stored. `reset_at` is `null` when the line prints no readable reset; it is never a guess. There is no account email: AR-03 joins `machine` + `provider` to `ops/ACCOUNT-MAP.yaml`.
 
+Known gaps: `reset_at` is `null` for `resets Thu 9am` and for Codex `try again at ...` lines (the shared reader in `mesh/quota.py` reads `resets <time>` and `resets <Mon> <day> at <time>`), so the picker needs its own fallback hold. Codex output is read even on exit 0 (`codex exec` exits 0 on its limit), so a Codex report line that starts with a limit message would count; those events are marked `unverified`.
+
 ## Where it writes
 
-`$HEADROOM_LOG`, else `/Volumes/Mini Mini 2T Storage/ops/headroom/headroom-events.jsonl` (a design default). The script creates only the last folder (`headroom/`). If the ops SSD is not mounted it exits 3 and writes nothing, so a missing log never looks like a quiet night.
+`$HEADROOM_LOG`, else `/Volumes/Mini Mini 2T Storage/ops/headroom/headroom-events.jsonl` (a design default). The path must be absolute. The script creates only the last folder (`headroom/`), and gives up on a lock held longer than 5 seconds rather than stall the job. If the ops SSD is not mounted it exits 3 and writes nothing, so a missing log never looks like a quiet night.
 
 ## Wiring a wrapper
 

@@ -27,7 +27,7 @@ def run_cli(tmp_path, out_text, *extra, log=None):
     src = tmp_path / "claude.out"
     src.write_text(out_text, encoding="utf-8")
     env = {**os.environ, "HEADROOM_LOG": str(log or tmp_path / "h.jsonl")}
-    return subprocess.run([*CLI, "scan", str(src), *extra], capture_output=True, text=True, env=env)
+    return subprocess.run([*CLI, "scan", str(src), *extra], capture_output=True, text=True, env=env, cwd=tmp_path)
 
 
 def rows(path):
@@ -122,3 +122,55 @@ def test_w2_helper_touches_no_sign_in_command():
     body = HELPER.read_text()
     for word in ("login", "logout", "auth ", "setup-token", "keychain", "security "):
         assert word not in body.lower(), word
+
+
+def test_w3_tail_cut_mid_line_does_not_start_a_message(tmp_path):
+    msg = "You've hit your weekly limit · resets Oct 9 at 1am"
+    pad = "A" * 100
+    filler = "\n" + "z" * (he.TAIL_BYTES - len(msg.encode()) - 2) + "\n"
+    out = tmp_path / "big.out"
+    out.write_text(pad + msg + filler, encoding="utf-8")
+    assert out.stat().st_size == he.TAIL_BYTES + 100
+    assert he.classify(he._read_tail(out), "claude", 0.0, 1) == []
+
+
+def test_w2_job_dir_starting_with_dash_still_records(tmp_path):
+    job = tmp_path / "-x"
+    job.mkdir()
+    (job / "claude.out").write_text(WEEKLY, encoding="utf-8")
+    env = {**os.environ, "HEADROOM_LOG": str(tmp_path / "h.jsonl"), "HEADROOM_PYTHON": sys.executable}
+    r = subprocess.run(["bash", str(HELPER), str(job), "claude", "1"], capture_output=True, text=True, env=env)
+    assert r.returncode == 0
+    assert rows(tmp_path / "h.jsonl")[0]["job"] == "-x"
+
+
+def test_w5_relative_log_path_is_refused(tmp_path):
+    r = run_cli(tmp_path, WEEKLY, "--provider", "claude", "--exit-code", "1", log="rel/h.jsonl")
+    assert r.returncode == he.EXIT_WRITE_FAILED and "absolute" in r.stderr
+
+
+def test_w2_a_held_lock_times_out_instead_of_hanging(tmp_path, monkeypatch):
+    import fcntl
+    log = tmp_path / "h.jsonl"
+    log.write_text("")
+    monkeypatch.setattr(he, "LOCK_WAIT_S", 0.3)
+    with open(log, "a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        try:
+            he.append_events([{"x": 1}], log)
+        except OSError as e:
+            assert "lock" in str(e)
+        else:
+            raise AssertionError("a held lock must fail the write, not block the job")
+    assert log.read_text() == ""
+
+
+def test_w2_output_file_starting_with_dash_is_read_not_parsed_as_a_flag(tmp_path):
+    job = tmp_path / "RA-2"
+    job.mkdir()
+    (job / "-o.out").write_text(WEEKLY, encoding="utf-8")
+    env = {**os.environ, "HEADROOM_LOG": str(tmp_path / "h.jsonl"), "HEADROOM_PYTHON": sys.executable}
+    r = subprocess.run(["bash", str(HELPER), str(job), "claude", "1", "-o.out"],
+                       capture_output=True, text=True, env=env, cwd=job)
+    assert r.returncode == 0
+    assert rows(tmp_path / "h.jsonl")[0]["event"] == "weekly_cooling"

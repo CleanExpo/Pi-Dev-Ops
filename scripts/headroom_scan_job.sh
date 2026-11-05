@@ -13,8 +13,9 @@
 J="$1"; PROVIDER="$2"; RC="$3"; OUT="${4:-$1/claude.out}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PY="${HEADROOM_PYTHON:-python3}"
-ARGS=(scan "$OUT" --provider "$PROVIDER" --job "$(basename "$J")")
-if [[ "$RC" =~ ^-?[0-9]+$ ]]; then ARGS+=(--exit-code "$RC"); fi
+ARGS=(scan "--provider=$PROVIDER" "--job=$(basename -- "$J")")
+if [[ "$RC" =~ ^-?[0-9]+$ ]]; then ARGS+=("--exit-code=$RC"); fi
+ARGS+=(-- "$OUT")
 STAMP="$(TZ=Australia/Brisbane date '+%F %T AEST')"
 if MSG="$("$PY" "$HERE/headroom_events.py" "${ARGS[@]}" 2>&1)"; then
   echo "$STAMP $MSG" >> "$J/job.log" 2>/dev/null
