@@ -19,13 +19,13 @@ SCHEMA_VERSION = 1
 
 _SLUG = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
 _HOST = re.compile(r"[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*")
-_EMAIL_LOCAL = re.compile(r"[A-Za-z0-9]+(?:[.+-][A-Za-z0-9]+)*")
+_EMAIL_LOCAL = re.compile(r"[A-Za-z0-9]+(?:[._+-][A-Za-z0-9]+)*")
 _EMAIL_DOMAIN = re.compile(r"(?:[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\.)+[A-Za-z]{2,24}")
 _PROSE_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'/?!-]*")
-_PROSE_WORD = re.compile(r"[A-Z]{2,6}-[0-9]{1,6}|[0-9]{1,6}|[A-Za-z]+(?:['/-][A-Za-z]+)*")
+_PROSE_WORD = re.compile(r"[A-Z]{2,6}-[0-9]{1,6}|[0-9]{1,4}|[A-Za-z]+(?:['/-][A-Za-z]+)*")
 # Comments may also name files (scripts/check_account_map.py, ops/ACCOUNT-MAP.md).
 _COMMENT_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'\"/?!_-]*")
-_COMMENT_WORD = re.compile(r"[A-Z]{2,6}-[0-9]{1,6}|[0-9]{1,6}|[A-Za-z]+(?:[-_./'][A-Za-z]+)*")
+_COMMENT_WORD = re.compile(r"[A-Z]{2,6}-[0-9]{1,6}|[0-9]{1,4}|[A-Za-z]+(?:[-_./'][A-Za-z]+)*")
 _ALNUM_RUN = re.compile(r"[A-Za-z0-9]+")
 _MIXED = re.compile(r"[A-Za-z]")
 _ONE_SWITCH = re.compile(r"[A-Za-z]+[0-9]+|[0-9]+[A-Za-z]+")
@@ -85,7 +85,7 @@ def _email(value):
     if (not at or len(value) > 80 or len(local) > 40 or not _EMAIL_LOCAL.fullmatch(local)
             or not _EMAIL_DOMAIN.fullmatch(domain)
             or not _runs_ok(value, one_switch=True)):
-        return ("BAD_EMAIL", "must be one plain address (letters, digits, '.', '+', '-'; "
+        return ("BAD_EMAIL", "must be one plain address (letters, digits, '.', '_', '+', '-'; "
                 "local part at most 40 characters; no key-like mix of letters and digits)")
     return None
 
@@ -97,7 +97,7 @@ def _prose(value: str):
     for word in value.split(" "):
         word = word.strip("(\"'").rstrip(",.;:)'\"?!")
         if word and (len(word) > MAX_RUN or not _PROSE_WORD.fullmatch(word)):
-            return ("BAD_VALUE", "each word must be letters, a number or a ticket id "
+            return ("BAD_VALUE", "each word must be letters, a number of up to 4 digits or a ticket id "
                     "like RA-8196, at most 24 characters (no links, codes or mixed words)")
     return None
 
@@ -163,7 +163,7 @@ def check_comment(text: str):
         if word and not (_COMMENT_WORD.fullmatch(word) and _runs_ok(word)):
             ok = False
     if not ok:
-        return ("BAD_VALUE", "comments must be plain words (letters, a number, a ticket id "
+        return ("BAD_VALUE", "comments must be plain words (letters, a number of up to 4 digits, a ticket id "
                 "or a file name), at most 160 characters, no codes, keys or symbols "
                 "such as @ + = & *")
     return None
