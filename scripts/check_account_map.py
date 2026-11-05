@@ -12,7 +12,8 @@ Rules (each failure prints its rule name; any failure exits 1):
     SCHEMA               wrong top-level shape or version, empty lists, account pinned nowhere
     SECRET_FIELD         a key whose name looks like a credential, at any level
     UNKNOWN_KEY          a key outside the allowed schema
-    SECRET_VALUE         a string value that looks like a credential (key, JWT, bearer...)
+    SECRET_VALUE         a value or YAML comment that looks like a credential (key, JWT,
+                         bearer, "password=...")
     MISSING_FIELD        an account lacks label, provider, plan, email or machines
     BAD_PROVIDER         provider is not claude, codex or cursor
     BAD_EMAIL            email is not a single well-formed address
@@ -41,6 +42,9 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from account_map_secrets import comment_lines, looks_secret_name, looks_secret_value  # noqa: E402
+
 DEFAULT_PATH = Path(__file__).resolve().parent.parent / "ops" / "ACCOUNT-MAP.yaml"
 SCHEMA_VERSION = 1
 PROVIDERS = ("claude", "codex", "cursor")
@@ -50,24 +54,6 @@ ACCOUNT_KEYS = {"label", "provider", "plan", "email", "machines", "notes"}
 REQUIRED_ACCOUNT_KEYS = ("label", "provider", "plan", "email", "machines")
 PLACEHOLDER_SUFFIX = ".invalid"
 
-_SECRET_NAME = re.compile(
-    r"token|secret|passw|api[_-]?key|apikey|cookie|session|credential|bearer|"
-    r"private[_-]?key|auth|otp|refresh",
-    re.I,
-)
-_SECRET_VALUE = [
-    re.compile(r"\bsk-[A-Za-z0-9_-]{16,}"),
-    re.compile(r"\bBearer\s+\S+", re.I),
-    re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}"),
-    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}"),
-    re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"),
-    re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}"),
-    re.compile(r"-----BEGIN [A-Z ]*KEY-----"),
-    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
-    # A long unbroken run of letters and digits (both present) reads as a raw token.
-    # Hyphens break the run, so URL slugs and labels are not flagged.
-    re.compile(r"\b(?=[A-Za-z0-9]*\d)(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{32,}\b"),
-]
 _EMAIL = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$")
 
 
@@ -90,7 +76,7 @@ def _scan_keys(node, where: str, allowed: set, report: Report) -> None:
     """Flag keys outside the allowlist. Secret-named keys are flagged by _scan_values."""
     for key in node:
         name = str(key)
-        if name not in allowed and not _SECRET_NAME.search(name):
+        if name not in allowed and not looks_secret_name(name):
             report.error("UNKNOWN_KEY", f"{where}: key '{name}' is not part of the schema")
 
 
@@ -106,14 +92,14 @@ def _scan_values(node, where: str, report: Report) -> None:
     """At any depth, flag secret-named keys and string values that look like credentials."""
     if isinstance(node, dict):
         for key, value in node.items():
-            if _SECRET_NAME.search(str(key)):
+            if looks_secret_name(key):
                 report.error("SECRET_FIELD", f"{where}: key '{key}' looks like a credential; "
                              "the map holds emails only")
             _scan_values(value, f"{where}.{key}", report)
     elif isinstance(node, list):
         for i, value in enumerate(node):
             _scan_values(value, f"{where}[{i}]", report)
-    elif isinstance(node, str) and any(p.search(node) for p in _SECRET_VALUE):
+    elif isinstance(node, str) and looks_secret_value(node):
         report.error("SECRET_VALUE", f"{where}: value looks like a credential; "
                      "remove it, the map holds emails only")
 
@@ -246,13 +232,25 @@ def validate(data, require_real: bool = False) -> Report:
     return report
 
 
+def scan_comments(text: str, report: Report) -> None:
+    """YAML comments are committed but dropped by the parser, so scan them as raw text."""
+    for number, comment in comment_lines(text):
+        if looks_secret_value(comment):
+            report.error("SECRET_VALUE", f"line {number}: a comment looks like it holds a "
+                         "credential; remove it, the map holds emails only")
+
+
 def _load(path: Path, report: Report):
     try:
-        return yaml.safe_load(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        data = yaml.safe_load(text)
     except OSError as exc:
         report.error("FILE", f"cannot read {path}: {exc.strerror or exc}")
     except yaml.YAMLError as exc:
         report.error("FILE", f"{path} is not valid YAML: {exc}")
+    else:
+        scan_comments(text, report)
+        return data
     return None
 
 
@@ -264,8 +262,10 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     report = Report()
     data = _load(args.path, report)
-    if not report.errors:
+    if not any(f.rule == "FILE" for f in report.errors):
+        comment_findings = report.errors
         report = validate(data, require_real=args.require_real)
+        report.errors[:0] = comment_findings
     for finding in report.errors:
         print(f"ERROR {finding.rule}: {finding.message}")
     for item in report.pending:
