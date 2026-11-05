@@ -1,0 +1,69 @@
+name: PR Ready Guard
+
+# No pull request may sit in the ready state while it is red, still running checks, or
+# conflicting with main. Cloud agents (Cursor and others) never run the local pre-push
+# release gate, so the rule has to live on GitHub where it covers every author.
+#
+# What it does: drafts a failing/pending/conflicting ready PR (label held-by-ready-guard,
+# one comment kept up to date), and marks it ready again once every check on its exact head
+# commit passed and it merges cleanly. A draft WITHOUT the label is never touched.
+# It never merges and never pushes.
+#
+# Note: workflow_run and schedule runs always use the copy of this file on main.
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  workflow_run:
+    # Actions-created check runs do not fire check_suite/check_run, so the main workflow is
+    # named. CI is the long pole; each extra name here bills one more run per push.
+    workflows: [CI]
+    types: [completed]
+  check_suite:
+    types: [completed]
+  push:
+    branches: [main]
+  schedule:
+    # Backstop only (twice a day). Every 30 minutes would be 1,440 billed runs a month, and even
+    # every 6 hours pushes the repo over its CI-minute budget (tests/test_ci_minute_budget.py,
+    # RA-7222, 900 runs a month; 814 used before this file). The pull_request, workflow_run and
+    # push triggers above do the real-time work. Raising the budget is a spend decision.
+    - cron: "7 5,17 * * *"
+  workflow_dispatch:
+
+# One run at a time, newest waiting run replaces older waiting runs. Not cancel-in-progress:
+# stopping a run half way could leave a PR drafted without its label.
+concurrency:
+  group: pr-ready-guard
+  cancel-in-progress: false
+
+permissions:
+  pull-requests: write
+  contents: read
+  checks: read
+  statuses: read
+
+jobs:
+  pr-ready-guard:   # this job name is ignored when judging checks (OWN_CHECKS in the script)
+    # Fork PRs get a read-only token; the other triggers sweep them with a write token.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Always run the script from the default branch, never from the PR's own merge commit.
+      # A PR that edited the script would otherwise run its own code with a write token.
+      # Until this file is on main the script is absent there, and the run is a no-op.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - id: present
+        run: if [ -f .github/scripts/pr_ready_guard.py ]; then echo "found=yes" >> "$GITHUB_OUTPUT"; else echo "found=no" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-python@v5
+        if: steps.present.outputs.found == 'yes'
+        with:
+          python-version: "3.12"
+      - name: Run the guard
+        if: steps.present.outputs.found == 'yes'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python .github/scripts/pr_ready_guard.py --repo "${{ github.repository }}"

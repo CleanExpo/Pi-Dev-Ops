@@ -1,0 +1,11 @@
+{
+ "_comment": "Steps GitHub runs that cannot be reproduced locally. Every entry says why.",
+ "exempt": [
+  {
+   "workflow": "pr-ready-guard.yml",
+   "job": "pr-ready-guard",
+   "step": "Run the guard",
+   "reason": "Needs the token GitHub Actions issues to the run (github.token), which does not exist on a laptop, and it acts on live pull requests. The decision logic is covered by tests/test_pr_ready_guard.py, and the same script was run read-only against the four CleanExpo repos with --dry-run."
+  }
+ ]
+}
