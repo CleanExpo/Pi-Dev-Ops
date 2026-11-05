@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_3f073c055e03",
+  "contract_digest": "4aec23ae5872ae6f4d98d85b1602f83dc907cdaec57ab1a38530101e67e4762e",
+  "baseline_head": "7b817bafc107813efc6fea777e67eda9ef626518",
+  "identity_key": "phillmcgurk/ra-8191-codex-failover@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.git",
+  "locked_at_utc": "2026-11-05T09:44:32Z",
+  "criteria_count": 6,
+  "recipe_pins": {}
+}

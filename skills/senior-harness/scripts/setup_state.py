@@ -40,6 +40,11 @@ def _pending_state_path(session_id: str) -> Path:
     return _state_root() / "pending-project" / f"{_session_key(session_id)}.json"
 
 
+def _launch_record_path(session_id: str) -> Path:
+    """Sealed session -> launch-root record; see setup_launch.py."""
+    return _state_root() / "launch-root" / f"{_session_key(session_id)}.json"
+
+
 def _session_lock_path(session_id: str) -> Path:
     return _state_root() / "session-locks" / f"{_session_key(session_id)}.json"
 
@@ -146,8 +151,11 @@ def _read_pending_objective(
     return pending
 
 
-def _clear_pending(event: str, path: Path) -> dict[str, Any]:
+def _clear_pending(event: str, path: Path, session_id: str) -> dict[str, Any]:
     path.unlink(missing_ok=True)
+    # A clear must also stop the launch-root fallback, or the cleared session's
+    # receipt would keep governing writes outside Git, which were denied before.
+    _launch_record_path(session_id).unlink(missing_ok=True)
     return _hook_output(
         event,
         "Senior Harness cleared the pending objective lock. The next user prompt will become the new primary objective.",
@@ -210,7 +218,7 @@ def _record_pending_objective(
     path = _pending_state_path(session_id)
     if event == "SessionStart" and payload.get("source") == "clear":
         with _state_lock(_session_lock_path(session_id)):
-            return _clear_pending(event, path)
+            return _clear_pending(event, path, session_id)
     if event == "PreToolUse":
         return _outside_git_tool(payload, event)
     if event != "UserPromptSubmit":

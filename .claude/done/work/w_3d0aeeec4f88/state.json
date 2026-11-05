@@ -1,0 +1,63 @@
+{
+  "schema": "done/1",
+  "criterion_evidence": "PROVEN",
+  "verification_status": "PASS",
+  "delivery_status": "NOT_STARTED",
+  "verified_head": "ffaa2c85e2e42aafe9ed07904df2d402d3c71c29",
+  "updated_at_utc": "2026-11-05T07:39:43Z",
+  "last_verify": {
+    "head": "ffaa2c85e2e42aafe9ed07904df2d402d3c71c29",
+    "at_utc": "2026-11-05T07:39:43Z",
+    "matrix": [
+      {
+        "id": "picker-tests",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "\"/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/bin/python\" -m pytest tests/test_account_picker.py -q -p no:cacheprovider",
+        "exit_code": 0,
+        "timeout_s": 300,
+        "duration_s": 0.7,
+        "output_digest": "9dc0e3cdd9dbebc304a49795d0759548a52a38eac137c2a12320a8059b1473b1",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_3d0aeeec4f88/ffaa2c85e2e4/picker-tests-a6da41c5eb70-9dc0e3cdd9dbebc3.log",
+        "output_tail": "<built-in function scandir> when removing /Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_native_flag_stays_active_0:\n<class 'PermissionError'>: [Errno 1] Operation not permitted: '/Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_native_flag_stays_active_0'\n  warnings.warn(\n/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/lib/python3.13/site-packages/_pytest/pathlib.py:96: PytestWarning: (rm_rf) error removing /Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_native_flag_stays_active_0\n<class 'OSError'>: [Errno 66] Directory not empty: '/Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_native_flag_stays_active_0'\n  warnings.warn(\n/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/lib/python3.13/site-packages/_pytest/pathlib.py:103: PytestWarning: (rm_rf) unknown function <built-in function scandir> when removing /Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_creates_dir0/newaudit:\n<class 'PermissionError'>: [Errno 1] Operation not permitted: '/Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_creates_dir0/newaudit'\n  warnings.warn(\n/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/lib/python3.13/site-packages/_pytest/pathlib.py:96: PytestWarning: (rm_rf) error removing /Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_creates_dir0/newaudit\n<class 'OSError'>: [Errno 66] Directory not empty: '/Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_creates_dir0/newaudit'\n  warnings.warn(\n/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/lib/python3.13/site-packages/_pytest/pathlib.py:96: PytestWarning: (rm_rf) error removing /Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_creates_dir0\n<class 'OSError'>: [Errno 66] Directory not empty: '/Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_creates_dir0'\n  warnings.warn(\n/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/lib/python3.13/site-packages/_pytest/pathlib.py:103: PytestWarning: (rm_rf) unknown function <built-in function scandir> when removing /Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_creates_today_file0:\n<class 'PermissionError'>: [Errno 1] Operation not permitted: '/Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_creates_today_file0'\n  warnings.warn(\n/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/lib/python3.13/site-packages/_pytest/pathlib.py:96: PytestWarning: (rm_rf) error removing /Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_creates_today_file0\n<class 'OSError'>: [Errno 66] Directory not empty: '/Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f/test_creates_today_file0'\n  warnings.warn(\n/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/lib/python3.13/site-packages/_pytest/pathlib.py:96: PytestWarning: (rm_rf) error removing /Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f\n<class 'OSError'>: [Errno 66] Directory not empty: '/Volumes/Mini Mini 2T Storage/hot/tmp/pytest-of-phill-mac/garbage-e4bcc4d9-6ec5-4000-a5e5-0bb7126bd24f'\n  warnings.warn("
+      },
+      {
+        "id": "e2e-skip-and-no-raw",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "out=$(\"/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/bin/python\" scripts/account_picker.py --map tests/fixtures/account_picker/map.yaml --log tests/fixtures/account_picker/cooling.jsonl --now 2026-11-05T04:00:00+00:00) && printf '%s' \"$out\" | grep -q '\"pick\": \"macbook\"' && ! printf '%s' \"$out\" | grep -q PLANTED-MARKER",
+        "exit_code": 0,
+        "timeout_s": 120,
+        "duration_s": 0.0,
+        "output_digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_3d0aeeec4f88/ffaa2c85e2e4/e2e-skip-and-no-raw-9420010d069f-e3b0c44298fc1c14.log",
+        "output_tail": ""
+      },
+      {
+        "id": "e2e-unmounted-fails-closed",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "\"/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/bin/python\" scripts/account_picker.py --map tests/fixtures/account_picker/map.yaml --log \"$PWD/.venv/no-such-ssd/headroom/h.jsonl\" > /dev/null; test $? -eq 3",
+        "exit_code": 0,
+        "timeout_s": 120,
+        "duration_s": 0.0,
+        "output_digest": "869492fb83b9ee4a2aafd7d4f7b8a975eba8176d35b27b4f316e46a8ecf92277",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_3d0aeeec4f88/ffaa2c85e2e4/e2e-unmounted-fails-closed-408536b5f5ae-869492fb83b9ee4a.log",
+        "output_tail": "account-picker: UNKNOWN, no pick: HEADROOM log folder missing (ops SSD not mounted?)"
+      },
+      {
+        "id": "repo-lints",
+        "required": true,
+        "evidence": "PROVEN",
+        "recipe": "\"/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/bin/ruff\" check scripts/account_picker.py tests/test_account_picker.py && \"/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/bin/python\" .github/scripts/file_length_lint.py && \"/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.venv/bin/python\" .github/scripts/function_length_lint.py",
+        "exit_code": 0,
+        "timeout_s": 300,
+        "duration_s": 2.7,
+        "output_digest": "91ba1d3f6fa2ad46acc48b09267e136ff6589212091cfe93192c5dac7dad44ae",
+        "output_log": "/Users/phill-mac/.cache/donectl/w_3d0aeeec4f88/ffaa2c85e2e4/repo-lints-0e4a1fdd468a-91ba1d3f6fa2ad46.log",
+        "output_tail": "nk 60 -> 58; lower the baseline (--update)\nwarn  app/server/research_sonar.py::sonar_caller: shrank 44 -> 42; lower the baseline (--update)\nwarn  app/server/routes/health.py::health: shrank 144 -> 140; lower the baseline (--update)\nwarn  app/server/routes/sessions.py::stream_session_logs: shrank 47 -> 45; lower the baseline (--update)\nwarn  app/server/routes/webhooks.py::telegram_webhook: shrank 48 -> 46; lower the baseline (--update)\nwarn  app/server/session_evaluator.py::_run_eval_with_cache: shrank 105 -> 73; lower the baseline (--update)\nwarn  app/server/session_linear.py::_update_linear_state: shrank 94 -> 93; lower the baseline (--update)\nwarn  app/server/session_phases.py::_phase_adversary: shrank 124 -> 118; lower the baseline (--update)\nwarn  app/server/session_phases.py::_phase_evaluate: shrank 250 -> 249; lower the baseline (--update)\nwarn  app/server/session_phases.py::_phase_generate: shrank 84 -> 79; lower the baseline (--update)\nwarn  app/server/session_phases.py::_phase_push: shrank 74 -> 73; lower the baseline (--update)\nwarn  app/server/session_phases.py::run_build: shrank 137 -> 132; lower the baseline (--update)\nwarn  app/server/session_sdk.py::_run_claude_via_sdk: shrank 247 -> 35; lower the baseline (--update)\nwarn  app/server/session_sdk.py::_write_sdk_metric: shrank 43 -> 38; lower the baseline (--update)\nwarn  app/server/sessions.py::create_session: shrank 66 -> 61; lower the baseline (--update)\nwarn  app/server/spec_pipeline/__init__.py::run_pipeline: shrank 244 -> 144; lower the baseline (--update)\nwarn  app/server/spec_pipeline/ship_gate.py::open_pr_and_merge: shrank 54 -> 41; lower the baseline (--update)\nwarn  app/server/tao_loop.py::run_until_done: shrank 123 -> 122; lower the baseline (--update)\nwarn  app/server/workspace_verify.py::run_workspace_checks: shrank 86 -> 29; lower the baseline (--update)\nwarn  scripts/consolidate_anthropic_docs.py::build_output: shrank 68 -> 61; lower the baseline (--update)\nwarn  swarm/bots/cfo.py::request_spend_approval: shrank 47 -> 44; lower the baseline (--update)\nwarn  swarm/bots/chief_of_staff.py::_poll_telegram: shrank 84 -> 72; lower the baseline (--update)\nwarn  swarm/bots/cmo.py::request_adspend_approval: shrank 50 -> 45; lower the baseline (--update)\nwarn  swarm/budget_tracker.py::record_cost: shrank 47 -> 43; lower the baseline (--update)\nwarn  swarm/cfo.py::approve_spend: shrank 62 -> 51; lower the baseline (--update)\nwarn  swarm/cmo.py::approve_adspend: shrank 52 -> 48; lower the baseline (--update)\nwarn  swarm/cs.py::approve_refund: shrank 52 -> 46; lower the baseline (--update)\nwarn  swarm/draft_review.py::post_draft: shrank 142 -> 95; lower the baseline (--update)\nwarn  swarm/kill_switch.py::resume: shrank 50 -> 46; lower the baseline (--update)\nwarn  swarm/kill_switch.py::trigger: shrank 57 -> 37; lower the baseline (--update)\nwarn  swarm/model_router.py::AnthropicProvider.complete: shrank 58 -> 53; lower the baseline (--update)\nwarn  swarm/model_router.py::ModelClient.complete: shrank 45 -> 44; lower the baseline (--update)\nwarn  swarm/model_router.py::OpenRouterProvider.complete: shrank 57 -> 50; lower the baseline (--update)\nwarn  swarm/pii_classify.py::_make_classifier_with_anthropic: shrank 42 -> 40; lower the baseline (--update)\nwarn  tests/test_autonomy_contract.py::test_fetch_todo_issues_filter_requires_status_and_label: shrank 41 -> 36; lower the baseline (--update)\nwarn  tests/test_docs_stale_watchdog_ra7027.py::test_cron_loop_total_failure_no_persistence: shrank 51 -> 49; lower the baseline (--update)\nwarn  tests/test_remotion_one_shot_schema.py::test_one_shot_dry_run_generates_packet_without_tts: shrank 41 -> 39; lower the baseline (--update)\nwarn  tests/test_remotion_workspace_images.py::test_one_shot_accepts_image_provider_and_scene_assets: shrank 46 -> 44; lower the baseline (--update)\nfunction-length gate passed — 14965 functions, 599 grandfathered over 40 lines, 0 new, 0 grown.\n61 function(s) shrank — run --update to ratchet down."
+      }
+    ],
+    "blockers": []
+  }
+}

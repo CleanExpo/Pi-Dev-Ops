@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d6a33ced9439",
+  "contract_digest": "da0399e0444b492811915586dbafce5701133f046055caeb267389cea65f3906",
+  "baseline_head": "f00b4dc6af148b43199607b05797217cab3d4575",
+  "identity_key": "phillmcgurk/ra-8188-headroom-event-logger@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8188/repo/.git",
+  "locked_at_utc": "2026-11-05T03:40:08Z",
+  "criteria_count": 5,
+  "recipe_pins": {}
+}
