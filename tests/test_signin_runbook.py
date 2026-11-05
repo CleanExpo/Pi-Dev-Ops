@@ -104,6 +104,8 @@ def test_w4_codex_credits_line_is_a_sign_in_not_billing(text):
     codex = _provider_block(text, "codex")
     assert "Your workspace is out of credits" in codex
     assert "not billing" in codex.lower()
+    assert "401 Unauthorized" in codex  # codex.unauthorized, RA-8191
+    assert "docs/codex-failover.md" in codex
 
 
 def test_w5_no_shell_block_uses_a_key_or_token_login(text):

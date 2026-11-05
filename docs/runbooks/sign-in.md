@@ -92,7 +92,9 @@ claude auth status --text
 
 Uses your ChatGPT Pro account. Account: the `codex-<machine>` label in `ACCOUNT-MAP`.
 
-If a job stopped on "Your workspace is out of credits", that is a dead Codex login, not billing. Sign in again with this card; nothing needs to be bought.
+If a job stopped on "Your workspace is out of credits", that is a dead Codex login, not billing. Sign in again with this card; nothing needs to be bought. "unexpected status 401 Unauthorized" means the same thing: no valid Codex login.
+
+While the Mini's Codex login is dead, reviews fail over to the MacBook by themselves (`docs/codex-failover.md`). That keeps work moving; it does not sign the Mini back in. Only this card does.
 
 <a id="card-codex-mini"></a>
 
