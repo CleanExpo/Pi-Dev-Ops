@@ -1,0 +1,52 @@
+{
+  "schema": "done/1",
+  "work_id": "w_3f073c055e03",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8191 AR-05: Codex failover - detect Mini Codex review auth failure (no login/logout ever), write HEADROOM auth_expired, run the same review brief on the MacBook bound to the same HEAD",
+  "created_at_utc": "2026-11-05T09:44:14Z",
+  "identity_key": "phillmcgurk/ra-8191-codex-failover@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.git",
+  "baseline_observed": {
+    "head": "7b817bafc107813efc6fea777e67eda9ef626518",
+    "branch": "phillmcgurk/ra-8191-codex-failover",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "detector-tests",
+      "text": "Detector tests pass: missing or non-ChatGPT auth.json, the observed 'ERROR: unexpected status 401 Unauthorized' line and 'workspace is out of credits' with no final model message classify as auth_failed; a run that produced a final message never counts as auth failure even if it quotes those lines; quota lines are not auth failure",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.venv/bin/python\" -m pytest tests/test_codex_failover.py -q -p no:cacheprovider -k detect",
+      "timeout": 300
+    },
+    {
+      "id": "failover-tests",
+      "text": "Failover tests pass: Mini auth failure writes one HEADROOM auth_expired (provider codex, machine mini) and runs the same brief on the MacBook bound to the same HEAD; a HEAD mismatch or ssh failure exits 4 (failover unavailable); MacBook also auth-failed exits 5 and records macbook; a healthy Mini run never touches ssh; a non-auth Mini failure does not fail over",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.venv/bin/python\" -m pytest tests/test_codex_failover.py -q -p no:cacheprovider -k failover",
+      "timeout": 300
+    },
+    {
+      "id": "never-login",
+      "text": "No command the script can issue contains codex login or logout (runtime guard refuses it, and the source has no such argv)",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.venv/bin/python\" -m pytest tests/test_codex_failover.py -q -p no:cacheprovider -k login",
+      "timeout": 300
+    },
+    {
+      "id": "headroom-unchanged",
+      "text": "Existing HEADROOM event tests still pass with the added observed codex 401 pattern",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.venv/bin/python\" -m pytest tests/test_headroom_events.py tests/test_headroom_scan_job.py tests/test_account_picker.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "negative-control-cli",
+      "text": "End-to-end CLI with an empty CODEX_HOME (Mini looks logged out) and an ssh shim that exits 255: exit code 4, and the HEADROOM log holds an auth_expired codex/mini record",
+      "recipe": "d=\"$PWD/.venv/cf-nc\"; rm -rf \"$d\"; mkdir -p \"$d/home\" \"$d/bin\"; printf '#!/bin/sh\\nexit 255\\n' > \"$d/bin/ssh\"; chmod +x \"$d/bin/ssh\"; printf 'brief\\n' > \"$d/brief.md\"; PATH=\"$d/bin:$PATH\" CODEX_HOME=\"$d/home\" HEADROOM_LOG=\"$d/h.jsonl\" \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.venv/bin/python\" scripts/codex_failover.py review --brief \"$d/brief.md\" --out \"$d/out.txt\" --job RA-8191; rc=$?; test $rc -eq 4 && grep -q '\"event\": \"auth_expired\"' \"$d/h.jsonl\" && grep -q '\"machine\": \"mini\"' \"$d/h.jsonl\" && grep -q '\"provider\": \"codex\"' \"$d/h.jsonl\"",
+      "timeout": 300
+    },
+    {
+      "id": "repo-lints",
+      "text": "ruff, file-length and function-length lints pass with the new files",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.venv/bin/ruff\" check scripts/codex_failover.py scripts/headroom_events.py tests/test_codex_failover.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.venv/bin/python\" .github/scripts/file_length_lint.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.venv/bin/python\" .github/scripts/function_length_lint.py",
+      "timeout": 300
+    }
+  ]
+}

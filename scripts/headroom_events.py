@@ -15,6 +15,7 @@ Where each string was seen (5 Nov 2026, emails redacted):
 - claude.login_expired / claude.oauth_expired / claude.org_disabled: ops/SHARED-KNOWLEDGE.md.
 - codex.workspace_credits: an expired Codex OAuth token, NOT a billing fact
   (context-cockpit/references/release-incidents-202608-09.md). Never buy credits on it.
+- codex.unauthorized: `codex exec` with no login on the Mini, 5 Nov 2026 (RA-8191).
 - codex.quota: no live sample found on the Mini, so its events say source=unverified.
 
 Log path: $HEADROOM_LOG, else DEFAULT_LOG (a design default; AR-01's map names none).
@@ -83,6 +84,7 @@ PATTERNS = (
     _p("claude.oauth_expired", "claude", "auth_expired", r"oauth session expired"),
     _p("claude.login_expired", "claude", "auth_expired", r"login expired\b.*please run /login"),
     _p("codex.workspace_credits", "codex", "auth_expired", r"your workspace is out of credits"),
+    _p("codex.unauthorized", "codex", "auth_expired", r"unexpected status 401 unauthorized\b"),
     _p("claude.quota", "claude", "5h_cooling", _QUOTA, quota_=True),
     _p("codex.quota", "codex", "5h_cooling", _QUOTA, "unverified", quota_=True),
 )
