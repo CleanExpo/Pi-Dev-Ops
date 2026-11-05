@@ -8,6 +8,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -58,3 +59,25 @@ def test_committed_map_holds_no_real_addresses():
     data = yaml.safe_load(cam.DEFAULT_PATH.read_text())
     emails = [a["email"] for a in data["accounts"]]
     assert emails and all(e.endswith(".invalid") for e in emails)
+
+
+@pytest.mark.parametrize(
+    "path, value",
+    [
+        (("accounts", 0, "label"), ["a"]),
+        (("accounts", 0, "label"), ""),
+        (("accounts", 0, "machines"), [["mini"]]),
+        (("accounts", 0, "machines"), [{"id": "mini"}]),
+        (("accounts", 0, "provider"), ["claude"]),
+        (("accounts", 0, "email"), ["a@example.com"]),
+    ],
+)
+def test_wrong_types_fail_with_a_rule_not_a_traceback(path, value):
+    """W5.5: a wrong type is a named failure, never a crash and never a pass."""
+    data = _map()
+    node = data
+    for step in path[:-1]:
+        node = node[step]
+    node[path[-1]] = value
+    report = cam.validate(data)
+    assert report.errors, "a wrong type must not pass"
