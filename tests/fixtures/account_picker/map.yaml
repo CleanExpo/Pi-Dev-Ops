@@ -1,0 +1,38 @@
+# Fixture for tests/test_account_picker.py (RA-8189). Same shape as ops/ACCOUNT-MAP.yaml (RA-8187).
+# Emails are on the reserved .invalid domain; the picker must never print them.
+version: 1
+machines:
+  - id: mini
+    host: Phills-Mac-mini
+    notes: Mac mini.
+  - id: macbook
+    host: null
+    notes: MacBook.
+  - id: pc
+    host: null
+    notes: PC, plan undecided.
+accounts:
+  - label: claude-mini
+    provider: claude
+    plan: max
+    email: fixture-mini-seat@pending.invalid
+    machines: [mini]
+    notes: Max seat.
+  - label: claude-macbook
+    provider: claude
+    plan: max
+    email: fixture-macbook-seat@pending.invalid
+    machines: [macbook]
+    notes: Max seat.
+  - label: claude-pc
+    provider: claude
+    plan: null
+    email: fixture-pc-seat@pending.invalid
+    machines: [pc]
+    notes: Plan undecided.
+  - label: codex-mini
+    provider: codex
+    plan: pro
+    email: fixture-codex@pending.invalid
+    machines: [mini]
+    notes: Codex on the Mini only.
