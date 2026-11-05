@@ -1,0 +1,52 @@
+{
+  "schema": "done/1",
+  "work_id": "w_a35681572deb",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8190 AR-04: read-only Ops Board usage board over ACCOUNT-MAP + HEADROOM - one row per account (label, provider, plan, machine pins, state, last event, reset in AEST, active/queued jobs, 7-day job-hours, usage), alerts for mis-pin, two machines sharing one Claude email, and usage over 80% (UNKNOWN when no usage table), fails closed on unreadable map or log, never prints an email or raw log text",
+  "created_at_utc": "2026-11-05T08:42:22Z",
+  "identity_key": "phillmcgurk/ra-8190-ar-04-ops-board-usage-widget@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8190/repo/.git",
+  "baseline_observed": {
+    "head": "7b817bafc107813efc6fea777e67eda9ef626518",
+    "branch": "phillmcgurk/ra-8190-ar-04-ops-board-usage-widget",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "board-tests",
+      "text": "tests/test_account_board.py passes: each state from the ticket list is shown with last event and reset in AEST; active/queued jobs and job-hours come from optional tables and are null (never 0) when absent; mis-pin, shared Claude email and >80% usage alerts fire on planted input and stay quiet on clean input; usage check is UNKNOWN without a usage table; unreadable map exits 2, unmounted log exits 3; no email or planted text reaches output",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8190/repo/.venv/bin/python\" -m pytest tests/test_account_board.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "e2e-alerts-no-email",
+      "text": "CLI on fixtures exits 1 (alerts present), reports shared_claude_email and mis_pin, and neither an email address nor the planted marker appears in JSON or markdown output",
+      "recipe": "out=$(\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8190/repo/.venv/bin/python\" scripts/account_board.py --map tests/fixtures/account_board/map.yaml --log tests/fixtures/account_board/headroom.jsonl --now 2026-11-05T04:00:00+00:00; echo rc=$?) && md=$(\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8190/repo/.venv/bin/python\" scripts/account_board.py --format md --map tests/fixtures/account_board/map.yaml --log tests/fixtures/account_board/headroom.jsonl --now 2026-11-05T04:00:00+00:00) ; printf '%s' \"$out\" | grep -q 'rc=1' && printf '%s' \"$out\" | grep -q shared_claude_email && printf '%s' \"$out\" | grep -q mis_pin && ! printf '%s%s' \"$out\" \"$md\" | grep -q '@' && ! printf '%s%s' \"$out\" \"$md\" | grep -q PLANTED",
+      "timeout": 120
+    },
+    {
+      "id": "e2e-unmounted-fails-closed",
+      "text": "CLI with a log whose folder does not exist exits 3 and prints no board",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8190/repo/.venv/bin/python\" scripts/account_board.py --map tests/fixtures/account_board/map.yaml --log \"$PWD/.venv/no-such-ssd/headroom/h.jsonl\" > .venv/board-out.txt; rc=$?; test $rc -eq 3 && test ! -s .venv/board-out.txt",
+      "timeout": 120
+    },
+    {
+      "id": "e2e-missing-map-fails-closed",
+      "text": "CLI with a missing account map (RA-8187 not landed) exits 2",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8190/repo/.venv/bin/python\" scripts/account_board.py --map \"$PWD/.venv/no-such/ACCOUNT-MAP.yaml\" --log tests/fixtures/account_board/headroom.jsonl > /dev/null; test $? -eq 2",
+      "timeout": 120
+    },
+    {
+      "id": "picker-unchanged",
+      "text": "the AR-03 picker tests still pass (shared helpers reused, not changed)",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8190/repo/.venv/bin/python\" -m pytest tests/test_account_picker.py tests/test_account_picker_edges.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "repo-lints",
+      "text": "ruff, file-length and function-length lints pass with the new files",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8190/repo/.venv/bin/ruff\" check scripts/account_board.py tests/test_account_board.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8190/repo/.venv/bin/python\" .github/scripts/file_length_lint.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8190/repo/.venv/bin/python\" .github/scripts/function_length_lint.py",
+      "timeout": 300
+    }
+  ]
+}

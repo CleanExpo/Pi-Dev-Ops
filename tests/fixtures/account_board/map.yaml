@@ -1,0 +1,27 @@
+# Fixture for tests/test_account_board.py (RA-8190). Same shape as ops/ACCOUNT-MAP.yaml (RA-8187).
+# Emails are on the reserved .invalid domain and carry a planted marker; the board must never print them.
+# Planted faults: claude-mini and claude-macbook share one email (case differs); pc has no Claude pin.
+version: 1
+machines:
+  - id: mini
+    host: Phills-Mac-mini
+  - id: macbook
+    host: null
+  - id: pc
+    host: null
+accounts:
+  - label: claude-mini
+    provider: claude
+    plan: max
+    email: PLANTED-shared-seat@pending.invalid
+    machines: [mini]
+  - label: claude-macbook
+    provider: claude
+    plan: max
+    email: planted-shared-seat@pending.invalid
+    machines: [macbook]
+  - label: codex-mini
+    provider: codex
+    plan: pro
+    email: PLANTED-codex@pending.invalid
+    machines: [mini]
