@@ -42,10 +42,18 @@ def quota_reset(text: str, now: float) -> Optional[float]:
     A quota message whose reset cannot be read holds for DEFAULT_HOLD_S. Pure."""
     if not text or not _LIMIT.search(text):
         return None
-    epoch = _EPOCH.search(text)
-    when = float(epoch.group(1)) if epoch else _parse_reset(text, now)
+    when = read_reset(text, now)
+    return now + DEFAULT_HOLD_S if when is None else when
+
+
+def read_reset(text: str, now: float) -> Optional[float]:
+    """The reset `text` prints (epoch seconds), or None when it prints none we can read.
+
+    Unlike quota_reset there is no default hold: None means "not printed". Pure."""
+    epoch = _EPOCH.search(text or "")
+    when = float(epoch.group(1)) if epoch else _parse_reset(text or "", now)
     if when is None or when > now + MAX_HOLD_S:
-        return now + DEFAULT_HOLD_S
+        return None
     return when
 
 

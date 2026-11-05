@@ -1,0 +1,46 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d6a33ced9439",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8188 AR-02: HEADROOM event logger - known Claude/Codex/Cursor limit strings to append-only JSONL events on the Mini ops SSD, no secrets, plus a never-failing job-wrapper helper",
+  "created_at_utc": "2026-11-05T03:39:57Z",
+  "identity_key": "phillmcgurk/ra-8188-headroom-event-logger@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8188/repo/.git",
+  "baseline_observed": {
+    "head": "f00b4dc6af148b43199607b05797217cab3d4575",
+    "branch": "phillmcgurk/ra-8188-headroom-event-logger",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "parser-tests",
+      "text": "tests/test_headroom_events.py passes: every observed string maps to its event (5h_cooling, weekly_cooling, auth_expired, billing_blocked, on_demand_capped), Codex 'workspace is out of credits' maps to auth_expired, quoted strings mid-sentence or in a clean Claude exit do not fire, and each rule was watched failing first",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8188/repo/.venv/bin/python\" -m pytest tests/test_headroom_events.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "writer-and-wrapper-tests",
+      "text": "tests/test_headroom_scan_job.py passes: JSONL is append-only with a fixed key set and no raw text (a planted marker never reaches the file), an unmounted log volume exits non-zero from the CLI, and the wrapper helper never fails the job",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8188/repo/.venv/bin/python\" -m pytest tests/test_headroom_scan_job.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "quota-unchanged",
+      "text": "Existing mesh quota tests still pass after the shared reset reader is exposed",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8188/repo/.venv/bin/python\" -m pytest tests/test_mesh_quota_hold.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "negative-control-no-raw",
+      "text": "CLI on a fixture with a planted marker writes an event whose JSON has none of the marker text (negative control run end-to-end)",
+      "recipe": "d=\"$PWD/.venv/hr-nc\"; rm -rf \"$d\"; mkdir -p \"$d\"; HEADROOM_LOG=\"$d/h.jsonl\" \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8188/repo/.venv/bin/python\" scripts/headroom_events.py scan tests/fixtures/headroom/planted_marker.txt --provider claude --machine mini --exit-code 1 && test -s \"$d/h.jsonl\" && ! grep -q do-not-log \"$d/h.jsonl\"",
+      "timeout": 120
+    },
+    {
+      "id": "repo-lints",
+      "text": "ruff, file-length and function-length lints pass with the new files",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8188/repo/.venv/bin/ruff\" check scripts/headroom_events.py tests/test_headroom_events.py tests/test_headroom_scan_job.py mesh/quota.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8188/repo/.venv/bin/python\" .github/scripts/file_length_lint.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8188/repo/.venv/bin/python\" .github/scripts/function_length_lint.py",
+      "timeout": 300
+    }
+  ]
+}
