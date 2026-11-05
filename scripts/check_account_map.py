@@ -246,8 +246,8 @@ def _load(path: Path, report: Report):
         data = yaml.load(text, Loader=UniqueKeyLoader)  # noqa: S506 - SafeLoader subclass
     except DuplicateKeyError as exc:
         report.error("DUPLICATE_KEY", f"{path}: {exc}; the earlier value would be hidden")
-    except OSError as exc:
-        report.error("FILE", f"cannot read {path}: {exc.strerror or exc}")
+    except (OSError, UnicodeDecodeError) as exc:
+        report.error("FILE", f"cannot read {path}: {getattr(exc, 'strerror', None) or exc}")
     except yaml.YAMLError as exc:
         mark = getattr(exc, "problem_mark", None)
         at = f" near line {mark.line + 1}" if mark else ""
