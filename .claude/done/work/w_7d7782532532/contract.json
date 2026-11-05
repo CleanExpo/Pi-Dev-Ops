@@ -1,0 +1,52 @@
+{
+  "schema": "done/1",
+  "work_id": "w_7d7782532532",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8187 AR-01: ops/ACCOUNT-MAP.yaml schema plus read-only validator (emails only), wired into CI and handoff-loop",
+  "created_at_utc": "2026-11-05T02:36:06Z",
+  "identity_key": "phillmcgurk/ra-8187-account-map-validator@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.git",
+  "baseline_observed": {
+    "head": "f00b4dc6af148b43199607b05797217cab3d4575",
+    "branch": "phillmcgurk/ra-8187-account-map-validator",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "unit-tests",
+      "text": "tests/test_check_account_map.py passes: every rule (secret field, secret-looking value, one Claude pin per machine, shared Claude email, unknown machine, bad provider, bad email, unknown key, pending placeholders) has a test that fails without it",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" -m pytest tests/test_check_account_map.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "committed-map-valid",
+      "text": "The committed ops/ACCOUNT-MAP.yaml passes its own validator (exit 0) and reports its placeholder emails as pending, not live",
+      "recipe": "out=$(\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" scripts/check_account_map.py 2>&1); rc=$?; echo \"$out\"; test $rc -eq 0 && echo \"$out\" | grep -q PENDING",
+      "timeout": 120
+    },
+    {
+      "id": "negative-control-secret",
+      "text": "Validator exits 1 with rule SECRET_FIELD on a map that plants a token field (negative control)",
+      "recipe": "out=$(\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" scripts/check_account_map.py --path tests/fixtures/account_map/planted_secret.yaml 2>&1); rc=$?; echo \"$out\"; test $rc -eq 1 && echo \"$out\" | grep -q SECRET_FIELD",
+      "timeout": 120
+    },
+    {
+      "id": "negative-control-shared",
+      "text": "Validator exits 1 with rule SHARED_CLAUDE_EMAIL when two machines share one Claude email (negative control)",
+      "recipe": "out=$(\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" scripts/check_account_map.py --path tests/fixtures/account_map/shared_claude_email.yaml 2>&1); rc=$?; echo \"$out\"; test $rc -eq 1 && echo \"$out\" | grep -q SHARED_CLAUDE_EMAIL",
+      "timeout": 120
+    },
+    {
+      "id": "ci-and-local-gate-wired",
+      "text": "ci.yml runs the validator, handoff-loop.sh has an account-map gate, and the gate-parity lint passes",
+      "recipe": "grep -q 'scripts/check_account_map.py' .github/workflows/ci.yml && grep -q 'account-map' scripts/handoff-loop.sh && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" .github/scripts/gate_parity_lint.py",
+      "timeout": 120
+    },
+    {
+      "id": "repo-lints",
+      "text": "File-length and function-length lints pass with the new files",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" .github/scripts/file_length_lint.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" .github/scripts/function_length_lint.py",
+      "timeout": 300
+    }
+  ]
+}
