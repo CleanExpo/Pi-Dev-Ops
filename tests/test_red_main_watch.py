@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import shlex
 import stat
 import sys
 from pathlib import Path
@@ -53,9 +54,8 @@ def fake_gh(tmp_path, monkeypatch, table: dict):
     """A gh stand-in: the first table key found in the joined args selects the reply (None = empty output)."""
     data = tmp_path / "gh.json"
     data.write_text(json.dumps(table))
-    script = tmp_path / "gh"
-    script.write_text(f"""#!{sys.executable}
-import json, sys
+    body = tmp_path / "gh.py"
+    body.write_text(f"""import json, sys
 args = " ".join(sys.argv[1:])
 for k, v in json.load(open({str(data)!r})).items():
     if k in args:
@@ -66,6 +66,10 @@ for k, v in json.load(open({str(data)!r})).items():
         print(json.dumps(v)); sys.exit(0)
 sys.stderr.write("HTTP 404: Not Found\\n"); sys.exit(1)
 """)
+    # A shell wrapper, not a `#!python` shebang: a shebang cannot carry an interpreter
+    # path with spaces (the CI mirror's venv lives under "Mini Mini 2T Storage").
+    script = tmp_path / "gh"
+    script.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(body))} "$@"\n')
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
     monkeypatch.setenv("RED_MAIN_GH", str(script))
 
