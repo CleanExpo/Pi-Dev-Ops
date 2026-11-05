@@ -94,7 +94,10 @@ video content to start working from.. Continue learning, testing and updating fr
 Blender 4.5 LTS lives at `~/Applications/Blender.app` on the MacBook (not `/Applications`). The
 Mini has Blender 5.2.2 LTS at `/Applications/Blender.app` (checked 01/11/2026), so inserts can
 render there too. `|` splits lines. Text is fitted to 80% of frame width. Use each brand's own
-colours. Look at a frame of every insert before it goes into the cut.
+colours. The script is `scripts/blender_title.py` in this skill. Its default frame is 2160×3840.
+Pass `--width 2160 --height 2160` for a square insert, or `--width 3840 --height 2160` for
+widescreen. Do not render the insert at 1080 and scale it up. Look at a frame of every insert
+before it goes into the cut.
 
 ## Gate (step 9)
 
