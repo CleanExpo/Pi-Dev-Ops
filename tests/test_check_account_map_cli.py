@@ -81,3 +81,41 @@ def test_wrong_types_fail_with_a_rule_not_a_traceback(path, value):
     node[path[-1]] = value
     report = cam.validate(data)
     assert report.errors, "a wrong type must not pass"
+
+
+@pytest.mark.parametrize(
+    "where, field",
+    [("accounts", "plan"), ("accounts", "notes"), ("machines", "host"), ("machines", "notes")],
+)
+def test_credential_key_nested_inside_an_allowed_field_is_rejected(where, field):
+    """W1.4: a credential-named key hidden one level down (notes: {token: ...}) still fails."""
+    data = _map()
+    data[where][0][field] = {"api_key": "not-a-real-value"}
+    rules = {f.rule for f in cam.validate(data).errors}
+    assert "SECRET_FIELD" in rules
+
+
+@pytest.mark.parametrize(
+    "where, field, value",
+    [
+        ("machines", "host", ["bad"]),
+        ("machines", "notes", {"a": "b"}),
+        ("accounts", "plan", ["max"]),
+        ("accounts", "notes", 5),
+    ],
+)
+def test_text_fields_must_be_text_or_null(where, field, value):
+    """W4.1: host, plan and notes are plain text (or null); other shapes are SCHEMA errors."""
+    data = _map()
+    data[where][0][field] = value
+    assert "SCHEMA" in {f.rule for f in cam.validate(data).errors}
+
+
+def test_cli_nested_secret_fails(tmp_path, capsys):
+    """W1.4: the CLI path (what CI runs) fails on the nested plant too."""
+    data = _map()
+    data["accounts"][0]["notes"] = {"token": "not-a-real-value"}
+    path = tmp_path / "nested.yaml"
+    path.write_text(yaml.safe_dump(data))
+    assert cam.main(["--path", str(path)]) == 1
+    assert "SECRET_FIELD" in capsys.readouterr().out

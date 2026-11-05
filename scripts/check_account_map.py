@@ -87,20 +87,28 @@ class Report:
 
 
 def _scan_keys(node, where: str, allowed: set, report: Report) -> None:
-    """Flag secret-named keys first, then keys outside the allowlist."""
+    """Flag keys outside the allowlist. Secret-named keys are flagged by _scan_values."""
     for key in node:
         name = str(key)
-        if _SECRET_NAME.search(name):
-            report.error("SECRET_FIELD", f"{where}: key '{name}' looks like a credential; "
-                         "the map holds emails only")
-        elif name not in allowed:
+        if name not in allowed and not _SECRET_NAME.search(name):
             report.error("UNKNOWN_KEY", f"{where}: key '{name}' is not part of the schema")
 
 
+def _check_text(node: dict, keys: tuple, where: str, report: Report) -> None:
+    """Free-text fields hold a string or null, never a nested structure or a number."""
+    for key in keys:
+        if key in node and node[key] is not None and not isinstance(node[key], str):
+            report.error("SCHEMA", f"{where}: '{key}' must be text or null, "
+                         f"got {type(node[key]).__name__}")
+
+
 def _scan_values(node, where: str, report: Report) -> None:
-    """Flag any string value, at any depth, that looks like a pasted credential."""
+    """At any depth, flag secret-named keys and string values that look like credentials."""
     if isinstance(node, dict):
         for key, value in node.items():
+            if _SECRET_NAME.search(str(key)):
+                report.error("SECRET_FIELD", f"{where}: key '{key}' looks like a credential; "
+                             "the map holds emails only")
             _scan_values(value, f"{where}.{key}", report)
     elif isinstance(node, list):
         for i, value in enumerate(node):
@@ -119,6 +127,7 @@ def _check_machines(machines, report: Report) -> list:
             report.error("SCHEMA", f"{where}: each machine needs a non-empty string 'id'")
             continue
         _scan_keys(machine, where, MACHINE_KEYS, report)
+        _check_text(machine, ("host", "notes"), where, report)
         if machine["id"] in ids:
             report.error("DUPLICATE_MACHINE", f"{where}: machine id '{machine['id']}' repeats")
         ids.append(machine["id"])
@@ -136,6 +145,7 @@ def _check_account(account, where: str, machine_ids: list, labels: set, report: 
         report.error("SCHEMA", f"{where}: each account must be a mapping")
         return False
     _scan_keys(account, where, ACCOUNT_KEYS, report)
+    _check_text(account, ("plan", "notes"), where, report)
     missing = [k for k in REQUIRED_ACCOUNT_KEYS if k not in account]
     for key in missing:
         report.error("MISSING_FIELD", f"{where}: required field '{key}' is missing")
