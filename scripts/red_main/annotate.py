@@ -19,6 +19,7 @@ from red_main.board import live_red_cards
 
 FLAGGED = re.compile(r"^(RED|AMBER)\b")
 END_MARKER = "# END FACTS"
+TAG = re.compile(r"\s*\[owner: [^\]]*\]\s*$")
 OWNERLESS = {None, "", "Guardian watcher", "fleet watcher"}
 
 
@@ -38,14 +39,18 @@ def tag(line: str, owner: str | None, age: int | None) -> str:
     return f"{line.rstrip()} [owner: {owner or 'NONE'}; age: {'?' if age is None else age}m]"
 
 
-def red_main_lines(d: dict, at: datetime.datetime) -> list[str]:
-    out = []
+def _red_main_rows(d: dict) -> list[tuple[str, dict]]:
+    """(untagged line, card) for every live red-main card."""
+    rows = []
     for c in live_red_cards(d):
         names = ", ".join(str(r.get("name")) for r in (c.get("failing") or [])[:3])
         extra = f"; {c['pr_overdue']}" if c.get("pr_overdue") else ""
-        line = f"RED {c.get('repo')} {c.get('branch')} red since {c.get('red_since')} ({names}){extra}"
-        out.append(tag(line, owner_of(c), minutes_since(c.get("red_since"), at)))
-    return out
+        rows.append((f"RED {c.get('repo')} {c.get('branch')} red since {c.get('red_since')} ({names}){extra}", c))
+    return rows
+
+
+def red_main_lines(d: dict, at: datetime.datetime) -> list[str]:
+    return [tag(line, owner_of(c), minutes_since(c.get("red_since"), at)) for line, c in _red_main_rows(d)]
 
 
 def _escalate(d: dict, k: str, line: str, at: datetime.datetime, old: dict | None) -> dict:
@@ -66,9 +71,15 @@ def annotate(lines: list[str], d: dict, seen: dict, at: datetime.datetime) -> tu
     """(output lines, new first-seen map, board changed)."""
     cards = {j.get("watch_key"): j for j in d.get("jobs", []) if isinstance(j, dict) and j.get("watch_key")}
     out, now_seen, changed = red_main_lines(d, at), {}, False
-    for line in lines:
-        if not FLAGGED.match(line) or "[owner:" in line:
-            out.append(line.rstrip("\n"))
+    own = {line for line, _ in _red_main_rows(d)}
+    for raw in lines:
+        # Review r3: an already-annotated line (a retry feeding output back in) is the same
+        # problem: strip its tag and key it again, or its live card would read as cleared.
+        line = TAG.sub("", raw.rstrip("\n"))
+        if line in own:
+            continue   # this watcher's own red-main line echoed back; printed above already
+        if not FLAGGED.match(line):
+            out.append(raw.rstrip("\n"))
             continue
         k = key(line)
         now_seen[k] = seen.get(k) or stamp(at)

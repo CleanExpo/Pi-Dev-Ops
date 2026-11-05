@@ -148,6 +148,21 @@ def test_partial_read_keeps_other_watch_cards_and_their_age(ops):
     assert seen2[annotate.key(b)] == seen[annotate.key(b)]
 
 
+def test_retry_with_annotated_output_keeps_cards(ops):
+    """Review r3 P1: feeding annotated output back in closed the line's live W-WATCH card."""
+    d = json.loads(ops.read_text())
+    board.reconcile(d, {REPO: RED}, T0)
+    later = T0 + datetime.timedelta(minutes=31)
+    first = ["AMBER runner idle", annotate.END_MARKER]
+    out, seen, _ = annotate.annotate(first, d, {annotate.key("AMBER runner idle"): annotate.stamp(T0)}, later)
+    card = next(j for j in d["jobs"] if j["id"].startswith("W-WATCH-"))
+    again, seen2, _ = annotate.annotate(out, d, seen, later)
+    assert card["status"] == "open" and seen2 == seen
+    assert sum(1 for x in again if x.startswith("RED CleanExpo/CARSI")) == 1   # own line not doubled
+    assert sum(1 for x in again if x.startswith("AMBER runner idle [owner:")) == 1
+    assert not any(j["id"].startswith("W-WATCH-") and j is not card for j in d["jobs"])
+
+
 def test_cli_annotate_park_claim(ops, monkeypatch, capsys):
     import red_main_watch as cli
     store.update_jobs(lambda d: d["jobs"].append({"id": "GP-675", "status": "doing"}) or True)
