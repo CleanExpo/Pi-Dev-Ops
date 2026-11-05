@@ -23,22 +23,23 @@ STATUS_CMD = {"claude": "claude auth status", "codex": "codex login status", "cu
 LOGIN_CMD = {"claude": "claude auth login", "codex": "codex login", "cursor": "agent login"}
 # Flags that turn a subscription sign-in into an API-key, token or metered login.
 BANNED_IN_SHELL = re.compile(r"--with-api-key|--with-access-token|--console\b|_API_KEY\b|ACCESS_TOKEN\b")
-# A sign-in or sign-out command, as shell text or as split argv (["codex", "login"]),
-# on one line or across lines. `codex login status` is a read-only check, not a login.
+# A sign-in or sign-out command, as shell text, split argv (["codex", "login"]) or
+# PowerShell (Start-Process, arrays, any parameter order), on one line or across lines.
+# Brackets, quotes, commas and @ are blanked first (same length, so line numbers hold),
+# which turns every argv and array spelling into plain words. `login status` is a
+# read-only check, not a login.
 # Limit: this is a text scan of literal command words. A call assembled at run time
-# (string joins, variables) is out of its reach; review is the control for that.
-_Q = r"""["']"""
-_SEP = r"""["']\s*,\s*\[?\s*["']"""
-LOGIN_CALL = re.compile(
-    r"\bclaude\s+auth\s+log(?:in|out)\b|\bcodex\s+log(?:in(?!\s+status)|out)\b"
-    r"|\b(?:cursor-)?agent\s+log(?:in|out)\b"
-    rf"|{_Q}claude{_SEP}auth{_SEP}log(?:in|out){_Q}"
-    rf"|{_Q}codex{_SEP}log(?:out{_Q}|in{_Q}(?!\s*,\s*{_Q}status{_Q}))"
-    rf"|{_Q}(?:cursor-)?agent{_SEP}log(?:in|out){_Q}"
-    rf"|{_Q}/log(?:in|out){_Q}"
-    # PowerShell: Start-Process [-FilePath] <cli> [-ArgumentList] [auth,] login|logout
-    r"""|(?i:\bStart-Process\s+(?:-FilePath\s+)?["']?(?:claude|codex|(?:cursor-)?agent)(?:\.exe)?["']?"""
-    r"""\s+(?:-ArgumentList\s+)?["']?(?:auth["']?\s*,?\s*["']?)?log(?:in|out)\b(?!["']?\s*,?\s*["']?status))""")
+# (string joins, variables, splatting) is out of its reach; review is the control for that.
+_PUNCT = str.maketrans({c: " " for c in "@()[],\"'"})
+_CLI = r"(?:claude|codex|(?:cursor-)?agent)(?:\.exe)?"
+_LOG = r"/?log(?:in|out)\b(?!\s+status\b)"
+# CLI word, any run of flags (-p, -ArgumentList, -Args, --x), optional `auth`, login/logout.
+LOGIN_CALL = re.compile(rf"(?<![\w.-]){_CLI}\s+(?:--?[A-Za-z][\w-]*\s+)*(?:auth\s+)?{_LOG}")
+# A quoted "/login" anywhere (a slash command passed to claude in an argv).
+SLASH_LOGIN = re.compile(r"""["']/log(?:in|out)["']""")
+START_PROCESS = re.compile(r"(?i)\bStart-Process\b")
+SP_CLI = re.compile(rf"(?<![\w.-]){_CLI}(?![\w-])")
+SP_LOG = re.compile(rf"(?<![\w.-]){_LOG}")
 # Every tracked code file except tests (which plant calls on purpose) and vendored code.
 SKIP_PREFIXES = ("tests/", "vendor/")
 CODE_SUFFIXES = {".py", ".sh", ".bash", ".zsh", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".ps1", ".cmd", ".bat"}
@@ -131,10 +132,36 @@ def test_w5_no_shell_block_uses_a_key_or_token_login(text):
         assert not BANNED_IN_SHELL.search(block), block
 
 
+def _statement_end(source: str, i: int) -> int:
+    """End of the PowerShell statement starting at i: a newline or ; outside brackets,
+    where a backtick before the newline continues the line."""
+    depth = 0
+    while i < len(source):
+        c = source[i]
+        if c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth = max(0, depth - 1)
+        elif c == "`" and source[i + 1: i + 2] in ("\n", "\r"):
+            i += 2
+            continue
+        elif depth == 0 and c in ";\n":
+            break
+        i += 1
+    return i
+
+
 def _login_hits(source: str) -> list[int]:
-    """Line numbers where a sign-in call starts. Whole-text search, so argv split
-    across lines still matches (the separators allow newlines)."""
-    return [source.count("\n", 0, m.start()) + 1 for m in LOGIN_CALL.finditer(source)]
+    """Line numbers where a sign-in call starts. Whole-text search over normalised text,
+    so argv split across lines and PowerShell parameters in any order still match."""
+    norm = source.translate(_PUNCT)
+    starts = {m.start() for m in LOGIN_CALL.finditer(norm)}
+    starts |= {m.start() for m in SLASH_LOGIN.finditer(source)}
+    for m in START_PROCESS.finditer(source):
+        stmt = norm[m.end(): _statement_end(source, m.end())]
+        if SP_CLI.search(stmt) and SP_LOG.search(stmt):
+            starts.add(m.start())
+    return sorted({source.count("\n", 0, s) + 1 for s in starts})
 
 
 def _tracked_code_files() -> list[Path]:
@@ -151,12 +178,23 @@ def test_w5_login_pattern_catches_real_calls():
                  'execFile("agent", [ "logout" ])', 'cmd = ["claude", "-p", "/login"]',
                  "Start-Process codex -ArgumentList login",
                  "Start-Process -FilePath 'claude.exe' -ArgumentList 'auth','login'",
-                 'Start-Process "cursor-agent" -ArgumentList "logout"'):
-        assert LOGIN_CALL.search(call), call
+                 'Start-Process "cursor-agent" -ArgumentList "logout"',
+                 # Round 4: PowerShell array arguments, aliases and reordered parameters.
+                 "Start-Process codex -ArgumentList @('login')",
+                 'Start-Process -FilePath claude.exe -ArgumentList @("auth","login")',
+                 "Start-Process codex -Args @('logout') -Wait",
+                 "Start-Process -ArgumentList login -FilePath codex",
+                 "Start-Process -ArgumentList @(\n    'login'\n) -FilePath 'codex.exe'",
+                 "Start-Process `\n  -FilePath agent `\n  -ArgumentList 'login'",
+                 "& codex.exe @('login')"):
+        assert _login_hits(call), call
     for safe in ("codex login status", '["codex", "login", "status"]',
                  "Start-Process codex -ArgumentList 'login','status'",
+                 "Start-Process codex -ArgumentList @('login','status')",
+                 "Start-Process -ArgumentList @('login', 'status') -FilePath codex",
+                 "Start-Process codex -ArgumentList exec\nWrite-Host 'login done'",
                  'r"login expired\\b.*please run /login"'):
-        assert not LOGIN_CALL.search(safe), safe
+        assert not _login_hits(safe), safe
 
 
 def test_w5_scan_catches_a_call_split_across_lines():
