@@ -11,8 +11,8 @@ It only chooses. It never claims a job, signs in or out, switches accounts, read
 | Pin | A machine needs exactly one account for the provider in the map. None or two: skipped. |
 | Skip | A machine is skipped while a HEADROOM event holds it: `5h_cooling`, `weekly_cooling`, `auth_expired`, `billing_blocked`, and `on_demand_capped` (paid overflow needs Phill's GO). |
 | Hold ends | `5h_cooling` and `weekly_cooling` hold until the printed `reset_at` (if it is within 8 days). With no reset: 5 hours, 24 hours. `auth_expired`, `billing_blocked`, `on_demand_capped` need a person and are retried at most once per 12 hours. The longest hold wins. |
-| Prefer | Max seat first, then "green" (no limit event in 7 days) before "recovered", then fewest job-hours, then longest since its last limit event. |
-| Evenness | Each Max seat within ±20% of the Max seats' mean job-hours. With no job-hours table, or one missing a Max seat, evenness is `UNKNOWN`, never even. |
+| Prefer | Max seat first, then "green" (no limit event in 7 days) before "recovered", then fewest job-hours (a machine missing from the job-hours table is unknown, shown as `null`, and ranks after machines with known hours), then longest since its last limit event. |
+| Evenness | Each Max seat within ±20% of the Max seats' mean job-hours. With no job-hours table, or one missing a Max seat, evenness is `UNKNOWN`, never even. The ±20% check uses the exact deviation; only the printed `spread` is rounded. |
 
 ## Exit codes
 
@@ -20,10 +20,10 @@ It only chooses. It never claims a job, signs in or out, switches accounts, read
 |---|---|
 | 0 | picked a machine (`"pick"`) |
 | 1 | nothing eligible (every candidate skipped) |
-| 2 | map, job-hours table or arguments unusable |
-| 3 | HEADROOM log unreadable or its folder is missing (ops SSD not mounted): UNKNOWN, no pick |
+| 2 | map, job-hours table or arguments unusable (including a repeated key in the map, or job-hours too large to add up) |
+| 3 | HEADROOM log unreadable, its folder is missing (ops SSD not mounted), or it is a link whose target is missing: UNKNOWN, no pick |
 
-A mounted log folder with no file yet is a real "no events" and prints `"log": {"status": "absent"}`. Lines that are not valid `headroom/1` records are counted in `"malformed"` and never trusted.
+A mounted log folder with no file yet is a real "no events" and prints `"log": {"status": "absent"}`. Lines that are not valid `headroom/1` records are counted in `"malformed"` and never trusted. An empty `--machines` list (in code, `candidates=[]`) picks nothing; only leaving it out means every mapped machine.
 
 ## Use
 

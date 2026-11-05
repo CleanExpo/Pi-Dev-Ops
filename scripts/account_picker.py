@@ -52,7 +52,17 @@ class LogUnknown(Exception):
     """The HEADROOM log could not be read; its state is unknown (exit 3)."""
 
 
-def _when(value) -> Optional[float]:
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """SafeLoader that refuses a repeated mapping key instead of keeping the last one."""
+
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict:
+        keys = [self.construct_object(k, deep=deep) for k, _ in node.value]
+        if len(keys) != len({repr(k) for k in keys}):
+            raise yaml.constructor.ConstructorError(None, None, "duplicate key", node.start_mark)
+        return super().construct_mapping(node, deep=deep)
+
+
+def _when(value: object) -> Optional[float]:
     try:
         dt = datetime.fromisoformat(value)
     except (TypeError, ValueError):
@@ -67,10 +77,10 @@ def _iso(epoch: float) -> str:
         return "far-future"
 
 
-def load_map(path) -> dict:
+def load_map(path: str | Path) -> dict:
     """Machine ids and, per account, provider / Max flag / machines. Emails are dropped."""
     try:
-        doc = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+        doc = yaml.load(Path(path).read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)  # noqa: S506
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         raise InputError(f"account map unreadable: {type(exc).__name__}") from None
     if not isinstance(doc, dict) or not isinstance(doc.get("machines"), list) \
@@ -89,7 +99,7 @@ def load_map(path) -> dict:
     return {"machines": machines, "accounts": accounts}
 
 
-def _valid(r) -> bool:
+def _valid(r: object) -> bool:
     return (isinstance(r, dict) and r.get("schema") == SCHEMA
             and isinstance(r.get("event"), str) and r["event"] in FALLBACK_HOLD_S
             and isinstance(r.get("machine"), str) and isinstance(r.get("provider"), str)
@@ -97,12 +107,14 @@ def _valid(r) -> bool:
             and (r.get("reset_at") is None or _when(r.get("reset_at")) is not None))
 
 
-def read_log(path) -> dict:
+def read_log(path: str | Path) -> dict:
     """Valid records and a count of lines that could not be trusted. Unreadable: LogUnknown."""
     path = Path(path)
     if not path.parent.is_dir():
         raise LogUnknown("HEADROOM log folder missing (ops SSD not mounted?)")
     if not path.exists():
+        if path.is_symlink():  # a link whose target is gone is unreadable, not an empty night
+            raise LogUnknown("HEADROOM log symlink target missing (ops SSD not mounted?)")
         return {"status": "absent", "events": [], "malformed": 0}
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -144,8 +156,9 @@ def evenness(hours: Optional[dict], tolerance: float = TOLERANCE) -> dict:
     if not hours:
         return {"status": "UNKNOWN", "reason": "no job-hours for the Max seats"}
     mean = sum(hours.values()) / len(hours)
-    spread = {m: round((h - mean) / mean, 3) if mean else 0.0 for m, h in hours.items()}
-    even = all(abs(s) <= tolerance for s in spread.values())
+    raw = {m: (h - mean) / mean if mean else 0.0 for m, h in hours.items()}
+    even = all(abs(d) <= tolerance for d in raw.values())  # compare before rounding
+    spread = {m: round(d, 3) for m, d in raw.items()}
     return {"status": "even" if even else "uneven", "tolerance": tolerance,
             "mean": round(mean, 3), "spread": spread}
 
@@ -154,12 +167,15 @@ def _pins(amap: dict, machine: str, provider: str) -> list:
     return [a for a in amap["accounts"] if a["provider"] == provider and machine in a["machines"]]
 
 
-def _sort_key(row: dict, now: float):
+def _sort_key(row: dict, now: float) -> tuple:
     age = now - row["last"] if row["last"] is not None else float("inf")
-    return (not row["max"], row["state"] != "green", row["job_hours"], -age, row["machine"])
+    # A machine missing from the job-hours table is unknown, not zero: it ranks after known ones.
+    hours = row["job_hours"] if row["job_hours"] is not None else float("inf")
+    return (not row["max"], row["state"] != "green", hours, -age, row["machine"])
 
 
-def _rank(amap, events, provider, now, candidates, hours) -> tuple[list, list]:
+def _rank(amap: dict, events: list, provider: str, now: float, candidates: list,
+          hours: Optional[dict]) -> tuple[list, list]:
     ranked, skipped = [], []
     for m in candidates:
         pins = _pins(amap, m, provider)
@@ -173,7 +189,7 @@ def _rank(amap, events, provider, now, candidates, hours) -> tuple[list, list]:
             continue
         ranked.append({"machine": m, "max": pins[0]["max"], "last": st["last"],
                        "state": "recovered" if st["recent"] else "green",
-                       "job_hours": float((hours or {}).get(m, 0.0))})
+                       "job_hours": float(hours[m]) if hours and m in hours else None})
     ranked.sort(key=lambda row: _sort_key(row, now))
     return ranked, skipped
 
@@ -181,7 +197,7 @@ def _rank(amap, events, provider, now, candidates, hours) -> tuple[list, list]:
 def pick(amap: dict, events: list, *, provider: str, now: float,
          candidates: Optional[list] = None, job_hours: Optional[dict] = None) -> dict:
     """The machine for the next `provider` job, why the others were skipped, and evenness."""
-    candidates = list(candidates or amap["machines"])
+    candidates = list(amap["machines"] if candidates is None else candidates)
     unknown = [m for m in candidates if m not in amap["machines"]]
     if unknown:
         raise InputError(f"{len(unknown)} candidate machine(s) not in the account map")
@@ -194,21 +210,25 @@ def pick(amap: dict, events: list, *, provider: str, now: float,
             "skipped": skipped, "evenness": even}
 
 
-def _load_hours(path) -> Optional[dict]:
+def _load_hours(path: Optional[str]) -> Optional[dict]:
     if path is None:
         return None
     try:
         doc = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise InputError(f"job-hours table unreadable: {type(exc).__name__}") from None
-    ok = isinstance(doc, dict) and all(isinstance(v, (int, float)) and not isinstance(v, bool)
-                                       and math.isfinite(v) and v >= 0 for v in doc.values())
+    try:  # math.isfinite raises OverflowError on an int beyond float range
+        ok = isinstance(doc, dict) and all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                                           and math.isfinite(v) and v >= 0 for v in doc.values())
+        ok = ok and math.isfinite(sum(float(v) for v in doc.values()))  # mean must stay finite
+    except OverflowError:
+        ok = False
     if not ok:
         raise InputError("job-hours table must map machine id to a non-negative number")
     return doc
 
 
-def _args(argv):
+def _args(argv: Optional[list]) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--provider", default="claude", choices=("claude", "codex", "cursor"))
     p.add_argument("--machines", help="comma-separated candidates (default: every mapped machine)")
