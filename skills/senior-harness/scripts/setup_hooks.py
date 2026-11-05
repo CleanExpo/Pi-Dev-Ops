@@ -102,10 +102,15 @@ def _pretool_root(cwd: str, session_id: str, surface: str) -> tuple[Path, Path, 
 
 
 def _still_routed(
-    session_id: str, surface: str, root: Path, state_path: Path
+    cwd: str, session_id: str, surface: str, root: Path, state_path: Path
 ) -> Callable[[], bool]:
-    """Re-read the launch record under the lock; a clear in between must win."""
-    return lambda: launch_root_state(session_id, surface) == (root, state_path)
+    """Re-run the whole routing decision under the lock; it must not have changed.
+
+    A clear, a new receipt for the cwd's own root, or a changed launch record
+    landing between the first lookup and the lock all change the answer, and
+    the call is then denied rather than run under the stale fallback.
+    """
+    return lambda: _pretool_root(cwd, session_id, surface) == (root, state_path, True)
 
 
 def _note_fallback(response: dict[str, Any], root: Path) -> dict[str, Any]:
@@ -131,7 +136,7 @@ def handle_hook(
         response = handle_pretool(
             payload, project_root=root, surface=surface, session_id=session_id,
             state_path=state_path, pending_path=pending_path, roots=skill_search_roots,
-            still_routed=_still_routed(session_id, surface, root, state_path)
+            still_routed=_still_routed(cwd, session_id, surface, root, state_path)
             if fallback else None,
         )
         return _note_fallback(response, root) if fallback else response

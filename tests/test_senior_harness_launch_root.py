@@ -175,3 +175,37 @@ def test_clear_between_fallback_lookup_and_lock_denies(
     )
     assert calls, "the injected clear never ran"
     assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_current_root_admitted_between_lookup_and_lock_governs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A receipt that appears for the cwd's own root in the gap must govern, not the fallback."""
+    monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
+    session = "launch-root-race-admit"
+    _start_hook_session(tmp_path / "state", monkeypatch, session_id=session)
+    repo_b = tmp_path / "repo-b"
+    _init_repo(repo_b)
+    real = setup_hooks.launch_root_state
+    calls: list[int] = []
+
+    def lookup_then_admit_b(session_id: str, surface: str):  # noqa: ANN202
+        found = real(session_id, surface)
+        if not calls:
+            calls.append(1)
+            handle_hook(
+                {"session_id": session_id, "cwd": str(repo_b),
+                 "hook_event_name": "UserPromptSubmit", "prompt": "/grill-me shape B"},
+                surface="claude", event="UserPromptSubmit",
+                skill_search_roots=[REPO_ROOT / "skills"],
+            )
+        return found
+
+    monkeypatch.setattr(setup_hooks, "launch_root_state", lookup_then_admit_b)
+    decision = handle_hook(
+        {"session_id": session, "cwd": str(repo_b), "hook_event_name": "PreToolUse",
+         "tool_name": "Write", "tool_input": {}},
+        surface="claude", event="PreToolUse", skill_search_roots=[REPO_ROOT / "skills"],
+    )
+    assert calls, "the injected admission never ran"
+    assert decision["hookSpecificOutput"]["permissionDecision"] == "deny"
