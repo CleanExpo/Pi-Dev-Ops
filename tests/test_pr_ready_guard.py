@@ -187,3 +187,9 @@ def test_forbidden_on_a_different_mutation_still_fails(monkeypatch, tmp_path):
 def test_unrelated_pr_is_drafted_when_permission_exists(monkeypatch, tmp_path):
     rc, drafted = _sweep(monkeypatch, tmp_path, [_red(970), _red(981)], trigger=981)
     assert rc == 0 and drafted == [970, 981]
+
+
+def test_refusal_mixed_with_another_error_still_fails(monkeypatch, tmp_path):
+    mixed = g.GraphQLError(FORBIDDEN + [{"type": "INTERNAL", "path": ["convertPullRequestToDraft"], "message": "x"}])
+    rc, _ = _sweep(monkeypatch, tmp_path, [_red(970)], trigger=981, draft_error=({970}, mixed))
+    assert rc == 1

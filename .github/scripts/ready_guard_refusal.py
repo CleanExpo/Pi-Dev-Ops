@@ -31,8 +31,8 @@ def triggering_pr() -> Optional[int]:
 
 
 def draft_refused(e: Exception) -> bool:
-    """True only for GitHub refusing convertPullRequestToDraft for lack of permission."""
-    return isinstance(e, GraphQLError) and any(
+    """True only when EVERY error is GitHub refusing convertPullRequestToDraft for lack of permission."""
+    return isinstance(e, GraphQLError) and bool(e.errors) and all(
         x.get("type") == "FORBIDDEN" and "convertPullRequestToDraft" in (x.get("path") or []) for x in e.errors)
 
 
