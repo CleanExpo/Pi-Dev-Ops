@@ -32,11 +32,15 @@ def _recover_pending(
     *, pending_path: Path, state_path: Path, session_id: str, surface: str,
     project_root: Path, roots: Iterable[str | Path] | None,
 ) -> tuple[bool, SetupError | None]:
-    if state_path.is_file() or not pending_path.is_file():
+    if not pending_path.is_file():
         return False, None
+    # Validate before the existing-state return: a quarantined pending objective
+    # denies the session even when a receipt (here or at the launch root) exists.
     pending = _read_pending_objective(
         pending_path, session_id=session_id, surface=surface
     )
+    if state_path.is_file():
+        return False, None
     try:
         contract = _new_contract(
             pending["literal_objective"], project_root, surface, roots, session_id

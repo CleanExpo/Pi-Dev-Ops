@@ -54,7 +54,7 @@ def clear_launch_root(session_id: str) -> None:
     _launch_record_path(session_id).unlink(missing_ok=True)
 
 
-def _read_launch_record(path: Path, session_id: str, surface: str) -> Path:
+def _read_launch_record(path: Path, session_id: str, surface: str) -> tuple[Path, str]:
     try:
         record = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -75,18 +75,22 @@ def _read_launch_record(path: Path, session_id: str, surface: str) -> Path:
         raise SetupError(
             ["launch-root record is invalid: wrong session, surface or root"]
         )
-    return Path(root)
+    return Path(root), seal
 
 
-def launch_root_state(session_id: str, surface: str) -> tuple[Path, Path] | None:
-    """Return (launch root, its state path), or None when nothing is recorded.
+def launch_root_state(
+    session_id: str, surface: str
+) -> tuple[Path, Path, str] | None:
+    """Return (launch root, its state path, record seal), or None when nothing is recorded.
 
     None keeps the caller's existing fail-closed path. A record that exists but
-    does not verify raises, so tampering is reported rather than ignored.
+    does not verify raises, so tampering is reported rather than ignored. The
+    seal identifies this exact record: a clear and re-admission at the same root
+    writes a new one with a different seal.
     """
     path = _launch_record_path(session_id)
     if not path.exists():
         return None
-    root = _read_launch_record(path, session_id, surface)
+    root, seal = _read_launch_record(path, session_id, surface)
     state_path = _state_path(root, session_id)
-    return (root, state_path) if state_path.is_file() else None
+    return (root, state_path, seal) if state_path.is_file() else None
