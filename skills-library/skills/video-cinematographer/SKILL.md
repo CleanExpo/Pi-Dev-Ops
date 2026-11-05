@@ -70,6 +70,7 @@ Three rules from the master, applied to every scene:
 ## Constraints
 
 - **NEVER** approve a scene marked Hyperframes/AI-generated for client-facing work without `video-brand-guardian` clearance + Phill's explicit go.
+- **Start-frame grounding (founder rule, 05/11/2026).** When a shot is image-to-video, start from a real first frame or mid frame you can point at. Text-only drift is the weaker path. Prefer the grounded start for client, marketing, and card films. You cannot waive that preference on those films. Only Phill's written GO can.
 - **NEVER** use a stock clip with recognisable real people unless rights are cleared in writing.
 - **NEVER** propose camera moves the BrandConfig's signature forbids (e.g. shake-cam on Unite-Group videos).
 - **NEVER** stack more than 2 sources within a single scene transition — viewers can't track 3+ source shifts.

@@ -1,11 +1,11 @@
 ---
 type: skill-catalog
-updated: 2026-09-24
+updated: 2026-11-05
 ---
 
 # Skills Catalog — Full Inventory
 
-Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line per active skill (regenerated 2026-07-06, re-filed 2026-07-14, reconciled against the skill dirs 2026-09-24). Read on demand — never @include into global CLAUDE.md. Router with trigger phrases: [index.md](index.md). External connections: [library/connections.md](library/connections.md).
+Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line per active skill (regenerated 2026-07-06, re-filed 2026-07-14, reconciled against the skill dirs 2026-09-24, `sda-video` registered 2026-11-05). Read on demand — never @include into global CLAUDE.md. Router with trigger phrases: [index.md](index.md). External connections: [library/connections.md](library/connections.md).
 
 ## Marketing (entry: `marketing-orchestrator`)
 - [nexus-copywriter](nexus-copywriter/SKILL.md) — Fable-5 estate-wide content-quality GATE for any client-/public-facing words (post, article, email, landing/ad copy, video script, thought-leadership). Distilled from Synthex senior-copywriter v0.3: sourced+evidence-tagged claims, active-voice CTAs, falsifiable conversion hypothesis + kill threshold, show-the-working, NEVER-list self-audit. Drafts to standard; brand-guardian is the final mechanical gate.
@@ -60,7 +60,8 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 - [seo-sitemap](seo-sitemap/SKILL.md) — Analyze existing XML sitemaps or generate new ones with industry templates.
 - [nextjs-image-seo](nextjs-image-seo/SKILL.md) — Use when optimising images in a Next.js / React codebase for SEO or accessibility — adding priority to above-fold next/image components, applying aria-hidden to decora…
 
-## Video (entry: `video-director`)
+## Video (entry: `video-director`, short-form chain: `sda-video`)
+- [sda-video](sda-video/SKILL.md) — The SDA short-form chain in one timed run: script, Margot's voice, HeyGen, Blender inserts, edit, transitions, Artlist music, mix, then the evidence gate. Founder rules of 05/11/2026 lock native 2160, pre-ship QC (empty frames, cutoffs, three-second contrast, continuous music bed), and the Unite-Group marketing claims ban.
 - [video-director](video-director/SKILL.md) — The 15+ year Creative Director persona that owns brief intake, composition selection, and narrative POV for every…
 - [video-script-writer](video-script-writer/SKILL.md) — The 15+ year screenwriter persona (Pixar / Apple keynote / Nike spot tier) that engineers hooks (0-3s), retention beats…
 - [video-cinematographer](video-cinematographer/SKILL.md) — The 15+ year Director-of-Photography persona (Roger Deakins / Emmanuel Lubezki / Hoyte van Hoytema-tier) that owns shot…

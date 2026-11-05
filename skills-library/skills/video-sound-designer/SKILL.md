@@ -29,7 +29,7 @@ The ElevenLabs clone is the foundation. You don't generate it — `remotion-rend
 - Select from the **brand-locked music library** at `Synthex/packages/brand-config/src/brands/{slug}/audio/`. Each brand has 6-12 pre-licensed tracks across moods (calm / confident / urgent / playful / serious / curious). If the brand has none yet, dispatch `remotion-brand-codify` to populate (one-time per brand).
 - **Match the BPM to the cut rhythm.** Editor's pacing dictates the BPM — fast cuts need 120+ BPM; slow cinematic needs 60-80.
 - **NEVER** use copyright-unclear music. Every track in our libraries is either Audio Network ($A50-200/track perpetual), Artlist (subscription), or original commissioned (the Unite-Group brand has 4 such tracks for Lodgey/BeauHQ reveal moments).
-- **Duck the music** under the voiceover automatically — sidechain compression with ~3-6 dB reduction during VO, full level during silence.
+- **Duck the music, never drop it.** On SDA, marketing, and card films the bed sits at about 0.20 of its full level under the voice. Other films may use a lighter 3–6 dB sidechain. Either way the bed stays present for the whole film. A gap with no bed is a failed mix, not a rest. Probe with `silencedetect` at −35 dB / 0.2 s and at −45 dB / 0.4 s. Any gap that leaves voice-only air is FAIL. Edition loops may be mute only when the brief says `audio: none`. You cannot waive this. Only Phill's written GO can. Music stays Artlist, Audio Network, or an already-commissioned library track.
 
 ### 3. Sound effects (SFX)
 The most-skipped layer; the cheapest way to make a video feel filmic. SFX adds:
@@ -45,7 +45,7 @@ The most-skipped layer; the cheapest way to make a video feel filmic. SFX adds:
 - Verify music swell aligns with the editor's emotional peaks (usually the brand reveal at the end)
 
 ### 5. Final mix
-- Master at **-14 LUFS** (the Spotify / Apple / YouTube / Instagram normalisation target — anything louder gets turned down by the platform; anything quieter sounds weak)
+- Master at **-14 LUFS** for platform normalisation (Spotify / Apple / YouTube / Instagram — louder gets turned down; much quieter sounds weak). SDA short-form mixes target about **−16 LUFS** integrated, voice on top, bed ducked. Do not chase −14 by lifting the bed into the voice or by leaving a silence gap.
 - True peak ceiling **-1 dBTP** — protects against inter-sample clipping on consumer playback
 - Export: 48 kHz / 24-bit WAV master, render through FFmpeg to AAC 320 kbps mp4 audio track
 - Validate via `ffprobe` that the LUFS + peak meet spec before handing off
@@ -59,7 +59,8 @@ The most-skipped layer; the cheapest way to make a video feel filmic. SFX adds:
 
 ## Constraints
 
-- **NEVER** use AI-generated music for client work — copyright clarity is non-negotiable. Suno / Udio output is forbidden in production.
+- **NEVER** use AI-generated music for client work — copyright clarity is non-negotiable. Suno / Udio output is forbidden in production. Artlist, Audio Network, or a commissioned library track only.
+- **NEVER** ship voice over a silent gap. A `silencedetect` hit at −35 dB / 0.2 s (or −45 dB / 0.4 s) is FAIL unless the brief says `audio: none`. You cannot waive it. Only Phill's written GO can.
 - **NEVER** clip the master above -1 dBTP — the platforms will turn the whole video down to compensate, making it sound weak.
 - **NEVER** stack >3 layers (voiceover + music + 1-2 SFX). Overproduction is the second AI-slop tell.
 - Respect `[[design-preferences]]` — Gun Metal mood = restrained / not bombastic. Candy Red mood = the ONE moment of impact per video, save it.

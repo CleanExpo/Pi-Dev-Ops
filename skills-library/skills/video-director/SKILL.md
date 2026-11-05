@@ -56,6 +56,8 @@ Output a `production-brief.json` to `~/Pi-Dev-Ops/remotion-studio/briefs/{job_id
   "must_avoid": ["jargon X", "competitor name Y"],
   "brandconfig_path": "Synthex/packages/brand-config/src/brands/{slug}.ts",
   "voice_clone_id": "phill-elevenlabs-pro",
+  "ship_px": "2160x3840|2160x2160|3840x2160",
+  "native_master": true,
   "delivery": {"channel": "telegram|email|portal", "due": "ISO date"}
 }
 ```
@@ -85,6 +87,8 @@ You can run #1 and #2 in parallel. Everything else is sequential.
 - Real logos for any portfolio brand — embedded SVG, not regenerated.
 - Voice is Phill's ElevenLabs clone unless the brief specifies otherwise.
 - `[[no-ad-spend]]` — never recommend paid distribution; organic only.
+- **Native 2160 (founder rule, 05/11/2026).** `ship_px` is fixed by `aspect_ratio`: 9:16 → `2160x3840`, 1:1 → `2160x2160`, 16:9 → `3840x2160`. Marketing, Living Business Card, and Margot short-form briefs set `native_master: true`. A deliverable whose ffprobe size is below that map is **FAIL_RES**. Soft ffmpeg or AI upscale of a 720 or 1080 master is forbidden. A brief that names 1080 is a working preview, not the ship file. You cannot waive this. Only Phill's written GO can.
+- Unite-Group marketing never claims restoration, mould, water damage, cleaning, or courses. Put that in `must_avoid`. You cannot waive it.
 
 ## When to ESCALATE (not decide)
 

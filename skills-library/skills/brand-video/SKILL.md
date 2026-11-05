@@ -1,6 +1,6 @@
 ---
 name: brand-video
-description: "Produce one or many consistent, on-brand faceless marketing videos from a topic: script, ElevenLabs voiceover with timestamps, one styled illustration per beat, ffmpeg stitch to 1080p, optional Unlisted YouTube upload. The look is a named style from styles.md (flat-line, hand-doodle, bold-kinetic, cinematic-photoreal, minimal-corporate, retro-print), so one command yields repeatable output per brand. The automated pipeline; distinct from faceless-video and video-director."
+description: "Produce one or many consistent, on-brand faceless marketing videos from a topic: script, ElevenLabs voiceover with timestamps, one styled illustration per beat, ffmpeg stitch, optional Unlisted YouTube upload. Marketing and card briefs ship native 2160 (9:16 2160x3840, 1:1 2160x2160, 16:9 3840x2160). The 1080 stitch is a preview and must not be soft-upscaled. The look is a named style from styles.md (flat-line, hand-doodle, bold-kinetic, cinematic-photoreal, minimal-corporate, retro-print), so one command yields repeatable output per brand. The automated pipeline; distinct from faceless-video and video-director."
 ---
 
 # brand-video — consistent styled faceless videos, on demand
@@ -21,10 +21,10 @@ everything else constant so output is consistent batch-to-batch and brand-to-bra
 2. **Voiceover** → run the bundled tts.py (reads `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID` + `DIR`):
    `cd <workdir> && set -a && . ~/.hermes/.env && set +a && DIR=$PWD/<slug> python3 <skill>/pipeline/tts.py`
    Writes `<slug>/voiceover.mp3` + `<slug>/transcript.json` (beats). Note the beat count.
-3. **Images** → one per beat, prompt = the chosen style's POSITIVE token + a concrete scene for that sentence + the style's NEGATIVE token, landscape 16:9, saved zero-padded `<slug>/images/01.png …`.
+3. **Images** → one per beat, prompt = the chosen style's POSITIVE token + a concrete scene for that sentence + the style's NEGATIVE token, at the brief's aspect (card editions 9:16, Signature 1:1, widescreen marketing 16:9; otherwise 16:9), saved zero-padded `<slug>/images/01.png …`.
    - **Prod / headless (default):** `python3 <skill>/pipeline/image_gen.py "<prompt>" <out.png>` — Gemini `gemini-2.5-flash-image` ("Nano-Banana") over HTTPS, `GEMINI_API_KEY` from env. Works server-side; validated end-to-end. This is what app workers call (no local MCP needed).
    - **Interactive (optional):** `mcp__margot__image_generate` when running inside a Claude session; use slug-prefixed filenames to avoid parallel collisions (see [[parallel-agents-shared-output-collision]]).
-4. **Stitch** → `python3 <skill>/pipeline/stitch.py <slug>` → `<slug>/final-1080p.mp4` (1920×1080@25, image timing from beats). Verify final duration ≈ voiceover duration.
+4. **Stitch** → `python3 <skill>/pipeline/stitch.py <slug>` writes `<slug>/final-1080p.mp4` (1920×1080@25, image timing from beats). That file is a preview. Marketing and card briefs do not ship it — see **Ship size** below. Verify duration ≈ voiceover duration on the file you actually deliver.
 
 ## Batches & new looks
 - **Batch:** dispatch one sub-agent per topic (parallel), each owning its slug dir. See the RestoreAssist run for the exact agent prompt shape.
@@ -34,7 +34,19 @@ everything else constant so output is consistent batch-to-batch and brand-to-bra
 ## Upload (YouTube, optional)
 Browser file-upload is dead (host paths rejected). Use the YouTube Data API path documented in [[youtube-api-upload-restoreassist]]: Desktop OAuth client → token at `~/.hermes/yt-restoreassist-token.json` → `videos().insert` privacyStatus=unlisted, category 27, not-for-kids; guard on channel title; idempotent via `uploaded.json`. Requires YouTube Data API v3 enabled in the OAuth client's GCP project.
 
+## Ship size (founder rule, 05/11/2026)
+
+Marketing and Living Business Card briefs ship **native 2160**, not the 1080 preview:
+
+| Aspect | Ship pixels |
+|---|---|
+| 9:16 | 2160×3840 |
+| 1:1 | 2160×2160 |
+| 16:9 | 3840×2160 |
+
+Generate the frames at that size and stitch at that size. Do not ffmpeg-scale or AI-upscale `final-1080p.mp4` — that is FAIL_RES. A non-marketing internal draft may stay 1080 only when the brief says so in writing. You cannot waive the marketing or card rule. Only Phill's written GO can.
+
 ## Guardrails
-- Claims must be real (brand wiki / product truth). Flat-illustration + synthetic voice → YouTube AI-disclosure usually "No" (confirm at upload; flip to Yes if AI music added).
+- Claims must be real (brand wiki / product truth). Unite-Group marketing never claims restoration, mould, water damage, cleaning, or courses. Flat-illustration + synthetic voice → YouTube AI-disclosure usually "No" (confirm at upload; flip to Yes if AI music added).
 - Keep one style per batch for consistency. Keep `SKILL.md` ≤200 lines per [[feedback-tight-code]].
 - Reference implementation + assets: `/Users/phill-mac/restoreassist-videos/`.

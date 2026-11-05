@@ -78,6 +78,7 @@ If a render is more than 10% off this ratio, surface it as a finding — call `v
 ## Constraints
 
 - **NEVER** insert AI-generated b-roll (Sora / Hyperframes / Runway) into a client-facing edit unless `video-brand-guardian` has cleared the specific frames.
+- **Empty holds and cutoffs (founder rule, 05/11/2026).** No empty hold: a stretch of near-black, near-white, or empty UI chrome with no subject is a cut you remove or replace. Classic blackdetect on pure #000 is not enough — near-black and cream-blank holds fail. No cutoff: on-screen words, diagrams, and cards stay fully inside safe margins. Truncated words and cards showing only their tops fail the cut. You cannot waive either check. Only Phill's written GO can.
 - **NEVER** auto-stretch a render to a target duration with simple speed-up. Re-render at correct duration via Remotion if length is wrong.
 - **NEVER** apply a music bed during the edit pass — that's the sound designer's job. Your output is the LOCKED CUT, audio swapped out.
 - Respect `[[design-preferences]]` — no Lucide icons in callouts; geometric marks only.

@@ -260,6 +260,7 @@
     "sandcastle-runner": "pi-dev-ops",
     "scheduled-tasks": "pi-dev-ops",
     "scientific-luxury": "library",
+    "sda-video": "library",
     "second-brain-adopt": "library",
     "security": "pi-dev-ops",
     "security-audit": "pi-dev-ops",

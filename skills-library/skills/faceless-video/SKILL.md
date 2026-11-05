@@ -73,13 +73,14 @@ Fallback (unattended only): `mcp__margot__image_generate` — saves `<save_as>.j
 Build an FFmpeg concat that holds each image for `(next_start - this_start)` seconds and muxes the voiceover:
 1. Generate a concat list with per-image durations from the timestamps.
 2. `ffmpeg -f concat -safe 0 -i list.txt -i voiceover.wav -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest final.mp4`
-3. Recommend 2K source images for real uploads (low-res only for test runs).
+3. Organic channel: 2K source images for a real upload (low-res only for test runs). Marketing or card: native ship size from Stage 5. Do not scale 2K up to 2160.
 
 ## Stage 5 — Finalise (for a real upload, not test runs)
 Turn the raw stitch into a finished deliverable:
-- **1080p** — render the concat scaled/padded to `1920:1080` (white pad blends the sketchbook bg), `crf 19`.
+- **Organic faceless channel (not a marketing or card brief)** — render the concat scaled/padded to `1920:1080` (white pad blends the sketchbook bg), `crf 19`.
+- **Marketing or Living Business Card brief (founder rule, 05/11/2026)** — ship native 2160, not this 1080 default. 9:16 → 2160×3840, 1:1 → 2160×2160, 16:9 → 3840×2160. Generate the pictures at that size. Do not scale the 1080 or 2K stitch up — that is FAIL_RES. If the image tool cannot emit the ship size natively, hold the video. You cannot waive this. Only Phill's written GO can. Keep a continuous ducked music bed (the Artlist bed in this stage). A mute file is allowed only when the brief says `audio: none`.
 - **Fades** — `fade=t=in:st=0:d=0.6:color=white` and `fade=t=out` over the last ~0.8s. Keep **hard cuts on the beats** between images (on-style — do NOT crossfade).
 - **Music bed** — generate a calm track via Artlist **AI Music** (`toolkit.artlist.io/music-generator?mode=music`, Lyria 3; same browser flow as images, result is a signed `.wav` at `cms-toolkit-artifacts.artlist.io/...music-<uuid>` — download EXACT src). Mix UNDER the VO: `volume≈0.13` (~−18 dB), `afade` in 1.5s / out ~1.8s, `amix=inputs=2:normalize=0`. Verify with `volumedetect`: overall peak < 0 dB (no clip), music mean ~15+ dB below VO.
 
 ## Output
-`final-1080p-music.mp4` (the deliverable) + a reusable `style-token.md`. Report the path and per-stage artifacts. For publishing/channel strategy hand off to `video-distribution-strategist`; remember the synthetic-content disclosure on upload.
+Organic channel: `final-1080p-music.mp4`. Marketing or card: a native-2160 file (see Stage 5), never an upscale of the 1080. Plus a reusable `style-token.md`. Report the path and per-stage artifacts. For publishing/channel strategy hand off to `video-distribution-strategist`; remember the synthetic-content disclosure on upload.
