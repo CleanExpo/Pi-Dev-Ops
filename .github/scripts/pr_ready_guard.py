@@ -3,6 +3,7 @@
 
 Standard library only. Talks to GitHub with GITHUB_TOKEN (or `gh auth token` locally).
 Never merges, never pushes. See .github/workflows/pr-ready-guard.yml.
+A GitHub refusal to draft an unrelated PR warns instead of failing: ready_guard_refusal.py.
 
 Usage: pr_ready_guard.py --repo OWNER/REPO [--dry-run]
 """
@@ -18,6 +19,8 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
+
+from ready_guard_refusal import GraphQLError, counts_as_failure, triggering_pr
 
 LABEL = "held-by-ready-guard"
 MARKER = "<!-- pr-ready-guard -->"
@@ -115,7 +118,7 @@ def _call(token: str, method: str, url: str, body: Optional[dict] = None) -> dic
 def graphql(token: str, query: str, variables: dict) -> dict:
     out = _call(token, "POST", API + "/graphql", {"query": query, "variables": variables})
     if out.get("errors"):
-        raise RuntimeError("GraphQL error: " + json.dumps(out["errors"]))
+        raise GraphQLError(out["errors"])
     return out["data"]
 
 
@@ -246,6 +249,7 @@ def to_ready(token: str, repo: str, pr: PR) -> None:
 
 def run(repo: str, dry_run: bool) -> int:
     token = get_token()
+    trigger = triggering_pr()
     failures = 0
     for pr in fetch_prs(token, repo):
         d = decide(pr)
@@ -263,8 +267,7 @@ def run(repo: str, dry_run: bool) -> int:
             elif pr.is_draft and LABEL in pr.labels and d.reasons:  # still held: keep the one comment current
                 upsert_comment(token, repo, pr.number, render_comment("draft", d.reasons, pr.head_sha))
         except Exception as e:  # keep going so one bad PR cannot hide the rest
-            failures += 1
-            print("  ERROR acting on #{}: {}".format(pr.number, e), file=sys.stderr)
+            failures += counts_as_failure(e, pr.number, trigger)
     return 1 if failures else 0
 
 
