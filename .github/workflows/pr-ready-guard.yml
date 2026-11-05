@@ -50,11 +50,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Always run the script from the default branch, never from the PR's own merge commit.
+      # A PR that edited the script would otherwise run its own code with a write token.
+      # Until this file is on main the script is absent there, and the run is a no-op.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - id: present
+        run: if [ -f .github/scripts/pr_ready_guard.py ]; then echo "found=yes" >> "$GITHUB_OUTPUT"; else echo "found=no" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/setup-python@v5
+        if: steps.present.outputs.found == 'yes'
         with:
           python-version: "3.12"
       - name: Run the guard
+        if: steps.present.outputs.found == 'yes'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python .github/scripts/pr_ready_guard.py --repo "${{ github.repository }}"
