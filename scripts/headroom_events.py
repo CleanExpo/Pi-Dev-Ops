@@ -22,6 +22,7 @@ Log path: $HEADROOM_LOG, else DEFAULT_LOG (a design default; AR-01's map names n
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -45,6 +46,7 @@ SCHEMA = "headroom/1"
 DEFAULT_LOG = "/Volumes/Mini Mini 2T Storage/ops/headroom/headroom-events.jsonl"
 EVENTS = ("5h_cooling", "weekly_cooling", "auth_expired", "billing_blocked", "on_demand_capped")
 PROVIDERS = ("claude", "codex", "cursor")
+MACHINES = ("mini", "macbook", "pc")  # ops/ACCOUNT-MAP.yaml machine ids (AR-01)
 TAIL_LINES = 60
 TAIL_BYTES = 65536
 MAX_LINE = 400
@@ -88,7 +90,7 @@ PATTERNS = (
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 _NEWLINE = re.compile(r"\r\n|\r|\n")  # not str.splitlines: \u2028, \x0c etc. are not line starts
 _LEAD = re.compile(r"^(?:⎿\s*)?(?:(?:api\s+)?error:\s*)?", re.I)
-_UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
+_TICKET = re.compile(r"^[A-Za-z]{2,10}-\d{1,6}$")
 
 
 def _candidates(text: str, provider: str) -> Iterator[str]:
@@ -136,19 +138,33 @@ def _iso(epoch: Optional[float]) -> Optional[str]:
     return None if epoch is None else datetime.fromtimestamp(epoch, timezone.utc).isoformat(timespec="seconds")
 
 
-def _clean(name: Optional[str]) -> Optional[str]:
-    """A machine or job name reduced to [A-Za-z0-9._-], at most 64 characters."""
+def _hashed(name: str) -> str:
+    return "sha256:" + hashlib.sha256(name.encode("utf-8", "replace")).hexdigest()[:12]
+
+
+def _machine_id(name: str) -> str:
+    """A known ACCOUNT-MAP machine id as-is; anything else only as a short hash."""
+    low = (name or "").strip().lower()
+    return low if low in MACHINES else _hashed(name or "")
+
+
+def _job_id(name: Optional[str]) -> Optional[str]:
+    """A ticket-style job name (RA-8188) as-is, upper-cased; anything else only as a short hash.
+
+    Names come from the caller, so they are metadata, not free text: a token-shaped
+    directory name must never reach the shared log."""
     if not name:
         return None
-    return _UNSAFE.sub("", Path(name).name)[:64].lstrip(".") or "unknown"
+    base = Path(name).name
+    return base.upper() if _TICKET.match(base) else _hashed(base)
 
 
 def build_record(hit: dict, *, machine: str, provider: str, job: Optional[str],
                  exit_code: Optional[int], now: float) -> dict:
     """The JSONL record: a fixed key set, every value built here, no CLI text."""
-    return {"schema": SCHEMA, "ts": _iso(now), "machine": _clean(machine), "provider": provider,
+    return {"schema": SCHEMA, "ts": _iso(now), "machine": _machine_id(machine), "provider": provider,
             "event": hit["event"], "pattern_id": hit["pattern_id"], "source": hit["source"],
-            "reset_at": _iso(hit["reset_at"]), "exit_code": exit_code, "job": _clean(job)}
+            "reset_at": _iso(hit["reset_at"]), "exit_code": exit_code, "job": _job_id(job)}
 
 
 def append_events(records: list[dict], path: Path) -> None:
@@ -165,9 +181,19 @@ def append_events(records: list[dict], path: Path) -> None:
     fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
     try:
         _lock(fd)
-        os.write(fd, data)
+        _write_all(fd, data)
     finally:
         os.close(fd)
+
+
+def _write_all(fd: int, data: bytes) -> None:
+    """Write every byte; a short write is continued, a write that makes no progress raises."""
+    view = memoryview(data)
+    while view:
+        n = os.write(fd, view)
+        if n <= 0:
+            raise OSError("log write made no progress")
+        view = view[n:]
 
 
 def _lock(fd: int) -> None:

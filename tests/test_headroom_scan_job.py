@@ -141,7 +141,7 @@ def test_w2_job_dir_starting_with_dash_still_records(tmp_path):
     env = {**os.environ, "HEADROOM_LOG": str(tmp_path / "h.jsonl"), "HEADROOM_PYTHON": sys.executable}
     r = subprocess.run(["bash", str(HELPER), str(job), "claude", "1"], capture_output=True, text=True, env=env)
     assert r.returncode == 0
-    assert rows(tmp_path / "h.jsonl")[0]["job"] == "-x"
+    assert rows(tmp_path / "h.jsonl")[0]["job"] == he._hashed("-x")
 
 
 def test_w5_relative_log_path_is_refused(tmp_path):
@@ -174,3 +174,43 @@ def test_w2_output_file_starting_with_dash_is_read_not_parsed_as_a_flag(tmp_path
                        capture_output=True, text=True, env=env, cwd=job)
     assert r.returncode == 0
     assert rows(tmp_path / "h.jsonl")[0]["event"] == "weekly_cooling"
+
+
+# W5 (Codex round 1): caller-supplied names are metadata, not free text.
+def test_w5_token_shaped_job_and_machine_are_never_written(tmp_path):
+    fake = "sk-REVIEW-SYNTHETIC-NO-REAL-SECRET"
+    r = run_cli(tmp_path, WEEKLY, "--provider", "claude", "--machine", fake, "--job", fake, "--exit-code", "1")
+    assert r.returncode == 0, r.stderr
+    raw = (tmp_path / "h.jsonl").read_text()
+    assert "REVIEW" not in raw.upper().replace("RESETS", "")
+    row = json.loads(raw)
+    assert row["machine"].startswith("sha256:") and row["job"].startswith("sha256:")
+
+
+def test_w5_known_machine_and_ticket_job_stay_readable():
+    rec = he.build_record({"event": "auth_expired", "pattern_id": "p", "source": "observed", "reset_at": None},
+                          machine="macbook", provider="claude", job="ra-8188", exit_code=1, now=0.0)
+    assert rec["machine"] == "macbook" and rec["job"] == "RA-8188"
+
+
+# W4 (Codex round 1): a short write must never leave half a line and report success.
+def test_w4_short_writes_are_completed(tmp_path, monkeypatch):
+    real = os.write
+    monkeypatch.setattr(he.os, "write", lambda fd, b: real(fd, bytes(b[:5])))
+    log = tmp_path / "h.jsonl"
+    he.append_events([{"event": "x", "pad": "y" * 50}], log)
+    assert json.loads(log.read_text())["pad"] == "y" * 50
+
+
+def test_w4_a_write_that_makes_no_progress_raises(tmp_path, monkeypatch):
+    monkeypatch.setattr(he.os, "write", lambda fd, b: 0)
+    try:
+        he.append_events([{"event": "x"}], tmp_path / "h.jsonl")
+    except OSError:
+        return
+    raise AssertionError("a zero-byte write must fail, not report success")
+
+
+def test_docs_hand_check_command_uses_an_absolute_log_path():
+    doc = (ROOT / "docs/headroom-events.md").read_text()
+    assert "--log ./" not in doc

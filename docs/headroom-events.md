@@ -24,7 +24,7 @@ Codex usage-limit lines have no live sample on the Mini yet, so their events car
  "reset_at": "2026-10-08T15:00:00+00:00", "exit_code": 1, "job": "RA-8188"}
 ```
 
-Every value is built by the script. The CLI's own words are never stored. `reset_at` is `null` when the line prints no readable reset; it is never a guess. There is no account email: AR-03 joins `machine` + `provider` to `ops/ACCOUNT-MAP.yaml`.
+Every value is built by the script. The CLI's own words are never stored. `reset_at` is `null` when the line prints no readable reset; it is never a guess. `machine` is an ACCOUNT-MAP id (`mini`, `macbook`, `pc`) and `job` a ticket id (`RA-8188`); any other name is stored only as `sha256:<12 hex>`, so a token-shaped folder name never reaches the log. There is no account email: AR-03 joins `machine` + `provider` to `ops/ACCOUNT-MAP.yaml`.
 
 Known gaps: `reset_at` is `null` for `resets Thu 9am` and for Codex `try again at ...` lines (the shared reader in `mesh/quota.py` reads `resets <time>` and `resets <Mon> <day> at <time>`), so the picker needs its own fallback hold. Codex output is read even on exit 0 (`codex exec` exits 0 on its limit), so a Codex report line that starts with a limit message would count; those events are marked `unverified`.
 
@@ -47,5 +47,5 @@ The helper always exits 0 and writes its result, or `headroom: FAILED ...`, to `
 
 ```bash
 python3 scripts/headroom_events.py scan tests/fixtures/headroom/planted_marker.txt \
-  --provider claude --machine mini --exit-code 1 --log ./headroom-check.jsonl
+  --provider claude --machine mini --exit-code 1 --log "$PWD/headroom-check.jsonl"
 ```
