@@ -35,7 +35,10 @@ LOGIN_CALL = re.compile(
     rf"|{_Q}claude{_SEP}auth{_SEP}log(?:in|out){_Q}"
     rf"|{_Q}codex{_SEP}log(?:out{_Q}|in{_Q}(?!\s*,\s*{_Q}status{_Q}))"
     rf"|{_Q}(?:cursor-)?agent{_SEP}log(?:in|out){_Q}"
-    rf"|{_Q}/log(?:in|out){_Q}")
+    rf"|{_Q}/log(?:in|out){_Q}"
+    # PowerShell: Start-Process [-FilePath] <cli> [-ArgumentList] [auth,] login|logout
+    r"""|(?i:\bStart-Process\s+(?:-FilePath\s+)?["']?(?:claude|codex|(?:cursor-)?agent)(?:\.exe)?["']?"""
+    r"""\s+(?:-ArgumentList\s+)?["']?(?:auth["']?\s*,?\s*["']?)?log(?:in|out)\b(?!["']?\s*,?\s*["']?status))""")
 # Every tracked code file except tests (which plant calls on purpose) and vendored code.
 SKIP_PREFIXES = ("tests/", "vendor/")
 CODE_SUFFIXES = {".py", ".sh", ".bash", ".zsh", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".ps1", ".cmd", ".bat"}
@@ -77,9 +80,12 @@ def test_w1_one_card_per_provider_and_machine(text):
             assert f"card-{provider}-{machine}" in anchors, (provider, machine)
 
 
-def test_w2_every_provider_card_has_the_human_only_banner(text):
+def test_w2_every_card_has_the_human_only_banner(text):
+    # Every card, machine cards included: the board deep-links to #card-<provider>-<machine>.
     for provider in he.PROVIDERS:
         assert BANNER in _section(text, f"card-{provider}"), provider
+        for machine in he.MACHINES:
+            assert BANNER in _section(text, f"card-{provider}-{machine}"), (provider, machine)
 
 
 def test_w3_every_machine_card_has_status_check_and_sign_in(text):
@@ -142,9 +148,13 @@ def test_w5_login_pattern_catches_real_calls():
     for call in ("claude auth login", "codex login --device-auth", "agent login", "cursor-agent logout",
                  'subprocess.run(["codex", "login", "--device-auth"])',
                  "run(['claude', 'auth', 'login'])", 'spawn("cursor-agent", ["login"])',
-                 'execFile("agent", [ "logout" ])', 'cmd = ["claude", "-p", "/login"]'):
+                 'execFile("agent", [ "logout" ])', 'cmd = ["claude", "-p", "/login"]',
+                 "Start-Process codex -ArgumentList login",
+                 "Start-Process -FilePath 'claude.exe' -ArgumentList 'auth','login'",
+                 'Start-Process "cursor-agent" -ArgumentList "logout"'):
         assert LOGIN_CALL.search(call), call
     for safe in ("codex login status", '["codex", "login", "status"]',
+                 "Start-Process codex -ArgumentList 'login','status'",
                  'r"login expired\\b.*please run /login"'):
         assert not LOGIN_CALL.search(safe), safe
 

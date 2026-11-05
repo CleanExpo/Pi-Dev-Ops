@@ -46,6 +46,8 @@ Uses your Claude subscription (Max). The sign-in below uses the subscription by 
 
 ### Claude on the Mac mini
 
+**HUMAN ONLY. Phill signs in. Agents never run these commands.**
+
 Open Terminal on the Mac mini.
 
 ```bash
@@ -64,6 +66,8 @@ Inside a running Claude Code window, typing `/login` does the same thing.
 
 ### Claude on the MacBook
 
+**HUMAN ONLY. Phill signs in. Agents never run these commands.**
+
 Open Terminal on the MacBook. Same steps as the Mini, with the `claude-macbook` account.
 
 ```bash
@@ -75,6 +79,8 @@ claude auth status --text
 <a id="card-claude-pc"></a>
 
 ### Claude on the PC
+
+**HUMAN ONLY. Phill signs in. Agents never run these commands.**
 
 Open PowerShell on the PC. Same steps, with the `claude-pc` account. The PC's plan is still undecided (RA-8195); if the map has no plan for it yet, stop at step 1 of "Before you start".
 
@@ -100,6 +106,8 @@ While the Mini's Codex login is dead, reviews fail over to the MacBook by themse
 
 ### Codex on the Mac mini
 
+**HUMAN ONLY. Phill signs in. Agents never run these commands.**
+
 Open Terminal on the Mac mini.
 
 ```bash
@@ -116,6 +124,8 @@ codex login status
 
 ### Codex on the MacBook
 
+**HUMAN ONLY. Phill signs in. Agents never run these commands.**
+
 Only if the map pins a Codex account to the MacBook. Open Terminal there. Same steps as the Mini, with the `codex-macbook` account.
 
 ```bash
@@ -127,6 +137,8 @@ codex login status
 <a id="card-codex-pc"></a>
 
 ### Codex on the PC
+
+**HUMAN ONLY. Phill signs in. Agents never run these commands.**
 
 Only if the map pins a Codex account to the PC. Open PowerShell there. Same steps, with the `codex-pc` account.
 
@@ -148,6 +160,8 @@ Uses your Cursor plan, through the `agent` command (also installed as `cursor-ag
 
 ### Cursor on the Mac mini
 
+**HUMAN ONLY. Phill signs in. Agents never run these commands.**
+
 Open Terminal on the Mac mini.
 
 ```bash
@@ -164,6 +178,8 @@ agent status
 
 ### Cursor on the MacBook
 
+**HUMAN ONLY. Phill signs in. Agents never run these commands.**
+
 Open Terminal on the MacBook. Same steps as the Mini, with the `cursor-macbook` account.
 
 ```bash
@@ -175,6 +191,8 @@ agent status
 <a id="card-cursor-pc"></a>
 
 ### Cursor on the PC
+
+**HUMAN ONLY. Phill signs in. Agents never run these commands.**
 
 Open PowerShell on the PC. Same steps, with the `cursor-pc` account.
 
