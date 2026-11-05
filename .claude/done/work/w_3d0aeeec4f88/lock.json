@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_3d0aeeec4f88",
+  "contract_digest": "bb2c509e772664723cc3aac668242250508b653a72ada82dbd5ea16e9698b288",
+  "baseline_head": "f00b4dc6af148b43199607b05797217cab3d4575",
+  "identity_key": "phillmcgurk/ra-8189-night-queue-picker@/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.git",
+  "locked_at_utc": "2026-11-05T04:16:17Z",
+  "criteria_count": 4,
+  "recipe_pins": {}
+}
