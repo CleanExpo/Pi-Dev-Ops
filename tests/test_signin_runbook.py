@@ -23,12 +23,20 @@ STATUS_CMD = {"claude": "claude auth status", "codex": "codex login status", "cu
 LOGIN_CMD = {"claude": "claude auth login", "codex": "codex login", "cursor": "agent login"}
 # Flags that turn a subscription sign-in into an API-key, token or metered login.
 BANNED_IN_SHELL = re.compile(r"--with-api-key|--with-access-token|--console\b|_API_KEY\b|ACCESS_TOKEN\b")
-# A sign-in or sign-out command. `codex login status` is a read-only check, not a login.
+# A sign-in or sign-out command, as shell text or as split argv (["codex", "login"]).
+# `codex login status` is a read-only check, not a login.
+_Q = r"""["']"""
+_SEP = r"""["']\s*,\s*\[?\s*["']"""
 LOGIN_CALL = re.compile(
     r"\bclaude\s+auth\s+log(?:in|out)\b|\bcodex\s+log(?:in(?!\s+status)|out)\b"
-    r"|\b(?:cursor-)?agent\s+log(?:in|out)\b")
-CODE_DIRS = ("scripts", "hooks", "mesh", "claude-hooks-mirror", "app", "src", "swarm", "tools")
-CODE_SUFFIXES = {".py", ".sh", ".bash", ".zsh", ".js", ".mjs", ".ts", ".ps1", ".cmd", ".bat"}
+    r"|\b(?:cursor-)?agent\s+log(?:in|out)\b"
+    rf"|{_Q}claude{_SEP}auth{_SEP}log(?:in|out){_Q}"
+    rf"|{_Q}codex{_SEP}log(?:out{_Q}|in{_Q}(?!\s*,\s*{_Q}status{_Q}))"
+    rf"|{_Q}(?:cursor-)?agent{_SEP}log(?:in|out){_Q}"
+    rf"|{_Q}/log(?:in|out){_Q}")
+# Every tracked code file except tests (which plant calls on purpose) and vendored code.
+SKIP_PREFIXES = ("tests/", "vendor/")
+CODE_SUFFIXES = {".py", ".sh", ".bash", ".zsh", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".ps1", ".cmd", ".bat"}
 
 
 @pytest.fixture(scope="module")
@@ -116,15 +124,27 @@ def test_w5_no_shell_block_uses_a_key_or_token_login(text):
 
 
 def _tracked_code_files() -> list[Path]:
-    out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "--", *CODE_DIRS],
+    out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"],
                          capture_output=True, text=True, check=True).stdout
-    return [ROOT / p for p in out.splitlines() if Path(p).suffix in CODE_SUFFIXES]
+    return [ROOT / p for p in out.split("\0")
+            if p and Path(p).suffix in CODE_SUFFIXES and not p.startswith(SKIP_PREFIXES)]
 
 
 def test_w5_login_pattern_catches_real_calls():
-    for call in ("claude auth login", "codex login --device-auth", "agent login", "cursor-agent logout"):
+    for call in ("claude auth login", "codex login --device-auth", "agent login", "cursor-agent logout",
+                 'subprocess.run(["codex", "login", "--device-auth"])',
+                 "run(['claude', 'auth', 'login'])", 'spawn("cursor-agent", ["login"])',
+                 'execFile("agent", [ "logout" ])', 'cmd = ["claude", "-p", "/login"]'):
         assert LOGIN_CALL.search(call), call
-    assert not LOGIN_CALL.search("codex login status")
+    for safe in ("codex login status", '["codex", "login", "status"]',
+                 'r"login expired\\b.*please run /login"'):
+        assert not LOGIN_CALL.search(safe), safe
+
+
+def test_w5_scan_covers_agent_hooks_and_the_whole_tracked_tree():
+    scanned = {p.relative_to(ROOT).as_posix() for p in _tracked_code_files()}
+    assert any(p.startswith(".claude/hooks/") for p in scanned), "agent hooks not scanned"
+    assert not any(p.startswith("tests/") for p in scanned), "tests hold planted calls on purpose"
 
 
 def test_w5_no_tracked_code_runs_a_sign_in_command():
