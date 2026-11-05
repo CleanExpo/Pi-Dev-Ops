@@ -83,6 +83,16 @@ def test_w2_codex_out_of_credits_is_auth_not_billing():
     assert [(h["event"], h["source"]) for h in hits] == [("auth_expired", "observed")]
 
 
+def test_w2_codex_401_is_auth_expired():
+    # RA-8191: seen live on the Mini, `codex exec` with no login (empty CODEX_HOME), 5 Nov 2026.
+    line = ("ERROR: unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, "
+            "url: https://api.openai.com/v1/responses")
+    hits = he.classify(line, "codex", NOW, 1)
+    assert [(h["event"], h["pattern_id"], h["source"]) for h in hits] == [
+        ("auth_expired", "codex.unauthorized", "observed")]
+    assert he.classify("warning: Falling back. unexpected status 401 Unauthorized: x", "codex", NOW, 1) == []
+
+
 def test_w2_codex_usage_limit_scans_despite_exit_zero_and_is_unverified():
     hits = he.classify("You've hit your usage limit. Try again at 3:45 PM.", "codex", NOW, 0)
     assert [(h["event"], h["source"]) for h in hits] == [("5h_cooling", "unverified")]

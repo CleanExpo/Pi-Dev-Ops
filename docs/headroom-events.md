@@ -10,7 +10,7 @@ It records what the CLI said. It never signs in, out or switches accounts, and i
 |---|---|---|
 | `5h_cooling` | short usage window used up; waits for the printed reset | Claude `5-hour limit reached ∙ resets 3:30pm`, `Claude usage limit reached`, `You've hit your usage limit · resets 11am` |
 | `weekly_cooling` | weekly allowance used up | Claude `You've hit your weekly limit · resets Oct 9 at 1am` |
-| `auth_expired` | the login is dead; a person must sign in again | Claude `Login expired · Please run /login`, `OAuth session expired`; Codex `Your workspace is out of credits` (an expired Codex token, not billing) |
+| `auth_expired` | the login is dead; a person must sign in again | Claude `Login expired · Please run /login`, `OAuth session expired`; Codex `Your workspace is out of credits` (an expired Codex token, not billing), Codex `unexpected status 401 Unauthorized` (no valid login; RA-8191) |
 | `billing_blocked` | the plan itself blocks use; a decision for Phill | Cursor `Get Cursor Pro for more Agent usage`; Claude `organization has disabled Claude subscription access` |
 | `on_demand_capped` | included usage gone; more needs a spend limit (paid overflow, Phill's GO only) | Cursor `set a Spend Limit to continue with this model` |
 
