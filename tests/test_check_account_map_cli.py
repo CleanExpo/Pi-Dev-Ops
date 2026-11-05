@@ -167,3 +167,21 @@ def test_cli_nested_secret_fails(tmp_path, capsys):
     path.write_text(yaml.safe_dump(data))
     assert cam.main(["--path", str(path)]) == 1
     assert "SECRET_FIELD" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "old, new",
+    [
+        ("  notes: ''\n", "  notes: password=" + "Example123\n  notes: ''\n"),
+        ("version: 1\n", "version: 1\nversion: 1\n"),
+        ("- id: mini\n", "- id: mini\n  host: a\n  host: b\n"),
+    ],
+)
+def test_cli_duplicate_yaml_key_fails(tmp_path, capsys, old, new):
+    """W1.2: YAML keeps only the last of two equal keys, so an earlier credential would hide."""
+    text = yaml.safe_dump(_map(), sort_keys=False)
+    assert old in text
+    path = tmp_path / "dup.yaml"
+    path.write_text(text.replace(old, new, 1))
+    assert cam.main(["--path", str(path)]) == 1
+    assert "DUPLICATE_KEY" in capsys.readouterr().out

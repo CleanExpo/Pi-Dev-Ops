@@ -9,6 +9,7 @@ writes anything.
 Rules (each failure prints its rule name; any failure exits 1):
 
     FILE                 the map is missing or is not valid YAML
+    DUPLICATE_KEY        one mapping repeats a key (YAML would silently keep only the last)
     SCHEMA               wrong top-level shape or version, empty lists, account pinned nowhere
     SECRET_FIELD         a key whose name looks like a credential, at any level
     UNKNOWN_KEY          a key outside the allowed schema
@@ -43,7 +44,9 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from account_map_secrets import comment_lines, looks_secret_name, looks_secret_value  # noqa: E402
+from account_map_secrets import (  # noqa: E402
+    DuplicateKeyError, UniqueKeyLoader, comment_lines, looks_secret_name, looks_secret_value,
+)
 
 DEFAULT_PATH = Path(__file__).resolve().parent.parent / "ops" / "ACCOUNT-MAP.yaml"
 SCHEMA_VERSION = 1
@@ -243,7 +246,9 @@ def scan_comments(text: str, report: Report) -> None:
 def _load(path: Path, report: Report):
     try:
         text = path.read_text(encoding="utf-8")
-        data = yaml.safe_load(text)
+        data = yaml.load(text, Loader=UniqueKeyLoader)  # noqa: S506 - SafeLoader subclass
+    except DuplicateKeyError as exc:
+        report.error("DUPLICATE_KEY", f"{path}: {exc}; the earlier value would be hidden")
     except OSError as exc:
         report.error("FILE", f"cannot read {path}: {exc.strerror or exc}")
     except yaml.YAMLError as exc:
@@ -262,7 +267,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     report = Report()
     data = _load(args.path, report)
-    if not any(f.rule == "FILE" for f in report.errors):
+    if not any(f.rule in ("FILE", "DUPLICATE_KEY") for f in report.errors):
         comment_findings = report.errors
         report = validate(data, require_real=args.require_real)
         report.errors[:0] = comment_findings
