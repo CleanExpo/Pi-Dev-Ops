@@ -115,7 +115,7 @@ def test_secret_looking_value_in_notes_is_rejected(value):
 
 
 def test_plain_notes_with_ticket_ids_pass_and_urls_fail_closed():
-    """W1.3/W1.5: plain prose with a ticket id passes; a URL is not an accepted notes shape
+    """W1.3/W6.3: plain prose with a ticket id passes; a URL is not an accepted notes shape
     (accept-only redesign), so it fails closed instead of being trusted."""
     data = _map()
     data["accounts"][0]["notes"] = "Seat decision pending (RA-8196), ask Phill first."

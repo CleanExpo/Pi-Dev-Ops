@@ -1,6 +1,6 @@
 """RA-8187 AR-01 accept-only redesign: every value must match its field's grammar.
 
-Earlier rounds grew a deny-list one bypass at a time (W1.5 in the PR's "Five whys"). These
+Earlier rounds grew a deny-list one bypass at a time (W6 in the PR's "Five whys"). These
 tests plant fake keys of each kind in every place a value can sit and assert the CLI (what
 CI runs) exits 1. Keys are built by concatenation at test time and written to tmp_path, so
 no key-shaped string is committed and the repo's own secret scanner stays quiet.
@@ -80,7 +80,7 @@ def test_base_text_passes(tmp_path, capsys):
 @pytest.mark.parametrize("location", sorted(LOCATIONS))
 @pytest.mark.parametrize("kind", sorted(FAKE_KEYS))
 def test_planted_key_fails(tmp_path, capsys, kind, location):
-    """W1.5: a fake key of every kind, wherever it is planted, fails the build."""
+    """W6: a fake key of every kind, wherever it is planted, fails the build."""
     text = LOCATIONS[location](FAKE_KEYS[kind])
     assert FAKE_KEYS[kind][:9] in text or location == "quoted_line_continuation"
     code, out = _run(tmp_path, text, capsys)
@@ -90,13 +90,13 @@ def test_planted_key_fails(tmp_path, capsys, kind, location):
 
 @pytest.mark.parametrize("kind", sorted(FAKE_KEYS))
 def test_second_net_matches_every_fake_key_alone(kind):
-    """W1.5: the second net alone recognises each kind, even glued to a word by '_'."""
+    """W6: the second net alone recognises each kind, even glued to a word by '_'."""
     assert secrets.looks_secret_value(FAKE_KEYS[kind])
     assert secrets.looks_secret_value("x_" + FAKE_KEYS[kind])
 
 
 def test_grammar_covers_every_key():
-    """W1.5: accept-only means no schema field is free-form; a new field needs a grammar."""
+    """W6: accept-only means no schema field is free-form; a new field needs a grammar."""
     expected = ({("map", k) for k in cam.TOP_KEYS}
                 | {("machine", k) for k in cam.MACHINE_KEYS}
                 | {("account", k) for k in cam.ACCOUNT_KEYS})
@@ -118,7 +118,7 @@ def test_grammar_covers_every_key():
     ],
 )
 def test_url_in_notes_or_mixed_word_fails_closed(note):
-    """W1.5: notes accept short plain prose only; URLs, mixed words, odd characters fail."""
+    """W6: notes accept short plain prose only; URLs, mixed words, odd characters fail."""
     assert grammar.GRAMMAR[("account", "notes")](note) is not None
 
 
@@ -129,7 +129,7 @@ def test_url_in_notes_or_mixed_word_fails_closed(note):
      "Phill's old login; ask first?"],
 )
 def test_plain_prose_notes_pass(note):
-    """W1.5: the grammar must not cry wolf on the notes Phill actually writes."""
+    """W6: the grammar must not cry wolf on the notes Phill actually writes."""
     assert grammar.GRAMMAR[("account", "notes")](note) is None
 
 
@@ -140,13 +140,13 @@ def test_mixed_word_in_comment_fails(tmp_path, capsys):
 
 
 def test_unknown_plan_fails_and_lists_choices():
-    """W1.5: plan is a fixed choice; anything else fails and says what is allowed."""
+    """W6: plan is a fixed choice; anything else fails and says what is allowed."""
     problem = grammar.GRAMMAR[("account", "plan")]("gold")
     assert problem is not None and "max" in problem[1]
 
 
 def test_scanner_patterns_are_reused_not_copied():
-    """W1.5: the second net loads app/server/scanner.py's own list, so the two cannot drift."""
+    """W6: the second net loads app/server/scanner.py's own list, so the two cannot drift."""
     from app.server import scanner
     loaded = [p.pattern for p in secrets.scanner_patterns()]
     assert loaded == [entry[0] for entry in scanner._SECRET_PATTERNS]
@@ -161,13 +161,13 @@ def test_missing_scanner_fails_closed(tmp_path, monkeypatch):
 
 
 def test_independent_second_net_only(tmp_path, capsys):
-    """W1.5: a short Slack-shaped key in a comment passes the word grammar; the net alone fires."""
+    """W6: a short Slack-shaped key in a comment passes the word grammar; the net alone fires."""
     code, out = _run(tmp_path, BASE + "# old " + "xoxb-" + "12345-abcde" + "\n", capsys)
     assert code == 1 and "SECRET_VALUE" in out and "BAD_VALUE" not in out
 
 
 def test_independent_grammar_only(tmp_path, capsys):
-    """W1.5: a 26-letter run in notes is no known key shape; the grammar alone fires."""
+    """W6: a 26-letter run in notes is no known key shape; the grammar alone fires."""
     text = BASE.replace("Placeholder. Phill", "abcdefghijklmnopqrstuvwxyz Phill")
     code, out = _run(tmp_path, text, capsys)
     assert code == 1 and "BAD_VALUE" in out and "SECRET_VALUE" not in out
