@@ -81,7 +81,11 @@ def test_invalid_startup_state_allows_recovery_read_but_denies_mutation(
         surface="claude",
         event="UserPromptSubmit",
     )
-    state_path = next(state_root.rglob("*.json"))
+    # The launch-root record sits beside the session state and has no receipt;
+    # rglob order is filesystem-dependent, so never take "the first" JSON file.
+    (state_path,) = [
+        p for p in state_root.rglob("*.json") if p.parent.name != "launch-root"
+    ]
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state["receipt"]["stage"] = "tampered"
     state_path.write_text(json.dumps(state), encoding="utf-8")
