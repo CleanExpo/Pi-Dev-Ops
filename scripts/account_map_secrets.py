@@ -90,7 +90,7 @@ def _construct_unique_mapping(loader, node):
         except TypeError:  # unhashable key: construct_mapping raises its own error
             continue
         if duplicate:
-            raise DuplicateKeyError(f"line {key_node.start_mark.line + 1}: key {key!r} "
+            raise DuplicateKeyError(f"line {key_node.start_mark.line + 1}: a key "
                                     "appears twice in one mapping")
     return loader.construct_mapping(node, deep=True)
 
