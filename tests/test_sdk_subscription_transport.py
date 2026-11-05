@@ -74,8 +74,12 @@ def test_readiness_never_runs_auth_or_models(monkeypatch, supported):
     call = Mock(side_effect=AssertionError("readiness must not launch subprocesses"))
     monkeypatch.setattr(policy.subprocess, "run", call)
     result = sdk.generation_readiness()
-    assert result["status"] == ("unverified" if supported else "blocked")
-    assert result["ready"] is (None if supported else False)
+    # The login is checked in the background, never inline. Until that check has
+    # passed, readiness blocks even on a supported host (it used to say
+    # "unverified" here, which is how a dead login hid behind /health for weeks).
+    assert result["status"] == "blocked"
+    assert result["ready"] is False
+    assert any("not yet verified" in b for b in result["blockers"])
     assert result["auth_verified"] is False
     assert result["cost_verified"] is False
     call.assert_not_called()

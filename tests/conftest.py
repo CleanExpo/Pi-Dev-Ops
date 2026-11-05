@@ -3,6 +3,7 @@ conftest.py — shared pytest fixtures for Pi-CEO unit tests.
 """
 import os
 import sys
+from collections.abc import Iterator
 
 import pytest
 
@@ -29,7 +30,17 @@ def _fresh_left_running_record(tmp_path, monkeypatch):
         monkeypatch.setattr(module, "_UNRECORDED", [False])
 
 
-_REAL_JEV_LEDGER = os.path.expanduser("~/.local/state/jev/spend.sqlite")
+@pytest.fixture(autouse=True)
+def _no_live_claude_auth_probe(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Readiness starts a background `claude auth status`; unit tests never run the real CLI."""
+    from app.server import claude_auth_probe
+    claude_auth_probe.reset()
+    monkeypatch.setattr(claude_auth_probe, "_schedule", lambda: None)
+    yield
+    claude_auth_probe.reset()
+
+
+_REAL_JEV_LEDGER =os.path.expanduser("~/.local/state/jev/spend.sqlite")
 
 
 def _ledger_fingerprint():
