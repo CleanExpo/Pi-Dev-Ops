@@ -23,7 +23,7 @@ It only chooses. It never claims a job, signs in or out, switches accounts, read
 | 2 | map, job-hours table or arguments unusable (including a repeated key in the map, or job-hours too large to add up) |
 | 3 | HEADROOM log unreadable, its folder is missing (ops SSD not mounted), or it is a link whose target is missing: UNKNOWN, no pick |
 
-A mounted log folder with no file yet is a real "no events" and prints `"log": {"status": "absent"}`. Lines that are not valid `headroom/1` records are counted in `"malformed"` and never trusted. An empty `--machines` list (in code, `candidates=[]`) picks nothing; only leaving it out means every mapped machine.
+A mounted log folder with no file yet is a real "no events" and prints `"log": {"status": "absent"}`. Lines that are not valid `headroom/1` records are counted in `"malformed"` and never trusted. Leaving out `--machines` means every mapped machine. An empty value (`--machines ""`) means no machines, so nothing is picked (exit 1). In Python, `candidates=None` means every machine and `candidates=[]` means none. A folder the picker may not open is UNKNOWN (exit 3), like a missing one. The map may use YAML anchors and `<<:` merge keys; a key written twice is refused.
 
 ## Use
 

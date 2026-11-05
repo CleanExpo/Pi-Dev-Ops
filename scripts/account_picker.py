@@ -56,7 +56,9 @@ class _UniqueKeyLoader(yaml.SafeLoader):
     """SafeLoader that refuses a repeated mapping key instead of keeping the last one."""
 
     def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict:
-        keys = [self.construct_object(k, deep=deep) for k, _ in node.value]
+        # `<<: *anchor` merge keys are expanded by flatten_mapping in super(); skip them here.
+        keys = [self.construct_object(k, deep=deep) for k, _ in node.value
+                if k.tag != "tag:yaml.org,2002:merge"]
         if len(keys) != len({repr(k) for k in keys}):
             raise yaml.constructor.ConstructorError(None, None, "duplicate key", node.start_mark)
         return super().construct_mapping(node, deep=deep)
@@ -110,10 +112,14 @@ def _valid(r: object) -> bool:
 def read_log(path: str | Path) -> dict:
     """Valid records and a count of lines that could not be trusted. Unreadable: LogUnknown."""
     path = Path(path)
-    if not path.parent.is_dir():
+    try:  # stat can raise PermissionError on a folder without search permission
+        mounted, present, link = path.parent.is_dir(), path.exists(), path.is_symlink()
+    except OSError as exc:
+        raise LogUnknown(f"HEADROOM log folder unreadable: {type(exc).__name__}") from None
+    if not mounted:
         raise LogUnknown("HEADROOM log folder missing (ops SSD not mounted?)")
-    if not path.exists():
-        if path.is_symlink():  # a link whose target is gone is unreadable, not an empty night
+    if not present:
+        if link:  # a link whose target is gone is unreadable, not an empty night
             raise LogUnknown("HEADROOM log symlink target missing (ops SSD not mounted?)")
         return {"status": "absent", "events": [], "malformed": 0}
     try:
@@ -247,7 +253,8 @@ def main(argv: Optional[list] = None) -> int:
             raise InputError("--now is not an ISO time")
         amap, hours = load_map(a.map), _load_hours(a.job_hours)
         log = read_log(a.log)
-        cands = [m.strip() for m in a.machines.split(",")] if a.machines else None
+        # Only a missing --machines means every machine; an empty value means none.
+        cands = None if a.machines is None else [m.strip() for m in a.machines.split(",") if m.strip()]
         out = pick(amap, log["events"], provider=a.provider, now=now, candidates=cands, job_hours=hours)
     except InputError as exc:
         print(f"account-picker: {exc}", file=sys.stderr)
