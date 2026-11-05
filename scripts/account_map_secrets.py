@@ -1,12 +1,14 @@
 """Credential-shape patterns for the account map validator (RA-8187).
 
 Kept apart from check_account_map.py so the schema rules and the "does this look like a
-secret" rules can each be read on one screen. Both are read-only checks; nothing here
+secret" rules can each be read on one screen. It also holds the YAML loader that refuses duplicate keys. All are read-only; nothing here
 stores, prints or transmits a matched value.
 """
 from __future__ import annotations
 
 import re
+
+import yaml
 
 # A key whose NAME suggests a credential, at any depth of the map.
 SECRET_NAME = re.compile(
@@ -34,6 +36,33 @@ SECRET_VALUE = [
                r"session[_ -]?(?:id|key|token|cookie)?|credential|auth|bearer|otp)s?"
                r"\s*[:=]\s*\S", re.I),
 ]
+
+
+class DuplicateKeyError(yaml.YAMLError):
+    """Two equal keys in one mapping. PyYAML would keep the last and hide the first."""
+
+
+class UniqueKeyLoader(yaml.SafeLoader):
+    """SafeLoader that refuses duplicate keys, so no value can sit unparsed in the file."""
+
+
+def _construct_unique_mapping(loader, node):
+    seen = set()
+    for key_node, _ in node.value:
+        key = loader.construct_object(key_node, deep=True)
+        try:
+            duplicate = key in seen
+            seen.add(key)
+        except TypeError:  # unhashable key: construct_mapping raises its own error
+            continue
+        if duplicate:
+            raise DuplicateKeyError(f"line {key_node.start_mark.line + 1}: key {key!r} "
+                                    "appears twice in one mapping")
+    return loader.construct_mapping(node, deep=True)
+
+
+UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+                                _construct_unique_mapping)
 
 
 def looks_secret_name(name) -> bool:
