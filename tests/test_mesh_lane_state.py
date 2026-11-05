@@ -89,3 +89,10 @@ def test_cli_begin_without_a_command_is_refused(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         lane_state.main(["begin", "--dir", str(tmp_path), "--pid", "5"])
     assert not (tmp_path / "lane-state.json").exists()
+
+
+def test_the_checkpoint_is_saved_before_the_step_starts(tmp_path: Path) -> None:
+    lane_state.begin(str(tmp_path), 1, ["a"], "clone")
+    probe = ("import json,sys; s=json.load(open('lane-state.json')); "
+             "sys.exit(0 if s['step']=='receipt' and 'step_started_epoch' in s else 5)")
+    assert lane_state.run_step(str(tmp_path), "receipt", [PY, "-c", probe]) == 0,         "the step ran before its checkpoint was on disk"

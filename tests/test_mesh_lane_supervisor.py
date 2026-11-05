@@ -120,7 +120,7 @@ def test_a_lane_that_keeps_dying_is_parked_not_restarted_forever(tmp_path: Path)
     assert s["actions"] == {"crashy": "parked"} and f.spawned == []
     assert state(d)["state"] == "parked"
     (ev,) = f.sent
-    assert ev["action"] == "parked" and "parked after 3 relaunches" in ev["text"]
+    assert ev["action"] == "parked" and ev["text"].endswith("relaunch limit reached after 3 relaunches")
 
 
 def test_after_a_reboot_the_pc_takes_what_it_can_and_hands_off_the_rest(tmp_path: Path) -> None:
@@ -147,10 +147,12 @@ def test_an_unreachable_board_keeps_the_line_and_sends_it_once_later(tmp_path: P
     f = Fake(dead={7}, board_ok=False)
     s = sup.tick(str(tmp_path), f.deps())
     assert s["actions"] == {"job": "resumed"} and s["board_pending"] and "timed out" in s["board_error"]
+    assert [e["action"] for e in state(str(tmp_path / "job"))["pending_events"]] == ["resumed"]
     f.board_ok = True
     s2 = sup.tick(str(tmp_path), f.deps())
     assert s2["actions"] == {} and s2["board_sent"] == 1 and not s2["board_pending"]
     assert [e["action"] for e in f.sent] == ["resumed"]
+    assert state(str(tmp_path / "job"))["pending_events"] == []
     log = (tmp_path / ".lane-supervisor" / "supervisor.log").read_text(encoding="utf-8")
     assert "board_error=" in log and "AEST" in log
 
@@ -184,3 +186,82 @@ def test_last_tick_file_records_the_tick(tmp_path: Path) -> None:
 def test_a_missing_root_is_a_quiet_empty_tick(tmp_path: Path, missing_root: str) -> None:
     root = tmp_path / missing_root
     assert sup.run_tick(str(root), Fake().deps())["lanes"] == 0
+
+
+def test_a_launch_whose_pid_was_never_saved_is_parked_not_started_twice(tmp_path: Path, monkeypatch) -> None:
+    d = lane(tmp_path, "torn", 11)
+    f = Fake(dead={11})
+    real_save = sup.lane_state.save
+
+    def save_fails_after_spawn(lane_dir, st):
+        if f.spawned and not st.get("launching"):  # the post-spawn save that records the pid
+            raise OSError("disk full")
+        real_save(lane_dir, st)
+    monkeypatch.setattr(sup.lane_state, "save", save_fails_after_spawn)
+    assert sup.tick(str(tmp_path), f.deps())["actions"] == {"torn": "relaunch_failed"}
+    monkeypatch.setattr(sup.lane_state, "save", real_save)
+    st = state(d)
+    assert st["launching"]["attempt"] == 1 and st["attempts"] == 1 and st["pid"] == 11
+    s = sup.tick(str(tmp_path), f.deps())
+    assert s["actions"] == {"torn": "parked"} and len(f.spawned) == 1, "a second copy was started"
+    assert state(d)["state"] == "parked" and "never recorded" in f.sent[-1]["text"]
+
+
+def test_a_child_that_registers_itself_first_keeps_its_own_record(tmp_path: Path) -> None:
+    d = lane(tmp_path, "quick", 12)
+    f = Fake(dead={12})
+    real_spawn = f.spawn
+
+    def spawn_and_register(argv, cwd, env, log_path):
+        pid = real_spawn(argv, cwd, env, log_path)
+        lane_state.begin(d, pid, argv, "codex-review")  # the resumed lane re-registers at once
+        return pid
+    f.spawn = spawn_and_register
+    assert sup.tick(str(tmp_path), f.deps())["actions"] == {"quick": "resumed"}
+    st = state(d)
+    assert "launching" not in st and st["pid"] == 9001 and st["attempts"] == 1
+    assert [e["action"] for e in f.sent] == ["resumed"]
+
+
+def test_a_lane_that_restarts_during_a_handoff_is_not_handed_off(tmp_path: Path) -> None:
+    lane(tmp_path, "a-live", 1)
+    d = lane(tmp_path, "b-dead", 2)
+    f = Fake(dead={2})
+    f.reachable = lambda host: bool(lane_state.begin(d, 999, ["x"], "codex-review"))
+    s = sup.tick(str(tmp_path), f.deps(max_local=1))
+    assert s["actions"] == {"b-dead": "changed"} and f.sent == []
+    assert state(d)["state"] == "running" and state(d)["pid"] == 999
+
+
+def test_a_stale_snapshot_never_parks_a_lane_that_came_back(tmp_path: Path) -> None:
+    d = lane(tmp_path, "back", 5, attempts=3)
+    seen = state(d)
+    lane_state.begin(d, 999, ["x"], "codex-review")  # it restarted after the scan
+    f = Fake(dead={5})
+    assert sup.decide(str(tmp_path), d, seen, "dead", 0, f.deps()) == ("changed", 0)
+    assert state(d)["state"] == "running" and state(d)["pid"] == 999
+
+
+def test_a_decision_that_cannot_be_saved_changes_nothing_and_is_made_again(tmp_path: Path, monkeypatch) -> None:
+    lane(tmp_path, "a-live", 1)
+    d = lane(tmp_path, "b-dead", 2)
+    before = state(d)
+    f = Fake(dead={2}, reachable={"mini"})
+    real_save = sup.lane_state.save
+    monkeypatch.setattr(sup.lane_state, "save", lambda *a: (_ for _ in ()).throw(OSError("read-only")))
+    assert sup.tick(str(tmp_path), f.deps(max_local=1))["actions"] == {"b-dead": "error"}
+    assert state(d) == before and f.sent == []
+    monkeypatch.setattr(sup.lane_state, "save", real_save)
+    assert sup.tick(str(tmp_path), f.deps(max_local=1))["actions"] == {"b-dead": "handed_off"}
+    assert [e["action"] for e in f.sent] == ["handed_off"] and state(d)["pending_events"] == []
+
+
+def test_a_lane_that_finished_after_the_scan_is_not_parked_or_handed_off(tmp_path: Path) -> None:
+    d = lane(tmp_path, "finished-late", 6, attempts=3)
+    seen = state(d)
+    lane_state.update(d, state="done")  # its process is gone because it finished, not because it died
+    f = Fake(dead={6}, reachable={"mini"})
+    assert sup.decide(str(tmp_path), d, seen, "dead", 0, f.deps()) == ("changed", 0)
+    seen2 = dict(seen, attempts=0)
+    assert sup.decide(str(tmp_path), d, seen2, "dead", 9, f.deps(max_local=1)) == ("changed", 9)
+    assert state(d)["state"] == "done" and f.spawned == [] and state(d)["pending_events"] == []

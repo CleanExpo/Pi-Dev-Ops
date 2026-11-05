@@ -9,17 +9,17 @@ replace. Each lane gets ONE job row, `PC-LANE-<LANE>`, that says what happened l
     handed_off  status todo   assigned_to Mini/MacBook, "handed to Mini from step X"
     parked      status open   P1 alert, "parked after N attempts"
 
-Delivery is never assumed. Every event goes to a local outbox first and leaves it only
-when the Mini confirms the write, so an unreachable Mini delays the line and never loses
-it. Re-sending is safe: each event carries a uid and the Mini skips one it already has.
+Delivery is never assumed. The supervisor saves each line inside the lane's own
+state file in the same write as the decision, and removes it only when the Mini
+confirms the write, so an unreachable Mini delays the line and never loses it.
+Re-sending is safe: each event carries a uid and the Mini skips one it already has.
 """
 from __future__ import annotations
 
 import json
 import os
+import re
 import sys
-from pathlib import Path
-from typing import Callable
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lane_proc  # noqa: E402
@@ -80,34 +80,18 @@ def ssh_send(events: list) -> tuple:
     return rc == 0 and OK in out, out
 
 
-def outbox(root: str) -> Path:
-    return Path(root) / ".lane-supervisor" / "outbox.jsonl"
-
-
-def queue(root: str, event: dict) -> None:
-    p = outbox(root)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with open(p, "a", encoding="utf-8") as f:
-        f.write(json.dumps(event) + "\n")
-
-
-def flush(root: str, send: Callable = ssh_send) -> tuple:
-    """Send every queued event in one board edit. Returns (sent count, error or '')."""
-    p = outbox(root)
-    if not p.exists():
-        return 0, ""
-    lines = [ln for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    events = []
-    for ln in lines:
-        try:
-            events.append(json.loads(ln))
-        except ValueError:
-            continue  # a torn last line from a crash mid-append; the event is re-made next tick
-    if not events:
-        p.unlink()
-        return 0, ""
-    ok, out = send(events)
-    if not ok:
-        return 0, out.strip()[-300:] or "board write not confirmed"
-    p.unlink()
-    return len(events), ""
+def board_event(st: dict, action: str, now: float, target: str = "", why: str = "") -> dict:
+    """The one wording of a lane's board line. `uid` makes a resend recognisable."""
+    lane, step = st["lane"], st.get("step", "start")
+    who = f"{lane} ({st['linear_id']})" if st.get("linear_id") else lane
+    tail = {"resumed": "resumed on PC", "handed_off": f"handed to {target}",
+            "parked": f"parked, needs a person: {why}"}[action]
+    note = (f"Lane folder {st.get('resume', {}).get('cwd')} on {st.get('host')}. Last step: {step}. "
+            f"Steps done: {', '.join(st.get('steps_done', [])) or 'none'}. Saved command and history: "
+            f"lane-state.json in that folder.")
+    if action == "handed_off":
+        note = f"Resume lane {lane} on {target} from step {step}. " + note
+    return {"id": "PC-LANE-" + re.sub(r"[^A-Z0-9]+", "-", lane.upper()).strip("-"),
+            "uid": f"{lane}:{action}:{int(now)}:{st.get('attempts', 0)}", "lane": lane,
+            "action": action, "target": target, "linear": st.get("linear_id"),
+            "text": f"PC lane {who} stopped at step {step}: {tail}", "note": note}

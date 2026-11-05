@@ -96,11 +96,12 @@ def new_state(lane_dir: str, pid: int, argv: list, step: str, linear: Optional[s
             "host": socket.gethostname(),
             "pid": pid, "pid_started": lane_proc.start_time(pid), "step": step, "steps_done": [],
             "resume": {"argv": argv, "cwd": str(lane_dir)}, "attempts": 0, "max_attempts": 3,
-            "created_epoch": now, "history": []}
+            "created_epoch": now, "history": [], "pending_events": []}
 
 
 def begin(lane_dir: str, pid: int, argv: list, step: str = "start", linear: Optional[str] = None) -> dict:
-    """Record a starting (or restarting) lane. A restart keeps finished steps and history."""
+    """Record a starting (or restarting) lane. A restart keeps finished steps, history and
+    unsent board lines, and clears the supervisor's `launching` marker: the child is recorded."""
     with locked(lane_dir):
         try:
             old = load(lane_dir)
@@ -108,7 +109,7 @@ def begin(lane_dir: str, pid: int, argv: list, step: str = "start", linear: Opti
             old = None
         st = new_state(lane_dir, pid, argv, step, linear)
         if old and old.get("state") == RUNNING:  # a resumed lane re-registering itself
-            for k in ("steps_done", "attempts", "created_epoch", "history", "max_attempts"):
+            for k in ("steps_done", "attempts", "created_epoch", "history", "max_attempts", "pending_events"):
                 st[k] = old.get(k, st[k])
             st["linear_id"] = linear or old.get("linear_id")
         save(lane_dir, st)

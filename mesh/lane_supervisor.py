@@ -10,9 +10,15 @@ every 5 minutes (mesh/windows/register_lane_supervisor.ps1). Each tick:
 3. relaunches each dead lane from its saved command, with its last step in the
    environment, while the PC runs fewer than LANE_SUPERVISOR_MAX_LOCAL live lanes;
    past that it hands the lane to the first reachable of Mini or MacBook instead;
-4. parks a lane that has already been relaunched max_attempts times, so a lane that
-   dies on every start is not restarted forever;
+4. parks a lane that has already been relaunched max_attempts times, or whose last
+   relaunch started a process that was never recorded, so nothing runs twice;
 5. writes one board line per decision (lane_board.py) and one log line per tick.
+
+Every change goes through `transition`: under the lane's lock it reloads the state and
+acts only if it is still the same dead lane the scan saw (same pid, start time, attempt
+count and launch marker). The board line is saved inside the lane's state in that same
+write and removed only when the Mini confirms it, so no decision loses its line. A
+relaunch saves a `launching` marker BEFORE it starts the process.
 
 It never kills, stops or signals any process. A lane folder holding a STOP file is
 skipped. Log: <root>\\.lane-supervisor\\supervisor.log; last tick: last-tick.json.
@@ -23,7 +29,6 @@ import argparse
 import contextlib
 import json
 import os
-import re
 import sys
 import time
 import traceback
@@ -35,10 +40,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lane_board  # noqa: E402
 import lane_proc  # noqa: E402
 import lane_state  # noqa: E402
+from lane_board import board_event  # noqa: E402,F401 - re-exported for callers and tests
 
 ROOT = os.environ.get("LANE_ROOT", r"C:\agent-work")
 MAX_LOCAL = int(os.environ.get("LANE_SUPERVISOR_MAX_LOCAL", "4"))
 HOSTS = {"mini": "Mini", "macbook": "MacBook"}  # ssh alias -> board name
+SAME = ("state", "pid", "pid_started", "attempts", "launching")  # what makes a snapshot current
+UNRECORDED = "a relaunch started a process that was never recorded; check for a running copy first"
 
 
 def _reachable(host: str) -> bool:
@@ -103,94 +111,139 @@ def scan(root: str) -> list:
 
 
 def classify(lane_dir: str, st, deps: Deps) -> str:
-    """broken | idle | stopped | live | dead."""
+    """broken | idle | stopped | live | dead | unrecorded."""
     if isinstance(st, Exception):
         return "broken"
     if st["state"] != lane_state.RUNNING:
         return "idle"
     if (Path(lane_dir) / "STOP").exists():
         return "stopped"
-    return "dead" if deps.alive(st.get("pid"), st.get("pid_started")) is False else "live"
-
-
-def board_event(st: dict, action: str, deps: Deps, target: str = "") -> dict:
-    lane, step = st["lane"], st.get("step", "start")
-    who = f"{lane} ({st['linear_id']})" if st.get("linear_id") else lane
-    tail = {"resumed": "resumed on PC", "handed_off": f"handed to {target}",
-            "parked": f"parked after {st.get('attempts', 0)} relaunches, needs a person"}[action]
-    note = (f"Lane folder {st.get('resume', {}).get('cwd')} on {st.get('host')}. Last step: {step}. "
-            f"Steps done: {', '.join(st.get('steps_done', [])) or 'none'}. Saved command and history: "
-            f"lane-state.json in that folder.")
-    if action == "handed_off":
-        note = f"Resume lane {lane} on {target} from step {step}. " + note
-    return {"id": "PC-LANE-" + re.sub(r"[^A-Z0-9]+", "-", lane.upper()).strip("-"),
-            "uid": f"{lane}:{action}:{int(deps.now())}:{st.get('attempts', 0)}", "lane": lane,
-            "action": action, "target": target, "linear": st.get("linear_id"),
-            "text": f"PC lane {who} stopped at step {step}: {tail}", "note": note}
+    if deps.alive(st.get("pid"), st.get("pid_started")) is not False:
+        return "live"
+    return "unrecorded" if st.get("launching") else "dead"
 
 
 def _history(st: dict, deps: Deps, **entry) -> None:
     st["history"] = (st.get("history", []) + [dict(epoch=deps.now(), **entry)])[-50:]
 
 
-def relaunch(lane_dir: str, deps: Deps) -> Optional[dict]:
-    """Start the lane's saved command again. None when the state changed under us."""
+def _announce(st: dict, action: str, deps: Deps, **kw) -> None:
+    """Save the board line with the decision itself; flush_board sends and clears it."""
+    st["pending_events"] = st.get("pending_events", []) + [board_event(st, action, deps.now(), **kw)]
+
+
+def transition(lane_dir: str, seen: dict, deps: Deps, change: Callable) -> Optional[dict]:
+    """Apply `change` only if the lane is still the dead lane `seen` described."""
     with lane_state.locked(lane_dir):
         st = lane_state.load(lane_dir)
-        if st["state"] != lane_state.RUNNING or deps.alive(st.get("pid"), st.get("pid_started")) is not False:
-            return None  # the lane restarted itself, or finished, since the scan
-        attempt = st.get("attempts", 0) + 1
-        env = dict(os.environ, LANE_RESUMED="1", LANE_STATE_DIR=lane_dir, LANE_RESUME_ATTEMPT=str(attempt),
-                   LANE_RESUME_STEP=st.get("step", "start"), LANE_STEPS_DONE=",".join(st.get("steps_done", [])))
-        resume = st.get("resume", {})
-        log_path = os.path.join(lane_dir, f"resume-{attempt}.log")
-        old_pid, st["attempts"] = st.get("pid"), attempt
-        try:
-            pid = deps.spawn(resume["argv"], resume.get("cwd") or lane_dir, env, log_path)
-        except (OSError, KeyError, TypeError) as e:
-            _history(st, deps, action="relaunch_failed", error=str(e)[:300], old_pid=old_pid)
-            lane_state.save(lane_dir, st)
-            raise
-        st.update(pid=pid, pid_started=deps.start_time(pid), resumed_epoch=deps.now())
-        _history(st, deps, action="resumed", from_step=st.get("step"), old_pid=old_pid, pid=pid)
+        current = all(st.get(k) == seen.get(k) for k in SAME)
+        if not current or (Path(lane_dir) / "STOP").exists() \
+                or deps.alive(st.get("pid"), st.get("pid_started")) is not False:
+            return None  # the lane restarted, finished or was stopped since the scan
+        change(st)
         lane_state.save(lane_dir, st)
         return st
 
 
-def hand_off(lane_dir: str, deps: Deps) -> Optional[tuple]:
-    host = next((h for h in deps.hosts if deps.reachable(h)), None)
-    if host is None:
-        return None
-    target = HOSTS.get(host, host)
-    with lane_state.locked(lane_dir):
-        st = lane_state.load(lane_dir)
+def park(lane_dir: str, seen: dict, deps: Deps, why: str) -> Optional[dict]:
+    def change(st: dict) -> None:
+        st.update(state=lane_state.PARKED, note=why)
+        st.pop("launching", None)
+        _history(st, deps, action="parked", why=why)
+        _announce(st, "parked", deps, why=why)
+    return transition(lane_dir, seen, deps, change)
+
+
+def hand_off(lane_dir: str, seen: dict, deps: Deps, target: str) -> Optional[dict]:
+    def change(st: dict) -> None:
         st.update(state=lane_state.HANDED_OFF, handed_to=target)
         _history(st, deps, action="handed_off", target=target, from_step=st.get("step"))
+        _announce(st, "handed_off", deps, target=target)
+    return transition(lane_dir, seen, deps, change)
+
+
+def _settle(lane_dir: str, attempt: int, deps: Deps, pid: Optional[int], error: str = "") -> dict:
+    """Record what a launch did. A child that already registered itself is left alone."""
+    with lane_state.locked(lane_dir):
+        st = lane_state.load(lane_dir)
+        launch = st.get("launching") or {}
+        mine = launch.get("attempt") == attempt
+        if mine:
+            st.pop("launching")
+        if error:
+            _history(st, deps, action="relaunch_failed", attempt=attempt, error=error[:300])
+        else:
+            if mine:
+                st.update(pid=pid, pid_started=deps.start_time(pid))
+            st["resumed_epoch"] = deps.now()
+            _history(st, deps, action="resumed", attempt=attempt, from_step=st.get("step"), pid=pid,
+                     old_pid=launch.get("old_pid"))
+            _announce(st, "resumed", deps)
         lane_state.save(lane_dir, st)
-    return st, target
+        return st
 
 
-def decide(root: str, lane_dir: str, st: dict, live: int, deps: Deps) -> tuple:
+def relaunch(lane_dir: str, seen: dict, deps: Deps) -> Optional[dict]:
+    """Mark the launch, start the saved command, record its pid. None if the lane changed."""
+    def intend(st: dict) -> None:
+        st["attempts"] = st.get("attempts", 0) + 1
+        st["launching"] = {"attempt": st["attempts"], "epoch": deps.now(), "old_pid": st.get("pid")}
+    st = transition(lane_dir, seen, deps, intend)
+    if st is None:
+        return None
+    n = st["attempts"]
+    env = dict(os.environ, LANE_RESUMED="1", LANE_STATE_DIR=lane_dir, LANE_RESUME_ATTEMPT=str(n),
+               LANE_RESUME_STEP=st.get("step", "start"), LANE_STEPS_DONE=",".join(st.get("steps_done", [])))
+    try:
+        resume = st["resume"]
+        pid = deps.spawn(resume["argv"], resume.get("cwd") or lane_dir, env, os.path.join(lane_dir, f"resume-{n}.log"))
+    except (OSError, KeyError, TypeError) as e:
+        _settle(lane_dir, n, deps, None, error=f"{type(e).__name__}: {e}")
+        raise
+    return _settle(lane_dir, n, deps, pid)
+
+
+def decide(root: str, lane_dir: str, seen: dict, kind: str, live: int, deps: Deps) -> tuple:
     """Act on one dead lane. Returns (outcome, live lane count after it)."""
-    if st.get("attempts", 0) >= st.get("max_attempts", 3):
-        st = lane_state.update(lane_dir, state=lane_state.PARKED, note="relaunch limit reached")
-        lane_board.queue(root, board_event(st, "parked", deps))
-        return "parked", live
+    limit = seen.get("attempts", 0) >= seen.get("max_attempts", 3)
+    if kind == "unrecorded" or limit:
+        why = UNRECORDED if kind == "unrecorded" else f"relaunch limit reached after {seen.get('attempts')} relaunches"
+        return ("parked" if park(lane_dir, seen, deps, why) else "changed"), live
     if live < deps.max_local:
         try:
-            new = relaunch(lane_dir, deps)
+            new = relaunch(lane_dir, seen, deps)
         except Exception as e:  # noqa: BLE001 - one bad lane must not stop the others
-            log(root, f"{st['lane']}: relaunch failed: {e}")
+            log(root, f"{seen['lane']}: relaunch failed: {e}")
             return "relaunch_failed", live
-        if new is None:
-            return "changed", live
-        lane_board.queue(root, board_event(new, "resumed", deps))
-        return "resumed", live + 1
-    got = hand_off(lane_dir, deps)
-    if got is None:
+        return ("resumed", live + 1) if new else ("changed", live)
+    host = next((h for h in deps.hosts if deps.reachable(h)), None)
+    if host is None:
         return "waiting", live  # PC busy and no Mac reachable: try again next tick
-    lane_board.queue(root, board_event(got[0], "handed_off", deps, got[1]))
-    return "handed_off", live
+    return ("handed_off" if hand_off(lane_dir, seen, deps, HOSTS.get(host, host)) else "changed"), live
+
+
+def _clear_sent(lane_dir: str, uids: set) -> None:
+    with lane_state.locked(lane_dir):
+        st = lane_state.load(lane_dir)
+        st["pending_events"] = [e for e in st.get("pending_events", []) if e.get("uid") not in uids]
+        lane_state.save(lane_dir, st)
+
+
+def flush_board(lane_dirs: list, deps: Deps) -> tuple:
+    """Send every saved board line in one board edit. Returns (sent, error, still pending)."""
+    events = []
+    for d in lane_dirs:
+        with contextlib.suppress(lane_state.StateError):
+            events += lane_state.load(d).get("pending_events", [])
+    if not events:
+        return 0, "", False
+    ok, out = deps.send(events)
+    if not ok:
+        return 0, out.strip()[-300:] or "board write not confirmed", True
+    for d in lane_dirs:  # a failed clear only means a resend, which the Mini ignores by uid
+        with contextlib.suppress(lane_state.StateError, OSError):
+            _clear_sent(d, {e["uid"] for e in events})
+    return len(events), "", False
 
 
 def run_tick(root: str, deps: Deps) -> dict:
@@ -198,12 +251,16 @@ def run_tick(root: str, deps: Deps) -> dict:
     live = sum(1 for _, _, c in lanes if c == "live")
     summary = {"epoch": deps.now(), "lanes": len(lanes), "live": live, "actions": {},
                "broken": [Path(d).name for d, _, c in lanes if c == "broken"]}
-    dead = sorted((x for x in lanes if x[2] == "dead"), key=lambda x: x[1].get("updated_epoch", 0))
-    for d, st, _ in dead:
-        outcome, live = decide(root, d, st, live, deps)
+    dead = sorted((x for x in lanes if x[2] in ("dead", "unrecorded")), key=lambda x: x[1].get("updated_epoch", 0))
+    for d, st, kind in dead:
+        try:
+            outcome, live = decide(root, d, st, kind, live, deps)
+        except Exception as e:  # noqa: BLE001 - a failed save changes nothing; next tick decides again
+            log(root, f"{Path(d).name}: decision not saved: {type(e).__name__}: {e}")
+            outcome = "error"
         summary["actions"][Path(d).name] = outcome
-    summary["board_sent"], summary["board_error"] = lane_board.flush(root, deps.send)
-    summary["board_pending"] = lane_board.outbox(root).exists()
+    sent, err, pending = flush_board([d for d, st, _ in lanes if isinstance(st, dict)], deps)
+    summary.update(board_sent=sent, board_error=err, board_pending=pending)
     return summary
 
 

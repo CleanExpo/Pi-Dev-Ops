@@ -103,8 +103,7 @@ def test_the_board_script_writes_one_row_per_lane_and_ignores_a_resend(tmp_path:
     board.write_text(json.dumps({"jobs": [{"id": "OTHER", "status": "todo"}]}), encoding="utf-8")
     st = {"lane": "uni-1-x", "step": "receipt", "linear_id": "UNI-1", "steps_done": [], "attempts": 1,
           "resume": {"cwd": "C:/agent-work/uni-1-x"}, "host": "PC"}
-    deps = sup.Deps(now=lambda: 1.0)
-    first, again = sup.board_event(st, "resumed", deps), sup.board_event(st, "handed_off", deps, "Mini")
+    first, again = lane_board.board_event(st, "resumed", 1.0), lane_board.board_event(st, "handed_off", 1.0, "Mini")
     env = dict(os.environ, LANE_BOARD=str(board))
     for events in ([first], [first], [again]):
         r = subprocess.run(["python3", "-"], input=lane_board.remote_script(events), text=True,
