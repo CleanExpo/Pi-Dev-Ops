@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_7c3af810e349",
+  "contract_digest": "218cd8e1efb6fb0d12392ef789fdc5d0a01440855eebc717850cd5fad77d8b1f",
+  "baseline_head": "42b0bcc2a5bbaa076f46713ffb6a60860eac16a5",
+  "identity_key": "fix/ra-8174-red-main-owner@/Volumes/Mini Mini 2T Storage/worktrees/ra-8174-red-main/repo/.git",
+  "locked_at_utc": "2026-11-05T18:46:46Z",
+  "criteria_count": 4,
+  "recipe_pins": {}
+}

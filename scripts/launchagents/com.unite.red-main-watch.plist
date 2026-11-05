@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.unite.red-main-watch</string>
+
+  <!-- RA-8174 red-main auto-owner. Mini only: the job board (ops/jobs.json) and its
+       lock live on the Mini, so the single-owner claim has to be made here.
+       Runs from pdo-runtime, the Pi-Dev-Ops checkout the mesh runner keeps on
+       origin/main (mesh/self_update.py), so a merged change reaches it with no
+       manual copy. Before the merge the file is absent and the run is a no-op. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>W='/Volumes/Storage Unit/Application-Data/nexus-mesh/pdo-runtime/scripts/red_main_watch.py'; [ -f "$W" ] || { echo "$(date) red_main_watch.py not deployed yet"; exit 0; }; exec /usr/bin/python3 "$W" scan</string>
+  </array>
+
+  <!-- Every 5 minutes: well inside one 15-minute fleet-watch cycle. -->
+  <key>StartInterval</key>
+  <integer>300</integer>
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/phill-mac/Library/Logs/red-main-watch.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/phill-mac/Library/Logs/red-main-watch.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin</string>
+    <!-- Lets scan start fix lanes. Set to 0 to keep detection and the board but start nothing. -->
+    <key>RED_MAIN_LAUNCH</key>
+    <string>1</string>
+    <key>RED_MAIN_HOSTS</key>
+    <string>mini=local,macbook=macbook</string>
+  </dict>
+
+  <!-- A wedged gh call cannot hold the slot: gh calls time out at 60s each. -->
+  <key>ExitTimeOut</key>
+  <integer>600</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

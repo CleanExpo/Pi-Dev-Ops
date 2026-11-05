@@ -1,0 +1,12 @@
+{
+  "schema": "done/1",
+  "work_id": "w_05467cbb99b6",
+  "contract_digest": "f1ad79d7040f2f1cf823212eb85481e84d86a39bbcd98ffe6735401288da64f1",
+  "baseline_head": "42b0bcc2a5bbaa076f46713ffb6a60860eac16a5",
+  "identity_key": "fix/ra-8174-red-main-owner@/Volumes/Mini Mini 2T Storage/worktrees/ra-8174-red-main/repo/.git",
+  "locked_at_utc": "2026-11-05T18:55:14Z",
+  "criteria_count": 5,
+  "recipe_pins": {
+    "work/w_05467cbb99b6/mutants.py": "59fe2098887543963bc901ab7eb1868b563ba652f0ae5cac59ac1fb088c0a23a"
+  }
+}
