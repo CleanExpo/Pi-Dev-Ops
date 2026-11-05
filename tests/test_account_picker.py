@@ -212,3 +212,16 @@ def test_w6_opens_only_the_paths_it_is_given(tmp_path):
             and not p.isdigit()]
     assert sorted(set(data)) == sorted({str(FIX / "map.yaml"), str(FIX / "cooling.jsonl")}), data
     assert not any(".claude" in p or "credential" in p.lower() for p in seen)
+
+
+def test_w5_far_future_timestamp_does_not_crash():
+    r = pick([rec("5h_cooling", ts="9999-12-31T23:00:00+00:00")])
+    assert skipped(r)["mini"] == "cooling: 5h_cooling" and r["pick"] == "macbook"
+
+
+@pytest.mark.parametrize("body", ['{"mini": Infinity}', '{"mini": NaN}', '{"mini": -1}', '{"mini": true}', "[1]"])
+def test_w5_bad_job_hours_table_is_an_input_error(tmp_path, body):
+    p = tmp_path / "h.json"
+    p.write_text(body, encoding="utf-8")
+    with pytest.raises(ap.InputError):
+        ap._load_hours(p)

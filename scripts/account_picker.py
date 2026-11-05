@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -60,7 +61,10 @@ def _when(value) -> Optional[float]:
 
 
 def _iso(epoch: float) -> str:
-    return datetime.fromtimestamp(epoch, timezone.utc).isoformat(timespec="seconds")
+    try:
+        return datetime.fromtimestamp(epoch, timezone.utc).isoformat(timespec="seconds")
+    except (ValueError, OverflowError, OSError):  # past year 9999: still a hold, never a crash
+        return "far-future"
 
 
 def load_map(path) -> dict:
@@ -197,7 +201,7 @@ def _load_hours(path) -> Optional[dict]:
     except (OSError, ValueError) as exc:
         raise InputError(f"job-hours table unreadable: {type(exc).__name__}") from None
     ok = isinstance(doc, dict) and all(isinstance(v, (int, float)) and not isinstance(v, bool)
-                                       and v >= 0 for v in doc.values())
+                                       and math.isfinite(v) and v >= 0 for v in doc.values())
     if not ok:
         raise InputError("job-hours table must map machine id to a non-negative number")
     return doc
