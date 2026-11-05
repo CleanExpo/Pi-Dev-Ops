@@ -15,22 +15,20 @@ on:
   pull_request:
     types: [opened, reopened, ready_for_review, synchronize]
   workflow_run:
-    # Actions-created check runs do not fire check_suite/check_run, so name the PR workflows.
-    workflows:
-      - CI
-      - DESIGN.md lint
-      - Fail-Open Check
-      - Kill-switch proof
-      - Secrets scan mutation
-      - Skills Drift Check
-      - Smoke Surface Gate
+    # Actions-created check runs do not fire check_suite/check_run, so the main workflow is
+    # named. CI is the long pole; each extra name here bills one more run per push.
+    workflows: [CI]
     types: [completed]
   check_suite:
     types: [completed]
   push:
     branches: [main]
   schedule:
-    - cron: "7,37 * * * *"   # every 30 minutes, off the hour to avoid cron clustering
+    # Backstop only (twice a day). Every 30 minutes would be 1,440 billed runs a month, and even
+    # every 6 hours pushes the repo over its CI-minute budget (tests/test_ci_minute_budget.py,
+    # RA-7222, 900 runs a month; 814 used before this file). The pull_request, workflow_run and
+    # push triggers above do the real-time work. Raising the budget is a spend decision.
+    - cron: "7 5,17 * * *"
   workflow_dispatch:
 
 # One run at a time, newest waiting run replaces older waiting runs. Not cancel-in-progress:
