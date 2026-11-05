@@ -1,0 +1,34 @@
+{
+  "schema": "done/1",
+  "work_id": "w_dfa1b7bc4342",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8192 AR-06: human sign-in runbook cards (Claude, Codex, Cursor) per machine, human-only banners, state-to-card table with stable anchors for the Ops Board, no automation that calls login, test-guarded",
+  "created_at_utc": "2026-11-05T10:29:56Z",
+  "identity_key": "phillmcgurk/ra-8192-human-sign-in-runbook@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8192/repo/.git",
+  "baseline_observed": {
+    "head": "7b817bafc107813efc6fea777e67eda9ef626518",
+    "branch": "phillmcgurk/ra-8192-human-sign-in-runbook",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "runbook-tests",
+      "text": "tests/test_signin_runbook.py passes: docs/runbooks/sign-in.md has one card (stable anchor) per provider in scripts/headroom_events.PROVIDERS and per machine in MACHINES; every card carries the human-only banner, a status check and the sign-in command; every HEADROOM event in EVENTS appears in the state-to-card table pointing at an existing card; no shell block uses an API-key or token login; no tracked script or hook under scripts/, hooks/ or mesh/ runs a sign-in command",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8192/repo/.venv/bin/python\" -m pytest tests/test_signin_runbook.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "siblings-still-pass",
+      "text": "HEADROOM and picker tests still pass",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8192/repo/.venv/bin/python\" -m pytest tests/test_headroom_events.py tests/test_account_picker.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "repo-lints",
+      "text": "ruff 0.15.10, file-length and function-length lints pass with the new files",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8192/repo/.venv/bin/ruff\" check tests/test_signin_runbook.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8192/repo/.venv/bin/python\" .github/scripts/file_length_lint.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8192/repo/.venv/bin/python\" .github/scripts/function_length_lint.py",
+      "timeout": 300
+    }
+  ]
+}
