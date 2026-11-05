@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_7dca929d1132",
+  "contract_digest": "dfdfcf00909a43a8b62e14ef74ada801a50df1e02f2e28be16a67480b8178636",
+  "baseline_head": "42b0bcc2a5bbaa076f46713ffb6a60860eac16a5",
+  "identity_key": "fix/ra-8212-ready-guard-leave-pass@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/repo",
+  "locked_at_utc": "2026-11-05T22:39:58Z",
+  "criteria_count": 5,
+  "recipe_pins": {}
+}

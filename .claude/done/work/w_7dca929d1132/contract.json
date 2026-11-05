@@ -1,0 +1,46 @@
+{
+  "schema": "done/1",
+  "work_id": "w_7dca929d1132",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8212: pr-ready-guard warns and passes when GitHub denies drafting an unrelated PR; triggering PR rules unchanged",
+  "created_at_utc": "2026-11-05T22:36:52Z",
+  "identity_key": "fix/ra-8212-ready-guard-leave-pass@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/repo",
+  "baseline_observed": {
+    "head": "42b0bcc2a5bbaa076f46713ffb6a60860eac16a5",
+    "branch": "fix/ra-8212-ready-guard-leave-pass",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "unrelated-forbidden-passes",
+      "text": "A sweep where GitHub returns FORBIDDEN on convertPullRequestToDraft for a PR other than the triggering PR (or on a sweep run with no triggering PR) exits 0 and prints a ::warning:: line",
+      "recipe": "/opt/homebrew/bin/python3 -m pytest tests/test_pr_ready_guard.py -q -p no:cacheprovider -k 'unrelated_pr_draft_forbidden or sweep_without'",
+      "timeout": 300
+    },
+    {
+      "id": "trigger-and-other-errors-still-fail",
+      "text": "FORBIDDEN on the triggering PR itself, any non-FORBIDDEN error, and FORBIDDEN on a different mutation all still exit 1",
+      "recipe": "/opt/homebrew/bin/python3 -m pytest tests/test_pr_ready_guard.py -q -p no:cacheprovider -k 'triggering_pr_draft_forbidden or other_error or different_mutation'",
+      "timeout": 300
+    },
+    {
+      "id": "draft-still-works",
+      "text": "When drafting succeeds, unrelated and triggering PRs are both drafted and the run exits 0",
+      "recipe": "/opt/homebrew/bin/python3 -m pytest tests/test_pr_ready_guard.py -q -p no:cacheprovider -k permission_exists",
+      "timeout": 300
+    },
+    {
+      "id": "decide-rules-unchanged",
+      "text": "Whole ready-guard test file passes, including all pre-existing decide()/classify tests",
+      "recipe": "/opt/homebrew/bin/python3 -m pytest tests/test_pr_ready_guard.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "lint-and-size",
+      "text": "Ruff clean on the two changed files, and the repo's file and function length gates pass",
+      "recipe": "/Users/phill-mac/.local/bin/ruff check .github/scripts/pr_ready_guard.py tests/test_pr_ready_guard.py && /opt/homebrew/bin/python3 .github/scripts/file_length_lint.py && /opt/homebrew/bin/python3 .github/scripts/function_length_lint.py",
+      "timeout": 300
+    }
+  ]
+}
