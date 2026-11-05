@@ -139,23 +139,35 @@ def _check_account(account, where: str, machine_ids: list, labels: set, report: 
     missing = [k for k in REQUIRED_ACCOUNT_KEYS if k not in account]
     for key in missing:
         report.error("MISSING_FIELD", f"{where}: required field '{key}' is missing")
-    label = account.get("label")
-    if label in labels:
-        report.error("DUPLICATE_LABEL", f"{where}: label '{label}' repeats")
-    labels.add(label)
+    label_ok = _check_label(account, where, labels, report)
     if "provider" in account and account["provider"] not in PROVIDERS:
         report.error("BAD_PROVIDER", f"{where}: provider {account['provider']!r} is not one of "
                      f"{', '.join(PROVIDERS)}")
     if "email" in account:
         _check_email(account["email"], where, report)
     pins = account.get("machines")
-    if "machines" in account and (not isinstance(pins, list) or not pins):
-        report.error("SCHEMA", f"{where}: 'machines' must list at least one machine id")
+    if "machines" in account and (not isinstance(pins, list) or not pins
+                                  or not all(isinstance(p, str) for p in pins)):
+        report.error("SCHEMA", f"{where}: 'machines' must list at least one machine id string")
         return False
     for pin in pins or []:
         if pin not in machine_ids:
             report.error("UNKNOWN_MACHINE", f"{where}: pinned to undeclared machine {pin!r}")
-    return not missing
+    return not missing and label_ok
+
+
+def _check_label(account: dict, where: str, labels: set, report: Report) -> bool:
+    """A label must be a non-empty string and unique; return False when it is unusable."""
+    if "label" not in account:
+        return True  # reported as MISSING_FIELD by the caller
+    label = account["label"]
+    if not isinstance(label, str) or not label.strip():
+        report.error("SCHEMA", f"{where}: 'label' must be a non-empty string, got {label!r}")
+        return False
+    if label in labels:
+        report.error("DUPLICATE_LABEL", f"{where}: label '{label}' repeats")
+    labels.add(label)
+    return True
 
 
 def _note_pending(account, where: str, require_real: bool, report: Report) -> None:
