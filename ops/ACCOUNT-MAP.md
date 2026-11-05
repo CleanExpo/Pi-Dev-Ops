@@ -32,12 +32,23 @@ for a real mapping.
 
 | Field | Meaning |
 |---|---|
-| `label` | Short unique name, e.g. `claude-mini`. Other tools key on it. |
+| `label` | Short unique lowercase name, e.g. `claude-mini` (letters, digits, `-`; 32 max). Other tools key on it. |
 | `provider` | `claude`, `codex` or `cursor`. Nothing else: other providers are API-key lanes, which are not used. |
-| `plan` | The subscription plan, or `null` while undecided. |
-| `email` | The login email. Placeholder ends in `.invalid`. |
+| `plan` | One of `free`, `plus`, `pro`, `max`, `max-5x`, `max-20x`, `team`, `business`, `enterprise`, `ultra`, `chatgpt-plus`, `chatgpt-pro`, or `null` while undecided. A new plan name is added in a reviewed PR. |
+| `email` | The login email: letters, digits, `.`, `+`, `-` (no `_`). Placeholder ends in `.invalid`. |
 | `machines` | Which computers use this login, by machine `id`. |
-| `notes` | Plain notes. No secrets here either. |
+| `notes` | One short line of plain words (160 characters max). Ticket ids like `RA-8196` are fine. Links, codes and words mixing letters and digits are refused. |
+
+## Only known-good values pass
+
+The check does not look for "bad" text. Every value must match the shape of its field
+(the table above), and anything else fails. That is why a link or a word like `abc123` in
+`notes` is refused: the check cannot tell it from a pasted key, so it does not try.
+Comments follow the same idea: plain words only.
+
+As a second net, every key, value and line (comments included) is also checked against the
+repo secret scanner's own patterns (`app/server/scanner.py`) plus Slack, GitHub and similar
+token shapes. The check never prints the value it refused.
 
 Machines are listed at the top under `machines:` with an `id`, an optional `host` (the
 computer's short name) and notes.
