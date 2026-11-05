@@ -5,7 +5,8 @@ AMBER or RED line is keyed by its text with the numbers blanked (so "idle 40 min
 "idle 55 min" are the same problem), first-seen time is remembered, and the line gets
 "[owner: X; age: Nm]". Owner comes from the board card that carries the line's
 watch_key. A line unowned for 30+ minutes becomes an open W-WATCH-<key> board card;
-when the line disappears the card closes. Live red-main cards are printed first.
+when the line is absent from a COMPLETE read (input ends with "# END FACTS") the card
+closes. Live red-main cards are printed first.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from red_main.common import WATCH_PREFIX, env_minutes, minutes_since, stamp
 from red_main.board import live_red_cards
 
 FLAGGED = re.compile(r"^(RED|AMBER)\b")
+END_MARKER = "# END FACTS"
 OWNERLESS = {None, "", "Guardian watcher", "fleet watcher"}
 
 
@@ -80,7 +82,12 @@ def annotate(lines: list[str], d: dict, seen: dict, at: datetime.datetime) -> tu
         if owner is None and card is not None and card.get("status") != "done":
             owner = f"NONE, escalated to board {card['id']}"
         out.append(tag(line, owner, age))
-    closed = _close_gone(d, now_seen, at) if lines else False   # an empty read never closes cards
+    # Review r1: only a complete facts read may close a card whose line is absent. The
+    # caller ends its facts with END_MARKER; a truncated or partial stream lacks it.
+    complete = any(x.strip() == END_MARKER for x in lines)
+    closed = _close_gone(d, now_seen, at) if complete else False
+    if not complete:
+        now_seen = {**seen, **now_seen}   # keep first-seen times for lines this read did not cover
     return out, now_seen, closed or changed
 
 

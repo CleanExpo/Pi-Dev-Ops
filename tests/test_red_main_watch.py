@@ -75,6 +75,10 @@ def test_repo_state_via_gh(tmp_path, monkeypatch):
     fake_gh(tmp_path, monkeypatch, {"run list": [run(7, "CI", "failure", "2026-11-04T07:00:00Z")],
                                     "workflow list": [{"id": 7, "state": "disabled_manually"}]})
     assert detect.repo_state(REPO, "main")[0] == OK
+    fake_gh(tmp_path, monkeypatch, {"run list": [run(7, "CI", "failure", "2026-11-04T07:00:00Z")],
+                                    "workflow list": [{"state": "active"}]})   # review r1 P1: id missing
+    state, info = detect.repo_state(REPO, "main")
+    assert state == UNKNOWN and "not readable" in info["reason"]
     fake_gh(tmp_path, monkeypatch, {"run list": {"__exit": 1, "err": "HTTP 502"}})
     state, info = detect.repo_state(REPO, "main")
     assert state == UNKNOWN and "HTTP 502" in info["reason"]

@@ -87,7 +87,12 @@ def _active_ids(repo: str) -> tuple[set | None, str]:
     data, why = gh_json("workflow", "list", "-R", repo, "--all", "--limit", "200", "--json", "id,state")
     if not isinstance(data, list):
         return None, why or "workflow list was not a list"
-    return {w.get("id") for w in data if isinstance(w, dict) and w.get("state") == "active"}, ""
+    if len(data) >= 200:   # a full page may hide the failing workflow: never conclude green from it
+        return None, "workflow list hit the 200 limit"
+    for w in data:   # review r1: one malformed row must not drop a failing workflow and read as green
+        if not (isinstance(w, dict) and isinstance(w.get("id"), int) and isinstance(w.get("state"), str)):
+            return None, f"workflow list entry not readable: {str(w)[:80]}"
+    return {w["id"] for w in data if w["state"] == "active"}, ""
 
 
 def repo_state(repo: str, branch: str) -> tuple[str, dict]:

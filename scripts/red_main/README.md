@@ -51,6 +51,7 @@ MacBook fleet watcher (`~/session-handoffs/watch/fleet_watch.sh`), just before t
 Haiku verdict step, so every AMBER/RED line carries owner and age:
 
 ```zsh
+say "# END FACTS"   # marks a complete read; only a complete read may close W-WATCH cards
 RM="python3 '/Volumes/Storage Unit/Application-Data/nexus-mesh/pdo-runtime/scripts/red_main_watch.py' annotate"
 if ssh -o ConnectTimeout=8 -o BatchMode=yes mini "$RM" < $F > $F.annotated 2>/dev/null && [[ -s $F.annotated ]]; then
   mv $F.annotated $F

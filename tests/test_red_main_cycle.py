@@ -130,7 +130,22 @@ def test_annotate_owner_age_and_escalation(ops):
     annotate.annotate([], d, seen, later)
     assert card["status"] == "open"                         # an empty read never closes
     annotate.annotate(["OK all good"], d, seen, later)
+    assert card["status"] == "open"                         # no end marker: a partial read never closes
+    annotate.annotate(["OK all good", annotate.END_MARKER], d, seen, later)
     assert card["status"] == "done"
+
+
+def test_partial_read_keeps_other_watch_cards_and_their_age(ops):
+    """Review r1 P1: a truncated stream with only line A closed B's card."""
+    d = {"jobs": []}
+    a, b = "RED runner A down", "AMBER runner B idle"
+    _, seen, _ = annotate.annotate([a, b], d, {}, T0)
+    later = T0 + datetime.timedelta(minutes=31)
+    _, seen, _ = annotate.annotate([a, b, annotate.END_MARKER], d, seen, later)
+    assert sum(1 for j in d["jobs"] if j["status"] == "open") == 2
+    _, seen2, _ = annotate.annotate([a], d, seen, later)
+    assert sum(1 for j in d["jobs"] if j["status"] == "open") == 2
+    assert seen2[annotate.key(b)] == seen[annotate.key(b)]
 
 
 def test_cli_annotate_park_claim(ops, monkeypatch, capsys):
