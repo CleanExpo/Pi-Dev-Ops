@@ -36,7 +36,7 @@ def world(ops, monkeypatch):
     monkeypatch.setenv("RED_MAIN_LAUNCH", "1")
     monkeypatch.setenv("RED_MAIN_HOSTS", "mini=local,macbook=macbook")
     monkeypatch.setattr(detect, "list_repos", lambda at: ([(REPO, "main")], ""))
-    monkeypatch.setattr(detect, "repo_state", lambda repo, branch: w["state"])
+    monkeypatch.setattr(detect, "repo_state", lambda repo, branch, *rest: w["state"])
     monkeypatch.setattr(lanes, "busy", lambda via: w["busy"][via])
     monkeypatch.setattr(lanes, "lane_state", lambda via, d: w["lane"])
     monkeypatch.setattr(actions, "pushed_without_pr", lambda repo, fix, at: (w["pushed"], ""))
@@ -166,7 +166,7 @@ def test_cli_annotate_park_claim(ops, monkeypatch, capsys):
 def test_new_lanes_per_cycle_are_capped_newest_red_first(world, ops, monkeypatch):
     reds = {f"CleanExpo/R{i}": (RED[0], {**RED[1], "since": f"2026-11-0{i}T00:00:00Z"}) for i in (1, 2, 3)}
     monkeypatch.setattr(detect, "list_repos", lambda at: ([(r, "main") for r in reds], ""))
-    monkeypatch.setattr(detect, "repo_state", lambda repo, branch: reds[repo])
+    monkeypatch.setattr(detect, "repo_state", lambda repo, branch, *rest: reds[repo])
     monkeypatch.setenv("RED_MAIN_NOW", at(0))
     watch.cycle()
     assert [n.split("-")[2] for _, n, _ in world["launched"]] == ["r3", "r2"]

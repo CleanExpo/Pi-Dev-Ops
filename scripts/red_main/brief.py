@@ -48,7 +48,8 @@ STEPS
 6. Jobs parked on this red main resume on their own when {branch} is green. To park another job on it:
    {watch_cmd(f"park <JOB-ID> {repo}", on_board_host)}
 
-NEVER: secrets, billing, permissions, force-push, --no-verify, edit or disable hooks or the release gate, fake
+NEVER: secrets, billing, permissions, production deploys, rollbacks or database operations (fix the workflow,
+never run it against production), force-push, --no-verify, edit or disable hooks or the release gate, fake
 receipts, paid APIs beyond the subscription plans, kill Phill's desktop sessions.
 
 LOG each step with an AEST time in ./job.log. FINISH with ./RESULT.md in plain English.

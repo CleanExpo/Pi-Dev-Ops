@@ -19,13 +19,15 @@ def scan(at: datetime.datetime) -> tuple[dict, list[str]]:
     if repos is None:
         return {}, [f"AMBER red-main watcher could not list repos: {why}"]
     results, problems = {}, []
+    cache = store.load_state("red-main-detect-cache.json")
     for repo, branch in repos:
         try:
-            results[repo] = detect.repo_state(repo, branch)
+            results[repo] = detect.repo_state(repo, branch, cache, at)
         except Exception as e:  # noqa: BLE001 — one repo must never stop the sweep
             results[repo] = (UNKNOWN, {"reason": f"{repo} check raised: {type(e).__name__}: {e}"})
         if results[repo][0] == UNKNOWN:
             problems.append(f"AMBER red-main check could not read {results[repo][1].get('reason')}")
+    store.save_state("red-main-detect-cache.json", cache)
     return results, problems
 
 

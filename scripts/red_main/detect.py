@@ -8,9 +8,10 @@ progress prove nothing, a failed read is UNKNOWN, and pull_request runs are igno
 from __future__ import annotations
 
 import datetime
+import json
 import os
 
-from red_main.common import FAIL, OK, UNKNOWN, gh_json, org, parse_time
+from red_main.common import FAIL, OK, UNKNOWN, gh, gh_json, org, parse_time
 
 FAILED = {"failure", "timed_out", "startup_failure", "action_required"}
 PASSED = {"success", "neutral", "skipped", "cancelled", "stale"}
@@ -75,7 +76,7 @@ def latest_failures(runs: list) -> tuple[list[dict] | None, str]:
             return None, f"{run['workflowName']} has unreadable conclusion {conclusion!r}"
         if conclusion in FAILED:
             entry = {"id": wid, "name": run["workflowName"], "url": run.get("url", ""),
-                     "sha": str(run.get("headSha", ""))[:8], "since": run["createdAt"]}
+                     "sha": str(run.get("headSha", ""))[:8], "since": run["createdAt"], "last": run["createdAt"]}
             seen[wid] = entry
             red.append(entry)
         else:
@@ -84,7 +85,15 @@ def latest_failures(runs: list) -> tuple[list[dict] | None, str]:
 
 
 def _active_ids(repo: str) -> tuple[set | None, str]:
-    data, why = gh_json("workflow", "list", "-R", repo, "--all", "--limit", "200", "--json", "id,state")
+    ok, out, why = gh("workflow", "list", "-R", repo, "--all", "--limit", "200", "--json", "id,state")
+    if not ok:
+        return None, why
+    if not out.strip():
+        return set(), ""   # gh prints nothing (exit 0) for a repo with no workflows
+    try:
+        data = json.loads(out)
+    except ValueError:
+        return None, f"gh output not JSON: {out.strip()[:80]!r}"
     if not isinstance(data, list):
         return None, why or "workflow list was not a list"
     if len(data) >= 200:   # a full page may hide the failing workflow: never conclude green from it
@@ -95,8 +104,50 @@ def _active_ids(repo: str) -> tuple[set | None, str]:
     return {w["id"] for w in data if w["state"] == "active"}, ""
 
 
-def repo_state(repo: str, branch: str) -> tuple[str, dict]:
+def completed_ids(runs: list) -> set:
+    """Workflows whose latest completed (non-PR) run is on this page."""
+    return {r["workflowDatabaseId"] for r in runs
+            if r.get("status") == "completed" and not str(r.get("event", "")).startswith("pull_request")}
+
+
+def _unseen_red(repo: str, branch: str, wid: int, cache: dict, at: datetime.datetime):
+    """(red entry or None, reason) for an active workflow the run page did not reach.
+
+    Review r2: a busy workflow can fill the 100-run page and hide an older failing
+    one (a daily job), so every active workflow needs its own latest completed run.
+    The answer is cached: a newer run of that workflow would appear on the page, so
+    an off-page result only changes when a long run finishes late (TTL covers that).
+    """
+    key, ttl = f"{repo}#{wid}", int(os.environ.get("RED_MAIN_UNSEEN_TTL_MIN", "360"))
+    hit = cache.get(key)
+    checked = parse_time((hit or {}).get("at"))
+    if hit is not None and checked is not None and at - checked < datetime.timedelta(minutes=ttl):
+        return hit.get("red"), ""
+    runs, why = gh_json("run", "list", "-R", repo, "--branch", branch, "--workflow", str(wid),
+                        "--limit", "20", "--json", RUN_FIELDS)
+    if not isinstance(runs, list):
+        return None, f"workflow {wid} runs could not be read: {why or 'not a list'}"
+    red, why = latest_failures(runs)
+    if red is None:
+        return None, why
+    cache[key] = {"at": at.strftime("%Y-%m-%dT%H:%M%z"), "red": red[0] if red else None}
+    return cache[key]["red"], ""
+
+
+def _current(entry: dict, at: datetime.datetime) -> bool:
+    """A failure counts while its latest failing run is recent. A one-shot or manual job
+    that last failed months ago is history, not a red main (RED_MAIN_STALE_DAYS, default 7;
+    a daily job failing for 11 days is still current because its last run is recent)."""
+    last = parse_time(entry.get("last") or entry.get("since"))
+    days = int(os.environ.get("RED_MAIN_STALE_DAYS", "7"))
+    return last is not None and at - last <= datetime.timedelta(days=days)
+
+
+def repo_state(repo: str, branch: str, cache: dict | None = None,
+               at: datetime.datetime | None = None) -> tuple[str, dict]:
     """(OK | FAIL | UNKNOWN, info). info: failing workflows, or the reason it is unknown."""
+    cache = {} if cache is None else cache
+    at = at or datetime.datetime.now().astimezone()
     runs, why = gh_json("run", "list", "-R", repo, "--branch", branch, "--limit", str(RUN_LIMIT),
                         "--json", RUN_FIELDS)
     if not isinstance(runs, list):
@@ -104,13 +155,18 @@ def repo_state(repo: str, branch: str) -> tuple[str, dict]:
     red, why = latest_failures(runs)
     if red is None:
         return UNKNOWN, {"reason": f"{repo}: {why}"}
-    if not red:
-        return OK, {}
     active, why = _active_ids(repo)
     if active is None:
         return UNKNOWN, {"reason": f"{repo} workflow list could not be read: {why}"}
     red = [r for r in red if r["id"] in active]
+    unseen = active - completed_ids(runs) if len(runs) >= RUN_LIMIT else set()   # a short page is complete
+    for wid in sorted(unseen):
+        entry, why = _unseen_red(repo, branch, wid, cache, at)
+        if why:
+            return UNKNOWN, {"reason": f"{repo}: {why}"}
+        if entry:
+            red.append(entry)
+    red = [r for r in red if _current(r, at)]
     if not red:
         return OK, {}
-    since = min(r["since"] for r in red)
-    return FAIL, {"failing": red, "since": since, "branch": branch}
+    return FAIL, {"failing": red, "since": min(r["since"] for r in red), "branch": branch}

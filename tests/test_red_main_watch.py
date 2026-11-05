@@ -6,6 +6,7 @@ those failures and checks the watcher catches it.
 """
 from __future__ import annotations
 
+import datetime
 import json
 import stat
 import sys
@@ -49,7 +50,7 @@ def test_green_after_failure_is_not_red_and_unreadable_is_unknown():
 
 
 def fake_gh(tmp_path, monkeypatch, table: dict):
-    """A gh stand-in: the first table key found in the joined args selects the reply."""
+    """A gh stand-in: the first table key found in the joined args selects the reply (None = empty output)."""
     data = tmp_path / "gh.json"
     data.write_text(json.dumps(table))
     script = tmp_path / "gh"
@@ -58,6 +59,8 @@ import json, sys
 args = " ".join(sys.argv[1:])
 for k, v in json.load(open({str(data)!r})).items():
     if k in args:
+        if v is None:   # gh exits 0 and prints nothing (e.g. a repo with no workflows)
+            sys.exit(0)
         if isinstance(v, dict) and "__exit" in v:
             sys.stderr.write(v.get("err", "boom") + "\\n"); sys.exit(v["__exit"])
         print(json.dumps(v)); sys.exit(0)
@@ -70,18 +73,50 @@ sys.stderr.write("HTTP 404: Not Found\\n"); sys.exit(1)
 def test_repo_state_via_gh(tmp_path, monkeypatch):
     fake_gh(tmp_path, monkeypatch, {"run list": [run(7, "CI", "failure", "2026-11-04T07:00:00Z")],
                                     "workflow list": [{"id": 7, "state": "active"}]})
-    state, info = detect.repo_state(REPO, "main")
+    state, info = detect.repo_state(REPO, "main", {}, T0)
     assert state == FAIL and info["failing"][0]["name"] == "CI"
     fake_gh(tmp_path, monkeypatch, {"run list": [run(7, "CI", "failure", "2026-11-04T07:00:00Z")],
                                     "workflow list": [{"id": 7, "state": "disabled_manually"}]})
-    assert detect.repo_state(REPO, "main")[0] == OK
+    assert detect.repo_state(REPO, "main", {}, T0)[0] == OK
     fake_gh(tmp_path, monkeypatch, {"run list": [run(7, "CI", "failure", "2026-11-04T07:00:00Z")],
                                     "workflow list": [{"state": "active"}]})   # review r1 P1: id missing
-    state, info = detect.repo_state(REPO, "main")
+    state, info = detect.repo_state(REPO, "main", {}, T0)
     assert state == UNKNOWN and "not readable" in info["reason"]
     fake_gh(tmp_path, monkeypatch, {"run list": {"__exit": 1, "err": "HTTP 502"}})
-    state, info = detect.repo_state(REPO, "main")
+    state, info = detect.repo_state(REPO, "main", {}, T0)
     assert state == UNKNOWN and "HTTP 502" in info["reason"]
+
+
+def test_failing_workflow_hidden_behind_a_full_page_is_red(tmp_path, monkeypatch):
+    """Review r2 P1: 100 green runs of a busy workflow hid a failing daily job and read as green."""
+    page = [run(1, "CI", "success", f"2026-11-04T06:{i % 60:02d}:00Z") for i in range(100)]
+    table = {"--workflow 2": [run(2, "Heartbeat", "failure", "2026-11-03T05:00:00Z", event="schedule")],
+             "run list": page, "workflow list": [{"id": 1, "state": "active"}, {"id": 2, "state": "active"}]}
+    fake_gh(tmp_path, monkeypatch, table)
+    cache = {}
+    state, info = detect.repo_state(REPO, "main", cache, T0)
+    assert state == FAIL and [r["name"] for r in info["failing"]] == ["Heartbeat"]
+    fake_gh(tmp_path, monkeypatch, {**table, "--workflow 2": {"__exit": 1, "err": "HTTP 502"}})
+    assert detect.repo_state(REPO, "main", cache, T0)[0] == FAIL          # fresh cache answers
+    later = T0 + datetime.timedelta(hours=7)
+    state, info = detect.repo_state(REPO, "main", cache, later)          # stale cache, read fails
+    assert state == UNKNOWN and "workflow 2" in info["reason"]
+
+
+def test_stale_failures_empty_lists_and_short_pages(tmp_path, monkeypatch):
+    """Review r2 follow-up: a one-shot that last failed weeks ago is history, not a red main;
+    a repo with no workflows is green, not unreadable; a short run page needs no extra reads."""
+    old = [run(7, "Emergency Rollback", "failure", "2026-10-01T00:00:00Z", event="workflow_dispatch")]
+    fake_gh(tmp_path, monkeypatch, {"run list": old, "workflow list": [{"id": 7, "state": "active"}]})
+    assert detect.repo_state(REPO, "main", {}, T0)[0] == OK
+    monkeypatch.setenv("RED_MAIN_STALE_DAYS", "60")
+    assert detect.repo_state(REPO, "main", {}, T0)[0] == FAIL
+    fake_gh(tmp_path, monkeypatch, {"run list": [], "workflow list": None})
+    assert detect.repo_state(REPO, "main", {}, T0) == (OK, {})
+    fake_gh(tmp_path, monkeypatch, {"--workflow": {"__exit": 1, "err": "should not be called"},
+                                    "run list": [run(1, "CI", "success", "2026-11-04T06:00:00Z")],
+                                    "workflow list": [{"id": 1, "state": "active"}, {"id": 2, "state": "active"}]})
+    assert detect.repo_state(REPO, "main", {}, T0)[0] == OK
 
 
 def test_repo_list_filters_stale_and_archived(tmp_path, monkeypatch):
