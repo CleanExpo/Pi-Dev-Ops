@@ -186,3 +186,55 @@ def test_wrong_shapes_fail(tmp_path, capsys, old, new):
     """W4.1: booleans, binary tags and underscores are not accepted shapes."""
     code, out = _run(tmp_path, BASE.replace(old, new), capsys)
     assert code == 1, out
+
+
+# ── Review round 1 of the redesign (Codex, e021a2a7) ─────────────────────────
+
+MIXED = "Ab1Cd2Ef3Gh4Ij5Kl6Mn" + "+" + "Op7Qr8St9Uv0Wx1Yz23"
+
+
+@pytest.mark.parametrize("local", [MIXED, "Ab1Cd2Ef3Gh4", "a1b2c3d4"])
+def test_high_entropy_email_local_part_fails(tmp_path, capsys, local):
+    """W6.3: an email local part may end in a number (smith84) but not alternate letters
+    and digits like a key does."""
+    code, out = _run(tmp_path, BASE.replace("claude-mini@", f"{local}@"), capsys)
+    assert code == 1 and "BAD_EMAIL" in out
+    assert local not in out
+
+
+@pytest.mark.parametrize("local", ["phill.mcgurk", "smith84", "ops+claude", "j-doe", "2024team"])
+def test_ordinary_email_local_parts_pass(local):
+    """W6.3: real addresses with a trailing or leading number still pass."""
+    assert grammar.GRAMMAR[("account", "email")](f"{local}@gmail.com") is None
+
+
+TOKENISH = "token-" + "Ab1Cd2Ef3Gh4" + "-" + "Ij5Kl6Mn7Op8"
+
+ECHO_PLANTS = {
+    "secret_named_key": lambda t: BASE.replace("    plan: max", f'    plan: max\n    "{t}": x'),
+    "unknown_key": lambda t: BASE.replace("    plan: max", f"    plan: max\n    x{t[6:]}: x"),
+    "nested_key": lambda t: BASE.replace(
+        "notes: Placeholder. Phill sets the real login.", f"notes:\n      {t[6:]}: x"),
+    "duplicate_key": lambda t: BASE.replace("    plan: max", f"    plan: max\n    k{t[6:]}: 1\n    k{t[6:]}: 2"),
+    "label": lambda t: BASE.replace("label: claude-mini", "label: " + t[6:].lower()),
+    "pin": lambda t: BASE.replace("machines: [mini]", "machines: [" + t[6:].lower() + "]"),
+    "machine_id": lambda t: BASE.replace("id: mini", "id: " + t[6:].lower()),
+}
+
+
+@pytest.mark.parametrize("where", sorted(ECHO_PLANTS))
+def test_refused_text_is_never_echoed(tmp_path, capsys, where):
+    """W6.5: findings name the place and the rule, never the refused text."""
+    code, out = _run(tmp_path, ECHO_PLANTS[where](TOKENISH), capsys)
+    assert code == 1, out
+    for piece in (TOKENISH, TOKENISH[6:], TOKENISH[6:].lower(), TOKENISH[6:26], TOKENISH[6:26].lower()):
+        assert piece not in out, (where, out)
+
+
+@pytest.mark.parametrize("field", [("account", "label"), ("machine", "id"), ("machine", "host")])
+def test_key_like_slug_or_host_fails(field):
+    """W6.3: slugs and hostnames may hold one letter/digit switch (mac2, claude-mini-2)
+    but not the alternating mix of a key."""
+    check = grammar.GRAMMAR[field]
+    assert check("ab1cd2ef3gh4-ij5kl6mn7op8") is not None
+    assert check("mac2") is None and check("claude-mini-2") is None

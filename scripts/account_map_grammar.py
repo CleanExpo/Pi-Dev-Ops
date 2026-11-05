@@ -25,17 +25,30 @@ _PROSE_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'/?!-]*")
 _PROSE_WORD = re.compile(r"[A-Z]{2,6}-[0-9]{1,6}|[0-9]{1,6}|[A-Za-z]+(?:['/-][A-Za-z]+)*")
 _ALNUM_RUN = re.compile(r"[A-Za-z0-9]+")
 _MIXED = re.compile(r"[A-Za-z]")
+_ONE_SWITCH = re.compile(r"[A-Za-z]+[0-9]+|[0-9]+[A-Za-z]+")
+_SHOWABLE = re.compile(r"[A-Za-z_]+(?:-[A-Za-z_]+)*(?:-[0-9]{1,4})?")
 
 MAX_RUN = 24      # longest unbroken run of letters or digits anywhere (a word, a label)
 MAX_PROSE = 160   # notes are one short line
 
 
-def _runs_ok(text: str, limit: int = MAX_RUN) -> bool:
-    """Every run of letters/digits is short and is letters-only or digits-only."""
+def _runs_ok(text: str, limit: int = MAX_RUN, one_switch: bool = False) -> bool:
+    """Every run of letters/digits is short and is letters-only or digits-only. With
+    one_switch (emails), a run may switch once, as in smith84 or 2024team, but never
+    alternate the way a key does (Ab1Cd2)."""
     for run in _ALNUM_RUN.findall(text):
-        if len(run) > limit or (_MIXED.search(run) and any(c.isdigit() for c in run)):
+        mixed = _MIXED.search(run) and any(c.isdigit() for c in run)
+        if len(run) > limit or (mixed and not (one_switch and _ONE_SWITCH.fullmatch(run))):
             return False
     return True
+
+
+def show(name) -> str:
+    """A name safe to print: plain words with an optional short number. Anything else
+    could be pasted text, so findings name the place and the rule, never the text."""
+    if isinstance(name, str) and len(name) <= 32 and _SHOWABLE.fullmatch(name):
+        return f"'{name}'"
+    return "(name not shown)"
 
 
 def _text(check):
@@ -56,7 +69,7 @@ def _bounded(pattern, max_len: int, what: str, rule: str = "BAD_VALUE", max_seg:
     def check(value: str):
         segments = re.split(r"[.+-]", value)
         if (len(value) > max_len or not pattern.fullmatch(value)
-                or any(len(s) > max_seg for s in segments)):
+                or any(len(s) > max_seg for s in segments) or not _runs_ok(value, one_switch=True)):
             return (rule, f"must be {what}")
         return None
     return _text(check)
@@ -67,10 +80,10 @@ def _email(value):
         return ("BAD_EMAIL", f"must be one plain address, got {type(value).__name__}")
     local, at, domain = value.partition("@")
     if (not at or len(value) > 80 or len(local) > 40 or not _EMAIL_LOCAL.fullmatch(local)
-            or not _EMAIL_DOMAIN.fullmatch(domain) or not _runs_ok(domain)
-            or any(len(r) > MAX_RUN for r in _ALNUM_RUN.findall(local))):
+            or not _EMAIL_DOMAIN.fullmatch(domain)
+            or not _runs_ok(value, one_switch=True)):
         return ("BAD_EMAIL", "must be one plain address (letters, digits, '.', '+', '-'; "
-                "local part at most 40 characters)")
+                "local part at most 40 characters; no key-like mix of letters and digits)")
     return None
 
 

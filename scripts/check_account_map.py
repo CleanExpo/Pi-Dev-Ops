@@ -46,7 +46,7 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from account_map_grammar import GRAMMAR, check_comment  # noqa: E402
+from account_map_grammar import GRAMMAR, check_comment, show  # noqa: E402
 from account_map_secrets import (  # noqa: E402
     DuplicateKeyError, ScannerPatternsError, UniqueKeyLoader, comment_lines, looks_secret_name,
     looks_secret_value,
@@ -80,7 +80,7 @@ def _scan_keys(node, where: str, allowed: set, report: Report) -> None:
     for key in node:
         name = str(key)
         if name not in allowed and not looks_secret_name(name):
-            report.error("UNKNOWN_KEY", f"{where}: key '{name}' is not part of the schema")
+            report.error("UNKNOWN_KEY", f"{where}: key {show(name)} is not part of the schema")
 
 
 def _check_fields(node: dict, scope: str, where: str, report: Report) -> bool:
@@ -100,11 +100,11 @@ def _scan_values(node, where: str, report: Report) -> None:
     if isinstance(node, dict):
         for key, value in node.items():
             if looks_secret_name(key):
-                report.error("SECRET_FIELD", f"{where}: key '{key}' looks like a credential; "
+                report.error("SECRET_FIELD", f"{where}: key {show(key)} looks like a credential; "
                              "the map holds emails only")
             elif looks_secret_value(str(key)):
                 report.error("SECRET_VALUE", f"{where}: a key looks like a credential")
-            _scan_values(value, f"{where}.{key}", report)
+            _scan_values(value, f"{where}.{show(key)}", report)
     elif isinstance(node, list):
         for i, value in enumerate(node):
             _scan_values(value, f"{where}[{i}]", report)
@@ -124,7 +124,7 @@ def _check_machines(machines, report: Report) -> list:
         _scan_keys(machine, where, MACHINE_KEYS, report)
         _check_fields(machine, "machine", where, report)
         if machine["id"] in ids:
-            report.error("DUPLICATE_MACHINE", f"{where}: machine id '{machine['id']}' repeats")
+            report.error("DUPLICATE_MACHINE", f"{where}: machine id {show(machine['id'])} repeats")
         ids.append(machine["id"])
     return ids
 
@@ -156,7 +156,7 @@ def _check_label(account: dict, where: str, labels: set, report: Report) -> bool
     if not isinstance(label, str) or GRAMMAR[("account", "label")](label):
         return "label" not in account  # missing is MISSING_FIELD; bad shape already reported
     if label in labels:
-        report.error("DUPLICATE_LABEL", f"{where}: label '{label}' repeats")
+        report.error("DUPLICATE_LABEL", f"{where}: label {show(label)} repeats")
     labels.add(label)
     return True
 
@@ -165,11 +165,11 @@ def _note_pending(account, where: str, require_real: bool, report: Report) -> No
     label = account.get("label", where)
     email = account.get("email")
     if isinstance(email, str) and email.lower().endswith(PLACEHOLDER_SUFFIX):
-        report.pending.append(f"{label}: email is a placeholder awaiting Phill")
+        report.pending.append(f"{show(label)}: email is a placeholder awaiting Phill")
         if require_real:
-            report.error("PENDING_EMAIL", f"{where}: {label} still has a placeholder email")
+            report.error("PENDING_EMAIL", f"{where}: {show(label)} still has a placeholder email")
     if account.get("plan") is None:
-        report.pending.append(f"{label}: plan not yet recorded")
+        report.pending.append(f"{show(label)}: plan not yet recorded")
 
 
 def _check_claude_pins(claude_accounts: list, machine_ids: list, report: Report) -> None:
@@ -184,14 +184,14 @@ def _check_claude_pins(claude_accounts: list, machine_ids: list, report: Report)
             seen.update(account["machines"])
     for machine, labels in per_machine.items():
         if not labels:
-            report.error("CLAUDE_PIN_MISSING", f"machine '{machine}' has no Claude account pinned")
+            report.error("CLAUDE_PIN_MISSING", f"machine {show(machine)} has no Claude account pinned")
         elif len(labels) > 1:
-            report.error("CLAUDE_PIN_MULTIPLE", f"machine '{machine}' has {len(labels)} Claude "
-                         f"accounts pinned ({', '.join(map(str, labels))}); exactly one allowed")
+            report.error("CLAUDE_PIN_MULTIPLE", f"machine {show(machine)} has {len(labels)} Claude "
+                         f"accounts pinned ({', '.join(map(show, labels))}); exactly one allowed")
     for email, machines in machines_by_email.items():
         if len(machines) > 1:
             report.error("SHARED_CLAUDE_EMAIL", f"one Claude email is pinned on "
-                         f"{len(machines)} machines ({', '.join(sorted(map(str, machines)))})")
+                         f"{len(machines)} machines ({', '.join(sorted(map(show, machines)))})")
 
 
 def _check_top(data, report: Report) -> bool:
@@ -247,7 +247,10 @@ def _load(path: Path, report: Report):
     except OSError as exc:
         report.error("FILE", f"cannot read {path}: {exc.strerror or exc}")
     except yaml.YAMLError as exc:
-        report.error("FILE", f"{path} is not valid YAML: {exc}")
+        mark = getattr(exc, "problem_mark", None)
+        at = f" near line {mark.line + 1}" if mark else ""
+        report.error("FILE", f"{path} is not valid YAML{at} (details not shown: they can "
+                     "quote the file)")
     else:
         scan_raw_text(text, report)
         return data
