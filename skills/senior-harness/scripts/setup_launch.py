@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import secrets
 import time
 from pathlib import Path
 from typing import Any
@@ -45,6 +46,9 @@ def record_launch_root(session_id: str, surface: str, project_root: Path) -> Non
         "surface": surface,
         "launch_root": str(project_root),
         "recorded_at_ns": time.time_ns(),
+        # The clock can repeat within a tick, so the nonce is what makes each
+        # record's seal unique; routing compares seals to spot a replacement.
+        "record_nonce": secrets.token_hex(16),
     }
     record["launch_seal"] = _launch_seal(record)
     _write_state(path, record)
@@ -86,7 +90,8 @@ def launch_root_state(
     None keeps the caller's existing fail-closed path. A record that exists but
     does not verify raises, so tampering is reported rather than ignored. The
     seal identifies this exact record: a clear and re-admission at the same root
-    writes a new one with a different seal.
+    writes a new one with a fresh nonce, so its seal differs even within one
+    clock tick.
     """
     path = _launch_record_path(session_id)
     if not path.exists():

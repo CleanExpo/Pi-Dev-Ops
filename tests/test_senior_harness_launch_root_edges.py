@@ -20,6 +20,7 @@ from tests._senior_harness_setup_support import (
 )
 
 import setup_hooks  # noqa: E402  (importable once the support module sets sys.path)
+import setup_launch  # noqa: E402
 from setup_common import GitProbeError  # noqa: E402
 
 OBJECTIVE = "Develop the Senior Harness launch-root fallback"
@@ -101,8 +102,21 @@ def test_record_replaced_between_lookup_and_lock_denies(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A clear and re-admission at the same root in the gap is a new record."""
+    _replace_record_in_the_gap(tmp_path, monkeypatch, "launch-root-race-replace")
+
+
+def test_record_replaced_within_one_clock_tick_denies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A repeated clock value must not make the replacement record look identical."""
+    monkeypatch.setattr(setup_launch.time, "time_ns", lambda: 1_700_000_000_000_000_000)
+    _replace_record_in_the_gap(tmp_path, monkeypatch, "launch-root-race-same-tick")
+
+
+def _replace_record_in_the_gap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, session: str
+) -> None:
     monkeypatch.setenv("SENIOR_HARNESS_SEAL_KEY_FILE", str(tmp_path / "seal.key"))
-    session = "launch-root-race-replace"
     base, _ = _start_hook_session(tmp_path / "state", monkeypatch, session_id=session)
     real = setup_hooks.launch_root_state
     calls: list[int] = []
