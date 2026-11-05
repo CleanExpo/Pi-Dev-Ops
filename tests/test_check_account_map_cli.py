@@ -111,6 +111,54 @@ def test_text_fields_must_be_text_or_null(where, field, value):
     assert "SCHEMA" in {f.rule for f in cam.validate(data).errors}
 
 
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("notes", "password=" + "Example123!"),
+        ("notes", "api key: " + "abc123def"),
+        ("plan", "token = " + "zzz"),
+        ("notes", "session_cookie=" + "xyz"),
+    ],
+)
+def test_credential_assignment_inside_text_is_rejected(field, value):
+    """W1.3: 'password=...' typed into notes or plan is a pasted credential."""
+    data = _map()
+    data["accounts"][0][field] = value
+    assert "SECRET_VALUE" in {f.rule for f in cam.validate(data).errors}
+
+
+@pytest.mark.parametrize(
+    "note",
+    ["rotate the password monthly", "no token or cookie lives here", "session limits reset weekly"],
+)
+def test_plain_words_about_credentials_are_not_flagged(note):
+    """W1.3: talking about a password is fine; only an assignment of a value fails."""
+    data = _map()
+    data["accounts"][0]["notes"] = note
+    assert cam.validate(data).errors == []
+
+
+@pytest.mark.parametrize(
+    "comment",
+    ["# old login " + "sk-" + "a1B2c3D4e5F6g7H8i9J0k", "# password = " + "hunter2x"],
+)
+def test_cli_credential_in_a_yaml_comment_fails(tmp_path, capsys, comment):
+    """W1.2: comments are committed too; safe_load drops them, so the raw text is scanned."""
+    path = tmp_path / "commented.yaml"
+    path.write_text(yaml.safe_dump(_map()) + comment + "\n")
+    assert cam.main(["--path", str(path)]) == 1
+    assert "SECRET_VALUE" in capsys.readouterr().out
+
+
+def test_cli_credential_in_a_trailing_comment_fails(tmp_path, capsys):
+    """W1.2: a comment after a value on the same line is scanned as well."""
+    text = yaml.safe_dump(_map()).replace("version: 1", "version: 1  # token: " + "abc123", 1)
+    path = tmp_path / "trailing.yaml"
+    path.write_text(text)
+    assert cam.main(["--path", str(path)]) == 1
+    assert "SECRET_VALUE" in capsys.readouterr().out
+
+
 def test_cli_nested_secret_fails(tmp_path, capsys):
     """W1.4: the CLI path (what CI runs) fails on the nested plant too."""
     data = _map()
