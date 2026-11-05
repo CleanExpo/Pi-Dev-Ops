@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_dfa1b7bc4342",
+  "contract_digest": "132eb9e6d082023b03b81edc0dd8f2895fdd91696a98331e2072b67967c7a7ed",
+  "baseline_head": "7b817bafc107813efc6fea777e67eda9ef626518",
+  "identity_key": "phillmcgurk/ra-8192-human-sign-in-runbook@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8192/repo/.git",
+  "locked_at_utc": "2026-11-05T10:30:20Z",
+  "criteria_count": 3,
+  "recipe_pins": {}
+}
