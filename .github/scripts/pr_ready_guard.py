@@ -110,6 +110,8 @@ PR_LIST = """query($o:String!,$n:String!,$after:String){repository(owner:$o,name
 pullRequests(states:OPEN,first:50,after:$after){pageInfo{hasNextPage endCursor}
 nodes{id number isDraft mergeable headRefOid labels(first:50){nodes{name}}}}}}"""
 
+MERGEABLE = "query($id:ID!){node(id:$id){... on PullRequest{mergeable}}}"
+
 CHECKS = """query($id:ID!,$after:String){node(id:$id){... on PullRequest{commits(last:1){nodes{commit{
 statusCheckRollup{contexts(first:100,after:$after){pageInfo{hasNextPage endCursor}nodes{__typename
 ... on CheckRun{name status conclusion} ... on StatusContext{context state}
@@ -156,12 +158,9 @@ def fetch_prs(token: str, repo: str) -> List[PR]:
             break
         after = page["pageInfo"]["endCursor"]
     for pr in prs:
-        if pr.mergeable == "UNKNOWN":  # GitHub computes lazily; ask once more
+        if pr.mergeable == "UNKNOWN":  # GitHub computes lazily; ask once more for this PR
             time.sleep(3)
-            again = graphql(token, PR_LIST, {"o": owner, "n": name, "after": None})
-            for n in again["repository"]["pullRequests"]["nodes"]:
-                if n["number"] == pr.number:
-                    pr.mergeable = n["mergeable"]
+            pr.mergeable = graphql(token, MERGEABLE, {"id": pr.node_id})["node"]["mergeable"]
         pr.checks = fetch_checks(token, pr.node_id)
     return prs
 
@@ -180,6 +179,8 @@ def render_comment(action: str, reasons: List[str], sha: str) -> str:
 def upsert_comment(token: str, repo: str, number: int, text: str) -> None:
     url = "{}/repos/{}/issues/{}/comments?per_page=100".format(API, repo, number)
     existing = [c for c in _call(token, "GET", url) if MARKER in c.get("body", "") and c["user"]["type"] == "Bot"]
+    if existing and existing[0]["body"] == text:
+        return  # unchanged: do not churn the comment
     if existing:
         _call(token, "PATCH", "{}/repos/{}/issues/comments/{}".format(API, repo, existing[0]["id"]), {"body": text})
     else:
@@ -223,10 +224,15 @@ def run(repo: str, dry_run: bool) -> int:
         held = " +label" if LABEL in pr.labels else ""
         print("{}#{} [{}{}] -> {}{}".format(repo, pr.number, state, held, d.action.upper(),
                                             " (" + "; ".join(d.reasons) + ")" if d.reasons else ""))
-        if dry_run or d.action == "leave":
+        if dry_run:
             continue
         try:
-            to_draft(token, repo, pr, d) if d.action == "draft" else to_ready(token, repo, pr)
+            if d.action == "draft":
+                to_draft(token, repo, pr, d)
+            elif d.action == "ready":
+                to_ready(token, repo, pr)
+            elif pr.is_draft and LABEL in pr.labels and d.reasons:  # still held: keep the one comment current
+                upsert_comment(token, repo, pr.number, render_comment("draft", d.reasons, pr.head_sha))
         except Exception as e:  # keep going so one bad PR cannot hide the rest
             failures += 1
             print("  ERROR acting on #{}: {}".format(pr.number, e), file=sys.stderr)
