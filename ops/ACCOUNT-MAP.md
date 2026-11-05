@@ -44,7 +44,9 @@ for a real mapping.
 The check does not look for "bad" text. Every value must match the shape of its field
 (the table above), and anything else fails. That is why a link or a word like `abc123` in
 `notes` is refused: the check cannot tell it from a pasted key, so it does not try.
-Comments follow the same idea: plain words only.
+Comments follow the same idea: plain words, ticket ids and file names only (no `@`, `+`,
+`=` or letter-digit mixes). YAML anchors (`&name`), aliases (`*name`), tags (`!tag`) and
+`%` directives are refused too: the map never needs them.
 
 As a second net, every key, value and line (comments included) is also checked against the
 repo secret scanner's own patterns (`app/server/scanner.py`) plus Slack, GitHub and similar

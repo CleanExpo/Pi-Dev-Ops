@@ -49,7 +49,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from account_map_grammar import GRAMMAR, check_comment, show  # noqa: E402
 from account_map_secrets import (  # noqa: E402
     DuplicateKeyError, ScannerPatternsError, UniqueKeyLoader, comment_lines, looks_secret_name,
-    looks_secret_value,
+    looks_secret_value, metadata_lines,
 )
 
 DEFAULT_PATH = Path(__file__).resolve().parent.parent / "ops" / "ACCOUNT-MAP.yaml"
@@ -236,6 +236,8 @@ def scan_raw_text(text: str, report: Report) -> None:
         problem = check_comment(comment)
         if problem:
             report.error(problem[0], f"line {number}: {problem[1]}")
+    for number in metadata_lines(text):
+        report.error("BAD_VALUE", f"line {number}: YAML anchors, aliases, tags, directives refused")
 
 
 def _load(path: Path, report: Report):
