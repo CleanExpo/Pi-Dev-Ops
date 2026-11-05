@@ -56,6 +56,7 @@ Different platforms compress differently. A grade that looks perfect on a master
 ## Constraints
 
 - **NEVER** auto-grade without a brand LUT — if `Synthex/packages/brand-config/src/brands/{slug}/colour/` is empty, dispatch a one-time LUT generation via Resolve before grading any video for that brand
+- **Grade holds at native 2160 (founder rule, 05/11/2026).** Grade the ship master, not a 1080 proxy. Pixels: 9:16 → 2160×3840, 1:1 → 2160×2160, 16:9 → 3840×2160. Histogram, brand RGB, and the no-crush / no-clip checks run on that file. Grading a smaller file and upscaling it is FAIL_RES. You cannot waive this. Only Phill's written GO can.
 - **NEVER** crush blacks below 16 IRE for client work (looks like a printer error on mobile screens)
 - **NEVER** push saturation above 110% — the AI-slop tell is over-saturated reds and skies
 - Respect `[[design-preferences]]` — Gun Metal `#1a1a1a` MUST land at exactly RGB(26, 26, 26) in the final master — colorist validates this in the histogram

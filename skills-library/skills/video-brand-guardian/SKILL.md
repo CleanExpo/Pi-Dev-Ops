@@ -74,6 +74,21 @@ The 5 unmistakable tells:
 - Verify music swells align with editor's marked emotional peaks
 - 🔴 FAIL on visible desync
 
+## Founder QC gates, 05/11/2026
+
+These sit on top of the nine checks. Same PASS or FAIL. You cannot waive them. Only Phill's written GO can. No frame grabs and no probe JSON beside the audit means FAIL.
+
+### 10. Empty and near-black frames
+Not only `blackdetect` on pure #000. FAIL any stretch where mean luminance is near-black or near-white, or the picture is empty UI chrome with no subject. The Synthex marketing film (about 55–76 seconds) is the reference fail. Near-black openers and cream-blank holds FAIL.
+
+### 11. OCR cutoff
+OCR every on-screen word. FAIL truncated words, clipped diagrams, or cards that show only their tops. Text sits fully inside the safe margins. This is stricter than check 7's caption-diff count.
+
+### 12. Native resolution (FAIL_RES)
+`ffprobe` the master. Required pixels: 9:16 → 2160×3840, 1:1 → 2160×2160, 16:9 → 3840×2160. Below that is FAIL_RES. A soft upscale of a 720 or 1080 master is FAIL_RES even when it looks sharp.
+
+Unite-Group marketing that claims restoration, mould, water damage, cleaning, or courses is also FAIL. You cannot waive that claim ban.
+
 ## Output
 
 For every video you audit, emit:
@@ -83,7 +98,7 @@ For every video you audit, emit:
 
 ## Constraints
 
-- **NEVER** PASS a video with ANY 🔴 INSTANT FAIL trigger (Lucide icons, AI slop, mangled marks, generic stock fonts)
+- **NEVER** PASS a video with ANY 🔴 INSTANT FAIL trigger (Lucide icons, AI slop, mangled marks, generic stock fonts, empty or near-black frames, OCR cutoffs, below-native resolution, a banned Unite-Group marketing claim)
 - **NEVER** "approve with caveats" — PASS or FAIL only, never amber on client-facing work
 - **NEVER** be talked out of a FAIL by `video-director`; the EP can override only with Phill's explicit sign-off in writing (Telegram is fine; verbal is not)
 - Respect `[[design-preferences]]` — these ARE the design preferences encoded as a gate

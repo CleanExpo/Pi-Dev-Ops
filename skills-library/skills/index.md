@@ -33,6 +33,7 @@ Always loaded; keep ≤60 lines. Intent → canonical entry point; the entry poi
 | pasted URL / "read this page" / "scrape" · "enrich this list" / "build me a table of" | `nexus-extract` · `nexus-enrich` |
 | any scientific task or library (genomics, rdkit, scanpy, astropy, pymc, literature review) | `nexus-scientific` |
 | "make a video" / explainer / promo · styled brand reel · avatar / talking head | `video-director` · `brand-video` · `heygen-director` |
+| "use the SDA skill" / Margot short-form / daily video batch | `sda-video` |
 | "viral" / "short-form" / "reel" / "TikTok" · "repurpose this video into posts" | `nexus-viral` · `content-cascade` |
 | "campaign" / "GTM" / "positioning" · "write/draft copy" / "post" / any public-facing words | `marketing-orchestrator` · `nexus-copywriter` |
 | "SEO" / "keyword research" / "backlinks" · "GEO" / "AI search visibility" · "E-E-A-T" | `seo` · `geo-optimization` · `eeat` |
