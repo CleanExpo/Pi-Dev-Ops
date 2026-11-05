@@ -90,7 +90,8 @@ def load_map(path) -> dict:
 
 
 def _valid(r) -> bool:
-    return (isinstance(r, dict) and r.get("schema") == SCHEMA and r.get("event") in FALLBACK_HOLD_S
+    return (isinstance(r, dict) and r.get("schema") == SCHEMA
+            and isinstance(r.get("event"), str) and r["event"] in FALLBACK_HOLD_S
             and isinstance(r.get("machine"), str) and isinstance(r.get("provider"), str)
             and _when(r.get("ts")) is not None
             and (r.get("reset_at") is None or _when(r.get("reset_at")) is not None))

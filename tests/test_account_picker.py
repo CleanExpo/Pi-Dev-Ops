@@ -225,3 +225,12 @@ def test_w5_bad_job_hours_table_is_an_input_error(tmp_path, body):
     p.write_text(body, encoding="utf-8")
     with pytest.raises(ap.InputError):
         ap._load_hours(p)
+
+
+def test_w5_wrongly_typed_fields_are_malformed_not_a_crash(tmp_path):
+    p = tmp_path / "h.jsonl"
+    lines = [json.dumps(rec(["weekly_cooling"])), json.dumps(rec({"a": 1})),
+             json.dumps(rec("5h_cooling", schema=["headroom/1"])), json.dumps(rec("5h_cooling", machine=7))]
+    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    out = ap.read_log(p)
+    assert out["events"] == [] and out["malformed"] == 4
