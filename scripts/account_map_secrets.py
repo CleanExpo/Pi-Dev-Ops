@@ -107,6 +107,20 @@ def looks_secret_value(text: str) -> bool:
     return any(p.search(text) for p in OWN_PATTERNS + scanner_patterns())
 
 
+_METADATA = (yaml.AnchorToken, yaml.AliasToken, yaml.TagToken, yaml.DirectiveToken)
+
+
+def metadata_lines(text: str):
+    """Yield the line of every YAML anchor, alias, tag or directive. The parser drops or
+    hides their names, so they are text nobody checks; the map never needs them."""
+    try:
+        for token in yaml.scan(text, Loader=yaml.SafeLoader):
+            if isinstance(token, _METADATA):
+                yield token.start_mark.line + 1
+    except yaml.YAMLError:
+        return  # the loader reports unparseable YAML as rule FILE
+
+
 def comment_lines(text: str):
     """Yield (line number, comment text) for every YAML comment; the parser drops these."""
     for number, line in enumerate(text.splitlines(), 1):

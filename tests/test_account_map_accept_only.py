@@ -161,8 +161,10 @@ def test_missing_scanner_fails_closed(tmp_path, monkeypatch):
 
 
 def test_independent_second_net_only(tmp_path, capsys):
-    """W6: a short Slack-shaped key in a comment passes the word grammar; the net alone fires."""
-    code, out = _run(tmp_path, BASE + "# old " + "xoxb-" + "12345-abcde" + "\n", capsys)
+    """W6: a short Slack-shaped key is a valid slug, so the label grammar accepts it; the
+    second net alone fires."""
+    text = BASE.replace("label: claude-mini", "label: " + "xoxb-" + "12345-abcde")
+    code, out = _run(tmp_path, text, capsys)
     assert code == 1 and "SECRET_VALUE" in out and "BAD_VALUE" not in out
 
 
@@ -238,3 +240,41 @@ def test_key_like_slug_or_host_fails(field):
     check = grammar.GRAMMAR[field]
     assert check("ab1cd2ef3gh4-ij5kl6mn7op8") is not None
     assert check("mac2") is None and check("claude-mini-2") is None
+
+
+# ── Review round 2 of the redesign (Codex, 983caec3) ─────────────────────────
+
+ANCHOR = "abcdefghijklmnopqrstuvwxyz" + "abcdef"
+
+
+@pytest.mark.parametrize("comment", ["# p@ssword", "# Hunter2!", "# pass: x+y=z", "# " + "x" * 25])
+def test_comment_outside_plain_prose_fails(tmp_path, capsys, comment):
+    """W6.3: comments follow the same plain-word grammar as notes; punctuation such as
+    @ + = and letter/digit mixes are refused."""
+    code, out = _run(tmp_path, BASE + comment + "\n", capsys)
+    assert code == 1 and "BAD_VALUE" in out
+
+
+@pytest.mark.parametrize(
+    "old, new",
+    [
+        ("email: claude-mini@", f"email: &{ANCHOR} claude-mini@"),
+        ("plan: max", f"plan: &{ANCHOR} max\n    notes: *{ANCHOR}"),
+        ("plan: max", "plan: !!str max"),
+        ("plan: max", f"plan: !{ANCHOR} max"),
+        ("version: 1", f"%YAML 1.1\n%TAG !{ANCHOR}! tag:x,2000:\n---\nversion: 1"),
+    ],
+)
+def test_yaml_anchors_aliases_tags_and_directives_fail(tmp_path, capsys, old, new):
+    """W6.5: anchors, aliases, tags and directives are YAML metadata the parser drops or
+    hides; the map never needs them, so any of them fails and its name is not echoed."""
+    code, out = _run(tmp_path, BASE.replace(old, new, 1), capsys)
+    assert code == 1, out
+    assert ANCHOR not in out
+
+
+def test_committed_map_header_comments_pass():
+    """W6.3: the real header comments still pass the stricter comment grammar."""
+    text = cam.DEFAULT_PATH.read_text(encoding="utf-8")
+    bad = [c for _, c in secrets.comment_lines(text) if grammar.check_comment(c)]
+    assert bad == []

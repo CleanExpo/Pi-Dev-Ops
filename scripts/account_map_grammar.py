@@ -23,6 +23,9 @@ _EMAIL_LOCAL = re.compile(r"[A-Za-z0-9]+(?:[.+-][A-Za-z0-9]+)*")
 _EMAIL_DOMAIN = re.compile(r"(?:[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\.)+[A-Za-z]{2,24}")
 _PROSE_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'/?!-]*")
 _PROSE_WORD = re.compile(r"[A-Z]{2,6}-[0-9]{1,6}|[0-9]{1,6}|[A-Za-z]+(?:['/-][A-Za-z]+)*")
+# Comments may also name files (scripts/check_account_map.py, ops/ACCOUNT-MAP.md).
+_COMMENT_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'\"/?!_-]*")
+_COMMENT_WORD = re.compile(r"[A-Z]{2,6}-[0-9]{1,6}|[0-9]{1,6}|[A-Za-z]+(?:[-_./'][A-Za-z]+)*")
 _ALNUM_RUN = re.compile(r"[A-Za-z0-9]+")
 _MIXED = re.compile(r"[A-Za-z]")
 _ONE_SWITCH = re.compile(r"[A-Za-z]+[0-9]+|[0-9]+[A-Za-z]+")
@@ -151,8 +154,16 @@ GRAMMAR = {
 
 
 def check_comment(text: str):
-    """A YAML comment: printable ASCII, and every letter/digit run short and unmixed."""
-    if not all(" " <= c <= "~" for c in text) or not _runs_ok(text):
-        return ("BAD_VALUE", "comments must be plain ASCII words: letters-only or "
-                "digits-only runs of at most 24 characters (no codes or keys)")
+    """A YAML comment: one line of plain words, like notes, but file names are allowed.
+    Punctuation such as @ + = & * and letter/digit mixes are refused."""
+    body = text.lstrip("#").strip()
+    ok = len(body) <= MAX_PROSE and _COMMENT_CHARS.fullmatch(body) is not None
+    for word in body.split(" ") if ok else ():
+        word = word.strip("(\"'.").rstrip(",.;:)'\"?!")
+        if word and not (_COMMENT_WORD.fullmatch(word) and _runs_ok(word)):
+            ok = False
+    if not ok:
+        return ("BAD_VALUE", "comments must be plain words (letters, a number, a ticket id "
+                "or a file name), at most 160 characters, no codes, keys or symbols "
+                "such as @ + = & *")
     return None
