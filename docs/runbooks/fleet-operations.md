@@ -210,6 +210,36 @@ Work through it in this order; each step names the command that decides it.
 Rule that saves time: **dormant is not missing.** Most "it isn't working" in this system is a
 flag that is off by design. Check the flag before debugging the code.
 
+## The PC restarts lanes a reboot killed (UNI-3291)
+
+A lane is one job folder under `C:\agent-work` (for example `C:\agent-work\uni-3291-pc-resume`).
+The scheduled task `NexusLaneSupervisor` runs `mesh/lane_supervisor.py tick` at logon and every
+5 minutes. It looks only at lanes that saved a `lane-state.json`. A lane without one is never
+touched. When a lane says `running` but its process is gone, the task starts the lane's saved
+command again, or hands the lane to the Mini or MacBook when 4 lanes are already live on the PC.
+It writes one row per lane, `PC-LANE-<LANE>`, to the Mini's `jobs.json`. It never kills anything.
+
+```powershell
+# Install or re-install for the signed-in user (no admin rights, no stored password):
+powershell -NoProfile -ExecutionPolicy Bypass -File mesh\windows\register_lane_supervisor.ps1
+# A lane opts in before its long work starts ($PID is the lane's own PowerShell):
+py -3 mesh\lane_state.py begin --dir C:\agent-work\<lane> --pid $PID --linear UNI-NNNN -- powershell.exe -NoProfile -File C:\agent-work\<lane>\run.ps1
+# A long step checkpoints first and is skipped on a resume once it has finished:
+py -3 mesh\lane_state.py run --dir C:\agent-work\<lane> --step codex-review -- <command>
+# What a tick would see, changing nothing:
+py -3 mesh\lane_supervisor.py status
+```
+
+Check it ran: `C:\agent-work\.lane-supervisor\supervisor.log` gets one line per tick, and
+`last-tick.json` holds the last decision. A line that could not reach the Mini waits in
+`outbox.jsonl` and is sent on the next tick that can reach it. Stop one lane from restarting:
+put a file named `STOP` in its folder. Remove the task: the same script with `-Remove`.
+
+Known limit: the task runs only while the user is signed in. This PC has automatic sign-in
+off, so after a reboot nothing restarts until the first sign-in, unless Windows signs in by
+itself to finish an update. Making it start before sign-in needs either automatic sign-in or
+an administrator registering a pre-sign-in task. Both are a decision for Phill.
+
 ## Getting files off the Windows PC (the SSH lane)
 
 Some work on `phill-desktop` cannot reach the estate through git at all. `~/.claude`

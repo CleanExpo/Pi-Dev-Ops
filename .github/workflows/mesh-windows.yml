@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           cd mesh
-          python -c "import runner, heartbeat, preflight, self_update, node_health, run_record, claim_lifecycle, ship_run, fleet_state, env_file, runner_idle; print('imports ok')"
+          python -c "import runner, heartbeat, preflight, self_update, node_health, run_record, claim_lifecycle, ship_run, fleet_state, env_file, runner_idle, lane_state, lane_proc, lane_board, lane_supervisor, lane_dummy; print('imports ok')"
 
       - name: Runner suites that must hold on any OS
         env:
@@ -55,3 +55,6 @@ jobs:
           tests/test_mesh_node_health.py
           tests/test_mesh_preflight.py
           tests/test_mesh_self_update.py
+          tests/test_mesh_lane_state.py
+          tests/test_mesh_lane_supervisor.py
+          tests/test_mesh_lane_task.py
