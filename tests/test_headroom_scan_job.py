@@ -214,3 +214,39 @@ def test_w4_a_write_that_makes_no_progress_raises(tmp_path, monkeypatch):
 def test_docs_hand_check_command_uses_an_absolute_log_path():
     doc = (ROOT / "docs/headroom-events.md").read_text()
     assert "--log ./" not in doc
+
+
+# W4 (Codex round 2): a write that fails part-way must leave the log as it was.
+def test_w4_failed_partial_append_is_rolled_back(tmp_path, monkeypatch):
+    import errno
+    log = tmp_path / "h.jsonl"
+    he.append_events([{"event": "first"}], log)
+    before = log.read_bytes()
+    real = os.write
+    calls = []
+
+    def flaky(fd, b):
+        calls.append(1)
+        if len(calls) == 1:
+            return real(fd, bytes(b[:7]))
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(he.os, "write", flaky)
+    try:
+        he.append_events([{"event": "second"}], log)
+    except OSError:
+        pass
+    else:
+        raise AssertionError("the failed write must raise")
+    monkeypatch.setattr(he.os, "write", real)
+    assert log.read_bytes() == before
+    he.append_events([{"event": "third"}], log)
+    assert [r["event"] for r in rows(log)] == ["first", "third"]
+
+
+def test_w4_an_unterminated_last_line_cannot_swallow_the_next_event(tmp_path):
+    log = tmp_path / "h.jsonl"
+    log.write_bytes(b'{"event": "first"}\n{"eve')
+    he.append_events([{"event": "next"}], log)
+    lines = log.read_text().splitlines()
+    assert json.loads(lines[-1]) == {"event": "next"}

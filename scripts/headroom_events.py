@@ -178,12 +178,31 @@ def append_events(records: list[dict], path: Path) -> None:
         raise OSError(f"log path must be absolute, got {path}")
     path.parent.mkdir(exist_ok=True)
     data = "".join(json.dumps(r, sort_keys=True) + "\n" for r in records).encode()
-    fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+    fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o644)
     try:
         _lock(fd)
-        _write_all(fd, data)
+        _append_locked(fd, data)
     finally:
         os.close(fd)
+
+
+def _append_locked(fd: int, data: bytes) -> None:
+    """Append under the held lock, all or nothing.
+
+    A new event starts on its own line even if an earlier writer left one unfinished,
+    and a write that fails part-way is cut back to the old length, so a half line can
+    never join the next event."""
+    size = os.fstat(fd).st_size
+    if size and os.pread(fd, 1, size - 1) != b"\n":
+        data = b"\n" + data
+    try:
+        _write_all(fd, data)
+    except OSError:
+        try:
+            os.ftruncate(fd, size)
+        except OSError:
+            pass  # the write error below is the one that matters
+        raise
 
 
 def _write_all(fd: int, data: bytes) -> None:
