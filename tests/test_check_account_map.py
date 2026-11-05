@@ -114,14 +114,14 @@ def test_secret_looking_value_in_notes_is_rejected(value):
     assert "SECRET_VALUE" in _rules(data)
 
 
-def test_plain_notes_with_urls_and_slugs_are_not_flagged():
-    """W1.3: the value check must not cry wolf on normal notes, or people learn to ignore it."""
+def test_plain_notes_with_ticket_ids_pass_and_urls_fail_closed():
+    """W1.3/W1.5: plain prose with a ticket id passes; a URL is not an accepted notes shape
+    (accept-only redesign), so it fails closed instead of being trusted."""
     data = _map()
-    data["accounts"][0]["notes"] = (
-        "see https://linear.app/unite-group/issue/RA-8196/"
-        "ar-10-macbook-seat-decision-pending-phill-founder-only"
-    )
+    data["accounts"][0]["notes"] = "Seat decision pending (RA-8196), ask Phill first."
     assert cam.validate(data).errors == []
+    data["accounts"][0]["notes"] = "see https://linear.app/unite-group/issue/RA-8196"
+    assert "BAD_VALUE" in _rules(data)
 
 
 # ── W2: exactly one Claude pin per machine ───────────────────────────────────

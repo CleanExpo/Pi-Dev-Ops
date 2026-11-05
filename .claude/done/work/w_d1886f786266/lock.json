@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d1886f786266",
+  "contract_digest": "01a75df3c332c0ea09b73fc9c27c4f3eb05b1c0f97744a7664384f14d58b0ac7",
+  "baseline_head": "06b973d7ba66c39b0be01bb0649316471fb1a6cb",
+  "identity_key": "phillmcgurk/ra-8187-account-map-validator@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.git",
+  "locked_at_utc": "2026-11-05T06:33:23Z",
+  "criteria_count": 7,
+  "recipe_pins": {}
+}

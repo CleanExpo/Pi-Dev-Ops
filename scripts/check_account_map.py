@@ -13,11 +13,14 @@ Rules (each failure prints its rule name; any failure exits 1):
     SCHEMA               wrong top-level shape or version, empty lists, account pinned nowhere
     SECRET_FIELD         a key whose name looks like a credential, at any level
     UNKNOWN_KEY          a key outside the allowed schema
-    SECRET_VALUE         a value or YAML comment that looks like a credential (key, JWT,
-                         bearer, "password=...")
+    BAD_VALUE            a value or comment outside its field's accepted shape (accept-only:
+                         email, fixed choice, slug, hostname, short plain prose, or null)
+    SECRET_VALUE         second net: a key, value or raw line matching a credential pattern
+                         (app/server/scanner.py's list plus Slack, GitHub PAT, JWT, ...)
+    SCANNER              the scanner pattern list could not be read, so nothing is passed
     MISSING_FIELD        an account lacks label, provider, plan, email or machines
     BAD_PROVIDER         provider is not claude, codex or cursor
-    BAD_EMAIL            email is not a single well-formed address
+    BAD_EMAIL            email is not one plain address (no '_', local part 40 chars max)
     DUPLICATE_LABEL      two accounts share a label
     DUPLICATE_MACHINE    two machines share an id
     UNKNOWN_MACHINE      a pin names a machine the map does not declare
@@ -36,7 +39,6 @@ printed as PENDING, so a seed never reads as a live mapping.
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -44,20 +46,18 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from account_map_grammar import GRAMMAR, check_comment  # noqa: E402
 from account_map_secrets import (  # noqa: E402
-    DuplicateKeyError, UniqueKeyLoader, comment_lines, looks_secret_name, looks_secret_value,
+    DuplicateKeyError, ScannerPatternsError, UniqueKeyLoader, comment_lines, looks_secret_name,
+    looks_secret_value,
 )
 
 DEFAULT_PATH = Path(__file__).resolve().parent.parent / "ops" / "ACCOUNT-MAP.yaml"
-SCHEMA_VERSION = 1
-PROVIDERS = ("claude", "codex", "cursor")
 TOP_KEYS = {"version", "machines", "accounts"}
 MACHINE_KEYS = {"id", "host", "notes"}
 ACCOUNT_KEYS = {"label", "provider", "plan", "email", "machines", "notes"}
 REQUIRED_ACCOUNT_KEYS = ("label", "provider", "plan", "email", "machines")
 PLACEHOLDER_SUFFIX = ".invalid"
-
-_EMAIL = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$")
 
 
 @dataclass
@@ -83,12 +83,16 @@ def _scan_keys(node, where: str, allowed: set, report: Report) -> None:
             report.error("UNKNOWN_KEY", f"{where}: key '{name}' is not part of the schema")
 
 
-def _check_text(node: dict, keys: tuple, where: str, report: Report) -> None:
-    """Free-text fields hold a string or null, never a nested structure or a number."""
-    for key in keys:
-        if key in node and node[key] is not None and not isinstance(node[key], str):
-            report.error("SCHEMA", f"{where}: '{key}' must be text or null, "
-                         f"got {type(node[key]).__name__}")
+def _check_fields(node: dict, scope: str, where: str, report: Report) -> bool:
+    """Accept-only: each schema field's value must match its grammar. True when all do."""
+    ok = True
+    for key, value in node.items():
+        check = GRAMMAR.get((scope, str(key)))
+        problem = check(value) if check else None
+        if problem:
+            report.error(problem[0], f"{where}.{key}: {problem[1]}")
+            ok = False
+    return ok
 
 
 def _scan_values(node, where: str, report: Report) -> None:
@@ -98,6 +102,8 @@ def _scan_values(node, where: str, report: Report) -> None:
             if looks_secret_name(key):
                 report.error("SECRET_FIELD", f"{where}: key '{key}' looks like a credential; "
                              "the map holds emails only")
+            elif looks_secret_value(str(key)):
+                report.error("SECRET_VALUE", f"{where}: a key looks like a credential")
             _scan_values(value, f"{where}.{key}", report)
     elif isinstance(node, list):
         for i, value in enumerate(node):
@@ -116,16 +122,11 @@ def _check_machines(machines, report: Report) -> list:
             report.error("SCHEMA", f"{where}: each machine needs a non-empty string 'id'")
             continue
         _scan_keys(machine, where, MACHINE_KEYS, report)
-        _check_text(machine, ("host", "notes"), where, report)
+        _check_fields(machine, "machine", where, report)
         if machine["id"] in ids:
             report.error("DUPLICATE_MACHINE", f"{where}: machine id '{machine['id']}' repeats")
         ids.append(machine["id"])
     return ids
-
-
-def _check_email(email, where: str, report: Report) -> None:
-    if not isinstance(email, str) or not _EMAIL.match(email):
-        report.error("BAD_EMAIL", f"{where}: email {email!r} is not a single valid address")
 
 
 def _check_account(account, where: str, machine_ids: list, labels: set, report: Report) -> bool:
@@ -134,35 +135,26 @@ def _check_account(account, where: str, machine_ids: list, labels: set, report: 
         report.error("SCHEMA", f"{where}: each account must be a mapping")
         return False
     _scan_keys(account, where, ACCOUNT_KEYS, report)
-    _check_text(account, ("plan", "notes"), where, report)
+    fields_ok = _check_fields(account, "account", where, report)
     missing = [k for k in REQUIRED_ACCOUNT_KEYS if k not in account]
     for key in missing:
         report.error("MISSING_FIELD", f"{where}: required field '{key}' is missing")
     label_ok = _check_label(account, where, labels, report)
-    if "provider" in account and account["provider"] not in PROVIDERS:
-        report.error("BAD_PROVIDER", f"{where}: provider {account['provider']!r} is not one of "
-                     f"{', '.join(PROVIDERS)}")
-    if "email" in account:
-        _check_email(account["email"], where, report)
     pins = account.get("machines")
-    if "machines" in account and (not isinstance(pins, list) or not pins
-                                  or not all(isinstance(p, str) for p in pins)):
-        report.error("SCHEMA", f"{where}: 'machines' must list at least one machine id string")
-        return False
-    for pin in pins or []:
+    if not isinstance(pins, list) or not all(isinstance(p, str) for p in pins):
+        return False  # reported by the grammar or as MISSING_FIELD
+    for i, pin in enumerate(pins):
         if pin not in machine_ids:
-            report.error("UNKNOWN_MACHINE", f"{where}: pinned to undeclared machine {pin!r}")
-    return not missing and label_ok
+            report.error("UNKNOWN_MACHINE", f"{where}.machines[{i}]: pinned to an undeclared "
+                         "machine")
+    return not missing and label_ok and fields_ok
 
 
 def _check_label(account: dict, where: str, labels: set, report: Report) -> bool:
-    """A label must be a non-empty string and unique; return False when it is unusable."""
-    if "label" not in account:
-        return True  # reported as MISSING_FIELD by the caller
-    label = account["label"]
-    if not isinstance(label, str) or not label.strip():
-        report.error("SCHEMA", f"{where}: 'label' must be a non-empty string, got {label!r}")
-        return False
+    """A label must be unique; its shape is the grammar's job. False when it is unusable."""
+    label = account.get("label")
+    if not isinstance(label, str) or GRAMMAR[("account", "label")](label):
+        return "label" not in account  # missing is MISSING_FIELD; bad shape already reported
     if label in labels:
         report.error("DUPLICATE_LABEL", f"{where}: label '{label}' repeats")
     labels.add(label)
@@ -207,12 +199,10 @@ def _check_top(data, report: Report) -> bool:
         report.error("SCHEMA", "the map must be a YAML mapping with version, machines, accounts")
         return False
     _scan_keys(data, "map", TOP_KEYS, report)
-    if data.get("version") != SCHEMA_VERSION:
-        report.error("SCHEMA", f"version must be {SCHEMA_VERSION}, got {data.get('version')!r}")
-        return False
-    for key in ("machines", "accounts"):
-        if not isinstance(data.get(key), list) or not data[key]:
-            report.error("SCHEMA", f"'{key}' must be a non-empty list")
+    for key in ("version", "machines", "accounts"):
+        problem = GRAMMAR[("map", key)](data.get(key))
+        if problem:
+            report.error(problem[0], f"'{key}' {problem[1]}")
             return False
     return True
 
@@ -235,12 +225,17 @@ def validate(data, require_real: bool = False) -> Report:
     return report
 
 
-def scan_comments(text: str, report: Report) -> None:
-    """YAML comments are committed but dropped by the parser, so scan them as raw text."""
+def scan_raw_text(text: str, report: Report) -> None:
+    """Every raw line goes through the second net (comments are dropped by the parser and a
+    line can hide in a quoted scalar); comments must also match the comment grammar."""
+    for number, line in enumerate(text.splitlines(), 1):
+        if looks_secret_value(line):
+            report.error("SECRET_VALUE", f"line {number}: looks like it holds a credential; "
+                         "remove it, the map holds emails only")
     for number, comment in comment_lines(text):
-        if looks_secret_value(comment):
-            report.error("SECRET_VALUE", f"line {number}: a comment looks like it holds a "
-                         "credential; remove it, the map holds emails only")
+        problem = check_comment(comment)
+        if problem:
+            report.error(problem[0], f"line {number}: {problem[1]}")
 
 
 def _load(path: Path, report: Report):
@@ -254,9 +249,20 @@ def _load(path: Path, report: Report):
     except yaml.YAMLError as exc:
         report.error("FILE", f"{path} is not valid YAML: {exc}")
     else:
-        scan_comments(text, report)
+        scan_raw_text(text, report)
         return data
     return None
+
+
+def _say(line: str) -> None:
+    """Print one output line, unless it would quote something credential-shaped (a label
+    or machine id can be slug-shaped and still match the second net)."""
+    try:
+        quoted = looks_secret_value(line)
+    except ScannerPatternsError:
+        quoted = True
+    print(line.split(":", 1)[0] + ": (withheld, it quotes a credential-shaped value)"
+          if quoted else line)
 
 
 def main(argv=None) -> int:
@@ -266,15 +272,18 @@ def main(argv=None) -> int:
                         help="fail while any email is still a .invalid placeholder")
     args = parser.parse_args(argv)
     report = Report()
-    data = _load(args.path, report)
-    if not any(f.rule in ("FILE", "DUPLICATE_KEY") for f in report.errors):
-        comment_findings = report.errors
-        report = validate(data, require_real=args.require_real)
-        report.errors[:0] = comment_findings
+    try:
+        data = _load(args.path, report)
+        if not any(f.rule in ("FILE", "DUPLICATE_KEY") for f in report.errors):
+            raw_findings = report.errors
+            report = validate(data, require_real=args.require_real)
+            report.errors[:0] = raw_findings
+    except ScannerPatternsError as exc:
+        report.error("SCANNER", f"{exc}; the second net is missing, so the map is not checked")
     for finding in report.errors:
-        print(f"ERROR {finding.rule}: {finding.message}")
+        _say(f"ERROR {finding.rule}: {finding.message}")
     for item in report.pending:
-        print(f"PENDING: {item}")
+        _say(f"PENDING: {item}")
     if report.errors:
         print(f"account map FAILED: {len(report.errors)} error(s) in {args.path}")
         return 1

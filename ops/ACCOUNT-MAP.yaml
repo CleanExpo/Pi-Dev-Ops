@@ -9,7 +9,7 @@
 # Open decisions that shape this file: MacBook seat (RA-8196), PC payment (RA-8195),
 # second Grok (RA-8193).
 #
-# Check it:  python3 scripts/check_account_map.py
+# Check it by running scripts/check_account_map.py (see ops/ACCOUNT-MAP.md).
 version: 1
 
 machines:
