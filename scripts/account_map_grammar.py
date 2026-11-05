@@ -48,8 +48,11 @@ def _runs_ok(text: str, limit: int = MAX_RUN, one_switch: bool = False) -> bool:
 
 def show(name) -> str:
     """A name safe to print: plain words with an optional short number. Anything else
-    could be pasted text, so findings name the place and the rule, never the text."""
-    if isinstance(name, str) and len(name) <= 32 and _SHOWABLE.fullmatch(name):
+    could be pasted text, so findings name the place and the rule, never the text. A run
+    longer than the grammar's word limit is hidden too: nothing is printed that the field
+    grammar itself would refuse for length."""
+    if (isinstance(name, str) and len(name) <= 32 and _SHOWABLE.fullmatch(name)
+            and _runs_ok(name)):
         return f"'{name}'"
     return "(name not shown)"
 

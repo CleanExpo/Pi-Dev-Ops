@@ -151,3 +151,36 @@ def test_invalid_utf8_is_a_named_file_error(tmp_path, capsys):
     path.write_bytes(BASE.encode() + b"\xff\n")
     assert cam.main(["--path", str(path)]) == 1
     assert "FILE" in capsys.readouterr().out
+
+
+# ── Review round 4 of the redesign (Codex, 2d7d5e18) ─────────────────────────
+
+LETTERS = "abcdefghijklmnopqrstuvwxyz" * 2
+
+
+@pytest.mark.parametrize("length", [25, 32])
+@pytest.mark.parametrize("where", ["unknown_key", "machine_id", "label", "pin"])
+def test_long_letter_name_is_never_echoed(tmp_path, capsys, where, length):
+    """W6.5: a refused name longer than the 24-letter word limit is not printed, even
+    when it is letters only and so looks like a plain word to show()."""
+    name = LETTERS[:length]
+    plant = {
+        "unknown_key": BASE.replace("    plan: max", f"    plan: max\n    {name}: x"),
+        "machine_id": BASE.replace("id: mini", f"id: {name}"),
+        "label": BASE.replace("label: claude-mini", f"label: {name}"),
+        "pin": BASE.replace("machines: [mini]", f"machines: [{name}]"),
+    }[where]
+    path = tmp_path / "map.yaml"
+    path.write_text(plant, encoding="utf-8")
+    assert cam.main(["--path", str(path)]) == 1
+    captured = capsys.readouterr()
+    assert name[:25] not in captured.out + captured.err, (where, captured.out)
+
+
+def test_show_prints_only_what_the_grammar_could_accept():
+    """W6.5: show() keeps short names readable (a typo key is still named) and hides
+    any run longer than the grammar's 24-character word limit."""
+    assert grammar.show("emial") == "'emial'"
+    assert grammar.show(LETTERS[:24]) == f"'{LETTERS[:24]}'"
+    assert grammar.show(LETTERS[:25]) == "(name not shown)"
+    assert grammar.show("claude-" + LETTERS[:25]) == "(name not shown)"
