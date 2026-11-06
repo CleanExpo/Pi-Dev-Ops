@@ -182,6 +182,20 @@ def test_decide(lane, launches, alive, pushed, want):
     assert actions.decide({"lane": lane, "launches": launches}, alive, pushed, 10) == want
 
 
+def test_lane_alive_unreadable_never_false():
+    """None / state-missing stay alive so relaunch cannot fire on an unread probe."""
+    import datetime as dt
+    card = {"lane": {"launched_at": "2026-11-04T07:00:00+10:00"}}
+    t0 = dt.datetime(2026, 11, 4, 7, 0, tzinfo=dt.timezone(dt.timedelta(hours=10)))
+    t_after = t0 + dt.timedelta(minutes=10)
+    assert actions.lane_alive(card, "running", t_after) is True
+    assert actions.lane_alive(card, "queued", t_after) is True
+    assert actions.lane_alive(card, None, t_after) is True
+    assert actions.lane_alive(card, "state-missing", t_after) is True
+    assert actions.lane_alive(card, "finished", t_after) is False
+    assert actions.lane_alive(card, "REFUSED", t_after) is False
+
+
 def test_launch_writes_lane_and_starts_template(tmp_path, monkeypatch):
     home = tmp_path / "home"
     (home / "agent-work" / "lib").mkdir(parents=True)

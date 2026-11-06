@@ -33,12 +33,19 @@ def pushed_without_pr(repo: str, fix: str, at: datetime.datetime) -> tuple[int |
 
 
 def lane_alive(card: dict, state: str | None, at: datetime.datetime) -> bool:
-    lane = card.get("lane") or {}
+    """True while a prior lane still owns the episode.
+
+    queued/running → alive. Unreadable probe (None) or missing status
+    ("state-missing") → also alive: during STARTUP that is expected; after
+    STARTUP it means we cannot prove the lane ended, so we must not start a
+    second concurrent fix. Only a readable terminal status (finished,
+    REFUSED, …) returns False and allows relaunch.
+    """
     if state in ALIVE:
         return True
-    launched = parse_time(lane.get("launched_at"))
-    young = launched is not None and at - launched < STARTUP
-    return young and state in (None, "state-missing")
+    if state in (None, "state-missing"):
+        return True
+    return False
 
 
 def decide(card: dict, alive: bool, pushed_min: int | None, grace_min: int) -> str:
@@ -81,7 +88,21 @@ def run(card: dict, at: datetime.datetime, grace_min: int, may_launch: bool = Tr
     pushed, why = pushed_without_pr(card["repo"], card["fix_branch"], at) if lane else (None, "")
     if why:
         return {"check_note": f"{stamp(at)} {why}"}
-    action = decide(card, lane_alive(card, state, at), pushed, grace_min)
+    alive = lane_alive(card, state, at)
+    # After STARTUP, an unreadable status is not "dead": keep the owner and wait.
+    if lane and state in (None, "state-missing"):
+        launched = parse_time(lane.get("launched_at"))
+        if launched is not None and at - launched >= STARTUP and alive:
+            note = f"{stamp(at)} lane state unreadable ({state!r}); waiting (no second lane)."
+            # Still run decide so flag-no-pr / wait behave; merge the note.
+            action = decide(card, alive, pushed, grace_min)
+            if action in ("launch", "relaunch", "relaunch-pr"):
+                return {"check_note": note}  # belt: should not happen while alive
+            if action == "flag-no-pr":
+                return {"pr_overdue": f"{card['fix_branch']} pushed {pushed} min ago with no PR; lane still running",
+                        "check_note": note}
+            return {"check_note": note}
+    action = decide(card, alive, pushed, grace_min)
     if action in ("launch", "relaunch", "relaunch-pr"):
         if not may_launch:
             return {}

@@ -64,6 +64,28 @@ def test_cycle_one_owner_one_lane_on_least_busy(world, ops, monkeypatch):
     assert len(world["launched"]) == 1                     # lane alive: no second lane
 
 
+def test_unreadable_lane_state_after_startup_does_not_relaunch(world, ops, monkeypatch):
+    """Host unreachable (lane_state None) after STARTUP must not start a second lane.
+
+    Regression for Codex P1 on 6866c30f: previously lane_alive fell through to False
+    once the 5-minute STARTUP window ended, so actions.run relaunched on Mini while
+    the MacBook lane was still running but unreadable.
+    """
+    monkeypatch.setenv("RED_MAIN_NOW", at(0))
+    watch.cycle()
+    assert len(world["launched"]) == 1
+    world["lane"] = None  # probe failed / host unreachable
+    monkeypatch.setenv("RED_MAIN_NOW", at(5))
+    watch.cycle()
+    monkeypatch.setenv("RED_MAIN_NOW", at(10))
+    watch.cycle()
+    card = jobs(ops)["W-MAIN-RED-CARSI"]
+    assert len(world["launched"]) == 1, "must not start a second concurrent fix lane"
+    assert card["launches"] == 1
+    assert card["owner"] and card["owner"].startswith("red-main lane on macbook")
+    assert "unreadable" in (card.get("check_note") or "")
+
+
 def test_pushed_fix_without_pr(world, ops, monkeypatch):
     monkeypatch.setenv("RED_MAIN_NOW", at(0))
     watch.cycle()
