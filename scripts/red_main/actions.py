@@ -32,20 +32,29 @@ def pushed_without_pr(repo: str, fix: str, at: datetime.datetime) -> tuple[int |
     return (None, "") if prs else (minutes_since(when, at), "")
 
 
+def _terminal(state: str) -> bool:
+    """True only for an explicit single-line run-template terminal status."""
+    if "\n" in state or "\r" in state:
+        return False
+    return state == "finished" or state.startswith("REFUSED")
+
+
 def lane_alive(card: dict, state: str | None, at: datetime.datetime) -> bool:
     """True while a prior lane still owns the episode.
 
-    queued/running → alive. Unreadable probe (None) or missing status
-    ("state-missing") → also alive: during STARTUP that is expected; after
-    STARTUP it means we cannot prove the lane ended, so we must not start a
-    second concurrent fix. Only a readable terminal status (finished,
-    REFUSED, …) returns False and allows relaunch.
+    queued/running → alive. Unreadable probe (None), missing status
+    ("state-missing"), multi-line / garbage values → also alive: we cannot
+    prove the lane ended, so we must not start a second concurrent fix.
+    Only an explicit terminal status (finished, REFUSED…) returns False
+    and allows relaunch.
     """
     if state in ALIVE:
         return True
-    if state in (None, "state-missing"):
+    if state is None or state == "state-missing":
         return True
-    return False
+    if _terminal(state):
+        return False
+    return True  # unrecognised → wait, never relaunch
 
 
 def decide(card: dict, alive: bool, pushed_min: int | None, grace_min: int) -> str:
@@ -89,15 +98,15 @@ def run(card: dict, at: datetime.datetime, grace_min: int, may_launch: bool = Tr
     if why:
         return {"check_note": f"{stamp(at)} {why}"}
     alive = lane_alive(card, state, at)
-    # After STARTUP, an unreadable status is not "dead": keep the owner and wait.
-    if lane and state in (None, "state-missing"):
+    # After STARTUP, a non-ALIVE status that is not an explicit terminal is not
+    # "dead": keep the owner and wait (None / state-missing / garbage / multi-line).
+    if lane and alive and state not in ALIVE:
         launched = parse_time(lane.get("launched_at"))
-        if launched is not None and at - launched >= STARTUP and alive:
+        if launched is not None and at - launched >= STARTUP:
             note = f"{stamp(at)} lane state unreadable ({state!r}); waiting (no second lane)."
-            # Still run decide so flag-no-pr / wait behave; merge the note.
             action = decide(card, alive, pushed, grace_min)
             if action in ("launch", "relaunch", "relaunch-pr"):
-                return {"check_note": note}  # belt: should not happen while alive
+                return {"check_note": note}
             if action == "flag-no-pr":
                 return {"pr_overdue": f"{card['fix_branch']} pushed {pushed} min ago with no PR; lane still running",
                         "check_note": note}

@@ -86,6 +86,24 @@ def test_unreadable_lane_state_after_startup_does_not_relaunch(world, ops, monke
     assert "unreadable" in (card.get("check_note") or "")
 
 
+def test_unrecognised_lane_state_after_startup_does_not_relaunch(world, ops, monkeypatch):
+    """Garbage / multi-line lane_state must not be treated as terminal (Codex P1 on 99b36c3c)."""
+    monkeypatch.setenv("RED_MAIN_NOW", at(0))
+    watch.cycle()
+    assert len(world["launched"]) == 1
+    world["lane"] = "running\nfinished"  # multi-line sed bleed
+    monkeypatch.setenv("RED_MAIN_NOW", at(10))
+    watch.cycle()
+    world["lane"] = "not-a-real-status"
+    monkeypatch.setenv("RED_MAIN_NOW", at(15))
+    watch.cycle()
+    card = jobs(ops)["W-MAIN-RED-CARSI"]
+    assert len(world["launched"]) == 1
+    assert card["launches"] == 1
+    assert card["owner"] and "macbook" in card["owner"]
+    assert "unreadable" in (card.get("check_note") or "")
+
+
 def test_pushed_fix_without_pr(world, ops, monkeypatch):
     monkeypatch.setenv("RED_MAIN_NOW", at(0))
     watch.cycle()
