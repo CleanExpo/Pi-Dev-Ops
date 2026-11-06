@@ -224,3 +224,10 @@ docs/session-handoffs/handoff-*.md
 # generated graph visualisation output (not source)
 swarm/graphify-out/
 .harness/
+
+# Done harness runtime state (RA-7559). donectl rewrites these per worktree on every run;
+# tracked, they made every PR commit its own ACTIVE.json and conflict with the next merge.
+# contract.json and lock.json stay tracked: they are the locked finish line (evidence).
+.claude/done/ACTIVE.json
+.claude/done/work/*/state.json
+.claude/done/work/*/notes.jsonl
