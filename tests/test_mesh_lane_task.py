@@ -81,8 +81,25 @@ def test_kill_a_real_lane_and_one_tick_starts_it_again(tmp_path: Path) -> None:
 
 @windows_only
 def test_the_task_runs_at_logon_and_every_five_minutes_without_elevation() -> None:
-    source = (MESH / "windows" / "register_lane_supervisor.ps1").read_text()
-    xml = source.split('$Xml = @"\n', 1)[1].split('\n"@', 1)[0].replace('encoding="UTF-16"', "")
+    # Read-only: -PrintXml renders the scheduled task; never register or run it.
+    out = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(MESH / "windows" / "register_lane_supervisor.ps1"),
+            "-PrintXml",
+            "-Python",
+            sys.executable,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert out.returncode == 0, out.stderr
+    xml = out.stdout.strip().replace('encoding="UTF-16"', "")
     ns = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
     root = ET.fromstring(xml)
     assert root.find("t:Triggers/t:LogonTrigger", ns) is not None
@@ -90,11 +107,17 @@ def test_the_task_runs_at_logon_and_every_five_minutes_without_elevation() -> No
     assert root.find("t:Principals/t:Principal/t:LogonType", ns).text == "InteractiveToken"
     assert root.find("t:Principals/t:Principal/t:RunLevel", ns).text == "LeastPrivilege"
     assert root.find("t:Settings/t:MultipleInstancesPolicy", ns).text == "IgnoreNew"
+    command = root.find("t:Actions/t:Exec/t:Command", ns).text
     args = root.find("t:Actions/t:Exec/t:Arguments", ns).text
-    assert args == "$(X $Arguments)"
-    assert '"lane_supervisor.py"' in source and ' tick --root ' in source
+    workdir = root.find("t:Actions/t:Exec/t:WorkingDirectory", ns).text
+    script = str(MESH / "lane_supervisor.py")
+    assert command == sys.executable
+    assert script in args and " tick --root " in args
+    assert workdir == str(MESH)
+    # Negative control: a folder-only Arguments target must not satisfy this check.
+    assert "lane_supervisor.py" in args
+    assert not args.lstrip('"').startswith(r"C:\agent-work tick")
     assert "Password" not in xml
-
 
 @pytest.mark.skipif(os.name == "nt" or not shutil.which("python3"), reason="the board script runs on the Mini (POSIX flock)")
 def test_the_board_script_writes_one_row_per_lane_and_ignores_a_resend(tmp_path: Path) -> None:
