@@ -1,0 +1,44 @@
+{
+  "schema": "done/1",
+  "work_id": "w_05467cbb99b6",
+  "version": 2,
+  "supersedes": "w_7c3af810e349",
+  "goal": "RA-8174 v2: same goal; tests split across two files for the 300-line gate, plus a per-cycle lane cap (newest red first) and remote-host board commands",
+  "created_at_utc": "2026-11-05T18:55:03Z",
+  "identity_key": "fix/ra-8174-red-main-owner@/Volumes/Mini Mini 2T Storage/worktrees/ra-8174-red-main/repo/.git",
+  "baseline_observed": {
+    "head": "42b0bcc2a5bbaa076f46713ffb6a60860eac16a5",
+    "branch": "fix/ra-8174-red-main-owner",
+    "dirty_count": 21
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "Red-main watcher tests pass: per-workflow latest completed run on the default branch (schedule included) decides red; a failed gh read is UNKNOWN and never closes a card or resumes a parked job; one card and one lane per red episode on the least-busy reachable host; pushed fix branch with no PR after 10 min relaunches or flags the lane; parked jobs (waits_for_main) resume only when that repo is green; every AMBER/RED line gets owner+age and an unowned line 30+ min old becomes a board card; at most RED_MAIN_MAX_NEW_LANES new lanes per cycle, newest red first; lane brief carries the gates and reaches the board from a remote host",
+      "recipe": "env -i HOME=/tmp/ra8174-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_red_main_watch.py tests/test_red_main_cycle.py",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "ruff passes on the new Python files",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check scripts/red_main scripts/red_main_watch.py tests/test_red_main_watch.py tests/test_red_main_cycle.py tests/red_main_support.py"
+    },
+    {
+      "id": "C3",
+      "text": "Repo size gates pass (300-line file, 40-line function)",
+      "recipe": "/usr/bin/python3 .github/scripts/file_length_lint.py && /usr/bin/python3 .github/scripts/function_length_lint.py"
+    },
+    {
+      "id": "C4",
+      "text": "Planted mutants (red read as green, UNKNOWN treated as green, second lane launched for the same episode, busiest host picked, parked job resumed on UNKNOWN, PR grace ignored, unowned escalation skipped) are each killed by the test suite, lane cap ignored, unowned red-main card never escalated (9 mutants; unmutated copy must pass first)",
+      "recipe": "/usr/bin/python3 .claude/done/work/w_05467cbb99b6/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+      "timeout": 3600
+    },
+    {
+      "id": "C5",
+      "text": "Read-only live smoke: a scan with launching off against real GitHub on a temp copy of the board exits 0, writes a state file covering at least one repo, and starts no lane",
+      "recipe": "rm -rf /tmp/ra8174-c5 && mkdir -p /tmp/ra8174-c5/ops && cp '/Volumes/Mini Mini 2T Storage/ops/jobs.json' /tmp/ra8174-c5/ops/ && env -i HOME=/Users/phill-mac PATH=/usr/bin:/bin RED_MAIN_OPS=/tmp/ra8174-c5/ops RED_MAIN_STATE_DIR=/tmp/ra8174-c5/state RED_MAIN_REPOS=CleanExpo/CARSI@main,CleanExpo/Unite-Group@main /usr/bin/python3 scripts/red_main_watch.py scan && /usr/bin/python3 -c \"import json,sys; s=json.load(open('/tmp/ra8174-c5/state/red-main-watch.json')); sys.exit(0 if s['states'] and not s['problems'] and not any((j.get('lane') for j in json.load(open('/tmp/ra8174-c5/ops/jobs.json'))['jobs'] if str(j.get('id','')).startswith('W-MAIN-RED-'))) else 1)\"",
+      "timeout": 600
+    }
+  ]
+}

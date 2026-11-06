@@ -1,0 +1,38 @@
+{
+  "schema": "done/1",
+  "work_id": "w_7c3af810e349",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8174: red default-branch CI on CleanExpo repos gets one owner and one fix lane on the least-busy machine; parked jobs resume when green; watcher lines carry owner+age with 30-min escalation",
+  "created_at_utc": "2026-11-05T18:42:04Z",
+  "identity_key": "fix/ra-8174-red-main-owner@/Volumes/Mini Mini 2T Storage/worktrees/ra-8174-red-main/repo/.git",
+  "baseline_observed": {
+    "head": "42b0bcc2a5bbaa076f46713ffb6a60860eac16a5",
+    "branch": "fix/ra-8174-red-main-owner",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "Red-main watcher tests pass: per-workflow latest completed run on the default branch (schedule included) decides red; a failed gh read is UNKNOWN and never closes a card or resumes a parked job; one card and one lane per red episode on the least-busy reachable host; pushed fix branch with no PR after 10 min relaunches or flags the lane; parked jobs (waits_for_main) resume only when that repo is green; every AMBER/RED line gets owner+age and an unowned line 30+ min old becomes a board card",
+      "recipe": "env -i HOME=/tmp/ra8174-c1-home PATH=/usr/bin:/bin TMPDIR=/tmp /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest -q -p no:cacheprovider tests/test_red_main_watch.py",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "ruff passes on the new Python files",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check scripts/red_main scripts/red_main_watch.py tests/test_red_main_watch.py"
+    },
+    {
+      "id": "C3",
+      "text": "Repo size gates pass (300-line file, 40-line function)",
+      "recipe": "/usr/bin/python3 .github/scripts/file_length_lint.py && /usr/bin/python3 .github/scripts/function_length_lint.py"
+    },
+    {
+      "id": "C4",
+      "text": "Planted mutants (red read as green, UNKNOWN treated as green, second lane launched for the same episode, busiest host picked, parked job resumed on UNKNOWN, PR grace ignored, unowned escalation skipped) are each killed by the test suite",
+      "recipe": "/usr/bin/python3 .claude/done/work/w_7c3af810e349/mutants.py \"$PWD\" /Users/phill-mac/Pi-Dev-Ops/.venv/bin/python",
+      "timeout": 3600
+    }
+  ]
+}
