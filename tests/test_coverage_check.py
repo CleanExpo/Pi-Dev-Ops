@@ -253,3 +253,27 @@ def test_ver_loop_coverage_gated_is_green_because_pytest_proved_it():
         item for item in report["results"] if item["id"] == "ver-loop-coverage-gated"
     )
     assert gated["status"] == coverage_check.PASS
+
+
+@pytest.mark.parametrize("name", ["python3", "python"])
+def test_bare_python_probe_runs_under_the_checking_interpreter(monkeypatch, tmp_path, name):
+    """A DoD probe naming bare python must not pick up an older python earlier on PATH.
+
+    On macOS /usr/bin/python3 is 3.9 and cannot import this repo, so a probe that resolved
+    `python3` from PATH failed on the Mac while CI (python3 = 3.11) stayed green.
+    """
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake = fake_bin / name
+    fake.write_text("#!/bin/sh\necho fake-python-on-path\nexit 7\n", encoding="utf-8")
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+
+    status, evidence = coverage_check.probe_command(
+        tmp_path,
+        {"argv": [name, "-c", "import sys; print('same', sys.executable == sys.argv[1])",
+                  sys.executable], "expect_exit": 0},
+    )
+
+    assert status == coverage_check.PASS, evidence
+    assert evidence.endswith("same True"), evidence

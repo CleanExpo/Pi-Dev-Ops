@@ -1,0 +1,9 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d6703489cd3e",
+  "contract_digest": "209e753c01557e23567879ee6bf5f882261fee742108569aa776bc2d89e3a175",
+  "baseline_head": "04e91d6ef4f0173e3646571776dfe19190cc0b1e",
+  "identity_key": "fix/handoff-pytest-limit-from-measured-runtime@/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.git/worktrees/Pi-Dev-Ops---Mission-Control-942ba8b67016832f11",
+  "locked_at_utc": "2026-11-06T01:11:35Z",
+  "criteria_count": 3
+}
