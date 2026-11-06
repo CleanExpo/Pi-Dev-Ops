@@ -17,6 +17,7 @@
     "phillmcgurk/ra-8188-headroom-event-logger@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8188/repo/.git": "w_d6a33ced9439",
     "phillmcgurk/ra-8189-night-queue-picker@/Volumes/Mini Mini 2T Storage/worktrees/home/agent-work/night-ar-mini-RA-8189/repo/.git": "w_3d0aeeec4f88",
     "phillmcgurk/ra-8191-codex-failover@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8191/repo/.git": "w_3f073c055e03",
-    "fix/ra-8212-ready-guard-leave-pass@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/repo": "w_7dca929d1132"
+    "fix/ra-8212-ready-guard-leave-pass@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/repo": "w_7dca929d1132",
+    "fix/handoff-pytest-limit-from-measured-runtime@/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.git/worktrees/Pi-Dev-Ops---Mission-Control-942ba8b67016832f11": "w_d6703489cd3e"
   }
 }
