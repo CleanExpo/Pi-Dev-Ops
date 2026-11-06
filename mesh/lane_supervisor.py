@@ -14,7 +14,7 @@ every 5 minutes (mesh/windows/register_lane_supervisor.ps1). Each tick:
    relaunch started a process that was never recorded, so nothing runs twice;
 5. writes one board line per decision (lane_board.py) and one log line per tick.
 
-Every change goes through `transition`: under the lane's lock it reloads the state and
+Every decision goes through lane_state.recover: under the lane's lock it reloads the state and
 acts only if it is still the same dead lane the scan saw (same pid, start time, attempt
 count and launch marker). The board line is saved inside the lane's state in that same
 write and removed only when the Mini confirms it, so no decision loses its line. A
@@ -45,7 +45,6 @@ from lane_board import board_event  # noqa: E402,F401 - re-exported for callers 
 ROOT = os.environ.get("LANE_ROOT", r"C:\agent-work")
 MAX_LOCAL = int(os.environ.get("LANE_SUPERVISOR_MAX_LOCAL", "4"))
 HOSTS = {"mini": "Mini", "macbook": "MacBook"}  # ssh alias -> board name
-SAME = ("state", "pid", "pid_started", "attempts", "launching")  # what makes a snapshot current
 UNRECORDED = "a relaunch started a process that was never recorded; check for a running copy first"
 
 
@@ -123,84 +122,42 @@ def classify(lane_dir: str, st, deps: Deps) -> str:
     return "unrecorded" if st.get("launching") else "dead"
 
 
-def _history(st: dict, deps: Deps, **entry) -> None:
-    st["history"] = (st.get("history", []) + [dict(epoch=deps.now(), **entry)])[-50:]
-
-
-def _announce(st: dict, action: str, deps: Deps, **kw) -> None:
-    """Save the board line with the decision itself; flush_board sends and clears it."""
-    st["pending_events"] = st.get("pending_events", []) + [board_event(st, action, deps.now(), **kw)]
-
-
-def transition(lane_dir: str, seen: dict, deps: Deps, change: Callable) -> Optional[dict]:
-    """Apply `change` only if the lane is still the dead lane `seen` described."""
-    with lane_state.locked(lane_dir):
-        st = lane_state.load(lane_dir)
-        current = all(st.get(k) == seen.get(k) for k in SAME)
-        if not current or (Path(lane_dir) / "STOP").exists() \
-                or deps.alive(st.get("pid"), st.get("pid_started")) is not False:
-            return None  # the lane restarted, finished or was stopped since the scan
-        change(st)
-        lane_state.save(lane_dir, st)
-        return st
-
-
 def park(lane_dir: str, seen: dict, deps: Deps, why: str) -> Optional[dict]:
-    def change(st: dict) -> None:
-        st.update(state=lane_state.PARKED, note=why)
-        st.pop("launching", None)
-        _history(st, deps, action="parked", why=why)
-        _announce(st, "parked", deps, why=why)
-    return transition(lane_dir, seen, deps, change)
+    return lane_state.recover(lane_dir, seen, deps, "parked", why=why)
 
 
 def hand_off(lane_dir: str, seen: dict, deps: Deps, target: str) -> Optional[dict]:
-    def change(st: dict) -> None:
-        st.update(state=lane_state.HANDED_OFF, handed_to=target)
-        _history(st, deps, action="handed_off", target=target, from_step=st.get("step"))
-        _announce(st, "handed_off", deps, target=target)
-    return transition(lane_dir, seen, deps, change)
+    return lane_state.recover(lane_dir, seen, deps, "handed_off", target=target)
 
 
-def _settle(lane_dir: str, attempt: int, deps: Deps, pid: Optional[int], error: str = "") -> dict:
-    """Record what a launch did. A child that already registered itself is left alone."""
-    with lane_state.locked(lane_dir):
-        st = lane_state.load(lane_dir)
-        launch = st.get("launching") or {}
-        mine = launch.get("attempt") == attempt
-        if mine:
-            st.pop("launching")
-        if error:
-            _history(st, deps, action="relaunch_failed", attempt=attempt, error=error[:300])
-        else:
-            if mine:
-                st.update(pid=pid, pid_started=deps.start_time(pid))
-            st["resumed_epoch"] = deps.now()
-            _history(st, deps, action="resumed", attempt=attempt, from_step=st.get("step"), pid=pid,
-                     old_pid=launch.get("old_pid"))
-            _announce(st, "resumed", deps)
-        lane_state.save(lane_dir, st)
-        return st
+def _settle(lane_dir: str, marker: dict, deps: Deps, pid: Optional[int], error: str = "") -> dict:
+    return lane_state.settle(lane_dir, marker, deps, pid, error)
+
+
+def _prepare_spawn(lane_dir: str, st: dict) -> tuple:
+    n = st["attempts"]
+    env = dict(os.environ, LANE_RESUMED="1", LANE_STATE_DIR=lane_dir, LANE_RESUME_ATTEMPT=str(n),
+               LANE_LAUNCH_TOKEN=st["launching"]["token"], LANE_RESUME_STEP=st.get("step", "start"),
+               LANE_STEPS_DONE=",".join(st.get("steps_done", [])))
+    resume = st["resume"]
+    return resume["argv"], resume.get("cwd") or lane_dir, env, os.path.join(lane_dir, f"resume-{n}.log")
 
 
 def relaunch(lane_dir: str, seen: dict, deps: Deps) -> Optional[dict]:
     """Mark the launch, start the saved command, record its pid. None if the lane changed."""
-    def intend(st: dict) -> None:
-        st["attempts"] = st.get("attempts", 0) + 1
-        st["launching"] = {"attempt": st["attempts"], "epoch": deps.now(), "old_pid": st.get("pid")}
-    st = transition(lane_dir, seen, deps, intend)
+    st = lane_state.recover(lane_dir, seen, deps, "launch")
     if st is None:
         return None
-    n = st["attempts"]
-    env = dict(os.environ, LANE_RESUMED="1", LANE_STATE_DIR=lane_dir, LANE_RESUME_ATTEMPT=str(n),
-               LANE_RESUME_STEP=st.get("step", "start"), LANE_STEPS_DONE=",".join(st.get("steps_done", [])))
+    marker = st["launching"]
     try:
-        resume = st["resume"]
-        pid = deps.spawn(resume["argv"], resume.get("cwd") or lane_dir, env, os.path.join(lane_dir, f"resume-{n}.log"))
+        args = _prepare_spawn(lane_dir, st)
+        if not lane_state.launch_current(lane_dir, marker):
+            return None
+        pid = deps.spawn(*args)
     except (OSError, KeyError, TypeError) as e:
-        _settle(lane_dir, n, deps, None, error=f"{type(e).__name__}: {e}")
+        _settle(lane_dir, marker, deps, None, error=f"{type(e).__name__}: {e}")
         raise
-    return _settle(lane_dir, n, deps, pid)
+    return _settle(lane_dir, marker, deps, pid)
 
 
 def decide(root: str, lane_dir: str, seen: dict, kind: str, live: int, deps: Deps) -> tuple:
@@ -223,10 +180,7 @@ def decide(root: str, lane_dir: str, seen: dict, kind: str, live: int, deps: Dep
 
 
 def _clear_sent(lane_dir: str, uids: set) -> None:
-    with lane_state.locked(lane_dir):
-        st = lane_state.load(lane_dir)
-        st["pending_events"] = [e for e in st.get("pending_events", []) if e.get("uid") not in uids]
-        lane_state.save(lane_dir, st)
+    lane_state.clear_sent(lane_dir, uids)
 
 
 def flush_board(lane_dirs: list, deps: Deps) -> tuple:

@@ -1,30 +1,11 @@
-"""A lane's saved state: the one file the PC lane supervisor reads (UNI-3291).
-
-Each lane folder under the agent-work root (C:\\agent-work\\<lane>) may hold
-`lane-state.json`. A lane opts in by writing it BEFORE it starts its long work, so a
-reboot or a killed process leaves a record of what was running, where it got to, and how
-to start it again. Lanes without the file are never touched.
-
-    python lane_state.py begin --dir D --pid PID [--step S] [--linear UNI-1] -- ARGV...
-    python lane_state.py run   --dir D --step S -- ARGV...   # a checkpointed long step
-    python lane_state.py finish --dir D --state done|failed|parked [--note TEXT]
-    python lane_state.py show  --dir D
-
-`run` is how a long step (a receipt run, a Codex review) writes its checkpoint before it
-starts: a step already in `steps_done` is skipped, so a resumed lane does not redo it.
-A resumed lane is started with LANE_RESUME_STEP and LANE_STEPS_DONE in its environment.
-
-`load` never returns an empty dict for a file it could not read: a broken state file is a
-StateError, so the supervisor reports it rather than treating it as "nothing running".
-"""
+"""Single owner of lane transitions, launch identity and durable decision events."""
 from __future__ import annotations
 
-import argparse
 import contextlib
 import json
 import os
+import secrets
 import socket
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -32,6 +13,7 @@ from typing import Iterator, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lane_proc  # noqa: E402
+from lane_board import board_event  # noqa: E402
 
 SCHEMA = "lane-state/1"
 FILE = "lane-state.json"
@@ -99,19 +81,50 @@ def new_state(lane_dir: str, pid: int, argv: list, step: str, linear: Optional[s
             "created_epoch": now, "history": [], "pending_events": []}
 
 
-def begin(lane_dir: str, pid: int, argv: list, step: str = "start", linear: Optional[str] = None) -> dict:
-    """Record a starting (or restarting) lane. A restart keeps finished steps, history and
-    unsent board lines, and clears the supervisor's `launching` marker: the child is recorded."""
+# Source -> destination for every lifecycle operation; guards run under the lock.
+TRANSITIONS = {
+    "begin": dict.fromkeys((None,) + STATES, RUNNING),
+    "parked": {RUNNING: PARKED}, "handed_off": {RUNNING: HANDED_OFF},
+    "launch": {RUNNING: RUNNING}, "settle": {RUNNING: RUNNING},
+    "finish": {RUNNING: (DONE, FAILED, PARKED)},
+}
+SAME = ("state", "pid", "pid_started", "attempts", "launching")
+KEEP = ("steps_done", "attempts", "created_epoch", "history", "max_attempts", "pending_events")
+
+
+def _begin_allowed(old: dict, token: Optional[str], fresh: bool) -> None:
+    source = old["state"]
+    if source not in TRANSITIONS["begin"]:
+        raise StateError("invalid begin transition")
+    if source in (PARKED, HANDED_OFF) and not fresh:
+        raise StateError(f"{source} requires --fresh")
+    launch = old.get("launching")
+    if launch:
+        if source != RUNNING or not token or launch.get("token") != token:
+            raise StateError("begin requires the current launch token")
+    elif token:
+        raise StateError("launch token expired or already registered")
+    elif source == RUNNING and lane_proc.alive(old.get("pid"), old.get("pid_started")) is not False:
+        raise StateError("recorded process is alive or liveness is unknown")
+
+
+def begin(lane_dir: str, pid: int, argv: list, step: str = "start", linear: Optional[str] = None,
+          *, fresh: bool = False, token: Optional[str] = None) -> dict:
     with locked(lane_dir):
-        try:
-            old = load(lane_dir)
-        except StateError:
-            old = None
+        old = load(lane_dir) if path(lane_dir).exists() else None
+        if old:
+            _begin_allowed(old, token, fresh)
+        elif token:
+            raise StateError("launch token has no saved intent")
         st = new_state(lane_dir, pid, argv, step, linear)
-        if old and old.get("state") == RUNNING:  # a resumed lane re-registering itself
-            for k in ("steps_done", "attempts", "created_epoch", "history", "max_attempts", "pending_events"):
-                st[k] = old.get(k, st[k])
+        if old:
+            reset = fresh and old["state"] in (DONE, FAILED)
+            for key in (("pending_events",) if reset else KEEP):
+                st[key] = old.get(key, st[key])
             st["linear_id"] = linear or old.get("linear_id")
+            if token:
+                st["last_launch"] = old.get("launching") or old.get("last_launch")
+                st["launch_registered"] = True
         save(lane_dir, st)
         return st
 
@@ -119,60 +132,115 @@ def begin(lane_dir: str, pid: int, argv: list, step: str = "start", linear: Opti
 def update(lane_dir: str, **fields) -> dict:
     with locked(lane_dir):
         st = load(lane_dir)
+        if "state" in fields:
+            if fields["state"] not in TRANSITIONS["finish"].get(st["state"], ()):
+                raise StateError("invalid finish transition")
+            if st.get("launching"):
+                st["last_launch"] = st.pop("launching")
+                st["launch_registered"] = True
         st.update(fields)
         save(lane_dir, st)
         return st
 
 
-def run_step(lane_dir: str, step: str, argv: list) -> int:
-    """Checkpoint, run one long step, record it done only when it exits 0."""
-    if step in load(lane_dir).get("steps_done", []):
-        print(f"lane_state: step {step} already done, skipped", file=sys.stderr)
-        return 0
-    update(lane_dir, step=step, step_started_epoch=time.time())
-    rc = subprocess.run(argv, cwd=lane_dir).returncode
-    if rc == 0:
-        with locked(lane_dir):
-            st = load(lane_dir)
+def _record(st: dict, deps, action: str, **entry) -> None:
+    st["history"] = (st.get("history", []) + [dict(epoch=deps.now(), action=action, **entry)])[-50:]
+
+
+def _announce(st: dict, deps, action: str, **kw) -> None:
+    st["pending_events"] = st.get("pending_events", []) + [board_event(st, action, deps.now(), **kw)]
+
+
+def recover(lane_dir: str, seen: dict, deps, action: str, **details) -> Optional[dict]:
+    """One guarded decision, including its outbox line, in one atomic write."""
+    with locked(lane_dir):
+        st = load(lane_dir)
+        if st["state"] not in TRANSITIONS[action] or any(st.get(k) != seen.get(k) for k in SAME):
+            return None
+        if (Path(lane_dir) / "STOP").exists() or deps.alive(st.get("pid"), st.get("pid_started")) is not False:
+            return None
+        _recover_change(st, deps, action, details)
+        save(lane_dir, st)
+        return st
+
+
+def _recover_change(st: dict, deps, action: str, details: dict) -> None:
+    if action == "launch":
+        st["attempts"] = st.get("attempts", 0) + 1
+        st["launching"] = dict(attempt=st["attempts"], token=secrets.token_hex(16),
+                               epoch=deps.now(), old_pid=st.get("pid"))
+        return
+    st["state"] = action
+    if action == PARKED:
+        st["note"] = details["why"]
+        if st.get("launching"):
+            st["last_launch"] = st.pop("launching")
+            st["launch_registered"] = True
+    else:
+        st["handed_to"] = details["target"]
+    history = dict(details, from_step=st.get("step")) if action == HANDED_OFF else details
+    _record(st, deps, action, **history)
+    _announce(st, deps, action, **details)
+
+
+def launch_current(lane_dir: str, marker: dict) -> bool:
+    """Recheck the exact durable intent after preparing the spawn arguments."""
+    with locked(lane_dir):
+        st = load(lane_dir)
+        return st["state"] == RUNNING and st.get("launching") == marker and not (Path(lane_dir) / "STOP").exists()
+
+
+def settle(lane_dir: str, marker: dict, deps, pid: Optional[int], error: str = "") -> dict:
+    with locked(lane_dir):
+        st = load(lane_dir)
+        mine = st.get("launching") == marker
+        registered = st.get("last_launch") == marker and st.get("launch_registered") and st.get("pid") == pid
+        if st["state"] not in TRANSITIONS["settle"] or not (mine or registered):
+            return st
+        if mine and error:
+            st.pop("launching")
+            st["last_launch"] = marker
+            st["launch_registered"] = True
+        if error:
+            _record(st, deps, "relaunch_failed", attempt=marker["attempt"], error=error[:300])
+        else:
+            if mine:
+                # Only begin consumes the token; a child may register after this save.
+                st.update(pid=pid, pid_started=deps.start_time(pid))
+            st["resumed_epoch"] = deps.now()
+            _record(st, deps, "resumed", attempt=marker["attempt"], from_step=st.get("step"),
+                    pid=pid, old_pid=marker.get("old_pid"))
+            _announce(st, deps, "resumed")
+        save(lane_dir, st)
+        return st
+
+
+def clear_sent(lane_dir: str, uids: set) -> None:
+    with locked(lane_dir):
+        st = load(lane_dir)
+        st["pending_events"] = [e for e in st.get("pending_events", []) if e.get("uid") not in uids]
+        save(lane_dir, st)
+
+
+def complete_step(lane_dir: str, step: str) -> None:
+    with locked(lane_dir):
+        st = load(lane_dir)
+        if step not in st.get("steps_done", []):
             st["steps_done"] = st.get("steps_done", []) + [step]
             save(lane_dir, st)
-    return rc
 
 
-def _args(argv: Optional[list]) -> argparse.Namespace:
-    """Options before `--`, the lane's own command after it, split by hand: argparse's
-    REMAINDER after a positional swallows the options too."""
-    argv = list(sys.argv[1:] if argv is None else argv)
-    cut = argv.index("--") if "--" in argv else len(argv)
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("cmd", choices=("begin", "run", "finish", "show"))
-    p.add_argument("--dir", required=True)
-    p.add_argument("--pid", type=int)
-    p.add_argument("--step", default="start")
-    p.add_argument("--linear")
-    p.add_argument("--state", choices=(DONE, FAILED, PARKED))
-    p.add_argument("--note", default="")
-    a = p.parse_args(argv[:cut])
-    a.rest = argv[cut + 1:]
-    return a
+def run_step(*args) -> int:
+    from lane_state_cli import run_step as run
+    return run(*args)
 
 
-def main(argv: Optional[list] = None) -> int:
-    a = _args(argv)
-    if a.cmd == "begin":
-        if not a.pid or not a.rest:
-            raise SystemExit("begin needs --pid and the resume command after --")
-        print(json.dumps(begin(a.dir, a.pid, a.rest, a.step, a.linear)))
-    elif a.cmd == "run":
-        return run_step(a.dir, a.step, a.rest)
-    elif a.cmd == "finish":
-        if not a.state:
-            raise SystemExit("finish needs --state")
-        update(a.dir, state=a.state, note=a.note, finished_epoch=time.time())
-    else:
-        print(json.dumps(load(a.dir), indent=1))
-    return 0
+def main(argv=None) -> int:
+    from lane_state_cli import main as cli
+    return cli(argv)
 
 
 if __name__ == "__main__":
+    # Avoid a second module instance when the CLI imports lane_state.
+    sys.modules["lane_state"] = sys.modules[__name__]
     sys.exit(main())

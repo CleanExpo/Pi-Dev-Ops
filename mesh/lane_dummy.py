@@ -52,7 +52,8 @@ def main(argv: list = None) -> int:
     started_now = time.time()
     Path(a.dir).mkdir(parents=True, exist_ok=True)
     me = [sys.executable, os.path.abspath(__file__), "--dir", a.dir, "--proof", a.proof]
-    lane_state.begin(a.dir, os.getpid(), me, STEP, "UNI-3291")
+    lane_state.begin(a.dir, os.getpid(), me, STEP, "UNI-3291",
+                     token=os.environ.get("LANE_LAUNCH_TOKEN"))
     if os.environ.get("LANE_RESUMED") == "1" and write_proof(a.dir, Path(a.proof), started_now):
         lane_state.update(a.dir, state=lane_state.DONE, note="reboot proof written", finished_epoch=time.time())
         return 0

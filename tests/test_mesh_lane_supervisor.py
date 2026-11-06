@@ -194,7 +194,7 @@ def test_a_launch_whose_pid_was_never_saved_is_parked_not_started_twice(tmp_path
     real_save = sup.lane_state.save
 
     def save_fails_after_spawn(lane_dir, st):
-        if f.spawned and not st.get("launching"):  # the post-spawn save that records the pid
+        if f.spawned and st.get("pid") != 11:  # the post-spawn save that records the pid
             raise OSError("disk full")
         real_save(lane_dir, st)
     monkeypatch.setattr(sup.lane_state, "save", save_fails_after_spawn)
@@ -214,7 +214,7 @@ def test_a_child_that_registers_itself_first_keeps_its_own_record(tmp_path: Path
 
     def spawn_and_register(argv, cwd, env, log_path):
         pid = real_spawn(argv, cwd, env, log_path)
-        lane_state.begin(d, pid, argv, "codex-review")  # the resumed lane re-registers at once
+        lane_state.begin(d, pid, argv, "codex-review", token=env["LANE_LAUNCH_TOKEN"])  # the resumed lane re-registers at once
         return pid
     f.spawn = spawn_and_register
     assert sup.tick(str(tmp_path), f.deps())["actions"] == {"quick": "resumed"}
@@ -265,3 +265,8 @@ def test_a_lane_that_finished_after_the_scan_is_not_parked_or_handed_off(tmp_pat
     seen2 = dict(seen, attempts=0)
     assert sup.decide(str(tmp_path), d, seen2, "dead", 9, f.deps(max_local=1)) == ("changed", 9)
     assert state(d)["state"] == "done" and f.spawned == [] and state(d)["pending_events"] == []
+
+
+@pytest.fixture(autouse=True)
+def process_facts(monkeypatch):
+    monkeypatch.setattr(lane_state.lane_proc, "alive", lambda *a: False)

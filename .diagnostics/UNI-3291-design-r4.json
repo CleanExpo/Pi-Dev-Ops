@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "task_id": "UNI-3291-design-r4",
+  "status": "VERIFIED",
+  "created_at": "2026-11-06T19:23:45.247354+00:00",
+  "strategies": [
+    {
+      "hypothesis": "Competing begin overwrites supervisor intent without shared transition rules",
+      "evidence": "ad700801: four red regression cases cover three reviewer interleavings",
+      "attempts": [
+        {
+          "time": "2026-11-06T19:23:45.332578+00:00",
+          "test": "red-regressions",
+          "result": "FAIL",
+          "observation": "4 failed: parked/handoff begin accepted, late child accepted, manual begin accepted during launch"
+        },
+        {
+          "time": "2026-11-06T19:25:18.040544+00:00",
+          "test": "first-implementation",
+          "result": "FAIL",
+          "observation": "47 passed, 2 failed, 1 skipped; two new fixtures used finish API to seed running or handed_off states; fixture changed to save seeded state"
+        },
+        {
+          "time": "2026-11-06T19:26:40.745505+00:00",
+          "test": "repaired-suite",
+          "result": "PASS",
+          "observation": "56 passed, 1 skipped on Python 3.11; three P1 regression interleavings now green; size gates passed"
+        }
+      ]
+    }
+  ],
+  "outcome": {
+    "receipt": "VERIFIED LOCAL: Python311 requested suite 56 passed 1 POSIX-only skip; real-process kill/relaunch and CLI token refusal controls pass; Ruff and file/function gates pass; no deployment or independent release review claimed",
+    "time": "2026-11-06T19:27:02.250465+00:00"
+  }
+}

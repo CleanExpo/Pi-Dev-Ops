@@ -46,7 +46,7 @@ def test_a_restart_keeps_finished_steps_attempts_and_history(tmp_path: Path) -> 
 def test_a_fresh_begin_after_done_starts_clean(tmp_path: Path) -> None:
     lane_state.begin(str(tmp_path), 1, ["a"], "one")
     lane_state.update(str(tmp_path), state="done", steps_done=["one"], attempts=3)
-    st = lane_state.begin(str(tmp_path), 2, ["a"])
+    st = lane_state.begin(str(tmp_path), 2, ["a"], fresh=True)
     assert st["steps_done"] == [] and st["attempts"] == 0 and st["state"] == "running"
 
 
@@ -96,3 +96,59 @@ def test_the_checkpoint_is_saved_before_the_step_starts(tmp_path: Path) -> None:
     probe = ("import json,sys; s=json.load(open('lane-state.json')); "
              "sys.exit(0 if s['step']=='receipt' and 'step_started_epoch' in s else 5)")
     assert lane_state.run_step(str(tmp_path), "receipt", [PY, "-c", probe]) == 0,         "the step ran before its checkpoint was on disk"
+
+
+@pytest.fixture(autouse=True)
+def process_facts(monkeypatch):
+    monkeypatch.setattr(lane_state.lane_proc, "alive", lambda *a: False)
+
+
+@pytest.mark.parametrize("alive", [True, None])
+def test_begin_refuses_live_or_unknown_even_with_fresh(tmp_path, monkeypatch, alive):
+    d = str(tmp_path)
+    lane_state.begin(d, 1, ["a"])
+    before = lane_state.load(d)
+    monkeypatch.setattr(lane_state.lane_proc, "alive", lambda *a: alive)
+    with pytest.raises(lane_state.StateError):
+        lane_state.begin(d, 2, ["b"], fresh=True)
+    assert lane_state.load(d) == before
+
+
+@pytest.mark.parametrize("terminal", ["running", "parked", "handed_off", "done", "failed"])
+def test_fresh_preserves_outbox_and_only_completed_jobs_reset(tmp_path, terminal):
+    d = str(tmp_path)
+    lane_state.begin(d, 1, ["a"])
+    st = lane_state.load(d)
+    st.update(state=terminal, steps_done=["one"], attempts=2,
+              history=[{"action": "old"}], pending_events=[{"uid": "unsent"}])
+    lane_state.save(d, st)
+    st = lane_state.begin(d, 2, ["b"], fresh=True)
+    assert st["pending_events"] == [{"uid": "unsent"}]
+    reset = terminal in ("done", "failed")
+    assert st["steps_done"] == ([] if reset else ["one"])
+    assert st["attempts"] == (0 if reset else 2)
+    assert st["history"] == ([] if reset else [{"action": "old"}])
+
+
+def test_launch_token_required_and_consumed_once(tmp_path, monkeypatch):
+    d = str(tmp_path)
+    lane_state.begin(d, 1, ["a"])
+    lane_state.update(d, launching={"attempt": 1, "token": "launch-one", "epoch": 3, "old_pid": 1})
+    for token in (None, "wrong"):
+        with pytest.raises(lane_state.StateError):
+            lane_state.begin(d, 2, ["a"], token=token)
+    st = lane_state.begin(d, 2, ["a"], token="launch-one")
+    assert st["pid"] == 2 and "launching" not in st
+    with pytest.raises(lane_state.StateError):
+        lane_state.begin(d, 3, ["a"], token="launch-one")
+
+
+def test_cli_refusal_is_nonzero_and_corruption_is_preserved(tmp_path, capsys):
+    d = str(tmp_path)
+    lane_state.begin(d, 1, ["a"])
+    lane_state.update(d, state="parked")
+    assert lane_state.main(["begin", "--dir", d, "--pid", "2", "--", "a"]) != 0
+    lane_state.path(d).write_text("{broken")
+    with pytest.raises(lane_state.StateError):
+        lane_state.begin(d, 3, ["b"])
+    assert lane_state.path(d).read_text() == "{broken"
