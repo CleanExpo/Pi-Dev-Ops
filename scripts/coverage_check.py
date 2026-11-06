@@ -109,6 +109,9 @@ def _command_steps(req: dict) -> tuple[list[list[str]] | None, str | None]:
     return raw_steps, None
 
 
+_BARE_PYTHON = frozenset({"python", "python3"})
+
+
 def _run_command_steps(
     repo: Path, steps: list[list[str]], timeout: int
 ) -> tuple[subprocess.CompletedProcess[str] | None, list[str], tuple[str, str] | None]:
@@ -120,6 +123,8 @@ def _run_command_steps(
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             return None, output, (FAIL, f"timed out after {timeout}s running: {argv!r}")
+        if argv[0] in _BARE_PYTHON:  # PATH python3 can be too old to import the repo (macOS 3.9)
+            argv = [sys.executable, *argv[1:]]
         try:
             proc = subprocess.run(
                 argv, shell=False, cwd=str(repo), capture_output=True,
