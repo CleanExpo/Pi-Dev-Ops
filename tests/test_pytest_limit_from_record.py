@@ -16,6 +16,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import re
+import shlex
 import stat
 import subprocess
 import sys
@@ -56,13 +57,15 @@ def _run_block(tmp_path: Path, record: str | None, fake_pytest: str) -> dict[str
         (home / RECORD).parent.mkdir(parents=True)
         (home / RECORD).write_text(record)
     shim = tmp_path / "fake-python"
-    shim.write_text(FAKE_PY.format(real=sys.executable))
+    # Quote every path written into shell: the Mac mini's CI mirror runs from a volume
+    # whose name has spaces, and unquoted paths there made all ten cases fail (RA-8171).
+    shim.write_text(FAKE_PY.format(real=shlex.quote(sys.executable)))
     shim.chmod(shim.stat().st_mode | stat.S_IEXEC)
     script = "\n".join([
         "set -uo pipefail",
-        f"LOG={tmp_path / 'gate.log'}",
+        f"LOG={shlex.quote(str(tmp_path / 'gate.log'))}",
         "PASS=0; FAIL=0; SKIP=0; PY_OK=1",
-        f"PY={shim}",
+        f"PY={shlex.quote(str(shim))}",
         "log() { :; }; skip() { SKIP=$((SKIP+1)); }",
         'gate() { shift; if "$@" >/dev/null 2>&1; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); fi; }',
         _gate_block(),
