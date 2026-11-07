@@ -1,31 +1,20 @@
 """Raise-only check: does any `git push` write a branch the command does not name? (RA-8245)
 
-Three Codex rounds found one root cause in three spellings: the reader trusted a word's
-TEXT where Bash decides its VALUE at run time. `m'a'in` is `main`; `"x;" HEAD` is one
-word then HEAD; `bash -c $'git push origin HEAD'` is ANSI-C quoting, which no Python
-tokenizer models. The same blindness covers `git pu${x}sh`, `p=push; git $p`, `$g push`,
-`printf ... | bash`, a git alias for push, push plumbing (`send-pack`, `subtree push`,
-`git-push`) and another language's inline code that runs git.
+Five Codex rounds found one root cause: the reader trusted a word's TEXT where Bash
+decides its VALUE at run time (`m'a'in`, `"x;" HEAD`, `$'...'`, `pu''sh`, `$g push`,
+`printf ... | bash`, backtick bodies, `alias g='git push ...'`). So a push is accepted
+only when it is SEEN: a literal `git`, a literal `push`, and every destination a literal
+unprotected branch. Anything whose value is unknown where it could be the command, the
+subcommand or code is a possible push and returns True: `$'...'` anywhere; a `$` or
+backtick word as command name, git subcommand, before `git`, or beside a runner; a shell
+fed from a pipe or process substitution; an inline-code interpreter on a line that
+mentions push; git options that mention push; `send-pack`, `subtree push`, `git-push`.
 
-So the rule is stated about values, not spellings. A push is accepted only when it is
-SEEN: a literal `git` word, a literal `push` subcommand, and every destination a
-literal unprotected branch name. Anything whose value is unknown when it could be the
-command, the subcommand or code is treated as a possible push and returns True:
-
-- `$'...'` / `$"..."` anywhere (not modelled), or unreadable quoting that mentions push;
-- a `$` or backtick word in the command name, a git subcommand, before `git`, in a
-  command that also mentions push, or as an argument to a command runner;
-- a shell fed from a pipe or a process substitution (its code is not on the line);
-- an inline-code interpreter (python, node, perl...) in a command that mentions push;
-- a git alias that mentions push, `send-pack`, `subtree push`.
-
-Every `...` and $(...) body is cut out first and read as a command of its own, because
-Bash runs it before the command that hosts it (round 4: `git log \\`git push origin
-HEAD\\`` scored L0); the hole it leaves is an unknown value. Words are then read with
-`shlex` in POSIX mode (quotes and escapes removed inside a word,
-`\\<newline>` joined, `; & | < > ( )` and newline end a command only when unquoted;
-comments off). A word that is itself code (`bash -c`, `eval`, `ssh host '...'`,
-`git rebase --exec`) is read again, to a fixed depth. Every doubt is True.
+Every `...` and $(...) body is cut out and read as a command of its own (Bash runs it
+first); the hole is an unknown value. Words are read with `shlex` in POSIX mode, comments
+off. A word that may be code (`bash -c`, `eval`, `trap`, `alias g=...`, `--flag=prog`) is
+read again to a fixed depth; arguments of data-only commands (`echo`, `grep`) and the
+message text of `git commit`/gh are data, never code. Every doubt is True.
 """
 
 from __future__ import annotations
@@ -160,8 +149,10 @@ def _git_is_implicit(words: list[str], call: tuple[int, str | None, list[str]]) 
     index, sub, args = call
     if any(_unknown(w) for w in words[:index]) or sub is None or _unknown(sub):
         return True  # the program, or the subcommand, is decided at run time
-    if any("alias." in w for w in words) and _mentions_push(" ".join(words)):
-        return True  # an alias can make any name mean push
+    options = words[index + 1:len(words) - len(args) - 1]
+    if any(_mentions_push(w) for w in options) or (
+            any("alias." in w for w in words) and _mentions_push(" ".join(words))):
+        return True  # `-c alias.x=push`, `-c core.editor='git push ...'`: config runs code
     if sub == "push":
         return not _destinations_are_explicit(args)
     return sub == "send-pack" or (sub == "subtree" and "push" in args)
@@ -179,10 +170,60 @@ def _command_is_implicit(before: str, words: list[str], after: str, mentions: bo
         return True  # code arrives on stdin or from a file the line does not show
     if mentions and _INTERPRETER_RE.match(base):
         return True  # another language may run git; its code is not Bash
-    if call is None and any(_unknown(w) for w in words):
+    if call is None and not _is_data_only(words) and any(_unknown(w) for w in words):
         if _unknown(name) or base in _RUNNERS or mentions:
             return True
     return False
+
+
+# Commands whose arguments are data: they print or search text and never run it.
+_DATA_ONLY = frozenset({"echo", "printf", "grep", "egrep", "fgrep", "rg", "true", "false",
+                        ":", "test", "[", "ls", "wc", "head", "tail", "cat"})
+# For these, only the VALUE of a text flag is data: other options can run a program
+# (`git fetch --upload-pack=...`, `gh alias set --shell ...`).
+_TEXT_FLAGS = frozenset({"-m", "--message", "--body", "-b", "--title", "-t"})
+_GIT_TEXT_SUBS = frozenset({"commit", "tag", "notes", "stash", "merge", "revert"})
+
+
+def _is_data_only(words: list[str]) -> bool:
+    """True only for a literal command known never to execute any of its arguments."""
+    name = _command_name(words)
+    return name is not None and not _unknown(name) and _base(name) in _DATA_ONLY
+
+
+def _text_values(words: list[str]) -> set[int]:
+    """Indexes of words that are the value of a message/title/body flag of git or gh."""
+    name = _command_name(words)
+    if name is None or _unknown(name):
+        return set()
+    call = _git_call(words)
+    is_text_git = call is not None and words[call[0]] == name and call[1] in _GIT_TEXT_SUBS
+    if not is_text_git and not (_base(name) == "gh" and "alias" not in words):
+        return set()
+    return {i + 1 for i, w in enumerate(words[:-1]) if w in _TEXT_FLAGS}
+
+
+def _code_words(words: list[str]) -> list[str]:
+    """The words of a simple command that Bash, or the program, may run as code.
+
+    `NAME=value` values always count: `alias g='git push origin HEAD'` defines code
+    that a later `g` runs, and `GIT_EDITOR=...` is run by git. Other words count unless
+    they are data: every argument of a data-only command (`echo "git push ..."`), and
+    the message, title or body text of git commit/tag/merge and gh.
+    """
+    out = [w.split("=", 1)[1] for w in words
+           if _ASSIGNMENT_RE.match(w) and _mentions_push(w)]
+    if _is_data_only(words):
+        return out
+    text = _text_values(words)
+    for i, w in enumerate(words):
+        if i in text or not any(ch.isspace() for ch in w):
+            continue
+        if _mentions_push(w) or _unknown(w):
+            out.append(w)
+            if "=" in w:  # `--upload-pack=<program>`: the value alone is the command
+                out.append(w.split("=", 1)[1])
+    return out
 
 
 _SUBSTITUTION_MARK = " $__SUBSTITUTION__ "
@@ -229,11 +270,9 @@ def _has_implicit_push(command: str, depth: int) -> bool:
     for before, words, after in _simple_commands(_tokens(command)):
         if _command_is_implicit(before, words, after, mentions):
             return True
-        # A word that is itself code: `bash -c '...'`, `eval "..."`, `--exec '...'`.
-        for word in words:
-            if any(ch.isspace() for ch in word) and (_mentions_push(word) or _unknown(word)):
-                if _has_implicit_push(word, depth + 1):
-                    return True
+        # A word that is itself code: `bash -c '...'`, `eval "..."`, `alias g='...'`.
+        if any(_has_implicit_push(word, depth + 1) for word in _code_words(words)):
+            return True
     return False
 
 

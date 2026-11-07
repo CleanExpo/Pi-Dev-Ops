@@ -186,6 +186,43 @@ def test_both_gate_consumers_deny_a_substituted_push(command: str) -> None:
     assert autonomy_gate.decide("Bash", {"command": command}) is not None, command
 
 
+# Round 5 (RA-8245): code hides in a value Bash or git runs later, and data must stay data.
+_DEFERRED_PUSHES = [
+    "shopt -s expand_aliases\nalias g='git push origin HEAD'\ng",
+    "alias g='git push origin HEAD'; g",
+    "GIT_EDITOR='git push origin HEAD' git commit",
+    "git -c core.editor='git push origin HEAD' commit",
+    "git fetch --upload-pack='git push origin HEAD' origin",
+    "gh alias set --shell p 'git push origin HEAD'",
+    "trap 'git push origin HEAD' EXIT",
+]
+
+
+@pytest.mark.parametrize("command", _DEFERRED_PUSHES)
+def test_push_in_a_value_that_runs_later_is_l3_in_both_consumers(command: str) -> None:
+    import app.server.tool_gate as tool_gate
+    import swarm.nexus.autonomy_gate as autonomy_gate
+
+    assert tier(command) == LADDER.TIER_IRREVERSIBLE, command
+    assert tool_gate.decide("Bash", {"command": command}).allow is False, command
+    assert autonomy_gate.decide("Bash", {"command": command}) is not None, command
+
+
+@pytest.mark.parametrize("command", [
+    'echo "git push origin HEAD"',
+    'printf %s "git push origin HEAD"',
+    'git commit -m "git push origin HEAD"',
+    'gh pr create --title x --body "run git push origin HEAD later"',
+    'grep -rn "git push origin HEAD" docs/',
+    "alias ll='ls -la'",
+])
+def test_quoted_push_text_is_data_not_an_action(command: str) -> None:
+    import swarm.nexus.autonomy_gate as autonomy_gate
+
+    assert tier(command) < LADDER.TIER_IRREVERSIBLE, command
+    assert autonomy_gate.decide("Bash", {"command": command}) is None, command
+
+
 @pytest.mark.parametrize("command", [
     "git log `date`",
     "git commit -m 'fix `foo` in bar'",
