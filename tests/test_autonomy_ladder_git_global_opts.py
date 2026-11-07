@@ -121,13 +121,22 @@ def test_push_to_a_protected_ref_stays_l3_behind_global_options(prefix, protecte
     "git -C . merge main",
     "git -C /repo merge feature/x",
     "git --no-pager merge main",
-    "git -c core.editor=true merge main",
 ])
-def test_merge_tier_is_unchanged_by_global_options(command):
-    """A local merge is L1 (see test_local_merge_is_not_l3); a global option
-    must neither raise nor lower that, same contract as every other row."""
+def test_merge_tier_is_unchanged_by_plain_global_options(command):
+    """A plain local merge is L1 (see test_local_merge_is_not_l3); `-C` and
+    `--no-pager` must neither raise nor lower that."""
     bare = command.split(" merge ")[1]
     assert tier(command) == tier(f"git merge {bare}"), f"global option moved the tier: {command}"
+
+
+@pytest.mark.parametrize("command", [
+    "git -c core.editor=true merge main",
+    "git -c alias.m=merge merge main",
+    "git --exec-path=/tmp merge main",
+])
+def test_merge_behind_a_code_bearing_global_option_stays_l3(command):
+    """`-c` and `--exec-path` can make git run a program, so they keep the old L3."""
+    assert tier(command) == TIER_IRREVERSIBLE, f"L3 leak: {command}"
 
 
 @pytest.mark.parametrize("command", [

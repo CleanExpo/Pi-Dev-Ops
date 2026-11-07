@@ -165,30 +165,25 @@ def push_targets_are_all_unprotected(command: str) -> bool:
     treats False as "leave the whole-line verdict alone", so every False is a
     redundant prompt at worst and never a bypass.
     """
-    segments = _push_segments(command)
-    if not segments:
-        # None -> unreadable or over a bound; [] -> the push rules matched but no
+    if not command or len(command) > _MAX_COMMAND_CHARS:
+        return False
+
+    lowered = command.lower()
+    starts = _push_argument_starts(command, lowered)
+    if not starts:
+        # None -> over the occurrence bound; [] -> the push rules matched but no
         # `git push` is parseable here. Both are refusals.
         return False
-    return all(_segment_targets_are_unprotected(seg) for seg in segments)
 
-
-def _push_segments(command: str) -> list[str] | None:
-    """The argument text of each `git push` in `command`, or None over a bound."""
-    if not command or len(command) > _MAX_COMMAND_CHARS:
-        return None
-    starts = _push_argument_starts(command, command.lower())
-    if starts is None:
-        return None
-    segments = []
     for start in starts:
         end = len(command)
         for sep in _SEPARATORS:
             pos = command.find(sep, start)
             if pos != -1:
                 end = min(end, pos)
-        segments.append(command[start:end])
-    return segments
+        if not _segment_targets_are_unprotected(command[start:end]):
+            return False
+    return True
 
 
 __all__ = ["push_targets_are_all_unprotected"]

@@ -42,7 +42,7 @@ from typing import Any, Optional
 try:
     from .autonomy_rules import (  # noqa: F401
         GIT_GLOBAL_OPT, L3_BASH_EXCLUDING_PUSH_TARGET_RE, L3_BASH_RE,
-        SEGMENT_RULES, WHOLE_RULES, _L3_BASH, push_destination_is_implicit,
+        SEGMENT_RULES, WHOLE_RULES, _L3_BASH, merge_needs_a_human,
         push_targets_are_all_unprotected, strip_git_global_opts,
     )
 except ImportError:  # pragma: no cover - exercised by the by-path test loader
@@ -58,7 +58,7 @@ except ImportError:  # pragma: no cover - exercised by the by-path test loader
     SEGMENT_RULES, WHOLE_RULES = _rules.SEGMENT_RULES, _rules.WHOLE_RULES
     L3_BASH_EXCLUDING_PUSH_TARGET_RE = _rules.L3_BASH_EXCLUDING_PUSH_TARGET_RE
     push_targets_are_all_unprotected = _rules.push_targets_are_all_unprotected
-    push_destination_is_implicit = _rules.push_destination_is_implicit
+    merge_needs_a_human = _rules.merge_needs_a_human
     GIT_GLOBAL_OPT = _rules.GIT_GLOBAL_OPT
     strip_git_global_opts = _rules.strip_git_global_opts
 
@@ -185,9 +185,10 @@ def _bash_is_l3(cmd: str, norm: str) -> tuple[bool, bool]:
     if (L3_BASH_EXCLUDING_PUSH_TARGET_RE.search(cmd)
             or L3_BASH_EXCLUDING_PUSH_TARGET_RE.search(norm)):
         return True, False
-    # RA-8245: a push whose destination is not written on the line may write
-    # main (`git push origin HEAD` on a main checkout). Raise-only, either spelling.
-    if push_destination_is_implicit(cmd) or push_destination_is_implicit(norm):
+    # RA-8245: a local merge is L1 only as plain local git; any other command that
+    # contains one keeps the old L3 (it may also push). A merge in either spelling
+    # counts; plainness is judged on the raw text.
+    if merge_needs_a_human(cmd, norm):
         return True, False
     if L3_BASH_RE.search(cmd) or L3_BASH_RE.search(norm):
         # Only the whole-line push gap matched. Stay L3 unless BOTH spellings are
