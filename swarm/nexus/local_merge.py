@@ -12,7 +12,8 @@ the tier only for one exact shape and keeps the old L3 for everything else:
 
 - the command is one or more simple commands joined by `&&`, `||`, `;` or newline;
 - each is `git [-C <dir>] [--no-pager] <sub> <args>`, with `<sub>` a subcommand that
-  neither pushes nor runs code from its arguments;
+  cannot push, and every option in `<args>` on that subcommand's exact list, so no
+  option can name a program to run, a file to write or work to discard (round 7);
 - every word is plain text: no `$`, backtick, quote, backslash, glob, redirection,
   pipe, bracket or `push`.
 
@@ -28,23 +29,47 @@ import re
 _MERGE_RE = re.compile(r"\bgit\s+merge(?![-\w])", re.IGNORECASE)
 _SEPARATOR_RE = re.compile(r"&&|\|\||;|\n")
 _PLAIN_WORD_RE = re.compile(r"^[A-Za-z0-9._/@:^~=+,-]+$")
-# Subcommands that cannot push and do not execute an argument as code.
-_LOCAL_SUBS = frozenset({"merge", "fetch", "status", "log", "diff", "show", "rev-parse",
-                         "branch", "switch", "checkout"})
+_COUNT_RE = re.compile(r"^-n?[0-9]+$")  # `git log -5`, `-n5`
+# Subcommands that cannot push, each with the EXACT options it may carry. An option off
+# its list keeps L3: some select a program to run (`merge -s <name>` runs
+# git-merge-<name>, `fetch --upload-pack=<prog>`), some write files (`diff --output=`),
+# some discard work (`switch -f`). `checkout` is absent: `git checkout <file>` throws
+# away local edits and a path cannot be told apart from a branch by its text.
+_LOCAL_OPTIONS: dict[str, frozenset[str]] = {
+    "merge": frozenset({"--no-edit", "--ff-only", "--no-ff", "--ff", "--squash", "--no-commit",
+                        "--abort", "--continue", "-q", "--quiet", "--stat", "--no-stat"}),
+    "fetch": frozenset({"--prune", "-p", "--tags", "--no-tags", "-q", "--quiet", "--all",
+                        "--dry-run"}),
+    "status": frozenset({"-s", "--short", "-b", "--branch", "--porcelain"}),
+    "log": frozenset({"--oneline", "--graph", "--decorate", "--stat", "--name-only",
+                      "--name-status", "--no-merges", "--merges", "--reverse"}),
+    "diff": frozenset({"--stat", "--name-only", "--name-status", "--cached", "--staged",
+                       "--check", "--shortstat", "--quiet", "--exit-code"}),
+    "show": frozenset({"--stat", "--name-only", "--name-status", "--oneline", "--no-patch"}),
+    "rev-parse": frozenset({"--abbrev-ref", "--short", "--verify", "--show-toplevel",
+                            "--git-dir", "--is-inside-work-tree", "-q", "--quiet"}),
+    "branch": frozenset({"--show-current", "-a", "-r", "-v", "-vv", "--list", "--all",
+                         "--remotes", "--merged", "--no-merged", "--contains"}),
+    "switch": frozenset({"-c", "--create", "--detach"}),
+}
 
 
 def _is_plain_local_git(part: str) -> bool:
     words = part.split()
     if not words or words[0] != "git":
         return False
-    if any(not _PLAIN_WORD_RE.match(w) or w.lower() == "push" for w in words):
-        return False
+    if any(not _PLAIN_WORD_RE.match(w) or w.lower() == "push" or "::" in w for w in words):
+        return False  # `::` is a transport helper (`ext::<cmd>`), which runs a program.
     i = 1
     if words[i:i + 1] == ["-C"]:
         i += 2
     while words[i:i + 1] == ["--no-pager"]:
         i += 1
-    return i < len(words) and words[i] in _LOCAL_SUBS
+    if i >= len(words) or words[i] not in _LOCAL_OPTIONS:
+        return False
+    allowed = _LOCAL_OPTIONS[words[i]]
+    return all(w in allowed or (words[i] == "log" and _COUNT_RE.match(w))
+               for w in words[i + 1:] if w.startswith("-"))
 
 
 def merge_needs_a_human(command: str, normalised: str = "") -> bool:

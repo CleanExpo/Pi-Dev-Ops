@@ -40,7 +40,7 @@ def tier(command: str) -> int:
     "git fetch origin; git merge --ff-only origin/main",
     "git -C /Users/x/repo merge origin/main",
     "git merge --abort",
-    "git merge -X theirs origin/main && git status",
+    "git merge --no-edit origin/main && git status --short",
     "git switch feature/x && git merge origin/main && git log --oneline -3",
 ])
 def test_plain_local_merge_is_below_l3(command: str) -> None:
@@ -67,6 +67,20 @@ def test_plain_local_merge_is_below_l3(command: str) -> None:
     "git merge x & git status",
     "git merge x | cat",
     "cd /repo && git merge origin/main",
+    # Round 7: plain words that still pick a program to run, write a file or discard work.
+    "git merge -s localexec feature",
+    "git merge --strategy=localexec feature",
+    "git merge -slocalexec feature",
+    "git merge -X theirs origin/main",
+    "git merge HEAD && git fetch --upload-pack=/tmp/prog /tmp/bare.git",
+    "git merge HEAD && git fetch --upload-pack /tmp/prog /tmp/bare.git",
+    "git merge HEAD && git fetch ext::localexec",
+    "git merge x && git diff --output=/tmp/f",
+    "git merge x && git log --output=/tmp/f",
+    "git merge x && git switch -f main",
+    "git merge x && git checkout app.py",
+    "git merge x && git branch -D old",
+    "git merge x -- y",
 ])
 def test_merge_inside_anything_else_keeps_the_old_l3(command: str) -> None:
     assert tier(command) == LADDER.TIER_IRREVERSIBLE, command
@@ -81,3 +95,32 @@ def test_merge_inside_anything_else_keeps_the_old_l3(command: str) -> None:
 def test_quoted_push_text_without_a_merge_is_not_raised_by_this_rule(command: str) -> None:
     """Round 5/6 false alarms came from the removed push reader; text is not L3 here."""
     assert tier(command) < LADDER.TIER_IRREVERSIBLE, command
+
+
+def test_merge_strategy_really_runs_a_program_and_both_gates_deny_it(tmp_path: Path) -> None:
+    """Positive control for round 7: `-s <name>` runs `git-merge-<name>` from PATH."""
+    import os
+    import subprocess
+
+    import app.server.tool_gate as tool_gate
+    import swarm.nexus.autonomy_gate as autonomy_gate
+
+    repo, bindir, marker = tmp_path / "repo", tmp_path / "bin", tmp_path / "ran"
+    bindir.mkdir()
+    prog = bindir / "git-merge-localexec"
+    prog.write_text(f"#!/bin/sh\ntouch '{marker}'\nexit 2\n")
+    prog.chmod(0o755)
+    env = dict(os.environ, PATH=f"{bindir}:{os.environ['PATH']}", GIT_AUTHOR_NAME="t",
+               GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+    # Two diverged branches: an up-to-date merge never calls the strategy program.
+    g = ["git", "-C", str(repo)]
+    for cmd in (["git", "init", "-q", "-b", "trunk", str(repo)], g +["commit", "-q", "--allow-empty", "-m", "a"],
+                g + ["branch", "feature"], g + ["commit", "-q", "--allow-empty", "-m", "b"],
+                g + ["switch", "-q", "feature"], g + ["commit", "-q", "--allow-empty", "-m", "c"]):
+        subprocess.run(cmd, check=True, env=env)
+    command = "git merge -s localexec trunk"
+    subprocess.run(command.split(), cwd=repo, env=env, capture_output=True)
+    assert marker.exists(), "the strategy program did not run, so this control proves nothing"
+    assert tier(command) == LADDER.TIER_IRREVERSIBLE
+    assert tool_gate.decide("Bash", {"command": command}).allow is False
+    assert autonomy_gate.decide("Bash", {"command": command}) is not None
