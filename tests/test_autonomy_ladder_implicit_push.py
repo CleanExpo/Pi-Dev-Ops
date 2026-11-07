@@ -83,6 +83,21 @@ def tier(command: str) -> int:
     "git push origin refs/heads/m'a'in",
     "git push origin pr'od'",
     "git merge feature/x && git push origin m'a'in",
+    # Separators and line breaks inside quotes or escapes are data, not command ends.
+    'git push origin "x;" HEAD',
+    "git push origin 'a|b' HEAD",
+    "git push origin x\\;y HEAD",
+    "git push origin ma\\\nin",
+    "git push origin \\\nHEAD",
+    # Wrappers that hand git a whole command string.
+    "sh -c 'cd /tmp/x && git push'",
+    'eval "git push origin HE""AD"',
+    "bash -c \"bash -c 'git push origin HEAD'\"",
+    # A global option that takes a separate value must not hide the push.
+    "git --git-dir /tmp/x/.git push origin HEAD",
+    "git --work-tree /tmp/x push",
+    # Unbalanced quoting cannot be read, so it is refused.
+    "git push origin 'HEAD",
 ])
 def test_push_with_implicit_destination_is_l3(command: str) -> None:
     assert tier(command) == LADDER.TIER_IRREVERSIBLE, command
