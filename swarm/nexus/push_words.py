@@ -19,7 +19,10 @@ command, the subcommand or code is treated as a possible push and returns True:
 - an inline-code interpreter (python, node, perl...) in a command that mentions push;
 - a git alias that mentions push, `send-pack`, `subtree push`.
 
-Words are read with `shlex` in POSIX mode (quotes and escapes removed inside a word,
+Every `...` and $(...) body is cut out first and read as a command of its own, because
+Bash runs it before the command that hosts it (round 4: `git log \\`git push origin
+HEAD\\`` scored L0); the hole it leaves is an unknown value. Words are then read with
+`shlex` in POSIX mode (quotes and escapes removed inside a word,
 `\\<newline>` joined, `; & | < > ( )` and newline end a command only when unquoted;
 comments off). A word that is itself code (`bash -c`, `eval`, `ssh host '...'`,
 `git rebase --exec`) is read again, to a fixed depth. Every doubt is True.
@@ -182,10 +185,47 @@ def _command_is_implicit(before: str, words: list[str], after: str, mentions: bo
     return False
 
 
+_SUBSTITUTION_MARK = " $__SUBSTITUTION__ "
+
+
+def _lift_substitutions(text: str) -> tuple[str, list[str]]:
+    """Cut out every `...` and $(...) body; each runs as a command before its host.
+
+    Quoting is ignored on purpose: lifting a span Bash would not run can only add a
+    command to check and turn a literal word into an unknown one, so it only raises.
+    """
+    outer, inners, i = [], [], 0
+    while i < len(text):
+        if text[i] == "`":
+            end = text.find("`", i + 1)
+            if end < 0:
+                raise _Unreadable("unbalanced backtick")
+            inners.append(text[i + 1:end])
+            outer.append(_SUBSTITUTION_MARK)
+            i = end + 1
+        elif text.startswith("$(", i):
+            depth, j = 1, i + 2
+            while j < len(text) and depth:
+                depth += {"(": 1, ")": -1}.get(text[j], 0)
+                j += 1
+            if depth:
+                raise _Unreadable("unbalanced $(")
+            inners.append(text[i + 2:j - 1])
+            outer.append(_SUBSTITUTION_MARK)
+            i = j
+        else:
+            outer.append(text[i])
+            i += 1
+    return "".join(outer), inners
+
+
 def _has_implicit_push(command: str, depth: int) -> bool:
     if depth > _MAX_DEPTH:
         return True
-    mentions = _mentions_push(command)
+    command, inners = _lift_substitutions(command)
+    if any(_has_implicit_push(inner, depth + 1) for inner in inners):
+        return True
+    mentions = _mentions_push(command) or any(_mentions_push(x) for x in inners)
     for before, words, after in _simple_commands(_tokens(command)):
         if _command_is_implicit(before, words, after, mentions):
             return True

@@ -159,3 +159,38 @@ def test_push_hidden_behind_a_run_time_value_is_l3(command: str) -> None:
 ])
 def test_ordinary_commands_with_values_or_the_word_push_stay_below_l3(command: str) -> None:
     assert tier(command) < LADDER.TIER_IRREVERSIBLE, command
+
+
+# Round 4 (RA-8245): a command substitution runs before the command that hosts it, so
+# an ordinary `git log` or `git commit` carried a push. Both gate consumers must deny.
+_SUBSTITUTED_PUSHES = [
+    "git log `git push origin HEAD`",
+    "git commit -m `git push origin HEAD`",
+    "git log `git push origin main`",
+    "ls `git push`",
+    "git status `echo x; git push origin HEAD`",
+]
+
+
+@pytest.mark.parametrize("command", _SUBSTITUTED_PUSHES)
+def test_push_inside_a_command_substitution_is_l3(command: str) -> None:
+    assert tier(command) == LADDER.TIER_IRREVERSIBLE, command
+
+
+@pytest.mark.parametrize("command", _SUBSTITUTED_PUSHES)
+def test_both_gate_consumers_deny_a_substituted_push(command: str) -> None:
+    import app.server.tool_gate as tool_gate
+    import swarm.nexus.autonomy_gate as autonomy_gate
+
+    assert tool_gate.decide("Bash", {"command": command}).allow is False, command
+    assert autonomy_gate.decide("Bash", {"command": command}) is not None, command
+
+
+@pytest.mark.parametrize("command", [
+    "git log `date`",
+    "git commit -m 'fix `foo` in bar'",
+    "echo $((1+2))",
+    "git log $(git rev-parse HEAD)",
+])
+def test_harmless_substitutions_stay_below_l3(command: str) -> None:
+    assert tier(command) < LADDER.TIER_IRREVERSIBLE, command
