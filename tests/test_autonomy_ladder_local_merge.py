@@ -124,3 +124,17 @@ def test_merge_strategy_really_runs_a_program_and_both_gates_deny_it(tmp_path: P
     assert tier(command) == LADDER.TIER_IRREVERSIBLE
     assert tool_gate.decide("Bash", {"command": command}).allow is False
     assert autonomy_gate.decide("Bash", {"command": command}) is not None
+
+
+@pytest.mark.parametrize("command", [
+    "git fetch origin && git merge origin/main",
+    "git -C /r merge HEAD && git -C /r fetch origin",
+])
+def test_a_plain_chain_is_no_higher_than_git_pull(command: str) -> None:
+    """Round 8: a repo whose own config runs a program (an `ext::` remote, a hook) runs it
+    for `git pull`, which is fetch plus merge and already L1 at base, and for a bare
+    `git fetch origin` at L0. A plain chain may not rank above `git pull`; repository
+    config is trusted by every git command and no text check can read it (RA-8248).
+    """
+    assert tier("git pull") < LADDER.TIER_IRREVERSIBLE
+    assert tier(command) <= tier("git pull"), command
