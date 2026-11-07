@@ -57,7 +57,10 @@ def decide(
             "(irreversible / strategic) action — e.g. merge/deploy to prod, a "
             "prod DB migration, secret rotation, provisioning a new service, or a "
             "branch-strategy change. L3 must not be self-authorized; it requires "
-            "explicit human/Board approval. A human can perform it directly."
+            "explicit human/Board approval. A human can perform it directly. "
+            "A `git push` must name its destination branch literally "
+            "(`git push -u origin <branch>`): a bare push, HEAD, @, `--all`, "
+            "`--mirror` or a `$VAR` may write main and is treated as L3."
         )
     return None
 

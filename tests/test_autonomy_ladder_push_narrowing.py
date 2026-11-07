@@ -236,22 +236,17 @@ def test_a_subtracted_push_is_still_an_outward_action(command):
     )
 
 
-# --- Known gap, older than this change, recorded rather than papered over ----
+# --- RA-7409, closed by RA-8245 ---------------------------------------------
+#
+# `--mirror` and `--all` write every ref, naming none, so neither whole-line push
+# rule matched and these scored L2. This was a strict xfail. RA-8245's raise-only
+# implicit-destination check (`push_targets.push_destination_is_implicit`) closes
+# it with the rest of its class: a push that does not name its destination.
 
-@pytest.mark.xfail(strict=True, reason=(
-    "RA-7409: the push rules only see a protected branch when it is spelled on "
-    "the line. `--mirror` and `--all` write every ref, naming none, so neither "
-    "rule matches and the command classifies L2. Measured on `main` before any "
-    "RA-7383 change, so this is a pre-existing gap and not a regression from "
-    "the narrowing — the narrowing cannot reach it, because the whole-line rule "
-    "it subtracts from never matched in the first place. Fixing it is a "
-    "WIDENING (a new rule), tracked separately so it is reviewed as one. "
-    "strict=True so RA-7409's fix flips this red and forces the note updated."
-))
 @pytest.mark.parametrize("command", [
     "git push --mirror origin",
     "git push --all origin",
 ])
 def test_refspec_less_broadcast_push_is_l3(command):
-    """Documented gap: a push that writes main without naming it is not L3."""
+    """A push that writes main without naming it is L3."""
     assert is_l3(command), f"broadcast push not classified L3: {command}"

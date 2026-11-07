@@ -89,7 +89,9 @@ L3_BASH_EXCLUDING_PUSH_TARGET_RE = re.compile("|".join(_L3_BASH_OTHER), re.IGNOR
 # fallback mirrors the one in that module: this file is loaded by path in tests
 # and by the hook, where `swarm.nexus` is not an importable package.
 try:
-    from .push_targets import push_targets_are_all_unprotected  # noqa: F401
+    from .push_targets import (  # noqa: F401
+        push_destination_is_implicit, push_targets_are_all_unprotected,
+    )
 except ImportError:  # pragma: no cover - exercised by the by-path test loader
     import importlib.util as _ilu
     from pathlib import Path as _Path
@@ -101,6 +103,7 @@ except ImportError:  # pragma: no cover - exercised by the by-path test loader
     assert _spec.loader is not None
     _spec.loader.exec_module(_pt)
     push_targets_are_all_unprotected = _pt.push_targets_are_all_unprotected
+    push_destination_is_implicit = _pt.push_destination_is_implicit
 
 # --- Git global options (RA-7386) ------------------------------------------
 # Every git rule here anchors on `git <subcommand>`, but git accepts global

@@ -165,25 +165,75 @@ def push_targets_are_all_unprotected(command: str) -> bool:
     treats False as "leave the whole-line verdict alone", so every False is a
     redundant prompt at worst and never a bypass.
     """
-    if not command or len(command) > _MAX_COMMAND_CHARS:
-        return False
-
-    lowered = command.lower()
-    starts = _push_argument_starts(command, lowered)
-    if not starts:
-        # None -> over the occurrence bound; [] -> the push rules matched but no
+    segments = _push_segments(command)
+    if not segments:
+        # None -> unreadable or over a bound; [] -> the push rules matched but no
         # `git push` is parseable here. Both are refusals.
         return False
+    return all(_segment_targets_are_unprotected(seg) for seg in segments)
 
+
+def _push_segments(command: str) -> list[str] | None:
+    """The argument text of each `git push` in `command`, or None over a bound."""
+    if not command or len(command) > _MAX_COMMAND_CHARS:
+        return None
+    starts = _push_argument_starts(command, command.lower())
+    if starts is None:
+        return None
+    segments = []
     for start in starts:
         end = len(command)
         for sep in _SEPARATORS:
             pos = command.find(sep, start)
             if pos != -1:
                 end = min(end, pos)
-        if not _segment_targets_are_unprotected(command[start:end]):
+        segments.append(command[start:end])
+    return segments
+
+
+# RA-8245: `--all` and `--mirror` write every ref without naming one (RA-7409).
+_BROADCAST_FLAGS = frozenset({"--all", "--mirror"})
+
+
+def _segment_destination_is_explicit(segment: str) -> bool:
+    """True only when every destination in one push segment is a literal branch name.
+
+    Quotes and backslashes are dropped first: they cannot hide a destination,
+    only wrap one. `$` and backtick are substitution, whose result is unknown.
+    """
+    if "$" in segment or "`" in segment:
+        return False
+    positionals = []
+    for token in segment.replace('"', " ").replace("'", " ").replace("\\", " ").split():
+        if token.startswith("-"):
+            base = token.split("=", 1)[0]
+            if base in _BROADCAST_FLAGS:
+                return False
+            if token not in _SAFE_PUSH_FLAGS and base not in _SAFE_PUSH_FLAGS:
+                return False  # may take a value and shift the positionals
+            continue
+        positionals.append(token)
+    if len(positionals) < 2:
+        return False  # no refspec: pushes the current branch, whatever it is
+    for token in positionals[1:]:
+        dest = _refspec_target(token)
+        if not _PLAIN_REF_RE.match(dest) or dest in _UNRESOLVABLE_REFS:
             return False
     return True
 
 
-__all__ = ["push_targets_are_all_unprotected"]
+def push_destination_is_implicit(command: str) -> bool:
+    """True when any `git push` in `command` writes a branch the text does not name.
+
+    The opposite failure direction to `push_targets_are_all_unprotected`: this one
+    RAISES a verdict to L3, so every doubt (over a bound, unreadable, unknown flag,
+    no refspec, `HEAD`/`@`, substitution, `--all`/`--mirror`) returns True. A push
+    to a protected branch that IS named is the whole-line rules' job, not this one.
+    """
+    segments = _push_segments(command)
+    if segments is None:
+        return "push" in command.lower()  # over a bound: fail closed if it may push
+    return not all(_segment_destination_is_explicit(seg) for seg in segments)
+
+
+__all__ = ["push_destination_is_implicit", "push_targets_are_all_unprotected"]

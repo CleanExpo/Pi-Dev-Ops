@@ -42,8 +42,8 @@ from typing import Any, Optional
 try:
     from .autonomy_rules import (  # noqa: F401
         GIT_GLOBAL_OPT, L3_BASH_EXCLUDING_PUSH_TARGET_RE, L3_BASH_RE,
-        SEGMENT_RULES, WHOLE_RULES, _L3_BASH, push_targets_are_all_unprotected,
-        strip_git_global_opts,
+        SEGMENT_RULES, WHOLE_RULES, _L3_BASH, push_destination_is_implicit,
+        push_targets_are_all_unprotected, strip_git_global_opts,
     )
 except ImportError:  # pragma: no cover - exercised by the by-path test loader
     import importlib.util as _ilu
@@ -58,6 +58,7 @@ except ImportError:  # pragma: no cover - exercised by the by-path test loader
     SEGMENT_RULES, WHOLE_RULES = _rules.SEGMENT_RULES, _rules.WHOLE_RULES
     L3_BASH_EXCLUDING_PUSH_TARGET_RE = _rules.L3_BASH_EXCLUDING_PUSH_TARGET_RE
     push_targets_are_all_unprotected = _rules.push_targets_are_all_unprotected
+    push_destination_is_implicit = _rules.push_destination_is_implicit
     GIT_GLOBAL_OPT = _rules.GIT_GLOBAL_OPT
     strip_git_global_opts = _rules.strip_git_global_opts
 
@@ -183,6 +184,10 @@ def _bash_is_l3(cmd: str, norm: str) -> tuple[bool, bool]:
     # is decided here and never reconsidered.
     if (L3_BASH_EXCLUDING_PUSH_TARGET_RE.search(cmd)
             or L3_BASH_EXCLUDING_PUSH_TARGET_RE.search(norm)):
+        return True, False
+    # RA-8245: a push whose destination is not written on the line may write
+    # main (`git push origin HEAD` on a main checkout). Raise-only, either spelling.
+    if push_destination_is_implicit(cmd) or push_destination_is_implicit(norm):
         return True, False
     if L3_BASH_RE.search(cmd) or L3_BASH_RE.search(norm):
         # Only the whole-line push gap matched. Stay L3 unless BOTH spellings are
