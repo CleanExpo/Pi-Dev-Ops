@@ -40,7 +40,10 @@ _L3_BASH = [
     # RA-7387: an alias definition is an arbitrary-subcommand escape hatch,
     # so it carries the worst tier it could smuggle. See the module docstring.
     r"\bgit\b[^\n]*\s-c\s+alias\.",
-    r"\bgit\s+merge(?![-\w])",                                       # merge; NOT merge-base/-file/-tree
+    # A local `git merge` is deliberately NOT here (it is L1, like rebase and
+    # cherry-pick): it only moves the checked-out branch and the reflog undoes
+    # it. Landing work on a protected ref needs the push rule or `gh pr merge`
+    # below. See tests/test_autonomy_ladder_l3_segments.py::test_local_merge_is_not_l3.
     r"\bgh\s+pr\s+merge\b",                                          # PR merge to base
     r"\bgit\s+push\b[^\n]*\b(origin\s+)?(main|master|prod|production)\b",  # push to main/prod
     r"\bgit\s+push\b[^\n]*--force[^\n]*\b(main|master)\b",           # force-push main
@@ -195,8 +198,8 @@ SEGMENT_RULES: list[tuple[str, re.Pattern[str]]] = [
     # The gap this closes: `git reset --hard` was reachable by the unattended
     # generator with no gate of any kind, though it destroys uncommitted work
     # unconditionally — while `git merge --abort`, which only undoes an
-    # in-progress merge, sat at L3 needing human approval. The dangerous command
-    # was the ungated one.
+    # in-progress merge, sat at L3 needing human approval (local merges are L1
+    # now). The dangerous command was the ungated one.
     #
     # Each rule denies only the destroying spelling. Modes that leave the
     # worktree intact (`reset --soft/--mixed`, `restore --staged`, `clean -n`)

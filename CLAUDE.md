@@ -189,9 +189,11 @@ that have both burned this repo:
 
 ## Sandbox and scope
 
-1. **Sandbox first.** Iterate in `/tmp/` or `/tmp/pi-ceo-workspaces/` clones. Push, open a PR, or
-   ship only when the current instruction says so. Otherwise stage the diff, write the PR body to a
-   file, and stop.
+1. **Sandbox first.** Iterate in a worktree or `/tmp/pi-ceo-workspaces/` clone, never the root
+   checkout. **POLICY (founder, 07/11/2026):** pushing a feature branch and opening a PR are routine
+   once `pr-release-gate` passes on the exact head; do them without waiting to be asked. Only a
+   merge to `main`, production, spend, secrets and destructive actions wait for Phill. "Stage the
+   diff and stop" was the old rule and is what kept work sitting unshipped.
 2. **File a Linear ticket for every discovery**, routed by `config/harness/projects.json`. Never
    file findings about another repo into Pi-Dev-Ops's own project.
 3. **Smoke-test before committing:** `py_compile` on edited Python, `npx tsc --noEmit` on edited TS,
