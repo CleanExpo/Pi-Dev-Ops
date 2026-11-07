@@ -123,3 +123,39 @@ def test_push_naming_a_feature_branch_stays_outward_not_l3(command: str) -> None
 ])
 def test_non_push_commands_are_unaffected(command: str) -> None:
     assert tier(command) < LADDER.TIER_OUTWARD, command
+
+
+# Round 3 (RA-8245): the value of a word is decided at run time, not by its text.
+# Every case here was L1 or L2 at 571862e5; each one runs a push to HEAD or main.
+@pytest.mark.parametrize("command", [
+    "bash -c $'git push origin HEAD'",
+    "eval $'git push origin HEAD'",
+    "git $'\\x70ush' origin HEAD",
+    "git pu''sh origin HEAD",
+    'git pu"sh" origin HEAD',
+    "git pu${x}sh origin HEAD",
+    "p=push; git $p origin HEAD",
+    "g=git; $g push origin HEAD",
+    "printf 'gi%st pu%sh origin HEAD' t s | bash",
+    "git -c alias.p=push p origin HEAD",
+    "git send-pack origin HEAD",
+    "git subtree push --prefix x origin main",
+    "/usr/libexec/git-core/git-push origin HEAD",
+    "python3 -c \"import subprocess; subprocess.run(['git','push','origin','HEAD'])\"",
+    "node -e \"require('child_process').execSync('git push origin HEAD')\"",
+])
+def test_push_hidden_behind_a_run_time_value_is_l3(command: str) -> None:
+    assert tier(command) == LADDER.TIER_IRREVERSIBLE, command
+
+
+@pytest.mark.parametrize("command", [
+    "git log $REF --oneline",
+    "cd $HOME && ls",
+    'git commit -m "fix the push check"',
+    "rg -n push swarm/",
+    "echo $PATH",
+    "git diff origin/main...HEAD | head",
+    "cat <<EOF\nit's fine\nEOF",
+])
+def test_ordinary_commands_with_values_or_the_word_push_stay_below_l3(command: str) -> None:
+    assert tier(command) < LADDER.TIER_IRREVERSIBLE, command
