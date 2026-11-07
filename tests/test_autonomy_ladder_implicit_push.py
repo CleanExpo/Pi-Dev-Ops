@@ -64,6 +64,17 @@ def tier(command: str) -> int:
     "git commit -m x && git push origin HEAD",
     "git checkout main && git push origin HEAD",
     "git push origin feature/x && git push origin HEAD",
+    # Quoting and escaping are deleted by Bash, so they cannot hide HEAD.
+    'git push origin H"E"AD',
+    "git push origin 'HEAD'",
+    "git push origin HE\\AD",
+    'bash -c "git push origin HEAD"',
+    "env X=1 git push origin HEAD",
+    "git push origin +HEAD",
+    "git push origin 'refs/heads/*'",
+    "git push origin feature/x:",
+    "git push origin -- HEAD",
+    "git push origin feature/x\ngit push",
 ])
 def test_push_with_implicit_destination_is_l3(command: str) -> None:
     assert tier(command) == LADDER.TIER_IRREVERSIBLE, command

@@ -198,13 +198,15 @@ _BROADCAST_FLAGS = frozenset({"--all", "--mirror"})
 def _segment_destination_is_explicit(segment: str) -> bool:
     """True only when every destination in one push segment is a literal branch name.
 
-    Quotes and backslashes are dropped first: they cannot hide a destination,
-    only wrap one. `$` and backtick are substitution, whose result is unknown.
+    Quotes and backslashes are deleted first, as Bash deletes them: `H"E"AD` and
+    `HE\\AD` are both `HEAD`. Replacing them with spaces instead would split one
+    word into harmless-looking pieces. `$` and backtick are substitution, whose
+    result is unknown.
     """
     if "$" in segment or "`" in segment:
         return False
     positionals = []
-    for token in segment.replace('"', " ").replace("'", " ").replace("\\", " ").split():
+    for token in segment.replace('"', "").replace("'", "").replace("\\", "").split():
         if token.startswith("-"):
             base = token.split("=", 1)[0]
             if base in _BROADCAST_FLAGS:
