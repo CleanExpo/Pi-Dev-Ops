@@ -15,7 +15,7 @@ from typing import Any
 from setup_common import SEAL_PREFIX, SetupError, _hook_output
 from setup_receipts import _seal_key
 from setup_tools import _tool_is_recovery_safe
-from setup_cwd import matches_recovery_command, recovery_command
+from setup_cwd import is_cd_into_git_checkout, matches_recovery_command, recovery_command
 
 
 def _state_root() -> Path:
@@ -168,6 +168,11 @@ def _outside_git_tool(payload: dict[str, Any], event: str) -> dict[str, Any]:
         return _hook_output(
             event,
             "Senior Harness allowed `cd` back to the session's project root (CLAUDE_PROJECT_DIR) from outside Git. This grants no other authority.",
+        )
+    if is_cd_into_git_checkout(payload):
+        return _hook_output(
+            event,
+            "Senior Harness allowed a plain `cd` into an existing Git checkout folder from outside Git. Inside Git the normal startup checks apply again. This grants no other authority.",
         )
     if _tool_is_recovery_safe(payload):
         return _hook_output(
