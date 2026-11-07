@@ -7,8 +7,12 @@ holds no shell-special character, and Git itself says it is inside a work tree.
 """
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +21,20 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "skills" / "senior-harness" / "scripts"))
 
 from setup_state import _outside_git_tool  # noqa: E402
+
+
+@pytest.fixture()
+def tmp_path() -> Iterator[Path]:
+    """A temp folder whose path has no space, whatever TMPDIR says.
+
+    The cases below put the path in an UNQUOTED `cd`, where a space splits the word and the
+    rule rightly denies it. A TMPDIR such as `/Volumes/MacBook SSD EXT/...` turned the allow
+    cases into denials, so the folder is made under the system /tmp instead.
+    """
+    base = Path(tempfile.mkdtemp(dir=os.path.realpath("/tmp")))
+    assert " " not in str(base), base
+    yield base
+    shutil.rmtree(base, ignore_errors=True)
 
 
 @pytest.fixture()
