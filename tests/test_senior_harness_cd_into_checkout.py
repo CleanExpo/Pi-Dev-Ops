@@ -91,6 +91,33 @@ def test_everything_else_stays_denied(checkout: Path, tmp_path: Path, cmd: str) 
     assert denied(_outside_git_tool(bash(cmd, tmp_path), "PreToolUse")), cmd
 
 
+_UNSAFE_NAMES = ["a;pwd", "a&b", "a|b", "a<b", "a>b", "a$b", "a`b", "a(b)", "a[b]", "a{b}",
+                 "a*b", "a?b", "a#b", "a'b", "a~b", "a\\b", "a!b", 'a"b', "a\tb", "a\nb", "a\x7fb"]
+
+
+@pytest.mark.parametrize("name", _UNSAFE_NAMES)
+@pytest.mark.parametrize("quoted", [False, True])
+def test_unsafe_character_is_denied_even_when_the_folder_exists(
+    checkout: Path, tmp_path: Path, name: str, quoted: bool
+) -> None:
+    # The folder is real and inside Git, so only the character check can deny it. Codex
+    # showed the old fixture let every punctuation case fail later, on "not a folder".
+    (checkout / name).mkdir()
+    assert inside_git(checkout / name)
+    path = f"{checkout}/{name}"
+    cmd = f'cd "{path}"' if quoted else f"cd {path}"
+    assert denied(_outside_git_tool(bash(cmd, tmp_path), "PreToolUse")), repr(cmd)
+
+
+def test_relative_and_dotdot_paths_are_denied_even_when_they_resolve_into_git(
+    checkout: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Run from inside the checkout so every relative form names a real Git folder.
+    monkeypatch.chdir(checkout / "plain")
+    for cmd in ["cd ../plain", "cd .", "cd ..", f"cd {checkout}/plain/../plain", "cd plain/.."]:
+        assert denied(_outside_git_tool(bash(cmd, tmp_path), "PreToolUse")), cmd
+
+
 def test_fake_git_dir_is_not_a_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     fake = tmp_path / "fake"
     (fake / ".git").mkdir(parents=True)
