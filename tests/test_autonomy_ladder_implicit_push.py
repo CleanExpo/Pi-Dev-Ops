@@ -75,6 +75,14 @@ def tier(command: str) -> int:
     "git push origin feature/x:",
     "git push origin -- HEAD",
     "git push origin feature/x\ngit push",
+    # Codex round 2: a protected name split by quoting or escaping is still main.
+    "git push origin m'a'in",
+    'git push origin "ma""in"',
+    "git push origin ma\\in",
+    "git push origin HEAD:m'a'in",
+    "git push origin refs/heads/m'a'in",
+    "git push origin pr'od'",
+    "git merge feature/x && git push origin m'a'in",
 ])
 def test_push_with_implicit_destination_is_l3(command: str) -> None:
     assert tier(command) == LADDER.TIER_IRREVERSIBLE, command

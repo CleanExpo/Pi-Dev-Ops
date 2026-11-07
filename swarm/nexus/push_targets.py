@@ -221,6 +221,10 @@ def _segment_destination_is_explicit(segment: str) -> bool:
         dest = _refspec_target(token)
         if not _PLAIN_REF_RE.match(dest) or dest in _UNRESOLVABLE_REFS:
             return False
+        # Codex round 2: `m'a'in` is `main` to Bash but no whole-line rule sees a
+        # contiguous `main`. A protected name rebuilt here is raised too.
+        if dest in _PROTECTED_REFS:
+            return False
     return True
 
 
