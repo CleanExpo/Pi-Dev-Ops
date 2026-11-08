@@ -95,7 +95,7 @@ class _Proc:
         return 0
 
 
-def test_pipe_holder_is_stopped_and_named_when_the_process_list_is_unreadable(monkeypatch, caplog):
+def test_unidentified_pipe_holder_is_named_but_never_signalled(monkeypatch, caplog):
     from app.server import provider_process_tree as tree
     own = [(os.getpid(), "d", "0xabc")]
     users = own + [(4242, "n->", "0xabc")]
@@ -106,7 +106,7 @@ def test_pipe_holder_is_stopped_and_named_when_the_process_list_is_unreadable(mo
     with caplog.at_level("WARNING", logger=tree.__name__):
         tree.stop_tree(_Proc(), {}, budget_s=0.5, grace_s=0.1, fds=[1])
     warnings = " ".join(r.getMessage() for r in caplog.records if r.levelname == "WARNING")
-    assert 4242 in killed, "a process holding the call's pipe was not stopped"
+    assert 4242 not in killed, "a pid that may have been reused was signalled without its identity"
     assert "4242" in warnings, f"the pipe holder was not named in a warning: {warnings!r}"
 
 

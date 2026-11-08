@@ -68,8 +68,8 @@ def pipe_holders(fds, timeout_s: float) -> dict[int, str] | None:
 
     A child that calls setsid() and outlives the CLI is no longer a descendant by parent link,
     but it still holds the call's stdout/stderr; lsof finds it by the pipe's address. When the
-    process list cannot be read, a holder is returned with an empty identity: lsof has just seen
-    it holding our pipe, so it is still stopped by pid, and the stop is reported as unreadable.
+    process list cannot be read, a holder is returned with an empty identity. It is never
+    signalled (its pid may already belong to another process); the warning names it instead.
     """
     me = os.getpid()
     ends = set()
@@ -144,7 +144,7 @@ def stop_tree(proc, known: dict[int, str], *, budget_s: float, grace_s: float, f
         unnamed = [pid for pid, ident in (holders or {}).items() if not ident]
         known = {**known, **(found or {}), **(holders or {})}
         targets = live(known, left(0.75))
-        pids = list(targets or {}) + [pid for pid in unnamed if pid not in (targets or {})]
+        pids = list(targets or {})  # only processes identified by pid, start time and command
         _signal(proc.pid, pids, signal.SIGTERM)
         _signal(proc.pid, pids, signal.SIGCONT)
         try:
