@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_1799f6981e1b",
+  "contract_digest": "7f2de9e56c6c2e03ca6879b482ac1bfd8745b4bb39934a4283d5f8279a39ff8c",
+  "baseline_head": "93f0eb41f84cc870c4c0003eb1cb16d5ee52b9db",
+  "identity_key": "phillmcgurk/uni-3306-stoppable-runner@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-runner",
+  "locked_at_utc": "2026-11-08T03:18:27Z",
+  "criteria_count": 3,
+  "recipe_pins": {}
+}
