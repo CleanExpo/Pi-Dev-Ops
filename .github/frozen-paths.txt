@@ -18,11 +18,11 @@
 # Self-judging loops (14) — not on the one pathway
 app/server/tao_*.py
 
-# Model / provider routing (17) — collapses to ONE router later; slice 1 is Claude on the Mini
+# Model / provider routing (16) — collapses to ONE router later; slice 1 is Claude on the Mini
+# app/server/provider_execution.py unfrozen for UNI-3306 (optional stoppable model process); re-frozen right after it merges.
 app/server/model_fabric.py
 app/server/model_policy.py
 app/server/model_registry.py
-app/server/provider_execution.py
 app/server/provider_execution_types.py
 app/server/provider_margot_casual.py
 app/server/provider_nex_n2.py
