@@ -128,12 +128,14 @@ def test_nothing_is_rerun_when_the_newest_run_is_green_or_still_going():
 
 
 def test_rerun_stops_after_the_attempt_cap(capsys):
-    assert _posted(_run(5, attempt=rj.MAX_ATTEMPTS)) == []
+    # Literal policy boundary: a third failed attempt is the last; never read from the constant.
+    assert _posted(_run(5, attempt=2)) == [rj.API + "/repos/o/r/actions/runs/5/rerun"]
+    assert _posted(_run(5, attempt=3)) == []
     assert "::warning::" in capsys.readouterr().out
 
 
 def test_a_rerun_cancelled_by_the_concurrency_group_does_not_use_up_the_cap():
-    run = _run(5, conclusion="cancelled", attempt=rj.MAX_ATTEMPTS + 2)
+    run = _run(5, conclusion="cancelled", attempt=5)
     assert _posted(run) == [rj.API + "/repos/o/r/actions/runs/5/rerun"]
 
 
