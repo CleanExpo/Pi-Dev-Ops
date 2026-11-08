@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_4b92c53940da",
+  "contract_digest": "e001870db373f0dc5a171ee3994e4de39e69e1cf730bc607132b6b4db6c60be4",
+  "baseline_head": "7ccabc323ea8e1101e3422ed8675b8684df4d62a",
+  "identity_key": "phillmcgurk/uni-3306-cleanup@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/uni-3306-cleanup",
+  "locked_at_utc": "2026-11-08T13:52:30Z",
+  "criteria_count": 4,
+  "recipe_pins": {}
+}

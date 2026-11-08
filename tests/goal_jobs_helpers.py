@@ -17,7 +17,7 @@ from urllib.parse import parse_qsl, unquote
 from app.server import goal_analysis_jobs as jobs
 
 T0 = datetime(2026, 11, 8, 10, 0, tzinfo=timezone.utc)
-CLAIM, DEADLINE, MARGIN = 60, 300, 5  # the constants in the SQL migration
+CLAIM, DEADLINE, MARGIN, RETENTION_DAYS = 60, 300, 5, 90  # the constants in the SQL migrations
 _ACTIVE = ("queued", "running")
 
 
@@ -130,6 +130,18 @@ class FakeRest:
                 r.update(status="failed", failure_reason="interrupted after its one retry",
                          ended_at=self._at(), claim_expires_at=None)
         return out
+
+
+    def _goal_job_purge_ended(self, p_limit: int) -> list[dict[str, Any]]:
+        """Mirror of goal_job_purge_ended(): finished or failed, 90 days past ended_at, oldest first."""
+        if not 1 <= p_limit <= 1000:
+            raise jobs.GoalJobStoreError("request_failed", "p_limit out of range")
+        cutoff = self.now - timedelta(days=RETENTION_DAYS)
+        old = sorted((r for r in self.rows if r["status"] in ("finished", "failed")
+                      and _t(r["ended_at"]) < cutoff), key=lambda r: _t(r["ended_at"]))
+        gone = old[:p_limit]
+        self.rows = [r for r in self.rows if r not in gone]
+        return [{"id": r["id"]} for r in gone]
 
 
 def _match(row: dict[str, Any], key: str, cond: str) -> bool:

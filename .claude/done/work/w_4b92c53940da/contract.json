@@ -1,0 +1,36 @@
+{
+  "schema": "done/1",
+  "work_id": "w_4b92c53940da",
+  "version": 2,
+  "supersedes": "w_9e1d0c78aac8",
+  "goal": "UNI-3306 PR 3 (revised): daily 90-day clean-up of goal analysis jobs via the generic script trigger on the live in-process cron_loop, because the cron modules are frozen. Finished and failed jobs are deleted 90 days after ended_at by a SQL function on the database clock, in bounded batches; active jobs are never deleted; a failed call is an error, never 'deleted 0'.",
+  "created_at_utc": "2026-11-08T13:52:24Z",
+  "identity_key": "phillmcgurk/uni-3306-cleanup@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/uni-3306-cleanup",
+  "baseline_observed": {
+    "head": "7ccabc323ea8e1101e3422ed8675b8684df4d62a",
+    "branch": "phillmcgurk/uni-3306-cleanup",
+    "dirty_count": 4
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The store method and the clean-up entry point pass their unit tests on the existing fake: purge_ended returns the database's deleted count, rejects a limit outside 1..1000, raises (never returns 0) when the function or table is missing or the reply is malformed; the batching loop is bounded and stops at the first failed call; main() exits 1 with the reason on stderr for a store failure; and the cron row goal-jobs-cleanup-daily is an enabled daily generic script trigger whose command runs app.server.goal_analysis_cleanup (the cron modules are frozen, so no new trigger type).",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-cleanup' && PYTHONDONTWRITEBYTECODE=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_goal_job_cleanup.py tests/test_goal_analysis_jobs_store.py -q -p no:cacheprovider --basetemp=/private/tmp/claude-501/uni3306-c1"
+    },
+    {
+      "id": "C2",
+      "text": "On a real local Postgres built from the three goal job migrations, goal_job_purge_ended deletes a 91-day-old finished and failed job, keeps 89-day-old ones, keeps queued, running and interrupted jobs of any age even when the table constraint is lifted, bounds a run by its limit, rejects a bad limit, refuses anon and authenticated, and the migration names no clock but goal_job_now(); skipping is refused.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-cleanup' && PYTHONDONTWRITEBYTECODE=1 GOAL_ANALYSIS_JOBS_PG_REQUIRED=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_goal_analysis_jobs_pg.py tests/test_goal_analysis_jobs_pg_lock.py tests/test_goal_analysis_jobs_pg_purge.py -q -p no:cacheprovider --basetemp=/private/tmp/claude-501/uni3306-c2"
+    },
+    {
+      "id": "C3",
+      "text": "Each planted defect in a copy of the purge SQL function, store method, clean-up module or cron row (status filter dropped, 0 or 100 days, no LIMIT, no SKIP LOCKED, unvalidated limit, anon EXECUTE kept, transaction clock, missing function read as zero, limit not sent, failure exits 0, single batch, no batch cap, wrong trigger type, disabled row) makes the unit or real-Postgres tests fail; the unmutated copy passes both.",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' /Users/phill-mac/session-handoffs/reviews/uni-3306-cleanup/mutants.py '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-cleanup'"
+    },
+    {
+      "id": "C4",
+      "text": "ruff on every changed Python file, the file-length gate, the function-length gate and the frozen-paths check against a freshly fetched origin/main pass (the cron modules, including cron_handler_registry.py, are frozen and unchanged).",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-cleanup' && /Users/phill-mac/.local/bin/ruff check app/server/goal_analysis_jobs.py app/server/goal_analysis_cleanup.py tests/goal_jobs_helpers.py tests/goal_jobs_pg_helpers.py tests/test_goal_job_cleanup.py tests/test_goal_analysis_jobs_pg.py tests/test_goal_analysis_jobs_pg_lock.py tests/test_goal_analysis_jobs_pg_purge.py && PYTHONDONTWRITEBYTECODE=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/file_length_lint.py && PYTHONDONTWRITEBYTECODE=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/function_length_lint.py && PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_frozen_paths.py --base origin/main --head HEAD"
+    }
+  ]
+}

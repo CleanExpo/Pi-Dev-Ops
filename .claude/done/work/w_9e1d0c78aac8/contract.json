@@ -1,0 +1,36 @@
+{
+  "schema": "done/1",
+  "work_id": "w_9e1d0c78aac8",
+  "version": 1,
+  "supersedes": null,
+  "goal": "UNI-3306 PR 3: a daily 90-day clean-up of goal analysis jobs. Finished and failed jobs are deleted 90 days after ended_at by a SQL function on the database clock, in bounded batches; queued, running and interrupted jobs are never deleted; a failed call is an error, never 'deleted 0'; triggered daily by the live in-process cron_loop.",
+  "created_at_utc": "2026-11-08T13:46:33Z",
+  "identity_key": "phillmcgurk/uni-3306-cleanup@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/uni-3306-cleanup",
+  "baseline_observed": {
+    "head": "65384702186bb438e227c3aa9db952f394041836",
+    "branch": "phillmcgurk/uni-3306-cleanup",
+    "dirty_count": 3
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The store method and the clean-up handler pass their unit tests on the existing fake: purge_ended returns the database's deleted count, rejects a limit outside 1..1000, raises (never returns 0) when the function or table is missing or the reply is malformed; the handler loops in bounded batches, logs and re-raises a store failure, and the cron row goal-jobs-cleanup-daily is enabled, daily, and resolves to the handler.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-cleanup' && PYTHONDONTWRITEBYTECODE=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_goal_job_cleanup.py tests/test_goal_analysis_jobs_store.py -q -p no:cacheprovider --basetemp=/private/tmp/claude-501/uni3306-c1"
+    },
+    {
+      "id": "C2",
+      "text": "On a real local Postgres built from the three goal job migrations, goal_job_purge_ended deletes a 91-day-old finished and failed job, keeps 89-day-old ones, keeps queued, running and interrupted jobs of any age even when the table constraint is lifted, bounds a run by its limit, rejects a bad limit, refuses anon and authenticated, and the migration names no clock but goal_job_now(); skipping is refused.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-cleanup' && PYTHONDONTWRITEBYTECODE=1 GOAL_ANALYSIS_JOBS_PG_REQUIRED=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_goal_analysis_jobs_pg.py tests/test_goal_analysis_jobs_pg_lock.py tests/test_goal_analysis_jobs_pg_purge.py -q -p no:cacheprovider --basetemp=/private/tmp/claude-501/uni3306-c2"
+    },
+    {
+      "id": "C3",
+      "text": "Each planted defect in a copy of the purge SQL function, store method or handler (status filter dropped, 0 or 100 days, no LIMIT, no SKIP LOCKED, unvalidated limit, anon EXECUTE kept, transaction clock, missing function read as zero, limit not sent, failure swallowed, single batch, no batch cap) makes the unit or real-Postgres tests fail; the unmutated copy passes both.",
+      "recipe": "PYTHONDONTWRITEBYTECODE=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' /Users/phill-mac/session-handoffs/reviews/uni-3306-cleanup/mutants.py '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-cleanup'"
+    },
+    {
+      "id": "C4",
+      "text": "ruff on every changed Python file, the file-length gate, the function-length gate and the frozen-paths check against origin/main pass.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-cleanup' && /Users/phill-mac/.local/bin/ruff check app/server/goal_analysis_jobs.py app/server/goal_analysis_cleanup.py app/server/cron_handler_registry.py tests/goal_jobs_helpers.py tests/goal_jobs_pg_helpers.py tests/test_goal_job_cleanup.py tests/test_goal_analysis_jobs_pg.py tests/test_goal_analysis_jobs_pg_lock.py tests/test_goal_analysis_jobs_pg_purge.py && PYTHONDONTWRITEBYTECODE=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/file_length_lint.py && PYTHONDONTWRITEBYTECODE=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/function_length_lint.py && PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_frozen_paths.py --base origin/main --head HEAD"
+    }
+  ]
+}

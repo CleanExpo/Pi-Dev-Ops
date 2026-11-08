@@ -14,6 +14,8 @@ grill 14-pdo-goal-analyze-async:
   recover_expired() fails it. The table also refuses retry_count above 1.
 - Q3 claim expiry and attempt deadline live on the row (60 s and 300 s, set in SQL).
 - Q1 evidence is stored as links only, never source text.
+- Q7 clean-up: purge_ended() calls goal_job_purge_ended (migration 20261108T020000), which
+  deletes finished and failed jobs 90 days after ended_at, at most `limit` per call.
 
 A failed read raises GoalJobStoreError; it never comes back as "no job".
 """
@@ -233,3 +235,20 @@ def recover_expired() -> list[str]:
     """Running jobs whose claim lapsed or deadline passed: interrupted once, then failed.
     One UPDATE on the database clock, so there is no read-then-write window to race."""
     return [str(row["id"]) for row in _rows("POST", "rpc/goal_job_recover", {})]
+
+
+PURGE_MAX_LIMIT = 1000  # the SQL function's own ceiling
+
+
+def purge_ended(limit: int) -> int:
+    """Delete finished and failed jobs 90 days past ended_at, at most `limit` rows.
+
+    Returns how many rows the database reports it deleted. Any failed call raises
+    GoalJobStoreError (function_missing, table_missing, request_failed, bad_response);
+    it never comes back as 0, because 0 means "nothing was old enough"."""
+    if type(limit) is not int or not 1 <= limit <= PURGE_MAX_LIMIT:
+        raise ValueError(f"limit must be an integer from 1 to {PURGE_MAX_LIMIT}")
+    deleted = _rows("POST", "rpc/goal_job_purge_ended", {"p_limit": limit}, id_only=True)
+    if len(deleted) > limit:
+        raise _bad("POST rpc/goal_job_purge_ended", f"{len(deleted)} ids for a limit of {limit}")
+    return len(deleted)
