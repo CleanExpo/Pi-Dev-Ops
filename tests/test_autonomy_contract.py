@@ -186,6 +186,46 @@ def test_orphan_recovery_label_failure_does_not_block_transition():
         "transition must happen even if label attach fails"
 
 
+def test_orphan_recovery_label_failure_records_reason_and_cause():
+    """RA-8064: a failed attach still records the reason, and says WHY, on the
+    ticket and in the autonomy log — not only "see server log"."""
+    orphan = {
+        "id": "iss-3", "identifier": "RA-777", "title": "x",
+        "comments": {"nodes": [{"body": "Session ID: `aaaabbbb0000`"}]},
+    }
+    comments: list[str] = []
+    events: list[dict] = []
+
+    def fake_gql(api_key, query, variables=None):
+        if "issueLabelCreate" in query:
+            raise RuntimeError("Linear GraphQL error: label name is reserved")
+        if "TeamLabels" in query:
+            return {"team": {"labels": {"nodes": []}}}
+        return {"project": {"issues": {"nodes": [orphan]}}}
+
+    with patch.object(autonomy, "_load_portfolio_projects",
+                      return_value=[{"project_id": "p", "team_id": autonomy._RA_TEAM_ID,
+                                     "repo_url": "x", "name": "n"}]), \
+         patch.object(autonomy, "_gql", side_effect=fake_gql), \
+         patch.object(autonomy, "transition_issue", lambda *a, **k: None), \
+         patch.object(autonomy, "comment_on_issue",
+                      side_effect=lambda k, iid, body: comments.append(body)), \
+         patch.object(autonomy, "_log_event", side_effect=events.append), \
+         patch("app.server.sessions._sessions", {}, create=True):
+        asyncio.run(autonomy._orphan_recovery("k"))
+
+    assert len(comments) == 1
+    body = comments[0]
+    assert "Blocked reason: **session-lost**" in body
+    assert "label name is reserved" in body, "cause must be on the ticket"
+    assert "see server log" not in body
+    failed = [e for e in events if e.get("action") == "orphan_recovery_label_failed"]
+    assert failed and failed[0]["ticket"] == "RA-777"
+    assert failed[0]["reason"] == "session-lost"
+    assert "label name is reserved" in failed[0]["error"]
+    assert "iss-3" not in autonomy._LABEL_ERRORS, "error entry must not leak"
+
+
 # ── Block B — intent + scope passthrough ------------------------------------
 def test_infer_intent_foundation_label_maps_to_feature():
     """Contract: `foundation` → FEATURE (feature)."""

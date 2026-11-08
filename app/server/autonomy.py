@@ -368,12 +368,21 @@ def comment_on_issue(api_key: str, issue_id: str, body: str) -> None:
     _gql(api_key, mutation, {"issueId": issue_id, "body": body})
 
 
+_LABEL_ERRORS: dict[str, str] = {}  # issue id -> why the last attach failed (RA-8064)
+
+
 def _resolve_or_create_label(api_key: str, team_id: str, label_name: str) -> str | None:
     """Resolve a label name to a label id on the given team; create if missing.
 
     Returns the label id or None on failure (caller logs and continues — we do
     NOT block the transition just because label creation fails).
     """
+    return _resolve_or_create_label_detail(api_key, team_id, label_name)[0]
+
+
+def _resolve_or_create_label_detail(api_key: str, team_id: str,
+                                    label_name: str) -> tuple[str | None, str]:
+    """As `_resolve_or_create_label`, plus the failure text when the id is None."""
     query = """
     query TeamLabels($teamId: String!) {
         team(id: $teamId) { labels { nodes { id name } } }
@@ -384,7 +393,7 @@ def _resolve_or_create_label(api_key: str, team_id: str, label_name: str) -> str
         labels = (data.get("team") or {}).get("labels", {}).get("nodes", [])
         for lb in labels:
             if lb.get("name", "").lower() == label_name.lower():
-                return lb.get("id")
+                return lb.get("id"), ""
         # Not found — create it.
         mutation = """
         mutation CreateLabel($teamId: String!, $name: String!, $color: String!) {
@@ -394,14 +403,15 @@ def _resolve_or_create_label(api_key: str, team_id: str, label_name: str) -> str
         """
         created = _gql(api_key, mutation,
                        {"teamId": team_id, "name": label_name, "color": "#EF4444"})
-        return (created.get("issueLabelCreate", {})
-                       .get("issueLabel", {}) or {}).get("id")
+        label_id = ((created.get("issueLabelCreate") or {})
+                    .get("issueLabel") or {}).get("id")
+        return label_id, "" if label_id else "issueLabelCreate returned no label id"
     except LinearRateLimitError:
         raise
     except Exception as exc:
         log.warning("label resolve/create failed (team=%s name=%s): %s",
                     team_id, label_name, exc)
-        return None
+        return None, f"label resolve/create failed: {exc}"
 
 
 def add_label_to_issue(api_key: str, issue_id: str, team_id: str, label_name: str) -> bool:
@@ -410,8 +420,10 @@ def add_label_to_issue(api_key: str, issue_id: str, team_id: str, label_name: st
     Reads current labels first so existing labels are preserved (issueUpdate
     replaces the full set).
     """
-    label_id = _resolve_or_create_label(api_key, team_id, label_name)
+    _LABEL_ERRORS.pop(issue_id, None)
+    label_id, error = _resolve_or_create_label_detail(api_key, team_id, label_name)
     if not label_id:
+        _LABEL_ERRORS[issue_id] = error
         return False
     # Fetch existing label ids so we preserve them.
     fetch = """
@@ -437,6 +449,7 @@ def add_label_to_issue(api_key: str, issue_id: str, team_id: str, label_name: st
     except Exception as exc:
         log.warning("add_label_to_issue failed (issue=%s label=%s): %s",
                     issue_id, label_name, exc)
+        _LABEL_ERRORS[issue_id] = f"issueUpdate failed: {exc}"
         return False
 
 
@@ -613,8 +626,28 @@ def _orphan_completion(issue: dict) -> tuple[bool, bool]:
     return orphan_completion(issue, _BLOCKED_REASON_SESSION_LOST, _ORPHAN_COMMENT_MARKER)
 
 
+def _attach_orphan_label(api_key: str, iid: str, ident: str, team_id: str) -> tuple[bool, str]:
+    """Attach the session-lost reason; on failure say why, in the log and the event file."""
+    if add_label_to_issue(api_key, iid, team_id, _BLOCKED_REASON_SESSION_LOST):
+        return True, ""
+    error = (_LABEL_ERRORS.pop(iid, "") or "no error detail returned")[:300]
+    log.warning("orphan-recovery: reason label not attached to %s: %s", ident, error)
+    _log_event({"action": "orphan_recovery_label_failed", "ticket": ident,
+                "reason": "session-lost", "label": _BLOCKED_REASON_SESSION_LOST,
+                "error": error})
+    return False, error
+
+
+def _label_line(label_ok: bool, label_error: str) -> str:
+    if label_ok:
+        return f"- Label `{_BLOCKED_REASON_SESSION_LOST}` attached.\n"
+    return (f"- Blocked reason: **session-lost**. The label `{_BLOCKED_REASON_SESSION_LOST}` "
+            f"could NOT be attached ({label_error or 'no error detail returned'}), "
+            "so this comment is the reason record until the label is added.\n")
+
+
 def _comment_on_orphan(api_key: str, iid: str, target_state: str,
-                       issue: dict, label_ok: bool) -> bool:
+                       issue: dict, label_ok: bool, label_error: str = "") -> bool:
     changed = False
     if not recovery_comment_present(issue, _gql, api_key, _ORPHAN_COMMENT_MARKER):
         comment_on_issue(
@@ -624,8 +657,7 @@ def _comment_on_orphan(api_key: str, iid: str, target_state: str,
             "longer running (likely a Railway restart or process crash "
             "— in-memory session state did not survive).\n\n"
             f"- Transitioned to `{target_state}`.\n"
-            f"- Label `{_BLOCKED_REASON_SESSION_LOST}` attached "
-            f"({'OK' if label_ok else 'attach failed — see server log'}).\n\n"
+            f"{_label_line(label_ok, label_error)}\n"
             "A human (or the next contract-audit pass) should confirm "
             "state, remove the blocked-reason label, then move back to `Ready for Pi-Dev`.",
         )
@@ -648,12 +680,12 @@ def _recover_orphan_issue(api_key: str, project: dict, issue: dict) -> int:
             record_recovery_attempt(_log_event, _logged_orphan_recoveries,
                                     iid, ident, target_state)
         labelled, _ = _orphan_completion(issue)
-        label_ok = labelled or add_label_to_issue(api_key, iid, team_id,
-                                                  _BLOCKED_REASON_SESSION_LOST)
+        label_ok, label_error = (True, "") if labelled else _attach_orphan_label(
+            api_key, iid, ident, team_id)
         if not already_target and not transition_orphan_issue(
                 transition_issue, _log_event, log, api_key, iid, ident, team_id, target_state):
             return 0
-        changed = _comment_on_orphan(api_key, iid, target_state, issue, label_ok)
+        changed = _comment_on_orphan(api_key, iid, target_state, issue, label_ok, label_error)
         if (not already_target or (not labelled and label_ok) or changed
                 or needs_recovery_success(_AUTONOMY_LOG, _logged_orphan_recoveries, iid, ident)):
             log.info("orphan-recovery: transitioned %s to %s (session-lost)", ident, target_state)
