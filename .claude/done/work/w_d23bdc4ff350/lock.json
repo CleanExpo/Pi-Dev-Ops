@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d23bdc4ff350",
+  "contract_digest": "bbd1fd9228e92affcc0cc553f9df351fd31a92734f186fd57d6d8867485a2c4a",
+  "baseline_head": "cf43e482e847b4feb14f2123107faab29b2a9290",
+  "identity_key": "fix/control-a11y-20261109@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/control-a11y-20261109",
+  "locked_at_utc": "2026-11-08T14:40:53Z",
+  "criteria_count": 4,
+  "recipe_pins": {}
+}

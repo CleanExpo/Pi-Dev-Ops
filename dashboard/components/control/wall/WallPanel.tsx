@@ -25,7 +25,9 @@ export default function WallPanel({ id, title, area, stateText, tone, children }
         <h2 id={id} className={styles.panelTitle}>{title}</h2>
         <span className={styles.state}><Dot tone={tone} />{stateText}</span>
       </header>
-      <div className={styles.panelBody}>{children}</div>
+      {/* tabIndex + name: the body scrolls, so keyboard users must be able to reach it
+          (axe scrollable-region-focusable). */}
+      <div className={styles.panelBody} role="region" aria-label={`${title} content`} tabIndex={0}>{children}</div>
     </section>
   );
 }
