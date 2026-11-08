@@ -182,15 +182,12 @@ def test_heartbeat_between_recovery_read_and_write_wins(
     def interleave(method: str, path: str, data: dict[str, Any] | None = None) -> Any:
         if method == "PATCH" and not fired and "claim_expires_at=lt" in path:
             fired.append(True)
-            # The worker's clock runs behind the recovering server's, so to the worker
-            # its claim is still live and the renewal is legal.
+            # The worker's clock runs ~60 s behind: to it the claim (T0+60) is still live,
+            # and its renewal (T0+117) lands past the recovering server's cutoff (T0+115).
             recovering_now = rest.clock["now"]  # type: ignore[attr-defined]
-            rest.clock["now"] = T0 + timedelta(seconds=30)  # type: ignore[attr-defined]
+            rest.clock["now"] = T0 + timedelta(seconds=57)  # type: ignore[attr-defined]
             assert jobs.heartbeat(job["id"], 1, "mini") is True
             rest.clock["now"] = recovering_now  # type: ignore[attr-defined]
-            # Push the renewed expiry past the recovering server's cutoff, as a renewal
-            # from a slower clock that still lands in the future would.
-            rest.rows[0]["claim_expires_at"] = jobs._iso(recovering_now + timedelta(seconds=60))
         return real(method, path, data)
 
     monkeypatch.setattr(jobs, "_request", interleave)

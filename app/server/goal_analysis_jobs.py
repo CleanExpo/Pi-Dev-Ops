@@ -2,9 +2,10 @@
 
 One row per job in goal_analysis_jobs (migration 20261108T000000). Decisions from
 grill 14-pdo-goal-analyze-async:
-- Q2 fencing: claim() sets attempt to the next number; every later write filters on
-  that attempt and the running status, so a server whose claim was taken over
-  changes nothing (the write returns False and the caller stops).
+- Q2 fencing: claim() sets attempt to the next number; every later worker write goes
+  through _owned() (that attempt, running, claim unexpired, deadline not passed), so a
+  server whose claim lapsed or was taken over changes nothing (the write returns False
+  and the caller stops; a missed heartbeat window ends the attempt).
 - Q2 one retry: an interrupted job can be claimed again once; after that,
   recover_expired() fails it. The table also refuses retry_count above 1.
 - Q3 claim expiry and attempt deadline live on the row.
