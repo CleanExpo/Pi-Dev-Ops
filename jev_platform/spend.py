@@ -8,8 +8,9 @@ that mirror a call store it, so the watcher can tell a mirrored copy from a diff
 
 Path: JEV_SPEND_LEDGER if set, else ~/.local/state/jev/spend.sqlite; resolved on every call, never at import.
 A reserve that cannot be written raises SpendUnrecorded and the caller must not send. A settle never raises:
-the row keeps its reserve, which overcounts (the safe direction). JEV_DAILY_CAP_USD, when set, caps the
-machine's Jev spend per UTC day; unset is uncapped (founder decision 2026-09-28).
+the row keeps its reserve, which overcounts (the safe direction). The machine's Jev spend is capped per UTC
+day at $20 (founder, 28/10/2026); JEV_DAILY_CAP_USD overrides it, and a set-but-empty value raises. A call
+refused before it left the machine is settled "not_sent" at 0.0; a 401/403 is "refused" and keeps its reserve.
 """
 from __future__ import annotations
 
@@ -42,6 +43,25 @@ class SpendCapReached(RuntimeError):
     """JEV_DAILY_CAP_USD would be exceeded; the request must not be sent."""
 
 
+MAX_REQUEST_TOKENS = 64_000  # documented per-request limit (docs/vendor/typesafe/llms-full.txt:13008)
+USD_PER_TOKEN = 0.042 / 1_000_000
+
+
+def valid_tokens(value) -> int | None:
+    """The one settlement validator: a non-bool int in [0, MAX_REQUEST_TOKENS], else None. Anything else (missing,
+    negative, oversized, wrong type) is not believed: the row keeps its reserve with actual NULL, so a settle can
+    never lower the day's total by a lie nor exceed what was reserved."""
+    ok = isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= MAX_REQUEST_TOKENS
+    return value if ok else None
+
+
+def settled(data) -> tuple[str, float | None, int | None]:
+    """(status, actual_usd, input_tokens) for finish(): priced only from a valid reported token count."""
+    usage = (data or {}).get("usage") if isinstance(data, dict) else None
+    tokens = valid_tokens(usage.get("input_tokens") if isinstance(usage, dict) else None)
+    return ("answered", tokens * USD_PER_TOKEN, tokens) if tokens is not None else ("answered", None, None)
+
+
 def ledger_path() -> Path:
     raw = os.environ.get("JEV_SPEND_LEDGER")
     if raw is not None and not raw.strip():
@@ -52,10 +72,15 @@ def ledger_path() -> Path:
     return path
 
 
-def daily_cap() -> float | None:
-    raw = os.environ.get("JEV_DAILY_CAP_USD", "").strip()
-    if not raw:
-        return None
+DEFAULT_DAILY_CAP_USD = 20.0  # founder, 28/10/2026: $20/day hard cap on Jev unless JEV_DAILY_CAP_USD overrides it
+
+
+def daily_cap() -> float:
+    raw = os.environ.get("JEV_DAILY_CAP_USD")
+    if raw is None:
+        return DEFAULT_DAILY_CAP_USD
+    if not raw.strip():
+        raise ValueError("JEV_DAILY_CAP_USD is set but empty")
     cap = float(raw)
     if not math.isfinite(cap) or cap <= 0:
         raise ValueError("JEV_DAILY_CAP_USD must be a positive finite number")

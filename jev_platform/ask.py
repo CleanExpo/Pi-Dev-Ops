@@ -185,10 +185,13 @@ def ask_files(repo: str, paths: list[str], template_ids: list[str], post, budget
         if answers is None:
             results.append({"path": rel, "sha256": digest,
                             "unavailable": sent.get("error", "signal_unavailable:invalid_response")})
+            if sent.get("error") in client.AUTH_ERRORS:  # the key is refused: every later file would be too
+                break
             continue
         results.append({"path": rel, "sha256": digest, "model": str(sent["data"].get("model", "unknown")),
                         "answers": answers, "note": ADVISORY})
-    return {"results": results, "spent_usd": round(budget.spent, 6), "attempts": budget.attempts}
+    return {"results": results, "reserved_usd": round(budget.spent, 6),
+            "actual_usd": round(budget.actual, 6), "attempts": budget.attempts}
 
 
 def approve_entry(repo: str, rel: str) -> dict:

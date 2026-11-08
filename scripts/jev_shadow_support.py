@@ -54,3 +54,26 @@ def link_own_row(ledger: Path, call_id: str, sql: str, params: tuple) -> None:
     with sqlite3.connect(ledger, timeout=30) as db:
         if db.execute(sql, params).rowcount != 1:
             print(f"jev shadow: own ledger has no row for call {call_id} (reset?)", file=sys.stderr)
+
+
+_SPEND_IDS: dict[tuple[str, str], int] = {}  # (ledger, machine call id) -> machine row, settled first
+
+
+def finish_call(ledger: Path, call_id: str, status: str, input_tokens: object = None) -> None:
+    """Settle the machine row, then this ledger best-effort (a failure after a paid reply is logged and the row
+    keeps its reserve), both by call id: a reset mid-call leaves the call that reused the row id untouched.
+
+    input_tokens goes through the one settlement validator (spend.valid_tokens): missing, negative, oversized or
+    mistyped usage leaves actual NULL and the reserve counted, never a settle above the reserve or a lowered total."""
+    tokens = spend.valid_tokens(input_tokens)
+    actual = tokens * spend.USD_PER_TOKEN if tokens is not None else None
+    if (machine := _SPEND_IDS.pop((str(ledger), call_id), None)) is not None:
+        spend.finish(machine, status, actual, tokens, call_id=call_id)
+    try:
+        with sqlite3.connect(ledger, timeout=30) as db:
+            n = db.execute("UPDATE calls SET status=?, input_tokens=?, actual_usd=? WHERE spend_call_id=?",
+                           (status, tokens, actual, call_id)).rowcount
+        if n != 1:
+            print(f"jev shadow: own ledger has no row for call {call_id} (reset?)", file=sys.stderr)
+    except sqlite3.Error as exc:
+        print(f"jev shadow: own ledger settle failed for call {call_id}: {type(exc).__name__}", file=sys.stderr)

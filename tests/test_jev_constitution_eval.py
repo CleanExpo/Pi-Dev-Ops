@@ -137,3 +137,82 @@ def test_a_malformed_noul_is_an_error_never_a_judgment(answer):
                                 post=lambda body, key: (200, {"answers": {"q": answer}}))
     assert status == 200 and noul is None
     assert h.score([{"label": True}], [noul])["errors"] == 1
+
+
+@pytest.mark.parametrize("code", [401, 403])
+def test_a_refused_key_stops_the_run_at_the_first_refusal(workspace, code):
+    write_cases(workspace, make_cases())
+    real = []
+
+    def post(body, key):
+        if key == "real":
+            real.append(1)
+            return code, "refused"
+        return 401, "Missing or invalid API key"
+
+    args = argparse.Namespace(question=None, limit=0, workers=1)
+    assert h.run(args, env={"TYPESAFE_API_KEY": "real"}, post=post) == h.EXIT_BLOCKED
+    assert len(real) == 1
+    assert not (workspace / "results").exists()
+
+
+@pytest.mark.parametrize("code", [401, 403])
+def test_eight_workers_send_exactly_one_request_with_a_refused_key(workspace, code):
+    import time
+
+    write_cases(workspace, make_cases())
+    real = []
+
+    def post(body, key):
+        if key == "real":
+            real.append(1)
+            time.sleep(0.2)
+            return code, "refused"
+        return 401, "Missing or invalid API key"
+
+    args = argparse.Namespace(question=None, limit=0, workers=8)
+    assert h.run(args, env={"TYPESAFE_API_KEY": "real"}, post=post) == h.EXIT_BLOCKED
+    assert len(real) == 1
+
+
+@pytest.mark.parametrize("code", [401, 403])
+def test_a_harness_call_blocked_in_reserve_is_not_sent_after_a_refusal(monkeypatch, code):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    from jev_platform import client, spend
+
+    gate = client.AuthGate()
+    gate.answered()  # past the canary, so workers do run in parallel
+    original, local = spend.reserve_call, threading.local()
+    second_in, release = threading.Event(), threading.Event()
+
+    def reserve_call(caller, amount, call_id=None):
+        if getattr(local, "name", "") == "second":
+            second_in.set()
+            assert release.wait(5)
+        return original(caller, amount, call_id)
+
+    monkeypatch.setattr(spend, "reserve_call", reserve_call)
+    sent = []
+
+    def post(body, key):
+        sent.append(body["state"])
+        return code, "refused"
+
+    def call(name):
+        local.name = name
+        if name == "first":
+            assert second_in.wait(5)
+        out = h.ask_jev(Q, name, "k", post, gate=gate)
+        if name == "first":
+            release.set()
+        return out
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f, s = pool.submit(call, "first"), pool.submit(call, "second")
+        assert f.result(10)[0] == code and s.result(10)[0] == 0
+    assert sent == ["first"]
+    from tests.jev_spend_support import rows
+    assert sorted(r["status"] for r in rows()) == ["not_sent", "refused"]
+    assert [r["actual_usd"] for r in rows() if r["status"] == "not_sent"] == [0.0]

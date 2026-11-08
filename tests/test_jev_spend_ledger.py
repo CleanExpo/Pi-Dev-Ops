@@ -282,7 +282,8 @@ def test_a_machine_cap_stops_the_call_that_would_exceed_it(monkeypatch):
     assert len(posts) == 2
 
 
-def test_unset_cap_is_uncapped():
+def test_a_cap_set_above_the_spend_does_not_bind(monkeypatch):
+    monkeypatch.setenv("JEV_DAILY_CAP_USD", "1000")  # the unset default is now the founder's $20/day
     for _ in range(5):
         spend.reserve("t", 100.0)
     assert len(rows()) == 5

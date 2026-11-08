@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_48c4743dca6b",
+  "contract_digest": "596a17f3ab4cacbbb74edf32a3dc4579444658671f39b7597052740e3f1cc913",
+  "baseline_head": "7f85fbcdb3b388bcf829010df1cff7ea3dcba231",
+  "identity_key": "phillmcgurk/uni-3087-jev-stop-on-401@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/uni-3087",
+  "locked_at_utc": "2026-11-08T05:57:35Z",
+  "criteria_count": 3,
+  "recipe_pins": {}
+}
