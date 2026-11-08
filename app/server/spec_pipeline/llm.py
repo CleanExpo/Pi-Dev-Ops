@@ -103,6 +103,12 @@ async def complete_with_evidence(
         raise Stopped(outcome.error or "llm call stopped")
     if outcome.rc != 0 or not outcome.text.strip():
         raise RuntimeError(outcome.error or "llm call failed")
+    _require_observed_identity(outcome, model_id)
+    return outcome
+
+
+def _require_observed_identity(outcome: provider_router.ProviderExecution, model_id: str | None) -> None:
+    """The one owner of the post-call identity check: only observed identities inform a decision."""
     evidence = outcome.provenance
     actual = evidence.get("actual_model")
     if (evidence.get("auth_verified") is not True or evidence.get("model_verified") is not True
@@ -111,7 +117,6 @@ async def complete_with_evidence(
         raise RuntimeError("spec pipeline model identity or authorization unverified")
     if model_id is not None and model_id.removeprefix("anthropic/") != actual:
         raise RuntimeError("spec pipeline model mismatch: requested identity was not served")
-    return outcome
 
 
 async def complete(
