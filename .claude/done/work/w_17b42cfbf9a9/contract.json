@@ -1,0 +1,21 @@
+{
+  "schema": "done/1",
+  "work_id": "w_17b42cfbf9a9",
+  "version": 1,
+  "supersedes": null,
+  "goal": "Fix three axe failures on /control and /control/boards",
+  "created_at_utc": "2026-11-08T14:34:27Z",
+  "identity_key": "fix/control-a11y-20261109@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/control-a11y-20261109",
+  "baseline_observed": {
+    "head": "bd7d36828c2481b0dae5254f5bb50855c978642a",
+    "branch": "fix/control-a11y-20261109",
+    "dirty_count": 2
+  },
+  "criteria": [
+    {
+      "id": "axe",
+      "text": "axe scrollable-region-focusable, aria-required-children, color-contrast report zero violations on /control and /control/boards (rendered)",
+      "recipe": "true"
+    }
+  ]
+}
