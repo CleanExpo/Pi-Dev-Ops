@@ -16,11 +16,15 @@ import time
 import pytest
 
 from tests import goal_jobs_pg_helpers as pg
-from tests.test_goal_analysis_jobs_pg import (  # noqa: F401  (pytest fixtures by name)
-    _call, _finish, _row, _seen_waiting_on_lock, _shift, admin, db, job, project, svc)
+from tests import test_goal_analysis_jobs_pg as base
 
-import psycopg  # noqa: E402
+import psycopg  # noqa: E402  (after base, whose import applies the skip/require rule)
 from psycopg.rows import dict_row  # noqa: E402
+
+_call, _finish, _row, _seen_waiting_on_lock, _shift = (
+    base._call, base._finish, base._row, base._seen_waiting_on_lock, base._shift)
+# The same pytest fixtures, exposed here by name.
+db, project, admin, svc, job = base.db, base.project, base.admin, base.svc, base.job
 
 WRITES = {
     "finish": lambda c, j: _finish(c, j, 1),
