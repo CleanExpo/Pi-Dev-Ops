@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_baaf8607fd3c",
+  "contract_digest": "39833a490e5b219ea4c787317cac0b7684595a75d914329c50c72738cc28dac6",
+  "baseline_head": "42b0bcc2a5bbaa076f46713ffb6a60860eac16a5",
+  "identity_key": "mesh/phills-mac-mini/ra-7487-7afb6223@/Volumes/Storage Unit/Application-Data/nexus-mesh/pdo-runtime/.git/worktrees/mesh-RA-7487-7afb6223",
+  "locked_at_utc": "2026-11-08T01:36:52Z",
+  "criteria_count": 2,
+  "recipe_pins": {}
+}

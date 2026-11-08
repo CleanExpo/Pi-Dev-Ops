@@ -26,7 +26,23 @@ async function isAuthorised(request: Request): Promise<boolean> {
   return verifySessionToken(sessionTokenFrom(request), SESSION_TTL_SECONDS);
 }
 
+// A browser always sends Origin on a cross-site POST. If it is present it must
+// equal this request's own origin; "null" or a malformed value is refused too.
+// Absent Origin (non-browser client) falls through to the session check.
+function isForeignOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (origin === null) return false;
+  try {
+    return new URL(origin).origin !== new URL(request.url).origin;
+  } catch {
+    return true;
+  }
+}
+
 export async function POST(request: Request): Promise<Response> {
+  if (isForeignOrigin(request)) {
+    return Response.json({ error: "Forbidden origin" }, { status: 403 });
+  }
   if (!(await isAuthorised(request))) {
     return Response.json({ error: "Unauthorised" }, { status: 401 });
   }
