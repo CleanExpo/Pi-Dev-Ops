@@ -2,7 +2,7 @@
 -- Service role only. One function: delete finished and failed jobs 90 days after
 -- ended_at. Active jobs (queued, running, interrupted) are never touched by it.
 -- Decisions:
---   * Same clock rule as 20261108T010000: the cutoff is goal_job_now() minus 90 days.
+--   * Same clock rule as 20261108T010000: the cutoff is goal_job_now() minus 2160 hours (90 days of elapsed time, not calendar days).
 --     No worker time and no other clock appear here (the test in
 --     tests/test_goal_analysis_jobs_pg_lock.py holds this file to it too).
 --   * Why reading the clock before selecting rows is safe here: ended_at is written
@@ -44,7 +44,7 @@ BEGIN
     SELECT j.id
       FROM goal_analysis_jobs AS j
      WHERE j.status IN ('finished', 'failed')
-       AND j.ended_at < v_at - interval '90 days'
+       AND j.ended_at < v_at - interval '2160 hours'  -- 90 x 24 h of elapsed time; a 'days' interval follows the session TimeZone across DST
      ORDER BY j.ended_at
      LIMIT p_limit
        FOR UPDATE SKIP LOCKED)

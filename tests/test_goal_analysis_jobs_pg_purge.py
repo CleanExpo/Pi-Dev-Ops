@@ -8,10 +8,12 @@ test_goal_analysis_jobs_pg.py, which also builds the database from all three mig
 """
 from __future__ import annotations
 
+import re
 import uuid
 
 import pytest
 
+from tests import goal_jobs_pg_helpers as pg
 from tests import test_goal_analysis_jobs_pg as base
 
 import psycopg  # noqa: E402  (after base, whose import applies the skip/require rule)
@@ -125,3 +127,33 @@ def test_anon_and_authenticated_cannot_purge(db, project, admin, role):
         with pytest.raises(errors.InsufficientPrivilege, match=r"permission denied for function goal_job_purge_ended"):
             c.execute("select * from goal_job_purge_ended(10)")
     assert _present(admin, [job]) == {job}
+
+
+_NOW_SQL = ("create or replace function goal_job_now() returns timestamptz language sql volatile "
+            "security invoker set search_path = public, pg_temp as $$ select {} $$")
+
+
+@pytest.mark.parametrize("zone", ["America/Denver", "Australia/Sydney", "UTC"])
+def test_the_cutoff_is_90_days_of_elapsed_time_in_any_session_time_zone(svc, admin, project, zone):
+    """Review r1 P1: `- interval '90 days'` steps calendar days in the session TimeZone, so across a
+    DST change a job 89 d 23 h 30 m old was deleted. The database clock is pinned for this test only."""
+    admin.execute(_NOW_SQL.format("'2026-06-01 18:00:00+00'::timestamptz"))
+    try:
+        young = _make(admin, project, "finished", 1)
+        old = _make(admin, project, "finished", 1)
+        admin.execute("update goal_analysis_jobs set ended_at = %s where id = %s", ("2026-03-03 18:30:00+00", young))
+        admin.execute("update goal_analysis_jobs set ended_at = %s where id = %s", ("2026-03-03 17:30:00+00", old))
+        svc.execute(f"set time zone '{zone}'")
+        deleted = _purge(svc, 1000)
+        assert young not in deleted and old in deleted
+        assert _present(admin, [young, old]) == {young}
+    finally:
+        admin.execute(_NOW_SQL.format("clock_timestamp()"))
+
+
+def test_the_purge_migration_uses_no_calendar_interval():
+    """The kind (calendar arithmetic that follows the session TimeZone) cannot come back by a new interval."""
+    code = "\n".join(line.split("--", 1)[0] for line in
+                     (pg.MIGRATIONS / pg.FILES[-1]).read_text(encoding="utf-8").splitlines())
+    assert "goal_job_purge_ended" in code  # positive control: this is the purge migration
+    assert not re.search(r"interval\s+'[^']*\b(day|days|week|weeks|month|months|year|years)\b", code, re.I)
