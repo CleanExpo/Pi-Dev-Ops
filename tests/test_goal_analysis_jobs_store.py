@@ -221,11 +221,14 @@ def test_deadline_passed_is_recovered_even_with_fresh_heartbeat(rest: FakeRest) 
     assert jobs.recover_expired() == [job["id"]]
 
 
-def test_only_links_are_stored_as_evidence(rest: FakeRest) -> None:
+@pytest.mark.parametrize("link", [
+    "raw source text pasted here", "https://example.com\nRAW_SOURCE_TEXT", "https://example.com\tx", "https://example.com\rx",
+    "https://exa\x00mple.com", " https://example.com", "https://", "ftp://example.com", "example.com"])
+def test_evidence_must_be_one_clean_link(rest: FakeRest, link: str) -> None:
     job = _submit()
     jobs.claim(job["id"], "mini")
     with pytest.raises(ValueError):
-        jobs.finish(job["id"], 1, {"drafts": []}, ["raw source text pasted here"])
+        jobs.finish(job["id"], 1, {"drafts": []}, [link])
     assert rest.rows[0]["status"] == "running"
 
 

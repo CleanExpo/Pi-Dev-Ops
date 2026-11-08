@@ -20,6 +20,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.error import HTTPError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from .supabase_log import _q
@@ -188,6 +189,15 @@ def claim(job_id: str, server: str) -> int | None:
     return old + 1 if changed else None
 
 
+def _is_link(link: Any) -> bool:
+    """Allow-list: one plain http(s) URL with a host. The raw string is checked BEFORE parsing,
+    because urlsplit silently drops tabs and newlines and would let embedded text through."""
+    if not isinstance(link, str) or not link or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in link):
+        return False
+    parts = urlsplit(link)
+    return parts.scheme in ("http", "https") and bool(parts.hostname)
+
+
 def _fenced(job_id: str, attempt: int) -> str:
     return f"id=eq.{_q(job_id)}&attempt=eq.{int(attempt)}&status=eq.running"
 
@@ -215,7 +225,7 @@ def finish(job_id: str, attempt: int, result: dict[str, Any], evidence_links: li
     if not isinstance(result, dict):
         raise ValueError("result must be an object")
     for link in evidence_links:
-        if not (isinstance(link, str) and link.startswith(("https://", "http://")) and " " not in link):
+        if not _is_link(link):
             raise ValueError("evidence must be links, never source text")
     now = _now()
     return bool(_rows("PATCH", _owned(job_id, attempt, now), {
