@@ -57,7 +57,8 @@ def goal_sha256(goal: str, acceptance: str) -> str:
     return hashlib.sha256(json.dumps(parts).encode("utf-8")).hexdigest()
 
 
-def _request(method: str, path: str, data: dict[str, Any] | None = None) -> Any:
+def _request(method: str, path: str, data: dict[str, Any] | None = None) -> bytes:
+    """Raw response bytes. Never parsed here: _rows() is the only reader of a reply."""
     from .supabase_log import _cfg
 
     url, key = _cfg()
@@ -73,7 +74,7 @@ def _request(method: str, path: str, data: dict[str, Any] | None = None) -> Any:
     )
     try:
         with urlopen(req, timeout=8) as resp:
-            return json.loads(resp.read() or b"[]")
+            return resp.read()
     except HTTPError as exc:
         code = {404: "table_missing", 409: "conflict"}.get(exc.code, "request_failed")
         raise GoalJobStoreError(code, f"{method} {_TABLE} failed with HTTP {exc.code}.") from exc
@@ -81,18 +82,46 @@ def _request(method: str, path: str, data: dict[str, Any] | None = None) -> Any:
         raise GoalJobStoreError("request_failed", f"{method} {_TABLE} could not reach Supabase.") from exc
 
 
-def _rows(method: str, query: str, data: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    body = _request(method, f"{_TABLE}?{query}", data)
+_STATUSES = {"queued", "running", "finished", "failed", "interrupted"}
+
+
+def _bad(method: str, what: str) -> GoalJobStoreError:
+    return GoalJobStoreError("bad_response", f"{method} {_TABLE} returned {what}.")
+
+
+def _job_row(row: Any, method: str) -> dict[str, Any]:
+    if not isinstance(row, dict) or not isinstance(row.get("id"), str):
+        raise _bad(method, "a row without an id")
+    attempt, retries = row.get("attempt"), row.get("retry_count")
+    if (row.get("status") not in _STATUSES or type(attempt) is not int or attempt < 0
+            or type(retries) is not int or retries not in (0, 1)):
+        raise _bad(method, "a row without a valid status, attempt or retry count")
+    return row
+
+
+def _rows(method: str, query: str, data: dict[str, Any] | None = None,
+          id_only: bool = False) -> list[dict[str, Any]]:
+    """The one reader of every reply. Empty, non-JSON, non-list or incomplete rows all raise,
+    so a failed or truncated read can never look like "no job" or "nothing to recover"."""
+    raw = _request(method, f"{_TABLE}?{query}", data)
+    if not raw:
+        raise _bad(method, "an empty body")
+    try:
+        body = json.loads(raw)
+    except ValueError as exc:
+        raise _bad(method, "a body that is not JSON") from exc
     if not isinstance(body, list):
-        raise GoalJobStoreError("bad_response", f"{method} {_TABLE} returned no row list.")
-    if not all(isinstance(row, dict) for row in body):
-        raise GoalJobStoreError("bad_response", f"{method} {_TABLE} returned a malformed row.")
-    return body
+        raise _bad(method, "no row list")
+    if id_only:
+        if not all(isinstance(r, dict) and isinstance(r.get("id"), str) for r in body):
+            raise _bad(method, "a row without an id")
+        return body
+    return [_job_row(r, method) for r in body]
 
 
 def table_present() -> bool:
     try:
-        _rows("GET", "select=id&limit=1")
+        _rows("GET", "select=id&limit=1", id_only=True)
     except GoalJobStoreError as exc:
         if exc.code == "table_missing":
             return False
@@ -109,7 +138,7 @@ def _active_for(project_id: str, sha: str) -> dict[str, Any] | None:
     query = (f"project_id=eq.{_q(project_id)}&goal_sha256=eq.{sha}"
              "&status=in.(queued,running,interrupted)&order=created_at.desc")
     for row in _rows("GET", query):
-        if row.get("status") != "interrupted" or int(row.get("retry_count") or 0) < 1:
+        if row["status"] != "interrupted" or row["retry_count"] < 1:
             return row
     return None
 
@@ -142,12 +171,12 @@ def claim(job_id: str, server: str) -> int | None:
     row = get(job_id)
     if row is None:
         return None
-    status, retries = row.get("status"), int(row.get("retry_count") or 0)
+    status, retries = row["status"], row["retry_count"]
     if status == "interrupted" and retries < 1:
         retries = 1
     elif status != "queued":
         return None
-    old, now = int(row.get("attempt") or 0), _now()
+    old, now = row["attempt"], _now()
     changed = _rows("PATCH", f"id=eq.{_q(job_id)}&attempt=eq.{old}&status=eq.{status}", {
         "status": "running", "attempt": old + 1, "retry_count": retries, "claimed_by": server,
         "claim_expires_at": _iso(now + timedelta(seconds=CLAIM_SECONDS)),
@@ -197,12 +226,12 @@ def recover_expired() -> list[str]:
             found.setdefault(str(row["id"]), (column, row))
     recovered: list[str] = []
     for job_id, (column, row) in found.items():
-        if int(row.get("retry_count") or 0) < 1:
+        if row["retry_count"] < 1:
             change = {"status": "interrupted", "claimed_by": None, "claim_expires_at": None}
         else:
             change = {"status": "failed", "failure_reason": "interrupted after its one retry",
                       "ended_at": _iso(_now()), "claim_expires_at": None}
-        still_expired = f"{_fenced(job_id, int(row.get('attempt') or 0))}&{column}=lt.{cutoff}"
+        still_expired = f"{_fenced(job_id, row['attempt'])}&{column}=lt.{cutoff}"
         if _rows("PATCH", still_expired, change):
             recovered.append(job_id)
     return recovered

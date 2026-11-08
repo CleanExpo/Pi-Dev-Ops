@@ -24,7 +24,10 @@ class FakeRest:
         self.rows: list[dict[str, Any]] = []
         self.missing = False
 
-    def __call__(self, method: str, path: str, data: dict[str, Any] | None = None) -> Any:
+    def __call__(self, method: str, path: str, data: dict[str, Any] | None = None) -> bytes:
+        return json.dumps(self._handle(method, path, data)).encode()
+
+    def _handle(self, method: str, path: str, data: dict[str, Any] | None) -> Any:
         if self.missing:
             raise jobs.GoalJobStoreError("table_missing", "no table")
         table, _, query = path.partition("?")
@@ -185,13 +188,21 @@ def test_heartbeat_between_recovery_read_and_write_wins(
     assert fired and rest.rows[0]["status"] == "running"
 
 
-def test_malformed_row_is_an_error_not_no_job(
-        rest: FakeRest, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(jobs, "_request", lambda *_a, **_k: [None])
+@pytest.mark.parametrize("reply", [
+    b"", b"oops", b"{}", b"null", b"[null]", b'[{"id": 1}]',
+    b'[{"id": "x"}]', b'[{"id": "x", "status": "running", "attempt": "1", "retry_count": 0}]',
+    b'[{"id": "x", "status": "running", "attempt": 1, "retry_count": 2}]',
+])
+def test_a_bad_reply_is_an_error_never_no_job(
+        rest: FakeRest, monkeypatch: pytest.MonkeyPatch, reply: bytes) -> None:
+    monkeypatch.setattr(jobs, "_request", lambda *_a, **_k: reply)
     with pytest.raises(jobs.GoalJobStoreError):
         jobs.get("00000000-0000-0000-0000-000000000000")
     with pytest.raises(jobs.GoalJobStoreError):
-        jobs.table_present()
+        jobs.recover_expired()
+    if reply in (b"", b"oops", b"{}", b"null", b"[null]", b'[{"id": 1}]'):
+        with pytest.raises(jobs.GoalJobStoreError):
+            jobs.table_present()
 
 
 def test_deadline_passed_is_recovered_even_with_fresh_heartbeat(rest: FakeRest) -> None:
