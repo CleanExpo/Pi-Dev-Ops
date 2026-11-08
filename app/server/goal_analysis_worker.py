@@ -9,6 +9,12 @@ Rules, from the plan and the store (goal_analysis_jobs.py):
 - No placeholder fallback: a failed analysis is recorded failed, with a reason.
 - recovery_loop runs recover_expired() and re-launches runnable jobs, so a server kill
   mid-run (or before the claim) ends in one retry, then a recorded failure.
+- The model call runs in a thread owned by goal_analysis_slots; the concurrency slot and
+  the live-job registry are released only when that thread's call returns (read that
+  module's docstring). Named limit: provider_execution does not forward stop to HTTP
+  providers such as Ollama, so only claude_print and codex can be stopped. Async analysis
+  refuses to run on any other provider and records the job failed with that reason; a
+  call that ignores stop still keeps its slot until it returns and recovery waits for it.
 - Startup probes table_present(). If the table is missing, async stays unavailable.
 """
 from __future__ import annotations
@@ -22,10 +28,12 @@ import threading
 from typing import Any, Awaitable, Callable
 
 from . import goal_analysis_jobs as jobs
+from . import goal_analysis_slots as slots
 from .goal_analyze import _MAX_TOKENS, _SYSTEM, cleaned_drafts, render_analyze_prompt
 from .goal_analyze_fields import analysis_overlay, parse_analyze_payload
 from .goal_projects import get_project
 from .spec_pipeline import llm
+from .provider_router import select_provider_model
 
 log = logging.getLogger("pi-ceo.goal_analysis_worker")
 
@@ -36,7 +44,6 @@ _MODEL_BUDGET_S = 240.0  # inside the 300 s attempt deadline
 SERVER_ID = f"{socket.gethostname()}:{os.getpid()}"
 _state = {"available": False, "reason": "async goal analysis has not been probed yet"}
 _tasks: set[asyncio.Task[Any]] = set()
-_running = 0  # slots in use; touched only on the event loop
 
 
 def enabled() -> bool:
@@ -81,31 +88,41 @@ async def _beat(lease: _Lease) -> None:
 
 
 async def _end_model(lease: _Lease, model: asyncio.Future[Any]) -> None:
-    """Every exit path (done, failed, timed out, cancelled): set stop, then give the model
-    call up to MODEL_END_S to end, so no model thread outlives its attempt. Cancelling the
-    task does not stop a model call running in a worker thread; only the stop event does."""
+    """Every exit path (done, failed, timed out, cancelled): set stop, then wait up to
+    MODEL_END_S for the model call. The wait may give up; the slot and the job's registry
+    entry stay with the model thread until it returns, so giving up releases nothing."""
     if not model.done():
         lease.stop.set()
         await asyncio.wait({model}, timeout=MODEL_END_S)
     if not model.done():
-        log.error("goal job %s: the model call did not end within %.0f s of stop", lease.job_id, MODEL_END_S)
-        model.cancel()
+        log.error("goal job %s: the model call ignored stop for %.0f s; its slot stays held until it returns",
+                  lease.job_id, MODEL_END_S)
     elif not model.cancelled():
         model.exception()  # retrieved so a Stopped result is never logged as unretrieved
 
 
-async def _analyse(lease: _Lease, complete_fn: Callable[..., Awaitable[Any]] | None) -> dict[str, Any]:
+def _require_stoppable_provider() -> None:
+    """Named limit: refuse a provider whose call cannot be stopped (Ollama and other HTTP transports)."""
+    provider = select_provider_model("goal_analyst", record_observation=False).provider
+    if provider not in ("claude_print", "codex"):
+        raise RuntimeError(f"provider {provider} cannot be stopped; async goal analysis needs claude_print or codex")
+
+
+async def _analyse(lease: _Lease, complete_fn: Callable[..., Awaitable[Any]] | None,
+                   slot: slots.Slot | None = None) -> dict[str, Any]:
     job = await asyncio.to_thread(jobs.get, lease.job_id)
     if job is None:
         raise RuntimeError("the job row is missing")
     project = await asyncio.to_thread(get_project, job["project_id"])
     if not project:
         raise RuntimeError("the project brief is missing")
+    if complete_fn is None:
+        await asyncio.to_thread(_require_stoppable_provider)
     goal, acceptance = job["goal"], job["acceptance"]
     call = functools.partial(complete_fn or llm.complete, stop=lease.stop)
-    model = asyncio.ensure_future(call(
+    model = slots.run_in_thread(lambda: call(
         prompt=render_analyze_prompt(goal, acceptance, project), system=_SYSTEM,
-        role="goal_analyst", max_tokens=_MAX_TOKENS))
+        role="goal_analyst", max_tokens=_MAX_TOKENS), slot, asyncio.get_running_loop())
     try:
         text, cost = await asyncio.wait_for(asyncio.shield(model), timeout=_MODEL_BUDGET_S)
     except TimeoutError:
@@ -138,7 +155,7 @@ async def _write(lease: _Lease, what: str, fn: Callable[..., bool], *args: Any) 
 
 async def run_job(job_id: str, *, server: str | None = None,
                   complete_fn: Callable[..., Awaitable[Any]] | None = None,
-                  heartbeat_s: float = HEARTBEAT_S) -> str:
+                  heartbeat_s: float = HEARTBEAT_S, slot: slots.Slot | None = None) -> str:
     """Run one claimed attempt. Returns finished, failed, abandoned, unrecorded or not_claimed."""
     server = server or SERVER_ID
     attempt = await asyncio.to_thread(jobs.claim, job_id, server)
@@ -148,7 +165,7 @@ async def run_job(job_id: str, *, server: str | None = None,
     beat = asyncio.create_task(_beat(lease))
     try:
         try:
-            result = await _analyse(lease, complete_fn)
+            result = await _analyse(lease, complete_fn, slot)
         except Exception as exc:  # llm.Stopped included; CancelledError is a kill and writes nothing
             if lease.lost:
                 return "abandoned"
@@ -161,29 +178,19 @@ async def run_job(job_id: str, *, server: str | None = None,
         beat.cancel()
 
 
-def max_concurrent() -> int:
-    """Model runs at once in this process, read live like the switch. Default 2."""
-    try:
-        return max(1, int(os.environ.get("GOAL_ANALYZE_MAX_CONCURRENT", "2")))
-    except ValueError:
-        return 2
-
-
 def launch(job_id: str) -> bool:
-    """Start run_job in the background if a slot is free. The slot is taken BEFORE the claim,
-    so a deferred job stays queued (unclaimed, so it cannot expire) until a later recovery
-    pass. A second launch for the same job loses the claim."""
-    global _running
-    if _running >= max_concurrent():
+    """Start run_job in the background if a slot is free and the job has no live model
+    thread. The slot is taken BEFORE the claim, so a deferred job stays queued (unclaimed,
+    so it cannot expire) until a later recovery pass. False means not started."""
+    slot = slots.take(job_id)
+    if slot is None:
         return False
-    _running += 1
 
     async def held() -> None:
-        global _running
         try:
-            await run_job(job_id)
+            await run_job(job_id, slot=slot)
         finally:
-            _running -= 1
+            slot.release_if_not_handed_off()  # never the model thread's slot
 
     task = asyncio.get_running_loop().create_task(held())
     _tasks.add(task)
@@ -195,6 +202,8 @@ async def recover_once() -> None:
     for job_id in await asyncio.to_thread(jobs.recover_expired):
         log.warning("goal job %s was interrupted or failed by recovery", job_id)
     for job_id in await asyncio.to_thread(jobs.runnable_ids):
+        if slots.is_live(job_id):
+            continue  # its model thread has not returned: never start another attempt
         if not launch(job_id):
             break  # no free slot: the rest stay queued for the next pass
 

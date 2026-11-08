@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from app.server import goal_analysis_jobs as jobs, goal_analysis_worker as worker
+from app.server import goal_analysis_jobs as jobs, goal_analysis_slots as slots, goal_analysis_worker as worker
 from app.server.routes import goal_ticket_async
 from app.server.spec_pipeline import llm
 from tests import goal_worker_helpers as h
@@ -119,14 +119,15 @@ class Gate(Model):
 
     def __init__(self) -> None:
         super().__init__()
-        self.open, self.running, self.peak = asyncio.Event(), 0, 0
+        self.open, self.running, self.peak = threading.Event(), 0, 0
 
     async def __call__(self, *, prompt: str, system: str, role: str, max_tokens: int,
                        stop: threading.Event) -> tuple[str, float]:
         self.running += 1
         self.peak = max(self.peak, self.running)
-        try:
-            await self.open.wait()
+        try:  # runs on the model thread's own loop, so poll a thread event
+            while not self.open.is_set():
+                await asyncio.sleep(0.01)
         finally:
             self.running -= 1
         return PLAN, 0.0
@@ -150,4 +151,62 @@ async def test_backlog_above_the_limit_runs_at_most_n_and_defers_the_rest(
         await worker.recover_once()
     await asyncio.gather(*worker._tasks)
     assert [_row(rest, i)["status"] for i in ids] == ["finished"] * 5
-    assert gate.peak == 2 and worker._running == 0
+    assert gate.peak == 2 and slots._running == 0
+
+
+class Stubborn(Model):
+    """A NON-cooperative model call: it ignores stop and blocks on an event the test controls,
+    like a blocking provider thread (e.g. an HTTP provider that never forwards stop)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.release, self.alive, self.peak = threading.Event(), 0, 0
+
+    async def __call__(self, *, prompt: str, system: str, role: str, max_tokens: int,
+                       stop: threading.Event) -> tuple[str, float]:
+        self.calls += 1
+        self.alive += 1
+        self.peak = max(self.peak, self.alive)
+        try:
+            self.release.wait()  # blocks this model thread; stop is ignored on purpose
+        finally:
+            self.alive -= 1
+        return PLAN, 0.0
+
+
+async def test_kill_with_a_model_that_ignores_stop_never_overlaps_attempts(
+        rest: FakeRest, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(worker, "MODEL_END_S", 0.05)
+    stubborn = Stubborn()
+    monkeypatch.setattr(llm, "complete", stubborn)
+    monkeypatch.setattr(worker, "_require_stoppable_provider", lambda: None)
+    job_id = _queued()
+    assert worker.launch(job_id)
+    await _until(lambda: stubborn.calls == 1)
+    for task in list(worker._tasks):  # kill attempt 1: the coroutine goes, the model thread cannot
+        task.cancel()
+    await asyncio.gather(*worker._tasks, return_exceptions=True)
+    assert stubborn.alive == 1 and slots._running == 1 and slots.is_live(job_id)  # slot not released
+    rest.advance(CLAIM + MARGIN + 1)
+    await worker.recover_once()
+    await asyncio.sleep(0.2)
+    assert _row(rest, job_id)["status"] == "interrupted"  # recovery ran, but...
+    assert stubborn.calls == 1 and stubborn.peak == 1  # ...attempt 2 did not start
+    stubborn.release.set()  # thread 1 finally returns; only now may the job run again
+    await _until(lambda: slots._running == 0 and not slots.is_live(job_id))
+    await worker.recover_once()
+    await asyncio.gather(*worker._tasks)
+    row = _row(rest, job_id)
+    assert row["status"] == "finished" and row["attempt"] == 2
+    assert stubborn.calls == 2 and stubborn.peak == 1
+
+
+async def test_async_analysis_refuses_a_provider_that_cannot_be_stopped(
+        rest: FakeRest, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.server import provider_router
+    monkeypatch.setattr(worker, "select_provider_model",
+                        lambda role, **kw: provider_router.ProviderModel("ollama", "llama3", "cheap", role, "default"))
+    job_id = _queued()
+    assert await worker.run_job(job_id, heartbeat_s=1000) == "failed"
+    reason = _row(rest, job_id)["failure_reason"]
+    assert "cannot be stopped" in reason and "ollama" in reason

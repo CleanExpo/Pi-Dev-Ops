@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from app.server import goal_analysis_jobs as jobs, goal_analysis_worker as worker
+from app.server import goal_analysis_jobs as jobs, goal_analysis_slots as slots, goal_analysis_worker as worker
 from app.server.routes import goal_ticket_async
 from app.server.spec_pipeline import llm
 from tests.goal_jobs_helpers import FakeRest
@@ -49,7 +49,8 @@ class Model:
 
 @pytest.fixture(autouse=True)
 def _fresh_slots(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(worker, "_running", 0)
+    monkeypatch.setattr(slots, "_running", 0)
+    monkeypatch.setattr(slots, "_live", set())
     monkeypatch.setattr(worker, "_tasks", set())
 
 

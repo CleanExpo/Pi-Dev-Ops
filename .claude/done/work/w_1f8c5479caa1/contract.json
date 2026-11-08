@@ -1,0 +1,34 @@
+{
+  "schema": "done/1",
+  "work_id": "w_1f8c5479caa1",
+  "version": 2,
+  "supersedes": "w_49bfaf533e7b",
+  "goal": "UNI-3306 PR2 r2: model thread owns slot and job",
+  "created_at_utc": "2026-11-08T13:31:00Z",
+  "identity_key": "phillmcgurk/uni-3306-worker@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-worker",
+  "baseline_observed": {
+    "head": "e1eaa685aa892decc3a819e61fb66273d977d48d",
+    "branch": "phillmcgurk/uni-3306-worker",
+    "dirty_count": 4
+  },
+  "criteria": [
+    {
+      "id": "worker-tests",
+      "text": "both worker test files pass",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python\" -m pytest -p no:cacheprovider --basetemp /private/tmp/claude-501/bt20 tests/test_goal_analysis_worker.py tests/test_goal_analysis_worker_limits.py -q",
+      "timeout": 300
+    },
+    {
+      "id": "existing-tests",
+      "text": "store and goal ticket tests pass",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python\" -m pytest -p no:cacheprovider --basetemp /private/tmp/claude-501/bt21 tests/test_goal_analysis_jobs_store.py tests/test_goal_ticket.py -q",
+      "timeout": 300
+    },
+    {
+      "id": "import-smoke",
+      "text": "app.server.main imports",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python\" -c \"from app.server.main import app\"",
+      "timeout": 120
+    }
+  ]
+}
