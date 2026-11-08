@@ -73,14 +73,17 @@ def test_nothing_is_sent_after_the_deadline(monkeypatch, recorder):
 def test_a_permanently_stuck_call_never_blocks_the_next(monkeypatch, recorder):
     """Review round 9 P1-JEV-DNS-PERMANENT-STARVATION: a lookup that never returned held the slot."""
     url, _ = recorder
+    real_deadline, real_child = jev_transport.JEV_DEADLINE_S, jev_transport._CHILD
     monkeypatch.setattr(jev_transport, "JEV_DEADLINE_S", 0.3)
-    real_child = jev_transport._CHILD
     _delayed_child(monkeypatch, 3600)
     started = time.monotonic()
     with pytest.raises(TimeoutError):
         _call(url)
     assert time.monotonic() - started < 0.3 + 1.2
     assert not jev_transport._IN_FLIGHT.locked() and not jev_transport._CHILDREN
+    # The next call runs at the real deadline: 0.3s is only for the stalled one. Left at
+    # 0.3s, a child that is merely slow to start on a loaded machine timed out (06/11/2026).
+    monkeypatch.setattr(jev_transport, "JEV_DEADLINE_S", real_deadline)
     monkeypatch.setattr(jev_transport, "_CHILD", real_child)
     assert _call(url) == {"ok": True}, "the next call must reach Jev, not fail with JevBusy"
 

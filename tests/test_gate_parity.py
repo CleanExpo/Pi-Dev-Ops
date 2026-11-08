@@ -78,8 +78,8 @@ MATRIX = [
     # actual fix. The SDK gate now consults `classify` as a backstop, so both gates
     # deny every L3 signature and these rows join the shared-L3 block above in
     # substance.
-    ("Bash", {"command": "git merge origin/main"}, ladder.TIER_IRREVERSIBLE, True, True,
-     "git merge: both deny (was the SDK gap)"),
+    ("Bash", {"command": "git merge origin/main"}, ladder.TIER_LOCAL, False, False,
+     "local git merge: L1 on both, like rebase (gh pr merge / protected push land work)"),
     ("Bash", {"command": "gh secret set K --body v"}, ladder.TIER_IRREVERSIBLE, True, True,
      "secret set: both deny (was the SDK gap)"),
 
@@ -93,8 +93,8 @@ MATRIX = [
      "-C read-only: L1 not L0, READ_ONLY is deliberately not normalised"),
     ("Bash", {"command": "git -C /repo push origin feat/x"}, ladder.TIER_OUTWARD, False, False,
      "-C L2 feat push"),
-    ("Bash", {"command": "git -C /repo merge origin/main"}, ladder.TIER_IRREVERSIBLE, True, True,
-     "-C git merge: both deny (mirrors the un-prefixed row)"),
+    ("Bash", {"command": "git -C /repo merge origin/main"}, ladder.TIER_LOCAL, False, False,
+     "-C git merge: L1 on both (mirrors the un-prefixed row)"),
     ("Bash", {"command": "git -C /repo reset --hard"}, ladder.TIER_LOCAL, True, False,
      "-C reset --hard: SDK-deny, CLI-pass (mirrors rm -rf)"),
     ("Bash", {"command": "git --work-tree=/repo clean -fdx"}, ladder.TIER_LOCAL, True, False,
@@ -153,7 +153,6 @@ _P = "m" "ain"
 _AL = "ali" "as"
 
 L3_CORPUS = [
-    "git " + "merge" + " feature/x",
     "gh pr " + "merge" + " 123",
     "git " + "push" + " origin " + _P,
     "git " + "push" + " --force origin " + _P,

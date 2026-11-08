@@ -183,28 +183,34 @@ if [ "$MODE_QUICK" = 1 ]; then skip "tests" "--quick"
 else
   if [ -d tests ]; then
     # RA-7528: this hung 6+ minutes on 2026-09-11 (a genuine thread-lock wait,
-    # root cause never identified) when re-run inside the pre-push hook, though
-    # the same command finished in well under 90s moments earlier in the same
-    # session. No `timeout`/`gtimeout` binary is available on this machine, so
-    # bound it with the portable perl-alarm idiom instead of a new dependency —
-    # The bound is double the observed worst-case clean run, so a legitimate slow
-    # run has headroom while a genuine hang still fails loud rather than hanging
-    # indefinitely. Raised 180s -> 420s on 2026-10-02: the suite grew to ~6,980
-    # tests and a clean run took 184-215s, so the old bound killed passing runs
-    # (rc=142 at 87% with no failure) and blocked every receipt. The jev suite
-    # (feat/jev-constitution-eval) measured 170-185s on 30/09/2026, inside it.
-    # RA-8171 (04/11/2026): a fixed 420s still killed clean runs at ~89% on a
-    # 10-core machine at load 11-14 from other agents' suites. The bound now
-    # scales as 420 x max(1, load1/cpus), capped at 1500s, so a hang still dies.
-    # No env override by design. If the helper fails, the old 420s applies.
+    # root cause never identified) when re-run inside the pre-push hook. No
+    # `timeout`/`gtimeout` binary is available on this machine, so it is bounded
+    # with the portable perl-alarm idiom instead of a new dependency.
+    # The bound comes from measurement, not a constant. 180s, then 420s, then
+    # RA-8171's load scaling over 420s were each a guess the suite outgrew, and
+    # each blocked every receipt by killing clean runs (rc=142, no failure).
+    # After every CLEAN run below, its wall seconds go to
+    # ~/.receipts/pi-dev-ops/pytest-last-clean-seconds (per machine, outside any
+    # worktree, written atomically). The base is max(420, ceil(1.5 x recorded));
+    # no record or a bad one means 420. RA-8171 scaling still applies on top,
+    # base x max(1, load1/cpus), and 1500s caps everything so a hang still dies.
+    # A failed or timed-out run never writes the record. No env override by
+    # design. If the helper fails, the old 420s applies.
+    # >>> pytest-limit
     PYTEST_LIMIT=420; PYTEST_LIMIT_WHY="helper unavailable, using base"
     if read -r _lim _why < <("$PY" scripts/pytest_time_limit.py 2>>"$LOG") \
        && [[ "$_lim" =~ ^[0-9]+$ ]] && [ "$_lim" -ge 420 ] && [ "$_lim" -le 1500 ]; then
       PYTEST_LIMIT="$_lim"; PYTEST_LIMIT_WHY="$_why"
     fi
     log ""; log "   tests-python time limit: ${PYTEST_LIMIT}s ($PYTEST_LIMIT_WHY)"
+    _pass_before=$PASS; _t0=$SECONDS
     [ "$PY_OK" = 1 ] && gate "tests-python" perl -e 'alarm shift; exec @ARGV' "$PYTEST_LIMIT" "$PY" -m pytest tests/ -q \
       || { [ "$PY_OK" = 1 ] || skip "tests-python" "python deps absent"; }
+    if [ "$PASS" -gt "$_pass_before" ]; then
+      "$PY" scripts/pytest_time_limit.py record "$((SECONDS - _t0))" >>"$LOG" 2>&1 \
+        || log "   (could not record clean pytest seconds; next limit uses the old record)"
+    fi
+    # <<< pytest-limit
   fi
   # CI runs `pytest swarm/` as its own step; this runner never did.
   if [ -d swarm ]; then

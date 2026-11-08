@@ -1,0 +1,12 @@
+{
+  "schema": "done/1",
+  "work_id": "w_a22150b4d627",
+  "contract_digest": "b452e78faaeba2f6195313619f89db55d39642eb435146d7b0da58631e3f4435",
+  "baseline_head": "be518374d6abae8f241956979792e2ad82da6b3f",
+  "identity_key": "fix/ra-7559-untrack-done-runtime-state@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/fix-ra-7559-untrack-done-runtime-state",
+  "locked_at_utc": "2026-11-06T07:17:35Z",
+  "criteria_count": 6,
+  "recipe_pins": {
+    "work/w_a22150b4d627/checks.sh": "b442eaac732fb11751a0054b373c62d36f2271d027c2fd1cdc7f7cba137736b8"
+  }
+}

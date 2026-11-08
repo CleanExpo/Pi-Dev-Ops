@@ -1,0 +1,31 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d6703489cd3e",
+  "version": 1,
+  "supersedes": null,
+  "goal": "handoff gate pytest limit derives from measured clean runtime: base=max(420,ceil(1.5*recorded)) capped 1500, record written only on clean pass",
+  "created_at_utc": "2026-11-06T01:11:32Z",
+  "identity_key": "fix/handoff-pytest-limit-from-measured-runtime@/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.git/worktrees/Pi-Dev-Ops---Mission-Control-942ba8b67016832f11",
+  "baseline_observed": {
+    "head": "04e91d6ef4f0173e3646571776dfe19190cc0b1e",
+    "branch": "fix/handoff-pytest-limit-from-measured-runtime",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "time-limit tests pass",
+      "recipe": "/Users/phillmcgurk/.gui-cloudroom/plugins/environment-git-worktree/host-data/worktrees/thr_6jz2r2ixkw-1/Pi-Dev-Ops---Mission-Control-942ba8b67016832f/.venv/bin/python -m pytest tests/test_pytest_time_limit.py -q"
+    },
+    {
+      "id": "C2",
+      "text": "coverage_check tests pass on this Mac",
+      "recipe": "/Users/phillmcgurk/.gui-cloudroom/plugins/environment-git-worktree/host-data/worktrees/thr_6jz2r2ixkw-1/Pi-Dev-Ops---Mission-Control-942ba8b67016832f/.venv/bin/python -m pytest tests/test_coverage_check.py -q"
+    },
+    {
+      "id": "C3",
+      "text": "handoff gate syntax valid",
+      "recipe": "/bin/bash -n /Users/phillmcgurk/.gui-cloudroom/plugins/environment-git-worktree/host-data/worktrees/thr_6jz2r2ixkw-1/Pi-Dev-Ops---Mission-Control-942ba8b67016832f/scripts/handoff-loop.sh"
+    }
+  ]
+}
