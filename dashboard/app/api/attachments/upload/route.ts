@@ -26,7 +26,26 @@ async function isAuthorised(request: Request): Promise<boolean> {
   return verifySessionToken(sessionTokenFrom(request), SESSION_TTL_SECONDS);
 }
 
+// A browser always sends Origin on a cross-site POST. If it is present it must
+// equal this request's own serialized origin (RFC 6454: scheme://host[:port],
+// no path). "null", a path-bearing value, or any other malformed Origin is
+// refused. Absent Origin (non-browser client) falls through to the session check.
+function isForeignOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (origin === null) return false;
+  try {
+    // Compare the header as sent. Parsing then taking .origin would treat
+    // "https://host/path" as same-origin because URL.origin strips the path.
+    return origin !== new URL(request.url).origin;
+  } catch {
+    return true;
+  }
+}
+
 export async function POST(request: Request): Promise<Response> {
+  if (isForeignOrigin(request)) {
+    return Response.json({ error: "Forbidden origin" }, { status: 403 });
+  }
   if (!(await isAuthorised(request))) {
     return Response.json({ error: "Unauthorised" }, { status: 401 });
   }
