@@ -279,7 +279,14 @@ async def _start_telegram_intake() -> None:
             "Telegram intake loop not started (missing TELEGRAM_BOT_TOKEN or chat allowlist)"
         )
         return
-    asyncio.create_task(_resilient(telegram_intake_loop, "telegram_intake_loop"))
+    from ..production_gate import run_if_production_allowed  # noqa: PLC0415
+
+    # A preview must not call getUpdates on production's bot (PC-PDO-PREVIEW-AUTONOMY).
+    run_if_production_allowed(
+        "telegram_intake_loop",
+        lambda: asyncio.create_task(_resilient(telegram_intake_loop, "telegram_intake_loop")),
+        log,
+    )
 
 
 @router.get("/api/telegram/intake/status", dependencies=[Depends(require_auth)])

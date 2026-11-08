@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_3fe3456a1891",
+  "contract_digest": "a4c6f8579cf7941f96ca529856d78411a8247010e93481eb667d2ff0e86d7d1e",
+  "baseline_head": "554b639b11678299d1354a23f382fbc8d0cc595c",
+  "identity_key": "fix/preview-no-prod-loops@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/preview-no-prod-loops",
+  "locked_at_utc": "2026-11-08T15:55:34Z",
+  "criteria_count": 3,
+  "recipe_pins": {}
+}

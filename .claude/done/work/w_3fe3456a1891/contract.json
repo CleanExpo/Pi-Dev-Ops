@@ -1,0 +1,31 @@
+{
+  "schema": "done/1",
+  "work_id": "w_3fe3456a1891",
+  "version": 2,
+  "supersedes": "w_256f86af7709",
+  "goal": "PC-PDO-PREVIEW-AUTONOMY: one predicate decides whether a deploy may cause production side effects; every startup task that writes to Linear, Supabase, Telegram or GitHub goes through it, so a PR preview starts none of them.",
+  "created_at_utc": "2026-11-08T15:55:33Z",
+  "identity_key": "fix/preview-no-prod-loops@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/preview-no-prod-loops",
+  "baseline_observed": {
+    "head": "554b639b11678299d1354a23f382fbc8d0cc595c",
+    "branch": "fix/preview-no-prod-loops",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "On a non-production Railway environment none of the gated startup tasks start (cron_loop, linear_todo_poller, telegram intake loop, swarm orchestrator, nexus scheduler, Supabase session recovery); on production, on local dev and with the override they all start; existing cron gating tests stay green.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/preview-no-prod-loops' && PYTHONDONTWRITEBYTECODE=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_cron_production_gate.py tests/test_cron_enabled_flag.py -q -p no:cacheprovider --basetemp=/tmp/pnl-c1-bt"
+    },
+    {
+      "id": "C2",
+      "text": "Planted defects in a copy (a gated task started unconditionally, or the predicate ignoring the environment) each make the gate tests fail; the unmutated copy passes.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/preview-no-prod-loops' && PYTHONDONTWRITEBYTECODE=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' /Users/phill-mac/session-handoffs/reviews/preview-no-prod-loops/mutants.py '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/preview-no-prod-loops'"
+    },
+    {
+      "id": "C3",
+      "text": "ruff on changed Python files, file-length gate and function-length gate pass.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/preview-no-prod-loops' && /Users/phill-mac/.local/bin/ruff check app/server/production_gate.py app/server/startup_tasks.py app/server/cron_scheduler.py app/server/cron.py app/server/app_factory.py app/server/routes/telegram_intake.py tests/test_cron_production_gate.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/file_length_lint.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/function_length_lint.py"
+    }
+  ]
+}
