@@ -1,0 +1,26 @@
+{
+  "schema": "done/1",
+  "work_id": "w_4d96e7995351",
+  "version": 1,
+  "supersedes": null,
+  "goal": "UNI-3306: after #1002 merged, re-freeze app/server/spec_pipeline/** (llm.py included); CI and the local handoff gate require 92 frozen files again, and the change touches no frozen path.",
+  "created_at_utc": "2026-11-08T12:51:23Z",
+  "identity_key": "phillmcgurk/uni-3306-refreeze-llm@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-refreeze-llm",
+  "baseline_observed": {
+    "head": "6dc62362f75e7c41243a9caddeea6b46a6d44848",
+    "branch": "phillmcgurk/uni-3306-refreeze-llm",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The manifest at HEAD freezes app/server/spec_pipeline/** (including llm.py) and at least 92 tracked files; CI and scripts/handoff-loop.sh both require 92.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-refreeze-llm' && /usr/bin/grep -qx 'app/server/spec_pipeline/\\*\\*' .github/frozen-paths.txt && ! /usr/bin/grep -q 'spec_pipeline/llm.py unfrozen' .github/frozen-paths.txt && /usr/bin/python3 scripts/check_frozen_paths.py --verify-manifest --min-files 92 && /usr/bin/grep -q -- '--verify-manifest --min-files 92' .github/workflows/ci.yml && /usr/bin/grep -q -- '--min-files 92' scripts/handoff-loop.sh"
+    },
+    {
+      "id": "C2",
+      "text": "The re-freeze changes no frozen path against merged main 0e6db8d0, the three files are byte-identical to their pre-#1001 versions (e703ae35), and the CI step parity lint passes.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-refreeze-llm' && /usr/bin/python3 scripts/check_frozen_paths.py --base 0e6db8d0 --head HEAD && /usr/bin/git diff --quiet e703ae35 HEAD -- .github/frozen-paths.txt .github/workflows/ci.yml scripts/handoff-loop.sh && /usr/bin/python3 .github/scripts/gate_parity_lint.py"
+    }
+  ]
+}
