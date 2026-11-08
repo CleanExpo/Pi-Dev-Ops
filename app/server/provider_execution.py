@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import signal
 import threading
 from . import provider_policy
 from . import provider_process_tree as _tree
@@ -13,6 +12,8 @@ CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
 STOPPED_RC = 130  # the caller's stop signal ended the call; nothing usable was produced
 _STOP_POLL_S = 0.25
 _TERM_GRACE_S = 2.0
+_STOP_BUDGET_S = 2.5  # freeze, record, terminate, kill and check; then at most _DRAIN_S of draining
+_DRAIN_S = 1.5
 
 async def _run_via_claude_print(
     prompt: str, *, model_id: str, timeout_s: int = 120,
@@ -195,7 +196,7 @@ def _end_group(proc, known: dict[int, str] | None = None) -> None:
     """End the CLI, its process group and every descendant recorded from the process tree.
 
     A descendant that called setsid() is outside the group, so it is stopped by pid; anything
-    still alive afterwards is logged as a warning naming its pid and command.
+    still alive afterwards, or an unreadable process list, is logged as a warning.
     """
     import subprocess as _sp  # noqa: PLC0415
     if os.name != "posix":
@@ -205,14 +206,7 @@ def _end_group(proc, known: dict[int, str] | None = None) -> None:
         except _sp.TimeoutExpired:
             proc.kill()
         return
-    known = {**(known or {}), **_tree.descendants(proc.pid)}  # recorded before anything is stopped
-    _tree.signal_all(proc.pid, known, signal.SIGTERM)
-    try:
-        proc.wait(timeout=_TERM_GRACE_S)
-    except _sp.TimeoutExpired:
-        pass
-    _tree.signal_all(proc.pid, known, signal.SIGKILL)  # children can outlive a parent that exited
-    _tree.report_survivors(known)
+    _tree.stop_tree(proc, dict(known or {}), budget_s=_STOP_BUDGET_S, grace_s=_TERM_GRACE_S)
 
 
 def _drain(proc) -> tuple[str, str]:
@@ -223,7 +217,7 @@ def _drain(proc) -> tuple[str, str]:
     """
     import subprocess as _sp  # noqa: PLC0415
     try:
-        out, err = proc.communicate(timeout=_TERM_GRACE_S)
+        out, err = proc.communicate(timeout=_DRAIN_S)
         return out or "", err or ""
     except _sp.TimeoutExpired:
         for pipe in (proc.stdout, proc.stderr):
@@ -259,7 +253,7 @@ def _run_stoppable(argv, *, stop, timeout_s, input=None, cwd=None) -> tuple[int,
             out, err = proc.communicate(pending, timeout=min(_STOP_POLL_S, remaining))
         except _sp.TimeoutExpired:
             pending = None
-            known.update(_tree.descendants(proc.pid))  # seen while the tree is intact
+            known.update(_tree.descendants(proc.pid, 0.5) or {})  # seen while the tree is intact
             continue
         if stop.is_set():  # a stopped call's result is never accepted; end any children left
             _end_group(proc, known)

@@ -26,7 +26,7 @@ def _alive(pid: int) -> bool:
     except ProcessLookupError:
         return False
     # A killed child of a dead parent may linger as a zombie until reaped by init.
-    state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout
+    state = subprocess.run(["/bin/ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout
     return bool(state.strip()) and not state.strip().startswith("Z")
 
 
@@ -233,3 +233,41 @@ def test_result_that_finishes_after_the_deadline_is_not_accepted():
         [sys.executable, "-c", "import time; time.sleep(0.15); print('late')"],
         stop=threading.Event(), timeout_s=0.05)
     assert rc == 124 and "late" not in out
+
+
+_DENIED_PS = "#!/bin/sh\necho 'ps: permission denied' >&2\nexit 1\n"
+_HANGING_PS = "#!/bin/sh\nexec sleep 30\n"
+
+
+@pytest.mark.parametrize("fake_ps", [_DENIED_PS, _HANGING_PS], ids=["ps-denied", "ps-hangs"])
+def test_unreadable_process_list_is_warned_and_cannot_stretch_the_stop(fake_ps, tmp_path, monkeypatch, caplog):
+    from app.server import provider_process_tree as tree
+    ps = tmp_path / "ps"
+    ps.write_text(fake_ps)
+    ps.chmod(0o755)
+    monkeypatch.setattr(tree, "PS", str(ps), raising=False)
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")  # older code ran ps from PATH
+    pidfile = tmp_path / "pids"
+    cli = tmp_path / "fake-claude"
+    cli.write_text(_ESCAPING_CLI.format(pidfile=str(pidfile)))
+    cli.chmod(0o755)
+    monkeypatch.setattr(pe, "CLAUDE_CLI", str(cli))
+    stop, result = threading.Event(), {}
+    worker = threading.Thread(target=lambda: result.update(
+        out=pe._claude_process("prompt", "claude-test", 120, stop)))
+    worker.start()
+    parent, escaped = _wait_for(pidfile)
+    try:
+        with caplog.at_level("WARNING", logger=tree.__name__):
+            started = time.monotonic()
+            stop.set()
+            worker.join(timeout=10)
+            elapsed = time.monotonic() - started
+        assert not worker.is_alive() and result["out"][0] == pe.STOPPED_RC
+        assert elapsed < 5.0, elapsed
+        assert _gone(parent) == []
+        warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert any("process list could not be read" in w for w in warnings), warnings
+    finally:
+        if _alive(escaped):
+            os.kill(escaped, 9)
