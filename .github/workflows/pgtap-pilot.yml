@@ -58,6 +58,7 @@ on:
       - 'app/server/schema_drift_db.py'
       - 'tests/test_schema_drift_db_pg.py'
       - 'tests/test_goal_analysis_jobs_pg.py'
+      - 'tests/test_goal_analysis_jobs_pg_lock.py'
       - 'tests/goal_jobs_pg_helpers.py'
       - 'docs/schema-drift-db.md'
   push:
@@ -208,4 +209,4 @@ jobs:
         env:
           SCRATCH_DB_URL: postgres://postgres:shadow@localhost:5432/pilot_shadow
           GOAL_ANALYSIS_JOBS_PG_REQUIRED: "1"
-        run: python -m pytest tests/test_goal_analysis_jobs_pg.py -v --tb=short -p no:cacheprovider
+        run: python -m pytest tests/test_goal_analysis_jobs_pg.py tests/test_goal_analysis_jobs_pg_lock.py -v --tb=short -p no:cacheprovider

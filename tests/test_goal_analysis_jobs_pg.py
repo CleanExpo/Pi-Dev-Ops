@@ -137,7 +137,7 @@ def test_different_goals_submitted_together_both_succeed(db, project):
 
 _SIGS = ("goal_job_claim(%s::uuid, 'x')", "goal_job_heartbeat(%s::uuid, 1, 'x')",
          "goal_job_finish(%s::uuid, 1, '{}'::jsonb, '[]'::jsonb)", "goal_job_fail(%s::uuid, 1, 'x')",
-         "goal_job_recover()", "goal_job_is_live(null::goal_analysis_jobs, 1)",
+         "goal_job_recover()", "goal_job_is_live(null::goal_analysis_jobs, 1, null::timestamptz)", "goal_job_now()",
          "goal_job_retry_unused(null::goal_analysis_jobs)")
 
 
