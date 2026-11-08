@@ -87,10 +87,18 @@ def _email(value):
     local, at, domain = value.partition("@")
     if (not at or len(value) > 80 or len(local) > 40 or not _EMAIL_LOCAL.fullmatch(local)
             or not _EMAIL_DOMAIN.fullmatch(domain)
-            or not _runs_ok(value, one_switch=True)):
+            or not _runs_ok(value, one_switch=True)
+            or _number_only(local)):
         return ("BAD_EMAIL", "must be one plain address (letters, digits, '.', '_', '+', '-'; "
-                "local part at most 40 characters; no key-like mix of letters and digits)")
+                "local part at most 40 characters; no key-like mix of letters and digits; "
+                "no name made only of digits and separators with 5 or more digits)")
     return None
+
+
+def _number_only(local: str) -> bool:
+    """A name with no letters and 5 or more digits could be a pasted login code. Up to
+    4 digits (a year or a count) is allowed, as for standalone numbers in notes."""
+    return not _MIXED.search(local) and sum(c.isdigit() for c in local) >= 5
 
 
 def _prose(value: str):

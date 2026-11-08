@@ -35,7 +35,7 @@ for a real mapping.
 | `label` | Short unique lowercase name, e.g. `claude-mini` (letters, digits, `-`; 32 max). Other tools key on it. |
 | `provider` | `claude`, `codex` or `cursor`. Nothing else: other providers are API-key lanes, which are not used. |
 | `plan` | One of `free`, `plus`, `pro`, `max`, `max-5x`, `max-20x`, `team`, `business`, `enterprise`, `ultra`, `chatgpt-plus`, `chatgpt-pro`, or `null` while undecided. A new plan name is added in a reviewed PR. |
-| `email` | The login email: letters, digits, `.`, `_`, `+`, `-`. Placeholder ends in `.invalid`. |
+| `email` | The login email: letters, digits, `.`, `_`, `+`, `-`. A name made only of digits (and separators) may have at most 4 digits. Placeholder ends in `.invalid`. |
 | `machines` | Which computers use this login, by machine `id`. |
 | `notes` | One short line of plain words (160 characters max). Ticket ids like `RA-8196` and numbers up to 4 digits (a year) are fine. Links, codes, longer numbers (a login code) and words mixing letters and digits are refused. |
 

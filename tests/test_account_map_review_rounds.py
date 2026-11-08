@@ -184,3 +184,27 @@ def test_show_prints_only_what_the_grammar_could_accept():
     assert grammar.show(LETTERS[:24]) == f"'{LETTERS[:24]}'"
     assert grammar.show(LETTERS[:25]) == "(name not shown)"
     assert grammar.show("claude-" + LETTERS[:25]) == "(name not shown)"
+
+
+# ── Review of the rebased head (Codex, 12d6a03b) ─────────────────────────────
+
+NUMBER_ONLY = ["123456", "12345678", "12345", "123.456", "12-3456", "1_2_3_4_5"]
+
+
+@pytest.mark.parametrize("domain", ["gmail.com", "pending.invalid"])
+@pytest.mark.parametrize("local", NUMBER_ONLY)
+def test_number_only_email_name_fails_and_is_not_echoed(tmp_path, capsys, local, domain):
+    """W6.3: a login code can look like an email name. Five or more digits with no
+    letters is refused as BAD_EMAIL and never printed, the same as a standalone
+    6-digit number in notes (W5.2)."""
+    code, out = _run(tmp_path, BASE.replace("claude-mini@pending.invalid", f"{local}@{domain}"), capsys)
+    assert code == 1 and "BAD_EMAIL" in out, out
+    assert local not in out and "123456" not in out
+
+
+@pytest.mark.parametrize("local", ["1234", "2024", "007", "42", "1.2.3.4", "12-34", "123456team", "smith84"])
+def test_short_or_lettered_number_email_names_pass(local):
+    """W6.3: a number of up to 4 digits (a year or a count) stays allowed, matching the
+    4-digit cap on standalone numbers in notes. A name that also holds letters is not
+    number-only, and the letter and digit run rules already govern it."""
+    assert grammar.GRAMMAR[("account", "email")](f"{local}@gmail.com") is None
