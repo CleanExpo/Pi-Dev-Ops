@@ -100,7 +100,7 @@ def _job_row(row: Any, method: str) -> dict[str, Any]:
 
 
 def _rows(method: str, query: str, data: dict[str, Any] | None = None,
-          id_only: bool = False) -> list[dict[str, Any]]:
+          id_only: bool = False, exactly_one: bool = False) -> list[dict[str, Any]]:
     """The one reader of every reply. Empty, non-JSON, non-list or incomplete rows all raise,
     so a failed or truncated read can never look like "no job" or "nothing to recover"."""
     raw = _request(method, f"{_TABLE}?{query}", data)
@@ -112,6 +112,8 @@ def _rows(method: str, query: str, data: dict[str, Any] | None = None,
         raise _bad(method, "a body that is not JSON") from exc
     if not isinstance(body, list):
         raise _bad(method, "no row list")
+    if exactly_one and len(body) != 1:
+        raise _bad(method, f"{len(body)} rows where exactly one was expected")
     if id_only:
         if not all(isinstance(r, dict) and isinstance(r.get("id"), str) for r in body):
             raise _bad(method, "a row without an id")
@@ -151,7 +153,7 @@ def submit(project_id: str, goal: str, acceptance: str, key: str) -> dict[str, A
     row = {"project_id": project_id, "goal": goal, "acceptance": acceptance,
            "goal_sha256": sha, "idempotency_key": key}
     try:
-        return _rows("POST", "select=*", row)[0]
+        return _rows("POST", "select=*", row, exactly_one=True)[0]
     except GoalJobStoreError as exc:
         if exc.code != "conflict":
             raise
@@ -189,9 +191,21 @@ def _fenced(job_id: str, attempt: int) -> str:
     return f"id=eq.{_q(job_id)}&attempt=eq.{int(attempt)}&status=eq.running"
 
 
+def _owned(job_id: str, attempt: int, now: datetime) -> str:
+    """The one owner of "this attempt still owns the row", for every worker write.
+
+    Ownership is the fence AND an unexpired claim AND an unpassed attempt deadline, all
+    inside the conditional write itself. A worker whose claim lapsed or whose deadline
+    passed changes nothing, even before recover_expired() has run. Recovery uses the
+    complement (the same columns compared with lt), never a separate copy of the rule.
+    """
+    t = _q(_iso(now))
+    return f"{_fenced(job_id, attempt)}&claim_expires_at=gt.{t}&attempt_deadline=gt.{t}"
+
+
 def heartbeat(job_id: str, attempt: int, server: str) -> bool:
     now = _now()
-    return bool(_rows("PATCH", f"{_fenced(job_id, attempt)}&claimed_by=eq.{_q(server)}", {
+    return bool(_rows("PATCH", f"{_owned(job_id, attempt, now)}&claimed_by=eq.{_q(server)}", {
         "claim_expires_at": _iso(now + timedelta(seconds=CLAIM_SECONDS)),
         "last_progress_at": _iso(now)}))
 
@@ -202,17 +216,19 @@ def finish(job_id: str, attempt: int, result: dict[str, Any], evidence_links: li
     for link in evidence_links:
         if not (isinstance(link, str) and link.startswith(("https://", "http://")) and " " not in link):
             raise ValueError("evidence must be links, never source text")
-    return bool(_rows("PATCH", _fenced(job_id, attempt), {
+    now = _now()
+    return bool(_rows("PATCH", _owned(job_id, attempt, now), {
         "status": "finished", "result": result, "evidence_links": list(evidence_links),
-        "ended_at": _iso(_now()), "claim_expires_at": None}))
+        "ended_at": _iso(now), "claim_expires_at": None}))
 
 
 def fail(job_id: str, attempt: int, reason: str) -> bool:
     if not str(reason).strip():
         raise ValueError("a failed job needs a reason")
-    return bool(_rows("PATCH", _fenced(job_id, attempt), {
+    now = _now()
+    return bool(_rows("PATCH", _owned(job_id, attempt, now), {
         "status": "failed", "failure_reason": str(reason).strip()[:2000],
-        "ended_at": _iso(_now()), "claim_expires_at": None}))
+        "ended_at": _iso(now), "claim_expires_at": None}))
 
 
 def recover_expired() -> list[str]:

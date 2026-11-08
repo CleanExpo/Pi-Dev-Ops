@@ -1,6 +1,6 @@
 """Goal analysis job store (UNI-3306 PR 1): fencing, one retry, links only.
 
-The fake below applies PostgREST filters for real (eq, in, lt), so a write the
+The fake below applies PostgREST filters for real (eq, in, lt, gt), so a write the
 store forgets to filter on attempt changes the row and the test sees it.
 """
 from __future__ import annotations
@@ -70,6 +70,8 @@ def _match(row: dict[str, Any], key: str, cond: str) -> bool:
         return str(have) in val.strip("()").split(",")
     if op == "lt":
         return have is not None and datetime.fromisoformat(str(have)) < datetime.fromisoformat(val)
+    if op == "gt":
+        return have is not None and datetime.fromisoformat(str(have)) > datetime.fromisoformat(val)
     if op == "is":
         return have is None if val == "null" else False
     raise AssertionError(f"unsupported filter {key}={cond}")
@@ -180,7 +182,15 @@ def test_heartbeat_between_recovery_read_and_write_wins(
     def interleave(method: str, path: str, data: dict[str, Any] | None = None) -> Any:
         if method == "PATCH" and not fired and "claim_expires_at=lt" in path:
             fired.append(True)
+            # The worker's clock runs behind the recovering server's, so to the worker
+            # its claim is still live and the renewal is legal.
+            recovering_now = rest.clock["now"]  # type: ignore[attr-defined]
+            rest.clock["now"] = T0 + timedelta(seconds=30)  # type: ignore[attr-defined]
             assert jobs.heartbeat(job["id"], 1, "mini") is True
+            rest.clock["now"] = recovering_now  # type: ignore[attr-defined]
+            # Push the renewed expiry past the recovering server's cutoff, as a renewal
+            # from a slower clock that still lands in the future would.
+            rest.rows[0]["claim_expires_at"] = jobs._iso(recovering_now + timedelta(seconds=60))
         return real(method, path, data)
 
     monkeypatch.setattr(jobs, "_request", interleave)
@@ -251,3 +261,53 @@ def test_filter_values_are_encoded(rest: FakeRest) -> None:
         jobs._request = real  # type: ignore[assignment]
     assert all("a&status" not in p for p in seen)
     assert urlsplit("x?" + seen[0].partition("?")[2]).query
+
+
+def test_expired_attempt_cannot_publish_before_recovery(rest: FakeRest) -> None:
+    """Review r3: claim at 10:00, clock at 10:06, recovery not yet run. The worker loses."""
+    job = _submit()
+    assert jobs.claim(job["id"], "mini") == 1
+    _advance(rest, 360)
+    assert jobs.finish(job["id"], 1, {"ok": True}, []) is False
+    assert jobs.fail(job["id"], 1, "late") is False
+    assert jobs.heartbeat(job["id"], 1, "mini") is False
+    assert rest.rows[0]["status"] == "running" and rest.rows[0]["result"] is None
+
+
+def test_deadline_passed_with_live_claim_cannot_publish(rest: FakeRest) -> None:
+    """The claim is kept fresh by heartbeats, but the attempt deadline has passed."""
+    job = _submit()
+    jobs.claim(job["id"], "mini")
+    for _ in range(6):
+        _advance(rest, 50)
+        jobs.heartbeat(job["id"], 1, "mini")
+    _advance(rest, 10)
+    assert jobs.finish(job["id"], 1, {"ok": True}, []) is False
+    assert rest.rows[0]["status"] == "running"
+    assert jobs.recover_expired() == [job["id"]]
+
+
+def test_lapsed_claim_cannot_publish(rest: FakeRest) -> None:
+    job = _submit()
+    jobs.claim(job["id"], "mini")
+    _advance(rest, jobs.CLAIM_SECONDS + 1)
+    assert jobs.finish(job["id"], 1, {"ok": True}, []) is False
+    assert rest.rows[0]["status"] == "running"
+
+
+def test_live_attempt_can_still_finish(rest: FakeRest) -> None:
+    job = _submit()
+    jobs.claim(job["id"], "mini")
+    _advance(rest, 30)
+    assert jobs.finish(job["id"], 1, {"ok": True}, ["https://linear.app/x"]) is True
+    assert rest.rows[0]["status"] == "finished"
+
+
+@pytest.mark.parametrize("reply", [b"[]", b'[{"id": "a", "status": "queued", "attempt": 0, "retry_count": 0}, '
+                                        b'{"id": "b", "status": "queued", "attempt": 0, "retry_count": 0}]'])
+def test_submit_needs_exactly_one_created_row(
+        rest: FakeRest, monkeypatch: pytest.MonkeyPatch, reply: bytes) -> None:
+    monkeypatch.setattr(jobs, "_request", lambda *_a, **_k: reply)
+    with pytest.raises(jobs.GoalJobStoreError) as err:
+        _submit()
+    assert err.value.code == "bad_response"
