@@ -5,6 +5,7 @@ a failed read is never "not found", and unavailable async is never a silent inli
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Any
 
@@ -33,8 +34,16 @@ def _store_error(exc: jobs.GoalJobStoreError) -> HTTPException:
     return HTTPException(status, {"error": exc.code, "hint": exc.hint})
 
 
-def submit_job(goal: str, acceptance: str, project_id: str, key: str | None) -> dict[str, Any]:
-    """Queue (or find) the job and start it. Raises HTTPException on every failure."""
+async def submit_job(goal: str, acceptance: str, project_id: str, key: str | None) -> dict[str, Any]:
+    """Queue (or find) the job and start it. Raises HTTPException on every failure.
+    All Supabase I/O runs off the event loop, so heartbeats are never delayed by it."""
+    row = await asyncio.to_thread(_queue, goal, acceptance, project_id, key)
+    if row["status"] == "queued":
+        worker.launch(row["id"])  # a duplicate launch loses the claim; no slot: recovery runs it
+    return job_view(row)
+
+
+def _queue(goal: str, acceptance: str, project_id: str, key: str | None) -> dict[str, Any]:
     if not worker.availability()[0]:
         raise _unavailable()
     missing = validate_analyze(goal, acceptance, project_id)
@@ -52,9 +61,7 @@ def submit_job(goal: str, acceptance: str, project_id: str, key: str | None) -> 
         raise _store_error(exc) from exc
     except ValueError as exc:
         raise HTTPException(400, {"error": "validation", "fields": ["idempotency_key"], "hint": str(exc)}) from exc
-    if row["status"] == "queued":
-        worker.launch(row["id"])  # a duplicate launch loses the claim, so one model call
-    return job_view(row)
+    return row
 
 
 def read_job(job_id: str) -> dict[str, Any]:

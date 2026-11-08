@@ -31,10 +31,12 @@ log = logging.getLogger("pi-ceo.goal_analysis_worker")
 
 HEARTBEAT_S = 20.0  # well under the 60 s claim
 RECOVERY_S = 30.0
+MODEL_END_S = 10.0  # how long an attempt waits for a stopped model call to end
 _MODEL_BUDGET_S = 240.0  # inside the 300 s attempt deadline
 SERVER_ID = f"{socket.gethostname()}:{os.getpid()}"
 _state = {"available": False, "reason": "async goal analysis has not been probed yet"}
 _tasks: set[asyncio.Task[Any]] = set()
+_running = 0  # slots in use; touched only on the event loop
 
 
 def enabled() -> bool:
@@ -78,6 +80,20 @@ async def _beat(lease: _Lease) -> None:
             return
 
 
+async def _end_model(lease: _Lease, model: asyncio.Future[Any]) -> None:
+    """Every exit path (done, failed, timed out, cancelled): set stop, then give the model
+    call up to MODEL_END_S to end, so no model thread outlives its attempt. Cancelling the
+    task does not stop a model call running in a worker thread; only the stop event does."""
+    if not model.done():
+        lease.stop.set()
+        await asyncio.wait({model}, timeout=MODEL_END_S)
+    if not model.done():
+        log.error("goal job %s: the model call did not end within %.0f s of stop", lease.job_id, MODEL_END_S)
+        model.cancel()
+    elif not model.cancelled():
+        model.exception()  # retrieved so a Stopped result is never logged as unretrieved
+
+
 async def _analyse(lease: _Lease, complete_fn: Callable[..., Awaitable[Any]] | None) -> dict[str, Any]:
     job = await asyncio.to_thread(jobs.get, lease.job_id)
     if job is None:
@@ -87,14 +103,15 @@ async def _analyse(lease: _Lease, complete_fn: Callable[..., Awaitable[Any]] | N
         raise RuntimeError("the project brief is missing")
     goal, acceptance = job["goal"], job["acceptance"]
     call = functools.partial(complete_fn or llm.complete, stop=lease.stop)
+    model = asyncio.ensure_future(call(
+        prompt=render_analyze_prompt(goal, acceptance, project), system=_SYSTEM,
+        role="goal_analyst", max_tokens=_MAX_TOKENS))
     try:
-        text, cost = await asyncio.wait_for(
-            call(prompt=render_analyze_prompt(goal, acceptance, project), system=_SYSTEM,
-                 role="goal_analyst", max_tokens=_MAX_TOKENS),
-            timeout=_MODEL_BUDGET_S)
+        text, cost = await asyncio.wait_for(asyncio.shield(model), timeout=_MODEL_BUDGET_S)
     except TimeoutError:
-        lease.stop.set()
         raise RuntimeError("the model call ran past its time budget") from None
+    finally:
+        await _end_model(lease, model)
     payload = parse_analyze_payload(text)
     if payload is None:
         raise RuntimeError("the model did not return a usable ticket plan")
@@ -144,18 +161,42 @@ async def run_job(job_id: str, *, server: str | None = None,
         beat.cancel()
 
 
-def launch(job_id: str) -> None:
-    """Start run_job in the background. A second launch for the same job loses the claim."""
-    task = asyncio.get_running_loop().create_task(run_job(job_id))
+def max_concurrent() -> int:
+    """Model runs at once in this process, read live like the switch. Default 2."""
+    try:
+        return max(1, int(os.environ.get("GOAL_ANALYZE_MAX_CONCURRENT", "2")))
+    except ValueError:
+        return 2
+
+
+def launch(job_id: str) -> bool:
+    """Start run_job in the background if a slot is free. The slot is taken BEFORE the claim,
+    so a deferred job stays queued (unclaimed, so it cannot expire) until a later recovery
+    pass. A second launch for the same job loses the claim."""
+    global _running
+    if _running >= max_concurrent():
+        return False
+    _running += 1
+
+    async def held() -> None:
+        global _running
+        try:
+            await run_job(job_id)
+        finally:
+            _running -= 1
+
+    task = asyncio.get_running_loop().create_task(held())
     _tasks.add(task)
     task.add_done_callback(_tasks.discard)
+    return True
 
 
 async def recover_once() -> None:
     for job_id in await asyncio.to_thread(jobs.recover_expired):
         log.warning("goal job %s was interrupted or failed by recovery", job_id)
     for job_id in await asyncio.to_thread(jobs.runnable_ids):
-        launch(job_id)
+        if not launch(job_id):
+            break  # no free slot: the rest stay queued for the next pass
 
 
 async def recovery_loop() -> None:

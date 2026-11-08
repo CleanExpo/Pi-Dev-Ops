@@ -3,11 +3,11 @@
 The store is the real goal_analysis_jobs module over the FakeRest database (its clock is
 the database clock); only the model call and the project lookup are faked. Cases named
 kill / stop / double are the Q9 acceptance: pytest -k "kill or stop or double".
+Limits, loop-blocking and model-lifetime cases: test_goal_analysis_worker_limits.py.
 """
 from __future__ import annotations
 
 import asyncio
-import threading
 import time
 from typing import Any
 
@@ -19,61 +19,12 @@ from app.server import goal_analysis_jobs as jobs, goal_analysis_worker as worke
 from app.server.auth import require_auth, require_rate_limit
 from app.server.routes import goal_ticket as goal_ticket_route
 from app.server.routes import goal_ticket_async
-from app.server.spec_pipeline import llm
+from tests import goal_worker_helpers as h
 from tests.goal_jobs_helpers import CLAIM, MARGIN, FakeRest
+from tests.goal_worker_helpers import ACCEPT, GOAL, Model, _queued, _row
 
-PROJECT = {"id": "ra", "title": "RestoreAssist", "description": "d", "audience": "a"}
-GOAL, ACCEPT = "Finalise RestoreAssist for Stage 1", "Tickets are drafted for review"
-PLAN = (
-    '{"summary":"One hop.","split_reason":"atomic","tickets":[{"title":"Finish stage one",'
-    '"expected_behaviour":"Stage one work is split into tickets","acceptance":"Each ticket has a test.",'
-    '"context":"RA","current_behaviour":"Open.","technical_requirements":"None.",'
-    '"testing":"Run the suite.","rationale":"single"}]}'
-)
-
-
-class Model:
-    """The fake model call. `hold` makes it wait for the stop signal like a real subprocess."""
-
-    def __init__(self, text: str = PLAN, hold: bool = False, forever: bool = False) -> None:
-        self.text, self.hold, self.forever = text, hold, forever
-        self.calls = 0
-        self.stop_seen_at: float | None = None
-
-    async def __call__(self, *, prompt: str, system: str, role: str, max_tokens: int,
-                       stop: threading.Event) -> tuple[str, float]:
-        self.calls += 1
-        if self.forever:
-            await asyncio.sleep(3600)
-        while self.hold and not stop.is_set():
-            await asyncio.sleep(0.01)
-        if self.hold:
-            self.stop_seen_at = time.monotonic()
-            raise llm.Stopped("stopped by the worker")
-        return self.text, 0.01
-
-
-@pytest.fixture
-def rest(monkeypatch: pytest.MonkeyPatch) -> FakeRest:
-    fake = FakeRest()
-    monkeypatch.setattr(jobs, "_request", fake)
-    monkeypatch.setattr(worker, "get_project", lambda pid: PROJECT if pid == "ra" else None)
-    monkeypatch.setattr(goal_ticket_async, "get_project", lambda pid: PROJECT if pid == "ra" else None)
-    return fake
-
-
-@pytest.fixture
-def launched(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    ids: list[str] = []
-    monkeypatch.setattr(worker, "launch", ids.append)
-    return ids
-
-
-@pytest.fixture
-def async_on(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GOAL_ANALYZE_ASYNC", "1")
-    monkeypatch.setitem(worker._state, "available", True)
-    monkeypatch.setitem(worker._state, "reason", "")
+# fixtures are taken by assignment, not import (ruff F811)
+_fresh_slots, rest, launched, async_on = h._fresh_slots, h.rest, h.launched, h.async_on
 
 
 @pytest.fixture
@@ -83,14 +34,6 @@ def client() -> TestClient:
     app.dependency_overrides[require_auth] = lambda: None
     app.dependency_overrides[require_rate_limit] = lambda: None
     return TestClient(app)
-
-
-def _queued(key: str = "key-0001") -> str:
-    return jobs.submit("ra", GOAL, ACCEPT, key)["id"]
-
-
-def _row(rest: FakeRest, job_id: str) -> dict[str, Any]:
-    return next(r for r in rest.rows if r["id"] == job_id)
 
 
 BODY = {"goal": GOAL, "acceptance": ACCEPT, "project_id": "ra"}
@@ -186,9 +129,9 @@ async def test_model_without_a_plan_is_recorded_failed_with_reason(rest: FakeRes
 
 async def test_double_submit_one_model_call(
         rest: FakeRest, async_on: None, launched: list[str]) -> None:
-    first = goal_ticket_async.submit_job(GOAL, ACCEPT, "ra", "key-0001")
-    second = goal_ticket_async.submit_job(GOAL, ACCEPT, "ra", "key-0001")
-    third = goal_ticket_async.submit_job(GOAL, ACCEPT, "ra", "another-key-2")  # same goal, new key
+    first = await goal_ticket_async.submit_job(GOAL, ACCEPT, "ra", "key-0001")
+    second = await goal_ticket_async.submit_job(GOAL, ACCEPT, "ra", "key-0001")
+    third = await goal_ticket_async.submit_job(GOAL, ACCEPT, "ra", "another-key-2")  # same goal, new key
     assert first["id"] == second["id"] == third["id"] and len(rest.rows) == 1
     model = Model(hold=False)
     outcomes = await asyncio.gather(*(

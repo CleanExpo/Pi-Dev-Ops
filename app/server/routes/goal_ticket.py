@@ -128,7 +128,7 @@ def archive_goal_project(body: GoalProjectArchive) -> dict:
 async def analyze_goal_ticket(body: GoalTicketRequest, response: Response) -> dict:
     if goal_analysis_worker.enabled():
         response.status_code = 202
-        return submit_job(body.goal, body.acceptance, body.project_id, body.idempotency_key)
+        return await submit_job(body.goal, body.acceptance, body.project_id, body.idempotency_key)
     result = await analyze_goal(body.goal, body.acceptance, body.project_id)
     if result.get("error"):
         _raise_goal_error(result)
