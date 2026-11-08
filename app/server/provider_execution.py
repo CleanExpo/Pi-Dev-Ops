@@ -86,10 +86,8 @@ async def run_via_provider_with_evidence(prompt: str, *, role: str,
                                        task_class: str = "default", timeout_s: int = 120,
                                        workspace: str | None = None, session_id: str = "",
                                        thinking: str = "adaptive", confidential: bool = False,
-                                       stop: threading.Event | None = None,
-                                       ) -> ProviderExecution:
-    """`stop` is optional: when set, a CLI call ends with its whole process group.
-    Callers that pass nothing run exactly as before. HTTP transports ignore it."""
+                                       stop: threading.Event | None = None) -> ProviderExecution:
+    extra = {"stop": stop} if stop is not None else {}  # optional; see _run_stoppable
     from .provider_router import select_provider_model, _record_cost_safe
     pm = select_provider_model(role, task_class=task_class)
     evidence = {"provider": pm.provider, "requested_model": pm.model_id,
@@ -103,12 +101,10 @@ async def run_via_provider_with_evidence(prompt: str, *, role: str,
         return ProviderExecution(1, "", None, str(exc), evidence)
     if pm.provider == "claude_print":
         return await _run_via_claude_print(prompt, model_id=pm.model_id,
-                                          timeout_s=timeout_s, provenance=evidence,
-                                          **({"stop": stop} if stop is not None else {}))
+                                          timeout_s=timeout_s, provenance=evidence, **extra)
     if pm.provider == "codex":
         return await _run_via_codex(prompt, model_id=pm.model_id,
-                                    timeout_s=timeout_s, provenance=evidence,
-                                    **({"stop": stop} if stop is not None else {}))
+                                    timeout_s=timeout_s, provenance=evidence, **extra)
     # Dispatch the same selection that passed policy; do not re-resolve it.
     try:
         import sys
@@ -210,7 +206,11 @@ def _end_group(proc) -> None:
 
 
 def _run_stoppable(argv, *, stop, timeout_s, input=None, cwd=None) -> tuple[int, str, str]:
-    """Run in a new process group; end the group on stop (rc 130) or deadline (rc 124)."""
+    """Run in a new process group; end the group on stop (rc 130) or deadline (rc 124).
+
+    Only callers that pass a stop event reach this path; everyone else keeps subprocess.run.
+    HTTP transports (ollama) ignore stop and keep their own timeouts.
+    """
     import subprocess as _sp  # noqa: PLC0415
     import time as _time  # noqa: PLC0415
     proc = _sp.Popen(argv, stdin=_sp.PIPE if input is not None else _sp.DEVNULL,
