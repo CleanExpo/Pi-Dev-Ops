@@ -2,13 +2,17 @@
 
 One row per job in goal_analysis_jobs (migration 20261108T000000). Decisions from
 grill 14-pdo-goal-analyze-async:
-- Q2 fencing: claim() sets attempt to the next number; every later worker write goes
-  through _owned() (that attempt, running, claim unexpired, deadline not passed), so a
-  server whose claim lapsed or was taken over changes nothing (the write returns False
-  and the caller stops; a missed heartbeat window ends the attempt).
+- Every time-dependent write (claim, heartbeat, finish, fail, recovery) is ONE UPDATE
+  inside a SQL function (migration 20261108T010000), called by PostgREST RPC, so the
+  database clock decides ownership and stamps every expiry. No time used in an ownership
+  decision or an expiry value is computed here: a worker's clock, or a write delayed in
+  transit, cannot make a lapsed claim look live.
+- Q2 fencing: claim sets attempt to the next number; heartbeat, finish and fail change
+  the row only while goal_job_is_live() holds (that attempt, running, claim unexpired,
+  deadline not passed). Otherwise they return False and the caller stops.
 - Q2 one retry: an interrupted job can be claimed again once; after that,
   recover_expired() fails it. The table also refuses retry_count above 1.
-- Q3 claim expiry and attempt deadline live on the row.
+- Q3 claim expiry and attempt deadline live on the row (60 s and 300 s, set in SQL).
 - Q1 evidence is stored as links only, never source text.
 
 A failed read raises GoalJobStoreError; it never comes back as "no job".
@@ -17,7 +21,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
@@ -26,11 +29,6 @@ from urllib.request import Request, urlopen
 from .supabase_log import _q
 
 _TABLE = "goal_analysis_jobs"
-CLAIM_SECONDS = 60
-ATTEMPT_SECONDS = 300
-# Servers' clocks differ a little; a claim is only treated as expired this long after
-# its recorded expiry.
-SKEW_SECONDS = 5
 
 
 class GoalJobStoreError(Exception):
@@ -45,18 +43,15 @@ class KeyMismatch(GoalJobStoreError):
         super().__init__("key_mismatch", "This submission key was already used for a different goal.")
 
 
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _iso(dt: datetime) -> str:
-    return dt.isoformat()
-
-
 def goal_sha256(goal: str, acceptance: str) -> str:
     """The one owner of the normalisation rule: whitespace runs collapse, words and case stay."""
     parts = [" ".join(str(goal).split()), " ".join(str(acceptance).split())]
     return hashlib.sha256(json.dumps(parts).encode("utf-8")).hexdigest()
+
+
+def _resource(path: str) -> str:
+    """The table or rpc/<function> a request path names, for error codes and messages."""
+    return path.partition("?")[0]
 
 
 def _request(method: str, path: str, data: dict[str, Any] | None = None) -> bytes:
@@ -74,74 +69,100 @@ def _request(method: str, path: str, data: dict[str, Any] | None = None) -> byte
                  "Authorization": f"Bearer {key}", "Prefer": "return=representation",
                  "Accept": "application/json"},
     )
+    where = f"{method} {_resource(path)}"
     try:
         with urlopen(req, timeout=8) as resp:
             return resp.read()
     except HTTPError as exc:
-        code = {404: "table_missing", 409: "conflict"}.get(exc.code, "request_failed")
-        raise GoalJobStoreError(code, f"{method} {_TABLE} failed with HTTP {exc.code}.") from exc
+        missing = "function_missing" if path.startswith("rpc/") else "table_missing"
+        code = {404: missing, 409: "conflict"}.get(exc.code, "request_failed")
+        raise GoalJobStoreError(code, f"{where} failed with HTTP {exc.code}.") from exc
     except OSError as exc:
-        raise GoalJobStoreError("request_failed", f"{method} {_TABLE} could not reach Supabase.") from exc
+        raise GoalJobStoreError("request_failed", f"{where} could not reach Supabase.") from exc
 
 
 _STATUSES = {"queued", "running", "finished", "failed", "interrupted"}
 
 
-def _bad(method: str, what: str) -> GoalJobStoreError:
-    return GoalJobStoreError("bad_response", f"{method} {_TABLE} returned {what}.")
+def _bad(where: str, what: str) -> GoalJobStoreError:
+    return GoalJobStoreError("bad_response", f"{where} returned {what}.")
 
 
-def _job_row(row: Any, method: str) -> dict[str, Any]:
+def _job_row(row: Any, where: str) -> dict[str, Any]:
     if not isinstance(row, dict) or not isinstance(row.get("id"), str):
-        raise _bad(method, "a row without an id")
+        raise _bad(where, "a row without an id")
     attempt, retries = row.get("attempt"), row.get("retry_count")
     if (row.get("status") not in _STATUSES or type(attempt) is not int or attempt < 0
             or type(retries) is not int or retries not in (0, 1)):
-        raise _bad(method, "a row without a valid status, attempt or retry count")
+        raise _bad(where, "a row without a valid status, attempt or retry count")
     return row
 
 
-def _rows(method: str, query: str, data: dict[str, Any] | None = None,
+def _rows(method: str, path: str, data: dict[str, Any] | None = None,
           id_only: bool = False, exactly_one: bool = False) -> list[dict[str, Any]]:
-    """The one reader of every reply. Empty, non-JSON, non-list or incomplete rows all raise,
-    so a failed or truncated read can never look like "no job" or "nothing to recover"."""
-    raw = _request(method, f"{_TABLE}?{query}", data)
+    """The one reader of every reply, for table queries and rpc/<function> calls alike.
+    Empty, non-JSON, non-list or incomplete rows all raise, so a failed or truncated read
+    can never look like "no job", "not owned" or "nothing to recover"."""
+    where = f"{method} {_resource(path)}"
+    raw = _request(method, path, data)
     if not raw:
-        raise _bad(method, "an empty body")
+        raise _bad(where, "an empty body")
     try:
         body = json.loads(raw)
     except ValueError as exc:
-        raise _bad(method, "a body that is not JSON") from exc
+        raise _bad(where, "a body that is not JSON") from exc
     if not isinstance(body, list):
-        raise _bad(method, "no row list")
+        raise _bad(where, "no row list")
     if exactly_one and len(body) != 1:
-        raise _bad(method, f"{len(body)} rows where exactly one was expected")
+        raise _bad(where, f"{len(body)} rows where exactly one was expected")
     if id_only:
         if not all(isinstance(r, dict) and isinstance(r.get("id"), str) for r in body):
-            raise _bad(method, "a row without an id")
+            raise _bad(where, "a row without an id")
         return body
-    return [_job_row(r, method) for r in body]
+    return [_job_row(r, where) for r in body]
+
+
+_NIL_ID = "00000000-0000-0000-0000-000000000000"
+
+
+def _table(query: str) -> str:
+    return f"{_TABLE}?{query}"
+
+
+def _rpc_one(name: str, args: dict[str, Any]) -> dict[str, Any] | None:
+    """One job-writing function on one job id: the changed row, or None when nothing changed."""
+    changed = _rows("POST", f"rpc/{name}", args)
+    if len(changed) > 1:
+        raise _bad(f"POST rpc/{name}", f"{len(changed)} rows for one job")
+    return changed[0] if changed else None
 
 
 def table_present() -> bool:
+    """True only when the table AND its job functions exist (workers need both).
+
+    The functions are created together in one migration transaction, so one probe proves
+    them all: a heartbeat on the nil id with attempt 0 can never match a row (attempts
+    start at 1), so it changes nothing.
+    """
     try:
-        _rows("GET", "select=id&limit=1", id_only=True)
+        _rows("GET", _table("select=id&limit=1"), id_only=True)
+        _rows("POST", "rpc/goal_job_heartbeat", {"p_id": _NIL_ID, "p_attempt": 0, "p_server": ""})
     except GoalJobStoreError as exc:
-        if exc.code == "table_missing":
+        if exc.code in ("table_missing", "function_missing"):
             return False
         raise
     return True
 
 
 def get(job_id: str) -> dict[str, Any] | None:
-    found = _rows("GET", f"id=eq.{_q(job_id)}&limit=1")
+    found = _rows("GET", _table(f"id=eq.{_q(job_id)}&limit=1"))
     return found[0] if found else None
 
 
 def _active_for(project_id: str, sha: str) -> dict[str, Any] | None:
     query = (f"project_id=eq.{_q(project_id)}&goal_sha256=eq.{sha}"
              "&status=in.(queued,running,interrupted)&order=created_at.desc")
-    for row in _rows("GET", query):
+    for row in _rows("GET", _table(query)):
         if row["status"] != "interrupted" or row["retry_count"] < 1:
             return row
     return None
@@ -155,11 +176,11 @@ def submit(project_id: str, goal: str, acceptance: str, key: str) -> dict[str, A
     row = {"project_id": project_id, "goal": goal, "acceptance": acceptance,
            "goal_sha256": sha, "idempotency_key": key}
     try:
-        return _rows("POST", "select=*", row, exactly_one=True)[0]
+        return _rows("POST", _table("select=*"), row, exactly_one=True)[0]
     except GoalJobStoreError as exc:
         if exc.code != "conflict":
             raise
-    by_key = _rows("GET", f"idempotency_key=eq.{_q(key)}&limit=1")
+    by_key = _rows("GET", _table(f"idempotency_key=eq.{_q(key)}&limit=1"))
     if by_key:
         if (by_key[0].get("goal_sha256"), by_key[0].get("project_id")) != (sha, project_id):
             raise KeyMismatch()
@@ -172,21 +193,8 @@ def submit(project_id: str, goal: str, acceptance: str, key: str) -> dict[str, A
 
 def claim(job_id: str, server: str) -> int | None:
     """Take a queued job, or an interrupted one with its retry unused. Returns the new attempt."""
-    row = get(job_id)
-    if row is None:
-        return None
-    status, retries = row["status"], row["retry_count"]
-    if status == "interrupted" and retries < 1:
-        retries = 1
-    elif status != "queued":
-        return None
-    old, now = row["attempt"], _now()
-    changed = _rows("PATCH", f"id=eq.{_q(job_id)}&attempt=eq.{old}&status=eq.{status}", {
-        "status": "running", "attempt": old + 1, "retry_count": retries, "claimed_by": server,
-        "claim_expires_at": _iso(now + timedelta(seconds=CLAIM_SECONDS)),
-        "attempt_deadline": _iso(now + timedelta(seconds=ATTEMPT_SECONDS)),
-        "started_at": row.get("started_at") or _iso(now), "last_progress_at": _iso(now)})
-    return old + 1 if changed else None
+    row = _rpc_one("goal_job_claim", {"p_id": job_id, "p_server": server})
+    return row["attempt"] if row else None
 
 
 def _is_link(link: Any) -> bool:
@@ -198,27 +206,9 @@ def _is_link(link: Any) -> bool:
     return parts.scheme in ("http", "https") and bool(parts.hostname)
 
 
-def _fenced(job_id: str, attempt: int) -> str:
-    return f"id=eq.{_q(job_id)}&attempt=eq.{int(attempt)}&status=eq.running"
-
-
-def _owned(job_id: str, attempt: int, now: datetime) -> str:
-    """The one owner of "this attempt still owns the row", for every worker write.
-
-    Ownership is the fence AND an unexpired claim AND an unpassed attempt deadline, all
-    inside the conditional write itself. A worker whose claim lapsed or whose deadline
-    passed changes nothing, even before recover_expired() has run. Recovery uses the
-    complement (the same columns compared with lt), never a separate copy of the rule.
-    """
-    t = _q(_iso(now))
-    return f"{_fenced(job_id, attempt)}&claim_expires_at=gt.{t}&attempt_deadline=gt.{t}"
-
-
 def heartbeat(job_id: str, attempt: int, server: str) -> bool:
-    now = _now()
-    return bool(_rows("PATCH", f"{_owned(job_id, attempt, now)}&claimed_by=eq.{_q(server)}", {
-        "claim_expires_at": _iso(now + timedelta(seconds=CLAIM_SECONDS)),
-        "last_progress_at": _iso(now)}))
+    args = {"p_id": job_id, "p_attempt": int(attempt), "p_server": server}
+    return _rpc_one("goal_job_heartbeat", args) is not None
 
 
 def finish(job_id: str, attempt: int, result: dict[str, Any], evidence_links: list[str]) -> bool:
@@ -227,38 +217,19 @@ def finish(job_id: str, attempt: int, result: dict[str, Any], evidence_links: li
     for link in evidence_links:
         if not _is_link(link):
             raise ValueError("evidence must be links, never source text")
-    now = _now()
-    return bool(_rows("PATCH", _owned(job_id, attempt, now), {
-        "status": "finished", "result": result, "evidence_links": list(evidence_links),
-        "ended_at": _iso(now), "claim_expires_at": None}))
+    args = {"p_id": job_id, "p_attempt": int(attempt), "p_result": result,
+            "p_links": list(evidence_links)}
+    return _rpc_one("goal_job_finish", args) is not None
 
 
 def fail(job_id: str, attempt: int, reason: str) -> bool:
     if not str(reason).strip():
         raise ValueError("a failed job needs a reason")
-    now = _now()
-    return bool(_rows("PATCH", _owned(job_id, attempt, now), {
-        "status": "failed", "failure_reason": str(reason).strip()[:2000],
-        "ended_at": _iso(now), "claim_expires_at": None}))
+    args = {"p_id": job_id, "p_attempt": int(attempt), "p_reason": str(reason).strip()[:2000]}
+    return _rpc_one("goal_job_fail", args) is not None
 
 
 def recover_expired() -> list[str]:
-    """Running jobs whose claim lapsed or deadline passed: interrupted once, then failed."""
-    cutoff = _q(_iso(_now() - timedelta(seconds=SKEW_SECONDS)))
-    # The PATCH repeats the expiry test that found the row, so a heartbeat that renews the
-    # claim between this read and the write makes the write change nothing.
-    found: dict[str, tuple[str, dict[str, Any]]] = {}
-    for column in ("attempt_deadline", "claim_expires_at"):
-        for row in _rows("GET", f"status=eq.running&{column}=lt.{cutoff}"):
-            found.setdefault(str(row["id"]), (column, row))
-    recovered: list[str] = []
-    for job_id, (column, row) in found.items():
-        if row["retry_count"] < 1:
-            change = {"status": "interrupted", "claimed_by": None, "claim_expires_at": None}
-        else:
-            change = {"status": "failed", "failure_reason": "interrupted after its one retry",
-                      "ended_at": _iso(_now()), "claim_expires_at": None}
-        still_expired = f"{_fenced(job_id, row['attempt'])}&{column}=lt.{cutoff}"
-        if _rows("PATCH", still_expired, change):
-            recovered.append(job_id)
-    return recovered
+    """Running jobs whose claim lapsed or deadline passed: interrupted once, then failed.
+    One UPDATE on the database clock, so there is no read-then-write window to race."""
+    return [str(row["id"]) for row in _rows("POST", "rpc/goal_job_recover", {})]
