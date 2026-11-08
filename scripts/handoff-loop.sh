@@ -155,7 +155,7 @@ if [ -d .github/scripts ]; then
   # Consolidation freeze — the ci.yml job "frozen-paths". CI diffs against the PR
   # base SHA; locally the same three-dot diff runs against origin/main.
   [ "$PY_OK" = 1 ] && gate "frozen-paths-manifest" "$PY" scripts/check_frozen_paths.py \
-      --verify-manifest --min-files 90 \
+      --verify-manifest --min-files 92 \
     || skip "frozen-paths-manifest" "python deps absent"
   [ "$PY_OK" = 1 ] && gate "frozen-paths-diff" "$PY" scripts/check_frozen_paths.py \
       --base origin/main --head HEAD \
