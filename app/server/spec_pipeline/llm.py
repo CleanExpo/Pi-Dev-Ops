@@ -4,13 +4,19 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 from typing import Any
 
 from app.server import provider_router
+from app.server.provider_execution import STOPPED_RC
 
 log = logging.getLogger("pi-ceo.spec_pipeline.llm")
 
 _JSON_SLICE = re.compile(r"\{[\s\S]*\}")
+
+
+class Stopped(RuntimeError):
+    """The caller's stop signal ended the model call; nothing usable was produced."""
 
 
 _JSON_FENCE = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.IGNORECASE)
@@ -73,6 +79,7 @@ async def complete_with_evidence(
     max_tokens: int = 4096,
     role: str = "spec_pipeline",
     provider: str | None = None,
+    stop: threading.Event | None = None,
 ) -> provider_router.ProviderExecution:
     """Use configured roles; only observed identities can inform a build decision.
 
@@ -89,7 +96,11 @@ async def complete_with_evidence(
             raise RuntimeError("spec pipeline model mismatch: configured route differs")
     full = f"{system}\n\n{prompt}" if system else prompt
     full += f"\n\nKeep the response within approximately {max_tokens} tokens."
-    outcome = await provider_router.run_via_provider_with_evidence(prompt=full, role=role)
+    # stop is passed only when given, so callers and fakes without it see the old call shape.
+    extra = {"stop": stop} if stop is not None else {}
+    outcome = await provider_router.run_via_provider_with_evidence(prompt=full, role=role, **extra)
+    if outcome.rc == STOPPED_RC and stop is not None and stop.is_set():
+        raise Stopped(outcome.error or "llm call stopped")
     if outcome.rc != 0 or not outcome.text.strip():
         raise RuntimeError(outcome.error or "llm call failed")
     evidence = outcome.provenance
@@ -106,9 +117,10 @@ async def complete_with_evidence(
 async def complete(
     *, prompt: str, system: str = "", model_id: str | None = None,
     max_tokens: int = 4096, role: str = "spec_pipeline",
+    stop: threading.Event | None = None,
 ) -> tuple[str, float | None]:
     """Compatible text/cost interface; unobserved subscription cost remains None."""
     outcome = await complete_with_evidence(
-        prompt=prompt, system=system, model_id=model_id, max_tokens=max_tokens, role=role,
+        prompt=prompt, system=system, model_id=model_id, max_tokens=max_tokens, role=role, stop=stop,
     )
     return outcome.text, outcome.cost_usd

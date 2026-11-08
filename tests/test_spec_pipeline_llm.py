@@ -1,9 +1,11 @@
 """Spec calls use subscription policy and observed identity without model traffic."""
+import threading
 from unittest.mock import AsyncMock
 
 import pytest
 
 from app.server import provider_openrouter, provider_router
+from app.server.provider_execution import STOPPED_RC
 from app.server.spec_pipeline import llm
 
 
@@ -95,3 +97,32 @@ async def test_spec_supported_route_reaches_checked_cli_without_api_fallback(mon
     assert invocation.call_args_list[0].args[0][1:] == ["auth", "status"]
     assert invocation.call_args_list[1].args[0][1] == "--print"
     paid.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_stop_reaches_the_model_runner(execution):
+    _, route = execution
+    stop = threading.Event()
+    await llm.complete(prompt="task", stop=stop)
+    assert route.call_args.kwargs["stop"] is stop
+
+
+@pytest.mark.asyncio
+async def test_no_stop_keeps_the_old_call_shape(execution):
+    _, route = execution
+    await llm.complete(prompt="task")
+    assert "stop" not in route.call_args.kwargs
+
+
+@pytest.mark.asyncio
+async def test_a_stopped_call_is_reported_as_stopped_not_failed(execution):
+    result, _ = execution
+    stop = threading.Event()
+    stop.set()
+    result.rc, result.text, result.error = STOPPED_RC, "", "claude_print_stopped"
+    with pytest.raises(llm.Stopped):
+        await llm.complete(prompt="task", stop=stop)
+    result.rc, result.error = 1, "claude_print_failed: exit 1"
+    with pytest.raises(RuntimeError) as err:
+        await llm.complete(prompt="task", stop=stop)
+    assert not isinstance(err.value, llm.Stopped)
