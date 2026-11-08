@@ -1,0 +1,21 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d09c382caa24",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-7989: ship() refuses a run whose diff vs start touches only Done-harness bookkeeping",
+  "created_at_utc": "2026-11-08T03:40:15Z",
+  "identity_key": "mesh/phills-macbook-pro/ra-7989-bc2563a9@/Users/phillmcgurk/Pi-Dev-Ops/.git/worktrees/mesh-RA-7989-bc2563a9",
+  "baseline_observed": {
+    "head": "2568e55a4a3f04eaad4754d59d412b0df0c439eb",
+    "branch": "mesh/phills-macbook-pro/ra-7989-bc2563a9",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "ship tests pass incl bookkeeping-only refusal and real-change ship",
+      "recipe": "/Users/phillmcgurk/Pi-Dev-Ops/.venv/bin/python -m pytest -q tests/test_mesh_runner_ships_own_work.py"
+    }
+  ]
+}
