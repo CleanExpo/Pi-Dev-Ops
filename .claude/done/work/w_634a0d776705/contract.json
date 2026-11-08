@@ -1,0 +1,36 @@
+{
+  "schema": "done/1",
+  "work_id": "w_634a0d776705",
+  "version": 2,
+  "supersedes": "w_24f479840782",
+  "goal": "UNI-3306 PR 1: a Supabase job store for goal_analysis_jobs whose every time-dependent write is a SQL function on the database clock, fenced on the attempt number, with one retry at most and only evidence links stored.",
+  "created_at_utc": "2026-11-08T12:21:42Z",
+  "identity_key": "phillmcgurk/uni-3306-job-store@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-store",
+  "baseline_observed": {
+    "head": "02cd0eb7cd18c05a397a32c089428b5ac4787663",
+    "branch": "phillmcgurk/uni-3306-job-store",
+    "dirty_count": 7
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The job store unit tests pass: submit returns the active job on a duplicate, a key reused for a different goal is refused, every write after a claim goes through a database function, a stale attempt cannot heartbeat, finish or fail, recovery turns an expired running job into interrupted then failed, only links are stored as evidence, and a missing table or missing job functions read as not present.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-store' && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_goal_analysis_jobs_store.py -q -p no:cacheprovider"
+    },
+    {
+      "id": "C2",
+      "text": "Each planted defect in a copy of the store or the job-functions migration (reply parsing, row count, presence probe, evidence checks, is_live clock conditions, the retry rule, claim status condition, heartbeat server check, EXECUTE revocation) makes the store or real-Postgres tests fail; an unmutated copy passes both.",
+      "recipe": "'/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' /Users/phill-mac/session-handoffs/reviews/uni-3306-store/mutants.py '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-store'"
+    },
+    {
+      "id": "C3",
+      "text": "ruff on every changed Python file, the file-length gate and the function-length gate pass.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-store' && /Users/phill-mac/.local/bin/ruff check app/server/goal_analysis_jobs.py tests/goal_jobs_helpers.py tests/goal_jobs_pg_helpers.py tests/test_goal_analysis_jobs_store.py tests/test_goal_analysis_jobs_pg.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/file_length_lint.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/function_length_lint.py"
+    },
+    {
+      "id": "C4",
+      "text": "The job functions are proven on a real local Postgres built from the two goal job migrations (simultaneous submissions, claim, heartbeat, finish, fail, recovery on the database clock, anon and authenticated refused); skipping is refused.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-store' && GOAL_ANALYSIS_JOBS_PG_REQUIRED=1 '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_goal_analysis_jobs_pg.py -q -p no:cacheprovider"
+    }
+  ]
+}
