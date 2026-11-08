@@ -3,7 +3,8 @@
 A stop must leave nothing running. The CLI runs in its own process group, but a descendant
 that calls setsid() leaves that group, so every descendant is also recorded by parent link and
 stopped by pid. Anything still alive afterwards, and any failure to read the process list, is
-logged as a warning; an unreadable list is never treated as an empty one.
+logged as a warning; an unreadable list is never treated as an empty one. A process is
+identified by pid, start time and command together, so a reused pid is never signalled.
 """
 from __future__ import annotations
 import logging
@@ -18,19 +19,21 @@ _log = logging.getLogger(__name__)
 
 
 def ps_table(timeout_s: float) -> dict[int, tuple[int, str, str]] | None:
-    """pid -> (parent pid, state, command); None when the list could not be read."""
+    """pid -> (parent pid, state, "start time | command"); None when the list could not be read."""
     if os.name != "posix":
         return {}
     try:
-        res = subprocess.run([PS, "-A", "-o", "pid=,ppid=,stat=,command="], capture_output=True,
-                             text=True, timeout=max(0.05, timeout_s), check=False)
+        res = subprocess.run([PS, "-A", "-o", "pid=,ppid=,stat=,lstart=,command="], capture_output=True,
+                             text=True, timeout=max(0.05, timeout_s), check=False,
+                             env={**os.environ, "LC_ALL": "C", "TZ": "UTC"})
     except (OSError, subprocess.SubprocessError):
         return None
     table = {}
     for row in res.stdout.splitlines() if res.returncode == 0 else ():
-        parts = row.split(None, 3)
-        if len(parts) >= 3 and parts[0].isdigit() and parts[1].isdigit():
-            table[int(parts[0])] = (int(parts[1]), parts[2], parts[3] if len(parts) > 3 else "")
+        parts = row.split(None, 8)  # lstart is five words: "Sun Nov  8 14:00:01 2026"
+        if len(parts) >= 8 and parts[0].isdigit() and parts[1].isdigit():
+            ident = " ".join(parts[3:8]) + " | " + (parts[8] if len(parts) > 8 else "")
+            table[int(parts[0])] = (int(parts[1]), parts[2], ident)
     return table or None  # a readable list always holds at least this process
 
 
@@ -52,7 +55,7 @@ def descendants(root: int, timeout_s: float) -> dict[int, str] | None:
 
 
 def live(known: dict[int, str], timeout_s: float) -> dict[int, str] | None:
-    """Recorded processes still running the same command (a reused pid is never ours)."""
+    """Recorded processes still alive with the same start time and command (a reused pid is never ours)."""
     table = ps_table(timeout_s)
     if table is None:
         return None
@@ -64,7 +67,9 @@ def pipe_holders(fds, timeout_s: float) -> dict[int, str] | None:
     """Processes holding the other end of our output pipes, found even after they were reparented.
 
     A child that calls setsid() and outlives the CLI is no longer a descendant by parent link,
-    but it still holds the call's stdout/stderr; lsof finds it by the pipe's address.
+    but it still holds the call's stdout/stderr; lsof finds it by the pipe's address. When the
+    process list cannot be read, a holder is returned with an empty identity: lsof has just seen
+    it holding our pipe, so it is still stopped by pid, and the stop is reported as unreadable.
     """
     me = os.getpid()
     ends = set()
@@ -77,7 +82,9 @@ def pipe_holders(fds, timeout_s: float) -> dict[int, str] | None:
     if rows is None or not ends:
         return None
     pids = {pid for pid, kind, v in rows if pid != me and v in ends}
-    table = ps_table(timeout_s) or {}
+    table = ps_table(timeout_s)
+    if table is None:
+        return dict.fromkeys(pids, "")
     return {pid: table[pid][2] for pid in pids if pid in table}
 
 
@@ -128,14 +135,16 @@ def stop_tree(proc, known: dict[int, str], *, budget_s: float, grace_s: float, f
         return max(0.05, min(cap, end - time.monotonic()))
 
     pids: list[int] = []
+    unnamed: list[int] = []
     found = holders = targets = None
     try:
         _signal(proc.pid, (), signal.SIGSTOP)  # nothing in the group exits or spawns while it is read
         found = descendants(proc.pid, left(0.75))
         holders = pipe_holders(fds, left(0.75)) if fds else {}
+        unnamed = [pid for pid, ident in (holders or {}).items() if not ident]
         known = {**known, **(found or {}), **(holders or {})}
         targets = live(known, left(0.75))
-        pids = list(targets or {})
+        pids = list(targets or {}) + [pid for pid in unnamed if pid not in (targets or {})]
         _signal(proc.pid, pids, signal.SIGTERM)
         _signal(proc.pid, pids, signal.SIGCONT)
         try:
@@ -144,7 +153,7 @@ def stop_tree(proc, known: dict[int, str], *, budget_s: float, grace_s: float, f
             pass
     finally:
         _signal(proc.pid, pids, signal.SIGKILL)  # children can outlive a parent that exited
-    _report(known, found is None or holders is None or targets is None, left)
+    _report(known, found is None or holders is None or targets is None or bool(unnamed), left)
 
 
 def _report(known: dict[int, str], unreadable: bool, left) -> None:
@@ -156,6 +165,6 @@ def _report(known: dict[int, str], unreadable: bool, left) -> None:
     if unreadable or survivors is None:
         _log.warning("model call stop: the process list could not be read; a process outside the "
                      "group may still be running. Recorded: %s",
-                     "; ".join(f"process {p}: {c[:200]}" for p, c in known.items()) or "none")
+                     "; ".join(f"process {p}: {c[:200] or 'command unknown'}" for p, c in known.items()) or "none")
     for pid, cmd in (survivors or {}).items():
         _log.warning("model call stop: process %d is still running after the stop: %s", pid, cmd[:300])

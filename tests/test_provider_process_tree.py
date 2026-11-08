@@ -1,5 +1,6 @@
 """UNI-3306: a stop leaves nothing running, even when the process list is unreadable or the CLI already exited."""
 import os
+import subprocess
 import threading
 import time
 
@@ -85,3 +86,42 @@ def test_escaped_child_of_a_cli_that_already_exited_is_still_stopped(tmp_path, m
     finally:
         if _alive(escaped):
             os.kill(escaped, 9)
+
+
+class _Proc:
+    pid = 2 ** 22 + 12345  # no such process group; killpg is a no-op
+
+    def wait(self, timeout=None):
+        return 0
+
+
+def test_pipe_holder_is_stopped_and_named_when_the_process_list_is_unreadable(monkeypatch, caplog):
+    from app.server import provider_process_tree as tree
+    own = [(os.getpid(), "d", "0xabc")]
+    users = own + [(4242, "n->", "0xabc")]
+    monkeypatch.setattr(tree, "_lsof", lambda args, t: own if "-p" in args else users)
+    monkeypatch.setattr(tree, "ps_table", lambda t: None)
+    killed = []
+    monkeypatch.setattr(tree, "kill_pid", lambda pid, sig: killed.append(pid))
+    with caplog.at_level("WARNING", logger=tree.__name__):
+        tree.stop_tree(_Proc(), {}, budget_s=0.5, grace_s=0.1, fds=[1])
+    warnings = " ".join(r.getMessage() for r in caplog.records if r.levelname == "WARNING")
+    assert 4242 in killed, "a process holding the call's pipe was not stopped"
+    assert "4242" in warnings, f"the pipe holder was not named in a warning: {warnings!r}"
+
+
+def test_reused_pid_running_the_same_command_is_not_signalled(monkeypatch):
+    from app.server import provider_process_tree as tree
+    started = {"now": "Sun Nov  8 14:00:01 2026"}
+
+    def fake_run(argv, **kw):
+        fmt = argv[argv.index("-o") + 1]
+        start = f" {started['now']}" if "lstart" in fmt else ""
+        rows = [f"{os.getpid()} 1 S{start} python", f"500 {os.getpid()} S{start} /usr/bin/worker --x"]
+        return subprocess.CompletedProcess(argv, 0, "\n".join(rows) + "\n", "")
+
+    monkeypatch.setattr(tree.subprocess, "run", fake_run)
+    known = tree.descendants(os.getpid(), 0.5)
+    assert 500 in known
+    started["now"] = "Sun Nov  8 14:09:59 2026"  # pid 500 ended and was reused by the same command
+    assert tree.live(known, 0.5) == {}, "a reused pid with the same command would be signalled"
