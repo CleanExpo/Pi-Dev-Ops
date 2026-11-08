@@ -45,7 +45,6 @@ HANDLERS: dict[str, tuple[str, str]] = {
     "staging_pull": (".cron_fire_wiki", "_fire_staging_pull_trigger"),       # M4 front door
     "youtube_transcripts": (".cron_fire_wiki", "_fire_youtube_transcripts_trigger"),  # M4
     "ticket_sweeper": (".ticket_sweeper", "_fire_ticket_sweeper_trigger"),   # audit #17
-    "goal_job_cleanup": (".goal_analysis_cleanup", "_fire_goal_job_cleanup_trigger"),  # UNI-3306
 }
 
 

@@ -4,9 +4,8 @@ function itself is proven on a real Postgres in test_goal_analysis_jobs_pg_purge
 """
 from __future__ import annotations
 
-import asyncio
+import importlib.util
 import json
-import logging
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -15,6 +14,7 @@ import pytest
 
 from app.server import goal_analysis_cleanup as cleanup
 from app.server import goal_analysis_jobs as jobs
+from app.server.cron_fire_script import _command_for, _fire_script_trigger
 from app.server.cron_handler_registry import resolve_handler
 from app.server.cron_triggers import _matches
 from tests.goal_jobs_helpers import FakeRest
@@ -136,31 +136,35 @@ def test_purge_all_due_stops_at_the_first_failed_call(rest: FakeRest, monkeypatc
         cleanup.purge_all_due()
 
 
-def test_the_trigger_logs_the_count(rest: FakeRest, caplog: pytest.LogCaptureFixture) -> None:
+def test_main_prints_the_count_and_exits_zero(rest: FakeRest, capsys: pytest.CaptureFixture[str]) -> None:
     _row(rest, "finished", 100, "old")
-    log = logging.getLogger("test.goal_cleanup")
-    with caplog.at_level(logging.INFO, logger="test.goal_cleanup"):
-        asyncio.run(cleanup._fire_goal_job_cleanup_trigger({"id": "t1"}, log))
-    assert "goal_job_cleanup id=t1 deleted=1 backlog_left=False" in caplog.text
+    assert cleanup.main() == 0
+    assert capsys.readouterr().out.strip() == "goal_job_cleanup deleted=1 backlog_left=False"
 
 
-def test_the_trigger_logs_and_reraises_a_store_failure(rest: FakeRest, caplog: pytest.LogCaptureFixture) -> None:
-    """A failure must reach the scheduler (so last_fired_at stays put) and must not read as 'deleted 0'."""
+def test_main_exits_one_and_names_the_failure_on_stderr(rest: FakeRest, capsys: pytest.CaptureFixture[str]) -> None:
+    """cron_fire_script logs a non-zero exit at ERROR with stderr: a failure must reach it and must not read as 'deleted 0'."""
+    _row(rest, "finished", 100, "old")
     rest.functions_missing = True
-    log = logging.getLogger("test.goal_cleanup")
-    with caplog.at_level(logging.INFO, logger="test.goal_cleanup"):
-        with pytest.raises(jobs.GoalJobStoreError):
-            asyncio.run(cleanup._fire_goal_job_cleanup_trigger({"id": "t1"}, log))
-    assert "FAILED code=function_missing" in caplog.text
-    assert "deleted=" not in caplog.text
+    assert cleanup.main() == 1
+    out = capsys.readouterr()
+    assert "FAILED code=function_missing" in out.err
+    assert "deleted=" not in out.out + out.err
+    assert _ids(rest) == {"old"}
 
 
-def test_the_configured_cron_row_is_daily_enabled_and_dispatches_to_the_handler() -> None:
+def test_the_configured_cron_row_is_daily_enabled_and_runs_this_module() -> None:
     raw = json.loads((REPO_ROOT / "config/harness/cron-triggers.json").read_text())
-    rows = [t for t in (raw["triggers"] if isinstance(raw, dict) else raw) if t.get("type") == "goal_job_cleanup"]
-    assert [r["id"] for r in rows] == ["goal-jobs-cleanup-daily"]
+    rows = [t for t in (raw["triggers"] if isinstance(raw, dict) else raw) if t.get("id") == "goal-jobs-cleanup-daily"]
+    assert len(rows) == 1
     row = rows[0]
-    assert row["enabled"] is True and isinstance(row["hour"], int) and isinstance(row["minute"], int)
+    assert row["type"] == "script" and row["enabled"] is True
+    assert isinstance(row["hour"], int) and isinstance(row["minute"], int)
     fires = [(h, m) for h in range(24) for m in range(60) if _matches(dict(row), h, m)]
     assert fires == [(row["hour"], row["minute"])]
-    assert resolve_handler("goal_job_cleanup") is cleanup._fire_goal_job_cleanup_trigger
+    assert resolve_handler("script") is _fire_script_trigger
+    argv = _command_for(row["script"])
+    assert argv[1:] == ["-m", "app.server.goal_analysis_cleanup"]
+    # Never run it here: app/.env.local can point it at a real database. Check the entry point statically.
+    assert importlib.util.find_spec(argv[-1]) is not None
+    assert 'if __name__ == "__main__":\n    sys.exit(main())' in Path(cleanup.__file__).read_text()

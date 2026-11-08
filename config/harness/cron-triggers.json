@@ -431,12 +431,13 @@
   },
   {
     "id": "goal-jobs-cleanup-daily",
-    "type": "goal_job_cleanup",
+    "type": "script",
     "name": "Goal analysis jobs: delete finished and failed jobs 90 days after they ended (UNI-3306, grill 14 Q7)",
+    "script": "-m app.server.goal_analysis_cleanup",
     "hour": 4,
     "minute": 15,
     "enabled": true,
-    "note": "Never deletes queued, running or interrupted jobs. Fails loudly (trigger error, last_fired_at not advanced) until migration 20261108T020000 is applied.",
+    "note": "Never deletes queued, running or interrupted jobs. Until migration 20261108T020000 is applied it exits 1 and the script trigger logs an ERROR; cron_fire_script is frozen, so last_fired_at still advances on a failed run and the next daily run retries.",
     "created_at": 1794096000,
     "last_fired_at": null
   }
