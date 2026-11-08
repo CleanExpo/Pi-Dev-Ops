@@ -1,6 +1,7 @@
 """Goal → Linear: projects, analyze (no write), file only after approval."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 
+from .. import goal_analysis_worker
 from ..auth import require_auth, require_rate_limit
 from ..goal_analyze import analyze_goal
 from ..goal_projects import (
@@ -13,6 +14,7 @@ from ..goal_projects import (
 from ..goal_projects_archive import archive_project
 from ..goal_ticket import file_drafts
 from ..models import GoalProjectArchive, GoalProjectCreate, GoalTicketFileRequest, GoalTicketRequest
+from .goal_ticket_async import read_job, submit_job
 
 router = APIRouter()
 
@@ -123,11 +125,20 @@ def archive_goal_project(body: GoalProjectArchive) -> dict:
     "/api/goal-ticket/analyze",
     dependencies=[Depends(require_auth), Depends(require_rate_limit)],
 )
-async def analyze_goal_ticket(body: GoalTicketRequest) -> dict:
+async def analyze_goal_ticket(body: GoalTicketRequest, response: Response) -> dict:
+    if goal_analysis_worker.enabled():
+        response.status_code = 202
+        return await submit_job(body.goal, body.acceptance, body.project_id, body.idempotency_key)
     result = await analyze_goal(body.goal, body.acceptance, body.project_id)
     if result.get("error"):
         _raise_goal_error(result)
     return result
+
+
+@router.get("/api/goal-ticket/analyze/{job_id}", dependencies=[Depends(require_auth)])
+def goal_analysis_status(job_id: str) -> dict:
+    # require_auth only: polling must not spend the shared 30/min rate limit.
+    return read_job(job_id)
 
 
 @router.post(

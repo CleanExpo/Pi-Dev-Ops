@@ -124,6 +124,8 @@ class GoalTicketRequest(BaseModel):
     goal: str
     acceptance: str
     project_id: str
+    # Only read when GOAL_ANALYZE_ASYNC is on (UNI-3306): the same key returns the same job.
+    idempotency_key: str | None = None
 
     @field_validator("goal", "acceptance")
     @classmethod

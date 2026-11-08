@@ -1,0 +1,28 @@
+{
+  "schema": "done/1",
+  "work_id": "w_49bfaf533e7b",
+  "version": 1,
+  "supersedes": null,
+  "goal": "UNI-3306 PR2: async goal analysis routes, worker, off switch",
+  "created_at_utc": "2026-11-08T12:58:14Z",
+  "identity_key": "phillmcgurk/uni-3306-worker@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-worker",
+  "baseline_observed": {
+    "head": "8fb0dc39cb109862b9328bf9b678b26e1d676b9e",
+    "branch": "phillmcgurk/uni-3306-worker",
+    "dirty_count": 3
+  },
+  "criteria": [
+    {
+      "id": "worker-tests",
+      "text": "worker kill/stop/double tests pass",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python\" -m pytest -p no:cacheprovider --basetemp /private/tmp/claude-501/bt1 tests/test_goal_analysis_worker.py -q",
+      "timeout": 300
+    },
+    {
+      "id": "existing-tests",
+      "text": "store and goal ticket tests pass",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python\" -m pytest -p no:cacheprovider --basetemp /private/tmp/claude-501/bt2 tests/test_goal_analysis_jobs_store.py tests/test_goal_ticket.py -q",
+      "timeout": 300
+    }
+  ]
+}

@@ -161,6 +161,13 @@ def get(job_id: str) -> dict[str, Any] | None:
     return found[0] if found else None
 
 
+def runnable_ids() -> list[str]:
+    """Jobs a worker could claim now: queued, or interrupted with the retry unused.
+    The recovery loop uses this so a job whose server died before claiming is not lost."""
+    rows = _rows("GET", _table("status=in.(queued,interrupted)&order=created_at.asc&limit=50"))
+    return [r["id"] for r in rows if r["status"] == "queued" or r["retry_count"] < 1]
+
+
 def _active_for(project_id: str, sha: str) -> dict[str, Any] | None:
     query = (f"project_id=eq.{_q(project_id)}&goal_sha256=eq.{sha}"
              "&status=in.(queued,running,interrupted)&order=created_at.desc")
