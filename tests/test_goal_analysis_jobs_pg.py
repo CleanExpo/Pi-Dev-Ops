@@ -10,9 +10,10 @@ row as the superuser, never by a client clock; the functions run as service_role
 
 Each run builds a NEW database holding the two goal job migrations from this checkout
 (tests/goal_jobs_pg_helpers.py): on SCRATCH_DB_URL's server when set (pgtap-pilot.yml's
-service container), otherwise on a cluster started here from local Postgres binaries.
-It skips only when neither exists; GOAL_ANALYSIS_JOBS_PG_REQUIRED=1 turns that skip
-into a failure. Never a remote database.
+service container). A cluster is started here from local Postgres binaries ONLY when
+GOAL_ANALYSIS_JOBS_PG_REQUIRED=1 asks for it, so the general unit-test run never starts a
+server; with REQUIRED=1 and neither available the run fails, never skips. Without either
+the module skips. Never a remote database.
 """
 
 from __future__ import annotations
@@ -27,12 +28,13 @@ import pytest
 from tests import goal_jobs_pg_helpers as pg
 
 SCRATCH = os.environ.get("SCRATCH_DB_URL", "")
-BINS = None if SCRATCH else pg.bindir()
+REQUIRED = os.environ.get("GOAL_ANALYSIS_JOBS_PG_REQUIRED") == "1"
+BINS = None if SCRATCH or not REQUIRED else pg.bindir()
 if not SCRATCH and not BINS:
-    if os.environ.get("GOAL_ANALYSIS_JOBS_PG_REQUIRED") == "1":
+    if REQUIRED:
         raise RuntimeError("GOAL_ANALYSIS_JOBS_PG_REQUIRED=1 but there is no SCRATCH_DB_URL and no "
                            "local postgres binary; refusing to skip")
-    pytest.skip("needs SCRATCH_DB_URL or a local postgres server binary (initdb, pg_ctl)",
+    pytest.skip("needs SCRATCH_DB_URL, or GOAL_ANALYSIS_JOBS_PG_REQUIRED=1 with local postgres binaries",
                 allow_module_level=True)
 
 import psycopg  # noqa: E402
