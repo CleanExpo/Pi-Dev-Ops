@@ -1,6 +1,6 @@
 """tests/goal_jobs_pg_helpers.py — a throwaway Postgres database for the goal job SQL tests.
 
-`database()` yields the URL of a NEW database holding exactly the two goal job
+`database()` yields the URL of a NEW database holding exactly the three goal job
 migrations, read from this checkout (so a planted defect in a copy of a migration is
 what gets tested). The server is SCRATCH_DB_URL when set (CI's service container; it
 must be localhost), otherwise a cluster started here from the local `postgres` binaries
@@ -25,7 +25,8 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 MIGRATIONS = Path(__file__).resolve().parents[1] / "supabase" / "migrations"
-FILES = ("20261108T000000_goal_analysis_jobs.sql", "20261108T010000_goal_analysis_job_functions.sql")
+FILES = ("20261108T000000_goal_analysis_jobs.sql", "20261108T010000_goal_analysis_job_functions.sql",
+         "20261108T020000_goal_analysis_job_purge.sql")
 APPLY_FAILED = "GOAL_JOBS_MIGRATION_APPLY_FAILED"  # mutants.py tells "not applied" from "caught" by this
 _BOOTSTRAP = """
 DO $$ BEGIN

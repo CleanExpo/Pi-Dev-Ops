@@ -59,6 +59,7 @@ on:
       - 'tests/test_schema_drift_db_pg.py'
       - 'tests/test_goal_analysis_jobs_pg.py'
       - 'tests/test_goal_analysis_jobs_pg_lock.py'
+      - 'tests/test_goal_analysis_jobs_pg_purge.py'
       - 'tests/goal_jobs_pg_helpers.py'
       - 'docs/schema-drift-db.md'
   push:
@@ -202,11 +203,11 @@ jobs:
       - name: Goal analysis jobs, simultaneous submissions (ephemeral Postgres)
         # UNI-3306 grill Q6: two sessions submit the same goal at once and exactly
         # one job exists. Needs two real sessions, so it is pytest, not a SQL file.
-        # Also the job functions (claim, heartbeat, finish, fail, recovery) on the
+        # Also the job functions (claim, heartbeat, finish, fail, recovery, 90-day purge) on the
         # database clock. The tests build their own database on this server from the
-        # two goal job migrations (tests/goal_jobs_pg_helpers.py).
+        # three goal job migrations (tests/goal_jobs_pg_helpers.py).
         # REQUIRED=1 turns a missing SCRATCH_DB_URL into a failure, never a skip.
         env:
           SCRATCH_DB_URL: postgres://postgres:shadow@localhost:5432/pilot_shadow
           GOAL_ANALYSIS_JOBS_PG_REQUIRED: "1"
-        run: python -m pytest tests/test_goal_analysis_jobs_pg.py tests/test_goal_analysis_jobs_pg_lock.py -v --tb=short -p no:cacheprovider
+        run: python -m pytest tests/test_goal_analysis_jobs_pg.py tests/test_goal_analysis_jobs_pg_lock.py tests/test_goal_analysis_jobs_pg_purge.py -v --tb=short -p no:cacheprovider

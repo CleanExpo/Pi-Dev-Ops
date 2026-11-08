@@ -428,5 +428,16 @@
     "note": "DRY-RUN unless TAO_TICKET_SWEEPER_WRITE=1: counts decisions for the Mission Control tile without writing to Linear.",
     "created_at": 1790726400,
     "last_fired_at": null
+  },
+  {
+    "id": "goal-jobs-cleanup-daily",
+    "type": "goal_job_cleanup",
+    "name": "Goal analysis jobs: delete finished and failed jobs 90 days after they ended (UNI-3306, grill 14 Q7)",
+    "hour": 4,
+    "minute": 15,
+    "enabled": true,
+    "note": "Never deletes queued, running or interrupted jobs. Fails loudly (trigger error, last_fired_at not advanced) until migration 20261108T020000 is applied.",
+    "created_at": 1794096000,
+    "last_fired_at": null
   }
 ]

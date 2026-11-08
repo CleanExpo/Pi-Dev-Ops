@@ -8,7 +8,7 @@ Part 2, the job functions (migration 20261108T010000): claim, heartbeat, finish,
 and recovery decide ownership on the database clock. Times are moved by rewriting the
 row as the superuser, never by a client clock; the functions run as service_role.
 
-Each run builds a NEW database holding the two goal job migrations from this checkout
+Each run builds a NEW database holding the three goal job migrations from this checkout
 (tests/goal_jobs_pg_helpers.py): on SCRATCH_DB_URL's server when set (pgtap-pilot.yml's
 service container). A cluster is started here from local Postgres binaries ONLY when
 GOAL_ANALYSIS_JOBS_PG_REQUIRED=1 asks for it, so the general unit-test run never starts a

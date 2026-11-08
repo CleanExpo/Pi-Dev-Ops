@@ -89,9 +89,11 @@ def test_recovery_skips_a_row_being_written_then_takes_it(db, svc, admin, job):
     assert r["status"] == "interrupted"
 
 
-def test_the_migration_reads_the_clock_only_in_goal_job_now():
-    sql = (pg.MIGRATIONS / pg.FILES[1]).read_text(encoding="utf-8")
-    code = "\n".join(line.split("--", 1)[0] for line in sql.splitlines())
+def test_the_migrations_read_the_clock_only_in_goal_job_now():
+    """The functions migration and the purge migration (FILES[1:]) share one clock owner."""
+    code = "".join("\n".join(line.split("--", 1)[0] for line in
+                             (pg.MIGRATIONS / name).read_text(encoding="utf-8").splitlines()) + "\n"
+                   for name in pg.FILES[1:])
     banned = re.findall(r"\b(now\s*\(|current_timestamp|transaction_timestamp|statement_timestamp|localtimestamp)",
                         code, re.IGNORECASE)
     assert banned == []
