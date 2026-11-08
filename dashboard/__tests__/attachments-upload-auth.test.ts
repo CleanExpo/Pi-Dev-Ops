@@ -75,6 +75,26 @@ describe("attachments upload auth", () => {
     expect(formData).not.toHaveBeenCalled();
   });
 
+  it("REFUSES an external-origin upload even with a valid session", async () => {
+    const res = await post({ cookie: sessionCookie(), origin: "https://evil.example" });
+    expect(res.status, "a cross-origin POST carrying a session got past the origin gate").toBe(403);
+    expect(await res.json()).toEqual({ error: "Forbidden origin" });
+  });
+
+  it("REFUSES a cross-site fetch even with a valid session", async () => {
+    const res = await post({ cookie: sessionCookie(), "sec-fetch-site": "cross-site" });
+    expect(res.status).toBe(403);
+  });
+
+  it("CONTROL: a same-origin POST with a valid session gets PAST the origin gate", async () => {
+    const res = await post({
+      cookie: sessionCookie(),
+      origin: "https://pi.invalid",
+      "sec-fetch-site": "same-origin",
+    });
+    expect(res.status, "the origin gate rejected its own origin").toBe(503);
+  });
+
   it("does not mint Drive credentials", () => {
     const src = readFileSync(join(ROOT, "app/api/attachments/upload/route.ts"), "utf8");
     expect(src).not.toMatch(/DRIVE_|mintServiceAccount|googleapis|drive-client/i);

@@ -26,7 +26,19 @@ async function isAuthorised(request: Request): Promise<boolean> {
   return verifySessionToken(sessionTokenFrom(request), SESSION_TTL_SECONDS);
 }
 
+// A browser POST from another site carries the victim's cookie, so a session
+// alone does not prove the dashboard sent it. Refuse a foreign Origin or a
+// cross-site fetch before auth and before the body is touched.
+function isForeignOrigin(request: Request): boolean {
+  if (request.headers.get("sec-fetch-site") === "cross-site") return true;
+  const origin = request.headers.get("origin");
+  return origin !== null && origin !== new URL(request.url).origin;
+}
+
 export async function POST(request: Request): Promise<Response> {
+  if (isForeignOrigin(request)) {
+    return Response.json({ error: "Forbidden origin" }, { status: 403 });
+  }
   if (!(await isAuthorised(request))) {
     return Response.json({ error: "Unauthorised" }, { status: 401 });
   }
