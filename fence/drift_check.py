@@ -244,7 +244,7 @@ def main() -> int:
             else:
                 unchecked.append(f"Code sweep: could not determine liveness of '{ref}'")
 
-    lines = [f"FENCE DRIFT CHECK", "=" * 50, ""]
+    lines = ["FENCE DRIFT CHECK", "=" * 50, ""]
     if drift:
         lines += ["Reality and fence.json disagree:", ""]
         lines += [f"  - {d}" for d in drift] + [""]
