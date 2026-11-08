@@ -29,7 +29,13 @@ from . import continuation_bridge  # noqa: F401 — internal Telegram/Margot rol
 
 from . import goal_analysis_worker  # UNI-3306 — async goal analysis (off unless GOAL_ANALYZE_ASYNC=1)
 from .app_factory import _resilient
-app.add_event_handler("startup", lambda: goal_analysis_worker.start(_resilient))
+
+
+async def _start_goal_analysis() -> None:
+    await goal_analysis_worker.start(_resilient)
+
+
+app.router.add_event_handler("startup", _start_goal_analysis)
 
 app.include_router(auth.router)
 app.include_router(goal_ticket.router)
