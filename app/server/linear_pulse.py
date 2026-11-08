@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -161,13 +162,22 @@ def _active_sessions() -> list[dict]:
         return []
 
 
-def _elapsed_minutes(started_at: str | None) -> int:
-    if not started_at:
+def _elapsed_minutes(started_at: float | int | str | None) -> int:
+    """Whole minutes since ``started_at``; 0 when missing or unparseable.
+
+    RA-8031 — sessions store ``started_at`` as epoch seconds
+    (``session_model.py``), so a number must be read as such. ISO strings
+    are still accepted. ``bool`` is an ``int`` subclass and is rejected.
+    """
+    if not started_at or isinstance(started_at, bool):
         return 0
     try:
-        dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
-        now = datetime.now(timezone.utc)
-        return int((now - dt).total_seconds() // 60)
+        if isinstance(started_at, (int, float)):
+            seconds = time.time() - float(started_at)
+        else:
+            dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+            seconds = (datetime.now(timezone.utc) - dt).total_seconds()
+        return max(0, int(seconds // 60))
     except Exception:  # noqa: BLE001
         return 0
 
