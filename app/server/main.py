@@ -27,6 +27,10 @@ from .routes import nexus as nexus_routes  # Phase A — Nexus onboarding + grow
 from .routes import nexus_one_status  # RA-7539 — read-only synthetic status
 from . import continuation_bridge  # noqa: F401 — internal Telegram/Margot rolling-horizon hook
 
+from . import goal_analysis_worker  # UNI-3306 — async goal analysis (off unless GOAL_ANALYZE_ASYNC=1)
+from .app_factory import _resilient
+app.add_event_handler("startup", lambda: goal_analysis_worker.start(_resilient))
+
 app.include_router(auth.router)
 app.include_router(goal_ticket.router)
 app.include_router(sessions.router)
