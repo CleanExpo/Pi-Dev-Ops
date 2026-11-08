@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_0d1513628b86",
+  "contract_digest": "030385856e79c0cd2639317e0db8d24ff85210c7c4f74d5285ffddff4ddc6780",
+  "baseline_head": "67b92a76796d70b1d5c669eee28067ac31f61ff6",
+  "identity_key": "phillmcgurk/uni-3306-unfreeze-llm@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-unfreeze-llm",
+  "locked_at_utc": "2026-11-08T11:18:53Z",
+  "criteria_count": 2,
+  "recipe_pins": {}
+}
