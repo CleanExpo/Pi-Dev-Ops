@@ -21,7 +21,6 @@ def bash(cmd):
 
 class TestClassifyL3:
     @pytest.mark.parametrize("cmd", [
-        "git merge origin/main",
         "gh pr merge 603 --squash",
         "git push origin main",
         "git push --force origin main",
@@ -104,7 +103,7 @@ class TestDecide:
             assert "HARD_STOP" in d["permissionDecisionReason"]
 
     def test_reason_is_actionable(self):
-        d = decide(*bash("git merge origin/main"))
+        d = decide(*bash("gh pr merge 603 --squash"))
         assert "L3" in d["permissionDecisionReason"]
 
 

@@ -7,6 +7,14 @@ from collections.abc import Iterator
 
 import pytest
 
+# RA-8247: tests put temp paths into whitespace-split strings (a cron trigger's `script`,
+# an unquoted `cd`), so a TMPDIR holding a space, such as `/Volumes/MacBook SSD EXT/...`,
+# failed them locally while CI (TMPDIR=/tmp) stayed green, and blocked the pre-push gate.
+# Such a TMPDIR is replaced with the system /tmp before anything reads it; children inherit it.
+if " " in __import__("tempfile").gettempdir():
+    os.environ["TMPDIR"] = os.path.realpath("/tmp")
+    __import__("tempfile").tempdir = None
+
 # Set required env vars before any app imports
 os.environ.setdefault("TAO_PASSWORD", "test-password-ci")
 os.environ.setdefault("TAO_SESSION_SECRET", "test-session-secret-32-chars-xxxx")

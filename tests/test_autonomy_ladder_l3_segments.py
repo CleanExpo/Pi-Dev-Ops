@@ -108,12 +108,32 @@ def test_read_only_merge_porcelain_is_not_l3(command):
     "git merge main",
     "git merge --no-ff feature/x",
     "git merge origin/main",
+    "git merge --no-ff --no-commit origin/main",
     "git merge",
     "git merge --abort",
 ])
-def test_real_merge_is_still_l3(command):
-    """The actual merge verb must remain L3 — the half that must not slip."""
-    assert is_l3(command), f"real merge no longer L3: {command}"
+def test_local_merge_is_not_l3(command):
+    """A local `git merge` only moves the checked-out branch; the reflog undoes it.
+
+    It was L3 and that blocked agents from integrating main into their own
+    feature branch, the step that comes before every PR. It protected nothing:
+    reaching a protected ref still needs a push (L3 when it names a protected
+    ref) or `gh pr merge` (L3), and GitHub branch protection on main sits
+    behind both. Same tier as `git rebase` / `git cherry-pick`, which were
+    already L1.
+    """
+    assert not is_l3(command), f"local merge still blocked as L3: {command}"
+
+
+@pytest.mark.parametrize("command", [
+    "gh pr merge 12 --squash",
+    "git push origin main",
+    "git push origin HEAD:main",
+    "git merge feature/x && git push origin main",
+])
+def test_reaching_a_protected_ref_stays_l3(command):
+    """The half that must not slip: landing work on the base is still a stop."""
+    assert is_l3(command), f"protected-ref action no longer L3: {command}"
 
 
 # --- The leak class that killed design 3 ------------------------------------
@@ -208,7 +228,7 @@ def test_l3_later_in_a_chain_is_still_caught(command):
 @pytest.mark.parametrize("command", [
     "git push  origin  main",
     "vercel   --prod",
-    "git   merge   main",
+    "gh   pr   merge   12",
 ])
 def test_extra_whitespace_does_not_sever_a_signature(command):
     """Guards against any implementation treating whitespace runs as boundaries."""
