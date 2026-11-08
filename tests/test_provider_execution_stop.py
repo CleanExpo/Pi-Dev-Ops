@@ -105,3 +105,64 @@ def test_dispatch_without_stop_passes_the_original_three_arguments(monkeypatch):
     monkeypatch.setattr(pe, "_claude_process", three_args)
     out = asyncio.run(pe._run_via_claude_print("p", model_id="m", timeout_s=9))
     assert out.rc == 0 and seen == [("p", "m", 9)]
+
+
+_ESCAPING_CLI = """#!/usr/bin/env python3
+import os, subprocess, sys, time
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"], start_new_session=True)
+with open({pidfile!r}, "w") as f:
+    f.write(f"{{os.getpid()}} {{child.pid}}")
+time.sleep(120)
+"""
+
+
+class _SetAfterFirstCheck:
+    """A stop that is clear when the call starts and set by the time its result is read."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def is_set(self):
+        self.calls += 1
+        return self.calls > 1
+
+
+def test_stop_set_before_the_call_never_starts_either_cli(fake_cli, monkeypatch):
+    stop = threading.Event()
+    stop.set()
+    assert pe._claude_process("prompt", "claude-test", 120, stop)[0] == pe.STOPPED_RC
+    monkeypatch.setenv("CODEX_CLI", pe.CLAUDE_CLI)
+    assert pe._codex_process("prompt", "gpt-test", 120, stop).returncode == pe.STOPPED_RC
+    time.sleep(0.5)
+    assert not fake_cli.exists(), "a CLI was started although the stop was already set"
+
+
+def test_result_that_arrives_after_the_stop_is_not_accepted():
+    import sys
+    rc, out, _ = pe._run_stoppable([sys.executable, "-c", "print('complete')"],
+                                   stop=_SetAfterFirstCheck(), timeout_s=5)
+    assert rc == pe.STOPPED_RC and out == ""
+
+
+def test_descendant_that_left_the_group_cannot_hold_the_stop_open(tmp_path, monkeypatch):
+    pidfile = tmp_path / "pids"
+    cli = tmp_path / "fake-claude"
+    cli.write_text(_ESCAPING_CLI.format(pidfile=str(pidfile)))
+    cli.chmod(0o755)
+    monkeypatch.setattr(pe, "CLAUDE_CLI", str(cli))
+    stop, result = threading.Event(), {}
+    worker = threading.Thread(target=lambda: result.update(
+        out=pe._claude_process("prompt", "claude-test", 120, stop)))
+    worker.start()
+    parent, escaped = _wait_for(pidfile)
+    try:
+        started = time.monotonic()
+        stop.set()
+        worker.join(timeout=10)
+        elapsed = time.monotonic() - started
+        assert not worker.is_alive(), "stop blocked on a descendant outside the process group"
+        assert elapsed < 5.0, elapsed
+        assert result["out"][0] == pe.STOPPED_RC
+        assert _gone(parent) == []
+    finally:
+        os.kill(escaped, 9)

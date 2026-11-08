@@ -205,14 +205,35 @@ def _end_group(proc) -> None:
         pass
 
 
+def _drain(proc) -> tuple[str, str]:
+    """Collect what the ended group wrote, but never wait on a descendant that left the group.
+
+    A child that called setsid() is outside the process group, so killpg cannot reach it; if it
+    still holds the output pipes, close them after the grace period instead of blocking the stop.
+    """
+    import subprocess as _sp  # noqa: PLC0415
+    try:
+        out, err = proc.communicate(timeout=_TERM_GRACE_S)
+        return out or "", err or ""
+    except _sp.TimeoutExpired:
+        for pipe in (proc.stdout, proc.stderr):
+            if pipe is not None:
+                pipe.close()
+        proc.wait()
+        return "", "a descendant outside the process group kept the output open; it was not waited for"
+
+
 def _run_stoppable(argv, *, stop, timeout_s, input=None, cwd=None) -> tuple[int, str, str]:
     """Run in a new process group; end the group on stop (rc 130) or deadline (rc 124).
 
     Only callers that pass a stop event reach this path; everyone else keeps subprocess.run.
+    A stop set before the start, or before a finished result is accepted, also returns rc 130.
     HTTP transports (ollama) ignore stop and keep their own timeouts.
     """
     import subprocess as _sp  # noqa: PLC0415
     import time as _time  # noqa: PLC0415
+    if stop.is_set():
+        return STOPPED_RC, "", "stopped before the call started"
     proc = _sp.Popen(argv, stdin=_sp.PIPE if input is not None else _sp.DEVNULL,
                      stdout=_sp.PIPE, stderr=_sp.PIPE, text=True, cwd=cwd,
                      start_new_session=os.name == "posix",
@@ -221,11 +242,12 @@ def _run_stoppable(argv, *, stop, timeout_s, input=None, cwd=None) -> tuple[int,
     while True:
         try:
             out, err = proc.communicate(pending, timeout=_STOP_POLL_S)
+            if stop.is_set():  # a stopped call's result is never accepted
+                return STOPPED_RC, "", err or ""
             return proc.returncode, out, err
         except _sp.TimeoutExpired:
             pending = None
         reason = STOPPED_RC if stop.is_set() else 124 if _time.monotonic() >= deadline else 0
         if reason:
             _end_group(proc)
-            out, err = proc.communicate()
-            return reason, out or "", err or ""
+            return (reason, *_drain(proc))
