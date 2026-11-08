@@ -13,6 +13,7 @@ import subprocess
 import time
 
 PS = "/bin/ps"
+LSOF = "/usr/sbin/lsof"
 _log = logging.getLogger(__name__)
 
 
@@ -59,6 +60,47 @@ def live(known: dict[int, str], timeout_s: float) -> dict[int, str] | None:
             if pid in table and not table[pid][1].startswith("Z") and table[pid][2] == cmd}
 
 
+def pipe_holders(fds, timeout_s: float) -> dict[int, str] | None:
+    """Processes holding the other end of our output pipes, found even after they were reparented.
+
+    A child that calls setsid() and outlives the CLI is no longer a descendant by parent link,
+    but it still holds the call's stdout/stderr; lsof finds it by the pipe's address.
+    """
+    me = os.getpid()
+    ends = set()
+    for fd in fds:
+        own = _lsof(["-a", "-p", str(me), "-d", str(fd)], timeout_s)
+        if own is None:
+            return None
+        ends |= {v for _, kind, v in own if kind in ("d", "n->")}
+    rows = _lsof(["-u", str(os.getuid())], timeout_s)
+    if rows is None or not ends:
+        return None
+    pids = {pid for pid, kind, v in rows if pid != me and v in ends}
+    table = ps_table(timeout_s) or {}
+    return {pid: table[pid][2] for pid in pids if pid in table}
+
+
+def _lsof(args, timeout_s: float) -> list[tuple[int, str, str]] | None:
+    """(pid, 'd' or 'n->', pipe address) rows from lsof -F pdn; None when lsof failed."""
+    try:
+        res = subprocess.run([LSOF, "-nP", *args, "-F", "pdn"], capture_output=True, text=True,
+                             timeout=max(0.05, timeout_s), check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if res.returncode not in (0, 1) or not res.stdout:
+        return None
+    rows, pid = [], 0
+    for line in res.stdout.splitlines():
+        if line.startswith("p") and line[1:].isdigit():
+            pid = int(line[1:])
+        elif line.startswith("d0x"):
+            rows.append((pid, "d", line[1:]))
+        elif line.startswith("n->0x"):
+            rows.append((pid, "n->", line[3:]))
+    return rows
+
+
 def kill_pid(pid: int, sig) -> None:
     try:
         os.kill(pid, sig)
@@ -75,7 +117,7 @@ def _signal(group: int, pids, sig) -> None:
         kill_pid(pid, sig)
 
 
-def stop_tree(proc, known: dict[int, str], *, budget_s: float, grace_s: float) -> None:
+def stop_tree(proc, known: dict[int, str], *, budget_s: float, grace_s: float, fds=()) -> None:
     """Freeze the group, record the tree, then end the group and every recorded descendant.
 
     Every step shares one deadline, so a slow or missing ps cannot stretch the stop.
@@ -86,11 +128,12 @@ def stop_tree(proc, known: dict[int, str], *, budget_s: float, grace_s: float) -
         return max(0.05, min(cap, end - time.monotonic()))
 
     pids: list[int] = []
-    found = targets = None
+    found = holders = targets = None
     try:
         _signal(proc.pid, (), signal.SIGSTOP)  # nothing in the group exits or spawns while it is read
         found = descendants(proc.pid, left(0.75))
-        known = {**known, **(found or {})}
+        holders = pipe_holders(fds, left(0.75)) if fds else {}
+        known = {**known, **(found or {}), **(holders or {})}
         targets = live(known, left(0.75))
         pids = list(targets or {})
         _signal(proc.pid, pids, signal.SIGTERM)
@@ -101,7 +144,7 @@ def stop_tree(proc, known: dict[int, str], *, budget_s: float, grace_s: float) -
             pass
     finally:
         _signal(proc.pid, pids, signal.SIGKILL)  # children can outlive a parent that exited
-    _report(known, found is None or targets is None, left)
+    _report(known, found is None or holders is None or targets is None, left)
 
 
 def _report(known: dict[int, str], unreadable: bool, left) -> None:

@@ -206,7 +206,8 @@ def _end_group(proc, known: dict[int, str] | None = None) -> None:
         except _sp.TimeoutExpired:
             proc.kill()
         return
-    _tree.stop_tree(proc, dict(known or {}), budget_s=_STOP_BUDGET_S, grace_s=_TERM_GRACE_S)
+    fds = [f.fileno() for f in (proc.stdout, proc.stderr) if f is not None and not f.closed]
+    _tree.stop_tree(proc, dict(known or {}), budget_s=_STOP_BUDGET_S, grace_s=_TERM_GRACE_S, fds=fds)
 
 
 def _drain(proc) -> tuple[str, str]:
