@@ -98,6 +98,52 @@ def test_a_run_that_changed_nothing_is_an_error_and_pushes_nothing(fleet):
     assert _remote_has(origin, BRANCH) == ""
 
 
+def _plant_bookkeeping(wt) -> None:
+    """What the Done harness writes during a run (PR #929's three files)."""
+    work = wt / ".claude" / "done" / "work" / "w_f546d905737a"
+    work.mkdir(parents=True)
+    (wt / ".claude" / "done" / "ACTIVE.json").write_text('{"work_id": "w_f546d905737a"}\n')
+    (work / "contract.json").write_text("{}\n")
+    (work / "state.json").write_text("{}\n")
+
+
+def test_bookkeeping_only_commit_is_refused(fleet):
+    """RA-7989: PR #929 held only .claude/done/ files, yet its merge closed RA-7965 as
+    Done. A run whose diff touches only Done-harness bookkeeping changed nothing."""
+    _repo, wt, origin, start = fleet
+    _plant_bookkeeping(wt)
+    _git(wt, "add", "-A")
+    _git(wt, "commit", "-q", "-m", "UNI-A: bookkeeping")
+
+    error = ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE")
+
+    assert error and "no commits" in error
+    assert _remote_has(origin, BRANCH) == ""
+
+
+def test_uncommitted_bookkeeping_only_is_refused(fleet):
+    """RA-7989, the literal PR #929 path: commit_leftovers made the only commit."""
+    _repo, wt, origin, start = fleet
+    _plant_bookkeeping(wt)
+
+    error = ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE")
+
+    assert error and "no commits" in error
+    assert _remote_has(origin, BRANCH) == ""
+
+
+def test_bookkeeping_plus_one_real_change_still_ships(fleet):
+    """RA-7989: bookkeeping riding along with real work must not block the work."""
+    _repo, wt, origin, start = fleet
+    _plant_bookkeeping(wt)
+    (wt / "marker").write_text("real change\n")
+
+    error = ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE")
+
+    assert error is None
+    assert _remote_has(origin, BRANCH) == _git(wt, "rev-parse", "HEAD")
+
+
 def test_an_empty_run_stays_an_error_when_the_checkout_head_moves_back(fleet):
     """Codex review round 1, P1: the base used to be the checkout's HEAD read at ship
     time, so moving that HEAD behind the run's start made an unchanged worktree look

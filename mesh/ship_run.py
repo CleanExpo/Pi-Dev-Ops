@@ -23,6 +23,14 @@ hostile agent. An agent set on faking work can commit junk, which the pushed bra
 then shows for review. An agent that rewrites git's own URL rewriting or hooks has
 the same shell and credentials it would need to push anywhere itself.
 
+Bookkeeping is not work (RA-7989). The Done harness writes `.claude/done/**` during
+every run, and commit_leftovers commits it, so a run that changed no code still had
+one commit and shipped. PR #929 was exactly that, and its merge closed RA-7965 as
+Done because the branch and title carry the Linear id. ship() now refuses a run
+whose diff against the start touches only BOOKKEEPING_PREFIXES. A receipt-only run
+(evidence, a NOT RUN note, a blocked report) must report by commenting on the
+ticket, never through a PR, so a merge can never be what closes the ticket.
+
 It returns None when the branch is on the remote, else a one-line reason, which
 `run_claim` turns into `failed` so the ticket goes back to the pool instead of
 reading as done.
@@ -36,6 +44,8 @@ from typing import NamedTuple
 
 REMOTE = "origin"
 _TIMEOUT = 120
+# Files the Done harness writes during any run. A diff made only of these is not work.
+BOOKKEEPING_PREFIXES: tuple[str, ...] = (".claude/done/",)
 
 
 class Start(NamedTuple):
@@ -115,6 +125,17 @@ def start_point(repo_dir: Path) -> Start:
                  url.stdout.strip() if url.returncode == 0 else "")
 
 
+def _real_changes(worktree: Path, start_sha: str) -> list[str] | str:
+    """Paths changed between the run's start and HEAD that are not harness bookkeeping.
+    A tree diff, so a file added then reverted counts as no change. A failed read is
+    returned as a reason string, never as an empty list (RA-7989)."""
+    diff = _git(worktree, "diff", "--name-only", "--no-renames", "-z", start_sha, "HEAD")
+    if diff.returncode != 0:
+        return f"diff failed: {diff.stderr.strip()[:200]}"
+    paths = [p for p in diff.stdout.split("\0") if p]
+    return [p for p in paths if not p.startswith(BOOKKEEPING_PREFIXES)]
+
+
 def ship(start: Start, worktree: Path, branch: str, linear_id: str,
          host: str) -> str | None:
     """Put this run's branch on the remote. None on success, else why not."""
@@ -126,6 +147,12 @@ def ship(start: Start, worktree: Path, branch: str, linear_id: str,
     ahead = _git(Path(worktree), "rev-list", "--count", f"{start.sha}..HEAD").stdout.strip()
     if not start.sha or ahead in ("", "0"):
         return "no commits: agent exited 0 but changed nothing"
+    real = _real_changes(Path(worktree), start.sha)
+    if isinstance(real, str):
+        return real
+    if not real:
+        return ("no commits: agent exited 0 but changed nothing "
+                f"(only harness bookkeeping under {', '.join(BOOKKEEPING_PREFIXES)})")
     if not start.url:
         return "no push URL was readable before the agent ran"
     pushed = _git(Path(worktree), "push", "-q", "--no-follow-tags", start.url,
