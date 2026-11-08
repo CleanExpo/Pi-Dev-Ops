@@ -26,8 +26,8 @@ describe("shapes return null for an unexpected payload", () => {
 describe("fleet rows", () => {
   it("carry the placeholder flag, so the second views can label the cloud claim row", () => {
     const rows = fleetRows({ status: "ok", checkedAt: "x", claimsAvailable: true, machines: [
-      { host: "railway", revision: null, lastHeartbeat: null, currentClaim: null, stale: false, placeholder: true },
-      { host: "mini", revision: null, lastHeartbeat: null, currentClaim: null, stale: true, placeholder: false },
+      { host: "railway", revision: null, lastHeartbeat: null, status: null, currentClaim: null, runner: null, stale: false, placeholder: true },
+      { host: "mini", revision: null, lastHeartbeat: null, status: null, currentClaim: null, runner: null, stale: true, placeholder: false },
     ] });
     expect(rows?.map((r) => [r.host, r.placeholder, r.stale])).toEqual([["railway", true, false], ["mini", false, true]]);
   });

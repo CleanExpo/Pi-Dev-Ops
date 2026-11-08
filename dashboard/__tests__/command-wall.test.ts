@@ -48,7 +48,7 @@ describe("fleet tiles", () => {
     expect(fleetTiles(wall, { status: "unavailable", checkedAt: iso(0), reason: "x" })[1].claim).toBeUndefined();
     const ok = {
       status: "ok" as const, checkedAt: iso(0), claimsAvailable: true,
-      machines: [{ host: "Phills-Mac-mini", revision: null, lastHeartbeat: null, currentClaim: "RA-1", stale: false, placeholder: false }],
+      machines: [{ host: "Phills-Mac-mini", revision: null, lastHeartbeat: null, currentClaim: "RA-1", stale: false, placeholder: false, status: null, runner: null }],
     };
     expect(fleetTiles(wall, ok)[1].claim).toBe("RA-1");
     expect(fleetTiles(wall, ok)[0].claim).toBeNull();
