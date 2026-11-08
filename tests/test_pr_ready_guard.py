@@ -17,9 +17,15 @@ def test_ready_and_red_goes_to_draft_naming_the_check():
     assert d.action == "draft" and any("CI" in r for r in d.reasons)
 
 
-def test_ready_and_pending_goes_to_draft():
+def test_ready_and_pending_is_left_alone():
     d = g.decide(pr(checks=[g.Check("CI", "pending")]))
-    assert d.action == "draft" and any("still running: CI" in r for r in d.reasons)
+    assert d.action == "leave" and d.reasons == []
+
+
+def test_ready_pending_plus_completed_failure_still_drafts():
+    d = g.decide(pr(checks=[g.Check("CI", "pending"), g.Check("lint", "failure")]))
+    assert d.action == "draft" and any("lint" in r for r in d.reasons)
+    assert not any("still running" in r for r in d.reasons)
 
 
 def test_ready_and_conflicting_goes_to_draft():
@@ -38,6 +44,11 @@ def test_held_draft_and_green_goes_ready():
 def test_held_draft_still_red_stays_draft():
     d = g.decide(pr(draft=True, labels=[g.LABEL], checks=[g.Check("CI", "failure")]))
     assert d.action == "leave"
+
+
+def test_held_draft_still_pending_is_not_released():
+    d = g.decide(pr(draft=True, labels=[g.LABEL], checks=[g.Check("CI", "pending")]))
+    assert d.action == "leave" and any("still running: CI" in r for r in d.reasons)
 
 
 def test_held_draft_with_unknown_mergeability_waits():
@@ -97,6 +108,11 @@ def test_blocked_only_by_missing_approval_is_left_alone():
     assert g.decide(pr(merge_state="BLOCKED", review_decision="REVIEW_REQUIRED")).action == "leave"
 
 
+def test_blocked_only_because_checks_are_pending_is_left_alone():
+    d = g.decide(pr(checks=[g.Check("CI", "pending")], merge_state="BLOCKED", review_decision="APPROVED"))
+    assert d.action == "leave"
+
+
 def test_blocked_for_a_reason_other_than_approval_goes_to_draft():
     d = g.decide(pr(merge_state="BLOCKED", review_decision="APPROVED"))
     assert d.action == "draft" and any("BLOCKED" in r for r in d.reasons)
@@ -115,9 +131,10 @@ def test_unlabelled_draft_with_unresolved_threads_is_untouched():
     assert g.decide(pr(draft=True, unresolved=3, merge_state="DRAFT")).action == "leave"
 
 
-# ---- RA-8212: GitHub refuses to draft an UNRELATED PR (token lacks the permission) ----
-# Each run sweeps every open PR. A permission refusal on some other PR must not turn the
-# check red on the PR that triggered the run; on the triggering PR itself it still must.
+# ---- Pass/fail of the check: only the triggering PR, and only real failures ----
+# Each run sweeps every open PR. Pending checks, a GitHub FORBIDDEN on convert-to-draft,
+# and another PR's error must not turn this check red. A completed failing check on the
+# triggering PR is still drafted; a non-permission error acting on that PR still fails.
 
 import json  # noqa: E402
 
@@ -127,6 +144,10 @@ FORBIDDEN = [{"type": "FORBIDDEN", "path": ["convertPullRequestToDraft"],
 
 def _red(number):
     return g.PR(number, False, set(), "MERGEABLE", [g.Check("CI", "failure")], "b" * 40, "n%d" % number)
+
+
+def _pending(number):
+    return g.PR(number, False, set(), "MERGEABLE", [g.Check("CI", "pending")], "c" * 40, "n%d" % number)
 
 
 def _sweep(monkeypatch, tmp_path, prs, trigger=None, draft_error=None):
@@ -154,6 +175,34 @@ def _sweep(monkeypatch, tmp_path, prs, trigger=None, draft_error=None):
     return g.run("o/r", False), drafted
 
 
+def test_pending_checks_pass(monkeypatch, tmp_path):
+    rc, drafted = _sweep(monkeypatch, tmp_path, [_pending(995)], trigger=995)
+    assert rc == 0 and drafted == []
+
+
+def test_forbidden_draft_conversion_warns_not_failure(monkeypatch, tmp_path, capsys):
+    rc, _ = _sweep(monkeypatch, tmp_path, [_red(981)], trigger=981,
+                   draft_error=({981}, g.GraphQLError(FORBIDDEN)))
+    assert rc == 0
+    assert "::warning::" in capsys.readouterr().out
+
+
+def test_other_pr_error_does_not_fail_this_pr(monkeypatch, tmp_path, capsys):
+    other = g.GraphQLError([{"type": "INTERNAL", "path": ["convertPullRequestToDraft"], "message": "boom"}])
+    rc, _ = _sweep(monkeypatch, tmp_path, [_pending(981), _red(970)], trigger=981,
+                   draft_error=({970}, other))
+    assert rc == 0
+    assert "::warning::" in capsys.readouterr().out
+
+
+def test_real_completed_failure_still_fails(monkeypatch, tmp_path):
+    boom = g.GraphQLError([{"type": "INTERNAL", "path": ["convertPullRequestToDraft"], "message": "boom"}])
+    rc, drafted = _sweep(monkeypatch, tmp_path, [_red(981)], trigger=981, draft_error=({981}, boom))
+    assert rc == 1 and drafted == []
+    d = g.decide(_red(981))
+    assert d.action == "draft" and any("CI" in r for r in d.reasons)
+
+
 def test_unrelated_pr_draft_forbidden_warns_and_passes(monkeypatch, tmp_path, capsys):
     rc, _ = _sweep(monkeypatch, tmp_path, [_red(970), _red(979)], trigger=981,
                    draft_error=({970, 979}, g.GraphQLError(FORBIDDEN)))
@@ -166,21 +215,9 @@ def test_sweep_without_a_triggering_pr_warns_and_passes_on_forbidden(monkeypatch
     assert rc == 0
 
 
-def test_triggering_pr_draft_forbidden_still_fails(monkeypatch, tmp_path):
-    rc, _ = _sweep(monkeypatch, tmp_path, [_red(970), _red(981)], trigger=981,
-                   draft_error=({970, 981}, g.GraphQLError(FORBIDDEN)))
-    assert rc == 1
-
-
-def test_unrelated_pr_other_error_still_fails(monkeypatch, tmp_path):
-    other = g.GraphQLError([{"type": "INTERNAL", "path": ["convertPullRequestToDraft"], "message": "boom"}])
-    rc, _ = _sweep(monkeypatch, tmp_path, [_red(970)], trigger=981, draft_error=({970}, other))
-    assert rc == 1
-
-
 def test_forbidden_on_a_different_mutation_still_fails(monkeypatch, tmp_path):
     err = g.GraphQLError([{"type": "FORBIDDEN", "path": ["markPullRequestReadyForReview"], "message": "x"}])
-    rc, _ = _sweep(monkeypatch, tmp_path, [_red(970)], trigger=981, draft_error=({970}, err))
+    rc, _ = _sweep(monkeypatch, tmp_path, [_red(981)], trigger=981, draft_error=({981}, err))
     assert rc == 1
 
 
@@ -191,5 +228,5 @@ def test_unrelated_pr_is_drafted_when_permission_exists(monkeypatch, tmp_path):
 
 def test_refusal_mixed_with_another_error_still_fails(monkeypatch, tmp_path):
     mixed = g.GraphQLError(FORBIDDEN + [{"type": "INTERNAL", "path": ["convertPullRequestToDraft"], "message": "x"}])
-    rc, _ = _sweep(monkeypatch, tmp_path, [_red(970)], trigger=981, draft_error=({970}, mixed))
+    rc, _ = _sweep(monkeypatch, tmp_path, [_red(981)], trigger=981, draft_error=({981}, mixed))
     assert rc == 1
