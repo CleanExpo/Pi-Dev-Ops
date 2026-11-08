@@ -39,23 +39,7 @@ app/server/skill_routing.py
 app/server/task_routing.py
 
 # Machine-ship spec pipeline (storm -> judge -> spm -> boardroom), already flag-off
-# app/server/spec_pipeline/llm.py unfrozen for UNI-3306 (optional stop= passed through to the model runner); re-frozen right after it merges.
-app/server/spec_pipeline/__init__.py
-app/server/spec_pipeline/boardroom.py
-app/server/spec_pipeline/ceo_board_liaison.py
-app/server/spec_pipeline/execution.py
-app/server/spec_pipeline/execution_evidence.py
-app/server/spec_pipeline/github_ci_evidence.py
-app/server/spec_pipeline/github_required_checks.py
-app/server/spec_pipeline/liaison_loop.py
-app/server/spec_pipeline/linear_reporter.py
-app/server/spec_pipeline/persistence.py
-app/server/spec_pipeline/prebuild_judge.py
-app/server/spec_pipeline/proposal_validator.py
-app/server/spec_pipeline/review_runner.py
-app/server/spec_pipeline/ship_gate.py
-app/server/spec_pipeline/spm_runner.py
-app/server/spec_pipeline/storm_evidence.py
+app/server/spec_pipeline/**
 
 # Idea pipeline Board-packet GO. go_ticket.py stays open: it files the labelled
 # Linear ticket, which is the intake the Board kept.
