@@ -85,7 +85,9 @@ def _rows(method: str, query: str, data: dict[str, Any] | None = None) -> list[d
     body = _request(method, f"{_TABLE}?{query}", data)
     if not isinstance(body, list):
         raise GoalJobStoreError("bad_response", f"{method} {_TABLE} returned no row list.")
-    return [row for row in body if isinstance(row, dict)]
+    if not all(isinstance(row, dict) for row in body):
+        raise GoalJobStoreError("bad_response", f"{method} {_TABLE} returned a malformed row.")
+    return body
 
 
 def table_present() -> bool:
@@ -187,17 +189,20 @@ def fail(job_id: str, attempt: int, reason: str) -> bool:
 def recover_expired() -> list[str]:
     """Running jobs whose claim lapsed or deadline passed: interrupted once, then failed."""
     cutoff = _q(_iso(_now() - timedelta(seconds=SKEW_SECONDS)))
-    found: dict[str, dict[str, Any]] = {}
-    for column in ("claim_expires_at", "attempt_deadline"):
+    # The PATCH repeats the expiry test that found the row, so a heartbeat that renews the
+    # claim between this read and the write makes the write change nothing.
+    found: dict[str, tuple[str, dict[str, Any]]] = {}
+    for column in ("attempt_deadline", "claim_expires_at"):
         for row in _rows("GET", f"status=eq.running&{column}=lt.{cutoff}"):
-            found[str(row["id"])] = row
+            found.setdefault(str(row["id"]), (column, row))
     recovered: list[str] = []
-    for job_id, row in found.items():
+    for job_id, (column, row) in found.items():
         if int(row.get("retry_count") or 0) < 1:
             change = {"status": "interrupted", "claimed_by": None, "claim_expires_at": None}
         else:
             change = {"status": "failed", "failure_reason": "interrupted after its one retry",
                       "ended_at": _iso(_now()), "claim_expires_at": None}
-        if _rows("PATCH", _fenced(job_id, int(row.get("attempt") or 0)), change):
+        still_expired = f"{_fenced(job_id, int(row.get('attempt') or 0))}&{column}=lt.{cutoff}"
+        if _rows("PATCH", still_expired, change):
             recovered.append(job_id)
     return recovered

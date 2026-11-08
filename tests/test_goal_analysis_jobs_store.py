@@ -166,6 +166,34 @@ def test_heartbeat_extends_the_claim(rest: FakeRest) -> None:
     assert jobs.recover_expired() == []
 
 
+def test_heartbeat_between_recovery_read_and_write_wins(
+        rest: FakeRest, monkeypatch: pytest.MonkeyPatch) -> None:
+    job = _submit()
+    jobs.claim(job["id"], "mini")
+    _advance(rest, 120)
+    real = jobs._request
+    fired: list[bool] = []
+
+    def interleave(method: str, path: str, data: dict[str, Any] | None = None) -> Any:
+        if method == "PATCH" and not fired and "claim_expires_at=lt" in path:
+            fired.append(True)
+            assert jobs.heartbeat(job["id"], 1, "mini") is True
+        return real(method, path, data)
+
+    monkeypatch.setattr(jobs, "_request", interleave)
+    assert jobs.recover_expired() == []
+    assert fired and rest.rows[0]["status"] == "running"
+
+
+def test_malformed_row_is_an_error_not_no_job(
+        rest: FakeRest, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(jobs, "_request", lambda *_a, **_k: [None])
+    with pytest.raises(jobs.GoalJobStoreError):
+        jobs.get("00000000-0000-0000-0000-000000000000")
+    with pytest.raises(jobs.GoalJobStoreError):
+        jobs.table_present()
+
+
 def test_deadline_passed_is_recovered_even_with_fresh_heartbeat(rest: FakeRest) -> None:
     job = _submit()
     jobs.claim(job["id"], "mini")
