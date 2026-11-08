@@ -218,7 +218,7 @@ def node_status(agents: list, crumb: dict, down: bool = False) -> str:
     return "working" if agents else "online"
 
 
-def node_version(crumb: dict) -> str:
+def node_version(crumb: dict) -> str | None:
     """The runner's commit, so the fleet view shows which code each node runs (RA-7802).
     Read at any age and labelled with it: a dead runner's last-known code is still a fact."""
     return runner_report.version_label(crumb)

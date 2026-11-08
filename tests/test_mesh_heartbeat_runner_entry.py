@@ -72,7 +72,9 @@ def test_mesh_runner_entry_has_nulls_not_guesses(hb):
 
 
 def test_mesh_runner_entry_without_a_breadcrumb_is_absent_and_null(hb):
-    entry = _entry(hb.collect())
+    payload = hb.collect()
+    assert payload["version"] is None    # was the guessed "nexus-mesh/0.1" (review P2, 08/11/2026)
+    entry = _entry(payload)
     assert entry["present"] is False
     assert all(entry[k] is None for k in KEYS - {"runtime", "present", "heartbeat_version"})
 

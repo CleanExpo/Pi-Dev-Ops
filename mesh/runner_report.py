@@ -46,11 +46,12 @@ def age_s(crumb: dict, now: float | None = None) -> int | None:
     return max(0, int((now if now is not None else time.time()) - ts))
 
 
-def version_label(crumb: dict, now: float | None = None) -> str:
-    """`nexus-mesh/<sha12>`, plus the breadcrumb's age once it is not fresh."""
+def version_label(crumb: dict, now: float | None = None) -> str | None:
+    """`nexus-mesh/<sha12>`, plus the breadcrumb's age once it is not fresh. None when no
+    commit is known: the old fallback "nexus-mesh/0.1" was a guess (the column is nullable)."""
     sha = _sha(crumb.get("version"))
     if not sha:
-        return "nexus-mesh/0.1"
+        return None
     age = age_s(crumb, now)
     return f"nexus-mesh/{sha[:12]}" + (f" (state {age}s old)" if age is not None and age > FRESH_S else "")
 

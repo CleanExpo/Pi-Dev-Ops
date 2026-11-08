@@ -27,7 +27,7 @@ const UPSTREAM = {
   machines: [
     { host: "mini", version: "nexus-mesh/aaaaaaaaaaaa", status: "outdated", last_seen: "2026-11-08T01:59:40.000Z",
       is_stale: false, agent_runtimes: [{ runtime: "claude", present: true }, RUNNER_ENTRY] },
-    { host: "macbook", version: "nexus-mesh/0.1", status: "online", last_seen: "2026-11-08T01:59:50.000Z",
+    { host: "macbook", version: null, status: "online", last_seen: "2026-11-08T01:59:50.000Z",
       is_stale: false, agent_runtimes: [{ runtime: "claude", present: true }] },
   ],
   claims: [], errors: [],
@@ -76,6 +76,7 @@ describe("FleetTile — version rows", () => {
     for (const label of ["running", "approved", "match", "task", "last update", "last job", "local edits", "blocker", "next"]) {
       expect(row.getByText(`${label} unknown`)).toBeTruthy();
     }
+    expect(row.getByText("revision unknown")).toBeTruthy();
     expect(row.getByText("state idle")).toBeTruthy();
     expect(row.getByText("heartbeat 10s ago")).toBeTruthy();
   });

@@ -76,7 +76,7 @@ function MachineRow({ machine, claimsAvailable, checkedAt }: {
         </span>
       </div>
       <div className="grid grid-cols-1 gap-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-        <span>revision {machine.revision ?? "—"}</span>
+        <span>revision {machine.revision ?? UNKNOWN}</span>
         <span>heartbeat {machine.placeholder ? "none (cloud claim)" : heartbeatAge(machine.lastHeartbeat, checkedAt)}</span>
         <span>claim {machine.currentClaim ?? (claimsAvailable ? "none" : "unavailable")}</span>
         {!machine.placeholder && <span>state {displayState(machine)}</span>}
