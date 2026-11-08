@@ -3,21 +3,29 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import signal
+import threading
 from . import provider_policy
 from .provider_execution_types import ProviderExecution
 
 CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
+STOPPED_RC = 130  # the caller's stop signal ended the call; nothing usable was produced
+_STOP_POLL_S = 0.25
+_TERM_GRACE_S = 2.0
 
 async def _run_via_claude_print(
     prompt: str, *, model_id: str, timeout_s: int = 120,
-    provenance: dict | None = None,
+    provenance: dict | None = None, stop: threading.Event | None = None,
 ) -> ProviderExecution:
     """Run a tool-free subscription CLI call and retain its reported model."""
     evidence = dict(provenance or {})
     evidence.update(provider="anthropic", transport="claude_print", requested_model=model_id,
                     actual_model=None, model_verified=False)
 
-    rc, stdout, stderr = await asyncio.to_thread(_claude_process, prompt, model_id, timeout_s)
+    args = (prompt, model_id, timeout_s) + ((stop,) if stop is not None else ())
+    rc, stdout, stderr = await asyncio.to_thread(_claude_process, *args)
+    if rc == STOPPED_RC and stop is not None and stop.is_set():
+        return ProviderExecution(rc, "", None, "claude_print_stopped", evidence)
     if rc != 0:
         return ProviderExecution(rc, "", None, f"claude_print_failed: exit {rc}", evidence)
     try:
@@ -40,7 +48,7 @@ async def _run_via_claude_print(
 
 
 async def _run_via_codex(prompt: str, *, model_id: str, timeout_s: int,
-                         provenance: dict) -> ProviderExecution:
+                         provenance: dict, stop: threading.Event | None = None) -> ProviderExecution:
     """Supported ChatGPT CLI path; JSONL currently lacks served-model evidence.
 
     See OpenAI Codex issue #39406. Requested/configured model is never used as
@@ -51,7 +59,10 @@ async def _run_via_codex(prompt: str, *, model_id: str, timeout_s: int,
                     actual_model=None, model_verified=False)
 
     try:
-        completed = await asyncio.to_thread(_codex_process, prompt, model_id, timeout_s)
+        args = (prompt, model_id, timeout_s) + ((stop,) if stop is not None else ())
+        completed = await asyncio.to_thread(_codex_process, *args)
+        if completed.returncode == STOPPED_RC and stop is not None and stop.is_set():
+            return ProviderExecution(STOPPED_RC, "", None, "codex_stopped", evidence)
         if completed.returncode != 0:
             return ProviderExecution(1, "", None, "codex_execution_failed", evidence)
         events = [json.loads(line) for line in completed.stdout.splitlines() if line.strip()]
@@ -75,7 +86,10 @@ async def run_via_provider_with_evidence(prompt: str, *, role: str,
                                        task_class: str = "default", timeout_s: int = 120,
                                        workspace: str | None = None, session_id: str = "",
                                        thinking: str = "adaptive", confidential: bool = False,
+                                       stop: threading.Event | None = None,
                                        ) -> ProviderExecution:
+    """`stop` is optional: when set, a CLI call ends with its whole process group.
+    Callers that pass nothing run exactly as before. HTTP transports ignore it."""
     from .provider_router import select_provider_model, _record_cost_safe
     pm = select_provider_model(role, task_class=task_class)
     evidence = {"provider": pm.provider, "requested_model": pm.model_id,
@@ -89,10 +103,12 @@ async def run_via_provider_with_evidence(prompt: str, *, role: str,
         return ProviderExecution(1, "", None, str(exc), evidence)
     if pm.provider == "claude_print":
         return await _run_via_claude_print(prompt, model_id=pm.model_id,
-                                          timeout_s=timeout_s, provenance=evidence)
+                                          timeout_s=timeout_s, provenance=evidence,
+                                          **({"stop": stop} if stop is not None else {}))
     if pm.provider == "codex":
         return await _run_via_codex(prompt, model_id=pm.model_id,
-                                    timeout_s=timeout_s, provenance=evidence)
+                                    timeout_s=timeout_s, provenance=evidence,
+                                    **({"stop": stop} if stop is not None else {}))
     # Dispatch the same selection that passed policy; do not re-resolve it.
     try:
         import sys
@@ -125,13 +141,19 @@ async def run_via_provider(prompt: str, **kwargs) -> tuple[int, str, float | Non
 
 
 
-def _claude_process(prompt, model_id, timeout_s) -> tuple[int, str, str]:
+def _claude_process(prompt, model_id, timeout_s, stop=None) -> tuple[int, str, str]:
     import subprocess as _sp  # noqa: PLC0415
+    argv = [CLAUDE_CLI, "--print", prompt, "--model", model_id,
+            "--output-format", "json", "--tools", "", "--setting-sources", "",
+            "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}']
     try:
+        if stop is not None:
+            rc, out, err = _run_stoppable(argv, stop=stop, timeout_s=timeout_s)
+            if rc == 124:
+                return 124, "", f"claude --print timed out after {timeout_s}s"
+            return rc, out, err
         r = _sp.run(
-            [CLAUDE_CLI, "--print", prompt, "--model", model_id,
-             "--output-format", "json", "--tools", "", "--setting-sources", "",
-             "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}'],
+            argv,
             capture_output=True, text=True, timeout=timeout_s, check=False,
             creationflags=getattr(_sp, "CREATE_NO_WINDOW", 0),
         )
@@ -143,14 +165,13 @@ def _claude_process(prompt, model_id, timeout_s) -> tuple[int, str, str]:
 
 
 
-def _codex_process(prompt, model_id, timeout_s):
+def _codex_process(prompt, model_id, timeout_s, stop=None):
     import subprocess
     import tempfile
     # An empty directory prevents project hooks/config or local instructions
     # from altering this bounded review of the supplied prompt.
     with tempfile.TemporaryDirectory(prefix="pidev-review-") as directory:
-        return subprocess.run(
-            [os.environ.get("CODEX_CLI", "codex"), "exec", "--json", "--ephemeral",
+        argv = [os.environ.get("CODEX_CLI", "codex"), "exec", "--json", "--ephemeral",
              "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check",
              "--sandbox", "read-only", "--model", model_id,
              "--config", 'model_provider="openai"',
@@ -158,8 +179,53 @@ def _codex_process(prompt, model_id, timeout_s):
              "--config", 'approval_policy="never"',
              "--config", "features.shell_tool=false",
              "--config", 'web_search="disabled"',
-             "--config", 'shell_environment_policy.inherit="none"', "-"],
+             "--config", 'shell_environment_policy.inherit="none"', "-"]
+        if stop is not None:
+            rc, out, err = _run_stoppable(argv, stop=stop, timeout_s=timeout_s,
+                                          input=prompt, cwd=directory)
+            if rc == 124:
+                raise subprocess.TimeoutExpired(argv, timeout_s)
+            return subprocess.CompletedProcess(argv, rc, out, err)
+        return subprocess.run(
+            argv,
             input=prompt, cwd=directory, capture_output=True, text=True,
             timeout=timeout_s, check=False,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
+
+
+def _end_group(proc) -> None:
+    """End the CLI and every child it started, so a stop leaves nothing running."""
+    import subprocess as _sp  # noqa: PLC0415
+    posix = os.name == "posix"
+    try:
+        os.killpg(proc.pid, signal.SIGTERM) if posix else proc.terminate()
+        proc.wait(timeout=_TERM_GRACE_S)
+    except (ProcessLookupError, _sp.TimeoutExpired):
+        pass
+    try:  # children can outlive a parent that exited on SIGTERM
+        os.killpg(proc.pid, signal.SIGKILL) if posix else proc.kill()
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def _run_stoppable(argv, *, stop, timeout_s, input=None, cwd=None) -> tuple[int, str, str]:
+    """Run in a new process group; end the group on stop (rc 130) or deadline (rc 124)."""
+    import subprocess as _sp  # noqa: PLC0415
+    import time as _time  # noqa: PLC0415
+    proc = _sp.Popen(argv, stdin=_sp.PIPE if input is not None else _sp.DEVNULL,
+                     stdout=_sp.PIPE, stderr=_sp.PIPE, text=True, cwd=cwd,
+                     start_new_session=os.name == "posix",
+                     creationflags=getattr(_sp, "CREATE_NEW_PROCESS_GROUP", 0))
+    deadline, pending = _time.monotonic() + timeout_s, input
+    while True:
+        try:
+            out, err = proc.communicate(pending, timeout=_STOP_POLL_S)
+            return proc.returncode, out, err
+        except _sp.TimeoutExpired:
+            pending = None
+        reason = STOPPED_RC if stop.is_set() else 124 if _time.monotonic() >= deadline else 0
+        if reason:
+            _end_group(proc)
+            out, err = proc.communicate()
+            return reason, out or "", err or ""

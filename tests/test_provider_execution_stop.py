@@ -1,0 +1,107 @@
+"""UNI-3306: an optional stop ends the model CLI and every child it started; no stop = unchanged."""
+import asyncio
+import os
+import subprocess
+import threading
+import time
+
+import pytest
+
+from app.server import provider_execution as pe
+
+pytestmark = pytest.mark.skipif(os.name != "posix", reason="process groups are POSIX")
+
+_FAKE_CLI = """#!/usr/bin/env python3
+import os, subprocess, sys, time
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
+with open({pidfile!r}, "w") as f:
+    f.write(f"{{os.getpid()}} {{child.pid}}")
+time.sleep(120)
+"""
+
+
+def _alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    # A killed child of a dead parent may linger as a zombie until reaped by init.
+    state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout
+    return bool(state.strip()) and not state.strip().startswith("Z")
+
+
+@pytest.fixture
+def fake_cli(tmp_path, monkeypatch):
+    pidfile = tmp_path / "pids"
+    cli = tmp_path / "fake-claude"
+    cli.write_text(_FAKE_CLI.format(pidfile=str(pidfile)))
+    cli.chmod(0o755)
+    monkeypatch.setattr(pe, "CLAUDE_CLI", str(cli))
+    return pidfile
+
+
+def _wait_for(pidfile, limit=10.0):
+    end = time.monotonic() + limit
+    while time.monotonic() < end:
+        if pidfile.exists() and pidfile.read_text().strip():
+            return [int(x) for x in pidfile.read_text().split()]
+        time.sleep(0.05)
+    raise AssertionError("fake CLI never started")
+
+
+def _gone(*pids, limit=2.0):
+    end = time.monotonic() + limit
+    while time.monotonic() < end and any(_alive(p) for p in pids):
+        time.sleep(0.05)
+    return [p for p in pids if _alive(p)]
+
+
+def test_stop_ends_the_whole_process_group_within_five_seconds(fake_cli):
+    stop = threading.Event()
+    result = {}
+    worker = threading.Thread(target=lambda: result.update(
+        out=pe._claude_process("prompt", "claude-test", 120, stop)))
+    worker.start()
+    parent, child = _wait_for(fake_cli)
+    started = time.monotonic()
+    stop.set()
+    worker.join(timeout=10)
+    elapsed = time.monotonic() - started
+    left = _gone(parent, child)
+    assert not worker.is_alive()
+    assert elapsed < 5.0, elapsed
+    assert result["out"][0] == pe.STOPPED_RC
+    assert left == [], f"processes left running: {left}"
+
+
+def test_deadline_without_stop_signal_still_ends_the_group(fake_cli):
+    stop = threading.Event()
+    rc, _, err = pe._claude_process("prompt", "claude-test", 1, stop)
+    parent, child = _wait_for(fake_cli)
+    assert rc == 124 and "timed out" in err
+    assert _gone(parent, child) == []
+
+
+def test_callers_without_stop_use_the_unchanged_path(monkeypatch):
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append(kwargs)
+        return subprocess.CompletedProcess(argv, 0, '{"type":"result","is_error":false,"result":"ok"}', "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(pe, "_run_stoppable", lambda *a, **k: pytest.fail("stoppable path used without stop"))
+    assert pe._claude_process("prompt", "claude-test", 7)[0] == 0
+    assert calls[0]["timeout"] == 7 and calls[0]["capture_output"] is True
+
+
+def test_dispatch_without_stop_passes_the_original_three_arguments(monkeypatch):
+    seen = []
+
+    def three_args(prompt, model_id, timeout_s):
+        seen.append((prompt, model_id, timeout_s))
+        return 0, '{"type":"result","is_error":false,"result":"ok"}', ""
+
+    monkeypatch.setattr(pe, "_claude_process", three_args)
+    out = asyncio.run(pe._run_via_claude_print("p", model_id="m", timeout_s=9))
+    assert out.rc == 0 and seen == [("p", "m", 9)]
