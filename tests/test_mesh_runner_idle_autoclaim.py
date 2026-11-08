@@ -463,7 +463,7 @@ def test_runner_honours_kill_switch(runner, tmp_path):
     (tmp_path / "HARD_STOP").write_text("stop")
     server = FakeMeshServer(["UNI-A"])
     runner._api = server.api
-    assert _main_returns(runner) == 0      # returns immediately, no _Break
+    _run_main(runner, ["runner"])  # 08/11/2026: holds, no longer returns 0 (launchd never restarted that)
     assert server.worked == []             # no work done under HARD_STOP
 
 

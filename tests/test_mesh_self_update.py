@@ -85,7 +85,9 @@ def test_the_heartbeat_reports_the_runner_version_and_its_gate():
     assert hb.node_version(crumb) == "nexus-mesh/" + "a" * 12
     assert hb.node_status([], crumb) == "quarantined"
     assert hb.node_status([{"runtime": "claude"}], {"state": "idle"}) == "working"
-    assert hb.node_version({}) == "nexus-mesh/0.1"
+    # 08/11/2026 fleet version gate: no breadcrumb version is unknown (None), no longer the
+    # made-up "nexus-mesh/0.1" that every machine showed on the live fleet.
+    assert hb.node_version({}) is None
 
 
 def _failing(target: str, *, raises: type[Exception] | None = None):

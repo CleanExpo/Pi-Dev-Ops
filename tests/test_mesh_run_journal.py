@@ -297,4 +297,4 @@ def test_reconcile_does_not_run_under_hard_stop(runner, monkeypatch):
     monkeypatch.setattr(runner.run_journal, "reconcile",
                         lambda *a: pytest.fail("reconcile ran under HARD_STOP"))
     monkeypatch.setattr(sys, "argv", ["runner.py", "--once"])
-    assert runner.main() == 0
+    assert runner.main() == 1  # was 0: since 08/11/2026 HARD_STOP holds (--once: 1), never a clean exit
