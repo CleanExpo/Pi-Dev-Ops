@@ -15,6 +15,13 @@ Rules, from the plan and the store (goal_analysis_jobs.py):
   providers such as Ollama, so only claude_print and codex can be stopped. Async analysis
   refuses to run on any other provider and records the job failed with that reason; a
   call that ignores stop still keeps its slot until it returns and recovery waits for it.
+- Self-fencing lease (goal_analysis_slots.Fence): a watchdog thread stops the model at
+  last-successful-heartbeat-SENT + CLAIM_S - FENCE_SAFETY_S, whatever the event loop or the
+  heartbeat call is doing, so the stop is complete before the database claim can expire.
+  Named limits: a frozen or SIGSTOPped process cannot fence itself. After a hard kill an
+  orphaned CLI child may keep running (provider_execution starts it in its own session and
+  nothing ties it to the parent); its writes are refused by attempt fencing, so the cost is
+  model time, not data.
 - Startup probes table_present(). If the table is missing, async stays unavailable.
 """
 from __future__ import annotations
@@ -61,8 +68,9 @@ def availability() -> tuple[bool, str]:
 class _Lease:
     """The running attempt. `lost` is set when a heartbeat says the claim is gone."""
 
-    def __init__(self, job_id: str, attempt: int, server: str, interval: float) -> None:
+    def __init__(self, job_id: str, attempt: int, server: str, interval: float, claim_sent: float) -> None:
         self.job_id, self.attempt, self.server, self.interval = job_id, attempt, server, interval
+        self.fence = slots.Fence(claim_sent, self.give_up)
         self.stop = threading.Event()
         self.lost = False
 
@@ -75,12 +83,16 @@ async def _beat(lease: _Lease) -> None:
     misses = 0
     while True:
         await asyncio.sleep(lease.interval)
+        sent = slots._now()  # the lease is measured from when the beat was SENT
         try:
             ok = await asyncio.to_thread(jobs.heartbeat, lease.job_id, lease.attempt, lease.server)
             misses = 0
         except jobs.GoalJobStoreError:
             misses += 1  # one failed round-trip leaves slack in the 60 s claim; two do not
             ok = misses < 2
+        else:
+            if ok:
+                lease.fence.advance(sent)  # only a SUCCESSFUL heartbeat extends the lease
         if not ok:
             log.warning("goal job %s attempt %s lost its claim; stopping", lease.job_id, lease.attempt)
             lease.give_up()
@@ -158,10 +170,12 @@ async def run_job(job_id: str, *, server: str | None = None,
                   heartbeat_s: float = HEARTBEAT_S, slot: slots.Slot | None = None) -> str:
     """Run one claimed attempt. Returns finished, failed, abandoned, unrecorded or not_claimed."""
     server = server or SERVER_ID
+    claim_sent = slots._now()
     attempt = await asyncio.to_thread(jobs.claim, job_id, server)
     if attempt is None:
         return "not_claimed"
-    lease = _Lease(job_id, attempt, server, heartbeat_s)
+    lease = _Lease(job_id, attempt, server, heartbeat_s, claim_sent)
+    lease.fence.start()
     beat = asyncio.create_task(_beat(lease))
     try:
         try:
@@ -176,6 +190,7 @@ async def run_job(job_id: str, *, server: str | None = None,
         return await _write(lease, "finished", jobs.finish, result, [])
     finally:
         beat.cancel()
+        lease.fence.close()
 
 
 def launch(job_id: str) -> bool:

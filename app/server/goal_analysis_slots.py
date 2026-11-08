@@ -19,7 +19,31 @@ from __future__ import annotations
 import asyncio
 import os
 import threading
+import time
 from typing import Any, Awaitable, Callable
+
+# ---- the self-fencing lease (review r3) -------------------------------------------------
+# The end of an attempt is decided remotely (the database claim expires) but the local stop
+# used to fire only when a heartbeat RETURNED False, so a stalled loop or a hung heartbeat
+# never learned the claim was gone and another server's attempt overlapped it. Now every
+# attempt has a watchdog THREAD (independent of the event loop) that fences the attempt, by
+# setting stop, at  fence_at = (monotonic time the last SUCCESSFUL heartbeat or the claim was
+# SENT) + CLAIM_S - FENCE_SAFETY_S.  Sent, not returned: the database stamps the new expiry
+# after it receives the request, so sent + CLAIM_S can only be earlier than the real expiry.
+#   CLAIM_S           = the claim length in the SQL functions (pinned to the migration by a test)
+#   STOP_BOUND_S      = 5 s: a stopped model call ends within 5 s (#1002)
+#   WATCH_POLL_S      = 0.5 s: the watchdog's wake-up interval
+#   FENCE_SLACK_S     = 4 s: scheduling and clock slack
+#   FENCE_SAFETY_S    = 9.5 s, so stop is complete by sent + 60 - 9.5 + 0.5 + 5 = sent + 56 s,
+#                       before the claim can expire, and recovery adds a further 5 s margin.
+#   HEARTBEAT_S = 20 s, so fence_at - sent = 50.5 s tolerates two lost beats and never fences
+#                       a healthy attempt; the test asserts 2 * HEARTBEAT_S < 50.5 s.
+CLAIM_S = 60.0
+STOP_BOUND_S = 5.0
+WATCH_POLL_S = 0.5
+FENCE_SLACK_S = 4.0
+FENCE_SAFETY_S = STOP_BOUND_S + WATCH_POLL_S + FENCE_SLACK_S
+_now = time.monotonic
 
 _lock = threading.Lock()
 _live: set[str] = set()  # job ids holding a slot: launched, or with a live model thread
@@ -99,3 +123,32 @@ def run_in_thread(call: Callable[[], Awaitable[Any]], slot: Slot | None,
         slot.handed_off = True
     threading.Thread(target=target, daemon=True, name="goal-analysis-model").start()
     return fut
+
+
+class Fence:
+    """Watchdog for one attempt. advance() is called only after a heartbeat SUCCEEDED, with
+    the time it was SENT; a failed or slow heartbeat never extends the lease."""
+
+    def __init__(self, sent_at: float, on_expire: Callable[[], None]) -> None:
+        self._at, self._on_expire = sent_at, on_expire
+        self._guard, self._done = threading.Lock(), threading.Event()
+
+    def fence_at(self) -> float:
+        with self._guard:
+            return self._at + CLAIM_S - FENCE_SAFETY_S
+
+    def advance(self, sent_at: float) -> None:
+        with self._guard:
+            self._at = max(self._at, sent_at)
+
+    def start(self) -> None:
+        threading.Thread(target=self._watch, daemon=True, name="goal-analysis-fence").start()
+
+    def close(self) -> None:
+        self._done.set()
+
+    def _watch(self) -> None:
+        while not self._done.wait(WATCH_POLL_S):
+            if _now() >= self.fence_at():
+                self._on_expire()
+                return
