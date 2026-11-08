@@ -116,6 +116,15 @@ describe("attachments upload auth", () => {
     expect((await post({ cookie: sessionCookie(), origin: "null" })).status).toBe(403);
   });
 
+  it("REFUSES an Origin that includes a path", async () => {
+    const res = await post({
+      cookie: sessionCookie(),
+      origin: "https://pi.invalid/path",
+    });
+    expect(res.status, "a path-bearing Origin was treated as same-origin").toBe(403);
+    expect(await res.json()).toEqual({ error: "Forbidden origin" });
+  });
+
   it("CONTROL: a same-origin request with a valid session still gets PAST the origin gate", async () => {
     const res = await post({ cookie: sessionCookie(), origin: "https://pi.invalid" });
     expect(res.status, "the origin gate rejected its own origin").toBe(503);
