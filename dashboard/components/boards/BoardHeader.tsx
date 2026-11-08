@@ -74,12 +74,15 @@ export function BoardHeader(p: HeaderProps) {
         </nav>
       </div>
       <div className={styles.tabsRow}>
-        <div className={styles.tabs} role="tablist" aria-label="Boards">
-          {p.order.map((id) => (
-            <button key={id} type="button" role="tab" aria-selected={p.active === id} className={styles.tab} onClick={() => p.onSelect(id)}>
-              {p.boards[id]?.name ?? id}
-            </button>
-          ))}
+        <div className={styles.tabsGroup}>
+          <div className={styles.tabs} role="tablist" aria-label="Boards">
+            {p.order.map((id) => (
+              <button key={id} type="button" role="tab" aria-selected={p.active === id} className={styles.tab} onClick={() => p.onSelect(id)}>
+                {p.boards[id]?.name ?? id}
+              </button>
+            ))}
+          </div>
+          {/* An action, not a tab: kept outside the tablist so its only children are tabs. */}
           <button type="button" className={styles.tab} onClick={p.onNewBoard}>+ Board</button>
         </div>
         <button type="button" className={`${styles.btn} ${p.editing ? styles.primary : ""}`} aria-pressed={p.editing} onClick={p.onToggleEdit}>

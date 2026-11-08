@@ -173,7 +173,7 @@ a, button { -webkit-tap-highlight-color: transparent; }
   --board-line-2: rgba(22, 24, 29, 0.16);
   --board-ink: #16181d;
   --board-ink-2: #555c67;
-  --board-ink-3: #6b717c;
+  --board-ink-3: #686e79;
   --board-accent: #4a4af4;
   --board-accent-2: #8f8ff8;
   --board-accent-soft: rgba(74, 74, 244, 0.1);
