@@ -67,11 +67,55 @@ def pipe_holders(fds, timeout_s: float) -> dict[int, str] | None:
     """Processes holding the other end of our output pipes, found even after they were reparented.
 
     A child that calls setsid() and outlives the CLI is no longer a descendant by parent link,
-    but it still holds the call's stdout/stderr; lsof finds it by the pipe's address. When the
-    process list cannot be read, a holder is returned with an empty identity. It is never
-    signalled (its pid may already belong to another process); the warning names it instead.
+    but it still holds the call's stdout/stderr, found by the pipe's identity (/proc on Linux,
+    lsof on macOS). When the process list cannot be read, a holder is returned with an empty
+    identity. It is never signalled (its pid may already belong to another process); the warning
+    names it instead.
     """
-    me = os.getpid()
+    pids = _holder_pids(fds, timeout_s, os.getpid())
+    if pids is None:
+        return None
+    table = ps_table(timeout_s)
+    if table is None:
+        return dict.fromkeys(pids, "")
+    return {pid: table[pid][2] for pid in pids if pid in table}
+
+
+def _holder_pids(fds, timeout_s: float, me: int) -> set[int] | None:
+    """Pids holding our pipes: /proc where the kernel provides it (Linux), else lsof (macOS)."""
+    if os.path.isdir("/proc/self/fd"):
+        return _proc_holders(fds, timeout_s, me)
+    return _lsof_holders(fds, timeout_s, me)
+
+
+def _proc_holders(fds, timeout_s: float, me: int) -> set[int] | None:
+    """Linux: own-user processes whose /proc/<pid>/fd links to one of our pipes; None when unreadable."""
+    deadline = time.monotonic() + max(0.05, timeout_s)
+    try:
+        ends = {os.readlink(f"/proc/self/fd/{fd}") for fd in fds}
+        uid, entries = os.getuid(), [e for e in os.listdir("/proc") if e.isdigit()]
+    except OSError:
+        return None
+    if not ends or not all(e.startswith("pipe:[") for e in ends):
+        return None
+    pids = set()
+    for entry in entries:
+        if time.monotonic() > deadline:
+            return None
+        pid = int(entry)
+        try:
+            if pid == me or os.stat(f"/proc/{entry}").st_uid != uid:
+                continue
+            fd_dir = f"/proc/{entry}/fd"
+            if any(os.readlink(f"{fd_dir}/{n}") in ends for n in os.listdir(fd_dir)):
+                pids.add(pid)
+        except OSError:
+            continue  # exited meanwhile, or not ours to read
+    return pids
+
+
+def _lsof_holders(fds, timeout_s: float, me: int) -> set[int] | None:
+    """macOS: holders found by the pipe's address through lsof; None when lsof failed."""
     ends = set()
     for fd in fds:
         own = _lsof(["-a", "-p", str(me), "-d", str(fd)], timeout_s)
@@ -81,11 +125,7 @@ def pipe_holders(fds, timeout_s: float) -> dict[int, str] | None:
     rows = _lsof(["-u", str(os.getuid())], timeout_s)
     if rows is None or not ends:
         return None
-    pids = {pid for pid, kind, v in rows if pid != me and v in ends}
-    table = ps_table(timeout_s)
-    if table is None:
-        return dict.fromkeys(pids, "")
-    return {pid: table[pid][2] for pid in pids if pid in table}
+    return {pid for pid, kind, v in rows if pid != me and v in ends}
 
 
 def _lsof(args, timeout_s: float) -> list[tuple[int, str, str]] | None:

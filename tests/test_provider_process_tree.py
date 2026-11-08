@@ -97,9 +97,7 @@ class _Proc:
 
 def test_unidentified_pipe_holder_is_named_but_never_signalled(monkeypatch, caplog):
     from app.server import provider_process_tree as tree
-    own = [(os.getpid(), "d", "0xabc")]
-    users = own + [(4242, "n->", "0xabc")]
-    monkeypatch.setattr(tree, "_lsof", lambda args, t: own if "-p" in args else users)
+    monkeypatch.setattr(tree, "_holder_pids", lambda fds, t, me: {4242})
     monkeypatch.setattr(tree, "ps_table", lambda t: None)
     killed = []
     monkeypatch.setattr(tree, "kill_pid", lambda pid, sig: killed.append(pid))
@@ -108,6 +106,17 @@ def test_unidentified_pipe_holder_is_named_but_never_signalled(monkeypatch, capl
     warnings = " ".join(r.getMessage() for r in caplog.records if r.levelname == "WARNING")
     assert 4242 not in killed, "a pid that may have been reused was signalled without its identity"
     assert "4242" in warnings, f"the pipe holder was not named in a warning: {warnings!r}"
+
+
+def test_lsof_path_finds_the_holder_of_our_pipe_by_its_address(monkeypatch):
+    from app.server import provider_process_tree as tree
+    me = os.getpid()
+    own = [(me, "d", "0xabc")]
+    users = own + [(4242, "n->", "0xabc"), (777, "n->", "0xdef")]
+    monkeypatch.setattr(tree, "_lsof", lambda args, t: own if "-p" in args else users)
+    assert tree._lsof_holders([1], 0.5, me) == {4242}
+    monkeypatch.setattr(tree, "_lsof", lambda args, t: None)
+    assert tree._lsof_holders([1], 0.5, me) is None, "an lsof failure must read as unreadable, not empty"
 
 
 def test_reused_pid_running_the_same_command_is_not_signalled(monkeypatch):
