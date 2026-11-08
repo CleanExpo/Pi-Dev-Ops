@@ -4,6 +4,7 @@
 Standard library only. Talks to GitHub with GITHUB_TOKEN (or `gh auth token` locally).
 Never merges, never pushes. See .github/workflows/pr-ready-guard.yml.
 A GitHub refusal to draft an unrelated PR warns instead of failing: ready_guard_refusal.py.
+A ready PR that turned green has its failed own run re-run: ready_guard_rejudge.py.
 
 Usage: pr_ready_guard.py --repo OWNER/REPO [--dry-run]
 """
@@ -21,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set
 
 from ready_guard_refusal import GraphQLError, counts_as_failure, triggering_pr
+from ready_guard_rejudge import rerun_stale_guard_run
 
 LABEL = "held-by-ready-guard"
 MARKER = "<!-- pr-ready-guard -->"
@@ -52,7 +54,7 @@ class PR:
 
 @dataclass
 class Decision:
-    action: str  # "draft" | "ready" | "leave"
+    action: str  # "draft" | "ready" | "leave" | "rejudge" (ready, green, own check red)
     reasons: List[str] = field(default_factory=list)
 
 
@@ -72,8 +74,15 @@ def _threads_reason(pr: PR) -> List[str]:
     return ["{} unresolved review thread(s)".format(pr.unresolved)] if pr.unresolved else []
 
 
+def _hold_reasons(pr: PR, p: Dict[str, List[str]]) -> List[str]:
+    """Why this PR is not green enough to release (empty = release). One rule for both uses."""
+    held = (["failing check: " + n for n in p["failing"]] + ["still running: " + n for n in p["pending"]]
+            + p["conflict"] + _threads_reason(pr))  # release needs zero unresolved threads, whatever the repo rules
+    return held or p["unknown"] or ([] if p["judged"] else ["no checks reported yet"])
+
+
 def decide(pr: PR) -> Decision:
-    """Pure decision: should this PR be drafted, marked ready, or left alone?"""
+    """Pure decision: should this PR be drafted, marked ready, re-judged, or left alone?"""
     p = _judge(pr)
     reasons = (
         ["failing check: " + n for n in p["failing"]]
@@ -81,19 +90,21 @@ def decide(pr: PR) -> Decision:
         + p["conflict"]
     )
     if not pr.is_draft:
+        own = {c.state for c in pr.checks if c.name in OWN_CHECKS}
         # Unresolved threads only count where GitHub is actually blocking the merge (the repo
         # requires conversation resolution); otherwise they are ordinary review chatter.
         if pr.merge_state == "BLOCKED":
             reasons += _threads_reason(pr)
-            if not reasons and pr.review_decision not in ("REVIEW_REQUIRED", "CHANGES_REQUESTED"):
+            # A red or running guard check blocks the merge by itself; that is not a reason to draft.
+            if not reasons and own <= {"success"} and pr.review_decision not in ("REVIEW_REQUIRED", "CHANGES_REQUESTED"):
                 reasons.append("GitHub reports the merge as BLOCKED for a reason other than missing approval")
-        return Decision("draft", reasons) if reasons else Decision("leave")
+        if reasons:
+            return Decision("draft", reasons)
+        return Decision("rejudge") if "failure" in own and not _hold_reasons(pr, p) else Decision("leave")
     if LABEL not in pr.labels:
         return Decision("leave")  # intentional draft: never touched
-    held = reasons + _threads_reason(pr)  # release needs zero unresolved threads, whatever the repo rules
-    if held or p["unknown"] or not p["judged"]:
-        return Decision("leave", held or p["unknown"] or ["no checks reported yet"])
-    return Decision("ready")
+    held = _hold_reasons(pr, p)
+    return Decision("leave", held) if held else Decision("ready")
 
 
 # ---------------------------------------------------------------- GitHub I/O
@@ -264,6 +275,8 @@ def run(repo: str, dry_run: bool) -> int:
                 to_draft(token, repo, pr, d)
             elif d.action == "ready":
                 to_ready(token, repo, pr)
+            elif d.action == "rejudge":  # its own run failed holding it; now green, so judge it again
+                rerun_stale_guard_run(_call, token, repo, pr.number, pr.head_sha)
             elif pr.is_draft and LABEL in pr.labels and d.reasons:  # still held: keep the one comment current
                 upsert_comment(token, repo, pr.number, render_comment("draft", d.reasons, pr.head_sha))
         except Exception as e:  # keep going so one bad PR cannot hide the rest

@@ -38,6 +38,10 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  # actions: write lets a sweep re-run a PR's own failed guard run once that PR is green, so a
+  # PR readied while its checks ran does not stay red until a human re-runs it
+  # (.github/scripts/ready_guard_rejudge.py). The script only ever re-runs this workflow's runs.
+  actions: write
   pull-requests: write
   contents: read
   checks: read

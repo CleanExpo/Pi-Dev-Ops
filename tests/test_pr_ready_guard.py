@@ -59,7 +59,8 @@ def test_guards_own_check_is_ignored_when_pending():
 
 
 def test_guards_own_check_is_ignored_when_failed():
-    assert g.decide(pr(checks=GREEN + [g.Check("pr-ready-guard", "failure")])).action == "leave"
+    # Never drafted for its own red check; it is re-judged instead (tests/test_ready_guard_rejudge.py).
+    assert g.decide(pr(checks=GREEN + [g.Check("pr-ready-guard", "failure")])).action == "rejudge"
 
 
 def test_held_draft_with_only_its_own_check_waits():
