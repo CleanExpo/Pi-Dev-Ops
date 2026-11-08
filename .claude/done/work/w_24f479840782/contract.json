@@ -1,0 +1,31 @@
+{
+  "schema": "done/1",
+  "work_id": "w_24f479840782",
+  "version": 1,
+  "supersedes": null,
+  "goal": "UNI-3306 PR 1: a Supabase job store for goal_analysis_jobs (app/server/goal_analysis_jobs.py) whose every write after a claim is fenced on the attempt number, with one retry at most and only evidence links stored.",
+  "created_at_utc": "2026-11-08T10:01:41Z",
+  "identity_key": "phillmcgurk/uni-3306-job-store@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-store",
+  "baseline_observed": {
+    "head": "312db7c9a62176192d2405370233b15a1a42b992",
+    "branch": "phillmcgurk/uni-3306-job-store",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The job store unit tests pass: submit returns the active job on a duplicate, a key reused for a different goal is refused, claim fences on attempt, a stale attempt cannot heartbeat, finish or fail, recovery turns an expired running job into interrupted then failed, and only links are stored as evidence.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-store' && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_goal_analysis_jobs_store.py -q -p no:cacheprovider"
+    },
+    {
+      "id": "C2",
+      "text": "Each planted fencing defect in a copy of the store (attempt filter dropped from finish, heartbeat and fail; claim without the attempt filter; retry allowed twice) makes the unit tests fail.",
+      "recipe": "'/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' /Users/phill-mac/session-handoffs/reviews/uni-3306-store/mutants.py '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-store'"
+    },
+    {
+      "id": "C3",
+      "text": "ruff, the file-length gate and the function-length gate pass on the change.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-store' && /Users/phill-mac/.local/bin/ruff check app/server/goal_analysis_jobs.py tests/test_goal_analysis_jobs_store.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/file_length_lint.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/function_length_lint.py"
+    }
+  ]
+}

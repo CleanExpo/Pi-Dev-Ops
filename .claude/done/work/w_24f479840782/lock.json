@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_24f479840782",
+  "contract_digest": "56c8b60de61e8e7f8d30d0abc9ba42d9569c20f9936a8861f4ab0d0dfd903a47",
+  "baseline_head": "312db7c9a62176192d2405370233b15a1a42b992",
+  "identity_key": "phillmcgurk/uni-3306-job-store@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-store",
+  "locked_at_utc": "2026-11-08T10:01:42Z",
+  "criteria_count": 3,
+  "recipe_pins": {}
+}
