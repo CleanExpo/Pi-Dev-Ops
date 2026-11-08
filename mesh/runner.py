@@ -31,7 +31,7 @@ import plan_lane  # noqa: E402
 import ship_run  # noqa: E402
 from fleet_state import active_agent_count, next_work  # noqa: E402
 from prompt import build_prompt  # noqa: E402
-from repo_guard import repo_dir_for, repo_dir_problem  # noqa: E402
+from repo_guard import repo_dir_for, repo_dir_problem, repo_roots  # noqa: E402
 import claim_lifecycle  # noqa: E402
 import left_running  # noqa: E402
 import node_health  # noqa: E402
@@ -69,7 +69,7 @@ MESH_KILL_GRACE_SECONDS = 10
 AGENT_TIMEOUT_SECONDS = 3600
 DEFAULT_REPO_DIR = Path(os.environ.get(
     "MESH_REPO_DIR", str(Path(__file__).resolve().parents[1])))
-REPOS_ROOT = Path(os.environ.get("MESH_REPOS_ROOT", str(Path.home())))  # other repos' clones
+REPOS_ROOT = repo_roots(os.environ.get("MESH_REPOS_ROOT", ""))  # clone roots, a list (RA-8096)
 LOG = runner_idle.Log()  # ts, hold reason, poll outcome and last server contact on every line
 
 

@@ -1,0 +1,31 @@
+{
+  "schema": "done/1",
+  "work_id": "w_f0bee821caf2",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8096: mesh runner finds product checkouts on other drive roots (and MESH_REPOS_ROOT path lists), still origin-checked",
+  "created_at_utc": "2026-11-08T03:08:47Z",
+  "identity_key": "mesh/phills-macbook-pro/ra-8096-bef7acd2@/Users/phillmcgurk/Pi-Dev-Ops/.git/worktrees/mesh-RA-8096-bef7acd2",
+  "baseline_observed": {
+    "head": "94bc34a8baa544bec2bec778e1990ce07ac345e0",
+    "branch": "mesh/phills-macbook-pro/ra-8096-bef7acd2",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "New repo-roots tests pass (multi-root, drive fallback, origin still checked)",
+      "recipe": ".venv/bin/python -m pytest tests/test_mesh_repo_roots.py -q"
+    },
+    {
+      "id": "C2",
+      "text": "Existing mesh repo-guard/runner tests still pass",
+      "recipe": ".venv/bin/python -m pytest tests/test_mesh_runner_repo_guard.py tests/test_w1b_mesh_go.py tests/test_mesh_runner_service.py -q"
+    },
+    {
+      "id": "C3",
+      "text": "Size gates pass",
+      "recipe": "sh -c 'python3 .github/scripts/file_length_lint.py && python3 .github/scripts/function_length_lint.py'"
+    }
+  ]
+}
