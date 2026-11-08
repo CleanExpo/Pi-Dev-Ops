@@ -166,3 +166,44 @@ def test_descendant_that_left_the_group_cannot_hold_the_stop_open(tmp_path, monk
         assert _gone(parent) == []
     finally:
         os.kill(escaped, 9)
+
+
+_EXITING_PARENT = """#!/usr/bin/env python3
+import os, subprocess, sys
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+with open({pidfile!r}, "w") as f:
+    f.write(f"{{os.getpid()}} {{child.pid}}")
+"""
+
+
+class _SetOnceStarted:
+    """A stop that becomes set once the CLI has written its pids, i.e. as the parent finishes."""
+
+    def __init__(self, pidfile):
+        self.pidfile = pidfile
+
+    def is_set(self):
+        return self.pidfile.exists() and bool(self.pidfile.read_text().strip())
+
+
+def test_stop_as_the_parent_finishes_still_ends_its_children(tmp_path):
+    pidfile = tmp_path / "pids"
+    cli = tmp_path / "fake-cli"
+    cli.write_text(_EXITING_PARENT.format(pidfile=str(pidfile)))
+    cli.chmod(0o755)
+    rc, out, _ = pe._run_stoppable([str(cli)], stop=_SetOnceStarted(pidfile), timeout_s=30)
+    parent, child = _wait_for(pidfile)
+    left = _gone(parent, child)
+    if left:
+        os.kill(child, 9)
+    assert rc == pe.STOPPED_RC and out == ""
+    assert left == [], f"processes left running: {left}"
+
+
+def test_result_that_finishes_after_the_deadline_is_not_accepted():
+    import sys
+    rc, out, _ = pe._run_stoppable(
+        [sys.executable, "-c", "import time; time.sleep(0.15); print('late')"],
+        stop=threading.Event(), timeout_s=0.05)
+    assert rc == 124 and "late" not in out

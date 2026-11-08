@@ -240,14 +240,17 @@ def _run_stoppable(argv, *, stop, timeout_s, input=None, cwd=None) -> tuple[int,
                      creationflags=getattr(_sp, "CREATE_NEW_PROCESS_GROUP", 0))
     deadline, pending = _time.monotonic() + timeout_s, input
     while True:
-        try:
-            out, err = proc.communicate(pending, timeout=_STOP_POLL_S)
-            if stop.is_set():  # a stopped call's result is never accepted
-                return STOPPED_RC, "", err or ""
-            return proc.returncode, out, err
-        except _sp.TimeoutExpired:
-            pending = None
-        reason = STOPPED_RC if stop.is_set() else 124 if _time.monotonic() >= deadline else 0
+        remaining = deadline - _time.monotonic()
+        reason = STOPPED_RC if stop.is_set() else 124 if remaining <= 0 else 0
         if reason:
             _end_group(proc)
             return (reason, *_drain(proc))
+        try:  # never wait past the deadline, so a late result cannot be accepted
+            out, err = proc.communicate(pending, timeout=min(_STOP_POLL_S, remaining))
+        except _sp.TimeoutExpired:
+            pending = None
+            continue
+        if stop.is_set():  # a stopped call's result is never accepted; end any children left
+            _end_group(proc)
+            return STOPPED_RC, "", err or ""
+        return proc.returncode, out, err
