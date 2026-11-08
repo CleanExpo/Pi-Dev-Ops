@@ -46,6 +46,22 @@ def project():
         c.execute("delete from goal_analysis_jobs where project_id = %s", (pid,))
 
 
+def _seen_waiting_on_lock(pid: int, worker: threading.Thread) -> bool:
+    """Blocking is observed, never assumed from a sleep: a third session must see the
+    backend `pid` waiting on a lock while the other session is still open (10 s bound).
+    Once it waits it cannot finish before that session commits, so nothing else has been
+    recorded yet. A worker that never waits (no index to collide on) finishes on its own."""
+    with psycopg.connect(SCRATCH, autocommit=True) as watch:
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and worker.is_alive():
+            row = watch.execute("select wait_event_type from pg_stat_activity where pid = %s",
+                                (pid,)).fetchone()
+            if row and row[0] == "Lock":
+                return True
+            time.sleep(0.02)
+    return False
+
+
 def _race(project_id: str, first_key: str, second_key: str, goal_hash_2: str) -> list[str]:
     """Session A inserts and holds its transaction open; session B inserts the
     competing row meanwhile. Returns what B saw: 'blocked' (observed in pg_stat_activity) while A was open, then
@@ -67,20 +83,8 @@ def _race(project_id: str, first_key: str, second_key: str, goal_hash_2: str) ->
 
         t = threading.Thread(target=second)
         t.start()
-        # "blocked" is observed, never assumed from a sleep: a third session must see B's
-        # backend waiting on a lock while A is still open. Once B waits it cannot finish before
-        # A commits, so nothing else is in `seen` yet. A B that never waits (no index to collide
-        # on) finishes on its own and is reported as it finished.
-        b_pid = b.info.backend_pid
-        with psycopg.connect(SCRATCH, autocommit=True) as watch:
-            deadline = time.monotonic() + 10
-            while time.monotonic() < deadline and t.is_alive():
-                row = watch.execute("select wait_event_type from pg_stat_activity where pid = %s",
-                                    (b_pid,)).fetchone()
-                if row and row[0] == "Lock":
-                    seen.append("blocked")
-                    break
-                time.sleep(0.02)
+        if _seen_waiting_on_lock(b.info.backend_pid, t):
+            seen.append("blocked")
         a.commit()
         t.join(10)
         assert not t.is_alive(), "second session never finished"
