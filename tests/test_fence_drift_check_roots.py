@@ -19,11 +19,12 @@ def test_checkout_is_always_a_code_root():
 
 def test_sweep_is_checkable_without_d_drive(tmp_path, monkeypatch):
     mod = _load()
-    (tmp_path / "x.py").write_text('u = "abcdefghijklmnopqrst.supabase.co"\n')
+    ref = "abcdefghij" + "klmnopqrst"  # split so this file holds no ref-shaped literal for the sweep
+    (tmp_path / "x.py").write_text(f'u = "{ref}.supabase.co"\n')
     monkeypatch.setattr(mod, "CODE_ROOTS", [str(tmp_path)])
     refs, err = mod.code_refs()
     assert err is None
-    assert list(refs) == ["abcdefghijklmnopqrst"]
+    assert list(refs) == [ref]
 
 
 def test_no_roots_still_reports_unchecked(monkeypatch):
@@ -36,3 +37,18 @@ def test_no_roots_still_reports_unchecked(monkeypatch):
 def test_env_roots_added(tmp_path, monkeypatch):
     monkeypatch.setenv("FENCE_CODE_ROOTS", str(tmp_path))
     assert str(tmp_path) in _load().find_code_roots()
+
+
+def test_this_checkout_names_no_supabase_ref_missing_from_the_fence(monkeypatch):
+    """The scheduled check sweeps this checkout. Any ref-shaped literal added here (a test
+    fixture included) that fence.json does not list would turn that check red by itself."""
+    import json
+    mod = _load()
+    monkeypatch.setattr(mod, "CODE_ROOTS", [mod.REPO_ROOT])
+    refs, err = mod.code_refs()
+    assert err is None
+    prod = json.loads(mod.FENCE_FILE.read_text(encoding="utf-8")).get("prod", {})
+    inventory = {d.lower() for d in prod.get("databases", []) if isinstance(d, str)}
+    inventory |= {e.lower() for e in prod.get("_databases_excluded_preview_branches", [])}
+    stray = {ref: files for ref, files in refs.items() if ref.lower() not in inventory}
+    assert stray == {}
