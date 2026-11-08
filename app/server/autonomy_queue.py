@@ -266,7 +266,7 @@ def release_session_claim(session: Any) -> None:
     status = str(getattr(session, "status", ""))
     if not issue_id or (status != "failed" and not getattr(session, "autonomy_triggered", False)):
         return
-    from app.server import config, session_lease  # noqa: PLC0415
+    from app.server import claim_renewal, config, session_lease  # noqa: PLC0415
 
     a = _autonomy()
     ident = _CLAIMED.get(issue_id)
@@ -283,6 +283,8 @@ def release_session_claim(session: Any) -> None:
             labelled = False
         if not labelled:
             log.warning("Autonomy: %s failed and could not be labelled; claim kept", ident or issue_id)
+            if ident:
+                claim_renewal.stop(ident)  # the claim stays, but a finished session no longer renews it
             return
     if ident and getattr(session, "autonomy_triggered", False):
         if session_lease.release_linear_ticket(ident, _TERMINAL_CLAIM_STATE.get(status, "released")):
