@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_884f8f22ecb0",
+  "contract_digest": "b56fe38b450fcdda3287a8bbae08dfb96eae874baba6ec1783716a46b2ac4e7e",
+  "baseline_head": "bd7d36828c2481b0dae5254f5bb50855c978642a",
+  "identity_key": "fix/dashboard-tests-node26@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/dashboard-node26",
+  "locked_at_utc": "2026-11-08T19:01:07Z",
+  "criteria_count": 5,
+  "recipe_pins": {}
+}
