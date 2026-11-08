@@ -47,7 +47,9 @@ def test_this_checkout_names_no_supabase_ref_missing_from_the_fence(monkeypatch)
     monkeypatch.setattr(mod, "CODE_ROOTS", [mod.REPO_ROOT])
     refs, err = mod.code_refs()
     assert err is None
-    prod = json.loads(mod.FENCE_FILE.read_text(encoding="utf-8")).get("prod", {})
+    # the scheduled workflow copies the repo's fence/fence.json into place, so test against that copy
+    fence_json = pathlib.Path(__file__).resolve().parents[1] / "fence" / "fence.json"
+    prod = json.loads(fence_json.read_text(encoding="utf-8")).get("prod", {})
     inventory = {d.lower() for d in prod.get("databases", []) if isinstance(d, str)}
     inventory |= {e.lower() for e in prod.get("_databases_excluded_preview_branches", [])}
     stray = {ref: files for ref, files in refs.items() if ref.lower() not in inventory}
