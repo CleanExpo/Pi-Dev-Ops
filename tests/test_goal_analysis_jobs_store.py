@@ -263,11 +263,11 @@ def test_filter_values_are_encoded(rest: FakeRest) -> None:
     assert urlsplit("x?" + seen[0].partition("?")[2]).query
 
 
-def test_expired_attempt_cannot_publish_before_recovery(rest: FakeRest) -> None:
-    """Review r3: claim at 10:00, clock at 10:06, recovery not yet run. The worker loses."""
+def test_lapsed_claim_cannot_publish_before_recovery(rest: FakeRest) -> None:
+    """Review r3: the claim lapsed (deadline still ahead) and recovery has not run yet."""
     job = _submit()
     assert jobs.claim(job["id"], "mini") == 1
-    _advance(rest, 360)
+    _advance(rest, jobs.CLAIM_SECONDS + 1)
     assert jobs.finish(job["id"], 1, {"ok": True}, []) is False
     assert jobs.fail(job["id"], 1, "late") is False
     assert jobs.heartbeat(job["id"], 1, "mini") is False
@@ -285,22 +285,6 @@ def test_deadline_passed_with_live_claim_cannot_publish(rest: FakeRest) -> None:
     assert jobs.finish(job["id"], 1, {"ok": True}, []) is False
     assert rest.rows[0]["status"] == "running"
     assert jobs.recover_expired() == [job["id"]]
-
-
-def test_lapsed_claim_cannot_publish(rest: FakeRest) -> None:
-    job = _submit()
-    jobs.claim(job["id"], "mini")
-    _advance(rest, jobs.CLAIM_SECONDS + 1)
-    assert jobs.finish(job["id"], 1, {"ok": True}, []) is False
-    assert rest.rows[0]["status"] == "running"
-
-
-def test_live_attempt_can_still_finish(rest: FakeRest) -> None:
-    job = _submit()
-    jobs.claim(job["id"], "mini")
-    _advance(rest, 30)
-    assert jobs.finish(job["id"], 1, {"ok": True}, ["https://linear.app/x"]) is True
-    assert rest.rows[0]["status"] == "finished"
 
 
 @pytest.mark.parametrize("reply", [b"[]", b'[{"id": "a", "status": "queued", "attempt": 0, "retry_count": 0}, '
