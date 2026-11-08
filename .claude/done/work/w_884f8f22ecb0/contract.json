@@ -1,0 +1,45 @@
+{
+  "schema": "done/1",
+  "work_id": "w_884f8f22ecb0",
+  "version": 1,
+  "supersedes": null,
+  "goal": "Dashboard vitest suite passes on Node 22 and Node 26 (jsdom storage no longer shadowed by Node's own global)",
+  "created_at_utc": "2026-11-08T19:01:06Z",
+  "identity_key": "fix/dashboard-tests-node26@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/dashboard-node26",
+  "baseline_observed": {
+    "head": "bd7d36828c2481b0dae5254f5bb50855c978642a",
+    "branch": "fix/dashboard-tests-node26",
+    "dirty_count": 1
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "Dashboard vitest passes on Node 26",
+      "recipe": "cd dashboard && PATH=/Users/phill-mac/.nvm/versions/node/v26.13.0/bin:$PATH node -v | grep -q '^v26' && PATH=/Users/phill-mac/.nvm/versions/node/v26.13.0/bin:$PATH npx vitest run",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "Dashboard vitest passes on Node 22",
+      "recipe": "cd dashboard && PATH=/Users/phill-mac/.nvm/versions/node/v22.22.3/bin:$PATH node -v | grep -q '^v22' && PATH=/Users/phill-mac/.nvm/versions/node/v22.22.3/bin:$PATH npx vitest run",
+      "timeout": 600
+    },
+    {
+      "id": "C3",
+      "text": "Dashboard type-check passes",
+      "recipe": "cd dashboard && PATH=/Users/phill-mac/.nvm/versions/node/v22.22.3/bin:$PATH npx tsc --noEmit",
+      "timeout": 600
+    },
+    {
+      "id": "C4",
+      "text": "Changed file lints clean",
+      "recipe": "cd dashboard && PATH=/Users/phill-mac/.nvm/versions/node/v22.22.3/bin:$PATH npx eslint vitest.setup.ts",
+      "timeout": 300
+    },
+    {
+      "id": "C5",
+      "text": "Red proof: origin/main setup file fails on Node 26 (saved log shows localStorage failures)",
+      "recipe": "grep -q \"Cannot read properties of undefined (reading 'getItem')\" '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/dashboard-node26-red.log'"
+    }
+  ]
+}
