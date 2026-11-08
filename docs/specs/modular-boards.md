@@ -341,6 +341,10 @@ overall look is a founder visual review of the screenshots in the handoff, and i
   exported `POST`/`PUT`/`PATCH`/`DELETE` handler, no new `create table` in `supabase/` or
   `mesh/schema/`. Every non-GET request reachable from a board is one that the same panel already
   makes on `main` (§4.1 action column), through the same route.
+  Amended 08/11/2026 (UNI-3306, see B15): the route clauses (no new `app/api/` file, no new exported
+  mutating handler) bind every later diff. The `create table` clause bound the boards build itself; a
+  later change may add a table that no route reaches (a board reaches storage only through a route,
+  which the route clauses catch). Any table named for boards stays forbidden by the tree test.
 - G3. `lib/boards/**` and `components/boards/**` contain no `fetch` with a `method` option and
   no string `"POST"`, `"PUT"`, `"PATCH"`, `"DELETE"`.
 - G4. Registry discovery: every module has ≥ 1 source from §3.3, ≥ 1 view, a min size; every view
@@ -434,4 +438,5 @@ Each item is a fact found while building, with where it lives. None adds a write
 | B12 | Cross-vendor diff review (see §13) found destructive board edits had no confirm or undo, invalid saved boards were dropped silently, the tap forwarded a bare path and re-cloned one cached Response, and a governance test could pass by returning early | Reset now asks first; Remove and Reset offer Undo; invalid saved boards are reported and kept in storage untouched (unreadable storage is copied to `pi-boards-v1.unreadable`); the tap forwards the caller's own request, matches same-origin URLs only and rebuilds a fresh Response per reader; the G2 test runs its tree checks always and reports its history check as SKIPPED when history is missing |
 | B13 | `HealthGrid` history now samples on the shared 30 s read instead of its own 60 s poll | Declared: its sparkline window is 12 samples either way; the window now spans 6 minutes instead of 12 |
 | B14 | The kiosk used to default to `wall-1` when `?board=` was missing | It now shows the same error as an unknown preset, naming the valid ids |
+| B15 | After merge the G2 diff test ran against every later diff and failed UNI-3306 step 5, which adds the `goal_analysis_jobs` table with no route | G2 amended (§7): route clauses unchanged and global; the `create table` clause no longer binds later diffs. Red control: a new `dashboard/app/api/zz-g2-probe/route.ts` exporting `POST` fails the test; the job-table branch passes |
 
