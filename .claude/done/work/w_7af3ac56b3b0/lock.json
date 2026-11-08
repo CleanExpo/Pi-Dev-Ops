@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_7af3ac56b3b0",
+  "contract_digest": "f56d50b02a0c7f1ec52e2f0e1654ef4b5e99b5541260f5d2bff9e2aa57547a9f",
+  "baseline_head": "e703ae35bb7a9501270c1ba2d2ad83dede2ab87e",
+  "identity_key": "phillmcgurk/ready-guard-deadend@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/ready-guard-deadend",
+  "locked_at_utc": "2026-11-08T11:45:48Z",
+  "criteria_count": 3,
+  "recipe_pins": {}
+}

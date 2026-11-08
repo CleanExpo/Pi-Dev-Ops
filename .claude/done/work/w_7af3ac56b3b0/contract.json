@@ -1,0 +1,31 @@
+{
+  "schema": "done/1",
+  "work_id": "w_7af3ac56b3b0",
+  "version": 1,
+  "supersedes": null,
+  "goal": "PR ready guard: an early-readied PR whose checks later pass gets its failed pr-ready-guard run re-run by the sweep; a PR with failing checks stays held",
+  "created_at_utc": "2026-11-08T11:45:40Z",
+  "identity_key": "phillmcgurk/ready-guard-deadend@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/ready-guard-deadend",
+  "baseline_observed": {
+    "head": "e703ae35bb7a9501270c1ba2d2ad83dede2ab87e",
+    "branch": "phillmcgurk/ready-guard-deadend",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "tests",
+      "text": "Ready-guard tests (existing RA-8212 + new rejudge tests) pass",
+      "recipe": "'/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest -q -p no:cacheprovider --basetemp /private/tmp/claude-501/-Users-phill-mac-mission-control/ecd7c434-50d6-48d9-a2ff-fece4314b477/scratchpad/bt/done tests/test_pr_ready_guard.py tests/test_ready_guard_rejudge.py tests/test_ci_minute_budget.py"
+    },
+    {
+      "id": "lints",
+      "text": "file and function length lints pass",
+      "recipe": "'/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/file_length_lint.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/function_length_lint.py"
+    },
+    {
+      "id": "gate_parity",
+      "text": "gate parity lint passes",
+      "recipe": "'/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/gate_parity_lint.py"
+    }
+  ]
+}
