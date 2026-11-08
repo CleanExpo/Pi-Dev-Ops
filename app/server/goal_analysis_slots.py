@@ -121,7 +121,14 @@ def run_in_thread(call: Callable[[], Awaitable[Any]], slot: Slot | None,
 
     if slot is not None:
         slot.handed_off = True
-    threading.Thread(target=target, daemon=True, name="goal-analysis-model").start()
+    try:
+        threading.Thread(target=target, daemon=True, name="goal-analysis-model").start()
+    except BaseException:
+        # No thread exists, so nothing will release the slot: ownership never moved.
+        if slot is not None:
+            slot.handed_off = False
+            slot.release()
+        raise
     return fut
 
 

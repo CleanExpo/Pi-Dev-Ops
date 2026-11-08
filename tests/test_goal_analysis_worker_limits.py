@@ -210,3 +210,31 @@ async def test_async_analysis_refuses_a_provider_that_cannot_be_stopped(
     assert await worker.run_job(job_id, heartbeat_s=1000) == "failed"
     reason = _row(rest, job_id)["failure_reason"]
     assert "cannot be stopped" in reason and "ollama" in reason
+
+
+async def test_a_model_thread_that_cannot_start_gives_its_slot_back(
+        rest: FakeRest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review round 5: ownership of the slot moves to the model thread only if that thread
+    exists. A thread start failure must free the slot and the job's live entry, and a later
+    job must still run."""
+    monkeypatch.setattr(llm, "complete", Model())
+    real_start = threading.Thread.start
+
+    def start(self: threading.Thread) -> None:
+        if self.name == "goal-analysis-model":
+            raise RuntimeError("can't start new thread")
+        real_start(self)
+
+    monkeypatch.setattr(threading.Thread, "start", start)
+    first = _queued("key-0001")
+    assert worker.launch(first)
+    await asyncio.gather(*worker._tasks)
+    assert slots._running == 0 and not slots.is_live(first)
+    assert slots.take(first) is not None  # not stranded
+    slots._running, slots._live = 0, set()
+
+    monkeypatch.setattr(threading.Thread, "start", real_start)
+    second = jobs.submit("ra", "Finalise stage 2 of RestoreAssist", ACCEPT, "key-0002")["id"]
+    assert worker.launch(second)
+    await asyncio.gather(*worker._tasks)
+    assert _row(rest, second)["status"] == "finished" and slots._running == 0
