@@ -52,10 +52,12 @@ def test_exact_recovery_strings_allowed_and_land_in_root(repo: Path, tmp_path: P
     assert real_bash(cmd.strip(), tmp_path, env) == repo.resolve()
 
 
-@pytest.mark.parametrize("cmd", ['cd "{root}" && rm -rf x', 'cd "{root}/sub"', "cd /tmp", "cd {root}",
+# `cd "{root}/sub"`, `cd {root}` and `cd "{root}/"` are allowed by the cd-into-checkout
+# rule; see tests/test_senior_harness_cd_into_checkout.py.
+@pytest.mark.parametrize("cmd", ['cd "{root}" && rm -rf x', "cd /tmp",
                                  'cd "$CLAUDE_PROJECT_DIR"; touch x', "ls", "cd $HOME", "cd ~",
                                  "cd $CLAUDE_PROJECT_DIR", "cd ${{CLAUDE_PROJECT_DIR}}", "cd  \"{root}\"",
-                                 "cd '{root}'", 'cd "{root}"\r', *VAR_FORMS, '\tcd "$CLAUDE_PROJECT_DIR" ', 'cd "{root}"\xa0', 'cd "{root}/"', "", "cd"])
+                                 "cd '{root}'", 'cd "{root}"\r', *VAR_FORMS, '\tcd "$CLAUDE_PROJECT_DIR" ', 'cd "{root}"\xa0', "", "cd"])
 def test_outside_git_denies_everything_else(repo: Path, tmp_path: Path, cmd: str) -> None:
     cmd = cmd.replace("{root}", str(repo)).replace("{{", "{").replace("}}", "}")
     assert denied(_outside_git_tool(bash(cmd, tmp_path), "PreToolUse"))
@@ -151,8 +153,11 @@ def test_subdirectory_of_checkout_is_not_the_root(
 ) -> None:
     sub = repo / "sub"
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(sub))
-    out = _outside_git_tool(bash(f'cd "{sub}"', tmp_path), "PreToolUse")
+    out = _outside_git_tool(bash("ls", tmp_path), "PreToolUse")
     assert denied(out) and "run exactly" not in str(out)
+    # The cd itself is allowed by the cd-into-checkout rule, not offered as the project root.
+    out = str(_outside_git_tool(bash(f'cd "{sub}"', tmp_path), "PreToolUse"))
+    assert not denied(out) and "Git checkout folder" in out
 
 
 def test_inherited_git_overrides_cannot_fake_a_checkout(
