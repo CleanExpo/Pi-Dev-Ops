@@ -47,6 +47,15 @@ def runtime_version(repo: Path, run: Run = subprocess.run) -> str:
     return head.stdout.strip() if head.returncode == 0 and head.stdout.strip() else "unknown"
 
 
+def fetch_main(repo: Path, run: Run = subprocess.run) -> str | None:
+    """Fetch origin main into MAIN_REF and return its commit; None if the fetch failed,
+    "" if the ref cannot be read. The one fetch path: version_gate.py reads main through it.
+    A private ref, not FETCH_HEAD: a concurrent fetch of another branch overwrites FETCH_HEAD."""
+    if _git(run, repo, "fetch", "--quiet", "origin", f"+refs/heads/main:{MAIN_REF}").returncode != 0:
+        return None
+    return _git(run, repo, "rev-parse", "--verify", "-q", f"{MAIN_REF}^{{commit}}").stdout.strip()
+
+
 def mark_stuck(marker: Path, outcome: str) -> None:
     """Record a stuck update where no checkout can remove it. Every later start obeys it."""
     marker.parent.mkdir(parents=True, exist_ok=True)
@@ -102,10 +111,9 @@ class Updater:
         refusal = self._refusal(old)
         if refusal:
             return refusal
-        # A private ref, not FETCH_HEAD: a concurrent fetch of another branch overwrites FETCH_HEAD.
-        if _git(self._run, self._repo, "fetch", "--quiet", "origin", f"+refs/heads/main:{MAIN_REF}").returncode != 0:
+        new = fetch_main(self._repo, self._run)
+        if new is None:
             return "update failed: fetch"
-        new = _git(self._run, self._repo, "rev-parse", "--verify", "-q", f"{MAIN_REF}^{{commit}}").stdout.strip()
         if not new or new == old:
             return "current"
         if _git(self._run, self._repo, "merge-base", "--is-ancestor", old, new).returncode != 0:

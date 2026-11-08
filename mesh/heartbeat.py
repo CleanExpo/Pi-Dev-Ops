@@ -31,6 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from env_file import from_env_file as _from_env_file, resolve_key  # noqa: E402  (RA-7905)
 from node_health import runner_down  # noqa: E402
 from agent_scan import scan_agent_processes  # noqa: E402
+import runner_report  # noqa: E402  (fleet version gate, 08/11/2026)
 
 
 PI_CEO_API_URL = (os.environ.get("PI_CEO_API_URL") or _from_env_file("PI_CEO_API_URL")
@@ -211,15 +212,16 @@ def node_status(agents: list, crumb: dict, down: bool = False) -> str:
     """A runner that stopped polling, then one that gated itself, say so above working/online (RA-7802)."""
     if down:
         return "runner-down"
-    if crumb.get("state") in ("blocked", "quarantined", "stuck", "quota"):
+    if crumb.get("state") in ("blocked", "quarantined", "stuck", "quota",
+                              "outdated", "version-unknown", "hard_stop", "updating"):
         return crumb["state"]
     return "working" if agents else "online"
 
 
 def node_version(crumb: dict) -> str:
-    """The runner's commit, so the fleet view shows which code each node runs (RA-7802)."""
-    sha = str(crumb.get("version") or "")
-    return f"nexus-mesh/{sha[:12]}" if sha and sha != "unknown" else "nexus-mesh/0.1"
+    """The runner's commit, so the fleet view shows which code each node runs (RA-7802).
+    Read at any age and labelled with it: a dead runner's last-known code is still a fact."""
+    return runner_report.version_label(crumb)
 
 
 def collect() -> dict:
@@ -235,8 +237,8 @@ def collect() -> dict:
         "cpu_pct": cpu,
         "mem_pct": mem,
         "load1": load1,
-        "agent_runtimes": runtimes_present(),
-        "version": node_version(crumb),
+        "agent_runtimes": runtimes_present() + [runner_report.entry(MESH_RUNNER_STATE)],
+        "version": node_version(runner_report.read(MESH_RUNNER_STATE)[1]),  # any age, not just fresh
         "agents": agents,
     }
 
