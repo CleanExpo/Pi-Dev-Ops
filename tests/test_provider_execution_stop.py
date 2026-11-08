@@ -163,9 +163,35 @@ def test_descendant_that_left_the_group_cannot_hold_the_stop_open(tmp_path, monk
         assert not worker.is_alive(), "stop blocked on a descendant outside the process group"
         assert elapsed < 5.0, elapsed
         assert result["out"][0] == pe.STOPPED_RC
-        assert _gone(parent) == []
+        assert _gone(parent, escaped) == [], "a descendant that called setsid() was left running"
     finally:
-        os.kill(escaped, 9)
+        if _alive(escaped):
+            os.kill(escaped, 9)
+
+
+def test_descendant_that_cannot_be_stopped_is_logged_by_pid_and_command(tmp_path, monkeypatch, caplog):
+    from app.server import provider_process_tree as tree
+    pidfile = tmp_path / "pids"
+    cli = tmp_path / "fake-claude"
+    cli.write_text(_ESCAPING_CLI.format(pidfile=str(pidfile)))
+    cli.chmod(0o755)
+    monkeypatch.setattr(pe, "CLAUDE_CLI", str(cli))
+    monkeypatch.setattr(tree, "kill_pid", lambda pid, sig: None)  # the escaped child cannot be stopped
+    stop, result = threading.Event(), {}
+    worker = threading.Thread(target=lambda: result.update(
+        out=pe._claude_process("prompt", "claude-test", 120, stop)))
+    worker.start()
+    parent, escaped = _wait_for(pidfile)
+    try:
+        with caplog.at_level("WARNING", logger=tree.__name__):
+            stop.set()
+            worker.join(timeout=10)
+        assert not worker.is_alive() and result["out"][0] == pe.STOPPED_RC
+        warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+        assert any(f"process {escaped} " in w and "time.sleep(120)" in w for w in warnings), warnings
+    finally:
+        if _alive(escaped):
+            os.kill(escaped, 9)
 
 
 _EXITING_PARENT = """#!/usr/bin/env python3

@@ -6,6 +6,7 @@ import os
 import signal
 import threading
 from . import provider_policy
+from . import provider_process_tree as _tree
 from .provider_execution_types import ProviderExecution
 
 CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
@@ -190,19 +191,28 @@ def _codex_process(prompt, model_id, timeout_s, stop=None):
         )
 
 
-def _end_group(proc) -> None:
-    """End the CLI and every child it started, so a stop leaves nothing running."""
+def _end_group(proc, known: dict[int, str] | None = None) -> None:
+    """End the CLI, its process group and every descendant recorded from the process tree.
+
+    A descendant that called setsid() is outside the group, so it is stopped by pid; anything
+    still alive afterwards is logged as a warning naming its pid and command.
+    """
     import subprocess as _sp  # noqa: PLC0415
-    posix = os.name == "posix"
+    if os.name != "posix":
+        proc.terminate()
+        try:
+            proc.wait(timeout=_TERM_GRACE_S)
+        except _sp.TimeoutExpired:
+            proc.kill()
+        return
+    known = {**(known or {}), **_tree.descendants(proc.pid)}  # recorded before anything is stopped
+    _tree.signal_all(proc.pid, known, signal.SIGTERM)
     try:
-        os.killpg(proc.pid, signal.SIGTERM) if posix else proc.terminate()
         proc.wait(timeout=_TERM_GRACE_S)
-    except (ProcessLookupError, _sp.TimeoutExpired):
+    except _sp.TimeoutExpired:
         pass
-    try:  # children can outlive a parent that exited on SIGTERM
-        os.killpg(proc.pid, signal.SIGKILL) if posix else proc.kill()
-    except (ProcessLookupError, PermissionError):
-        pass
+    _tree.signal_all(proc.pid, known, signal.SIGKILL)  # children can outlive a parent that exited
+    _tree.report_survivors(known)
 
 
 def _drain(proc) -> tuple[str, str]:
@@ -238,19 +248,20 @@ def _run_stoppable(argv, *, stop, timeout_s, input=None, cwd=None) -> tuple[int,
                      stdout=_sp.PIPE, stderr=_sp.PIPE, text=True, cwd=cwd,
                      start_new_session=os.name == "posix",
                      creationflags=getattr(_sp, "CREATE_NEW_PROCESS_GROUP", 0))
-    deadline, pending = _time.monotonic() + timeout_s, input
+    deadline, pending, known = _time.monotonic() + timeout_s, input, {}
     while True:
         remaining = deadline - _time.monotonic()
         reason = STOPPED_RC if stop.is_set() else 124 if remaining <= 0 else 0
         if reason:
-            _end_group(proc)
-            return (reason, *_drain(proc))
+            _end_group(proc, known)
+            return reason, "", _drain(proc)[1]  # a stopped or timed-out call yields no output
         try:  # never wait past the deadline, so a late result cannot be accepted
             out, err = proc.communicate(pending, timeout=min(_STOP_POLL_S, remaining))
         except _sp.TimeoutExpired:
             pending = None
+            known.update(_tree.descendants(proc.pid))  # seen while the tree is intact
             continue
         if stop.is_set():  # a stopped call's result is never accepted; end any children left
-            _end_group(proc)
+            _end_group(proc, known)
             return STOPPED_RC, "", err or ""
         return proc.returncode, out, err
