@@ -57,6 +57,7 @@ on:
       - 'app/requirements.txt'
       - 'app/server/schema_drift_db.py'
       - 'tests/test_schema_drift_db_pg.py'
+      - 'tests/test_goal_analysis_jobs_pg.py'
       - 'docs/schema-drift-db.md'
   push:
     branches: [main, feat/pilot-v1]
