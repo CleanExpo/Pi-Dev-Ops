@@ -16,16 +16,19 @@ import urllib.request
 import warnings
 
 from jev_platform import policy, spend
+from jev_platform.auth_gate import REFUSED, AuthGate  # noqa: F401 — re-exported: client.AuthGate, client.REFUSED
+from jev_platform.jsonstrict import strict_json  # noqa: F401 — re-exported: client.strict_json
 
 URL = "https://api.typesafe.ai/v1/systemone"
 CALLER = "jev_platform"
 MAX_REQUEST_BYTES = 64_000
-RESERVE_TOKENS = 64_000  # documented per-request limit (docs/vendor/typesafe/llms-full.txt:13008)
-USD_PER_TOKEN = 0.042 / 1_000_000
+RESERVE_TOKENS, USD_PER_TOKEN = spend.MAX_REQUEST_TOKENS, spend.USD_PER_TOKEN
 RESERVE_USD = RESERVE_TOKENS * USD_PER_TOKEN
+_settled = spend.settled  # one settlement validator for every writer (see spend.valid_tokens)
 MAX_RETRIES = 2
 REQUEST_TIMEOUT = 30.0
 REDACTION_VERSION = "redact-1"
+AUTH_ERRORS = tuple(f"signal_unavailable:http_{c}" for c in REFUSED)  # what send() returns for a refused key
 # Edges are "not an ASCII letter or digit", never \b: \b is Unicode-aware and counts "_" as a word
 # character, so _sk-..._ or a key touching a CJK letter had no boundary (round 23).
 _EDGE, _END = r"(?<![A-Za-z0-9])", r"(?![A-Za-z0-9])"
@@ -137,22 +140,6 @@ def credential_payload(obj) -> bool:
     return False
 
 
-def _no_duplicates(pairs):
-    out = {}
-    for k, v in pairs:
-        if k in out:
-            raise json.JSONDecodeError(f"duplicate key {k!r}", "", 0)  # malformed, to every caller
-        out[k] = v
-    return out
-
-
-def strict_json(raw):
-    """Round 26-27: json.loads keeps the LAST of two equal keys, so q=0.01 then q=0.99 read as a pass. Any
-    duplicate key raises json.JSONDecodeError instead. Every JSON parse in jev_platform/ and
-    evals/jev_constitution/ goes through here (except private json.dumps round-trip snapshots)."""
-    return json.loads(raw, object_pairs_hook=_no_duplicates)
-
-
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None  # answered as the HTTPError it is
@@ -170,13 +157,15 @@ def redact(text: str) -> tuple[str, bool]:
     return out, out != text
 
 
-class Budget:
+class Budget(AuthGate):
     """Reserve the documented worst case before every attempt; settle down only on reported usage."""
 
     def __init__(self, max_usd: float, max_seconds: float, clock=time.monotonic):
+        super().__init__()
         self.max_usd, self.clock = max_usd, clock
         self.deadline = clock() + max_seconds
         self.spent, self.attempts = 0.0, 0
+        self.actual = 0.0  # USD from reported usage only; self.spent is the conservative reserve-based figure
         # Fixed at start: settling a cheap answer down never buys extra attempts.
         self.max_attempts = int((max_usd + 1e-12) // RESERVE_USD)
         self._lock = threading.Lock()
@@ -194,20 +183,11 @@ class Budget:
             return True
 
     def settle(self, data) -> None:
-        usage = (data or {}).get("usage") if isinstance(data, dict) else None
-        tokens = usage.get("input_tokens") if isinstance(usage, dict) else None
-        if isinstance(tokens, int) and not isinstance(tokens, bool) and 0 <= tokens <= RESERVE_TOKENS:
+        tokens = spend.settled(data)[2]
+        if tokens is not None:
             with self._lock:
                 self.spent -= RESERVE_USD - tokens * USD_PER_TOKEN
-
-
-def _settled(data) -> tuple[str, float | None, int | None]:
-    """(status, actual_usd, input_tokens) for spend.finish: priced only from a valid reported token count."""
-    usage = (data or {}).get("usage") if isinstance(data, dict) else None
-    tokens = usage.get("input_tokens") if isinstance(usage, dict) else None
-    if isinstance(tokens, int) and not isinstance(tokens, bool) and 0 <= tokens <= RESERVE_TOKENS:
-        return "answered", tokens * USD_PER_TOKEN, tokens
-    return "answered", None, None  # no usable count: the row keeps its reserve
+                self.actual += tokens * USD_PER_TOKEN
 
 
 def http_post(body: dict, timeout: float):
@@ -247,6 +227,22 @@ def validate(data, rule_ids: list[str]) -> dict | None:
     return out
 
 
+def _reserve(budget: Budget) -> tuple[int | None, str | None, str | None]:
+    """(ledger row, call id, None) or (None, None, error). The machine ledger is written before the request
+    leaves, or it does not. The call id settles the row: a row id is reused after a ledger reset (RA-8116)."""
+    if budget.check():  # an earlier call on this budget was refused (401/403): send nothing more
+        return None, None, budget.check()
+    if not budget.reserve():
+        return None, None, "budget_exhausted"
+    try:
+        row, cid = spend.reserve_call(CALLER, RESERVE_USD)
+        return row, cid, None
+    except spend.SpendCapReached:
+        return None, None, "spend_cap_reached"
+    except spend.SpendUnrecorded:
+        return None, None, "spend_unrecorded"
+
+
 def send(body: dict, post, budget: Budget, sleep=time.sleep) -> dict:
     """{'data': json} on HTTP 200, else {'error': reason}. Budget reserved before every attempt."""
     body = json.loads(json.dumps(body))  # round 25: screen and send one private snapshot, never the caller's dict
@@ -255,27 +251,30 @@ def send(body: dict, post, budget: Budget, sleep=time.sleep) -> dict:
     if len(json.dumps(body).encode()) > MAX_REQUEST_BYTES:
         return {"error": "request_too_large"}
     for attempt in range(MAX_RETRIES + 1):
-        if not budget.reserve():
-            return {"error": "budget_exhausted"}
-        try:  # the machine ledger is written before the request leaves, or the request does not leave
-            row, cid = spend.reserve_call(CALLER, RESERVE_USD)
-        except spend.SpendCapReached:
-            return {"error": "spend_cap_reached"}
-        except spend.SpendUnrecorded:
-            return {"error": "spend_unrecorded"}
-        try:
-            status, data, retry_after = post(body, min(REQUEST_TIMEOUT, budget.remaining_seconds()))
-        except Exception:  # noqa: BLE001 — any transport failure is signal_unavailable, never a pass
+        with budget.dispatch():  # a bad key costs one request, not one per worker
+            row, cid, err = _reserve(budget)
+            if err:
+                return {"error": err}
+            timeout = min(REQUEST_TIMEOUT, budget.remaining_seconds())  # computed first: admission is the last step
+            try:
+                halted, result = budget.transmit(row, lambda: post(body, timeout), call_id=cid)
+            except Exception:  # noqa: BLE001 — any transport failure is signal_unavailable, never a pass
+                spend.finish(row, "error", call_id=cid)
+                return {"error": "signal_unavailable:transport"}
+            if halted:  # refused while this worker waited: nothing left the machine
+                return {"error": halted}
+            status, data, retry_after = result
+            if status in REFUSED:  # already published; distinct status, reserve stays counted (no billing proof)
+                spend.finish(row, "refused", call_id=cid)
+                return {"error": budget.check()}
+            if status == 200:
+                budget.settle(data)
+                spend.finish(row, *_settled(data), call_id=cid)
+                return {"data": data}
             spend.finish(row, "error", call_id=cid)
-            return {"error": "signal_unavailable:transport"}
-        if status == 200:
-            budget.settle(data)
-            spend.finish(row, *_settled(data), call_id=cid)
-            return {"data": data}
-        spend.finish(row, "error", call_id=cid)
-        wait = retry_after if isinstance(retry_after, (int, float)) else None
-        if status != 429 or attempt == MAX_RETRIES or wait is None or wait >= budget.remaining_seconds():
-            return {"error": f"signal_unavailable:http_{status}"}
+            wait = retry_after if isinstance(retry_after, (int, float)) else None
+            if status != 429 or attempt == MAX_RETRIES or wait is None or wait >= budget.remaining_seconds():
+                return {"error": f"signal_unavailable:http_{status}"}
         sleep(wait)
     return {"error": "signal_unavailable:retries"}
 

@@ -84,7 +84,11 @@ def scout_files(repo: str, patterns: list[str], template_ids: list[str], post, b
             skipped += [{"path": r, "reason": "budget exhausted"} for r, _, _ in admitted[i:]]
             break
         results.append(_file_result(rel, digest, sent, questions))
-    return {"results": results, "skipped": skipped, "spent_usd": round(budget.spent, 6), "attempts": budget.attempts}
+        if sent.get("error") in client.AUTH_ERRORS:  # the key is refused: every later file would be too
+            skipped += [{"path": r, "reason": "key refused"} for r, _, _ in admitted[i + 1:]]
+            break
+    return {"results": results, "skipped": skipped, "reserved_usd": round(budget.spent, 6),
+            "actual_usd": round(budget.actual, 6), "attempts": budget.attempts}
 
 
 def _pick_answer(data, tid: str, keys: dict) -> tuple | None:

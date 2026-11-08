@@ -203,3 +203,28 @@ def test_unexpected_model_version_does_not_silently_change_reviewed_contract():
 
     with pytest.raises(TypeError, match="invalid API response"):
         shadow.evaluate({"state": "synthetic", "model": shadow.MODEL, "questions": {}}, "synthetic-key", lambda *_a, **_kw: Response())
+
+
+def _refusing_opener(code, calls):
+    import urllib.error
+
+    def opener(req, timeout):
+        calls.append(1)
+        raise urllib.error.HTTPError("https://x", code, "refused", {}, None)
+    return opener
+
+
+@pytest.mark.parametrize("code", [401, 403])
+def test_a_refused_key_stops_the_batch_and_is_ledgered_refused(tmp_path, monkeypatch, code):
+    import functools
+
+    calls = []
+    monkeypatch.setattr(shadow, "run_line", functools.partial(shadow.run_line, opener=_refusing_opener(code, calls)))
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
+    source, output, ledger = tmp_path / "in.jsonl", tmp_path / "out.jsonl", tmp_path / "budget.sqlite"
+    source.write_text("".join(json.dumps(snapshot(i)) + "\n" for i in range(3)))
+    assert shadow.main([str(source), str(output), "--live-synthetic", "--ledger", str(ledger)]) == 0
+    receipts = [json.loads(line) for line in output.read_text().splitlines()]
+    assert len(calls) == 1 and len(receipts) == 1 and receipts[0]["reason"] == "JEV_AUTH_REFUSED"
+    with sqlite3.connect(ledger) as db:
+        assert db.execute("SELECT status, actual_usd FROM calls").fetchall() == [("refused", None)]

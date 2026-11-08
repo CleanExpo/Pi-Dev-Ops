@@ -17,9 +17,11 @@ import sys
 import time
 from pathlib import Path
 from urllib import request
+from urllib.error import HTTPError
 
 from app.server.jev_transport import no_redirect_opener
 from evals.skill_routing.generate_corpus import catalogue as inventory
+from jev_platform import spend
 from src.tao import skill_router as sr
 from src.tao import skills as tao_skills
 
@@ -113,14 +115,19 @@ def jev_rows(cases: list[dict], cat: list, skills: dict, args, key: str) -> tupl
         try:
             out = jev_batch([(i, c["text"], [(n, by_name[n].description) for n, _ in s]) for i, c, s in chunk], key)
         except Exception as exc:
+            if isinstance(exc, HTTPError) and exc.code in (401, 403):  # refused: no model ran, and every later call would be too
+                finish_call(args.ledger, call_id, "refused")
+                raise SystemExit(f"Jev refused the key (HTTP {exc.code}) after {cost['calls']} answered calls; nothing further sent")
             finish_call(args.ledger, call_id, f"error:{type(exc).__name__}")
             cost["errors"] += 1
             rows += [{**c, "picked": ["<jev_error>"], "shortlist": [n for n, _ in s], "tokens": 0} for _, c, s in chunk]
             continue
         latencies.append(time.monotonic() - t0)
-        used = int(out["result"].get("usage", {}).get("input_tokens", 0))
-        finish_call(args.ledger, call_id, "answered", used)
-        cost["input_tokens"] += used
+        # Settle first, through the one validator: a reply whose result or usage is not an object keeps the
+        # reserve and never raises between the reserved call and its settlement (review r6).
+        _status, _actual, reported = spend.settled(out.get("result") if isinstance(out, dict) else None)
+        finish_call(args.ledger, call_id, "answered", reported)
+        cost["input_tokens"] += reported or 0
         cost["calls"] += 1
         rows += chunk_rows(out, chunk, skills, args, cost)
     latencies.sort()
@@ -154,9 +161,12 @@ def chunk_rows(out: dict, chunk: list, skills: dict, args, cost: dict) -> list[d
     from scripts.mission_control_jev_shadow import validate_answer
 
     rows = []
+    result = out.get("result")
+    answers = result.get("answers") if isinstance(result, dict) else None
+    answers = answers if isinstance(answers, dict) else {}   # a malformed reply scores every question malformed
     for i, c, s in chunk:
         q = out["questions"][f"q{i}"]
-        ans = validate_answer(f"q{i}", out["result"].get("answers", {}).get(f"q{i}"), q)
+        ans = validate_answer(f"q{i}", answers.get(f"q{i}"), q)
         d = sr.RouteDecision(shortlist=[n for n, _ in s])
         if ans is None:
             cost["errors"] += 1

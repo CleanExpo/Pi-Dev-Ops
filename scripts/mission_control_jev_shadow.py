@@ -21,9 +21,11 @@ from urllib import error, request
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from jev_platform import spend  # noqa: E402
-from scripts.jev_shadow_support import _caller, _ensure_spend_id, link_own_row, validate_answer  # noqa: E402,F401
+from scripts.jev_shadow_support import _SPEND_IDS, _caller, _ensure_spend_id, finish_call, link_own_row, validate_answer  # noqa: E402,F401
 
 API_URL = "https://api.typesafe.ai/v1/systemone"
+AUTH_REFUSED = (401, 403)  # the key is refused: every later call would be too
+AUTH_REASON = "JEV_AUTH_REFUSED"
 MODEL = "jev-1.13.0"  # Pinned so the reviewed price/context and evaluation remain comparable.
 USD_PER_MILLION_INPUT = 0.042
 MAX_TEXT = 24_000
@@ -151,9 +153,6 @@ def prepare(snapshot: dict) -> tuple[dict, dict]:
     }
 
 
-_SPEND_IDS: dict[tuple[str, str], int] = {}  # (ledger, machine call id) -> machine row, settled first
-
-
 def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) -> str | None:
     """Record each attempted call before egress; optionally enforce a daily ceiling.
 
@@ -187,22 +186,6 @@ def reserve_call(ledger: Path, estimated_tokens: int, cap: float | None = None) 
     _SPEND_IDS[(str(ledger), call_id)] = spend_id
     link_own_row(ledger, call_id, "UPDATE calls SET spend_id=? WHERE spend_call_id=?", (spend_id, call_id))
     return call_id
-
-
-def finish_call(ledger: Path, call_id: str, status: str, input_tokens: int | None = None) -> None:
-    """Settle the machine row, then this ledger best-effort (a failure after a paid reply is logged and the row
-    keeps its reserve), both by call id: a reset mid-call leaves the call that reused the row id untouched."""
-    actual = input_tokens * USD_PER_MILLION_INPUT / 1_000_000 if input_tokens is not None else None
-    if (machine := _SPEND_IDS.pop((str(ledger), call_id), None)) is not None:
-        spend.finish(machine, status, actual, input_tokens, call_id=call_id)
-    try:
-        with sqlite3.connect(ledger, timeout=30) as db:
-            n = db.execute("UPDATE calls SET status=?, input_tokens=?, actual_usd=? WHERE spend_call_id=?",
-                           (status, input_tokens, actual, call_id)).rowcount
-        if n != 1:
-            print(f"jev shadow: own ledger has no row for call {call_id} (reset?)", file=sys.stderr)
-    except sqlite3.Error as exc:
-        print(f"jev shadow: own ledger settle failed for call {call_id}: {type(exc).__name__}", file=sys.stderr)
 
 
 def evaluate(payload: dict, api_key: str, opener=request.urlopen) -> dict:
@@ -253,9 +236,10 @@ def run_line(snapshot: dict, *, live: bool, key: str | None = None, ledger: Path
         finish_call(ledger, call_id, "answered", receipt.get("input_tokens"))
         for name, question in payload["questions"].items():
             receipt["labels"][name] = validate_answer(name, result["answers"].get(name), question) or "NOT_EVALUATED"
-    except (error.URLError, TimeoutError, TypeError, ValueError, json.JSONDecodeError):
-        finish_call(ledger, call_id, "unverified")
-        receipt["reason"] = "JEV_UNAVAILABLE_OR_INVALID"
+    except (error.URLError, TimeoutError, TypeError, ValueError, json.JSONDecodeError) as exc:  # HTTPError is a URLError
+        refused = isinstance(exc, error.HTTPError) and exc.code in AUTH_REFUSED
+        finish_call(ledger, call_id, "refused" if refused else "unverified")
+        receipt["reason"] = AUTH_REASON if refused else "JEV_UNAVAILABLE_OR_INVALID"
     return receipt
 
 
@@ -288,6 +272,10 @@ def main(argv: list[str] | None = None) -> int:
             receipt = run_line(json.loads(line), live=args.live_synthetic, key=key, ledger=args.ledger, cap=cap)
             target.write(json.dumps(receipt, sort_keys=True) + "\n")
             counts["records"] += 1
+            if receipt.get("reason") == AUTH_REASON:
+                print(f"stopped at record {counts['records']}: Jev refused the key (HTTP 401/403); remaining records not sent",
+                      file=sys.stderr)
+                break
             if any(value != "NOT_EVALUATED" for value in receipt["labels"].values()):
                 counts["evaluated"] += 1
             else:
