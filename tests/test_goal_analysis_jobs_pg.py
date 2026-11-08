@@ -48,7 +48,7 @@ def project():
 
 def _race(project_id: str, first_key: str, second_key: str, goal_hash_2: str) -> list[str]:
     """Session A inserts and holds its transaction open; session B inserts the
-    competing row meanwhile. Returns what B saw: 'blocked' while A was open, then
+    competing row meanwhile. Returns what B saw: 'blocked' (observed in pg_stat_activity) while A was open, then
     'unique_violation' or 'inserted'."""
     seen: list[str] = []
     a = psycopg.connect(SCRATCH)
@@ -67,9 +67,20 @@ def _race(project_id: str, first_key: str, second_key: str, goal_hash_2: str) ->
 
         t = threading.Thread(target=second)
         t.start()
-        time.sleep(0.5)
-        if not seen:
-            seen.append("blocked")
+        # "blocked" is observed, never assumed from a sleep: a third session must see B's
+        # backend waiting on a lock while A is still open. Once B waits it cannot finish before
+        # A commits, so nothing else is in `seen` yet. A B that never waits (no index to collide
+        # on) finishes on its own and is reported as it finished.
+        b_pid = b.info.backend_pid
+        with psycopg.connect(SCRATCH, autocommit=True) as watch:
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline and t.is_alive():
+                row = watch.execute("select wait_event_type from pg_stat_activity where pid = %s",
+                                    (b_pid,)).fetchone()
+                if row and row[0] == "Lock":
+                    seen.append("blocked")
+                    break
+                time.sleep(0.02)
         a.commit()
         t.join(10)
         assert not t.is_alive(), "second session never finished"
