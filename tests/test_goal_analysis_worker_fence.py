@@ -108,3 +108,39 @@ async def test_stalled_heartbeat_server_stops_its_model_before_the_claim_expires
 def _row_expiry(rest: FakeRest, job_id: str) -> Any:
     from datetime import datetime
     return datetime.fromisoformat(str(_row(rest, job_id)["claim_expires_at"]))
+
+
+async def test_only_a_successful_heartbeat_advances_the_fence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A heartbeat that raises or reports the claim lost must leave the fence where the last
+    SUCCESSFUL beat put it, measured from that beat's send time."""
+    mono = [1000.0]
+    monkeypatch.setattr(slots, "_now", lambda: mono[0])
+    lease = worker._Lease("job-1", 1, "A", interval=0.001, claim_sent=1000.0)
+    seen: list[float] = []
+
+    def ok() -> bool:
+        return True
+
+    def fail() -> bool:
+        raise jobs.GoalJobStoreError("network", "retry")
+
+    def lost() -> bool:
+        return False
+
+    script = iter([(1010.0, ok), (1020.0, fail), (1030.0, ok), (1040.0, fail), (1050.0, lost)])
+
+    def beat(*_a: Any) -> bool:
+        seen.append(lease.fence.fence_at())  # fence before this beat's result is applied
+        mono[0], call = next(script)
+        return call()
+
+    monkeypatch.setattr(jobs, "heartbeat", beat)
+    # _beat reads the send time just before calling heartbeat; the fake then steps the clock,
+    # so beat N is sent at the clock value beat N-1 set (beat 1 at 1000).
+    await asyncio.wait_for(worker._beat(lease), 5)
+    base = slots.CLAIM_S - slots.FENCE_SAFETY_S
+    assert lease.lost and lease.stop.is_set()  # the 'claim lost' answer ends the attempt
+    # beat 1 sent at 1000 succeeded; beat 2 (sent 1010) failed; beat 3 (sent 1020) succeeded;
+    # beat 4 (sent 1030) failed; beat 5 (sent 1040) said lost.
+    assert seen == [1000.0 + base, 1000.0 + base, 1000.0 + base, 1020.0 + base, 1020.0 + base]
+    assert lease.fence.fence_at() == 1020.0 + base  # neither a failure nor 'lost' moved it
