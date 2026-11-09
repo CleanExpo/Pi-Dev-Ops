@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""PR ready guard: no pull request sits in the ready state while red, pending or conflicting.
+"""PR ready guard: no pull request sits in the ready state while red or conflicting.
 
 Standard library only. Talks to GitHub with GITHUB_TOKEN (or `gh auth token` locally).
 Never merges, never pushes. See .github/workflows/pr-ready-guard.yml.
-A GitHub refusal to draft an unrelated PR warns instead of failing: ready_guard_refusal.py.
+Queued/in-progress checks are not a reason to draft and not a failed run.
+A GitHub refusal to convert a PR to draft (FORBIDDEN) warns instead of failing,
+and a pull_request run's pass/fail reflects only the PR that triggered it:
+ready_guard_refusal.py.
 
 Usage: pr_ready_guard.py --repo OWNER/REPO [--dry-run]
 """
@@ -73,24 +76,27 @@ def _threads_reason(pr: PR) -> List[str]:
 
 
 def decide(pr: PR) -> Decision:
-    """Pure decision: should this PR be drafted, marked ready, or left alone?"""
+    """Pure decision: should this PR be drafted, marked ready, or left alone?
+
+    Queued/in-progress checks are not a reason to draft a ready PR. They still
+    block releasing a held draft: a PR is not ready while its checks are running.
+    """
     p = _judge(pr)
-    reasons = (
-        ["failing check: " + n for n in p["failing"]]
-        + ["still running: " + n for n in p["pending"]]
-        + p["conflict"]
-    )
+    failing = ["failing check: " + n for n in p["failing"]] + p["conflict"]
+    pending = ["still running: " + n for n in p["pending"]]
     if not pr.is_draft:
         # Unresolved threads only count where GitHub is actually blocking the merge (the repo
         # requires conversation resolution); otherwise they are ordinary review chatter.
+        reasons = list(failing)
         if pr.merge_state == "BLOCKED":
             reasons += _threads_reason(pr)
-            if not reasons and pr.review_decision not in ("REVIEW_REQUIRED", "CHANGES_REQUESTED"):
+            # Pending required checks also make GitHub report BLOCKED; that is not a failure.
+            if not reasons and not pending and pr.review_decision not in ("REVIEW_REQUIRED", "CHANGES_REQUESTED"):
                 reasons.append("GitHub reports the merge as BLOCKED for a reason other than missing approval")
         return Decision("draft", reasons) if reasons else Decision("leave")
     if LABEL not in pr.labels:
         return Decision("leave")  # intentional draft: never touched
-    held = reasons + _threads_reason(pr)  # release needs zero unresolved threads, whatever the repo rules
+    held = failing + pending + _threads_reason(pr)  # release needs zero unresolved threads
     if held or p["unknown"] or not p["judged"]:
         return Decision("leave", held or p["unknown"] or ["no checks reported yet"])
     return Decision("ready")
