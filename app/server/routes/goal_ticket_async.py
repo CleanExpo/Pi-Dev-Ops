@@ -16,8 +16,9 @@ from .. import goal_analysis_worker as worker
 from ..goal_analyze import validate_analyze
 from ..goal_projects import GoalProjectStoreError, get_project
 
+# last_progress_at lets the dashboard show when the job last made progress (grill 14 Q5).
 _VIEW = ("id", "status", "attempt", "retry_count", "result", "failure_reason",
-         "evidence_links", "created_at", "started_at", "ended_at")
+         "evidence_links", "created_at", "started_at", "last_progress_at", "ended_at")
 
 
 def job_view(row: dict[str, Any]) -> dict[str, Any]:

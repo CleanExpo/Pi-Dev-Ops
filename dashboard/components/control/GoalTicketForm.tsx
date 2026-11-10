@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import GoalDraftReview, {
   draftsFromAnalyze,
   filePayloadFromDraft,
@@ -28,10 +28,28 @@ import {
 import { readGoalAnalysis, writeGoalAnalysis } from "@/lib/control/goalAnalysisStore";
 import { readGoalFiled, writeGoalFiled } from "@/lib/control/goalFiledStore";
 import { goalStage } from "@/lib/control/goalStage";
+import {
+  UNREACHABLE,
+  classifyCheck,
+  isAnalysisJob,
+  isFinal,
+  jobStatusLabel,
+  newIdempotencyKey,
+  nextCheckMs,
+  statusPath,
+  waitForNextCheck,
+  type AnalysisJob,
+} from "@/lib/control/goalAnalysisJob";
 import GoalFiledList from "./GoalFiledList";
 import GoalHowTo from "./GoalHowTo";
 import GoalStagePills from "./GoalStagePills";
 import styles from "./control-deck.module.css";
+
+type AnalyzeBody = GoalErrorBody &
+  Partial<AnalysisPayload> & {
+    project_title?: string;
+    tickets?: Array<Partial<DraftTicket>>;
+  };
 
 function sanitize(s: string): string {
   return s.replace(/[<>]/g, "");
@@ -48,6 +66,16 @@ export default function GoalTicketForm() {
   const [confirming, setConfirming] = useState(false);
   const [filed, setFiled] = useState<FiledTicket[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  // UNI-3306: the status line of a submitted analysis job, while it is being checked.
+  const [jobLine, setJobLine] = useState("");
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!busy) {
@@ -92,10 +120,98 @@ export default function GoalTicketForm() {
 
   const canAnalyze = readyToAnalyze(goal, acceptance, project?.id || "");
 
+  // One owner for turning an analysis result into drafts: the inline reply and a
+  // finished job's result take the same path.
+  function applyResult(data: AnalyzeBody) {
+    if (data.filed) {
+      setError("Analyze wrote to Linear. Stopped. Nothing further was filed.");
+      return;
+    }
+    const tickets = draftsFromAnalyze(data.tickets || []);
+    if (tickets.length === 0) {
+      setError("Analysis returned no tickets.");
+      return;
+    }
+    setAnalysis({
+      summary: data.summary || "",
+      split_reason: data.split_reason || "",
+      fallback: Boolean(data.fallback),
+      code_inspected: Boolean(data.code_inspected),
+      code_limitation: data.project_title
+        ? `Tickets grounded in project: ${data.project_title}`
+        : data.code_limitation || "",
+      goal_analysis: data.goal_analysis,
+      user_flow: data.user_flow,
+      technical_flow: data.technical_flow,
+      implementation_order: data.implementation_order,
+      final_review: data.final_review,
+      tickets,
+    });
+  }
+
+  // UNI-3306 (grill 14 Q5): check every 3 s; a failed check shows UNREACHABLE and
+  // backs off 3/6/12/30 s, never the last status; pause while the tab is hidden;
+  // stop on finished or failed. Progress age is browser time since
+  // last_progress_at last changed, so server clock skew cannot fake a stall.
+  async function followJob(first: AnalysisJob) {
+    let job = first;
+    let failures = 0;
+    let progressValue = job.last_progress_at ?? null;
+    let progressSeenAt = Date.now();
+    const started = Date.now();
+    const describe = () => {
+      const secs = (ms: number) => Math.max(0, Math.round(ms / 1000));
+      const sinceProgress = Date.now() - progressSeenAt;
+      return `${jobStatusLabel(job, sinceProgress)} · ${secs(Date.now() - started)} s elapsed · last progress ${secs(sinceProgress)} s ago`;
+    };
+    setJobLine(describe());
+    while (mounted.current && !isFinal(job)) {
+      await waitForNextCheck(nextCheckMs(failures));
+      if (!mounted.current) return;
+      let outcome;
+      try {
+        const res = await fetch(statusPath(job.id), { method: "GET" });
+        const body = await res.json().catch(() => null);
+        outcome = classifyCheck(job.id, res.status, res.headers.get("X-Upstream-Status"), body);
+      } catch {
+        outcome = { kind: "retry" } as const;
+      }
+      if (!mounted.current) return;
+      if (outcome.kind === "stop") {
+        setError(outcome.message);
+        return;
+      }
+      if (outcome.kind === "retry") {
+        failures += 1;
+        setJobLine(UNREACHABLE);
+        continue;
+      }
+      failures = 0;
+      job = outcome.job;
+      const value = job.last_progress_at ?? null;
+      if (value !== progressValue) {
+        progressValue = value;
+        progressSeenAt = Date.now();
+      }
+      setJobLine(describe());
+    }
+    if (!mounted.current) return;
+    if (job.status === "failed") {
+      setError(`Analysis failed: ${job.failure_reason || "no reason was recorded"}. Linear was not written.`);
+      return;
+    }
+    if (typeof job.result !== "object" || job.result === null) {
+      setError("The analysis finished without a result. Linear was not written. Analyze again.");
+      return;
+    }
+    applyResult(job.result as AnalyzeBody);
+  }
+
   async function analyze() {
     if (busy || !canAnalyze) return;
     setError("");
     setConfirming(false);
+    setJobLine("");
     setBusy(true);
     try {
       const res = await fetch("/api/pi-ceo/api/goal-ticket/analyze", {
@@ -105,44 +221,30 @@ export default function GoalTicketForm() {
           goal: sanitize(goal.trim()),
           acceptance: sanitize(acceptance.trim()),
           project_id: project?.id || "",
+          idempotency_key: newIdempotencyKey(),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as GoalErrorBody & Partial<AnalysisPayload> & {
-        project_title?: string;
-        tickets?: Array<Partial<DraftTicket>>;
-      };
+      const data = (await res.json().catch(() => ({}))) as AnalyzeBody;
       if (!res.ok) {
         setError(errorMessage(data, res.status));
         return;
       }
-      if (data.filed) {
-        setError("Analyze wrote to Linear. Stopped. Nothing further was filed.");
+      if (res.status === 202) {
+        if (!isAnalysisJob(data)) {
+          setError("The server accepted the analysis but returned no job to check. Linear was not written.");
+          return;
+        }
+        await followJob(data);
         return;
       }
-      const tickets = draftsFromAnalyze(data.tickets || []);
-      if (tickets.length === 0) {
-        setError("Analysis returned no tickets.");
-        return;
-      }
-      setAnalysis({
-        summary: data.summary || "",
-        split_reason: data.split_reason || "",
-        fallback: Boolean(data.fallback),
-        code_inspected: Boolean(data.code_inspected),
-        code_limitation: data.project_title
-          ? `Tickets grounded in project: ${data.project_title}`
-          : data.code_limitation || "",
-        goal_analysis: data.goal_analysis,
-        user_flow: data.user_flow,
-        technical_flow: data.technical_flow,
-        implementation_order: data.implementation_order,
-        final_review: data.final_review,
-        tickets,
-      });
+      applyResult(data);
     } catch {
       setError("Network error — Pi CEO backend unreachable. Linear was not written.");
     } finally {
-      setBusy(false);
+      if (mounted.current) {
+        setJobLine("");
+        setBusy(false);
+      }
     }
   }
 
@@ -252,8 +354,8 @@ export default function GoalTicketForm() {
             {busy ? "Analyzing…" : "Analyze goal"}
           </button>
           {busy ? (
-            <span className={styles.note}>
-              {analyzingCopy(elapsed)} {analyzeProgress(elapsed)}%
+            <span className={styles.note} role="status">
+              {jobLine || `${analyzingCopy(elapsed)} ${analyzeProgress(elapsed)}%`}
             </span>
           ) : (
             <span className={styles.note}>
