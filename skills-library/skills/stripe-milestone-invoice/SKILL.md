@@ -1,6 +1,6 @@
 ---
 name: stripe-milestone-invoice
-description: Creates a Stripe Customer + Product + AU GST Tax registration + Payment Link for the deposit milestone, plus draft invoices for the remaining milestones. Reads sow.json from `sow-draft`. Resolves Stripe API key from ~/.hermes/.env (NEVER asks user to paste). Use when the user says "send invoice", "stripe link", "bill {client} deposit", "set up billing", or hands off from sow-draft with milestone $ filled.
+description: Creates a Stripe Customer + Product + AU GST Tax registration + Payment Link for the deposit milestone, plus draft invoices for the remaining milestones. Reads sow.json from `sow-draft`. Proves the key is the Unite-Group account (GET /v1/account) before any Stripe write, else stops. Use when the user says "send invoice", "stripe link", "bill {client} deposit", "set up billing", or hands off from sow-draft with milestone $ filled.
 ---
 
 # Stripe Milestone Invoice
@@ -18,7 +18,11 @@ Mints the **deposit Payment Link** that gates every Unite-Group engagement. The 
 ## Pre-flight checks
 
 1. **`sow.json` exists** at `~/pi-seo-workspace/unite-group/docs/sows/sow-{client}-{date}.json` AND `total_aud_excl` is populated (Phill filled the numbers).
-2. **Stripe live key resolvable** — `STRIPE_SECRET_KEY=sk_live_*` in `~/.hermes/.env`. Verify the prefix is `sk_live_` not `sk_test_` per [[secrets-handling]] — never ask user to paste keys.
+2. **Right Stripe account, proved before any Stripe write.** Several Stripe accounts exist and their keys sit side by side. The key in `~/.hermes/.env` is the **Synthex** account (`acct_1SzE5K…`), not Unite-Group (checked 09/11/2026). Using it here would bill a Unite-Group client from Synthex and write a cross-account `stripe_customer_id` into Supabase.
+   - The expected account is the `Stripe — Unite-Group` row of `skills/library/connections.md`. Read it there; never copy an account id into this skill.
+   - If that row's location or status says **UNVERIFIED** or UNKNOWN, or the row carries only a shortened account id (ending in `…`), STOP. Prefix matching is not allowed; the full id is recorded in the row when the key location is verified. Report "Unite-Group Stripe key location unverified" and change nothing. Do not try other keys until one fits.
+   - Otherwise resolve the key from the location that row names (`bin/find-cred` does not cover Stripe), call `GET /v1/account`, and continue only when the returned `id` equals the row's account id. A mismatch is a STOP, not a warning.
+   - Verify the prefix is `sk_live_` not `sk_test_` per [[secrets-handling]]. Never ask the user to paste keys.
 3. **Stripe Tax registered for AU GST** — if not, register via `POST /v1/tax/registrations` with `country=AU, country_options[au][type]=standard`. Idempotent.
 4. **Stripe webhook endpoint live** at `https://unite-group.in/api/webhooks/stripe` (`we_*` exists in `GET /v1/webhook_endpoints`). If missing, register it first — without it, the Hour-1 provisioner won't fire.
 
@@ -70,7 +74,7 @@ Mints the **deposit Payment Link** that gates every Unite-Group engagement. The 
 ## Constraints
 
 - **Idempotent.** Re-running this skill on the same `sow.json` MUST NOT create duplicate Customers, Products, or Payment Links. Always search first.
-- **Never accept pasted keys.** Pull from `~/.hermes/.env` or 1Password via `op` CLI per [[secrets-handling]].
+- **Never accept pasted keys.** Resolve from the location the `Stripe — Unite-Group` row of `skills/library/connections.md` names, or 1Password via `op` CLI, per [[secrets-handling]]. Whatever the source, pre-flight check 2 (`GET /v1/account` match) runs before any Stripe write.
 - **AU GST exclusive** default. Stripe Tax must be ON and the customer's `tax_id_data` must include the ABN so the invoice shows their ABN too.
 - **No Test mode unless requested.** Stripe key must be `sk_live_*`. If the key is `sk_test_*`, ABORT and surface a clear "you're on test keys" message — never silently bill on test.
 - **Confirm before sending email.** The Payment Link itself can be minted autonomously (it's a URL — minting is reversible). Sending the email to the client is the one step that requires Phill's explicit go.

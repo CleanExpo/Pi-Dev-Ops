@@ -1,6 +1,6 @@
 ---
 name: nexus-viral
-description: "Turn one idea into a hook-first 9:16 short-form video and repurpose it into 8 platform-native cuts, YouTube Shorts and Instagram Reels first, grounded in live trend and competitor intelligence. Reads trend signals and brand voice, never generates blind. Delegates hooks and captions to nexus-copywriter, generates through the Synthex video engine, and gates every publish through the Broadcast Grill. The YouTube cut carries the search metadata."
+description: "Turn one idea into a hook-first 9:16 short-form video and repurpose it into 8 platform-native cuts, YouTube Shorts and Instagram Reels first, grounded in live trend and competitor intelligence. Delegates hooks and captions to nexus-copywriter, generates through the Synthex video engine, and gates every publish through the Broadcast Grill. The YouTube cut carries the search metadata. Use when a brief asks for viral or short-form video (Shorts, Reels, TikTok)."
 disable-model-invocation: false
 allowed-tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 ---

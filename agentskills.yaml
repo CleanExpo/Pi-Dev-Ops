@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.26.3
-  generated_at: "2026-11-08T02:54:16.022355+00:00"
+  version: 2.0.1
+  generated_at: "2026-11-10T11:06:15.598531+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -548,6 +548,21 @@ skills:
       requires_kill_switch: false
       requires_hitl_gate: false
       pii_handling: pass-through
+  - id: continuity-orchestrator
+    description: "Continuity spine from idea to ship. An OUTER loop pushes work hub-to-spoke to estate projects; an INNER loop audits itself against the constitution (trims cache, flags hallucinations, tightens code generation). Does NOT do the work: it routes, gates and carries state, pulling a skill only when a stage needs it. The constitution is a hard gate before every self-modifying action. Stops for exactly two things: spending money and touching production. A denied action is terminal. Use to run a project end-to-end, resume a stalled build, or dispatch work across estate repos."
+    owner_role: Orchestrator
+    status: wave-1
+    path: skills/continuity-orchestrator/SKILL.md
+    sha256: f02e004b16dfa087a387bc136759e3c2f0461ebec0d90756c433c3dd709bd9b3
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: control-design
     description: "Use BEFORE writing or changing any check, test, gate, guard, assertion, exclusion, fixture or startup config branch — while the control is being built, not when its result is read. Catches controls that cannot fail, exclusions whose premise has expired, checks that know a fixed set and go stale, verifications that require handling the thing they protect, and missing-config branches that invent a credential instead of refusing to start. Triggers on \"add a check\", \"write a test for\", \"gate this\", \"skip/exclude this path\", \"assert that\", \"guard against\", or any first run of a new control."
     owner_role: (unset)
@@ -1429,21 +1444,6 @@ skills:
       skills: []
     safety:
       requires_kill_switch: false
-      requires_hitl_gate: false
-      pii_handling: pass-through
-    inferred: true
-    low_confidence: true
-  - id: orchestrator
-    description: "Continuity spine from idea to ship. An OUTER loop pushes work hub-to-spoke to estate projects; an INNER loop audits itself against the constitution (trims cache, flags hallucinations, tightens code generation). Does NOT do the work: it routes, gates and carries state, pulling a skill only when a stage needs it. The constitution is a hard gate before every self-modifying action. Stops for exactly two things: spending money and touching production. A denied action is terminal. Use to run a project end-to-end, resume a stalled build, or dispatch work across estate repos."
-    owner_role: Orchestrator
-    status: wave-1
-    path: skills/orchestrator/SKILL.md
-    sha256: 0b971d9c8a80a99f871164a36c000b2330caa66435bdfcac84eae69e0f001808
-    dependencies:
-      tools: []
-      skills: []
-    safety:
-      requires_kill_switch: true
       requires_hitl_gate: false
       pii_handling: pass-through
     inferred: true

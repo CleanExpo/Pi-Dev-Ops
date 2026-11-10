@@ -97,7 +97,7 @@ Keep `STATE_FILE` outside the Cowork mount — the mount is destroyed at task en
 Three layers are required for fully headless execution:
 - `.claude/settings.json` — `permissions.defaultMode: bypassPermissions`
 - `ClaudeAgentOptions(permission_mode='bypassPermissions')` at every SDK call site
-- `--dangerously-skip-permissions` on any subprocess `claude -p` invocation
+- `--allowedTools "<the tools the task needs>"` on any subprocess `claude -p` invocation (an explicit grant; the skip-permissions flag is refused by the estate's rules). A tool missing from the list still prompts and stalls, so the list must cover every tool the task uses
 
 Missing any single layer causes a silent stall. There is no error; the task simply produces no output.
 

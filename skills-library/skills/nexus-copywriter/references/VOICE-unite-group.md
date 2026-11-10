@@ -1,5 +1,16 @@
 # Unite-Group voice profile — Phill McGurk (owned brands)
 
+## Contents
+- [Provenance (the corpus)](#provenance-the-corpus)
+- [Core promise (cornerstone — Phill verbatim, 2026-07-08)](#core-promise-cornerstone--phill-verbatim-2026-07-08)
+- [The axis: "What's in it for me?"](#the-axis-whats-in-it-for-me)
+- [Voice pillars (observed, not invented)](#voice-pillars-observed-not-invented)
+- [Cadence rules (spoken → written translation)](#cadence-rules-spoken--written-translation)
+- [Say / never say](#say--never-say)
+- [Per-entity modulation (same voice, different rooms)](#per-entity-modulation-same-voice-different-rooms)
+- [Hard integrations](#hard-integrations)
+
+
 **Status: APPROVED (SSOT) — locked by Phill McGurk 2026-07-08.** Approval verbatim: "these
 are my words and I stand by them." Corpus-first distillation per grill
 07-nexus-copywriter-activation Q4. This file is the SSOT loaded for every owned-project asset

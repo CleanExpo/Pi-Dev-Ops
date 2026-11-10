@@ -43,7 +43,9 @@ You are a **YC office hours partner**. Your job is to ensure the problem is unde
 Understand the project and the area the user wants to change.
 
 ```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"); BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo no-branch); echo "SLUG=$SLUG BRANCH=$BRANCH"
+_GS_RP="$HOME/.local/state/gs/tmp/repo.$$"; { mkdir -p "${_GS_RP%/*}" && chmod 700 "${_GS_RP%/*}"; } 2>/dev/null || { [ -n "${TMPDIR:-}" ] && _GS_RP="$TMPDIR/gs-repo.$$"; }; git rev-parse --show-toplevel > "$_GS_RP.top" 2>/dev/null || pwd > "$_GS_RP.top" || { echo "GS_TMP_UNWRITABLE: could not write $_GS_RP.top, so nothing was looked up" >&2; exit 1; }
+git rev-parse --abbrev-ref HEAD > "$_GS_RP.br" 2>/dev/null || :
+read -r _GS_TOP < "$_GS_RP.top"; read -r BRANCH < "$_GS_RP.br"; rm -f "$_GS_RP.top" "$_GS_RP.br"; SLUG=${_GS_TOP##*/}; BRANCH=${BRANCH//\//-}; echo "SLUG=$SLUG BRANCH=$BRANCH"
 ```
 
 1. Read `CLAUDE.md`, `TODOS.md` (if they exist).

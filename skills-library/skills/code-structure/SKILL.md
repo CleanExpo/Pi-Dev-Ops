@@ -114,3 +114,10 @@ New feature? → Write in action first → See repeated ops? → Extract to serv
 ```
 
 Your architecture in one sentence: **Actions orchestrate domain rules, while the service layer centralizes reusable operational mechanics with a composable, explicit-input API.**
+
+## Ship gate (Prove mode)
+
+When this skill changes something that already exists in a way a person would judge (wording, behaviour,
+design, a model or prompt, a cost line), the change ships only after it beats the current version. Call the
+Skill tool with "gauntlet-loop" and follow its Prove mode. Mechanical fixes that a hard check proves (a
+broken link repaired, a failing test made to pass) do not need it.

@@ -79,8 +79,10 @@ On approval, log each completed review to the shared review history
 with actual phase values. STATUS is "clean" or "issues_open".
 
 ```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"); BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo no-branch); GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
-COMMIT=$(git rev-parse --short HEAD 2>/dev/null)
+_GS_RP="$HOME/.local/state/gs/tmp/repo.$$"; { mkdir -p "${_GS_RP%/*}" && chmod 700 "${_GS_RP%/*}"; } 2>/dev/null || { [ -n "${TMPDIR:-}" ] && _GS_RP="$TMPDIR/gs-repo.$$"; }; git rev-parse --show-toplevel > "$_GS_RP.top" 2>/dev/null || pwd > "$_GS_RP.top" || { echo "GS_TMP_UNWRITABLE: could not write $_GS_RP.top, so nothing was looked up" >&2; exit 1; }
+git rev-parse --abbrev-ref HEAD > "$_GS_RP.br" 2>/dev/null || :
+read -r _GS_TOP < "$_GS_RP.top"; read -r BRANCH < "$_GS_RP.br"; rm -f "$_GS_RP.top" "$_GS_RP.br"; SLUG=${_GS_TOP##*/}; BRANCH=${BRANCH//\//-}; GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
+git rev-parse --short HEAD > "$_GS_RP.c" 2>/dev/null; read -r COMMIT < "$_GS_RP.c"; rm -f "$_GS_RP.c"
 TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 L="$GS_PROJ/$BRANCH-reviews.jsonl"
 echo '{"skill":"plan-ceo-review","timestamp":"'"$TIMESTAMP"'","status":"STATUS","unresolved":N,"critical_gaps":N,"mode":"SELECTIVE_EXPANSION","via":"autoplan","commit":"'"$COMMIT"'"}' >> "$L" &&

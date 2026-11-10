@@ -1,5 +1,27 @@
 # SPM Spec — Do the 9 "LLM-stack" repos fit the 2nd Brain (Pi)?
 
+## Contents
+
+- 1. Task
+- 2. Current project context
+- 3. Problem statement
+- 4. Desired outcome
+- 5. Scope / non-goals
+- 6. Existing capability review (do NOT rebuild)
+- 7. Specialist board (condensed)
+- 8. Judge challenge — scores
+- 9. Proposed solution — per-repo verdicts
+- 10. UX requirements
+- 11. Technical requirements
+- 12. Security / privacy
+- 13. Verification plan
+- 14. Loop / stress testing
+- 15. Acceptance criteria
+- 16. Goal command
+- 17. Implementation sequence
+- 18. Session-handoff seed
+- 19. Final recommendation
+
 **Date:** 2026-07-01 · **Mode:** read-only evaluation · **Author:** Pi-Dev-Ops SPM
 **Repos:** DSPy · crawl4AI · chonkie · marker · langfuse · qdrant · outlines · litellm · instructor
 **Evidence:** 6 first-source repo briefs + 2 read-only Pi architecture/ingestion surveys (this session's sub-agents). outlines/litellm/instructor first-source briefs still landing — those three flagged `[brief pending]`.

@@ -1,8 +1,8 @@
 ---
 name: production-gate
-description: "Executes the production merge after Phill's explicit approval. Verifies CI, confirms scope, merges to main, triggers deployment, closes mandate. Called when Phill says \"approve PR-[number]\" to Margot. Model: claude-sonnet-5 (production operation — senior tier)"
+description: "Executes the production merge after Phill's explicit approval. Verifies CI, confirms scope, merges to main, triggers deployment, closes mandate. Called when Phill says \"approve PR-[number]\" to Margot. Model: claude-sonnet-5-5 (production operation — senior tier)"
 allowed-tools: Bash, Read
-model: claude-sonnet-5
+model: claude-sonnet-5-5
 ---
 
 # Production Gate — Merge to Main

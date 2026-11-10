@@ -1,6 +1,6 @@
 ---
 name: empire-status
-description: "Instant empire status snapshot. Queries Pi-CEO, Supabase, Linear, and Hermes to produce a 30-second executive briefing on the state of all 6 businesses. Use anytime to get a pulse check. Model: llama-3.3-70b (free — routine query)."
+description: "Instant empire status snapshot. Queries Pi-CEO, Supabase, Linear, and Hermes to produce a 30-second executive briefing on the state of all 6 businesses. Use anytime to get a pulse check. Model: llama-3.3-70b (free — routine query). Use when the user asks for an instant empire status, a 30-second executive briefing, or a pulse check on all 6 businesses, which pulls Pi-CEO project health and autonomy, open and in-progress Linear tickets, and Hermes cron job status into a single formatted report with alerts for any business scoring under 50 or any errors."
 allowed-tools: Bash, WebFetch
 model: meta-llama/llama-3.3-70b-instruct
 ---

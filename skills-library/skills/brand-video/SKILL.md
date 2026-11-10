@@ -1,6 +1,6 @@
 ---
 name: brand-video
-description: "Produce one or many consistent, on-brand faceless marketing videos from a topic: script, ElevenLabs voiceover with timestamps, one styled illustration per beat, ffmpeg stitch to 1080p, optional Unlisted YouTube upload. The look is a named style from styles.md (flat-line, hand-doodle, bold-kinetic, cinematic-photoreal, minimal-corporate, retro-print), so one command yields repeatable output per brand. The automated pipeline; distinct from faceless-video and video-director."
+description: "Produces one or many consistent, on-brand faceless marketing videos from a topic: script, ElevenLabs voiceover with timestamps, one styled illustration per beat, ffmpeg stitch to 1080p, optional Unlisted YouTube upload. The look is a named style from styles.md, so one command yields repeatable output per brand. The automated pipeline; distinct from faceless-video and video-director. Use when asked for one or a batch of styled faceless marketing videos from a topic."
 ---
 
 # brand-video — consistent styled faceless videos, on demand
@@ -37,4 +37,4 @@ Browser file-upload is dead (host paths rejected). Use the YouTube Data API path
 ## Guardrails
 - Claims must be real (brand wiki / product truth). Flat-illustration + synthetic voice → YouTube AI-disclosure usually "No" (confirm at upload; flip to Yes if AI music added).
 - Keep one style per batch for consistency. Keep `SKILL.md` ≤200 lines per [[feedback-tight-code]].
-- Reference implementation + assets: `/Users/phill-mac/restoreassist-videos/`.
+- Reference implementation + assets: `~/restoreassist-videos/` on the Mac it was built on (the `phill-mac` account; not present on the other machines).

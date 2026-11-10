@@ -1,6 +1,6 @@
 ---
 name: weekly-enhancement-loop
-description: "Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in config/harness/projects.json, opening review PRs so all projects compound over time. Cost-optimised open-weight ladder (Qwen/DeepSeek) via OpenRouter — cheap grunt tiers, one reserved reasoner for the planner handoff (~$5/full run)."
+description: "Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in config/harness/projects.json and opens review PRs, using a cheap open-weight model ladder via OpenRouter. Use when the user asks for the weekly cross-repo self-improvement pass or the Monday enhancement run, or when debugging scripts/weekly_enhancement_loop.py, its model ladder, or the enhance/weekly review PRs."
 owner_role: "Senior PM"
 status: "wave-6"
 automation: scheduled
@@ -131,3 +131,10 @@ per phase.
 - [ ] No premium Anthropic model appears in the run-log; grunt tiers are
       open-weight and only the planner uses the reserved reasoner.
 - [ ] Kill-switch file drains the loop mid-run.
+
+## Ship gate (Prove mode)
+
+When this skill changes something that already exists in a way a person would judge (wording, behaviour,
+design, a model or prompt, a cost line), the change ships only after it beats the current version. Call the
+Skill tool with "gauntlet-loop" and follow its Prove mode. Mechanical fixes that a hard check proves (a
+broken link repaired, a failing test made to pass) do not need it.

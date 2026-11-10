@@ -1518,14 +1518,14 @@
 {"id": 1517, "text": "run this past a really critical reviewer who'll find the race conditions", "expected": "opus-adversary", "home": "library", "kind": "paraphrase", "split": "tune"}
 {"id": 1518, "text": "pressure-test my assumptions here before we call it done", "expected": "opus-adversary", "home": "library", "kind": "paraphrase", "split": "tune"}
 {"id": 1519, "text": "give this a hard adversarial look before it's too late to fix", "expected": "opus-adversary", "home": "library", "kind": "paraphrase", "split": "tune"}
-{"id": 1520, "text": "just keep the whole pipeline moving from idea to done without me babysitting it", "expected": "orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
-{"id": 1521, "text": "run the thing end to end and make sure nothing falls apart along the way", "expected": "orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
-{"id": 1522, "text": "I want something watching over all the moving pieces and pushing them forward", "expected": "orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
-{"id": 1523, "text": "keep this whole process on track and clean up after itself as it goes", "expected": "orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
-{"id": 1524, "text": "handle the routing between stages so I don't have to manage each step", "expected": "orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
-{"id": 1525, "text": "make sure the overall flow keeps going and stays sane", "expected": "orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
-{"id": 1526, "text": "be the thing that carries this from start to ship without dropping the ball", "expected": "orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
-{"id": 1527, "text": "oversee the whole chain of work and keep it self-correcting", "expected": "orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
+{"id": 1520, "text": "just keep the whole pipeline moving from idea to done without me babysitting it", "expected": "continuity-orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
+{"id": 1521, "text": "run the thing end to end and make sure nothing falls apart along the way", "expected": "continuity-orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
+{"id": 1522, "text": "I want something watching over all the moving pieces and pushing them forward", "expected": "continuity-orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
+{"id": 1523, "text": "keep this whole process on track and clean up after itself as it goes", "expected": "continuity-orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
+{"id": 1524, "text": "handle the routing between stages so I don't have to manage each step", "expected": "continuity-orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
+{"id": 1525, "text": "make sure the overall flow keeps going and stays sane", "expected": "continuity-orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
+{"id": 1526, "text": "be the thing that carries this from start to ship without dropping the ball", "expected": "continuity-orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
+{"id": 1527, "text": "oversee the whole chain of work and keep it self-correcting", "expected": "continuity-orchestrator", "home": "pi-dev-ops", "kind": "paraphrase", "split": "tune"}
 {"id": 1528, "text": "give me a few different headline options and pick the best one", "expected": "output-tournament", "home": "pi-dev-ops", "kind": "paraphrase", "split": "heldout"}
 {"id": 1529, "text": "I can't decide between taglines, generate a bunch and judge them", "expected": "output-tournament", "home": "pi-dev-ops", "kind": "paraphrase", "split": "heldout"}
 {"id": 1530, "text": "come up with several versions of this hero copy and tell me the winner", "expected": "output-tournament", "home": "pi-dev-ops", "kind": "paraphrase", "split": "heldout"}

@@ -1,6 +1,6 @@
 ---
 name: nlm-skill
-description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server - interfaces for Google NotebookLM. Use this skill when users want to interact with NotebookLM programmatically, including: creating/managing notebooks, adding sources (URLs, YouTube, text, Google Drive), generating content (podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos, data tables), conducting research, chatting with sources, or automating NotebookLM workflows. Triggers on mentions of \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", or any NotebookLM-related automation task."
+description: "Expert guide for the NotebookLM CLI (`nlm`) and MCP server. Use when users want to drive NotebookLM programmatically: create and manage notebooks, add sources (URLs, YouTube, text, Google Drive), generate podcasts, reports, quizzes, flashcards, mind maps, slides, infographics, videos or data tables, run research, chat with sources, or automate workflows. Triggers on \"nlm\", \"notebooklm\", \"notebook lm\", \"podcast generation\", \"audio overview\", or any NotebookLM automation task."
 ---
 
 # NotebookLM CLI & MCP Expert

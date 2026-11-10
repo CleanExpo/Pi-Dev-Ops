@@ -1,0 +1,6 @@
+# Ruleset for journal_event.py: gitleaks' built-in rules, no allowlist.
+# Pinned here so the repo /spm happens to run in cannot weaken the scan.
+title = "spm journal"
+
+[extend]
+useDefault = true

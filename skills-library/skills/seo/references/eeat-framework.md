@@ -1,4 +1,20 @@
 # E-E-A-T Evaluation Framework
+
+## Contents
+- [Updated per Google Quality Rater Guidelines — September 11, 2025](#updated-per-google-quality-rater-guidelines--september-11-2025)
+- [Plus December 2025 Core Update Implications](#plus-december-2025-core-update-implications)
+- [Overview](#overview)
+- [CRITICAL: December 2025 Core Update](#critical-december-2025-core-update)
+- [YMYL (Your Money or Your Life)](#ymyl-your-money-or-your-life)
+- [Experience (Weight: 20%)](#experience-weight-20)
+- [Expertise (Weight: 25%)](#expertise-weight-25)
+- [Authoritativeness (Weight: 25%)](#authoritativeness-weight-25)
+- [Trustworthiness (Weight: 30%)](#trustworthiness-weight-30)
+- [September 2025 QRG Updates](#september-2025-qrg-updates)
+- [Experience Signals Are Critical Differentiators](#experience-signals-are-critical-differentiators)
+- [Overall Scoring Guide](#overall-scoring-guide)
+- [Improvement Recommendations by Score](#improvement-recommendations-by-score)
+
 ## Updated per Google Quality Rater Guidelines — September 11, 2025
 ## Plus December 2025 Core Update Implications
 

@@ -1,6 +1,18 @@
 <!-- Updated: 2026-02-07 -->
 # Core Web Vitals Thresholds (February 2026)
 
+## Contents
+- [Current Metrics](#current-metrics)
+- [Key Facts](#key-facts)
+- [LCP Subparts (February 2025 CrUX Addition)](#lcp-subparts-february-2025-crux-addition)
+- [Soft Navigations API (Experimental)](#soft-navigations-api-experimental)
+- [Measurement Sources](#measurement-sources)
+- [Common Bottlenecks](#common-bottlenecks)
+- [Optimization Priority](#optimization-priority)
+- [Tools](#tools)
+- [Performance Tooling Updates (2025)](#performance-tooling-updates-2025)
+
+
 ## Current Metrics
 
 | Metric | Good | Needs Improvement | Poor |

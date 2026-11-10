@@ -89,8 +89,9 @@ IMPORTANT: Do NOT read or execute any SKILL.md files or anything under ~/.claude
 Write the **complete prompt and context**, including actual plan/spec/source, to a private file. Substitute its shell-quoted path for `<prepared-prompt-file>`; never interpolate user text into shell source. Request a final Recommendation: <action> because <specific reason> line, including an explicit no-findings rationale.
 
 ```bash
-_REPO_ROOT=$(git rev-parse --show-toplevel) || { echo 'ERROR: not in a git repo' >&2; exit 1; }
 _OUT=$(mktemp -d "${TMPDIR:-/tmp}/gs-outside.XXXXXXXX") || exit 1
+git rev-parse --show-toplevel > "$_OUT/root" || { echo 'ERROR: not in a git repo' >&2; rm -rf "$_OUT"; exit 1; }
+read -r _REPO_ROOT < "$_OUT/root"
 _T=""; command -v gtimeout >/dev/null 2>&1 && _T="gtimeout 600"
 [ -z "$_T" ] && command -v timeout >/dev/null 2>&1 && _T="timeout 600"
 _EXIT=0

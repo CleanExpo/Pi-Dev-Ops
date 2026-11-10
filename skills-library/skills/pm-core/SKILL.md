@@ -1,8 +1,8 @@
 ---
 name: pm-core
-description: "PM-Core — the first autonomous execution agent. Claims the highest-priority agent-ready ticket from the Unite-Group Linear board, clones the repo, implements the fix on a feature branch, runs CI, and opens a PR. Model: claude-sonnet-5 (senior agent tier). Trigger: /pm-core [ticket-id] or autonomous via Hermes cron."
+description: "PM-Core — the first autonomous execution agent. Claims the highest-priority agent-ready ticket from the Unite-Group Linear board, clones the repo, implements the fix on a feature branch, runs CI, and opens a PR. Model: claude-sonnet-5-5 (senior agent tier). Trigger: /pm-core [ticket-id] or autonomous via Hermes cron."
 allowed-tools: Bash, Read, Write, Agent
-model: claude-sonnet-5
+model: claude-sonnet-5-5
 ---
 
 # PM-Core Autonomous Execution Agent
@@ -40,8 +40,8 @@ Then claim the highest-priority agent-ready ticket:
 3. Otherwise record the identifier, title, team and description — Phase 1 needs all four.
 
 **Why this replaced a shell block (2026-08-10).** The previous Phase 0 scraped
-`LINEAR_API_KEY` out of `~/.hermes/.env`, with a hardcoded `/Users/phill-mac/...`
-fallback that cannot resolve off that one Mac, and it called `os.path.exists`
+`LINEAR_API_KEY` out of `~/.hermes/.env`, with a hardcoded absolute fallback into the
+`phill-mac` account's home folder that cannot resolve off that one Mac, and it called `os.path.exists`
 one line before `import os` — a `NameError` before it ever reached Linear. It
 had been dead code on every machine but one. The connector is OAuth-based:
 nothing has to hold, read or paste a credential, which is the point. See

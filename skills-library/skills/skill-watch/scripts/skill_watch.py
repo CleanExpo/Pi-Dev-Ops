@@ -16,6 +16,8 @@ Checks:
   3. Claude Code: installed vs latest release. A new release is the cue to re-test whether
      a skill is still needed.
   4. Watchlist: new commits on candidate repos since the last run.
+  5. Capability Passports: regenerated for every skill; schema failures, owner conflicts,
+     API-key model lanes and unreviewed outside skills are flagged (capability_passport.py).
 
 --review hands the flagged items to one bounded `claude -p` run (read-only tools plus web
 fetch, Max plan, budget-capped) that writes a proposal. Nothing is applied.
@@ -351,6 +353,28 @@ def pin(name: str) -> int:
     print(f"{name} is not in {REGISTRY}"); return 1
 
 
+def passports(report: dict) -> None:
+    """Regenerate every Capability Passport and flag what activation would refuse. Writes state only."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import capability_passport as cp
+    doc = cp.generate(cp.Roots.default(skills=SKILLS, state=STATE))
+    schema = cp.load_schema()
+    invalid = [p["name"] for p in doc["passports"] if cp.validate(p, schema)]
+    (STATE / "passports.json").write_text(json.dumps(doc, indent=2) + "\n")
+    lanes = [p["name"] for p in doc["passports"] if p["api_key_lane"]]
+    unreviewed = [p["name"] for p in doc["passports"] if not p["trust"]["reviewed"]]
+    report["passports"] = {"count": doc["count"], "conflicts": len(doc["conflicts"]), "invalid": invalid,
+                           "api_key_lane": lanes, "unreviewed": len(unreviewed)}
+    if invalid:
+        report["flags"].append(f"{len(invalid)} capability passport(s) fail the schema: {', '.join(invalid[:5])}")
+    if doc["conflicts"]:
+        report["flags"].append(f"{len(doc['conflicts'])} capability phrase(s) claimed by more than one owner")
+    if lanes:
+        report["flags"].append(f"skills naming an API-key model lane: {', '.join(lanes)}")
+    if unreviewed:
+        report["flags"].append(f"{len(unreviewed)} outside skill(s) have no review or 40-char pin in external-skills.json: {', '.join(unreviewed[:5])}")
+
+
 def run(with_review: bool) -> int:
     STATE.mkdir(parents=True, exist_ok=True)
     latest = STATE / "latest.json"
@@ -363,7 +387,8 @@ def run(with_review: bool) -> int:
         except json.JSONDecodeError:
             pass
     reg = json.loads(REGISTRY.read_text())
-    for step in (lambda: context_budget(report), lambda: usage(report), lambda: externals(reg, report)):
+    for step in (lambda: context_budget(report), lambda: usage(report), lambda: externals(reg, report),
+                 lambda: passports(report)):
         try:
             step()
         except Exception as e:  # a broken check is reported, never silently skipped

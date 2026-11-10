@@ -1,0 +1,41 @@
+{
+  "schema": "done/1",
+  "work_id": "w_4210ef0b6526",
+  "version": 1,
+  "supersedes": null,
+  "goal": "Pi-Dev-Ops vendored skills-library copy pinned to library head bb57abf2, restoreassist-app-store-phase held back with its old vendored copy moved to _attic (founder decision 10 Nov 2026), sync check clean",
+  "created_at_utc": "2026-11-10T05:51:39Z",
+  "identity_key": "fix/skills-overhaul-c1-lock-bump@/Users/phillmcgurk/Pi-Dev-Ops/.git/worktrees/pidevops-overhaul-20261110",
+  "baseline_observed": {
+    "head": "977b77b9bf2a58297fab7372a8ccde16f2ca8a6c",
+    "branch": "fix/skills-overhaul-c1-lock-bump",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "skills-library.lock pins the library head bb57abf2",
+      "recipe": "grep -qx bb57abf2ad0e68a20f120ac8ea50f50cdf1ab57e skills-library.lock"
+    },
+    {
+      "id": "C2",
+      "text": "restoreassist-app-store-phase is listed in the held-back file",
+      "recipe": "grep -q '^restoreassist-app-store-phase ' .github/skills-library-held-back.txt"
+    },
+    {
+      "id": "C3",
+      "text": "the vendored restoreassist copy is gone from skills-library/skills and present under _attic/2026-11-10 as a git move",
+      "recipe": "test ! -e skills-library/skills/restoreassist-app-store-phase && git ls-files --error-unmatch _attic/2026-11-10/skills-library/skills/restoreassist-app-store-phase/SKILL.md"
+    },
+    {
+      "id": "C4",
+      "text": "the sync check reports the copy clean",
+      "recipe": "/Users/phillmcgurk/Pi-Dev-Ops/.venv/bin/python scripts/sync_skills_library.py check"
+    },
+    {
+      "id": "C5",
+      "text": "the sync test suite passes",
+      "recipe": "/Users/phillmcgurk/Pi-Dev-Ops/.venv/bin/python -m pytest -q tests/test_skills_library_sync.py"
+    }
+  ]
+}

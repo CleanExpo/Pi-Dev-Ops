@@ -1,6 +1,6 @@
 ---
 name: content-cascade
-description: Repurpose one published video into written formats — type /content-cascade <video URL or brand channel> to turn its transcript into a blog post, LinkedIn post, and X post in the brand voice, gated through nexus-copywriter. Drafts only; publish stays founder-gated.
+description: Repurpose one published video into written formats — type /content-cascade video URL or brand channel to turn its transcript into a blog post, LinkedIn post, and X post in the brand voice, gated through nexus-copywriter. Drafts only; publish stays founder-gated.
 argument-hint: "<YouTube URL, or brand name to check its channel for new uploads>"
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash, Write, Agent, WebSearch, WebFetch, Skill

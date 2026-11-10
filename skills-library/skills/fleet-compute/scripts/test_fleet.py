@@ -31,6 +31,20 @@ class LocalShell(unittest.TestCase):
             declared = shlex.split(fleet.NODES[node]["shell"])
             self.assertTrue(declared, f"{node} declares no shell")
 
+    def test_wsl_windows_uses_native_bridge_and_keeps_windows_payloads(self):
+        from unittest.mock import patch
+        with patch.object(fleet.sys, "platform", "linux"), \
+                patch.object(fleet.Path, "read_text", return_value="microsoft-standard-WSL2"):
+            self.assertEqual(fleet.local_shell("windows"), [
+                "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+                "-NoProfile", "-Command"])
+            self.assertEqual(fleet.dialect("windows"), "powershell")
+        with patch.object(fleet.sys, "platform", "win32"):
+            self.assertEqual(fleet.local_shell("windows")[0], "powershell")
+        with patch.object(fleet.sys, "platform", "linux"), \
+                patch.object(fleet.Path, "read_text", return_value="generic"):
+            self.assertEqual(fleet.local_shell("windows")[0], "powershell")
+
     def test_a_node_without_zsh_can_still_probe_itself(self):
         # Runs for real against whatever this machine is. If the hardcode came back,
         # this fails on any host without zsh rather than passing quietly.

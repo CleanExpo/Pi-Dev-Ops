@@ -25,6 +25,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import os
+import re
 import shutil
 import unittest
 import subprocess
@@ -779,7 +780,426 @@ def t26_a_stale_receipt_authorises_nothing(tmp: Path) -> None:
         "and the gate cannot be used at all")
 
 
-TESTS = (t1_workflow_edit_is_not_auto_pushed, t2_ordinary_work_still_syncs,
+PROTECTED = ("hooks/PreToolUse/x.py", "agents/bench/eng-x.md", "skills/done-harness/install/x.py",
+             "skills/engineering-requirements/harness/defects.json", "skills/spm/scripts/contract.lock",
+             "scripts/retired-models.txt")
+
+
+def t27_fleet_enforcement_and_agent_prompts_cannot_be_receipted(tmp: Path) -> None:
+    """Spec 2026-10-26 specialist-board §12: hooks, agent prompts, the write gate's installer
+    and the eval harness reach every machine, so a receipt must never let this timer push them.
+
+    One path at a time, so a list that protects only some of them cannot pass on the others.
+    """
+    _require_gate()
+    for rel in PROTECTED:
+        repo, _ = _make_estate(tmp / rel.replace("/", "_"))
+        target = repo / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("# planted\n")
+        written = _write_receipt_via_script(repo, rel)
+        assert written.returncode != 0, f"T27: {rel} was receipted. out={written.stdout}"
+        assert "never-sync" in written.stdout, f"T27: {rel} was refused without saying why. out={written.stdout}"
+        assert not (repo / ".estate-sync-receipt").exists(), f"T27: a receipt was written for {rel}"
+
+
+def t29_a_protected_path_already_in_a_sync_commit_is_not_pushed(tmp: Path) -> None:
+    """Review 26/10/2026: the receipt and staging checks see only this cycle. A sync-shaped commit
+    made earlier (an older script, a hand commit with the sync subject) carrying a hook was still
+    pushed, because the push step scanned the payload for secrets only."""
+    _require_gate()
+    repo, origin = _make_estate(tmp)
+    origin_head_before = _git(origin, "rev-parse", "main")
+    hook = repo / "hooks" / "PreToolUse" / "x.py"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("# planted\n")
+    _git(repo, "add", "-f", "hooks/PreToolUse/x.py")
+    _git(repo, "commit", "-qm", "chore(sync): test auto-sync 26/10/2026 [receipted: 1 file(s)]")
+
+    result = _run_sync_result(repo)
+
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert _git(origin, "rev-parse", "main") == origin_head_before, "T29: a committed hook was pushed"
+    assert "hooks/PreToolUse/x.py is in the push payload" in log, f"T29: the refusal was silent. log={log[-400:]}"
+    assert result.returncode != 0, "T29: a blocked push reported green"
+
+    # Positive control: an ordinary receipted skill edit still publishes, so the payload check is not
+    # a blanket refusal.
+    repo2, origin2 = _make_estate(tmp / "control")
+    (repo2 / "skills" / "demo" / "NEW.md").write_text("# new skill\n")
+    _receipt(repo2, "skills/demo/NEW.md")
+    _run_sync(repo2)
+    assert "skills/demo/NEW.md" in _pushed_files(origin2), "T29 control: an ordinary edit was refused"
+
+    # Windows carries the same payload check, before its push. Review r2: an order check alone passed
+    # with the range emptied (HEAD..HEAD), so the exact listing command is pinned too. Its behaviour
+    # runs in t33 wherever pwsh exists.
+    ps = POWERSHELL_SCRIPT.read_text()
+    listing = ps.find("git log -m --no-renames --name-only -z --format= origin/main..HEAD")
+    check = ps.find("is in the push payload")
+    push = ps.find("git push origin main")
+    assert 0 <= listing < check < push, (
+        "T29: PowerShell does not list every outgoing commit's paths and check them before pushing")
+    assert '-split "`0"' in ps, "T29: PowerShell does not split the payload list on NUL"
+
+
+def _sync_commit(repo: Path, msg_tag: str) -> None:
+    _git(repo, "commit", "-qm", f"chore(sync): test auto-sync 26/10/2026 [receipted: {msg_tag}]")
+
+
+def t30_a_protected_path_added_then_deleted_is_not_pushed(tmp: Path) -> None:
+    """Review r2: a hook added in one sync-shaped commit and deleted in the next left the final tree
+    clean, so the old final-tree diff passed, but the hook was in the history the push published."""
+    _require_gate()
+    repo, origin = _make_estate(tmp)
+    before = _git(origin, "rev-parse", "main")
+    hook = repo / "hooks" / "PreToolUse" / "transient.py"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("# planted\n")
+    _git(repo, "add", "-f", "hooks/PreToolUse/transient.py")
+    _sync_commit(repo, "1 file(s)")
+    _git(repo, "rm", "-q", "hooks/PreToolUse/transient.py")
+    _sync_commit(repo, "1 file(s)")
+    result = _run_sync_result(repo)
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert _git(origin, "rev-parse", "main") == before, "T30: a hook that lives only in outgoing history was pushed"
+    assert "hooks/PreToolUse/transient.py is in the push payload" in log, f"T30: refusal silent. log={log[-400:]}"
+    assert result.returncode != 0, "T30: a blocked push reported green"
+
+
+def t31_a_non_ascii_protected_name_is_not_pushed(tmp: Path) -> None:
+    """Review r2: git printed hooks/\\303\\251.py in quotes, and the quoted form never matched hooks/."""
+    _require_gate()
+    repo, origin = _make_estate(tmp)
+    before = _git(origin, "rev-parse", "main")
+    hook = repo / "hooks" / "\u00e9.py"
+    hook.parent.mkdir(parents=True, exist_ok=True)
+    hook.write_text("# planted\n")
+    _git(repo, "add", "-f", "--", "hooks/\u00e9.py")
+    _sync_commit(repo, "1 file(s)")
+    result = _run_sync_result(repo)
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert _git(origin, "rev-parse", "main") == before, "T31: a non-ASCII hook name was pushed"
+    assert "is in the push payload" in log, f"T31: refusal silent. log={log[-400:]}"
+    assert result.returncode != 0, "T31: a blocked push reported green"
+
+
+def t32_a_secret_added_then_removed_is_not_pushed(tmp: Path) -> None:
+    """Review r2: the secret scan read the final-tree diff too, so a credential committed and then
+    removed in a later sync commit was published in history. AWS's published example key only."""
+    _require_gate()
+    repo, origin = _make_estate(tmp)
+    before = _git(origin, "rev-parse", "main")
+    notes = repo / "skills" / "demo" / "notes.md"
+    notes.write_text("aws_access_key_id = AKIA" + "IOSFODNN7EXAMPLE\n")
+    _git(repo, "add", "skills/demo/notes.md")
+    _sync_commit(repo, "1 file(s)")
+    notes.write_text("cleaned\n")
+    _git(repo, "add", "skills/demo/notes.md")
+    _sync_commit(repo, "1 file(s)")
+    result = _run_sync_result(repo)
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert _git(origin, "rev-parse", "main") == before, "T32: a secret in outgoing history was pushed"
+    assert "SECRET-SCAN" in log, f"T32: the scan did not fire. log={log[-400:]}"
+    assert "AKIA" + "IOSFODNN7EXAMPLE" not in log, "T32: the scanner logged the secret"
+    assert result.returncode != 0, "T32: a blocked push reported green"
+
+
+def _run_ps1_result(repo: Path) -> subprocess.CompletedProcess[str]:
+    pwsh = shutil.which("pwsh")
+    if not pwsh:
+        raise unittest.SkipTest(
+            "pwsh is not installed here, so estate-sync.ps1's payload check was NOT executed. "
+            "This is not a pass: the Windows half is proven only by t29's pinned command text.")
+    env = os.environ.copy()
+    env.update({"HOME": str(repo.parent), "USERPROFILE": str(repo.parent), "ESTATE_SYNC_REPO": str(repo),
+                "ESTATE_SYNC_QUIET_SECS": "0", "ESTATE_SYNC_HOLD_MAX_SECS": "3600",
+                "ESTATE_SYNC_RECEIPT_MAX_SECS": "3600"})
+    return subprocess.run([pwsh, "-NoProfile", "-File", str(POWERSHELL_SCRIPT)],
+                          capture_output=True, text=True, timeout=180, env=env)
+
+
+def t33_powershell_payload_check_runs_where_pwsh_exists(tmp: Path) -> None:
+    """The ps1 payload check, executed: added-then-deleted, non-ASCII and earlier-commit hooks are refused,
+    and an ordinary receipted edit still publishes. SKIPPED (not passed) on a host without pwsh."""
+    for name, rel, delete in (("earlier", "hooks/PreToolUse/x.py", False),
+                              ("transient", "hooks/PreToolUse/transient.py", True),
+                              ("non-ascii", "hooks/\u00e9.py", False)):
+        repo, origin = _make_estate(tmp / name)
+        before = _git(origin, "rev-parse", "main")
+        f = repo / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("# planted\n")
+        _git(repo, "add", "-f", "--", rel)
+        _sync_commit(repo, "1 file(s)")
+        if delete:
+            _git(repo, "rm", "-q", "--", rel)
+            _sync_commit(repo, "1 file(s)")
+        result = _run_ps1_result(repo)
+        assert _git(origin, "rev-parse", "main") == before, f"T33 {name}: PowerShell pushed {rel}"
+        assert result.returncode != 0, f"T33 {name}: PowerShell reported a blocked push green"
+    # a secret committed then removed is still in the history PowerShell would publish
+    repo, origin = _make_estate(tmp / "secret")
+    before = _git(origin, "rev-parse", "main")
+    notes = repo / "skills" / "demo" / "notes.md"
+    notes.write_text("aws_access_key_id = AKIA" + "IOSFODNN7EXAMPLE\n")
+    _git(repo, "add", "skills/demo/notes.md")
+    _sync_commit(repo, "1 file(s)")
+    notes.write_text("cleaned\n")
+    _git(repo, "add", "skills/demo/notes.md")
+    _sync_commit(repo, "1 file(s)")
+    result = _run_ps1_result(repo)
+    assert _git(origin, "rev-parse", "main") == before, "T33 secret: PowerShell pushed a secret in outgoing history"
+    assert result.returncode != 0, "T33 secret: PowerShell reported a blocked push green"
+    repo, origin = _make_estate(tmp / "control")
+    (repo / "skills" / "demo" / "NEW.md").write_text("# new skill\n")
+    _receipt(repo, "skills/demo/NEW.md")
+    _run_ps1_result(repo)
+    assert "skills/demo/NEW.md" in _pushed_files(origin), "T33 control: PowerShell refused an ordinary edit"
+
+
+def _origin_adds(tmp: Path, origin: Path, rel: str, body: str) -> None:
+    """Advance origin/main by one commit that adds `rel`, as another machine's PR would."""
+    other = tmp / "other"
+    subprocess.run(["git", "clone", "-q", str(origin), str(other)], check=True)
+    _git(other, "config", "user.email", "o@example.com")
+    _git(other, "config", "user.name", "other")
+    (other / rel).parent.mkdir(parents=True, exist_ok=True)
+    (other / rel).write_text(body)
+    _git(other, "add", "-f", rel)
+    _git(other, "commit", "-qm", f"feat: add {rel}")
+    subprocess.run(["git", "--git-dir", str(origin), "fetch", "-q", str(other),
+                    "main:refs/heads/main"], check=True)
+
+
+def _untracked_copy(tmp: Path, body: str, rel: str = "skills/fresh/SKILL.md") -> tuple[Path, Path]:
+    repo, origin = _make_estate(tmp)
+    _origin_adds(tmp, origin, rel, "# fresh\n")
+    (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+    (repo / rel).write_text(body)
+    return repo, repo / rel
+
+
+def _untouched(repo: Path, rel: str) -> None:
+    assert _git(repo, "diff", "--cached", "--name-only") == "", "something was staged"
+    assert _git(repo, "ls-files", "--", rel) == "", f"{rel} was put in the index"
+    assert _git(repo, "stash", "list") == "", "a stash was left behind"
+
+
+def t34_identical_untracked_copy_is_named_and_untouched(tmp: Path) -> None:
+    """Measured 01/11/2026: the Mini sat 10 commits behind for six days because two
+    untracked SKILL.md files, byte-identical to the ones origin had just started
+    tracking, made `pull --rebase` abort. Every cycle logged a bare CONFLICT that never
+    said which file or why. The log must now name the file and say it is identical (safe
+    to delete by hand), and the timer must not touch it: four review rounds showed an
+    unattended heal can lose a concurrent edit."""
+    _posix_only()
+    rel = "skills/fresh/SKILL.md"
+    repo, live = _untracked_copy(tmp, "# fresh\n")
+
+    result = _run_sync_result(repo)
+
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert result.returncode != 0 and "CONFLICT" in log, f"T34: reported green. log={log[-500:]}"
+    assert f"untracked {rel} blocks the pull; it matched origin/main when checked" in log, (
+        f"T34: cause not named. log={log[-500:]}")
+    assert "safe to delete" not in log, "T34: a point-in-time match was stated as safe to delete"
+    assert live.read_text() == "# fresh\n", "T34: the file was changed"
+    _untouched(repo, rel)
+
+
+def t35_differing_untracked_copy_is_named_as_work(tmp: Path) -> None:
+    """The control for t34: a DIFFERENT untracked file is someone's work and is reported
+    as such, never as safe to delete."""
+    _posix_only()
+    rel = "skills/fresh/SKILL.md"
+    repo, live = _untracked_copy(tmp, "# my unsaved local edit\n")
+
+    result = _run_sync_result(repo)
+
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert live.read_text() == "# my unsaved local edit\n", "T35: local work was destroyed"
+    assert result.returncode != 0 and "CONFLICT" in log, f"T35: reported green. log={log[-500:]}"
+    assert f"untracked {rel} blocks the pull and differs" in log, f"T35: log={log[-500:]}"
+    assert "matched origin/main" not in log, f"T35: work was called safe to delete. log={log[-500:]}"
+    _untouched(repo, rel)
+
+
+def _posix_only() -> None:
+    if os.name == "nt":
+        raise unittest.SkipTest(
+            "the untracked-copy diagnosis and the conflicted-autostash check exist only in "
+            "estate-sync.sh; estate-sync.ps1 has not been ported (board card "
+            "1PCT-ESTATE-SYNC-PS1-PARITY). This is NOT a pass.")
+
+
+def _failing_pull(tmp: Path) -> str:
+    real = shutil.which("git")
+    shim = tmp / "shim"
+    shim.mkdir(exist_ok=True)
+    (shim / "git").write_text(f'#!/bin/sh\n[ "$1" = pull ] && exit 1\nexec "{real}" "$@"\n')
+    (shim / "git").chmod(0o755)
+    return f"{shim}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
+
+
+def t36_a_local_deletion_with_origin_behind_is_not_reported(tmp: Path) -> None:
+    """Review of 09c517a2: diffing HEAD against origin/main read a path HEAD had deleted (with
+    origin behind) as an incoming addition. The pull is forced to fail so the diagnosis runs
+    (review of 423bf257: with a passing pull this test never reached it)."""
+    _posix_only()
+    repo, origin = _make_estate(tmp)
+    rel = "skills/demo/SKILL.md"
+    _git(repo, "rm", "-q", rel)
+    _git(repo, "commit", "-qm", "chore(sync): drop demo")
+    (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+    (repo / rel).write_text("# demo\n")  # recreated untracked, same bytes as origin's copy
+
+    result = _run_sync_result(repo, path=_failing_pull(tmp))
+
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert result.returncode != 0 and "CONFLICT: pull" in log, f"T36: the diagnosis path did not run. log={log[-500:]}"
+    assert (repo / rel).exists(), "T36: a local file was removed"
+    assert "CONFLICT-CAUSE" not in log, f"T36: origin-behind read as an incoming add. log={log[-500:]}"
+
+
+def t40_a_remote_rename_destination_is_named(tmp: Path) -> None:
+    """Review of 423bf257 (P2): a remote `git mv` is a rename, not an add, so its new path was
+    never named although it blocked the pull."""
+    _posix_only()
+    repo, origin = _make_estate(tmp)
+    other = tmp / "other"
+    subprocess.run(["git", "clone", "-q", str(origin), str(other)], check=True)
+    _git(other, "config", "user.email", "o@example.com")
+    _git(other, "config", "user.name", "other")
+    (other / "skills" / "moved").mkdir(parents=True)
+    _git(other, "mv", "skills/demo/SKILL.md", "skills/moved/SKILL.md")
+    _git(other, "commit", "-qm", "refactor: move demo")
+    subprocess.run(["git", "--git-dir", str(origin), "fetch", "-q", str(other),
+                    "main:refs/heads/main"], check=True)
+    (repo / "skills" / "moved").mkdir(parents=True)
+    (repo / "skills" / "moved" / "SKILL.md").write_text("# demo\n")
+
+    result = _run_sync_result(repo)
+
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert result.returncode != 0, f"T40: log={log[-500:]}"
+    assert "untracked skills/moved/SKILL.md blocks the pull" in log, f"T40: not named. log={log[-500:]}"
+
+
+def t41_a_compare_error_is_not_a_difference(tmp: Path) -> None:
+    """Review of 423bf257 (P2): cmp exit 2 (an error) was reported as "differs"."""
+    _posix_only()
+    repo, live = _untracked_copy(tmp, "# fresh\n")
+    real = shutil.which("cmp")
+    shim = tmp / "shim"
+    shim.mkdir()
+    (shim / "cmp").write_text(f'#!/bin/sh\n[ "$3" = "{live}" ] && exit 2\nexec "{real}" "$@"\n')
+    (shim / "cmp").chmod(0o755)
+
+    _run_sync_result(repo, path=f"{shim}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin")
+
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert "could not compare" in log, f"T41: log={log[-500:]}"
+    assert "differs" not in log and "matched origin/main" not in log, f"T41: log={log[-500:]}"
+
+
+def t37_a_symlinked_parent_is_never_followed(tmp: Path) -> None:
+    """Review of 09c517a2: an untracked symlinked directory let the heal delete a file
+    OUTSIDE the repository. It is now reported, never compared or called identical."""
+    _posix_only()
+    repo, origin = _make_estate(tmp)
+    rel = "skills/linked/child.md"
+    _origin_adds(tmp, origin, rel, "# child\n")
+    outside = tmp / "outside"
+    outside.mkdir()
+    (outside / "child.md").write_text("# child\n")
+    (repo / "skills" / "linked").symlink_to(outside)
+
+    _run_sync_result(repo)
+
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert (outside / "child.md").read_text() == "# child\n", "T37: a file outside the repo changed"
+    assert "symlink" in log and "matched origin/main" not in log, f"T37: log={log[-500:]}"
+
+
+def t38_an_unreadable_blob_is_not_equality(tmp: Path) -> None:
+    """Review of 09c517a2: `git show | cmp` read a failed blob read as an empty stream and
+    "matched" an empty local file."""
+    _posix_only()
+    rel = "skills/fresh/SKILL.md"
+    repo, live = _untracked_copy(tmp, "")
+    shim = tmp / "shim"
+    shim.mkdir()
+    real = shutil.which("git")
+    (shim / "git").write_text(
+        '#!/bin/sh\ncase "$1 $2" in "cat-file blob"|"show origin/main:"*) exit 1;; esac\n'
+        f'exec "{real}" "$@"\n')
+    (shim / "git").chmod(0o755)
+
+    _run_sync_result(repo, path=f"{shim}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin")
+
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert live.exists() and live.read_text() == "", "T38: the local file was changed"
+    assert "could not read" in log and "matched origin/main" not in log, f"T38: log={log[-500:]}"
+
+
+def t39_a_conflicting_autostash_pop_is_not_green(tmp: Path) -> None:
+    """`pull --rebase --autostash` exits 0 when re-applying the stash conflicts. Before this
+    check the cycle carried on over conflict markers. A tracked file edited locally AND
+    changed on origin must stop the cycle non-green, naming the file, with the edit kept."""
+    _posix_only()
+    repo, origin = _make_estate(tmp)
+    rel = "skills/demo/SKILL.md"
+    _origin_adds(tmp, origin, rel, "# demo from origin\n")
+    (repo / rel).write_text("# demo local edit\n")
+
+    result = _run_sync_result(repo)
+
+    log = (repo / "logs" / "estate-sync.log").read_text()
+    assert result.returncode != 0 and f"unmerged: {rel}" in log, f"T39: reported green. log={log[-500:]}"
+    assert "ok: in sync" not in log, f"T39: log={log[-500:]}"
+    kept = (repo / rel).read_text() + _git(repo, "stash", "show", "-p")
+    assert "# demo local edit" in kept, "T39: the local edit was lost"
+
+
+def t42_the_guide_gives_no_command_that_hides_a_failure_or_drops_a_stash(tmp: Path) -> None:
+    """Reviews of 55eab6de and 22a24b81: SKILL.md told a person to re-check with `git show ... | cmp -`, which
+    exits 0 when the blob read fails (an empty file then "matches"), and to run a bare
+    `git stash drop`, which removes whichever entry is newest. Both precede deleting work."""
+    del tmp
+    guide = (SCRIPT.parent.parent / "SKILL.md").read_text()
+    assert not re.search(r"git (show|cat-file)[^`\n]*\|\s*cmp", guide), "T42: a piped blob compare is advised"
+    # Review of 22a24b81: `> /tmp/es-blob` truncates whatever that fixed path points at (a
+    # planted symlink to local work was overwritten). No advised command may redirect output.
+    for span in re.findall(r"`([^`\n]+)`", guide):
+        bare = re.sub(r"<[^<>\s]+>", "", span)  # <path> placeholders are not redirects
+        assert not re.search(r"(^|[^-=<>])>{1,2}\s*\S", bare), f"T42: a command writes via redirection: {span}"
+    for m in re.finditer(r"git stash drop[^`\n]*", guide):
+        assert "never" in guide[max(0, m.start() - 40):m.start()], f"T42: unqualified advice: {m.group(0)}"
+
+
+def t28_powershell_never_sync_list_matches_bash(tmp: Path) -> None:
+    """The two platforms must protect the same paths: a Windows gap is a fleet gap."""
+    del tmp
+    sh = SCRIPT.read_text()
+    block = sh[sh.index("NEVER_SYNC=("):sh.index(")", sh.index("NEVER_SYNC=("))]
+    bash_list = re.findall(r'^\s*"([^"]+)"', block, re.M)
+    ps = POWERSHELL_SCRIPT.read_text()
+    block = ps[ps.index("$neverSync = @("):ps.index(")", ps.index("$neverSync = @("))]
+    ps_list = re.findall(r"^\s*'([^']+)'", block, re.M)
+    assert bash_list == ps_list, f"T28: the lists differ. bash={bash_list} ps1={ps_list}"
+    for rel in PROTECTED:
+        assert any(rel == n or (n.endswith("/") and rel.startswith(n)) for n in ps_list), (
+            f"T28: PowerShell does not protect {rel}")
+
+
+TESTS = (t1_workflow_edit_is_not_auto_pushed, t34_identical_untracked_copy_is_named_and_untouched,
+         t35_differing_untracked_copy_is_named_as_work, t36_a_local_deletion_with_origin_behind_is_not_reported,
+         t37_a_symlinked_parent_is_never_followed, t38_an_unreadable_blob_is_not_equality,
+         t39_a_conflicting_autostash_pop_is_not_green, t40_a_remote_rename_destination_is_named,
+         t41_a_compare_error_is_not_a_difference,
+         t42_the_guide_gives_no_command_that_hides_a_failure_or_drops_a_stash,
+         t2_ordinary_work_still_syncs,
          t3_mixed_edit_pushes_skill_not_workflow, t4_skip_is_logged_not_silent,
          t5_deleted_tracked_skill_is_non_green_and_not_pushed,
          t6_powershell_checks_deletions_before_staging,
@@ -802,7 +1222,14 @@ TESTS = (t1_workflow_edit_is_not_auto_pushed, t2_ordinary_work_still_syncs,
          t23_the_receipt_writer_produces_a_receipt_the_gate_accepts,
          t24_the_receipt_writer_fails_closed_on_a_partial_request,
          t25_the_receipt_writer_refuses_a_path_that_is_not_a_file,
-         t26_a_stale_receipt_authorises_nothing)
+         t26_a_stale_receipt_authorises_nothing,
+         t27_fleet_enforcement_and_agent_prompts_cannot_be_receipted,
+         t28_powershell_never_sync_list_matches_bash,
+         t29_a_protected_path_already_in_a_sync_commit_is_not_pushed,
+         t30_a_protected_path_added_then_deleted_is_not_pushed,
+         t31_a_non_ascii_protected_name_is_not_pushed,
+         t32_a_secret_added_then_removed_is_not_pushed,
+         t33_powershell_payload_check_runs_where_pwsh_exists)
 
 
 

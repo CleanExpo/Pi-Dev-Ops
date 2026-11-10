@@ -245,7 +245,8 @@ PAUL GRAHAM ESSAYS:
 1. Log the selected resource URLs to the builder profile (single source of truth).
 Append a resource-tracking entry:
 ```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+_GS_RP="$HOME/.local/state/gs/tmp/repo.$$"; { mkdir -p "${_GS_RP%/*}" && chmod 700 "${_GS_RP%/*}"; } 2>/dev/null || { [ -n "${TMPDIR:-}" ] && _GS_RP="$TMPDIR/gs-repo.$$"; }; git rev-parse --show-toplevel > "$_GS_RP.top" 2>/dev/null || pwd > "$_GS_RP.top" || { echo "GS_TMP_UNWRITABLE: could not write $_GS_RP.top, so nothing was looked up" >&2; exit 1; }
+read -r _GS_TOP < "$_GS_RP.top"; rm -f "$_GS_RP.top"; SLUG=${_GS_TOP##*/}
 jq -nc --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg slug "$SLUG" --argjson urls '["URL1","URL2","URL3"]' \
   '{date:$date, mode:"resources", project_slug:$slug, signal_count:0, signals:[], design_doc:"", assignment:"", resources_shown:$urls, topics:[]}' \
   >> "$HOME/.local/state/gs/builder-profile.jsonl" 2>/dev/null || true

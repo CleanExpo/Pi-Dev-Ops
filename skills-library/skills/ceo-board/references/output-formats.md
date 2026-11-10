@@ -1,5 +1,13 @@
 # Output Formats — verbatim stage templates
 
+## Contents
+- [Stage 2 — CEO FRAMES](#stage-2--ceo-frames)
+- [Stage 3 — BOARD DEBATES (each round)](#stage-3--board-debates-each-round)
+- [Stage 4 — CONSTRAINT CHECK](#stage-4--constraint-check)
+- [Stage 5 — FINAL STATEMENTS](#stage-5--final-statements)
+- [Stage 6 — THE MEMO](#stage-6--the-memo)
+
+
 Read this once before running the deliberation. Each stage in `SKILL.md` produces its output
 using the matching template below. Headings and structure are the contract — keep them exact.
 

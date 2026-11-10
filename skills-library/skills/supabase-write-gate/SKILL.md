@@ -40,6 +40,37 @@ Unparseable is denied, never allowed.
 
 Every decision is appended to `~/.claude/logs/supabase-write-gate.jsonl`.
 
+## Shell commands (Bash and PowerShell, one rule)
+
+Since grill 18 (07/11/2026) the gate checks a shell command only when it, or a script file
+it names, names a database surface: a PostgreSQL client, the supabase CLI or a migration
+tool, a `*.supabase.*` or `api.supabase.com` host, a postgres URL, or a database driver.
+Neither pass reads shell text itself: both take segments from one walker (`_walk`), in
+execution order, with the program, the folder each segment runs in (earlier `cd` /
+`Set-Location` only), the files it names and its payloads. A property test runs every
+shell command the gate tests send through both passes and fails if the early pass lets
+through anything the full check refuses. The early pass uses the same payload decoders as the full check (PowerShell
+`-EncodedCommand` UTF-16LE in every spelling PowerShell accepts: `-e`, `-ec`, and any
+prefix such as `-en` or `-encoded`, decoded by one owner, `_encoded_payloads`, only where
+PowerShell reads it: as the first word, or after `powershell` / `pwsh`. `grep -e` and
+`sed -e` take a pattern, so their argument is data; and an inline
+program that decodes then executes). A parity test takes every program the full check
+unwraps from `full_check_unwraps()` and fails if the early pass ever skips a payload the
+full check refuses.
+If a named script cannot be read (oversize, IO, or nested deeper than this gate
+reads), the command is blocked rather than permitted; the full check resolves
+relative scripts from the last `cd` / `Set-Location`, same as the early pass.
+Such a command gets the full fail-closed check. Any other command passes through to Claude
+Code's own permission system and the auto-mode classifier. Before this, 269 of 573 logged
+blocks were "cannot read the command" on commands with no database in them, while the
+same commands ran unchecked through PowerShell.
+
+Named limit: a database reached with no surface named anywhere the gate can read (a URL only
+in an environment variable, a script inside WSL's own filesystem) is not seen. The lock that
+closes it is a read-only database login per project:
+[references/read-only-db-login.md](references/read-only-db-login.md). Creating one is Phill's
+credential action. Tests: `tests/test_write_gate_scope.py`.
+
 ## Break-glass
 
 `~/.claude/.supabase-write-approved.json`:
@@ -73,7 +104,9 @@ The mandated branch-first validation was not running.
 python3 ~/.claude/skills/supabase-write-gate/scripts/install_supabase_write_gate.py
 ```
 
-Idempotent, backs up `settings.json`, validates the JSON before writing. `bootstrap.sh`
+Registers three matchers, each once: the Supabase MCP tools, `Bash` and `PowerShell`; a
+re-run adds whichever is missing. Idempotent, backs up `settings.json`, validates the JSON
+before writing. `bootstrap.sh`
 calls it, so a fresh machine is covered without anyone remembering — `hooks/` and
 `settings.json` are gitignored and do **not** sync with this repo. Installed and
 proven on the MacBook and the Mac Mini, 19/19 controls each.

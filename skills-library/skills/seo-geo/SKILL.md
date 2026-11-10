@@ -3,7 +3,7 @@ name: seo-geo
 description: Optimize content for AI Overviews (formerly SGE), ChatGPT web search, Perplexity, and other AI-powered search experiences. Generative Engine Optimization (GEO) analysis including brand mention signals, AI crawler accessibility, llms.txt compliance, passage-level citability scoring, and platform-specific optimization. Use when user says "AI Overviews", "SGE", "GEO", "AI search", "LLM optimization", "Perplexity", "AI citations", "ChatGPT search", or "AI visibility".
 ---
 
-# AI Search / GEO Optimization (February 2026)
+# AI Search / GEO Optimization
 
 ## Key Statistics
 
@@ -32,139 +32,15 @@ description: Optimize content for AI Overviews (formerly SGE), ChatGPT web searc
 
 ---
 
-## GEO Analysis Criteria (Updated)
+## GEO Analysis Criteria
 
-### 1. Citability Score (25%)
+Score five weighted areas: Citability (25%), Structural Readability (20%), Multi-Modal Content (15%), Authority & Brand Signals (20%), Technical Accessibility (20%). AI crawlers do not execute JavaScript, so server-side rendering is critical.
 
-**Optimal passage length: 134-167 words** for AI citation.
+Read [references/criteria.md](references/criteria.md) when scoring a page: strong and weak signals per area, optimal passage length (134-167 words) and citation-source statistics.
 
-**Strong signals:**
-- Clear, quotable sentences with specific facts/statistics
-- Self-contained answer blocks (can be extracted without context)
-- Direct answer in first 40-60 words of section
-- Claims attributed with specific sources
-- Definitions following "X is..." or "X refers to..." patterns
-- Unique data points not found elsewhere
+## Crawlers and Standards
 
-**Weak signals:**
-- Vague, general statements
-- Opinion without evidence
-- Buried conclusions
-- No specific data points
-
-### 2. Structural Readability (20%)
-
-**92% of AI Overview citations come from top-10 ranking pages**, but 47% come from pages ranking below position 5 — demonstrating different selection logic.
-
-**Strong signals:**
-- Clean H1→H2→H3 heading hierarchy
-- Question-based headings (matches query patterns)
-- Short paragraphs (2-4 sentences)
-- Tables for comparative data
-- Ordered/unordered lists for step-by-step or multi-item content
-- FAQ sections with clear Q&A format
-
-**Weak signals:**
-- Wall of text with no structure
-- Inconsistent heading hierarchy
-- No lists or tables
-- Information buried in paragraphs
-
-### 3. Multi-Modal Content (15%)
-
-Content with multi-modal elements sees **156% higher selection rates**.
-
-**Check for:**
-- Text + relevant images
-- Video content (embedded or linked)
-- Infographics and charts
-- Interactive elements (calculators, tools)
-- Structured data supporting media
-
-### 4. Authority & Brand Signals (20%)
-
-**Strong signals:**
-- Author byline with credentials
-- Publication date and last-updated date
-- Citations to primary sources (studies, official docs, data)
-- Organization credentials and affiliations
-- Expert quotes with attribution
-- Entity presence in Wikipedia, Wikidata
-- Mentions on Reddit, YouTube, LinkedIn
-
-**Weak signals:**
-- Anonymous authorship
-- No dates
-- No sources cited
-- No brand presence across platforms
-
-### 5. Technical Accessibility (20%)
-
-**AI crawlers do NOT execute JavaScript** — server-side rendering is critical.
-
-**Check for:**
-- Server-side rendering (SSR) vs client-only content
-- AI crawler access in robots.txt
-- llms.txt file presence and configuration
-- RSL 1.0 licensing terms
-
----
-
-## AI Crawler Detection
-
-Check `robots.txt` for these AI crawlers:
-
-| Crawler | Owner | Purpose |
-|---------|-------|---------|
-| GPTBot | OpenAI | ChatGPT web search |
-| OAI-SearchBot | OpenAI | OpenAI search features |
-| ChatGPT-User | OpenAI | ChatGPT browsing |
-| ClaudeBot | Anthropic | Claude web features |
-| PerplexityBot | Perplexity | Perplexity AI search |
-| CCBot | Common Crawl | Training data (often blocked) |
-| anthropic-ai | Anthropic | Claude training |
-| Bytespider | ByteDance | TikTok/Douyin AI |
-| cohere-ai | Cohere | Cohere models |
-
-**Recommendation:** Allow GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot for AI search visibility. Block CCBot and training crawlers if desired.
-
----
-
-## llms.txt Standard
-
-The emerging **llms.txt** standard provides AI crawlers with structured content guidance.
-
-**Location:** `/llms.txt` (root of domain)
-
-**Format:**
-```
-# Title of site
-> Brief description
-
-## Main sections
-- [Page title](url): Description
-- [Another page](url): Description
-
-## Optional: Key facts
-- Fact 1
-- Fact 2
-```
-
-**Check for:**
-- Presence of `/llms.txt`
-- Structured content guidance
-- Key page highlights
-- Contact/authority information
-
----
-
-## RSL 1.0 (Really Simple Licensing)
-
-New standard (December 2025) for machine-readable AI licensing terms.
-
-**Backed by:** Reddit, Yahoo, Medium, Quora, Cloudflare, Akamai, Creative Commons
-
-**Check for:** RSL implementation and appropriate licensing terms.
+Read [references/crawlers-and-standards.md](references/crawlers-and-standards.md) when checking robots.txt for AI crawlers (GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, CCBot and others), or when checking, writing or recommending `/llms.txt` and RSL 1.0 licensing terms.
 
 ---
 
@@ -222,3 +98,10 @@ Generate `GEO-ANALYSIS.md` with:
 3. Establish YouTube channel with content mentions
 4. Implement comprehensive entity linking (sameAs across platforms)
 5. Develop unique tools or calculators
+
+## Ship gate (Prove mode)
+
+When this skill changes something that already exists in a way a person would judge (wording, behaviour,
+design, a model or prompt, a cost line), the change ships only after it beats the current version. Call the
+Skill tool with "gauntlet-loop" and follow its Prove mode. Mechanical fixes that a hard check proves (a
+broken link repaired, a failing test made to pass) do not need it.

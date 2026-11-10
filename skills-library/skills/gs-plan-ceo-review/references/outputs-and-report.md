@@ -161,12 +161,14 @@ Rules:
 backslashes serialize cleanly — never use hand-rolled `echo` / `printf`.
 
 ```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"); BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo no-branch); GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
+_GS_RP="$HOME/.local/state/gs/tmp/repo.$$"; { mkdir -p "${_GS_RP%/*}" && chmod 700 "${_GS_RP%/*}"; } 2>/dev/null || { [ -n "${TMPDIR:-}" ] && _GS_RP="$TMPDIR/gs-repo.$$"; }; git rev-parse --show-toplevel > "$_GS_RP.top" 2>/dev/null || pwd > "$_GS_RP.top" || { echo "GS_TMP_UNWRITABLE: could not write $_GS_RP.top, so nothing was looked up" >&2; exit 1; }
+git rev-parse --abbrev-ref HEAD > "$_GS_RP.br" 2>/dev/null || :
+read -r _GS_TOP < "$_GS_RP.top"; read -r BRANCH < "$_GS_RP.br"; rm -f "$_GS_RP.top" "$_GS_RP.br"; SLUG=${_GS_TOP##*/}; BRANCH=${BRANCH//\//-}; GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
 TASKS_DIR="${HOME}/.local/state/gs/projects/${SLUG:-unknown}"
 mkdir -p "$TASKS_DIR"
 TASKS_FILE="$TASKS_DIR/tasks-ceo-review-$(date +%Y%m%d-%H%M%S).jsonl"
-COMMIT=$(git rev-parse HEAD 2>/dev/null || echo unknown)
-BRANCH=$(git branch --show-current 2>/dev/null || echo unknown)
+git rev-parse HEAD > "$_GS_RP.c" 2>/dev/null || echo unknown > "$_GS_RP.c"; read -r COMMIT < "$_GS_RP.c"; rm -f "$_GS_RP.c"
+git branch --show-current > "$_GS_RP.b" 2>/dev/null || echo unknown > "$_GS_RP.b"; read -r BRANCH < "$_GS_RP.b"; rm -f "$_GS_RP.b"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 
 # Repeat ONE jq invocation per task identified during this review.
@@ -369,7 +371,9 @@ After producing the Completion Summary, remove this branch's handoff notes only 
 
 ```bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"); BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo no-branch); GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
+_GS_RP="$HOME/.local/state/gs/tmp/repo.$$"; { mkdir -p "${_GS_RP%/*}" && chmod 700 "${_GS_RP%/*}"; } 2>/dev/null || { [ -n "${TMPDIR:-}" ] && _GS_RP="$TMPDIR/gs-repo.$$"; }; git rev-parse --show-toplevel > "$_GS_RP.top" 2>/dev/null || pwd > "$_GS_RP.top" || { echo "GS_TMP_UNWRITABLE: could not write $_GS_RP.top, so nothing was looked up" >&2; exit 1; }
+git rev-parse --abbrev-ref HEAD > "$_GS_RP.br" 2>/dev/null || :
+read -r _GS_TOP < "$_GS_RP.top"; read -r BRANCH < "$_GS_RP.br"; rm -f "$_GS_RP.top" "$_GS_RP.br"; SLUG=${_GS_TOP##*/}; BRANCH=${BRANCH//\//-}; GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
 rm -f ~/.local/state/gs/projects/$SLUG/*-$BRANCH-ceo-handoff-*.md 2>/dev/null || true
 ```
 
@@ -400,7 +404,9 @@ Substitute these values from the Completion Summary before running the commands:
 - **COMMIT**: output of `git rev-parse --short HEAD`
 
 ```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"); BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo no-branch); GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
+_GS_RP="$HOME/.local/state/gs/tmp/repo.$$"; { mkdir -p "${_GS_RP%/*}" && chmod 700 "${_GS_RP%/*}"; } 2>/dev/null || { [ -n "${TMPDIR:-}" ] && _GS_RP="$TMPDIR/gs-repo.$$"; }; git rev-parse --show-toplevel > "$_GS_RP.top" 2>/dev/null || pwd > "$_GS_RP.top" || { echo "GS_TMP_UNWRITABLE: could not write $_GS_RP.top, so nothing was looked up" >&2; exit 1; }
+git rev-parse --abbrev-ref HEAD > "$_GS_RP.br" 2>/dev/null || :
+read -r _GS_TOP < "$_GS_RP.top"; read -r BRANCH < "$_GS_RP.br"; rm -f "$_GS_RP.top" "$_GS_RP.br"; SLUG=${_GS_TOP##*/}; BRANCH=${BRANCH//\//-}; GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
 echo '{"skill":"plan-ceo-review","timestamp":"TIMESTAMP","status":"STATUS","unresolved":N,"critical_gaps":N,"mode":"MODE","scope_proposed":N,"scope_accepted":N,"scope_deferred":N,"commit":"COMMIT"}' >> "$GS_PROJ/$BRANCH-reviews.jsonl" && echo LOGGED || echo "NOT PERSISTED"
 ```
 
