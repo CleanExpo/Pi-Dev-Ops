@@ -1,0 +1,38 @@
+[
+  {
+    "skills": [
+      "session-handoff"
+    ],
+    "query": "I'm stopping for the day in ~/.claude, write the handoff.",
+    "files": [],
+    "expected_behavior": [
+      "Runs scripts/handoff-loop.sh first and cites the .handoff-logs log path",
+      "Classifies the session as exactly one of SHIPPED, READY-TO-SHIP or WIP/BLOCKED against the five Definition-of-Done questions",
+      "Writes the pickup point with the exact first command to run"
+    ]
+  },
+  {
+    "skills": [
+      "session-handoff"
+    ],
+    "query": "Hand this off, the build is fine. (Context: CARSI repo, one test file failing, two files uncommitted.)",
+    "files": [],
+    "expected_behavior": [
+      "Does not run ~/.claude/scripts/handoff-loop.sh against the CARSI repo; runs CARSI's own definition-of-done commands and records them",
+      "Reports the failing test as the blocking gate and marks the handoff INCOMPLETE / BLOCKED",
+      "Does not classify the session SHIPPED or READY-TO-SHIP while files are uncommitted"
+    ]
+  },
+  {
+    "skills": [
+      "session-handoff"
+    ],
+    "query": "Everything is green and committed but there's no PR yet. Wrap up.",
+    "files": [],
+    "expected_behavior": [
+      "Classifies READY-TO-SHIP, not SHIPPED",
+      "Runs or invokes the merge-gate pre-open checklist rather than paraphrasing it",
+      "Puts the exact gh pr create command as the first command and does not open the PR itself"
+    ]
+  }
+]

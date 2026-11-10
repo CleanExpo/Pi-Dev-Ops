@@ -1,6 +1,6 @@
 # NOTICE
 
-Adapted from garrytan/gstack @ b9706f36 (MIT). Changes: removed gstack runtime calls, telemetry, update checks; state path moved; long sections carved into references/.
+Adapted from garrytan/gstack @ b9706f36 (MIT). Changes: removed gstack runtime calls, telemetry, update checks; state path moved; long sections carved into references/; outside-voice subagent wait rewritten to use the Agent result or its completion notification, because Claude Code removed TaskOutput in 2.1.277.
 
 Upstream skill: `plan-eng-review` (commit b9706f3635b6a545f46fae607ae9d6bcbfb69b91). State moved from the upstream per-user state directory to `~/.local/state/gs/`.
 

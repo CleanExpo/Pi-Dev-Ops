@@ -22,7 +22,7 @@ would unblock it."**
 | Stated limit | What was actually true | Cost of the route |
 |---|---|---|
 | "Cannot run mutation control — the classifier blocks editing the gate" | The block was on the LIVE file. A throwaway `git clone` mutates freely. It then found two surviving mutants — a real defect the live-file attempt would never have reached. | one `git clone` |
-| "Independent review is unavailable, Codex is out of credits" | A free, already-benchmarked OpenRouter swarm sat in the same directory, scoring 4/4 where claude-opus-5 scored 2/4. | one script run |
+| "Independent review is unavailable, Codex is out of credits" | The next account lane was there: Cursor on its plan, then a fresh Claude Max session recorded as single-vendor (pr-release-gate step 4). Never an API-key lane (founder, 26/10/2026). | one `claude -p` run |
 | "No transcripts found" (`find` returned 0) | `~/.claude/projects` is a symlink; `find` needs `-L`. There were 3,576. | one flag |
 | "estate-sync is broken" | It was correct. A livelock in a freshness guard was the cause; reading the script found it in one pass. | one `grep` |
 | "The `/courses` acronym finding is false" | Checked one 20-line window. The violation was 40 lines below. Two reviewers were right; the refutation was the shallow thing. | one `grep` over the whole file |

@@ -1,0 +1,254 @@
+<title>Decision Card</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  /spm decision card. /spm edits ONLY the JSON in <script id="card-data"> below; the markup and
+  script render it. Rules for the copy: references/decision-card.md. Save writes one row to the
+  db collection "picks"; /spm reads the newest row back with ArtifactData list before building.
+-->
+<script type="application/json" id="card-data">{
+  "card_id": "example-2026-10-22",
+  "eyebrow": "Your call · 22 Oct 2026",
+  "title": "Pick what gets built first",
+  "lead": "I am already working on my defaults. Nothing that is hard to undo happens until you press Save.",
+  "note": "If I read your request wrong, say so in the box at the bottom.",
+  "pick_question": "Which one goes first?",
+  "pick_help": "My pick has the orange badge.",
+  "options": [
+    {"id": "a", "title": "Option A", "recommended": true,
+     "today": "What happens today, in one short line.",
+     "after": "What happens after this change, in one short line.",
+     "before_value": 16, "after_value": 8, "unit": "minutes each time",
+     "risk": "The one thing that could go wrong."},
+    {"id": "b", "title": "Option B",
+     "today": "What happens today.", "after": "What happens after.",
+     "risk": "The one thing that could go wrong."}
+  ],
+  "rank_question": "Put these in order",
+  "rank_help": "Drag the rows, or use the arrows. Top goes first.",
+  "rank": [
+    {"id": "one", "title": "First thing", "sub": "What it does, in plain words"},
+    {"id": "two", "title": "Second thing", "sub": "What it does, in plain words"}
+  ],
+  "ticks_question": "Which may I start?",
+  "ticks_help": "Ticked means yes. Unticked means wait.",
+  "ticks": [
+    {"id": "t1", "text": "One change, said plainly", "why": "Why it matters", "default": true}
+  ],
+  "text_question": "Anything else?",
+  "text_placeholder": "Corrections, or what I got wrong."
+}</script>
+<style>
+:root{
+  --bg:#F2F5F4; --panel:#FFFFFF; --ink:#13201F; --muted:#56635F; --line:#D5DEDB;
+  --accent:#0B6E6A; --rec:#A85F00; --rec-soft:#FBEBD3;
+  --before:#B9C4C1; --after:#0B6E6A; --ok:#2E7D32; --bad:#B3261E;
+  --display:ui-rounded,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1716; --panel:#162220; --ink:#E6EEEC; --muted:#9AA9A5; --line:#2A3A37;
+  --accent:#4FC2B9; --rec:#F0A84A; --rec-soft:#3A2A12;
+  --before:#3D4D4A; --after:#4FC2B9; --ok:#7BC77F; --bad:#F2867E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1716; --panel:#162220; --ink:#E6EEEC; --muted:#9AA9A5; --line:#2A3A37;
+  --accent:#4FC2B9; --rec:#F0A84A; --rec-soft:#3A2A12;
+  --before:#3D4D4A; --after:#4FC2B9; --ok:#7BC77F; --bad:#F2867E; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+main{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(30px,6vw,46px);font-weight:800}
+h2{font-size:26px;font-weight:800}
+h3{font-size:19px;font-weight:600}
+p{margin:0;max-width:65ch}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.lead{font-size:18px}
+.muted{color:var(--muted)}
+.stack{display:flex;flex-direction:column;gap:14px}
+.note{border-left:3px solid var(--rec);background:var(--rec-soft);padding:12px 14px;border-radius:0 8px 8px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0;cursor:pointer}
+.card:hover,.card[aria-checked="true"]{border-color:var(--accent)}
+.card[aria-checked="true"]{box-shadow:0 0 0 2px var(--accent)}
+.card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.badge{align-self:flex-start;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--rec-soft);color:var(--rec)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.barrow{display:grid;grid-template-columns:62px 1fr;gap:8px;align-items:center;font-size:13px}
+.bar{height:14px;border-radius:4px}
+.bar.b{background:var(--before)} .bar.a{background:var(--after)}
+.radio{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--accent)}
+.dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--accent);display:inline-grid;place-items:center}
+.card[aria-checked="true"] .dot::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.rank li{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:grab;min-width:0}
+.rank li.dragging{opacity:.5}
+.rank li .pos{font-family:var(--mono);color:var(--accent)}
+.rank li small,.ticks small{display:block;color:var(--muted)}
+.mv{display:flex;gap:4px}
+button{font:inherit;cursor:pointer}
+.mv button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;width:32px;height:30px}
+.mv button:focus-visible,.primary:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.ticks{display:flex;flex-direction:column;gap:8px}
+.ticks label{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.ticks input{width:18px;height:18px;margin-top:3px;accent-color:var(--accent)}
+textarea{width:100%;box-sizing:border-box;min-height:110px;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.save{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.primary{background:var(--accent);color:var(--panel);border:0;border-radius:10px;padding:12px 22px;font-weight:700;font-size:17px}
+.primary[disabled]{opacity:.5;cursor:not-allowed}
+#status{font-weight:700}
+#status.ok{color:var(--ok)} #status.bad{color:var(--bad)}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<main>
+  <header class="stack">
+    <span class="eyebrow" id="eyebrow"></span>
+    <h1 id="title"></h1>
+    <p class="lead" id="lead"></p>
+    <p class="note" id="note"></p>
+  </header>
+  <section class="stack" id="pickSec" aria-labelledby="pickQ">
+    <h2 id="pickQ"></h2>
+    <p class="muted" id="pickHelp"></p>
+    <div class="grid" role="radiogroup" aria-labelledby="pickQ" id="picks"></div>
+  </section>
+  <section class="stack" id="rankSec" aria-labelledby="rankQ">
+    <h2 id="rankQ"></h2>
+    <p class="muted" id="rankHelp"></p>
+    <ol class="rank" id="rank"></ol>
+  </section>
+  <section class="stack" id="tickSec" aria-labelledby="tickQ">
+    <h2 id="tickQ"></h2>
+    <p class="muted" id="tickHelp"></p>
+    <div class="ticks" id="ticks"></div>
+  </section>
+  <section class="stack" aria-labelledby="textQ">
+    <h2 id="textQ"></h2>
+    <textarea id="notes" aria-labelledby="textQ"></textarea>
+    <div class="save">
+      <button class="primary" id="saveBtn" type="button">Save my picks</button>
+      <span id="status" role="status"></span>
+    </div>
+  </section>
+</main>
+
+<script>
+const D = JSON.parse(document.getElementById("card-data").textContent);
+const OPTIONS = D.options || [], RANK = D.rank || [], TICKS = D.ticks || [];
+const rec = OPTIONS.find(o => o.recommended);
+let state = {pick: rec ? rec.id : null, order: RANK.map(r => r.id),
+  ticks: Object.fromEntries(TICKS.map(t => [t.id, !!t.default])), notes: ""};
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) { if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else e.setAttribute(k, v); }
+  kids.forEach(k => k && e.append(k)); return e;
+}
+function setText(id, v) { document.getElementById(id).textContent = v || ""; }
+function setStatus(msg, kind) { const s = document.getElementById("status"); s.textContent = msg; s.className = kind || ""; }
+
+setText("eyebrow", D.eyebrow); setText("title", D.title); setText("lead", D.lead);
+setText("note", D.note); document.getElementById("note").hidden = !D.note;
+setText("pickQ", D.pick_question); setText("pickHelp", D.pick_help);
+setText("rankQ", D.rank_question); setText("rankHelp", D.rank_help);
+setText("tickQ", D.ticks_question); setText("tickHelp", D.ticks_help);
+setText("textQ", D.text_question || "Anything else?");
+document.getElementById("notes").placeholder = D.text_placeholder || "";
+document.getElementById("pickSec").hidden = !OPTIONS.length;
+document.getElementById("rankSec").hidden = RANK.length < 2;
+document.getElementById("tickSec").hidden = !TICKS.length;
+
+function renderPicks() {
+  const box = document.getElementById("picks"); box.replaceChildren();
+  OPTIONS.forEach(o => {
+    const c = el("div", {class: "card", role: "radio", tabindex: "0", "aria-checked": String(state.pick === o.id)});
+    if (o.recommended) c.append(el("span", {class: "badge", text: "My recommendation"}));
+    c.append(el("h3", {text: o.title}));
+    if (typeof o.before_value === "number" && typeof o.after_value === "number") {
+      const max = Math.max(o.before_value, o.after_value) || 1;
+      const ba = el("div", {class: "stack", "aria-label": "Before and after, " + (o.unit || "")});
+      [["Today", o.before_value, "b"], ["After", o.after_value, "a"]].forEach(([l, v, k]) => {
+        const r = el("div", {class: "barrow"}); const b = el("div", {class: "bar " + k});
+        b.style.width = (v / max * 100) + "%"; r.append(el("span", {text: l}), el("div", {}, b)); ba.append(r);
+      });
+      ba.append(el("span", {class: "muted num", text: o.before_value + " → " + o.after_value + " " + (o.unit || "")}));
+      c.append(ba);
+    }
+    if (o.today) c.append(el("p", {}, el("strong", {text: "Today: "}), document.createTextNode(o.today)));
+    if (o.after) c.append(el("p", {}, el("strong", {text: "After: "}), document.createTextNode(o.after)));
+    if (o.risk) c.append(el("p", {class: "muted", text: o.risk}));
+    const r = el("div", {class: "radio"}); r.append(el("span", {class: "dot"}), el("span", {text: state.pick === o.id ? "Picked" : "Pick this one"})); c.append(r);
+    const choose = () => { state.pick = o.id; renderPicks(); };
+    c.addEventListener("click", choose);
+    c.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); choose(); } });
+    box.append(c);
+  });
+}
+function move(a, b) { if (b < 0 || b >= state.order.length || a === b) return; const o = [...state.order]; const [x] = o.splice(a, 1); o.splice(b, 0, x); state.order = o; renderRank(); }
+function renderRank() {
+  const ol = document.getElementById("rank"); ol.replaceChildren();
+  state.order.forEach((id, i) => {
+    const p = RANK.find(x => x.id === id); if (!p) return;
+    const li = el("li", {draggable: "true"});
+    const up = el("button", {type: "button", "aria-label": "Move " + p.title + " up", text: "↑"});
+    const dn = el("button", {type: "button", "aria-label": "Move " + p.title + " down", text: "↓"});
+    up.onclick = () => move(i, i - 1); dn.onclick = () => move(i, i + 1);
+    up.disabled = i === 0; dn.disabled = i === state.order.length - 1;
+    li.append(el("span", {class: "pos", text: String(i + 1)}), el("div", {}, el("strong", {text: p.title}), el("small", {text: p.sub || ""})), el("div", {class: "mv"}, up, dn));
+    li.addEventListener("dragstart", e => { li.classList.add("dragging"); e.dataTransfer.setData("text/plain", id); });
+    li.addEventListener("dragend", () => li.classList.remove("dragging"));
+    li.addEventListener("dragover", e => e.preventDefault());
+    li.addEventListener("drop", e => { e.preventDefault(); move(state.order.indexOf(e.dataTransfer.getData("text/plain")), i); });
+    ol.append(li);
+  });
+}
+function renderTicks() {
+  const box = document.getElementById("ticks"); box.replaceChildren();
+  TICKS.forEach(t => {
+    const id = "t-" + t.id;
+    const cb = el("input", {type: "checkbox", id}); cb.checked = !!state.ticks[t.id];
+    cb.onchange = () => { state.ticks[t.id] = cb.checked; };
+    const l = el("label", {for: id}); l.append(cb, el("span", {}, document.createTextNode(t.text), el("small", {text: t.why || ""}))); box.append(l);
+  });
+}
+function renderAll() { renderPicks(); renderRank(); renderTicks(); document.getElementById("notes").value = state.notes; }
+
+const notes = document.getElementById("notes");
+notes.addEventListener("input", () => { state.notes = notes.value; });
+
+let db = null;
+const saveBtn = document.getElementById("saveBtn");
+saveBtn.addEventListener("click", async () => {
+  if (OPTIONS.length && !state.pick) { setStatus("Pick one option first.", "bad"); return; }
+  if (!db) { setStatus("Saving is not available in this view. Open the page signed in to claude.ai.", "bad"); return; }
+  saveBtn.disabled = true; setStatus("Saving…");
+  try {
+    await db.collection("picks").add({card_id: D.card_id || "", pick: state.pick, order: state.order,
+      ticks: TICKS.filter(t => state.ticks[t.id]).map(t => t.id), notes: state.notes.slice(0, 4000),
+      savedAt: new Date().toISOString()});
+    setStatus("Saved " + new Date().toLocaleTimeString() + ". Claude reads this next.", "ok");
+  } catch (e) { setStatus("Not saved: " + (e && e.message || "unknown error") + ". Nothing was recorded.", "bad"); }
+  finally { saveBtn.disabled = false; }
+});
+
+async function loadLast() {
+  try {
+    db = await window.claude?.use?.("db") ?? null;
+    if (!db) { setStatus("Saving needs you signed in to claude.ai."); return; }
+    const snap = await db.collection("picks").orderBy("savedAt", "desc").limit(1).get();
+    const d = snap.docs[0]?.data(); if (!d || d.card_id !== (D.card_id || "")) return;
+    if (OPTIONS.some(o => o.id === d.pick)) state.pick = d.pick;
+    // A row is untrusted data: its order must be exactly the RANK ids, each once, or it is ignored.
+    const ids = RANK.map(r => r.id);
+    if (Array.isArray(d.order) && d.order.length === ids.length && new Set(d.order).size === ids.length
+        && d.order.every(x => ids.includes(x))) state.order = d.order;
+    state.ticks = Object.fromEntries(TICKS.map(t => [t.id, (d.ticks || []).includes(t.id)]));
+    state.notes = d.notes || "";
+    renderAll();
+    setStatus("Showing your last save from " + new Date(d.savedAt).toLocaleString() + ".", "ok");
+  } catch (e) { setStatus("Could not read your last save: " + (e && e.message || "unknown error") + ". The page shows my defaults, not your answers.", "bad"); }
+}
+renderAll(); loadLast();
+</script>

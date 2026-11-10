@@ -107,3 +107,10 @@ alive: behaviour change → spec change, same PR.
 and `superpowers:test-driven-development` (implementation discipline),
 `pi-dev-linear-contract` (if tasks flow to Linear: one issue per task-group, existing
 markers only).
+
+## Ship gate (Prove mode)
+
+When this skill changes something that already exists in a way a person would judge (wording, behaviour,
+design, a model or prompt, a cost line), the change ships only after it beats the current version. Call the
+Skill tool with "gauntlet-loop" and follow its Prove mode. Mechanical fixes that a hard check proves (a
+broken link repaired, a failing test made to pass) do not need it.

@@ -51,8 +51,8 @@ ungated work to the same public repo, and the suite carried four tests that fail
   the enforcement-script dirs, and `skills/estate-sync/scripts/` itself. Commit those by hand.
 - **Every push is secret-scanned** against the diff it is about to publish; one hit refuses the
   whole push (exit 1) and logs the pattern name and file, never the value.
-- **Both implementations are now behaviourally identical** and share one suite
-  (`test_estate_sync.py`, 26 tests) which runs the POSIX script on macOS/Linux and the
+- **Both implementations share one suite** and match except the untracked-copy diagnosis and conflicted-autostash check (POSIX only, see below)
+  (`test_estate_sync.py`, 42 tests) which runs the POSIX script on macOS/Linux and the
   PowerShell script on Windows. Four sabotages in
   `skills/enforcement-loop/install/positive_control.py` require the gate's four properties —
   receipt required, receipt content-bound, never-sync defence, secret scan — each to turn its
@@ -70,6 +70,23 @@ ungated work to the same public repo, and the suite carried four tests that fail
 3. `CONFLICT` line → the machine has local commits that no longer rebase: reconcile by
    hand (`git status`, resolve, `git rebase --continue`), then the next cycle resumes.
    The agent never force-pushes and never resolves conflicts itself.
+   An untracked file that origin/main has just started tracking blocks every pull (the Mini,
+   26/10 to 01/11/2026, behind a bare `CONFLICT` that never said why). The cycle now logs a
+   `CONFLICT-CAUSE:` line per file: `matched origin/main when checked` or
+   `differs from origin/main; someone's work`. A match is only what the check saw at that
+   time. Before removing such a file, compare it again with two read-only commands that
+   each print one hash and write nothing: `git hash-object -- "<path>"` and
+   `git rev-parse "origin/main:<path>"`. Only if both succeed and print the same hash,
+   remove the file; the next cycle then syncs. On any error or a different hash, treat it as
+   someone's work. The timer never touches the file itself:
+   four review rounds showed an unattended heal can lose a concurrent edit or publish
+   without a receipt.
+   `CONFLICT: local changes did not re-apply cleanly` + `unmerged: <path>` → the pull
+   succeeded but the autostash pop conflicted (git still exits 0 there). Your edit is in the
+   file's conflict markers and in an `autostash` entry of `git stash list`. Resolve the file
+   and keep that stash entry until you have confirmed the edit is recovered; never run a
+   bare `git stash drop`, which removes whichever entry is newest.
+   Windows `estate-sync.ps1` has neither yet (board card 1PCT-ESTATE-SYNC-PS1-PARITY).
 4. `WARN: on branch <x>, not main — N commit(s) behind` → nothing syncs until it is
    back on main. On 28/09/2026 all three machines were found this way, weeks stale
    (RA-7802); `fleet.py health` now reports it for every node. Merge or park the

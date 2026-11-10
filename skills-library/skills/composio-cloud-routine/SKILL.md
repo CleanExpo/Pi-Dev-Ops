@@ -1,6 +1,6 @@
 ---
 name: composio-cloud-routine
-description: Pattern for invoking Composio tools from inside a CCR remote routine (cloud-running scheduled agent) when the routine needs to call third-party services (Linear, GitHub, Slack, Gmail, etc.) and the local Composio CLI is not available. The routine installs the Composio CLI inline at startup, logs in with the user's API key passed via the routine prompt, then uses `composio execute <slug>`. Bypasses the claude.ai cloud connector account-binding fragility entirely.
+description: "Pattern for calling Composio tools from a CCR remote routine (cloud-running scheduled agent) where the local Composio CLI is absent. The routine installs the CLI inline at startup, logs in with the user's API key passed in the routine prompt, then runs `composio execute` with a tool slug, avoiding claude.ai cloud connector account-binding. Use when a remote routine must call Linear, GitHub, Slack, Gmail or other third-party services."
 ---
 
 # Composio in CCR Routines

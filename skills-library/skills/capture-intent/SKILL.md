@@ -1,6 +1,6 @@
 ---
 name: capture-intent
-description: Stage 1 of Anthropic's AI-Native SDLC Playbook ("Capture as intent.md") and the required front door to gstack /plan-ceo-review. Turns a founder's raw thought — typed into Mission Control's Capture Intent box, pasted, or dictated here — into an accepted intent.md (problem, proposed outcome, affected users and systems, constraints, open questions), stages it where /plan-ceo-review reads its design doc, then runs the CEO review. Use when the user says "capture intent", "intent.md", "I have an idea", "brain dump", pastes an intent from Mission Control, or asks for /plan-ceo-review / a CEO review of a plan with no accepted intent yet.
+description: "Stage 1 of the AI-Native SDLC Playbook (\"Capture as intent.md\") and the required front door to gstack /plan-ceo-review. Turns a raw founder thought (Mission Control Capture Intent box, paste, or dictation) into an accepted intent.md (problem, outcome, affected users and systems, constraints, open questions), stages it where /plan-ceo-review reads its design doc, then runs the CEO review. Use when the user says \"capture intent\", \"intent.md\", \"I have an idea\", \"brain dump\", or asks for /plan-ceo-review with no accepted intent yet."
 ---
 
 # /capture-intent — the intent before the CEO review

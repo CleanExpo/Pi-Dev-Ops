@@ -1,6 +1,6 @@
 ---
 name: senior-harness-control
-description: Use before substantive project work that requires governed discovery, delegation, verification, or recovery from repeated failure.
+description: Governs substantive project work through a control contract above the lead model, covering frozen objective, startup receipt, 15-20 move horizon graph, admission, routing, loop-breaking, independent proof, governed Grill-Me entry and post-Grill advisory-board proposals. Use before substantive project work that requires governed discovery, delegation, verification, or recovery from repeated failure, for /senior-harness, a full-system overhaul, or false-green evidence.
 allowed-tools: Read, Grep, Glob, LS, Bash
 ---
 
@@ -12,148 +12,14 @@ may not expand authority, accept its own work, repeat a failed pathway, or promo
 ## Usage
 
 In trusted Pi-Dev-Ops sessions, project lifecycle hooks run the setup driver before mediated local
-tools. The first user prompt is frozen byte-for-byte as the primary objective; later prompts are
-subordinate until a new task starts. The receipt binds the Git worktree, exact HEAD and dirty-state
-digest, this driver, and the installed `senior-harness-control`, `model-router`, and `unlazy` skill folders.
-It also executes the provider-neutral router and binds its `RoutingRequest` and `RouteDecision`, then
-requires Unlazy as the downstream decomposition, gate, integration, and receipt controller.
+tools. The first user prompt is frozen byte-for-byte as the primary objective, and a startup receipt
+binds the worktree, HEAD, driver and control skills. Hooks can be bypassed on other surfaces: never
+claim universal interception, and run the explicit driver where they are unavailable or untrusted.
+A `startup-admitted` receipt proves deterministic startup only and grants no authority.
 
-For normal Codex and Claude delivery sessions, startup also binds a parallel-first orchestration
-policy. Before the root performs implementation, load Unlazy, prove disjoint leaf ownership, admit
-the delivery contract, and dispatch the independent leaves up to the four-worker cap. The root owns
-coordination and final proof; bounded leaf and integration workers own every mutation. The lifecycle
-hook denies root mutation tools throughout a parallel-required session. Grill interactions remain
-locked and never receive an early dispatch instruction.
-
-Install the same control stack into all three skill discovery roots with:
-
-```bash
-# scripts/install_senior_harness.sh does not exist in this repo (checked 2026-08-29).
-cp -R ~/.claude/skills/senior-harness-control ~/.codex/skills/
-cp -R ~/.claude/skills/senior-harness-control ~/.agents/skills/
-```
-
-This aligns `senior-harness-control`, `model-router`, and `unlazy` under `~/.codex/skills`,
-`~/.claude/skills`, and `~/.agents/skills`. Codex and Claude have lifecycle-hook adapters; the
-Agents root is discovery-only unless its host separately proves a lifecycle adapter.
-
-Run the same driver explicitly from any Git project when hooks are unavailable or untrusted:
-
-```bash
-python ~/.codex/skills/senior-harness/scripts/setup_driver.py start \
-  "<literal request>" --project "$(git rev-parse --show-toplevel)" --surface codex
-```
-
-Use `--surface claude` or `--surface vscode-openrouter` for the other hosts. Exit `0` plus a
-`startup-admitted` JSON receipt proves deterministic startup only. It never grants mutation,
-business, financial, privacy, deployment, or irreversible authority.
-
-Explicit skill invocation also remains available when automatic triggering is uncertain:
-
-```text
-Codex:      $senior-harness <literal request>
-Claude:     /senior-harness <literal request>
-```
-
-Locate the canonical source, then create the immutable intake envelope from any project:
-
-```bash
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py where
-python ~/.codex/skills/senior-harness/scripts/senior_harness.py intake "<literal request>" --horizon-required
-```
-
-Claude Code uses the same path under `~/.claude/skills/`. Do not assume the active project contains
-Pi-Dev-Ops scripts.
-
-Use `--horizon-required` for strategic, architectural, multi-project, product, or repeatedly stalled
-work. Omit it for routine bounded work. Exit `0` plus valid JSON is an intake receipt, not execution
-proof.
-
-Project hooks cover normal trusted Codex/Claude lifecycle paths. Codex hosted or specialised tools,
-Claude `--bare`/`--safe-mode`, disabled or untrusted project hooks, direct shells, and other hosts can
-bypass them. Never claim universal interception; use the explicit driver and downstream scheduler
-gate on those surfaces.
-
-The hooks mechanically require a valid startup receipt before the first mediated local tool and keep
-injecting the frozen objective afterward. In a `/grill-me` or `/grill-with-docs` interaction they
-fail closed: only evidence discovery and the Grill state driver may run; edits, pushes, deploys, sends,
-and worker dispatch are denied. Outside a Grill, existing host/repository policy still controls generic
-mutations. `guard-dispatch` rejects every Grill delivery move until a confirmed shared-understanding
-session is supplied and continues rejecting mutating moves until a trusted authority adapter exists.
-
-Recovery is deliberately asymmetric. A missing or invalid session receipt may still admit exact,
-read-only discovery tools such as `Read`, `Grep`, `Glob`, `ToolSearch`, web search, and the named
-read-only Exa tools, with an explicit zero-authority warning. Mutation, provider, worker, browser
-computer-use, send, and deploy tools remain denied. Installed Harness control digests are strict at
-startup and the first tool. After a normal delivery session has admitted its first tool, later
-Harness-code drift is surfaced as stale-control evidence rather than denying the whole session;
-normal host and repository policy still decides generic tools, and a fresh session is required to
-produce new control-code evidence. Grill interactions continue revalidating project and control
-bytes on every tool, with recovery reads as the only carve-out.
-
-### Governed Grill-Me entry
-
-First create or select a fat-marker sketch in the real Obsidian vault's `Sketches/` directory. Then
-freeze the Grill interaction explicitly:
-
-```bash
-python ~/.codex/skills/senior-harness/scripts/setup_driver.py start \
-  "/grill-me <literal project objective>" --project "<git-root>" --surface codex \
-  --interaction grill-me
-```
-
-Use `grill-with-docs` for an existing codebase. Build a dependency-ordered decision-tree JSON, then
-start the session with `grill_session.py start`. Keep its state below
-`$SENIOR_HARNESS_STATE_DIR` or `~/.local/state/senior-harness/`; never store control state in the
-project. The machine exposes an evidence query or exactly one human question. Human questions must
-carry a recommendation and rationale. Record the user's words verbatim as `DECIDED`, `RABBIT_HOLE`,
-or `NO_GO`. Confirmation requires the exact phrase printed by the driver and cannot succeed while a
-leaf is unresolved. Only then may `materialize` write the bound transcript under the vault's sibling
-`Grills/` directory.
-
-Load [`references/grill-contract.md`](references/grill-contract.md) for the state schema and authority
-boundary. A shared-understanding receipt proves the interview resolved; it grants no mutation,
-business, financial, privacy, deployment, or irreversible authority.
-
-### Post-Grill advisory-board composition
-
-After — and only after — a Grill session carries a valid `grill-shared-understanding` receipt, a
-strategic task may prepare a five-persona advisory-board **proposal**. It is a decision-support
-input, not a delivery, hiring, or agent-activation authority:
-
-```bash
-python ~/.codex/skills/senior-harness/scripts/advisory_board.py init \
-  --grill-session CONFIRMED_GRILL.json \
-  --task-id BOARD_TASK_ID \
-  --decision-question "<bounded decision>" \
-  --data-class internal \
-  --max-cost-usd 20 \
-  --deadline-seconds 900
-```
-
-The proposal fixes five complementary functional personas: outcome, systems, customer value, risk,
-and economics. For each role, approved discovery lanes must benchmark at least two functional
-candidate profiles before proposing one. They are prompt cards, not real people, celebrity
-simulations, personality diagnoses, or psychometric profiles. A later routed run must return exact
-provider/model/usage receipts, five independent first passes, at least two provider families, no
-model reuse across personas, an anonymised claim ledger, and an independent top-floor arbiter.
-Missing telemetry, silent fallback, an unsourced fact, or unresolved critical risk returns no
-decision.
-
-Before any provider dispatch, resolve and bind one approved route for every persona and the arbiter
-with `advisory_board.py bind-routes`. Each route fixes provider family, exact model, endpoint,
-execution location, provider-registry identity, policy digest, and reserved cost. Every later run
-receipt must reproduce those values plus observed token usage and cost; a mismatch is blocked.
-
-`advisory_board.py verify-run` proves only that a supplied run receipt meets the protocol. It never
-activates a board, a persona, a worker, or a delivery task. Activation requires independent
-verification and explicit owner approval in a trusted authority runtime. Do not administer or claim
-Belbin, Hogan, or any other proprietary psychometric assessment; use the custom evidence and
-capability matrix in [`references/advisory-board-contract.md`](references/advisory-board-contract.md).
-
-When the confirmed Grill objective explicitly requests advisory-board composition, create this
-proposal before routing board candidates or any downstream delivery. Do not auto-create boards for
-unrelated Grill sessions, and do not route provider work until the proposal passes `lint`.
+- [`references/startup-and-hooks.md`](references/startup-and-hooks.md) - read when starting a session, running the setup driver or intake by hand, installing the skill into other discovery roots, or when hooks are missing, untrusted or a receipt is absent or invalid.
+- [`references/grill-and-advisory-board.md`](references/grill-and-advisory-board.md) - read when the request is `/grill-me` or `/grill-with-docs`, or a confirmed Grill asks for an advisory-board proposal.
+- [`references/grill-contract.md`](references/grill-contract.md) and [`references/advisory-board-contract.md`](references/advisory-board-contract.md) - read for the Grill state schema and the board verification protocol.
 
 ## 1. Ground
 

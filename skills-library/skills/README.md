@@ -1,6 +1,6 @@
 ---
 type: skill-catalog
-updated: 2026-09-24
+updated: 2026-10-31
 ---
 
 # Skills Catalog — Full Inventory
@@ -10,6 +10,7 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 ## Marketing (entry: `marketing-orchestrator`)
 - [nexus-copywriter](nexus-copywriter/SKILL.md) — Fable-5 estate-wide content-quality GATE for any client-/public-facing words (post, article, email, landing/ad copy, video script, thought-leadership). Distilled from Synthex senior-copywriter v0.3: sourced+evidence-tagged claims, active-voice CTAs, falsifiable conversion hypothesis + kill threshold, show-the-working, NEVER-list self-audit. Drafts to standard; brand-guardian is the final mechanical gate.
 - [nexus-viral](nexus-viral/SKILL.md) — Turns one idea into a hook-first 9:16 hero short and repurposes it into 8 platform-native cuts — YouTube (Shorts) and Instagram (Reels) first, then TikTok and the rest — grounded in live trend + competitor intelligence. Money-maker doctrine: the YouTube cut anchors the set with Google/Bing-indexable search metadata. Four gated stages: Brief Grill → hook + generate (words by nexus-copywriter, render by the Synthex engine) → Broadcast Grill → 1→8 repurpose. Human-gated publish; never self-approves, never fabricates virality signals.
+- [greg-style-writer](greg-style-writer/SKILL.md) — Writes as Phill in Greg Isenberg's style: short punchy lines, bold first sentence, numbered takeaways, first-person stories with real numbers, clear next step. For X/LinkedIn posts, threads, newsletters, video scripts, landing pages and blogs.
 - [marketing-orchestrator](marketing-orchestrator/SKILL.md) — ENTRY POINT for the Marketing Skills Package.
 - [marketing-positioning](marketing-positioning/SKILL.md) — Develops value proposition, competitive positioning, and Jobs-to-be-Done articulation for a brand or feature.
 - [marketing-icp-research](marketing-icp-research/SKILL.md) — Builds an Ideal Customer Profile (ICP) — firmographics, role, pains, triggers, vocabulary, watering holes, decision…
@@ -175,22 +176,19 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 - [skybridge-rollout](skybridge-rollout/SKILL.md) — Unite-Group rollout plan for Skybridge MCP-Apps framework — which businesses get an MCP App, in what order, with what…
 
 ## Orchestration & Tiers
+- [nexus-deep](nexus-deep/SKILL.md) — Evidence-led senior engineering entry point: deep audit, build, challenge, simplify and verify; delegates to existing Senior Harness, Done and skill-selector; Phase 1 advisory only, no new runtime authority.
 - [pantheon](pantheon/SKILL.md) — Council of sourced minds: graded-citation persona emulations deliberate (blind → grill-me cross-exam → judge chairman) into a dissent-preserving, ACH-based verdict. Convene gate keeps trivial questions out.
 - [forge](forge/SKILL.md) — Verdict → skill: 8 gated phases (new-spec gate, eval-first, OWASP scanner + AI-BOM, quarantine registration). Human promotes; forge never self-registers.
 - [build-tournament](build-tournament/SKILL.md) — Compete-mode for BUILT artifacts (Angela Jiang pattern): 3 isolated persona contestants (operator/strategist/skeptic) each build the full artifact in worktrees, a blind judge scores against a pre-declared rubric, champion revised with judge feedback + grafts from losers. High-stakes builds only; sibling of `output-tournament` (creative variants).
 - [gauntlet-loop](gauntlet-loop/SKILL.md) — (/gauntlet-loop) Turns a goal into ONE ~150-word paste-ready prompt: offers 2–3 named/fetchable/comparable quality bars, then writes a prompt that makes a fresh session fan out builder+harsh-critic pairs per piece and `/loop` until the critic picks ours in a blind label-stripped A/B. Exit is winning, never a round count. Upstream of the build — sibling of `build-tournament` (which runs the contest itself). Technique by Matt Shumer; packaging by RoboNuggets (CC BY 4.0).
 - [gauntlet-pair](gauntlet-pair/SKILL.md) — Sub-skill of `gauntlet-loop` (no router row; dispatched by it). Emits a MATCHED PAIR of prompts — Claude Desktop (leans on its native leased worktree, no `/loop`) and Claude CLI (`/loop` + `ultracode`) — grinding SEPARATE projects at once. Exit is 100% AAA+: every piece simultaneously at a rung derived from repeated blind wins under fresh-context critics, never a score out of 10. Ships `claim.mjs`, an advisory atomic-mutex project claim so the two surfaces cannot overlap.
 - [tier-orchestrator](tier-orchestrator/SKILL.md) — The orchestrator plans, decomposes briefs, and delegates to lower tiers.
-- [tier-architect](tier-architect/SKILL.md) — Design tier configurations - which models for which roles.
-- [tier-worker](tier-worker/SKILL.md) — Workers execute discrete, well-scoped tasks quickly.
 - [tier-evaluator](tier-evaluator/SKILL.md) — QA agent that grades output against explicit acceptance criteria.
-- [auto-generator](auto-generator/SKILL.md) — Generate tier configs from project briefs automatically.
-- [token-budgeter](token-budgeter/SKILL.md) — Track and enforce token budgets per tier.
-- [context-compressor](context-compressor/SKILL.md) — Compress context at tier boundaries to save tokens.
 - [dispatcher-core](dispatcher-core/SKILL.md) — Cross-tool workflow primitive. Executes a declared sequence of steps that chain Linear, Gmail, Calendar, Margot…
 - [cross-tool-flow](cross-tool-flow/SKILL.md) — Declarative YAML/JSON authoring surface over dispatcher-core.
 - [parallel-delegate](parallel-delegate/SKILL.md) — Split work across multiple Claude subagents running concurrently when a task has independent subtasks.
 - [persistent-subagents](persistent-subagents/SKILL.md) — Keep one warm, named specialist per domain and feed it via SendMessage resume; tiered context economy (T0 conserve / T1 maximize / T2 absorb), naming, retirement at ~300k, transcript fallback.
+- [cloudroom-router](cloudroom-router/SKILL.md) — Router thread that never does the work: turns requests into written tickets (prd.md + eval.md per ticket, one writer per file: the human approves, the router owns status), hands each ready ticket to its own Cloudroom child-thread worker, reviews results against eval.md, sends fixes back to the same worker, and escalates only decisions. A 10-minute Cloudroom Loop watchdog flags stalled, silent, finished-unreviewed, orphaned or failed workers. Cloudroom-native sibling of the harness-subagent skills above.
 - [chrome-account-align](chrome-account-align/SKILL.md) — Deterministic Chrome/claude.ai account alignment: one pinned Chrome profile per machine matching the CLI account; aligner scripts (macOS zsh + Windows PowerShell); self-heal steps for "extension not connected".
 - [terminal-orchestrator](terminal-orchestrator/SKILL.md) — Safely manage long-running tmux-based dev workflows (build, test, watch, log tailing) on the local machine via a…
 - [specialist-council](specialist-council/SKILL.md) — AI Communication Intelligence layer — the bidirectional cross-specialist consultation protocol that makes specialist…
@@ -199,16 +197,17 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 - [cloud-node](cloud-node/SKILL.md) — How an ephemeral managed Claude Code container (claude.ai/code, the mobile and web app, a GitHub Action) joins the estate as a first-class node instead of working blind.
 - [estate-mailbox](estate-mailbox/SKILL.md) — The async channel between fleet nodes.
 - [estate-sync](estate-sync/SKILL.md) — Use when fleet machines have stale/diverged skills or config ("update didn't reach the other computer"), when setting up a new machine, or when the estate-sync log sho…
+- [estate-tidy](estate-tidy/SKILL.md) — The 2-hourly settle, handoff and cleanup pass on the MacBook, Mac Mini and PC: schedule, LOST/STALLED report lines, and why a worktree, process or temp file was or was not removed.
+- [source-of-truth](source-of-truth/SKILL.md) — Use at the start of ANY task on Phill's machines, before re-discovering context. Board + shared learnings live on the Mini; claim before work, hand off with a result and a lesson.
+- [shared-knowledge](shared-knowledge/SKILL.md) — Use when changing, installing or debugging the fleet's session-start context and LESSON harvest (sot_hook.py, sot_compact.py), or when approving lessons into SHARED-KNOWLEDGE.
 - [genesis-orchestrator](genesis-orchestrator/SKILL.md) — Autonomous project orchestration protocol for Next.js full-stack builds.
 
 ## Agent Design & Autonomy
 - [agent-workflow](agent-workflow/SKILL.md) — Use when defining, scoping, promoting, or debugging an agent or ADW — the 5-part agent contract, scoping formula…
 - [agent-expert](agent-expert/SKILL.md) — Act-Learn-Reuse cycle for agent improvement over time.
-- [agentic-layer](agentic-layer/SKILL.md) — Design products with agent-native architecture.
 - [agentic-loop](agentic-loop/SKILL.md) — Infinite self-correcting iteration until completion criteria met.
 - [agentic-review](agentic-review/SKILL.md) — Review agent output for quality, not just correctness.
 - [afk-agent](afk-agent/SKILL.md) — Run agents unattended with stop guards and notifications.
-- [piter-framework](piter-framework/SKILL.md) — 5-pillar AFK agent setup - Prompt, Intent, Trigger, Environment, Review.
 - [autonomy-ladder](autonomy-ladder/SKILL.md) — Capability-tiered autonomy gating for all agent action — maps the DeepMind AGI→ASI continuum (arXiv:2606.12683) onto…
 - [leverage-audit](leverage-audit/SKILL.md) — 12 Leverage Points diagnostic for agent autonomy — with explicit scoring rubrics and ROI guidance.
 - [zte-maturity](zte-maturity/SKILL.md) — Zero Touch Engineering maturity model — 4-level assessment with explicit scoring criteria per dimension.
@@ -218,7 +217,6 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 
 ## TAO Engine
 - [tao](tao/SKILL.md) — The Tao is the autonomous execution engine that ties self-direction with governance. Orchestrates /nexus (routing), /tao-loop, /tao-judge, and /session-handoff into a single autonomous mission-runner.
-- [tao-skills](tao-skills/SKILL.md) — Master index of all 31 TAO skills.
 - [tao-loop](tao-loop/SKILL.md) — Judge-gated autonomous coding loop runner.
 - [tao-judge](tao-judge/SKILL.md) — Single-scalar termination gate for the TAO judge-gated loop.
 - [tao-boomerang](tao-boomerang/SKILL.md) — Token-efficient one-shot dispatch with summary-only return.
@@ -226,8 +224,6 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 - [tao-context-mode](tao-context-mode/SKILL.md) — Summary-index + on-demand expansion. Walks a repo once, summarises every source file (~200B vs raw 5-50KB), and serves…
 - [tao-context-vcc](tao-context-vcc/SKILL.md) — Deterministic, LLM-free conversation compactor for TAO sessions.
 - [tao-codebase-wiki](tao-codebase-wiki/SKILL.md) — Self-updating per-directory WIKI.md files driven by post-merge git history.
-- [claude-max-runtime](claude-max-runtime/SKILL.md) — Execute TAO natively within Claude Max subscription.
-- [pi-integration](pi-integration/SKILL.md) — Bridge TAO to pi-mono runtime for multi-provider support.
 
 ## Process / Planning Gates
 - [proof-discipline](proof-discipline/SKILL.md) — Before marking ANY gate, test or task passing — "verified", "green", "done", "fixed", "shipped". Catches vacuous verification, claims never checked against the live system, silent caps, deployed-vs-source drift. _(was live and routed but missing from this catalog until 2026-08-03)_
@@ -255,6 +251,9 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 - [opus-adversary](opus-adversary/SKILL.md) — Run a Claude-native adversarial review using an Opus subagent to challenge the design, find race conditions, and…
 - [review-command](review-command/SKILL.md) — /review specialised command skill. Use when the operator asks for /review, review, code review, launch review, or…
 - [verify-test](verify-test/SKILL.md) — Test verifier. Interprets smoke test and CI results, classifies pass/fail, detects flaky tests and coverage…
+- [orchestrator](orchestrator/SKILL.md) — Orchestrator v1 on the Mini: a read-only 30-minute morning page of board, lane logins, stalls and Needs-Phill items, with a 15-minute deadman; never writes the board or dispatches.
+- [guardian](guardian/SKILL.md) — The Mini's site, PR and Jev-spend watchers and the daily live ~/.claude drift alarm, versioned with their installer: three states (OK / FAIL / UNKNOWN), a shared jobs.json lock, and the weekly false-green count that measures the Proof Loop.
+- [done-harness](done-harness/SKILL.md) — The Done gate and `donectl` (status, selftest, start, lock, verify): completion is a locked, revision-bound contract whose recipes pass on this commit. Carries the rule for cloud sandboxes where `rules/done-gate.md` is not loaded.
 - [task-completion-gate](task-completion-gate/SKILL.md) — Invoke before reporting a task "done", "complete", "fixed", "green", or "shipped" — the final gate that blocks a…
 - [readiness-architect](readiness-architect/SKILL.md) — Production-Readiness Architect command (/readiness-architect).
 - [session-handoff](session-handoff/SKILL.md) — Gate the tree green, then generate a precise session handoff before stopping, switching terminals, opening a PR…
@@ -296,12 +295,13 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 - [curator-deployment-unknown](curator-deployment-unknown/SKILL.md) — Use when hitting deployment failures in GitHub Actions dependency-review, Vercel rootDirectory config after a monorepo…
 - [curator-security](curator-security/SKILL.md) — Prevents the three recurring security failures distilled from portfolio incidents across dr-nrpg, synthex, ccw-crm, and…
 - [curator-scheduled-tasks](curator-scheduled-tasks/SKILL.md) — Use when authoring, debugging, or reviewing scheduled tasks that run via the Claude Code scheduled-tasks MCP — covers…
-- [mac-mini-external-storage](mac-mini-external-storage/SKILL.md) — Mac Mini only: models, caches, worktrees, TMP, Docker, Ollama, HuggingFace must live on `/Volumes/Storage Unit`, never Macintosh HD.
+- [mac-mini-external-storage](mac-mini-external-storage/SKILL.md) — Mac Mini only: models, caches, worktrees, TMP, Docker, HuggingFace must live on `/Volumes/Storage Unit`, never Macintosh HD.
 - [scheduled-tasks](scheduled-tasks/SKILL.md) — Guidelines for writing reliable scheduled task prompts via the Claude scheduled-tasks MCP.
 - [vercel-prod-debug](vercel-prod-debug/SKILL.md) — Use when a Vercel-hosted app (esp. Next.js App Router) is misbehaving in production — all /api routes 500 while pages…
 - [vercel-env-puller](vercel-env-puller/SKILL.md) — Per-project Vercel env-var manifests (NAMES + targets only — never values).
 - [unite-group-ci-recovery](unite-group-ci-recovery/SKILL.md) — How to ship PRs cleanly across the Unite-Group portfolio (Synthex, Pi-Dev-Ops, Disaster-Recovery, DR-NRPG…
 - [merge-gate](merge-gate/SKILL.md) — Use before opening any PR, pushing to a shared branch, or merging in this estate — where automation force-readies draft PRs and squash-merges them on green within minutes, so opening a PR is authorising its merge.
+- [multi-model-pipeline](multi-model-pipeline/SKILL.md) — Handoff templates for the Grok spec → Claude Code blueprint → Codex code → release-gate line, with the house rules; points to pr-release-gate for the gate itself.
 - [pr-release-gate](pr-release-gate/SKILL.md) — Require exact-SHA local tests and an independent second-agent PASS before any branch push or pull request action.
 - [github-actions-quota-guard](github-actions-quota-guard/SKILL.md) — Use before pushing to a GitHub Free PRIVATE repo, or when Actions jobs fail to start with the "payments failed / spending limit" message. Makes a pushed PR arrive already green (replay CI locally, rebase clean), diagnoses free-tier Actions-minute exhaustion (not a real payment failure), stops futile reruns, and trims workflow minute-bloat.
 - [supabase-write-gate](supabase-write-gate/SKILL.md) — Fail-closed PreToolUse gate on Supabase MCP writes.
@@ -313,7 +313,6 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 ## Engineering Conventions & Runtime
 - [architecture](architecture/SKILL.md) — Architectural conventions and anti-patterns specific to Pi-Dev-Ops — companion model, sandbox isolation, ZTE leverage…
 - [security](security/SKILL.md) — Security patterns and anti-patterns for the Pi-Dev-Ops codebase — path traversal, HMAC webhooks, secrets hygiene…
-- [hooks-system](hooks-system/SKILL.md) — Use when adding lifecycle hooks or safety guardrails to a project — the 6 hook types plus the starter guardrail hookset…
 - [deployment](deployment/SKILL.md) — Deployment constraints and runtime behaviour for Railway (backend) and Vercel (frontend) — proxy config, redirects…
 - [claude](claude/SKILL.md) — Correct patterns for Claude SDK usage, subprocess vs API mode selection, MCP SDK imports, and streaming API call…
 - [claude-runtime](claude-runtime/SKILL.md) — Rules for invoking Claude correctly — subprocess vs SDK mode, stream-json parsing, MCP SDK imports, Railway vs local…
@@ -332,6 +331,7 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 - [skill-selector](skill-selector/SKILL.md) — The library's check-out / check-in loop, as a tool: `scripts/skill_shelf.mjs find "<task>"` searches active + vault skills (router trigger phrases scored; top 5 only), `checkout` symlinks a vault skill into `~/.claude/skills` (live-reloaded, no restart), `checkin` returns it (symlink-into-vault only, `unlink` never `rm -rf`), `pull` fetches a reviewed, SHA-pinned outside repo into the vault at zero listing cost, `overrides` lists the local long tail as `name-only` so router entry-points keep their descriptions. Search vendored unchanged from sorcerai/skill-router (MIT). ≤5 skills per task, load-on-earn, check in when done.
 - [context-cockpit](context-cockpit/SKILL.md) — Audit and reclaim a session's context/token budget in one pass — read /context, trim MCP tools, clear vs compact…
 - [connector-routing](connector-routing/SKILL.md) — Decide which connector path to use for a given integration task — Desktop MCP, claude.ai cloud connector, or Composio.
+- [library](library/SKILL.md) — Routes any task that names an external service, API, MCP connector, CLI login or credential to `connections.md`, the registry of how each connection is reached and where its auth lives (never the values).
 - [composio-cli](composio-cli/SKILL.md) — Help users operate the published Composio CLI to find the right tool, connect accounts, inspect schemas, execute tools…
 - [composio-cloud-routine](composio-cloud-routine/SKILL.md) — Pattern for invoking Composio tools from inside a CCR remote routine (cloud-running scheduled agent) when the routine…
 - [connecting-meta-facebook-instagram](connecting-meta-facebook-instagram/SKILL.md) — Use when connecting or fixing Facebook/Instagram (Meta) OAuth in a web app — Connect button no-ops or errors, "Meta…
@@ -374,10 +374,12 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 - [daily-intel-brief](daily-intel-brief/SKILL.md) — Morning breadth sweep: GitHub trending (3 windows via gh api), X + web headlines (Exa-first fallback ladder), YouTube momentum ranked by views-vs-subs, into one dated vault brief with ≤3 deeper-look handoffs (`deep-loop`/`nlm-skill`). Raw linked signal over analysis; failed lanes reported, never padded.
 - [wiki-query](wiki-query/SKILL.md) — Query the Brain-1 wiki before hitting external research.
 - [source-ingest](source-ingest/SKILL.md) — Capture real, credible data from authoritative sites into the 2nd-Brain vault Sources/ library so it can be cited by…
+- [trd-truth-research-deliver](trd-truth-research-deliver/SKILL.md) — Global truth, source authentication, cross-check and independent evidence verification for real data, reports, inspection scopes, reviews, training and research. Use when factual reliability matters, or to verify older reports.
 - [nexus-scientific](nexus-scientific/SKILL.md) — Entry point for 149 vendored scientific research skills (K-Dense, MIT). Bioinformatics/genomics, cheminformatics/drug discovery, proteomics, clinical + medical imaging, materials, physics/astronomy, stats + scientific ML, geospatial, plus the research workflow itself (literature review, hypothesis generation, experimental design, peer review, grants, scientific writing/figures/posters/slides). Router only — greps `library/INDEX.md`, checks out exactly ONE sub-skill. Refresh from upstream via `refresh.sh`.
 - [storm](storm/SKILL.md) — Use when the user wants a comprehensive, neutral, citation-grounded article, report, briefing, or explainer researched…
 - [deep-loop](deep-loop/SKILL.md) — Operator command `/deep-loop <topic>`: the one-topic research-DEPTH engine. Exa-first freshness (never-silent WebSearch/WebFetch fallback ladder) + honest Mixture-of-Agents rounds (perspective proposers → see-all aggregators → Opus synthesist) inside a loop-until-dry swarm that re-targets each round at the prior round's gap ledger. Inherits nexus G1/G3/G6/G7 by pointer; Executive Read over a fully cited report; watch: composes with built-in /loop, edge-triggered pings.
 - [research](research/SKILL.md) — Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo.
+- [teach](teach/SKILL.md) — (/teach, or /spm Learn lane) Teach the user a topic over many sessions: mission first, starting-point diagnostic, cited HTML lessons with a shuffling quiz component, learning records, spaced-review queue. Estate fork of mattpocock `teach`, pinned; changes in PROVENANCE.md.
 - [dream](dream/SKILL.md) — Use to curate machine-local memory from recent session transcripts — invoked as /dream, /dream status, or /dream apply 1,3.
 
 ## B.U.I.L.D. Pipeline
@@ -392,8 +394,6 @@ Top-level catalog per the 2-place rule in [CLAUDE.md](CLAUDE.md) — one line pe
 - [nexus](nexus/SKILL.md) — Master-orchestrator command. Type /nexus <goal> to have the estate's best minds work a goal end-to-end — frame it…
 - [meta-curator](meta-curator/SKILL.md) — Skill self-authoring agent. Reads .harness/lessons.jsonl (weekly) and merged-PR diffs (daily), proposes new SKILL.md…
 - [agentskills-manifest](agentskills-manifest/SKILL.md) — Export Pi-CEO's skill registry as an agentskills.io-format manifest.
-- [big-three](big-three/SKILL.md) — The foundational framework - Model, Prompt, Context.
-- [closed-loop-prompt](closed-loop-prompt/SKILL.md) — Self-correcting prompts with embedded verification.
 
 ## Self-healing chain (order: prove-the-failure → contain → diagnose → classify → propose-fix → adversarial-review → verify → immunise → incident-memory)
 - [prove-the-failure](prove-the-failure/SKILL.md) — Build a tight, red-capable feedback loop that drives the actual failure path and asserts the exact symptom, before any hypothesis is formed.

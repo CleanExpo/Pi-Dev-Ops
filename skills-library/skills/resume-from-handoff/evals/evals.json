@@ -1,0 +1,37 @@
+[
+  {
+    "skills": [
+      "resume-from-handoff"
+    ],
+    "query": "/resume-from-handoff (latest handoff claims branch feat/x at commit abc1234 and a clean tree)",
+    "files": [],
+    "expected_behavior": [
+      "Verifies branch, claimed commits (git cat-file -t) and working-tree state read-only before doing any work",
+      "Produces the Resume Reconciliation report before resuming",
+      "Marks anything it could not check as NOT CHECKED"
+    ]
+  },
+  {
+    "skills": [
+      "resume-from-handoff"
+    ],
+    "query": "Resume from this: 'remember to fix the login thing'",
+    "files": [],
+    "expected_behavior": [
+      "Says the input is not a recognisable handoff and stops",
+      "Does not start editing code"
+    ]
+  },
+  {
+    "skills": [
+      "resume-from-handoff"
+    ],
+    "query": "Resume in ~/.claude; handoff-loop.sh now exits non-zero on the tests gate.",
+    "files": [],
+    "expected_behavior": [
+      "Re-runs scripts/handoff-loop.sh and reports the non-zero exit",
+      "Declares CANNOT RESUME until the named failing gate is fixed",
+      "Does not continue from the pickup point while the gate is red"
+    ]
+  }
+]

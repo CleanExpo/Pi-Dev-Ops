@@ -71,6 +71,14 @@ NEVER_SYNC=(
   "skills/supabase-write-gate/scripts/"
   "skills/enforcement-loop/install/"
   "skills/estate-sync/scripts/"
+  # Enforcement that installs itself on every machine, and the agent prompts every session runs:
+  # a change to any of these reaches the whole fleet, so it ships through a reviewed PR, never this timer.
+  "hooks/"
+  "agents/"
+  "skills/done-harness/install/"
+  "skills/engineering-requirements/harness/"
+  "skills/spm/scripts/contract.lock"
+  "scripts/retired-models.txt"
 )
 is_never_sync() {
   local p="$1" n
@@ -225,9 +233,72 @@ if [ -n "$PRE_CHANGED" ]; then
   done <<< "$PRE_CHANGED"
 fi
 
+# An untracked file that origin/main now TRACKS makes the pull abort ("untracked working
+# tree files would be overwritten"), and every cycle after that logs a bare CONFLICT.
+# Measured 01/11/2026: the Mini sat 10 commits behind for six days over two SKILL.md files
+# byte-identical to the incoming blobs, and the log never said which files or why.
+# This only DIAGNOSES: it names each colliding file and says whether it matched origin's blob
+# when checked (a human re-checks before removing it) or differs (someone's work). It never moves,
+# deletes, stages or rewrites anything. Four review rounds (09c517a2, 4b211d77, 97823c59,
+# 2f1a2fab) each found a way an unattended heal could lose a concurrent edit or publish
+# without a receipt: by pathname moves, and then by index entries riding the autostash.
+# An unattended timer has no way to coordinate with the writer, so a person does the delete.
+# Review of 09c517a2 (each is a test): only REMOTE-side additions since the merge base count;
+# a symlink or .. in the path is reported, never followed; a blob that cannot be read is not
+# "identical".
+diagnose_untracked() {
+  local mb incoming f part p unsafe blob rc
+  mb=$(git merge-base HEAD origin/main 2>>"$LOG") || return
+  # --no-renames: a remote `git mv` lands as R, and its new path blocks the pull just the same.
+  incoming=$(git diff --no-renames --name-only --diff-filter=A "$mb" origin/main 2>>"$LOG") || return
+  [ -n "$incoming" ] || return
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    git cat-file -e "HEAD:$f" 2>/dev/null && continue  # tracked locally: not an incoming add
+    unsafe=0; p="$REPO"
+    for part in ${(s:/:)f}; do
+      [ "$part" = ".." ] && unsafe=1
+      p="$p/$part"; [ -L "$p" ] && unsafe=1
+    done
+    [ -e "$REPO/$f" ] || [ "$unsafe" -eq 1 ] || continue
+    if [ "$unsafe" -eq 1 ]; then
+      log "CONFLICT-CAUSE: $f passes through a symlink or ..; reconcile by hand"; continue
+    fi
+    [ -f "$REPO/$f" ] || continue
+    git ls-files --error-unmatch -- "$f" >/dev/null 2>&1 && continue
+    blob=$(mktemp) || return
+    if ! git cat-file blob "origin/main:$f" > "$blob" 2>>"$LOG"; then
+      log "CONFLICT-CAUSE: untracked $f blocks the pull; could not read origin/main:$f to compare"
+    else
+      cmp -s "$blob" "$REPO/$f"; rc=$?
+      # A match is only true at the instant of the compare: the file may change after it, so
+      # the line never says "safe to delete" (review of 423bf257). cmp exit 2 is an error, not
+      # a difference.
+      if [ "$rc" -eq 0 ]; then
+        log "CONFLICT-CAUSE: untracked $f blocks the pull; it matched origin/main when checked at $(ts); compare again right before removing it"
+      elif [ "$rc" -eq 1 ]; then
+        log "CONFLICT-CAUSE: untracked $f blocks the pull and differs from origin/main; someone's work, reconcile by hand"
+      else
+        log "CONFLICT-CAUSE: untracked $f blocks the pull; could not compare it with origin/main:$f"
+      fi
+    fi
+    rm -f -- "$blob"
+  done <<< "$incoming"
+}
+
 if ! git pull --rebase --autostash origin main --quiet 2>>"$LOG"; then
   git rebase --abort 2>/dev/null
+  diagnose_untracked
   log "CONFLICT: pull --rebase failed — manual reconcile needed; push skipped"
+  exit 1
+fi
+# `pull --autostash` exits 0 even when re-applying the stash conflicts: the local edits are
+# then in conflict markers and kept in `git stash list`. That is not an in-sync state, and
+# before this check the cycle went on to stage and log success over the markers.
+UNMERGED=$(git diff --name-only --diff-filter=U 2>>"$LOG")
+if [ -n "$UNMERGED" ]; then
+  log "CONFLICT: local changes did not re-apply cleanly after the pull; they are kept in git stash and the files; manual reconcile needed; push skipped"
+  while IFS= read -r f; do log "unmerged: $f"; done <<< "$UNMERGED"
   exit 1
 fi
 
@@ -396,13 +467,37 @@ if [ -n "$AHEAD" ]; then
     log "skip: non-sync commit(s) ahead of origin/main — a session must push these deliberately; auto-push skipped"
     exit 0
   fi
+  # Review 26/10/2026: the receipt and staging checks see only this cycle, so a never-sync path
+  # committed by an earlier sync commit was still pushed. Apply the list to the whole payload.
+  # Review r2: the final-tree diff hid a path added then deleted inside the outgoing commits (it is
+  # still in the published history), and git quotes unusual names, which then never matched the
+  # list. So list every path every outgoing commit touches, merges included, NUL-separated.
+  PAYLOAD_TMP=$(mktemp) || { log "FAIL: could not create a scratch file for the payload list; push skipped"; exit 1 }
+  if ! git log -m --no-renames --name-only -z --format= origin/main..HEAD > "$PAYLOAD_TMP" 2>>"$LOG"; then
+    rm -f "$PAYLOAD_TMP"; log "FAIL: could not list the push payload; push skipped"; exit 1
+  fi
+  BLOCKED=0
+  while IFS= read -r -d '' pf; do
+    pf=${pf#$'\n'}
+    [ -z "$pf" ] && continue
+    if is_never_sync "$pf"; then
+      log "REFUSED: $pf is in the push payload (never-sync path - this timer must not publish it)"
+      BLOCKED=1
+    fi
+  done < "$PAYLOAD_TMP"
+  rm -f "$PAYLOAD_TMP"
+  if [ "$BLOCKED" -eq 1 ]; then
+    log "REFUSED: push blocked - never-sync path(s) in commits ahead of origin/main; reconcile by hand"
+    exit 1
+  fi
   # Last check before the payload becomes public and permanent. A receipt proves someone
   # NAMED the file; it does not prove they read every line of it. Scans the added lines of
   # the whole push payload, not just this cycle's staging, because a credential committed
   # three cycles ago is still unpublished until this push and still catchable here.
   DIFF_TMP=$(mktemp) || { log "FAIL: could not create a scratch file for the secret scan; push skipped"; exit 1 }
   ADDED_TMP=$(mktemp) || { rm -f "$DIFF_TMP"; log "FAIL: could not create a scratch file for the secret scan; push skipped"; exit 1 }
-  if ! git diff origin/main..HEAD > "$DIFF_TMP" 2>>"$LOG"; then
+  # every outgoing commit's patch, not the final tree: a secret added then removed is still published
+  if ! git log -m -p --no-renames --format= origin/main..HEAD > "$DIFF_TMP" 2>>"$LOG"; then
     rm -f "$DIFF_TMP" "$ADDED_TMP"
     log "FAIL: could not diff the push payload for secrets; push skipped"
     exit 1

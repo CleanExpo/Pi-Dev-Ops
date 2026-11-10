@@ -1,0 +1,40 @@
+{
+  "schema": "nexus-deep/reference-policy/1",
+  "enforcement": "ADVISORY_ONLY",
+  "tiers": {
+    "T0": {
+      "description": "Read only",
+      "required": [
+        "sources",
+        "identity"
+      ]
+    },
+    "T1": {
+      "description": "Contained edits",
+      "required": [
+        "identity",
+        "tests"
+      ]
+    },
+    "T2": {
+      "description": "Product engineering",
+      "required": [
+        "identity",
+        "tests",
+        "independent_review",
+        "security"
+      ]
+    },
+    "T3": {
+      "description": "Production and irreversible",
+      "required": [
+        "identity",
+        "tests",
+        "independent_review",
+        "security",
+        "human_approval",
+        "trusted_ci"
+      ]
+    }
+  }
+}

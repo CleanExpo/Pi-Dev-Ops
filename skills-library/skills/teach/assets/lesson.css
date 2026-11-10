@@ -1,0 +1,20 @@
+/* teach starter stylesheet. Copy into the workspace's ./assets/ and link it from every lesson
+   so the lessons read as one course. Tufte-leaning: one readable column, quiet colour, prints well. */
+:root { --ink: #1f1f1f; --muted: #6b6b6b; --rule: #e4e1da; --paper: #fffdf8; --accent: #8a3b12; --right: #2e6b3a; --wrong: #9b2c2c; }
+html { font-size: 18px; }
+body { margin: 0 auto; max-width: 38rem; padding: 3rem 1.25rem 5rem; background: var(--paper); color: var(--ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; line-height: 1.55; }
+h1, h2, h3 { font-weight: 400; line-height: 1.2; }
+h1 { font-size: 2rem; margin-bottom: .25rem; }
+.meta, .source, .ask { color: var(--muted); font-size: .9rem; }
+a { color: var(--accent); }
+code, pre { font-family: ui-monospace, Menlo, monospace; font-size: .85rem; }
+pre { background: #f4f1ea; padding: .75rem 1rem; overflow-x: auto; }
+.win { border-left: 3px solid var(--accent); padding-left: 1rem; }
+.check { border-top: 1px solid var(--rule); margin-top: 2.5rem; padding-top: 1rem; }
+.quiz { border: 1px solid var(--rule); padding: 1rem; margin: 1.5rem 0; }
+.quiz button { display: block; width: 100%; text-align: left; margin: .4rem 0; padding: .5rem .75rem;
+  font: inherit; background: #fff; border: 1px solid var(--rule); cursor: pointer; }
+.quiz button.right { border-color: var(--right); color: var(--right); }
+.quiz button.wrong { border-color: var(--wrong); color: var(--wrong); }
+@media print { body { background: #fff; max-width: none; } .quiz button { break-inside: avoid; } }

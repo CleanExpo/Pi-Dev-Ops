@@ -1,6 +1,6 @@
 ---
 name: seo-rankings
-description: On-demand rank checking via the DataForSEO SERP API. Looks up live Google organic positions for a domain across an arbitrary list of keywords. Reports each as winning / page-1 / close / not-ranking with one prioritized next action per keyword.
+description: On-demand rank checking via the DataForSEO SERP API. Looks up live Google organic positions for a domain across an arbitrary list of keywords. Reports each as winning / page-1 / close / not-ranking with one prioritized next action per keyword. Use when the user asks to check live Google rankings for a domain across a list of keywords, with phrases like "rank check", "where do I rank for", "what position are we in", or "which keywords are winning", and wants each keyword tiered (winning, page 1, close, long-haul, not ranking) with search volume and one next action.
 allowed-tools:
   - Bash
   - Write

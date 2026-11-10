@@ -1,4 +1,13 @@
 # Decision Room — Frame-by-Frame Beat Map
+
+## Contents
+- [ACT 0 — COLD OPEN (frames 0–270 / 0:00–0:09)](#act-0--cold-open-frames-0270--000009)
+- [ACT 1 — THE PROBLEM (frames 270–1350 / 0:09–0:45)](#act-1--the-problem-frames-2701350--009045)
+- [ACT 2 — METHODS (frames 1350–3600 / 0:45–2:00)](#act-2--methods-frames-13503600--045200)
+- [ACT 3 — SWOT (frames 3600–5850 / 2:00–3:15)](#act-3--swot-frames-36005850--200315)
+- [ACT 4 — DECISION GRANTED (frames 5850–7920 / 3:15–4:24)](#act-4--decision-granted-frames-58507920--315424)
+- [ACT 5 — PRODUCT ALIVE (frames 7920–9000 / 4:24–5:00)](#act-5--product-alive-frames-79209000--424500)
+
 # 9,000 frames @ 30fps = 5:00 exactly
 
 ## ACT 0 — COLD OPEN (frames 0–270 / 0:00–0:09)
@@ -151,7 +160,7 @@ The four-beat kinetic sequence. Quadrants do NOT all appear at once.
 | 8550  | 4:45  | Cross-dissolve to final dark screen (30f)                |
 | 8580  | 4:46  | Progress bar: depletes to 0 over 90 frames               |
 | 8640  | 4:48  | RestoreAssist mark — centre, scale 1.0, full opacity     |
-| 8700  | 4:50  | URL badge fades in: `restoreassist.com.au` — Body type   |
+| 8700  | 4:50  | URL badge fades in: `restoreassist.app` — Body type   |
 | 8760  | 4:52  | Episode badge bottom-left — same as cold open            |
 | 8880  | 4:56  | All elements fade to 85% — graceful close                |
 | 8970  | 4:59  | Final frame: LogoMark only, 70% opacity                  |

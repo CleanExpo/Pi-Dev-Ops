@@ -1,5 +1,11 @@
 # Craft & Law — the transferable spine (condensed, cited)
 
+## Contents
+- [Part 1 — The 15 transferable principles](#part-1--the-15-transferable-principles)
+- [Part 2 — The AU-law claim table (the hard constraint)](#part-2--the-au-law-claim-table-the-hard-constraint)
+- [Part 3 — Awareness + sophistication (diagnose before you draft)](#part-3--awareness--sophistication-diagnose-before-you-draft)
+
+
 Load this when drafting or diagnosing a Nexus asset. Three parts: the **15 transferable
 principles** (craft that survives modern scrutiny), the **AU-law claim table** (the hard
 constraint), and the **awareness + sophistication frameworks** (the diagnosis that comes before

@@ -1,5 +1,14 @@
 # Style Presets Reference
 
+## Contents
+- [Dark Themes](#dark-themes)
+- [Light Themes](#light-themes)
+- [Specialty Themes](#specialty-themes)
+- [Font Pairing Quick Reference](#font-pairing-quick-reference)
+- [DO NOT USE (Generic AI Patterns)](#do-not-use-generic-ai-patterns)
+- [CSS Gotchas](#css-gotchas)
+
+
 Curated visual styles for Frontend Slides. Each preset is inspired by real design references — no generic "AI slop" aesthetics. **Abstract shapes only — no illustrations.**
 
 **Viewport CSS:** For mandatory base styles, see [viewport-base.css](viewport-base.css). Include in every presentation.

@@ -1,6 +1,6 @@
 ---
 name: seo-keywords
-description: Keyword research and opportunity scoring via the DataForSEO Keywords Data and Labs APIs. Returns search volume, CPC, competition, intent classification, related keywords, and long-tail suggestions with a Keyword Score (0-100).
+description: Keyword research and opportunity scoring via the DataForSEO Keywords Data and Labs APIs. Returns search volume, CPC, competition, intent classification, related keywords, and long-tail suggestions with a Keyword Score (0-100). Use when the user asks for keyword research, search volume, CPC, competition or search intent data, related or long-tail keyword suggestions, or the keywords a domain already ranks for, and wants opportunity scoring or a Keyword Score (0-100) via DataForSEO, including when called from an SEO audit.
 allowed-tools:
   - Bash
   - Write

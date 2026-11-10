@@ -1,5 +1,18 @@
 # Database Analysis
 
+## Contents
+- [Your Role](#your-role)
+- [Context Resolution](#context-resolution)
+- [Database Type Detection and Script Selection](#database-type-detection-and-script-selection)
+- [Before You Analyze: Check Collection Status](#before-you-analyze-check-collection-status)
+- [Output Structure: Data First, Actions Second](#output-structure-data-first-actions-second)
+- [CRITICAL: Use the Actual Data](#critical-use-the-actual-data)
+- [Running the Analysis](#running-the-analysis)
+- [Database-Specific References](#database-specific-references)
+- [Infrastructure Metrics (All Database Types)](#infrastructure-metrics-all-database-types)
+- [Validated against](#validated-against)
+
+
 ## Your Role
 
 You are a database performance expert. The script collects raw data - your job is to **think deeply** about what you see, identify root causes, correlate symptoms, and explain the "why" behind problems.

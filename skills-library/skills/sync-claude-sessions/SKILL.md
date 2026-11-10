@@ -1,6 +1,6 @@
 ---
 name: sync-claude-sessions
-description: B.U.I.L.D. Inflow pipeline #1 — mine the local Claude Code session lake (~/.claude/projects/**/*.jsonl) for CONTENT (intent, decisions, user corrections, tools, shipped PRs) and write redacted OKF digests into the 2nd Brain vault's process/sessions/ staging area. Use when the user says "sync sessions", "mine my session history", "ingest my Claude conversations", or as the first stage of /data-ingestion. Complementary to FABLE distill (which mines the same lake for rhythm metrics, not content).
+description: "B.U.I.L.D. Inflow pipeline #1 — mine the local Claude Code session lake (~/.claude/projects/**/*.jsonl) for CONTENT (intent, decisions, user corrections, tools, shipped PRs) and write redacted OKF digests into the 2nd Brain vault's process/sessions/ staging area. Use when the user says \"sync sessions\", \"mine my session history\", \"ingest my Claude conversations\", or as the first stage of /data-ingestion. Complementary to FABLE distill (which mines the same lake for rhythm metrics, not content)."
 ---
 
 # sync-claude-sessions

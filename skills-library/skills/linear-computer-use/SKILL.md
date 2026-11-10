@@ -1,6 +1,6 @@
 ---
 name: linear-computer-use
-description: Use Chrome browser to interact with Linear visually — read the board, pick up tasks assigned by board members, implement them autonomously. Triggered by "open Linear", "check the board", or "do what's on the Linear board".
+description: Use Chrome browser to interact with Linear visually — read the board, pick up tasks assigned by board members, implement them autonomously. Use when the user says "open Linear", "check the board", or "do what's on the Linear board".
 ---
 
 # Linear Computer-Use Skill

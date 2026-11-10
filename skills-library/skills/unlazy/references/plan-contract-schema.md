@@ -1,5 +1,13 @@
 # Executable Plan and Ownership Contract
 
+## Contents
+- [PLAN.json 1.0](#planjson-10)
+- [Executable commands](#executable-commands)
+- [Current CLI enforcement](#current-cli-enforcement)
+- [Driver-enforced contract](#driver-enforced-contract)
+- [Ownership and amendment rules](#ownership-and-amendment-rules)
+
+
 Load this schema when creating, validating, or amending an Unlazy plan. `PLAN.json` is the normative
 input to `python scripts/unlazy_plan.py`; it is one flat JSON object with a `nodes` array.
 

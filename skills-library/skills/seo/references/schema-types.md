@@ -1,6 +1,17 @@
 <!-- Updated: 2026-02-07 -->
 # Schema.org Types — Status & Recommendations (February 2026)
 
+## Contents
+- [Format Preference](#format-preference)
+- [Active — Recommend freely](#active--recommend-freely)
+- [Restricted — Only for specific site types](#restricted--only-for-specific-site-types)
+- [Deprecated — Never recommend](#deprecated--never-recommend)
+- [Recent Additions (2024-2026)](#recent-additions-2024-2026)
+- [E-commerce Requirements (Updated)](#e-commerce-requirements-updated)
+- [Validation Checklist](#validation-checklist)
+- [Testing Tools](#testing-tools)
+
+
 **Schema.org Version:** 29.4 (December 8, 2025)
 
 ## Format Preference

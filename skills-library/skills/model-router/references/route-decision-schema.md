@@ -1,5 +1,12 @@
 # Route Contracts
 
+## Contents
+- [RoutingRequest 1.0](#routingrequest-10)
+- [RouteDecision 1.0](#routedecision-10)
+- [RouteReceipt 1.0](#routereceipt-10)
+- [Validation invariants](#validation-invariants)
+
+
 Load these schemas whenever producing, consuming, validating, or receipting a route. Reject unknown
 required enums, missing identifiers, negative limits, invalid floors, or a fallback below the
 selected floor. JSON examples are normative for field names, not live values.

@@ -1,6 +1,6 @@
 ---
 name: gauntlet-ship
-description: "The gauntlet for getting a real product to market: grinds a ship backlog to live instead of polishing one surface against a competitor. The bar is a production-observable gate per item, selection is by ship-blocking rank, and the exit is the gate passing in production, observed by an agent that did not build it. Dispatched by gauntlet-loop when the goal is 'ship it' rather than 'beat X'."
+description: "The gauntlet for getting a real product to market: grinds a ship backlog to live instead of polishing one surface against a competitor. The bar is a production-observable gate per item, selection is by ship-blocking rank, and the exit is the gate passing in production, observed by an agent that did not build it. Dispatched by gauntlet-loop when the goal is 'ship it' rather than 'beat X'. Use when the goal is to get a product shipped or production ready rather than to beat a competitor."
 ---
 
 # Gauntlet Ship

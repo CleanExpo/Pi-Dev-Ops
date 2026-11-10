@@ -1,6 +1,6 @@
 ---
 name: faceless-video
-description: Produce a faceless YouTube-style video (hand-drawn doodle / simple-illustration channels like Zen, Nick Invest) end-to-end from a single topic. ASKS FACT-vs-STORY mode first (non-fiction educational vs fiction storytelling) and branches the whole run — built to serve multiple clients/channels, not one fixed format. Reverse-engineers a proven reference video's script format, writes a new script in that format, generates an ElevenLabs voiceover with timestamps, creates one styled Artlist (AI Toolkit) image per timestamp, and stitches everything with FFmpeg — fully automated, no human recording. Use when the user says "faceless video", "/faceless-video", "doodle video", "make a YouTube short/long-form in the Zen style", or wants an organic faceless-channel content piece. Composes with video-distribution-strategist (channel/launch) and video-director (when motion/edit polish is wanted instead of stills).
+description: Produces a faceless YouTube-style video (doodle channels like Zen, Nick Invest) end-to-end from one topic. Asks FACT-vs-STORY mode first. Reverse-engineers a reference video's script format, writes the script, generates an ElevenLabs voiceover with timestamps, creates one styled Artlist image per timestamp, and stitches with FFmpeg. Use when the user says "faceless video", "/faceless-video", "doodle video", "make a YouTube short/long-form in the Zen style", or wants a faceless-channel piece. Composes with video-distribution-strategist and video-director.
 ---
 
 # Faceless Video Pipeline

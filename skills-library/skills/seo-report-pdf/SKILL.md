@@ -1,6 +1,6 @@
 ---
 name: seo-report-pdf
-description: Generate a professional, client-ready PDF SEO report from a saved DataForSEO-powered audit. Produces a polished PDF with score gauges, prioritized action plan, keyword opportunity tables, and competitive landscape — ready to send to a client.
+description: Generate a professional, client-ready PDF SEO report from a saved DataForSEO-powered audit. Produces a polished PDF with score gauges, prioritized action plan, keyword opportunity tables, and competitive landscape — ready to send to a client. Use when the user asks for a PDF, client-ready or printable SEO report from a saved audit.
 allowed-tools:
   - Bash
   - Read
@@ -85,7 +85,7 @@ so partial audits still render a valid PDF.
 ## Customization
 
 To change colors/fonts/branding for a client deliverable, edit the constants
-at the top of [scripts/generate_pdf_report.py](../../seo/scripts/generate_pdf_report.py):
+at the top of [scripts/generate_pdf_report.py](../seo/scripts/generate_pdf_report.py):
 
 ```python
 BRAND_PRIMARY = colors.HexColor("#1f4e79")

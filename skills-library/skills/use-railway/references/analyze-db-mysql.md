@@ -1,5 +1,16 @@
 # MySQL Analysis
 
+## Contents
+- [What the Script Collects](#what-the-script-collects)
+- [MySQL Metric Sections — Present ALL of These](#mysql-metric-sections--present-all-of-these)
+- [MySQL Performance Patterns](#mysql-performance-patterns)
+- [MySQL Thresholds](#mysql-thresholds)
+- [MySQL Tuning Knowledge](#mysql-tuning-knowledge)
+- [MySQL-Specific Notes](#mysql-specific-notes)
+- [Infrastructure (7d + 24h)](#infrastructure-7d--24h)
+- [Validated against](#validated-against)
+
+
 This reference covers MySQL-specific metrics, tuning, and analysis guidance.
 For common analysis patterns (output structure, collection status handling, performance thinking), see [analyze-db.md](analyze-db.md).
 

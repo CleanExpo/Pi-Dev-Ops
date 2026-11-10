@@ -37,7 +37,8 @@ def test_every_path_a_library_skill_names_resolves_in_the_image(tmp_path):
         except UnicodeDecodeError:
             continue
         for m in REF.finditer(text):
-            name, rest = m.group(1), (m.group(2) or "").rstrip(".")
+            # A path ending a sentence ("...skills/done-harness. Point") must not keep the full stop.
+            name, rest = m.group(1).rstrip("."), (m.group(2) or "").rstrip(".")
             if not _needs_to_exist(name, rest, source):
                 continue
             checked += 1
