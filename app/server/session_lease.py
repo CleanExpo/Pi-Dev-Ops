@@ -239,7 +239,7 @@ def claim_linear_ticket(linear_id: str) -> bool:
     """
     if not linear_id:
         return False
-    from . import supabase_log  # noqa: PLC0415 — avoid an import cycle at module load
+    from . import claim_renewal, supabase_log  # noqa: PLC0415 — avoid an import cycle at module load
 
     if not all(supabase_log._cfg()):
         log.debug("mesh claim skipped for %s — Supabase not configured", linear_id)
@@ -253,6 +253,7 @@ def claim_linear_ticket(linear_id: str) -> bool:
     )
     if ok:
         _OWN_CLAIMS[linear_id] = claim_id
+        claim_renewal.start(linear_id, claim_id)  # cloud only: nothing else keeps the shared row alive
     else:
         log.info("mesh claim lost for %s (machine=%s) — another worker owns it", linear_id, host)
     return ok
@@ -278,8 +279,9 @@ def release_linear_ticket(linear_id: str, state: str = "released") -> bool:
     """
     if not linear_id:
         return False
-    from . import supabase_log  # noqa: PLC0415 — avoid an import cycle at module load
+    from . import claim_renewal, supabase_log  # noqa: PLC0415 — avoid an import cycle at module load
 
+    claim_renewal.stop(linear_id)  # the session is over, whatever the PATCH below does
     if not all(supabase_log._cfg()):
         return True
     claim_id = _OWN_CLAIMS.get(linear_id)

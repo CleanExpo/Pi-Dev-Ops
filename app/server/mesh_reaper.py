@@ -2,6 +2,8 @@
 
 The sweep releases claims stuck in claimed/working past the TTL, freeing the
 `mesh_work_claims_one_open` unique index so the ticket becomes claimable again.
+A claim's lease is its `claimed_at`, renewed by the live cloud session that holds it
+(`claim_renewal`); a dead replica stops renewing and is reaped like any other.
 It is guarded by machine liveness: a claim past TTL is reaped ONLY when the
 claiming machine's heartbeat is itself stale or absent, because a live
 heartbeat means the runner may still be inside its up-to-3600s agent run.
@@ -85,22 +87,28 @@ def reap(get, sb, mark_reaped, ttl_minutes: int) -> list[dict]:
         machine = c.get("machine")
         if machine is not None and liveness.get(machine) is False:
             continue  # fresh heartbeat — runner may still be legitimately working
-        if _release(sb, c["id"], now_iso):
+        if _release(sb, c["id"], now_iso, c.get("claimed_at")):
             reaped.append({"linear_id": c["linear_id"], "machine": machine})
             mark_reaped(c["linear_id"])
     return reaped
 
 
-def _release(sb: Callable[..., Any], claim_id: str, now_iso: str) -> bool:
+def _release(sb: Callable[..., Any], claim_id: str, now_iso: str, claimed_at: str | None = None) -> bool:
     """PATCH one claim to released. False when it matched no row.
+
+    `claimed_at` is the value the sweep read. A live cloud session renews its claim
+    by moving `claimed_at` forward (`claim_renewal`), so the PATCH only matches a row
+    whose lease is still the one that was found stale: a renewal landing between the
+    candidate read and this write wins, and the claim is left alone.
 
     `return=representation`: a 0-row response means a racing reap (or the runner
     itself) already flipped this claim's state — don't record a reap or fire a
     redundant Linear transition for a row we didn't touch.
     """
+    unrenewed = f"&claimed_at=lte.{urllib.parse.quote(claimed_at)}" if claimed_at else ""
     status, body = sb(
         "PATCH",
-        f"mesh_work_claims?id=eq.{claim_id}&state=in.(claimed,working)",
+        f"mesh_work_claims?id=eq.{claim_id}&state=in.(claimed,working){unrenewed}",
         {"state": "released", "released_at": now_iso},
         prefer="return=representation",
     )
