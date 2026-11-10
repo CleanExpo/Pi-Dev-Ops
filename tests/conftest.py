@@ -70,6 +70,21 @@ def _isolated_jev_spend_ledger(tmp_path, monkeypatch):
     monkeypatch.delenv("JEV_DAILY_CAP_USD", raising=False)
 
 
+@pytest.fixture(autouse=True)
+def _no_ambient_provider_routing(monkeypatch):
+    """Run every test as CI does: with no API-key or provider-override variables.
+
+    provider_policy refuses when any of these is set in the process. A test run
+    started from inside a Claude Code session (the release gate's push hook)
+    inherits that session's variables, so eight policy tests failed there and
+    passed on GitHub. A test that needs one sets it itself, after this runs.
+    """
+    from app.server.provider_policy import CLAUDE_ROUTING_ENV, CODEX_ROUTING_ENV
+
+    for key in CLAUDE_ROUTING_ENV + CODEX_ROUTING_ENV:
+        monkeypatch.delenv(key, raising=False)
+
+
 def pytest_sessionfinish(session, exitstatus):
     if _ledger_fingerprint() != _REAL_JEV_LEDGER_AT_START:
         session.exitstatus = 1
