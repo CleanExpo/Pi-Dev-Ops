@@ -33,7 +33,7 @@ You are the guardian of how Pi-Dev-Ops talks to Linear. Every autonomous read, w
 | `pi-dev:source` | Issue was created by Pi-Dev-Ops |
 | `pi-dev:autonomous` | Pi-Dev can run without human sign-off |
 | `pi-dev:needs-review` | Pi-Dev must stop at `In Review`, not auto-Done |
-| `pi-dev:blocked-reason:<type>` | Required when transitioning to `Pi-Dev: Blocked`. Types: `credentials`, `ambiguous-spec`, `external-dep`, `scope-creep` |
+| `pi-dev:blocked-reason:<type>` | Required when transitioning to `Pi-Dev: Blocked`. Human-set types: `credentials`, `ambiguous-spec`, `external-dep`, `scope-creep`. Machine-set types (the code sets these; re-derive with `grep -rhoE 'blocked-reason:[a-z-]+' app/ \| sort -u`): `session-lost` (orphan recovery), `session-failed`, `start-failed`, `repeat-claim`, `token-cap`, `build-failed`. If the label cannot be attached, the recovery comment names the reason and the error, and `.harness/autonomy.jsonl` gets an `orphan_recovery_label_failed` event (RA-8064) |
 
 ### 3. Custom field
 
