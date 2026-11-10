@@ -7,7 +7,8 @@ MacBook on 28/09/2026 — then lost the work when `run_claim` force-removed the
 worktree, while the fleet recorded a success.
 
 `ship()` commits anything the agent left uncommitted, requires at least one
-commit beyond the run's start point, and pushes the branch with an explicit
+commit beyond the run's start point whose diff touches more than harness
+bookkeeping (RA-7989), and pushes the branch with an explicit
 refspec and never a force. On a node that still has the Stop hook, that hook has
 usually pushed already and this push is an up-to-date no-op.
 
@@ -36,6 +37,10 @@ from typing import NamedTuple
 
 REMOTE = "origin"
 _TIMEOUT = 120
+# Paths the harness writes on its own during a run (RA-7989). A diff touching only
+# these is not the agent's work: PR #929 carried just `.claude/done/**`, and its
+# merge closed RA-7965 as Done with no code changed.
+BOOKKEEPING_PREFIXES = (".claude/done/",)
 
 
 class Start(NamedTuple):
@@ -68,6 +73,21 @@ def commit_leftovers(worktree: Path, linear_id: str, host: str,
                 "-c", "user.email=mesh@unite-group.invalid",
                 "commit", "-q", "-m", f"{linear_id}: {subject} from {host}")
     return None if done.returncode == 0 else f"commit failed: {done.stderr.strip()[:200]}"
+
+
+def _real_work(worktree: Path, start_sha: str) -> str | None:
+    """None when the diff from the run's start touches a path outside the harness
+    bookkeeping, else why the run delivered nothing. An unreadable diff is an error,
+    never "has work": failing open here is how a bookkeeping-only run ships."""
+    diff = _git(worktree, "diff", "--name-only", "-z", "--no-renames", start_sha, "HEAD")
+    if diff.returncode != 0:
+        return f"diff failed: {diff.stderr.strip()[:200]}"
+    paths = [p for p in diff.stdout.split("\0") if p]
+    if any(not p.startswith(BOOKKEEPING_PREFIXES) for p in paths):
+        return None
+    if paths:
+        return "no commits: agent changed nothing but harness bookkeeping"
+    return "no commits: agent exited 0 but changed nothing"
 
 
 def _holds(worktree: Path, ref: str, tip: str) -> bool:
@@ -126,6 +146,9 @@ def ship(start: Start, worktree: Path, branch: str, linear_id: str,
     ahead = _git(Path(worktree), "rev-list", "--count", f"{start.sha}..HEAD").stdout.strip()
     if not start.sha or ahead in ("", "0"):
         return "no commits: agent exited 0 but changed nothing"
+    error = _real_work(Path(worktree), start.sha)
+    if error:
+        return error
     if not start.url:
         return "no push URL was readable before the agent ran"
     pushed = _git(Path(worktree), "push", "-q", "--no-follow-tags", start.url,
