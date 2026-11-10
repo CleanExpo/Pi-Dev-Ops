@@ -26,7 +26,9 @@ to extract rather than baseline a new offender.
 """
 from __future__ import annotations
 
+import os
 import re
+import string
 import subprocess
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -118,20 +120,56 @@ def repo_dir_problem(default_repo_dir: Path, own_repo: Path) -> str:
     return ""
 
 
-def repo_dir_for(slug: str, default_repo_dir: Path, repos_root: Path) -> Path:
+def windows_drive_roots() -> list[Path]:
+    """Every existing drive root (`C:\\`, `D:\\`, ...) on Windows; [] elsewhere."""
+    if os.name != "nt":
+        return []
+    roots = []
+    for letter in string.ascii_uppercase:
+        root = Path(f"{letter}:\\")
+        try:
+            if root.is_dir():
+                roots.append(root)
+        except OSError:  # an empty card reader or a dead network drive
+            continue
+    return roots
+
+
+def repo_roots(env_value: str, home: Path | None = None,
+               drives: list[Path] | None = None) -> list[Path]:
+    """Where to look for other repos' checkouts, in order (RA-8096).
+
+    `MESH_REPOS_ROOT` is a path LIST (`os.pathsep`-separated). Unset, the runner
+    searches home, then every Windows drive root: on Phill_Desktop the product
+    checkouts are `D:\\RestoreAssist` and so on, nothing set the variable, and
+    42 claims failed "repo missing". Searching more roots cannot build in the
+    wrong repo, because `repo_dir_for` still accepts only a matching `origin`.
+    """
+    given = [Path(p).expanduser() for p in env_value.split(os.pathsep) if p.strip()]
+    if given:
+        return given
+    home = Path.home() if home is None else home
+    return [home, *(windows_drive_roots() if drives is None else drives)]
+
+
+def repo_dir_for(slug: str, default_repo_dir: Path, repos_root) -> Path:
     """The checkout to build `slug` (owner/name) in — never a different repository.
 
     W1b: autonomy-lane claims name their project's repo. The runner's default
     checkout is used only when its own origin IS that repo; otherwise the
-    checkout is `repos_root/<name>`, and only if its origin matches. Anything
-    else returns a path with no `.git`, so the runner fails the claim with
-    "repo missing" instead of building one project's ticket in another's code.
+    checkout is `<root>/<name>` for the first root in `repos_root` (one path or
+    a list) whose clone has a matching origin. Anything else returns a path with
+    no `.git`, so the runner fails the claim with "repo missing" instead of
+    building one project's ticket in another's code.
     """
     want = f"github.com/{slug.strip().strip('/')}".lower()
     default = Path(default_repo_dir).expanduser().resolve()
     if canonical_origin(git_origin(default)).lower() == want:
         return default
-    candidate = Path(repos_root).expanduser().resolve() / slug.rsplit("/", 1)[-1]
-    if (candidate / ".git").exists() and canonical_origin(git_origin(candidate)).lower() == want:
-        return candidate
-    return candidate / f"not-a-checkout-of-{slug.replace('/', '-')}"
+    roots = [repos_root] if isinstance(repos_root, (str, Path)) else list(repos_root)
+    name = slug.rsplit("/", 1)[-1]
+    candidates = [Path(root).expanduser().resolve() / name for root in roots]
+    for candidate in candidates:
+        if (candidate / ".git").exists() and canonical_origin(git_origin(candidate)).lower() == want:
+            return candidate
+    return candidates[0] / f"not-a-checkout-of-{slug.replace('/', '-')}"
