@@ -120,11 +120,12 @@ in-distribution knowledge only."
 ### Design Doc Check
 ```bash
 setopt +o nomatch 2>/dev/null || true  # zsh compat
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
-BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo 'no-branch')
+_GS_RP="$HOME/.local/state/gs/tmp/repo.$$"; { mkdir -p "${_GS_RP%/*}" && chmod 700 "${_GS_RP%/*}"; } 2>/dev/null || { [ -n "${TMPDIR:-}" ] && _GS_RP="$TMPDIR/gs-repo.$$"; }; git rev-parse --show-toplevel > "$_GS_RP.top" 2>/dev/null || : > "$_GS_RP.top" || { echo "GS_TMP_UNWRITABLE: could not write $_GS_RP.top, so nothing was looked up" >&2; exit 1; }
+git rev-parse --abbrev-ref HEAD > "$_GS_RP.br" 2>/dev/null || :
+read -r _REPOTOP < "$_GS_RP.top"; read -r BRANCH < "$_GS_RP.br"; rm -f "$_GS_RP.top" "$_GS_RP.br"
+_GS_TOP=${_REPOTOP:-$PWD}; SLUG=${_GS_TOP##*/}; BRANCH=${BRANCH//\//-}
 _LOCALDOC=$(ls -t ~/.local/state/gs/projects/$SLUG/*-$BRANCH-design-*.md 2>/dev/null | head -1)
 [ -z "$_LOCALDOC" ] && _LOCALDOC=$(ls -t ~/.local/state/gs/projects/$SLUG/*-design-*.md 2>/dev/null | head -1)
-_REPOTOP=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
 _REPODOC=""
 if [ -n "$_REPOTOP" ]; then
   [ -f "$_REPOTOP/DESIGN.md" ] && _REPODOC="$_REPOTOP/DESIGN.md"

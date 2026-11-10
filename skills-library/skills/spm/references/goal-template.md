@@ -1,29 +1,20 @@
-# Goal Template
+# Goal template
 
-Use this after `/spm` produces an accepted spec.
-
-```text
-/goal Implement the accepted SPM spec for <task>. Completion condition: <files/behaviours exist>; <verification commands pass>; <acceptance criteria are satisfied>; no unrelated files are changed; no secrets are added; no destructive operations are performed; if blocked by missing credentials, external service access, or destructive migration approval, stop and produce /session-handoff instead.
-```
-
-A strong goal must include:
-
-- One measurable end state
-- Proof command or inspection method
-- Files or behaviours that must exist
-- Verification commands
-- Constraints
-- Stop condition
-- Handoff condition
-
-Bad goal:
+Emit only after the engineering gate exits 0 and the Done contract is locked.
 
 ```text
-/goal Build the feature properly.
+/goal Implement the accepted SPM spec at <spec path>. Completion condition: <observable end state>;
+Done contract <id> verifies AC-1..AC-n on the exact final commit; <verification commands> exit 0.
+Crew: <builder agent + model>; review via <lane> (never the builder's lane); gates on <node>.
+Constraints: no unrelated files; no secrets; no destructive or production action; phases advance
+only when their validation passes. Stop and run /session-handoff if blocked by credentials,
+external access, founder-only decisions or a third repeat of the same defect class. Queue protected
+actions (push, PR, merge, deploy, spend, outreach) for Phill in one batch.
 ```
 
-Good goal:
+A strong goal names one measurable end state, the proof command, the crew, the constraints, the
+stop condition and the handoff condition.
 
-```text
-/goal Implement the accepted SPM spec for the session dashboard. Completion condition: the dashboard shows active sessions, completed sessions, and failed sessions; empty/loading/error states exist; `cd dashboard && npx tsc --noEmit` passes; no unrelated files changed; stop and produce /session-handoff if blocked by missing API credentials.
-```
+Bad: `/goal Build the feature properly.`
+
+Good: `/goal Implement the accepted SPM spec at ~/.local/state/gs/projects/CARSI/spm/2026-10-14-annual-checkout/spec.md. Completion condition: /pricing shows "Join — A$795/yr" and opens Stripe Checkout for price carsi_pro_annual; Done contract verifies AC-1..AC-6 on the final commit; npm run type-check, npm run test:unit and scripts/verify-go-live-readiness.mjs exit 0. Crew: crew-builder (sonnet); review via codex lane; gates on the mini. Stop and hand off if the DigitalOcean env change is still pending.`

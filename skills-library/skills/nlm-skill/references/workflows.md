@@ -1,5 +1,26 @@
 # NotebookLM CLI - Complete Workflow Sequences
 
+## Contents
+- [Critical AI Behavior Rules](#critical-ai-behavior-rules)
+- [Workflow 1: First-Time Setup](#workflow-1-first-time-setup)
+- [Workflow 2: Content Ingestion](#workflow-2-content-ingestion)
+- [Workflow 3: Research → Podcast Pipeline](#workflow-3-research--podcast-pipeline)
+- [Workflow 4: Study Materials Generation](#workflow-4-study-materials-generation)
+- [Workflow 5: Quick Q&A Session](#workflow-5-quick-qa-session)
+- [Workflow 6: Drive Document Sync](#workflow-6-drive-document-sync)
+- [Workflow 7: Multi-Account Management](#workflow-7-multi-account-management)
+- [Workflow 8: Content Export](#workflow-8-content-export)
+- [Workflow 9: Presentation Preparation](#workflow-9-presentation-preparation)
+- [Workflow 10: Notebook Sharing and Collaboration](#workflow-10-notebook-sharing-and-collaboration)
+- [Workflow 11: Working with Notes](#workflow-11-working-with-notes)
+- [Workflow 12: Downloading and Exporting Artifacts](#workflow-12-downloading-and-exporting-artifacts)
+- [Workflow 13: Cleanup and Deletion](#workflow-13-cleanup-and-deletion)
+- [Workflow 14: Scripting and Automation](#workflow-14-scripting-and-automation)
+- [Rate Limiting Guidelines](#rate-limiting-guidelines)
+- [Error Recovery Patterns](#error-recovery-patterns)
+- [Batch & Cross-Notebook Workflow](#batch--cross-notebook-workflow)
+
+
 This document provides end-to-end workflow sequences for common tasks with the `nlm` CLI.
 
 ## Critical AI Behavior Rules

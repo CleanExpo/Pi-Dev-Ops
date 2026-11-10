@@ -1,5 +1,17 @@
 # PostgreSQL Analysis
 
+## Contents
+- [What the Script Collects](#what-the-script-collects)
+- [PostgreSQL Tuning Knowledge](#postgresql-tuning-knowledge)
+- [Thresholds for Reasoning](#thresholds-for-reasoning)
+- [Applying Fixes](#applying-fixes)
+- [Enabling pg_stat_statements](#enabling-pgstatstatements)
+- [PostgreSQL-Specific Guidance](#postgresql-specific-guidance)
+- [How to Think About PostgreSQL Performance](#how-to-think-about-postgresql-performance)
+- [Common Errors to Avoid (PostgreSQL-Specific)](#common-errors-to-avoid-postgresql-specific)
+- [Validated against](#validated-against)
+
+
 This reference covers PostgreSQL-specific metrics, tuning, and analysis guidance.
 For common analysis patterns (output structure, collection status handling, performance thinking), see [analyze-db.md](analyze-db.md).
 

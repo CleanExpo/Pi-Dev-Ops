@@ -1,5 +1,15 @@
 # Deploy
 
+## Contents
+- [Deploy code](#deploy-code)
+- [Manage releases](#manage-releases)
+- [Deployment history and logs](#deployment-history-and-logs)
+- [Build configuration](#build-configuration)
+- [Monorepo patterns](#monorepo-patterns)
+- [Troubleshoot deploys](#troubleshoot-deploys)
+- [Validated against](#validated-against)
+
+
 Ship code, manage releases, and configure builds.
 
 ## Deploy code

@@ -4,15 +4,19 @@ Every `/seo ...` request starts with a credentials check — API calls fail with
 credentials, so there is nothing useful to run until it passes. `SKILL.md` holds the
 quick check; this file holds the full wizard for when credentials are missing.
 
-## Step 1 — Read the credentials file
+## Step 1 — Run the credentials check
 
 ```bash
-cat ~/.claude/skills/seo/.env 2>/dev/null
+~/.claude/skills/seo/scripts/preflight.sh >/dev/null; echo "exit=$?"
 ```
+
+It reads `~/.claude/skills/seo/.env` without printing any value. Do not read the file yourself;
+the secrets gate refuses it.
 
 ## Step 2 — Decide if credentials are configured
 
-The `.env` is **NOT configured** if any of these are true:
+Exit `0` means configured. Exit `2` means the `.env` is **NOT configured**, because one of these
+is true:
 - The file doesn't exist
 - `DATAFORSEO_LOGIN` is missing or contains the literal string `your_login_email_here`
 - `DATAFORSEO_PASSWORD` is missing or contains the literal string `your_api_password_here`

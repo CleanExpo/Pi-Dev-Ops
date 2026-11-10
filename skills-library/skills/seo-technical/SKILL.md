@@ -1,6 +1,6 @@
 ---
 name: seo-technical
-description: Technical SEO site audit via the DataForSEO On-Page API. Crawls the site (up to 100 pages by default), surfaces critical errors (broken links, redirect chains, missing meta, slow pages, schema gaps, indexability issues), and returns a Technical Score (0-100) with prioritized fixes.
+description: Technical SEO site audit via the DataForSEO On-Page API. Crawls the site (up to 100 pages by default), surfaces critical errors (broken links, redirect chains, missing meta, slow pages, schema gaps, indexability issues), and returns a Technical Score (0-100) with prioritized fixes. Use when the user asks for a technical SEO audit or site crawl of a domain or single URL, mentions broken links, redirect chains, missing meta tags, slow pages, schema gaps, indexability or Core Web Vitals problems, or wants a Technical Score (0-100) with prioritized fixes from the DataForSEO On-Page API.
 allowed-tools:
   - Bash
   - Write

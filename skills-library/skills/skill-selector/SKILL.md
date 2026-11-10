@@ -19,7 +19,16 @@ node ~/.claude/skills/skill-selector/scripts/skill_shelf.mjs find "<the task in 
 node ~/.claude/skills/skill-selector/scripts/skill_shelf.mjs checkout <name>
 node ~/.claude/skills/skill-selector/scripts/skill_shelf.mjs checkin <name> | --all
 node ~/.claude/skills/skill-selector/scripts/skill_shelf.mjs pull <registry-name>
+node ~/.claude/skills/skill-selector/scripts/skill_shelf.mjs activate <name> --capability "<what it must do>"
 ```
+
+`activate` is a dry run before you load a skill: it reads the skill's Capability Passport
+(built by `skill-watch`) and prints a receipt, ALLOW (exit 0) or REFUSE (exit 3) with codes:
+`STALE_SHA` (SKILL.md changed since the passport), `UNREVIEWED`, `FAKE_PASS`,
+`MISSING_CAPABILITY`, `CONFLICTING_OWNERS`, `RISK_ABOVE_LIMIT` (`--max-risk`, default medium),
+`MODEL_UNAVAILABLE` / `MODEL_UNKNOWN` / `MODEL_RETIRED` / `API_KEY_LANE`. Pass the model lanes
+you checked this turn with `--available-models`. It never links, loads or calls anything, and a
+missing model is refused, never swapped. Rules: `skill-watch` (Capability Passports).
 
 Search comes from `sorcerai/skill-router` (MIT, vendored unchanged in `scripts/vendor/`).
 The only new code is the pull / checkout / checkin / overrides wrapper around it.

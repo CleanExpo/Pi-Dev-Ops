@@ -1,6 +1,6 @@
 ---
 name: seo-backlinks
-description: Backlink profile audit via the DataForSEO Backlinks API. Returns total backlinks, referring domains, dofollow ratio, top anchors with over-optimization flags, top referring domains by authority, and a toxicity assessment with an Authority Score (0-100).
+description: Backlink profile audit via the DataForSEO Backlinks API. Returns total backlinks, referring domains, dofollow ratio, top anchors with over-optimization flags, top referring domains by authority, and a toxicity assessment with an Authority Score (0-100). Use when the user asks for a backlink audit, link profile review, referring domain analysis, anchor text check, toxic link or negative SEO assessment, or an Authority Score (0-100) for a domain, after a credential preflight.
 allowed-tools:
   - Bash
   - Write

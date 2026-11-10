@@ -237,8 +237,28 @@ test("C6 stale sweep: only checkouts older than the cutoff are returned", () => 
 
 test("C7 skill doc: SKILL.md names every verb and stays under the soft cap", () => {
   const doc = fs.readFileSync(path.join(HERE, "../SKILL.md"), "utf8");
-  for (const verb of ["find", "checkout", "checkin", "pull"]) {
+  for (const verb of ["find", "checkout", "checkin", "pull", "activate"]) {
     assert.match(doc, new RegExp(`skill_shelf\\.mjs[^\\n]*\\b${verb}\\b`), `SKILL.md must show the ${verb} command`);
   }
   assert.ok(doc.split("\n").length <= 200, "SKILL.md is over the 200-line soft cap");
+});
+
+test("C8 activate: a passport receipt is simulated, refuses an unreviewed outside skill and allows a clean one", () => {
+  const f = fixture();
+  fs.writeFileSync(
+    path.join(f.active, "real-skill/SKILL.md"),
+    "---\nname: real-skill\ndescription: A hand-written local skill.\nallowed-tools: Read, Grep\n---\n\n# real-skill\n",
+  );
+  const ok = run(f.home, "activate", "real-skill", "--max-risk", "low");
+  assert.equal(ok.code, 0, ok.err + ok.out);
+  const receipt = JSON.parse(ok.out);
+  assert.equal(receipt.decision, "ALLOW");
+  assert.equal(receipt.simulated, true);
+  assert.equal(receipt.installed, false);
+  // tdd-vault sits in the vault under ext/, and the registry has no "ext" entry: unreviewed.
+  const raw = run(f.home, "activate", "tdd-vault");
+  assert.equal(raw.code, 3, raw.err + raw.out);
+  assert.ok(JSON.parse(raw.out).codes.includes("UNREVIEWED"));
+  assert.equal(fs.existsSync(path.join(f.active, "tdd-vault")), false, "activate must not check anything out");
+  assert.equal(run(f.home, "activate").code, 2);
 });

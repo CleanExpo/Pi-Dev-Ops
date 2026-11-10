@@ -1,6 +1,6 @@
 ---
 name: source-ingest
-description: Capture real, credible data from authoritative sites into the 2nd-Brain vault Sources/ library so it can be cited by any FACT/non-fiction content (faceless-video FACT mode, marketing copy, SEO articles, client deliverables). Tiered research substrate (margot deep_research -> credibility-whitelisted WebSearch -> WebFetch -> crawl4ai headless deep-crawl -> browser-harness -> Bright Data escalation), credibility-rated, citation-preserving, reuse-before-rescrape. Use when the user says "research X", "find real data on", "scrape credible sources", "build my source library", "ingest sources", or whenever a FACT script/article needs verifiable claims. NOT for fiction (story mode invents).
+description: Captures real, credible data from authoritative sites into the 2nd-Brain vault Sources/ library so FACT/non-fiction content (faceless-video FACT mode, copy, SEO articles, client deliverables) can cite it. Tiered research (margot deep_research, whitelisted WebSearch, WebFetch, crawl4ai, browser-harness, Bright Data), credibility-rated, citation-preserving, reuse-before-rescrape. Use when the user says "research X", "find real data on", "scrape credible sources", "build my source library", "ingest sources", or when FACT content needs verifiable claims. NOT for fiction.
 ---
 
 # Source Ingest — credible-data library for the vault

@@ -120,3 +120,10 @@ Distilled 2026-07-08 from `Synthex/.claude/skills/senior-copywriter/SKILL.md` v0
 2026-07-04) into a Fable-5-calibrated, estate-portable standard. Full Synthex L6 pipeline version stays
 in the Synthex repo; this is the everywhere-gate. Hook-craft long form: the source's
 `references/hook-craft.md`.
+
+## Ship gate (Prove mode)
+
+When this skill changes something that already exists in a way a person would judge (wording, behaviour,
+design, a model or prompt, a cost line), the change ships only after it beats the current version. Call the
+Skill tool with "gauntlet-loop" and follow its Prove mode. Mechanical fixes that a hard check proves (a
+broken link repaired, a failing test made to pass) do not need it.

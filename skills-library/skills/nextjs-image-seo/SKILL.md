@@ -121,3 +121,10 @@ the image is used outside `next/image` (e.g. in an `<img>` tag or OG meta tag).
 | `aria-hidden` on interactive SVG icon | Check parent — if `<button>` has accessible text, icon needs `aria-hidden`; if not, it needs `aria-label` |
 | `loading="lazy"` AND `priority` together | Remove `loading="lazy"` — `priority` already disables lazy loading |
 | Adding `alt=""` to `<svg>` | SVGs don't use `alt`; use `aria-hidden="true"` or `aria-label` |
+
+## Ship gate (Prove mode)
+
+When this skill changes something that already exists in a way a person would judge (wording, behaviour,
+design, a model or prompt, a cost line), the change ships only after it beats the current version. Call the
+Skill tool with "gauntlet-loop" and follow its Prove mode. Mechanical fixes that a hard check proves (a
+broken link repaired, a failing test made to pass) do not need it.

@@ -66,7 +66,8 @@ cd /tmp/recover
 # (An already-squashed prefix — e.g. a merged spec — shows no diff; GitHub compares trees.)
 git checkout <old-branch> -- <file1> <file2> ...
 git status --short                                              # confirm only the intended files
-git commit --no-verify -m "feat: re-land <change> after premature auto-merge of #<PR>"
+git commit -m "feat: re-land <change> after premature auto-merge of #<PR>"   # hooks run
+# Before the push and the PR: satisfy skills/pr-release-gate/SKILL.md for this exact HEAD
 git push -u origin <new-branch>
 gh pr create --base main --head <new-branch> --title "..." --body "..."
 ```

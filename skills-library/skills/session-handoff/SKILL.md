@@ -100,6 +100,21 @@ Phase 0 log path in §5/§6:
 9. Risk notes (unverified assumptions, failed commands, stale context, secrets/env gaps)
 10. Handoff quality check
 
+**Release evidence carries a `valid until` time.** The release gate refuses a review or
+receipt older than 24 h (`MAX_AGE` in `skills/pr-release-gate/scripts/pr_release_gate.py`,
+counted from its `reviewed_at` / `issued_at`). On 07/11/2026 a handoff said "do not redo
+review / issue" two days later, and publish failed with "receipt evidence is stale". So
+beside every review, receipt, CI mirror run or publish in §3, §6 or `Do not redo`, write
+the SHA it binds to, its own timestamp, and `valid until <timestamp + 24 h>` in ISO form with
+the zone. `/resume-from-handoff` step 0 marks anything past that time EXPIRED.
+
+**Where to write it.** If writing into `docs/session-handoffs/` would change a head that a
+receipt is bound to (a git worktree mid-release), write the file to this session's
+`side-session-notes` folder instead and name that path in the first line of the report;
+`/resume-from-handoff` searches both. **A step refused for an agent** (permission or
+auto-mode denial, or a founder-only action) goes on the source-of-truth board as a founder
+card, not only into §7 (`/resume-from-handoff` step 0e gives the card fields).
+
 End with: `Handoff complete. Next safe action: <one sentence>.`
 
 ## What the handoff must preserve
@@ -107,7 +122,7 @@ End with: `Handoff complete. Next safe action: <one sentence>.`
 A handoff IS this estate's compaction: the next session gets it instead of the transcript, so
 anything missing here is forgotten. Be complete on these six even at the cost of length, and keep
 everything else short. Adopted 23/09/2026 from Anthropic's compaction-summary guidance — see
-`rules/anthropic-prompting-adoption.md`.
+`skills/context-cockpit/references/anthropic-adoption-20260923.md`.
 
 1. **Difficulties that came up**, and how each was handled or resolved.
 2. **Options raised, tried, or set aside** — including the ones rejected, and why.

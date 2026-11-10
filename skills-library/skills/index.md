@@ -1,20 +1,26 @@
 ---
 type: skill-index
-updated: 2026-09-24
+updated: 2026-11-06
 ---
 
 # Skills Index — Pure-Doc Router
 
-Always loaded; keep ≤60 lines. Intent → canonical entry point; the entry point dispatches its own sub-skills.
+Read on demand when selecting a workflow; keep routing descriptions concise. Intent → canonical entry point; the entry point dispatches its own sub-skills.
 
 | Intent / trigger phrase | Skill |
 |---|---|
 | `git push` / `gh pr create\|ready\|merge` / opening or updating any PR | `pr-release-gate` (auto-merge threat, checks, conflicts: `merge-gate`) |
+| "spec" / "blueprint" / hand work between Grok, Claude Code and Codex | `multi-model-pipeline` |
 | "quality checks failed" / "PR is unstable" / "green locally red in CI" / before any RestoreAssist push | `ci-quality-parity` |
+| before any mutation-capable project work · before claiming done, fixed, deployed or complete · "donectl" / Done contract | `done-harness` |
 | "tests pass" / "it's green" / "verified" / "done" / "fixed" / "shipped" — before marking anything passing | `proof-discipline` |
+| start of ANY task on Phill's machines · "claim before work" / hand off with a result and a lesson | `source-of-truth` |
+| tidy report shows LOST / STALLED · "why was this worktree / process / temp file removed" · the 2-hourly tidy schedule | `estate-tidy` |
+| factual reports, inspection scopes, training, research · "verify this report" / source authentication before publishing | `trd-truth-research-deliver` |
 | "add a check" / "write a test for" / "gate this" / "guard against" — before the control exists | `control-design` |
 | "already failing" / "pre-existing" / "skipped" — reading a verdict you did not write · "nothing found" / "scanned clean" / "no matches" — what did the check look at | `control-readout` · `control-scope` |
 | "add it to the fixture" / "paste the token" / "so it still boots" — anything that names a credential | `credential-custody` |
+| names an external service, API, MCP connector or credential · "which credential" / "where does the key live" | `library` |
 | "is X ready to ship" / go-live / what's blocking launch · "ship the backlog" / "get X production ready" | `readiness-architect` · `gauntlet-ship` |
 | "/shipyard" / "run overnight" / "clear the shelf" / "finish these PRs" | `shipyard` |
 | "/spm" / "plan this feature" / plan, build, fix or investigate a project task | `spm` |
@@ -23,11 +29,12 @@ Always loaded; keep ≤60 lines. Intent → canonical entry point; the entry poi
 | "/judge" / pre-build challenge / devil's advocate before approving a build | `judge` |
 | "help me decide" / "Board review" / "go or no-go" · "/pantheon" / "what would the greats say" | `ceo-board` · `pantheon` |
 | "security review" / "review this PR" / "pressure-test" / "adversarial review" | `opus-adversary` |
-| "grill me" / "stress-test this plan" · "ubiquitous language" / "what's the right term" | `grill-me` · `grill-with-docs` |
-| "/senior-harness" / full-system overhaul / false-green evidence · /goal hook repeats "Condition unsatisfied" | `senior-harness` · `goal-circuit-breaker` |
+| "grill me" / "stress-test this plan" · "ubiquitous language" / "what's the right term" · "/teach" / "teach me" / learn a topic over several sessions | `grill-me` · `grill-with-docs` · `teach` |
+| "/deep" / "NEXUS DEEP" / evidence-led senior engineering audit, build, challenge, simplify or verify | `nexus-deep` (delegates to `senior-harness-control`, `skill-selector`, `done-harness`) |
+| "/senior-harness" / full-system overhaul / false-green evidence · /goal hook repeats "Condition unsatisfied" | `senior-harness-control` · `goal-circuit-breaker` |
 | "/new-feature" / starting any feature, fix or task — worktree off `origin/main` | `new-feature` |
 | "/session-handoff" / "hand off this session" / before stopping · "/resume-from-handoff" | `session-handoff` · `resume-from-handoff` |
-| "/unslop" / before sending any text a person reads (commit, PR body, doc, reply) | `unslop` |
+| "/unslop" / "doesn't sound like AI" / "make it sound human" / before sending any text a person reads (commit, PR body, doc, lesson, reply) | `unslop` |
 | "what do we know about" / "have we decided" · "search the web for" / "look up" / "who is" | `nexus-recall` · `nexus-search` |
 | "research" / "deep dive" / "competitive landscape" · iterative or watched topic: "/deep-loop" | `nexus-research` · `deep-loop` |
 | pasted URL / "read this page" / "scrape" · "enrich this list" / "build me a table of" | `nexus-extract` · `nexus-enrich` |
@@ -41,11 +48,13 @@ Always loaded; keep ≤60 lines. Intent → canonical entry point; the entry poi
 | "send invoice" / "stripe link" · "onboard {client}" · "SOW" / "draft scope" | `stripe-milestone-invoice` · `client-portal-provision` · `sow-draft` |
 | "deploy" / "CI/CD" / "LaunchAgent" · "scheduled task" / "cron job" · "production is down" | `curator-deployment` · `curator-scheduled-tasks` · `vercel-prod-debug` |
 | "use the fleet" / "use both machines" / "split the work" · "/crew" · "resume the agent" | `fleet-compute` · `crew` · `persistent-subagents` |
+| "router" / "super agent" / "hand these tickets out" / "run the board" · too many parallel threads to track | `cloudroom-router` |
 | "autonomy gate" / "can the agent do X autonomously" · "Browser extension is not connected" | `autonomy-ladder` · `chrome-account-align` |
 | "install this repo/skills" / "are we bloating the context" · "write a skill" · "/forge" · "which skills do I need" | `skill-watch` · `skill-authoring-standard` · `forge` · `skill-selector` |
 | "/context-cockpit" / "why is this session heavy" · Mac Mini disk full | `context-cockpit` · `mac-mini-external-storage` |
 | "ingest wiki" / "update brain" · "/wiki-growth" · "adopt the second brain standard" | `wiki-ingest` · `wiki-growth` · `second-brain-adopt` |
 | "QA gate" / "PASS or FAIL" · "/build-tournament" · "/gauntlet-loop" / "loop until it beats X" | `qa-lead` · `build-tournament` · `gauntlet-loop` |
+| "make X better" / improve, upgrade, migrate, swap the model, rewrite the prompt or copy, lift conversions, cut the cost of something that exists · "prove it" / "prove it better" / "beat the current version" | `gauntlet-loop` |
 | "morning brief" · "triage my inbox" · "reticle" / "verify the flow" (CARSI) | `daily-intel-brief` · `inbox-triage` · `reticle-verify` |
 | "council" / specialists consult each other · "nexus prompt" · "actions vs services" | `specialist-council` · `nexus` · `code-structure` |
 

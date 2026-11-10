@@ -1,5 +1,17 @@
 # Getting the quality you recorded for — HeyGen v3 engines, verified against the live account
 
+## Contents
+- [The thing that actually matters](#the-thing-that-actually-matters)
+- [Verified account facts (2026-07-24)](#verified-account-facts-2026-07-24)
+- [The call to make](#the-call-to-make)
+- [Parameters that change the result](#parameters-that-change-the-result)
+- [Changing the avatar's appearance (teeth, and anything else in the face)](#changing-the-avatars-appearance-teeth-and-anything-else-in-the-face)
+- [Voice](#voice)
+- [Consent](#consent)
+- [Failure modes that have actually cost time here](#failure-modes-that-have-actually-cost-time-here)
+- [Before a batch](#before-a-batch)
+
+
 Read this before rendering any avatar built from a to-camera recording. It exists
 because a long capture buys a **higher-fidelity render path**, and the wrong API
 call throws that away silently — the render still succeeds, it just looks like

@@ -101,8 +101,9 @@ When a PR removes a default value from a secret-bearing env var, run this
 checklist before merging:
 
 ```
-[ ] Confirm the env var is set in Railway production (Railway dashboard or
-    `railway variables list`).
+[ ] Confirm the env var is set in Railway production (Railway dashboard ->
+    service -> Variables, reading the name only; the CLI and MCP variable
+    listings print values, and the secrets gate refuses them).
 [ ] Confirm the env var is set in Vercel production
     (`vercel env ls --environment=production`).
 [ ] Confirm the env var is set in GitHub Actions secrets if CI uses it

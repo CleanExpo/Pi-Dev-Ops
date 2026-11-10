@@ -1,5 +1,23 @@
 # NotebookLM MCP Tools — Reference
 
+## Contents
+- [1. Authentication](#1-authentication)
+- [2. Notebook Management](#2-notebook-management)
+- [3. Source Management](#3-source-management)
+- [4. Research (Source Discovery)](#4-research-source-discovery)
+- [5. Content Generation (Studio) — Unified Creation](#5-content-generation-studio--unified-creation)
+- [6. Studio (Artifact Management)](#6-studio-artifact-management)
+- [7. Chat Configuration and Notes](#7-chat-configuration-and-notes)
+- [8. Notebook Sharing](#8-notebook-sharing)
+- [9. Aliases (UUID Shortcuts)](#9-aliases-uuid-shortcuts)
+- [10. Configuration](#10-configuration)
+- [11. Batch Operations](#11-batch-operations)
+- [12. Cross-Notebook Query](#12-cross-notebook-query)
+- [13. Pipelines](#13-pipelines)
+- [14. Tags & Smart Select](#14-tags--smart-select)
+- [Server Info (Version Check)](#server-info-version-check)
+
+
 MCP-tool counterpart to the CLI `command_reference.md`. Loaded on demand when working through MCP (`mcp__notebooklm-mcp__*`) rather than the CLI.
 
 All tools are exposed under the `mcp__notebooklm-mcp__*` prefix (some hosts surface them as `mcp_notebooklm_*`). Refer to each tool's own docstring for the authoritative parameter list; this file captures the documented parameters, enums, and behavioral notes.

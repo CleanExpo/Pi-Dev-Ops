@@ -1,5 +1,16 @@
 # Content Quality Gates
 
+## Contents
+- [Minimum Word Counts by Page Type](#minimum-word-counts-by-page-type)
+- [Location Page Thresholds](#location-page-thresholds)
+- [Safe vs. Risky Programmatic Pages](#safe-vs-risky-programmatic-pages)
+- [Title Tag Requirements](#title-tag-requirements)
+- [Meta Description Requirements](#meta-description-requirements)
+- [Image Alt Text Requirements](#image-alt-text-requirements)
+- [Internal Linking Guidelines](#internal-linking-guidelines)
+- [Content Freshness Signals](#content-freshness-signals)
+
+
 ## Minimum Word Counts by Page Type
 
 | Page Type | Min Words | Unique Content % | Notes |

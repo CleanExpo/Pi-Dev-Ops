@@ -14,6 +14,7 @@ Adding a node is one entry in NODES. Nothing else changes.
     fleet.py collect                    # gather finished job outputs
 """
 import argparse, json, os, shlex, socket, subprocess, sys, time, uuid
+from pathlib import Path
 
 # --- Fleet registry -------------------------------------------------------------
 # runtimes: which agent CLIs are USABLE on that node, not merely installed.
@@ -113,6 +114,17 @@ def run(cmd, timeout=60):
         return 1, "", str(e)
 
 
+def local_shell(node):
+    shell = shlex.split(NODES[node]["shell"])
+    if node == "windows" and sys.platform.startswith("linux"):
+        # WSL shares the PC hostname, but Linux pwsh cannot execute Windows CIM.
+        # Use the native Windows bridge and retain the Windows payload dialect.
+        release = Path("/proc/sys/kernel/osrelease").read_text().lower()
+        if "microsoft" in release:
+            shell[0] = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+    return shell
+
+
 def remote(node, script, timeout=60):
     """Run a shell snippet on a node. Local nodes skip ssh entirely.
 
@@ -131,7 +143,7 @@ def remote(node, script, timeout=60):
         # UNREACHABLE. A missing interpreter and a machine that is switched off produce
         # the identical row, which is the failure this file already names: a broken query
         # and a quiet node look the same. (2026-08-31)
-        return run(shlex.split(n["shell"]) + [script], timeout)
+        return run(local_shell(node) + [script], timeout)
     wrapped = f"{n['shell']} {shlex.quote(script)}"
     return run(SSH + [n["host"], wrapped], timeout)
 
@@ -325,8 +337,11 @@ def cmd_dispatch(args):
         # or ssh's join leaves `zsh -lc` holding just the first word and the job never starts.
         # This silently launched nothing for three jobs before it was caught — the launch
         # returned 0 because ssh itself succeeded.
+        # `< /dev/null` is not optional: `codex exec` reads a non-TTY stdin until EOF even
+        # with the prompt in argv ("Reading additional input from stdin..."), and a nohup'd
+        # job otherwise inherits the ssh session's stdin (proven 30/09/2026, >7 min hang).
         inner = (f"cd /tmp && codex exec --sandbox read-only --skip-git-repo-check "
-                 f"\"$(cat {rprompt})\" > {rout} 2>&1; echo DONE >> {rout}")
+                 f"\"$(cat {rprompt})\" < /dev/null > {rout} 2>&1; echo DONE >> {rout}")
         launcher = f"nohup zsh -c {shlex.quote(inner)} >/dev/null 2>&1 &"
         wrapped = f"{NODES[t]['shell']} {shlex.quote(launcher)}"
         subprocess.run(SSH + [NODES[t]["host"], wrapped], capture_output=True, text=True,

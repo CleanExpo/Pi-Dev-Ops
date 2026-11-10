@@ -624,7 +624,9 @@ When these test and eval choices are resolved, write the Test Plan Artifact belo
 After resolving the Test review decisions, record the approved test requirements in an artifact for `/qa` and `/qa-only`. List any unresolved choices separately as pending, not required implementation. Update this artifact if later approved decisions change the tests. Use the Review record and write policy above.
 
 ```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"); BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo no-branch); GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
+_GS_RP="$HOME/.local/state/gs/tmp/repo.$$"; { mkdir -p "${_GS_RP%/*}" && chmod 700 "${_GS_RP%/*}"; } 2>/dev/null || { [ -n "${TMPDIR:-}" ] && _GS_RP="$TMPDIR/gs-repo.$$"; }; git rev-parse --show-toplevel > "$_GS_RP.top" 2>/dev/null || pwd > "$_GS_RP.top" || { echo "GS_TMP_UNWRITABLE: could not write $_GS_RP.top, so nothing was looked up" >&2; exit 1; }
+git rev-parse --abbrev-ref HEAD > "$_GS_RP.br" 2>/dev/null || :
+read -r _GS_TOP < "$_GS_RP.top"; read -r BRANCH < "$_GS_RP.br"; rm -f "$_GS_RP.top" "$_GS_RP.br"; SLUG=${_GS_TOP##*/}; BRANCH=${BRANCH//\//-}; GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
 TEST_PLAN_USER=$(whoami)
 DATETIME=$(date +%Y%m%d-%H%M%S)
 ```
@@ -711,8 +713,11 @@ Run this command before leaving the disabled branch.
 If logging fails, report the persistence failure and retain the disabled opt-out.
 
 ```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"); BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo no-branch); GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
-echo '{"skill":"codex-plan-review","timestamp":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","status":"skipped","source":"none","host":"claude","outside_provider":"codex","outside_status":"disabled","phase":"plan-review","commit":"'"$(git rev-parse --short HEAD 2>/dev/null || true)"'"}' >> "$GS_PROJ/$BRANCH-reviews.jsonl"
+_GS_RP="$HOME/.local/state/gs/tmp/repo.$$"; { mkdir -p "${_GS_RP%/*}" && chmod 700 "${_GS_RP%/*}"; } 2>/dev/null || { [ -n "${TMPDIR:-}" ] && _GS_RP="$TMPDIR/gs-repo.$$"; }; git rev-parse --show-toplevel > "$_GS_RP.top" 2>/dev/null || pwd > "$_GS_RP.top" || { echo "GS_TMP_UNWRITABLE: could not write $_GS_RP.top, so nothing was looked up" >&2; exit 1; }
+git rev-parse --abbrev-ref HEAD > "$_GS_RP.br" 2>/dev/null || :
+read -r _GS_TOP < "$_GS_RP.top"; read -r BRANCH < "$_GS_RP.br"; rm -f "$_GS_RP.top" "$_GS_RP.br"; SLUG=${_GS_TOP##*/}; BRANCH=${BRANCH//\//-}; GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
+git rev-parse --short HEAD > "$_GS_RP.c" 2>/dev/null || : > "$_GS_RP.c"; read -r COMMIT < "$_GS_RP.c"; rm -f "$_GS_RP.c"
+echo '{"skill":"codex-plan-review","timestamp":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","status":"skipped","source":"none","host":"claude","outside_provider":"codex","outside_status":"disabled","phase":"plan-review","commit":"'"$COMMIT"'"}' >> "$GS_PROJ/$BRANCH-reviews.jsonl"
 ```
 
 When the mode is anything except `disabled`, print one line so the off-switch
@@ -758,8 +763,9 @@ completed output. Use private temporary paths, with no background jobs.
 Create a private prompt file: run `umask 077; mktemp "${TMPDIR:-/tmp}/gs-plan-prompt.XXXXXXXX"` in Bash and keep the returned path. Use Write to put the **complete prompt and context**, including actual plan/spec/source, in that file. Substitute its shell-quoted path for `<prepared-prompt-file>`; never interpolate user text into shell source. Request a final Recommendation: <action> because <specific reason> line, including an explicit no-findings rationale.
 
 ```bash
-_REPO_ROOT=$(git rev-parse --show-toplevel) || { echo 'ERROR: not in a git repo' >&2; exit 1; }
 _OUT=$(mktemp -d "${TMPDIR:-/tmp}/gs-outside.XXXXXXXX") || exit 1
+git rev-parse --show-toplevel > "$_OUT/root" || { echo 'ERROR: not in a git repo' >&2; rm -rf "$_OUT"; exit 1; }
+read -r _REPO_ROOT < "$_OUT/root"
 _T=""; command -v gtimeout >/dev/null 2>&1 && _T="gtimeout 300"
 [ -z "$_T" ] && command -v timeout >/dev/null 2>&1 && _T="timeout 300"
 _EXIT=0
@@ -796,39 +802,64 @@ dispatch, check the preflight result again: disabled means no replacement;
 record disabled coverage and do not dispatch. If still enabled, run the bounded
 native attempt below. A native result never supplies outside coverage.
 
-**Bounded outside-voice wait — one five-minute wait plus dispatch/cancellation overhead:**
+**Outside-voice wait — one five-minute wait for a background run (no timer in the foreground), plus dispatch/cancellation overhead:**
 
-Before dispatch, verify TaskOutput and TaskStop in this session's tool definitions,
-and Plan in Agent's declared subagent types. Do not launch a task to test availability.
-If any capability is missing or undeclared, take the unavailable path below.
+Before dispatch, verify the Agent tool in this session's tool definitions and Plan
+in Agent's declared subagent types. Do not launch a task to test availability.
+If either is missing or undeclared, take the unavailable path below. (TaskOutput was
+removed in Claude Code 2.1.277; do not look for it or call it.)
 Use Plan, which denies native Edit, Write and NotebookEdit tools. Do not set a model
 override; keep the inherited model. This is not a filesystem sandbox: the review-only
 prompt also forbids mutations through other tools. The subagent has fresh context
 but is the same harness; model identity stays unknown unless the runtime reports it.
 A native result never supplies outside coverage.
 
-This is the single bounded-wait exception to foreground dispatch for this outside
-voice. Execute the four steps once:
+This outside voice gets one dispatch. A background run gets one bounded wait of
+five minutes from dispatch; a foreground run has no timer (see step 2). Execute
+the four steps once:
 
-1. Dispatch via the Agent tool with `subagent_type: "Plan"` and
-   `run_in_background: true`. Subagent prompt: same plan review prompt as above.
-   Keep the returned `agentId`; do not guess an ID or launch a second task.
-   If dispatch fails without an ID, take the unavailable path without guessing one.
-2. Immediately call TaskOutput with that exact ID as `task_id`, `block: true`,
-   and `timeout: 300000`. Make one wait only; do not poll or renew the budget.
-3. Check TaskOutput's outer fields: `<retrieval_status>` must be `success`,
-   `<task_id>` must match, `<task_type>` must be `local_agent`, `<status>`
-   must be `completed`, `<output>` must be nonempty, and there must be no outer
-   `<error>`. Accept findings only if that output is an identifiable complete
+1. Dispatch via the Agent tool with `subagent_type: "Plan"`, passing only
+   parameters the Agent tool declares. Request a background run where available:
+   if the Agent tool declares `run_in_background`, set it to `true`. The host
+   still decides; it may run the call in the foreground. Subagent prompt: same
+   plan review prompt as above. Do not launch a second task. If the host refuses
+   the call or dispatch fails, take the unavailable path.
+2. Take the result once, the way the runtime delivers it.
+   - **Foreground:** if the host ran the call in the foreground, the Agent call
+     returns the subagent's final result itself, and that result is the candidate
+     report. There is no timer in this case: a foreground call blocks until the
+     subagent finishes and cannot be cut short, so the five-minute budget does not
+     apply. Say so plainly when presenting the result ("ran in the foreground;
+     no time limit applied"). Plan is one-shot and may return no agent ID, so none
+     is required here. Go to step 3.
+   - **Background:** the Agent call returns only a started-task acknowledgement.
+     Keep the task ID it names; do not guess one. If it names none, follow step 4.
+     Immediately start the deadline timer: one Bash call with
+     `run_in_background: true` running `sleep 300`. If the timer cannot start,
+     there is no bounded wait: follow step 4 now. Then wait,
+     without polling and without reading the running transcript, for the first of
+     two completion notifications. If the agent's notification (matching task ID)
+     arrives first, take the report it carries; if it gives only an output file
+     path, Read that file; then stop the timer with TaskStop if declared (a late
+     timer notification is ignored). If the timer's notification arrives first,
+     or a user instruction to continue arrives first, the budget is spent: follow
+     step 4. Do not start a second timer or renew the budget.
+3. Check the result: it must show the agent completed (not failed, stopped, or
+   cut off by an API error with partial output), and be nonempty. For a background
+   run it must also match the kept task ID and arrive before the timer fires.
+   Accept findings only if it is an identifiable complete
    final reviewer report. Reject raw or in-progress transcripts; do not extract
    finding fragments from them. Terminal status or warning markers alone do not
    establish report completeness. If any check fails or the report cannot be identified, follow step 4. Otherwise present it under an `OUTSIDE VOICE (Claude subagent):`
    header, then continue to Cross-model tension.
-4. On any noncompletion (timeout, error, missing/mismatched result, failed/killed
-   status, raw transcript or empty report), call TaskStop with the same ID as
-   `task_id`. TaskOutput timeout does not stop the agent. Record the stop result;
-   if cancellation fails, say cancellation is unconfirmed. If TaskStop reports the
-   task already completed after the timeout, still give no late-result credit.
+4. On any noncompletion (budget spent, no timer, error, missing/mismatched
+   result, failed/stopped status, partial output, raw transcript or empty report),
+   if a background agent may still be running and TaskStop is in this session's
+   tool definitions, call TaskStop with its task ID as `task_id`. Ending the wait
+   does not stop the agent. Record the stop result; if TaskStop is unavailable or
+   cancellation fails, say cancellation is unconfirmed. If TaskStop reports the
+   task already completed, or its report arrives after the budget, still give no
+   late-result credit. Then take the unavailable path.
 
 **Unavailable path:** "Outside voice unavailable. Continuing to planning decisions and Approval readiness."
 Do not retry with a general-purpose agent. Report missing outside-voice coverage.
@@ -853,8 +884,11 @@ Report all findings, dispositions and remaining disagreements after resolving th
 
 **Persist the result:**
 ```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"); BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo no-branch); GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
-echo '{"skill":"codex-plan-review","timestamp":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","status":"STATUS","source":"SOURCE","host":"claude","outside_provider":"codex","outside_status":"OUTSIDE_STATUS","phase":"plan-review","commit":"'"$(git rev-parse --short HEAD)"'"}' >> "$GS_PROJ/$BRANCH-reviews.jsonl" && echo LOGGED || echo "NOT PERSISTED"
+_GS_RP="$HOME/.local/state/gs/tmp/repo.$$"; { mkdir -p "${_GS_RP%/*}" && chmod 700 "${_GS_RP%/*}"; } 2>/dev/null || { [ -n "${TMPDIR:-}" ] && _GS_RP="$TMPDIR/gs-repo.$$"; }; git rev-parse --show-toplevel > "$_GS_RP.top" 2>/dev/null || pwd > "$_GS_RP.top" || { echo "GS_TMP_UNWRITABLE: could not write $_GS_RP.top, so nothing was looked up" >&2; exit 1; }
+git rev-parse --abbrev-ref HEAD > "$_GS_RP.br" 2>/dev/null || :
+read -r _GS_TOP < "$_GS_RP.top"; read -r BRANCH < "$_GS_RP.br"; rm -f "$_GS_RP.top" "$_GS_RP.br"; SLUG=${_GS_TOP##*/}; BRANCH=${BRANCH//\//-}; GS_PROJ="$HOME/.local/state/gs/projects/$SLUG"; mkdir -p "$GS_PROJ"
+git rev-parse --short HEAD > "$_GS_RP.c"; read -r COMMIT < "$_GS_RP.c"; rm -f "$_GS_RP.c"
+echo '{"skill":"codex-plan-review","timestamp":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","status":"STATUS","source":"SOURCE","host":"claude","outside_provider":"codex","outside_status":"OUTSIDE_STATUS","phase":"plan-review","commit":"'"$COMMIT"'"}' >> "$GS_PROJ/$BRANCH-reviews.jsonl" && echo LOGGED || echo "NOT PERSISTED"
 ```
 
 Substitute: STATUS = "clean" only if a reviewer completed and found no issues; "issues_found" if findings exist, or "unavailable" if neither reviewer completed. Never count missing coverage as a clean review. A completed native fallback uses SOURCE=in-host, OUTSIDE_STATUS=unavailable, and STATUS=clean or issues_found from its findings. These findings are the reviewer's, even if later resolved by the parent.

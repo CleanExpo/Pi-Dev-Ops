@@ -154,14 +154,18 @@ failure. That is exactly the cry-wolf behaviour, and only the machine-unavailabl
 control caught it — the task-failed arm passed identically before and after the fix.
 
 ⚠️ **The quoting trap, which produced a registered task that silently did nothing.** The home
-path contains a space (`C:\Users\Disaster Recovery 4\`). `schtasks` stores `/TR` unquoted, so at
-run time it tried to execute `C:\Users\Disaster` and returned `-2147024894`
+path on `phill-desktop` contains a space (its user folder is `Disaster Recovery 4`). `schtasks`
+stores `/TR` unquoted, so at run time it tried to execute the path cut at that space
+(`...\Users\Disaster`) and returned `-2147024894`
 (`ERROR_FILE_NOT_FOUND`). The task queried as present, with a plausible *Next Run Time*, and had
 never once succeeded. Register against the 8.3 short path instead, which contains no spaces:
 
 ```
-schtasks /Create /TN "claude-dream" /TR C:\Users\DISAST~1\CLAUDE~2\DREAM-~1.CMD /SC DAILY /ST 03:00 /F
+schtasks /Create /TN "claude-dream" /TR <8.3-short-path-of-dream-task.cmd> /SC DAILY /ST 03:00 /F
 ```
+
+The short path differs per machine; `dream.py install-task` computes it (`GetShortPathNameW`)
+and prints it, so let it build this command rather than typing one.
 
 **Registering it is not evidence it runs.** Force one execution and prove the record appeared:
 

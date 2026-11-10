@@ -1,13 +1,13 @@
 ---
 name: gauntlet-loop
-description: Turns any goal into one short, paste-ready "gauntlet loop" prompt - a prompt that makes an agent set a concrete quality bar, split the work into small judgeable pieces, run a builder and a separate harsh critic on each, compare blind against the bar, and loop until it wins. Works for builds, writing, code, research, or design. Triggers on "/gauntlet-loop", "gauntlet loop", "gauntlet this", "make a gauntlet prompt", "loop until it beats X".
+description: Makes work beat a real bar before it counts. Bar mode writes one paste-ready gauntlet loop prompt (builder plus a harsh blind critic, looping until ours beats a named reference). Prove mode makes a change to something that already exists beat the current version on real cases, judged blind by another vendor, before it ships reversibly. Use when asked to loop until it beats X, or to improve, upgrade, migrate, rewrite, optimise or cut the cost of something that already exists.
 ---
 
 # Gauntlet Loop
 
-The user gives a goal. You give back ONE short prompt they can paste into a fresh agent session.
+Two modes. **Bar mode** (the default, below): the user gives a goal and you give back ONE short prompt they can paste into a fresh agent session. **Prove mode**: the goal is to improve something that already exists; see Prove mode under Flow.
 
-You are not doing the work. You are writing the prompt that makes another agent grind on the work until it beats a real reference.
+In Bar mode you are not doing the work. You are writing the prompt that makes another agent grind on the work until it beats a real reference.
 
 ## Flow
 
@@ -30,6 +30,18 @@ separate projects, dispatch `gauntlet-pair` instead — it emits a surface-shape
 claims a project per surface so they cannot overlap, and exits on 100% AAA+ rather than a single
 blind win. Pair and ship compose: a pair run may hold a `gauntlet-ship` board on one surface and a
 `gauntlet-loop` board on the other.
+
+**Prove mode.** If the thing already exists and the goal is to make it better (improve, upgrade,
+migrate, swap a model, rewrite a prompt or copy, lift conversions, cut a cost), the bar is the
+current version, not a rival, and there is no prompt to hand over: run it here. Read
+[`references/prove-mode.md`](references/prove-mode.md) and follow its phases in order (access,
+research on real cases, a challenger behind a switch, blind two-order judging by another vendor,
+fixing defects, a reversible ship through `pr-release-gate`, live verification, the report).
+Criteria, bias controls and the per-domain table are in
+[`references/prove-judging.md`](references/prove-judging.md); the tracker and report are in
+[`references/prove-templates.md`](references/prove-templates.md). The scripts are
+`scripts/prove_judge.py`, `scripts/prove_checks.py` and `scripts/prove_scoreboard.py`; run each
+with `--help`. Skills that change something that already exists use this mode as their ship gate.
 
 ## The bar is the whole trick
 

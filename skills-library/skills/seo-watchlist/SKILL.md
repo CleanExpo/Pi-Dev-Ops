@@ -1,6 +1,6 @@
 ---
 name: seo-watchlist
-description: Track multiple domains and keywords across runs using the DataForSEO SERP API. Saves a local watchlist of domains + their target keywords, then re-runs live rank checks on demand and surfaces any position changes (gains, losses, drops) since the last check.
+description: Track multiple domains and keywords across runs using the DataForSEO SERP API. Saves a local watchlist of domains + their target keywords, then re-runs live rank checks on demand and surfaces any position changes (gains, losses, drops) since the last check. Use when the user wants to track multiple domains and their target keywords over time, with phrases like add a domain to the watchlist, list the watchlist, check rankings for a domain or all domains, or remove a domain or keyword, to re-run live DataForSEO SERP rank checks and report position gains, losses and drops since the last check.
 allowed-tools:
   - Bash
   - Read

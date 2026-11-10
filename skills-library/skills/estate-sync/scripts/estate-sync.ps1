@@ -116,7 +116,14 @@ $neverSync = @(
   'skills/engineering-requirements/scripts/',
   'skills/supabase-write-gate/scripts/',
   'skills/enforcement-loop/install/',
-  'skills/estate-sync/scripts/'
+  'skills/estate-sync/scripts/',
+  # Kept identical to NEVER_SYNC in estate-sync.sh; test_estate_sync t28 compares them.
+  'hooks/',
+  'agents/',
+  'skills/done-harness/install/',
+  'skills/engineering-requirements/harness/',
+  'skills/spm/scripts/contract.lock',
+  'scripts/retired-models.txt'
 )
 function IsNeverSync($p) {
   foreach ($n in $neverSync) {
@@ -354,9 +361,21 @@ if ($ahead.Count -gt 0) {
     Log 'skip: non-sync commit(s) ahead of origin/main - a session must push these deliberately; auto-push skipped'
     exit 0
   }
+  # Review 26/10/2026: the receipt and staging checks see only this cycle, so a never-sync path
+  # committed by an earlier sync commit was still pushed. Apply the list to the whole payload.
+  # Review r2: every path every outgoing commit touches (a path added then deleted is still in the
+  # published history), NUL-separated so git never quotes a name past the never-sync match.
+  $payloadRaw = (git log -m --no-renames --name-only -z --format= origin/main..HEAD 2>> $log) -join "`n"
+  if ($LASTEXITCODE -ne 0) { Log 'FAIL: could not list the push payload; push skipped'; exit 1 }
+  $payload = @($payloadRaw -split "`0" | ForEach-Object { $_.TrimStart("`n") })
+  $blocked = $false
+  foreach ($pf in $payload) {
+    if ($pf -and (IsNeverSync $pf)) { Log "REFUSED: $pf is in the push payload (never-sync path - this timer must not publish it)"; $blocked = $true }
+  }
+  if ($blocked) { Log 'REFUSED: push blocked - never-sync path(s) in commits ahead of origin/main; reconcile by hand'; exit 1 }
   # Last check before the payload becomes public and permanent. A receipt proves someone
   # named the file; it does not prove they read every line of it.
-  $diff = @(git diff origin/main..HEAD 2>> $log)
+  $diff = @(git log -m -p --no-renames --format= origin/main..HEAD 2>> $log)   # every outgoing commit, not the final tree
   if ($LASTEXITCODE -ne 0) { Log 'FAIL: could not diff the push payload for secrets; push skipped'; exit 1 }
   $inFile = ''
   $hits = 0

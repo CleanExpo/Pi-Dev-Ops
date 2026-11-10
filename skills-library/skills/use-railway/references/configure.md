@@ -1,5 +1,14 @@
 # Configure
 
+## Contents
+- [Environments](#environments)
+- [Variables](#variables)
+- [Service config](#service-config)
+- [Domains](#domains)
+- [Troubleshoot configuration](#troubleshoot-configuration)
+- [Validated against](#validated-against)
+
+
 Manage environments, variables, service config, domains, and networking.
 
 ## Environments

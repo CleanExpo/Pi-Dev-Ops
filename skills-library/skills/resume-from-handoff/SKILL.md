@@ -25,10 +25,65 @@ $ARGUMENTS
 ```
 
 `$ARGUMENTS` may be: a path to a handoff file, pasted handoff text, or a branch / PR
-reference. If empty, load the **latest report under `docs/session-handoffs/`** (the durable
-output of `/session-handoff`, the "1" of this combo) and its paired **latest
-`.handoff-logs/handoff-<ts>.log`**; fall back to `.session-handoff/` or the current
-conversation context. If none can be found, ask the user to provide the handoff and stop.
+reference. If empty, take the **newest handoff found by step 0a** across every handoff home,
+and its paired **latest `.handoff-logs/handoff-<ts>.log`** when one exists; fall back to the
+current conversation context. If none can be found, ask the user to provide the handoff and stop.
+
+## Step 0 — Is the handoff still true? (read-only, before Phase 1)
+
+On 07/11/2026 one resume run stopped 8 times and none came from product code: the newest
+handoff sat in a folder this skill did not read, its "do not redo" review and receipt had
+expired, founder-only steps had waited for days, and the release machine's GitHub link had
+decayed. Step 0 checks those before any work. Report each result in the Phase 3 report.
+
+**0a. Search every handoff home and take the newest.** A handoff in a git worktree is often
+written outside the repo, because a tracked file would change the head a receipt is bound to.
+
+| Home | Written when |
+|---|---|
+| `docs/session-handoffs/` | the repo folder may change |
+| `.session-handoff/` | older sessions |
+| `%APPDATA%/Claude/side-session-notes/<session>/` (`AppData/Roaming/Claude/side-session-notes/`) | side sessions, and any worktree whose head must not move |
+
+Compare by the time written inside the file, then by file time. Name the file you chose and
+the homes you searched; "no handoff found" is true only for the homes listed.
+
+**0b. Expire old release evidence.** The release gate refuses a review or receipt older than
+`MAX_AGE` (24 h, `skills/pr-release-gate/scripts/pr_release_gate.py`), measured from its own
+`reviewed_at` / `issued_at`. For every "do not redo" item that is release evidence (review,
+receipt, CI mirror run, publish): read its `valid until` time (session-handoff writes it), or
+compute it as issued time + 24 h. If that time is past, mark the item **EXPIRED** and move it
+out of "do not redo" into "redo first". Never skip an EXPIRED step because the handoff said so.
+
+**0c. Ask GitHub before re-checking by hand.** For every PR or branch the handoff names, run
+`gh pr view <n> --json state,mergedAt,closedAt,headRefOid` first. A PR already MERGED or CLOSED
+by someone else ends that thread: report it, and do not re-verify or re-release it.
+
+**0d. Probe the release machine.** On the machine that will push or publish (WSL on the PC):
+
+```bash
+for i in 1 2 3 4 5 6 7 8 9 10; do timeout 30 gh api rate_limit -q .resources.core.remaining >/dev/null 2>&1 && echo ok || echo FAIL; done | sort | uniq -c
+time getent hosts api.github.com     # one name lookup; macOS: time dscacheutil -q host -a name api.github.com
+```
+
+Fewer than 10 of 10 OK, or a lookup over 2 s, is a machine fault: report it at the start,
+before any release step, with the known fix (restart Tailscale on the PC for slow lookups;
+restart WSL when `gh` drops connections). A restart that needs Phill becomes a founder card (0e).
+
+**0e. List founder cards, oldest first.** Founder-only steps live on the source-of-truth board
+(`jobs.json` on the Mini, the file `sot_hook.py board` / `show` reads). List the open ones:
+
+```bash
+ssh mini 'python3 -c "import json;J=json.load(open(\"/Volumes/Mini Mini 2T Storage/ops/jobs.json\"))[\"jobs\"];[print(j.get(\"created\",\"?\"),j[\"id\"],j.get(\"ask\") or j.get(\"title\")) for j in sorted(J,key=lambda j:str(j.get(\"created\",\"\"))) if str(j.get(\"owner\",\"\")).startswith(\"Phill\") and j.get(\"status\") in (\"todo\",\"open\",\"blocked\")]"'
+```
+
+When this session has a step refused for an agent (a permission or auto-mode denial, or a
+step only Phill may take: credentials, merge, money, production), do not leave it in a
+handoff line. Add it to that board as a card, under the claim protocol in
+`skills/source-of-truth/SKILL.md` (take `jobs.json.lock`, back up first): `id`, `title`,
+`status: "todo"`, `owner: "Phill (<why it is his>)"`, `tags: ["founder"]`, `ask` (one plain
+sentence), `command` (the exact command), `file` (a link to the script or note), `created`
+(ISO time), `source` (this session id). No new tool: `sot_hook.py show <id>` prints it.
 
 ## Phase 1 — Load the handoff (read-only)
 

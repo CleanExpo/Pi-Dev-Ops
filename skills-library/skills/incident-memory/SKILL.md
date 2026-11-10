@@ -1,6 +1,6 @@
 ---
 name: incident-memory
-description: Write symptom, cause, fix, reviewer verdict and outcome to a searchable store — successes and failures alike. This is the store `classify` reads to decide known versus novel. Use as the final step of every self-healing chain, including chains that stopped early or gave up.
+description: Write symptom, cause, fix, reviewer verdict and outcome to a searchable store — successes and failures alike. This is the store `classify` reads to decide known versus novel. Use as the final step of every self-healing chain, including chains that stopped early or gave up. Use when a self-healing chain is ending, including one that stopped early, gave up, hit the attempt bound or was halted at a gate, and the symptom, cause, fix, reviewer verdict and outcome must be appended as a JSON line to `.harness/incidents.jsonl` so that `classify` can later judge an incident as known or novel.
 ---
 
 # incident-memory

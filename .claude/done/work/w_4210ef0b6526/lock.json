@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_4210ef0b6526",
+  "contract_digest": "6353c4cb7395ddae5e40820b74541455320533ae9ec9434073d2551c7f95aaac",
+  "baseline_head": "977b77b9bf2a58297fab7372a8ccde16f2ca8a6c",
+  "identity_key": "fix/skills-overhaul-c1-lock-bump@/Users/phillmcgurk/Pi-Dev-Ops/.git/worktrees/pidevops-overhaul-20261110",
+  "locked_at_utc": "2026-11-10T05:51:50Z",
+  "criteria_count": 5,
+  "recipe_pins": {}
+}
