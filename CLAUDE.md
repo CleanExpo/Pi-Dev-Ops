@@ -543,3 +543,8 @@ Rules that prevent the recurrence:
 3. **Delete on contradiction.** If a check disagrees with this file, fix the file in that same PR.
    Leaving both is how the whisper stack forms.
 4. **Append only after reading.** New sections must be checked against existing ones for duplication.
+
+<!-- TRD-INTEGRATION-START -->
+## Mandatory Truth, Research & Deliver gate
+Before declaring factual reports, training, scopes, reviews or research verified, invoke the `trd-truth-research-deliver` skill in this repository. Collect original evidence, independently challenge with Claude and JEV, and obtain a PASS from the trusted executable gate before release. HOLD/BLOCK is not release-ready. Do not invent source facts or reviewer attestations. See `.trd/README.md`.
+<!-- TRD-INTEGRATION-END -->
