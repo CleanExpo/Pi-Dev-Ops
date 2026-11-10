@@ -14,8 +14,10 @@ import sys
 import threading
 import time
 import urllib.parse
+from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -36,12 +38,12 @@ class FakeClaims:
     the reaper's collaborators (return a JSON string body).
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.rows: dict[str, dict] = {}
         self.fleet_stale: dict[str, bool] = {}
         self.renewals = 0
         self.fail_renewals: str | None = None  # "500" | "raise"
-        self.before_release = None  # callable(path) run just before a reaper PATCH
+        self.before_release: Callable[[str], None] | None = None  # callable(path) run just before a reaper PATCH
 
     @staticmethod
     def _filters(path: str) -> dict[str, str]:
@@ -67,7 +69,7 @@ class FakeClaims:
                 raise AssertionError(f"fake does not understand filter {col}={spec}")
         return True
 
-    def _patch(self, path: str, body: dict):
+    def _patch(self, path: str, body: dict) -> list[dict]:
         f = self._filters(path)
         hit = [r for r in self.rows.values() if self._match(r, f)]
         for r in hit:
@@ -78,7 +80,8 @@ class FakeClaims:
                 r["state"] = body["state"]
         return hit
 
-    def request(self, method, path, body=None, prefer="return=minimal"):
+    def request(self, method: str, path: str, body: dict | None = None,
+                prefer: str = "return=minimal") -> tuple[int, list[dict] | None]:
         table = path.split("?", 1)[0]
         if table == "mesh_machines":
             return 201, None
@@ -97,7 +100,7 @@ class FakeClaims:
             return 200, [dict(r, claimed_at=r["claimed_at"].isoformat()) for r in hit]
         raise AssertionError(f"unexpected request {method} {path}")
 
-    def sb(self, method, path, body=None, *, prefer=""):
+    def sb(self, method: str, path: str, body: dict | None = None, *, prefer: str = "") -> tuple[int, str]:
         if method == "GET":
             return self.get(path)
         if self.before_release:
@@ -105,7 +108,7 @@ class FakeClaims:
         status, rows = self.request(method, path, body)
         return status, json.dumps(rows or [])
 
-    def get(self, path):
+    def get(self, path: str) -> tuple[int, str]:
         if path.startswith("mesh_fleet"):
             return 200, json.dumps([{"host": h, "is_stale": s} for h, s in self.fleet_stale.items()])
         f = self._filters(path)
@@ -119,7 +122,7 @@ class FakeClaims:
 
 
 @pytest.fixture
-def world(monkeypatch):
+def world(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeClaims]:
     from app.server import session_lease, supabase_log
 
     fake = FakeClaims()
@@ -135,7 +138,7 @@ def world(monkeypatch):
         session_lease.release_linear_ticket(ident, "released")
 
 
-def _reap(fake: FakeClaims):
+def _reap(fake: FakeClaims) -> list[dict]:
     from app.server import mesh_reaper
 
     return mesh_reaper.reap(fake.get, fake.sb, lambda _lid: None, TTL_MIN)
@@ -145,25 +148,24 @@ def _renewers() -> list[threading.Thread]:
     return [t for t in threading.enumerate() if t.name.startswith("claim-renew") and t.is_alive()]
 
 
-def _wait(cond, timeout=3.0) -> bool:
+def _wait(cond: Callable[[], Any], timeout: float = 3.0) -> bool:
     end = time.monotonic() + timeout
     while not cond() and time.monotonic() < end:
         time.sleep(0.01)
     return cond()
 
 
-def _claim(ident="UNI-1") -> None:
+def _claim(ident: str = "UNI-1") -> None:
     from app.server import session_lease as lease
 
     assert lease.claim_linear_ticket(ident) is True
 
 
-def _only_row(fake):
+def _only_row(fake: FakeClaims) -> dict:
     return next(iter(fake.rows.values()))
 
 
-
-def test_cloud_claim_still_renewed_by_its_session_is_not_reaped(world, monkeypatch):
+def test_cloud_claim_still_renewed_by_its_session_is_not_reaped(world: FakeClaims, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
     _claim()
     world.age(TTL_MIN + 30)  # the session has now outlived the TTL
@@ -172,7 +174,7 @@ def test_cloud_claim_still_renewed_by_its_session_is_not_reaped(world, monkeypat
     assert _only_row(world)["state"] == "claimed"
 
 
-def test_reap_cannot_release_a_claim_renewed_after_it_was_read(world, monkeypatch):
+def test_reap_cannot_release_a_claim_renewed_after_it_was_read(world: FakeClaims, monkeypatch: pytest.MonkeyPatch) -> None:
     """Candidate read, then the session renews, then the reaper PATCHes: the release
     itself must refuse a row that is no longer stale (no read-then-write gap)."""
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
@@ -184,8 +186,7 @@ def test_reap_cannot_release_a_claim_renewed_after_it_was_read(world, monkeypatc
     assert _only_row(world)["state"] == "claimed"
 
 
-
-def test_cloud_claim_whose_renewals_stopped_is_reaped(world, monkeypatch):
+def test_cloud_claim_whose_renewals_stopped_is_reaped(world: FakeClaims, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
     _claim()
     world.fail_renewals = "500"  # replica cut off from Supabase: it can no longer renew
@@ -195,7 +196,7 @@ def test_cloud_claim_whose_renewals_stopped_is_reaped(world, monkeypatch):
     assert _only_row(world)["state"] == "released"
 
 
-def test_renewal_stops_after_its_maximum_lifetime(world, monkeypatch):
+def test_renewal_stops_after_its_maximum_lifetime(world: FakeClaims, monkeypatch: pytest.MonkeyPatch) -> None:
     """A claim kept after a terminal session must not be held forever."""
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
     monkeypatch.setenv("MESH_CLAIM_RENEW_MAX_MINUTES", "0.002")  # about 0.12 s
@@ -205,8 +206,7 @@ def test_renewal_stops_after_its_maximum_lifetime(world, monkeypatch):
     assert [r["linear_id"] for r in _reap(world)] == ["UNI-1"]
 
 
-
-def test_renewal_runs_while_claimed_and_stops_on_release(world, monkeypatch):
+def test_renewal_runs_while_claimed_and_stops_on_release(world: FakeClaims, monkeypatch: pytest.MonkeyPatch) -> None:
     from app.server import session_lease
 
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
@@ -220,7 +220,7 @@ def test_renewal_runs_while_claimed_and_stops_on_release(world, monkeypatch):
     assert _only_row(world)["state"] == "done"
 
 
-def test_renewal_stops_when_session_start_fails(world, monkeypatch):
+def test_renewal_stops_when_session_start_fails(world: FakeClaims, monkeypatch: pytest.MonkeyPatch) -> None:
     """fail_start is the exception path of the autonomy poller."""
     from app.server import autonomy_queue as aq
 
@@ -233,7 +233,7 @@ def test_renewal_stops_when_session_start_fails(world, monkeypatch):
     assert _only_row(world)["state"] == "failed"
 
 
-def test_renewal_stops_when_a_failed_session_keeps_its_claim(world, monkeypatch):
+def test_renewal_stops_when_a_failed_session_keeps_its_claim(world: FakeClaims, monkeypatch: pytest.MonkeyPatch) -> None:
     """A failed ticket that cannot be labelled keeps its claim (so nobody re-claims an
     unlabelled failure) - but the session is over, so it must stop being renewed."""
     from types import SimpleNamespace
@@ -256,8 +256,9 @@ def test_renewal_stops_when_a_failed_session_keeps_its_claim(world, monkeypatch)
     assert _wait(lambda: not _renewers()), "renewer kept running for a finished session"
 
 
-
-def test_renewal_failure_is_logged_and_never_crashes_the_session(world, monkeypatch, caplog):
+def test_renewal_failure_is_logged_and_never_crashes_the_session(
+    world: FakeClaims, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture,
+) -> None:
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
     world.fail_renewals = "raise"
     with caplog.at_level(logging.WARNING):
@@ -270,7 +271,7 @@ def test_renewal_failure_is_logged_and_never_crashes_the_session(world, monkeypa
     assert _wait(lambda: _only_row(world)["claimed_at"] > _ago(5)), "renewer did not recover"
 
 
-def test_renewal_never_resurrects_a_claim_the_reaper_released(world, monkeypatch):
+def test_renewal_never_resurrects_a_claim_the_reaper_released(world: FakeClaims, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
     _claim()
     assert _wait(lambda: len(_renewers()) == 1)
@@ -279,15 +280,14 @@ def test_renewal_never_resurrects_a_claim_the_reaper_released(world, monkeypatch
     assert _only_row(world)["state"] == "released"
 
 
-
-def test_non_cloud_claim_is_not_renewed(world):
+def test_non_cloud_claim_is_not_renewed(world: FakeClaims) -> None:
     _claim()
     time.sleep(0.1)
     assert not _renewers()
     assert world.renewals == 0
 
 
-def test_non_cloud_claim_reaping_is_unchanged(world):
+def test_non_cloud_claim_reaping_is_unchanged(world: FakeClaims) -> None:
     _claim()
     row = _only_row(world)
     row["machine"] = "nodeA"

@@ -39,6 +39,9 @@ log = logging.getLogger("pi-ceo.claim_renewal")
 
 # Well under MESH_CLAIM_TTL_MINUTES (floor 65 min): a dozen missed renewals fit.
 RENEW_INTERVAL_S = 300.0
+# Ceiling on an operator-set interval: three renewals inside the 65 min TTL floor,
+# so no configuration can let the reaper release a live claim before it renews.
+MAX_RENEW_INTERVAL_S = 65 * 60 / 3
 # Above the longest build (25 iterations x 600 s = 250 min) with headroom.
 MAX_RENEW_MINUTES = 360.0
 
@@ -100,6 +103,10 @@ def start(linear_id: str, claim_id: str) -> None:
     if not session_lease.is_cloud():
         return
     interval_s = _env_float("MESH_CLAIM_RENEW_INTERVAL_S", RENEW_INTERVAL_S)
+    if interval_s > MAX_RENEW_INTERVAL_S:
+        log.warning("MESH_CLAIM_RENEW_INTERVAL_S=%.0f outlasts the claim TTL floor; using %.0f s",
+                    interval_s, MAX_RENEW_INTERVAL_S)
+        interval_s = MAX_RENEW_INTERVAL_S
     max_s = _env_float("MESH_CLAIM_RENEW_MAX_MINUTES", MAX_RENEW_MINUTES) * 60.0
     flag = threading.Event()
     with _LOCK:
