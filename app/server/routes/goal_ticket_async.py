@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
@@ -21,8 +22,26 @@ _VIEW = ("id", "status", "attempt", "retry_count", "result", "failure_reason",
          "evidence_links", "created_at", "started_at", "last_progress_at", "ended_at")
 
 
-def job_view(row: dict[str, Any]) -> dict[str, Any]:
-    return {key: row.get(key) for key in _VIEW}
+def _age_seconds(stamp: Any, now: datetime) -> float | None:
+    """Seconds since an ISO timestamp, on this server's clock; None when absent or unreadable."""
+    if not isinstance(stamp, str) or not stamp:
+        return None
+    try:
+        then = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if then.tzinfo is None:
+        then = then.replace(tzinfo=timezone.utc)
+    return max(0.0, (now - then).total_seconds())
+
+
+def job_view(row: dict[str, Any], now: datetime | None = None) -> dict[str, Any]:
+    view = {key: row.get(key) for key in _VIEW}
+    # The age is computed here, not in the browser, so a job that was already stalled
+    # when the page first saw it (a duplicate submit returns the active job) is shown
+    # as stalled at once, and the browser's own clock offset does not matter.
+    view["last_progress_age_s"] = _age_seconds(row.get("last_progress_at"), now or datetime.now(timezone.utc))
+    return view
 
 
 def _unavailable() -> HTTPException:

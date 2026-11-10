@@ -12,6 +12,7 @@ import {
   jobStatusLabel,
   newIdempotencyKey,
   nextCheckMs,
+  progressSeenAt,
   statusPath,
   waitForNextCheck,
   type AnalysisJob,
@@ -106,6 +107,24 @@ describe("waitForNextCheck: pause while hidden, check at once when shown", () =>
     document.dispatchEvent(new Event("visibilitychange"));
     await vi.advanceTimersByTimeAsync(0);
     expect(done).toBe(true);
+  });
+});
+
+describe("progressSeenAt: progress age comes from the server", () => {
+  it("places last progress at receipt minus the server-computed age", () => {
+    expect(progressSeenAt(job({ last_progress_age_s: 180 }), 1_000_000, null).at).toBe(1_000_000 - 180_000);
+  });
+
+  it("a new read with an age replaces the earlier estimate", () => {
+    const first = progressSeenAt(job({ last_progress_age_s: 50 }), 100_000, null);
+    expect(progressSeenAt(job({ last_progress_age_s: 2 }), 103_000, first).at).toBe(101_000);
+  });
+
+  it("without an age, keeps the earlier time until last_progress_at changes", () => {
+    const a = progressSeenAt(job({ last_progress_at: "t1", last_progress_age_s: null }), 10_000, null);
+    expect(a.at).toBe(10_000);
+    expect(progressSeenAt(job({ last_progress_at: "t1" }), 20_000, a).at).toBe(10_000);
+    expect(progressSeenAt(job({ last_progress_at: "t2" }), 20_000, a).at).toBe(20_000);
   });
 });
 

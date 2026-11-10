@@ -210,12 +210,12 @@ describe("GoalTicketForm with async analysis (202 + job)", () => {
   // Fake-clock time of each status check, to measure the gaps between them.
   let checkTimes: number[] = [];
 
-  async function startJob(statuses: Array<() => Response>) {
+  async function startJob(statuses: Array<() => Response>, submitted: Record<string, unknown> = job("queued")) {
     mockedProxy.mockResolvedValue({ projects: [BRIEF] });
     let i = 0;
     checkTimes = [];
     const fetchMock = stubFetch((url) => {
-      if (url === "/api/pi-ceo/api/goal-ticket/analyze") return jsonResponse(job("queued"), 202);
+      if (url === "/api/pi-ceo/api/goal-ticket/analyze") return jsonResponse(submitted, 202);
       if (url === STATUS_URL) {
         checkTimes.push(Date.now());
         return statuses[Math.min(i++, statuses.length - 1)]();
@@ -278,6 +278,16 @@ describe("GoalTicketForm with async analysis (202 + job)", () => {
         "Analysis failed: the model call ran past its time budget. Linear was not written.",
       ),
     ).toBeTruthy();
+  });
+
+  it("a duplicate submit that returns a job already stalled for 3 minutes shows it as stalled at once (review r1 P1)", async () => {
+    const stale = job("running", { last_progress_age_s: 180 });
+    await startJob([() => jsonResponse({ ...stale, last_progress_age_s: 183 })], stale);
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toMatch(/^Stalled, recovering · \d+ s elapsed · last progress 18\d s ago/),
+    );
+    await vi.advanceTimersByTimeAsync(3_000);
+    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/^Stalled, recovering · .* last progress 18\d s ago/));
   });
 
   it("pauses checking while the tab is hidden and checks at once when it is shown", async () => {

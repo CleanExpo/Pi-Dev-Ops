@@ -1,5 +1,7 @@
 """UNI-3306 step 6: the job status read carries last_progress_at for the dashboard,
 and still leaves out the claim internals."""
+from datetime import datetime, timezone
+
 from app.server.routes import goal_ticket_async as route
 
 ROW = {
@@ -34,7 +36,22 @@ def test_view_keys_are_exactly_the_public_fields():
     assert set(route.job_view(ROW)) == {
         "id", "status", "attempt", "retry_count", "result", "failure_reason",
         "evidence_links", "created_at", "started_at", "last_progress_at", "ended_at",
+        "last_progress_age_s",
     }
+
+
+def test_view_reports_progress_age_on_the_server_clock():
+    # Review r1 P1: a duplicate submit can return a job already stalled for minutes;
+    # the age must come from the server, not start at zero in the browser.
+    now = datetime(2026, 11, 11, 0, 3, 21, tzinfo=timezone.utc)
+    assert route.job_view(ROW, now=now)["last_progress_age_s"] == 180.0
+
+
+def test_progress_age_is_none_when_absent_or_unreadable_and_never_negative():
+    now = datetime(2026, 11, 11, 0, 0, 0, tzinfo=timezone.utc)
+    assert route.job_view({**ROW, "last_progress_at": None}, now=now)["last_progress_age_s"] is None
+    assert route.job_view({**ROW, "last_progress_at": "not a time"}, now=now)["last_progress_age_s"] is None
+    assert route.job_view({**ROW, "last_progress_at": "2026-11-11T00:00:30Z"}, now=now)["last_progress_age_s"] == 0.0
 
 
 def test_read_job_returns_last_progress_at(monkeypatch):

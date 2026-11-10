@@ -20,6 +20,28 @@ export interface AnalysisJob {
   result?: unknown;
   failure_reason?: string | null;
   last_progress_at?: string | null;
+  /** Seconds since last progress, on the server's clock at the time of the read. */
+  last_progress_age_s?: number | null;
+}
+
+/**
+ * Browser time (Date.now()) at which the job last made progress, for a read received
+ * at `receivedAt`. Uses the server-computed age, so a job that was already stalled
+ * when first seen shows as stalled at once and browser clock offset does not matter.
+ * Without an age it keeps `previous` unless last_progress_at changed.
+ */
+export function progressSeenAt(
+  job: AnalysisJob,
+  receivedAt: number,
+  previous: { value: string | null; at: number } | null,
+): { value: string | null; at: number } {
+  const value = job.last_progress_at ?? null;
+  const age = job.last_progress_age_s;
+  if (typeof age === "number" && Number.isFinite(age) && age >= 0) {
+    return { value, at: receivedAt - age * 1000 };
+  }
+  if (previous && previous.value === value) return previous;
+  return { value, at: receivedAt };
 }
 
 const STATUSES: ReadonlySet<string> = new Set(["queued", "running", "finished", "failed", "interrupted"]);

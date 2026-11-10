@@ -36,6 +36,7 @@ import {
   jobStatusLabel,
   newIdempotencyKey,
   nextCheckMs,
+  progressSeenAt,
   statusPath,
   waitForNextCheck,
   type AnalysisJob,
@@ -151,17 +152,17 @@ export default function GoalTicketForm() {
 
   // UNI-3306 (grill 14 Q5): check every 3 s; a failed check shows UNREACHABLE and
   // backs off 3/6/12/30 s, never the last status; pause while the tab is hidden;
-  // stop on finished or failed. Progress age is browser time since
-  // last_progress_at last changed, so server clock skew cannot fake a stall.
+  // stop on finished or failed. Progress age starts from the server-computed
+  // last_progress_age_s of each read and runs on the browser clock in between, so a
+  // job already stalled when first seen shows as stalled at once.
   async function followJob(first: AnalysisJob) {
     let job = first;
     let failures = 0;
-    let progressValue = job.last_progress_at ?? null;
-    let progressSeenAt = Date.now();
+    let progress = progressSeenAt(job, Date.now(), null);
     const started = Date.now();
     const describe = () => {
       const secs = (ms: number) => Math.max(0, Math.round(ms / 1000));
-      const sinceProgress = Date.now() - progressSeenAt;
+      const sinceProgress = Date.now() - progress.at;
       return `${jobStatusLabel(job, sinceProgress)} · ${secs(Date.now() - started)} s elapsed · last progress ${secs(sinceProgress)} s ago`;
     };
     setJobLine(describe());
@@ -188,11 +189,7 @@ export default function GoalTicketForm() {
       }
       failures = 0;
       job = outcome.job;
-      const value = job.last_progress_at ?? null;
-      if (value !== progressValue) {
-        progressValue = value;
-        progressSeenAt = Date.now();
-      }
+      progress = progressSeenAt(job, Date.now(), progress);
       setJobLine(describe());
     }
     if (!mounted.current) return;
