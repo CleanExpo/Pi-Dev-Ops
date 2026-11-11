@@ -62,26 +62,33 @@ describe("job status rules", () => {
 
 describe("classifyCheck: a failed read is never a status", () => {
   it("a job record for the same id is an answer", () => {
-    expect(classifyCheck(ID, 200, null, job())).toEqual({ kind: "job", job: job() });
+    expect(classifyCheck(ID, { ok: true, data: job() })).toEqual({ kind: "job", job: job() });
   });
 
   it("the proxy's quiet 200 { error } with a 5xx upstream is a failed check", () => {
-    expect(classifyCheck(ID, 200, "502", { error: "Pi CEO server unreachable" }).kind).toBe("retry");
-    expect(classifyCheck(ID, 200, "503", job()).kind).toBe("retry");
+    expect(classifyCheck(ID, { ok: false, reason: "unreachable", upstreamStatus: 502 }).kind).toBe("retry");
+    expect(classifyCheck(ID, { ok: false, reason: "unreachable", upstreamStatus: 503 }).kind).toBe("retry");
   });
 
   it("a different job's record, a server error or an empty body is a failed check", () => {
-    expect(classifyCheck(ID, 200, null, job({ id: "other" })).kind).toBe("retry");
-    expect(classifyCheck(ID, 500, null, null).kind).toBe("retry");
-    expect(classifyCheck(ID, 200, null, null).kind).toBe("retry");
+    expect(classifyCheck(ID, { ok: true, data: job({ id: "other" }) }).kind).toBe("retry");
+    expect(classifyCheck(ID, { ok: false, reason: "http", upstreamStatus: 500 }).kind).toBe("retry");
+    expect(classifyCheck(ID, { ok: true, data: null }).kind).toBe("retry");
   });
 
   it("a 4xx (gone or switched off) stops checking with a message; 408 and 429 retry", () => {
-    expect(classifyCheck(ID, 200, "404", { error: "not found" }).kind).toBe("stop");
-    expect(classifyCheck(ID, 404, null, {}).kind).toBe("stop");
-    expect(classifyCheck(ID, 200, "429", {}).kind).toBe("retry");
-    expect(classifyCheck(ID, 408, null, {}).kind).toBe("retry");
+    expect(classifyCheck(ID, { ok: false, reason: "unreachable", upstreamStatus: 404 }).kind).toBe("stop");
+    expect(classifyCheck(ID, { ok: false, reason: "http", upstreamStatus: 404 }).kind).toBe("stop");
+    expect(classifyCheck(ID, { ok: false, reason: "unreachable", upstreamStatus: 429 }).kind).toBe("retry");
+    expect(classifyCheck(ID, { ok: false, reason: "http", upstreamStatus: 408 }).kind).toBe("retry");
   });
+  it("retries network failures and missing upstream status", () => {
+    expect(classifyCheck(ID, { ok: false, reason: "network", upstreamStatus: null }).kind).toBe("retry");
+    expect(classifyCheck(ID, { ok: false, reason: "network", upstreamStatus: 404 }).kind).toBe("retry");
+    expect(classifyCheck(ID, { ok: false, reason: "unreachable", upstreamStatus: null }).kind).toBe("retry");
+    expect(classifyCheck(ID, { ok: true, data: { error: "unreachable" } }).kind).toBe("retry");
+  });
+
 });
 
 describe("waitForNextCheck: pause while hidden, check at once when shown", () => {
@@ -136,8 +143,8 @@ describe("request helpers", () => {
     expect(newIdempotencyKey()).not.toBe(a);
   });
 
-  it("builds the proxied status path with the id encoded", () => {
-    expect(statusPath(ID)).toBe(`/api/pi-ceo/api/goal-ticket/analyze/${ID}`);
-    expect(statusPath("a/../b")).toBe("/api/pi-ceo/api/goal-ticket/analyze/a%2F..%2Fb");
+  it("builds the proxy-relative status path with the id encoded", () => {
+    expect(statusPath(ID)).toBe(`/api/goal-ticket/analyze/${ID}`);
+    expect(statusPath("a/../b")).toBe("/api/goal-ticket/analyze/a%2F..%2Fb");
   });
 });

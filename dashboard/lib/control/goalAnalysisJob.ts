@@ -1,3 +1,5 @@
+import type { ProxyResult } from "@/lib/pi-ceo-fetch";
+
 /**
  * Submit-then-check goal analysis (UNI-3306, grill 14 Q5/Q6).
  *
@@ -98,21 +100,22 @@ export type CheckOutcome =
   | { kind: "stop"; message: string };
 
 /**
- * Classify one status read. A 4xx (from the response or the proxy's
- * X-Upstream-Status) stops checking: the job is gone or checking is switched off.
- * Everything else that is not a job record for `jobId` is a failed check to retry.
+ * Classify one shared proxy result. Only a matching job is an answer.
+ * Permanent 4xx failures stop checking; all other failed reads retry.
  */
-export function classifyCheck(jobId: string, httpStatus: number, upstreamStatus: string | null, body: unknown): CheckOutcome {
-  const upstream = upstreamStatus ? Number(upstreamStatus) : NaN;
-  const code = Number.isFinite(upstream) ? upstream : httpStatus;
-  if (code >= 400 && code < 500 && code !== 408 && code !== 429) {
+export function classifyCheck(jobId: string, result: ProxyResult<unknown>): CheckOutcome {
+  if (result.ok) {
+    return isAnalysisJob(result.data) && result.data.id === jobId
+      ? { kind: "job", job: result.data }
+      : { kind: "retry" };
+  }
+  const code = result.upstreamStatus;
+  if ((result.reason === "unreachable" || result.reason === "http") &&
+      code !== null && code >= 400 && code < 500 && code !== 408 && code !== 429) {
     return {
       kind: "stop",
       message: `The analysis job can no longer be read (HTTP ${code}). Linear was not written. Analyze again.`,
     };
-  }
-  if (httpStatus >= 200 && httpStatus < 300 && Number.isNaN(upstream) && isAnalysisJob(body) && body.id === jobId) {
-    return { kind: "job", job: body };
   }
   return { kind: "retry" };
 }
@@ -149,5 +152,5 @@ export function newIdempotencyKey(): string {
 }
 
 export function statusPath(jobId: string): string {
-  return `/api/pi-ceo/api/goal-ticket/analyze/${encodeURIComponent(jobId)}`;
+  return `/api/goal-ticket/analyze/${encodeURIComponent(jobId)}`;
 }
