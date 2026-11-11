@@ -20,8 +20,10 @@ export interface AnalysisJob {
   result?: unknown;
   failure_reason?: string | null;
   last_progress_at?: string | null;
-  /** Seconds since last progress, on the server's clock at the time of the read. */
+  /** Seconds since last progress, on the database clock at the time of the read. */
   last_progress_age_s?: number | null;
+  /** Seconds since started_at (created_at while queued), on the database clock. */
+  elapsed_s?: number | null;
 }
 
 /**
@@ -73,8 +75,7 @@ export function nextCheckMs(failuresInARow: number): number {
 }
 
 /**
- * The status line. `msSinceProgress` is browser time since last_progress_at last
- * changed (or since checking began), so a skewed server clock cannot fake a stall.
+ * The status line uses the database age plus browser time since the last read.
  */
 export function jobStatusLabel(job: AnalysisJob, msSinceProgress: number): string {
   switch (job.status) {

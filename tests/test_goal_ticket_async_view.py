@@ -29,14 +29,14 @@ ROW = {
 
 
 def test_view_includes_last_progress_at():
-    assert route.job_view(ROW)["last_progress_at"] == ROW["last_progress_at"]
+    assert route.job_view(ROW, now=datetime(2026, 11, 11, tzinfo=timezone.utc))["last_progress_at"] == ROW["last_progress_at"]
 
 
 def test_view_keys_are_exactly_the_public_fields():
-    assert set(route.job_view(ROW)) == {
+    assert set(route.job_view(ROW, now=datetime(2026, 11, 11, tzinfo=timezone.utc))) == {
         "id", "status", "attempt", "retry_count", "result", "failure_reason",
         "evidence_links", "created_at", "started_at", "last_progress_at", "ended_at",
-        "last_progress_age_s",
+        "last_progress_age_s", "elapsed_s",
     }
 
 
@@ -57,6 +57,7 @@ def test_progress_age_is_none_when_absent_or_unreadable_and_never_negative():
 def test_read_job_returns_last_progress_at(monkeypatch):
     monkeypatch.setattr(route.worker, "enabled", lambda: True)
     monkeypatch.setattr(route.jobs, "get", lambda job_id: dict(ROW) if job_id == ROW["id"] else None)
+    monkeypatch.setattr(route.jobs, "db_now", lambda: datetime(2026, 11, 11, tzinfo=timezone.utc))
     view = route.read_job(ROW["id"])
     assert view["last_progress_at"] == ROW["last_progress_at"]
     assert "claimed_by" not in view and "goal" not in view

@@ -158,8 +158,9 @@ export default function GoalTicketForm() {
   async function followJob(first: AnalysisJob) {
     let job = first;
     let failures = 0;
-    let progress = progressSeenAt(job, Date.now(), null);
-    const started = Date.now();
+    let receivedAt = Date.now();
+    let progress = progressSeenAt(job, receivedAt, null);
+    let started = receivedAt - (job.elapsed_s ?? 0) * 1000;
     const describe = () => {
       const secs = (ms: number) => Math.max(0, Math.round(ms / 1000));
       const sinceProgress = Date.now() - progress.at;
@@ -189,7 +190,9 @@ export default function GoalTicketForm() {
       }
       failures = 0;
       job = outcome.job;
-      progress = progressSeenAt(job, Date.now(), progress);
+      receivedAt = Date.now();
+      progress = progressSeenAt(job, receivedAt, progress);
+      started = receivedAt - (job.elapsed_s ?? 0) * 1000;
       setJobLine(describe());
     }
     if (!mounted.current) return;

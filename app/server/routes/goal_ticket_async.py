@@ -23,7 +23,7 @@ _VIEW = ("id", "status", "attempt", "retry_count", "result", "failure_reason",
 
 
 def _age_seconds(stamp: Any, now: datetime) -> float | None:
-    """Seconds since an ISO timestamp, on this server's clock; None when absent or unreadable."""
+    """Seconds since an ISO timestamp, on the database clock; None when absent or unreadable."""
     if not isinstance(stamp, str) or not stamp:
         return None
     try:
@@ -35,12 +35,10 @@ def _age_seconds(stamp: Any, now: datetime) -> float | None:
     return max(0.0, (now - then).total_seconds())
 
 
-def job_view(row: dict[str, Any], now: datetime | None = None) -> dict[str, Any]:
+def job_view(row: dict[str, Any], now: datetime) -> dict[str, Any]:
     view = {key: row.get(key) for key in _VIEW}
-    # The age is computed here, not in the browser, so a job that was already stalled
-    # when the page first saw it (a duplicate submit returns the active job) is shown
-    # as stalled at once, and the browser's own clock offset does not matter.
-    view["last_progress_age_s"] = _age_seconds(row.get("last_progress_at"), now or datetime.now(timezone.utc))
+    view["elapsed_s"] = _age_seconds(row.get("started_at") or row.get("created_at"), now)
+    view["last_progress_age_s"] = _age_seconds(row.get("last_progress_at"), now)
     return view
 
 
@@ -60,7 +58,7 @@ async def submit_job(goal: str, acceptance: str, project_id: str, key: str | Non
     row = await asyncio.to_thread(_queue, goal, acceptance, project_id, key)
     if row["status"] == "queued":
         worker.launch(row["id"])  # a duplicate launch loses the claim; no slot: recovery runs it
-    return job_view(row)
+    return row
 
 
 def _queue(goal: str, acceptance: str, project_id: str, key: str | None) -> dict[str, Any]:
@@ -75,13 +73,14 @@ def _queue(goal: str, acceptance: str, project_id: str, key: str | None) -> dict
             raise HTTPException(400, {"error": "unknown_project", "project_id": project_id,
                                       "hint": "Create a brief first, then select it."})
         row = jobs.submit(project_id, goal, acceptance, key or f"auto-{uuid.uuid4()}")
+        view = job_view(row, jobs.db_now())
     except GoalProjectStoreError as exc:
         raise HTTPException(503, {"error": exc.code, "hint": exc.hint}) from exc
     except jobs.GoalJobStoreError as exc:
         raise _store_error(exc) from exc
     except ValueError as exc:
         raise HTTPException(400, {"error": "validation", "fields": ["idempotency_key"], "hint": str(exc)}) from exc
-    return row
+    return view
 
 
 def read_job(job_id: str) -> dict[str, Any]:
@@ -89,8 +88,8 @@ def read_job(job_id: str) -> dict[str, Any]:
         raise HTTPException(404, {"error": "async_disabled", "hint": "async goal analysis is switched off"})
     try:
         row = jobs.get(job_id)
+        if row is None:
+            raise HTTPException(404, {"error": "not_found", "hint": "No such analysis job."})
+        return job_view(row, jobs.db_now())
     except jobs.GoalJobStoreError as exc:
         raise _store_error(exc) from exc
-    if row is None:
-        raise HTTPException(404, {"error": "not_found", "hint": "No such analysis job."})
-    return job_view(row)

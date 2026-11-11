@@ -50,6 +50,8 @@ class FakeRest:
             assert method == "POST" and not query
             if self.functions_missing:
                 raise jobs.GoalJobStoreError("function_missing", "no function")
+            if table == "rpc/goal_job_now":
+                return self.now.isoformat()
             return [dict(r) for r in getattr(self, "_" + table[4:])(**(data or {}))]
         assert table == "goal_analysis_jobs"
         filters = [(k, unquote(v)) for k, v in parse_qsl(query, keep_blank_values=True)

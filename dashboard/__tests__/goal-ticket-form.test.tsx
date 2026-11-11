@@ -281,13 +281,13 @@ describe("GoalTicketForm with async analysis (202 + job)", () => {
   });
 
   it("a duplicate submit that returns a job already stalled for 3 minutes shows it as stalled at once (review r1 P1)", async () => {
-    const stale = job("running", { last_progress_age_s: 180 });
-    await startJob([() => jsonResponse({ ...stale, last_progress_age_s: 183 })], stale);
+    const stale = job("running", { elapsed_s: 180, last_progress_age_s: 180 });
+    await startJob([() => jsonResponse({ ...stale, elapsed_s: 240, last_progress_age_s: 183 })], stale);
     await waitFor(() =>
-      expect(screen.getByRole("status").textContent).toMatch(/^Stalled, recovering · \d+ s elapsed · last progress 18\d s ago/),
+      expect(screen.getByRole("status").textContent).toMatch(/^Stalled, recovering · 180 s elapsed · last progress 18\d s ago/),
     );
     await vi.advanceTimersByTimeAsync(3_000);
-    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/^Stalled, recovering · .* last progress 18\d s ago/));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toMatch(/^Stalled, recovering · 240 s elapsed · last progress 18\d s ago/));
   });
 
   it("pauses checking while the tab is hidden and checks at once when it is shown", async () => {
