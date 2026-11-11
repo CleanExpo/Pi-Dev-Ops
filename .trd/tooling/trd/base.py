@@ -81,6 +81,8 @@ def now_utc():
 
 
 def days_since(date_text):
+    if not isinstance(date_text, str):
+        raise TypeError('timestamp must be a string')
     parsed = dt.datetime.fromisoformat(date_text.replace('Z', '+00:00'))
     if parsed.tzinfo is None:
         raise ValueError('timestamp must include timezone')

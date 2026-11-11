@@ -82,7 +82,7 @@ def _packet(reviewer, case, packet_hash, root):
             'isolation': 'Do NOT read the other reviewer output. Do not assert source authenticity based merely on a URL or file hash. Read each local evidence snapshot from the supplied project root.',
             'project_root': str(Path(root).resolve()),
             'review_template': {'case_id': case.get('case_id'), 'case_sha256': packet_hash, 'reviewer': reviewer,
-                                'run_id': '', 'model_id': '', 'independent_context': True, 'reviewed_at': '',
+                                'run_id': '', 'model_id': '', 'independent_context': False, 'reviewed_at': '',
                                 'claims': template_claims}}
 
 
@@ -130,7 +130,7 @@ def main(argv=None):
     args = build_parser().parse_args(argv)
     try:
         COMMANDS[args.command](args)
-    except (ValueError, OSError, json.JSONDecodeError, KeyError, TypeError) as e:
+    except (ValueError, OSError, json.JSONDecodeError, KeyError, TypeError, AttributeError) as e:
         print('TRD ERROR (fail closed):', e, file=sys.stderr)
         sys.exit(3)
 

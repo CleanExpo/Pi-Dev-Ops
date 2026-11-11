@@ -1,5 +1,6 @@
 """TRD legacy audit: fingerprint existing documents and queue unverified passages."""
 from __future__ import annotations
+import hashlib
 from pathlib import Path
 from .base import IGNORE_DIRS, LEGACY_EXTENSIONS, now_utc, safe_path, sha256_file
 
@@ -44,20 +45,42 @@ def _passages(text):
     return candidates
 
 
+def _read_fingerprinted(target, expected_sha256):
+    """Return the file's text only if its bytes still match the inventory fingerprint."""
+    data = target.read_bytes()
+    if hashlib.sha256(data).hexdigest() != expected_sha256:
+        return None
+    return data.decode('utf-8')
+
+
 def _backfill_file(root, entry, max_file_bytes):
     item = {'path': entry['path'], 'sha256': entry['sha256'], 'status': 'UNREVIEWED', 'candidates': []}
-    target = safe_path(root, entry['path'])
+    try:
+        target = safe_path(root, entry['path'])
+        size = target.stat().st_size
+    except (ValueError, OSError):
+        item['next_step'] = 'File missing or unreadable since inventory: re-run inventory before extraction.'
+        return item
     if target.suffix.lower() not in TEXT_EXTENSIONS:
         item['next_step'] = 'Extract text with original page/row references in a trusted document parser; review claims individually.'
-    elif target.stat().st_size > max_file_bytes:
+    elif size > max_file_bytes:
         item['next_step'] = 'Large file requires chunked/streamed extraction and privacy screening.'
     else:
-        try:
-            item['candidates'] = _passages(target.read_text(encoding='utf-8'))
-            item['next_step'] = 'Use Claude to propose atomic assertions; JEV challenges them. Register evidence before any PASS.'
-        except (UnicodeError, OSError):
-            item['next_step'] = 'Cannot read as UTF-8: manual extraction with locators required.'
+        _fill_candidates(item, target)
     return item
+
+
+def _fill_candidates(item, target):
+    try:
+        text = _read_fingerprinted(target, item['sha256'])
+    except (UnicodeError, OSError):
+        item['next_step'] = 'Cannot read as UTF-8: manual extraction with locators required.'
+        return
+    if text is None:
+        item['next_step'] = 'File changed since inventory (fingerprint mismatch): re-run inventory before extraction.'
+        return
+    item['candidates'] = _passages(text)
+    item['next_step'] = 'Use Claude to propose atomic assertions; JEV challenges them. Register evidence before any PASS.'
 
 
 def backfill(root, max_file_bytes=2_000_000):

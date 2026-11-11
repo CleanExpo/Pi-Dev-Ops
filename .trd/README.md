@@ -4,19 +4,22 @@
 
 > **TRD is not an AI lie detector.** It enforces traceable source-to-claim evidence, independent review, auditability and fail-closed publishing controls. Its initial source-origin check is an independently supplied attestation and fingerprint, *not* live identity verification of a publisher. AI consensus does not prove truth.
 
-## What's included
+## What's included in this repository
 
-- `SKILL.md` - reusable shared agent contract.
-- `spec.md` - complete system architecture, controls and phase-2 engineering backlog.
-- `trd/core.py` - deterministic fingerprint, excerpt, provenance, arithmetic, source-lineage, review and release checks.
-- `trd/cli.py` - `init`, `inventory`, `backfill`, `packets`, `sign-review`, `gate`.
-- `agents/CLAUDE_REVIEW.md` and `agents/JEV_REVIEW.md` - separate blinded review assignments.
-- `install.py` - explicit, idempotent per-project installer for Claude and Codex skill locations.
-- `integration/MISSION_CONTROL.md` - scheduling, stage gates, tasks, backfill and three-machine design.
-- `integration/CI_EXAMPLE.yml` - proposed protected publish-time gate.
-- `docs/SCHEMA.md` and `docs/THREAT_MODEL.md` - claim/reviewer format and controls.
-- `tests/` - automated tamper, contradiction, arithmetic and independence tests.
-- `examples/` - synthetic demo that must NOT be mistaken for verified real-world evidence.
+- `tooling/trd/core.py` - the import surface; re-exports the modules below.
+- `tooling/trd/base.py` - fingerprints, safe paths, review signing and arithmetic checks.
+- `tooling/trd/checks.py` - the case gate: source, provenance, citation, review and release checks.
+- `tooling/trd/legacy.py` - `inventory` and `backfill` for existing documents.
+- `tooling/trd/cli.py` - `init`, `inventory`, `backfill`, `packets`, `sign-review`, `gate`.
+- `docs/CLAUDE_REVIEW.md` and `docs/JEV_REVIEW.md` - separate blinded review assignments.
+- `docs/SCHEMA.md` - claim and reviewer record format.
+- Tests live in the repository suite at `tests/test_trd_tooling.py`.
+
+The skill text is not copied here: `trd-truth-research-deliver` lives in the skills library
+(`skills-library/skills/trd-truth-research-deliver`). The upstream TRD package also ships
+`spec.md`, `install.py`, `integration/`, `docs/THREAT_MODEL.md`, its own `tests/` and `examples/`;
+none of those are installed in this repository, so the installer steps below apply to the
+upstream package, not to this copy.
 
 ## Quick start: Audit a single project
 
