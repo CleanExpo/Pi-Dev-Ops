@@ -68,7 +68,13 @@ app/server/cron_watchdogs.py
 
 # Swarm reporting surfaces (23). The /idea intake lives in app/server/mesh_lanes.py
 # and scripts/, not in these files.
-swarm/margot_*.py
+# 11/11/2026: founder approved unfreezing exactly swarm/margot_bot.py and the new
+# swarm/margot_topic_pages.py for RA-8304 ("Yes, unfreeze two"). The glob is listed
+# out so every other margot file stays frozen; the re-freeze PR restores the glob.
+swarm/margot_inflight.py
+swarm/margot_slack_bridge.py
+swarm/margot_telegram.py
+swarm/margot_tools.py
 swarm/portfolio_pulse*.py
 swarm/six_pager*.py
 swarm/tmux_*.py
