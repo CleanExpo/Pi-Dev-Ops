@@ -246,13 +246,13 @@ def test_invalid_domain_email_is_reported_pending_not_error():
     data["accounts"][1]["email"] = "claude-macbook@pending.invalid"
     report = cam.validate(data)
     assert report.errors == []
-    assert any("claude-macbook" in p for p in report.pending)
+    assert any(p.startswith("accounts[1]:") and "placeholder" in p for p in report.pending)
 
 
 def test_null_plan_is_reported_pending():
     """W5.1: an undecided plan is Phill's open decision, shown as pending."""
     report = cam.validate(_map())
-    assert any("claude-macbook" in p and "plan" in p for p in report.pending)
+    assert any(p.startswith("accounts[1]:") and "plan" in p for p in report.pending)
 
 
 def test_require_real_fails_on_placeholder_email():

@@ -158,11 +158,11 @@ def test_invalid_utf8_is_a_named_file_error(tmp_path, capsys):
 LETTERS = "abcdefghijklmnopqrstuvwxyz" * 2
 
 
-@pytest.mark.parametrize("length", [25, 32])
+@pytest.mark.parametrize("length", [8, 24, 25, 32])
 @pytest.mark.parametrize("where", ["unknown_key", "machine_id", "label", "pin"])
 def test_long_letter_name_is_never_echoed(tmp_path, capsys, where, length):
-    """W6.5: a refused name longer than the 24-letter word limit is not printed, even
-    when it is letters only and so looks like a plain word to show()."""
+    """W6.5, widened: no user-supplied name is printed at any length. A letters-only
+    name cannot be told from a key by shape, so output uses positions, never names."""
     name = LETTERS[:length]
     plant = {
         "unknown_key": BASE.replace("    plan: max", f"    plan: max\n    {name}: x"),
@@ -172,18 +172,10 @@ def test_long_letter_name_is_never_echoed(tmp_path, capsys, where, length):
     }[where]
     path = tmp_path / "map.yaml"
     path.write_text(plant, encoding="utf-8")
-    assert cam.main(["--path", str(path)]) == 1
+    code = cam.main(["--path", str(path)])
     captured = capsys.readouterr()
-    assert name[:25] not in captured.out + captured.err, (where, captured.out)
-
-
-def test_show_prints_only_what_the_grammar_could_accept():
-    """W6.5: show() keeps short names readable (a typo key is still named) and hides
-    any run longer than the grammar's 24-character word limit."""
-    assert grammar.show("emial") == "'emial'"
-    assert grammar.show(LETTERS[:24]) == f"'{LETTERS[:24]}'"
-    assert grammar.show(LETTERS[:25]) == "(name not shown)"
-    assert grammar.show("claude-" + LETTERS[:25]) == "(name not shown)"
+    assert code == (0 if where == "label" and length == 8 else 1), captured.out
+    assert name not in captured.out + captured.err, (where, captured.out)
 
 
 # ── Review of the rebased head (Codex, 12d6a03b) ─────────────────────────────
@@ -247,4 +239,20 @@ def test_summary_line_never_prints_a_credential_shaped_path(tmp_path, capsys):
     path.write_text(BASE, encoding="utf-8")
     code = cam.main(["--path", str(path)])
     out = capsys.readouterr().out
-    assert code == 0 and key not in out and "withheld" in out, out
+    assert code == 0 and key not in out and "OK" in out, out
+
+
+def test_missing_file_with_key_shaped_name_is_never_echoed(tmp_path, capsys):
+    """The path is never printed: not in the summary, not in the FILE finding."""
+    from test_account_map_accept_only import FAKE_KEYS
+    name = "q" * 8 + "7" * 8 + "q" * 8   # letter, digit, letter run built at test time
+    for text in (name, FAKE_KEYS["github"]):
+        code = cam.main(["--path", str(tmp_path / f"{text}.yaml")])
+        out = capsys.readouterr().out
+        assert code == 1 and "FILE" in out and text not in out, out
+
+
+@pytest.mark.parametrize("label", ["q" * 8 + "7" * 8 + "q" * 8, "q" * 13 + "7" * 3, "a1b2c3d4"])
+def test_long_or_alternating_domain_label_is_refused(label):
+    """The first-round domain relaxation let a 24-character letter/digit/letter label in."""
+    assert grammar.GRAMMAR[("account", "email")](f"user@{label}.com") is not None

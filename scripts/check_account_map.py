@@ -46,7 +46,7 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from account_map_grammar import GRAMMAR, check_comment, show  # noqa: E402
+from account_map_grammar import GRAMMAR, check_comment  # noqa: E402
 from account_map_secrets import (  # noqa: E402
     DuplicateKeyError, NonStringKeyError, ScannerPatternsError, UniqueKeyLoader, comment_lines,
     looks_secret_name, looks_secret_value, metadata_lines, say as _say,
@@ -80,7 +80,7 @@ def _scan_keys(node, where: str, allowed: set, report: Report) -> None:
     for key in node:
         name = str(key)
         if name not in allowed and not looks_secret_name(name):
-            report.error("UNKNOWN_KEY", f"{where}: key {show(name)} is not part of the schema")
+            report.error("UNKNOWN_KEY", f"{where}: a key (name not shown) is not part of the schema")
 
 
 def _check_fields(node: dict, scope: str, where: str, report: Report) -> bool:
@@ -98,13 +98,13 @@ def _check_fields(node: dict, scope: str, where: str, report: Report) -> bool:
 def _scan_values(node, where: str, report: Report) -> None:
     """At any depth, flag secret-named keys and string values that look like credentials."""
     if isinstance(node, dict):
-        for key, value in node.items():
+        for n, (key, value) in enumerate(node.items()):
             if looks_secret_name(key):
-                report.error("SECRET_FIELD", f"{where}: key {show(key)} looks like a credential; "
+                report.error("SECRET_FIELD", f"{where}: a key looks like a credential; "
                              "the map holds emails only")
             elif looks_secret_value(str(key)):
                 report.error("SECRET_VALUE", f"{where}: a key looks like a credential")
-            _scan_values(value, f"{where}.{show(key)}", report)
+            _scan_values(value, f"{where}.<key {n}>", report)
     elif isinstance(node, list):
         for i, value in enumerate(node):
             _scan_values(value, f"{where}[{i}]", report)
@@ -124,7 +124,7 @@ def _check_machines(machines, report: Report) -> list:
         _scan_keys(machine, where, MACHINE_KEYS, report)
         _check_fields(machine, "machine", where, report)
         if machine["id"] in ids:
-            report.error("DUPLICATE_MACHINE", f"{where}: machine id {show(machine['id'])} repeats")
+            report.error("DUPLICATE_MACHINE", f"{where}: machine id repeats")
         ids.append(machine["id"])
     return ids
 
@@ -156,20 +156,19 @@ def _check_label(account: dict, where: str, labels: set, report: Report) -> bool
     if not isinstance(label, str) or GRAMMAR[("account", "label")](label):
         return "label" not in account  # missing is MISSING_FIELD; bad shape already reported
     if label in labels:
-        report.error("DUPLICATE_LABEL", f"{where}: label {show(label)} repeats")
+        report.error("DUPLICATE_LABEL", f"{where}: label repeats")
     labels.add(label)
     return True
 
 
 def _note_pending(account, where: str, require_real: bool, report: Report) -> None:
-    label = account.get("label", where)
     email = account.get("email")
     if isinstance(email, str) and email.lower().endswith(PLACEHOLDER_SUFFIX):
-        report.pending.append(f"{show(label)}: email is a placeholder awaiting Phill")
+        report.pending.append(f"{where}: email is a placeholder awaiting Phill")
         if require_real:
-            report.error("PENDING_EMAIL", f"{where}: {show(label)} still has a placeholder email")
+            report.error("PENDING_EMAIL", f"{where}: still has a placeholder email")
     if account.get("plan") is None:
-        report.pending.append(f"{show(label)}: plan not yet recorded")
+        report.pending.append(f"{where}: plan not yet recorded")
 
 
 def _check_claude_pins(claude_accounts: list, machine_ids: list, report: Report) -> None:
@@ -184,14 +183,17 @@ def _check_claude_pins(claude_accounts: list, machine_ids: list, report: Report)
             seen.update(account["machines"])
     for machine, labels in per_machine.items():
         if not labels:
-            report.error("CLAUDE_PIN_MISSING", f"machine {show(machine)} has no Claude account pinned")
+            report.error("CLAUDE_PIN_MISSING", f"machines[{machine_ids.index(machine)}] has no "
+                         "Claude account pinned")
         elif len(labels) > 1:
-            report.error("CLAUDE_PIN_MULTIPLE", f"machine {show(machine)} has {len(labels)} Claude "
-                         f"accounts pinned ({', '.join(map(show, labels))}); exactly one allowed")
+            report.error("CLAUDE_PIN_MULTIPLE", f"machines[{machine_ids.index(machine)}] has "
+                         f"{len(labels)} Claude accounts pinned; exactly one allowed")
     for email, machines in machines_by_email.items():
         if len(machines) > 1:
+            where = ", ".join(f"machines[{machine_ids.index(m)}]" for m in sorted(machines)
+                              if m in machine_ids)
             report.error("SHARED_CLAUDE_EMAIL", f"one Claude email is pinned on "
-                         f"{len(machines)} machines ({', '.join(sorted(map(show, machines)))})")
+                         f"{len(machines)} machines ({where})")
 
 
 def _check_top(data, report: Report) -> bool:
@@ -241,22 +243,23 @@ def scan_raw_text(text: str, report: Report) -> None:
 
 
 def _load(path: Path, report: Report):
+    """Every message names the file by a fixed phrase, never by its path or exception text."""
     try:
         text = path.read_text(encoding="utf-8")
         data = yaml.load(text, Loader=UniqueKeyLoader)  # noqa: S506 - SafeLoader subclass
     except DuplicateKeyError as exc:
-        report.error("DUPLICATE_KEY", f"{path}: {exc}; the earlier value would be hidden")
+        report.error("DUPLICATE_KEY", f"{exc}; the earlier value would be hidden")
     except NonStringKeyError as exc:
-        report.error("SCHEMA", f"{path}: {exc}; every key must be a word")
+        report.error("SCHEMA", f"{exc}; every key must be a word")
     except (OSError, UnicodeDecodeError) as exc:
-        report.error("FILE", f"cannot read {path}: {getattr(exc, 'strerror', None) or exc}")
+        report.error("FILE", f"cannot read the account map ({type(exc).__name__})")
     except yaml.YAMLError as exc:
         mark = getattr(exc, "problem_mark", None)
         at = f" near line {mark.line + 1}" if mark else ""
-        report.error("FILE", f"{path} is not valid YAML{at} (details not shown: they can "
+        report.error("FILE", f"the account map is not valid YAML{at} (details not shown: they can "
                      "quote the file)")
     except RecursionError:
-        report.error("FILE", f"{path} is nested too deeply")
+        report.error("FILE", "the account map is nested too deeply")
     else:
         scan_raw_text(text, report)
         return data
@@ -283,9 +286,9 @@ def main(argv=None) -> int:
     for item in report.pending:
         _say(f"PENDING: {item}")
     if report.errors:
-        _say(f"account map FAILED: {len(report.errors)} error(s) in {args.path}")
+        _say(f"account map FAILED: {len(report.errors)} error(s) in the account map")
         return 1
-    _say(f"account map OK: {args.path} ({len(report.pending)} item(s) pending Phill)")
+    _say(f"account map OK: ({len(report.pending)} item(s) pending Phill)")
     return 0
 
 

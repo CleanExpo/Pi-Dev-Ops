@@ -29,7 +29,6 @@ _COMMENT_WORD = re.compile(r"[A-Z]{2,6}-[0-9]{1,6}|[0-9]{1,4}|[A-Za-z]+(?:[-_./'
 _ALNUM_RUN = re.compile(r"[A-Za-z0-9]+")
 _MIXED = re.compile(r"[A-Za-z]")
 _ONE_SWITCH = re.compile(r"[A-Za-z]+[0-9]+|[0-9]+[A-Za-z]+")
-_SHOWABLE = re.compile(r"[A-Za-z_]+(?:-[A-Za-z_]+)*(?:-[0-9]{1,4})?")
 
 MAX_RUN = 24      # longest unbroken run of letters or digits anywhere (a word, a label)
 MAX_PROSE = 160   # notes are one short line
@@ -47,24 +46,16 @@ def _runs_ok(text: str, limit: int = MAX_RUN, one_switch: bool = False) -> bool:
 
 
 def _domain_runs_ok(domain: str) -> bool:
-    """Domain labels are short and may mix letters and digits with at most two switches
-    (web3corp, 3m, k12school), but never alternate the way a key does (Ab1Cd2)."""
+    """Domain labels are plain words of at most 16 letters, or a mix of letters and
+    digits of at most 12 characters with at most two switches (web3corp, 3m, k12school).
+    They never alternate the way a key does (Ab1Cd2). A plain word of 16 letters cannot be
+    told from a name by shape, so the second net and the 80-character email cap bound it."""
     for run in _ALNUM_RUN.findall(domain):
+        mixed = _MIXED.search(run) and any(c.isdigit() for c in run)
         switches = len(re.findall(r"[A-Za-z][0-9]|[0-9][A-Za-z]", run))
-        if len(run) > MAX_RUN or switches > 2:
+        if len(run) > (12 if mixed else 16) or switches > 2:
             return False
     return True
-
-
-def show(name) -> str:
-    """A name safe to print: plain words with an optional short number. Anything else
-    could be pasted text, so findings name the place and the rule, never the text. A run
-    longer than the grammar's word limit is hidden too: nothing is printed that the field
-    grammar itself would refuse for length."""
-    if (isinstance(name, str) and len(name) <= 32 and _SHOWABLE.fullmatch(name)
-            and _runs_ok(name)):
-        return f"'{name}'"
-    return "(name not shown)"
 
 
 def _text(check):

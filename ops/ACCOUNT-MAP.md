@@ -50,7 +50,11 @@ Comments follow the same idea: plain words, ticket ids and file names only (no `
 
 As a second net, every key, value and line (comments included) is also checked against the
 repo secret scanner's own patterns (`app/server/scanner.py`) plus Slack, GitHub and similar
-token shapes. The check never prints the value it refused.
+token shapes. The check never prints the value it refused, and it never prints any name,
+label or file path from the map either: findings say `accounts[1]` or `machines[0]`, a line
+number and a rule. Known limit: a plain-letter word of up to 16 letters in an email domain
+(24 in a name) cannot be told from a key by shape, so only the second net and the length
+caps stop it.
 
 Machines are listed at the top under `machines:` with an `id`, an optional `host` (the
 computer's short name) and notes.
