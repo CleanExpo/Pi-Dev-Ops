@@ -283,3 +283,17 @@ def test_key_cut_into_short_groups_is_refused_everywhere(tmp_path, capsys, where
                                    "1.2.3.4@gmail.com", "123456team@gmail.com"])
 def test_budget_keeps_ordinary_addresses(email):
     assert grammar.GRAMMAR[("account", "email")](email) is None
+
+
+def test_switches_counts_every_boundary():
+    """Round 3: a regex over non-overlapping pairs counted a1b2c as 2; it has 4."""
+    assert grammar._switches("a1b2c") == 4
+    assert grammar._switches("web3corp") == 2 and grammar._switches("smith84") == 1
+    assert grammar._switches("abcdef") == 0 and grammar._switches("1.2.3") == 0
+
+
+@pytest.mark.parametrize("domain", ["a1b2c.d3e4f.com", "a1b2c.com", "a1b2c3d4e.com"])
+def test_short_alternating_domain_labels_are_refused(tmp_path, capsys, domain):
+    """Round 3: two short labels, each alternating four times, passed the domain check."""
+    code, out = _run(tmp_path, BASE.replace("@pending.invalid", f"@{domain}"), capsys)
+    assert code == 1 and "BAD_EMAIL" in out and "a1b2c" not in out, out

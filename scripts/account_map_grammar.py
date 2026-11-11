@@ -45,14 +45,23 @@ def _runs_ok(text: str, limit: int = MAX_RUN, one_switch: bool = False) -> bool:
     return True
 
 
-def _budget_ok(value: str, max_mixed: int = 2, max_digits: int = 8) -> bool:
+def _switches(text: str) -> int:
+    """Every letter-to-digit or digit-to-letter boundary, counted pairwise so adjacent
+    boundaries both count (a1b2c has four). A regex over non-overlapping pairs undercounts."""
+    return sum(1 for a, b in zip(text, text[1:]) if a.isalpha() and b.isdigit()
+               or a.isdigit() and b.isalpha())
+
+
+def _budget_ok(value: str, max_mixed: int = 2, max_digits: int = 8, max_switches: int = 4) -> bool:
     """One budget for the WHOLE value, across every separator (. _ + - @). A key can be
     cut into short groups that each look fine, so per-run checks alone are not enough: at
-    most two groups may mix letters and digits, and at most 8 digits in all. This is the
-    single owner of that rule; email, slug and hostname fields all call it."""
+    most two groups may mix letters and digits, at most 8 digits and 4 letter/digit
+    boundaries in all. This is the single owner of that rule; email, slug and hostname
+    fields all call it."""
     groups = re.split(r"[^A-Za-z0-9]+", value)
     mixed = sum(1 for g in groups if _MIXED.search(g) and any(c.isdigit() for c in g))
-    return mixed <= max_mixed and sum(c.isdigit() for c in value) <= max_digits
+    return (mixed <= max_mixed and sum(c.isdigit() for c in value) <= max_digits
+            and _switches(value) <= max_switches)
 
 
 def _domain_runs_ok(domain: str) -> bool:
@@ -62,8 +71,7 @@ def _domain_runs_ok(domain: str) -> bool:
     told from a name by shape, so the second net and the 80-character email cap bound it."""
     for run in _ALNUM_RUN.findall(domain):
         mixed = _MIXED.search(run) and any(c.isdigit() for c in run)
-        switches = len(re.findall(r"[A-Za-z][0-9]|[0-9][A-Za-z]", run))
-        if len(run) > (12 if mixed else 16) or switches > 2:
+        if len(run) > (12 if mixed else 16) or _switches(run) > 2:
             return False
     return True
 
