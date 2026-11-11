@@ -47,14 +47,26 @@ def _isolated_brain_vault(tmp_path, monkeypatch):
     its Wiki/analyst folder. Every reader takes these values from swarm.config at call
     time, so this is the one place they are redirected. The folders are not created, as on
     CI, where no vault exists. A test that needs its own values sets them after this runs.
-    """
-    from swarm import config
 
+    This fixture must never be the first importer of swarm.config. The module caches every
+    setting at import, and tests set their own environment and then rely on a lazy first
+    import (tests/test_analyst.py sets TAO_ANALYST_ENABLED that way). So the environment the
+    module reads is always redirected, and its attributes only when it is already imported.
+    """
     vault = tmp_path / "brain-vault"
-    monkeypatch.setattr(config, "BRAIN1_WIKI_DIR", str(vault / "Wiki"))
-    monkeypatch.setattr(config, "OBSIDIAN_VAULT", str(vault))
-    monkeypatch.setattr(config, "OBSIDIAN_REMOTE_URL", "")  # empty: no tailnet REST bridge
-    monkeypatch.setattr(config, "OBSIDIAN_BASE_URL", "http://127.0.0.1:1")  # nothing listens here
+    settings = {  # environment name swarm.config reads -> (its attribute, the value for this test)
+        "BRAIN1_WIKI_DIR": ("BRAIN1_WIKI_DIR", str(vault / "Wiki")),
+        "OBSIDIAN_VAULT": ("OBSIDIAN_VAULT", str(vault)),
+        "OBSIDIAN_REMOTE_URL": ("OBSIDIAN_REMOTE_URL", ""),  # empty: no remote REST bridge
+        "OBSIDIAN_URL": ("OBSIDIAN_BASE_URL", "http://127.0.0.1:1"),  # nothing listens here
+    }
+    # swarm.config refills an empty OBSIDIAN_REMOTE_URL from this name at import.
+    monkeypatch.delenv("BRAIN_HOST_TAILNET", raising=False)
+    config = sys.modules.get("swarm.config")
+    for env_name, (attribute, value) in settings.items():
+        monkeypatch.setenv(env_name, value)
+        if config is not None:
+            monkeypatch.setattr(config, attribute, value)
 
 
 @pytest.fixture(autouse=True)
