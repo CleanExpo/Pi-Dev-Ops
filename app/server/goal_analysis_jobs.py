@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime
 from typing import Any
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
@@ -101,7 +102,7 @@ def _job_row(row: Any, where: str) -> dict[str, Any]:
 
 
 def _rows(method: str, path: str, data: dict[str, Any] | None = None,
-          id_only: bool = False, exactly_one: bool = False) -> list[dict[str, Any]]:
+          id_only: bool = False, exactly_one: bool = False, clock: bool = False) -> list[dict[str, Any]]:
     """The one reader of every reply, for table queries and rpc/<function> calls alike.
     Empty, non-JSON, non-list or incomplete rows all raise, so a failed or truncated read
     can never look like "no job", "not owned" or "nothing to recover"."""
@@ -113,6 +114,17 @@ def _rows(method: str, path: str, data: dict[str, Any] | None = None,
         body = json.loads(raw)
     except ValueError as exc:
         raise _bad(where, "a body that is not JSON") from exc
+    if clock:
+        # PostgREST returns a scalar timestamptz RPC as one JSON string.
+        if not isinstance(body, str):
+            raise _bad(where, "no timestamp")
+        try:
+            stamp = datetime.fromisoformat(body.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise _bad(where, "an invalid timestamp") from exc
+        if stamp.tzinfo is None or stamp.utcoffset() is None:
+            raise _bad(where, "a timestamp without a timezone")
+        return [{"now": stamp}]
     if not isinstance(body, list):
         raise _bad(where, "no row list")
     if exactly_one and len(body) != 1:
@@ -154,6 +166,11 @@ def table_present() -> bool:
             return False
         raise
     return True
+
+
+def db_now() -> datetime:
+    """Read the database clock; a failed clock read must never become a local default."""
+    return _rows("POST", "rpc/goal_job_now", {}, clock=True)[0]["now"]
 
 
 def get(job_id: str) -> dict[str, Any] | None:

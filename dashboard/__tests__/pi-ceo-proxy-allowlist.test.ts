@@ -110,6 +110,22 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
     }
   });
 
+  it("admits one goal analysis job status read by UUID and nothing else below /analyze/ (UNI-3306)", () => {
+    const id = "0b6c2f8e-6f1e-4d55-9a57-2f3f6b7f1a10";
+    expect(allowed(`/api/goal-ticket/analyze/${id}`)).toBe(true);
+    expect(allowed(`/api/goal-ticket/analyze/${id}?x=1`)).toBe(true);
+    for (const path of [
+      "/api/goal-ticket/analyze/",
+      "/api/goal-ticket/analyze/not-a-uuid",
+      `/api/goal-ticket/analyze/${id}/result`,
+      `/api/goal-ticket/analyze/${id}x`,
+      `/api/goal-ticket/analyze/..%2F${id}`,
+      `/api/goal-ticket/${id}`,
+    ]) {
+      expect(allowed(path), `expected ${path} to be refused`).toBe(false);
+    }
+  });
+
   it("compares the path only — a query string cannot widen what is reachable", () => {
     expect(allowed("/api/autonomy/status?x=1")).toBe(true);
     expect(allowed("/api/login?path=/api/autonomy/status")).toBe(false);
