@@ -40,6 +40,24 @@ def _fresh_left_running_record(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolated_brain_vault(tmp_path, monkeypatch):
+    """UNI-3351: no test reaches the machine's real 2nd Brain vault or its Obsidian REST bridge.
+
+    On a machine that holds the vault, the Margot and analyst tests wrote real pages into
+    its Wiki/analyst folder. Every reader takes these values from swarm.config at call
+    time, so this is the one place they are redirected. The folders are not created, as on
+    CI, where no vault exists. A test that needs its own values sets them after this runs.
+    """
+    from swarm import config
+
+    vault = tmp_path / "brain-vault"
+    monkeypatch.setattr(config, "BRAIN1_WIKI_DIR", str(vault / "Wiki"))
+    monkeypatch.setattr(config, "OBSIDIAN_VAULT", str(vault))
+    monkeypatch.setattr(config, "OBSIDIAN_REMOTE_URL", "")  # empty: no tailnet REST bridge
+    monkeypatch.setattr(config, "OBSIDIAN_BASE_URL", "http://127.0.0.1:1")  # nothing listens here
+
+
+@pytest.fixture(autouse=True)
 def _no_live_claude_auth_probe(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Readiness starts a background `claude auth status`; unit tests never run the real CLI."""
     from app.server import claude_auth_probe
