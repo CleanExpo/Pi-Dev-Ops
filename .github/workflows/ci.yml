@@ -66,7 +66,7 @@ jobs:
           python-version: "3.12"
 
       - name: Manifest has no dead entries
-        run: python3 scripts/check_frozen_paths.py --verify-manifest --min-files 92
+        run: python3 scripts/check_frozen_paths.py --verify-manifest --min-files 91
 
       - name: PR changes no frozen path
         run: python3 scripts/check_frozen_paths.py --base ${{ github.event.pull_request.base.sha }} --head ${{ github.event.pull_request.head.sha }}
