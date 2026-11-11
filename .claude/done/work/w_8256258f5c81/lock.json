@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_8256258f5c81",
+  "contract_digest": "8158fff11654915fafbc0e016b8d1b58f86d830b45b19aecfa11e97b2a298444",
+  "baseline_head": "bd7d36828c2481b0dae5254f5bb50855c978642a",
+  "identity_key": "fix/scheduled-workflows-red-20261109@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/sched-red-20261109",
+  "locked_at_utc": "2026-11-08T14:31:12Z",
+  "criteria_count": 1,
+  "recipe_pins": {}
+}

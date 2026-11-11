@@ -1,5 +1,19 @@
 # How To Run Each Command
 
+## Contents
+- [`/seo quick <domain>`](#seo-quick-domain)
+- [`/seo audit <domain>` — Full Audit (Parallel Subagents)](#seo-audit-domain--full-audit-parallel-subagents)
+- [`/seo keywords <seed>`](#seo-keywords-seed)
+- [`/seo technical <domain>`](#seo-technical-domain)
+- [`/seo competitors <domain>`](#seo-competitors-domain)
+- [`/seo content <domain>`](#seo-content-domain)
+- [`/seo backlinks <domain>`](#seo-backlinks-domain)
+- [`/seo rankings <domain> <keyword1> <keyword2> ...`](#seo-rankings-domain-keyword1-keyword2)
+- [`/seo content-gap <you> <competitor>`](#seo-content-gap-you-competitor)
+- [`/seo compare <domain1> <domain2>`](#seo-compare-domain1-domain2)
+- [`/seo report-pdf <domain>`](#seo-report-pdf-domain)
+
+
 All scripts live at `~/.claude/skills/seo/scripts/` and have shebangs pinned to the
 skill's isolated venv. Call them directly — no `python3` prefix. The command index is the
 Quick Reference table in `SKILL.md`; this file holds the exact invocation + output spec for each.

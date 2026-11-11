@@ -90,6 +90,46 @@ describe("attachments upload auth", () => {
     expect(await res.json()).toEqual({ error: "Upload not configured" });
   });
 
+  it("REFUSES a foreign Origin even with a valid session, without reading the body", async () => {
+    const { POST } = await import("../app/api/attachments/upload/route");
+    const req = new Request("https://pi.invalid/api/attachments/upload", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        cookie: sessionCookie(),
+        origin: "https://evil.example",
+      },
+      body: JSON.stringify({ filename: "probe.bin" }),
+    });
+    const json = vi.spyOn(req, "json").mockRejectedValue(new Error("body must not be read"));
+    const formData = vi
+      .spyOn(req, "formData")
+      .mockRejectedValue(new Error("body must not be read"));
+    const res = await POST(req);
+    expect(res.status, "a cross-origin upload got past the origin gate").toBe(403);
+    expect(await res.json()).toEqual({ error: "Forbidden origin" });
+    expect(json).not.toHaveBeenCalled();
+    expect(formData).not.toHaveBeenCalled();
+  });
+
+  it("REFUSES a malformed Origin header", async () => {
+    expect((await post({ cookie: sessionCookie(), origin: "null" })).status).toBe(403);
+  });
+
+  it("REFUSES an Origin that includes a path", async () => {
+    const res = await post({
+      cookie: sessionCookie(),
+      origin: "https://pi.invalid/path",
+    });
+    expect(res.status, "a path-bearing Origin was treated as same-origin").toBe(403);
+    expect(await res.json()).toEqual({ error: "Forbidden origin" });
+  });
+
+  it("CONTROL: a same-origin request with a valid session still gets PAST the origin gate", async () => {
+    const res = await post({ cookie: sessionCookie(), origin: "https://pi.invalid" });
+    expect(res.status, "the origin gate rejected its own origin").toBe(503);
+  });
+
   it("CONTROL: proxy refuses an anonymous POST", async () => {
     const { proxy } = await import("../proxy");
     const res = await proxy(

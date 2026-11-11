@@ -1,12 +1,27 @@
 ---
 name: wiki-ingest
-description: Ingest current session learnings into the Brain-1 wiki at ~/2nd Brain/2nd Brain/Wiki/. Updates existing pages in place, creates new pages for genuinely new topics, appends to log.md. Run at the end of any significant working session.
+description: Ingest current session learnings into the Brain-1 wiki at ~/2nd Brain/2nd Brain/Wiki/. Updates existing pages in place, creates new pages for genuinely new topics, appends to log.md. Use when a significant working session ends with durable learnings or decisions worth keeping.
 allowed-tools: Read, Edit, Write, Bash
 ---
 
 # Wiki Ingest — Session Learnings
 
 Write this session's durable knowledge into the Brain-1 wiki so Margot has it next time.
+
+<!-- SOP: seek-latest-before-task -->
+## Step 0: Seek latest before ingest (SOP `seek-latest-before-task`)
+
+Before writing anything, pull what other machines published since you last looked, so you
+update the current page rather than a stale copy:
+
+```bash
+python3 "$HOME/2nd-brain/2nd Brain/_system/post_ingest.py" --seek
+```
+
+It fetches `origin/main` of CleanExpo/brain-1 and merges it; `BLOCKED` (exit 3) means a
+merge conflict: resolve it by hand before ingesting. Then search the index and log for related
+learnings and rule changes before deciding which pages to touch.
+<!-- /SOP: seek-latest-before-task -->
 
 ## Step 1: Orient
 
@@ -91,9 +106,28 @@ right home: a memory file for agent-behaviour/feedback lessons, the relevant wik
 domain knowledge. Adding the fact that matters and dropping the dead one is curation, not
 hoarding. See [[feedback-no-status-bloat]].
 
+<!-- SOP: seek-latest-before-task -->
+## Step 8: Publish in the same cycle (index -> git -> corpus, hard-coded)
+
+Steps 6-7 are not optional and not "later". Commit the ingest in the vault; the brain-1
+`post-commit` hook then runs `2nd Brain/_system/post_ingest.py`, which refreshes OKF indexes
+(dropping date-only churn), commits them, merges `origin/main`, pushes `main` (never forced)
+and syncs changed pages into Supabase `wiki_pages`. Check the result before you say the
+learning is saved:
+
+```bash
+python3 "$HOME/2nd-brain/2nd Brain/_system/post_ingest.py" --status   # result: PASS/FAIL/UNAVAILABLE/BLOCKED
+```
+
+Anything but `PASS` means the learning is not published: fix and rerun
+`post_ingest.py` (add `--full-sync` for a full corpus refresh). If the hook is missing on a
+machine, install it with `sh "$HOME/2nd-brain/2nd Brain/_system/install-post-ingest-hook.sh"`.
+<!-- /SOP: seek-latest-before-task -->
+
 ## Rules
 
 - Every sentence carries information — no filler, no commentary
 - Sources/ files are immutable — never edit them
 - Touch only what this session actually changed
 - `index.md` and `log.md` need updating even if no content pages changed
+- An ingest is not saved until `post_ingest.py --status` reads `PASS`

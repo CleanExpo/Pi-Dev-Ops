@@ -1,6 +1,6 @@
 ---
 name: build-tournament
-description: Compete-mode for BUILT artifacts — landing page, component, small app, email template. Type /build-tournament <brief> to have isolated persona contestants each build the full artifact, a blind judge score them, and a revised champion ship. Reserve for high-stakes builds; one-shot first for routine work.
+description: Compete-mode for BUILT artifacts — landing page, component, small app, email template. Type /build-tournament brief to have isolated persona contestants each build the full artifact, a blind judge score them, and a revised champion ship. Reserve for high-stakes builds; one-shot first for routine work.
 argument-hint: "<the build brief — artifact, audience, constraints, success criteria>"
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash, Write, Edit, Agent, Workflow, Skill

@@ -1,0 +1,34 @@
+{
+  "schema": "done/1",
+  "work_id": "w_ef7780c213da",
+  "version": 2,
+  "supersedes": "w_48c4743dca6b",
+  "goal": "UNI-3087: same goal; C3 now runs ruff on the files this change adds or edits (main's untouched tests/ carry pre-existing ruff findings) after strict_json and finish_call moved into helper modules to clear the file-length gate.",
+  "created_at_utc": "2026-11-08T06:19:37Z",
+  "identity_key": "phillmcgurk/uni-3087-jev-stop-on-401@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/uni-3087",
+  "baseline_observed": {
+    "head": "8ac5927c25782df831fb86a16b78c80f93e51f6d",
+    "branch": "phillmcgurk/uni-3087-jev-stop-on-401",
+    "dirty_count": 23
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "After the rebase onto main (spend ledger RA-8116), every Jev suite passes: HTTP 401/403 stop the batch and are ledgered as refused with the reserve kept, the default $20/day cap holds, and a malformed reply never crashes after a reserved call.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3087' && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/ -q -p no:cacheprovider -k 'jev' --basetemp=/tmp/uni3087-c1",
+      "timeout": 900
+    },
+    {
+      "id": "C2",
+      "text": "Round-7 fixes, each with a test seen failing first: a side cap is checked against client.RESERVE_USD before any reserve or send (a cap below one reserve makes no call and reserves nothing); a reply or answers value that is not an object yields NOT_EVALUATED, never a verdict.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3087' && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_jev_r7_guards.py -q -p no:cacheprovider --basetemp=/tmp/uni3087-c2",
+      "timeout": 300
+    },
+    {
+      "id": "C3",
+      "text": "Ruff passes on every Python file this change adds or edits (main's untouched tests/ carry pre-existing findings), and the file-length and function-length gates pass.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3087' && /Users/phill-mac/.local/bin/ruff check evals/jev_constitution/harness.py evals/skill_routing/run.py jev_platform/ask.py jev_platform/auth_gate.py jev_platform/client.py jev_platform/jsonstrict.py jev_platform/scout.py jev_platform/spend.py scripts/jev_shadow_support.py scripts/jev_triage.py scripts/mission_control_jev_shadow.py tests/test_jev_auth_refusal.py tests/test_jev_constitution_eval.py tests/test_jev_outcome_table.py tests/test_jev_r7_guards.py tests/test_jev_refusal_admission.py tests/test_jev_settlement_validator.py tests/test_jev_spend_default_cap.py tests/test_jev_spend_ledger.py tests/test_mission_control_jev_shadow.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/file_length_lint.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/function_length_lint.py",
+      "timeout": 300
+    }
+  ]
+}

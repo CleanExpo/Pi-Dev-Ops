@@ -1,6 +1,6 @@
 ---
 name: seo-compare
-description: Head-to-head SEO comparison of two domains powered by the DataForSEO API. Side-by-side metrics across keywords, traffic, backlinks, referring domains, and shared keyword overlap with a verdict on which domain has the stronger SEO position.
+description: Head-to-head SEO comparison of two domains powered by the DataForSEO API. Side-by-side metrics across keywords, traffic, backlinks, referring domains, and shared keyword overlap with a verdict on which domain has the stronger SEO position. Use when the user asks to compare two domains head-to-head on SEO, such as "compare example.com vs competitor.com", "who has stronger SEO", or "side-by-side SEO metrics", and wants a metrics table, shared keyword overlap and a stronger-domain verdict.
 allowed-tools:
   - Bash
   - Write

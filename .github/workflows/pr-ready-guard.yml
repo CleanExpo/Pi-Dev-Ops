@@ -1,13 +1,15 @@
 name: PR Ready Guard
 
-# No pull request may sit in the ready state while it is red, still running checks, or
-# conflicting with main. Cloud agents (Cursor and others) never run the local pre-push
-# release gate, so the rule has to live on GitHub where it covers every author.
+# No pull request may sit in the ready state while it is red or conflicting with main.
+# Checks that are still queued or in progress are not a reason to draft, and not a
+# failed run. Cloud agents (Cursor and others) never run the local pre-push release
+# gate, so the rule has to live on GitHub where it covers every author.
 #
-# What it does: drafts a failing/pending/conflicting ready PR (label held-by-ready-guard,
+# What it does: drafts a failing/conflicting ready PR (label held-by-ready-guard,
 # one comment kept up to date), and marks it ready again once every check on its exact head
 # commit passed and it merges cleanly. A draft WITHOUT the label is never touched.
-# It never merges and never pushes.
+# It never merges and never pushes. GitHub refusing convertPullRequestToDraft (FORBIDDEN)
+# is a warning, not a red check; a pull_request run's pass/fail reflects only that PR.
 #
 # Note: workflow_run and schedule runs always use the copy of this file on main.
 
@@ -37,6 +39,8 @@ concurrency:
   group: pr-ready-guard
   cancel-in-progress: false
 
+# pull-requests: write is required for convertPullRequestToDraft and labels.
+# GitHub may still return FORBIDDEN for that mutation; the script warns and does not fail.
 permissions:
   pull-requests: write
   contents: read

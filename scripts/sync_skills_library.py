@@ -205,7 +205,8 @@ def _home_problems(dest: Path, pdo_skills: Path, baseline: Path) -> list[str]:
     homes = _homes(dest)
     held = _baseline(HELD_BACK) or set()
     wanted = {n for n, home in homes.items() if home == "library" and n not in held}
-    copied = {p.name for p in dest.iterdir() if p.is_dir() and p.name not in _EXTRAS}
+    # A shared folder can also be a library skill (`library` is both since library bb57abf2).
+    copied = {p.name for p in dest.iterdir() if p.is_dir() and (p.name not in _EXTRAS or p.name in wanted)}
     problems = [] if wanted else ["HOMES.json names no library skills"]
     problems += [f"{n}: listed in {HELD_BACK.name} but its home is not library; remove the line"
                  for n in sorted(held) if homes.get(n) != "library"]

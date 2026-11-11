@@ -45,30 +45,38 @@ describe("projectFleet", () => {
     expect(view.status).toBe("ok");
     if (view.status !== "ok") return;
     expect(view.checkedAt).toBe(CHECKED);
+    // 08/11/2026 fleet version gate: status and runner added on purpose. This fixture
+    // predates both, so they are null: unknown, never a guessed "online" or "current".
     expect(view.machines).toEqual([
       {
         host: "unite-mac-mini",
+        status: null,
         revision: "mesh-runner@a1b2",
         lastHeartbeat: "2026-09-13T11:59:40.000Z",
         currentClaim: "UNI-2649",
         stale: false,
         placeholder: false,
+        runner: null,
       },
       {
         host: "phill-desktop",
+        status: null,
         revision: "mesh-runner@c3d4",
         lastHeartbeat: "2026-09-13T11:50:00.000Z",
         currentClaim: null,
         stale: true,
         placeholder: false,
+        runner: null,
       },
       {
         host: "phills-macbook",
+        status: null,
         revision: "mesh-runner@e5f6",
         lastHeartbeat: "2026-09-13T11:59:50.000Z",
         currentClaim: null,
         stale: false,
         placeholder: false,
+        runner: null,
       },
     ]);
   });
@@ -135,6 +143,8 @@ describe("projectFleet", () => {
     const view = projectFleet({ machines: [], claims: [], errors: [] }, CHECKED);
     expect(view.status).toBe("ok");
     if (view.status !== "ok") return;
+    // 08/11/2026 fleet version gate: status and runner added on purpose. This fixture
+    // predates both, so they are null: unknown, never a guessed "online" or "current".
     expect(view.machines).toEqual([]);
   });
 });

@@ -1,6 +1,16 @@
 <!-- Updated: 2026-02-07 -->
 # Google SEO Quick Reference (February 2026)
 
+## Contents
+- [How Google Search Works](#how-google-search-works)
+- [Google Search Essentials](#google-search-essentials)
+- [Content Quality Signals](#content-quality-signals)
+- [Core Web Vitals](#core-web-vitals)
+- [Structured Data Best Practices](#structured-data-best-practices)
+- [Common Penalties & How to Avoid Them](#common-penalties--how-to-avoid-them)
+- [Official Documentation Links](#official-documentation-links)
+
+
 Concise reference guide for subagents. Summarizes key Google Search concepts,
 requirements, and best practices. Not a reproduction of Google's documentation —
 see Official Documentation Links at the bottom for full details.

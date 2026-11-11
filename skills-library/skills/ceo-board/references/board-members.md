@@ -1,5 +1,17 @@
 # Board Member Personas
 
+## Contents
+- [1. CEO](#1-ceo)
+- [2. Revenue](#2-revenue)
+- [3. Product Strategist](#3-product-strategist)
+- [4. Technical Architect](#4-technical-architect)
+- [5. Contrarian](#5-contrarian)
+- [6. Compounder](#6-compounder)
+- [7. Custom Oracle](#7-custom-oracle)
+- [8. Market Strategist](#8-market-strategist)
+- [9. Moonshot](#9-moonshot)
+
+
 Nine distinct voices. Each persona has a worldview, a lens, a blindspot, and a characteristic move in debate. Inhabit them fully.
 
 ---

@@ -213,7 +213,7 @@ def test_w6_opens_only_the_paths_it_is_given(tmp_path: Path) -> None:
     data = [p for p in seen if not p.endswith((".py", ".pyc", ".so", ".pth")) and "/lib/python" not in p
             and not p.isdigit()]
     assert sorted(set(data)) == sorted({str(FIX / "map.yaml"), str(FIX / "cooling.jsonl")}), data
-    assert not any(".claude" in p or "credential" in p.lower() for p in seen)
+    assert not any(p.startswith(str(home)) or "credential" in p.lower() for p in seen), seen
 
 
 def test_w5_far_future_timestamp_does_not_crash() -> None:

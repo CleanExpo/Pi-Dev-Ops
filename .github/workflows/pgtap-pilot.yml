@@ -57,6 +57,10 @@ on:
       - 'app/requirements.txt'
       - 'app/server/schema_drift_db.py'
       - 'tests/test_schema_drift_db_pg.py'
+      - 'tests/test_goal_analysis_jobs_pg.py'
+      - 'tests/test_goal_analysis_jobs_pg_lock.py'
+      - 'tests/test_goal_analysis_jobs_pg_purge.py'
+      - 'tests/goal_jobs_pg_helpers.py'
       - 'docs/schema-drift-db.md'
   push:
     branches: [main, feat/pilot-v1]
@@ -163,6 +167,11 @@ jobs:
         # covers a new table by it existing, rather than by being remembered.
         run: psql -f supabase/tests/pgtap/rls_coverage.sql -v ON_ERROR_STOP=1
 
+      - name: Run goal analysis job assertions
+        # UNI-3306: one active job per goal per project, attempt fencing, one
+        # retry at most and the status invariants, enforced by the table itself.
+        run: psql -f supabase/tests/pgtap/goal_analysis_jobs.sql -v ON_ERROR_STOP=1
+
       - name: Rollback drill (forward + drop + re-forward)
         # Bakes Discipline 4 (rollback-drill before deploy) into CI so the
         # rollback path can never silently regress. Uses the same ephemeral
@@ -190,3 +199,15 @@ jobs:
         run: |
           pip install "$(grep -E '^psycopg\[binary\]==' app/requirements.txt)" "pytest>=8"
           python -m pytest tests/test_schema_drift_db_pg.py -v --tb=short -p no:cacheprovider
+
+      - name: Goal analysis jobs, simultaneous submissions (ephemeral Postgres)
+        # UNI-3306 grill Q6: two sessions submit the same goal at once and exactly
+        # one job exists. Needs two real sessions, so it is pytest, not a SQL file.
+        # Also the job functions (claim, heartbeat, finish, fail, recovery, 90-day purge) on the
+        # database clock. The tests build their own database on this server from the
+        # three goal job migrations (tests/goal_jobs_pg_helpers.py).
+        # REQUIRED=1 turns a missing SCRATCH_DB_URL into a failure, never a skip.
+        env:
+          SCRATCH_DB_URL: postgres://postgres:shadow@localhost:5432/pilot_shadow
+          GOAL_ANALYSIS_JOBS_PG_REQUIRED: "1"
+        run: python -m pytest tests/test_goal_analysis_jobs_pg.py tests/test_goal_analysis_jobs_pg_lock.py tests/test_goal_analysis_jobs_pg_purge.py -v --tb=short -p no:cacheprovider

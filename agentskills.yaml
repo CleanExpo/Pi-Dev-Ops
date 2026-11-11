@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.26.1
-  generated_at: "2026-11-01T23:46:02.224965+00:00"
+  version: 2.0.1
+  generated_at: "2026-11-10T11:06:15.598531+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -548,6 +548,21 @@ skills:
       requires_kill_switch: false
       requires_hitl_gate: false
       pii_handling: pass-through
+  - id: continuity-orchestrator
+    description: "Continuity spine from idea to ship. An OUTER loop pushes work hub-to-spoke to estate projects; an INNER loop audits itself against the constitution (trims cache, flags hallucinations, tightens code generation). Does NOT do the work: it routes, gates and carries state, pulling a skill only when a stage needs it. The constitution is a hard gate before every self-modifying action. Stops for exactly two things: spending money and touching production. A denied action is terminal. Use to run a project end-to-end, resume a stalled build, or dispatch work across estate repos."
+    owner_role: Orchestrator
+    status: wave-1
+    path: skills/continuity-orchestrator/SKILL.md
+    sha256: f02e004b16dfa087a387bc136759e3c2f0461ebec0d90756c433c3dd709bd9b3
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: control-design
     description: "Use BEFORE writing or changing any check, test, gate, guard, assertion, exclusion, fixture or startup config branch — while the control is being built, not when its result is read. Catches controls that cannot fail, exclusions whose premise has expired, checks that know a fixed set and go stale, verifications that require handling the thing they protect, and missing-config branches that invent a credential instead of refusing to start. Triggers on \"add a check\", \"write a test for\", \"gate this\", \"skip/exclude this path\", \"assert that\", \"guard against\", or any first run of a new control."
     owner_role: (unset)
@@ -1433,21 +1448,6 @@ skills:
       pii_handling: pass-through
     inferred: true
     low_confidence: true
-  - id: orchestrator
-    description: "Continuity spine from idea to ship. An OUTER loop pushes work hub-to-spoke to estate projects; an INNER loop audits itself against the constitution (trims cache, flags hallucinations, tightens code generation). Does NOT do the work: it routes, gates and carries state, pulling a skill only when a stage needs it. The constitution is a hard gate before every self-modifying action. Stops for exactly two things: spending money and touching production. A denied action is terminal. Use to run a project end-to-end, resume a stalled build, or dispatch work across estate repos."
-    owner_role: Orchestrator
-    status: wave-1
-    path: skills/orchestrator/SKILL.md
-    sha256: 0b971d9c8a80a99f871164a36c000b2330caa66435bdfcac84eae69e0f001808
-    dependencies:
-      tools: []
-      skills: []
-    safety:
-      requires_kill_switch: true
-      requires_hitl_gate: false
-      pii_handling: pass-through
-    inferred: true
-    low_confidence: true
   - id: output-tournament
     description: Use when a creative brief has multiple plausible directions and picking wrong is costly — landing-page hero copy, taglines, headlines, hooks, video concepts, design directions. Generate several diverging variants, judge them independently, synthesise a winner. Not for high-stakes decisions or cross-domain review of one shared draft.
     owner_role: (unset)
@@ -1483,7 +1483,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/pi-dev-linear-contract/SKILL.md
-    sha256: 5f3248399aaa008e21074214628e0ce99c0b9ed6899dc443837dfb0f770090e0
+    sha256: 255dacdd80df7954c3e88903d21782424199534d2389e14bb32c9cb7a1e9942b
     dependencies:
       tools: []
       skills: []
@@ -2004,7 +2004,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/senior-harness/SKILL.md
-    sha256: 0c5143337c4a769e080830469887e89da38fdeb89f801dd54b3412224e85803e
+    sha256: 84b7a7e41a12e7cf1ff35ba129cac583cf1a055db719db112ed973c34c6f99a5
     dependencies:
       tools: []
       skills:

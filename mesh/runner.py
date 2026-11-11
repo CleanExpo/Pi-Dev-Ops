@@ -8,7 +8,8 @@ local agent, then records the claim outcome. The runner uses the same protected
 be visible to the fleet while its worker silently lacks authority.
 
 Kill switch: ``~/.claude/HARD_STOP`` is checked before work and while an agent
-subprocess is running. Production ``main`` remains PR+CI gated.
+subprocess is running; between claims it holds the runner, which resumes once the
+file is gone. Before every claim, version_gate.py checks this runner runs origin/main.
 """
 from __future__ import annotations
 
@@ -27,11 +28,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agent_sandbox  # noqa: E402
+import breadcrumb  # noqa: E402
 import plan_lane  # noqa: E402
 import ship_run  # noqa: E402
 from fleet_state import active_agent_count, next_work  # noqa: E402
 from prompt import build_prompt  # noqa: E402
-from repo_guard import repo_dir_for, repo_dir_problem  # noqa: E402
+from repo_guard import repo_dir_for, repo_dir_problem, repo_roots  # noqa: E402
 import claim_lifecycle  # noqa: E402
 import left_running  # noqa: E402
 import node_health  # noqa: E402
@@ -41,6 +43,7 @@ import run_journal  # noqa: E402
 import run_record  # noqa: E402
 import runner_idle  # noqa: E402
 import self_update  # noqa: E402
+import version_gate  # noqa: E402
 from env_file import from_env_file as _from_env_file, resolve_key  # noqa: E402
 
 
@@ -62,6 +65,7 @@ PREFLIGHT_ENABLED = os.environ.get("MESH_PREFLIGHT", "1") != "0"
 SELF_UPDATE_ENABLED = os.environ.get("MESH_SELF_UPDATE", "1") != "0"
 CODE_DIR = Path(__file__).resolve().parents[1]
 RUNTIME_VERSION = self_update.runtime_version(CODE_DIR)  # reported in every breadcrumb
+GATE = version_gate.VersionGate(CODE_DIR, RUNTIME_VERSION) if version_gate.ENABLED else None  # claim path
 STATE_FILE = Path(os.environ.get(
     "MESH_RUNNER_STATE", str(Path.home() / ".claude" / "mesh-runner-state.json")))
 MESH_KILL_POLL_SECONDS = float(os.environ.get("MESH_KILL_POLL_SECONDS", "5"))
@@ -69,7 +73,7 @@ MESH_KILL_GRACE_SECONDS = 10
 AGENT_TIMEOUT_SECONDS = 3600
 DEFAULT_REPO_DIR = Path(os.environ.get(
     "MESH_REPO_DIR", str(Path(__file__).resolve().parents[1])))
-REPOS_ROOT = Path(os.environ.get("MESH_REPOS_ROOT", str(Path.home())))  # other repos' clones
+REPOS_ROOT = repo_roots(os.environ.get("MESH_REPOS_ROOT", ""))  # clone roots, a list (RA-8096)
 LOG = runner_idle.Log()  # ts, hold reason, poll outcome and last server contact on every line
 
 
@@ -104,26 +108,16 @@ def killed() -> bool:
 
 
 def write_state(current_task, state: str, session_id: str | None = None, hold_reason: str | None = None) -> None:
-    """Write the runner breadcrumb consumed by the heartbeat/Mission Control.
+    """Write the runner breadcrumb consumed by the heartbeat/Mission Control (breadcrumb.py).
 
-    ``session_id`` is this claim's run id. The heartbeat forwards it into
-    ``mesh_agents.session_id`` — the column the mesh schema defined for the
-    fleet-identity/session join and that nothing ever populated, so an agent row
-    could say *which machine* was busy but never *which run* it was busy on.
+    ``session_id`` is this claim's run id: the heartbeat forwards it into
+    ``mesh_agents.session_id`` so an agent row says which run it is busy on.
     """
-    try:
-        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        STATE_FILE.write_text(json.dumps({
-            "runtime": AGENT_CMD,
-            "current_task": current_task,
-            "session_id": session_id,
-            "state": state,
-            "hold_reason": hold_reason,  # why a held node claims nothing; a quota hold names its reset
-            "version": RUNTIME_VERSION, "claude_config_dir": agent_sandbox.config_dir(),  # a path
-            "ts": int(time.time()),
-        }))
-    except OSError:
-        pass
+    breadcrumb.write(STATE_FILE, {
+        "runtime": AGENT_CMD, "current_task": current_task, "session_id": session_id, "state": state,
+        "hold_reason": hold_reason,  # why a held node claims nothing; a quota hold names its reset
+        "version": RUNTIME_VERSION, "claude_config_dir": agent_sandbox.config_dir(),  # a path
+    }, GATE.last if GATE else None, CODE_DIR)
 
 
 def get_work() -> list[dict]:
@@ -238,13 +232,19 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
 
 def _stop_status(processed: int) -> dict | None:
     """The status line that ends the loop, or None to keep going."""
-    if killed():
-        return {"runner": HOST, "status": "HARD_STOP"}
     if stuck := self_update.stuck_reason(stuck_file()):  # delete the file once HEAD is proven code
         return {"runner": HOST, "status": "STUCK", "state": "stuck", "reason": stuck}
     if MAX_CLAIMS and processed >= MAX_CLAIMS:
         return {"runner": HOST, "status": "MAX_CLAIMS", "processed": processed}
     return None
+
+
+def _stop(stop: dict, health: node_health.NodeHealth) -> int:
+    """Report the stop; exit 0 for STUCK (launchd leaves a clean exit down), 4 at the claim cap
+    (audit 30/09 #18). HARD_STOP is not a stop: it holds in runner_idle.before_claim."""
+    write_state(None, stop.get("state", "idle"))
+    print(LOG.line(health, **stop), flush=True)
+    return 4 if stop["status"] == "MAX_CLAIMS" else 0
 
 
 def _parse_args() -> argparse.Namespace:
@@ -266,14 +266,13 @@ def main() -> int:
     health, processed, tick = node_health.NodeHealth(check), 0, run_journal.Ticker()  # UNI-2963
     updater = self_update.Updater(CODE_DIR, AGENT_CMD) if SELF_UPDATE_ENABLED else None
     while True:
-        stop = _stop_status(processed)
-        if stop:
-            write_state(None, stop.get("state", "idle"))
-            print(LOG.line(health, **stop), flush=True)
-            # A clean exit keeps launchd from restarting the runner, right for HARD_STOP and
-            # STUCK; at the claim cap the Mini just stopped for good (audit 30/09 #18).
-            return 4 if stop["status"] == "MAX_CLAIMS" else 0
+        if stop := _stop_status(processed):
+            return _stop(stop, health)
         tick(types.SimpleNamespace(**globals()), args.dry_run)  # UNI-2963: settle dead runs, retry held ones
+        if (gated := runner_idle.before_claim(types.SimpleNamespace(**globals()), updater, args.once)) is not None:
+            if gated == runner_idle.HELD:  # HARD_STOP, outdated or version unknown: claim nothing
+                continue
+            return gated
         if not args.dry_run and not health.may_claim():
             code = runner_idle.hold(types.SimpleNamespace(**globals()), health, args.once)
             if code is not None:
@@ -284,6 +283,7 @@ def main() -> int:
             "POST", "/api/mesh/claim/update",
             {"linear_id": c["linear_id"], "state": "released", "host": HOST, "claim_id": c.get("id")}))
         processed += len(results)
+        breadcrumb.note_jobs(STATE_FILE, results)
         print(LOG.line(health, runner=HOST, claims=len(work), results=results, processed=processed), flush=True)
         if args.once:
             return 0

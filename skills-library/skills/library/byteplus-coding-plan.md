@@ -1,5 +1,19 @@
 # BytePlus ModelArk Coding Plan — operating card
 
+## Contents
+
+- 0. Answering "can DeepSeek run on a subscription instead of API credits?"
+- 1. The three base URLs. One of them bills you outside the plan.
+- 2. Quota is counted in model INVOCATIONS, not prompts
+- 3. DeepSeek-V4-Pro carries a quota penalty nobody has quantified
+- 4. Model IDs — config string vs CLI id
+- 5. Two quota leaks that are silent by default
+- 6. OpenCode — the sanctioned vehicle for a review lane
+- 7. THE HARD BOUNDARY — stated three times, names account suspension
+- 8. What the docs do NOT tell you
+- 9. Claude Code — the config, and why this estate must not use it
+- Sources
+
 ## 0. Answering "can DeepSeek run on a subscription instead of API credits?"
 
 Researched live 23/09/2026. **Yes — and this plan is that route. You already bought the answer.**

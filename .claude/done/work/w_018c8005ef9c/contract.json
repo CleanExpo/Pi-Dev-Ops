@@ -1,0 +1,26 @@
+{
+  "schema": "done/1",
+  "work_id": "w_018c8005ef9c",
+  "version": 1,
+  "supersedes": null,
+  "goal": "UNI-3306 PR 2a-2: optional stop= in spec_pipeline/llm.py complete/complete_with_evidence, passed to the model runner only when given; a stopped call raises llm.Stopped; identity checks unchanged.",
+  "created_at_utc": "2026-11-08T11:51:10Z",
+  "identity_key": "phillmcgurk/uni-3306-llm-stop@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-llm-stop",
+  "baseline_observed": {
+    "head": "2ed99c093aead6b52508656201bb627fd69275f4",
+    "branch": "phillmcgurk/uni-3306-llm-stop",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "llm.complete/complete_with_evidence pass stop= through only when given, a stopped call raises llm.Stopped, and every spec_pipeline caller test still passes.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-llm-stop' && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_spec_pipeline_llm.py tests/test_boardroom.py tests/test_spec_pipeline_boundary.py tests/test_spec_pipeline_route.py tests/test_spec_pipeline_dry_run.py tests/test_subscription_defaults.py -q -p no:cacheprovider --basetemp=/private/tmp/claude-501/-Users-phill-mac-mission-control/ecd7c434-50d6-48d9-a2ff-fece4314b477/scratchpad/pt3"
+    },
+    {
+      "id": "C2",
+      "text": "The change touches no frozen path against main, ruff and the size gates pass.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-llm-stop' && /usr/bin/python3 scripts/check_frozen_paths.py --base origin/main --head HEAD && /Users/phill-mac/.local/bin/ruff check app/server/spec_pipeline/llm.py tests/test_spec_pipeline_llm.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/file_length_lint.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/function_length_lint.py"
+    }
+  ]
+}

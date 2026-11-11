@@ -28,6 +28,7 @@
   margin-top: 22px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
   border-bottom: 1px solid var(--board-line);
 }
+.tabsGroup { display: flex; gap: 2px; min-width: 0; max-width: 100%; }
 .tabs { display: flex; gap: 2px; overflow-x: auto; min-width: 0; max-width: 100%; }
 .tab {
   height: 38px; padding: 0 12px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: transparent;

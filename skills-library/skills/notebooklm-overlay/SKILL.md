@@ -1,6 +1,6 @@
 ---
 name: notebooklm-overlay
-description: "Apply the locked-in Unite-Group editorial overlay system to any NotebookLM-generated video (Video Overview output, daily briefings, audio overviews rendered as video). Use AFTER video-use produces a base render; this skill applies a post-process editorial overlay pass that gives every NotebookLM video a distinctive house identity. Triggers on \"NotebookLM video\", \"daily briefing video\", \"audio overview\", \"video overview\", or any video with NotebookLM as the source aesthetic. Brand-agnostic: takes a beats JSON config (window/title/body per beat), renders editorial-serif cards (Charter italic title, Charter regular body, hairline rule, warm-cream card on dark hairline at the top edge) and composites them onto the bottom-third with 300ms cubic fade in/out. Composes with the video-use skill — video-use cuts and renders the base, this skill polishes."
+description: "Apply the Unite-Group editorial overlay system to any NotebookLM-generated video (Video Overview output, daily briefings, audio overviews). Use AFTER video-use produces a base render: a post-process pass giving each video a house identity. Triggers on \"NotebookLM video\", \"daily briefing video\", \"audio overview\", \"video overview\", or any video with NotebookLM as the source aesthetic. Takes a beats JSON config (window/title/body per beat), renders editorial-serif cards (Charter italic title, regular body, hairline rule) onto the bottom third with a 300ms fade."
 ---
 
 # notebooklm-overlay

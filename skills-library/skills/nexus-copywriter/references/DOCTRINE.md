@@ -1,5 +1,16 @@
 # The Nexus 10x Copywriter — Operating Doctrine
 
+## Contents
+- [The Fable-5 Mythos](#the-fable-5-mythos)
+- [Origin of the mythos](#origin-of-the-mythos)
+- [THE FABLE-5](#the-fable-5)
+- [THE OPERATING LOOP — how the Fable-5 is enforced every time](#the-operating-loop--how-the-fable-5-is-enforced-every-time)
+- [THE SUBSTANTIATION LEDGER (the mechanism that makes fabrication hard)](#the-substantiation-ledger-the-mechanism-that-makes-fabrication-hard)
+- [THE EXCLUDED TACTICS — the forbidden spells](#the-excluded-tactics--the-forbidden-spells)
+- [THE INHERITED CRAFT — permitted, and encouraged](#the-inherited-craft--permitted-and-encouraged)
+- [THE EVERY-TIME CHECKLIST](#the-every-time-checklist)
+
+
 ## The Fable-5 Mythos
 
 > **What this is.** The single doctrine a Nexus copywriter follows *every time*, on every

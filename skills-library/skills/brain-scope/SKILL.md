@@ -10,7 +10,7 @@ Turn a note from the user's Obsidian **2nd brain** vault into a scoped, client-r
 This skill **plans only — it never writes production code.** Its output is a spec document, plus
 inline summary. Run it, hand the plan to the user, stop.
 
-- **Vault (absolute, always):** `/Users/phillmcgurk/2nd-brain/`
+- **Vault (always, in the home folder):** `~/2nd-brain/` (`$HOME/2nd-brain/` in scripts)
 - **Output (relative to the active project):** `docs/specs/YYYY-MM-DD-<slug>.md`
 
 > The vault is an Obsidian-compatible markdown + git repo. Folders: `Sources/ Sketches/ Grills/
@@ -34,7 +34,7 @@ Otherwise, list the ~5 most-recently-modified `.md` notes (excluding the noisy a
 user which one is the task:
 
 ```bash
-find /Users/phillmcgurk/2nd-brain -name '*.md' \
+find "$HOME/2nd-brain" -name '*.md' \
   -not -path '*/.git/*' -not -path '*/.agentic_nexus/*' \
   -not -path '*/Backups/*' -not -path '*/Outcomes/*' \
   -type f -exec stat -f '%m %N' {} \; | sort -rn | head -5
@@ -104,7 +104,7 @@ the headline of the plan.
 
 ## Guardrails
 
-- Vault path is **always** the absolute `/Users/phillmcgurk/2nd-brain/`; the output path is **always**
+- Vault path is **always** `~/2nd-brain/` in the home folder; the output path is **always**
   relative to the active project (resolved via `git rev-parse --show-toplevel`, fall back to cwd).
 - Read only `.md` files; exclude `.git/`, `.agentic_nexus/`, `Backups/`, `Outcomes/` everywhere.
 - One dialog round only — don't drip-feed questions.

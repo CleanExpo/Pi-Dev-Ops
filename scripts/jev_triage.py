@@ -11,8 +11,9 @@ instructions, criteria}}} -> {model, answers:{id:{...}}, usage:{input_tokens}}.
 Safety rails, all enforced before any byte leaves the machine:
   * secrets and PII are redacted (swarm.tmux_validator + swarm.pii_redactor);
   * state is truncated to MAX_STATE_TOKENS (Jev allows 32k for state + longest question);
-  * a per-UTC-day ledger records spend, and stops calls only if a cap is set
-    (JEV_DAILY_CAP_USD or --daily-cap; uncapped by founder decision 2026-09-28);
+  * a per-UTC-day ledger records spend; this script's own cap applies only if set (JEV_DAILY_CAP_USD or
+    --daily-cap), and the machine spend ledger (jev_platform.spend) enforces a $20/day cap regardless
+    (founder, 28/10/2026), overridable only through JEV_DAILY_CAP_USD;
   * --dry-run (the default) prints request bodies and sends nothing.
 
 Usage:
@@ -28,6 +29,7 @@ import logging
 import math
 import os
 import sys
+import urllib.error
 import urllib.request
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -37,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from swarm.pii_redactor import redact as _redact_pii  # noqa: E402
 from swarm.tmux_validator import redact_secrets as _redact_secrets  # noqa: E402
 
-from jev_platform import spend  # noqa: E402
+from jev_platform import client, spend  # noqa: E402
 
 log = logging.getLogger("jev_triage")
 
@@ -45,10 +47,12 @@ ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 MODEL = "jev-latest"
 CALLER = "jev_triage"
 PRICE_PER_MTOK_INPUT = 0.042  # docs.typesafe.ai/models, 2026-09-28; output tokens are free
-# Founder decision 2026-09-28: no daily cap on Jev while the system is used heavily.
-# Spend is still recorded per day; set JEV_DAILY_CAP_USD to reinstate a cap.
+# This script's own ledger is uncapped by default (founder, 2026-09-28), but the machine spend ledger
+# (jev_platform.spend) caps every Jev call at $20/day unless JEV_DAILY_CAP_USD overrides it (founder, 28/10/2026).
 DAILY_CAP_USD: float | None = None
 MAX_STATE_TOKENS = 24_000
+REFUSED = (401, 403)  # HTTP statuses that mean the key is refused
+STOP_STATUSES = ("SPEND_UNRECORDED", "SPEND_CAP", "AUTH_REFUSED")
 
 Transport = Callable[[dict, str], dict]
 
@@ -119,13 +123,16 @@ class Ledger:
         data = json.loads(path.read_text()) if path.exists() else {}
         self.spent = float(data.get(today, 0.0))
 
-    def allows(self, tokens: int) -> bool:
+    def allows(self, usd: float) -> bool:
+        """Room for one request that may cost `usd`. Callers pass the reserve, never the estimate: the side
+        ledger records the reserve when usage is unbelievable, so checking less could overshoot the cap."""
         if self.cap is None:
             return True
-        return self.spent + tokens * PRICE_PER_MTOK_INPUT / 1e6 <= self.cap
+        return self.spent + usd <= self.cap
 
-    def record(self, tokens: int) -> None:
-        self.spent += tokens * PRICE_PER_MTOK_INPUT / 1e6
+    def record_usd(self, usd: float) -> None:
+        """Add what the machine spend ledger counts for one sent request: never less, never an unvalidated figure."""
+        self.spent += usd
         data = json.loads(self.path.read_text()) if self.path.exists() else {}
         data[self.today] = round(self.spent, 6)
         tmp = self.path.with_suffix(".tmp")
@@ -150,29 +157,31 @@ def label_row(snap: dict, answer: dict | None, model: str | None, status: str) -
 def evaluate(snap: dict, ledger: Ledger, transport: Transport, api_key: str) -> dict:
     """One snapshot -> one advisory label. Never raises on vendor failure."""
     body = build_body(snap)
-    tokens = estimate_tokens(body["state"] + json.dumps(body["questions"]))
-    if not ledger.allows(tokens):
+    if not ledger.allows(client.RESERVE_USD):  # checked before the machine ledger is written or anything is sent
         return label_row(snap, None, None, "BUDGET_STOP")
     try:  # the machine spend ledger is written before the request leaves, or it does not leave
-        row, cid = spend.reserve_call(CALLER, tokens * PRICE_PER_MTOK_INPUT / 1e6)
+        row, cid = spend.reserve_call(CALLER, client.RESERVE_USD)  # the most one request can bill, never the estimate
     except spend.SpendCapReached:
         return label_row(snap, None, None, "SPEND_CAP")
     except spend.SpendUnrecorded:
         return label_row(snap, None, None, "SPEND_UNRECORDED")
     try:
         res = transport(body, api_key)
-    except Exception as exc:  # noqa: BLE001 — advisory: a vendor failure is NOT_EVALUATED
-        log.warning("jev call failed for %s: %s", snap.get("surface"), exc)
-        spend.finish(row, "error", call_id=cid)  # the reserve stands: the request may have been billed
+    except Exception as exc:  # noqa: BLE001 — advisory: a vendor failure is NOT_EVALUATED, a refused key stops the run
+        refused = isinstance(exc, urllib.error.HTTPError) and exc.code in REFUSED
+        log.log(logging.ERROR if refused else logging.WARNING, "jev call failed for %s: %s", snap.get("surface"), exc)
+        spend.finish(row, "refused" if refused else "error", call_id=cid)  # the reserve stands: may have been billed
+        ledger.record_usd(client.RESERVE_USD)  # the side ledger counts the same reserve, never less
+        return label_row(snap, None, None, "AUTH_REFUSED" if refused else "NOT_EVALUATED")
+    settled = client._settled(res)  # usage above the documented maximum is not believed: the reserve stands
+    spend.finish(row, *settled, call_id=cid)
+    ledger.record_usd(client.RESERVE_USD if settled[1] is None else settled[1])
+    answers = res.get("answers") if isinstance(res, dict) else None
+    if not isinstance(answers, dict):  # a reply or answers that is not an object is never read as a verdict
         return label_row(snap, None, None, "NOT_EVALUATED")
-    used = (res.get("usage") or {}).get("input_tokens")
-    if isinstance(used, int) and not isinstance(used, bool) and used >= 0:
-        spend.finish(row, "answered", used * PRICE_PER_MTOK_INPUT / 1e6, used, call_id=cid)
-    else:
-        spend.finish(row, "answered", call_id=cid)
-    ledger.record(int((res.get("usage") or {}).get("input_tokens") or tokens))
-    answer = (res.get("answers") or {}).get(snap["contract"].lower())
-    return label_row(snap, answer, res.get("model"), "OK" if answer else "NOT_EVALUATED")
+    answer = answers.get(snap["contract"].lower())
+    model = res.get("model") if isinstance(res.get("model"), str) else None
+    return label_row(snap, answer, model, "OK" if answer else "NOT_EVALUATED")
 
 
 def run(snaps: list[dict], out: Path, ledger: Ledger, transport: Transport | None,
@@ -184,7 +193,7 @@ def run(snaps: list[dict], out: Path, ledger: Ledger, transport: Transport | Non
             print(json.dumps(build_body(snap)))
             continue
         rows.append(evaluate(snap, ledger, transport, api_key))
-        if rows[-1]["status"] in ("SPEND_UNRECORDED", "SPEND_CAP"):
+        if rows[-1]["status"] in STOP_STATUSES:
             log.error("stopped at snapshot %d of %d: %s", len(rows), len(snaps), rows[-1]["status"])
             break
     if rows:

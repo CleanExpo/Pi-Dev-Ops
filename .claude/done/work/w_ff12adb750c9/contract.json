@@ -1,0 +1,52 @@
+{
+  "schema": "done/1",
+  "work_id": "w_ff12adb750c9",
+  "version": 1,
+  "supersedes": null,
+  "goal": "A live cloud claim is renewed by its own session so the mesh reaper no longer releases it at TTL, while a dead replica's claim is still reaped",
+  "created_at_utc": "2026-11-08T19:59:04Z",
+  "identity_key": "fix/mesh-reaper-cloud-claim-renewal@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/reaper-cloud-claim",
+  "baseline_observed": {
+    "head": "bd7d36828c2481b0dae5254f5bb50855c978642a",
+    "branch": "fix/mesh-reaper-cloud-claim-renewal",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "New tests fail on the untouched base commit (at least 4 failures) while the positive-control tests pass there",
+      "recipe": "bash '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/reaper-cloud-claim/.claude/done/work/w_ff12adb750c9/checks.sh' red",
+      "timeout": 300
+    },
+    {
+      "id": "C2",
+      "text": "New renewal and reaper tests all pass on the fixed head",
+      "recipe": "bash '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/reaper-cloud-claim/.claude/done/work/w_ff12adb750c9/checks.sh' new",
+      "timeout": 300
+    },
+    {
+      "id": "C3",
+      "text": "Every existing test touching the reaper, session lease, autonomy queue or mesh claims still passes",
+      "recipe": "bash '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/reaper-cloud-claim/.claude/done/work/w_ff12adb750c9/checks.sh' area",
+      "timeout": 580
+    },
+    {
+      "id": "C4",
+      "text": "ruff is clean on every changed Python file",
+      "recipe": "bash '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/reaper-cloud-claim/.claude/done/work/w_ff12adb750c9/checks.sh' ruff",
+      "timeout": 120
+    },
+    {
+      "id": "C5",
+      "text": "File-length ratchet passes (no baselined file grew)",
+      "recipe": "bash '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/reaper-cloud-claim/.claude/done/work/w_ff12adb750c9/checks.sh' size",
+      "timeout": 120
+    },
+    {
+      "id": "C6",
+      "text": "No edit to app/server/autonomy.py, supabase/ or mesh/schema/ (no migration, no PR 989 overlap)",
+      "recipe": "bash '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/reaper-cloud-claim/.claude/done/work/w_ff12adb750c9/checks.sh' scope",
+      "timeout": 60
+    }
+  ]
+}

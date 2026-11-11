@@ -1,5 +1,15 @@
 # Redis Analysis
 
+## Contents
+- [What the Script Collects](#what-the-script-collects)
+- [Presentation Template](#presentation-template)
+- [Redis Performance Patterns](#redis-performance-patterns)
+- [Redis Thresholds](#redis-thresholds)
+- [Redis Command Stats Analysis](#redis-command-stats-analysis)
+- [Redis Autoscale Note](#redis-autoscale-note)
+- [Validated against](#validated-against)
+
+
 This reference covers Redis-specific metrics, tuning, and analysis guidance.
 For common analysis patterns (output structure, collection status handling, performance thinking), see [analyze-db.md](analyze-db.md).
 

@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from "react";
 import GoalDraftReview, {
-  draftsFromAnalyze,
   filePayloadFromDraft,
   type AnalysisPayload,
-  type DraftTicket,
 } from "./GoalDraftReview";
 import GoalProjectPicker, { stubBrief, type GoalProject } from "./GoalProjectPicker";
 import { writeGoalBriefId } from "@/lib/control/goalProjectStore";
@@ -28,6 +26,8 @@ import {
 import { readGoalAnalysis, writeGoalAnalysis } from "@/lib/control/goalAnalysisStore";
 import { readGoalFiled, writeGoalFiled } from "@/lib/control/goalFiledStore";
 import { goalStage } from "@/lib/control/goalStage";
+import { isAnalysisJob, newIdempotencyKey } from "@/lib/control/goalAnalysisJob";
+import { useGoalAnalysisJob, type AnalyzeBody } from "@/lib/control/useGoalAnalysisJob";
 import GoalFiledList from "./GoalFiledList";
 import GoalHowTo from "./GoalHowTo";
 import GoalStagePills from "./GoalStagePills";
@@ -42,21 +42,12 @@ export default function GoalTicketForm() {
   const [project, setProject] = useState<GoalProject | null>(null);
   const [acceptance, setAcceptance] = useState("");
   const [busy, setBusy] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState("");
   const [analysis, setAnalysis] = useState<AnalysisPayload | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [filed, setFiled] = useState<FiledTicket[]>([]);
   const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    if (!busy) {
-      setElapsed(0);
-      return;
-    }
-    const id = setInterval(() => setElapsed((n) => n + 1), 1000);
-    return () => clearInterval(id);
-  }, [busy]);
+  const { elapsed, jobLine, setJobLine, mounted, followJob, applyResult } = useGoalAnalysisJob(busy, setAnalysis, setError);
 
   useEffect(() => {
     const stored = readGoalAnalysis();
@@ -96,6 +87,7 @@ export default function GoalTicketForm() {
     if (busy || !canAnalyze) return;
     setError("");
     setConfirming(false);
+    setJobLine("");
     setBusy(true);
     try {
       const res = await fetch("/api/pi-ceo/api/goal-ticket/analyze", {
@@ -105,44 +97,30 @@ export default function GoalTicketForm() {
           goal: sanitize(goal.trim()),
           acceptance: sanitize(acceptance.trim()),
           project_id: project?.id || "",
+          idempotency_key: newIdempotencyKey(),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as GoalErrorBody & Partial<AnalysisPayload> & {
-        project_title?: string;
-        tickets?: Array<Partial<DraftTicket>>;
-      };
+      const data = (await res.json().catch(() => ({}))) as AnalyzeBody;
       if (!res.ok) {
         setError(errorMessage(data, res.status));
         return;
       }
-      if (data.filed) {
-        setError("Analyze wrote to Linear. Stopped. Nothing further was filed.");
+      if (res.status === 202) {
+        if (!isAnalysisJob(data)) {
+          setError("The server accepted the analysis but returned no job to check. Linear was not written.");
+          return;
+        }
+        await followJob(data);
         return;
       }
-      const tickets = draftsFromAnalyze(data.tickets || []);
-      if (tickets.length === 0) {
-        setError("Analysis returned no tickets.");
-        return;
-      }
-      setAnalysis({
-        summary: data.summary || "",
-        split_reason: data.split_reason || "",
-        fallback: Boolean(data.fallback),
-        code_inspected: Boolean(data.code_inspected),
-        code_limitation: data.project_title
-          ? `Tickets grounded in project: ${data.project_title}`
-          : data.code_limitation || "",
-        goal_analysis: data.goal_analysis,
-        user_flow: data.user_flow,
-        technical_flow: data.technical_flow,
-        implementation_order: data.implementation_order,
-        final_review: data.final_review,
-        tickets,
-      });
+      applyResult(data);
     } catch {
       setError("Network error — Pi CEO backend unreachable. Linear was not written.");
     } finally {
-      setBusy(false);
+      if (mounted.current) {
+        setJobLine("");
+        setBusy(false);
+      }
     }
   }
 
@@ -252,8 +230,8 @@ export default function GoalTicketForm() {
             {busy ? "Analyzing…" : "Analyze goal"}
           </button>
           {busy ? (
-            <span className={styles.note}>
-              {analyzingCopy(elapsed)} {analyzeProgress(elapsed)}%
+            <span className={styles.note} role="status">
+              {jobLine || `${analyzingCopy(elapsed)} ${analyzeProgress(elapsed)}%`}
             </span>
           ) : (
             <span className={styles.note}>

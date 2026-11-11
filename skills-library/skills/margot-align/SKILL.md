@@ -1,8 +1,8 @@
 ---
 name: margot-align
-description: "Aligns Margot's knowledge corpus with the latest 2nd Brain wiki, Pi-CEO health data, and empire context. Runs sync scripts, verifies Supabase tables are current, and sends Margot a context refresh prompt. Use weekly or after major wiki updates. Model: claude-sonnet-5"
+description: "Aligns Margot's knowledge corpus with the latest 2nd Brain wiki, Pi-CEO health data and empire context. Use weekly, after major wiki updates, before an important Margot session, or when asked to align, refresh or sync her corpus. Runs the brain.js drift checks and the wiki and Pi-CEO sync scripts, verifies the wiki_pages, pi_ceo_health_snapshots, pi_ceo_activity and telegram_messages row counts, then sends a Telegram context brief. Model: claude-sonnet-5-5."
 allowed-tools: Bash, Read
-model: claude-sonnet-5
+model: claude-sonnet-5-5
 ---
 
 # Margot Alignment — Corpus Sync

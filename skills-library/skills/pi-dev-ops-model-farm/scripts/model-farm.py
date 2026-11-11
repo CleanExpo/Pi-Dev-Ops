@@ -72,7 +72,11 @@ def worker_thread(cfg, cli_path, stop_event):
                         else:
                             cmd = [cli_path, "--print", "--permission-mode", "bypassPermissions"] + cfg["model_args"] + [prompt]
                         try:
-                            r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                            # stdin=DEVNULL: `codex exec` reads a non-TTY stdin until EOF
+                            # even when the prompt is in argv, so an inherited open pipe
+                            # hangs the worker until the 300 s timeout (proven 30/09/2026).
+                            r = subprocess.run(cmd, capture_output=True, text=True, timeout=300,
+                                               stdin=subprocess.DEVNULL)
                             with open(out_path, "w", encoding="utf-8") as fp:
                                 fp.write(r.stdout)
                             if r.stderr:

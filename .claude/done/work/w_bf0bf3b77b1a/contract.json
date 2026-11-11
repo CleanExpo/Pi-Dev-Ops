@@ -1,0 +1,40 @@
+{
+  "schema": "done/1",
+  "work_id": "w_bf0bf3b77b1a",
+  "version": 2,
+  "supersedes": "w_3de05a25dda2",
+  "goal": "UNI-3306 step 5 (revision after review round 1): goal_analysis_jobs table migration proven on a throwaway pg15 with assertions that fail without it, CI steps that run them, and every test file the pgtap-pilot job runs listed in its trigger paths.",
+  "created_at_utc": "2026-11-08T05:37:55Z",
+  "identity_key": "phillmcgurk/uni-3306-goal-jobs-table@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-jobs",
+  "baseline_observed": {
+    "head": "f3545fd56dfd04fd11475b8c1a7f4eb015b535bd",
+    "branch": "phillmcgurk/uni-3306-goal-jobs-table",
+    "dirty_count": 2
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "On a throwaway local pg15 every migration applies (the new one twice), rls_coverage passes, the goal_analysis_jobs assertions pass and the concurrency pytest proves two simultaneous submissions create one job.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-jobs' && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' '/Users/phill-mac/session-handoffs/reviews/uni-3306-jobs/pgproof.py' '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-jobs'",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "Red control: without the new migration, both the assertions file and the concurrency pytest fail.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-jobs' && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' '/Users/phill-mac/session-handoffs/reviews/uni-3306-jobs/pgproof.py' '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-jobs' --omit-new",
+      "timeout": 600
+    },
+    {
+      "id": "C3",
+      "text": "CI runs the new assertions and the concurrency pytest (required, never skipped) in pgtap-pilot rls-assertions; ruff and file-length gates pass.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-jobs' && grep -q 'supabase/tests/pgtap/goal_analysis_jobs.sql' .github/workflows/pgtap-pilot.yml && grep -q 'GOAL_ANALYSIS_JOBS_PG_REQUIRED: \"1\"' .github/workflows/pgtap-pilot.yml && grep -q 'tests/test_goal_analysis_jobs_pg.py' .github/workflows/pgtap-pilot.yml && /Users/phill-mac/.local/bin/ruff check tests/test_goal_analysis_jobs_pg.py tests/test_pgtap_pilot_paths.py && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' .github/scripts/file_length_lint.py",
+      "timeout": 300
+    },
+    {
+      "id": "C4",
+      "text": "Every test file the pgtap-pilot job runs is in its pull_request paths, and the check fails when one is removed.",
+      "recipe": "cd '/Volumes/Mini Mini 2T Storage/worktrees/Pi-Dev-Ops/uni-3306-jobs' && '/Volumes/Mini Mini 2T Storage/Application-Data/nexus-supervised-preview/source/.venv/bin/python' -m pytest tests/test_pgtap_pilot_paths.py -q -p no:cacheprovider",
+      "timeout": 120
+    }
+  ]
+}

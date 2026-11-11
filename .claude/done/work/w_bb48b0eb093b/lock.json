@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_bb48b0eb093b",
+  "contract_digest": "e0f0931c1ffd58d2ab23bd85e2516535b5d0a601f8be5b1eae16c3a7830c9a77",
+  "baseline_head": "5b5864ebb18674598ca83f70a7a88d8b57fdadde",
+  "identity_key": "phillmcgurk/uni-3306-refreeze@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/uni-3306-refreeze",
+  "locked_at_utc": "2026-11-08T09:55:00Z",
+  "criteria_count": 2,
+  "recipe_pins": {}
+}

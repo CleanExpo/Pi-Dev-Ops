@@ -107,8 +107,25 @@ def do_resources() -> tuple[set[str], str | None]:
 
 # --------------------------------------------------- code-reference sweep
 
-CODE_ROOTS = [p for p in (r"D:\Authority-Site", r"D:\Pi-Dev-Ops", r"D:\CARSI",
-                          r"D:\RestoreAssist") if pathlib_exists(p)]
+REPO_ROOT = str(Path(__file__).resolve().parent.parent)
+
+
+def find_code_roots() -> list[str]:
+    """Roots swept for Supabase refs. The checkout this script lives in is always a
+    root: the four D:\\ paths below exist on one Windows machine only, so on a CI
+    runner the sweep had no roots, reported UNCHECKED on every run, and the
+    scheduled workflow could never go green even with every secret set.
+    FENCE_CODE_ROOTS (os.pathsep-separated) adds more roots."""
+    extra = [p for p in os.environ.get("FENCE_CODE_ROOTS", "").split(os.pathsep) if p]
+    fixed = [r"D:\Authority-Site", r"D:\Pi-Dev-Ops", r"D:\CARSI", r"D:\RestoreAssist"]
+    roots: list[str] = []
+    for p in [REPO_ROOT, *fixed, *extra]:
+        if pathlib_exists(p) and p not in roots:
+            roots.append(p)
+    return roots
+
+
+CODE_ROOTS = find_code_roots()
 REF_RX = re.compile(r"\b([a-z]{20})\.supabase\.co\b")
 SKIP_DIRS = {"node_modules", ".git", ".next", "dist", "build", ".venv"}
 CODE_EXT = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".json", ".sh", ".py", ".yml", ".yaml"}
@@ -227,7 +244,7 @@ def main() -> int:
             else:
                 unchecked.append(f"Code sweep: could not determine liveness of '{ref}'")
 
-    lines = [f"FENCE DRIFT CHECK", "=" * 50, ""]
+    lines = ["FENCE DRIFT CHECK", "=" * 50, ""]
     if drift:
         lines += ["Reality and fence.json disagree:", ""]
         lines += [f"  - {d}" for d in drift] + [""]

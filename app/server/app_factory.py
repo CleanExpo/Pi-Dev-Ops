@@ -16,6 +16,12 @@ from starlette.requests import ClientDisconnect, Request
 from .sessions import restore_sessions, _sessions
 from .gc import gc_loop
 from .cron import maybe_start_cron_loop
+from .production_gate import run_if_production_allowed
+from .startup_tasks import (
+    recover_sessions_from_supabase,
+    start_nexus_scheduler,
+    start_swarm_orchestrator,
+)
 from .autonomy import linear_todo_poller
 from .agents.build_stall_watchdog import stall_watchdog_loop  # RA-1104
 from .integration_health import integration_health_loop      # RA-1293
@@ -156,13 +162,9 @@ async def on_startup():
     # RA-1407 PR 2 — cross-deploy recovery from Supabase. Local JSON restore
     # above handles same-container restarts; this catches sessions whose
     # local JSON was lost when the Railway container was replaced.
-    try:
-        from .session_model import recover_interrupted_sessions_from_supabase  # noqa: PLC0415
-        recovered = recover_interrupted_sessions_from_supabase()
-        if recovered:
-            log.info("RA-1407 startup: scheduled %d session(s) for resume from Supabase", recovered)
-    except Exception as exc:
-        log.warning("RA-1407 startup recovery failed (non-fatal): %s", exc)
+    # A preview shares production Supabase: resuming its interrupted sessions would run
+    # production builds from the preview (PC-PDO-PREVIEW-AUTONOMY).
+    run_if_production_allowed("supabase_session_recovery", lambda: recover_sessions_from_supabase(log), log)
     asyncio.create_task(_resilient(lambda: gc_loop(_sessions), "gc_loop"))
     # Local dev and production run crons. Preview Railway deploys do not:
     # they share production Supabase and Linear. TAO_CRON_ENABLED=0 still
@@ -171,7 +173,12 @@ async def on_startup():
         lambda loop: asyncio.create_task(_resilient(loop, "cron_loop")),
         log,
     )
-    asyncio.create_task(_resilient(linear_todo_poller, "linear_todo_poller"))
+    # Previews must not run orphan recovery against production Linear (PC-PDO-PREVIEW-AUTONOMY).
+    run_if_production_allowed(
+        "linear_todo_poller",
+        lambda: asyncio.create_task(_resilient(linear_todo_poller, "linear_todo_poller")),
+        log,
+    )
     asyncio.create_task(_resilient(stall_watchdog_loop, "stall_watchdog_loop"))  # RA-1104
     asyncio.create_task(_resilient(integration_health_loop, "integration_health_loop"))  # RA-1293
 
@@ -188,22 +195,8 @@ async def on_startup():
     # swarm when an external launchd-managed swarm is already running on the
     # same machine (avoids duplicate orchestrator cycles + duplicate Telegram
     # alerts). Production default leaves it enabled.
-    if os.environ.get("TAO_SWARM_ENABLED") == "1" and os.environ.get("TAO_SWARM_INTERNAL_DISABLE") != "1":
-        try:
-            from swarm import orchestrator as _swarm_orchestrator  # noqa: PLC0415
-
-            async def _run_swarm() -> None:
-                await asyncio.to_thread(_swarm_orchestrator.run)
-
-            asyncio.create_task(_resilient(_run_swarm, "swarm_orchestrator"))
-            log.info("Swarm orchestrator scheduled (TAO_SWARM_ENABLED=1)")
-        except Exception as exc:
-            log.warning(
-                "Swarm orchestrator startup failed (non-fatal, FastAPI continues): %s",
-                exc,
-            )
-    else:
-        log.info("Swarm orchestrator NOT started (TAO_SWARM_ENABLED != 1)")
+    # Previews copy TAO_SWARM_ENABLED from production; the swarm writes Linear, Telegram and Supabase.
+    run_if_production_allowed("swarm_orchestrator", lambda: start_swarm_orchestrator(_resilient, log), log)
     if config.AUTONOMY_ENABLED:
         log.info("Autonomy poller enabled — polling Linear every 5 min for Todo issues")
     else:
@@ -248,15 +241,7 @@ async def on_startup():
     #   NEXUS_SCHEDULER_ENABLED=1     — turn the loop on
     #   NEXUS_SCHEDULER_DRY_RUN=1     — log only; no LLM / no writes
     #   NEXUS_SCHEDULER_WORKSPACES=a,b — comma-separated workspace slugs
-    if os.environ.get("NEXUS_SCHEDULER_ENABLED") == "1":
-        try:
-            from swarm.nexus.scheduler_daemon import nexus_scheduler_loop  # noqa: PLC0415
-            asyncio.create_task(_resilient(nexus_scheduler_loop, "nexus_scheduler"))
-            log.info("nexus scheduler scheduled (NEXUS_SCHEDULER_ENABLED=1)")
-        except Exception as exc:
-            log.warning("nexus scheduler startup failed (non-fatal): %s", exc)
-    else:
-        log.info("nexus scheduler NOT started (set NEXUS_SCHEDULER_ENABLED=1 to enable)")
+    run_if_production_allowed("nexus_scheduler", lambda: start_nexus_scheduler(_resilient, log), log)
 
     # RA-2989 — wire the research provider's Perplexity seam to OpenRouter's
     # Perplexity Sonar model. Perplexity's direct key was revoked; sonar now

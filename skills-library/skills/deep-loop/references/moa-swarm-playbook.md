@@ -1,5 +1,15 @@
 # MoA + swarm — the method behind D2/D3
 
+## Contents
+- [Perspective menu (D1 — discover 3–6, pick what the topic earns; `perspectives:` overrides)](#perspective-menu-d1--discover-36-pick-what-the-topic-earns-perspectives-overrides)
+- [Layer spec (per round, run via the Workflow tool)](#layer-spec-per-round-run-via-the-workflow-tool)
+- [Gap-ledger schema (the swarm driver)](#gap-ledger-schema-the-swarm-driver)
+- [Swarm loop](#swarm-loop)
+- [Saturation math (loop-until-dry)](#saturation-math-loop-until-dry)
+- [Guards (SSOT — mandatory when D2 opens; the ORCHESTRATOR runs them, between rounds)](#guards-ssot--mandatory-when-d2-opens-the-orchestrator-runs-them-between-rounds)
+- [Model ladder (Fable Free, 2026-07-08)](#model-ladder-fable-free-2026-07-08)
+
+
 Read before opening D2. Carries the layer spec, perspective menu, round/saturation mechanics,
 the gap-ledger schema, and the guards. Governing rule: this is HONEST Mixture-of-Agents
 (arXiv 2406.04692, ICLR 2025) — **every aggregator receives ALL previous-layer outputs as

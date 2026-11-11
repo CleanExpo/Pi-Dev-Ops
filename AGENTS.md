@@ -254,3 +254,7 @@ Recommended command chain:
 /resume-from-handoff
 ```
 
+<!-- TRD-INTEGRATION-START -->
+## Mandatory Truth, Research & Deliver gate
+Before declaring factual reports, training, scopes, reviews or research verified, invoke the `trd-truth-research-deliver` skill in this repository. Collect original evidence, independently challenge with Claude and JEV, and obtain a PASS from the trusted executable gate before release. HOLD/BLOCK is not release-ready. Do not invent source facts or reviewer attestations. See `.trd/README.md`.
+<!-- TRD-INTEGRATION-END -->

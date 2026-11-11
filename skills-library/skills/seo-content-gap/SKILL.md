@@ -1,6 +1,6 @@
 ---
 name: seo-content-gap
-description: Find keywords competitors rank for that you don't, via the DataForSEO Labs domain_intersection endpoint. Surfaces the highest-leverage content opportunities sorted by search volume and the competitor's ranking position, with cross-competitor consensus signals.
+description: Find keywords competitors rank for that you don't, via the DataForSEO Labs domain_intersection endpoint. Surfaces the highest-leverage content opportunities sorted by search volume and the competitor's ranking position, with cross-competitor consensus signals. Use when the user asks what keywords competitors rank for that their own site doesn't, wants a content gap or keyword gap analysis against 1–5 competitor domains, or needs a prioritized content roadmap and cross-competitor consensus gaps built from DataForSEO domain_intersection data.
 allowed-tools:
   - Bash
   - Write

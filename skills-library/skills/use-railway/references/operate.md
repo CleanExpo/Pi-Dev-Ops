@@ -1,5 +1,17 @@
 # Operate
 
+## Contents
+- [Health snapshot](#health-snapshot)
+- [Logs](#logs)
+- [Metrics](#metrics)
+- [SSH](#ssh)
+- [Database inspection](#database-inspection)
+- [Failure triage](#failure-triage)
+- [Recovery](#recovery)
+- [Troubleshoot common blockers](#troubleshoot-common-blockers)
+- [Validated against](#validated-against)
+
+
 Check health, read logs, query metrics, and troubleshoot failures.
 
 ## Health snapshot

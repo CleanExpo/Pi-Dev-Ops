@@ -65,3 +65,10 @@ proposals. The human is the leader — you sign off, the system does the lifting
 - Spec: `~/Pi-Dev-Ops/docs/specs/2026-06-29-self-improving-system-build.md`.
 - Upstream: `sync-claude-sessions` (produces the digests this reads).
 - Orchestration: `/data-ingestion` runs the miner; this runs after.
+
+## Ship gate (Prove mode)
+
+When this skill changes something that already exists in a way a person would judge (wording, behaviour,
+design, a model or prompt, a cost line), the change ships only after it beats the current version. Call the
+Skill tool with "gauntlet-loop" and follow its Prove mode. Mechanical fixes that a hard check proves (a
+broken link repaired, a failing test made to pass) do not need it.

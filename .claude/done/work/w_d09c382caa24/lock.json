@@ -1,0 +1,10 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d09c382caa24",
+  "contract_digest": "d16f77db6135daa277c2c33b9a428b091ae93dd05735d7864fe30a0f58212368",
+  "baseline_head": "2568e55a4a3f04eaad4754d59d412b0df0c439eb",
+  "identity_key": "mesh/phills-macbook-pro/ra-7989-bc2563a9@/Users/phillmcgurk/Pi-Dev-Ops/.git/worktrees/mesh-RA-7989-bc2563a9",
+  "locked_at_utc": "2026-11-08T03:40:25Z",
+  "criteria_count": 1,
+  "recipe_pins": {}
+}

@@ -40,6 +40,10 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   /^\/api\/build$/,
   /^\/api\/goal-ticket$/,
   /^\/api\/goal-ticket\/analyze$/,
+  // UNI-3306 — status read of one goal analysis job (GoalTicketForm checks it every
+  // 3 s). Upstream is require_auth and the job id is a database UUID, so exactly one
+  // UUID segment is admitted: no other path below /analyze/ becomes reachable.
+  /^\/api\/goal-ticket\/analyze\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/,
   /^\/api\/goal-projects$/,
   /^\/api\/goal-projects\/archive$/,
   /^\/api\/autonomy\/status$/,

@@ -1,0 +1,12 @@
+{
+  "schema": "done/1",
+  "work_id": "w_ff12adb750c9",
+  "contract_digest": "b738ed8c05608b41d1e859811e1797cf041f623d2037c1d85494022d2061f703",
+  "baseline_head": "bd7d36828c2481b0dae5254f5bb50855c978642a",
+  "identity_key": "fix/mesh-reaper-cloud-claim-renewal@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/reaper-cloud-claim",
+  "locked_at_utc": "2026-11-08T19:59:45Z",
+  "criteria_count": 6,
+  "recipe_pins": {
+    "work/w_ff12adb750c9/checks.sh": "079665ab03c7c3d82a29e2424c0b622d711fd2ba64f4a4d5d019260edc9baceb"
+  }
+}

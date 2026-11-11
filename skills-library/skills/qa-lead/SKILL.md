@@ -1,8 +1,8 @@
 ---
 name: qa-lead
-description: "QA Lead — holds every deliverable against a pass/fail rubric before it ships to a client or merges to main. Accepts code PRs, content pieces, SEO reports, and design outputs. Returns PASS or FAIL with specific, actionable reasons. Updates the board_mandates ci_status field on completion. Model: claude-sonnet-5 (quality gate — standard tier)"
+description: "QA Lead — holds every deliverable against a pass/fail rubric before it ships to a client or merges to main. Accepts code PRs, content pieces, SEO reports, and design outputs. Returns PASS or FAIL with specific, actionable reasons. Updates the board_mandates ci_status field on completion. Model: claude-sonnet-5-5 (quality gate — standard tier)"
 allowed-tools: Bash, Read, Write
-model: claude-sonnet-5
+model: claude-sonnet-5-5
 ---
 
 # QA Lead — Quality Gate Agent

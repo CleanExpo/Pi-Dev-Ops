@@ -218,3 +218,12 @@ For all operational responses, return:
 3. What to do next (or confirmation that the task is complete).
 
 Keep output concise. Include command evidence only when it helps the user understand what happened.
+
+## Reference files
+
+Linked directly so every file is one level from here:
+
+- [PostgreSQL Analysis](references/analyze-db-postgres.md)
+- [MySQL Analysis](references/analyze-db-mysql.md)
+- [Redis Analysis](references/analyze-db-redis.md)
+- [MongoDB Analysis](references/analyze-db-mongo.md)

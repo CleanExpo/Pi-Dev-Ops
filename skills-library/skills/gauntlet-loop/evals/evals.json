@@ -1,0 +1,39 @@
+[
+  {
+    "skills": [
+      "gauntlet-loop"
+    ],
+    "query": "Our RestoreAssist report-summary prompt is mediocre. Make it better and ship it.",
+    "files": [],
+    "expected_behavior": [
+      "Chooses Prove mode (the thing exists) and reads references/prove-mode.md",
+      "Starts with Phase 0 access: lists CLIs, secrets by name only, and missing items in one message",
+      "Collects real cases and baseline hard checks before writing any challenger",
+      "Judges with prove_judge.py using a non-Anthropic provider, both orders, and ships only through pr-release-gate"
+    ]
+  },
+  {
+    "skills": [
+      "gauntlet-loop"
+    ],
+    "query": "We ran the new pricing page copy against the old on 6 cases and it won 5-1. Ship it.",
+    "files": [],
+    "expected_behavior": [
+      "Refuses to treat 6 cases as evidence (fewer than ~8)",
+      "Asks for more real cases or a fresh sample confirm",
+      "Notes that for conversion the live A/B test or metric decides, the judge is only a pre-screen"
+    ]
+  },
+  {
+    "skills": [
+      "gauntlet-loop"
+    ],
+    "query": "Build a landing page for my running brand that beats Nike's running page.",
+    "files": [],
+    "expected_behavior": [
+      "Chooses Bar mode (a named external rival), not Prove mode",
+      "Offers 2-3 bars or uses the named one, then writes one paste-ready prompt of about 120-180 words",
+      "Does not start the Prove mode phases"
+    ]
+  }
+]

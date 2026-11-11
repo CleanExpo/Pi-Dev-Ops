@@ -1,6 +1,6 @@
 ---
 name: tao
-description: The Tao is the autonomous execution engine that ties self-direction with governance. It orchestrates /nexus (routing), /tao-loop (iterate-generate-deploy), /tao-judge (iterative-evaluator-calibrator), and /session-handoff (continuity/escrow) into a single cohesive autonomous mission-runner. The Tao handles autonomous overnight execution for complex projects.
+description: "Autonomous execution engine that ties self-direction to governance: orchestrates /nexus (routing), /tao-loop (iterate-generate-deploy), /tao-judge (evaluator gate) and /session-handoff (continuity) as one mission-runner. Use when the user asks to run something autonomously or overnight, hands over a task spanning more than one skill or domain that needs closed-loop execution, grants full authority for exhaustive action, or wants prior work resumed via /resume-from-handoff."
 allowed-tools: Read, Grep, Glob, Bash, Agent, delegate_task, skill_view, hermes_cli
 ---
 

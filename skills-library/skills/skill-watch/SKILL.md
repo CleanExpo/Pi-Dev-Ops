@@ -36,6 +36,9 @@ outside and tells us what changed. It never installs, updates or deletes anythin
 
 ## Adding an outside skill (every time)
 
+0. **Its passport will say what you recorded.** Every skill, local or vault, gets a generated
+   Capability Passport (below). A vault skill with no `review` or no 40-char `pinned_sha` here
+   is `UNREVIEWED` and refused by `skill_shelf.mjs activate`.
 1. **Review it first.** Use a subagent, read-only, with the repo cloned in the scratchpad.
    Check for hooks, scripts, network calls, settings edits, and overlap with existing skills.
 2. **Install only if it earns its place.** Prefer merging new rules into an existing skill
@@ -73,3 +76,30 @@ outside and tells us what changed. It never installs, updates or deletes anythin
   - It runs agents with permission prompts off.
   - It copies the login token to disk.
   - `claude plugin details` and `claude plugin eval` already cover its two jobs.
+
+## Capability Passports
+
+`scripts/capability_passport.py` builds one passport per skill (local and vault) from that
+skill's own `SKILL.md` and nothing invented: name, description, `allowed-tools`, `model`,
+`owner` / `owner_role` (else `HOMES.json`), declared `capabilities` plus its `index.md` router
+phrases, this registry's review and pin, and test records the tool wrote itself. Each passport
+pins the sha256 of its `SKILL.md` and is checked against `capability-passport.schema.json`
+(a stdlib validator that refuses any schema keyword it does not implement).
+
+```
+python3 scripts/capability_passport.py generate --validate   # -> ~/.local/state/skill-watch/passports.json
+python3 scripts/capability_passport.py record <skill> -- <test command>   # trusted test record
+python3 scripts/capability_passport.py activate <skill> --capability "<phrase>" --available-models opus,sonnet
+```
+
+- Risk: no `allowed-tools` (inherits every tool) or unrestricted `Bash` is high; scoped Bash,
+  write, web, agent or MCP tools are medium; read-only tools are low. A `provider/model` id is
+  an API-key lane: always refused.
+- Conflicts: one capability phrase claimed by two different owners is listed and refused.
+- Test records: a PASS whose exit code, output-log hash, recorder or source hash does not hold
+  is `FAKE_PASS`. Records are integrity-checked, not signed.
+- `activate` is simulated: it writes a receipt to `activation-receipts.jsonl` and changes nothing.
+- The daily run regenerates passports and flags conflicts, API-key lanes, unreviewed outside
+  skills and schema failures. It never installs or removes a skill.
+- Tests: `python3 tests/test_capability_passport.py`; each of the six refusals has a sabotage
+  in `skills/enforcement-loop/install/positive_control.py` that must turn it red.

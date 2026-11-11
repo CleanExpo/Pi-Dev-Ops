@@ -12,3 +12,4 @@ shipyard  # its SKILL.md runs pr-release-gate scripts, which are held back above
 credential-custody  # SKILL.md line 37 assigns a quoted example value (Markdown scan, 1 line)
 engineering-requirements  # harness/fixture/spec.md has no engineering.md; the PR release gate reads it as an unreviewed spec
 skill-authoring-standard  # spec.md has no engineering.md (same gate rule); skills/ has its own copy, which is the one that loads
+restoreassist-app-store-phase  # founder decision 10 Nov 2026: held back until the secret on SKILL.md line 30 is rotated and removed; old copy moved to _attic/2026-11-10

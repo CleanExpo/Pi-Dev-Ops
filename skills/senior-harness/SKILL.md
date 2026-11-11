@@ -98,6 +98,14 @@ normal host and repository policy still decides generic tools, and a fresh sessi
 produce new control-code evidence. Grill interactions continue revalidating project and control
 bytes on every tool, with recovery reads as the only carve-out.
 
+A session whose shell has left Git is not locked out. Outside Git, two Bash commands are
+allowed, each only when it is the whole command: `cd "<CLAUDE_PROJECT_DIR>"` (the exact string
+the deny message prints), and `cd <path>` or `cd "<path>"` where the path is absolute, has no
+`..`, contains no `$`, backtick, `~`, `!`, quote, backslash, `; & | < > #`, brackets, braces or
+glob characters (an unquoted path also has no spaces), and Git itself reports it as inside a
+work tree. Either `cd` grants no authority: once back inside Git, the normal startup checks run
+again. Anything else, including `cd` chained with another command, stays denied.
+
 Governed Grill-Me entry, and the authority its receipt withholds, is specified in [`references/grill-contract.md`](references/grill-contract.md).
 
 ## 1. Ground

@@ -127,28 +127,38 @@ def _post(body: dict, key: str, timeout: int = 60) -> tuple[int, dict | str]:
         return 0, str(e)
 
 
-def ask_jev(question: dict, state: str, key: str, post=_post) -> tuple[int, float | None, float]:
+def ask_jev(question: dict, state: str, key: str, post=_post, gate=None) -> tuple[int, float | None, float]:
     body = {"state": state, "model": MODEL, "questions": {"q": {
         "type": "noul", "instructions": question["question"],
         "criteria": {"true": question["criteria_true"], "false": question["criteria_false"]}}}}
     if client.credential_payload(body):
         return 0, None, 0.0  # round 22: a credential never leaves; an error, never a judgment
-    try:  # recorded in the machine spend ledger before it leaves, or it does not leave
-        row, cid = spend.reserve_call(CALLER, client.RESERVE_USD)
-    except (spend.SpendUnrecorded, spend.SpendCapReached):
-        return 0, None, 0.0
-    start = time.monotonic()
-    try:
-        status, resp = post(body, key)
-    except Exception:
-        spend.finish(row, "error", call_id=cid)
-        raise
-    elapsed = time.monotonic() - start
-    if status != 200 or not isinstance(resp, dict):
-        spend.finish(row, "error", call_id=cid)
-        return status, None, elapsed
-    spend.finish(row, *client._settled(resp), call_id=cid)
-    return status, _valid_noul(resp), elapsed
+    gate = gate or client.AuthGate()
+    with gate.dispatch():  # a bad key costs one request, not one per worker
+        if gate.check():
+            return 0, None, 0.0
+        try:  # recorded in the machine spend ledger before it leaves, or it does not leave
+            row, cid = spend.reserve_call(CALLER, client.RESERVE_USD)
+        except (spend.SpendUnrecorded, spend.SpendCapReached):
+            return 0, None, 0.0
+        start = time.monotonic()
+        try:
+            halted, result = gate.transmit(row, lambda: post(body, key), call_id=cid)
+        except Exception:
+            spend.finish(row, "error", call_id=cid)
+            raise
+        if halted:  # refused while this call waited: nothing left the machine
+            return 0, None, 0.0
+        status, resp = result
+        elapsed = time.monotonic() - start
+        if status in client.REFUSED:  # already published by the gate; the reserve stays counted
+            spend.finish(row, "refused", call_id=cid)
+            return status, None, elapsed
+        if status != 200 or not isinstance(resp, dict):
+            spend.finish(row, "error", call_id=cid)
+            return status, None, elapsed
+        spend.finish(row, *client._settled(resp), call_id=cid)
+        return status, _valid_noul(resp), elapsed
 
 
 def _valid_noul(resp: dict) -> float | None:
@@ -194,6 +204,34 @@ def score(cases: list[dict], nouls: list[float | None]) -> dict:
     return out
 
 
+def _score_question(q: dict, cases: list[dict], key: str, post, gate, workers: int) -> dict | None:
+    """Scored report for one question, or None when the shared gate was halted by a refused key."""
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        results = list(pool.map(lambda c: ask_jev(q, c["state"], key, post, gate=gate), cases))
+    if gate.halted:
+        return None
+    out = score(cases, [r[1] for r in results])
+    out["median_latency_s"] = round(sorted(r[2] for r in results)[len(results) // 2], 3)
+    return out
+
+
+def _control(post) -> int | None:
+    """HTTP status of the fake-key negative control, or None when the spend ledger does not admit it. The control is
+    a real request: it is reserved before it leaves and settled like any other, so a 401 keeps its reserve."""
+    try:
+        row, cid = spend.reserve_call(CALLER, client.RESERVE_USD)
+    except (spend.SpendUnrecorded, spend.SpendCapReached):
+        return None
+    try:
+        status, _ = post({"state": "x", "model": MODEL,
+                          "questions": {"q": {"type": "noul", "instructions": "x"}}}, "ts-invalid-control-key")
+    except Exception:
+        spend.finish(row, "error", call_id=cid)
+        raise
+    spend.finish(row, "refused" if status in client.REFUSED else "error", call_id=cid)  # never priced: reserve stands
+    return status
+
+
 def run(args, env=os.environ, post=_post) -> int:
     questions = committed_questions()  # round 10 P1: what is sent is what was reviewed at HEAD
     if args.question:
@@ -202,13 +240,15 @@ def run(args, env=os.environ, post=_post) -> int:
     if not key:
         print("BLOCKED: TYPESAFE_API_KEY is not set. Nothing was scored.")
         return EXIT_BLOCKED
-    control_status, _ = post({"state": "x", "model": MODEL,
-                              "questions": {"q": {"type": "noul", "instructions": "x"}}},
-                             "ts-invalid-control-key")
+    control_status = _control(post)
+    if control_status is None:
+        print("BLOCKED: the spend ledger did not admit the control request. Nothing was sent.")
+        return EXIT_BLOCKED
     if control_status != 401:
         print(f"CONTROL FAILED: fake key returned HTTP {control_status}, expected 401. Nothing was scored.")
         return EXIT_CONTROL
     report, refused = {}, {}
+    gate = client.AuthGate()  # one gate for the whole run: a refusal on any question stops them all
     for q in questions:
         cases = committed_cases(q["id"])
         problems = question_problems(q, cases=cases)  # validate exactly the cases that will be sent
@@ -217,12 +257,12 @@ def run(args, env=os.environ, post=_post) -> int:
             continue
         if args.limit:
             cases = cases[:args.limit]
-        with ThreadPoolExecutor(max_workers=args.workers) as pool:
-            results = list(pool.map(lambda c: ask_jev(q, c["state"], key, post), cases))
-        report[q["id"]] = score(cases, [r[1] for r in results])
-        report[q["id"]]["median_latency_s"] = round(sorted(r[2] for r in results)[len(results) // 2], 3)
-        print(f"{q['id']}: accuracy {report[q['id']]['accuracy']} on {len(cases)} cases, "
-              f"{report[q['id']]['missed_violations']} missed violations")
+        scored = _score_question(q, cases, key, post, gate, args.workers)
+        if scored is None:
+            print(f"STOPPED: Jev refused the key ({gate.halted}) on {q['id']}; the remaining calls were not sent.")
+            return EXIT_BLOCKED
+        report[q["id"]] = scored
+        print(f"{q['id']}: accuracy {scored['accuracy']} on {len(cases)} cases, {scored['missed_violations']} missed violations")
     for qid, problems in refused.items():
         print(f"REFUSED {qid}: {'; '.join(problems)}")
     RESULTS.mkdir(exist_ok=True)

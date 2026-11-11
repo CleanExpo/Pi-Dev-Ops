@@ -1,6 +1,6 @@
 ---
 name: seo
-description: "Full SEO toolkit powered by the DataForSEO API. Replaces the data layer of an SEO agency: keyword research, competitor analysis, rank tracking, backlink audits, technical site crawls, content gap analysis and client-ready PDF reports, all from real Google search data, not scraping. The entry point for any domain, URL or keyword handed over for SEO analysis; dispatches the seo-* sub-skills."
+description: "Full SEO toolkit powered by the DataForSEO API. Replaces the data layer of an SEO agency: keyword research, competitor analysis, rank tracking, backlink audits, technical site crawls, content gap analysis and client-ready PDF reports, all from real Google search data, not scraping. Dispatches the seo-* sub-skills. Use when a domain, URL or keyword is handed over for SEO analysis or a /seo command is run."
 allowed-tools: Read, Grep, Glob, Bash, WebFetch, Write, Agent
 ---
 
@@ -16,11 +16,13 @@ allowed-tools: Read, Grep, Glob, Bash, WebFetch, Write, Agent
 Every `/seo ...` request starts here — API calls fail without credentials.
 
 ```bash
-cat ~/.claude/skills/seo/.env 2>/dev/null
+~/.claude/skills/seo/scripts/preflight.sh >/dev/null; echo "exit=$?"
 ```
 
-Credentials are configured when `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD` are present and
-are not the placeholders `your_login_email_here` / `your_api_password_here`. **If configured**,
+The script checks that `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD` are present in
+`~/.claude/skills/seo/.env` and are not the placeholders `your_login_email_here` /
+`your_api_password_here`, without printing them. Do not read the `.env` yourself; the secrets
+gate refuses it. Exit `0` = configured, exit `2` = not configured. **If configured**,
 continue to the requested command silently. **If not configured**, STOP and run the full setup
 wizard (signup links, credential parsing, the `chmod 600` write, and the verification-result
 table) in [`references/setup-wizard.md`](references/setup-wizard.md). Never echo credentials back,

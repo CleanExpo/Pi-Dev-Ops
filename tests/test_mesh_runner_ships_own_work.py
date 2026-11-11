@@ -221,3 +221,41 @@ def test_only_mesh_work_branches_are_ever_pushed(fleet):
     error = ship_run.ship(start, wt, "main", "UNI-A", "TESTNODE")
 
     assert error and "refusing" in error
+
+
+def _write_done_bookkeeping(wt) -> None:
+    """What the Done harness leaves in a worktree during a run (PR #929's files)."""
+    work = wt / ".claude" / "done" / "work" / "w_f546d905737a"
+    work.mkdir(parents=True)
+    (wt / ".claude" / "done" / "ACTIVE.json").write_text("{}\n")
+    (work / "contract.json").write_text("{}\n")
+    (work / "state.json").write_text("{}\n")
+
+
+@pytest.mark.parametrize("agent_commits", [False, True])
+def test_a_run_that_only_wrote_done_bookkeeping_ships_nothing(fleet, agent_commits):
+    """THE RA-7989 CASE: PR #929 carried only `.claude/done/**` files, and its merge
+    closed RA-7965 as Done with no code changed. Bookkeeping is not work, whether
+    the leftover commit or the agent itself committed it."""
+    _repo, wt, origin, start = fleet
+    _write_done_bookkeeping(wt)
+    if agent_commits:
+        _git(wt, "add", "-A")
+        _git(wt, "-c", "user.name=a", "-c", "user.email=a@example.invalid",
+             "commit", "-q", "-m", "done bookkeeping")
+
+    error = ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE")
+
+    assert error == "no commits: agent changed nothing but harness bookkeeping"
+    assert _remote_has(origin, BRANCH) == ""
+
+
+def test_one_real_change_beside_done_bookkeeping_still_ships(fleet):
+    _repo, wt, origin, start = fleet
+    _write_done_bookkeeping(wt)
+    (wt / "README").write_text("real change\n")
+
+    error = ship_run.ship(start, wt, BRANCH, "UNI-A", "TESTNODE")
+
+    assert error is None
+    assert _remote_has(origin, BRANCH) == _git(wt, "rev-parse", "HEAD")

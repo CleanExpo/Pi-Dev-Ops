@@ -1,5 +1,15 @@
 # Setup
 
+## Contents
+- [Projects](#projects)
+- [Services](#services)
+- [Buckets](#buckets)
+- [Analyze codebase before setup](#analyze-codebase-before-setup)
+- [Workspaces](#workspaces)
+- [Troubleshoot setup issues](#troubleshoot-setup-issues)
+- [Validated against](#validated-against)
+
+
 Create, link, and organize Railway projects, services, databases, and workspaces.
 
 ## Projects

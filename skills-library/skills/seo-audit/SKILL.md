@@ -1,6 +1,6 @@
 ---
 name: seo-audit
-description: Full SEO audit powered by the DataForSEO API. Orchestrates 5 specialist subagents (keywords, technical, competitors, content, backlinks) hitting DataForSEO Keywords Data, SERP, On-Page, Backlinks, and Labs endpoints in parallel, then produces a composite SEO Score (0-100) with prioritized action plan and audit JSON ready for PDF export.
+description: Full SEO audit via the DataForSEO API. Orchestrates 5 specialist subagents (keywords, technical, competitors, content, backlinks) in parallel across the Keywords Data, SERP, On-Page, Backlinks and Labs endpoints, then produces a composite SEO Score (0-100), a prioritized action plan and audit JSON ready for PDF export. Use when the user asks for a full SEO audit, SEO score or site-wide health check of a domain, or says "/seo audit".
 allowed-tools:
   - Bash
   - Write
