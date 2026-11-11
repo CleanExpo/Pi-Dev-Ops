@@ -40,6 +40,43 @@ def _fresh_left_running_record(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolated_brain_vault(tmp_path, monkeypatch):
+    """UNI-3351: no test reaches the machine's real 2nd Brain vault or its Obsidian REST bridge.
+
+    On a machine that holds the vault, the Margot and analyst tests wrote real pages into
+    its Wiki/analyst folder. Every reader takes these values from swarm.config at call
+    time, so this is the one place they are redirected. The folders are not created, as on
+    CI, where no vault exists. A test that needs its own values sets them after this runs.
+
+    This fixture must never be the first importer of swarm.config. The module caches every
+    setting at import, and tests set their own environment and then rely on a lazy first
+    import (tests/test_analyst.py sets TAO_ANALYST_ENABLED that way). So the environment the
+    module reads is always redirected, and its attributes only when it is already imported.
+
+    The table below is the whole rule. tests/test_vault_isolation.py reads swarm/config.py
+    and fails when it finds an OBSIDIAN_ or BRAIN environment name that has no row here, so
+    a new setting cannot be added there without being covered here. The fixture returns the
+    table so that test checks the rows really applied, not a copy.
+    """
+    vault = tmp_path / "brain-vault"
+    settings = {  # environment name swarm.config reads -> (its attribute, the value for this test)
+        "BRAIN1_WIKI_DIR": ("BRAIN1_WIKI_DIR", str(vault / "Wiki")),
+        "OBSIDIAN_VAULT": ("OBSIDIAN_VAULT", str(vault)),
+        "OBSIDIAN_URL": ("OBSIDIAN_BASE_URL", "http://127.0.0.1:1"),  # nothing listens here
+        "OBSIDIAN_REMOTE_URL": ("OBSIDIAN_REMOTE_URL", ""),  # empty: no remote REST bridge
+        "OBSIDIAN_REMOTE_IP": ("OBSIDIAN_REMOTE_IP", ""),
+        "BRAIN_HOST_TAILNET": ("BRAIN_HOST_TAILNET", ""),  # empty: cannot refill the remote URL
+        "OBSIDIAN_TOKEN": ("OBSIDIAN_TOKEN", ""),  # no inherited credential reaches any bridge
+    }
+    config = sys.modules.get("swarm.config")
+    for env_name, (attribute, value) in settings.items():
+        monkeypatch.setenv(env_name, value)
+        if config is not None:
+            monkeypatch.setattr(config, attribute, value)
+    return settings
+
+
+@pytest.fixture(autouse=True)
 def _no_live_claude_auth_probe(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Readiness starts a background `claude auth status`; unit tests never run the real CLI."""
     from app.server import claude_auth_probe
