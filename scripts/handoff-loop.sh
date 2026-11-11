@@ -112,10 +112,11 @@ if [ -f scripts/check_business_charters.py ]; then
 fi
 # RA-8187: the account map holds emails only and pins one Claude login per machine.
 # CI runs it in the `python` job; run it here too so a pasted secret fails before push.
+# It needs PyYAML only, so it runs even when the app deps (fastapi, pydantic) are absent.
 if [ -f scripts/check_account_map.py ]; then
-  if [ "$PY_OK" = 1 ]; then
+  if "$PY" -c "import yaml" >>"$LOG" 2>&1; then
     gate "account-map" "$PY" scripts/check_account_map.py
-  else skip "account-map" "python deps absent"; fi
+  else skip "account-map" "PyYAML not importable"; fi
 fi
 
 # 4. Type checks.

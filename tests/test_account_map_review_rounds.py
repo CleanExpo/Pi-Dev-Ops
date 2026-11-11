@@ -208,3 +208,43 @@ def test_short_or_lettered_number_email_names_pass(local):
     4-digit cap on standalone numbers in notes. A name that also holds letters is not
     number-only, and the letter and digit run rules already govern it."""
     assert grammar.GRAMMAR[("account", "email")](f"{local}@gmail.com") is None
+
+
+# ── CodeRabbit round on PR 990 (five findings, kinds: grammar, loader, output, gate) ────
+
+@pytest.mark.parametrize("domain", ["web3corp.com", "3m.com", "k12school.org", "my-web3.io"])
+def test_real_domains_with_digits_pass(domain):
+    """A domain label may mix letters and digits (at most two switches)."""
+    assert grammar.GRAMMAR[("account", "email")](f"a@{domain}") is None
+
+
+@pytest.mark.parametrize("domain", ["Ab1Cd2Ef3.com", "a1b2c3d4.com", "x" * 25 + ".com"])
+def test_key_like_domain_labels_still_fail(domain):
+    """The domain relaxation must not let a key-shaped label through."""
+    assert grammar.GRAMMAR[("account", "email")](f"a@{domain}") is not None
+
+
+@pytest.mark.parametrize("key", ["1", "true", "null", "2.5"])
+def test_non_string_key_is_a_schema_error_not_a_duplicate(tmp_path, capsys, key):
+    """1 and true are different YAML keys, so they are not DUPLICATE_KEY; a key that is
+    not text is a SCHEMA error."""
+    text = BASE + f"{key}: a\n" + ("true: b\n" if key == "1" else "")
+    code, out = _run(tmp_path, text, capsys)
+    assert code == 1 and "SCHEMA" in out and "DUPLICATE_KEY" not in out, out
+
+
+def test_deeply_nested_yaml_reports_file_not_a_traceback(tmp_path, capsys):
+    """A recursion failure in the loader is rule FILE, never a traceback."""
+    code, out = _run(tmp_path, "[" * 5000 + "]" * 5000 + "\n", capsys)
+    assert code == 1 and "FILE" in out and "Traceback" not in out, out
+
+
+def test_summary_line_never_prints_a_credential_shaped_path(tmp_path, capsys):
+    """The summary goes through the same filter as every finding."""
+    from test_account_map_accept_only import FAKE_KEYS
+    key = FAKE_KEYS["github"]
+    path = tmp_path / f"{key}.yaml"
+    path.write_text(BASE, encoding="utf-8")
+    code = cam.main(["--path", str(path)])
+    out = capsys.readouterr().out
+    assert code == 0 and key not in out and "withheld" in out, out

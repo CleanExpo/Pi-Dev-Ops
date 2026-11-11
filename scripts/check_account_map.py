@@ -48,8 +48,8 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from account_map_grammar import GRAMMAR, check_comment, show  # noqa: E402
 from account_map_secrets import (  # noqa: E402
-    DuplicateKeyError, ScannerPatternsError, UniqueKeyLoader, comment_lines, looks_secret_name,
-    looks_secret_value, metadata_lines,
+    DuplicateKeyError, NonStringKeyError, ScannerPatternsError, UniqueKeyLoader, comment_lines,
+    looks_secret_name, looks_secret_value, metadata_lines, say as _say,
 )
 
 DEFAULT_PATH = Path(__file__).resolve().parent.parent / "ops" / "ACCOUNT-MAP.yaml"
@@ -246,6 +246,8 @@ def _load(path: Path, report: Report):
         data = yaml.load(text, Loader=UniqueKeyLoader)  # noqa: S506 - SafeLoader subclass
     except DuplicateKeyError as exc:
         report.error("DUPLICATE_KEY", f"{path}: {exc}; the earlier value would be hidden")
+    except NonStringKeyError as exc:
+        report.error("SCHEMA", f"{path}: {exc}; every key must be a word")
     except (OSError, UnicodeDecodeError) as exc:
         report.error("FILE", f"cannot read {path}: {getattr(exc, 'strerror', None) or exc}")
     except yaml.YAMLError as exc:
@@ -253,21 +255,12 @@ def _load(path: Path, report: Report):
         at = f" near line {mark.line + 1}" if mark else ""
         report.error("FILE", f"{path} is not valid YAML{at} (details not shown: they can "
                      "quote the file)")
+    except RecursionError:
+        report.error("FILE", f"{path} is nested too deeply")
     else:
         scan_raw_text(text, report)
         return data
     return None
-
-
-def _say(line: str) -> None:
-    """Print one output line, unless it would quote something credential-shaped (a label
-    or machine id can be slug-shaped and still match the second net)."""
-    try:
-        quoted = looks_secret_value(line)
-    except ScannerPatternsError:
-        quoted = True
-    print(line.split(":", 1)[0] + ": (withheld, it quotes a credential-shaped value)"
-          if quoted else line)
 
 
 def main(argv=None) -> int:
@@ -279,7 +272,7 @@ def main(argv=None) -> int:
     report = Report()
     try:
         data = _load(args.path, report)
-        if not any(f.rule in ("FILE", "DUPLICATE_KEY") for f in report.errors):
+        if not any(f.rule in ("FILE", "DUPLICATE_KEY", "SCHEMA") for f in report.errors):
             raw_findings = report.errors
             report = validate(data, require_real=args.require_real)
             report.errors[:0] = raw_findings
@@ -290,9 +283,9 @@ def main(argv=None) -> int:
     for item in report.pending:
         _say(f"PENDING: {item}")
     if report.errors:
-        print(f"account map FAILED: {len(report.errors)} error(s) in {args.path}")
+        _say(f"account map FAILED: {len(report.errors)} error(s) in {args.path}")
         return 1
-    print(f"account map OK: {args.path} ({len(report.pending)} item(s) pending Phill)")
+    _say(f"account map OK: {args.path} ({len(report.pending)} item(s) pending Phill)")
     return 0
 
 

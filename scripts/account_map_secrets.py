@@ -76,6 +76,10 @@ class DuplicateKeyError(yaml.YAMLError):
     """Two equal keys in one mapping. PyYAML would keep the last and hide the first."""
 
 
+class NonStringKeyError(yaml.YAMLError):
+    """A mapping key that is not text (1, true, null). The map's keys are all words."""
+
+
 class UniqueKeyLoader(yaml.SafeLoader):
     """SafeLoader that refuses duplicate keys, so no value can sit unparsed in the file."""
 
@@ -84,6 +88,9 @@ def _construct_unique_mapping(loader, node):
     seen = set()
     for key_node, _ in node.value:
         key = loader.construct_object(key_node, deep=True)
+        if not isinstance(key, str):
+            raise NonStringKeyError(f"line {key_node.start_mark.line + 1}: a key "
+                                    "is not text")
         try:
             duplicate = key in seen
             seen.add(key)
@@ -129,3 +136,14 @@ def comment_lines(text: str):
             yield number, stripped
         elif " #" in line:
             yield number, line.split(" #", 1)[1]
+
+
+def say(line: str) -> None:
+    """Print one output line, unless it would quote something credential-shaped (a label
+    or machine id can be slug-shaped and still match the second net)."""
+    try:
+        quoted = looks_secret_value(line)
+    except ScannerPatternsError:
+        quoted = True
+    print(line.split(":", 1)[0] + ": (withheld, it quotes a credential-shaped value)"
+          if quoted else line)

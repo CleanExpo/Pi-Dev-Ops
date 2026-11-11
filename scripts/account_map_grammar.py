@@ -46,6 +46,16 @@ def _runs_ok(text: str, limit: int = MAX_RUN, one_switch: bool = False) -> bool:
     return True
 
 
+def _domain_runs_ok(domain: str) -> bool:
+    """Domain labels are short and may mix letters and digits with at most two switches
+    (web3corp, 3m, k12school), but never alternate the way a key does (Ab1Cd2)."""
+    for run in _ALNUM_RUN.findall(domain):
+        switches = len(re.findall(r"[A-Za-z][0-9]|[0-9][A-Za-z]", run))
+        if len(run) > MAX_RUN or switches > 2:
+            return False
+    return True
+
+
 def show(name) -> str:
     """A name safe to print: plain words with an optional short number. Anything else
     could be pasted text, so findings name the place and the rule, never the text. A run
@@ -87,7 +97,7 @@ def _email(value):
     local, at, domain = value.partition("@")
     if (not at or len(value) > 80 or len(local) > 40 or not _EMAIL_LOCAL.fullmatch(local)
             or not _EMAIL_DOMAIN.fullmatch(domain)
-            or not _runs_ok(value, one_switch=True)
+            or not _runs_ok(local, one_switch=True) or not _domain_runs_ok(domain)
             or _number_only(local)):
         return ("BAD_EMAIL", "must be one plain address (letters, digits, '.', '_', '+', '-'; "
                 "local part at most 40 characters; no key-like mix of letters and digits; "
