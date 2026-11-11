@@ -45,6 +45,16 @@ def _runs_ok(text: str, limit: int = MAX_RUN, one_switch: bool = False) -> bool:
     return True
 
 
+def _budget_ok(value: str, max_mixed: int = 2, max_digits: int = 8) -> bool:
+    """One budget for the WHOLE value, across every separator (. _ + - @). A key can be
+    cut into short groups that each look fine, so per-run checks alone are not enough: at
+    most two groups may mix letters and digits, and at most 8 digits in all. This is the
+    single owner of that rule; email, slug and hostname fields all call it."""
+    groups = re.split(r"[^A-Za-z0-9]+", value)
+    mixed = sum(1 for g in groups if _MIXED.search(g) and any(c.isdigit() for c in g))
+    return mixed <= max_mixed and sum(c.isdigit() for c in value) <= max_digits
+
+
 def _domain_runs_ok(domain: str) -> bool:
     """Domain labels are plain words of at most 16 letters, or a mix of letters and
     digits of at most 12 characters with at most two switches (web3corp, 3m, k12school).
@@ -76,7 +86,8 @@ def _bounded(pattern, max_len: int, what: str, rule: str = "BAD_VALUE", max_seg:
     def check(value: str):
         segments = re.split(r"[.+-]", value)
         if (len(value) > max_len or not pattern.fullmatch(value)
-                or any(len(s) > max_seg for s in segments) or not _runs_ok(value, one_switch=True)):
+                or any(len(s) > max_seg for s in segments) or not _runs_ok(value, one_switch=True)
+                or not _budget_ok(value)):
             return (rule, f"must be {what}")
         return None
     return _text(check)
@@ -89,9 +100,9 @@ def _email(value):
     if (not at or len(value) > 80 or len(local) > 40 or not _EMAIL_LOCAL.fullmatch(local)
             or not _EMAIL_DOMAIN.fullmatch(domain)
             or not _runs_ok(local, one_switch=True) or not _domain_runs_ok(domain)
-            or _number_only(local)):
+            or not _budget_ok(value) or _number_only(local)):
         return ("BAD_EMAIL", "must be one plain address (letters, digits, '.', '_', '+', '-'; "
-                "local part at most 40 characters; no key-like mix of letters and digits; "
+                "local part at most 40 characters; no key-like mix of letters and digits (at most two mixed groups, 8 digits); "
                 "no name made only of digits and separators with 5 or more digits)")
     return None
 

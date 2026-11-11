@@ -256,3 +256,30 @@ def test_missing_file_with_key_shaped_name_is_never_echoed(tmp_path, capsys):
 def test_long_or_alternating_domain_label_is_refused(label):
     """The first-round domain relaxation let a 24-character letter/digit/letter label in."""
     assert grammar.GRAMMAR[("account", "email")](f"user@{label}.com") is not None
+
+
+# ── Round 2 and 3: key cut into short groups by separators ──────────────────
+
+GROUPED = "-".join(["ab12", "cd34", "ef56", "gh78", "ij90", "kl12", "mn34", "op56"])
+
+
+@pytest.mark.parametrize("where", ["email_local", "email_domain", "label", "host"])
+def test_key_cut_into_short_groups_is_refused_everywhere(tmp_path, capsys, where):
+    """A 32-character value split by hyphens into eight mixed groups passed every per-run
+    check. The whole-value budget refuses it in each hyphen-capable field, and the CLI
+    exits 1 without echoing it."""
+    plant = {
+        "email_local": BASE.replace("claude-mini@", f"{GROUPED}@"),
+        "email_domain": BASE.replace("@pending.invalid", f"@{GROUPED}.com"),
+        "label": BASE.replace("label: claude-mini", "label: x" + "-".join(GROUPED.split("-")[:6])),
+        "host": BASE.replace("host: Phills-Mac-mini", f"host: {GROUPED}"),
+    }[where]
+    code, out = _run(tmp_path, plant, capsys)
+    assert code == 1, out
+    assert GROUPED not in out and "ab12" not in out, out
+
+
+@pytest.mark.parametrize("email", ["a@web3corp.com", "smith84@gmail.com", "x2@k12school.org",
+                                   "1.2.3.4@gmail.com", "123456team@gmail.com"])
+def test_budget_keeps_ordinary_addresses(email):
+    assert grammar.GRAMMAR[("account", "email")](email) is None
