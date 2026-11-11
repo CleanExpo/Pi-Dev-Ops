@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from .core import backfill, check_case, digest_object, inventory, read_json, sign_review, VERSION
 
-GITIGNORE = '# Raw evidence may contain private customer information\nevidence/\nreviews/\nresults/\nlegacy/\n'
+GITIGNORE = '# Cases and raw evidence may contain private customer information\ncases/\nevidence/\nreviews/\nresults/\nlegacy/\n'
 REVIEW_MODES = {
     'Claude': 'Analyse source authority, source-to-claim entailment, measured values, current applicability and hidden assumptions.',
     'JEV': 'Independently challenge every claim using only the raw case and independent source snapshots. Seek counter-evidence, contradictions, shared source ancestry and false precision.',

@@ -84,3 +84,24 @@ def test_backfill_skips_text_whose_hash_changed_after_inventory(tmp_path: Path, 
     item = legacy.backfill(tmp_path)["files"][0]
     assert item["candidates"] == []
     assert "changed" in item["next_step"]
+
+
+INIT_FOLDERS = ["cases", "evidence", "reviews", "results", "legacy"]
+
+
+def _is_git_ignored(repo: Path, rel: str) -> bool:
+    result = subprocess.run(["git", "check-ignore", "-q", rel], cwd=repo, check=False)
+    return result.returncode == 0
+
+
+def test_init_gitignores_every_folder_it_creates(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    assert _run_cli("init", str(tmp_path), cwd=tmp_path).returncode == 0
+    for folder in INIT_FOLDERS:
+        assert (tmp_path / ".trd" / folder).is_dir()
+        assert _is_git_ignored(tmp_path, f".trd/{folder}/record.json"), folder
+
+
+def test_committed_trd_gitignore_covers_case_records() -> None:
+    for folder in INIT_FOLDERS:
+        assert _is_git_ignored(ROOT, f".trd/{folder}/record.json"), folder
