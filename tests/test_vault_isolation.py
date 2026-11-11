@@ -8,10 +8,15 @@ swarm.config caches its settings at import, so the fixture is checked in both or
 the module already imported (the usual case in a full run), and with the module first
 imported inside the test (a fresh pytest process running only the two in-process tests).
 Nothing in this file imports swarm at module level, so the second order is real.
+
+The fixture's table of settings is not a list someone has to remember to extend: one test
+here reads swarm/config.py as text and fails when it names an OBSIDIAN_ or BRAIN setting
+the table does not cover.
 """
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -21,6 +26,9 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REAL_BRIDGE_PORT = 27124
+CONFIG_SOURCE = REPO_ROOT / "swarm" / "config.py"
+# Any quoted name with these prefixes, however it is read, so a new read style still counts.
+VAULT_SETTING_NAME = re.compile(r"""["']((?:OBSIDIAN_|BRAIN)[A-Z0-9_]+)["']""")
 # Set only by the fresh-process tests below: the in-process tests then also prove that
 # nothing (the fixture included) imported swarm.config before the test body ran.
 FIRST_IMPORT_FLAG = "VAULT_ISOLATION_EXPECT_FIRST_IMPORT"
@@ -44,6 +52,13 @@ def _isolated_config(tmp_path: Path):
     bridge = urlsplit(config.OBSIDIAN_BASE_URL)
     assert bridge.hostname == "127.0.0.1", f"Obsidian bridge is not loopback: {bridge.hostname}"
     assert bridge.port != REAL_BRIDGE_PORT, "Obsidian bridge is the real local REST port"
+    # Nothing inherited from the outer environment may reach a bridge: no credential, no
+    # address override, no tailnet host. Checked in the environment and in the module.
+    for env_name, attribute in (("OBSIDIAN_TOKEN", "OBSIDIAN_TOKEN"),
+                                ("OBSIDIAN_REMOTE_IP", "OBSIDIAN_REMOTE_IP"),
+                                ("BRAIN_HOST_TAILNET", "BRAIN_HOST_TAILNET")):
+        assert os.environ.get(env_name) == "", f"{env_name} is inherited from outside the test"
+        assert getattr(config, attribute) == "", f"swarm.config.{attribute} is not empty"
     return config
 
 
@@ -73,6 +88,23 @@ def test_analyst_note_and_mirror_land_inside_the_test_folder(tmp_path, monkeypat
     assert mirror_note.resolve().is_relative_to(tmp_path.resolve())
 
 
+def test_fixture_covers_every_vault_and_bridge_setting_config_reads(_isolated_brain_vault):
+    """swarm/config.py is read as text, never imported: a setting added there must get a row."""
+    source = CONFIG_SOURCE.read_text(encoding="utf-8")
+    names = set(VAULT_SETTING_NAME.findall(source))
+    assert {"BRAIN1_WIKI_DIR", "OBSIDIAN_VAULT", "OBSIDIAN_TOKEN"} <= names, (
+        f"the scan of {CONFIG_SOURCE.name} no longer finds the known settings: {sorted(names)}")
+    table = _isolated_brain_vault
+    missing = sorted(names - set(table))
+    assert not missing, (
+        f"swarm/config.py reads {missing}, which the _isolated_brain_vault fixture in "
+        "tests/conftest.py does not redirect. Add a row for each.")
+    for env_name, (attribute, value) in table.items():
+        assert os.environ.get(env_name) == value, f"{env_name} was not applied"
+        assert re.search(rf"^{attribute}\b", source, re.M), (
+            f"the row for {env_name} names swarm.config.{attribute}, which does not exist")
+
+
 def _fresh_pytest(args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess:
     """Run pytest in a new process, so swarm.config has not been imported yet."""
     return subprocess.run(
@@ -95,6 +127,8 @@ def test_first_import_inside_a_test_is_isolated_even_in_a_hostile_environment(no
         "OBSIDIAN_REMOTE_URL": "https://bridge.invalid:27124",
         "OBSIDIAN_URL": f"https://127.0.0.1:{REAL_BRIDGE_PORT}",
         "BRAIN_HOST_TAILNET": "brain-host.invalid",
+        "OBSIDIAN_TOKEN": "not-a-real-token",
+        "OBSIDIAN_REMOTE_IP": "203.0.113.9",
     })
     assert result.returncode == 0, result.stdout + result.stderr
     assert "1 passed" in result.stdout, result.stdout
