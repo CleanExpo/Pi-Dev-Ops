@@ -56,3 +56,17 @@ def test_ticket_ids_are_capped_per_line():
 def test_odd_line_breaks_cannot_hide_a_comment(tmp_path, capsys, sep):
     code, out = _run(tmp_path, "# recovery OTP " + "1" * 4 + " " + "2" * 4 + sep + BASE, capsys)
     assert code == 1 and "1111" not in out, out
+
+
+@pytest.mark.parametrize("field", [("machine", "host"), ("machine", "id"), ("account", "label"), ("account", "email")])
+def test_split_numeric_code_is_refused_in_ids_and_hosts(field):
+    """r7: two short digit groups must not pass as a slug, host or email; total digits are capped."""
+    code = "otp-" + "1" * 4 + "-" + "2" * 4
+    value = code + "@example.com" if field[1] == "email" else code
+    check = grammar.GRAMMAR.get(field)
+    assert check is not None and check(value) is not None
+
+
+def test_ordinary_hosts_and_slugs_with_few_digits_still_pass():
+    assert grammar.GRAMMAR[("account", "label")]("claude-mini-2") is None
+    assert grammar.GRAMMAR[("machine", "host")]("Phills-Mac-mini") is None

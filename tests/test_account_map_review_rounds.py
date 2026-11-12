@@ -194,7 +194,7 @@ def test_number_only_email_name_fails_and_is_not_echoed(tmp_path, capsys, local,
     assert local not in out and "123456" not in out
 
 
-@pytest.mark.parametrize("local", ["1234", "2024", "007", "42", "1.2.3.4", "12-34", "123456team", "smith84"])
+@pytest.mark.parametrize("local", ["1234", "2024", "007", "42", "1.2.3.4", "12-34", "1234team", "smith84"])
 def test_short_or_lettered_number_email_names_pass(local):
     """W6.3: a number of up to 4 digits (a year or a count) stays allowed, matching the
     4-digit cap on standalone numbers in notes. A name that also holds letters is not
@@ -280,7 +280,7 @@ def test_key_cut_into_short_groups_is_refused_everywhere(tmp_path, capsys, where
 
 
 @pytest.mark.parametrize("email", ["a@web3corp.com", "smith84@gmail.com", "x2@k12school.org",
-                                   "1.2.3.4@gmail.com", "123456team@gmail.com"])
+                                   "1.2.3.4@gmail.com", "1234team@gmail.com"])
 def test_budget_keeps_ordinary_addresses(email):
     assert grammar.GRAMMAR[("account", "email")](email) is None
 

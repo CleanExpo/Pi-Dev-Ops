@@ -61,10 +61,10 @@ def _switches(text: str) -> int:
                or a.isdigit() and b.isalpha())
 
 
-def _budget_ok(value: str, max_mixed: int = 2, max_digits: int = 8, max_switches: int = 4) -> bool:
+def _budget_ok(value: str, max_mixed: int = 2, max_digits: int = 4, max_switches: int = 4) -> bool:
     """One budget for the WHOLE value, across every separator (. _ + - @). A key can be
     cut into short groups that each look fine, so per-run checks alone are not enough: at
-    most two groups may mix letters and digits, at most 8 digits and 4 letter/digit
+    most two groups may mix letters and digits, at most 4 digits and 4 letter/digit
     boundaries in all. This is the single owner of that rule; email, slug and hostname
     fields all call it."""
     groups = re.split(r"[^A-Za-z0-9]+", value)

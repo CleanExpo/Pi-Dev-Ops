@@ -54,7 +54,8 @@ token shapes. The check never prints the value it refused, and it never prints a
 label or file path from the map either: findings say `accounts[1]` or `machines[0]`, a line
 number and a rule. Known limit: a plain-letter word of up to 16 letters in an email domain
 (24 in a name) cannot be told from a key by shape, so only the second net and the length
-caps stop it.
+caps stop it. A value may carry at most 4 digits in all, so a single short numeric code
+(a 4-digit PIN) cannot be told from a year by shape and is the same kind of named limit.
 
 Machines are listed at the top under `machines:` with an `id`, an optional `host` (the
 computer's short name) and notes.
