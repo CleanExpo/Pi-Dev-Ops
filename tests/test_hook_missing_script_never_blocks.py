@@ -214,7 +214,7 @@ def test_a_broken_python3_cannot_corrupt_the_notice(tmp_path, shell):
 
 @pytest.mark.parametrize("shell", SHELLS)
 def test_hard_stop_is_found_under_a_home_with_spaces(tmp_path, shell):
-    """The line reads ~/.claude/HARD_STOP (tilde, so an unset HOME resolves where Python's expanduser does)."""
+    """A HOME containing a space still finds the marker. The unset-HOME case is the next test."""
     home, project = tmp_path / "my home", tmp_path / "project"
     (home / ".claude").mkdir(parents=True)
     project.mkdir()
@@ -223,6 +223,25 @@ def test_hard_stop_is_found_under_a_home_with_spaces(tmp_path, shell):
     result = _run(_gate_command(), home, project, payload="{", shell=shell)
     assert result.returncode == 0, result.stderr
     assert "~/.claude/HARD_STOP is removed" in _deny_reason(result)
+
+
+@pytest.mark.parametrize("shell", SHELLS)
+def test_with_home_unset_the_line_checks_the_same_hard_stop_as_the_gate(tmp_path, shell):
+    """With HOME unset the gate's expanduser falls back to the account's home folder. `$HOME/...` would look at
+    /.claude/HARD_STOP instead, so a kill switch set there would be missed. The marker cannot be planted in the real
+    home (it stops every agent), so this reads the shell's own trace of the path the line tests; nothing is created."""
+    project = tmp_path / "project"
+    project.mkdir()
+    env = {"PATH": "/usr/bin:/bin", "CLAUDE_PROJECT_DIR": str(project), "GIT_CEILING_DIRECTORIES": str(tmp_path)}
+    gate_looks_at = subprocess.run(
+        [sys.executable, "-c", "import os; print(os.path.expanduser('~/.claude/HARD_STOP'))"],
+        capture_output=True, text=True, env=env, check=True).stdout.strip()
+    assert gate_looks_at.startswith("/") and gate_looks_at != "/.claude/HARD_STOP", gate_looks_at
+    result = subprocess.run([shell, "-x", "-c", _gate_command()], input="{}", capture_output=True, text=True,
+                            cwd=project, env=env, timeout=60)
+    assert result.returncode == 0, result.stderr
+    checks = [line for line in result.stderr.splitlines() if line.startswith("+") and "HARD_STOP" in line]
+    assert checks and gate_looks_at in checks[0], (gate_looks_at, checks)
 
 
 @pytest.mark.parametrize("shell", SHELLS)
