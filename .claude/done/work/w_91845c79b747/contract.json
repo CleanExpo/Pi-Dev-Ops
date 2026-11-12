@@ -1,0 +1,26 @@
+{
+  "schema": "done/1",
+  "work_id": "w_91845c79b747",
+  "version": 1,
+  "supersedes": null,
+  "goal": "spec: mc-dispatch-c",
+  "created_at_utc": "2026-11-12T02:44:17Z",
+  "identity_key": "worktree-mc-dispatch-c@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/mc-dispatch-c",
+  "baseline_observed": {
+    "head": "1b2bcd966de8f6869742598c89d37cb252340acb",
+    "branch": "worktree-mc-dispatch-c",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "S1",
+      "text": "spec exists",
+      "recipe": "test -s .claude/done/spm/2026-11-12-mc-dispatch-c/spec.md"
+    },
+    {
+      "id": "S2",
+      "text": "engineering gate passes on spec",
+      "recipe": "python3 /Users/phill-mac/.claude/skills/engineering-requirements/scripts/engineering_gate.py --spec .claude/done/spm/2026-11-12-mc-dispatch-c/spec.md"
+    }
+  ]
+}

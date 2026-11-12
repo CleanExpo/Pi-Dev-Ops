@@ -1,0 +1,11 @@
+{"criteria": [
+  {"id": "S1", "text": "spec exists", "recipe": "test -s .claude/done/spm/2026-11-12-mc-dispatch-c/spec.md"},
+  {"id": "S2", "text": "engineering gate passes on the spec", "recipe": "/opt/homebrew/bin/python3 /Users/phill-mac/.claude/skills/engineering-requirements/scripts/engineering_gate.py --spec .claude/done/spm/2026-11-12-mc-dispatch-c/spec.md"},
+  {"id": "C1", "text": "mission-control mod tests pass (launchd fallback, secret never printed, held statuses alert)", "recipe": "/Users/phill-mac/.local/bin/claude plugin test mods/mission-control", "timeout": 600},
+  {"id": "C2", "text": "mc-lane mod tests pass (launchd fallback)", "recipe": "/Users/phill-mac/.local/bin/claude plugin test mods/mc-lane", "timeout": 600},
+  {"id": "C3", "text": "lane_config.ts byte-identical in both mods; both screens use node_status's healthy and held words", "recipe": "/opt/homebrew/bin/python3 -m pytest tests/test_mods_lane_config_parity.py tests/test_fleet_status_vocabulary.py -q", "timeout": 300},
+  {"id": "C4", "text": "Live page snapshot and command wall tests pass (held machine RED, unknown status GREY)", "recipe": "cd dashboard && /Users/phill-mac/.local/bin/npx vitest run __tests__/wall-snapshot.test.ts __tests__/command-wall-screen.test.tsx", "timeout": 900},
+  {"id": "C5", "text": "dashboard typechecks", "recipe": "cd dashboard && /Users/phill-mac/.local/bin/npx tsc --noEmit", "timeout": 900},
+  {"id": "C6", "text": "fleet_status returns a real read (ok or degraded) with machines, config from launchd, and no secret in the output, in a fresh Claude Code process with no MC_LANE_* in its environment", "recipe": "/bin/bash .claude/done/spm/2026-11-12-mc-dispatch-c/fresh_process_proof.sh", "timeout": 600},
+  {"id": "C7", "text": "fleet.py probe resolves macbook and windows host names", "recipe": "/bin/bash .claude/done/spm/2026-11-12-mc-dispatch-c/fleet_probe_resolves.sh", "timeout": 300}
+]}

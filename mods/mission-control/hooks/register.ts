@@ -10,34 +10,80 @@
 // routes/mesh.py fleet(); app/server/mesh_fleet_auth.py accepts the machine
 // secret). Nothing is written anywhere.
 //
-// Configuration (environment, read once per load), the same as mc-lane:
+// Configuration, the same as mc-lane (lane_config.ts says why and how):
 //   MC_LANE_URL     Pi-CEO backend base URL
 //   MC_LANE_SECRET  the X-Pi-CEO-Secret the fleet already uses
-// With either unset, /mc and the tool say "not configured" and nothing is fetched.
+// Read from this process's environment, else from launchd (`/bin/launchctl getenv`),
+// as a pair from one place. Checked again on every tool call and /mc while missing,
+// so an app that started before the launch agent finds them without a restart.
+// With neither place holding both, /mc and the tool say "not configured", naming
+// what each place holds by setting name only, and nothing is fetched.
 //
 // Functions that take `$` are top-level declarations: the engine scans the
 // module before loading it and refuses `$` handed to anything else.
 
 import type { EngineInterface, Register } from 'claude-code'
-import { formatAge, summarize, unknown, type FleetRead, type Summary } from './fleet'
+import { formatAge, NO_HOLD_REASON, summarize, unknown, type FleetRead, type MachineRow, type Summary } from './fleet'
+import {
+  clean,
+  fromLaunchctl,
+  launchctlArgv,
+  LAUNCHCTL_TIMEOUT_MS,
+  notConfiguredDetail,
+  pickLaneConfig,
+  type LaneConfig,
+  type LaneVars,
+  type LaunchdRead,
+} from './lane_config'
 
 const PANE = 'mission-control'
 const TOOL = 'mcp__mission-control__fleet_status'
 const EVERY_MS = 30_000
-const NOT_CONFIGURED = 'mission-control not configured: MC_LANE_URL / MC_LANE_SECRET unset'
 
-type Config = { url: string; secret: string }
 type Timer = { cancel(): void }
+type Resolved = { cfg: LaneConfig } | { why: string }
 
 // Module state. A reload starts it over (and the engine stops the old timers).
 const st = {
-  cfg: null as Config | null,
+  cfg: null as LaneConfig | null,
   summary: null as Summary | null,
   timer: null as Timer | null,
   inFlight: false,
 }
 
-async function readFleet($: EngineInterface, cfg: Config): Promise<FleetRead> {
+async function launchdValue($: EngineInterface, name: string): Promise<string | undefined> {
+  return fromLaunchctl(await $.process.run(launchctlArgv(name), { timeoutMs: LAUNCHCTL_TIMEOUT_MS }))
+}
+
+async function readLaunchd($: EngineInterface): Promise<LaunchdRead> {
+  try {
+    return { vars: { url: await launchdValue($, 'MC_LANE_URL'), secret: await launchdValue($, 'MC_LANE_SECRET') } }
+  } catch (err) {
+    return { error: err instanceof Error ? err.name : 'error' }
+  }
+}
+
+// Environment first; launchd only when the environment lacks the pair. A miss is never kept,
+// so the next call looks again. A hit is kept for the life of this load.
+async function resolveConfig($: EngineInterface): Promise<Resolved> {
+  if (st.cfg) return { cfg: st.cfg }
+  const env: LaneVars = { url: clean(await $.env.get('MC_LANE_URL')), secret: clean(await $.env.get('MC_LANE_SECRET')) }
+  let launchd: LaunchdRead | null = null
+  let cfg = pickLaneConfig(env, null)
+  if (!cfg) {
+    launchd = await readLaunchd($)
+    cfg = 'vars' in launchd ? pickLaneConfig(env, launchd.vars) : null
+  }
+  if (!cfg) return { why: `mission-control ${notConfiguredDetail(env, launchd)}` }
+  st.cfg = cfg
+  $.ui.log(`mission-control: settings read from ${cfg.source}`)
+  return { cfg }
+}
+
+/** An error text with the secret cut out, in case a transport quotes the request it failed on. */
+const scrub = (text: string, secret: string) => text.split(secret).join('[redacted]')
+
+async function readFleet($: EngineInterface, cfg: LaneConfig): Promise<FleetRead> {
   try {
     const r = await $.http.fetch(`${cfg.url}/api/mesh/fleet`, {
       method: 'GET',
@@ -45,14 +91,21 @@ async function readFleet($: EngineInterface, cfg: Config): Promise<FleetRead> {
     })
     return { status: r.status, text: r.text }
   } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) }
+    return { error: scrub(err instanceof Error ? err.message : String(err), cfg.secret) }
   }
 }
 
 async function fetchSummary($: EngineInterface): Promise<Summary> {
-  if (!st.cfg) return unknown(NOT_CONFIGURED)
-  const read = await readFleet($, st.cfg)
-  return summarize(read, await $.clock.now())
+  const res = await resolveConfig($)
+  if ('why' in res) return unknown(res.why)
+  const sum = summarize(await readFleet($, res.cfg), await $.clock.now())
+  return { ...sum, configSource: res.cfg.source }
+}
+
+function machineLine(m: MachineRow): string {
+  const note = m.placeholder ? '  cloud claim placeholder' : m.stale ? '  stale' : ''
+  if (!m.held) return `${m.host}  ${m.status}  ${formatAge(m.ageS)}${note}`
+  return `${m.host}  held: ${m.status}  ${formatAge(m.ageS)}  ${m.holdReason ?? NO_HOLD_REASON}${note}`
 }
 
 // One read at a time for the pane; a tick that lands while one is out is skipped.
@@ -74,9 +127,7 @@ function stopTimer(): void {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    const url = (await $.env.get('MC_LANE_URL'))?.replace(/\/+$/, '')
-    const secret = await $.env.get('MC_LANE_SECRET')
-    st.cfg = url && secret ? { url, secret } : null
+    st.cfg = null // resolved on first use (resolveConfig), not here, so session start never waits on launchctl
     // Registered either way, so an unconfigured machine is told why rather than shown nothing.
     try {
       await $.tool.register({
@@ -94,7 +145,8 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'mc' }, async $ => {
-    if (!st.cfg) return { text: NOT_CONFIGURED }
+    const res = await resolveConfig($)
+    if ('why' in res) return { text: res.why }
     await $.ui.open({ id: PANE, title: 'Mission Control', closeOnEscape: true })
     stopTimer()
     st.timer = $.clock.every(EVERY_MS, () => refresh($))
@@ -129,8 +181,7 @@ export const register: Register = on => {
         rows.push(Text({ bold: true, children: [`Machines (${sum.machines.length})`] }))
         if (sum.machines.length === 0) rows.push(Text({ dimColor: true, children: ['no machines have joined'] }))
         for (const m of sum.machines) {
-          const note = m.placeholder ? '  cloud claim placeholder' : m.stale ? '  stale' : ''
-          const line = `${m.host}  ${m.status}  ${formatAge(m.ageS)}${note}`
+          const line = machineLine(m)
           rows.push(Box({ key: `machine-${m.host}`, children: [Text(m.alert ? { color: 'red', children: [line] } : { children: [line] })] }))
         }
         rows.push(Text({ children: [`Open claims: ${sum.openClaims ?? 'unknown'}`] }))

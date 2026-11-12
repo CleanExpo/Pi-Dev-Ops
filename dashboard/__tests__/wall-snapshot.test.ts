@@ -28,7 +28,7 @@ describe("absent", () => {
 
 describe("machine tiles", () => {
   it("fresh heartbeat is GREEN (positive control)", () => {
-    expect(machineTile("A", { host: "A", last_seen: ago(20) }, [], NOW).chip).toBe("GREEN");
+    expect(machineTile("A", { host: "A", status: "online", last_seen: ago(20) }, [], NOW).chip).toBe("GREEN");
   });
   it("61s-old heartbeat is GREY no signal", () => {
     const t = machineTile("A", { host: "A", last_seen: ago(61) }, [], NOW);
@@ -43,16 +43,56 @@ describe("machine tiles", () => {
     expect(machineTile("A", { host: "A", last_seen: ago(1) }, agents, NOW).agents[0].chip).toBe("GREY");
   });
   it("a few seconds of clock skew is tolerated (positive control)", () => {
-    expect(machineTile("A", { host: "A", last_seen: ago(-3) }, [], NOW).chip).toBe("GREEN");
+    expect(machineTile("A", { host: "A", status: "online", last_seen: ago(-3) }, [], NOW).chip).toBe("GREEN");
   });
   it("ignores upstream is_stale=false when last_seen is old", () => {
     expect(machineTile("A", { host: "A", last_seen: ago(3600), is_stale: false }, [], NOW).chip).toBe("GREY");
   });
   it("a crashed agent on a live machine goes GREY on its own clock", () => {
     const agents = [{ machine: "A", runtime: "claude", state: "working", updated_at: ago(91) }];
-    const t = machineTile("A", { host: "A", last_seen: ago(5) }, agents, NOW);
+    const t = machineTile("A", { host: "A", status: "working", last_seen: ago(5) }, agents, NOW);
     expect(t.chip).toBe("GREEN");
     expect(t.agents[0].chip).toBe("GREY");
+  });
+});
+
+describe("machine status: only online and working are green", () => {
+  // HEALTHY_STATUSES is an allow-list shared with mods/mission-control/hooks/fleet.ts;
+  // tests/test_fleet_status_vocabulary.py pins both to mesh/heartbeat.py node_status().
+  const runner = (extra: Record<string, unknown>) => [{ runtime: "mesh-runner", present: true, state: "quota", ...extra }];
+  it("a fresh heartbeat with no status is GREY, never green", () => {
+    const t = machineTile("A", { host: "A", last_seen: ago(5) }, [], NOW);
+    expect([t.chip, t.reason]).toEqual(["GREY", "status missing: not a healthy state"]);
+  });
+  it("updating or an unrecognised word is GREY with the word", () => {
+    expect(machineTile("A", { host: "A", status: "updating", last_seen: ago(5) }, [], NOW).reason).toBe("status updating: not a healthy state");
+    expect(machineTile("A", { host: "A", status: "brand-new", last_seen: ago(5) }, [], NOW).chip).toBe("GREY");
+  });
+  it("a quota hold is RED with the runner's reason", () => {
+    const row = { host: "A", status: "quota", last_seen: ago(5), agent_runtimes: runner({ hold_reason: "Claude quota exhausted until 14:00" }) };
+    const t = machineTile("A", row, [], NOW);
+    expect([t.chip, t.reason]).toEqual(["RED", "held: quota — Claude quota exhausted until 14:00"]);
+  });
+  it("a hold from a heartbeat that sends no mesh-runner entry says the reason was not reported", () => {
+    // The Mini's heartbeat (pdo-runtime, 5 Nov) sends the status word and no mesh-runner entry.
+    const t = machineTile("A", { host: "A", status: "quota", last_seen: ago(5) }, [], NOW);
+    expect([t.chip, t.reason]).toEqual(["RED", "held: quota (reason not reported by this machine's heartbeat)"]);
+    const gone = { host: "A", status: "blocked", last_seen: ago(5), agent_runtimes: runner({ present: false, hold_reason: "old" }) };
+    expect(machineTile("A", gone, [], NOW).reason).toBe("held: blocked (reason not reported by this machine's heartbeat)");
+  });
+  it("the hold reason is cut to 120 characters", () => {
+    const row = { host: "A", status: "stuck", last_seen: ago(5), agent_runtimes: runner({ hold_reason: "x".repeat(300) }) };
+    expect(machineTile("A", row, [], NOW).reason).toBe(`held: stuck — ${"x".repeat(120)}`);
+  });
+  it("runner-down on a fresh heartbeat is RED", () => {
+    expect(machineTile("A", { host: "A", status: "runner-down", last_seen: ago(5) }, [], NOW).chip).toBe("RED");
+  });
+  it("a stale heartbeat stays GREY whatever its last status", () => {
+    expect(machineTile("A", { host: "A", status: "quota", last_seen: ago(600) }, [], NOW).chip).toBe("GREY");
+  });
+  it("a held machine counts in the red banner", () => {
+    const p = fleetPanel({ machines: [{ host: "A", status: "quota", last_seen: ago(1) }] }, ["A"], NOW);
+    expect(bannerCounts(p, []).red).toBe(1);
   });
 });
 
@@ -68,7 +108,7 @@ describe("fleet panel", () => {
   });
   it("a declared host that never reported is GREY; strangers are listed, not counted", () => {
     // "railway" is the cloud claim row (session_lease.CLOUD_CLAIM_MACHINE): not a machine, never listed.
-    const p = fleetPanel({ machines: [{ host: "A", last_seen: ago(1) }, { host: "ghost", last_seen: ago(1) },
+    const p = fleetPanel({ machines: [{ host: "A", status: "online", last_seen: ago(1) }, { host: "ghost", last_seen: ago(1) },
       { host: "railway", last_seen: ago(1_538_116) }, { host: "Railway", last_seen: ago(1) }] }, HOSTS, NOW);
     expect(p.machines.map((m) => m.chip)).toEqual(["GREEN", "GREY", "GREY"]);
     // Matched exactly, as the projection and cron_watchdog_mesh.py do: "Railway" is a real stranger.
@@ -92,7 +132,7 @@ describe("stations and banner", () => {
     expect(st.every((s) => s.chip === "GREY" && s.reason.startsWith("NO LIVE SOURCE YET — needs "))).toBe(true);
   });
   it("banner counts every chip and renders zeros as numbers", () => {
-    const p = fleetPanel({ machines: HOSTS.map((h) => ({ host: h, last_seen: ago(1) })) }, HOSTS, NOW);
+    const p = fleetPanel({ machines: HOSTS.map((h) => ({ host: h, status: "online", last_seen: ago(1) })) }, HOSTS, NOW);
     expect(bannerCounts(p, [])).toEqual({ red: 0, grey: 0 });
     expect(bannerCounts(p, stations())).toEqual({ red: 0, grey: 7 });
   });
