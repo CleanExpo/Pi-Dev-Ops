@@ -1,13 +1,13 @@
 # tests — Wiki
 
-_Last updated: 2026-09-21T00:45:37Z (commits ed2d67a..6abe949)_
+_Last updated: 2026-11-12T12:38:18Z (commits 6e55605..b2fe61b)_
 
 ## Recent changes
-- 6abe949 — fix(smoke): RA-7596 treat fail-closed verify as A4 terminal (#794)
+- b2fe61b — fix(hooks): RA-8340 a missing autonomy gate script no longer blocks every tool call (#1022)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_delivery_gate.py — touched in recent commits
-- tests/test_smoke_pipeline_a4_verify.py — touched in recent commits
+- tests/test_autonomy_gate_hook_paths.py — touched in recent commits
+- tests/test_hook_missing_script_never_blocks.py — touched in recent commits
