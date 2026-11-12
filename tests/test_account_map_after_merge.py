@@ -36,3 +36,23 @@ def test_bom_before_header_comment_is_still_checked(tmp_path, capsys):
     """PyYAML skips a leading BOM, so the first line is a comment; it must be screened."""
     code, out = _run(tmp_path, "\ufeff# recovery 123456\n" + BASE, capsys)
     assert code == 1 and "123456" not in out, out
+
+
+def test_split_numeric_code_is_refused_in_notes_and_comments():
+    """r6: a login code cut into several short groups must not pass as plain words."""
+    code = "OTP " + "1" * 4 + " " + "2" * 4
+    assert grammar.GRAMMAR[("account", "notes")](code + ".") is not None
+    assert grammar.check_comment("# " + code) is not None
+
+
+def test_ticket_ids_are_capped_per_line():
+    many = " ".join(f"RA-{n}" for n in (1111, 2222, 3333, 4444))
+    assert grammar.GRAMMAR[("account", "notes")](many) is not None
+    assert grammar.check_comment("# " + many) is not None
+    assert grammar.check_comment("# RA-1111 RA-2222 RA-3333") is None
+
+
+@pytest.mark.parametrize("sep", ["\r", "\u2028", "\x0c"])
+def test_odd_line_breaks_cannot_hide_a_comment(tmp_path, capsys, sep):
+    code, out = _run(tmp_path, "# recovery OTP " + "1" * 4 + " " + "2" * 4 + sep + BASE, capsys)
+    assert code == 1 and "1111" not in out, out

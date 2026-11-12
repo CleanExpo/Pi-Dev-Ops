@@ -132,11 +132,11 @@ def test_login_code_length_number_fails(tmp_path, capsys, old, new):
     assert CODE[:5] not in out
 
 
-def test_years_counts_and_ticket_ids_still_pass():
-    """W6.3: ordinary numbers in prose keep working."""
-    note = "Seat bought in 2026 for 3 people (RA-8196)."
-    assert grammar.GRAMMAR[("account", "notes")](note) is None
-    assert grammar.check_comment("# Since 2026, see RA-81960.") is None
+def test_ticket_ids_still_pass_and_bare_numbers_do_not():
+    """Free text carries digits only inside ticket ids; a bare number is refused."""
+    assert grammar.GRAMMAR[("account", "notes")]("Seat bought for the team (RA-8196).") is None
+    assert grammar.check_comment("# Since launch, see RA-81960.") is None
+    assert grammar.GRAMMAR[("account", "notes")]("Seat bought in 2026.") is not None
 
 
 def test_underscore_email_local_part_passes():

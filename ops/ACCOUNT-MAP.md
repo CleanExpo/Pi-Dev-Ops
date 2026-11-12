@@ -37,7 +37,7 @@ for a real mapping.
 | `plan` | One of `free`, `plus`, `pro`, `max`, `max-5x`, `max-20x`, `team`, `business`, `enterprise`, `ultra`, `chatgpt-plus`, `chatgpt-pro`, or `null` while undecided. A new plan name is added in a reviewed PR. |
 | `email` | The login email: letters, digits, `.`, `_`, `+`, `-`. A name made only of digits (and separators) may have at most 4 digits. Placeholder ends in `.invalid`. |
 | `machines` | Which computers use this login, by machine `id`. |
-| `notes` | One short line of plain words (160 characters max). Ticket ids like `RA-8196` and numbers up to 4 digits (a year) are fine. Links, codes, longer numbers (a login code) and words mixing letters and digits are refused. |
+| `notes` | One short line of plain words (160 characters max). The only digits allowed are inside ticket ids like `RA-8196` (prefixes RA, UNI, SYN, AR; at most 3 per line). Bare numbers, links, codes and words mixing letters and digits are refused. |
 
 ## Only known-good values pass
 

@@ -23,16 +23,24 @@ _EMAIL_LOCAL = re.compile(r"[A-Za-z0-9]+(?:[._+-][A-Za-z0-9]+)*")
 _EMAIL_DOMAIN = re.compile(r"(?:[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\.)+[A-Za-z]{2,24}")
 _PROSE_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'/?!-]*")
 _TICKET = r"(?:RA|UNI|SYN|AR)-[0-9]{1,5}"   # allow-list: OTP-123456 is not a ticket
-_PROSE_WORD = re.compile(_TICKET + r"|[0-9]{1,4}|[A-Za-z]+(?:['/-][A-Za-z]+)*")
+_PROSE_WORD = re.compile(_TICKET + r"|[A-Za-z]+(?:['/-][A-Za-z]+)*")
 # Comments may also name files (scripts/check_account_map.py, ops/ACCOUNT-MAP.md).
 _COMMENT_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'\"/?!_-]*")
-_COMMENT_WORD = re.compile(_TICKET + r"|[0-9]{1,4}|[A-Za-z]+(?:[-_./'][A-Za-z]+)*")
+_COMMENT_WORD = re.compile(_TICKET + r"|[A-Za-z]+(?:[-_./'][A-Za-z]+)*")
 _ALNUM_RUN = re.compile(r"[A-Za-z0-9]+")
 _MIXED = re.compile(r"[A-Za-z]")
 _ONE_SWITCH = re.compile(r"[A-Za-z]+[0-9]+|[0-9]+[A-Za-z]+")
 
 MAX_RUN = 24      # longest unbroken run of letters or digits anywhere (a word, a label)
 MAX_PROSE = 160   # notes are one short line
+MAX_TICKETS = 3   # the only digits free text may carry are inside ticket ids, so cap them
+
+
+def _tickets_ok(text: str) -> bool:
+    """Single owner of the digit channel in notes and comments: no bare numbers (the word
+    patterns refuse them), and at most MAX_TICKETS ticket ids per line, so a code cannot
+    be split across many allow-listed ids."""
+    return len(re.findall(_TICKET, text)) <= MAX_TICKETS
 
 
 def _runs_ok(text: str, limit: int = MAX_RUN, one_switch: bool = False) -> bool:
@@ -130,8 +138,10 @@ def _prose(value: str):
     for word in value.split(" "):
         word = word.strip("(\"'").rstrip(",.;:)'\"?!")
         if word and (len(word) > MAX_RUN or not _PROSE_WORD.fullmatch(word)):
-            return ("BAD_VALUE", "each word must be letters, a number of up to 4 digits or a ticket id "
-                    "like RA-8196, at most 24 characters (no links, codes or mixed words)")
+            return ("BAD_VALUE", "each word must be letters or a ticket id like RA-8196, at most "
+                    "24 characters (no numbers, links, codes or mixed words)")
+    if not _tickets_ok(value):
+        return ("BAD_VALUE", f"at most {MAX_TICKETS} ticket ids per line")
     return None
 
 
@@ -195,8 +205,9 @@ def check_comment(text: str):
         word = word.strip("(\"'.").rstrip(",.;:)'\"?!")
         if word and not (_COMMENT_WORD.fullmatch(word) and _runs_ok(word)):
             ok = False
+    ok = ok and _tickets_ok(body)
     if not ok:
-        return ("BAD_VALUE", "comments must be plain words (letters, a number of up to 4 digits, a ticket id "
-                "or a file name), at most 160 characters, no codes, keys or symbols "
+        return ("BAD_VALUE", "comments must be plain words (letters, a ticket id or a file name), "
+                f"at most 160 characters, {MAX_TICKETS} ticket ids, no numbers, codes, keys or symbols "
                 "such as @ + = & *")
     return None
