@@ -1,0 +1,12 @@
+{
+  "schema": "done/1",
+  "work_id": "w_533c686ed8f4",
+  "contract_digest": "da2ccadeab32363f1d0b2298b95306adf891656756feb2601a032531280dc01f",
+  "baseline_head": "1b2bcd966de8f6869742598c89d37cb252340acb",
+  "identity_key": "fix/RA-8340-autonomy-gate-missing-script@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/ra-8340-hookfix",
+  "locked_at_utc": "2026-11-12T06:12:43Z",
+  "criteria_count": 6,
+  "recipe_pins": {
+    "spm/2026-11-12-ra-8340-hookfix/spec.md": "f221baf6b9a95167ff73b8ae13d20013b88ceb5dc9e591a0e5ba0008d27b5998"
+  }
+}

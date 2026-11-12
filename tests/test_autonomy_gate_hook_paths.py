@@ -65,3 +65,6 @@ def test_the_settings_command_runs_the_trusted_hook_never_one_from_the_cwd_repo(
     result = _run(["/bin/bash", "-c", command], home, foreign, home)
     assert "FOREIGN_HOOK_SELECTED" not in result.stdout
     assert _decision(result) == "deny"
+    # RA-8340: the settings command denies on its own under HARD_STOP when the gate fails, so a deny alone no
+    # longer proves the real gate ran. Its fallback reason carries RA-8340; the real gate's does not.
+    assert "RA-8340" not in json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"]

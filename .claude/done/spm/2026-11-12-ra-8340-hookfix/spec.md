@@ -1,0 +1,169 @@
+# Spec: RA-8340, the autonomy gate hook must never block every tool when its script is missing
+
+> Amendment 1 (12/11/2026, after the engineering bench): home-folder fallback removed (the Mini's home copy is
+> a stale pre-RA-8125 file that cannot import: eng-release, eng-authz); the gate's stdout is captured so a
+> failed run prints only the deny (eng-failure, eng-test, eng-authz); the "off" note moves from stderr to
+> PreToolUse additionalContext and also covers a crashing gate (eng-observability, eng-authz); the patch step
+> refuses a line that `bash -n` or `sh -n` rejects (eng-rollback); tests run under bash and sh with
+> GIT_CEILING_DIRECTORIES set (eng-test); the RA-8125 test must reject the fallback deny (eng-test).
+
+Lane: full spec. Tier T3 (`tier.py 0 1 0 1 2`: F0 two files; I1 hook config with rollback; N0 the RA-8127
+pattern already in this file; X1 security plus ops; S2 the change decides when a permission gate applies).
+Release review: Tier 1 (a permissions control). Human merge only.
+
+## 1. Task
+
+Board card `1PCT-PDO-AUTONOMY-HOOK-MISSING-FILE-BRICKS-SESSION`, assigned by the lead chat on 12/11/2026:
+guard the `.claude/settings.json` registration that runs `autonomy_gate_hook.py`, the way RA-8127 guarded the
+senior-harness and continuation-horizon registrations, so a missing script is reported and never exits 2, while a
+present script still runs and denies. Check every hook registration for the same pattern and fix the class. Test
+that fails on the old registration. Pull request for Phill to merge.
+
+## 2. Current context
+
+- Grounded 12/11/2026: `.claude/settings.json:94` on origin/main `1b2bcd96` is
+  `python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py"`, registered on PreToolUse with matcher `*`.
+  Source: `git show origin/main:.claude/settings.json`.
+- Grounded: `python3 <missing file>` exits 2. For PreToolUse, exit 2 is "block this tool call". Source: the
+  scratch red run below, and Claude Code hook semantics.
+- Grounded: on 12/11/2026 the Package C chat's project folder was not the repository; every tool call was
+  refused for over an hour (board card note).
+- Grounded: `autonomy_gate_hook.py` (RA-6874) denies L3 calls and every call while `~/.claude/HARD_STOP` exists,
+  always through JSON on stdout with exit 0. RA-8125 made its import work through a symlink.
+- Grounded: `~/.claude/hooks/autonomy_gate_hook.py` on the Mini is a symlink into `/Users/phill-mac/Pi-Dev-Ops`,
+  a checkout on `feature/spm-software-factory` whose hook still uses `abspath` (line 15), the pre-RA-8125 form
+  that cannot import through a symlink (eng-release, eng-authz, both by Read). It is not a usable fallback.
+- Grounded: the user-level `~/.claude/settings.json` on the Mini registers no autonomy-gate hook, so sessions get
+  it only from a project-level `.claude/settings.json` (eng-release, by Read).
+- Done gate: `donectl selftest` ran in this worktree; spec-work contract `w_1321969b276c` was locked, then went
+  STALE when this spec was written; it is revised and relocked after this amendment.
+
+## 3. Problem and value
+
+A wrong project folder turns a safety gate into a total outage: the session cannot run the command that would
+move it. The cost on 12/11 was over an hour of a lead-assigned chat. RA-8127's answer ("missing means off,
+silently") is wrong for this hook alone: it would also switch off the HARD_STOP kill switch, the one control
+meant to stop every agent at once. Revenue lens: none directly; it protects the fleet's uptime and the kill switch.
+
+## 4. Desired outcome
+
+Any session, in any folder, can always run tools unless a real gate decides otherwise. When the gate script
+cannot be found or fails, the session keeps working and is told so through PreToolUse `additionalContext`, which
+reaches the model; when HARD_STOP is set, every tool call is still refused, script or no script.
+
+## 5. Scope
+
+In: the one registration at `.claude/settings.json:94`; one new test file with a class guard over every
+registration; one added assertion in `tests/test_autonomy_gate_hook_paths.py` (eng-test).
+Out: packaging hooks as a plugin so they stop depending on `$CLAUDE_PROJECT_DIR` (RA-8126); changing
+`autonomy_gate_hook.py` or `swarm/nexus/autonomy_gate.py`; the user-level settings on any machine.
+
+## 6. Existing capability
+
+Searched: `git grep -n autonomy_gate_hook`, `tests/test_hook_missing_target_quiet.py` (RA-8127 guard),
+`tests/test_autonomy_gate_hook_paths.py` (RA-8125, expects a deny from the settings command and must stay green),
+Linear search "autonomy_gate_hook" (RA-8125, RA-8126, RA-6874). The guard pattern exists; the HARD_STOP-aware
+variant does not.
+
+## 7. Specialist bench receipt
+
+Engineering bench via `engineering-requirements` (see `engineering.md`). Seats: boris, eng-failure,
+eng-observability, eng-test (core), eng-authz (the change decides when a permission gate applies),
+eng-rollback (hook config affects every session).
+
+## 8. Judge challenge
+
+Score 92/100, APPROVE EXPERIMENT until the release review passes. Deductions, as amended after the bench:
+- (-4, closed by amendment 1) The home fallback ran a stale copy. It is removed.
+- (-4, reduced) The "off" note now reaches the model through additionalContext, but nothing counts or alerts on
+  it outside the session, and it repeats on every call. Owner: RA-8126 (the permanent design).
+- (open) Merged is not in effect: each checkout and worktree carries its own `.claude/settings.json`, so a merge
+  fixes a session only after its checkout pulls main. Owner: the lead chat, named on the board card; listed as
+  a follow-up in the PR body with the checkouts known to hold the old line.
+Hard-day case: HARD_STOP set during an incident while sessions run from odd folders. Today those sessions are
+already blocked (by accident); after the change they are still blocked, on purpose, with a reason that names
+HARD_STOP.
+
+## 9. Proposed solution
+
+Replace the registration with one shell line (no home fallback):
+1. `f` = `$CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py`.
+2. If `f` exists: run it with its stdout captured. Exit 0 passes the captured output through and stops.
+   Any other exit records "`$f` exited `<rc>`" and drops the captured output.
+3. If `f` is missing: record "no copy at `$f`".
+4. HARD_STOP present: print only the deny JSON, exit 0.
+5. Otherwise print the additionalContext JSON with the recorded reason, exit 0. Never exit 2.
+
+## 10. UX requirements
+
+The deny reason names HARD_STOP, says the gate script was not found or failed, and says how to clear it
+(remove `~/.claude/HARD_STOP`). The "off" note names the missing path, or the path and exit code, and RA-8340.
+
+## 11. Technical requirements
+
+- Exactly one registration changes; every other byte of `.claude/settings.json` is unchanged.
+- The command uses only POSIX shell plus `python3`, like the RA-8127 commands.
+- No registration in the file may exit 2 when nothing is installed and the project folder is not the repo.
+
+## 12. Security and privacy
+
+The kill switch fails closed: HARD_STOP denies even with no script and even when the script crashes, and the
+deny is then the only thing on stdout, so Claude Code parses it. The L3 deny is off when no importable project
+copy exists. This is a loosening against today, where such a session is blocked entirely, L3 included; it is
+the accepted residual, it is told to the session through additionalContext, and RA-8126 removes it. Known
+limit, unchanged by this change: the HARD_STOP path is written in the shell line, in `autonomy_gate_hook.py:23`
+and as `TAO_HARD_STOP_FILE`'s default; only the last honours an override. No secrets, no network, no new inputs.
+
+## 13. Verification plan
+
+Guard tests in `tests/test_hook_missing_script_never_blocks.py`, run against the real `.claude/settings.json`
+with a temporary HOME and a project folder that is not the repo. Each is watched failing on origin/main's
+registration before the change. Container strategy: the tests run hook commands in a subprocess with a clean
+environment (`HOME`, `CLAUDE_PROJECT_DIR`, `PATH=/usr/bin:/bin`, `GIT_CEILING_DIRECTORIES` at the temp folder)
+inside pytest's temporary folder; nothing touches the real HOME, HARD_STOP or any outer repository.
+`tests/test_autonomy_gate_hook_paths.py` additionally asserts its deny reason does not carry the fallback's
+RA-8340 marker, so the RA-8125 regression still fails when the real gate cannot import.
+
+## 14. Loop and stress testing
+
+Each test runs the actual registered command through `/bin/bash -c` and `/bin/sh -c`. Cases: nothing installed
+(every registration), missing gate without HARD_STOP (additionalContext), missing gate with HARD_STOP (one JSON
+deny), project copy output passed through, home copy never run, crashing gate without HARD_STOP
+(additionalContext naming path and exit code), crashing gate that printed first under HARD_STOP (stdout is only
+the deny). Plus the existing `test_autonomy_gate_hook_paths.py` and `test_hook_missing_target_quiet.py` stay green.
+
+## 15. Acceptance criteria (become the Done contract)
+
+- C1 `.venv/bin/python -m pytest -q tests/test_hook_missing_script_never_blocks.py`
+- C2 `.venv/bin/python -m pytest -q tests/test_autonomy_gate_hook_paths.py tests/test_hook_missing_target_quiet.py`
+- C3 `python3 -c "import json;json.load(open('.claude/settings.json'))"` (valid JSON)
+- C4 `test "$(git diff --numstat 1b2bcd96 -- .claude/settings.json)" = "$(printf '1\t1\t.claude/settings.json')"`
+  (exactly one line of `.claude/settings.json` changes)
+- C5 `bash scripts/handoff-loop.sh` reads READY
+
+Not a Done criterion, because it can only be observed after Phill merges: "in effect". After merge, each checkout
+a session can load (`git worktree list`, plus `/Users/phill-mac/Pi-Dev-Ops`) reads `grep -c RA-8340
+.claude/settings.json` ≥ 1, and one fresh session in a non-repo folder runs a Read without refusal. Reported
+separately from "merged"; owner the lead chat.
+
+## 16. Goal command
+
+`/goal` build RA-8340 to the locked criteria C1 to C5, then independent Tier 1 review, release gate, draft PR.
+
+## 17. Implementation sequence and crew
+
+1. Copy the drafted test into `tests/`; run it red on the current registration.
+2. Apply the one-line registration change; run green; run C2.
+3. Lock the build contract; local gates; independent review (Codex, then Cursor); release gate; draft PR.
+Crew: lead (Opus) builds; bench seats read-only; reviewer from another vendor.
+Loadout: spm (front door), engineering-requirements (bench), done-harness (contract), pr-release-gate (release).
+
+## 18. Session-handoff seed
+
+Branch `fix/RA-8340-autonomy-gate-missing-script` in `.claude/worktrees/ra-8340-hookfix`. First command:
+`.venv/bin/python -m pytest -q tests/test_hook_missing_script_never_blocks.py`.
+
+## 19. Recommendation
+
+Build it. One line of config, fails closed on the kill switch, and a class guard that stops the next
+unguarded registration from repeating the outage.
