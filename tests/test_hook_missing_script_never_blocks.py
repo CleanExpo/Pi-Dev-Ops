@@ -109,7 +109,8 @@ def test_project_copy_runs_and_its_output_is_passed_through(tmp_path):
 @pytest.mark.parametrize("out", ["", '{"a":1}', '{"a":1}\n', '{"a":1}\n\n', "\n\n", ' {"a": "x\n"} \n\n\n'])
 def test_a_successful_gate_output_reaches_claude_code_byte_for_byte(tmp_path, shell, out):
     """Codex round 5: `$(...)` drops trailing newlines, so capturing the output changed it. Before RA-8340 the gate
-    wrote straight to Claude Code; on exit 0 the line must hand over exactly the same bytes."""
+    wrote straight to Claude Code; on exit 0 the line must hand over the same bytes (NUL bytes aside, see the
+    named-limit test below)."""
     home, project = _bare(tmp_path)
     gate = project / ".claude" / "hooks" / GATE
     gate.parent.mkdir(parents=True)

@@ -1,7 +1,7 @@
 ---
 type: engineering-requirements
 spec: ./spec.md
-spec_sha256: b7ac1105d72bb81c77463e3cb8cfda429359645c75f6a294407fccf8186a4a6e
+spec_sha256: 5041109e3d7052515e1ec5cc6858451c91b5abca9705d94a9b911886cadc4a02
 reviewer: bench
 seated: [boris, eng-failure, eng-observability, eng-test, eng-authz, eng-rollback, eng-release]
 reviewed_at: 2026-11-12T16:14:40+1000
@@ -51,6 +51,8 @@ expanded path and exit code go to stderr. This narrows eng-observability's notic
 detail stays on stderr. Successful gate output passes through unchecked as at base: a named limit, checked
 against the owner by a real-gate test. HARD_STOP is now read via `~`, matching the gate when HOME is unset.
 
+Round 5 (spec amendment 5, after Codex rounds 4 and 5): kind C, "a stated guarantee with no test that can fail on it", reached three instances. Every guarantee is now in one claims ledger in the spec with a killed mutant (12 of 12, run in a throwaway worktree); two were narrowed to named limits (NUL bytes, unset HOME under dash). The tests run under dash too, which is `/bin/sh` on GitHub's runners.
+
 ## Invariants
 
 > reaches the model; when HARD_STOP is set, every tool call is still refused, script or no script.
@@ -76,7 +78,7 @@ written down: "off" fails open for L3 with no counter or alert outside the sessi
 By boris. Claude Code reads hook stdout as JSON only when it is one object with nothing but whitespace around it.
 The wrapper prints either the gate's own successful output, one deny object, or one additionalContext object, and
 always exits 0 after the gate decision. The deny and note texts contain no apostrophe or backslash, so they survive
-single quoting and `sh`'s `echo`; the wrapper uses `printf '%s\n'`, never `echo`.
+single quoting; the wrapper prints them with `printf '%s\n'`, never `echo`, and relays a successful gate's output with `printf '%s'` after a sentinel capture, so only NUL bytes are lost.
 
 ## Rollback
 

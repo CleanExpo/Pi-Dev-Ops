@@ -1,5 +1,35 @@
 # Spec: RA-8340, the autonomy gate hook must never block every tool when its script is missing
 
+> Amendment 5 (12/11/2026, after Codex rounds 4 and 5 on 2491cf2e and a5c2350e). It wins over amendments 4 to 1.
+> - Kind C, "a stated guarantee with no test that can fail on it", seen three times: the bench (the RA-8125 test
+>   accepted any deny), round 4 (the unset-HOME test always set HOME), round 5 (the relay promised unchanged bytes
+>   and `$(...)` dropped trailing newlines). Design change: every guarantee below is listed with the test that
+>   guards it and a mutant run, made in a throwaway worktree, that the test kills. A guarantee with no killed
+>   mutant is either narrowed to what was proven or named as a limit. No guarantee is stated anywhere else.
+> - Wording fix to amendment 4: the line authors only constants on stdout; on gate exit 0 it relays the gate's
+>   output. The relay keeps every byte (sentinel capture, `printf '%s'`) except NUL bytes.
+> - Claims ledger. Mutants by `mutants_all.py` at 8bb3e175, all 12 KILLED, files restored byte-identical:
+>   - G1 no registration exits 2 when nothing is installed (base registration planted: 6 failed)
+>   - G2 HARD_STOP present: stdout is only the deny, whatever the gate does (check disabled: 37 failed)
+>   - G3 HOME unset, under bash: the line tests the same HARD_STOP path as the gate (`$HOME` planted: 1 failed)
+>   - G4 gate exit 0: its output is relayed unchanged apart from NUL bytes (round-4 capture planted: 15 failed)
+>   - G5 gate exits non-zero: its own output is dropped, one notice is printed (output leaked: 3 failed)
+>   - G6 the gate receives the payload on stdin (stdin from /dev/null: 1 failed)
+>   - G7 the home copy is never run (home path planted: 1 failed)
+>   - G8 the notice is valid JSON for any folder name (path interpolated into it: 3 failed)
+>   - G9 python3 cannot change what the line prints (python3 call planted before the notice: 3 failed)
+>   - G10 with no python3 the session is still told the gate is off (127 treated as success: 3 failed)
+>   - G11 the real gate prints nothing or one JSON object (stray print in the gate: 6 failed)
+>   - G12 RA-8125: the settings line runs the trusted gate (abspath restored: 1 failed)
+> - Named limits, each pinned or stated, not claimed:
+>   - L1 NUL bytes in a successful gate's output are dropped: a shell variable cannot hold one. Pinned by
+>     `test_named_limit_a_nul_byte_in_gate_output_is_dropped`. The real gate writes `json.dumps` output.
+>   - L2 HOME unset under dash: dash leaves a bare `~` unexpanded, so neither `~` nor `$HOME` finds the marker.
+>     G3 is bash-only. Claude Code always sets HOME for hooks.
+>   - L3 on gate exit 0 the content is not validated, as before RA-8340; the gate owns it (G11 checks the owner).
+> - The tests now run under `/bin/dash` too wherever it is installed, because `/bin/sh` is dash on GitHub's
+>   Ubuntu runners and bash on macOS.
+
 > Amendment 4 (12/11/2026, after Codex review round 3 on 69ab8cda: one P1, all eight checklist items PASS). It
 > wins over amendments 3, 2 and 1.
 > - Round 3 was the third finding of kind B, "stdout JSON produced by a step that can fail or corrupt it"
