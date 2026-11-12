@@ -20,7 +20,7 @@ export async function fetchJson(url, token) {
   }
 }
 
-export function parseBody(text) {
+function parseBody(text) {
   try {
     return redact(JSON.parse(text));
   } catch {

@@ -6,6 +6,13 @@ import { auditedWrite } from "../../lib/writes.js";
 import { ok } from "../../lib/results.js";
 import { botField, systemField } from "../../lib/schemas.js";
 
+// The top-level fields GET /api/mission-control/live returns
+// (app/server/routes/mission_control.py, mission_control_live). Only these reach mc_live callers.
+export const LIVE_FIELDS = [
+  "throughput", "active_sessions", "recent_completions", "queue", "pulse",
+  "observability", "idea_pipeline", "nexus_one", "ticket_sweeper", "ts",
+];
+
 export const missionControl = {
   id: "mc",
   title: "Mission Control",
@@ -31,7 +38,7 @@ function liveTool() {
           coordination_queue,
         });
       }
-      const live = await piceoGetJson(ctx, "/api/mission-control/live");
+      const live = await piceoGetJson(ctx, "/api/mission-control/live", LIVE_FIELDS);
       return ok({ ...live, coordination_queue });
     },
   };

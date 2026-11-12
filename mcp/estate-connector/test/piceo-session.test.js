@@ -9,9 +9,9 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
-import { missionControl } from "../adapters/mission-control/index.js";
+import { LIVE_FIELDS, missionControl } from "../adapters/mission-control/index.js";
 import { createContext } from "../lib/context.js";
-import { bodyWithoutSecrets } from "../lib/piceo-session.js";
+import { allowedBody } from "../lib/piceo-session.js";
 import { fetchJson } from "../lib/upstream.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
@@ -82,26 +82,28 @@ async function handleLogin(req, res) {
 }
 
 const uEscape = (s) => [...s].map((ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`).join("");
-const asJson = (value) => ({ type: "application/json", text: JSON.stringify(value) });
-const asText = (text) => ({ type: "text/plain", text });
+// Every character percent-encoded, so the encoded form shares no run of text with the secret.
+const pctAll = (s) => [...s].map((ch) => `%${ch.charCodeAt(0).toString(16).padStart(2, "0")}`).join("");
+const say = (tok, enc = (x) => x) => `cookie was ${enc(tok)}; login was ${enc(LOGIN_SECRET)}`;
+const reply = (status, type, text) => ({ status, type, text });
+const json = (value, status = 200) => reply(status, "application/json", JSON.stringify(value));
 
-// Each shape an upstream could use to hand the session token and the password back.
+// Each way an upstream could hand the session token and the password back.
+// kept: the echo sits inside a LIVE_FIELDS value, so it reaches the caller scrubbed.
+// dropped: the echo sits where the allow-list never passes anything on.
 const ECHOES = {
-  json: (tok) => asJson({ detail: `cookie was ${tok}; login was ${LOGIN_SECRET}` }),
-  raw: (tok) => asText(`cookie was ${tok}; login was ${LOGIN_SECRET}`),
-  unicode: (tok) => ({
-    type: "application/json",
-    text: `{"detail":"cookie was ${uEscape(tok)}; login was ${uEscape(LOGIN_SECRET)}"}`,
-  }),
-  deep: (tok) => {
-    let value = { detail: `cookie was ${tok}; login was ${LOGIN_SECRET}` };
+  "kept: plain JSON": (tok) => json({ active_sessions: [{ brief: say(tok) }] }),
+  "kept: every character \\u-escaped": (tok) => reply(200, "application/json",
+    `{"active_sessions":[{"brief":"${say(tok, uEscape)}"}]}`),
+  "kept: nested 100 levels": (tok) => {
+    let value = { brief: say(tok) };
     for (let i = 0; i < 100; i += 1) value = { next: value };
-    return asJson(value);
+    return json({ active_sessions: [value] });
   },
-  key: (tok) => asJson({ [tok]: "cookie was", [LOGIN_SECRET]: "login was" }),
-  // The token starts at character 490, so parseBody's 500-character cut would keep its
-  // first 10 characters if the scrub ran after the cut instead of before it.
-  cut: (tok) => asText(`cookie was ${"x".repeat(479)}${tok} login was ${LOGIN_SECRET}`),
+  "kept: secrets as keys": (tok) => json({ queue: { [tok]: "cookie was", [LOGIN_SECRET]: "login was" } }),
+  "dropped: percent-encoded in an unlisted field": (tok) => json({ ts: "t", detail: say(tok, pctAll) }),
+  "dropped: error reply detail": (tok) => json({ detail: `${say(tok)} ${say(tok, pctAll)}` }, 500),
+  "dropped: 2xx body that is not JSON": (tok) => reply(200, "text/plain", say(tok)),
 };
 
 function handleLive(req, res) {
@@ -111,13 +113,15 @@ function handleLive(req, res) {
   const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   const authed = fake.sessions.has(cookieToken(req)) || fake.sessions.has(bearer);
   if (!authed || fake.liveAlways401) return sendJson(res, 401, { detail: "Not authenticated" });
-  // Echo mode: a misbehaving upstream that reflects the request's secrets in its body.
+  // Echo mode: a misbehaving upstream that reflects the request's secrets in its reply.
   if (fake.liveEcho) {
-    const { type, text } = ECHOES[fake.liveEcho](cookieToken(req));
-    res.writeHead(200, { "content-type": type });
+    const { status, type, text } = ECHOES[fake.liveEcho](cookieToken(req));
+    res.writeHead(status, { "content-type": type });
     return res.end(text);
   }
-  return sendJson(res, 200, { sessions: [{ id: "s1", status: "building" }], health: "ok" });
+  return sendJson(res, 200, {
+    active_sessions: [{ id: "s1", status: "building" }], ts: "2026-11-12T00:00:00Z", not_a_live_field: "x",
+  });
 }
 
 before(async () => {
@@ -165,7 +169,9 @@ test("mc_live logs in, keeps the tao_session cookie, and reads the live page", a
   const { body } = await callLive(ctx);
   assert.equal(body.ok, true);
   assert.equal(body.status, 200);
-  assert.equal(body.body.sessions[0].id, "s1");
+  assert.equal(body.body.active_sessions[0].id, "s1");
+  assert.equal(body.omitted_fields, 1, "the unlisted field is counted");
+  assert.ok(!("not_a_live_field" in body.body), "only LIVE_FIELDS reach the caller");
   assert.ok("coordination_queue" in body, "the shared queue is still included");
   assert.equal(fake.logins, 1);
   for (const header of fake.seenAuthHeaders) assert.ok(!header.includes(LOGIN_SECRET));
@@ -227,28 +233,65 @@ test("two parallel calls after a session expires share one new login", async () 
   assert.equal(fake.logins, 2, "the second 401 dropped the newer session and logged in again");
 });
 
+// What each echo must look like in the result, beyond "no secret in any form".
+const ECHO_CHECKS = {
+  kept: (body, text) => {
+    assert.equal(body.ok, true);
+    assert.ok(text.includes("[redacted]"), "the echo really reached the result, scrubbed");
+  },
+  "dropped: percent-encoded in an unlisted field": (body) => {
+    assert.equal(body.ok, true);
+    assert.equal(body.body.ts, "t", "the listed field still arrives");
+    assert.equal(body.omitted_fields, 1);
+  },
+  "dropped: error reply detail": (body) => {
+    assert.equal(body.ok, false);
+    assert.equal(body.status, 500);
+    assert.equal(body.error, "upstream_error");
+    assert.ok(!("body" in body), "an error reply passes on no body");
+  },
+  "dropped: 2xx body that is not JSON": (body) => {
+    assert.equal(body.ok, false);
+    assert.equal(body.error, "unexpected_body");
+    assert.ok(!("body" in body));
+  },
+};
+
 for (const mode of Object.keys(ECHOES)) {
-  test(`an upstream that echoes the cookie and password (${mode}) cannot leak them into mc_live`, async () => {
+  test(`an upstream echo of the cookie and password (${mode}) cannot leak them into mc_live`, async () => {
     const ctx = configured();
     fake.liveEcho = mode;
     const { result, body } = await callLive(ctx);
     const text = JSON.stringify(result);
-    assert.equal(body.ok, true);
     assert.ok(fake.lastToken, "a session token was issued");
-    assert.ok(text.includes("[redacted]"), "the echoed body really reached the result");
-    // Prefixes, so a partial leak (part of a secret left by a cut) also fails.
-    assert.ok(!text.includes(fake.lastToken.slice(0, 10)), "session token leaked into the result");
-    assert.ok(!text.includes(LOGIN_SECRET.slice(0, 12)), "password leaked into the result");
+    (ECHO_CHECKS[mode] || ECHO_CHECKS.kept)(body, text);
+    if (mode.startsWith("dropped")) assert.ok(!text.includes("login was"), "some of the echo was passed on");
+    // Prefixes, so a partial leak also fails; percent-encoded forms too.
+    for (const secret of [fake.lastToken, LOGIN_SECRET]) {
+      assert.ok(!text.includes(secret.slice(0, 10)), "a secret leaked into the result");
+      assert.ok(!text.includes(pctAll(secret).slice(0, 18)), "a percent-encoded secret leaked into the result");
+    }
   });
 }
 
-test("bodyWithoutSecrets masks escaped and numeric forms, and empty secrets are ignored", () => {
+test("allowedBody keeps listed fields, masks escaped and numeric secrets, and refuses non-objects", () => {
   const tricky = `${randomUUID()}"\\`; // a quote and a backslash force JSON escaping
   const numeric = String(Date.now());
-  const out = bodyWithoutSecrets(JSON.stringify({ a: `x ${tricky} y`, n: Number(numeric) }), [tricky, numeric, ""]);
-  assert.equal(out.a, "x [redacted] y");
-  assert.equal(out.n, "[redacted]");
-  assert.deepEqual(bodyWithoutSecrets('{"a":"plain"}', ["", undefined]), { a: "plain" });
+  const text = JSON.stringify({ a: `x ${tricky} y`, n: Number(numeric), other: tricky });
+  const kept = allowedBody(text, [tricky, numeric, ""], ["a", "n"]);
+  assert.deepEqual(kept, { body: { a: "x [redacted] y", n: "[redacted]" }, omitted: 1 });
+  assert.deepEqual(allowedBody('{"a":"plain"}', ["", undefined], ["a"]), { body: { a: "plain" }, omitted: 0 });
+  for (const bad of ["[1]", '"text"', "null", "not json"]) assert.equal(allowedBody(bad, [], ["a"]), null, bad);
+});
+
+test("LIVE_FIELDS matches the fields the Pi CEO live route returns", () => {
+  const source = fs.readFileSync(path.join(REPO_ROOT, "app/server/routes/mission_control.py"), "utf8");
+  const start = source.indexOf("async def mission_control_live");
+  assert.ok(start > 0, "route function not found");
+  const block = source.slice(start, source.indexOf("\n    }", start));
+  const routeFields = [...block.matchAll(/^\s+"(\w+)":/gm)].map((m) => m[1]);
+  assert.ok(routeFields.length >= 5, "the field scan found the route's return dict");
+  assert.deepEqual([...LIVE_FIELDS].sort(), routeFields.sort());
 });
 
 test("the login does not follow a redirect, so the password is never re-sent", async () => {

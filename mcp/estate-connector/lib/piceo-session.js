@@ -1,4 +1,4 @@
-import { joinUrl, parseBody } from "./upstream.js";
+import { joinUrl } from "./upstream.js";
 
 const TIMEOUT_MS = 8000;
 const REDACTED = "[redacted]";
@@ -13,11 +13,19 @@ const sessions = new WeakMap();
  * PICEO_BEARER_TOKEN holds the Pi CEO login password. Pi CEO's require_auth rejects that
  * password as a Bearer token, so it is sent only in the body of POST /api/login. Only the
  * tao_session cookie goes to the API. A 401 drops the cookie, logs in again, retries once.
- * Neither the password nor the cookie is ever returned or logged: every response body goes
- * through bodyWithoutSecrets(), so an upstream that echoes either value back cannot carry it
- * into the tool result.
+ *
+ * What comes back is an allow-list, never the upstream reply as received:
+ * - `fields` names the top-level keys the caller may receive. Every other key is dropped
+ *   and only their number is reported (`omitted_fields`), never their names or values.
+ * - An error reply (not 2xx) returns its status and no body. Error details are where a
+ *   server echoes request input back.
+ * - A 2xx reply that is not a JSON object returns no body and `unexpected_body`.
+ * - Inside the kept fields, every decoded string, key and number has the password and the
+ *   session token replaced by "[redacted]" (see allowedBody).
+ * Neither secret is logged.
  */
-export async function piceoGetJson(ctx, apiPath) {
+export async function piceoGetJson(ctx, apiPath, fields) {
+  if (!Array.isArray(fields)) throw new TypeError("piceoGetJson needs the list of fields to return");
   const base = ctx.env.PICEO_BASE_URL;
   const password = ctx.env.PICEO_BEARER_TOKEN;
   if (!password) {
@@ -27,49 +35,56 @@ export async function piceoGetJson(ctx, apiPath) {
     };
   }
   const url = joinUrl(base, apiPath);
-  let result = await getAsSession(ctx, base, password, url);
-  if (result.status === 401 && !result.error) {
-    result = await getAsSession(ctx, base, password, url);
-  }
-  return result;
+  let reply = await getAsSession(ctx, base, password, url);
+  if (reply.res?.status === 401) reply = await getAsSession(ctx, base, password, url);
+  return reply.failure || resultFrom(reply.res, reply.secrets, fields);
 }
 
 async function getAsSession(ctx, base, password, url) {
   const pending = currentLogin(ctx, base, password);
   const session = await pending;
-  if (!session.cookie) return session.failure;
+  if (!session.cookie) return { failure: session.failure };
   const res = await send(url, { method: "GET", headers: { accept: "application/json", cookie: session.cookie } });
-  if (res.error) return { configured: true, ok: false, status: 0, error: res.error };
+  if (res.error) return { failure: { configured: true, ok: false, status: 0, error: res.error } };
   if (res.status === 401) forget(ctx, pending);
-  const secrets = [password, session.cookie.slice("tao_session=".length)];
-  return { configured: true, ok: res.ok, status: res.status, body: bodyWithoutSecrets(res.text, secrets) };
+  return { res, secrets: [password, session.cookie.slice("tao_session=".length)] };
+}
+
+function resultFrom(res, secrets, fields) {
+  const head = { configured: true, ok: res.ok, status: res.status };
+  if (!res.ok) return { ...head, error: "upstream_error" };
+  const kept = allowedBody(res.text, secrets, fields);
+  if (!kept) return { ...head, ok: false, error: "unexpected_body" };
+  const result = { ...head, body: kept.body };
+  if (kept.omitted > 0) result.omitted_fields = kept.omitted;
+  return result;
 }
 
 /**
- * The parsed body with every secret removed from what the caller will actually read.
- * - JSON body: parsed as received, so JSON.parse decodes every escape (\uXXXX, \", \\);
- *   then every decoded string, key and number is scrubbed, at any depth. Scrubbing the wire
- *   text instead missed escaped forms (UNI-3359 review, round 3), and scrubbing before the
- *   parse could break the JSON and push it into the raw path below.
- * - Any other body: the literal text is scrubbed before parseBody cuts it to 500
- *   characters, so a cut never leaves part of a secret behind.
- * Limit: a secret deliberately encoded inside a non-JSON body (base64, hand-written escapes)
- * is not decoded and is not removed.
+ * The listed top-level fields of a JSON object body, with every secret removed from what
+ * the caller will read. Returns null when the body is not a JSON object.
+ * JSON.parse decodes every JSON escape (\uXXXX, \", \\) before the scrub, so the scrub sees
+ * the value the caller receives, at any depth, in strings, keys and numbers.
+ * Limit: a secret that Pi CEO itself re-encodes (percent-encoding, base64) inside a kept field
+ * is not recognised. Pi CEO checks the password and issues the session, so it already holds
+ * both; this guards against an accidental echo, not against the server that owns the secrets.
+ * This module never puts either secret in a URL or a form body, so no ordinary code path
+ * would percent-encode one.
  */
-export function bodyWithoutSecrets(text, secrets) {
+export function allowedBody(text, secrets, fields) {
   const live = secrets.filter(Boolean).map(String);
-  const source = String(text);
-  if (isJson(source)) return withoutSecrets(parseBody(source), live, 0);
-  return withoutSecrets(parseBody(scrubText(source, live)), live, 0);
-}
-
-function isJson(text) {
+  let parsed;
   try {
-    JSON.parse(text);
-    return true;
+    parsed = JSON.parse(String(text));
   } catch {
-    return false;
+    return null;
   }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const body = {};
+  for (const field of fields) {
+    if (Object.hasOwn(parsed, field)) body[field] = withoutSecrets(parsed[field], live, 0);
+  }
+  return { body, omitted: Object.keys(parsed).filter((key) => !fields.includes(key)).length };
 }
 
 function scrubText(text, secrets) {
@@ -125,8 +140,7 @@ async function send(url, init) {
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(url, { ...init, signal: ctrl.signal, redirect: "manual" });
-    // Not cut here: bodyWithoutSecrets must see the whole text, or a cut could leave part of
-    // a secret. res.text() has already read the whole body, so a cut would save no memory.
+    // Not cut: a cut JSON body fails to parse, and res.text() has already read all of it.
     const text = await res.text();
     return { ok: res.ok, status: res.status, headers: res.headers, text };
   } catch (err) {
