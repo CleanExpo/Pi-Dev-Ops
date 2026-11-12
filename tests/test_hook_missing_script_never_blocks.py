@@ -159,6 +159,28 @@ def test_hard_stop_denies_whatever_the_gate_does(tmp_path, shell, kind, payload)
 
 
 @pytest.mark.parametrize("shell", SHELLS)
+@pytest.mark.parametrize("kind", ["missing", "prints-then-allows"])
+def test_without_python3_the_session_is_still_told_the_gate_is_off(tmp_path, shell, kind):
+    """Codex round 2: with no python3 the gate cannot run and the encoder could not either, so nothing was printed.
+    Every stdout path must work with shell builtins alone; python3 only adds the path to the notice."""
+    home, project = _bare(tmp_path)
+    GATE_KINDS[kind](project, tmp_path)
+    result = _run(_gate_command(), home, project, shell=shell, path=str(tmp_path / "no-such-bin"))
+    assert result.returncode == 0, result.stderr
+    context = _context(result)
+    assert "autonomy gate is off" in context and "RA-8340" in context
+
+
+@pytest.mark.parametrize("shell", SHELLS)
+def test_hard_stop_denies_without_python3(tmp_path, shell):
+    home, project = _bare(tmp_path)
+    (home / ".claude" / "HARD_STOP").write_text("")
+    result = _run(_gate_command(), home, project, shell=shell, path=str(tmp_path / "no-such-bin"))
+    assert result.returncode == 0, result.stderr
+    assert "~/.claude/HARD_STOP is removed" in _deny_reason(result)
+
+
+@pytest.mark.parametrize("shell", SHELLS)
 @pytest.mark.parametrize("code", [None, 2])
 def test_the_notice_is_valid_json_for_any_project_path(tmp_path, shell, code):
     """Codex round 1: the path was pasted into the JSON by printf, so a quote in a folder name broke it."""

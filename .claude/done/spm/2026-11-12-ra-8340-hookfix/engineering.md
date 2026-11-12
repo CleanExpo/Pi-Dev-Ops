@@ -1,7 +1,7 @@
 ---
 type: engineering-requirements
 spec: ./spec.md
-spec_sha256: 5dfde76a86fe98d003acd64b52dc2f4440a2328a7df1f467f8a915b71d7bae5d
+spec_sha256: 8300eb25310ab67f3a64b54d74f922580d6eadbb1c8e9835cced04c36e0a86a3
 reviewer: bench
 seated: [boris, eng-failure, eng-observability, eng-test, eng-authz, eng-rollback, eng-release]
 reviewed_at: 2026-11-12T16:14:40+1000
@@ -40,6 +40,10 @@ all. The line checks HARD_STOP first and prints only the deny, which closes both
 and Codex's silent-allow finding as one kind. The notice JSON is built by `json.dumps`, closing the quoted-path
 finding. Invariants, failure modes and the test oracle below are unchanged in intent; the tests now cover every
 gate behaviour under HARD_STOP and a quoted path.
+
+Round 3 (spec amendment 3, after Codex round 2 on 686aefe5): with no python3 the notice encoder failed too, so the
+session was told nothing. Second finding of the kind "stdout JSON produced by a step that can fail"; the design
+now ends every stdout path in a constant that needs only shell builtins, with python3 as optional enrichment.
 
 ## Invariants
 

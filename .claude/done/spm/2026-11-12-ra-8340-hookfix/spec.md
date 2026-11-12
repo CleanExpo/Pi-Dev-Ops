@@ -1,5 +1,17 @@
 # Spec: RA-8340, the autonomy gate hook must never block every tool when its script is missing
 
+> Amendment 3 (12/11/2026, after Codex review round 2 on 686aefe5: one P1, all eight checklist items PASS). It
+> wins over amendments 2 and 1.
+> - Finding: with no `python3` on PATH the gate cannot run and the round-2 notice encoder (also `python3`) could
+>   not either, so the session got nothing while L3 calls went ungated.
+> - Kind: this is the second finding of one kind, "stdout JSON is produced by a step that can fail or corrupt
+>   it" (round 1: `printf` interpolation; round 2: a missing encoder). Design change for the kind: every stdout
+>   path of the line now ends in output that needs only shell builtins (`[`, `printf`, assignment). The HARD_STOP
+>   deny was already a constant. The notice is captured from the encoder, and if the encoder fails or prints
+>   nothing, a constant JSON notice is printed instead. `python3` only adds the path and exit code.
+> - Tests: no `python3` on PATH, gate missing or present, under bash and sh, gives one valid additionalContext
+>   JSON; HARD_STOP with no `python3` still denies.
+
 > Amendment 2 (12/11/2026, after Codex review round 1 on 602b9e94, which returned two P1 findings). It wins
 > over amendment 1 and every section below where they differ.
 > - Kill switch: the settings line checks `~/.claude/HARD_STOP` FIRST and, when it exists, prints only the deny
