@@ -103,6 +103,20 @@ def test_project_copy_runs_and_its_output_is_passed_through(tmp_path):
     assert marker.read_text() == '{"tool_name": "Bash"}\n'
 
 
+@pytest.mark.parametrize("shell", SHELLS)
+@pytest.mark.parametrize("out", ["", '{"a":1}', '{"a":1}\n', '{"a":1}\n\n', "\n\n", ' {"a": "x\n"} \n\n\n'])
+def test_a_successful_gate_output_reaches_claude_code_byte_for_byte(tmp_path, shell, out):
+    """Codex round 5: `$(...)` drops trailing newlines, so capturing the output changed it. Before RA-8340 the gate
+    wrote straight to Claude Code; on exit 0 the line must hand over exactly the same bytes."""
+    home, project = _bare(tmp_path)
+    gate = project / ".claude" / "hooks" / GATE
+    gate.parent.mkdir(parents=True)
+    gate.write_text(f"import sys\nsys.stdin.read()\nsys.stdout.write({out!r})\n")
+    result = _run(_gate_command(), home, project, shell=shell)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == out
+
+
 def test_the_home_copy_is_never_run(tmp_path):
     """The home copy on the Mini is a stale pre-RA-8125 file; a missing project copy means off, not fallback."""
     home, project = _bare(tmp_path)
