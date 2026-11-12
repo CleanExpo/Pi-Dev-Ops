@@ -57,17 +57,19 @@ Round 5 (spec amendment 5, after Codex rounds 4 and 5): kind C, "a stated guaran
 
 > reaches the model; when HARD_STOP is set, every tool call is still refused, script or no script.
 
-By eng-authz. I1: while HARD_STOP exists, every tool call is denied on every path (gate present, missing, crashing).
-I2: while HARD_STOP exists, stdout is exactly one parseable deny object. I3: the L3 deny is off only when no
-importable project copy exists, and the session is told so. Spec sections 9 and 12 state all three; C1 tests each
-under bash and sh.
+By eng-authz. The guarantees, their tests and their killed mutants are listed once, in the claims ledger of spec
+amendment 5 (G1 to G12, limits L1 to L3); this section points there and restates none of them. I1 is G2: while
+HARD_STOP exists, every call is denied whatever the gate does. I3, the L3 deny is off, holds in two cases, never
+silently: no project copy exists (G1, G10), or the gate exits non-zero, including a crash after import (G5). In both
+cases the session gets the constant notice. The tests run under bash, sh and dash.
 
 ## Failure modes
 
 > 2. If `f` exists: run it with its stdout captured. Exit 0 passes the captured output through and stops.
 
 By eng-failure, with eng-release. A gate that prints and then fails no longer leaks its text in front of the deny.
-A crashing gate without HARD_STOP is reported like a missing one, with its path and exit code. The home fallback is
+A crashing gate without HARD_STOP gets the same constant notice as a missing one (G5); its path and exit code go to
+the hook's stderr only. The home fallback is
 gone, so the stale clone at `/Users/phill-mac/Pi-Dev-Ops` cannot be selected by this line. Residual, accepted and
 written down: "off" fails open for L3 with no counter or alert outside the session (owner RA-8126).
 
@@ -93,8 +95,10 @@ quoting exits 2 and blocks the editing session; recover with `git -C <checkout> 
 
 > cannot be found or fails, the session keeps working and is told so through PreToolUse `additionalContext`, which
 
-By eng-observability. The off note reaches the model through PreToolUse additionalContext and names the missing
-path, or the path and exit code, plus RA-8340. Merged is not in effect: each checkout carries its own settings, so
+By eng-observability. The off notice reaches the model through PreToolUse additionalContext as constant text: it
+says which case happened (no copy, or the gate failed), names the path only as the literal
+`$CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py`, and cites RA-8340. The expanded path and the exit code
+go to the hook's stderr, which the model does not see (spec amendment 4, the trade recorded against this seat). Merged is not in effect: each checkout carries its own settings, so
 "in effect" is observed after merge per checkout (spec section 15), reported separately, owner the lead chat.
 
 ## Test oracle

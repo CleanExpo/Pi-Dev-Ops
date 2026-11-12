@@ -68,7 +68,7 @@ def _deny_reason(result: subprocess.CompletedProcess) -> str:
 
 
 @pytest.mark.parametrize("shell", SHELLS)
-def test_no_registered_hook_exits_2_when_nothing_is_installed(tmp_path, shell):
+def test_no_registered_hook_exits_2_when_nothing_is_installed(tmp_path: Path, shell: str) -> None:
     """The class guard: every registration, present and future, is checked."""
     home, project = _bare(tmp_path)
     hooks = _hooks()
@@ -79,7 +79,7 @@ def test_no_registered_hook_exits_2_when_nothing_is_installed(tmp_path, shell):
 
 
 @pytest.mark.parametrize("shell", SHELLS)
-def test_missing_gate_without_hard_stop_allows_and_tells_the_session(tmp_path, shell):
+def test_missing_gate_without_hard_stop_allows_and_tells_the_session(tmp_path: Path, shell: str) -> None:
     home, project = _bare(tmp_path)
     result = _run(_gate_command(), home, project, shell=shell)
     assert result.returncode == 0, result.stderr
@@ -95,7 +95,7 @@ def _plant(path: Path, marker: Path, code: int) -> None:
                     f"print('gate-output')\nsys.exit({code})\n")
 
 
-def test_project_copy_runs_and_its_output_is_passed_through(tmp_path):
+def test_project_copy_runs_and_its_output_is_passed_through(tmp_path: Path) -> None:
     home, project = _bare(tmp_path)
     marker = tmp_path / "ran.txt"
     _plant(project / ".claude" / "hooks" / GATE, marker, 0)
@@ -107,7 +107,7 @@ def test_project_copy_runs_and_its_output_is_passed_through(tmp_path):
 
 @pytest.mark.parametrize("shell", SHELLS)
 @pytest.mark.parametrize("out", ["", '{"a":1}', '{"a":1}\n', '{"a":1}\n\n', "\n\n", ' {"a": "x\n"} \n\n\n'])
-def test_a_successful_gate_output_reaches_claude_code_byte_for_byte(tmp_path, shell, out):
+def test_a_successful_gate_output_reaches_claude_code_byte_for_byte(tmp_path: Path, shell: str, out: str) -> None:
     """Codex round 5: `$(...)` drops trailing newlines, so capturing the output changed it. Before RA-8340 the gate
     wrote straight to Claude Code; on exit 0 the line must hand over the same bytes (NUL bytes aside, see the
     named-limit test below)."""
@@ -121,7 +121,7 @@ def test_a_successful_gate_output_reaches_claude_code_byte_for_byte(tmp_path, sh
 
 
 @pytest.mark.parametrize("shell", SHELLS)
-def test_named_limit_a_nul_byte_in_gate_output_is_dropped(tmp_path, shell):
+def test_named_limit_a_nul_byte_in_gate_output_is_dropped(tmp_path: Path, shell: str) -> None:
     """Named limit, pinned so a change is noticed: a shell variable cannot hold a NUL byte, so the relay drops it.
     The real gate writes json.dumps output, which never contains one."""
     home, project = _bare(tmp_path)
@@ -133,7 +133,7 @@ def test_named_limit_a_nul_byte_in_gate_output_is_dropped(tmp_path, shell):
     assert result.stdout == '{"a":1}\n'
 
 
-def test_the_home_copy_is_never_run(tmp_path):
+def test_the_home_copy_is_never_run(tmp_path: Path) -> None:
     """The home copy on the Mini is a stale pre-RA-8125 file; a missing project copy means off, not fallback."""
     home, project = _bare(tmp_path)
     marker = tmp_path / "home-ran.txt"
@@ -145,7 +145,7 @@ def test_the_home_copy_is_never_run(tmp_path):
 
 
 @pytest.mark.parametrize("shell", SHELLS)
-def test_a_crashing_gate_never_exits_2_and_says_why(tmp_path, shell):
+def test_a_crashing_gate_never_exits_2_and_says_why(tmp_path: Path, shell: str) -> None:
     home, project = _bare(tmp_path)
     _plant(project / ".claude" / "hooks" / GATE, tmp_path / "ran.txt", 2)
     result = _run(_gate_command(), home, project, shell=shell)
@@ -179,7 +179,7 @@ GATE_KINDS = {
 @pytest.mark.parametrize("shell", SHELLS)
 @pytest.mark.parametrize("kind", sorted(GATE_KINDS))
 @pytest.mark.parametrize("payload", ["{", '{"tool_name": "Read", "tool_input": {"file_path": "/x"}}'])
-def test_hard_stop_denies_whatever_the_gate_does(tmp_path, shell, kind, payload):
+def test_hard_stop_denies_whatever_the_gate_does(tmp_path: Path, shell: str, kind: str, payload: str) -> None:
     home, project = _bare(tmp_path)
     GATE_KINDS[kind](project, tmp_path)
     (home / ".claude" / "HARD_STOP").write_text("")
@@ -192,7 +192,7 @@ def test_hard_stop_denies_whatever_the_gate_does(tmp_path, shell, kind, payload)
 
 @pytest.mark.parametrize("shell", SHELLS)
 @pytest.mark.parametrize("kind", ["missing", "prints-then-allows"])
-def test_without_python3_the_session_is_still_told_the_gate_is_off(tmp_path, shell, kind):
+def test_without_python3_the_session_is_still_told_the_gate_is_off(tmp_path: Path, shell: str, kind: str) -> None:
     """Codex round 2: with no python3 the gate cannot run and the encoder could not either, so nothing was printed.
     Every stdout path the line writes itself must be a constant that needs shell builtins alone."""
     home, project = _bare(tmp_path)
@@ -204,7 +204,7 @@ def test_without_python3_the_session_is_still_told_the_gate_is_off(tmp_path, she
 
 
 @pytest.mark.parametrize("shell", SHELLS)
-def test_hard_stop_denies_without_python3(tmp_path, shell):
+def test_hard_stop_denies_without_python3(tmp_path: Path, shell: str) -> None:
     home, project = _bare(tmp_path)
     (home / ".claude" / "HARD_STOP").write_text("")
     result = _run(_gate_command(), home, project, shell=shell, path=str(tmp_path / "no-such-bin"))
@@ -214,7 +214,7 @@ def test_hard_stop_denies_without_python3(tmp_path, shell):
 
 @pytest.mark.parametrize("shell", SHELLS)
 @pytest.mark.parametrize("code", [None, 2])
-def test_the_notice_is_valid_json_for_any_project_path(tmp_path, shell, code):
+def test_the_notice_is_valid_json_for_any_project_path(tmp_path: Path, shell: str, code: int | None) -> None:
     """Codex round 1: the path was pasted into the JSON by printf, so a quote in a folder name broke it."""
     home = tmp_path / "home"
     (home / ".claude" / "hooks").mkdir(parents=True)
@@ -229,7 +229,7 @@ def test_the_notice_is_valid_json_for_any_project_path(tmp_path, shell, code):
 
 
 @pytest.mark.parametrize("shell", SHELLS)
-def test_a_broken_python3_cannot_corrupt_the_notice(tmp_path, shell):
+def test_a_broken_python3_cannot_corrupt_the_notice(tmp_path: Path, shell: str) -> None:
     """Codex round 3: a python3 that prints garbage and exits 0 turned the round-3 notice into `not-json`. The line
     writes only constants itself, so no interpreter can change what it prints."""
     home, project = _bare(tmp_path)
@@ -243,7 +243,7 @@ def test_a_broken_python3_cannot_corrupt_the_notice(tmp_path, shell):
 
 
 @pytest.mark.parametrize("shell", SHELLS)
-def test_hard_stop_is_found_under_a_home_with_spaces(tmp_path, shell):
+def test_hard_stop_is_found_under_a_home_with_spaces(tmp_path: Path, shell: str) -> None:
     """A HOME containing a space still finds the marker. The unset-HOME case is the next test."""
     home, project = tmp_path / "my home", tmp_path / "project"
     (home / ".claude").mkdir(parents=True)
@@ -256,7 +256,7 @@ def test_hard_stop_is_found_under_a_home_with_spaces(tmp_path, shell):
 
 
 @pytest.mark.parametrize("shell", ["/bin/bash"])
-def test_with_home_unset_the_line_checks_the_same_hard_stop_as_the_gate(tmp_path, shell):
+def test_with_home_unset_the_line_checks_the_same_hard_stop_as_the_gate(tmp_path: Path, shell: str) -> None:
     """With HOME unset the gate's expanduser falls back to the account's home folder. `$HOME/...` would look at
     /.claude/HARD_STOP instead, so a kill switch set there would be missed. The marker cannot be planted in the real
     home (it stops every agent), so this reads the shell's own trace of the path the line tests; nothing is created.
@@ -280,7 +280,7 @@ def test_with_home_unset_the_line_checks_the_same_hard_stop_as_the_gate(tmp_path
 @pytest.mark.parametrize("payload", ["", "{", "[]", "null", '{"tool_name": 5}',
                                      '{"tool_name": "Read", "tool_input": {"file_path": "/x"}}',
                                      '{"tool_name": "mcp__supabase__apply_migration", "tool_input": {}}'])
-def test_the_real_gate_prints_nothing_or_one_json_object(tmp_path, shell, payload):
+def test_the_real_gate_prints_nothing_or_one_json_object(tmp_path: Path, shell: str, payload: str) -> None:
     """Named limit: when the gate exits 0 its stdout passes through unchecked, exactly as before RA-8340, so the gate
     owns that output. This checks the owner: whatever it is fed, it prints nothing (allow) or one JSON object."""
     home, project = _bare(tmp_path)
