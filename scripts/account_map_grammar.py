@@ -22,10 +22,11 @@ _HOST = re.compile(r"[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*")
 _EMAIL_LOCAL = re.compile(r"[A-Za-z0-9]+(?:[._+-][A-Za-z0-9]+)*")
 _EMAIL_DOMAIN = re.compile(r"(?:[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\.)+[A-Za-z]{2,24}")
 _PROSE_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'/?!-]*")
-_PROSE_WORD = re.compile(r"[A-Z]{2,6}-[0-9]{1,6}|[0-9]{1,4}|[A-Za-z]+(?:['/-][A-Za-z]+)*")
+_TICKET = r"(?:RA|UNI|SYN|AR)-[0-9]{1,5}"   # allow-list: OTP-123456 is not a ticket
+_PROSE_WORD = re.compile(_TICKET + r"|[0-9]{1,4}|[A-Za-z]+(?:['/-][A-Za-z]+)*")
 # Comments may also name files (scripts/check_account_map.py, ops/ACCOUNT-MAP.md).
 _COMMENT_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'\"/?!_-]*")
-_COMMENT_WORD = re.compile(r"[A-Z]{2,6}-[0-9]{1,6}|[0-9]{1,4}|[A-Za-z]+(?:[-_./'][A-Za-z]+)*")
+_COMMENT_WORD = re.compile(_TICKET + r"|[0-9]{1,4}|[A-Za-z]+(?:[-_./'][A-Za-z]+)*")
 _ALNUM_RUN = re.compile(r"[A-Za-z0-9]+")
 _MIXED = re.compile(r"[A-Za-z]")
 _ONE_SWITCH = re.compile(r"[A-Za-z]+[0-9]+|[0-9]+[A-Za-z]+")
@@ -61,7 +62,8 @@ def _budget_ok(value: str, max_mixed: int = 2, max_digits: int = 8, max_switches
     groups = re.split(r"[^A-Za-z0-9]+", value)
     mixed = sum(1 for g in groups if _MIXED.search(g) and any(c.isdigit() for c in g))
     return (mixed <= max_mixed and sum(c.isdigit() for c in value) <= max_digits
-            and _switches(value) <= max_switches)
+            and _switches(value) <= max_switches
+            and not any(g.isdigit() and len(g) >= 5 for g in groups))
 
 
 def _domain_runs_ok(domain: str) -> bool:

@@ -130,7 +130,7 @@ def metadata_lines(text: str):
 
 def comment_lines(text: str):
     """Yield (line number, comment text) for every YAML comment; the parser drops these."""
-    for number, line in enumerate(text.splitlines(), 1):
+    for number, line in enumerate(text.lstrip("\ufeff").splitlines(), 1):
         stripped = line.lstrip()
         if stripped.startswith("#"):
             yield number, stripped

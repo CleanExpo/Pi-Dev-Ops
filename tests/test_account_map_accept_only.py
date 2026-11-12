@@ -163,7 +163,7 @@ def test_missing_scanner_fails_closed(tmp_path, monkeypatch):
 def test_independent_second_net_only(tmp_path, capsys):
     """W6: a short Slack-shaped key is a valid slug, so the label grammar accepts it; the
     second net alone fires."""
-    text = BASE.replace("label: claude-mini", "label: " + "xoxb-" + "12345-abcde")
+    text = BASE.replace("label: claude-mini", "label: " + "xoxb-" + "1234-abcde")
     code, out = _run(tmp_path, text, capsys)
     assert code == 1 and "SECRET_VALUE" in out and "BAD_VALUE" not in out
 
