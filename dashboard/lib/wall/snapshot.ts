@@ -2,7 +2,8 @@
  * Live Wall snapshot — pure builder. Spec: docs/briefs/live-wall-v1.md.
  *
  * Nothing starts green. A machine is GREEN only when its own `last_seen` is present
- * and at most 60s old; the upstream `is_stale` flag is not trusted. Agents carry their
+ * and at most 60s old AND its status is in HEALTHY_STATUSES; the upstream `is_stale`
+ * flag is not trusted. A fresh machine the runner holds (quota, blocked, ...) is RED. Agents carry their
  * own 90s clock, so a crashed agent on a live machine still goes GREY. Every
  * mesh-derived value is self-reported and says so.
  *
@@ -22,6 +23,19 @@ export type Chip = "GREEN" | "RED" | "GREY";
 
 export const MACHINE_STALE_S = 60;
 export const AGENT_STALE_S = 90;
+
+/**
+ * The ONLY statuses that can be GREEN. An allow-list: a missing word, `updating`, or one the
+ * runner adds later is never shown as healthy. mods/mission-control/hooks/fleet.ts holds the
+ * same two sets; neither may import the other or the runner, so
+ * tests/test_fleet_status_vocabulary.py pins both to mesh/heartbeat.py node_status().
+ */
+export const HEALTHY_STATUSES = new Set(["online", "working"]);
+/** The runner gated itself: RED "held: <status>". Only picks the wording; health is HEALTHY_STATUSES. */
+export const HELD_STATUSES = new Set(["blocked", "quarantined", "stuck", "quota", "outdated", "version-unknown", "hard_stop"]);
+const DOWN_STATUSES = new Set(["runner-down", "offline"]);
+const HOLD_REASON_MAX = 120;
+const NO_HOLD_REASON = "reason not reported by this machine's heartbeat";
 
 /** The three machines that make up the fleet. Override with WALL_FLEET_HOSTS (comma list). */
 export const DEFAULT_FLEET_HOSTS = ["Phills-MacBook-Pro", "Phills-Mac-mini", "Phill_Desktop"];
@@ -71,6 +85,27 @@ function agentTile(row: Record<string, unknown>, now: number): AgentTile {
   return { runtime: String(row.runtime ?? "?"), state: String(row.state ?? "?"), chip: fresh ? "GREEN" : "GREY", ageSeconds: age };
 }
 
+/** hold_reason from a present `mesh-runner` entry of agent_runtimes (mesh/runner_report.py), else null. */
+function holdReason(runtimes: unknown): string | null {
+  if (!Array.isArray(runtimes)) return null;
+  const entry = runtimes.map(record).find((e) => e?.runtime === "mesh-runner");
+  if (!entry || entry.present !== true || typeof entry.hold_reason !== "string") return null;
+  const text = entry.hold_reason.replace(/\s+/g, " ").trim().slice(0, HOLD_REASON_MAX);
+  return text || null;
+}
+
+/** The chip and words for a machine whose heartbeat is fresh: its status decides. */
+function freshChip(row: Record<string, unknown>): { chip: Chip; reason: string } {
+  const status = typeof row.status === "string" ? row.status.trim() : "";
+  if (HEALTHY_STATUSES.has(status)) return { chip: "GREEN", reason: "reporting" };
+  if (HELD_STATUSES.has(status)) {
+    const why = holdReason(row.agent_runtimes);
+    return { chip: "RED", reason: why ? `held: ${status} — ${why}` : `held: ${status} (${NO_HOLD_REASON})` };
+  }
+  if (DOWN_STATUSES.has(status)) return { chip: "RED", reason: status };
+  return { chip: "GREY", reason: `status ${status || "missing"}: not a healthy state` };
+}
+
 export function machineTile(host: string, row: Record<string, unknown> | undefined, agents: unknown[], now: number): MachineTile {
   const base = { host, load1: null, selfReported: true as const, agents: [] as AgentTile[] };
   if (!row) return { ...base, chip: "GREY", reason: "never reported", ageSeconds: null };
@@ -80,7 +115,8 @@ export function machineTile(host: string, row: Record<string, unknown> | undefin
   const tiles = mine.map((a) => agentTile(a, now));
   if (age === null) return { ...base, load1: load, agents: tiles, chip: "GREY", reason: "no usable last_seen (missing, garbled or in the future)", ageSeconds: null };
   const fresh = age <= MACHINE_STALE_S;
-  return { ...base, load1: load, agents: tiles, chip: fresh ? "GREEN" : "GREY", reason: fresh ? "reporting" : "no signal", ageSeconds: age };
+  const shown = fresh ? freshChip(row) : { chip: "GREY" as const, reason: "no signal" };
+  return { ...base, load1: load, agents: tiles, ...shown, ageSeconds: age };
 }
 
 /** Build the fleet panel from the raw upstream body. `null` body = the read failed. */

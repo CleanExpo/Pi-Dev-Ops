@@ -38,7 +38,7 @@ describe("future stamps", () => {
 
 describe("banner matches the page (review findings 2 and 3)", () => {
   const fresh = () => {
-    const fleet = fleetPanel({ machines: [{ host: "A", last_seen: new Date(NOW - 1000).toISOString() }] }, ["A"], NOW);
+    const fleet = fleetPanel({ machines: [{ host: "A", status: "online", last_seen: new Date(NOW - 1000).toISOString() }] }, ["A"], NOW);
     return buildSnapshot(fleet, NOW);
   };
   it("fresh snapshot: counts what the snapshot holds (positive control)", () => {

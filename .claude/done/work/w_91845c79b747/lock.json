@@ -1,0 +1,12 @@
+{
+  "schema": "done/1",
+  "work_id": "w_91845c79b747",
+  "contract_digest": "1f6082679bf86372469408e5c0fb3ae11570de38a9ddecda055b610f291ab77a",
+  "baseline_head": "1b2bcd966de8f6869742598c89d37cb252340acb",
+  "identity_key": "worktree-mc-dispatch-c@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/mc-dispatch-c",
+  "locked_at_utc": "2026-11-12T02:44:26Z",
+  "criteria_count": 2,
+  "recipe_pins": {
+    "spm/2026-11-12-mc-dispatch-c/spec.md": null
+  }
+}
