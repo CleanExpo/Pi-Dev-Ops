@@ -26,14 +26,15 @@ const fake = {
   liveCalls: 0,
   liveAlways401: false,
   loginRedirect: false,
+  loginFailuresLeft: 0,
   seenAuthHeaders: [],
   redirectTargetHits: 0,
 };
 
 function resetFake() {
   Object.assign(fake, {
-    sessions: new Set(), issued: 0, logins: 0, liveCalls: 0,
-    liveAlways401: false, loginRedirect: false, seenAuthHeaders: [], redirectTargetHits: 0,
+    sessions: new Set(), issued: 0, logins: 0, liveCalls: 0, liveAlways401: false,
+    loginRedirect: false, loginFailuresLeft: 0, seenAuthHeaders: [], redirectTargetHits: 0,
   });
 }
 
@@ -60,6 +61,10 @@ async function handleLogin(req, res) {
   if (fake.loginRedirect) {
     res.writeHead(307, { location: "/elsewhere" });
     return res.end();
+  }
+  if (fake.loginFailuresLeft > 0) {
+    fake.loginFailuresLeft -= 1;
+    return sendJson(res, 503, { detail: "temporarily unavailable" });
   }
   const body = JSON.parse((await readBody(req)) || "{}");
   if (body.password !== LOGIN_SECRET) return sendJson(res, 401, { detail: "Invalid password" });
@@ -164,6 +169,28 @@ test("a wrong password reports a failed login without calling the live page", as
   assert.equal(body.status, 401);
   assert.equal(body.error, "login_failed");
   assert.equal(fake.liveCalls, 0);
+});
+
+test("a failed login is not cached: the next call logs in again and succeeds", async () => {
+  const ctx = configured();
+  fake.loginFailuresLeft = 1;
+  const first = await callLive(ctx);
+  assert.equal(first.body.ok, false);
+  assert.equal(first.body.status, 503);
+  assert.equal(first.body.error, "login_failed");
+  const second = await callLive(ctx);
+  assert.equal(second.body.ok, true, "the 503 login was cached instead of retried");
+  assert.equal(fake.logins, 2);
+});
+
+test("two parallel calls after a session expires share one new login", async () => {
+  const ctx = configured();
+  assert.equal((await callLive(ctx)).body.ok, true);
+  fake.sessions.clear();
+  const [a, b] = await Promise.all([callLive(ctx), callLive(ctx)]);
+  assert.equal(a.body.ok, true);
+  assert.equal(b.body.ok, true);
+  assert.equal(fake.logins, 2, "the second 401 dropped the newer session and logged in again");
 });
 
 test("the login does not follow a redirect, so the password is never re-sent", async () => {
