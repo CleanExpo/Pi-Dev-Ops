@@ -19,7 +19,9 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 GATE = "autonomy_gate_hook.py"
-SHELLS = ["/bin/bash", "/bin/sh"]  # Claude Code may run hooks under either
+# Claude Code may run hooks under any of these. /bin/sh is bash on macOS and dash on Ubuntu (GitHub CI), so dash
+# runs here too wherever it is installed, to see locally what CI sees.
+SHELLS = ["/bin/bash", "/bin/sh"] + (["/bin/dash"] if Path("/bin/dash").exists() else [])
 
 
 def _hooks() -> list[tuple[str, str]]:
@@ -115,6 +117,19 @@ def test_a_successful_gate_output_reaches_claude_code_byte_for_byte(tmp_path, sh
     result = _run(_gate_command(), home, project, shell=shell)
     assert result.returncode == 0, result.stderr
     assert result.stdout == out
+
+
+@pytest.mark.parametrize("shell", SHELLS)
+def test_named_limit_a_nul_byte_in_gate_output_is_dropped(tmp_path, shell):
+    """Named limit, pinned so a change is noticed: a shell variable cannot hold a NUL byte, so the relay drops it.
+    The real gate writes json.dumps output, which never contains one."""
+    home, project = _bare(tmp_path)
+    gate = project / ".claude" / "hooks" / GATE
+    gate.parent.mkdir(parents=True)
+    gate.write_text("import sys\nsys.stdin.read()\nsys.stdout.buffer.write(b'{\"a\":1}\\x00\\n')\n")
+    result = _run(_gate_command(), home, project, shell=shell)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == '{"a":1}\n'
 
 
 def test_the_home_copy_is_never_run(tmp_path):
@@ -239,11 +254,13 @@ def test_hard_stop_is_found_under_a_home_with_spaces(tmp_path, shell):
     assert "~/.claude/HARD_STOP is removed" in _deny_reason(result)
 
 
-@pytest.mark.parametrize("shell", SHELLS)
+@pytest.mark.parametrize("shell", ["/bin/bash"])
 def test_with_home_unset_the_line_checks_the_same_hard_stop_as_the_gate(tmp_path, shell):
     """With HOME unset the gate's expanduser falls back to the account's home folder. `$HOME/...` would look at
     /.claude/HARD_STOP instead, so a kill switch set there would be missed. The marker cannot be planted in the real
-    home (it stops every agent), so this reads the shell's own trace of the path the line tests; nothing is created."""
+    home (it stops every agent), so this reads the shell's own trace of the path the line tests; nothing is created.
+    Bash only, a named limit: dash leaves a bare `~` unexpanded when HOME is unset, so under dash neither `~` nor
+    `$HOME` finds the marker. Claude Code always sets HOME for hooks."""
     project = tmp_path / "project"
     project.mkdir()
     env = {"PATH": "/usr/bin:/bin", "CLAUDE_PROJECT_DIR": str(project), "GIT_CEILING_DIRECTORIES": str(tmp_path)}
