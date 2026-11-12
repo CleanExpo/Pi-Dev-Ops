@@ -163,7 +163,8 @@ describe('fleet_status reads launchd when the environment lacks the settings', (
     const s = JSON.parse(out.result as string)
     expect(s.state).toBe('unknown')
     expect(s.reason).toContain('request failed')
-    expect(String(out.result).includes(SENTINEL)).toBe(false)
-    expect(h.logs.some(l => l.includes(SENTINEL))).toBe(false)
+    // A cut-down secret is still a leak: the first 8 characters must not survive either.
+    expect(String(out.result).includes(SENTINEL.slice(0, 8))).toBe(false)
+    expect(h.logs.some(l => l.includes(SENTINEL.slice(0, 8)))).toBe(false)
   })
 })

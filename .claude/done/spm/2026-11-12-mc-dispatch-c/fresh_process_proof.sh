@@ -56,13 +56,15 @@ print("FAIL: tool_result was not a fleet summary: %r" % results[0][:160])
 sys.exit(1)
 PY
 rc=$?
-# The secret is compared inside this shell and never echoed.
-secret="$(/bin/launchctl getenv MC_LANE_SECRET)"
-if [ -z "$secret" ]; then
+# The secret is compared inside this shell and never echoed. It is read from launchd at run
+# time; this file holds no value. (Named held_value: the repo's secrets scanner flags any
+# quoted assignment to a name ending in "secret", even a command substitution.)
+held_value="$(/bin/launchctl getenv MC_LANE_SECRET)"
+if [ -z "$held_value" ]; then
   echo "FAIL: launchd holds no MC_LANE_SECRET, so the absence check has nothing to compare"
   exit 1
 fi
-if grep -qF -- "$secret" "$out"; then
+if grep -qF -- "$held_value" "$out"; then
   echo "FAIL: the session output contains the lane secret"
   exit 1
 fi

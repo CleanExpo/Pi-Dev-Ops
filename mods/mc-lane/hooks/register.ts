@@ -37,7 +37,7 @@ import {
   type LaneEvent, type LaneEventKind,
 } from './lane'
 import {
-  clean, fromLaunchctl, launchctlArgv, LAUNCHCTL_TIMEOUT_MS, notConfiguredDetail, pickLaneConfig,
+  clean, fromLaunchctl, launchctlArgv, LAUNCHCTL_TIMEOUT_MS, notConfiguredDetail, pickLaneConfig, scrubSecret,
   type LaneConfig, type LaneVars, type LaunchdRead,
 } from './lane_config'
 
@@ -100,14 +100,21 @@ async function flush($: EngineInterface): Promise<void> {
       body: JSON.stringify({ host: cfg.host, events: batch }),
     })
     if (r.ok) {
-      const acked = (JSON.parse(r.text) as { acked?: Record<string, number> }).acked ?? {}
+      // A parse error quotes the reply, so it is never shown: a fixed text, as mission-control does.
+      let acked: Record<string, number> | undefined
+      try {
+        acked = (JSON.parse(r.text) as { acked?: Record<string, number> }).acked ?? {}
+      } catch {
+        failure = 'reply is not JSON'
+      }
       // Drops only what was acked: events recorded during the POST stay.
-      await update($, queue, q => dropAcked(q, acked))
+      if (acked) await update($, queue, q => dropAcked(q, acked))
     } else {
       failure = `HTTP ${r.status}`
     }
   } catch (err) {
-    failure = err instanceof Error ? err.message.slice(0, 80) : 'request failed'
+    // A transport error can quote the header; scrub before cutting so no prefix of the secret survives.
+    failure = err instanceof Error ? scrubSecret(err.message, cfg.secret).slice(0, 80) : 'request failed'
   } finally {
     st.inFlight = false
   }
@@ -137,7 +144,10 @@ async function readLaunchd($: EngineInterface): Promise<LaunchdRead> {
   }
 }
 
-/** Environment first; launchd only when the environment lacks the pair. */
+/**
+ * Environment first; launchd when the environment lacks the pair, or holds the pair but no host
+ * (then launchd supplies only the host label: pickLaneConfig keeps the environment's pair).
+ */
 async function resolveLane($: EngineInterface): Promise<{ cfg: Config } | { why: string }> {
   const env: LaneVars = {
     url: clean(await $.env.get('MC_LANE_URL')),
@@ -145,8 +155,9 @@ async function resolveLane($: EngineInterface): Promise<{ cfg: Config } | { why:
     host: clean(await $.env.get('MC_LANE_HOST')),
   }
   const fromEnv = pickLaneConfig(env, null)
-  if (fromEnv) return { cfg: fromEnv }
+  if (fromEnv && env.host) return { cfg: fromEnv }
   const launchd = await readLaunchd($)
+  if (fromEnv) return { cfg: 'vars' in launchd ? pickLaneConfig(env, launchd.vars) ?? fromEnv : fromEnv }
   const cfg = 'vars' in launchd ? pickLaneConfig(env, launchd.vars) : null
   return cfg ? { cfg } : { why: notConfiguredDetail(env, launchd) }
 }

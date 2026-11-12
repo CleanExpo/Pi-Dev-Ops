@@ -17,6 +17,10 @@
 //
 // NAMES ONLY. Nothing here returns or formats a value except pickLaneConfig, whose result goes
 // straight into a request header. Diagnostics name which settings are set, never what they hold.
+//
+// ONE SCRUB. Any error text either mod shows or logs after a request (a transport error can quote
+// the header it failed on) goes through scrubSecret, here, before it is cut to length. Each mod
+// once kept its own copy of this rule and one of them had none (review of 0f957df9).
 
 export const LAUNCHCTL = '/bin/launchctl'
 /** launchctl answers in milliseconds; the engine's 30 s default would stall a tool call. */
@@ -64,6 +68,11 @@ export function pickLaneConfig(env: LaneVars, launchd: LaneVars | null): LaneCon
     return { url: clean(launchd.url)!.replace(/\/+$/, ''), secret: clean(launchd.secret)!, host: host(launchd, env), source: 'launchd' }
   }
   return null
+}
+
+/** Error text with every copy of the secret replaced. Call it before truncating, never after. */
+export function scrubSecret(text: string, secret: string | undefined): string {
+  return secret ? text.split(secret).join('[redacted]') : text
 }
 
 const describe = (v: LaneVars) =>

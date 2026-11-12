@@ -31,6 +31,7 @@ import {
   LAUNCHCTL_TIMEOUT_MS,
   notConfiguredDetail,
   pickLaneConfig,
+  scrubSecret,
   type LaneConfig,
   type LaneVars,
   type LaunchdRead,
@@ -80,9 +81,6 @@ async function resolveConfig($: EngineInterface): Promise<Resolved> {
   return { cfg }
 }
 
-/** An error text with the secret cut out, in case a transport quotes the request it failed on. */
-const scrub = (text: string, secret: string) => text.split(secret).join('[redacted]')
-
 async function readFleet($: EngineInterface, cfg: LaneConfig): Promise<FleetRead> {
   try {
     const r = await $.http.fetch(`${cfg.url}/api/mesh/fleet`, {
@@ -91,7 +89,8 @@ async function readFleet($: EngineInterface, cfg: LaneConfig): Promise<FleetRead
     })
     return { status: r.status, text: r.text }
   } catch (err) {
-    return { error: scrub(err instanceof Error ? err.message : String(err), cfg.secret) }
+    // Scrubbed here, before summarize() cuts the text to length (lane_config.ts, ONE SCRUB).
+    return { error: scrubSecret(err instanceof Error ? err.message : String(err), cfg.secret) }
   }
 }
 
