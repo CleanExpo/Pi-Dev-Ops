@@ -3,6 +3,7 @@
 // app/server: /api/login sets a tao_session cookie, and require_auth accepts only a
 // session token (cookie or Bearer), never the password itself.
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -13,8 +14,8 @@ import { createContext } from "../lib/context.js";
 import { fetchJson } from "../lib/upstream.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
-// Made-up test value. It is not, and never was, a real credential.
-const PASSWORD = "fixture-password-not-real-3359";
+// A fresh random value per run, so no credential-shaped literal sits in the source.
+const LOGIN_SECRET = `fixture-${randomUUID()}`;
 
 const fake = {
   server: null,
@@ -61,7 +62,7 @@ async function handleLogin(req, res) {
     return res.end();
   }
   const body = JSON.parse((await readBody(req)) || "{}");
-  if (body.password !== PASSWORD) return sendJson(res, 401, { detail: "Invalid password" });
+  if (body.password !== LOGIN_SECRET) return sendJson(res, 401, { detail: "Invalid password" });
   fake.issued += 1;
   const token = `sess-${fake.issued}`;
   fake.sessions.add(token);
@@ -112,10 +113,10 @@ async function callLive(ctx) {
   return { result, body: JSON.parse(result.content[0].text) };
 }
 
-const configured = () => makeCtx({ PICEO_BASE_URL: fake.base, PICEO_BEARER_TOKEN: PASSWORD });
+const configured = () => makeCtx({ PICEO_BASE_URL: fake.base, PICEO_BEARER_TOKEN: LOGIN_SECRET });
 
 test("the old way fails: the password sent as a Bearer token gets 401", async () => {
-  const res = await fetchJson(`${fake.base}/api/mission-control/live`, PASSWORD);
+  const res = await fetchJson(`${fake.base}/api/mission-control/live`, LOGIN_SECRET);
   assert.equal(res.status, 401);
   assert.equal(res.ok, false);
 });
@@ -128,7 +129,7 @@ test("mc_live logs in, keeps the tao_session cookie, and reads the live page", a
   assert.equal(body.body.sessions[0].id, "s1");
   assert.ok("coordination_queue" in body, "the shared queue is still included");
   assert.equal(fake.logins, 1);
-  for (const header of fake.seenAuthHeaders) assert.ok(!header.includes(PASSWORD));
+  for (const header of fake.seenAuthHeaders) assert.ok(!header.includes(LOGIN_SECRET));
 
   const second = await callLive(ctx);
   assert.equal(second.body.ok, true);
@@ -157,7 +158,7 @@ test("the retry happens once only, then the 401 is reported", async () => {
 });
 
 test("a wrong password reports a failed login without calling the live page", async () => {
-  const ctx = makeCtx({ PICEO_BASE_URL: fake.base, PICEO_BEARER_TOKEN: "wrong-fixture-value" });
+  const ctx = makeCtx({ PICEO_BASE_URL: fake.base, PICEO_BEARER_TOKEN: `${LOGIN_SECRET}-wrong` });
   const { body } = await callLive(ctx);
   assert.equal(body.ok, false);
   assert.equal(body.status, 401);
@@ -199,8 +200,8 @@ async function captureOutput(run) {
 }
 
 test("the output capture used below does see a planted line (positive control)", async () => {
-  const text = await captureOutput(async () => { console.error(`planted ${PASSWORD}`); });
-  assert.ok(text.includes(PASSWORD));
+  const text = await captureOutput(async () => { console.error(`planted ${LOGIN_SECRET}`); });
+  assert.ok(text.includes(LOGIN_SECRET));
 });
 
 test("the password never appears in logs, results, or the audit file", async () => {
@@ -212,14 +213,14 @@ test("the password never appears in logs, results, or the audit file", async () 
     results.push((await callLive(ctx)).result);
     fake.liveAlways401 = true;
     results.push((await callLive(ctx)).result);
-    const bad = makeCtx({ PICEO_BASE_URL: fake.base, PICEO_BEARER_TOKEN: `${PASSWORD}-x` });
+    const bad = makeCtx({ PICEO_BASE_URL: fake.base, PICEO_BEARER_TOKEN: `${LOGIN_SECRET}-x` });
     results.push((await callLive(bad)).result);
   });
   assert.ok(fake.logins >= 4, "the flows above really ran");
-  assert.ok(!logged.includes(PASSWORD), "password found in console output");
-  for (const result of results) assert.ok(!JSON.stringify(result).includes(PASSWORD), "password found in a result");
+  assert.ok(!logged.includes(LOGIN_SECRET), "password found in console output");
+  for (const result of results) assert.ok(!JSON.stringify(result).includes(LOGIN_SECRET), "password found in a result");
   for (const name of fs.readdirSync(ctx.dataDir)) {
     const text = fs.readFileSync(path.join(ctx.dataDir, name), "utf8");
-    assert.ok(!text.includes(PASSWORD), `password found in ${name}`);
+    assert.ok(!text.includes(LOGIN_SECRET), `password found in ${name}`);
   }
 });
