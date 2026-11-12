@@ -82,8 +82,9 @@ def test_missing_gate_without_hard_stop_allows_and_tells_the_session(tmp_path, s
     result = _run(_gate_command(), home, project, shell=shell)
     assert result.returncode == 0, result.stderr
     context = _context(result)
-    assert f"{project}/.claude/hooks/{GATE}" in context
+    assert f"no $CLAUDE_PROJECT_DIR/.claude/hooks/{GATE}" in context  # constant text: nothing interpolated
     assert "RA-8340" in context
+    assert f"no copy at {project}/.claude/hooks/{GATE}" in result.stderr  # the expanded path goes to stderr
 
 
 def _plant(path: Path, marker: Path, code: int) -> None:
@@ -120,7 +121,8 @@ def test_a_crashing_gate_never_exits_2_and_says_why(tmp_path, shell):
     result = _run(_gate_command(), home, project, shell=shell)
     assert result.returncode == 0, result.stderr
     context = _context(result)  # the gate's own partial output is dropped
-    assert f"{project}/.claude/hooks/{GATE} exited 2" in context
+    assert "ran but failed" in context and "RA-8340" in context
+    assert f"{project}/.claude/hooks/{GATE} exited 2" in result.stderr
 
 
 def _silent(path: Path, code: int) -> None:
@@ -162,7 +164,7 @@ def test_hard_stop_denies_whatever_the_gate_does(tmp_path, shell, kind, payload)
 @pytest.mark.parametrize("kind", ["missing", "prints-then-allows"])
 def test_without_python3_the_session_is_still_told_the_gate_is_off(tmp_path, shell, kind):
     """Codex round 2: with no python3 the gate cannot run and the encoder could not either, so nothing was printed.
-    Every stdout path must work with shell builtins alone; python3 only adds the path to the notice."""
+    Every stdout path the line writes itself must be a constant that needs shell builtins alone."""
     home, project = _bare(tmp_path)
     GATE_KINDS[kind](project, tmp_path)
     result = _run(_gate_command(), home, project, shell=shell, path=str(tmp_path / "no-such-bin"))
@@ -192,6 +194,48 @@ def test_the_notice_is_valid_json_for_any_project_path(tmp_path, shell, code):
         _plant(project / ".claude" / "hooks" / GATE, tmp_path / "ran.txt", code)
     result = _run(_gate_command(), home, project, shell=shell)
     assert result.returncode == 0, result.stderr
-    context = _context(result)
-    assert f"{project}/.claude/hooks/{GATE}" in context
-    assert "RA-8340" in context
+    assert "RA-8340" in _context(result)
+    assert f"{project}/.claude/hooks/{GATE}" in result.stderr
+
+
+@pytest.mark.parametrize("shell", SHELLS)
+def test_a_broken_python3_cannot_corrupt_the_notice(tmp_path, shell):
+    """Codex round 3: a python3 that prints garbage and exits 0 turned the round-3 notice into `not-json`. The line
+    writes only constants itself, so no interpreter can change what it prints."""
+    home, project = _bare(tmp_path)
+    shim = tmp_path / "shim"
+    shim.mkdir()
+    (shim / "python3").write_text("#!/bin/sh\necho not-json\n")
+    (shim / "python3").chmod(0o755)
+    result = _run(_gate_command(), home, project, shell=shell, path=f"{shim}:/usr/bin:/bin")
+    assert result.returncode == 0, result.stderr
+    assert "RA-8340" in _context(result)
+
+
+@pytest.mark.parametrize("shell", SHELLS)
+def test_hard_stop_is_found_under_a_home_with_spaces(tmp_path, shell):
+    """The line reads ~/.claude/HARD_STOP (tilde, so an unset HOME resolves where Python's expanduser does)."""
+    home, project = tmp_path / "my home", tmp_path / "project"
+    (home / ".claude").mkdir(parents=True)
+    project.mkdir()
+    _silent(project / ".claude" / "hooks" / GATE, 0)
+    (home / ".claude" / "HARD_STOP").write_text("")
+    result = _run(_gate_command(), home, project, payload="{", shell=shell)
+    assert result.returncode == 0, result.stderr
+    assert "~/.claude/HARD_STOP is removed" in _deny_reason(result)
+
+
+@pytest.mark.parametrize("shell", SHELLS)
+@pytest.mark.parametrize("payload", ["", "{", "[]", "null", '{"tool_name": 5}',
+                                     '{"tool_name": "Read", "tool_input": {"file_path": "/x"}}',
+                                     '{"tool_name": "mcp__supabase__apply_migration", "tool_input": {}}'])
+def test_the_real_gate_prints_nothing_or_one_json_object(tmp_path, shell, payload):
+    """Named limit: when the gate exits 0 its stdout passes through unchecked, exactly as before RA-8340, so the gate
+    owns that output. This checks the owner: whatever it is fed, it prints nothing (allow) or one JSON object."""
+    home, project = _bare(tmp_path)
+    _real(project / ".claude" / "hooks" / GATE)
+    result = _run(_gate_command(), home, project, payload=payload, shell=shell,
+                  path=f"{Path(sys.executable).parent}:/usr/bin:/bin")
+    assert result.returncode == 0, result.stderr
+    if result.stdout.strip():
+        assert isinstance(json.loads(result.stdout), dict), result.stdout

@@ -1,5 +1,28 @@
 # Spec: RA-8340, the autonomy gate hook must never block every tool when its script is missing
 
+> Amendment 4 (12/11/2026, after Codex review round 3 on 69ab8cda: one P1, all eight checklist items PASS). It
+> wins over amendments 3, 2 and 1.
+> - Round 3 was the third finding of kind B, "stdout JSON produced by a step that can fail or corrupt it"
+>   (printf interpolation; a missing encoder; an encoder that prints garbage). The rule changes, not the
+>   fallback: the line writes ONLY shell constants to stdout. No encoder and no interpolation. The notice names
+>   the path as the literal text `$CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py`; the expanded path
+>   and the exit code go to the hook's stderr. Trade, recorded against eng-observability: the model no longer
+>   sees the expanded path or exit code, only which of the two cases happened.
+> - Every stdout path and who writes its bytes:
+>   - HARD_STOP present: a constant deny (the line). The gate is not run.
+>   - gate exits 0 with output: the gate's own bytes, unchanged, exactly as before RA-8340.
+>   - gate exits 0 silently: nothing, which is the PreToolUse "no decision" answer and the real gate's normal
+>     allow for L0 to L2 calls (`decide()` returns None).
+>   - gate exits non-zero: a constant "ran but failed" notice (the line).
+>   - gate missing: a constant "no copy" notice (the line).
+> - Named limit (house rule step 4): when the gate exits 0, the line passes its stdout through unchecked, as the
+>   original registration did. The gate owns that output. A test now checks the owner: the real gate, fed
+>   empty, unparseable, non-object and L0/L3 input, prints nothing or exactly one JSON object.
+> - Kind A edge found while enumerating: with HOME unset, `$HOME/.claude/HARD_STOP` is `/.claude/HARD_STOP` while
+>   the gate's `expanduser` reads the passwd home. The line now reads `~/.claude/HARD_STOP`, which bash and sh
+>   resolve to the passwd home when HOME is unset (probe output: `~` gives /Users/phill-mac, the same path as
+>   `os.path.expanduser`). A test covers a HOME containing a space.
+
 > Amendment 3 (12/11/2026, after Codex review round 2 on 686aefe5: one P1, all eight checklist items PASS). It
 > wins over amendments 2 and 1.
 > - Finding: with no `python3` on PATH the gate cannot run and the round-2 notice encoder (also `python3`) could

@@ -1,7 +1,7 @@
 ---
 type: engineering-requirements
 spec: ./spec.md
-spec_sha256: 8300eb25310ab67f3a64b54d74f922580d6eadbb1c8e9835cced04c36e0a86a3
+spec_sha256: b7ac1105d72bb81c77463e3cb8cfda429359645c75f6a294407fccf8186a4a6e
 reviewer: bench
 seated: [boris, eng-failure, eng-observability, eng-test, eng-authz, eng-rollback, eng-release]
 reviewed_at: 2026-11-12T16:14:40+1000
@@ -44,6 +44,12 @@ gate behaviour under HARD_STOP and a quoted path.
 Round 3 (spec amendment 3, after Codex round 2 on 686aefe5): with no python3 the notice encoder failed too, so the
 session was told nothing. Second finding of the kind "stdout JSON produced by a step that can fail"; the design
 now ends every stdout path in a constant that needs only shell builtins, with python3 as optional enrichment.
+
+Round 4 (spec amendment 4, after Codex round 3 on 69ab8cda): a garbage-printing python3 corrupted the enriched
+notice, the third finding of kind B, so the enrichment is gone: the line writes only constants to stdout, and the
+expanded path and exit code go to stderr. This narrows eng-observability's notice to "which case happened"; the
+detail stays on stderr. Successful gate output passes through unchecked as at base: a named limit, checked
+against the owner by a real-gate test. HARD_STOP is now read via `~`, matching the gate when HOME is unset.
 
 ## Invariants
 
