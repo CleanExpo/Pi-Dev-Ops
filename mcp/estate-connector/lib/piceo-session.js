@@ -1,7 +1,8 @@
 import { joinUrl, parseBody } from "./upstream.js";
 
-const MAX_BODY = 65536;
 const TIMEOUT_MS = 8000;
+const REDACTED = "[redacted]";
+const MAX_DEPTH = 64; // deeper JSON is replaced by REDACTED rather than walked
 
 // One login per connector context (the server builds one context at start).
 // Holds { base, pending } where pending resolves to { cookie } or { failure }.
@@ -12,9 +13,9 @@ const sessions = new WeakMap();
  * PICEO_BEARER_TOKEN holds the Pi CEO login password. Pi CEO's require_auth rejects that
  * password as a Bearer token, so it is sent only in the body of POST /api/login. Only the
  * tao_session cookie goes to the API. A 401 drops the cookie, logs in again, retries once.
- * Neither the password nor the cookie is ever returned or logged: every response body passes
- * through scrubSecrets() before it is parsed, so an upstream that echoes either value back
- * (in JSON or plain text) cannot carry it into the tool result.
+ * Neither the password nor the cookie is ever returned or logged: every response body goes
+ * through bodyWithoutSecrets(), so an upstream that echoes either value back cannot carry it
+ * into the tool result.
  */
 export async function piceoGetJson(ctx, apiPath) {
   const base = ctx.env.PICEO_BASE_URL;
@@ -40,21 +41,54 @@ async function getAsSession(ctx, base, password, url) {
   const res = await send(url, { method: "GET", headers: { accept: "application/json", cookie: session.cookie } });
   if (res.error) return { configured: true, ok: false, status: 0, error: res.error };
   if (res.status === 401) forget(ctx, pending);
-  const text = scrubSecrets(res.text, [password, session.cookie.slice("tao_session=".length)]);
-  return { configured: true, ok: res.ok, status: res.status, body: parseBody(text) };
+  const secrets = [password, session.cookie.slice("tao_session=".length)];
+  return { configured: true, ok: res.ok, status: res.status, body: bodyWithoutSecrets(res.text, secrets) };
 }
 
 /**
- * Replace every occurrence of each secret value, raw or JSON-escaped, with a marker.
- * Empty values are skipped.
+ * The parsed body with every secret removed from what the caller will actually read.
+ * - JSON body: parsed as received, so JSON.parse decodes every escape (\uXXXX, \", \\);
+ *   then every decoded string, key and number is scrubbed, at any depth. Scrubbing the wire
+ *   text instead missed escaped forms (UNI-3359 review, round 3), and scrubbing before the
+ *   parse could break the JSON and push it into the raw path below.
+ * - Any other body: the literal text is scrubbed before parseBody cuts it to 500
+ *   characters, so a cut never leaves part of a secret behind.
+ * Limit: a secret deliberately encoded inside a non-JSON body (base64, hand-written escapes)
+ * is not decoded and is not removed.
  */
-export function scrubSecrets(text, secrets) {
+export function bodyWithoutSecrets(text, secrets) {
+  const live = secrets.filter(Boolean).map(String);
+  const source = String(text);
+  if (isJson(source)) return withoutSecrets(parseBody(source), live, 0);
+  return withoutSecrets(parseBody(scrubText(source, live)), live, 0);
+}
+
+function isJson(text) {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function scrubText(text, secrets) {
   let out = String(text);
-  for (const secret of secrets) {
-    if (!secret) continue;
-    for (const form of new Set([secret, JSON.stringify(secret).slice(1, -1)])) {
-      out = out.split(form).join("[redacted]");
-    }
+  for (const secret of secrets) out = out.split(secret).join(REDACTED);
+  return out;
+}
+
+function withoutSecrets(value, secrets, depth) {
+  if (typeof value === "string") return scrubText(value, secrets);
+  if (typeof value === "number" || typeof value === "bigint") {
+    return secrets.some((secret) => String(value).includes(secret)) ? REDACTED : value;
+  }
+  if (!value || typeof value !== "object") return value;
+  if (depth >= MAX_DEPTH) return REDACTED;
+  if (Array.isArray(value)) return value.map((item) => withoutSecrets(item, secrets, depth + 1));
+  const out = {};
+  for (const [key, item] of Object.entries(value)) {
+    out[scrubText(key, secrets)] = withoutSecrets(item, secrets, depth + 1);
   }
   return out;
 }
@@ -91,7 +125,9 @@ async function send(url, init) {
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(url, { ...init, signal: ctrl.signal, redirect: "manual" });
-    const text = (await res.text()).slice(0, MAX_BODY);
+    // Not cut here: bodyWithoutSecrets must see the whole text, or a cut could leave part of
+    // a secret. res.text() has already read the whole body, so a cut would save no memory.
+    const text = await res.text();
     return { ok: res.ok, status: res.status, headers: res.headers, text };
   } catch (err) {
     return { error: err?.name === "AbortError" ? "timeout" : "unreachable" };

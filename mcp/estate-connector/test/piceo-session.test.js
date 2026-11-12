@@ -11,7 +11,7 @@ import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
 import { missionControl } from "../adapters/mission-control/index.js";
 import { createContext } from "../lib/context.js";
-import { scrubSecrets } from "../lib/piceo-session.js";
+import { bodyWithoutSecrets } from "../lib/piceo-session.js";
 import { fetchJson } from "../lib/upstream.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
@@ -81,6 +81,29 @@ async function handleLogin(req, res) {
   });
 }
 
+const uEscape = (s) => [...s].map((ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`).join("");
+const asJson = (value) => ({ type: "application/json", text: JSON.stringify(value) });
+const asText = (text) => ({ type: "text/plain", text });
+
+// Each shape an upstream could use to hand the session token and the password back.
+const ECHOES = {
+  json: (tok) => asJson({ detail: `cookie was ${tok}; login was ${LOGIN_SECRET}` }),
+  raw: (tok) => asText(`cookie was ${tok}; login was ${LOGIN_SECRET}`),
+  unicode: (tok) => ({
+    type: "application/json",
+    text: `{"detail":"cookie was ${uEscape(tok)}; login was ${uEscape(LOGIN_SECRET)}"}`,
+  }),
+  deep: (tok) => {
+    let value = { detail: `cookie was ${tok}; login was ${LOGIN_SECRET}` };
+    for (let i = 0; i < 100; i += 1) value = { next: value };
+    return asJson(value);
+  },
+  key: (tok) => asJson({ [tok]: "cookie was", [LOGIN_SECRET]: "login was" }),
+  // The token starts at character 490, so parseBody's 500-character cut would keep its
+  // first 10 characters if the scrub ran after the cut instead of before it.
+  cut: (tok) => asText(`cookie was ${"x".repeat(479)}${tok} login was ${LOGIN_SECRET}`),
+};
+
 function handleLive(req, res) {
   fake.liveCalls += 1;
   fake.seenAuthHeaders.push(req.headers.authorization || "");
@@ -89,11 +112,10 @@ function handleLive(req, res) {
   const authed = fake.sessions.has(cookieToken(req)) || fake.sessions.has(bearer);
   if (!authed || fake.liveAlways401) return sendJson(res, 401, { detail: "Not authenticated" });
   // Echo mode: a misbehaving upstream that reflects the request's secrets in its body.
-  const echoed = `cookie was ${req.headers.cookie}; login was ${LOGIN_SECRET}`;
-  if (fake.liveEcho === "json") return sendJson(res, 200, { detail: echoed, health: "ok" });
-  if (fake.liveEcho === "raw") {
-    res.writeHead(200, { "content-type": "text/plain" });
-    return res.end(echoed);
+  if (fake.liveEcho) {
+    const { type, text } = ECHOES[fake.liveEcho](cookieToken(req));
+    res.writeHead(200, { "content-type": type });
+    return res.end(text);
   }
   return sendJson(res, 200, { sessions: [{ id: "s1", status: "building" }], health: "ok" });
 }
@@ -205,7 +227,7 @@ test("two parallel calls after a session expires share one new login", async () 
   assert.equal(fake.logins, 2, "the second 401 dropped the newer session and logged in again");
 });
 
-for (const mode of ["json", "raw"]) {
+for (const mode of Object.keys(ECHOES)) {
   test(`an upstream that echoes the cookie and password (${mode}) cannot leak them into mc_live`, async () => {
     const ctx = configured();
     fake.liveEcho = mode;
@@ -213,19 +235,20 @@ for (const mode of ["json", "raw"]) {
     const text = JSON.stringify(result);
     assert.equal(body.ok, true);
     assert.ok(fake.lastToken, "a session token was issued");
-    assert.ok(text.includes("cookie was"), "the echoed body really reached the result");
-    assert.ok(!text.includes(fake.lastToken), "session token leaked into the result");
-    assert.ok(!text.includes(LOGIN_SECRET), "password leaked into the result");
-    assert.ok(text.includes("[redacted]"));
+    assert.ok(text.includes("[redacted]"), "the echoed body really reached the result");
+    // Prefixes, so a partial leak (part of a secret left by a cut) also fails.
+    assert.ok(!text.includes(fake.lastToken.slice(0, 10)), "session token leaked into the result");
+    assert.ok(!text.includes(LOGIN_SECRET.slice(0, 12)), "password leaked into the result");
   });
 }
 
-test("scrubSecrets also masks the JSON-escaped form of a secret", () => {
+test("bodyWithoutSecrets masks escaped and numeric forms, and empty secrets are ignored", () => {
   const tricky = `${randomUUID()}"\\`; // a quote and a backslash force JSON escaping
-  const body = JSON.stringify({ detail: `x ${tricky} y` });
-  const out = scrubSecrets(body, [tricky]);
-  assert.ok(!out.includes(JSON.stringify(tricky).slice(1, -1)));
-  assert.equal(JSON.parse(out).detail, "x [redacted] y");
+  const numeric = String(Date.now());
+  const out = bodyWithoutSecrets(JSON.stringify({ a: `x ${tricky} y`, n: Number(numeric) }), [tricky, numeric, ""]);
+  assert.equal(out.a, "x [redacted] y");
+  assert.equal(out.n, "[redacted]");
+  assert.deepEqual(bodyWithoutSecrets('{"a":"plain"}', ["", undefined]), { a: "plain" });
 });
 
 test("the login does not follow a redirect, so the password is never re-sent", async () => {
