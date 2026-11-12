@@ -12,6 +12,7 @@ additionalContext, which reaches the model; stderr on exit 0 does not.
 """
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -33,9 +34,9 @@ def _gate_command() -> str:
     return found[0]
 
 
-def _run(command: str, home: Path, project: Path, payload: str = "{}",
-         shell: str = "/bin/bash") -> subprocess.CompletedProcess:
-    env = {"HOME": str(home), "CLAUDE_PROJECT_DIR": str(project), "PATH": "/usr/bin:/bin",
+def _run(command: str, home: Path, project: Path, payload: str = "{}", shell: str = "/bin/bash",
+         path: str = "/usr/bin:/bin") -> subprocess.CompletedProcess:
+    env = {"HOME": str(home), "CLAUDE_PROJECT_DIR": str(project), "PATH": path,
            "WORKTREE_DIR": str(project / "wt"), "WORKTREE_BRANCH": "ra-8340-probe",
            # stop `git -C <project>` in the worktree hooks from finding a repository above the temp folder
            "GIT_CEILING_DIRECTORIES": str(project.parent)}
@@ -85,16 +86,6 @@ def test_missing_gate_without_hard_stop_allows_and_tells_the_session(tmp_path, s
     assert "RA-8340" in context
 
 
-@pytest.mark.parametrize("shell", SHELLS)
-def test_missing_gate_with_hard_stop_still_denies(tmp_path, shell):
-    home, project = _bare(tmp_path)
-    (home / ".claude" / "HARD_STOP").write_text("")
-    result = _run(_gate_command(), home, project, shell=shell)
-    assert result.returncode == 0, result.stderr
-    reason = _deny_reason(result)
-    assert "HARD_STOP" in reason and "~/.claude/HARD_STOP is removed" in reason
-
-
 def _plant(path: Path, marker: Path, code: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f"import sys\nopen({str(marker)!r}, 'a').write(sys.stdin.read() + '\\n')\n"
@@ -132,11 +123,53 @@ def test_a_crashing_gate_never_exits_2_and_says_why(tmp_path, shell):
     assert f"{project}/.claude/hooks/{GATE} exited 2" in context
 
 
+def _silent(path: Path, code: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"import sys\nsys.stdin.read()\nsys.exit({code})\n")
+
+
+def _real(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.symlink_to(REPO / ".claude" / "hooks" / GATE)
+
+
+# Every way the gate can behave. Codex round 1 found the real gate returns 0 with no output on input it cannot
+# parse, before it reads HARD_STOP, so the settings line must not rely on the gate for the kill switch at all.
+GATE_KINDS = {
+    "missing": lambda project, tmp: None,
+    "silent-allow": lambda project, tmp: _silent(project / ".claude" / "hooks" / GATE, 0),
+    "prints-then-allows": lambda project, tmp: _plant(project / ".claude" / "hooks" / GATE, tmp / "ran.txt", 0),
+    "crashes": lambda project, tmp: _plant(project / ".claude" / "hooks" / GATE, tmp / "ran.txt", 2),
+    "real-gate": lambda project, tmp: _real(project / ".claude" / "hooks" / GATE),
+}
+
+
 @pytest.mark.parametrize("shell", SHELLS)
-def test_a_crashing_gate_under_hard_stop_prints_only_the_deny(tmp_path, shell):
+@pytest.mark.parametrize("kind", sorted(GATE_KINDS))
+@pytest.mark.parametrize("payload", ["{", '{"tool_name": "Read", "tool_input": {"file_path": "/x"}}'])
+def test_hard_stop_denies_whatever_the_gate_does(tmp_path, shell, kind, payload):
     home, project = _bare(tmp_path)
-    _plant(project / ".claude" / "hooks" / GATE, tmp_path / "ran.txt", 2)
+    GATE_KINDS[kind](project, tmp_path)
     (home / ".claude" / "HARD_STOP").write_text("")
+    result = _run(_gate_command(), home, project, payload=payload, shell=shell,
+                  path=f"{Path(sys.executable).parent}:/usr/bin:/bin")
+    assert result.returncode == 0, result.stderr
+    reason = _deny_reason(result)  # stdout is exactly one JSON document: the deny
+    assert "HARD_STOP" in reason and "~/.claude/HARD_STOP is removed" in reason
+
+
+@pytest.mark.parametrize("shell", SHELLS)
+@pytest.mark.parametrize("code", [None, 2])
+def test_the_notice_is_valid_json_for_any_project_path(tmp_path, shell, code):
+    """Codex round 1: the path was pasted into the JSON by printf, so a quote in a folder name broke it."""
+    home = tmp_path / "home"
+    (home / ".claude" / "hooks").mkdir(parents=True)
+    project = tmp_path / 'my "quoted" pro\\ject\tx'
+    project.mkdir()
+    if code is not None:
+        _plant(project / ".claude" / "hooks" / GATE, tmp_path / "ran.txt", code)
     result = _run(_gate_command(), home, project, shell=shell)
     assert result.returncode == 0, result.stderr
-    assert "HARD_STOP" in _deny_reason(result)
+    context = _context(result)
+    assert f"{project}/.claude/hooks/{GATE}" in context
+    assert "RA-8340" in context

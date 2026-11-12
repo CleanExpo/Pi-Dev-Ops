@@ -23,10 +23,11 @@ def _home(tmp_path: Path, hard_stop: bool) -> Path:
     return home
 
 
-def _run(args: list[str], home: Path, cwd: Path, project_dir: Path) -> subprocess.CompletedProcess:
+def _run(args: list[str], home: Path, cwd: Path, project_dir: Path,
+         payload: str = PAYLOAD) -> subprocess.CompletedProcess:
     env = {"HOME": str(home), "PATH": f"{Path(sys.executable).parent}:/usr/bin:/bin",
            "CLAUDE_PROJECT_DIR": str(project_dir)}
-    return subprocess.run(args, input=PAYLOAD, capture_output=True, text=True, cwd=cwd, env=env, timeout=60)
+    return subprocess.run(args, input=payload, capture_output=True, text=True, cwd=cwd, env=env, timeout=60)
 
 
 def _decision(result: subprocess.CompletedProcess) -> str | None:
@@ -51,7 +52,9 @@ def test_the_settings_command_runs_the_trusted_hook_never_one_from_the_cwd_repo(
     commands = [h["command"] for g in settings["hooks"]["PreToolUse"] for h in g["hooks"]
                 if "autonomy_gate_hook.py" in h["command"]]
     assert len(commands) == 1, commands
-    home = _home(tmp_path, hard_stop=True)
+    # RA-8340: the settings command answers HARD_STOP itself, before the gate runs, so a HARD_STOP deny no longer
+    # proves the real gate ran. Without HARD_STOP, only the real gate (imported from swarm) denies an L3 call.
+    home = _home(tmp_path, hard_stop=False)
     (home / ".claude" / "hooks" / "autonomy_gate_hook.py").symlink_to(HOOK)
     foreign = tmp_path / "foreign"
     (foreign / ".claude" / "hooks").mkdir(parents=True)
@@ -62,9 +65,10 @@ def test_the_settings_command_runs_the_trusted_hook_never_one_from_the_cwd_repo(
     # Storage), and an unquoted path splits into "/Volumes/Mini" plus arguments.
     command = commands[0].replace("python3 ", f"{shlex.quote(str(python_dir / 'python3'))} ", 1) \
         if (python_dir / "python3").exists() else commands[0]
-    result = _run(["/bin/bash", "-c", command], home, foreign, home)
+    l3 = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "mcp__supabase__apply_migration",
+                     "tool_input": {}})
+    result = _run(["/bin/bash", "-c", command], home, foreign, home, payload=l3)
     assert "FOREIGN_HOOK_SELECTED" not in result.stdout
     assert _decision(result) == "deny"
-    # RA-8340: the settings command denies on its own under HARD_STOP when the gate fails, so a deny alone no
-    # longer proves the real gate ran. Its fallback reason carries RA-8340; the real gate's does not.
-    assert "RA-8340" not in json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    reason = json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
+    assert "Blocked by the autonomy-ladder gate" in reason

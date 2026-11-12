@@ -1,5 +1,22 @@
 # Spec: RA-8340, the autonomy gate hook must never block every tool when its script is missing
 
+> Amendment 2 (12/11/2026, after Codex review round 1 on 602b9e94, which returned two P1 findings). It wins
+> over amendment 1 and every section below where they differ.
+> - Kill switch: the settings line checks `~/.claude/HARD_STOP` FIRST and, when it exists, prints only the deny
+>   and exits 0 without running the gate. Reason: the real gate returns 0 with no output on input it cannot
+>   parse, before it reads HARD_STOP, so a line that trusts a successful gate let calls through under HARD_STOP.
+>   The bench's earlier finding (gate output plus an appended deny is not one JSON document) is the same kind:
+>   the kill switch depended on what the gate printed or returned. The line is now the single owner of the
+>   HARD_STOP check; the gate keeps its own check for callers that reach it directly.
+> - Notice text: the additionalContext JSON is built by Python's `json.dumps`, with the path and exit code passed
+>   as an argument, never pasted into JSON text by `printf`. Reason: a `"` in the project folder name made the
+>   notice invalid JSON.
+> - Tests: one parametrized HARD_STOP test over every gate behaviour (missing, silent allow, prints then allows,
+>   crashes, the real gate) with valid and unparseable input, under bash and sh; one test with a quote, a
+>   backslash and a tab in the project path. The RA-8125 settings test now runs without HARD_STOP and sends an L3
+>   call that only the real gate denies, so it still fails when the real gate cannot import.
+> - Still one changed line in `.claude/settings.json`; `autonomy_gate_hook.py` unchanged.
+
 > Amendment 1 (12/11/2026, after the engineering bench): home-folder fallback removed (the Mini's home copy is
 > a stale pre-RA-8125 file that cannot import: eng-release, eng-authz); the gate's stdout is captured so a
 > failed run prints only the deny (eng-failure, eng-test, eng-authz); the "off" note moves from stderr to

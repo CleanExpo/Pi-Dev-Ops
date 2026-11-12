@@ -1,7 +1,7 @@
 ---
 type: engineering-requirements
 spec: ./spec.md
-spec_sha256: f221baf6b9a95167ff73b8ae13d20013b88ceb5dc9e591a0e5ba0008d27b5998
+spec_sha256: 5dfde76a86fe98d003acd64b52dc2f4440a2328a7df1f467f8a915b71d7bae5d
 reviewer: bench
 seated: [boris, eng-failure, eng-observability, eng-test, eng-authz, eng-rollback, eng-release]
 reviewed_at: 2026-11-12T16:14:40+1000
@@ -34,6 +34,12 @@ blocks. What the bench found that the first draft did not contain, by seat:
 - eng-test: the RA-8125 test accepted any deny, so it no longer guarded the import. It now rejects the fallback deny.
 - eng-rollback: a shell syntax error exits 2 and bricks the session that saves the file. The patch step now
   refuses a line that `bash -n` or `sh -n` rejects, and the tests run under both shells.
+
+Round 2 (spec amendment 2, after Codex round 1 on 602b9e94): the kill switch no longer depends on the gate at
+all. The line checks HARD_STOP first and prints only the deny, which closes both the bench's two-document finding
+and Codex's silent-allow finding as one kind. The notice JSON is built by `json.dumps`, closing the quoted-path
+finding. Invariants, failure modes and the test oracle below are unchanged in intent; the tests now cover every
+gate behaviour under HARD_STOP and a quoted path.
 
 ## Invariants
 
