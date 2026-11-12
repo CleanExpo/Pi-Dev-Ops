@@ -12,7 +12,9 @@ const sessions = new WeakMap();
  * PICEO_BEARER_TOKEN holds the Pi CEO login password. Pi CEO's require_auth rejects that
  * password as a Bearer token, so it is sent only in the body of POST /api/login. Only the
  * tao_session cookie goes to the API. A 401 drops the cookie, logs in again, retries once.
- * Neither the password nor the cookie is ever returned or logged.
+ * Neither the password nor the cookie is ever returned or logged: every response body passes
+ * through scrubSecrets() before it is parsed, so an upstream that echoes either value back
+ * (in JSON or plain text) cannot carry it into the tool result.
  */
 export async function piceoGetJson(ctx, apiPath) {
   const base = ctx.env.PICEO_BASE_URL;
@@ -38,7 +40,23 @@ async function getAsSession(ctx, base, password, url) {
   const res = await send(url, { method: "GET", headers: { accept: "application/json", cookie: session.cookie } });
   if (res.error) return { configured: true, ok: false, status: 0, error: res.error };
   if (res.status === 401) forget(ctx, pending);
-  return { configured: true, ok: res.ok, status: res.status, body: parseBody(res.text) };
+  const text = scrubSecrets(res.text, [password, session.cookie.slice("tao_session=".length)]);
+  return { configured: true, ok: res.ok, status: res.status, body: parseBody(text) };
+}
+
+/**
+ * Replace every occurrence of each secret value, raw or JSON-escaped, with a marker.
+ * Empty values are skipped.
+ */
+export function scrubSecrets(text, secrets) {
+  let out = String(text);
+  for (const secret of secrets) {
+    if (!secret) continue;
+    for (const form of new Set([secret, JSON.stringify(secret).slice(1, -1)])) {
+      out = out.split(form).join("[redacted]");
+    }
+  }
+  return out;
 }
 
 function currentLogin(ctx, base, password) {
