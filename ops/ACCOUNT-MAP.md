@@ -37,7 +37,7 @@ for a real mapping.
 | `plan` | One of `free`, `plus`, `pro`, `max`, `max-5x`, `max-20x`, `team`, `business`, `enterprise`, `ultra`, `chatgpt-plus`, `chatgpt-pro`, or `null` while undecided. A new plan name is added in a reviewed PR. |
 | `email` | The login email: letters, digits, `.`, `_`, `+`, `-`. A name made only of digits (and separators) may have at most 4 digits. Placeholder ends in `.invalid`. |
 | `machines` | Which computers use this login, by machine `id`. |
-| `notes` | One short line of plain words (160 characters max). The only digits allowed are inside ticket ids like `RA-8196` (prefixes RA, UNI, SYN, AR; at most 3 per line). Bare numbers, links, codes and words mixing letters and digits are refused. |
+| `notes` | One short line of plain words (160 characters max). The only digits allowed are inside ticket ids like `RA-8196` (prefixes RA, UNI, SYN, AR; up to 5 digits, at most 3 per line). Bare numbers, links, codes and words mixing letters and digits are refused. |
 
 ## Only known-good values pass
 
@@ -54,8 +54,10 @@ token shapes. The check never prints the value it refused, and it never prints a
 label or file path from the map either: findings say `accounts[1]` or `machines[0]`, a line
 number and a rule. Known limit: a plain-letter word of up to 16 letters in an email domain
 (24 in a name) cannot be told from a key by shape, so only the second net and the length
-caps stop it. A value may carry at most 4 digits in all, so a single short numeric code
-(a 4-digit PIN) cannot be told from a year by shape and is the same kind of named limit.
+caps stop it. Emails, slugs and hostnames carry at most 4 digits in all, so a single short
+numeric code (a 4-digit PIN) cannot be told from a year by shape. Notes and comments carry
+digits only inside ticket ids (RA, UNI, SYN or AR, up to 5 digits, at most 3 per line), so a
+numeric code shaped like a ticket id cannot be told from one. Both are named limits.
 
 Machines are listed at the top under `machines:` with an `id`, an optional `host` (the
 computer's short name) and notes.

@@ -22,7 +22,8 @@ _HOST = re.compile(r"[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*")
 _EMAIL_LOCAL = re.compile(r"[A-Za-z0-9]+(?:[._+-][A-Za-z0-9]+)*")
 _EMAIL_DOMAIN = re.compile(r"(?:[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\.)+[A-Za-z]{2,24}")
 _PROSE_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'/?!-]*")
-_TICKET = r"(?:RA|UNI|SYN|AR)-[0-9]{1,5}"   # allow-list: OTP-123456 is not a ticket
+TICKET_DIGITS = 5   # widest ticket number, RA-12345
+_TICKET = rf"(?:RA|UNI|SYN|AR)-[0-9]{{1,{TICKET_DIGITS}}}"   # allow-list: OTP-123456 is not a ticket
 _PROSE_WORD = re.compile(_TICKET + r"|[A-Za-z]+(?:['/-][A-Za-z]+)*")
 # Comments may also name files (scripts/check_account_map.py, ops/ACCOUNT-MAP.md).
 _COMMENT_CHARS = re.compile(r"[A-Za-z0-9 ,.;:()'\"/?!_-]*")
@@ -34,6 +35,13 @@ _ONE_SWITCH = re.compile(r"[A-Za-z]+[0-9]+|[0-9]+[A-Za-z]+")
 MAX_RUN = 24      # longest unbroken run of letters or digits anywhere (a word, a label)
 MAX_PROSE = 160   # notes are one short line
 MAX_TICKETS = 3   # the only digits free text may carry are inside ticket ids, so cap them
+MAX_DIGITS = 4    # digits allowed in one email, slug or hostname in all
+MAX_MIXED = 2     # groups that may mix letters and digits in one value
+MAX_LOCAL = 40    # longest email local part
+NUMBER_ONLY_MIN = MAX_DIGITS + 1  # a letterless name with this many digits is refused
+DOMAIN_WORD = 16  # longest plain-letter word in an email domain
+# Every limit stated to a person (messages here, ops/ACCOUNT-MAP.md) is built from or
+# checked against these names by tests/test_account_map_limits_match_code.py.
 
 
 def _tickets_ok(text: str) -> bool:
@@ -61,11 +69,11 @@ def _switches(text: str) -> int:
                or a.isdigit() and b.isalpha())
 
 
-def _budget_ok(value: str, max_mixed: int = 2, max_digits: int = 4, max_switches: int = 4) -> bool:
+def _budget_ok(value: str, max_mixed: int = MAX_MIXED, max_digits: int = MAX_DIGITS, max_switches: int = 4) -> bool:
     """One budget for the WHOLE value, across every separator (. _ + - @). A key can be
     cut into short groups that each look fine, so per-run checks alone are not enough: at
-    most two groups may mix letters and digits, at most 4 digits and 4 letter/digit
-    boundaries in all. This is the single owner of that rule; email, slug and hostname
+    most MAX_MIXED groups may mix letters and digits, at most MAX_DIGITS digits and 4
+    letter/digit boundaries in all. This is the single owner of that rule; email, slug and hostname
     fields all call it."""
     groups = re.split(r"[^A-Za-z0-9]+", value)
     mixed = sum(1 for g in groups if _MIXED.search(g) and any(c.isdigit() for c in g))
@@ -81,7 +89,7 @@ def _domain_runs_ok(domain: str) -> bool:
     told from a name by shape, so the second net and the 80-character email cap bound it."""
     for run in _ALNUM_RUN.findall(domain):
         mixed = _MIXED.search(run) and any(c.isdigit() for c in run)
-        if len(run) > (12 if mixed else 16) or _switches(run) > 2:
+        if len(run) > (12 if mixed else DOMAIN_WORD) or _switches(run) > 2:
             return False
     return True
 
@@ -115,20 +123,21 @@ def _email(value):
     if not isinstance(value, str):
         return ("BAD_EMAIL", f"must be one plain address, got {type(value).__name__}")
     local, at, domain = value.partition("@")
-    if (not at or len(value) > 80 or len(local) > 40 or not _EMAIL_LOCAL.fullmatch(local)
+    if (not at or len(value) > 80 or len(local) > MAX_LOCAL or not _EMAIL_LOCAL.fullmatch(local)
             or not _EMAIL_DOMAIN.fullmatch(domain)
             or not _runs_ok(local, one_switch=True) or not _domain_runs_ok(domain)
             or not _budget_ok(value) or _number_only(local)):
         return ("BAD_EMAIL", "must be one plain address (letters, digits, '.', '_', '+', '-'; "
-                "local part at most 40 characters; no key-like mix of letters and digits (at most two mixed groups, 8 digits); "
-                "no name made only of digits and separators with 5 or more digits)")
+                f"local part at most {MAX_LOCAL} characters; no key-like mix of letters and digits "
+                f"(at most {MAX_MIXED} mixed groups, {MAX_DIGITS} digits in all); "
+                f"no name made only of digits and separators with {NUMBER_ONLY_MIN} or more digits)")
     return None
 
 
 def _number_only(local: str) -> bool:
     """A name with no letters and 5 or more digits could be a pasted login code. Up to
     4 digits (a year or a count) is allowed, as for standalone numbers in notes."""
-    return not _MIXED.search(local) and sum(c.isdigit() for c in local) >= 5
+    return not _MIXED.search(local) and sum(c.isdigit() for c in local) >= NUMBER_ONLY_MIN
 
 
 def _prose(value: str):
@@ -139,7 +148,7 @@ def _prose(value: str):
         word = word.strip("(\"'").rstrip(",.;:)'\"?!")
         if word and (len(word) > MAX_RUN or not _PROSE_WORD.fullmatch(word)):
             return ("BAD_VALUE", "each word must be letters or a ticket id like RA-8196, at most "
-                    "24 characters (no numbers, links, codes or mixed words)")
+                    f"{MAX_RUN} characters (no numbers, links, codes or mixed words)")
     if not _tickets_ok(value):
         return ("BAD_VALUE", f"at most {MAX_TICKETS} ticket ids per line")
     return None
@@ -208,6 +217,6 @@ def check_comment(text: str):
     ok = ok and _tickets_ok(body)
     if not ok:
         return ("BAD_VALUE", "comments must be plain words (letters, a ticket id or a file name), "
-                f"at most 160 characters, {MAX_TICKETS} ticket ids, no numbers, codes, keys or symbols "
+                f"at most {MAX_PROSE} characters, {MAX_TICKETS} ticket ids, no numbers, codes, keys or symbols "
                 "such as @ + = & *")
     return None
