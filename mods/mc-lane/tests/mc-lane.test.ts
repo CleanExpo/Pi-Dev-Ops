@@ -6,8 +6,13 @@ const ENV = { MC_LANE_URL: 'https://mc.example/', MC_LANE_SECRET: 's3cret', MC_L
 type Post = { url: string; headers: Record<string, string>; body: { host: string; events: LaneEvent[] } }
 
 /** Stubs every call session.start makes; returns the POSTs the mod sends. */
-function harness(on: any, opts: { env?: Record<string, string>; status?: number; store?: Record<string, unknown> } = {}) {
+function harness(
+  on: any,
+  opts: { env?: Record<string, string>; status?: number; store?: Record<string, unknown>; launchd?: () => Record<string, string> } = {},
+) {
   const posts: Post[] = []
+  const logs: string[] = []
+  const runs: { argv: string[]; timeoutMs?: number }[] = []
   const clock = mock.clock(on, { now: 1_700_000_000_000 })
   mock.env(on, opts.env ?? ENV)
   mock.store(on, opts.store ?? {})
@@ -15,7 +20,16 @@ function harness(on: any, opts: { env?: Record<string, string>; status?: number;
   on('session.repo', () => ({ value: { root: '/w', remote: 'https://x-token:abc@github.com/CleanExpo/Pi-Dev-Ops.git', internal: false } }))
   on('session.model', () => ({ value: 'claude-opus-5-5' }))
   on('session.start', () => ({ cwd: '/w' }))
-  on('ui.log', () => ({ value: undefined }))
+  on('ui.log', ($: unknown, e: { text: string }) => {
+    logs.push(e.text)
+    return { value: undefined }
+  })
+  // The real launchctl: an unset name prints nothing and still exits 0.
+  on('process.run', ($: unknown, e: { argv: string[]; init?: { timeoutMs?: number } }) => {
+    runs.push({ argv: e.argv, timeoutMs: e.init?.timeoutMs })
+    const v = (opts.launchd ?? (() => ({})))()[e.argv[2]]
+    return { value: { exitCode: 0, stdout: v === undefined ? '' : `${v}\n`, stderr: '' } }
+  })
   on('ui.status', () => ({ value: undefined }))
   on('tool.call', () => ({ result: 'ok' }))
   on('session.measure', ($: unknown, e: unknown) => e)
@@ -33,8 +47,65 @@ function harness(on: any, opts: { env?: Record<string, string>; status?: number;
     const status = opts.status ?? 200
     return { value: { status, ok: status < 300, headers: {}, text: JSON.stringify({ ok: true, acked }) } }
   })
-  return { posts, clock, spawned }
+  return { posts, clock, spawned, logs, runs }
 }
+
+const SENTINEL = 'SENTINEL-not-a-secret-7f3a' // never a real value
+const LAUNCHD = { MC_LANE_URL: 'https://mc.example/', MC_LANE_SECRET: SENTINEL, MC_LANE_HOST: 'Phills-Mac-mini' }
+
+describe('settings from launchd (desktop app started before the launch agent)', () => {
+  test('environment empty, launchd full: reports, with the host from launchd, and never logs the secret', async ($, on) => {
+    const h = harness(on, { env: {}, launchd: () => LAUNCHD })
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/w' })
+    await $.tool.call({ tool: 'Read', file_path: 'README.md' })
+    await h.clock.advance(5_000)
+    // Positive control first: the launchd path really ran and sent.
+    expect(h.posts.length).toBe(1)
+    expect(h.posts[0].headers['X-Pi-CEO-Secret']).toBe(SENTINEL)
+    expect(h.posts[0].body.host).toBe('Phills-Mac-mini')
+    expect(h.posts[0].body.events.map(e => e.kind)).toEqual(['session_start', 'tool'])
+    expect(h.logs.some(l => l.includes('launchd'))).toBe(true)
+    expect(h.logs.some(l => l.includes(SENTINEL))).toBe(false)
+    expect(h.runs.map(r => r.argv)).toEqual([
+      ['/bin/launchctl', 'getenv', 'MC_LANE_URL'],
+      ['/bin/launchctl', 'getenv', 'MC_LANE_SECRET'],
+      ['/bin/launchctl', 'getenv', 'MC_LANE_HOST'],
+    ])
+    expect(h.runs.every(r => r.timeoutMs === 3000)).toBe(true)
+  })
+
+  test('the environment holds the pair: launchd is not asked', async ($, on) => {
+    const h = harness(on, { launchd: () => LAUNCHD })
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/w' })
+    await h.clock.advance(5_000)
+    expect(h.runs.length).toBe(0)
+    expect(h.posts[0].headers['X-Pi-CEO-Secret']).toBe('s3cret')
+  })
+
+  test('launchd filled after session start: picked up on the retry, session_start still sent once', async ($, on) => {
+    let filled = false
+    const h = harness(on, { env: {}, launchd: () => (filled ? LAUNCHD : {}) })
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/w' })
+    await h.clock.advance(5_000)
+    expect(h.posts.length).toBe(0)
+    filled = true
+    await h.clock.advance(30_000)
+    await h.clock.advance(5_000)
+    const kinds = h.posts.flatMap(p => p.body.events.map(e => e.kind))
+    expect(kinds.filter(k => k === 'session_start').length).toBe(1)
+    expect(h.posts[0].body.host).toBe('Phills-Mac-mini')
+  })
+
+  test('neither place: sends nothing and names what each place holds, by name only', async ($, on) => {
+    const h = harness(on, { env: {} })
+    await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/w' })
+    await h.clock.advance(10_000)
+    expect(h.posts.length).toBe(0)
+    const line = h.logs.find(l => l.startsWith('not reporting to Mission Control'))
+    expect(line).toContain('environment: URL unset, secret unset')
+    expect(line).toContain('launchd: URL unset, secret unset')
+  })
+})
 
 describe('reporting', () => {
   test('a tool call reaches Mission Control as its name and timing only', async ($, on) => {

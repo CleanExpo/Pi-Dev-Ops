@@ -5,6 +5,8 @@ const NOW = Date.parse('2026-10-06T00:00:00Z')
 const ago = (s: number) => new Date(NOW - s * 1000).toISOString()
 const ENV = { MC_LANE_URL: 'https://mc.example/', MC_LANE_SECRET: 's3cret' }
 const TOOL = 'mcp__mission-control__fleet_status'
+const NOT_CONFIGURED =
+  'mission-control not configured: MC_LANE_URL / MC_LANE_SECRET (environment: URL unset, secret unset; launchd: URL unset, secret unset)'
 
 const SNAPSHOT = {
   machines: [
@@ -60,6 +62,8 @@ function harness(on: any, opts: { env?: Record<string, string>; answer?: { statu
     return { value: { isPlaced: true } }
   })
   on('ui.render', () => ({ type: 'Text', props: {}, children: ['drawn by Claude Code'] }))
+  // launchd holds nothing here: `launchctl getenv` of an unset name prints nothing and exits 0.
+  on('process.run', () => ({ value: { exitCode: 0, stdout: '', stderr: '' } }))
   on('http.fetch', ($: unknown, e: { url: string; init: { headers: Record<string, string> } }) => {
     fetches.push({ url: e.url, headers: e.init.headers })
     const a = opts.answer ?? ok(SNAPSHOT)
@@ -185,7 +189,7 @@ describe('fleet_status tool', () => {
     expect(h.fetches.length).toBe(0)
     const s = JSON.parse(out.result as string)
     expect(s.state).toBe('unknown')
-    expect(s.reason).toBe('mission-control not configured: MC_LANE_URL / MC_LANE_SECRET unset')
+    expect(s.reason).toBe(NOT_CONFIGURED)
   })
 
   test('a 401 comes back as an unknown result, not an error', async ($, on) => {
@@ -248,7 +252,7 @@ describe('/mc', () => {
     const h = harness(on, { env: {} })
     await start($)
     const answer = await $.command.run({ command: 'mc', args: '' })
-    expect(answer.text).toBe('mission-control not configured: MC_LANE_URL / MC_LANE_SECRET unset')
+    expect(answer.text).toBe(NOT_CONFIGURED)
     expect(h.opened.length).toBe(0)
     expect(h.fetches.length).toBe(0)
   })

@@ -1,0 +1,16 @@
+{
+  "criteria": [
+    {"id": "C1", "text": "The RA-8340 guard tests pass against the real .claude/settings.json under bash and sh",
+     "recipe": ".venv/bin/python -m pytest -q tests/test_hook_missing_script_never_blocks.py", "timeout": 300},
+    {"id": "C2", "text": "The RA-8125 path test (now rejecting the fallback deny) and the RA-8127 quiet-hook test stay green",
+     "recipe": ".venv/bin/python -m pytest -q tests/test_autonomy_gate_hook_paths.py tests/test_hook_missing_target_quiet.py", "timeout": 300},
+    {"id": "C3", "text": ".claude/settings.json is valid JSON",
+     "recipe": "python3 -c \"import json;json.load(open('.claude/settings.json'))\""},
+    {"id": "C4", "text": "Exactly one line of .claude/settings.json changes against origin/main 1b2bcd96",
+     "recipe": "test \"$(git diff --numstat 1b2bcd96 -- .claude/settings.json)\" = \"$(printf '1\\t1\\t.claude/settings.json')\""},
+    {"id": "C5", "text": "The full definition-of-done gate reads READY",
+     "recipe": "bash scripts/handoff-loop.sh", "timeout": 1800},
+    {"id": "S2", "text": "The engineering bench artifact for this spec passes the engineering gate",
+     "recipe": "/opt/homebrew/bin/python3 /Users/phill-mac/.claude/skills/engineering-requirements/scripts/engineering_gate.py --spec .claude/done/spm/2026-11-12-ra-8340-hookfix/spec.md"}
+  ]
+}

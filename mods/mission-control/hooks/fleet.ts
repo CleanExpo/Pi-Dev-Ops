@@ -19,8 +19,12 @@ export type MachineRow = {
   stale: boolean
   /** The cloud claim row (CLOUD_CLAIM_HOST): never heartbeats by design, so never stale or an alert. */
   placeholder: boolean
-  /** Drawn red: stale, runner-down or offline. Never for the placeholder. */
+  /** Drawn red: stale, or any status outside HEALTHY_STATUSES (missing included). Never for the placeholder. */
   alert: boolean
+  /** The runner gated itself (HELD_STATUSES): the row reads "held: <status>". */
+  held: boolean
+  /** Why it is held, from a present `mesh-runner` entry; null when this heartbeat does not send one. */
+  holdReason: string | null
   activeAgents: number | null
 }
 
@@ -43,6 +47,8 @@ export type Summary = {
   recentShips: ShipRow[]
   degraded: boolean
   errors: string[]
+  /** Where the link settings came from (lane_config.ts). Absent when not configured. */
+  configSource?: 'env' | 'launchd'
 }
 
 export const RECENT_SHIPS = 5
@@ -53,7 +59,26 @@ export const STALE_AFTER_S = 60
  * last_seen stays at insert time. It is not a runner; app/server/cron_watchdog_mesh.py skips it too.
  */
 export const CLOUD_CLAIM_HOST = 'railway'
-const DOWN = new Set(['runner-down', 'offline'])
+/**
+ * The ONLY statuses that are healthy. An allow-list, so a missing word, `updating`, or one the runner adds later
+ * is never shown as healthy. dashboard/lib/wall/snapshot.ts holds the same set; neither may import the other or
+ * the runner, so tests/test_fleet_status_vocabulary.py pins both to mesh/heartbeat.py node_status().
+ */
+export const HEALTHY_STATUSES = new Set(['online', 'working'])
+/** The runner gated itself. Only chooses the wording ("held: quota"); alerting is decided by HEALTHY_STATUSES. */
+export const HELD_STATUSES = new Set(['blocked', 'quarantined', 'stuck', 'quota', 'outdated', 'version-unknown', 'hard_stop'])
+export const HOLD_REASON_MAX = 120
+export const NO_HOLD_REASON = "reason not reported by this machine's heartbeat"
+
+/** hold_reason from the `mesh-runner` entry of agent_runtimes (mesh/runner_report.py), only when present. */
+function holdReasonOf(runtimes: unknown): string | null {
+  if (!Array.isArray(runtimes)) return null
+  const e = runtimes.find(
+    (x): x is Record<string, unknown> => !!x && typeof x === 'object' && (x as Record<string, unknown>).runtime === 'mesh-runner',
+  )
+  if (!e || e.present !== true) return null
+  return str(e.hold_reason, HOLD_REASON_MAX) || null
+}
 
 const str = (v: unknown, max = 80): string =>
   typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : ''
@@ -76,13 +101,16 @@ function machineRow(r: Record<string, unknown>, nowMs: number): MachineRow {
   const ageS = ageSeconds(r.last_seen, nowMs)
   const placeholder = host === CLOUD_CLAIM_HOST
   const stale = !placeholder && (r.is_stale === true || ageS === null || ageS > STALE_AFTER_S)
+  const held = HELD_STATUSES.has(status)
   return {
     host,
     status,
     ageS,
     stale,
     placeholder,
-    alert: !placeholder && (stale || DOWN.has(status)),
+    alert: !placeholder && (stale || !HEALTHY_STATUSES.has(status)),
+    held,
+    holdReason: held ? holdReasonOf(r.agent_runtimes) : null,
     activeAgents: typeof r.active_agents === 'number' ? r.active_agents : null,
   }
 }

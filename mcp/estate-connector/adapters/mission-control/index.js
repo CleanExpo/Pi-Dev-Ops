@@ -1,10 +1,17 @@
 import { z } from "zod";
-import { fetchJson, joinUrl } from "../../lib/upstream.js";
+import { piceoGetJson } from "../../lib/piceo-session.js";
 import { addNote } from "../../lib/notes.js";
 import { claimItem, listQueue, releaseItem, upsertItem } from "../../lib/queue.js";
 import { auditedWrite } from "../../lib/writes.js";
 import { ok } from "../../lib/results.js";
 import { botField, systemField } from "../../lib/schemas.js";
+
+// The top-level fields GET /api/mission-control/live returns
+// (app/server/routes/mission_control.py, mission_control_live). Only these reach mc_live callers.
+export const LIVE_FIELDS = [
+  "throughput", "active_sessions", "recent_completions", "queue", "pulse",
+  "observability", "idea_pipeline", "nexus_one", "ticket_sweeper", "ts",
+];
 
 export const missionControl = {
   id: "mc",
@@ -18,7 +25,7 @@ function liveTool() {
   return {
     name: "mc_live",
     title: "Mission Control live",
-    description: "[READ] Mission Control live page: sessions, queue snapshot, and health. Needs PICEO_BASE_URL.",
+    description: "[READ] Mission Control live page: sessions, queue snapshot, and health. Needs PICEO_BASE_URL, and PICEO_BEARER_TOKEN set to the Pi CEO login password.",
     readOnly: true,
     inputSchema: {},
     async handler(_args, ctx) {
@@ -31,7 +38,7 @@ function liveTool() {
           coordination_queue,
         });
       }
-      const live = await fetchJson(joinUrl(base, "/api/mission-control/live"), ctx.env.PICEO_BEARER_TOKEN);
+      const live = await piceoGetJson(ctx, "/api/mission-control/live", LIVE_FIELDS);
       return ok({ ...live, coordination_queue });
     },
   };

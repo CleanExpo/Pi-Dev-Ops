@@ -7,12 +7,16 @@
 // hooks load in all three (docs/reference/claude-mods/overview.md, "Where mods
 // run"). Nothing here draws, so a headless lane loses nothing.
 //
-// Configuration (environment, read at each session.start):
+// Configuration (read at each session.start; lane_config.ts says why and how):
 //   MC_LANE_URL     Pi-CEO backend base URL, e.g. https://pi-dev-ops.up.railway.app
 //   MC_LANE_SECRET  the X-Pi-CEO-Secret the fleet already uses for heartbeats
 //   MC_LANE_HOST    this machine's fleet name (as in mesh_machines.host)
-// With URL or secret unset the mod records nothing and says so once in the
-// transcript: an unconfigured lane must read as "not reporting", never as idle.
+// From this process's environment, else from launchd (`/bin/launchctl getenv`), with
+// URL and secret as a pair from one place. With neither place holding both the mod
+// records nothing, says so once in the transcript (by setting name only), and looks
+// again every RETRY_MS: an app that started before the launch agent starts
+// reporting once launchd has the settings. Unconfigured must read as "not
+// reporting", never as idle.
 //
 // HOT RELOAD. Every reload re-runs `register` and `session.start`, resets the
 // module variables and cancels the timers (docs/reference/claude-mods/api.md,
@@ -32,11 +36,16 @@ import {
   dropAcked, enqueue, makeSeq, MAX_BATCH, modelName, repoSlug, toolName, worstRate,
   type LaneEvent, type LaneEventKind,
 } from './lane'
+import {
+  clean, fromLaunchctl, launchctlArgv, LAUNCHCTL_TIMEOUT_MS, notConfiguredDetail, pickLaneConfig, scrubSecret,
+  type LaneConfig, type LaneVars, type LaunchdRead,
+} from './lane_config'
 
 const FLUSH_MS = 5_000
+const RETRY_MS = 30_000
 const PENDING = 'pending:'
 
-type Config = { url: string; secret: string; host: string }
+type Config = LaneConfig
 
 // Session state: survives a reload of this module.
 const queue = atom({ plugin: 'mc-lane', key: 'queue' } as const, [] as LaneEvent[])
@@ -49,6 +58,7 @@ const st = {
   sessionId: 'unknown',
   cfg: null as Config | null,
   flushing: false, // the flush timer of this module instance is running
+  retry: null as { cancel(): void } | null, // looks for the settings again while unconfigured
   inFlight: false,
   lastFailure: undefined as string | undefined,
 }
@@ -90,14 +100,21 @@ async function flush($: EngineInterface): Promise<void> {
       body: JSON.stringify({ host: cfg.host, events: batch }),
     })
     if (r.ok) {
-      const acked = (JSON.parse(r.text) as { acked?: Record<string, number> }).acked ?? {}
+      // A parse error quotes the reply, so it is never shown: a fixed text, as mission-control does.
+      let acked: Record<string, number> | undefined
+      try {
+        acked = (JSON.parse(r.text) as { acked?: Record<string, number> }).acked ?? {}
+      } catch {
+        failure = 'reply is not JSON'
+      }
       // Drops only what was acked: events recorded during the POST stay.
-      await update($, queue, q => dropAcked(q, acked))
+      if (acked) await update($, queue, q => dropAcked(q, acked))
     } else {
       failure = `HTTP ${r.status}`
     }
   } catch (err) {
-    failure = err instanceof Error ? err.message.slice(0, 80) : 'request failed'
+    // A transport error can quote the header; scrub before cutting so no prefix of the secret survives.
+    failure = err instanceof Error ? scrubSecret(err.message, cfg.secret).slice(0, 80) : 'request failed'
   } finally {
     st.inFlight = false
   }
@@ -109,41 +126,90 @@ async function flush($: EngineInterface): Promise<void> {
   }
 }
 
+async function launchdValue($: EngineInterface, name: string): Promise<string | undefined> {
+  return fromLaunchctl(await $.process.run(launchctlArgv(name), { timeoutMs: LAUNCHCTL_TIMEOUT_MS }))
+}
+
+async function readLaunchd($: EngineInterface): Promise<LaunchdRead> {
+  try {
+    return {
+      vars: {
+        url: await launchdValue($, 'MC_LANE_URL'),
+        secret: await launchdValue($, 'MC_LANE_SECRET'),
+        host: await launchdValue($, 'MC_LANE_HOST'),
+      },
+    }
+  } catch (err) {
+    return { error: err instanceof Error ? err.name : 'error' }
+  }
+}
+
+/**
+ * Environment first; launchd when the environment lacks the pair, or holds the pair but no host
+ * (then launchd supplies only the host label: pickLaneConfig keeps the environment's pair).
+ */
+async function resolveLane($: EngineInterface): Promise<{ cfg: Config } | { why: string }> {
+  const env: LaneVars = {
+    url: clean(await $.env.get('MC_LANE_URL')),
+    secret: clean(await $.env.get('MC_LANE_SECRET')),
+    host: clean(await $.env.get('MC_LANE_HOST')),
+  }
+  const fromEnv = pickLaneConfig(env, null)
+  if (fromEnv && env.host) return { cfg: fromEnv }
+  const launchd = await readLaunchd($)
+  if (fromEnv) return { cfg: 'vars' in launchd ? pickLaneConfig(env, launchd.vars) ?? fromEnv : fromEnv }
+  const cfg = 'vars' in launchd ? pickLaneConfig(env, launchd.vars) : null
+  return cfg ? { cfg } : { why: notConfiguredDetail(env, launchd) }
+}
+
+// The retry tick: once launchd holds the settings, start reporting and stop looking.
+async function retryLane($: EngineInterface): Promise<void> {
+  if (st.cfg) return
+  const res = await resolveLane($)
+  if (!('cfg' in res)) return
+  st.retry?.cancel()
+  st.retry = null
+  await startReporting($, res.cfg)
+}
+
+async function startReporting($: EngineInterface, cfg: Config): Promise<void> {
+  st.cfg = cfg
+  $.ui.log(`mc-lane: reporting to Mission Control, settings read from ${cfg.source}`)
+
+  // Events a previous session on this machine could not send before it ended.
+  for (const key of await $.store.keys()) {
+    if (!key.startsWith(PENDING)) continue
+    const saved = await $.store.get(key)
+    if (Array.isArray(saved)) await update($, queue, append(saved as LaneEvent[]))
+    await $.store.delete(key)
+  }
+
+  // A reload re-runs session.start in the same session: record its start once.
+  if ((await read($, started)) !== st.sessionId) {
+    const repo = await $.session.repo()
+    const model = await $.session.model()
+    await record($, 'session_start', { repo: repoSlug(repo?.remote), model: modelName(model) })
+    await update($, started, () => st.sessionId)
+  }
+
+  // A reload cancelled the previous instance's timer; this instance starts its own once.
+  if (!st.flushing) {
+    st.flushing = true
+    $.clock.every(FLUSH_MS, () => flush($))
+  }
+}
+
 export const register: Register = on => {
   // Before the first prompt, and again after every reload of this module.
   on('session.start', async ($, e, next) => {
-    const url = (await $.env.get('MC_LANE_URL'))?.replace(/\/+$/, '')
-    const secret = await $.env.get('MC_LANE_SECRET')
-    const host = (await $.env.get('MC_LANE_HOST')) || 'unknown'
     st.sessionId = await $.session.id()
-
-    if (!url || !secret) {
-      st.cfg = null
-      $.ui.log('not reporting to Mission Control: MC_LANE_URL or MC_LANE_SECRET is unset')
-      return next(e)
-    }
-    st.cfg = { url, secret, host }
-
-    // Events a previous session on this machine could not send before it ended.
-    for (const key of await $.store.keys()) {
-      if (!key.startsWith(PENDING)) continue
-      const saved = await $.store.get(key)
-      if (Array.isArray(saved)) await update($, queue, append(saved as LaneEvent[]))
-      await $.store.delete(key)
-    }
-
-    // A reload re-runs this hook in the same session: record its start once.
-    if ((await read($, started)) !== st.sessionId) {
-      const repo = await $.session.repo()
-      const model = await $.session.model()
-      await record($, 'session_start', { repo: repoSlug(repo?.remote), model: modelName(model) })
-      await update($, started, () => st.sessionId)
-    }
-
-    // A reload cancelled the previous instance's timer; this instance starts its own once.
-    if (!st.flushing) {
-      st.flushing = true
-      $.clock.every(FLUSH_MS, () => flush($))
+    st.cfg = null
+    const res = await resolveLane($)
+    if ('cfg' in res) {
+      await startReporting($, res.cfg)
+    } else {
+      $.ui.log(`not reporting to Mission Control: ${res.why}; looking again every ${RETRY_MS / 1000} s`)
+      if (!st.retry) st.retry = $.clock.every(RETRY_MS, () => retryLane($))
     }
     return next(e)
   })

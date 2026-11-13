@@ -29,7 +29,7 @@ function board(over: Partial<RepoBoard> = {}): RepoBoard {
 describe("fleet tiles", () => {
   const raw = {
     machines: [
-      { host: "Phills-Mac-mini", last_seen: iso(10), load1: 1.5 },
+      { host: "Phills-Mac-mini", status: "working", last_seen: iso(10), load1: 1.5 },
       { host: "Phills-MacBook-Pro", last_seen: iso(600) },
     ],
     agents: [{ machine: "Phills-Mac-mini", runtime: "claude", state: "busy", updated_at: iso(5) }],
@@ -52,6 +52,14 @@ describe("fleet tiles", () => {
     };
     expect(fleetTiles(wall, ok)[1].claim).toBe("RA-1");
     expect(fleetTiles(wall, ok)[0].claim).toBeNull();
+  });
+
+  it("a machine the runner holds for quota is a bad tile that says so", () => {
+    const held = buildSnapshot(fleetPanel({ machines: [{ host: "Phills-Mac-mini", status: "quota", last_seen: iso(5) }] },
+      ["Phills-Mac-mini"], NOW), NOW);
+    const [tile] = fleetTiles(held, null);
+    expect(tile.tone).toBe("bad");
+    expect(tile.status).toBe("held: quota (reason not reported by this machine's heartbeat)");
   });
 
   it("no wall snapshot means no tiles, never three quiet machines", () => {

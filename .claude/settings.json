@@ -91,7 +91,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py\""
+            "command": "[ -e ~/.claude/HARD_STOP ] && { printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"HARD_STOP is active, so every tool call is refused until ~/.claude/HARD_STOP is removed (RA-8340).\"}}'; exit 0; }; f=\"$CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py\"; if [ -f \"$f\" ]; then o=$(python3 \"$f\"; r=$?; printf x; exit $r); rc=$?; o=${o%x}; [ \"$rc\" = 0 ] && { printf '%s' \"$o\"; exit 0; }; printf 'autonomy gate: %s exited %s\\n' \"$f\" \"$rc\" >&2; printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"autonomy gate is off: $CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py ran but failed (path and exit code are on the hook stderr), so L3 tool calls are not being gated (RA-8340)\"}}'; else printf 'autonomy gate: no copy at %s\\n' \"$f\" >&2; printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"autonomy gate is off: there is no $CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py in the session project folder, so L3 tool calls are not being gated (RA-8340)\"}}'; fi; exit 0"
           }
         ]
       }

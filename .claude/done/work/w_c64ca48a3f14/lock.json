@@ -1,0 +1,14 @@
+{
+  "schema": "done/1",
+  "work_id": "w_c64ca48a3f14",
+  "contract_digest": "7177285d1c59d6a2ade2bfb877e2ce04d830b494913eb293eef15873e8aa0b3e",
+  "baseline_head": "1b2bcd966de8f6869742598c89d37cb252340acb",
+  "identity_key": "worktree-mc-dispatch-c@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/mc-dispatch-c",
+  "locked_at_utc": "2026-11-12T03:06:53Z",
+  "criteria_count": 9,
+  "recipe_pins": {
+    "spm/2026-11-12-mc-dispatch-c/spec.md": "7f1218cc7cd596cc24fee14ffb85b52a85c9998206bfab781522b6ca05476719",
+    "spm/2026-11-12-mc-dispatch-c/fresh_process_proof.sh": "c553b495e3cf9264cf5abed39873c0c0c409a9fb22db69680d59bdb27f39a632",
+    "spm/2026-11-12-mc-dispatch-c/fleet_probe_resolves.sh": "d5cf2702a7f0ff8c4194d048e895f91234b5baa6ab02d4b5d7f3309200bd6f83"
+  }
+}

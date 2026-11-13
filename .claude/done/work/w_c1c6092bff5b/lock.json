@@ -1,0 +1,14 @@
+{
+  "schema": "done/1",
+  "work_id": "w_c1c6092bff5b",
+  "contract_digest": "6ccae577d43f52b84559590e6031a15e221fc80bba6602e31b0ace27dd5314d7",
+  "baseline_head": "0f957df9d8fd8000bd4c987680e1cc5968dbc9f7",
+  "identity_key": "fix/RA-8329-mc-dispatch-c@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/mc-dispatch-c",
+  "locked_at_utc": "2026-11-12T04:42:11Z",
+  "criteria_count": 10,
+  "recipe_pins": {
+    "spm/2026-11-12-mc-dispatch-c/spec.md": "7f1218cc7cd596cc24fee14ffb85b52a85c9998206bfab781522b6ca05476719",
+    "spm/2026-11-12-mc-dispatch-c/fresh_process_proof.sh": "ccf542d52b698ae15cbce66f1c856b7fd8710039a09d65d0ad2ae03b17be43fe",
+    "spm/2026-11-12-mc-dispatch-c/fleet_probe_resolves.sh": "d5cf2702a7f0ff8c4194d048e895f91234b5baa6ab02d4b5d7f3309200bd6f83"
+  }
+}

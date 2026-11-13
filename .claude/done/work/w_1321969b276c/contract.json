@@ -1,0 +1,26 @@
+{
+  "schema": "done/1",
+  "work_id": "w_1321969b276c",
+  "version": 1,
+  "supersedes": null,
+  "goal": "spec: RA-8340 autonomy gate hook never blocks every tool when its script is missing",
+  "created_at_utc": "2026-11-12T06:04:15Z",
+  "identity_key": "fix/RA-8340-autonomy-gate-missing-script@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/ra-8340-hookfix",
+  "baseline_observed": {
+    "head": "1b2bcd966de8f6869742598c89d37cb252340acb",
+    "branch": "fix/RA-8340-autonomy-gate-missing-script",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "S1",
+      "text": "spec exists",
+      "recipe": "test -s .claude/done/spm/2026-11-12-ra-8340-hookfix/spec.md"
+    },
+    {
+      "id": "S2",
+      "text": "engineering gate passes on the spec",
+      "recipe": "/opt/homebrew/bin/python3 /Users/phill-mac/.claude/skills/engineering-requirements/scripts/engineering_gate.py --spec .claude/done/spm/2026-11-12-ra-8340-hookfix/spec.md"
+    }
+  ]
+}

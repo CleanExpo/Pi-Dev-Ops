@@ -47,7 +47,7 @@ describe("wall snapshot route", () => {
   it("live upstream -> fresh host GREEN, silent host GREY (positive control)", async () => {
     process.env.TAO_WEBHOOK_SECRET = "s";
     process.env.RAILWAY_URL = "https://pi.invalid";
-    const fleet = { machines: [{ host: "A", last_seen: new Date().toISOString() }], agents: [] };
+    const fleet = { machines: [{ host: "A", status: "online", last_seen: new Date().toISOString() }], agents: [] };
     const fetchMock = vi.fn(async () => Response.json(fleet));
     vi.stubGlobal("fetch", fetchMock);
     const body = await get();
