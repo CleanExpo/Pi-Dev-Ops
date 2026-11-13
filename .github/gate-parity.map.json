@@ -45,6 +45,9 @@
     "ci.yml::Business charter gate": {
       "local_gate": "business-charters"
     },
+    "ci.yml::Account map gate (RA-8187)": {
+      "local_gate": "account-map"
+    },
     "ci.yml::Agentskills manifest gate (RA-7252)": {
       "local_gate": "generated-agentskills"
     },

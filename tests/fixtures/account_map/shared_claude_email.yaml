@@ -1,0 +1,16 @@
+# Negative control for RA-8187: two machines on one Claude email (rule SHARED_CLAUDE_EMAIL).
+version: 1
+machines:
+  - id: mini
+  - id: macbook
+accounts:
+  - label: claude-mini
+    provider: claude
+    plan: max
+    email: same-seat@pending.invalid
+    machines: [mini]
+  - label: claude-macbook
+    provider: claude
+    plan: max
+    email: Same-Seat@pending.invalid
+    machines: [macbook]
