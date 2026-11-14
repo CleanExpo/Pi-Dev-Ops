@@ -59,6 +59,7 @@ class Snapshot:
     verified_sha: str | None = None
     delivered_artifact_receipt: str | None = None
     blocked_reason: str | None = None
+    live_source_provable: bool = True
 
 
 @dataclass(frozen=True)
@@ -95,10 +96,15 @@ def can_finish(item: Snapshot) -> bool:
     )
 
 
+def finding_key(issue_id: str, stage: str, head_sha: str | None, code: str) -> str:
+    """The one owner of the finding-key formula. Call it, never copy it."""
+    key_src = f"{issue_id}|{stage}|{head_sha or ''}|{code}"
+    return sha256(key_src.encode("utf-8")).hexdigest()[:24]
+
+
 def _finding(item: Snapshot, code: str, severity: Severity, owner: str, message: str) -> Finding:
     # Stable across repeated scans. Resets if the candidate revision or stage changes.
-    key_src = f"{item.issue_id}|{item.stage.value}|{item.pr_head_sha or ''}|{code}"
-    key = sha256(key_src.encode("utf-8")).hexdigest()[:24]
+    key = finding_key(item.issue_id, item.stage.value, item.pr_head_sha, code)
     return Finding(item.issue_id, code, severity, owner, message, key)
 
 
@@ -120,6 +126,24 @@ def _disposition_findings(item: Snapshot) -> tuple[Finding, ...] | None:
     return None
 
 
+def _post_merge_findings(item: Snapshot, age: timedelta, review_escalation_hours: int,
+                         founder_escalation_hours: int) -> tuple[Finding, ...] | None:
+    if item.merge_sha and item.merge_sha == item.deployed_sha == item.verified_sha:
+        return (_finding(item, "CHECK_ACCEPTANCE", "info", item.owner,
+                         "Release revision verified; validate acceptance and close explicitly."),)
+    if not item.live_source_provable:
+        return (_finding(item, "LIVE_CANNOT_VERIFY", "info", item.owner,
+                         "Cannot verify live: this repo has no source that proves which revision "
+                         "is running. The label stays until a provable source is added."),)
+    if age >= timedelta(hours=founder_escalation_hours):
+        return (_finding(item, "DEPLOY_UNVERIFIED_24H", "founder", item.owner,
+                         "Merged for at least 24 hours without a matching verified live revision."),)
+    if age >= timedelta(hours=review_escalation_hours):
+        return (_finding(item, "DEPLOY_UNVERIFIED", "escalation", item.owner,
+                         "Merged code has no matching verified live revision."),)
+    return None
+
+
 def _release_findings(item: Snapshot, age: timedelta, review_escalation_hours: int,
                       founder_escalation_hours: int) -> tuple[Finding, ...] | None:
     """Verified-live, approval and post-merge stages. None means: fall through to staleness."""
@@ -136,15 +160,7 @@ def _release_findings(item: Snapshot, age: timedelta, review_escalation_hours: i
                              "Approval is still required; alert, do not bypass it."),)
         return ()  # A healthy pending human decision does not become auto approval.
     if item.stage in {Stage.MERGED, Stage.DEPLOYING}:
-        if item.merge_sha and item.merge_sha == item.deployed_sha == item.verified_sha:
-            return (_finding(item, "CHECK_ACCEPTANCE", "info", item.owner,
-                             "Release revision verified; validate acceptance and close explicitly."),)
-        if age >= timedelta(hours=founder_escalation_hours):
-            return (_finding(item, "DEPLOY_UNVERIFIED_24H", "founder", item.owner,
-                             "Merged for at least 24 hours without a matching verified live revision."),)
-        if age >= timedelta(hours=review_escalation_hours):
-            return (_finding(item, "DEPLOY_UNVERIFIED", "escalation", item.owner,
-                             "Merged code has no matching verified live revision."),)
+        return _post_merge_findings(item, age, review_escalation_hours, founder_escalation_hours)
     return None
 
 
