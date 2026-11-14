@@ -174,6 +174,55 @@ def test_remove_keeps_a_branch_that_holds_unmerged_commits(tmp_path: Path) -> No
     assert _has_branch(project, "worktree-open-work")  # the commits stay reachable
 
 
+@pytest.mark.parametrize("kind", ["untracked", "staged", "modified"])
+def test_remove_refuses_a_worktree_that_holds_unsaved_files(tmp_path: Path, kind: str) -> None:
+    """Codex round 1: the script passed --force, so files that existed nowhere else were deleted with exit 0."""
+    project = _project(tmp_path)
+    target = Path(_create(project, "dirty").stdout.strip())
+    note = target / "unsaved.txt"
+    note.write_text("first")
+    if kind != "untracked":
+        assert _git(project, target, "add", "unsaved.txt").returncode == 0
+    if kind == "modified":
+        assert _git(project, target, "commit", "-q", "-m", "tracked").returncode == 0
+        note.write_text("edited, not committed")
+    result = _remove(project, target)
+    assert result.returncode == 1, (result.stdout, result.stderr)
+    assert note.read_text() in ("first", "edited, not committed") and _worktrees(project) == 2
+    assert _has_branch(project, "worktree-dirty") and "was not removed" in result.stderr
+
+
+def test_remove_refuses_a_detached_head_whose_commits_are_on_no_branch(tmp_path: Path) -> None:
+    """Same class: a clean worktree can still hold the only copy of a commit."""
+    project = _project(tmp_path)
+    target = Path(_create(project, "loose").stdout.strip())
+    assert _git(project, target, "checkout", "-q", "--detach").returncode == 0
+    assert _git(project, target, "commit", "-q", "--allow-empty", "-m", "on no branch").returncode == 0
+    result = _remove(project, target)
+    assert result.returncode == 1, (result.stdout, result.stderr)
+    assert target.is_dir() and "on no branch" in result.stderr
+
+
+def test_remove_takes_a_detached_head_that_sits_on_a_branch(tmp_path: Path) -> None:
+    project = _project(tmp_path)
+    target = Path(_create(project, "parked").stdout.strip())
+    assert _git(project, target, "checkout", "-q", "--detach").returncode == 0
+    result = _remove(project, target)
+    assert result.returncode == 0 and not target.exists(), result.stderr
+
+
+def test_create_refuses_a_worktrees_folder_that_is_a_symlink_out_of_the_project(tmp_path: Path) -> None:
+    """Codex round 1 (P2): the worktree landed outside the project while the in-project path was printed."""
+    project = _project(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (project / ".claude" / "worktrees").symlink_to(outside, target_is_directory=True)
+    result = _create(project, "one")
+    assert result.returncode == 1 and result.stdout == "", result.stderr
+    assert list(outside.iterdir()) == [] and _worktrees(project) == 1
+    assert "symlink" in result.stderr
+
+
 @pytest.mark.parametrize("kind", ["project", "sibling", "worktrees-root", "symlink-out"])
 def test_remove_refuses_anything_outside_the_worktrees_folder(tmp_path: Path, kind: str) -> None:
     project = _project(tmp_path)

@@ -10,7 +10,10 @@ with an empty name.
 
 Create puts the worktree at <repo>/.claude/worktrees/<name> on branch worktree-<name>.
 Remove only touches paths inside <repo>/.claude/worktrees, and deletes the branch only
-if git says it is fully merged. All git output goes to stderr. Fails closed (exit 1).
+if git says it is fully merged. It never forces: a worktree holding modified or untracked
+files, or commits on no branch, is left in place (exit 1). Files the repository ignores
+(caches, node_modules) do go with the worktree. All git output goes to stderr. Fails
+closed (exit 1).
 """
 from __future__ import annotations
 
@@ -40,6 +43,8 @@ def create(repo: Path, event: dict) -> int:
     if not isinstance(name, str) or not NAME_RE.fullmatch(name):
         return fail(f"refusing worktree name {name!r}: need letters, digits, '-' or '_'")
     target = repo / ".claude" / "worktrees" / name
+    if target.parent.resolve() != repo.resolve() / ".claude" / "worktrees":
+        return fail(f"{target.parent} is a symlink that leaves the project; refusing to create a worktree through it")
     if target.exists():
         return fail(f"{target} already exists")
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -58,8 +63,12 @@ def remove(repo: Path, event: dict) -> int:
         return fail(f"refusing to remove {target}: not inside {root}")
     if not target.exists():
         return 0
-    if git(repo, "worktree", "remove", str(target), "--force").returncode != 0:
-        return fail("git worktree remove failed")
+    detached = git(target, "symbolic-ref", "-q", "HEAD").returncode != 0
+    if detached and not git(target, "for-each-ref", "--contains", "HEAD", "--count=1").stdout.strip():
+        return fail(f"refusing to remove {target}: its commits are on no branch; make a branch there first")
+    # No --force: git itself refuses a worktree that holds modified or untracked files, so unsaved work is kept.
+    if git(repo, "worktree", "remove", str(target)).returncode != 0:
+        return fail(f"{target} was not removed; if it holds uncommitted or untracked files, commit or delete them")
     git(repo, "branch", "-d", f"worktree-{target.name}")  # merged branches only; a refusal is fine
     return 0
 
