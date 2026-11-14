@@ -225,6 +225,10 @@ docs/session-handoffs/handoff-*.md
 swarm/graphify-out/
 .harness/
 
+# Worktrees made by the WorktreeCreate hook (.claude/hooks/worktree_hook.py, RA-8375). Until now only one
+# machine's local .git/info/exclude hid them; everywhere else each showed as an untracked folder.
+.claude/worktrees/
+
 # Done harness runtime state (RA-7559). donectl rewrites these per worktree on every run;
 # tracked, they made every PR commit its own ACTIVE.json and conflict with the next merge.
 # contract.json and lock.json stay tracked: they are the locked finish line (evidence).

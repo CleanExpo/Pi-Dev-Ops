@@ -1,0 +1,3 @@
+.claude/hooks/worktree_hook.py
+.claude/settings.json
+tests/test_worktree_hook.py

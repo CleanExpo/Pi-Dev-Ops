@@ -1,0 +1,15 @@
+{
+  "schema": "done/1",
+  "work_id": "w_445fe29119c7",
+  "contract_digest": "d94e566013ca3c56a99663cd7a3b1326decb8964ba18c9b090521cbf08948f5b",
+  "baseline_head": "b2fe61b2a86a4cd058521cce0d4196f178393d01",
+  "identity_key": "fix/RA-8375-worktree-hook-stdin@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ra-8375-worktree-hook",
+  "locked_at_utc": "2026-11-14T22:19:09Z",
+  "criteria_count": 6,
+  "recipe_pins": {
+    "work/w_6425aa6f121a/contract.json": "2767b21d2694d7aa81a8c5b819523e4b6a886fa862cf309105fb69c69a1ca1ea",
+    "work/w_6425aa6f121a/criteria.json": "f55290ea621720500c5259ec71f23947cb09b7d478d06bad56f464452504da07",
+    "work/w_6425aa6f121a/expected-files.txt": "755179494f6092116e55ece7b70c5826654601a7cbf24dbe6ab7a57f1030c64e",
+    "work/w_6425aa6f121a/lock.json": "6c7a6e8e90529902e6cd7609ecbd02c054bf6cf719fd8382b450dca51f9941b3"
+  }
+}

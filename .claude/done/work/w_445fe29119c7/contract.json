@@ -1,0 +1,52 @@
+{
+  "schema": "done/1",
+  "work_id": "w_445fe29119c7",
+  "version": 2,
+  "supersedes": "w_6425aa6f121a",
+  "goal": "RA-8375: worktree-mode session start works from any Pi-Dev-Ops checkout on any machine. The WorktreeCreate and WorktreeRemove hooks call .claude/hooks/worktree_hook.py, which reads the event from standard input; tests in the repo reproduce the old failure and pass on the new script; the repo itself ignores .claude/worktrees/ (until now only this Mac's local exclude file did); the change holds only the script, the two hook lines, the ignore rule, the tests and this contract.",
+  "created_at_utc": "2026-11-14T22:18:27Z",
+  "identity_key": "fix/RA-8375-worktree-hook-stdin@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ra-8375-worktree-hook",
+  "baseline_observed": {
+    "head": "b2fe61b2a86a4cd058521cce0d4196f178393d01",
+    "branch": "fix/RA-8375-worktree-hook-stdin",
+    "dirty_count": 6
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The worktree hook tests pass, together with the existing class guards that run every registered hook (no hook exits 2 when its script is missing; missing targets stay quiet).",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_worktree_hook.py tests/test_hook_missing_script_never_blocks.py tests/test_hook_missing_target_quiet.py -q -p no:cacheprovider",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "Since its merge base with main the branch changes exactly these files and no others: the hook script, the settings file, .gitignore, the new test file, and the two Done contract folders for this work (the first contract and this revision).",
+      "recipe": "git diff --name-only origin/main...HEAD | LC_ALL=C sort | tr '\\n' ' ' | grep -qxF '.claude/done/work/w_445fe29119c7/contract.json .claude/done/work/w_445fe29119c7/lock.json .claude/done/work/w_6425aa6f121a/contract.json .claude/done/work/w_6425aa6f121a/criteria.json .claude/done/work/w_6425aa6f121a/expected-files.txt .claude/done/work/w_6425aa6f121a/lock.json .claude/hooks/worktree_hook.py .claude/settings.json .gitignore tests/test_worktree_hook.py '",
+      "timeout": 60
+    },
+    {
+      "id": "C3",
+      "text": "The settings file no longer reads WORKTREE_DIR or WORKTREE_BRANCH, the two variables Claude Code never sets.",
+      "recipe": "git grep -q -E 'WORKTREE_DIR|WORKTREE_BRANCH' -- .claude/settings.json; test $? -eq 1",
+      "timeout": 60
+    },
+    {
+      "id": "C4",
+      "text": "The suite keeps tests that run the old hook lines against Claude Code's real input and require them to fail, so the reason for the fix stays reproducible.",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_worktree_hook.py -k old_hook_lines -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "C5",
+      "text": "The new script and test file pass the repository's lint.",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check .claude/hooks/worktree_hook.py tests/test_worktree_hook.py",
+      "timeout": 120
+    },
+    {
+      "id": "C6",
+      "text": "The repository's own .gitignore ignores .claude/worktrees/, so a worktree made by the hook does not show as an untracked folder on a machine without this Mac's local exclude file.",
+      "recipe": "grep -qxF '.claude/worktrees/' .gitignore",
+      "timeout": 30
+    }
+  ]
+}

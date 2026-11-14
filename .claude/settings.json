@@ -111,7 +111,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -C \"$CLAUDE_PROJECT_DIR\" worktree add \"$WORKTREE_DIR\" -b \"$WORKTREE_BRANCH\" 2>&1"
+            "command": "f=\"$CLAUDE_PROJECT_DIR/.claude/hooks/worktree_hook.py\"; [ -f \"$f\" ] || { echo \"worktree hook: no $f, so no worktree can be created (RA-8375)\" >&2; exit 1; }; python3 \"$f\" create || exit 1"
           }
         ]
       }
@@ -121,7 +121,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "git -C \"$CLAUDE_PROJECT_DIR\" worktree remove \"$WORKTREE_DIR\" --force 2>&1"
+            "command": "f=\"$CLAUDE_PROJECT_DIR/.claude/hooks/worktree_hook.py\"; [ -f \"$f\" ] || { echo \"worktree hook: no $f, so the worktree was not removed (RA-8375)\" >&2; exit 1; }; python3 \"$f\" remove || exit 1"
           }
         ]
       }
