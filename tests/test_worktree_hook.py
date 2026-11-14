@@ -117,23 +117,16 @@ def test_the_repository_ignores_the_folder_the_hook_writes_to() -> None:
     assert ".claude/worktrees/" in (REPO / ".gitignore").read_text(encoding="utf-8").splitlines()
 
 
+@pytest.mark.parametrize("folder", ["project", "my project folder"])
 @pytest.mark.parametrize("shell", SHELLS)
-def test_create_makes_the_worktree_and_prints_only_its_path(tmp_path: Path, shell: str) -> None:
-    project = _project(tmp_path)
-    result = _create(project, "feature-auth", shell)
-    target = project / ".claude" / "worktrees" / "feature-auth"
+def test_create_makes_the_worktree_and_prints_only_its_path(tmp_path: Path, shell: str, folder: str) -> None:
+    project = _project(tmp_path, name=folder)
+    result = _create(project, "feat_auth-1", shell)
+    target = project / ".claude" / "worktrees" / "feat_auth-1"
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == [str(target)]  # Claude Code reads the last line; git's noise is on stderr
     assert (target / ".git").exists()
-    assert _has_branch(project, "worktree-feature-auth") and _worktrees(project) == 2
-
-
-def test_create_works_when_the_project_path_has_spaces(tmp_path: Path) -> None:
-    project = _project(tmp_path, name="my project folder")
-    result = _create(project, "a_b-1")
-    assert result.returncode == 0, result.stderr
-    assert Path(result.stdout.strip()) == project / ".claude" / "worktrees" / "a_b-1"
-    assert Path(result.stdout.strip()).is_dir()
+    assert _has_branch(project, "worktree-feat_auth-1") and _worktrees(project) == 2
 
 
 @pytest.mark.parametrize("name", ["", "../escape", "a/b", "-rf", "has space", ".hidden", "x" * 65, "a\nb", "abc\n", 5, None])
@@ -143,7 +136,7 @@ def test_create_refuses_a_name_that_is_not_a_plain_slug(tmp_path: Path, name: ob
     assert result.returncode == 1, (result.stdout, result.stderr)
     assert result.stdout == ""  # no path line, so Claude Code cannot adopt a folder
     assert _worktrees(project) == 1 and not (tmp_path / "escape").exists()
-    assert "refusing worktree name" in result.stderr
+    assert "refusing to create: worktree name" in result.stderr
 
 
 def test_create_refuses_a_name_already_in_use(tmp_path: Path) -> None:
@@ -192,51 +185,66 @@ def test_remove_refuses_a_worktree_that_holds_unsaved_files(tmp_path: Path, kind
     assert _has_branch(project, "worktree-dirty") and "was not removed" in result.stderr
 
 
-def test_remove_refuses_a_detached_head_whose_commits_are_on_no_branch(tmp_path: Path) -> None:
-    """Same class: a clean worktree can still hold the only copy of a commit."""
-    project = _project(tmp_path)
-    target = Path(_create(project, "loose").stdout.strip())
-    assert _git(project, target, "checkout", "-q", "--detach").returncode == 0
-    assert _git(project, target, "commit", "-q", "--allow-empty", "-m", "on no branch").returncode == 0
-    result = _remove(project, target)
-    assert result.returncode == 1, (result.stdout, result.stderr)
-    assert target.is_dir() and "on no branch" in result.stderr
-
-
-def test_remove_takes_a_detached_head_that_sits_on_a_branch(tmp_path: Path) -> None:
+@pytest.mark.parametrize("loose", [True, False])
+def test_remove_of_a_detached_head_depends_on_a_branch_holding_its_commits(tmp_path: Path, loose: bool) -> None:
+    """Same class: a clean worktree can still hold the only copy of a commit. On a branch, it is safe to take."""
     project = _project(tmp_path)
     target = Path(_create(project, "parked").stdout.strip())
     assert _git(project, target, "checkout", "-q", "--detach").returncode == 0
+    if loose:
+        assert _git(project, target, "commit", "-q", "--allow-empty", "-m", "on no branch").returncode == 0
     result = _remove(project, target)
-    assert result.returncode == 0 and not target.exists(), result.stderr
+    assert result.returncode == (1 if loose else 0), (result.stdout, result.stderr)
+    assert target.is_dir() == loose and ("on no branch" in result.stderr) == loose
 
 
-def test_create_refuses_a_worktrees_folder_that_is_a_symlink_out_of_the_project(tmp_path: Path) -> None:
-    """Codex round 1 (P2): the worktree landed outside the project while the in-project path was printed."""
-    project = _project(tmp_path)
-    outside = tmp_path / "outside"
+def _link_out(project: Path, outside: Path, link: str) -> Path:
+    """Turn one step of <project>/.claude/worktrees/one into a symlink out of the project; return where `one` lands."""
+    claude = project / ".claude"
+    if link == "claude":
+        shutil.move(str(claude), str(outside / "claude"))
+    at, to, landing = {"claude": (claude, outside / "claude", outside / "claude" / "worktrees" / "one"),
+                       "worktrees": (claude / "worktrees", outside, outside / "one"),
+                       "name": (claude / "worktrees" / "one", outside / "one", outside / "one")}[link]
+    at.parent.mkdir(exist_ok=True)
+    at.symlink_to(to, target_is_directory=True)  # for "name" the link dangles until something is made at its far end
+    return landing
+
+
+@pytest.mark.parametrize("link", ["worktrees", "claude", "name"])
+def test_a_symlink_out_of_the_project_stops_both_create_and_remove(tmp_path: Path, link: str) -> None:
+    """Codex round 1 (P2): create built the worktree outside the project. Codex round 2 (P1): remove then deleted an
+    outside worktree and its ignored file, exit 0. One rule, owned_target(), now decides for both."""
+    project, outside = _project(tmp_path), tmp_path / "outside"
     outside.mkdir()
-    (project / ".claude" / "worktrees").symlink_to(outside, target_is_directory=True)
-    result = _create(project, "one")
-    assert result.returncode == 1 and result.stdout == "", result.stderr
-    assert list(outside.iterdir()) == [] and _worktrees(project) == 1
-    assert "symlink" in result.stderr
+    landing = _link_out(project, outside, link)
+    made = _create(project, "one")
+    assert made.returncode == 1 and made.stdout == "" and "through a symlink" in made.stderr, made.stderr
+    assert not landing.exists() and _worktrees(project) == 1
+    assert _git(project, project, "worktree", "add", "-q", str(landing), "-b", "external").returncode == 0
+    (project / ".git" / "info" / "exclude").write_text("*.cache\n")
+    (landing / "only-copy.cache").write_text("ignored by git, exists nowhere else")
+    gone = _remove(project, project / ".claude" / "worktrees" / "one")
+    assert gone.returncode == 1 and "refusing to remove" in gone.stderr, (gone.stdout, gone.stderr)
+    assert (landing / "only-copy.cache").is_file() and _worktrees(project) == 2
 
 
-@pytest.mark.parametrize("kind", ["project", "sibling", "worktrees-root", "symlink-out"])
-def test_remove_refuses_anything_outside_the_worktrees_folder(tmp_path: Path, kind: str) -> None:
+@pytest.mark.parametrize("kind", ["project", "sibling", "worktrees-root", "symlink-out", "nested", "alias"])
+def test_remove_refuses_anything_but_a_folder_create_could_have_made(tmp_path: Path, kind: str) -> None:
     project = _project(tmp_path)
-    root = project / ".claude" / "worktrees"
-    root.mkdir(parents=True)
-    sibling = tmp_path / "sibling"
+    real = Path(_create(project, "real").stdout.strip())
+    root, sibling = real.parent, tmp_path / "sibling"
+    (root / "a" / "b").mkdir(parents=True)
     sibling.mkdir()
     (sibling / "keep.txt").write_text("keep")
     (root / "link").symlink_to(sibling, target_is_directory=True)
-    target = {"project": project, "sibling": sibling, "worktrees-root": root, "symlink-out": root / "link"}[kind]
+    (root / "alias").symlink_to(real, target_is_directory=True)  # a link to a real worktree must not remove that one
+    target = {"project": project, "sibling": sibling, "worktrees-root": root, "symlink-out": root / "link",
+              "nested": root / "a" / "b", "alias": root / "alias"}[kind]
     result = _remove(project, target)
     assert result.returncode == 1, (result.stdout, result.stderr)
-    assert "refusing to remove" in result.stderr
-    assert project.is_dir() and root.is_dir() and (sibling / "keep.txt").read_text() == "keep"
+    assert "refusing to remove" in result.stderr and real.is_dir() and _worktrees(project) == 2
+    assert project.is_dir() and (root / "a" / "b").is_dir() and (sibling / "keep.txt").read_text() == "keep"
 
 
 def test_remove_of_a_folder_already_gone_succeeds(tmp_path: Path) -> None:

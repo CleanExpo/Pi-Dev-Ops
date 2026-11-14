@@ -9,11 +9,11 @@ with an empty name.
   worktree_hook.py remove   stdin {"worktree_path": "<abs path>", ...}
 
 Create puts the worktree at <repo>/.claude/worktrees/<name> on branch worktree-<name>.
-Remove only touches paths inside <repo>/.claude/worktrees, and deletes the branch only
-if git says it is fully merged. It never forces: a worktree holding modified or untracked
-files, or commits on no branch, is left in place (exit 1). Files the repository ignores
-(caches, node_modules) do go with the worktree. All git output goes to stderr. Fails
-closed (exit 1).
+Remove takes only a folder create could have made (owned_target decides for both), and
+deletes the branch only if git says it is fully merged. It never forces: a worktree
+holding modified or untracked files, or commits on no branch, is left in place (exit 1).
+Files the repository ignores (caches, node_modules) do go with the worktree. All git
+output goes to stderr. Fails closed (exit 1).
 """
 from __future__ import annotations
 
@@ -38,17 +38,29 @@ def git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return proc
 
 
-def create(repo: Path, event: dict) -> int:
-    name = event.get("name")
+def owned_target(repo: Path, name: object) -> Path:
+    """The one rule for which folder this hook may touch. Create and remove both ask here; nothing else decides.
+
+    It is <repo>/.claude/worktrees/<name>: a plain name, and no symlink at .claude, at worktrees or at the name
+    itself, so the folder really is inside the project. Anything else raises ValueError with the reason.
+    """
     if not isinstance(name, str) or not NAME_RE.fullmatch(name):
-        return fail(f"refusing worktree name {name!r}: need letters, digits, '-' or '_'")
+        raise ValueError(f"worktree name {name!r} needs letters, digits, '-' or '_'")
     target = repo / ".claude" / "worktrees" / name
-    if target.parent.resolve() != repo.resolve() / ".claude" / "worktrees":
-        return fail(f"{target.parent} is a symlink that leaves the project; refusing to create a worktree through it")
+    if target.resolve() != repo.resolve() / ".claude" / "worktrees" / name:
+        raise ValueError(f"{target} is reached through a symlink that leads somewhere else")
+    return target
+
+
+def create(repo: Path, event: dict) -> int:
+    try:
+        target = owned_target(repo, event.get("name"))
+    except ValueError as why:
+        return fail(f"refusing to create: {why}")
     if target.exists():
         return fail(f"{target} already exists")
     target.parent.mkdir(parents=True, exist_ok=True)
-    if git(repo, "worktree", "add", str(target), "-b", f"worktree-{name}").returncode != 0:
+    if git(repo, "worktree", "add", str(target), "-b", f"worktree-{target.name}").returncode != 0:
         return fail("git worktree add failed")
     print(target)
     return 0
@@ -58,9 +70,12 @@ def remove(repo: Path, event: dict) -> int:
     raw = event.get("worktree_path")
     if not isinstance(raw, str) or not raw:
         return fail("no worktree_path in the event")
-    target, root = Path(raw).resolve(), (repo / ".claude" / "worktrees").resolve()
-    if root not in target.parents:
-        return fail(f"refusing to remove {target}: not inside {root}")
+    try:  # only a folder create could have made: the asked path must be the owned folder for its own last part
+        target = owned_target(repo, Path(raw).name)
+        if Path(raw).resolve() != target.resolve():
+            raise ValueError(f"it is not a folder directly inside {target.parent}")
+    except ValueError as why:
+        return fail(f"refusing to remove {raw}: {why}")
     if not target.exists():
         return 0
     detached = git(target, "symbolic-ref", "-q", "HEAD").returncode != 0
