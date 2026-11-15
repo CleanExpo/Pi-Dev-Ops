@@ -1,0 +1,13 @@
+{
+  "schema": "done/1",
+  "work_id": "w_868a709c07df",
+  "contract_digest": "5029b97ed82e35a3141aeb72bb173a70e3d04fa945246bec0702bf049dc9586e",
+  "baseline_head": "b2fe61b2a86a4cd058521cce0d4196f178393d01",
+  "identity_key": "fix/RA-8379-goal-ticket-form-flake@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/zealous-ritchie-3a091d",
+  "locked_at_utc": "2026-11-15T06:35:06Z",
+  "criteria_count": 8,
+  "recipe_pins": {
+    "work/w_868a709c07df/checks.sh": "c106758817ab3727c4cab8826ea23ea0785718449975369516f79b0cf6b658b4",
+    "work/w_868a709c07df/criteria.json": "854058766c750797cbfa6d4952a9444e53fe7d6d0c9cfadac05056eb04d10add"
+  }
+}
