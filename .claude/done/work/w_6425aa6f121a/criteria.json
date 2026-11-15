@@ -1,0 +1,34 @@
+{
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The worktree hook tests pass, together with the existing class guards that run every registered hook (no hook exits 2 when its script is missing; missing targets stay quiet).",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_worktree_hook.py tests/test_hook_missing_script_never_blocks.py tests/test_hook_missing_target_quiet.py -q -p no:cacheprovider",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "The branch changes exactly three files since its merge base with main: the hook script, the settings file and the new test file. Nothing else, and none missing.",
+      "recipe": "git diff --name-only origin/main...HEAD | LC_ALL=C sort | diff - .claude/done/work/w_6425aa6f121a/expected-files.txt",
+      "timeout": 60
+    },
+    {
+      "id": "C3",
+      "text": "The settings file no longer reads WORKTREE_DIR or WORKTREE_BRANCH, the two variables Claude Code never sets.",
+      "recipe": "git grep -q -E 'WORKTREE_DIR|WORKTREE_BRANCH' -- .claude/settings.json; test $? -eq 1",
+      "timeout": 60
+    },
+    {
+      "id": "C4",
+      "text": "The suite keeps a test that runs the old hook lines against Claude Code's real input and requires them to fail, so the reason for the fix stays reproducible.",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_worktree_hook.py -k old_hook_lines -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "C5",
+      "text": "The new script and test file pass the repository's lint.",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check .claude/hooks/worktree_hook.py tests/test_worktree_hook.py",
+      "timeout": 120
+    }
+  ]
+}

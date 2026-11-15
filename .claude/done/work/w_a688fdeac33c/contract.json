@@ -1,0 +1,58 @@
+{
+  "schema": "done/1",
+  "work_id": "w_a688fdeac33c",
+  "version": 3,
+  "supersedes": "w_445fe29119c7",
+  "goal": "RA-8375 revision 3: as revision 2 (worktree-mode session start works from any Pi-Dev-Ops checkout on any machine; the two hook lines call .claude/hooks/worktree_hook.py, which reads the event from standard input), and in addition the script hands its version-control calls no GIT_* variable from its caller, so only the folder the script decided on chooses which repository is read and changed. Reason: CodeRabbit on c40ebe7a showed that an inherited GIT_DIR made the removal step take a worktree holding a commit on no branch, and made the creation step build a worktree of another repository. The guard tests for that live in a second test file because the first is at the repository's 300-line cap.",
+  "created_at_utc": "2026-11-15T02:17:46Z",
+  "identity_key": "fix/RA-8375-worktree-hook-stdin@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ra-8375-worktree-hook",
+  "baseline_observed": {
+    "head": "c40ebe7acf6f0af14891f472bac7945262361925",
+    "branch": "fix/RA-8375-worktree-hook-stdin",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "The worktree hook tests pass, including the guard tests that set a GIT_* variable in the hook's environment, together with the existing class guards that run every registered hook (no hook exits 2 when its script is missing; missing targets stay quiet).",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_worktree_hook.py tests/test_worktree_hook_git_env.py tests/test_hook_missing_script_never_blocks.py tests/test_hook_missing_target_quiet.py -q -p no:cacheprovider",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "Since its merge base with main the branch changes exactly these files and no others: the hook script, the settings file, .gitignore, the two test files, and the three Done contract folders for this work (the first contract and its two revisions).",
+      "recipe": "git diff --name-only origin/main...HEAD | LC_ALL=C sort | tr '\\n' ' ' | grep -qxF '.claude/done/work/w_445fe29119c7/contract.json .claude/done/work/w_445fe29119c7/lock.json .claude/done/work/w_6425aa6f121a/contract.json .claude/done/work/w_6425aa6f121a/criteria.json .claude/done/work/w_6425aa6f121a/expected-files.txt .claude/done/work/w_6425aa6f121a/lock.json .claude/done/work/w_a688fdeac33c/contract.json .claude/done/work/w_a688fdeac33c/lock.json .claude/hooks/worktree_hook.py .claude/settings.json .gitignore tests/test_worktree_hook.py tests/test_worktree_hook_git_env.py '",
+      "timeout": 60
+    },
+    {
+      "id": "C3",
+      "text": "The settings file no longer reads WORKTREE_DIR or WORKTREE_BRANCH, the two variables Claude Code never sets.",
+      "recipe": "git grep -q -E 'WORKTREE_DIR|WORKTREE_BRANCH' -- .claude/settings.json; test $? -eq 1",
+      "timeout": 60
+    },
+    {
+      "id": "C4",
+      "text": "The suite keeps tests that run the old hook lines against Claude Code's real input and require them to fail, so the reason for the fix stays reproducible.",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_worktree_hook.py -k old_hook_lines -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "C5",
+      "text": "The script and both test files pass the repository's lint.",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/ruff check .claude/hooks/worktree_hook.py tests/test_worktree_hook.py tests/test_worktree_hook_git_env.py",
+      "timeout": 120
+    },
+    {
+      "id": "C6",
+      "text": "The repository's own .gitignore ignores .claude/worktrees/, so a worktree made by the hook does not show as an untracked folder on a machine without this Mac's local exclude file.",
+      "recipe": "grep -qxF '.claude/worktrees/' .gitignore",
+      "timeout": 30
+    },
+    {
+      "id": "C7",
+      "text": "With GIT_DIR in the hook's environment naming this project's own main checkout, the removal step still keeps a worktree that holds a commit on no branch. This is the case CodeRabbit reported on c40ebe7a; the test was seen failing on that commit's script.",
+      "recipe": "/Users/phill-mac/Pi-Dev-Ops/.venv/bin/python -m pytest tests/test_worktree_hook_git_env.py -q -p no:cacheprovider",
+      "timeout": 300
+    }
+  ]
+}
