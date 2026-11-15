@@ -65,7 +65,8 @@ LIMITS: tuple[str, ...] = (
 # Fields no row relates, by reason. A field in neither a row nor here fails the coverage test.
 ALONE: dict[str, str] = {
     "identity: compared with what was asked, by its row of delivery_collect_fields.IDENTITY":
-        "pull.number commit.sha check_run.head_sha status.sha review.pull_request_url compare.base_commit "
+        "pull.number pull.base pull.base.repo pull.base.repo.full_name commit.sha check_run.head_sha status.sha "
+        "status.repository status.repository.full_name review.pull_request_url compare.base_commit "
         "compare.base_commit.sha pulls_list.base pulls_list.base.repo pulls_list.base.repo.full_name "
         "linear_page.project linear_page.project.id",
     "wholeness of a list or page: owned by _paged, _page and fetch_missions (LIMITS g)":

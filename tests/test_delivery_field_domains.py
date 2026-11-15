@@ -91,14 +91,14 @@ def _plant(st: SimpleNamespace, source: str, field: str, value: object, mp: pyte
     st.gh.update(good_pr_paths(ATO, 5))
     pr5 = lambda: dg.pr_evidence(ATO, 5, tick=_tick())  # noqa: E731
     base = f"/repos/{ATO}"
+    named = {"base": {"repo": {"full_name": ATO}}}
     if source == "pulls_list":
-        named = {"base": {"repo": {"full_name": ATO}}}
         item = copy.deepcopy({**open_pull(7), **named})
         _set(item, field, value)
         st.gh[f"{base}/pulls?state=open&per_page=100&page=1"] = [{**open_pull(5), **named}, item]
         return _outcome(lambda: dg.open_prs(ATO, tick=_tick()))
     if source in ("pull", "pull_merged"):
-        good = open_pull(5) if source == "pull" else merged_pull(5)
+        good = {**(open_pull(5) if source == "pull" else merged_pull(5)), **named}
         st.gh[f"{base}/commits/{SHA_B}"] = {"sha": SHA_B}
         return _github(st, f"{base}/pulls/5", good, field, value, pr5)
     if source == "commit":
@@ -113,7 +113,7 @@ def _plant(st: SimpleNamespace, source: str, field: str, value: object, mp: pyte
         st.gh[path] = {"total_count": 1, "check_runs": [run]}
         return _outcome(pr5)
     if source == "status":
-        return _github(st, f"{base}/commits/{SHA_A}/status", {"state": "pending", "total_count": 0, "sha": SHA_A}, field, value, pr5)
+        return _github(st, f"{base}/commits/{SHA_A}/status", st.gh[f"{base}/commits/{SHA_A}/status"], field, value, pr5)
     if source == "review":
         good = {"id": 1, "user": {"login": "someone", "type": "User"}, "state": "COMMENTED", "commit_id": SHA_A,
                 "submitted_at": "2026-11-14T03:00:00Z", "pull_request_url": f"https://api.github.com{base}/pulls/5"}

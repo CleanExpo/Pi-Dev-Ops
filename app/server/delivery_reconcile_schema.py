@@ -136,7 +136,7 @@ RECORDS: dict[str, dict[str, Check]] = {  # one typed record per ``kind``
     "mission": {"kind": one_of("mission"), **_PLACED},
     "orphan_pr": {"kind": one_of("orphan_pr"), **_PLACED},
     "repo": {"kind": one_of("repo"), "id": name, "repo": text, "ref": text, "stage": one_of("repo"),  # ``repo_findings``
-             "live_source": one_of("provable", "live_unconfirmed", "none"), "live_unconfirmed": opt_text,
+             "live_source": one_of("provable", "live_unconfirmed", "none"), "live_unconfirmed": opt(commit),
              "merged_unverifiable": count, "counted": null, **_SEEN},
 }
 

@@ -31,6 +31,9 @@ INVENTORY: list[tuple[str, str, str, str, str, str, bool]] = [
     ("pulls_list", "base.repo", "object", "fail", "fail", "pulls_list_mismatch", True),
     ("pulls_list", "base.repo.full_name", "text", "fail", "fail", "pulls_list_mismatch", True),
     ("pull", "number", "posint", "fail", "fail", "pull_mismatch", False),
+    ("pull", "base", "object", "fail", "fail", "pull_mismatch", True),
+    ("pull", "base.repo", "object", "fail", "fail", "pull_mismatch", True),
+    ("pull", "base.repo.full_name", "text", "fail", "fail", "pull_mismatch", True),
     ("pull", "state", "enum", "fail", "fail", "malformed_pull", True),
     ("pull", "merged", "bool", "fail", "fail", "malformed_pull", True),
     ("pull", "merged_at", "timestamp", "ok", "fail", "malformed_pull", False),
@@ -54,6 +57,8 @@ INVENTORY: list[tuple[str, str, str, str, str, str, bool]] = [
     ("status", "state", "enum", "fail", "fail", "malformed_status", True),
     ("status", "total_count", "count", "fail", "fail", "malformed_status", True),
     ("status", "sha", "sha", "fail", "fail", "status_mismatch", True),
+    ("status", "repository", "object", "fail", "fail", "status_mismatch", True),
+    ("status", "repository.full_name", "text", "fail", "fail", "status_mismatch", True),
     ("review", "id", "posint", "fail", "fail", "malformed_review", False),
     ("review", "user", "object", "fail", "fail", "malformed_review", False),
     ("review", "user.login", "login", "fail", "fail", "malformed_review", True),
@@ -124,6 +129,7 @@ INTERNAL = {
     ("vercel_latest_ready", "repo"), ("pr_evidence", "state"), ("pr_evidence", "merge_sha"),
     ("pr_evidence", "head_sha"), ("pr_evidence", "check_runs"), ("pr_evidence", "status"),
     ("pr_evidence", "reviews"), ("identity_mismatch", "checks"), ("identity_mismatch", "code"),
+    ("identity_mismatch", "asked"),
 }
 COLLECTORS = ("delivery_collect", "delivery_collect_github", "delivery_collect_fields")
 QUERIED_UNREAD = {"createdAt"}  # in the Linear query, read nowhere downstream (recorded, not validated)

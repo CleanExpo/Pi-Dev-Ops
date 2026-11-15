@@ -72,10 +72,10 @@ def test_rows_are_well_formed_and_every_check_is_applied() -> None:
     assert len(IDENTITY) == 9
     for name, row in IDENTITY.items():
         assert row["asked"] and isinstance(row["checks"], tuple), name
-        if not row["checks"]:
-            assert isinstance(row.get("why"), str) and len(row["why"]) > 20 and row.get("code") is None, name
-        for path, asked, kind in row["checks"]:
-            assert asked in row["asked"] and kind in df._KINDS and isinstance(row["code"], str), name
+        if not row["checks"]:  # nothing compared: every part asked carries its written reason, and no code
+            assert set(row["unchecked"]) == set(row["asked"]) and row.get("code") is None, name
+        for path, parts, kind in row["checks"]:
+            assert set(parts) <= set(row["asked"]) and kind in df._KINDS and isinstance(row["code"], str), name
     applied = set()
     for module in ("delivery_collect", "delivery_collect_github"):
         tree = ast.parse((REPO_ROOT / f"app/server/{module}.py").read_text(encoding="utf-8"))
@@ -94,8 +94,8 @@ def test_every_identity_field_has_an_inventory_row() -> None:
                 assert (name, ".".join(path) + ".sha") in fields, name
 
 
-def _plant(monkeypatch: pytest.MonkeyPatch, row: str, value: object) -> str | None:
-    """Plant ``value`` at the row's identity field in an otherwise good answer; the read's reason or None."""
+def _plant(monkeypatch: pytest.MonkeyPatch, row: str, value: object, check: int = 0) -> str | None:
+    """Plant ``value`` at one identity field of the row in an otherwise good answer; the read's reason or None."""
     st = install_fakes(monkeypatch)
     st.name_asked = st.name_project = False  # answers below are built whole; nothing fills a planted absence
     st.gh.update(good_pr_paths(ATO, 5))
@@ -108,7 +108,7 @@ def _plant(monkeypatch: pytest.MonkeyPatch, row: str, value: object) -> str | No
               "check_run": st.gh[CHECKS]["check_runs"][0], "status": st.gh[f"{BASE}/commits/{SHA_A}/status"],
               "compare": st.gh[f"{BASE}/compare/{SHA_A}...{SHA_B}"], "pulls_list": st.gh[sweep_path(ATO)][0],
               "review": st.gh[f"{BASE}/pulls/5/reviews?per_page=100&page=1"][0]}[row]
-    path = IDENTITY[row]["checks"][0][0]
+    path = IDENTITY[row]["checks"][check][0]
     for part in path[:-1]:
         target = target[part]
     if value is _ABSENT:
@@ -128,8 +128,8 @@ def _plant(monkeypatch: pytest.MonkeyPatch, row: str, value: object) -> str | No
 
 
 KEEP = object()
-OTHER = {"sha": SHA_C, "int": 6, "repo": "CleanExpo/Other", "suffix": f"https://api.github.com{BASE}/pulls/6"}
-WRONG_TYPE = {"sha": [SHA_A], "int": "5", "repo": [ATO], "suffix": 5}
+OTHER = {"sha": SHA_C, "int": 6, "repo": "CleanExpo/Other", "pull_url": f"https://api.github.com{BASE}/pulls/6"}
+WRONG_TYPE = {"sha": [SHA_A], "int": "5", "repo": [ATO], "pull_url": 5}
 PLANTED = {"pull", "commit", "check_run", "status", "compare", "pulls_list", "review"}  # linear: registry test
 
 
@@ -138,18 +138,19 @@ def _generated() -> list:
     for name, row in IDENTITY.items():
         if not row["checks"] or name not in PLANTED:
             continue
-        kind = row["checks"][0][2]
-        for label, value in (("other", OTHER[kind]), ("absent", _ABSENT), ("null", None),
-                             ("wrong_type", WRONG_TYPE[kind]), ("empty", "")):
-            rows.append(pytest.param(name, value, row["code"], id=f"{name}-{label}"))
-        rows.append(pytest.param(name, KEEP, None, id=f"{name}-control"))
+        for index, (path, _, kind) in enumerate(row["checks"]):  # EVERY field the row compares, not the first
+            field = ".".join(path)
+            for label, value in (("other", OTHER[kind]), ("absent", _ABSENT), ("null", None),
+                                 ("wrong_type", WRONG_TYPE[kind]), ("empty", "")):
+                rows.append(pytest.param(name, value, row["code"], index, id=f"{name}-{field}-{label}"))
+            rows.append(pytest.param(name, KEEP, None, index, id=f"{name}-{field}-control"))
     return rows
 
 
-@pytest.mark.parametrize("row,value,reason", _generated())
+@pytest.mark.parametrize("row,value,reason,check", _generated())
 def test_an_answer_naming_something_else_fails_with_its_reason(monkeypatch: pytest.MonkeyPatch, row: str,
-                                                               value: object, reason: str | None) -> None:
-    assert _plant(monkeypatch, row, value) == reason
+                                                               value: object, reason: str | None, check: int) -> None:
+    assert _plant(monkeypatch, row, value, check) == reason
 
 
 def test_generated_rows_cover_every_checked_row() -> None:

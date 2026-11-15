@@ -137,29 +137,29 @@ def open_prs(repo: str, *, tick: Tick) -> list[dict]:
     return [_open_item(pr, repo) for pr in _paged(repo, "/pulls?state=open&", tick, identity="number", item="pull")]
 
 
-def _pull_facts(pr: object, number: int) -> dict:
+def _pull_facts(pr: object, repo: str, number: int) -> dict:
     if not isinstance(pr, dict) or not member(pr.get("state"), PULL_STATES) or not flag(pr.get("merged")) \
             or not present(pr, "merged_at", is_instant):
         raise Unknown("malformed_pull")
     _agree("pull", pr)  # merged, merged_at, state and created_at must agree
-    _same("pull", pr, number=number)  # an answer about another pull is not this pull's evidence
+    _same("pull", pr, repo=repo, number=number)  # another pull, or another repository's, is not evidence
     return {**_pull_common(pr), "state": "merged" if pr["merged"] else pr["state"],
             "merged_at": pr.get("merged_at"), "merge_sha": pr.get("merge_commit_sha") if pr["merged"] else None}
 
 
-def _check_run(run: dict, head: str) -> dict:
+def _check_run(run: dict, repo: str, head: str) -> dict:
     if not member(run.get("status"), CHECK_STATUSES) or not present(run, "conclusion",
                                                                      lambda v: member(v, CHECK_CONCLUSIONS)) \
             or not present(run, "completed_at", is_instant):
         raise Unknown("malformed_check_run")
-    _same("check_run", run, head=head)  # a run about another commit is not this head's evidence
+    _same("check_run", run, repo=repo, head=head)  # a run about another commit is not this head's evidence
     _agree("check_run", run)
     return {"status": run["status"], "conclusion": run.get("conclusion"), "completed_at": run.get("completed_at")}
 
 
-def _review(review: dict, pull: str, created: str) -> dict:
+def _review(review: dict, repo: str, number: int, created: str) -> dict:
     """A review must name its login (a nameless verdict could hide another reviewer's block) and its pull."""
-    _same("review", review, pull=pull)  # a review of another pull is not this pull's verdict
+    _same("review", review, repo=repo, number=number)  # a review of another pull is not this pull's verdict
     name = _author(review, "malformed_review")[0]
     state, when = review.get("state"), review.get("submitted_at")
     if not name or not member(state, REVIEW_STATES) or not present(review, "commit_id", sha) \
@@ -173,15 +173,15 @@ def _review(review: dict, pull: str, created: str) -> dict:
 def _commit(repo: str, commit: str, tick: Tick, not_found: str) -> None:
     """The commit exists and the answer names it; any other answer is not proof it exists."""
     data = _get(repo, f"/commits/{commit}", tick, missing_on_404=True, not_found=not_found)
-    _same("commit", data, sha=commit)
+    _same("commit", data, repo=repo, sha=commit)
 
 
-def _status(data: object, head: str) -> dict:
+def _status(data: object, repo: str, head: str) -> dict:
     """Combined status: only ``state`` and ``total_count`` are used, never the paged ``statuses``. It must
     name the head asked about; absent, malformed or another commit is ``status_mismatch``."""
     if not isinstance(data, dict) or not member(data.get("state"), STATUS_STATES) or not count(data.get("total_count")):
         raise Unknown("malformed_status")
-    _same("status", data, head=head)
+    _same("status", data, repo=repo, head=head)
     _agree("status", data)
     return {"state": data["state"], "total_count": data["total_count"]}
 
@@ -189,7 +189,7 @@ def _status(data: object, head: str) -> dict:
 def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
     """One PR's head, merge, checks, status and reviews; raises Unknown or MissingCommit."""
     number = int(n)
-    facts = {**_pull_facts(_get(repo, f"/pulls/{number}", tick), number), "repo": repo, "number": number}
+    facts = {**_pull_facts(_get(repo, f"/pulls/{number}", tick), repo, number), "repo": repo, "number": number}
     if facts["state"] == "merged":
         facts["merge_sha"] = _sha(facts["merge_sha"], "no_merge_sha")
         _commit(repo, facts["merge_sha"], tick, "merge_not_found")
@@ -197,11 +197,10 @@ def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
         return facts
     head = facts["head_sha"] = _sha(facts["head_sha"], "empty_head")
     _commit(repo, head, tick, "head_not_found")
-    facts["check_runs"] = [_check_run(r, head) for r in _paged(repo, f"/commits/{head}/check-runs?", tick, identity="id",
+    facts["check_runs"] = [_check_run(r, repo, head) for r in _paged(repo, f"/commits/{head}/check-runs?", tick, identity="id",
                                                          item="check_run", key="check_runs")]
-    facts["status"] = _status(_get(repo, f"/commits/{head}/status", tick), head)
-    pull = f"/repos/{repo}/pulls/{number}"
-    facts["reviews"] = [_review(r, pull, facts["created_at"]) for r in _paged(repo, f"/pulls/{number}/reviews?", tick, identity="id",
+    facts["status"] = _status(_get(repo, f"/commits/{head}/status", tick), repo, head)
+    facts["reviews"] = [_review(r, repo, number, facts["created_at"]) for r in _paged(repo, f"/pulls/{number}/reviews?", tick, identity="id",
                                                          item="review")]
     return facts
 
@@ -215,6 +214,6 @@ def compare_status(repo: str, base: str, head: str, *, tick: Tick) -> str:
     status = data.get("status") if isinstance(data, dict) else None
     if not member(status, COMPARE_STATUSES):
         raise Unknown("malformed_compare")
-    _same("compare", data, base=base, head=head)
+    _same("compare", data, repo=repo, base=base, head=head)
     _agree("compare", data, base=base, head=head)
     return status

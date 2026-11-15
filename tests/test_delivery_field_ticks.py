@@ -82,6 +82,9 @@ def _break(st: SimpleNamespace, source: str, field: str, value: object) -> str:
         return "vercel"
     if source == "pull_merged":
         st.gh.update(merged_paths(ATO, 5))
+    if source in ("pull", "pull_merged", "status"):  # built whole (D59): nothing fills a planted absence
+        st.name_asked = False
+        st.gh[sweep_path(ATO)] = [{**open_pull(n), "base": {"repo": {"full_name": ATO}}} for n in (5, 7)]
     if source in ("pull", "pull_merged"):
         _set(st.gh[P5], field, value)
     elif source == "check_runs":

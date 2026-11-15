@@ -59,18 +59,19 @@ def open_pull(number: int, sha: str = SHA_A, user_type: str = "User") -> dict:
 def good_pr_paths(repo: str, number: int, sha: str = SHA_A) -> dict:
     """Every GET an open PR's evidence needs, answered well."""
     return {
-        f"/repos/{repo}/pulls/{number}": open_pull(number, sha),
+        f"/repos/{repo}/pulls/{number}": {**open_pull(number, sha), "base": {"repo": {"full_name": repo}}},
         f"/repos/{repo}/commits/{sha}": {"sha": sha},
         f"/repos/{repo}/commits/{sha}/check-runs?per_page=100&page=1": {
             "total_count": 1,
             "check_runs": [{"id": 1, "status": "completed", "conclusion": "success",
                             "completed_at": "2026-11-14T02:00:00Z", "head_sha": sha}]},
-        f"/repos/{repo}/commits/{sha}/status": {"state": "pending", "total_count": 0, "sha": sha},
+        f"/repos/{repo}/commits/{sha}/status": {"state": "pending", "total_count": 0, "sha": sha,
+                                                "repository": {"full_name": repo}},
         f"/repos/{repo}/pulls/{number}/reviews?per_page=100&page=1": [],
     }
 
 
-_LIST_OWNER = re.compile(r"/repos/([^/]+/[^/]+)/pulls(?:\?state=open|/(\d+)/reviews\?)")
+_ASKED = re.compile(r"/repos/([^/]+/[^/]+)/(?:pulls(?:\?state=open|/(\d+)(?:/reviews\?|$))|commits/[^/]+/status$)")
 
 
 def _named_project(page: object, project: object) -> object:
@@ -82,14 +83,20 @@ def _named_project(page: object, project: object) -> object:
 
 
 def _named_items(path: str, value: object) -> object:
-    """A real open-pull list names each pull's base repo and a review list each review's pull; items built
-    without those fields get the ones asked for here. An item that sets the field itself is kept as built."""
-    match = _LIST_OWNER.match(path)
-    if not match or not isinstance(value, list):
+    """A real pull (single or listed) names its base repo, a combined status its repository and a review its
+    pull; answers built without those fields get the ones asked for here. One that sets the field itself is
+    kept as built."""
+    match = _ASKED.match(path)
+    if not match:
         return value
     repo, number = match.groups()
-    field, named = (("pull_request_url", f"https://api.github.com/repos/{repo}/pulls/{number}") if number
-                    else ("base", {"repo": {"full_name": repo}}))
+    base = ("base", {"repo": {"full_name": repo}})
+    if isinstance(value, dict):
+        field, named = ("repository", {"full_name": repo}) if path.endswith("/status") else base
+        return {field: named, **value}
+    if not isinstance(value, list):
+        return value
+    field, named = ("pull_request_url", f"https://api.github.com/repos/{repo}/pulls/{number}") if number else base
     return [{field: named, **item} if isinstance(item, dict) else item for item in value]
 
 
@@ -218,16 +225,10 @@ def sweep_path(repo: str) -> str:
 
 def pr_paths(repo: str, number: int, sha: str = SHA_A, *, created: float = 80, check_done: float = 72) -> dict:
     """Every GET an open PR's evidence needs: checks green ``check_done`` hours before NOW, no review."""
-    return {
-        f"/repos/{repo}/pulls/{number}": {**open_pull(number, sha), "created_at": ago(created)},
-        f"/repos/{repo}/commits/{sha}": {"sha": sha},
-        f"/repos/{repo}/commits/{sha}/check-runs?per_page=100&page=1": {
-            "total_count": 1,
-            "check_runs": [{"id": 1, "status": "completed", "conclusion": "success", "completed_at": ago(check_done),
-                            "head_sha": sha}]},
-        f"/repos/{repo}/commits/{sha}/status": {"state": "pending", "total_count": 0, "sha": sha},
-        f"/repos/{repo}/pulls/{number}/reviews?per_page=100&page=1": [],
-    }
+    paths = good_pr_paths(repo, number, sha)
+    paths[f"/repos/{repo}/pulls/{number}"]["created_at"] = ago(created)
+    paths[f"/repos/{repo}/commits/{sha}/check-runs?per_page=100&page=1"]["check_runs"][0]["completed_at"] = ago(check_done)
+    return paths
 
 
 def merged_pull(number: int, merge: str = SHA_B, merged: float = 30) -> dict:
@@ -238,7 +239,7 @@ def merged_pull(number: int, merge: str = SHA_B, merged: float = 30) -> dict:
 
 def merged_paths(repo: str, number: int, merge: str = SHA_B, merged: float = 30) -> dict:
     """Every GET a merged PR's evidence needs: the pull and a readable merge commit."""
-    return {f"/repos/{repo}/pulls/{number}": merged_pull(number, merge, merged),
+    return {f"/repos/{repo}/pulls/{number}": {**merged_pull(number, merge, merged), "base": {"repo": {"full_name": repo}}},
             f"/repos/{repo}/commits/{merge}": {"sha": merge}}
 
 

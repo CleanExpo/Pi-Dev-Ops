@@ -120,30 +120,39 @@ def linear_links(issue: object) -> bool:
     return all(not isinstance(n, dict) or isinstance(n.get("url"), str) for n in nodes)  # Attachment.url: String!
 
 
-# RA-8100 B6: THE ONE OWNER of "the answer names the thing that was asked". One row per outside request
+# RA-8100 B6, D59: THE ONE OWNER of "the answer names the thing that was asked". One row per outside request
 # the collector makes; ``reader`` is the function that makes it (a test walks the source and fails on a
-# request with no row). ``checks``: (answer path, asked key, kind); every one must hold or the read
-# fails with ``code``. A row with no check carries ``why``: the written reason the answer has no identity.
+# request with no row). ``asked`` lists EVERY part of the request (the repository as well as the number or
+# commit). ``checks``: (answer path, parts asked, kind): the field must equal those parts exactly or the read
+# fails with ``code``. A part no documented field of the answer can name is in ``unchecked`` with the written
+# reason. A test fails on a part that is neither compared nor explained, and on one that is both.
+_NO_REPO = ("GitHub's documented answer has no field that names its repository (DECISIONS D59); "
+            "the request is made on the repository asked and the answer is bound by its commit SHA")
 IDENTITY: dict[str, dict] = {
     "pulls_list": {"reader": "open_prs", "asked": ("repo",), "code": "pulls_list_mismatch",
-                   "checks": ((("base", "repo", "full_name"), "repo", "repo"),)},
-    "pull": {"reader": "pr_evidence", "asked": ("number",), "checks": ((("number",), "number", "int"),),
-             "code": "pull_mismatch"},
-    "commit": {"reader": "_commit", "asked": ("sha",), "checks": ((("sha",), "sha", "sha"),), "code": "commit_mismatch"},
-    "check_run": {"reader": "pr_evidence", "asked": ("head",), "checks": ((("head_sha",), "head", "sha"),),
-                  "code": "check_run_mismatch"},
-    "status": {"reader": "pr_evidence", "asked": ("head",), "checks": ((("sha",), "head", "sha"),),
-               "code": "status_mismatch"},
-    "review": {"reader": "pr_evidence", "asked": ("pull",), "code": "review_mismatch",
-               "checks": ((("pull_request_url",), "pull", "suffix"),)},
-    # the head side needs more than one field of the answer: ``delivery_invariants.ANSWERS["compare"]`` owns it
-    "compare": {"reader": "compare_status", "asked": ("base", "head"), "code": "compare_mismatch",
-                "checks": ((("base_commit", "sha"), "base", "sha"),)},
+                   "checks": ((("base", "repo", "full_name"), ("repo",), "repo"),)},
+    "pull": {"reader": "pr_evidence", "asked": ("repo", "number"), "code": "pull_mismatch",
+             "checks": ((("number",), ("number",), "int"), (("base", "repo", "full_name"), ("repo",), "repo"))},
+    "commit": {"reader": "_commit", "asked": ("repo", "sha"), "code": "commit_mismatch",
+               "checks": ((("sha",), ("sha",), "sha"),), "unchecked": {"repo": _NO_REPO}},
+    "check_run": {"reader": "pr_evidence", "asked": ("repo", "head"), "code": "check_run_mismatch",
+                  "checks": ((("head_sha",), ("head",), "sha"),), "unchecked": {"repo": _NO_REPO}},
+    "status": {"reader": "pr_evidence", "asked": ("repo", "head"), "code": "status_mismatch",
+               "checks": ((("sha",), ("head",), "sha"), (("repository", "full_name"), ("repo",), "repo"))},
+    "review": {"reader": "pr_evidence", "asked": ("repo", "number"), "code": "review_mismatch",
+               "checks": ((("pull_request_url",), ("repo", "number"), "pull_url"),)},
+    "compare": {"reader": "compare_status", "asked": ("repo", "base", "head"), "code": "compare_mismatch",
+                "checks": ((("base_commit", "sha"), ("base",), "sha"),),
+                "unchecked": {"repo": _NO_REPO,
+                              "head": "needs more than one field of the answer, so it is compared by "
+                                      "delivery_invariants.ANSWERS['compare'], which this reader also applies"}},
     "linear_issue": {"reader": "fetch_missions", "asked": ("project",), "code": "linear_project_mismatch",
-                     "checks": ((("project", "id"), "project", "text"),)},
+                     "checks": ((("project", "id"), ("project",), "text"),)},
     "vercel": {"reader": "vercel_latest_ready", "asked": ("project", "team"), "checks": (), "code": None,
-               "why": "a list filtered by projectId, target and state in the query; the repo's fixtures and "
-                      "vercel_monitor read no field of a deployment item that names its project, so none is checked"},
+               "unchecked": dict.fromkeys(("project", "team"),
+                                          "a list filtered by projectId, teamId, target and state in the query; the "
+                                          "repo's fixtures and vercel_monitor read no field of a deployment item that "
+                                          "names them, and the value is recorded as live_unconfirmed only")},
 }
 _ABSENT = object()
 
@@ -156,21 +165,32 @@ def _at(answer: object, path: tuple[str, ...]) -> object:
     return answer
 
 
+def same_name(value: object, want: object) -> bool:
+    """Equal as GitHub names are (letter case ignored), whole text against whole text. ASCII only, so no
+    other letter can lower-case into an ASCII one."""
+    return text(value) and isinstance(want, str) and bool(want) and value.isascii() and want.isascii() \
+        and value.lower() == want.lower()  # type: ignore[union-attr]
+
+
+# Every kind compares the WHOLE value with the whole of what was asked: no ends-with, starts-with or contains.
 _KINDS = {
-    "sha": lambda answer, value, want: sha(value) is not None and sha(value) == sha(want),
-    "int": lambda answer, value, want: positive_int(value) and value == want,
-    "repo": lambda answer, value, want: text(value) and isinstance(want, str) and value.lower() == want.lower(),
-    "suffix": lambda answer, value, want: text(value) and isinstance(want, str) and bool(want)
-    and value.lower().endswith(want.lower()),
-    "text": lambda answer, value, want: text(value) and value == want,
+    "sha": lambda value, want: sha(value) is not None and sha(value) == sha(want),
+    "int": lambda value, want: positive_int(value) and positive_int(want) and value == want,
+    "repo": same_name,
+    "pull_url": lambda value, repo, number: isinstance(repo, str) and positive_int(number)
+    and same_name(value, f"https://api.github.com/repos/{repo}/pulls/{number}"),
+    "text": lambda value, want: text(value) and value == want,
 }
 
 
 def identity_mismatch(row: str, answer: object, **asked: object) -> str | None:
-    """Apply one IDENTITY row: its reason code when the answer does not name what was asked, else None."""
+    """Apply one IDENTITY row: its reason code when the answer does not name what was asked, else None.
+    Every part the row asks for must be passed, and nothing else."""
     spec = IDENTITY[row]
-    for path, key, kind in spec["checks"]:
-        if not _KINDS[kind](answer, _at(answer, path), asked[key]):
+    if set(asked) != set(spec["asked"]):
+        raise TypeError(f"{row}: asked {sorted(asked)}, the row needs {sorted(spec['asked'])}")
+    for path, parts, kind in spec["checks"]:
+        if not _KINDS[kind](_at(answer, path), *(asked[part] for part in parts)):
             return spec["code"]
     return None
 
