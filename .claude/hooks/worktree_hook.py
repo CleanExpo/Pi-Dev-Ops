@@ -10,11 +10,21 @@ with an empty name.
 
 Create puts the worktree at <repo>/.claude/worktrees/<name> on branch worktree-<name>.
 Remove takes only a folder create could have made (owned_target decides for both), and
-deletes the branch only if git says it is fully merged. It never forces: a worktree
-holding modified or untracked files, or commits on no local branch (a tag or a remote
-ref does not count), is left in place (exit 1). Files the repository ignores (caches,
-node_modules) and commits only its reflog remembers do go with the worktree. All git
-output goes to stderr. Fails closed (exit 1).
+deletes the branch only if git says it is fully merged. It never forces.
+
+What remove protects (the worktree is left in place, exit 1): modified, staged and
+untracked files, and any commit reachable from the worktree's HEAD or from its own refs
+(refs/bisect, refs/worktree, refs/rewritten) that is on no local branch. Those are what
+git itself keeps alive for a worktree. A tag or a remote ref does not count as a branch.
+
+What goes with the worktree, by decision: files the repository ignores (caches,
+node_modules), and commits that only git's records of where HEAD used to be still name:
+the worktree's reflog and pseudo-refs such as ORIG_HEAD. Git's own gc does not keep
+those, and an ordinary rebase or hard reset leaves ORIG_HEAD on a replaced commit, so
+counting them would leave most used worktrees unremovable. While the branch is kept,
+its own reflog still names the replaced commits.
+
+All git output goes to stderr. Fails closed (exit 1).
 """
 from __future__ import annotations
 

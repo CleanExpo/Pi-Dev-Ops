@@ -187,6 +187,7 @@ HOLDERS = {  # what holds the worktree's commit -> (git steps run in the worktre
     "nothing": (LOOSE, True), "a-tag": (LOOSE + [("tag", "keep")], True),
     "a-remote-ref": (LOOSE + [("update-ref", "refs/remotes/origin/x", "HEAD")], True),
     "unreadable-head": ([("checkout", "-q", "--orphan", "empty")], True),  # git cannot answer, so it is kept
+    "only-orig-head": ([LOOSE[1], ("reset", "-q", "--hard", "HEAD~1")], False),  # a record of where HEAD was: removed
     **{ref: (LOOSE + [("update-ref", ref, "HEAD"), ("checkout", "-q", "worktree-parked")], True)  # back on its branch
        for ref in ("refs/bisect/bad", "refs/worktree/mine", "refs/rewritten/x")}}
 
@@ -263,8 +264,7 @@ def test_remove_of_a_folder_already_gone_succeeds(tmp_path: Path) -> None:
 def test_input_the_script_cannot_use_fails_closed(tmp_path: Path, event: str, payload: str) -> None:
     project = _project(tmp_path)
     result = _run(_command(event), project, payload)
-    assert result.returncode == 1, (result.stdout, result.stderr)
-    assert result.stdout == "" and _worktrees(project) == 1
+    assert result.returncode == 1 and result.stdout == "" and _worktrees(project) == 1, (result.stdout, result.stderr)
 
 
 @pytest.mark.parametrize("project_dir", [None, "/no/such/folder"])
