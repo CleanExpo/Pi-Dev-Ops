@@ -240,8 +240,10 @@ def test_run_reconcile_tick_error_dict_when_module_missing(
 ) -> None:
     import sys
 
-    monkeypatch.delitem(sys.modules, "app.server.delivery_reconcile_tick", raising=False)
+    # None in sys.modules makes the import raise; the real tick must never run from a test.
+    monkeypatch.setitem(sys.modules, "app.server.delivery_reconcile_tick", None)
     out = dr.run_reconcile_tick()
+    assert out["error"] == "tick_failed_ModuleNotFoundError"
     assert out["complete"] is False and out["persisted"] is False
     assert out["error"].startswith("tick_failed_")
 

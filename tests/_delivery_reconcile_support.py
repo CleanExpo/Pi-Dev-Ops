@@ -175,3 +175,76 @@ def orphan_item(number: int = 9, *, repo: str = PIDEV, author_type: str = "User"
     """One ``open_prs`` item plus its repo, for a PR no mission links."""
     return {"repo": repo, "number": number, "draft": False, "created_at": ago(created),
             "author_login": "someone", "author_type": author_type, "head_sha": head}
+
+
+# ── Tick builders (delivery_reconcile tick tests). A fake registry file, sweep paths and PR payloads. ──
+def reg_entry(pid: str, repo: str, *, queryable: bool = True, vercel: str | None = None) -> dict:
+    """One registry entry; fake identifiers only."""
+    out: dict = {"id": pid, "repo": repo}
+    if queryable:
+        out.update({"linear_project_id": f"proj-{pid}", "linear_team_id": "team-fake"})
+    if vercel:
+        out["vercel_project_id"] = vercel
+    return out
+
+
+def sweep_path(repo: str) -> str:
+    return f"/repos/{repo}/pulls?state=open&per_page=100&page=1"
+
+
+def pr_paths(repo: str, number: int, sha: str = SHA_A, *, created: float = 80, check_done: float = 72) -> dict:
+    """Every GET an open PR's evidence needs: checks green ``check_done`` hours before NOW, no review."""
+    return {
+        f"/repos/{repo}/pulls/{number}": {**open_pull(number, sha), "created_at": ago(created)},
+        f"/repos/{repo}/commits/{sha}": {"sha": sha},
+        f"/repos/{repo}/commits/{sha}/check-runs?per_page=100&page=1": {
+            "total_count": 1,
+            "check_runs": [{"status": "completed", "conclusion": "success", "completed_at": ago(check_done)}]},
+        f"/repos/{repo}/commits/{sha}/status": {"state": "success", "total_count": 0},
+        f"/repos/{repo}/pulls/{number}/reviews?per_page=100&page=1": [],
+    }
+
+
+def merged_pull(number: int, merge: str = SHA_B, merged: float = 30) -> dict:
+    """A pulls/{n} payload for a merged PR."""
+    return {**open_pull(number), "state": "closed", "merged": True, "merge_commit_sha": merge,
+            "merged_at": ago(merged), "created_at": ago(90)}
+
+
+def tick_issue(identifier: str, refs: tuple[tuple[str, int], ...] = (), *, links_whole: bool = True,
+               extra: str = "", **kw: object) -> dict:
+    """A mission node whose description links ``refs``; ``links_whole`` False leaves attachments unread."""
+    node = mission(identifier, **kw)  # type: ignore[arg-type]
+    urls = " ".join(f"https://github.com/{repo}/pull/{n}" for repo, n in refs)
+    node["description"] = f"SECRET-DESCRIPTION-MARKER {urls} {extra}".strip()
+    node["attachments"] = {"pageInfo": {"hasNextPage": not links_whole}, "nodes": []}
+    return node
+
+
+def setup_tick(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, entries: list[dict] | None) -> SimpleNamespace:
+    """Fakes installed, a fake registry (None keeps the real one), the fake key, a tmp state path."""
+    import json
+
+    from app.server import config_loader
+    from app.server import delivery_reconcile as dr
+
+    st = install_fakes(monkeypatch)
+    if entries is not None:
+        reg = tmp_path / "projects.json"
+        reg.write_text(json.dumps({"projects": entries}), encoding="utf-8")
+        monkeypatch.setattr(config_loader, "PROJECTS_JSON", reg)
+    monkeypatch.setenv("LINEAR_API_KEY", API_KEY)
+    for name in ("RAILWAY_GIT_COMMIT_SHA", "BUILD_REVISION", "TAO_DELIVERY_RECONCILE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(dr, "_last_save_ok", None)
+    st.path = tmp_path / "state.json"
+    return st
+
+
+def run(st: SimpleNamespace, now: datetime = NOW) -> dict:
+    """One tick through the public entry; a crash inside the tick fails the test, never passes it."""
+    from app.server import delivery_reconcile as dr
+
+    out = dr.run_reconcile_tick(now=now, path=str(st.path))
+    assert not str(out.get("error", "")).startswith("tick_failed_"), out
+    return out
