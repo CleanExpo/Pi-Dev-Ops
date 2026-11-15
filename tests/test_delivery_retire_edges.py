@@ -200,8 +200,8 @@ def test_store_never_keeps_a_future_or_bad_first_seen(bad: object) -> None:
     assert out["missions"]["M"]["first_seen"] == NOW.timestamp()
 
 
-def test_tile_survives_a_stored_extreme_since(tmp_path: Path) -> None:
-    """A stored ``since`` whose UTC instant overflows has no age; the tile still renders."""
+def test_an_extreme_since_is_never_stored(tmp_path: Path) -> None:
+    """A ``since`` whose UTC instant overflows is not a time a tick writes: the state is not saved (D56)."""
     state = store.empty_state()
     state["last_tick"] = NOW.timestamp()
     state["summary"] = summary_of(complete=True)
@@ -210,6 +210,9 @@ def test_tile_survives_a_stored_extreme_since(tmp_path: Path) -> None:
         state["alerts"][key] = stored({"key": key, "mission_id": key, "code": "X", "severity": "founder", "ref": key,
                                        "since": since, "age_source": "startedAt"}, NOW.timestamp(), alert=True)
     path = tmp_path / "s.json"
-    assert store.save(path, state)
+    assert store.save(path, state) is False and not path.exists()
+    for alert in state["alerts"].values():
+        alert.update(since=None, age_source=None)
+    assert store.save(path, state)  # the same state without the two times is sound
     snap = dr.status_snapshot(path, NOW)
     assert snap["state"] == "ok" and [i["age_hours"] for i in snap["items"]] == [None, None]

@@ -150,6 +150,7 @@ MORE: list[tuple[str, Callable[[dict], None]]] = [  # other faces of the same ro
     ("review_fields_need_an_open_pull", _set(lambda s: s["missions"][ORPHAN], approval_identity_unverified=True,
                                              pr_head_sha=None)),
     ("since_has_its_source", _set(_MISSION, since=None)),
+    ("since_has_its_source", _set(_MISSION, since=None, age_source=None)),  # both gone: a record with no age
     ("repo_live_fields_agree", _set(lambda s: s["missions"][REPO], live_source="provable", merged_unverifiable=2)),
 ]
 
@@ -164,7 +165,7 @@ def test_every_row_has_a_planted_contradiction() -> None:
     names = [name for name, _fields, _rule, _holds in inv.STATE]
     assert set(PLANTED) == set(names) and len(set(names)) == len(names)
     assert all(rule for _name, _fields, rule, _holds in inv.STATE)
-    assert [limit[0] for limit in inv.LIMITS] == list("abcdefghijklm")
+    assert [limit[0] for limit in inv.LIMITS] == list("abcdefghijklmnop")
 
 
 @pytest.mark.parametrize("row", sorted(PLANTED))

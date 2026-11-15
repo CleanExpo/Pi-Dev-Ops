@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from .delivery_closure import Finding, Snapshot, Stage, assess, finding_key
+from .delivery_invariants import reading
 from .delivery_stage_facts import (
     Unclassifiable, all_contained, checks_state, commit_of, iso, item_state, parse_ts, pr_list, review_verdicts,
     sha_or_none, source_time,
@@ -221,7 +222,7 @@ def _orphan(ctx: _Ctx, now: datetime) -> tuple[dict, list[dict]]:
     if len(ctx.prs) != 1:
         raise Unclassifiable("bad_input")
     head = commit_of(ctx.primary, "open")
-    if ctx.primary.get("author_type") == "Bot":
+    if reading("author_is_bot", {"login": ctx.primary.get("author_login"), "type": ctx.primary.get("author_type")}):
         return _record(ctx, "counted", counted="bot_prs"), []
     created = parse_ts(ctx.primary.get("created_at"))
     return _finish(ctx, now, Stage.BUILDING, created, "pr_created_at", pr_head_sha=head)

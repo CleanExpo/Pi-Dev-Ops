@@ -12,10 +12,12 @@ The tick's summary is built from ``SUMMARY`` (``new_summary``) and the tile's co
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Callable
 from typing import Any
 
 from . import delivery_invariants as invariants
+from .delivery_collect_fields import instant, sha
 
 SCHEMA_VERSION = 1
 MAX_TIME = 253402300799.0  # 9999-12-31T23:59:59Z: a later stored time has no date
@@ -40,6 +42,26 @@ def name(value: Any) -> bool:
 
 def opt_text(value: Any) -> bool:
     return value is None or isinstance(value, str)
+
+
+def commit(value: Any) -> bool:
+    """A commit ID exactly as the collector hands it on: 40 hex digits in lower case (D56)."""
+    return isinstance(value, str) and sha(value) == value
+
+
+def stamp(value: Any) -> bool:
+    """A time exactly as ``delivery_stage_facts.iso`` writes it: an instant in UTC ending in ``Z`` (D56).
+    The tile's ``_parse`` reads every such text as a time, so a stored ``since`` always has an age."""
+    when = instant(value)
+    return when is not None and when.isoformat().replace("+00:00", "Z") == value
+
+
+_PULL_URL = re.compile(r"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[1-9][0-9]*")
+
+
+def pull_url(value: Any) -> bool:
+    """A link exactly as ``delivery_stage._url`` builds it: one pull on github.com (D56)."""
+    return isinstance(value, str) and _PULL_URL.fullmatch(value) is not None
 
 
 def null(value: Any) -> bool:
@@ -94,15 +116,18 @@ def shape(spec: dict[str, Check], optional: frozenset[str] = frozenset()) -> Che
 
 _SEEN: dict[str, Check] = {"first_seen": time, "last_seen": time}  # the merge writes both on every entry
 
+# every source an age is ever taken from (``delivery_invariant_checks.AGE_SOURCES``, the one list)
+_AGE = opt(one_of(*sorted({source for sources in invariants.chk.AGE_SOURCES.values() for source in sources})))
+
 PR: dict[str, Check] = {"repo": text, "number": positive, "state": one_of("open", "closed", "merged", "error")}
 
 _PLACED: dict[str, Check] = {  # ``delivery_stage._record`` plus ``Run.take`` (``refreshed_at``)
     "id": name, "project_id": text, "repo": text, "ref": text, "reason": opt_text,
     "stage": one_of("unknown", "missing_commit", "building", "review_wait", "approval_wait", "merged", "done"),
-    "owner": opt_text, "since": opt_text, "age_source": opt_text, "counted": null,
+    "owner": opt_text, "since": opt(stamp), "age_source": _AGE, "counted": null,
     "prs": lambda value: isinstance(value, list) and all(shape(PR)(item) for item in value),
-    "pr_head_sha": opt_text, "reviewed_head_sha": opt_text, "authorised_head_sha": null,
-    "merge_sha": opt_text, "deployed_sha": opt_text, "verified_sha": opt_text, "tests_passed": flag,
+    "pr_head_sha": opt(commit), "reviewed_head_sha": opt(commit), "authorised_head_sha": null,
+    "merge_sha": opt(commit), "deployed_sha": opt(commit), "verified_sha": opt(commit), "tests_passed": flag,
     "acceptance_passed": lambda value: value is False,  # the reconcile never authorises or accepts
     "live_source_provable": flag, "approval_identity_unverified": flag,
     "refreshed_at": time, **_SEEN}
@@ -118,7 +143,7 @@ RECORDS: dict[str, dict[str, Check]] = {  # one typed record per ``kind``
 ALERT: dict[str, Check] = {  # ``delivery_stage._finding`` plus the merge's ``count``
     "key": name, "mission_id": name, "code": text,
     "severity": one_of("info", "reminder", "escalation", "founder", "critical"), "next_owner": text, "message": text,
-    "ref": text, "repo": text, "since": opt_text, "age_source": opt_text, "url": opt_text,
+    "ref": text, "repo": text, "since": opt(stamp), "age_source": _AGE, "url": opt(pull_url),
     "count": positive, **_SEEN}
 
 # name: (check, the zero the tick starts from, shown on the tile as a counter)

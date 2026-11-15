@@ -11,6 +11,9 @@ reason code, so a contradictory answer fails the read; it is never evidence.
 ``STATE``: the state file. ``schema.problems`` calls ``state_problems``, and ``store.save`` and
 ``store.load`` both call ``schema.problems``: a contradictory state is never written, and one found on
 disk is ``state_unreadable``.
+``READINGS``: one fact read from two fields; nothing is refused, a disagreement takes the cautious reading.
+SCOPE (founder ruling D56): the list answers for what the tile shows and what a stage claims (verified,
+approved, green, complete). What it leaves out on purpose is in ``LIMITS``.
 COMPLETENESS IS CHECKED, NOT CLAIMED: every field read from an outside answer (the field inventory) and
 every key of every stored dict (the schema) must be named by a row or by ``ALONE`` with its reason, and
 a row must name exactly the fields its check reads (tests/test_delivery_invariant_coverage.py).
@@ -47,10 +50,16 @@ LIMITS: tuple[str, ...] = (
     "j. An entry older than a complete tick: THE RULE in the store keeps a subject neither proven whole nor "
     "known out of scope (D33), so an old entry beside ``complete`` is the rule working, not a contradiction.",
     "k. Any outside time against the tick's clock (a review, merge, check or deployment dated in the "
-    "future): the clock is this machine's and may be wrong; a time is related only to times of the same pull.",
+    "future): the clock is this machine's and may be wrong; a time is related only to times of the same pull. "
+    "A stored since is such a time: it may be later than last_tick.",
     "l. A summary's per-tick counters against what is stored: they tally what that tick read, and a held "
     "subject is not counted again.",
     "m. Which pull a stored head or merge SHA belongs to: a record stores only repo, number and state per pull.",
+    "n. A repo record's merged_unverifiable against the stored merged records (D56): a per-tick tally like l, "
+    "and the tile does not show it.",
+    "o. RAILWAY_GIT_COMMIT_SHA against BUILD_REVISION (D56): two names for one setting; the first set is used.",
+    "p. A stored alert's code, message, owner and link against anything but its own domain: an alert never "
+    "says healthy, and its text comes from a reviewed table (f).",
 )
 
 # Fields no row relates, by reason. A field in neither a row nor here fails the coverage test.
@@ -67,13 +76,14 @@ ALONE: dict[str, str] = {
     "a fact handed to the classifier as read: it is judged per mission against OTHER answers (the head, the "
     "allow-list, the clock), not against a field of its own answer (LIMITS d, e, k)":
         "pulls_list.draft pulls_list.created_at pulls_list.head pulls_list.head.sha pulls_list.user "
-        "pulls_list.user.login pulls_list.user.type pull.draft pull.head pull.head.sha pull.user pull.user.login "
-        "pull.user.type pull_merged.merge_commit_sha pull_merged.merged_at review.user review.user.login "
-        "review.user.type review.commit_id linear_issue.id linear_issue.identifier linear_issue.state "
+        "pull.draft pull.head pull.head.sha pull.user pull_merged.merge_commit_sha pull_merged.merged_at review.user review.user.login "
+        "review.commit_id linear_issue.id linear_issue.identifier linear_issue.state "
         "linear_issue.state.type linear_issue.startedAt linear_issue.completedAt linear_issue.assignee "
         "linear_issue.assignee.name linear_links.description linear_links.attachments.nodes.url vercel.state "
         "vercel.created vercel.target vercel.meta vercel.meta.githubCommitSha env.RAILWAY_GIT_COMMIT_SHA "
         "env.BUILD_REVISION",
+    "read for its own domain only; no decision uses it (a review counts by its login against the allow-list)":
+        "review.user.type",
     "stored: one fixed value, or the selector of the record's shape (the schema's domain)":
         "state.version record.kind record.counted record.authorised_head_sha record.acceptance_passed repo.kind "
         "repo.stage repo.counted",
@@ -258,6 +268,20 @@ def _broken(rows: tuple[Row, ...], *args: Any) -> list[str]:
         if not ok:
             out.append(name)
     return out
+
+
+READINGS: tuple[Row, ...] = (
+    ("author_is_bot", "pulls_list.user.login pulls_list.user.type pull.user.login pull.user.type",
+     "an author is a bot only when the type says Bot AND the login ends with [bot]; where the two disagree "
+     "the pull is a person's: it is placed and reported, never counted away (D56)",
+     lambda u: u["type"] == "Bot" and u["login"].endswith("[bot]")),
+)
+
+
+def reading(name: str, *args: Any) -> bool:
+    """Whether the named row of ``READINGS`` holds; a value it cannot be read from is False."""
+    (row,) = (row for row in READINGS if row[0] == name)  # an unknown name is a programming error
+    return not _broken((row,), *args)
 
 
 def answer_broken(kind: str, answer: object, **asked: object) -> list[str]:

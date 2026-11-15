@@ -21,7 +21,7 @@ from app.server import delivery_reconcile_schema as schema
 
 MODULES = ("delivery_invariants", "delivery_invariant_checks")
 ASKED = {"base", "head", "created"}  # what the reader passes beside the answer: not fields of the answer
-PATH = {"missions", "alerts", "summary", "checkpoint", "kind"}  # the way to an entry, and its kind
+PATH = {"missions", "alerts", "summary", "checkpoint", "kind", "user"}  # the way to an entry, and its kind
 
 
 def answer_fields() -> set[str]:
@@ -37,7 +37,8 @@ def stored_fields() -> set[str]:
 
 
 def rows() -> list[tuple]:
-    return [row for entry in inv.ANSWERS.values() for row in entry.get("rows", ())] + list(inv.STATE)
+    return [row for entry in inv.ANSWERS.values() for row in entry.get("rows", ())] + list(inv.STATE) \
+        + list(inv.READINGS)
 
 
 def named(table: list[tuple]) -> set[str]:
@@ -114,7 +115,7 @@ def keys_read(node: ast.AST, defs: dict[str, ast.AST], seen: set[str] | None = N
 def row_nodes(trees: dict[str, ast.Module]) -> dict[str, ast.AST]:
     """The check expression of every row, by row name, from the tables' own source."""
     defs = definitions(trees)
-    tables = [defs["STATE"]] + [value for entry in defs["ANSWERS"].values for key, value in zip(entry.keys, entry.values)
+    tables = [defs["STATE"], defs["READINGS"]] + [value for entry in defs["ANSWERS"].values for key, value in zip(entry.keys, entry.values)
                                 if key.value == "rows"]
     return {row.elts[0].value: row.elts[3] for table in tables for row in table.elts}
 

@@ -257,5 +257,5 @@ def test_f5_two_merged_one_not_contained_is_not_live() -> None:
 
 
 def test_f5_bot_orphan_is_counted_not_raised() -> None:
-    record, found = run(None, [orphan_item(9, author_type="Bot")])
+    record, found = run(None, [{**orphan_item(9, author_type="Bot"), "author_login": "dependabot[bot]"}])
     assert (record["stage"], record["counted"], found) == ("counted", "bot_prs", [])

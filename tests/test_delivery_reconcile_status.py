@@ -23,12 +23,17 @@ def _clean(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(dr, "_last_tick_error", None, raising=False)
 
 
+def _ago(hours: float) -> str:
+    """A time as a tick stores it (``delivery_stage_facts.iso``)."""
+    return (NOW - timedelta(hours=hours)).isoformat().replace("+00:00", "Z")
+
+
 def _alert(key: str, **over: Any) -> dict[str, Any]:
     made = stored({
         "key": key, "mission_id": f"M-{key}", "code": "CHECKS_GREEN_NO_REVIEW",
         "severity": "founder", "next_owner": "founder", "message": f"msg {key}",
-        "ref": f"RA-{key}", "repo": "o/r", "since": (NOW - timedelta(hours=72)).isoformat(),
-        "age_source": "checks_green", "url": f"https://example.test/{key}", **over,
+        "ref": f"RA-{key}", "repo": "o/r", "since": _ago(72),
+        "age_source": "check_completed_at", "url": "https://github.com/o/r/pull/7", **over,
     }, over.get("last_seen", TICK), alert=True)
     return {**made, "age_source": None if made["since"] is None else made["age_source"]}
 
@@ -93,8 +98,8 @@ def test_t7_founder_alert_shown_with_age(tmp_path: Path) -> None:
     assert out["state"] == "ok" and out["complete"] is True and out["errors"] == []
     assert out["items"] == [{
         "ref": "RA-A", "code": "CHECKS_GREEN_NO_REVIEW", "age_hours": 72.0,
-        "age_source": "checks_green", "owner": "founder", "next_action": "msg A",
-        "url": "https://example.test/A"}]
+        "age_source": "check_completed_at", "owner": "founder", "next_action": "msg A",
+        "url": "https://github.com/o/r/pull/7"}]
     assert out["counts"]["by_severity"] == {"founder": 1}
     assert out["counts"]["by_code"] == {"CHECKS_GREEN_NO_REVIEW": 1}
     assert out["counts"]["bot_prs"] == 1 and out["counts"]["missions"] == 3
@@ -122,10 +127,10 @@ def test_t7_not_refreshed_mission_alert_is_shown(tmp_path: Path) -> None:
 
 def test_t7_item_cap_and_order_and_severity_filter(tmp_path: Path) -> None:
     p = tmp_path / "s.json"
-    alerts = [_alert(f"F{i:02d}", since=(NOW - timedelta(hours=i + 1)).isoformat())
+    alerts = [_alert(f"F{i:02d}", since=_ago(i + 1))
               for i in range(25)]
-    alerts.append(_alert("WARN", severity="reminder", since=(NOW - timedelta(hours=999)).isoformat()))
-    alerts.append(_alert("CRIT", severity="critical", since=(NOW - timedelta(hours=500)).isoformat()))
+    alerts.append(_alert("WARN", severity="reminder", since=_ago(999)))
+    alerts.append(_alert("CRIT", severity="critical", since=_ago(500)))
     _write(p, alerts, summary=_summary())
     out = dr.status_snapshot(p, NOW)
     assert len(out["items"]) == 20
@@ -136,11 +141,15 @@ def test_t7_item_cap_and_order_and_severity_filter(tmp_path: Path) -> None:
     assert out["counts"]["by_severity"] == {"founder": 25, "reminder": 1, "critical": 1}
 
 
-def test_age_hours_none_when_since_missing_or_bad(tmp_path: Path) -> None:
+def test_age_hours_none_when_since_missing_and_a_bad_since_is_never_stored(tmp_path: Path) -> None:
     p = tmp_path / "s.json"
-    _write(p, [_alert("A", since=None), _alert("B", since="garbage")], summary=_summary())
+    _write(p, [_alert("A", since=None)], summary=_summary())
     out = dr.status_snapshot(p, NOW)
-    assert [i["age_hours"] for i in out["items"]] == [None, None]
+    assert [i["age_hours"] for i in out["items"]] == [None]
+    for bad in ("garbage", (NOW - timedelta(hours=1)).isoformat(), "2026-11-14", ""):  # D56: not a stored time
+        state = json.loads(p.read_text(encoding="utf-8"))
+        state["alerts"]["A"].update(since=bad, age_source="startedAt")
+        assert store.save(tmp_path / "bad.json", state) is False, bad
 
 
 def test_record_save_false_marks_incomplete(tmp_path: Path) -> None:
