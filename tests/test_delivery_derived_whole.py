@@ -18,8 +18,8 @@ from types import SimpleNamespace
 
 import pytest
 from _delivery_reconcile_support import (
-    ATO, NOW, PIDEV, linear_page, merged_paths, open_pull, pr_paths, reg_entry, run, setup_tick, sweep_path,
-    tick_issue,
+    ATO, NOW, PIDEV, linear_page, merged_paths, open_pull, pr_paths, reg_entry, run, setup_tick, stored,
+    sweep_path, tick_issue,
 )
 
 from app.server import delivery_collect as collect
@@ -183,3 +183,32 @@ def test_a_stored_record_in_scope_goes_only_when_its_subject_was_read_whole(whol
     assert ("M" in out["missions"]) is kept and "N" in out["missions"]
     held, _ = store.apply_tick(first, [], [], 2.0, whole=["M", "N"], scope=None)  # incomplete: nothing goes
     assert set(held["missions"]) == {"M", "N"}
+
+
+def _orphan_tick(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, entries: list[dict]) -> tuple[dict, dict]:
+    """A stored orphan pull of PIDEV (with its alert), then one tick over ``entries``; ATO is read whole."""
+    st = setup_tick(monkeypatch, tmp_path, entries)
+    rid = f"pr:{PIDEV}#9"
+    planted = store.empty_state()
+    planted["missions"][rid] = stored({"id": rid, "kind": "orphan_pr", "repo": PIDEV})
+    planted["alerts"]["k"] = stored({"key": "k", "mission_id": rid, "code": "STALE_24H"}, alert=True)
+    assert store.save(st.path, planted)
+    st.gh.update({sweep_path(ATO): [], sweep_path(PIDEV): []})
+    st.gql_pages += [linear_page([]) for entry in entries if "linear_project_id" in entry]
+    return run(st), _state(st)
+
+
+def test_a_stored_orphan_whose_repo_was_not_swept_is_held(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Third pre-screen: nobody listed the repo's open pulls this tick, so the orphan was never read. Same
+    rule as a mission whose project was not read: held, never taken as gone. (A repo that left the
+    registry is different: tests/test_delivery_retire_rule.py, the registry itself is read whole.)"""
+    out, state = _orphan_tick(monkeypatch, tmp_path, [reg_entry("ato", ATO), reg_entry("pd", PIDEV, queryable=False)])
+    rid = f"pr:{PIDEV}#9"
+    assert out["complete"] is True and out["persisted"] is True
+    assert rid in state["missions"] and "k" in state["alerts"] and rid in out["not_refreshed_ids"]
+
+
+def test_positive_control_an_orphan_absent_from_a_whole_sweep_is_removed(monkeypatch: pytest.MonkeyPatch,
+                                                                        tmp_path: Path) -> None:
+    out, state = _orphan_tick(monkeypatch, tmp_path, [reg_entry("ato", ATO), reg_entry("pd", PIDEV)])
+    assert out["complete"] is True and f"pr:{PIDEV}#9" not in state["missions"] and "k" not in state["alerts"]
