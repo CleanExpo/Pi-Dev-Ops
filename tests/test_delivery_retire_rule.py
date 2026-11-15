@@ -235,7 +235,7 @@ def test_p1_3_closed_unmerged_pull_with_a_merge_time_keeps_the_record(monkeypatc
 
 
 # ── Whole reads still retire: scope changes, whole-read verdicts, and read order keeps rotating ──
-def test_an_orphan_whose_repo_left_the_registry_is_dropped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_an_orphan_whose_repo_left_the_registry_is_held_not_dropped(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     _world(monkeypatch, tmp_path, "orphan")
     other = "CleanExpo/ATO"
     st2 = setup_tick(monkeypatch, tmp_path, [reg_entry("ato", other)])  # same state file, Pi-Dev-Ops removed
@@ -243,9 +243,11 @@ def test_an_orphan_whose_repo_left_the_registry_is_dropped(monkeypatch: pytest.M
     st2.gql_pages.append(linear_page([]))
     out = run(st2, LATER)
     state = _state(st2)
-    assert out["complete"] is True and f"pr:{PIDEV}#9" not in out["not_refreshed_ids"]
-    assert f"pr:{PIDEV}#9" not in state["missions"]
-    assert not [a for a in state["alerts"].values() if a["mission_id"] == f"pr:{PIDEV}#9"]
+    # one rule (tests/test_delivery_unread_matrix.py): nobody listed that repo's open pulls this tick, so the
+    # orphan was never read. Held like a mission whose project left the registry; never taken as gone.
+    assert out["complete"] is True and f"pr:{PIDEV}#9" in out["not_refreshed_ids"]
+    assert f"pr:{PIDEV}#9" in state["missions"]
+    assert [a for a in state["alerts"].values() if a["mission_id"] == f"pr:{PIDEV}#9"]
 
 
 def test_a_whole_read_with_no_ci_still_retires_the_orphan_it_claims(monkeypatch: pytest.MonkeyPatch,

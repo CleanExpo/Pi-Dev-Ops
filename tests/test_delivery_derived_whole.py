@@ -18,8 +18,8 @@ from types import SimpleNamespace
 
 import pytest
 from _delivery_reconcile_support import (
-    ATO, NOW, PIDEV, linear_page, merged_paths, open_pull, pr_paths, reg_entry, run, setup_tick, stored,
-    sweep_path, tick_issue,
+    ATO, NOW, PIDEV, linear_page, merged_paths, open_pull, pr_paths, reg_entry, run, setup_tick, sweep_path,
+    tick_issue,
 )
 
 from app.server import delivery_collect as collect
@@ -138,11 +138,12 @@ def _repo_alerts(state: dict) -> list[str]:
 
 
 @pytest.mark.parametrize("with_read_project", [False, True], ids=["only-unqueryable", "one-read-one-not"])
-def test_a_repo_with_a_project_that_was_never_read_gets_no_count(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
-                                                               with_read_project: bool) -> None:
-    """Second pre-screen: a project that cannot be queried is never read, so the repo's missions are not all
-    known. The inputs are an ALLOW-list (every registry entry of the repo read whole this tick), so a
-    project nobody read can never be taken as "no missions"."""
+def test_an_entry_with_no_linear_project_is_a_registry_fact_not_an_unread_list(
+        monkeypatch: pytest.MonkeyPatch, tmp_path: Path, with_read_project: bool) -> None:
+    """Spec lines 109, 112 and 155: an entry with no ``linear_project_id`` HAS no Linear project. That is
+    stated by the registry (a local file, read whole), not inferred from a missing answer: there is no
+    mission list to read, the tick is complete, the project is named in ``unqueryable_projects`` and its
+    repo still gets its record and its ``NO_DEPLOY_SOURCE`` finding, counting the missions that were read."""
     entries = [reg_entry("b", ATO, queryable=False)] + ([reg_entry("a", ATO)] if with_read_project else [])
     st = setup_tick(monkeypatch, tmp_path, entries)
     if with_read_project:
@@ -151,9 +152,9 @@ def test_a_repo_with_a_project_that_was_never_read_gets_no_count(monkeypatch: py
         st.gql_pages += [linear_page([tick_issue("RA-1", ((ATO, 5),))])]
     out = run(st)
     state = _state(st)
-    assert out["persisted"] is True and out["unqueryable_projects"] == ["b"]
-    assert f"repo:{ATO}" not in state["missions"] and _repo_alerts(state) == []  # no "N merged missions" claim
-    assert f"repo:{ATO}" in out["not_refreshed_ids"]
+    assert out["persisted"] is True and out["complete"] is True and out["unqueryable_projects"] == ["b"]
+    assert out["not_refreshed_ids"] == [] and state["missions"][f"repo:{ATO}"]["live_source"] == "none"
+    assert len(_repo_alerts(state)) == 1 and f"{int(with_read_project)} merged" in _repo_alerts(state)[0]
 
 
 def test_a_mission_that_becomes_counted_does_not_leave_its_old_record(monkeypatch: pytest.MonkeyPatch,
@@ -183,32 +184,3 @@ def test_a_stored_record_in_scope_goes_only_when_its_subject_was_read_whole(whol
     assert ("M" in out["missions"]) is kept and "N" in out["missions"]
     held, _ = store.apply_tick(first, [], [], 2.0, whole=["M", "N"], scope=None)  # incomplete: nothing goes
     assert set(held["missions"]) == {"M", "N"}
-
-
-def _orphan_tick(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, entries: list[dict]) -> tuple[dict, dict]:
-    """A stored orphan pull of PIDEV (with its alert), then one tick over ``entries``; ATO is read whole."""
-    st = setup_tick(monkeypatch, tmp_path, entries)
-    rid = f"pr:{PIDEV}#9"
-    planted = store.empty_state()
-    planted["missions"][rid] = stored({"id": rid, "kind": "orphan_pr", "repo": PIDEV})
-    planted["alerts"]["k"] = stored({"key": "k", "mission_id": rid, "code": "STALE_24H"}, alert=True)
-    assert store.save(st.path, planted)
-    st.gh.update({sweep_path(ATO): [], sweep_path(PIDEV): []})
-    st.gql_pages += [linear_page([]) for entry in entries if "linear_project_id" in entry]
-    return run(st), _state(st)
-
-
-def test_a_stored_orphan_whose_repo_was_not_swept_is_held(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Third pre-screen: nobody listed the repo's open pulls this tick, so the orphan was never read. Same
-    rule as a mission whose project was not read: held, never taken as gone. (A repo that left the
-    registry is different: tests/test_delivery_retire_rule.py, the registry itself is read whole.)"""
-    out, state = _orphan_tick(monkeypatch, tmp_path, [reg_entry("ato", ATO), reg_entry("pd", PIDEV, queryable=False)])
-    rid = f"pr:{PIDEV}#9"
-    assert out["complete"] is True and out["persisted"] is True
-    assert rid in state["missions"] and "k" in state["alerts"] and rid in out["not_refreshed_ids"]
-
-
-def test_positive_control_an_orphan_absent_from_a_whole_sweep_is_removed(monkeypatch: pytest.MonkeyPatch,
-                                                                        tmp_path: Path) -> None:
-    out, state = _orphan_tick(monkeypatch, tmp_path, [reg_entry("ato", ATO), reg_entry("pd", PIDEV)])
-    assert out["complete"] is True and f"pr:{PIDEV}#9" not in state["missions"] and "k" not in state["alerts"]

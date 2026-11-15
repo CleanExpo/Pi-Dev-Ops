@@ -127,22 +127,17 @@ def mission(run: Any, entry: dict, issue: dict) -> None:
 
 def _hold_orphans(run: Any) -> bool:
     """Hold each stored orphan whose subject is not read whole: all of them when a Linear read or link
-    list was not whole (any mission may link any PR), else those a not-whole mission links and those
-    whose repo's open pulls were not listed whole this tick. A registry repo nobody swept (its sweep
-    failed, or its project cannot be queried) was never read, so its orphans cannot be shown out of
-    scope (``Run.unknown``): the same rule as a mission whose project was not read. Only a repo that
-    left the registry (a local file, read whole) puts its orphans out of scope.
-    Returns whether new orphans can be judged this tick."""
+    list was not whole (any mission may link any PR), else those a not-whole mission links. An orphan
+    whose repo's open pulls were not listed whole this tick (the sweep failed, or the repo is no longer
+    swept or no longer in the registry) was never read: ``Run.unread``, the same rule as a mission whose
+    project was not read. Returns whether new orphans can be judged this tick."""
     trusted = run.uncut("linear", "links")
-    known = {entry["repo"].lower() for entry in run.registry.entries}
     for rid, rec in run.state["missions"].items():
-        repo = rid.lower().removeprefix("pr:").rpartition("#")[0]  # the id is ``pr:<repo>#<number>``
-        if not (isinstance(rec, dict) and rec.get("kind") == "orphan_pr" and repo in known):
+        if not (isinstance(rec, dict) and rec.get("kind") == "orphan_pr"):
             continue
-        listed = repo in run.sweep
-        if not listed:
-            run.unknown.add(rid)
-        if not (trusted and listed) or rid.lower() in run.claimed:
+        if rid.lower().removeprefix("pr:").rpartition("#")[0] not in run.sweep:  # ``pr:<repo>#<number>``
+            run.unread(rid)
+        elif not trusted or rid.lower() in run.claimed:
             run.hold(rid)
     return trusted
 
@@ -178,15 +173,14 @@ def _vercel_sha(run: Any, repo: str) -> tuple[str | None, bool]:
 
 
 def _inputs_whole(run: Any, repo: str, missions: list[tuple[dict, dict]]) -> bool:
-    """A repo's record is DERIVED from its missions' records, so its inputs are an ALLOW-list: every
-    registry entry of the repo had its mission list read whole this tick (``Run.projects``; an entry that
-    cannot be queried is never in it), and every mission of the repo, listed this tick or stored and not
-    read, was proven whole (``Run.prove``). Nothing is worked out from a project or mission nobody read."""
+    """A repo's record is DERIVED from its missions' records, so it is whole only when every Linear list
+    was read whole and every mission of the repo, listed this tick or stored and not read, was proven
+    whole (``Run.prove``). Nothing is worked out from a mission that was held."""
     key = repo.lower()
-    entries = all(entry["id"] in run.projects for entry in run.registry.entries if entry["repo"].lower() == key)
     listed = all(str(issue["identifier"]) in run.whole for entry, issue in missions if entry["repo"].lower() == key)
-    unread = any(str((run.stored(rid) or {}).get("repo")).lower() == key for rid in run.unknown)
-    return entries and listed and not unread
+    unread = any(rec.get("kind") == "mission" and str(rec.get("repo")).lower() == key
+                 for rec in (run.stored(rid) or {} for rid in run.unknown))
+    return run.uncut("linear") and listed and not unread
 
 
 def repos(run: Any, missions: list[tuple[dict, dict]]) -> None:

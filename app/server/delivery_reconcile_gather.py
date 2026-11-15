@@ -44,7 +44,6 @@ class Run:
     linked: set[tuple[str, int]] = field(default_factory=set)
     claimed: set[str] = field(default_factory=set)
     cuts: set[str] = field(default_factory=set)
-    projects: set[str] = field(default_factory=set)  # registry entries whose mission list was read WHOLE
     own: str | None = None
     whole: set[str] = field(default_factory=set)
     unknown: set[str] = field(default_factory=set)
@@ -82,6 +81,12 @@ class Run:
         if rid not in ids:
             ids.append(rid)
 
+    def unread(self, rid: str) -> None:
+        """The one writer of "the list that would contain this stored subject was NOT read whole this tick"
+        (a mission's project list, an orphan's repo sweep): it is held and cannot be shown out of scope."""
+        self.unknown.add(rid)
+        self.hold(rid)
+
     def prove(self, rid: str) -> None:
         """The one writer of "this subject's own read was proven whole this tick" (``whole``)."""
         self.whole.add(rid)
@@ -101,6 +106,7 @@ def _read_missions(run: Run) -> list[tuple[dict, dict]]:
     since = (run.now - LOOKBACK).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     out: list[tuple[dict, dict]] = []
     seen: set[str] = set()
+    read_whole: set[str] = set()  # the projects read WHOLE this tick
     for entry in run.registry.queryable:
         try:
             read = collect.fetch_missions(run.api_key, entry, tick=run.tick, since=since)
@@ -112,12 +118,12 @@ def _read_missions(run: Run) -> list[tuple[dict, dict]]:
         if not whole:
             run.cut("linear", entry["id"], reason or "incomplete")
         else:
-            run.projects.add(entry["id"])  # the one writer of "this project's list was read whole"
+            read_whole.add(entry["id"])
         for issue in issues:  # the collector checked every node; no filter here
             if issue["identifier"] not in seen:  # two registry entries on one project: the first owns it
                 seen.add(issue["identifier"])
                 out.append((entry, issue))
-    _hold_unseen(run, run.projects, seen)
+    _hold_unseen(run, read_whole, seen)
     return out
 
 
@@ -129,7 +135,7 @@ def _hold_unseen(run: Run, whole: set[str], seen: set[str]) -> None:
         if isinstance(rec, dict) and rec.get("kind") == "mission" and rec.get("project_id") not in whole \
                 and rid not in seen:
             run.keep_stored(rid)
-            run.unknown.add(rid)  # never read, so it cannot be shown out of scope
+            run.unread(rid)
 
 
 def _sweep(run: Run) -> None:
