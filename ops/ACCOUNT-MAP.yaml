@@ -1,0 +1,44 @@
+# Account map (RA-8187, AR-01). Which subscription login is pinned to which machine.
+#
+# EMAILS ONLY. Never put a password, token, cookie, API key or session here.
+# Phill fills the email values. Agents never write or change an email in this file;
+# they only run the validator. How to edit: ops/ACCOUNT-MAP.md.
+#
+# Every email below is a placeholder on the reserved ".invalid" domain. The validator
+# prints each one as PENDING until Phill replaces it with the real address.
+# Open decisions that shape this file: MacBook seat (RA-8196), PC payment (RA-8195),
+# second Grok (RA-8193).
+#
+# Check it by running scripts/check_account_map.py (see ops/ACCOUNT-MAP.md).
+version: 1
+
+machines:
+  - id: mini
+    host: Phills-Mac-mini
+    notes: Mac mini, always-on night-queue runner.
+  - id: macbook
+    host: null
+    notes: MacBook. Seat decision pending (RA-8196).
+  - id: pc
+    host: null
+    notes: Windows desktop. Payment decision pending (RA-8195).
+
+accounts:
+  - label: claude-mini
+    provider: claude
+    plan: max
+    email: claude-mini@pending.invalid
+    machines: [mini]
+    notes: Placeholder. Phill sets the real Claude login for the Mini.
+  - label: claude-macbook
+    provider: claude
+    plan: null
+    email: claude-macbook@pending.invalid
+    machines: [macbook]
+    notes: Placeholder. Waits on the MacBook seat decision (RA-8196).
+  - label: claude-pc
+    provider: claude
+    plan: null
+    email: claude-pc@pending.invalid
+    machines: [pc]
+    notes: Placeholder. Waits on the PC payment decision (RA-8195).

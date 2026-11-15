@@ -1,0 +1,58 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d1886f786266",
+  "version": 2,
+  "supersedes": "w_7d7782532532",
+  "goal": "RA-8187 AR-01 accept-only: every account-map value must match its field grammar (email, enum, slug, short prose, null placeholder) and a second net reusing app/server/scanner.py patterns plus xox catches prefixed tokens in values, keys, comments",
+  "created_at_utc": "2026-11-05T06:32:58Z",
+  "identity_key": "phillmcgurk/ra-8187-account-map-validator@/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.git",
+  "baseline_observed": {
+    "head": "06b973d7ba66c39b0be01bb0649316471fb1a6cb",
+    "branch": "phillmcgurk/ra-8187-account-map-validator",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "planted-keys-fail",
+      "text": "Fake lin_api_ (+40), ghp_, github_pat_, sk-, sk-ant-, xox* keys planted in account notes, machine notes, host, label, email local part, plan, a YAML comment and a nested notes mapping each make the CLI exit 1",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" -m pytest tests/test_account_map_accept_only.py -q -p no:cacheprovider -k planted_key_fails",
+      "timeout": 300
+    },
+    {
+      "id": "grammar-covers-every-key",
+      "text": "Every key the schema allows has a value grammar (accept-only: no field is free-form), and a URL or mixed letter-digit word in notes fails closed",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" -m pytest tests/test_account_map_accept_only.py -q -p no:cacheprovider -k 'grammar_covers_every_key or url_in_notes or mixed_word'",
+      "timeout": 300
+    },
+    {
+      "id": "second-net-reuses-scanner",
+      "text": "The second net loads every _SECRET_PATTERNS entry from app/server/scanner.py (no copy drift) and adds xox; each net fires independently of the other",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" -m pytest tests/test_account_map_accept_only.py -q -p no:cacheprovider -k 'scanner or independent'",
+      "timeout": 300
+    },
+    {
+      "id": "prior-tests-green",
+      "text": "Every earlier-round test (nested key, comment, password=, duplicate key, pin rules) still passes",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" -m pytest tests/test_check_account_map.py tests/test_check_account_map_cli.py -q -p no:cacheprovider",
+      "timeout": 300
+    },
+    {
+      "id": "committed-map-valid",
+      "text": "The committed ops/ACCOUNT-MAP.yaml passes its own validator (exit 0) and reports placeholders as PENDING",
+      "recipe": "out=$(\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" scripts/check_account_map.py 2>&1); rc=$?; echo \"$out\"; test $rc -eq 0 && echo \"$out\" | grep -q PENDING",
+      "timeout": 120
+    },
+    {
+      "id": "negative-controls",
+      "text": "Committed fixtures still fail with SECRET_FIELD and SHARED_CLAUDE_EMAIL",
+      "recipe": "o1=$(\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" scripts/check_account_map.py --path tests/fixtures/account_map/planted_secret.yaml 2>&1); r1=$?; o2=$(\"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" scripts/check_account_map.py --path tests/fixtures/account_map/shared_claude_email.yaml 2>&1); r2=$?; echo \"$o1\"; echo \"$o2\"; test $r1 -eq 1 && test $r2 -eq 1 && echo \"$o1\" | grep -q SECRET_FIELD && echo \"$o2\" | grep -q SHARED_CLAUDE_EMAIL",
+      "timeout": 120
+    },
+    {
+      "id": "wired-and-lints",
+      "text": "CI and handoff-loop run the validator; gate-parity, file-length, function-length lints and ruff pass",
+      "recipe": "grep -q 'scripts/check_account_map.py' .github/workflows/ci.yml && grep -q 'account-map' scripts/handoff-loop.sh && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" .github/scripts/gate_parity_lint.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" .github/scripts/file_length_lint.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" .github/scripts/function_length_lint.py && \"/Volumes/Mini Mini 2T Storage/agent-work/night-ar-mini-RA-8187/repo/.venv/bin/python\" -m ruff check scripts/check_account_map.py scripts/account_map_secrets.py scripts/account_map_grammar.py tests/test_account_map_accept_only.py",
+      "timeout": 300
+    }
+  ]
+}

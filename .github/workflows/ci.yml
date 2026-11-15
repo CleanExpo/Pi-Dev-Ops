@@ -241,6 +241,13 @@ jobs:
         run: python scripts/check_business_charters.py
         working-directory: .
 
+      # RA-8187: ops/ACCOUNT-MAP.yaml holds emails only. Fails on a secret-looking
+      # field or value, a machine without exactly one Claude pin, or one Claude email
+      # pinned on two machines. Placeholder emails pass but print as PENDING.
+      - name: Account map gate (RA-8187)
+        run: python scripts/check_account_map.py
+        working-directory: .
+
       # RA-7252: a PR can edit a SKILL.md and merge without regenerating the
       # manifest — main carried stale content for weeks and nothing here noticed,
       # because the `generated-agentskills` gate existed only in handoff-loop.sh,
