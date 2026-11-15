@@ -9,6 +9,8 @@ from __future__ import annotations
 from . import ticket_sweeper_io
 from .delivery_collect import _REPO, _SHA, MissingCommit, Tick, Unknown, _positive_int, _skipped
 
+_STATUS_STATES = frozenset({"success", "pending", "failure", "error"})
+
 
 def _get(repo: str, path: str, tick: Tick, *, missing_on_404: bool = False,
          not_found: str = "head_not_found") -> object:
@@ -25,20 +27,43 @@ def _get(repo: str, path: str, tick: Tick, *, missing_on_404: bool = False,
         raise Unknown(f"http_{code}" if isinstance(code, int) else f"error_{type(exc).__name__}") from None
 
 
-def _paged(repo: str, path: str, tick: Tick, key: str | None = None) -> list[dict]:
-    """Every page of a GitHub list, whole or raise (same rule as ``_all_check_runs``)."""
+def _count(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def _page(data: object, key: str | None, identity: str, item: str) -> tuple[list[dict], object]:
+    """One page's items and ``total_count``; every item must carry a valid identity."""
+    batch = data.get(key) if key and isinstance(data, dict) else data
+    total = data.get("total_count") if key and isinstance(data, dict) else None
+    if not isinstance(batch, list) or not all(isinstance(b, dict) for b in batch) \
+            or (key and not _count(total)):
+        raise Unknown("malformed_list")
+    if not all(_positive_int(b.get(identity)) for b in batch):
+        raise Unknown(f"malformed_{item}")
+    return batch, total
+
+
+# The one owner of "this paged list is whole": identity, duplicates and the count are checked here
+# for every list, so no caller can get a list without them. ``identity`` has no default on purpose.
+def _paged(repo: str, path: str, tick: Tick, *, identity: str, item: str, key: str | None = None) -> list[dict]:
+    """Every page of a GitHub list, whole or raise. Ends on a short page; a counted list must then
+    hold exactly ``total_count`` distinct items, the same total on every page."""
     items: list[dict] = []
+    seen: set[int] = set()
+    first: object = None
     for page in range(1, 11):
-        data = _get(repo, f"{path}per_page=100&page={page}", tick)
-        batch = data.get(key) if key and isinstance(data, dict) else data
-        total = data.get("total_count") if key and isinstance(data, dict) else None
-        if not isinstance(batch, list) or not all(isinstance(b, dict) for b in batch) \
-                or (key and not isinstance(total, int)):
-            raise Unknown("malformed_list")
+        batch, total = _page(_get(repo, f"{path}per_page=100&page={page}", tick), key, identity, item)
+        if page > 1 and total != first:
+            raise Unknown("total_changed")  # the list moved between pages
+        first = total
+        ids = [b[identity] for b in batch]
+        if len(set(ids)) < len(ids) or seen.intersection(ids):
+            raise Unknown(f"duplicate_{item}")  # a shifted page may have skipped one
+        seen.update(ids)
         items.extend(batch)
-        if (len(items) >= total or not batch) if key else len(batch) < 100:
-            if key and len(items) < total:
-                raise Unknown("list_short")
+        if len(batch) < 100:
+            if key and len(seen) != total:
+                raise Unknown("list_short" if len(seen) < total else "list_over")
             return items
     raise Unknown("list_too_long")
 
@@ -80,20 +105,16 @@ def _pull_common(pr: dict) -> dict:
 
 def open_prs(repo: str, *, tick: Tick) -> list[dict]:
     """Every open PR in a swept repo, as minimal facts (no titles or bodies). Whole or raise."""
-    out = []
-    for pr in _paged(repo, "/pulls?state=open&", tick):
-        if not _positive_int(pr.get("number")):
-            raise Unknown("malformed_pull")
-        out.append({"number": pr["number"], **_pull_common(pr)})
-    if len({item["number"] for item in out}) < len(out):
-        raise Unknown("duplicate_pull")  # a shifted page may have skipped one
-    return out
+    return [{"number": pr["number"], **_pull_common(pr)}
+            for pr in _paged(repo, "/pulls?state=open&", tick, identity="number", item="pull")]
 
 
-def _pull_facts(pr: object) -> dict:
+def _pull_facts(pr: object, number: int) -> dict:
     if not isinstance(pr, dict) or pr.get("state") not in ("open", "closed") \
             or not isinstance(pr.get("merged"), bool) or not _opt_text(pr.get("merged_at")):
         raise Unknown("malformed_pull")
+    if not _positive_int(pr.get("number")) or pr["number"] != number:
+        raise Unknown("pull_mismatch")  # an answer about another pull is not this pull's evidence
     return {**_pull_common(pr), "state": "merged" if pr["merged"] else pr["state"],
             "merged_at": pr.get("merged_at"), "merge_sha": pr.get("merge_commit_sha") if pr["merged"] else None}
 
@@ -115,24 +136,37 @@ def _review(review: dict) -> dict:
             "submitted_at": review.get("submitted_at")}
 
 
+def _commit(repo: str, sha: str, tick: Tick, not_found: str) -> None:
+    """The commit exists and the answer names it; any other answer is not proof it exists."""
+    data = _get(repo, f"/commits/{sha}", tick, missing_on_404=True, not_found=not_found)
+    named = data.get("sha") if isinstance(data, dict) else None
+    if not isinstance(named, str) or named.lower() != sha:
+        raise Unknown("commit_mismatch")
+
+
+def _status(data: object) -> dict:
+    """Combined status: only ``state`` and ``total_count`` are used, never the paged ``statuses``."""
+    if not isinstance(data, dict) or data.get("state") not in _STATUS_STATES or not _count(data.get("total_count")):
+        raise Unknown("malformed_status")
+    return {"state": data["state"], "total_count": data["total_count"]}
+
+
 def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
     """One PR's head, merge, checks, status and reviews; raises Unknown or MissingCommit."""
     number = int(n)
-    facts = {**_pull_facts(_get(repo, f"/pulls/{number}", tick)), "repo": repo, "number": number}
+    facts = {**_pull_facts(_get(repo, f"/pulls/{number}", tick), number), "repo": repo, "number": number}
     if facts["state"] == "merged":
         facts["merge_sha"] = _sha(facts["merge_sha"], "no_merge_sha")
-        _get(repo, f"/commits/{facts['merge_sha']}", tick, missing_on_404=True, not_found="merge_not_found")
+        _commit(repo, facts["merge_sha"], tick, "merge_not_found")
     if facts["state"] != "open":  # merged read its merge commit above; closed-unmerged has no deciding commit
         return facts
     sha = facts["head_sha"] = _sha(facts["head_sha"], "empty_head")
-    _get(repo, f"/commits/{sha}", tick, missing_on_404=True)
-    facts["check_runs"] = [_check_run(r) for r in _paged(repo, f"/commits/{sha}/check-runs?", tick, "check_runs")]
-    status = _get(repo, f"/commits/{sha}/status", tick)
-    if not isinstance(status, dict) or not isinstance(status.get("state"), str) \
-            or not isinstance(status.get("total_count"), int):
-        raise Unknown("malformed_status")
-    facts["status"] = {"state": status["state"], "total_count": status["total_count"]}
-    facts["reviews"] = [_review(r) for r in _paged(repo, f"/pulls/{number}/reviews?", tick)]
+    _commit(repo, sha, tick, "head_not_found")
+    facts["check_runs"] = [_check_run(r) for r in _paged(repo, f"/commits/{sha}/check-runs?", tick, identity="id",
+                                                         item="check_run", key="check_runs")]
+    facts["status"] = _status(_get(repo, f"/commits/{sha}/status", tick))
+    facts["reviews"] = [_review(r) for r in _paged(repo, f"/pulls/{number}/reviews?", tick, identity="id",
+                                                   item="review")]
     return facts
 
 

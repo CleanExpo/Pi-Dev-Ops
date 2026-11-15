@@ -70,11 +70,12 @@ def _deploys(*items: object) -> Callable[[SimpleNamespace], None]:
 
 
 def _run(state: str = "completed", conclusion: object = "success") -> dict:
-    return {"total_count": 1, "check_runs": [{"status": state, "conclusion": conclusion, "completed_at": ago(72)}]}
+    return {"total_count": 1, "check_runs": [{"id": 1, "status": state, "conclusion": conclusion,
+                                              "completed_at": ago(72)}]}
 
 
-def _review(state: str, at: float) -> dict:
-    return {"user": None, "state": state, "commit_id": SHA_A, "submitted_at": ago(at)}
+def _review(state: str, at: float, rid: int) -> dict:
+    return {"id": rid, "user": None, "state": state, "commit_id": SHA_A, "submitted_at": ago(at)}
 
 
 RA1 = tick_issue("RA-1", ((ATO, 5),))
@@ -92,10 +93,11 @@ ROWS = [
     ("linear_identifier_not_text", "list", "RA-9", _pages(linear_page([RA1, {**tick_issue("RA-9"), "identifier": 42}]))),
     ("linear_id_not_text", "list", "RA-9", _pages(linear_page([RA1, {**tick_issue("RA-9"), "id": 5}]))),
     ("linear_duplicate_across_pages", "list", "RA-9", _pages(linear_page([RA1], "c1"), linear_page([RA1]))),
+    ("linear_duplicate_one_page", "list", "RA-9", _pages(linear_page([RA1, RA1]))),
     ("check_run_status_not_text", "mission", "RA-1", _set(CHECKS5, _run(state=["completed"]))),  # type: ignore[arg-type]
     ("check_run_conclusion_not_text", "mission", "RA-1", _set(CHECKS5, _run(conclusion=1))),
     ("reviews_without_login", "mission", "RA-1",
-     _set(REVIEWS5, [_review("CHANGES_REQUESTED", 5), _review("APPROVED", 2)])),
+     _set(REVIEWS5, [_review("CHANGES_REQUESTED", 5, 1), _review("APPROVED", 2, 2)])),
     ("pull_head_not_dict", "mission", "RA-1", _set(PULL5, {**open_pull(5), "head": "x"})),
     ("link_attachment_url_not_text", "mission", "RA-1",
      _issue(attachments={"pageInfo": {"hasNextPage": False}, "nodes": [{"url": 123}]})),
