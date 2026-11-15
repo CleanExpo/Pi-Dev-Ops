@@ -12,17 +12,19 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from _delivery_reconcile_support import (
-    ATO, PIDEV, linear_page, merged_paths, open_pull, pr_paths, reg_entry, run, setup_tick, sweep_path,
+    ATO, NOW, PIDEV, linear_page, merged_paths, open_pull, pr_paths, reg_entry, run, setup_tick, sweep_path,
     tick_issue,
 )
 
 from app.server import delivery_collect as collect
 from app.server import delivery_collect_fields as fields
+from app.server import delivery_reconcile_store as store
 
 RA = "CleanExpo/RestoreAssist"  # a repo whose live source is ``live_unconfirmed``: its record needs a Vercel read
 SHA_V = "d" * 40
@@ -129,3 +131,55 @@ def test_the_query_asks_for_exactly_the_fields_the_check_requires() -> None:
     assert collect._MISSIONS_QUERY.count(selection) == 1
     assert {"id", "identifier", "startedAt", "completedAt", "description", "state", "assignee",
             "attachments"} <= set(fields.ISSUE_FIELDS)
+
+
+def _repo_alerts(state: dict) -> list[str]:
+    return [a["message"] for a in state["alerts"].values() if a["mission_id"] == f"repo:{ATO}"]
+
+
+@pytest.mark.parametrize("with_read_project", [False, True], ids=["only-unqueryable", "one-read-one-not"])
+def test_a_repo_with_a_project_that_was_never_read_gets_no_count(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+                                                               with_read_project: bool) -> None:
+    """Second pre-screen: a project that cannot be queried is never read, so the repo's missions are not all
+    known. The inputs are an ALLOW-list (every registry entry of the repo read whole this tick), so a
+    project nobody read can never be taken as "no missions"."""
+    entries = [reg_entry("b", ATO, queryable=False)] + ([reg_entry("a", ATO)] if with_read_project else [])
+    st = setup_tick(monkeypatch, tmp_path, entries)
+    if with_read_project:
+        st.gh[sweep_path(ATO)] = []
+        st.gh.update(merged_paths(ATO, 5))
+        st.gql_pages += [linear_page([tick_issue("RA-1", ((ATO, 5),))])]
+    out = run(st)
+    state = _state(st)
+    assert out["persisted"] is True and out["unqueryable_projects"] == ["b"]
+    assert f"repo:{ATO}" not in state["missions"] and _repo_alerts(state) == []  # no "N merged missions" claim
+    assert f"repo:{ATO}" in out["not_refreshed_ids"]
+
+
+def test_a_mission_that_becomes_counted_does_not_leave_its_old_record(monkeypatch: pytest.MonkeyPatch,
+                                                                    tmp_path: Path) -> None:
+    """Second pre-screen: read whole, and no longer placed (its only pull closed unmerged): the stored
+    record must not go on saying ``review_wait`` with an open pull."""
+    st = setup_tick(monkeypatch, tmp_path, [reg_entry("pd", PIDEV)])
+    st.gh.update({sweep_path(PIDEV): [open_pull(7)], **pr_paths(PIDEV, 7)})
+    st.gql_pages += [linear_page([tick_issue("RA-1", ((PIDEV, 7),))])]
+    assert run(st)["complete"] is True and _state(st)["missions"]["RA-1"]["prs"][0]["state"] == "open"
+    st.gh[sweep_path(PIDEV)] = []
+    st.gh[f"/repos/{PIDEV}/pulls/7"] = {**open_pull(7), "state": "closed"}
+    st.gql_pages += [linear_page([tick_issue("RA-1", ((PIDEV, 7),))])]
+    out = run(st, NOW + timedelta(minutes=15))
+    state = _state(st)
+    assert out["complete"] is True and out["closed_unmerged"] == 1 and out["not_refreshed_ids"] == []
+    assert "RA-1" not in state["missions"]
+    assert not [a for a in state["alerts"].values() if a["mission_id"] == "RA-1"]
+
+
+@pytest.mark.parametrize("whole,kept", [(["M"], False), ([], True)], ids=["proven-whole", "not-proven"])
+def test_a_stored_record_in_scope_goes_only_when_its_subject_was_read_whole(whole: list, kept: bool) -> None:
+    """THE RULE for records, same as for alerts: in ``whole`` and not emitted again, or out of scope."""
+    first, _ = store.apply_tick(store.empty_state(), [{"id": "M"}, {"id": "N"}], [], 1.0, whole=["M", "N"],
+                                scope=["M", "N"])
+    out, _ = store.apply_tick(first, [{"id": "N"}], [], 2.0, whole=[*whole, "N"], scope=["M", "N"])
+    assert ("M" in out["missions"]) is kept and "N" in out["missions"]
+    held, _ = store.apply_tick(first, [], [], 2.0, whole=["M", "N"], scope=None)  # incomplete: nothing goes
+    assert set(held["missions"]) == {"M", "N"}

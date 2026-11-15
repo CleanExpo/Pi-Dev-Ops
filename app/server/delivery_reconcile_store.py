@@ -156,8 +156,9 @@ def _merge_alerts(
 # (else None). ``complete`` is not a third input: it IS "the scope is known" (``complete`` below, its one
 # owner), so the stored flag, the checkpoint and the removal rule cannot disagree.
 # On a complete tick a stored alert is removed only when its subject is in ``whole`` and it was not raised
-# again, or its subject is not in ``scope``; a stored record is removed only when its subject is not in
-# ``scope`` and the tick did not emit it. Nothing else is ever removed: an incomplete tick, an emitted
+# again, or its subject is not in ``scope``; a stored record is removed, by the same two tests, only when
+# the tick did not emit it and its subject is in ``whole`` (read whole and no longer placed, for example a
+# mission whose only pull closed) or is not in ``scope``. Nothing else is ever removed: an incomplete tick, an emitted
 # subject missing from ``whole``, a subject neither proven nor known out of scope, and an alert with no
 # subject all keep everything. ``not_refreshed_ids`` is only what the tile reports; removal never reads it.
 # The status tile shows exactly the alerts stored (``shown_alerts``); it never re-filters them.
@@ -201,10 +202,10 @@ def apply_tick(
     seen = _merge_missions(out["missions"], copy.deepcopy(records), now)
     new_keys, raised = _merge_alerts(out["alerts"], copy.deepcopy(findings), now)
     if done:
-        inside = _texts(scope)
-        _retire_alerts(out["alerts"], raised, _texts(whole), inside)
-        for mid in [m for m in out["missions"] if m not in inside | seen]:
-            del out["missions"][mid]  # left scope: absent from a scope list read whole
+        inside, proven = _texts(scope), _texts(whole)
+        _retire_alerts(out["alerts"], raised, proven, inside)
+        for mid in [m for m in out["missions"] if m not in seen and (m in proven or m not in inside)]:
+            del out["missions"][mid]  # read whole and no longer emitted, or absent from a scope read whole
         out["checkpoint"]["last_complete"] = now
     out["last_tick"] = now
     out["summary"] = None if summary is None else {**copy.deepcopy(summary), "complete": done}

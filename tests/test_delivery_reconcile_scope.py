@@ -39,7 +39,10 @@ def test_f1_real_registry_complete_and_retention(monkeypatch: pytest.MonkeyPatch
     assert state["checkpoint"]["last_complete"] == NOW.timestamp()
     # B5g round 2: its project is not in the registry, so it was never read: held, never retired.
     assert state["missions"]["GONE-1"] == planted["missions"]["GONE-1"] and "k-gone" in state["alerts"]
-    assert out["not_refreshed_ids"] == ["GONE-1", f"repo:{PIDEV}"]  # the repo record is derived from that mission, so it is held too
+    # the repo record is derived from that mission, so it is held too; and a repo with a project nobody
+    # can read (oh-my-codex has no Linear project) is held every tick: its missions are not known
+    assert out["not_refreshed_ids"] == ["GONE-1", f"repo:{PIDEV}", "repo:CleanExpo/oh-my-codex"]
+    assert "repo:CleanExpo/oh-my-codex" not in state["missions"]
     assert len(st.gql) == len(registry.queryable) and st.net == []
     assert [p for p in st.github if "ccw" in p.lower()] == []
 

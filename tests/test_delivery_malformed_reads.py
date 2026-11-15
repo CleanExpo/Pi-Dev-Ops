@@ -25,7 +25,7 @@ ORPHAN = f"pr:{ATO}#7"
 REPO_REC = f"repo:{RA}"
 STORED = (ORPHAN, "RA-1", "RA-9", REPO_REC)
 LEGIT = {*STORED, f"repo:{ATO}"}
-ENTRIES = [reg_entry("ato", ATO), reg_entry("ra", RA, queryable=False, vercel="prj_fake")]
+ENTRIES = [reg_entry("ato", ATO), reg_entry("ra", RA, vercel="prj_fake")]  # RA is read (queryable): a repo with a project nobody read gets no record at all
 PULL5 = f"/repos/{ATO}/pulls/5"
 CHECKS5 = f"/repos/{ATO}/commits/{SHA_A}/check-runs?per_page=100&page=1"
 REVIEWS5 = f"/repos/{ATO}/pulls/5/reviews?per_page=100&page=1"
@@ -46,8 +46,9 @@ def _plant(st: SimpleNamespace) -> dict:
 
 def _world(st: SimpleNamespace) -> None:
     """A good world: RA-1 links open ATO#5 (green, unreviewed); ATO#7 is an open orphan."""
-    st.gql_pages.append(linear_page([tick_issue("RA-1", ((ATO, 5),))]))
+    st.gql_pages += [linear_page([tick_issue("RA-1", ((ATO, 5),))]), linear_page([])]  # ato, then ra
     st.gh[sweep_path(ATO)] = [open_pull(5), open_pull(7)]
+    st.gh[sweep_path(RA)] = []
     st.gh.update(pr_paths(ATO, 5))
     st.vc["*"] = {"deployments": [dict(READY)]}
 
@@ -57,7 +58,7 @@ def _sweep(item: dict) -> Callable[[SimpleNamespace], None]:
 
 
 def _pages(*pages: dict) -> Callable[[SimpleNamespace], None]:
-    return lambda st: st.gql_pages.__setitem__(slice(None), list(pages))
+    return lambda st: st.gql_pages.__setitem__(slice(None), [*pages, linear_page([])])  # ato's pages, then ra's
 
 
 def _set(path: str, value: object) -> Callable[[SimpleNamespace], None]:

@@ -171,13 +171,15 @@ def _vercel_sha(run: Any, repo: str) -> tuple[str | None, bool]:
 
 
 def _inputs_whole(run: Any, repo: str, missions: list[tuple[dict, dict]]) -> bool:
-    """A repo's record is DERIVED from its missions' records, so it is whole only when every Linear list
-    was read whole and every mission of the repo, listed this tick or stored and not read, was proven
-    whole (``Run.prove``). Nothing is worked out from a mission that was held."""
+    """A repo's record is DERIVED from its missions' records, so its inputs are an ALLOW-list: every
+    registry entry of the repo had its mission list read whole this tick (``Run.projects``; an entry that
+    cannot be queried is never in it), and every mission of the repo, listed this tick or stored and not
+    read, was proven whole (``Run.prove``). Nothing is worked out from a project or mission nobody read."""
     key = repo.lower()
+    entries = all(entry["id"] in run.projects for entry in run.registry.entries if entry["repo"].lower() == key)
     listed = all(str(issue["identifier"]) in run.whole for entry, issue in missions if entry["repo"].lower() == key)
     unread = any(str((run.stored(rid) or {}).get("repo")).lower() == key for rid in run.unknown)
-    return run.uncut("linear") and listed and not unread
+    return entries and listed and not unread
 
 
 def repos(run: Any, missions: list[tuple[dict, dict]]) -> None:

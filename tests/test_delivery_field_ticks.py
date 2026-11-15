@@ -27,7 +27,7 @@ from app.server import delivery_reconcile_store as store
 RA = "CleanExpo/RestoreAssist"
 ORPHAN = f"pr:{ATO}#7"
 STORED = (ORPHAN, "RA-1", "RA-9", f"repo:{RA}")
-ENTRIES = [reg_entry("ato", ATO), reg_entry("ra", RA, queryable=False, vercel="prj_fake")]
+ENTRIES = [reg_entry("ato", ATO), reg_entry("ra", RA, vercel="prj_fake")]  # RA is read (queryable): a repo with a project nobody read gets no record at all
 HEALTHY = {"building", "review_wait", "approval_wait", "merged", "done", "deploying", "verified"}
 PICK = {"sha": ("int", "not_hex"), "timestamp": ("int", "no_tz"), "enum": ("int", "unknown"), "bool": ("text",),
         "count": ("negative", "bool"), "posint": ("text", "zero"), "object": ("text",), "login": ("space",),
@@ -55,8 +55,9 @@ def _plant_state(st: SimpleNamespace) -> dict:
 
 def _world(st: SimpleNamespace, node: dict | None = None) -> None:
     """RA-1 links open ATO#5 (green, unreviewed); ATO#7 is an open orphan; RA has a READY deploy."""
-    st.gql_pages.append(linear_page([node or tick_issue("RA-1", ((ATO, 5),))]))
+    st.gql_pages += [linear_page([node or tick_issue("RA-1", ((ATO, 5),))]), linear_page([])]  # ato, then ra
     st.gh[sweep_path(ATO)] = [open_pull(5), open_pull(7)]
+    st.gh[sweep_path(RA)] = []
     st.gh.update(pr_paths(ATO, 5))
     st.vc["*"] = {"deployments": [copy.deepcopy(READY)]}
 
@@ -74,7 +75,7 @@ def _break(st: SimpleNamespace, source: str, field: str, value: object) -> str:
         node = tick_issue("RA-1", ((ATO, 5),))
         node["attachments"]["nodes"] = [{"url": f"https://github.com/{ATO}/pull/5"}]
         _set(node, field, value)
-        st.gql_pages[:] = [linear_page([node])]
+        st.gql_pages[:] = [linear_page([node]), linear_page([])]
         return "list" if source == "linear_issue" and field not in ("startedAt", "completedAt") else "mission"
     if source == "vercel":
         _set(st.vc["*"]["deployments"][0], field, value)

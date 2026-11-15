@@ -44,6 +44,7 @@ class Run:
     linked: set[tuple[str, int]] = field(default_factory=set)
     claimed: set[str] = field(default_factory=set)
     cuts: set[str] = field(default_factory=set)
+    projects: set[str] = field(default_factory=set)  # registry entries whose mission list was read WHOLE
     own: str | None = None
     whole: set[str] = field(default_factory=set)
     unknown: set[str] = field(default_factory=set)
@@ -100,7 +101,6 @@ def _read_missions(run: Run) -> list[tuple[dict, dict]]:
     since = (run.now - LOOKBACK).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     out: list[tuple[dict, dict]] = []
     seen: set[str] = set()
-    read_whole: set[str] = set()  # the projects read WHOLE this tick
     for entry in run.registry.queryable:
         try:
             read = collect.fetch_missions(run.api_key, entry, tick=run.tick, since=since)
@@ -112,12 +112,12 @@ def _read_missions(run: Run) -> list[tuple[dict, dict]]:
         if not whole:
             run.cut("linear", entry["id"], reason or "incomplete")
         else:
-            read_whole.add(entry["id"])
+            run.projects.add(entry["id"])  # the one writer of "this project's list was read whole"
         for issue in issues:  # the collector checked every node; no filter here
             if issue["identifier"] not in seen:  # two registry entries on one project: the first owns it
                 seen.add(issue["identifier"])
                 out.append((entry, issue))
-    _hold_unseen(run, read_whole, seen)
+    _hold_unseen(run, run.projects, seen)
     return out
 
 
