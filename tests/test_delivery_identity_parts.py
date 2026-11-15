@@ -193,3 +193,40 @@ def _repo_state(value: object) -> dict:
 def test_a_repo_records_unconfirmed_commit_is_a_sha_or_null(value: object, sound: bool) -> None:
     from app.server import delivery_reconcile_schema as schema
     assert (schema.problems(_repo_state(value)) == []) is sound
+
+
+# ---- pre-screen of 40ee8b24: three warnings of the same kind, closed by the same rule ----
+
+EXPLAINED = {"commit": {"repo"}, "check_run": {"repo"}, "compare": {"repo", "head"}, "vercel": {"project", "team"}}
+
+
+def test_only_these_parts_are_explained_instead_of_compared() -> None:
+    """A part may not be moved to ``unchecked`` by writing a long enough reason: the list is reviewed here."""
+    assert {name: set(row["unchecked"]) for name, row in df.IDENTITY.items() if row.get("unchecked")} == EXPLAINED
+
+
+def _no_user_key(path: str, index: int | None):  # noqa: ANN202
+    def edit(answers: dict) -> None:
+        item = answers[path] if index is None else answers[path][index]
+        item.update(item.pop("user"))  # login and type at the top level, where no documented answer has them
+    return edit
+
+
+@pytest.mark.parametrize("edit,reason", [
+    pytest.param(_no_user_key(REVIEWS, 0), "malformed_review", id="review"),
+    pytest.param(_no_user_key(f"{BASE}/pulls/5", None), "malformed_pull", id="pull"),
+])
+def test_an_answer_with_no_user_key_is_cut_whatever_else_it_carries(monkeypatch: pytest.MonkeyPatch, edit: object,
+                                                                    reason: str) -> None:
+    assert _read(monkeypatch, edit) == reason
+
+
+def test_a_repository_name_that_is_not_ascii_is_never_in_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    lookalike = f"CleanExpo/s{KELVIN}ills-library"  # lower-cases to an allowed name
+    allowed = frozenset({"cleanexpo/skills-library"})
+    assert lookalike.lower() in allowed
+    assert dc.in_scope([(lookalike, 5), ("CleanExpo/Skills-Library", 6)], allowed) == ([("CleanExpo/Skills-Library", 6)], 1)
+    st = install_fakes(monkeypatch)
+    with pytest.raises(dc.Unknown) as refused:
+        dg._get(lookalike, "/pulls/5", dc.Tick(allowed=allowed))
+    assert refused.value.reason == "out_of_scope" and st.github == []

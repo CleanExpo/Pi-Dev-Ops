@@ -33,7 +33,7 @@ def _agree(kind: str, answer: object, **asked: object) -> None:
 def _get(repo: str, path: str, tick: Tick, *, missing_on_404: bool = False,
          not_found: str = "head_not_found") -> object:
     """One counted GitHub GET for an in-scope repo; errors become reason codes."""
-    if not _REPO.fullmatch(repo) or _skipped(repo) or repo.lower() not in tick.allowed:
+    if not _REPO.fullmatch(repo) or not repo.isascii() or _skipped(repo) or repo.lower() not in tick.allowed:
         raise Unknown("out_of_scope")
     tick.spend("github")
     try:
@@ -105,7 +105,7 @@ def _head(pr: dict) -> str | None:
 # One owner for the item rule: every item of every GitHub list is checked here, and one malformed
 # item fails the whole read with a reason code. Callers never filter; they use what is returned.
 def _author(item: dict, code: str) -> tuple[str | None, str | None]:
-    user = item.get("user", item)  # absent is a cut answer (falls to the check below); null is a deleted user
+    user = item.get("user", ())  # absent is a cut answer (not an object: fails the check below); null is a deleted user
     if user is None:
         return None, None  # no author: never a bot, so never counted away
     if not isinstance(user, dict) or not login(user.get("login")) or not member(user.get("type"), USER_TYPES):

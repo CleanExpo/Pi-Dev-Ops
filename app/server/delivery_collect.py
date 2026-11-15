@@ -227,7 +227,7 @@ def in_scope(refs: list[tuple[str, int]], allowed: frozenset[str] | set[str]) ->
             and positive_int(r[1]) for r in refs):
         raise Unknown("malformed_ref")
     wanted = {a.lower() for a in allowed} - SKIP_REPOS
-    kept = [(repo, n) for repo, n in refs if repo.lower() in wanted]
+    kept = [(repo, n) for repo, n in refs if repo.isascii() and repo.lower() in wanted]  # ASCII: no other letter folds in
     pulls: dict[tuple[str, int], tuple[str, int]] = {}
     for repo, n in kept:
         pulls.setdefault((repo.lower(), n), (repo, n))
