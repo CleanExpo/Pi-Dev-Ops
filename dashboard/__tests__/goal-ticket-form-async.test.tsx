@@ -188,7 +188,9 @@ describe("GoalTicketForm with async analysis (202 + job)", () => {
       () => jsonResponse(FINISHED),
     ]);
     await vi.advanceTimersByTimeAsync(3_000);
-    expect(screen.getByRole("status").textContent).toBe("Can't reach the server, retrying");
+    // RA-8379: the failed check is handled in microtasks, but React commits the new
+    // line a macrotask later, so wait for the text as the neighbouring tests do.
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Can't reach the server, retrying"));
     expect(screen.queryByDisplayValue(DRAFT.title)).toBeNull();
     expect(callTo(fetchMock, STATUS_URL).cache).toBe("no-store");
     await vi.advanceTimersByTimeAsync(3_000);

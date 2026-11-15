@@ -1,0 +1,49 @@
+{
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "dashboard/__tests__/goal-ticket-form-async.test.tsx passes 50 fresh-process runs in a row on Node 20, with zero failures.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh repeat 50",
+      "timeout": 3600
+    },
+    {
+      "id": "C2",
+      "text": "The quiet-fallback test still fails when a failed check keeps the old status (in-memory mutant of the polling hook), so the fixed test can still go red.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh mutant",
+      "timeout": 600
+    },
+    {
+      "id": "C3",
+      "text": "The test file still asserts the exact unreachable copy in at least three places.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh strict"
+    },
+    {
+      "id": "C4",
+      "text": "npx tsc --noEmit passes in dashboard.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh tsc",
+      "timeout": 900
+    },
+    {
+      "id": "C5",
+      "text": "npm run lint passes in dashboard.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh lint",
+      "timeout": 900
+    },
+    {
+      "id": "C6",
+      "text": "The whole dashboard Vitest suite passes.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh suite",
+      "timeout": 1800
+    },
+    {
+      "id": "C7",
+      "text": "Against the merge base with origin/main, only the flake's own dashboard files and this contract changed, and at least one of those dashboard files did change.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh scope origin/main"
+    },
+    {
+      "id": "C8",
+      "text": "Negative control for C7: against an older base (three commits before origin/main) the scope check reports out-of-scope files and exits 1.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh scope origin/main~3; test $? -eq 1"
+    }
+  ]
+}

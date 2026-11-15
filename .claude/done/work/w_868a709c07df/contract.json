@@ -1,0 +1,61 @@
+{
+  "schema": "done/1",
+  "work_id": "w_868a709c07df",
+  "version": 1,
+  "supersedes": null,
+  "goal": "RA-8379: the goal-ticket-form async Vitest file passes 50 consecutive runs with the quiet-fallback test still strict, and tsc, lint and the dashboard suite pass",
+  "created_at_utc": "2026-11-15T06:28:05Z",
+  "identity_key": "fix/RA-8379-goal-ticket-form-flake@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/zealous-ritchie-3a091d",
+  "baseline_observed": {
+    "head": "b2fe61b2a86a4cd058521cce0d4196f178393d01",
+    "branch": "fix/RA-8379-goal-ticket-form-flake",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "dashboard/__tests__/goal-ticket-form-async.test.tsx passes 50 fresh-process runs in a row on Node 20, with zero failures.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh repeat 50",
+      "timeout": 3600
+    },
+    {
+      "id": "C2",
+      "text": "The quiet-fallback test still fails when a failed check keeps the old status (in-memory mutant of the polling hook), so the fixed test can still go red.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh mutant",
+      "timeout": 600
+    },
+    {
+      "id": "C3",
+      "text": "The test file still asserts the exact unreachable copy in at least three places.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh strict"
+    },
+    {
+      "id": "C4",
+      "text": "npx tsc --noEmit passes in dashboard.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh tsc",
+      "timeout": 900
+    },
+    {
+      "id": "C5",
+      "text": "npm run lint passes in dashboard.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh lint",
+      "timeout": 900
+    },
+    {
+      "id": "C6",
+      "text": "The whole dashboard Vitest suite passes.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh suite",
+      "timeout": 1800
+    },
+    {
+      "id": "C7",
+      "text": "Against the merge base with origin/main, only the flake's own dashboard files and this contract changed, and at least one of those dashboard files did change.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh scope origin/main"
+    },
+    {
+      "id": "C8",
+      "text": "Negative control for C7: against an older base (three commits before origin/main) the scope check reports out-of-scope files and exits 1.",
+      "recipe": "sh .claude/done/work/w_868a709c07df/checks.sh scope origin/main~3; test $? -eq 1"
+    }
+  ]
+}
