@@ -125,9 +125,24 @@ def test_own_revision_compare_verifies_and_budget_cut_keeps_record(
 
 
 def test_vercel_failure_is_counted_unreadable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    st = setup_tick(monkeypatch, tmp_path, [reg_entry("ato", ATO, vercel="prj_fake")])
-    st.gh[sweep_path(ATO)] = []
+    repo = "CleanExpo/Synthex"  # live_unconfirmed: the only kind whose Vercel answer is used
+    st = setup_tick(monkeypatch, tmp_path, [reg_entry("syn", repo, vercel="prj_fake")])
+    st.gh[sweep_path(repo)] = []
     st.vc["*"] = RuntimeError("down")
     st.gql_pages.append(linear_page([]))
     out = run(st)
     assert out["vercel_unreadable"] == 1 and len(st.vercel) == 1 and out["complete"] is True
+
+
+def test_vercel_budget_spent_only_on_live_unconfirmed_repos(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    unused = ["CleanExpo/ATO", "CleanExpo/CARSI", "CleanExpo/DR-Sandbox", PIDEV]  # kinds none and provable
+    used = ["CleanExpo/RestoreAssist", "CleanExpo/Synthex", "CleanExpo/Unite-Group"]  # live_unconfirmed
+    entries = [reg_entry(f"p{i}", repo, vercel=f"prj_{i}") for i, repo in enumerate(unused + used)]
+    st = setup_tick(monkeypatch, tmp_path, entries)
+    st.gh.update({sweep_path(repo): [] for repo in unused + used})
+    st.gql_pages.extend(linear_page([]) for _ in entries)
+    st.vc["*"] = {"deployments": [{"state": "READY", "created": 1, "meta": {"githubCommitSha": SHA_A}}]}
+    run(st)
+    assert len(st.vercel) == len(used) and not any(f"projectId=prj_{i}&" in p for i in range(4) for p in st.vercel)
+    missions = _state(st)["missions"]
+    assert [missions[f"repo:{repo}"]["live_unconfirmed"] for repo in used] == [SHA_A] * 3

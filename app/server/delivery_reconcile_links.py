@@ -120,6 +120,7 @@ def repos(run: Any) -> None:
         done.add(repo.lower())
         merged = sum(1 for r in run.records if r.get("kind") == "mission" and r.get("stage") == "merged"
                      and str(r.get("repo", "")).lower() == repo.lower() and r.get("live_source_provable") is False)
-        record, found = delivery_stage.repo_findings(repo, merged, _vercel_sha(run, repo))
+        sha = _vercel_sha(run, repo) if delivery_stage.live_kind(repo) == "live_unconfirmed" else None
+        record, found = delivery_stage.repo_findings(repo, merged, sha)
         run.records.append(record)
         run.findings.extend(found)

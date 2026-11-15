@@ -37,6 +37,8 @@ def _shown(state: dict[str, Any], summary: dict[str, Any]) -> list[dict[str, Any
     ids = summary.get("not_refreshed_ids")
     stale_ids = set(ids) if isinstance(ids, list) else set()
     alerts = [a for a in state.get("alerts", {}).values() if isinstance(a, dict)]
+    if summary.get("complete") is not True:  # the store drops alerts only on a complete tick
+        return alerts
     return [a for a in alerts if a.get("last_seen") == tick or a.get("mission_id") in stale_ids]
 
 

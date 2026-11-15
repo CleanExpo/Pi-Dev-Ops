@@ -183,3 +183,15 @@ def test_state_paths_are_under_harness() -> None:
     assert dr.LOCK_FILE.parent == dr.STATE_FILE.parent
 
 
+
+
+def test_incomplete_tick_still_shows_unread_mission_alerts(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    old = _alert("OLD", last_seen=TICK - 900, mission_id="M-UNREAD")
+    _write(p, [old], summary=_summary(complete=False, not_refreshed_ids=[]))
+    out = dr.status_snapshot(p, NOW)
+    assert [i["ref"] for i in out["items"]] == ["RA-OLD"]
+    assert out["counts"]["by_severity"] == {"founder": 1} and out["complete"] is False
+    _write(p, [old], summary=_summary(complete=True, not_refreshed_ids=[]))
+    mirror = dr.status_snapshot(p, NOW)
+    assert mirror["items"] == [] and mirror["counts"]["by_severity"] == {}
