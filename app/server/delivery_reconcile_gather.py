@@ -14,6 +14,7 @@ from typing import Any
 
 from . import delivery_collect as collect
 from . import delivery_reconcile_links as links
+from . import delivery_reconcile_schema as schema
 
 logger = logging.getLogger("pi-ceo.delivery_reconcile")
 
@@ -23,12 +24,8 @@ _TOP = ("founder", "critical")
 
 
 def new_summary(now: datetime) -> dict[str, Any]:
-    """Every summary key, zeroed. The status tile reads these names."""
-    return {"tick_at": now.astimezone(timezone.utc).isoformat(), "complete": False, "missions": 0,
-            "by_severity": {}, "by_code": {}, "founder_or_critical": [], "skipped_repos": [],
-            "unqueryable_projects": [], "refs_outside_scope": 0, "bot_prs": 0, "closed_unmerged": 0,
-            "started_without_pr": 0, "completed_without_pr": 0, "not_refreshed": 0, "not_refreshed_ids": [],
-            "vercel_unreadable": 0, "incomplete": {}, "budget_left": None}
+    """Every summary key, zeroed: built from the schema, the one list the loader and the tile also read."""
+    return schema.new_summary(now.astimezone(timezone.utc).isoformat())
 
 
 @dataclass
@@ -46,15 +43,13 @@ class Run:
     sweep: dict[str, dict[int, dict]] = field(default_factory=dict)
     linked: set[tuple[str, int]] = field(default_factory=set)
     claimed: set[str] = field(default_factory=set)
-    linear_whole: bool = True
-    sweep_whole: bool = True
-    links_whole: bool = True
+    cuts: set[str] = field(default_factory=set)
     own: str | None = None
     whole: set[str] = field(default_factory=set)
     unknown: set[str] = field(default_factory=set)
 
     def stored(self, rid: str) -> dict | None:
-        rec = self.state.get("missions", {}).get(rid)
+        rec = self.state["missions"].get(rid)  # ``load`` proved the shape
         return rec if isinstance(rec, dict) else None
 
     def take(self, record: dict, found: list[dict]) -> None:
@@ -67,6 +62,17 @@ class Run:
         record["refreshed_at"] = self.now.timestamp()
         self.records.append(record)
         self.findings.extend(found)
+
+    def cut(self, source: str, subject: str, reason: str) -> None:
+        """The one writer of "a scope-defining list was NOT read whole" (``source``: linear, sweep or
+        links). It names the subject and reason in the summary in the same step, so a tick is never
+        incomplete without saying why. Any cut makes the scope unknown, and so the tick incomplete."""
+        self.cuts.add(source)
+        self.summary["incomplete"][subject] = reason
+
+    def uncut(self, *sources: str) -> bool:
+        """Whether every list of these sources was read whole this tick."""
+        return self.cuts.isdisjoint(sources)
 
     def hold(self, rid: str) -> None:
         """The one writer of "this subject was NOT read whole this tick" (``not_refreshed_ids``): what the
@@ -104,8 +110,7 @@ def _read_missions(run: Run) -> list[tuple[dict, dict]]:
         except Exception as exc:  # noqa: BLE001 — recorded by type name only
             issues, whole, reason = [], False, f"error_{type(exc).__name__}"
         if not whole:
-            run.linear_whole = False
-            run.summary["incomplete"][entry["id"]] = reason or "incomplete"
+            run.cut("linear", entry["id"], reason or "incomplete")
         else:
             read_whole.add(entry["id"])
         for issue in issues:  # the collector checked every node; no filter here
@@ -120,7 +125,7 @@ def _hold_unseen(run: Run, whole: set[str], seen: set[str]) -> None:
     """Fail closed: a stored mission not seen this tick whose own project was not read WHOLE (a partial or
     failed read, unqueryable, skipped or gone from the registry) was never read, so it is held and its
     stored record stays exactly as it was (spec line 112). Only a whole read of its project retires it."""
-    for rid, rec in run.state.get("missions", {}).items():
+    for rid, rec in run.state["missions"].items():
         if isinstance(rec, dict) and rec.get("kind") == "mission" and rec.get("project_id") not in whole \
                 and rid not in seen:
             run.keep_stored(rid)
@@ -134,8 +139,7 @@ def _sweep(run: Run) -> None:
         try:
             items = links.open_prs(repo, run.tick)
         except collect.Unknown as exc:
-            run.sweep_whole = False
-            run.summary["incomplete"][repo] = exc.reason
+            run.cut("sweep", repo, exc.reason)
             continue
         run.sweep[repo.lower()] = {i["number"]: {**i, "repo": repo} for i in items}
 
@@ -169,20 +173,21 @@ def _scope(run: Run, missions: list[tuple[dict, dict]]) -> set[str] | None:
     """The full scope list, built only from lists read whole; None when any of them was not. Missions
     listed by Linear (and stored ones never read), every open pull no mission links (and stored orphans a
     not-whole mission links), and every registry repo."""
-    if not (run.linear_whole and run.sweep_whole and run.links_whole):
+    if run.cuts:
         return None
     out = {str(issue["identifier"]) for _, issue in missions} | run.unknown
     out |= {f"pr:{item['repo']}#{n}" for key, items in run.sweep.items() for n, item in items.items()
             if (key, n) not in run.linked}
-    out |= {rid for rid in run.state.get("missions", {}) if rid.lower() in run.claimed}
+    out |= {rid for rid in run.state["missions"] if rid.lower() in run.claimed}
     return out | {f"repo:{entry['repo']}" for entry in run.registry.entries}
 
 
 def gather(state: dict[str, Any], registry: collect.Registry, api_key: str, now: datetime,
-           summary: dict[str, Any], proof: dict[str, Any] | None = None) -> tuple[list[dict], list[dict], bool]:
-    """Read and classify one tick. Returns (records, findings, complete); fills ``summary``, whose
+           summary: dict[str, Any], proof: dict[str, Any]) -> tuple[list[dict], list[dict]]:
+    """Read and classify one tick. Returns (records, findings); fills ``summary``, whose
     ``not_refreshed_ids`` lists every subject not read whole (see ``Run.hold``), and ``proof`` with
-    ``whole`` (see ``Run.prove``) and ``scope`` (see ``_scope``) for the store's removal rule."""
+    ``whole`` (see ``Run.prove``) and ``scope`` (see ``_scope``). Whether the tick is complete is not
+    returned: the store derives it from ``scope``, its one owner."""
     run = Run(state, registry, api_key, now, summary, tick=collect.Tick(allowed=registry.allowed),
               own=collect.own_revision())
     missions = _read_missions(run)
@@ -193,6 +198,5 @@ def gather(state: dict[str, Any], registry: collect.Registry, api_key: str, now:
     links.orphans(run)
     links.repos(run)
     _tally(run)
-    if proof is not None:
-        proof.update(whole=set(run.whole), scope=_scope(run, missions))
-    return run.records, run.findings, run.linear_whole and run.sweep_whole
+    proof.update(whole=set(run.whole), scope=_scope(run, missions))
+    return run.records, run.findings

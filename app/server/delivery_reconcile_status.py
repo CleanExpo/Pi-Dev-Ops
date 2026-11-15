@@ -5,16 +5,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import delivery_reconcile_schema as schema
 from . import delivery_reconcile_store as store
 
 STALE_AFTER_S = 45 * 60
 MAX_ITEMS = 20
 TOP_SEVERITIES = ("founder", "critical")
-COUNTERS = (
-    "missions", "refs_outside_scope", "bot_prs", "closed_unmerged", "started_without_pr",
-    "completed_without_pr", "not_refreshed", "vercel_unreadable",
-    "skipped_repos", "unqueryable_projects", "incomplete",
-)
+COUNTERS = schema.TILE_COUNTERS  # the summary's counters, named once, in the schema
 
 
 def _snap(state: str, errors: list[str], enabled: bool, last_tick: str | None = None) -> dict:
@@ -44,7 +41,7 @@ def _counts(shown: list[dict[str, Any]], summary: dict[str, Any]) -> dict[str, A
         sev, code = str(a.get("severity")), str(a.get("code"))
         by_sev[sev] = by_sev.get(sev, 0) + 1
         by_code[code] = by_code.get(code, 0) + 1
-    return {"by_severity": by_sev, "by_code": by_code, **{k: summary.get(k) for k in COUNTERS}}
+    return {"by_severity": by_sev, "by_code": by_code, **{k: summary[k] for k in COUNTERS}}
 
 
 def _items(shown: list[dict[str, Any]], now: datetime) -> list[dict[str, Any]]:
@@ -69,11 +66,11 @@ def build(path: str | Path, now: datetime, enabled: bool, save_ok: bool | None,
         state = store.load(path)
     except store.StoreError:
         return _snap("unreadable", ["state_unreadable", *failed], enabled)
-    tick = state.get("last_tick")
-    if not isinstance(tick, (int, float)) or isinstance(tick, bool):
-        return _snap("never_run", failed, enabled)
+    tick = state["last_tick"]  # ``load`` proved the shape: None exactly when no tick has run
+    if tick is None:  # a first tick whose save failed is reported, never shown as a plain "never run"
+        return _snap("never_run", [*(["state_write_failed"] if save_ok is False else []), *failed], enabled)
     iso = datetime.fromtimestamp(tick, timezone.utc).isoformat()
-    summary = state.get("summary") if isinstance(state.get("summary"), dict) else {}
+    summary = state["summary"]  # present and whole whenever a tick has run (the schema's rule)
     shown = _shown(state, summary)
     errors: list[str] = []
     stale = now.timestamp() - tick > STALE_AFTER_S
@@ -84,7 +81,7 @@ def build(path: str | Path, now: datetime, enabled: bool, save_ok: bool | None,
     if isinstance(summary.get("error"), str):
         errors.append(summary["error"])
     errors.extend(e for e in failed if e not in errors)
-    complete = summary.get("complete") is True and not stale and save_ok is not False and not failed
+    complete = summary["complete"] is True and not stale and save_ok is not False and not failed
     return {"enabled": enabled, "state": "stale" if stale else "ok", "last_tick": iso,
             "complete": complete, "counts": _counts(shown, summary),
             "items": _items(shown, now), "errors": errors}

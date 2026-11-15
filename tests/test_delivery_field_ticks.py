@@ -43,7 +43,9 @@ def _plant_state(st: SimpleNamespace) -> dict:
     state = store.empty_state()
     for rid in STORED:
         kind = "orphan_pr" if rid == ORPHAN else ("repo" if rid.startswith("repo:") else "mission")
-        state["missions"][rid] = stored({"id": rid, "kind": kind, "stage": "unknown", "reason": "http_500"})
+        held = {"id": rid, "kind": kind, "repo": RA, "ref": RA} if kind == "repo" else \
+            {"id": rid, "kind": kind, "stage": "unknown", "reason": "http_500"}  # a repo record has no reason
+        state["missions"][rid] = stored(held)
         state["alerts"][f"k-{rid}"] = stored({"key": f"k-{rid}", "mission_id": rid, "code": "EVIDENCE_UNKNOWN"},
                                              alert=True)
     state["checkpoint"]["last_complete"] = 1.0

@@ -142,9 +142,12 @@ def _plant_other(st: SimpleNamespace, source: str, field: str, value: object, mp
         node = issue("RA-1")
         node["attachments"]["nodes"] = [{"url": "https://example.invalid/x"}]
         _set(node, field, value)
+        cuts: list[tuple] = []  # what the run's one writer, ``cut``, is told: (source, subject, reason)
         run = SimpleNamespace(registry=SimpleNamespace(allowed=ALLOWED), summary={"refs_outside_scope": 0},
-                              linked=set(), links_whole=True, tick=_tick(), sweep={})
-        return ("ok", None) if links._refs(run, node) is not None else ("unknown", "links_incomplete")
+                              linked=set(), tick=_tick(), sweep={}, cut=lambda *args: cuts.append(args))
+        read = links._refs(run, node)
+        assert cuts == ([] if read is not None else [("links", "RA-1", "links_incomplete")])  # D48
+        return ("ok", None) if read is not None else ("unknown", "links_incomplete")
     if source == "vercel":
         good = {"deployments": [{"state": "READY", "created": 2, "target": "production",
                                  "meta": {"githubCommitSha": SHA_A}}]}

@@ -1,11 +1,13 @@
 """RA-8100 B4a: delivery reconcile status snapshot (spec ids E10 status half, T7)."""
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import pytest
+from _delivery_reconcile_support import stored, summary_of
 
 from app.server import delivery_reconcile as dr
 from app.server import delivery_reconcile_store as store
@@ -22,35 +24,26 @@ def _clean(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _alert(key: str, **over: Any) -> dict[str, Any]:
-    a = {
+    return stored({
         "key": key, "mission_id": f"M-{key}", "code": "CHECKS_GREEN_NO_REVIEW",
         "severity": "founder", "next_owner": "founder", "message": f"msg {key}",
         "ref": f"RA-{key}", "repo": "o/r", "since": (NOW - timedelta(hours=72)).isoformat(),
-        "age_source": "checks_green", "url": f"https://example.test/{key}",
-        "first_seen": TICK, "last_seen": TICK, "count": 1,
-    }
-    a.update(over)
-    return a
+        "age_source": "checks_green", "url": f"https://example.test/{key}", **over,
+    }, TICK, alert=True)
 
 
 def _write(path: Path, alerts: list[dict[str, Any]], last_tick: float | None = TICK,
            summary: dict[str, Any] | None = None) -> None:
+    """A whole state: a tick that has run has a whole summary (the given one, else a default); none has None."""
     st = store.empty_state()
     st["alerts"] = {a["key"]: a for a in alerts}
     st["last_tick"] = last_tick
-    if summary is not None:
-        st["summary"] = summary
+    st["summary"] = None if last_tick is None else summary or summary_of()
     assert store.save(path, st)
 
 
 def _summary(**over: Any) -> dict[str, Any]:
-    s: dict[str, Any] = {"complete": True, "not_refreshed_ids": [], "missions": 3,
-                         "refs_outside_scope": 0, "bot_prs": 1, "closed_unmerged": 0,
-                         "started_without_pr": 0, "completed_without_pr": 0,
-                         "not_refreshed": 0, "vercel_unreadable": 0,
-                         "skipped_repos": [], "unqueryable_projects": [], "incomplete": {}}
-    s.update(over)
-    return s
+    return summary_of(**{"complete": True, "missions": 3, "bot_prs": 1, **over})
 
 
 def test_e10_status_never_run_missing_file(tmp_path: Path) -> None:
@@ -164,8 +157,14 @@ def test_summary_incomplete_or_error_reported(tmp_path: Path) -> None:
     _write(p, [], summary=_summary(complete=False, error="linear_unreadable"))
     out = dr.status_snapshot(p, NOW)
     assert out["complete"] is False and "linear_unreadable" in out["errors"]
-    _write(p, [], summary=None)
-    assert dr.status_snapshot(p, NOW)["complete"] is False
+    state = store.empty_state()  # a tick with no summary is not a state the store writes: unreadable, never ok
+    state["last_tick"] = TICK
+    p.write_text(json.dumps(state), encoding="utf-8")
+    out = dr.status_snapshot(p, NOW)
+    assert out["state"] == "unreadable" and out["complete"] is False and out["errors"] == ["state_unreadable"]
+    state["summary"] = {"complete": True, "not_refreshed_ids": []}  # a partial summary is unreadable too
+    p.write_text(json.dumps(state), encoding="utf-8")
+    assert dr.status_snapshot(p, NOW)["state"] == "unreadable"
 
 
 def test_status_reads_do_not_write_or_lease(tmp_path: Path) -> None:

@@ -15,7 +15,7 @@ import pytest
 from _delivery_reconcile_support import (
     compare_answer,
     FAKE_REVIEWER, NOW, PIDEV, SHA_A, SHA_B, ago, linear_page, merged_paths, open_pull, pr_paths, reg_entry,
-    run, setup_tick, sweep_path, tick_issue,
+    run, setup_tick, stored, sweep_path, tick_issue,
 )
 
 from app.server import delivery_collect as collect
@@ -64,8 +64,7 @@ def _healthy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str) -> Sim
     run(st)
     state = _state(st)
     assert state["missions"]["RA-1"]["stage"] == stage  # positive control: the stored record is healthy
-    state["alerts"][PLANTED["key"]] = {**PLANTED, "first_seen": NOW.timestamp(), "last_seen": NOW.timestamp(),
-                                       "count": 1}
+    state["alerts"][PLANTED["key"]] = stored(PLANTED, NOW.timestamp(), alert=True)
     Path(st.path).write_text(json.dumps(state), encoding="utf-8")
     return st
 

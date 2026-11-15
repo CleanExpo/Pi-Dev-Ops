@@ -15,6 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from _delivery_stored_support import PIDEV, stored, summary_of  # noqa: F401 — re-exported
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
@@ -24,7 +25,6 @@ from app.server import autonomy, autonomy_linear_rate, ticket_sweeper_io, vercel
 API_KEY = "test-key"
 SHA_A = "a" * 40
 SHA_B = "b" * 40
-PIDEV = "CleanExpo/Pi-Dev-Ops"
 ATO = "CleanExpo/ATO"
 ALLOWED = frozenset({"cleanexpo/pi-dev-ops", "cleanexpo/ato"})
 
@@ -139,11 +139,6 @@ def install_fakes(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 NOW = datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc)
 SHA_C = "c" * 40
 FAKE_REVIEWER = "fake-reviewer-one"
-
-
-def stored(entry: dict, at: float = 1.0, *, alert: bool = False) -> dict:
-    """A planted entry with what the store always writes: first_seen and last_seen, and an alert's count."""
-    return {**entry, "first_seen": at, "last_seen": at, **({"count": 1} if alert else {})}
 
 
 def ago(hours: float) -> str:

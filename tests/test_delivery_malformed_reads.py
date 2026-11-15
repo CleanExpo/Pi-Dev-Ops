@@ -34,7 +34,9 @@ REVIEWS5 = f"/repos/{ATO}/pulls/5/reviews?per_page=100&page=1"
 def _plant(st: SimpleNamespace) -> dict:
     state = store.empty_state()
     for rid, kind in ((ORPHAN, "orphan_pr"), ("RA-1", "mission"), ("RA-9", "mission"), (REPO_REC, "repo")):
-        state["missions"][rid] = stored({"id": rid, "kind": kind, "stage": "building", "project_id": "ato"})
+        held = {"id": rid, "kind": kind, "repo": RA, "ref": RA} if kind == "repo" else \
+            {"id": rid, "kind": kind, "stage": "building", "project_id": "ato"}  # a repo record has no stage here
+        state["missions"][rid] = stored(held)
         state["alerts"][f"k-{rid}"] = stored({"key": f"k-{rid}", "mission_id": rid, "code": "EVIDENCE_UNKNOWN"},
                                              alert=True)
     state["checkpoint"]["last_complete"] = 1.0

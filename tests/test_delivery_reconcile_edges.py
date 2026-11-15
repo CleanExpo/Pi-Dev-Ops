@@ -174,7 +174,9 @@ def test_unread_links_skip_orphans_and_keep_stored_orphans(monkeypatch: pytest.M
     assert orphan_id in _state(st)["missions"]
     out = run(st, NOW + timedelta(minutes=15))
     state = _state(st)
-    assert out["complete"] is True and state["missions"][orphan_id]["refreshed_at"] == NOW.timestamp()
+    # D48: a cut link list makes the tick incomplete
+    assert out["complete"] is False and out["incomplete"] == {"RA-1": "links_incomplete"}
+    assert state["missions"][orphan_id]["refreshed_at"] == NOW.timestamp()
     assert not [a for a in state["alerts"].values()
                 if a["mission_id"] == orphan_id and a["last_seen"] == state["last_tick"]]
     assert orphan_id in state["summary"]["not_refreshed_ids"]  # so the tile still shows its alert

@@ -124,15 +124,18 @@ def test_t7_three_day_overdue_reaches_status_items(monkeypatch: pytest.MonkeyPat
 
 def test_t8_second_page_failure_keeps_missions(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     st = setup_tick(monkeypatch, tmp_path, ENTRIES)
-    st.gh[sweep_path(PIDEV)] = []
-    st.gh[sweep_path(ATO)] = []
-    unread = {"links_whole": False}
-    st.gql_pages += [linear_page([tick_issue("RA-1", **unread), tick_issue("RA-9", **unread)]),
-                     linear_page([tick_issue("RA-5", **unread)])]
+    links = {"RA-1": (PIDEV, 1), "RA-9": (PIDEV, 2), "RA-5": (ATO, 5)}  # linked PRs, so each mission is stored
+    st.gh[sweep_path(PIDEV)] = [open_pull(1), open_pull(2)]
+    st.gh[sweep_path(ATO)] = [open_pull(5)]
+    for repo, number in links.values():
+        st.gh.update(pr_paths(repo, number))
+    st.gql_pages += [linear_page([tick_issue(m, (links[m],)) for m in ("RA-1", "RA-9")]),
+                     linear_page([tick_issue("RA-5", (links["RA-5"],))])]
     run(st)
     checkpoint = _state(st)["checkpoint"]
-    st.gql_pages += [linear_page([tick_issue("RA-1", **unread)], "cursor-1"), RuntimeError("boom"),
-                     linear_page([tick_issue("RA-5", **unread)])]
+    assert checkpoint["last_complete"] == NOW.timestamp()  # D48: link lists whole, so the first tick is complete
+    st.gql_pages += [linear_page([tick_issue("RA-1", (links["RA-1"],))], "cursor-1"), RuntimeError("boom"),
+                     linear_page([tick_issue("RA-5", (links["RA-5"],))])]
     out = run(st, NOW + timedelta(minutes=15))
     assert out["complete"] is False and out["incomplete"] == {"pi-dev-ops": "error_RuntimeError"}
     after = _state(st)

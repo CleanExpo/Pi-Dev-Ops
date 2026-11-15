@@ -38,36 +38,37 @@ def _api_key() -> str:
 
 
 def _read(state: dict[str, Any], now: datetime, summary: dict[str, Any],
-          proof: dict[str, Any]) -> tuple[list, list, bool]:
+          proof: dict[str, Any]) -> tuple[list, list]:
     """Registry, key and gather. A failed step is recorded in ``summary["error"]``; nothing is dropped."""
     try:
         registry = collect.load_registry()
     except collect.RegistryError:
         summary["error"] = "registry_unreadable"
-        return [], [], False
+        return [], []
     summary["skipped_repos"] = list(registry.skipped_repos)
     summary["unqueryable_projects"] = list(registry.unqueryable_projects)
     api_key = _api_key()
     if not api_key:
         summary["error"] = "no_linear_key"
-        return [], [], False
+        return [], []
     try:
         return gather.gather(state, registry, api_key, now, summary, proof)
     except Exception as exc:  # noqa: BLE001 — recorded by type name only
         summary["error"] = f"gather_failed_{type(exc).__name__}"
         summary["not_refreshed_ids"] = []
         proof.update(whole=set(), scope=None)  # nothing was proven
-        return [], [], False
+        return [], []
 
 
 def _merge(state: dict[str, Any], records: list, findings: list, now: datetime,
-           complete: bool, summary: dict[str, Any], proof: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+           summary: dict[str, Any], proof: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """The store's merge; whether the tick is complete is the store's to derive from ``proof["scope"]``."""
     try:
-        return store.apply_tick(state, records, findings, now.timestamp(), complete,
-                                whole=proof.get("whole") or (), scope=proof.get("scope"))
+        return store.apply_tick(state, records, findings, now.timestamp(), whole=proof["whole"],
+                                scope=proof["scope"], summary=summary)
     except store.StoreError as exc:
-        summary["error"], summary["complete"] = f"merge_failed_{exc}", False
-        return store.apply_tick(state, [], [], now.timestamp(), False)
+        failed = {**summary, "error": f"merge_failed_{exc}"}
+        return store.apply_tick(state, [], [], now.timestamp(), summary=failed)  # no scope: incomplete
 
 
 def _locked(now: datetime, state_path: Path) -> dict[str, Any]:
@@ -78,13 +79,11 @@ def _locked(now: datetime, state_path: Path) -> dict[str, Any]:
         return {"error": "state_unreadable", "complete": False, "persisted": False}
     summary = gather.new_summary(now)
     proof: dict[str, Any] = {"whole": set(), "scope": None}  # filled only by a gather that ran
-    records, findings, complete = _read(state, now, summary, proof)
-    summary["complete"] = bool(complete)
-    new_state, new_keys = _merge(state, records, findings, now, bool(complete), summary, proof)
-    new_state["summary"] = summary
+    records, findings = _read(state, now, summary, proof)
+    new_state, new_keys = _merge(state, records, findings, now, summary, proof)
     persisted = store.save(state_path, new_state)
     reconcile.record_save(persisted)
-    out = {**summary, "persisted": persisted, "new_alerts": len(new_keys)}
+    out = {**new_state["summary"], "persisted": persisted, "new_alerts": len(new_keys)}
     logger.info("Delivery reconcile tick: %s", json.dumps(out, sort_keys=True, default=str))
     return out
 

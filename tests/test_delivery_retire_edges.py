@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from _delivery_reconcile_support import (
     ALLOWED, ATO, NOW, PIDEV, SHA_A, SHA_B, ago, install_fakes, linear_page, merged_paths, open_facts,
-    open_pull, pr_paths, reg_entry, run, setup_tick, sweep_path, tick_issue,
+    open_pull, pr_paths, reg_entry, run, setup_tick, stored, summary_of, sweep_path, tick_issue,
 )
 
 from app.server import delivery_collect as collect
@@ -67,7 +67,7 @@ def test_an_unexpected_tick_failure_is_reported_until_a_good_tick(monkeypatch: p
 
 def test_a_store_merge_error_is_reported(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     st = setup_tick(monkeypatch, tmp_path, [reg_entry("pi-dev-ops", PIDEV)])
-    monkeypatch.setattr(gather, "gather", lambda *_a: ([{"kind": "no id"}], [], True))
+    monkeypatch.setattr(gather, "gather", lambda *_a: ([{"kind": "no id"}], []))
     out = run(st)
     snap = dr.status_snapshot(st.path, NOW)
     assert out["error"] == "merge_failed_record_missing_id"
@@ -196,7 +196,7 @@ def test_future_started_at_falls_through_to_first_seen() -> None:
 def test_store_never_keeps_a_future_or_bad_first_seen(bad: object) -> None:
     state = store.empty_state()
     state["missions"]["M"] = {"id": "M", "first_seen": bad}
-    out, _ = store.apply_tick(state, [{"id": "M"}], [], NOW.timestamp(), False)
+    out, _ = store.apply_tick(state, [{"id": "M"}], [], NOW.timestamp())  # no scope: an incomplete tick
     assert out["missions"]["M"]["first_seen"] == NOW.timestamp()
 
 
@@ -204,11 +204,10 @@ def test_tile_survives_a_stored_extreme_since(tmp_path: Path) -> None:
     """A stored ``since`` whose UTC instant overflows has no age; the tile still renders."""
     state = store.empty_state()
     state["last_tick"] = NOW.timestamp()
-    state["summary"] = {"complete": True, "not_refreshed_ids": []}
+    state["summary"] = summary_of(complete=True)
     for key, since in (("A", "0001-01-01T00:00:00+14:00"), ("B", "9999-12-31T23:59:59-14:00")):
-        state["alerts"][key] = {"key": key, "mission_id": key, "code": "X", "severity": "founder", "ref": key,
-                                "since": since, "first_seen": NOW.timestamp(), "last_seen": NOW.timestamp(),
-                                "count": 1}
+        state["alerts"][key] = stored({"key": key, "mission_id": key, "code": "X", "severity": "founder", "ref": key,
+                                       "since": since}, NOW.timestamp(), alert=True)
     path = tmp_path / "s.json"
     assert store.save(path, state)
     snap = dr.status_snapshot(path, NOW)

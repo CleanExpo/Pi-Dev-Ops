@@ -200,11 +200,17 @@ def test_p1_1_other_unclaimed_orphans_are_still_classified(monkeypatch: pytest.M
 def test_p1_2_failed_read_keeps_false_done_on_the_tile(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
                                                       variant: str) -> None:
     st = _world(monkeypatch, tmp_path, "done")
-    stored = _state(st)["missions"]["RA-1"]
+    before = _state(st)
+    stored, checkpoint = before["missions"]["RA-1"], before["checkpoint"]
     _break(monkeypatch, st, "done", "http" if variant == "pull_http_500" else "links", 1)
     out = run(st, LATER)
     state, shown = _state(st), _shown(LATER, st)
-    assert out["complete"] is True and "RA-1" in out["not_refreshed_ids"]
+    cut = variant == "attachments_not_whole"
+    # D48: a cut link list makes the tick incomplete (a failed pull read alone does not)
+    assert out["complete"] is not cut and "RA-1" in out["not_refreshed_ids"]
+    if cut:
+        assert state["summary"]["incomplete"] == {"RA-1": "links_incomplete"}
+        assert state["checkpoint"] == checkpoint  # the checkpoint did not advance
     assert ("RA-1", "FALSE_DONE") in shown
     assert any(a["code"] == "FALSE_DONE" for a in state["alerts"].values())
     assert any(a["code"] == "EVIDENCE_UNKNOWN" and a["last_seen"] == state["last_tick"]

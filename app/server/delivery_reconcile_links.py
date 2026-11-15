@@ -83,7 +83,7 @@ def _refs(run: Any, issue: dict) -> list[tuple[str, int]] | None:
     except (collect.Unknown, TypeError, AttributeError):  # a link field that is not text, or a bad ref
         refs = None
     if refs is None:
-        run.links_whole = False
+        run.cut("links", str(issue.get("identifier")), "links_incomplete")  # D48: the tick is incomplete
         return None
     run.summary["refs_outside_scope"] += dropped
     run.linked.update((repo.lower(), n) for repo, n in kept)
@@ -130,9 +130,9 @@ def _hold_orphans(run: Any) -> bool:
     read or link list was not whole (any mission may link any PR), else those whose repo's sweep failed
     or that a not-whole mission links. An orphan of a repo no longer swept is out of scope: never held.
     Returns whether new orphans can be judged this tick."""
-    trusted = run.linear_whole and run.links_whole
+    trusted = run.uncut("linear", "links")
     swept = {repo.lower() for repo in run.registry.swept}
-    for rid, rec in run.state.get("missions", {}).items():
+    for rid, rec in run.state["missions"].items():
         repo = rid.lower().removeprefix("pr:").rpartition("#")[0]  # the id is ``pr:<repo>#<number>``
         if isinstance(rec, dict) and rec.get("kind") == "orphan_pr" and repo in swept and (
                 not trusted or repo not in run.sweep or rid.lower() in run.claimed):

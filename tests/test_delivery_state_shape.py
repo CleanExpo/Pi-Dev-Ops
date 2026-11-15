@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 import pytest
-from _delivery_reconcile_support import NOW, PIDEV, reg_entry, run, setup_tick
+from _delivery_reconcile_support import NOW, PIDEV, reg_entry, run, setup_tick, stored, summary_of
 
 from app.server import delivery_reconcile as dr
 from app.server import delivery_reconcile_store as store
@@ -19,11 +19,9 @@ from app.server import delivery_reconcile_store as store
 
 def _good() -> dict:
     state = store.empty_state()
-    state["missions"]["M"] = {"id": "M", "stage": "done", "prs": [{"repo": PIDEV, "number": 4, "state": "merged"}],
-                              "first_seen": 1.0, "last_seen": 1.0, "refreshed_at": 1.0}
-    state["alerts"]["K"] = {"key": "K", "mission_id": "M", "code": "X", "severity": "critical", "count": 1,
-                            "first_seen": 1.0, "last_seen": 1.0}
-    state["summary"] = {"complete": False, "not_refreshed_ids": ["M"]}
+    state["missions"]["M"] = stored({"id": "M", "stage": "done", "prs": [{"repo": PIDEV, "number": 4, "state": "merged"}]})
+    state["alerts"]["K"] = stored({"key": "K", "mission_id": "M", "code": "X", "severity": "critical"}, alert=True)
+    state["summary"] = summary_of(not_refreshed_ids=["M"])
     state["last_tick"] = NOW.timestamp() - 60
     return state
 
@@ -45,6 +43,7 @@ def _set(state: dict, where: str, value: object) -> dict:
 
 BAD = [
     ("alerts.K.mission_id", ["M"]), ("alerts.K.mission_id", {"id": "M"}), ("alerts.K.mission_id", 5),
+    ("alerts.K.mission_id", None), ("alerts.K.mission_id", ""), ("alerts.K.key", _ABSENT), ("missions.M.kind", "other"),
     ("alerts.K.key", 5), ("alerts.K", ["K"]), ("alerts.K", "K"),
     ("missions.M", ["M"]), ("missions.M", None), ("missions.M.id", 7), ("missions.M.stage", ["done"]),
     ("missions.M.prs", "x"), ("missions.M.prs", [["x"]]),
@@ -94,32 +93,34 @@ def test_positive_control_a_normal_file_loads_and_shows(tmp_path: Path) -> None:
 
 
 def test_a_state_the_store_writes_always_loads(tmp_path: Path) -> None:
-    state, _ = store.apply_tick(store.empty_state(), [{"id": "M", "stage": "done", "prs": []}],
-                                [{"key": "K", "mission_id": None, "code": "X"}], 1.0, True)
+    state, _ = store.apply_tick(store.empty_state(), [stored({"id": "M", "stage": "done"})],
+                                [stored({"key": "K", "mission_id": "OTHER", "code": "X"}, alert=True)], 1.0,
+                                scope=["M"], summary=summary_of())
     path = tmp_path / "state.json"
     assert store.save(path, state)
     assert store.load(path) == state
 
 
-_RECORDS = [{"id": "M", "kind": "mission", "stage": "done", "project_id": "p", "repo": PIDEV, "ref": "RA-1",
-             "prs": [{"repo": PIDEV, "number": 4, "state": "merged"}], "refreshed_at": 5.0},
-            {"id": f"pr:{PIDEV}#9", "kind": "orphan_pr", "stage": "open", "prs": []},
-            {"id": f"repo:{PIDEV}", "kind": "repo", "stage": "live_unconfirmed", "repo": PIDEV, "prs": []}]
-_FINDINGS = [{"key": "K-M", "mission_id": "M", "code": "FALSE_DONE", "severity": "critical", "ref": "RA-1",
-              "since": None, "age_source": None, "next_owner": "founder", "message": "m", "url": None},
-             {"key": "K-PR", "mission_id": f"pr:{PIDEV}#9", "code": "UNOWNED_24H", "severity": "warning"},
-             {"key": "K-NONE", "mission_id": None, "code": "INFO", "severity": "info"}]
+_RECORDS = [stored({"id": "M", "stage": "done", "project_id": "p", "repo": PIDEV, "ref": "RA-1",
+                    "prs": [{"repo": PIDEV, "number": 4, "state": "merged"}]}, 5.0),
+            stored({"id": f"pr:{PIDEV}#9", "kind": "orphan_pr", "stage": "open"}),
+            stored({"id": f"repo:{PIDEV}", "kind": "repo", "stage": "repo", "live_source": "live_unconfirmed"})]
+_FINDINGS = [stored({"key": "K-M", "mission_id": "M", "code": "FALSE_DONE", "severity": "critical", "ref": "RA-1",
+                     "next_owner": "founder", "message": "m"}, alert=True),
+             stored({"key": "K-PR", "mission_id": f"pr:{PIDEV}#9", "code": "UNOWNED_24H", "severity": "warning"},
+                    alert=True),
+             stored({"key": "K-NONE", "mission_id": "OTHER", "code": "INFO", "severity": "info"}, alert=True)]
 
 
 def _ticks(seed: int) -> list[tuple]:
     """A deterministic spread of ticks: subsets of records and findings, ``whole`` and ``scope`` sets (or
-    None), complete or not."""
+    None: an incomplete tick)."""
     out = []
     for i in range(6):
         bits = (seed * 7 + i * 13) % 64
         out.append(([r for j, r in enumerate(_RECORDS) if bits >> j & 1],
                     [f for j, f in enumerate(_FINDINGS) if bits >> (j + 3) & 1],
-                    ["M", f"pr:{PIDEV}#9", f"repo:{PIDEV}"][: bits % 4], bool(bits & 32) or i == 0,
+                    ["M", f"pr:{PIDEV}#9", f"repo:{PIDEV}"][: bits % 4],
                     None if bits & 2 else ["M", f"repo:{PIDEV}"][: bits % 3]))
     return out
 
@@ -127,8 +128,7 @@ def _ticks(seed: int) -> list[tuple]:
 @pytest.mark.parametrize("seed", range(40))
 def test_round_trip_every_state_apply_tick_writes_loads_as_valid(tmp_path: Path, seed: int) -> None:
     state, now, path = store.empty_state(), 1000.0 + seed, tmp_path / "state.json"
-    for records, findings, whole, complete, scope in _ticks(seed):
-        state, _ = store.apply_tick(state, records, findings, now, complete, whole=whole, scope=scope)
-        state["summary"] = {"complete": complete, "not_refreshed_ids": []}
+    for records, findings, whole, scope in _ticks(seed):
+        state, _ = store.apply_tick(state, records, findings, now, whole=whole, scope=scope, summary=summary_of())
         assert store.save(path, state)
         state, now = store.load(path), now + 600
