@@ -53,13 +53,16 @@ app/server/idea_pipeline/packet.py
 app/server/idea_pipeline/store.py
 
 # Cron modules (12 of 13) — cron_fire_mesh.py stays open: it is the mesh dispatch path
+# 15/11/2026: founder approved unfreezing exactly app/server/cron_scheduler.py for
+# RA-8100 ("Yes, carry on and unfreeze the file"): the delivery reconcile canary
+# hooks into the existing 15-minute block there. The re-freeze PR restores the line
+# and the floor of 91 right after RA-8100 merges.
 app/server/cron.py
 app/server/cron_fire_agents.py
 app/server/cron_fire_script.py
 app/server/cron_fire_wiki.py
 app/server/cron_handler_registry.py
 app/server/cron_outputs.py
-app/server/cron_scheduler.py
 app/server/cron_store.py
 app/server/cron_triggers.py
 app/server/cron_watchdog_mesh.py
