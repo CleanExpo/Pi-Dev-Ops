@@ -13,8 +13,9 @@ from app.server import delivery_reconcile as dr
 from app.server import delivery_reconcile_store as store
 from app.server import delivery_stage as stage
 from tests._delivery_reconcile_support import (
+    compare_answer,
     API_KEY, ATO, HTTP404, NOW, PIDEV, SHA_A, SHA_B, linear_page, merged_paths, open_pull, pr_paths, reg_entry,
-    run, setup_tick, sweep_path, tick_issue,
+    run, setup_tick, stored, sweep_path, tick_issue,
 )
 
 
@@ -28,8 +29,8 @@ def test_f1_real_registry_complete_and_retention(monkeypatch: pytest.MonkeyPatch
     st.gql_pages.extend(linear_page([]) for _ in registry.queryable)
     st.gh.update({sweep_path(repo): [] for repo in registry.swept})
     planted = store.empty_state()
-    planted["missions"] = {"GONE-1": {"id": "GONE-1", "kind": "mission", "project_id": "removed-project"}}
-    planted["alerts"] = {"k-gone": {"key": "k-gone", "mission_id": "GONE-1", "code": "STALE_24H"}}
+    planted["missions"] = {"GONE-1": stored({"id": "GONE-1", "kind": "mission", "project_id": "removed-project"})}
+    planted["alerts"] = {"k-gone": stored({"key": "k-gone", "mission_id": "GONE-1", "code": "STALE_24H"}, alert=True)}
     assert store.save(st.path, planted)
     out = run(st)
     assert out["complete"] is True and out["persisted"] is True and out["incomplete"] == {}
@@ -105,7 +106,7 @@ def _verified_world(st: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> str
     monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", own)
     st.gh[sweep_path(PIDEV)] = []
     st.gh.update(merged_paths(PIDEV, 4, SHA_B))
-    st.gh[f"/repos/{PIDEV}/compare/{SHA_B}...{own}"] = {"status": "ahead"}
+    st.gh[f"/repos/{PIDEV}/compare/{SHA_B}...{own}"] = compare_answer(SHA_B, own, "ahead")
     page = linear_page([tick_issue("RA-4", ((PIDEV, 4),))])
     st.gql_pages += [page, page]
     return own

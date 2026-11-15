@@ -13,6 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 from _delivery_reconcile_support import (
+    compare_answer,
     FAKE_REVIEWER, NOW, PIDEV, SHA_A, SHA_B, ago, linear_page, merged_paths, open_pull, pr_paths, reg_entry,
     run, setup_tick, sweep_path, tick_issue,
 )
@@ -46,7 +47,7 @@ def _healthy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str) -> Sim
     if stage == "merged":
         monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", OWN)
         st.gh.update(merged_paths(PIDEV, 4))
-        st.gh[f"{BASE}/compare/{SHA_B}...{OWN}"] = {"status": "identical"}
+        st.gh[f"{BASE}/compare/{SHA_B}...{OWN}"] = compare_answer(SHA_B, OWN, "identical")
         st.gh[sweep_path(PIDEV)] = []
         refs: tuple = ((PIDEV, 4),)
     else:

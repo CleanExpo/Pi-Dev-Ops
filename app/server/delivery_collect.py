@@ -20,8 +20,7 @@ from pathlib import Path
 
 from . import autonomy, autonomy_linear_rate, config_loader, vercel_monitor
 from .delivery_collect_fields import (
-    LINEAR_STATE_TYPES, VERCEL_STATES, flag, linear_identifier, maybe, member, node_id, positive_int, sha,
-    text,
+    VERCEL_STATES, _issue_page, identity_mismatch, maybe, member, positive_int, sha, text,
 )
 
 log = logging.getLogger("pi-ceo.delivery_reconcile")
@@ -172,6 +171,7 @@ def load_registry(path: str | None = None) -> Registry:
 _MISSIONS_QUERY = """
 query DeliveryMissions($projectId: String!, $since: DateTimeOrDuration!, $cursor: String) {
     project(id: $projectId) {
+        id
         issues(filter: { or: [
             { state: { type: { eq: "started" } } }
             { completedAt: { gt: $since } }
@@ -188,30 +188,6 @@ query DeliveryMissions($projectId: String!, $since: DateTimeOrDuration!, $cursor
 """
 
 
-def _node_ok(node: object) -> bool:
-    """The issue fields a consumer reads are in their domain; a null assignee means unowned. ``startedAt`` and
-    ``completedAt`` are judged per mission by the classifier (spec row 1: bad timestamp is that mission's UNKNOWN)."""
-    if not isinstance(node, dict) or not node_id(node.get("id")) or not linear_identifier(node.get("identifier")):
-        return False
-    state, assignee = node.get("state"), node.get("assignee")
-    return isinstance(state, dict) and member(state.get("type"), LINEAR_STATE_TYPES) \
-        and (assignee is None or (isinstance(assignee, dict) and maybe(assignee.get("name"), text)))
-
-
-def _issue_page(data: object) -> tuple[list[dict], str | None] | None:
-    """(nodes, next cursor or None), or None when the page or any node in it is malformed."""
-    project = data.get("project") if isinstance(data, dict) else None
-    conn = project.get("issues") if isinstance(project, dict) else None
-    page = conn.get("pageInfo") if isinstance(conn, dict) else None
-    nodes = conn.get("nodes") if isinstance(page, dict) else None
-    if not isinstance(nodes, list) or not flag(page.get("hasNextPage")) or not all(_node_ok(n) for n in nodes):
-        return None
-    cursor = page.get("endCursor") if page["hasNextPage"] else None
-    if page["hasNextPage"] and not text(cursor):
-        return None
-    return nodes, cursor
-
-
 def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> MissionRead:
     """Every mission page for one entry; stops at the first error, cooldown or budget, no retry."""
     if _skipped(entry.get("repo")) or not entry.get("linear_project_id"):
@@ -224,13 +200,17 @@ def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> Miss
             return MissionRead(issues, False, "linear_rate_limited")
         variables = {"projectId": entry["linear_project_id"], "since": since, "cursor": cursor}
         try:
-            page = _issue_page(read_only_gql(api_key, _MISSIONS_QUERY, variables, tick=tick))
+            data = read_only_gql(api_key, _MISSIONS_QUERY, variables, tick=tick)
         except BudgetExhausted as exc:
             return MissionRead(issues, False, exc.reason)
         except Exception as exc:  # noqa: BLE001 — recorded by type name only
             return MissionRead(issues, False, f"error_{type(exc).__name__}")
+        page = _issue_page(data)
         if page is None:
             return MissionRead(issues, False, "malformed_page")
+        mismatch = identity_mismatch("linear_issue", data, project=entry["linear_project_id"])
+        if mismatch:
+            return MissionRead(issues, False, mismatch)  # a page about another project is not this one's
         idents = [n["identifier"] for n in page[0]]
         if len(set(idents)) < len(idents) or seen.intersection(idents):
             return MissionRead(issues, False, "duplicate_issue")  # a shifted page may have skipped one

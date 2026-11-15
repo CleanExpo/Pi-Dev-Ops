@@ -16,6 +16,7 @@ from types import SimpleNamespace
 
 import pytest
 from _delivery_reconcile_support import (
+    compare_answer,
     HTTP404, NOW, PIDEV, SHA_A, SHA_B, ago, linear_page, merged_paths, merged_pull, open_pull, pr_paths, reg_entry,
     run, setup_tick, sweep_path, tick_issue,
 )
@@ -74,7 +75,7 @@ def _world(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, world: str) -> Simpl
     elif world == "merged":
         monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", OWN)
         st.gh.update(merged_paths(PIDEV, 4))
-        st.gh[f"/repos/{PIDEV}/compare/{SHA_B}...{OWN}"] = {"status": "behind"}
+        st.gh[f"/repos/{PIDEV}/compare/{SHA_B}...{OWN}"] = compare_answer(SHA_B, OWN, "behind")
         st.gh[sweep_path(PIDEV)] = []
     else:
         st.gh.update(pr_paths(PIDEV, 9))
@@ -140,7 +141,7 @@ def _whole_but_retired(st: SimpleNamespace, world: str) -> None:
         st.gh[f"/repos/{PIDEV}/pulls/7"] = merged_pull(7)
         st.gh[f"/repos/{PIDEV}/commits/{SHA_B}"] = {"sha": SHA_B}
     elif world == "merged":
-        st.gh[f"/repos/{PIDEV}/compare/{SHA_B}...{OWN}"] = {"status": "identical"}
+        st.gh[f"/repos/{PIDEV}/compare/{SHA_B}...{OWN}"] = compare_answer(SHA_B, OWN, "identical")
 
 
 @pytest.mark.parametrize("world", list(READS))

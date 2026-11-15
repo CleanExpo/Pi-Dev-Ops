@@ -7,6 +7,7 @@ records any real request so a test can assert there were none. Values are fake.
 """
 from __future__ import annotations
 
+import re
 import sys
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -69,10 +70,33 @@ def good_pr_paths(repo: str, number: int, sha: str = SHA_A) -> dict:
     }
 
 
+_LIST_OWNER = re.compile(r"/repos/([^/]+/[^/]+)/pulls(?:\?state=open|/(\d+)/reviews\?)")
+
+
+def _named_project(page: object, project: object) -> object:
+    """A real answer names the project asked (``project.id``); a page built without one gets it here.
+    A page that sets ``id`` itself (a mismatch test) is returned as built."""
+    if isinstance(page, dict) and isinstance(page.get("project"), dict) and "id" not in page["project"]:
+        return {**page, "project": {"id": project, **page["project"]}}
+    return page
+
+
+def _named_items(path: str, value: object) -> object:
+    """A real open-pull list names each pull's base repo and a review list each review's pull; items built
+    without those fields get the ones asked for here. An item that sets the field itself is kept as built."""
+    match = _LIST_OWNER.match(path)
+    if not match or not isinstance(value, list):
+        return value
+    repo, number = match.groups()
+    field, named = (("pull_request_url", f"https://api.github.com/repos/{repo}/pulls/{number}") if number
+                    else ("base", {"repo": {"full_name": repo}}))
+    return [{field: named, **item} if isinstance(item, dict) else item for item in value]
+
+
 def install_fakes(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     """Fake Linear, GitHub, Vercel and cooldown; every call is logged."""
     st = SimpleNamespace(gql=[], github=[], vercel=[], net=[], gql_pages=[], gh={}, vc={},
-                         limited=False, after_gql=None)
+                         limited=False, after_gql=None, name_asked=True, name_project=True)
 
     def fake_gql(api_key: str, query: str, variables: dict | None = None, **_kw: object) -> object:
         st.gql.append((query, dict(variables or {})))
@@ -83,14 +107,14 @@ def install_fakes(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
         page = st.gql_pages.pop(0)
         if isinstance(page, Exception):
             raise page
-        return page
+        return _named_project(page, (variables or {}).get("projectId")) if st.name_project else page
 
     def fake_github(path: str) -> object:
         st.github.append(path)
         value = st.gh.get(path, AssertionError(f"unexpected GitHub path {path}"))
         if isinstance(value, Exception):
             raise value
-        return value
+        return _named_items(path, value) if st.name_asked else value
 
     def fake_vercel(path: str) -> object:
         st.vercel.append(path)
@@ -115,6 +139,11 @@ def install_fakes(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 NOW = datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc)
 SHA_C = "c" * 40
 FAKE_REVIEWER = "fake-reviewer-one"
+
+
+def stored(entry: dict, at: float = 1.0, *, alert: bool = False) -> dict:
+    """A planted entry with what the store always writes: first_seen and last_seen, and an alert's count."""
+    return {**entry, "first_seen": at, "last_seen": at, **({"count": 1} if alert else {})}
 
 
 def ago(hours: float) -> str:
@@ -216,6 +245,12 @@ def merged_paths(repo: str, number: int, merge: str = SHA_B, merged: float = 30)
     """Every GET a merged PR's evidence needs: the pull and a readable merge commit."""
     return {f"/repos/{repo}/pulls/{number}": merged_pull(number, merge, merged),
             f"/repos/{repo}/commits/{merge}": {"sha": merge}}
+
+
+def compare_answer(base: str, head: str, status: str) -> dict:
+    """A compare answer that names the base asked (and, when the base is behind, ends on the head asked)."""
+    commits = [{"sha": head}] if status in ("ahead", "diverged") else []
+    return {"status": status, "base_commit": {"sha": base}, "commits": commits, "total_commits": len(commits)}
 
 
 def tick_issue(identifier: str, refs: tuple[tuple[str, int], ...] = (), *, links_whole: bool = True,

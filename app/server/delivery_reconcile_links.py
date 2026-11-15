@@ -2,8 +2,8 @@
 
 Read-only. GitHub and Vercel only through the collector; a link outside the registry is
 counted and dropped before any GitHub call, and its repo and number are never recorded.
-A subject (mission, orphan PR or repo) whose own reads did not all arrive whole is held through
-``Run.hold``: its stored record and alerts are kept and shown, never retired by a read that was cut.
+A subject (mission, orphan PR or repo) whose own reads all arrived whole is proven through ``Run.prove``
+(the only way its alerts can retire); one that did not is reported through ``Run.hold``.
 """
 from __future__ import annotations
 
@@ -118,7 +118,9 @@ def mission(run: Any, entry: dict, issue: dict) -> None:
     record, found, input_ok = delivery_stage.judge(issue, prs, live, run.now, repo=entry["repo"],
                                                    project_id=entry["id"], first_seen=old.get("first_seen"))
     run.take(record, found)
-    if not _read_whole(input_ok, prs, live):
+    if _read_whole(input_ok, prs, live):
+        run.prove(rid)
+    else:
         run.hold(rid)
         run.claim(refs)
 
@@ -151,19 +153,21 @@ def orphans(run: Any) -> None:
             record, found = delivery_stage.classify(None, [item], _NO_LIVE, run.now, repo=repo, project_id="",
                                                     first_seen=old.get("first_seen"))
             run.take(record, found)
+            run.prove(f"pr:{repo}#{number}")  # its repo's sweep and every link list were read whole
 
 
-def _vercel_sha(run: Any, repo: str) -> str | None:
+def _vercel_sha(run: Any, repo: str) -> tuple[str | None, bool]:
+    """(sha, read whole). No Vercel project to read is whole; a failed read is not."""
     entry = next((e for e in run.registry.entries
                   if e["repo"].lower() == repo.lower() and e.get("vercel_project_id")), None)
     if entry is None:
-        return None
+        return None, True
     try:
-        return collect.vercel_latest_ready(entry, tick=run.tick)
+        return collect.vercel_latest_ready(entry, tick=run.tick), True
     except collect.Unknown:
         run.summary["vercel_unreadable"] += 1
         run.hold(f"repo:{repo}")  # the repo's stored live-unconfirmed record and alert stay
-        return None
+        return None, False
 
 
 def repos(run: Any) -> None:
@@ -176,7 +180,9 @@ def repos(run: Any) -> None:
         done.add(repo.lower())
         merged = sum(1 for r in run.records if r.get("kind") == "mission" and r.get("stage") == "merged"
                      and str(r.get("repo", "")).lower() == repo.lower() and r.get("live_source_provable") is False)
-        sha = _vercel_sha(run, repo) if delivery_stage.live_kind(repo) == "live_unconfirmed" else None
+        sha, whole = _vercel_sha(run, repo) if delivery_stage.live_kind(repo) == "live_unconfirmed" else (None, True)
         record, found = delivery_stage.repo_findings(repo, merged, sha)
         run.records.append(record)
         run.findings.extend(found)
+        if whole:
+            run.prove(record["id"])

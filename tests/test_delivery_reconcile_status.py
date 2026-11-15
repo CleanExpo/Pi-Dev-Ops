@@ -105,13 +105,14 @@ def test_t7_founder_alert_shown_with_age(tmp_path: Path) -> None:
     assert out["last_tick"] == datetime.fromtimestamp(TICK, timezone.utc).isoformat()
 
 
-def test_t7_old_last_seen_not_shown_or_counted(tmp_path: Path) -> None:
+def test_t7_a_stored_alert_with_an_old_last_seen_is_shown_and_counted(tmp_path: Path) -> None:
+    """D33: the tile shows exactly what the store kept; an alert the store kept is never hidden."""
     p = tmp_path / "s.json"
     _write(p, [_alert("A"), _alert("OLD", last_seen=TICK - 900, mission_id="M-OLD")],
            summary=_summary())
     out = dr.status_snapshot(p, NOW)
-    assert [i["ref"] for i in out["items"]] == ["RA-A"]
-    assert out["counts"]["by_severity"] == {"founder": 1}
+    assert sorted(i["ref"] for i in out["items"]) == ["RA-A", "RA-OLD"]
+    assert out["counts"]["by_severity"] == {"founder": 2}
 
 
 def test_t7_not_refreshed_mission_alert_is_shown(tmp_path: Path) -> None:
@@ -194,5 +195,5 @@ def test_incomplete_tick_still_shows_unread_mission_alerts(tmp_path: Path) -> No
     assert [i["ref"] for i in out["items"]] == ["RA-OLD"]
     assert out["counts"]["by_severity"] == {"founder": 1} and out["complete"] is False
     _write(p, [old], summary=_summary(complete=True, not_refreshed_ids=[]))
-    mirror = dr.status_snapshot(p, NOW)
-    assert mirror["items"] == [] and mirror["counts"]["by_severity"] == {}
+    mirror = dr.status_snapshot(p, NOW)  # D33: the store kept it, so the tile shows it on a complete tick too
+    assert [i["ref"] for i in mirror["items"]] == ["RA-OLD"] and mirror["counts"]["by_severity"] == {"founder": 1}

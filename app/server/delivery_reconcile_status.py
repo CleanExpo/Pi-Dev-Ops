@@ -32,14 +32,9 @@ def _parse(value: Any) -> datetime | None:
         return None
 
 
-def _shown(state: dict[str, Any], summary: dict[str, Any]) -> list[dict[str, Any]]:
-    tick = state.get("last_tick")
-    ids = summary.get("not_refreshed_ids")
-    stale_ids = set(ids) if isinstance(ids, list) else set()
-    alerts = [a for a in state.get("alerts", {}).values() if isinstance(a, dict)]
-    if summary.get("complete") is not True:  # the store drops alerts only on a complete tick
-        return alerts
-    return [a for a in alerts if a.get("last_seen") == tick or a.get("mission_id") in stale_ids]
+def _shown(state: dict[str, Any], summary: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Exactly the alerts the store kept (one owner of the rule: ``store.shown_alerts``)."""
+    return store.shown_alerts(state)
 
 
 def _counts(shown: list[dict[str, Any]], summary: dict[str, Any]) -> dict[str, Any]:

@@ -74,21 +74,24 @@ def test_a_store_merge_error_is_reported(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert snap["complete"] is False and "merge_failed_record_missing_id" in snap["errors"]
 
 
-@pytest.mark.parametrize("bad", [None, "3", True, -1, 1.5, []])
-def test_a_bad_stored_count_does_not_fail_every_tick(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
-                                                    bad: object) -> None:
+@pytest.mark.parametrize("bad", [None, "3", True, -1, 0, 1.5, []])
+def test_a_bad_stored_count_is_state_unreadable_never_repaired(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+                                                              bad: object) -> None:
+    """D33: a stored count of the wrong shape means the file is not ours; it is not silently restarted."""
     st = setup_tick(monkeypatch, tmp_path, [reg_entry("pi-dev-ops", PIDEV)])
     _good_tick(st)
     run(st)
     state = _state(st)
+    assert state["alerts"]  # positive control: there is a count to break
     for alert in state["alerts"].values():
         alert["count"] = bad
     Path(st.path).write_text(json.dumps(state), encoding="utf-8")
+    body = Path(st.path).read_bytes()
     _good_tick(st)
     out = dr.run_reconcile_tick(now=LATER, path=str(st.path))
-    assert "error" not in out and out["complete"] is True
-    assert all(a["count"] == 1 for a in _state(st)["alerts"].values())
-    assert dr.status_snapshot(st.path, LATER)["complete"] is True
+    assert out.get("error") == "state_unreadable" and out["persisted"] is False
+    assert Path(st.path).read_bytes() == body
+    assert dr.status_snapshot(st.path, LATER)["state"] == "unreadable"
 
 
 # ── P2-1: an extreme but valid timestamp is a bad timestamp, never an escape ──
@@ -204,7 +207,8 @@ def test_tile_survives_a_stored_extreme_since(tmp_path: Path) -> None:
     state["summary"] = {"complete": True, "not_refreshed_ids": []}
     for key, since in (("A", "0001-01-01T00:00:00+14:00"), ("B", "9999-12-31T23:59:59-14:00")):
         state["alerts"][key] = {"key": key, "mission_id": key, "code": "X", "severity": "founder", "ref": key,
-                                "since": since, "last_seen": NOW.timestamp()}
+                                "since": since, "first_seen": NOW.timestamp(), "last_seen": NOW.timestamp(),
+                                "count": 1}
     path = tmp_path / "s.json"
     assert store.save(path, state)
     snap = dr.status_snapshot(path, NOW)

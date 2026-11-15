@@ -12,10 +12,10 @@ from types import SimpleNamespace
 
 import pytest
 from _delivery_reconcile_support import (
-    ALLOWED, API_KEY, ATO, NOW, SHA_A, SHA_B, good_pr_paths, install_fakes, issue, linear_page, merged_pull,
+    ALLOWED, API_KEY, ATO, NOW, SHA_A, SHA_B, compare_answer, good_pr_paths, install_fakes, issue, linear_page, merged_pull,
     open_facts, open_pull,
 )
-from test_delivery_field_inventory import INVENTORY
+from test_delivery_field_inventory import INVENTORY, PRESENT_REQUIRED
 
 from app.server import delivery_collect as dc
 from app.server import delivery_collect_github as dg
@@ -84,13 +84,15 @@ def _github(st: SimpleNamespace, path: str, payload: dict, field: str, value: ob
 
 def _plant(st: SimpleNamespace, source: str, field: str, value: object, mp: pytest.MonkeyPatch) -> tuple:
     """Plant ``value`` at ``field`` of one good answer and call that source's collector function."""
+    st.name_asked = st.name_project = False  # every answer below is built whole; the fake must not fill a planted absence
     st.gh.update(good_pr_paths(ATO, 5))
     pr5 = lambda: dg.pr_evidence(ATO, 5, tick=_tick())  # noqa: E731
     base = f"/repos/{ATO}"
     if source == "pulls_list":
-        item = copy.deepcopy(open_pull(7))
+        named = {"base": {"repo": {"full_name": ATO}}}
+        item = copy.deepcopy({**open_pull(7), **named})
         _set(item, field, value)
-        st.gh[f"{base}/pulls?state=open&per_page=100&page=1"] = [open_pull(5), item]
+        st.gh[f"{base}/pulls?state=open&per_page=100&page=1"] = [{**open_pull(5), **named}, item]
         return _outcome(lambda: dg.open_prs(ATO, tick=_tick()))
     if source in ("pull", "pull_merged"):
         good = open_pull(5) if source == "pull" else merged_pull(5)
@@ -111,11 +113,11 @@ def _plant(st: SimpleNamespace, source: str, field: str, value: object, mp: pyte
         return _github(st, f"{base}/commits/{SHA_A}/status", {"state": "success", "total_count": 0, "sha": SHA_A}, field, value, pr5)
     if source == "review":
         good = {"id": 1, "user": {"login": "someone", "type": "User"}, "state": "COMMENTED", "commit_id": SHA_A,
-                "submitted_at": "2026-11-14T03:00:00Z"}
+                "submitted_at": "2026-11-14T03:00:00Z", "pull_request_url": f"https://api.github.com{base}/pulls/5"}
         st.gh[f"{base}/pulls/5/reviews?per_page=100&page=1"] = []
         return _github(st, f"{base}/pulls/5/reviews?per_page=100&page=1", good, field, value, pr5)
     if source == "compare":
-        body = {"status": "ahead"}
+        body = compare_answer(SHA_A, SHA_B, "ahead")
         _set(body, field, value)
         st.gh[f"{base}/compare/{SHA_A}...{SHA_B}"] = body
         return _outcome(lambda: dg.compare_status(ATO, SHA_A, SHA_B, tick=_tick()))
@@ -127,8 +129,9 @@ def _plant_other(st: SimpleNamespace, source: str, field: str, value: object, mp
              "vercel_project_id": "prj_fake"}
     if source in ("linear_page", "linear_issue"):
         page = linear_page([issue("RA-1")], "c1")
+        page["project"]["id"] = "proj-1"
         _set(page if source == "linear_page" else page["project"]["issues"]["nodes"][0], field, value)
-        st.gql_pages = [page, linear_page([issue("RA-2")])]
+        st.gql_pages = [page, {"project": {"id": "proj-1", **linear_page([issue("RA-2")])["project"]}}]
         read = _outcome(lambda: dc.fetch_missions(API_KEY, entry, tick=_tick(), since="2026-11-01T00:00:00Z"))
         if read != ("ok", None) or source == "linear_page":
             return read
@@ -178,7 +181,8 @@ def _rows() -> list:
         rows.append(pytest.param(source, field, "", empty_out, id=f"{source}.{field}-empty"))
         if source != "env":
             rows.append(pytest.param(source, field, None, _expected(null, reason), id=f"{source}.{field}-null"))
-        rows.append(pytest.param(source, field, _ABSENT, _expected(null, reason), id=f"{source}.{field}-absent"))
+        absent = ("unknown", reason) if (source, field) in PRESENT_REQUIRED else _expected(null, reason)
+        rows.append(pytest.param(source, field, _ABSENT, absent, id=f"{source}.{field}-absent"))
     return rows
 
 

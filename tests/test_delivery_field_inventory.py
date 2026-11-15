@@ -26,6 +26,9 @@ INVENTORY: list[tuple[str, str, str, str, str, str, bool]] = [
     ("pulls_list", "user", "object", "ok", "fail", "malformed_pull", False),
     ("pulls_list", "user.login", "login", "fail", "fail", "malformed_pull", False),
     ("pulls_list", "user.type", "enum", "fail", "fail", "malformed_pull", True),
+    ("pulls_list", "base", "object", "fail", "fail", "pulls_list_mismatch", True),
+    ("pulls_list", "base.repo", "object", "fail", "fail", "pulls_list_mismatch", True),
+    ("pulls_list", "base.repo.full_name", "text", "fail", "fail", "pulls_list_mismatch", True),
     ("pull", "number", "posint", "fail", "fail", "pull_mismatch", False),
     ("pull", "state", "enum", "fail", "fail", "malformed_pull", True),
     ("pull", "merged", "bool", "fail", "fail", "malformed_pull", True),
@@ -57,8 +60,15 @@ INVENTORY: list[tuple[str, str, str, str, str, str, bool]] = [
     ("review", "state", "enum", "fail", "fail", "malformed_review", True),
     ("review", "commit_id", "sha", "ok", "fail", "malformed_review", True),
     ("review", "submitted_at", "timestamp", "fail", "fail", "malformed_review", True),
+    ("review", "pull_request_url", "text", "fail", "fail", "review_mismatch", True),
     ("compare", "status", "enum", "fail", "fail", "malformed_compare", True),
+    ("compare", "base_commit", "object", "fail", "fail", "compare_mismatch", True),
+    ("compare", "base_commit.sha", "sha", "fail", "fail", "compare_mismatch", True),
+    ("compare", "commits", "list", "fail", "fail", "compare_mismatch", True),
+    ("compare", "total_commits", "count", "fail", "fail", "compare_mismatch", True),
+    ("compare", "commits.sha", "sha", "fail", "fail", "compare_mismatch", True),
     ("linear_page", "project", "object", "fail", "fail", "malformed_page", False),
+    ("linear_page", "project.id", "text", "fail", "fail", "linear_project_mismatch", False),
     ("linear_page", "project.issues", "object", "fail", "fail", "malformed_page", False),
     ("linear_page", "project.issues.nodes", "list", "fail", "fail", "malformed_page", False),
     ("linear_page", "project.issues.pageInfo.hasNextPage", "bool", "fail", "fail", "malformed_page", False),
@@ -70,12 +80,12 @@ INVENTORY: list[tuple[str, str, str, str, str, str, bool]] = [
     ("linear_issue", "startedAt", "timestamp", "ok", "fail", "bad_timestamp", True),
     ("linear_issue", "completedAt", "timestamp", "ok", "fail", "bad_timestamp", True),
     ("linear_issue", "assignee", "object", "ok", "fail", "malformed_page", True),
-    ("linear_issue", "assignee.name", "text", "ok", "fail", "malformed_page", True),
+    ("linear_issue", "assignee.name", "text", "fail", "fail", "malformed_page", True),
     ("linear_links", "description", "text_any", "ok", "ok", "links_incomplete", True),
     ("linear_links", "attachments", "object", "fail", "fail", "links_incomplete", False),
     ("linear_links", "attachments.pageInfo.hasNextPage", "bool", "fail", "fail", "links_incomplete", False),
     ("linear_links", "attachments.nodes", "list", "fail", "fail", "links_incomplete", False),
-    ("linear_links", "attachments.nodes.url", "text_any", "ok", "ok", "links_incomplete", True),
+    ("linear_links", "attachments.nodes.url", "text_any", "fail", "ok", "links_incomplete", True),
     ("vercel", "deployments", "list", "fail", "fail", "malformed_deployments", False),
     ("vercel", "state", "enum", "fail", "fail", "malformed_deployments", True),
     ("vercel", "created", "posint", "fail", "fail", "malformed_deployments", True),
@@ -86,6 +96,11 @@ INVENTORY: list[tuple[str, str, str, str, str, str, bool]] = [
     ("env", "BUILD_REVISION", "sha", "fail", "fail", "no_revision", False),
 ]
 
+# Null is documented for these, absent is not: a missing key is a cut answer and fails with the row's reason.
+PRESENT_REQUIRED = {("pulls_list", "user"), ("pull", "user"), ("pull", "merged_at"), ("check_run", "conclusion"),
+                    ("check_run", "completed_at"), ("review", "commit_id"), ("linear_issue", "assignee"),
+                    ("linear_links", "description")}
+
 # Which outside sources each collector function reads. A function missing here fails the walk.
 FUNC_SOURCES: dict[str, set[str]] = {
     "_issue_page": {"linear_page", "linear_issue"}, "_node_ok": {"linear_issue"}, "fetch_missions": {"linear_issue"},
@@ -93,6 +108,7 @@ FUNC_SOURCES: dict[str, set[str]] = {
     "_page": {"check_runs"}, "_author": {"pull", "review"}, "_pull_common": {"pull"}, "_head": {"pull"},
     "open_prs": {"pulls_list"}, "_open_item": {"pulls_list"}, "_pull_facts": {"pull", "pull_merged"}, "_check_run": {"check_run"},
     "_review": {"review"}, "_commit": {"commit"}, "_status": {"status"}, "compare_status": {"compare"},
+    "_tail": {"compare"},
     "pr_evidence": {"check_runs", "check_run", "review", "pull"}, "linear_links": {"linear_links"},
 }
 # Reads of the registry entry or of the collector's own facts dict: not outside answers.
@@ -103,7 +119,7 @@ INTERNAL = {
     ("vercel_latest_ready", "vercel_project_id"), ("vercel_latest_ready", "vercel_team_id"),
     ("vercel_latest_ready", "repo"), ("pr_evidence", "state"), ("pr_evidence", "merge_sha"),
     ("pr_evidence", "head_sha"), ("pr_evidence", "check_runs"), ("pr_evidence", "status"),
-    ("pr_evidence", "reviews"),
+    ("pr_evidence", "reviews"), ("identity_mismatch", "checks"), ("identity_mismatch", "code"),
 }
 COLLECTORS = ("delivery_collect", "delivery_collect_github", "delivery_collect_fields")
 QUERIED_UNREAD = {"createdAt"}  # in the Linear query, read nowhere downstream (recorded, not validated)

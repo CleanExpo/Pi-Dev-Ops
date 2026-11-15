@@ -10,8 +10,15 @@ from . import ticket_sweeper_io
 from .delivery_collect import _REPO, MissingCommit, Tick, Unknown, _skipped
 from .delivery_collect_fields import (
     CHECK_CONCLUSIONS, CHECK_STATUSES, COMPARE_STATUSES, PULL_STATES, REVIEW_STATES, STATUS_STATES, USER_TYPES,
-    count, flag, is_instant, login, maybe, member, no_commit, positive_int, sha,
+    count, flag, identity_mismatch, is_instant, login, maybe, member, no_commit, positive_int, present, sha,
 )
+
+
+def _same(row: str, answer: object, **asked: object) -> None:
+    """The answer names what was asked, by its row in ``IDENTITY`` (the one owner); else its reason code."""
+    code = identity_mismatch(row, answer, **asked)
+    if code is not None:
+        raise Unknown(code)
 
 
 def _get(repo: str, path: str, tick: Tick, *, missing_on_404: bool = False,
@@ -89,7 +96,7 @@ def _head(pr: dict) -> str | None:
 # One owner for the item rule: every item of every GitHub list is checked here, and one malformed
 # item fails the whole read with a reason code. Callers never filter; they use what is returned.
 def _author(item: dict, code: str) -> tuple[str | None, str | None]:
-    user = item.get("user")
+    user = item.get("user", item)  # absent is a cut answer (falls to the check below); null is a deleted user
     if user is None:
         return None, None  # no author: never a bot, so never counted away
     if not isinstance(user, dict) or not login(user.get("login")) or not member(user.get("type"), USER_TYPES):
@@ -106,45 +113,46 @@ def _pull_common(pr: dict) -> dict:
             "head_sha": _head(pr)}
 
 
-def _open_item(pr: dict) -> dict:
-    """A sweep item must say it is open; ``merged`` may be absent from a list answer, never true."""
+def _open_item(pr: dict, repo: str) -> dict:
+    """A sweep item must say it is open and name the repo asked; ``merged`` may be absent from a list answer
+    (GitHub's list omits it), never true."""
     if pr.get("state") != "open" or not maybe(pr.get("merged"), flag) or pr.get("merged") is True:
         raise Unknown("malformed_pull")
+    _same("pulls_list", pr, repo=repo)  # a pull of another repo is not this repo's open pull
     return {"number": pr["number"], **_pull_common(pr)}
 
 
 def open_prs(repo: str, *, tick: Tick) -> list[dict]:
     """Every open PR in a swept repo, as minimal facts (no titles or bodies). Whole or raise."""
-    return [_open_item(pr) for pr in _paged(repo, "/pulls?state=open&", tick, identity="number", item="pull")]
+    return [_open_item(pr, repo) for pr in _paged(repo, "/pulls?state=open&", tick, identity="number", item="pull")]
 
 
 def _pull_facts(pr: object, number: int) -> dict:
     if not isinstance(pr, dict) or not member(pr.get("state"), PULL_STATES) or not flag(pr.get("merged")) \
-            or not maybe(pr.get("merged_at"), is_instant):
+            or not present(pr, "merged_at", is_instant):
         raise Unknown("malformed_pull")
     if pr["merged"] != (pr.get("merged_at") is not None) or (pr["merged"] and pr["state"] != "closed"):
         raise Unknown("malformed_pull")  # merged and merged_at must agree; a merged pull is closed
-    if not positive_int(pr.get("number")) or pr["number"] != number:
-        raise Unknown("pull_mismatch")  # an answer about another pull is not this pull's evidence
+    _same("pull", pr, number=number)  # an answer about another pull is not this pull's evidence
     return {**_pull_common(pr), "state": "merged" if pr["merged"] else pr["state"],
             "merged_at": pr.get("merged_at"), "merge_sha": pr.get("merge_commit_sha") if pr["merged"] else None}
 
 
 def _check_run(run: dict, head: str) -> dict:
-    if not member(run.get("status"), CHECK_STATUSES) or not maybe(run.get("conclusion"),
-                                                                    lambda v: member(v, CHECK_CONCLUSIONS)) \
-            or not maybe(run.get("completed_at"), is_instant):
+    if not member(run.get("status"), CHECK_STATUSES) or not present(run, "conclusion",
+                                                                     lambda v: member(v, CHECK_CONCLUSIONS)) \
+            or not present(run, "completed_at", is_instant):
         raise Unknown("malformed_check_run")
-    if sha(run.get("head_sha")) != head:
-        raise Unknown("check_run_mismatch")  # a run about another commit is not this head's evidence
+    _same("check_run", run, head=head)  # a run about another commit is not this head's evidence
     return {"status": run["status"], "conclusion": run.get("conclusion"), "completed_at": run.get("completed_at")}
 
 
-def _review(review: dict) -> dict:
-    """A review must name its login: a nameless verdict could hide another reviewer's block."""
+def _review(review: dict, pull: str) -> dict:
+    """A review must name its login (a nameless verdict could hide another reviewer's block) and its pull."""
+    _same("review", review, pull=pull)  # a review of another pull is not this pull's verdict
     name = _author(review, "malformed_review")[0]
     state, when = review.get("state"), review.get("submitted_at")
-    if not name or not member(state, REVIEW_STATES) or not maybe(review.get("commit_id"), sha) \
+    if not name or not member(state, REVIEW_STATES) or not present(review, "commit_id", sha) \
             or not (is_instant(when) or (when is None and state == "PENDING")):
         raise Unknown("malformed_review")
     return {"login": name, "state": state, "commit_id": sha(review.get("commit_id")),
@@ -154,9 +162,7 @@ def _review(review: dict) -> dict:
 def _commit(repo: str, commit: str, tick: Tick, not_found: str) -> None:
     """The commit exists and the answer names it; any other answer is not proof it exists."""
     data = _get(repo, f"/commits/{commit}", tick, missing_on_404=True, not_found=not_found)
-    named = data.get("sha") if isinstance(data, dict) else None
-    if sha(named) != commit:
-        raise Unknown("commit_mismatch")
+    _same("commit", data, sha=commit)
 
 
 def _status(data: object, head: str) -> dict:
@@ -164,8 +170,7 @@ def _status(data: object, head: str) -> dict:
     name the head asked about; absent, malformed or another commit is ``status_mismatch``."""
     if not isinstance(data, dict) or not member(data.get("state"), STATUS_STATES) or not count(data.get("total_count")):
         raise Unknown("malformed_status")
-    if sha(data.get("sha")) != head:
-        raise Unknown("status_mismatch")
+    _same("status", data, head=head)
     return {"state": data["state"], "total_count": data["total_count"]}
 
 
@@ -183,15 +188,19 @@ def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
     facts["check_runs"] = [_check_run(r, head) for r in _paged(repo, f"/commits/{head}/check-runs?", tick, identity="id",
                                                          item="check_run", key="check_runs")]
     facts["status"] = _status(_get(repo, f"/commits/{head}/status", tick), head)
-    facts["reviews"] = [_review(r) for r in _paged(repo, f"/pulls/{number}/reviews?", tick, identity="id",
-                                                   item="review")]
+    pull = f"/repos/{repo}/pulls/{number}"
+    facts["reviews"] = [_review(r, pull) for r in _paged(repo, f"/pulls/{number}/reviews?", tick, identity="id",
+                                                         item="review")]
     return facts
 
 
 def compare_status(repo: str, base: str, head: str, *, tick: Tick) -> str:
-    """GitHub compare ``base...head`` status; the stage decides what counts as contained."""
-    data = _get(repo, f"/compare/{_sha(base, 'no_base')}...{_sha(head, 'no_head')}", tick)
+    """GitHub compare ``base...head`` status; the stage decides what counts as contained. The answer must
+    name the base asked (and the head, where it can): else ``compare_mismatch``, never a verified merge."""
+    base, head = _sha(base, "no_base"), _sha(head, "no_head")
+    data = _get(repo, f"/compare/{base}...{head}", tick)
     status = data.get("status") if isinstance(data, dict) else None
     if not member(status, COMPARE_STATUSES):
         raise Unknown("malformed_compare")
+    _same("compare", data, base=base, head=head)
     return status

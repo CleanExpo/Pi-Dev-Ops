@@ -37,7 +37,8 @@ def _api_key() -> str:
     return key.strip() if isinstance(key, str) else ""
 
 
-def _read(state: dict[str, Any], now: datetime, summary: dict[str, Any]) -> tuple[list, list, bool]:
+def _read(state: dict[str, Any], now: datetime, summary: dict[str, Any],
+          proof: dict[str, Any]) -> tuple[list, list, bool]:
     """Registry, key and gather. A failed step is recorded in ``summary["error"]``; nothing is dropped."""
     try:
         registry = collect.load_registry()
@@ -51,18 +52,19 @@ def _read(state: dict[str, Any], now: datetime, summary: dict[str, Any]) -> tupl
         summary["error"] = "no_linear_key"
         return [], [], False
     try:
-        return gather.gather(state, registry, api_key, now, summary)
+        return gather.gather(state, registry, api_key, now, summary, proof)
     except Exception as exc:  # noqa: BLE001 — recorded by type name only
         summary["error"] = f"gather_failed_{type(exc).__name__}"
         summary["not_refreshed_ids"] = []
+        proof.update(whole=set(), scope=None)  # nothing was proven
         return [], [], False
 
 
 def _merge(state: dict[str, Any], records: list, findings: list, now: datetime,
-           complete: bool, summary: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+           complete: bool, summary: dict[str, Any], proof: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     try:
         return store.apply_tick(state, records, findings, now.timestamp(), complete,
-                                held=summary.get("not_refreshed_ids") or ())
+                                whole=proof.get("whole") or (), scope=proof.get("scope"))
     except store.StoreError as exc:
         summary["error"], summary["complete"] = f"merge_failed_{exc}", False
         return store.apply_tick(state, [], [], now.timestamp(), False)
@@ -75,9 +77,10 @@ def _locked(now: datetime, state_path: Path) -> dict[str, Any]:
     except store.StoreError:
         return {"error": "state_unreadable", "complete": False, "persisted": False}
     summary = gather.new_summary(now)
-    records, findings, complete = _read(state, now, summary)
+    proof: dict[str, Any] = {"whole": set(), "scope": None}  # filled only by a gather that ran
+    records, findings, complete = _read(state, now, summary, proof)
     summary["complete"] = bool(complete)
-    new_state, new_keys = _merge(state, records, findings, now, bool(complete), summary)
+    new_state, new_keys = _merge(state, records, findings, now, bool(complete), summary, proof)
     new_state["summary"] = summary
     persisted = store.save(state_path, new_state)
     reconcile.record_save(persisted)

@@ -50,6 +50,8 @@ class Run:
     sweep_whole: bool = True
     links_whole: bool = True
     own: str | None = None
+    whole: set[str] = field(default_factory=set)
+    unknown: set[str] = field(default_factory=set)
 
     def stored(self, rid: str) -> dict | None:
         rec = self.state.get("missions", {}).get(rid)
@@ -67,11 +69,15 @@ class Run:
         self.findings.extend(found)
 
     def hold(self, rid: str) -> None:
-        """The one writer of "this subject was NOT read whole this tick". ``not_refreshed_ids`` is the
-        only carrier: the store keeps the subject's stored record and alerts, and the tile shows them."""
+        """The one writer of "this subject was NOT read whole this tick" (``not_refreshed_ids``): what the
+        tile reports. The store's removal rule never reads it; it reads only ``whole`` and ``scope``."""
         ids = self.summary["not_refreshed_ids"]
         if rid not in ids:
             ids.append(rid)
+
+    def prove(self, rid: str) -> None:
+        """The one writer of "this subject's own read was proven whole this tick" (``whole``)."""
+        self.whole.add(rid)
 
     def claim(self, refs: list[tuple[str, int]] | None) -> None:
         """PRs a not-whole mission links: a stored orphan record for one of them is held, not retired."""
@@ -118,6 +124,7 @@ def _hold_unseen(run: Run, whole: set[str], seen: set[str]) -> None:
         if isinstance(rec, dict) and rec.get("kind") == "mission" and rec.get("project_id") not in whole \
                 and rid not in seen:
             run.keep_stored(rid)
+            run.unknown.add(rid)  # never read, so it cannot be shown out of scope
 
 
 def _sweep(run: Run) -> None:
@@ -158,10 +165,24 @@ def _tally(run: Run) -> None:
                         "budget_left": dict(getattr(run.tick, "left", {}) or {})})
 
 
+def _scope(run: Run, missions: list[tuple[dict, dict]]) -> set[str] | None:
+    """The full scope list, built only from lists read whole; None when any of them was not. Missions
+    listed by Linear (and stored ones never read), every open pull no mission links (and stored orphans a
+    not-whole mission links), and every registry repo."""
+    if not (run.linear_whole and run.sweep_whole and run.links_whole):
+        return None
+    out = {str(issue["identifier"]) for _, issue in missions} | run.unknown
+    out |= {f"pr:{item['repo']}#{n}" for key, items in run.sweep.items() for n, item in items.items()
+            if (key, n) not in run.linked}
+    out |= {rid for rid in run.state.get("missions", {}) if rid.lower() in run.claimed}
+    return out | {f"repo:{entry['repo']}" for entry in run.registry.entries}
+
+
 def gather(state: dict[str, Any], registry: collect.Registry, api_key: str, now: datetime,
-           summary: dict[str, Any]) -> tuple[list[dict], list[dict], bool]:
+           summary: dict[str, Any], proof: dict[str, Any] | None = None) -> tuple[list[dict], list[dict], bool]:
     """Read and classify one tick. Returns (records, findings, complete); fills ``summary``, whose
-    ``not_refreshed_ids`` lists every subject not read whole (see ``Run.hold``)."""
+    ``not_refreshed_ids`` lists every subject not read whole (see ``Run.hold``), and ``proof`` with
+    ``whole`` (see ``Run.prove``) and ``scope`` (see ``_scope``) for the store's removal rule."""
     run = Run(state, registry, api_key, now, summary, tick=collect.Tick(allowed=registry.allowed),
               own=collect.own_revision())
     missions = _read_missions(run)
@@ -172,4 +193,6 @@ def gather(state: dict[str, Any], registry: collect.Registry, api_key: str, now:
     links.orphans(run)
     links.repos(run)
     _tally(run)
+    if proof is not None:
+        proof.update(whole=set(run.whole), scope=_scope(run, missions))
     return run.records, run.findings, run.linear_whole and run.sweep_whole

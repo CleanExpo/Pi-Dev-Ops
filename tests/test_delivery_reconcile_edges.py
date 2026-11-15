@@ -15,7 +15,7 @@ from app.server import delivery_collect as collect
 from app.server import delivery_reconcile as dr
 from app.server import delivery_reconcile_store as store
 from tests._delivery_reconcile_support import (
-    ATO, NOW, PIDEV, SHA_B, linear_page, open_pull, pr_paths, reg_entry, run, setup_tick, sweep_path,
+    ATO, NOW, PIDEV, SHA_B, linear_page, open_pull, pr_paths, reg_entry, run, setup_tick, stored, sweep_path,
     tick_issue,
 )
 
@@ -28,8 +28,8 @@ def _state(st: SimpleNamespace) -> dict:
 
 def _plant(st: SimpleNamespace) -> dict:
     planted = store.empty_state()
-    planted["missions"] = {"RA-OLD": {"id": "RA-OLD", "kind": "mission", "stage": "review_wait"}}
-    planted["alerts"] = {"k-old": {"key": "k-old", "mission_id": "RA-OLD", "code": "STALE_24H"}}
+    planted["missions"] = {"RA-OLD": stored({"id": "RA-OLD", "kind": "mission", "stage": "review_wait"})}
+    planted["alerts"] = {"k-old": stored({"key": "k-old", "mission_id": "RA-OLD", "code": "STALE_24H"}, alert=True)}
     planted["checkpoint"]["last_complete"] = 1.0
     assert store.save(st.path, planted)
     return planted

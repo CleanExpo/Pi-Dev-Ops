@@ -115,18 +115,19 @@ def test_incomplete_tick_keeps_checkpoint_and_removes_nothing() -> None:
     state, _ = store.apply_tick(
         store.empty_state(), [_rec("A"), _rec("B")], [_fnd("KA", "A"), _fnd("KB", "B")], 10.0, True
     )
-    out, _ = store.apply_tick(state, [_rec("A")], [_fnd("KA", "A")], 20.0, False)
+    # A is read whole and KA is NOT raised again: only the incompleteness of the tick keeps KA stored.
+    out, _ = store.apply_tick(state, [_rec("A")], [], 20.0, False)
     assert out["checkpoint"]["last_complete"] == 10.0
     assert set(out["missions"]) == {"A", "B"}
     assert set(out["alerts"]) == {"KA", "KB"}
-    assert out["alerts"]["KB"]["count"] == 1
+    assert out["alerts"]["KA"]["count"] == 1 and out["alerts"]["KB"]["count"] == 1
 
 
 def test_complete_tick_advances_checkpoint_and_retains_scope() -> None:
     state, _ = store.apply_tick(
         store.empty_state(), [_rec("A"), _rec("B")], [_fnd("KA", "A"), _fnd("KB", "B")], 10.0, True
     )
-    out, _ = store.apply_tick(state, [_rec("A")], [_fnd("KA", "A")], 20.0, True)
+    out, _ = store.apply_tick(state, [_rec("A")], [_fnd("KA", "A")], 20.0, True, whole=["A"], scope=["A"])
     assert out["checkpoint"]["last_complete"] == 20.0
     assert set(out["missions"]) == {"A"}
     assert set(out["alerts"]) == {"KA"}
@@ -134,9 +135,9 @@ def test_complete_tick_advances_checkpoint_and_retains_scope() -> None:
 
 def test_alert_retired_only_when_its_subject_is_read_whole() -> None:
     state, _ = store.apply_tick(store.empty_state(), [_rec()], [_fnd()], 1.0, True)
-    held, _ = store.apply_tick(state, [_rec()], [], 2.0, True, held=["M1"])
+    held, _ = store.apply_tick(state, [_rec()], [], 2.0, True, whole=[], scope=["M1"])
     assert held["alerts"]["K1"]["count"] == 1 and held["alerts"]["K1"]["last_seen"] == 1.0
-    out, _ = store.apply_tick(state, [_rec()], [], 2.0, True)
+    out, _ = store.apply_tick(state, [_rec()], [], 2.0, True, whole=["M1"], scope=["M1"])
     assert "K1" not in out["alerts"]
 
 

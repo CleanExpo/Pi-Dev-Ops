@@ -103,13 +103,109 @@ def maybe(value: object, check: object) -> bool:
     return value is None or bool(check(value))  # type: ignore[operator]
 
 
+def present(item: object, key: str, check: object) -> bool:
+    """A documented-nullable field: the key must be there (absent is a cut answer), its value null or in domain."""
+    return isinstance(item, dict) and key in item and maybe(item[key], check)
+
+
 def linear_links(issue: object) -> bool:
     """The link fields ``pr_refs`` reads: description text or null; each attachment url text or null.
     The attachment list's own wholeness (``hasNextPage``) stays with ``pr_refs``."""
-    if not isinstance(issue, dict) or not maybe(issue.get("description"), lambda v: isinstance(v, str)):
+    if not present(issue, "description", lambda v: isinstance(v, str)):
         return False
     conn = issue.get("attachments")
     nodes = conn.get("nodes") if isinstance(conn, dict) else None
     if not isinstance(nodes, list):
         return True  # not whole: ``pr_refs`` returns None and the links are incomplete
-    return all(not isinstance(n, dict) or maybe(n.get("url"), lambda v: isinstance(v, str)) for n in nodes)
+    return all(not isinstance(n, dict) or isinstance(n.get("url"), str) for n in nodes)  # Attachment.url: String!
+
+
+# RA-8100 B6: THE ONE OWNER of "the answer names the thing that was asked". One row per outside request
+# the collector makes; ``reader`` is the function that makes it (a test walks the source and fails on a
+# request with no row). ``checks``: (answer path, asked key, kind); every one must hold or the read
+# fails with ``code``. A row with no check carries ``why``: the written reason the answer has no identity.
+IDENTITY: dict[str, dict] = {
+    "pulls_list": {"reader": "open_prs", "asked": ("repo",), "code": "pulls_list_mismatch",
+                   "checks": ((("base", "repo", "full_name"), "repo", "repo"),)},
+    "pull": {"reader": "pr_evidence", "asked": ("number",), "checks": ((("number",), "number", "int"),),
+             "code": "pull_mismatch"},
+    "commit": {"reader": "_commit", "asked": ("sha",), "checks": ((("sha",), "sha", "sha"),), "code": "commit_mismatch"},
+    "check_run": {"reader": "pr_evidence", "asked": ("head",), "checks": ((("head_sha",), "head", "sha"),),
+                  "code": "check_run_mismatch"},
+    "status": {"reader": "pr_evidence", "asked": ("head",), "checks": ((("sha",), "head", "sha"),),
+               "code": "status_mismatch"},
+    "review": {"reader": "pr_evidence", "asked": ("pull",), "code": "review_mismatch",
+               "checks": ((("pull_request_url",), "pull", "suffix"),)},
+    "compare": {"reader": "compare_status", "asked": ("base", "head"), "code": "compare_mismatch",
+                "checks": ((("base_commit", "sha"), "base", "sha"), (("commits",), "head", "tail"))},
+    "linear_issue": {"reader": "fetch_missions", "asked": ("project",), "code": "linear_project_mismatch",
+                     "checks": ((("project", "id"), "project", "text"),)},
+    "vercel": {"reader": "vercel_latest_ready", "asked": ("project", "team"), "checks": (), "code": None,
+               "why": "a list filtered by projectId, target and state in the query; the repo's fixtures and "
+                      "vercel_monitor read no field of a deployment item that names its project, so none is checked"},
+}
+_ABSENT = object()
+
+
+def _at(answer: object, path: tuple[str, ...]) -> object:
+    for part in path:
+        if not isinstance(answer, dict) or part not in answer:
+            return _ABSENT
+        answer = answer[part]
+    return answer
+
+
+def _tail(answer: object, commits: object, head: object) -> bool:
+    """Compare's head side. A real answer always carries ``commits``: absent, null or not a list of SHAs fails.
+    When the base is behind the head (``ahead``/``diverged``) the list must be non-empty, end on the head asked,
+    and be whole: ``total_commits`` absent, null or not the list length (GitHub stops at 250) cannot confirm it."""
+    if not isinstance(commits, list) or not all(isinstance(c, dict) and sha(c.get("sha")) for c in commits):
+        return False
+    if not (isinstance(answer, dict) and answer.get("status") in ("ahead", "diverged")):
+        return True  # behind or identical: the base already holds the head; an empty list is right
+    total = answer.get("total_commits")  # always in a real answer; absent or null cannot show the list is whole
+    return bool(commits) and count(total) and total == len(commits) and sha(commits[-1]["sha"]) == sha(head)
+
+
+_KINDS = {
+    "sha": lambda answer, value, want: sha(value) is not None and sha(value) == sha(want),
+    "int": lambda answer, value, want: positive_int(value) and value == want,
+    "repo": lambda answer, value, want: text(value) and isinstance(want, str) and value.lower() == want.lower(),
+    "suffix": lambda answer, value, want: text(value) and isinstance(want, str) and bool(want)
+    and value.lower().endswith(want.lower()),
+    "text": lambda answer, value, want: text(value) and value == want,
+    "tail": _tail,
+}
+
+
+def identity_mismatch(row: str, answer: object, **asked: object) -> str | None:
+    """Apply one IDENTITY row: its reason code when the answer does not name what was asked, else None."""
+    spec = IDENTITY[row]
+    for path, key, kind in spec["checks"]:
+        if not _KINDS[kind](answer, _at(answer, path), asked[key]):
+            return spec["code"]
+    return None
+
+
+def _node_ok(node: object) -> bool:
+    """The issue fields a consumer reads are in their domain; a null assignee means unowned. ``startedAt`` and
+    ``completedAt`` are judged per mission by the classifier (spec row 1: bad timestamp is that mission's UNKNOWN)."""
+    if not isinstance(node, dict) or not node_id(node.get("id")) or not linear_identifier(node.get("identifier")):
+        return False
+    state, assignee = node.get("state"), node.get("assignee")
+    return isinstance(state, dict) and member(state.get("type"), LINEAR_STATE_TYPES) \
+        and "assignee" in node and (assignee is None or (isinstance(assignee, dict) and text(assignee.get("name"))))  # User.name: String!
+
+
+def _issue_page(data: object) -> tuple[list[dict], str | None] | None:
+    """(nodes, next cursor or None), or None when the page or any node in it is malformed."""
+    project = data.get("project") if isinstance(data, dict) else None
+    conn = project.get("issues") if isinstance(project, dict) else None
+    page = conn.get("pageInfo") if isinstance(conn, dict) else None
+    nodes = conn.get("nodes") if isinstance(page, dict) else None
+    if not isinstance(nodes, list) or not flag(page.get("hasNextPage")) or not all(_node_ok(n) for n in nodes):
+        return None
+    cursor = page.get("endCursor") if page["hasNextPage"] else None
+    if page["hasNextPage"] and not text(cursor):
+        return None
+    return nodes, cursor

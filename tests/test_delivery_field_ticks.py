@@ -16,7 +16,7 @@ from types import SimpleNamespace
 import pytest
 from _delivery_reconcile_support import (
     ATO, FAKE_REVIEWER, PIDEV, SHA_A, SHA_B, ago, linear_page, merged_paths, open_pull, pr_paths, reg_entry, run,
-    setup_tick, sweep_path, tick_issue,
+    setup_tick, stored, sweep_path, tick_issue,
 )
 from test_delivery_field_domains import NEGATIVES, _set
 from test_delivery_field_inventory import INVENTORY
@@ -43,8 +43,9 @@ def _plant_state(st: SimpleNamespace) -> dict:
     state = store.empty_state()
     for rid in STORED:
         kind = "orphan_pr" if rid == ORPHAN else ("repo" if rid.startswith("repo:") else "mission")
-        state["missions"][rid] = {"id": rid, "kind": kind, "stage": "unknown", "reason": "http_500"}
-        state["alerts"][f"k-{rid}"] = {"key": f"k-{rid}", "mission_id": rid, "code": "EVIDENCE_UNKNOWN"}
+        state["missions"][rid] = stored({"id": rid, "kind": kind, "stage": "unknown", "reason": "http_500"})
+        state["alerts"][f"k-{rid}"] = stored({"key": f"k-{rid}", "mission_id": rid, "code": "EVIDENCE_UNKNOWN"},
+                                             alert=True)
     state["checkpoint"]["last_complete"] = 1.0
     assert store.save(st.path, state)
     return state
@@ -61,9 +62,11 @@ def _world(st: SimpleNamespace, node: dict | None = None) -> None:
 def _break(st: SimpleNamespace, source: str, field: str, value: object) -> str:
     """Plant the value in the world; returns the row kind: list, mission or vercel."""
     if source == "pulls_list":
-        item = open_pull(7)
+        st.name_asked = False  # both items are built naming their repo; nothing fills a planted absence
+        named = {"base": {"repo": {"full_name": ATO}}}
+        item = {**open_pull(7), **named}
         _set(item, field, value)
-        st.gh[sweep_path(ATO)] = [open_pull(5), item]
+        st.gh[sweep_path(ATO)] = [{**open_pull(5), **named}, item]
         return "list"
     if source in ("linear_issue", "linear_links"):
         node = tick_issue("RA-1", ((ATO, 5),))

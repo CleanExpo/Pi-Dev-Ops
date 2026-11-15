@@ -16,6 +16,7 @@ from types import SimpleNamespace
 
 import pytest
 from _delivery_reconcile_support import (
+    compare_answer,
     HTTP404, NOW, PIDEV, SHA_A, SHA_B, SHA_C, linear_page, merged_paths, open_pull, pr_paths, reg_entry, run,
     setup_tick, sweep_path, tick_issue,
 )
@@ -71,7 +72,7 @@ def _world(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, world: str) -> Simpl
         monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", OWN)
         st.gh.update({**merged_paths(PIDEV, n1, c1), **merged_paths(PIDEV, n2, c2, 40)})
         for sha in (c1, c2):
-            st.gh[f"/repos/{PIDEV}/compare/{sha}...{OWN}"] = {"status": "behind"}
+            st.gh[f"/repos/{PIDEV}/compare/{sha}...{OWN}"] = compare_answer(sha, OWN, "behind")
         st.gh[sweep_path(PIDEV)] = []
     st.gql_pages.append(linear_page([_issue(world, ((PIDEV, n1),))]))
     run(st)
