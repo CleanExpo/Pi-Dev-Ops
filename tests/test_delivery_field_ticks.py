@@ -18,6 +18,7 @@ from _delivery_reconcile_support import (
     ATO, FAKE_REVIEWER, PIDEV, SHA_A, SHA_B, ago, linear_page, merged_paths, open_pull, pr_paths, reg_entry, run,
     setup_tick, stored, sweep_path, tick_issue,
 )
+from _delivery_stored_support import planted as planted_state
 from test_delivery_field_domains import NEGATIVES, _set
 from test_delivery_field_inventory import INVENTORY
 
@@ -40,7 +41,7 @@ READY = {"state": "READY", "created": 2, "target": "production", "meta": {"githu
 
 
 def _plant_state(st: SimpleNamespace) -> dict:
-    state = store.empty_state()
+    state = planted_state()
     for rid in STORED:
         kind = "orphan_pr" if rid == ORPHAN else ("repo" if rid.startswith("repo:") else "mission")
         held = {"id": rid, "kind": kind, "repo": RA, "ref": RA} if kind == "repo" else \

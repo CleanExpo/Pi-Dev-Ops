@@ -29,7 +29,8 @@ OPEN_READS = [f"{BASE}/pulls/7", f"{BASE}/commits/{SHA_A}", f"{BASE}/commits/{SH
 READS = {"building": OPEN_READS, "review_wait": OPEN_READS, "approval_wait": OPEN_READS,
          "merged": [f"{BASE}/pulls/4", f"{BASE}/commits/{SHA_B}", f"{BASE}/compare/{SHA_B}...{OWN}"]}
 PLANTED = {"key": "planted-critical", "mission_id": "RA-1", "code": "FALSE_DONE", "severity": "critical",
-           "ref": "RA-1", "next_owner": "SPM", "message": "planted", "since": ago(1)}
+           "ref": "RA-1", "next_owner": "SPM", "message": "planted", "since": ago(1),
+           "age_source": "startedAt"}
 
 
 class HTTP500(Exception):
@@ -47,7 +48,7 @@ def _healthy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stage: str) -> Sim
     if stage == "merged":
         monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", OWN)
         st.gh.update(merged_paths(PIDEV, 4))
-        st.gh[f"{BASE}/compare/{SHA_B}...{OWN}"] = compare_answer(SHA_B, OWN, "identical")
+        st.gh[f"{BASE}/compare/{SHA_B}...{OWN}"] = compare_answer(SHA_B, OWN, "ahead")
         st.gh[sweep_path(PIDEV)] = []
         refs: tuple = ((PIDEV, 4),)
     else:

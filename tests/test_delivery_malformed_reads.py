@@ -16,6 +16,7 @@ import pytest
 from _delivery_reconcile_support import (
     ATO, SHA_A, ago, linear_page, open_pull, pr_paths, reg_entry, run, setup_tick, stored, sweep_path, tick_issue,
 )
+from _delivery_stored_support import planted as planted_state
 
 from app.server import delivery_collect as dc
 from app.server import delivery_reconcile_store as store
@@ -32,7 +33,7 @@ REVIEWS5 = f"/repos/{ATO}/pulls/5/reviews?per_page=100&page=1"
 
 
 def _plant(st: SimpleNamespace) -> dict:
-    state = store.empty_state()
+    state = planted_state()
     for rid, kind in ((ORPHAN, "orphan_pr"), ("RA-1", "mission"), ("RA-9", "mission"), (REPO_REC, "repo")):
         held = {"id": rid, "kind": kind, "repo": RA, "ref": RA} if kind == "repo" else \
             {"id": rid, "kind": kind, "stage": "building", "project_id": "ato"}  # a repo record has no stage here

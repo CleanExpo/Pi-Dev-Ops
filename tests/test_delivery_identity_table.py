@@ -175,8 +175,8 @@ def _compare(monkeypatch: pytest.MonkeyPatch, body: object) -> str | None:
     ("ahead", [{}], "compare_mismatch"), ("behind", [{"sha": "nope"}], "compare_mismatch"),
     ("ahead", [{"sha": SHA_B}], None), ("diverged", [{"sha": SHA_C}, {"sha": SHA_B.upper()}], None),
     ("ahead", [], "compare_mismatch"), ("diverged", [], "compare_mismatch"), ("ahead", None, "compare_mismatch"),
-    ("ahead", _ABSENT, "compare_mismatch"), ("identical", [], None), ("identical", None, "compare_mismatch"),
-    ("behind", _ABSENT, "compare_mismatch"), ("behind", [{"sha": SHA_C}], None),
+    ("ahead", _ABSENT, "compare_mismatch"), ("identical", [], "compare_mismatch"), ("identical", None, "compare_mismatch"),
+    ("behind", _ABSENT, "compare_mismatch"), ("behind", [{"sha": SHA_C}], "compare_mismatch"), ("behind", [], None),
 ])
 def test_compare_head_side(monkeypatch: pytest.MonkeyPatch, status: str, commits: object, reason: str | None) -> None:
     body = compare_answer(SHA_A, SHA_B, status)

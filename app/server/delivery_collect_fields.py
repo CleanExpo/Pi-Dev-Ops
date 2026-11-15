@@ -136,8 +136,9 @@ IDENTITY: dict[str, dict] = {
                "code": "status_mismatch"},
     "review": {"reader": "pr_evidence", "asked": ("pull",), "code": "review_mismatch",
                "checks": ((("pull_request_url",), "pull", "suffix"),)},
+    # the head side needs more than one field of the answer: ``delivery_invariants.ANSWERS["compare"]`` owns it
     "compare": {"reader": "compare_status", "asked": ("base", "head"), "code": "compare_mismatch",
-                "checks": ((("base_commit", "sha"), "base", "sha"), (("commits",), "head", "tail"))},
+                "checks": ((("base_commit", "sha"), "base", "sha"),)},
     "linear_issue": {"reader": "fetch_missions", "asked": ("project",), "code": "linear_project_mismatch",
                      "checks": ((("project", "id"), "project", "text"),)},
     "vercel": {"reader": "vercel_latest_ready", "asked": ("project", "team"), "checks": (), "code": None,
@@ -155,18 +156,6 @@ def _at(answer: object, path: tuple[str, ...]) -> object:
     return answer
 
 
-def _tail(answer: object, commits: object, head: object) -> bool:
-    """Compare's head side. A real answer always carries ``commits``: absent, null or not a list of SHAs fails.
-    When the base is behind the head (``ahead``/``diverged``) the list must be non-empty, end on the head asked,
-    and be whole: ``total_commits`` absent, null or not the list length (GitHub stops at 250) cannot confirm it."""
-    if not isinstance(commits, list) or not all(isinstance(c, dict) and sha(c.get("sha")) for c in commits):
-        return False
-    if not (isinstance(answer, dict) and answer.get("status") in ("ahead", "diverged")):
-        return True  # behind or identical: the base already holds the head; an empty list is right
-    total = answer.get("total_commits")  # always in a real answer; absent or null cannot show the list is whole
-    return bool(commits) and count(total) and total == len(commits) and sha(commits[-1]["sha"]) == sha(head)
-
-
 _KINDS = {
     "sha": lambda answer, value, want: sha(value) is not None and sha(value) == sha(want),
     "int": lambda answer, value, want: positive_int(value) and value == want,
@@ -174,7 +163,6 @@ _KINDS = {
     "suffix": lambda answer, value, want: text(value) and isinstance(want, str) and bool(want)
     and value.lower().endswith(want.lower()),
     "text": lambda answer, value, want: text(value) and value == want,
-    "tail": _tail,
 }
 
 

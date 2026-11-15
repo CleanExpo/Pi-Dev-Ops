@@ -10,6 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from _delivery_stored_support import planted as planted_state
 
 from app.server import delivery_collect as collect
 from app.server import delivery_reconcile as dr
@@ -27,7 +28,7 @@ def _state(st: SimpleNamespace) -> dict:
 
 
 def _plant(st: SimpleNamespace) -> dict:
-    planted = store.empty_state()
+    planted = planted_state()
     planted["missions"] = {"RA-OLD": stored({"id": "RA-OLD", "kind": "mission", "stage": "review_wait"})}
     planted["alerts"] = {"k-old": stored({"key": "k-old", "mission_id": "RA-OLD", "code": "STALE_24H"}, alert=True)}
     planted["checkpoint"]["last_complete"] = 1.0

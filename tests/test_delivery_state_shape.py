@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 import pytest
-from _delivery_reconcile_support import NOW, PIDEV, reg_entry, run, setup_tick, stored, summary_of
+from _delivery_reconcile_support import NOW, PIDEV, reg_entry, run, setup_tick, stored, tick_summary
 
 from app.server import delivery_reconcile as dr
 from app.server import delivery_reconcile_store as store
@@ -21,7 +21,7 @@ def _good() -> dict:
     state = store.empty_state()
     state["missions"]["M"] = stored({"id": "M", "stage": "done", "prs": [{"repo": PIDEV, "number": 4, "state": "merged"}]})
     state["alerts"]["K"] = stored({"key": "K", "mission_id": "M", "code": "X", "severity": "critical"}, alert=True)
-    state["summary"] = summary_of(not_refreshed_ids=["M"])
+    state["summary"] = tick_summary(NOW.timestamp() - 60, False, not_refreshed_ids=["M"])
     state["last_tick"] = NOW.timestamp() - 60
     return state
 
@@ -95,19 +95,19 @@ def test_positive_control_a_normal_file_loads_and_shows(tmp_path: Path) -> None:
 def test_a_state_the_store_writes_always_loads(tmp_path: Path) -> None:
     state, _ = store.apply_tick(store.empty_state(), [stored({"id": "M", "stage": "done"})],
                                 [stored({"key": "K", "mission_id": "OTHER", "code": "X"}, alert=True)], 1.0,
-                                scope=["M"], summary=summary_of())
+                                scope=["M"], summary=tick_summary(1.0, True))
     path = tmp_path / "state.json"
     assert store.save(path, state)
     assert store.load(path) == state
 
 
-_RECORDS = [stored({"id": "M", "stage": "done", "project_id": "p", "repo": PIDEV, "ref": "RA-1",
+_RECORDS = [stored({"id": "M", "stage": "done", "project_id": "p", "repo": PIDEV,
                     "prs": [{"repo": PIDEV, "number": 4, "state": "merged"}]}, 5.0),
-            stored({"id": f"pr:{PIDEV}#9", "kind": "orphan_pr", "stage": "open"}),
+            stored({"id": f"pr:{PIDEV}#9", "kind": "orphan_pr", "stage": "building"}),
             stored({"id": f"repo:{PIDEV}", "kind": "repo", "stage": "repo", "live_source": "live_unconfirmed"})]
 _FINDINGS = [stored({"key": "K-M", "mission_id": "M", "code": "FALSE_DONE", "severity": "critical", "ref": "RA-1",
                      "next_owner": "founder", "message": "m"}, alert=True),
-             stored({"key": "K-PR", "mission_id": f"pr:{PIDEV}#9", "code": "UNOWNED_24H", "severity": "warning"},
+             stored({"key": "K-PR", "mission_id": f"pr:{PIDEV}#9", "code": "UNOWNED_24H", "severity": "reminder"},
                     alert=True),
              stored({"key": "K-NONE", "mission_id": "OTHER", "code": "INFO", "severity": "info"}, alert=True)]
 
@@ -129,6 +129,7 @@ def _ticks(seed: int) -> list[tuple]:
 def test_round_trip_every_state_apply_tick_writes_loads_as_valid(tmp_path: Path, seed: int) -> None:
     state, now, path = store.empty_state(), 1000.0 + seed, tmp_path / "state.json"
     for records, findings, whole, scope in _ticks(seed):
-        state, _ = store.apply_tick(state, records, findings, now, whole=whole, scope=scope, summary=summary_of())
+        state, _ = store.apply_tick(state, records, findings, now, whole=whole, scope=scope,
+                                    summary=tick_summary(now, scope is not None))
         assert store.save(path, state)
         state, now = store.load(path), now + 600

@@ -73,9 +73,10 @@ def build(path: str | Path, now: datetime, enabled: bool, save_ok: bool | None,
     summary = state["summary"]  # present and whole whenever a tick has run (the schema's rule)
     shown = _shown(state, summary)
     errors: list[str] = []
-    stale = now.timestamp() - tick > STALE_AFTER_S
+    ahead = tick > now.timestamp()  # written after the time of reading: the file and the clock disagree
+    stale = ahead or now.timestamp() - tick > STALE_AFTER_S
     if stale:
-        errors.append("stale_state")
+        errors.append("state_from_future" if ahead else "stale_state")
     if save_ok is False:
         errors.append("state_write_failed")
     if isinstance(summary.get("error"), str):

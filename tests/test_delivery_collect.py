@@ -68,7 +68,7 @@ def test_t3_good_reads_return_whole_evidence(fakes: SimpleNamespace) -> None:
     fakes.gh.update(good_pr_paths(ATO, 5))
     ev = dg.pr_evidence(ATO, 5, tick=_tick())
     assert ev["state"] == "open" and ev["head_sha"] == SHA_A and len(ev["check_runs"]) == 1
-    assert ev["status"] == {"state": "success", "total_count": 0} and ev["reviews"] == []
+    assert ev["status"] == {"state": "pending", "total_count": 0} and ev["reviews"] == []
 
 
 # ── T5: missing commit ───────────────────────────────────────────────────────
@@ -171,9 +171,9 @@ def test_t10_collector_source_references_only_read_helpers(module: str) -> None:
         if isinstance(node, ast.Import):
             assert {a.name for a in node.names} <= STDLIB_OK
         elif isinstance(node, ast.ImportFrom):
-            if node.level and node.module in ("delivery_collect", "delivery_collect_fields"):  # pure validators only
-                assert {a.name for a in node.names} <= (FIELD_NAMES if node.module.endswith("_fields") else
-                                                        COLLECT_NAMES if module == "delivery_collect_github" else set())
+            if node.level and node.module in ("delivery_collect", "delivery_collect_fields", "delivery_invariants"):
+                pure = {"delivery_collect_fields": FIELD_NAMES, "delivery_invariants": {"answer_problem"}}  # validators
+                assert {a.name for a in node.names} <= pure.get(node.module, COLLECT_NAMES if "_github" in module else set())
             elif node.level:
                 assert node.module is None and {a.name for a in node.names} <= set(ALLOWED_ATTRS)
             else:

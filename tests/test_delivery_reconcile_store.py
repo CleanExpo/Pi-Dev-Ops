@@ -9,13 +9,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from _delivery_reconcile_support import stored, summary_of
+from _delivery_reconcile_support import stored, tick_summary
 
 from app.server import delivery_reconcile_store as store
 
 
 def _rec(mid: str = "M1", **extra: Any) -> dict[str, Any]:
-    return stored({"id": mid, "stage": "BUILDING", **extra})
+    return stored({"id": mid, "stage": "building", **extra})
 
 
 def _fnd(key: str = "K1", mid: str = "M1", **extra: Any) -> dict[str, Any]:
@@ -25,7 +25,7 @@ def _fnd(key: str = "K1", mid: str = "M1", **extra: Any) -> dict[str, Any]:
 def _tick(state: dict[str, Any], records: list, findings: list, now: float, scope: Any = ("M1",),
           **kw: Any) -> tuple[dict[str, Any], list[str]]:
     """``store.apply_tick`` with a whole summary; a tick is complete exactly when it has a scope."""
-    return store.apply_tick(state, records, findings, now, scope=scope, summary=summary_of(), **kw)
+    return store.apply_tick(state, records, findings, now, scope=scope, summary=tick_summary(now, scope is not None), **kw)
 
 
 def test_missing_file_gives_empty_state(tmp_path: Path) -> None:
@@ -169,7 +169,7 @@ def test_restored_job_keeps_alert_first_seen(tmp_path: Path) -> None:
     state, _ = _tick(store.empty_state(), [_rec()], [_fnd()], 1.0)
     assert store.save(p, state)
     fresh = importlib.reload(store)
-    out, new = fresh.apply_tick(fresh.load(p), [_rec()], [_fnd()], 2.0, scope=["M1"], summary=summary_of())
+    out, new = fresh.apply_tick(fresh.load(p), [_rec()], [_fnd()], 2.0, scope=["M1"], summary=tick_summary(2.0, True))
     assert new == []
     assert out["alerts"]["K1"]["first_seen"] == 1.0
     assert out["alerts"]["K1"]["count"] == 2

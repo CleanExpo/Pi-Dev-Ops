@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from _delivery_reconcile_support import stored, summary_of
+from _delivery_reconcile_support import stored, tick_summary
 
 from app.server import delivery_reconcile as dr
 from app.server import delivery_reconcile_store as store
@@ -24,12 +24,13 @@ def _clean(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _alert(key: str, **over: Any) -> dict[str, Any]:
-    return stored({
+    made = stored({
         "key": key, "mission_id": f"M-{key}", "code": "CHECKS_GREEN_NO_REVIEW",
         "severity": "founder", "next_owner": "founder", "message": f"msg {key}",
         "ref": f"RA-{key}", "repo": "o/r", "since": (NOW - timedelta(hours=72)).isoformat(),
         "age_source": "checks_green", "url": f"https://example.test/{key}", **over,
-    }, TICK, alert=True)
+    }, over.get("last_seen", TICK), alert=True)
+    return {**made, "age_source": None if made["since"] is None else made["age_source"]}
 
 
 def _write(path: Path, alerts: list[dict[str, Any]], last_tick: float | None = TICK,
@@ -38,12 +39,14 @@ def _write(path: Path, alerts: list[dict[str, Any]], last_tick: float | None = T
     st = store.empty_state()
     st["alerts"] = {a["key"]: a for a in alerts}
     st["last_tick"] = last_tick
-    st["summary"] = None if last_tick is None else summary or summary_of()
+    st["summary"] = None if last_tick is None else {**(summary or tick_summary(last_tick, False)),
+                                                    "tick_at": tick_summary(last_tick, True)["tick_at"]}
+    st["checkpoint"]["last_complete"] = last_tick if st["summary"] and st["summary"]["complete"] else None
     assert store.save(path, st)
 
 
 def _summary(**over: Any) -> dict[str, Any]:
-    return summary_of(**{"complete": True, "missions": 3, "bot_prs": 1, **over})
+    return tick_summary(TICK, **{"complete": True, "missions": 3, "bot_prs": 1, **over})
 
 
 def test_e10_status_never_run_missing_file(tmp_path: Path) -> None:
@@ -55,7 +58,7 @@ def test_e10_status_never_run_missing_file(tmp_path: Path) -> None:
 
 def test_status_never_run_when_last_tick_none(tmp_path: Path) -> None:
     p = tmp_path / "s.json"
-    _write(p, [_alert("A")], last_tick=None)
+    _write(p, [], last_tick=None)
     out = dr.status_snapshot(p, NOW)
     assert out["state"] == "never_run" and out["counts"] is None and out["items"] == []
     assert out["complete"] is False
@@ -121,7 +124,7 @@ def test_t7_item_cap_and_order_and_severity_filter(tmp_path: Path) -> None:
     p = tmp_path / "s.json"
     alerts = [_alert(f"F{i:02d}", since=(NOW - timedelta(hours=i + 1)).isoformat())
               for i in range(25)]
-    alerts.append(_alert("WARN", severity="warning", since=(NOW - timedelta(hours=999)).isoformat()))
+    alerts.append(_alert("WARN", severity="reminder", since=(NOW - timedelta(hours=999)).isoformat()))
     alerts.append(_alert("CRIT", severity="critical", since=(NOW - timedelta(hours=500)).isoformat()))
     _write(p, alerts, summary=_summary())
     out = dr.status_snapshot(p, NOW)
@@ -130,7 +133,7 @@ def test_t7_item_cap_and_order_and_severity_filter(tmp_path: Path) -> None:
     hours = [i["age_hours"] for i in out["items"]]
     assert hours == sorted(hours, reverse=True)
     assert all(i["ref"] != "RA-WARN" for i in out["items"])
-    assert out["counts"]["by_severity"] == {"founder": 25, "warning": 1, "critical": 1}
+    assert out["counts"]["by_severity"] == {"founder": 25, "reminder": 1, "critical": 1}
 
 
 def test_age_hours_none_when_since_missing_or_bad(tmp_path: Path) -> None:

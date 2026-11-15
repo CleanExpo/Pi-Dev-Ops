@@ -205,9 +205,10 @@ def test_tile_survives_a_stored_extreme_since(tmp_path: Path) -> None:
     state = store.empty_state()
     state["last_tick"] = NOW.timestamp()
     state["summary"] = summary_of(complete=True)
+    state["checkpoint"]["last_complete"] = NOW.timestamp()
     for key, since in (("A", "0001-01-01T00:00:00+14:00"), ("B", "9999-12-31T23:59:59-14:00")):
         state["alerts"][key] = stored({"key": key, "mission_id": key, "code": "X", "severity": "founder", "ref": key,
-                                       "since": since}, NOW.timestamp(), alert=True)
+                                       "since": since, "age_source": "startedAt"}, NOW.timestamp(), alert=True)
     path = tmp_path / "s.json"
     assert store.save(path, state)
     snap = dr.status_snapshot(path, NOW)

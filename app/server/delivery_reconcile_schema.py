@@ -3,7 +3,9 @@
 ``store.save`` and ``store.load`` both call ``problems``: a field the writer emits that this file does
 not name fails the save, and a file missing a field the writer always writes fails the load. Every
 dict below is an allow-list: each key has one check, every key is required unless listed in
-``OPTIONAL``, and a key that is not named is rejected. Nothing is repaired or defaulted on load.
+``OPTIONAL``, and a key that is not named is rejected. Nothing is repaired or defaulted on load. This file owns each field's own domain;
+every rule that relates TWO fields is a row of ``delivery_invariants.STATE``, which ``problems`` applies
+to a file whose fields are all in their domains, so ``save`` and ``load`` enforce both.
 The tick's summary is built from ``SUMMARY`` (``new_summary``) and the tile's counters are read from it
 (``TILE_COUNTERS``), so the writer, the loader and the tile share this one list.
 """
@@ -12,6 +14,8 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 from typing import Any
+
+from . import delivery_invariants as invariants
 
 SCHEMA_VERSION = 1
 MAX_TIME = 253402300799.0  # 9999-12-31T23:59:59Z: a later stored time has no date
@@ -93,12 +97,14 @@ _SEEN: dict[str, Check] = {"first_seen": time, "last_seen": time}  # the merge w
 PR: dict[str, Check] = {"repo": text, "number": positive, "state": one_of("open", "closed", "merged", "error")}
 
 _PLACED: dict[str, Check] = {  # ``delivery_stage._record`` plus ``Run.take`` (``refreshed_at``)
-    "id": name, "project_id": text, "repo": text, "ref": text, "stage": text, "reason": opt_text,
+    "id": name, "project_id": text, "repo": text, "ref": text, "reason": opt_text,
+    "stage": one_of("unknown", "missing_commit", "building", "review_wait", "approval_wait", "merged", "done"),
     "owner": opt_text, "since": opt_text, "age_source": opt_text, "counted": null,
     "prs": lambda value: isinstance(value, list) and all(shape(PR)(item) for item in value),
-    "pr_head_sha": opt_text, "reviewed_head_sha": opt_text, "authorised_head_sha": opt_text,
+    "pr_head_sha": opt_text, "reviewed_head_sha": opt_text, "authorised_head_sha": null,
     "merge_sha": opt_text, "deployed_sha": opt_text, "verified_sha": opt_text, "tests_passed": flag,
-    "acceptance_passed": flag, "live_source_provable": flag, "approval_identity_unverified": flag,
+    "acceptance_passed": lambda value: value is False,  # the reconcile never authorises or accepts
+    "live_source_provable": flag, "approval_identity_unverified": flag,
     "refreshed_at": time, **_SEEN}
 
 RECORDS: dict[str, dict[str, Check]] = {  # one typed record per ``kind``
@@ -110,7 +116,8 @@ RECORDS: dict[str, dict[str, Check]] = {  # one typed record per ``kind``
 }
 
 ALERT: dict[str, Check] = {  # ``delivery_stage._finding`` plus the merge's ``count``
-    "key": name, "mission_id": name, "code": text, "severity": text, "next_owner": text, "message": text,
+    "key": name, "mission_id": name, "code": text,
+    "severity": one_of("info", "reminder", "escalation", "founder", "critical"), "next_owner": text, "message": text,
     "ref": text, "repo": text, "since": opt_text, "age_source": opt_text, "url": opt_text,
     "count": positive, **_SEEN}
 
@@ -158,8 +165,8 @@ def _keyed(value: Any, entry_ok: Callable[[str, Any], bool], where: str) -> list
 
 def problems(data: Any) -> list[str]:
     """Where ``data`` is not a state file of ours (positions and key names only, never a stored value);
-    an empty list means it is whole. A tick has run exactly when ``last_tick`` is set, and then, and only
-    then, the summary is present and whole."""
+    an empty list means it is whole: every field in its domain, and no two fields contradicting each
+    other (``invariant:<row name>``, from ``delivery_invariants.STATE``)."""
     if not (isinstance(data, dict) and set(data) == set(STATE)):
         return ["state"]
     out = [] if data["version"] == SCHEMA_VERSION and not isinstance(data["version"], bool) else ["version"]
@@ -168,4 +175,5 @@ def problems(data: Any) -> list[str]:
     out += [] if opt_time(data["last_tick"]) else ["last_tick"]
     never_run = data["last_tick"] is None
     summary_ok = data["summary"] is None if never_run else shape(SUMMARY, OPTIONAL)(data["summary"])
-    return out + ([] if summary_ok else ["summary"])
+    out += [] if summary_ok else ["summary"]
+    return out or invariants.state_problems(data)

@@ -141,7 +141,7 @@ def _whole_but_retired(st: SimpleNamespace, world: str) -> None:
         st.gh[f"/repos/{PIDEV}/pulls/7"] = merged_pull(7)
         st.gh[f"/repos/{PIDEV}/commits/{SHA_B}"] = {"sha": SHA_B}
     elif world == "merged":
-        st.gh[f"/repos/{PIDEV}/compare/{SHA_B}...{OWN}"] = compare_answer(SHA_B, OWN, "identical")
+        st.gh[f"/repos/{PIDEV}/compare/{SHA_B}...{OWN}"] = compare_answer(SHA_B, OWN, "ahead")
 
 
 @pytest.mark.parametrize("world", list(READS))

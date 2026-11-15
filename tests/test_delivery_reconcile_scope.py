@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from _delivery_stored_support import planted as planted_state
 
 from app.server import delivery_collect as collect
 from app.server import delivery_reconcile as dr
@@ -28,7 +29,7 @@ def test_f1_real_registry_complete_and_retention(monkeypatch: pytest.MonkeyPatch
     registry = collect.load_registry()
     st.gql_pages.extend(linear_page([]) for _ in registry.queryable)
     st.gh.update({sweep_path(repo): [] for repo in registry.swept})
-    planted = store.empty_state()
+    planted = planted_state()
     planted["missions"] = {"GONE-1": stored({"id": "GONE-1", "kind": "mission", "project_id": "removed-project"})}
     planted["alerts"] = {"k-gone": stored({"key": "k-gone", "mission_id": "GONE-1", "code": "STALE_24H"}, alert=True)}
     assert store.save(st.path, planted)

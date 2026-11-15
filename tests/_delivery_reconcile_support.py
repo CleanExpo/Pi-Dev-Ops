@@ -15,7 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from _delivery_stored_support import PIDEV, stored, summary_of  # noqa: F401 — re-exported
+from _delivery_stored_support import PIDEV, stored, summary_of, tick_summary  # noqa: F401 — re-exported
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
@@ -65,7 +65,7 @@ def good_pr_paths(repo: str, number: int, sha: str = SHA_A) -> dict:
             "total_count": 1,
             "check_runs": [{"id": 1, "status": "completed", "conclusion": "success",
                             "completed_at": "2026-11-14T02:00:00Z", "head_sha": sha}]},
-        f"/repos/{repo}/commits/{sha}/status": {"state": "success", "total_count": 0, "sha": sha},
+        f"/repos/{repo}/commits/{sha}/status": {"state": "pending", "total_count": 0, "sha": sha},
         f"/repos/{repo}/pulls/{number}/reviews?per_page=100&page=1": [],
     }
 
@@ -225,7 +225,7 @@ def pr_paths(repo: str, number: int, sha: str = SHA_A, *, created: float = 80, c
             "total_count": 1,
             "check_runs": [{"id": 1, "status": "completed", "conclusion": "success", "completed_at": ago(check_done),
                             "head_sha": sha}]},
-        f"/repos/{repo}/commits/{sha}/status": {"state": "success", "total_count": 0, "sha": sha},
+        f"/repos/{repo}/commits/{sha}/status": {"state": "pending", "total_count": 0, "sha": sha},
         f"/repos/{repo}/pulls/{number}/reviews?per_page=100&page=1": [],
     }
 
@@ -243,9 +243,11 @@ def merged_paths(repo: str, number: int, merge: str = SHA_B, merged: float = 30)
 
 
 def compare_answer(base: str, head: str, status: str) -> dict:
-    """A compare answer that names the base asked (and, when the base is behind, ends on the head asked)."""
+    """A compare answer as GitHub gives it for ``status``: counts, commit list and merge base all agree."""
     commits = [{"sha": head}] if status in ("ahead", "diverged") else []
-    return {"status": status, "base_commit": {"sha": base}, "commits": commits, "total_commits": len(commits)}
+    fork = {"identical": base, "ahead": base, "behind": head, "diverged": "f" * 40}[status]
+    return {"status": status, "base_commit": {"sha": base}, "merge_base_commit": {"sha": fork}, "commits": commits,
+            "total_commits": len(commits), "ahead_by": len(commits), "behind_by": int(status in ("behind", "diverged"))}
 
 
 def tick_issue(identifier: str, refs: tuple[tuple[str, int], ...] = (), *, links_whole: bool = True,

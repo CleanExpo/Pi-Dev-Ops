@@ -20,6 +20,7 @@ import pytest
 from _delivery_reconcile_support import (
     ATO, PIDEV, linear_page, reg_entry, run, setup_tick, stored, sweep_path, tick_issue,
 )
+from _delivery_stored_support import planted as planted_state
 
 from app.server import delivery_reconcile_store as store
 
@@ -66,7 +67,7 @@ def test_a_stored_subject_goes_only_when_its_own_list_was_read_whole(monkeypatch
     entries, repo, world, complete, kept = ROWS[name]
     st = setup_tick(monkeypatch, tmp_path, entries)
     orphan = f"pr:{repo}#9"
-    planted = store.empty_state()
+    planted = planted_state()
     planted["missions"] = {
         "RA-1": stored({"id": "RA-1", "kind": "mission", "project_id": "pd", "repo": repo}),
         orphan: stored({"id": orphan, "kind": "orphan_pr", "repo": repo})}

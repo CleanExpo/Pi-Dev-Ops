@@ -12,11 +12,20 @@ from .delivery_collect_fields import (
     CHECK_CONCLUSIONS, CHECK_STATUSES, COMPARE_STATUSES, PULL_STATES, REVIEW_STATES, STATUS_STATES, USER_TYPES,
     count, flag, identity_mismatch, is_instant, login, maybe, member, no_commit, positive_int, present, sha,
 )
+from .delivery_invariants import answer_problem
 
 
 def _same(row: str, answer: object, **asked: object) -> None:
     """The answer names what was asked, by its row in ``IDENTITY`` (the one owner); else its reason code."""
     code = identity_mismatch(row, answer, **asked)
+    if code is not None:
+        raise Unknown(code)
+
+
+def _agree(kind: str, answer: object, **asked: object) -> None:
+    """The answer's fields agree with each other and with what was asked (``delivery_invariants``, the one
+    owner of every rule that needs two fields); else that answer's reason code."""
+    code = answer_problem(kind, answer, **asked)
     if code is not None:
         raise Unknown(code)
 
@@ -116,9 +125,10 @@ def _pull_common(pr: dict) -> dict:
 def _open_item(pr: dict, repo: str) -> dict:
     """A sweep item must say it is open and name the repo asked; ``merged`` may be absent from a list answer
     (GitHub's list omits it), never true."""
-    if pr.get("state") != "open" or not maybe(pr.get("merged"), flag) or pr.get("merged") is True:
+    if not member(pr.get("state"), PULL_STATES) or not maybe(pr.get("merged"), flag):
         raise Unknown("malformed_pull")
     _same("pulls_list", pr, repo=repo)  # a pull of another repo is not this repo's open pull
+    _agree("pulls_list", pr)
     return {"number": pr["number"], **_pull_common(pr)}
 
 
@@ -131,8 +141,7 @@ def _pull_facts(pr: object, number: int) -> dict:
     if not isinstance(pr, dict) or not member(pr.get("state"), PULL_STATES) or not flag(pr.get("merged")) \
             or not present(pr, "merged_at", is_instant):
         raise Unknown("malformed_pull")
-    if pr["merged"] != (pr.get("merged_at") is not None) or (pr["merged"] and pr["state"] != "closed"):
-        raise Unknown("malformed_pull")  # merged and merged_at must agree; a merged pull is closed
+    _agree("pull", pr)  # merged, merged_at, state and created_at must agree
     _same("pull", pr, number=number)  # an answer about another pull is not this pull's evidence
     return {**_pull_common(pr), "state": "merged" if pr["merged"] else pr["state"],
             "merged_at": pr.get("merged_at"), "merge_sha": pr.get("merge_commit_sha") if pr["merged"] else None}
@@ -153,8 +162,9 @@ def _review(review: dict, pull: str) -> dict:
     name = _author(review, "malformed_review")[0]
     state, when = review.get("state"), review.get("submitted_at")
     if not name or not member(state, REVIEW_STATES) or not present(review, "commit_id", sha) \
-            or not (is_instant(when) or (when is None and state == "PENDING")):
+            or not maybe(when, is_instant):
         raise Unknown("malformed_review")
+    _agree("review", review)
     return {"login": name, "state": state, "commit_id": sha(review.get("commit_id")),
             "submitted_at": review.get("submitted_at")}
 
@@ -171,6 +181,7 @@ def _status(data: object, head: str) -> dict:
     if not isinstance(data, dict) or not member(data.get("state"), STATUS_STATES) or not count(data.get("total_count")):
         raise Unknown("malformed_status")
     _same("status", data, head=head)
+    _agree("status", data)
     return {"state": data["state"], "total_count": data["total_count"]}
 
 
@@ -196,11 +207,13 @@ def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
 
 def compare_status(repo: str, base: str, head: str, *, tick: Tick) -> str:
     """GitHub compare ``base...head`` status; the stage decides what counts as contained. The answer must
-    name the base asked (and the head, where it can): else ``compare_mismatch``, never a verified merge."""
+    name the base asked, and its status, counts, commit list and merge base must agree with each other and
+    with BOTH commits asked: else ``compare_mismatch``, never a verified merge."""
     base, head = _sha(base, "no_base"), _sha(head, "no_head")
     data = _get(repo, f"/compare/{base}...{head}", tick)
     status = data.get("status") if isinstance(data, dict) else None
     if not member(status, COMPARE_STATUSES):
         raise Unknown("malformed_compare")
     _same("compare", data, base=base, head=head)
+    _agree("compare", data, base=base, head=head)
     return status

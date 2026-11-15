@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from _delivery_reconcile_support import NOW, stored, summary_of
+from _delivery_reconcile_support import NOW, stored, tick_summary
 
 from app.server import delivery_reconcile as dr
 from app.server import delivery_reconcile_store as store
@@ -25,13 +25,13 @@ def _alert(mid: str) -> dict:
 
 
 def _rec(stage: str = "done") -> dict:
-    return stored({"id": "M", "stage": stage})
+    return stored({"id": "M", "stage": stage, "reason": "http_500" if stage == "unknown" else None})
 
 
 def _first() -> dict:
     """Mission M stored with a stored critical alert; GHOST is an alert whose subject is no stored mission."""
     state, _ = store.apply_tick(store.empty_state(), [_rec()], [_alert("M")], T1,
-                                whole=["M"], scope=["M"], summary=summary_of())
+                                whole=["M"], scope=["M"], summary=tick_summary(T1, True))
     state["alerts"]["K-GHOST"] = _alert("GHOST")
     return state
 
@@ -52,7 +52,7 @@ def _tick(tmp_path: Path, subject: str, complete: bool) -> tuple[dict, set]:
     """A tick is complete exactly when it has a scope: an incomplete one is the same tick with no scope."""
     records, whole, scope, *_ = SUBJECTS[subject]
     out, _ = store.apply_tick(_first(), records, [], T2, whole=whole, scope=scope if complete else None,
-                              summary=summary_of())
+                              summary=tick_summary(T2, complete))
     path = tmp_path / "state.json"
     assert store.save(path, out)
     return out, {i["ref"] for i in dr.status_snapshot(path, NOW)["items"]}
@@ -107,7 +107,7 @@ def test_a_raised_alert_is_never_removed() -> None:
 
 def test_forgotten_hold_an_alert_whose_subject_was_neither_read_whole_nor_held_nor_out_of_scope_survives(
         tmp_path: Path) -> None:
-    out, _ = store.apply_tick(_first(), [_rec()], [], T2, whole=["M"], scope=SCOPE, summary=summary_of())
+    out, _ = store.apply_tick(_first(), [_rec()], [], T2, whole=["M"], scope=SCOPE, summary=tick_summary(T2, True))
     assert "K-GHOST" in out["alerts"]
     path = tmp_path / "state.json"
     assert store.save(path, out)
