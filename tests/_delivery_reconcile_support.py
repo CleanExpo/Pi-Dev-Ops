@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sys
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -108,3 +109,69 @@ def install_fakes(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     monkeypatch.setattr(vercel_monitor, "_vercel_get", fake_vercel)
     monkeypatch.setattr(autonomy_linear_rate, "linear_rate_limited", lambda: st.limited)
     return st
+
+
+# ── Classifier builders (delivery_stage tests). Plain dicts shaped like the collector's output. ──
+NOW = datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc)
+SHA_C = "c" * 40
+FAKE_REVIEWER = "fake-reviewer-one"
+
+
+def ago(hours: float) -> str:
+    """An ISO-8601 UTC string ``hours`` before NOW."""
+    return (NOW - timedelta(hours=hours)).isoformat().replace("+00:00", "Z")
+
+
+def mission(identifier: str = "RA-1", state: str = "started", *, started: float | None = 1,
+            completed: float | None = None, owner: str | None = "Test Owner") -> dict:
+    """A Linear mission node; the description carries a marker that must never be copied."""
+    return {"id": f"id-{identifier}", "identifier": identifier, "state": {"type": state},
+            "startedAt": None if started is None else ago(started),
+            "completedAt": None if completed is None else ago(completed), "createdAt": ago(200),
+            "assignee": {"name": owner} if owner else None, "description": "SECRET-DESCRIPTION-MARKER"}
+
+
+def review(login: str | None, state: str, commit: str = SHA_A, at: float = 1) -> dict:
+    return {"login": login, "state": state, "commit_id": commit, "submitted_at": ago(at)}
+
+
+def open_facts(number: int = 7, *, repo: str = PIDEV, head: str = SHA_A, checks: str = "green",
+               reviews: list[dict] | None = None, draft: bool = False, created: float = 80,
+               check_done: float = 72) -> dict:
+    """An open PR as ``pr_evidence`` returns it; checks: green, red, pending, none or status_only."""
+    runs = {"green": [{"status": "completed", "conclusion": "success", "completed_at": ago(check_done)}],
+            "red": [{"status": "completed", "conclusion": "failure", "completed_at": ago(check_done)}],
+            "pending": [{"status": "in_progress", "conclusion": None, "completed_at": None}],
+            "none": [], "status_only": []}[checks]
+    status = {"state": "success", "total_count": 1} if checks == "status_only" else \
+        {"state": "pending", "total_count": 0}
+    return {"repo": repo, "number": number, "state": "open", "draft": draft, "created_at": ago(created),
+            "merged_at": None, "head_sha": head, "merge_sha": None, "author_login": "someone",
+            "author_type": "User", "check_runs": runs, "status": status, "reviews": list(reviews or [])}
+
+
+def merged_facts(number: int = 7, *, repo: str = PIDEV, merge: str = SHA_B, merged: float = 30,
+                 head: str = SHA_A) -> dict:
+    return {"repo": repo, "number": number, "state": "merged", "draft": False, "created_at": ago(90),
+            "merged_at": ago(merged), "head_sha": head, "merge_sha": merge, "author_login": "someone",
+            "author_type": "User"}
+
+
+def closed_facts(number: int = 8, *, repo: str = PIDEV) -> dict:
+    return {"repo": repo, "number": number, "state": "closed", "draft": False, "created_at": ago(90),
+            "merged_at": None, "head_sha": SHA_C, "merge_sha": None, "author_login": "someone",
+            "author_type": "User"}
+
+
+def error_item(number: int = 7, error: str = "unknown", reason: str = "http_500", *, repo: str = PIDEV,
+               created: float | None = 10) -> dict:
+    """What the tick builds when ``pr_evidence`` raised ``Unknown`` or ``MissingCommit``."""
+    return {"repo": repo, "number": number, "error": error, "reason": reason,
+            "created_at": None if created is None else ago(created)}
+
+
+def orphan_item(number: int = 9, *, repo: str = PIDEV, author_type: str = "User", created: float = 72,
+                head: str = SHA_C) -> dict:
+    """One ``open_prs`` item plus its repo, for a PR no mission links."""
+    return {"repo": repo, "number": number, "draft": False, "created_at": ago(created),
+            "author_login": "someone", "author_type": author_type, "head_sha": head}
