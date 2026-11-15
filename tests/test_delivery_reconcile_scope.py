@@ -13,7 +13,7 @@ from app.server import delivery_reconcile as dr
 from app.server import delivery_reconcile_store as store
 from app.server import delivery_stage as stage
 from tests._delivery_reconcile_support import (
-    API_KEY, ATO, HTTP404, NOW, PIDEV, SHA_A, SHA_B, linear_page, merged_pull, open_pull, pr_paths, reg_entry,
+    API_KEY, ATO, HTTP404, NOW, PIDEV, SHA_A, SHA_B, linear_page, merged_paths, open_pull, pr_paths, reg_entry,
     run, setup_tick, sweep_path, tick_issue,
 )
 
@@ -58,7 +58,7 @@ def test_f2_out_of_scope_links_never_read_or_stored(monkeypatch: pytest.MonkeyPa
 
 def _g3_world(st: SimpleNamespace) -> None:
     st.gh[sweep_path(ATO)] = []
-    st.gh[f"/repos/{ATO}/pulls/4"] = merged_pull(4, merged=30)
+    st.gh.update(merged_paths(ATO, 4, merged=30))
     page = linear_page([tick_issue("RA-3", ((ATO, 4),))])
     st.gql_pages += [page, page]
 
@@ -102,7 +102,7 @@ def _verified_world(st: SimpleNamespace, monkeypatch: pytest.MonkeyPatch) -> str
     own = "d" * 40
     monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", own)
     st.gh[sweep_path(PIDEV)] = []
-    st.gh[f"/repos/{PIDEV}/pulls/4"] = merged_pull(4, merge=SHA_B)
+    st.gh.update(merged_paths(PIDEV, 4, SHA_B))
     st.gh[f"/repos/{PIDEV}/compare/{SHA_B}...{own}"] = {"status": "ahead"}
     page = linear_page([tick_issue("RA-4", ((PIDEV, 4),))])
     st.gql_pages += [page, page]

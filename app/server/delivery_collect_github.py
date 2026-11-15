@@ -10,7 +10,8 @@ from . import ticket_sweeper_io
 from .delivery_collect import _REPO, _SHA, MissingCommit, Tick, Unknown, _skipped
 
 
-def _get(repo: str, path: str, tick: Tick, *, missing_on_404: bool = False) -> object:
+def _get(repo: str, path: str, tick: Tick, *, missing_on_404: bool = False,
+         not_found: str = "head_not_found") -> object:
     """One counted GitHub GET for an in-scope repo; errors become reason codes."""
     if not _REPO.fullmatch(repo) or _skipped(repo) or repo.lower() not in tick.allowed:
         raise Unknown("out_of_scope")
@@ -20,7 +21,7 @@ def _get(repo: str, path: str, tick: Tick, *, missing_on_404: bool = False) -> o
     except Exception as exc:  # noqa: BLE001 — recorded by type name only
         code = getattr(exc, "code", None)
         if missing_on_404 and code == 404:
-            raise MissingCommit("head_not_found") from None
+            raise MissingCommit(not_found) from None
         raise Unknown(f"http_{code}" if isinstance(code, int) else f"error_{type(exc).__name__}") from None
 
 
@@ -84,7 +85,8 @@ def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
     facts = {**_pull_facts(_get(repo, f"/pulls/{number}", tick)), "repo": repo, "number": number}
     if facts["state"] == "merged":
         facts["merge_sha"] = _sha(facts["merge_sha"], "no_merge_sha")
-    if facts["state"] != "open":
+        _get(repo, f"/commits/{facts['merge_sha']}", tick, missing_on_404=True, not_found="merge_not_found")
+    if facts["state"] != "open":  # merged read its merge commit above; closed-unmerged has no deciding commit
         return facts
     sha = facts["head_sha"] = _sha(facts["head_sha"], "empty_head")
     _get(repo, f"/commits/{sha}", tick, missing_on_404=True)

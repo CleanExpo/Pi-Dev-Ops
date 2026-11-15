@@ -211,6 +211,12 @@ def merged_pull(number: int, merge: str = SHA_B, merged: float = 30) -> dict:
             "merged_at": ago(merged), "created_at": ago(90)}
 
 
+def merged_paths(repo: str, number: int, merge: str = SHA_B, merged: float = 30) -> dict:
+    """Every GET a merged PR's evidence needs: the pull and a readable merge commit."""
+    return {f"/repos/{repo}/pulls/{number}": merged_pull(number, merge, merged),
+            f"/repos/{repo}/commits/{merge}": {"sha": merge}}
+
+
 def tick_issue(identifier: str, refs: tuple[tuple[str, int], ...] = (), *, links_whole: bool = True,
                extra: str = "", **kw: object) -> dict:
     """A mission node whose description links ``refs``; ``links_whole`` False leaves attachments unread."""
