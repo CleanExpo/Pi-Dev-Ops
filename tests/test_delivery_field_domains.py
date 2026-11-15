@@ -18,6 +18,7 @@ from _delivery_reconcile_support import (
 from test_delivery_field_inventory import INVENTORY, PRESENT_REQUIRED
 
 from app.server import delivery_collect as dc
+from app.server import delivery_collect_fields as df
 from app.server import delivery_collect_github as dg
 from app.server import delivery_reconcile_links as links
 from app.server import delivery_stage as ds
@@ -185,6 +186,8 @@ def _rows() -> list:
         if source != "env":
             rows.append(pytest.param(source, field, None, _expected(null, reason), id=f"{source}.{field}-null"))
         absent = ("unknown", reason) if (source, field) in PRESENT_REQUIRED else _expected(null, reason)
+        if source == "linear_issue" and field in df.ISSUE_FIELDS:  # a field the query asks for: absent is a cut page
+            absent = ("unknown", "malformed_page")
         rows.append(pytest.param(source, field, _ABSENT, absent, id=f"{source}.{field}-absent"))
     return rows
 

@@ -106,7 +106,7 @@ def test_e6_budget_cut_keeps_records_and_reads_oldest_first(monkeypatch: pytest.
     st.github.clear()
     t2 = NOW + timedelta(minutes=15)
     out = run(st, t2)
-    assert out["complete"] is True and out["not_refreshed"] == 1 and out["not_refreshed_ids"] == ["RA-2"]
+    assert out["complete"] is True and out["not_refreshed"] == 1 and out["not_refreshed_ids"] == ["RA-2", f"repo:{PIDEV}"]
     assert len(st.github) == 6 and not [p for p in st.github if "/pulls/8" in p]
     state = _state(st)
     assert state["missions"]["RA-2"]["refreshed_at"] == NOW.timestamp()
@@ -114,7 +114,7 @@ def test_e6_budget_cut_keeps_records_and_reads_oldest_first(monkeypatch: pytest.
     assert any(a["mission_id"] == "RA-2" for a in state["alerts"].values())
     assert "RA-2" in [i["ref"] for i in dr.status_snapshot(st.path, t2)["items"]]
     out3 = run(st, t2 + timedelta(minutes=15))
-    assert out3["not_refreshed_ids"] == ["RA-1"]
+    assert out3["not_refreshed_ids"] == ["RA-1", f"repo:{PIDEV}"]  # the repo record is derived from it: held too
 
 
 def _clock_patch(monkeypatch: pytest.MonkeyPatch) -> list[float]:

@@ -39,7 +39,7 @@ def test_f1_real_registry_complete_and_retention(monkeypatch: pytest.MonkeyPatch
     assert state["checkpoint"]["last_complete"] == NOW.timestamp()
     # B5g round 2: its project is not in the registry, so it was never read: held, never retired.
     assert state["missions"]["GONE-1"] == planted["missions"]["GONE-1"] and "k-gone" in state["alerts"]
-    assert out["not_refreshed_ids"] == ["GONE-1"]
+    assert out["not_refreshed_ids"] == ["GONE-1", f"repo:{PIDEV}"]  # the repo record is derived from that mission, so it is held too
     assert len(st.gql) == len(registry.queryable) and st.net == []
     assert [p for p in st.github if "ccw" in p.lower()] == []
 
@@ -121,7 +121,7 @@ def test_own_revision_compare_verifies_and_budget_cut_keeps_record(
     assert _state(st)["missions"]["RA-4"]["verified_sha"] == SHA_B
     monkeypatch.setitem(collect.BUDGETS, "github", 2)
     out = run(st, NOW + timedelta(minutes=15))
-    assert out["not_refreshed_ids"] == ["RA-4"]
+    assert out["not_refreshed_ids"] == ["RA-4", f"repo:{PIDEV}"]  # the repo record is derived from that mission, so it is held too
     state = _state(st)
     assert state["missions"]["RA-4"]["verified_sha"] == SHA_B
     assert not [a for a in state["alerts"].values() if a["code"].startswith("DEPLOY_UNVERIFIED")]

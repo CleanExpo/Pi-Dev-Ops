@@ -20,7 +20,7 @@ from pathlib import Path
 
 from . import autonomy, autonomy_linear_rate, config_loader, vercel_monitor
 from .delivery_collect_fields import (
-    VERCEL_STATES, _issue_page, identity_mismatch, maybe, member, positive_int, sha, text,
+    ISSUE_FIELDS, VERCEL_STATES, _issue_page, identity_mismatch, maybe, member, positive_int, sha, text,
 )
 
 log = logging.getLogger("pi-ceo.delivery_reconcile")
@@ -177,15 +177,11 @@ query DeliveryMissions($projectId: String!, $since: DateTimeOrDuration!, $cursor
             { completedAt: { gt: $since } }
         ] }, first: 50, after: $cursor) {
             pageInfo { hasNextPage endCursor }
-            nodes {
-                id identifier startedAt completedAt createdAt description
-                state { type } assignee { name }
-                attachments(first: 100) { pageInfo { hasNextPage } nodes { url } }
-            }
+            nodes { __ISSUE_FIELDS__ }
         }
     }
 }
-"""
+""".replace("__ISSUE_FIELDS__", " ".join(f"{name}{args}" for name, args in ISSUE_FIELDS.items()))  # one list
 
 
 def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> MissionRead:

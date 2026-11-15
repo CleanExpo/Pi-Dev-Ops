@@ -170,19 +170,35 @@ def _vercel_sha(run: Any, repo: str) -> tuple[str | None, bool]:
         return None, False
 
 
-def repos(run: Any) -> None:
-    """One record and its info finding per in-scope repo (rule 8)."""
+def _inputs_whole(run: Any, repo: str, missions: list[tuple[dict, dict]]) -> bool:
+    """A repo's record is DERIVED from its missions' records, so it is whole only when every Linear list
+    was read whole and every mission of the repo, listed this tick or stored and not read, was proven
+    whole (``Run.prove``). Nothing is worked out from a mission that was held."""
+    key = repo.lower()
+    listed = all(str(issue["identifier"]) in run.whole for entry, issue in missions if entry["repo"].lower() == key)
+    unread = any(str((run.stored(rid) or {}).get("repo")).lower() == key for rid in run.unknown)
+    return run.uncut("linear") and listed and not unread
+
+
+def repos(run: Any, missions: list[tuple[dict, dict]]) -> None:
+    """One record and its info finding per in-scope repo (rule 8), emitted and proven only when every
+    input it is derived from was read whole this tick; otherwise the repo is held (``Run.hold``) and its
+    stored record and alert stay exactly as they were."""
     done: set[str] = set()
     for entry in run.registry.entries:
         repo = entry["repo"]
         if repo.lower() in done:
             continue
         done.add(repo.lower())
+        if not _inputs_whole(run, repo, missions):
+            run.hold(f"repo:{repo}")
+            continue
         merged = sum(1 for r in run.records if r.get("kind") == "mission" and r.get("stage") == "merged"
                      and str(r.get("repo", "")).lower() == repo.lower() and r.get("live_source_provable") is False)
         sha, whole = _vercel_sha(run, repo) if delivery_stage.live_kind(repo) == "live_unconfirmed" else (None, True)
+        if not whole:
+            continue  # ``_vercel_sha`` held it: nothing is written over the stored record
         record, found = delivery_stage.repo_findings(repo, merged, sha)
         run.records.append(record)
         run.findings.extend(found)
-        if whole:
-            run.prove(record["id"])
+        run.prove(record["id"])

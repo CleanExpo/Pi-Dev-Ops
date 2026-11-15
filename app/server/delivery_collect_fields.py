@@ -187,14 +187,27 @@ def identity_mismatch(row: str, answer: object, **asked: object) -> str | None:
     return None
 
 
+# THE one list of what the mission query asks for on each issue: field name to its arguments and
+# sub-selection. ``delivery_collect`` builds the query's node selection from it and ``_node_ok`` requires
+# every one of these keys in every node, so a field cannot be requested without being required: an absent
+# key is a cut answer, never "null".
+ISSUE_FIELDS: dict[str, str] = {
+    "id": "", "identifier": "", "startedAt": "", "completedAt": "", "createdAt": "", "description": "",
+    "state": " { type }", "assignee": " { name }",
+    "attachments": "(first: 100) { pageInfo { hasNextPage } nodes { url } }",
+}
+
+
 def _node_ok(node: object) -> bool:
     """The issue fields a consumer reads are in their domain; a null assignee means unowned. ``startedAt`` and
     ``completedAt`` are judged per mission by the classifier (spec row 1: bad timestamp is that mission's UNKNOWN)."""
-    if not isinstance(node, dict) or not node_id(node.get("id")) or not linear_identifier(node.get("identifier")):
+    if not isinstance(node, dict) or not all(name in node for name in ISSUE_FIELDS):
+        return False  # a field the query asked for is absent: a cut answer
+    if not node_id(node["id"]) or not linear_identifier(node["identifier"]):
         return False
     state, assignee = node.get("state"), node.get("assignee")
     return isinstance(state, dict) and member(state.get("type"), LINEAR_STATE_TYPES) \
-        and "assignee" in node and (assignee is None or (isinstance(assignee, dict) and text(assignee.get("name"))))  # User.name: String!
+        and (assignee is None or (isinstance(assignee, dict) and text(assignee.get("name"))))  # User.name: String!
 
 
 def _issue_page(data: object) -> tuple[list[dict], str | None] | None:

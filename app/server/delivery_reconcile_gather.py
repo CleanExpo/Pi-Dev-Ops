@@ -196,7 +196,7 @@ def gather(state: dict[str, Any], registry: collect.Registry, api_key: str, now:
     for entry, issue in _oldest_first(run, missions):
         links.mission(run, entry, issue)
     links.orphans(run)
-    links.repos(run)
+    links.repos(run, missions)
     _tally(run)
     proof.update(whole=set(run.whole), scope=_scope(run, missions))
     return run.records, run.findings
