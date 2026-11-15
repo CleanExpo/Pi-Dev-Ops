@@ -27,7 +27,7 @@ REVIEWS = f"/repos/{ATO}/pulls/5/reviews?per_page=100&page=1"
 
 
 def _run(i: int) -> dict:
-    return {"id": i, "status": "completed", "conclusion": "success", "completed_at": ago(72)}
+    return {"id": i, "status": "completed", "conclusion": "success", "completed_at": ago(72), "head_sha": SHA_A}
 
 
 def _rev(i: int) -> dict:

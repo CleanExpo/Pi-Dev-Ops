@@ -244,14 +244,18 @@ def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> Miss
 
 def in_scope(refs: list[tuple[str, int]], allowed: frozenset[str] | set[str]) -> tuple[list[tuple[str, int]], int]:
     """Keep refs to in-scope repos; count the rest without recording them (R2-3).
-    One malformed ref fails the whole list (``malformed_ref``); nothing is filtered silently."""
+    One malformed ref fails the whole list (``malformed_ref``); nothing is filtered silently. The one place
+    links enter: a pull is (lower-case repo, number), so one pull linked in two spellings is one (first kept)."""
     if not isinstance(refs, list) or not all(
             isinstance(r, tuple) and len(r) == 2 and isinstance(r[0], str) and _REPO.fullmatch(r[0])
             and positive_int(r[1]) for r in refs):
         raise Unknown("malformed_ref")
     wanted = {a.lower() for a in allowed} - SKIP_REPOS
     kept = [(repo, n) for repo, n in refs if repo.lower() in wanted]
-    return kept, len(refs) - len(kept)
+    pulls: dict[tuple[str, int], tuple[str, int]] = {}
+    for repo, n in kept:
+        pulls.setdefault((repo.lower(), n), (repo, n))
+    return list(pulls.values()), len(refs) - len(kept)
 
 
 def vercel_latest_ready(entry: dict, *, tick: Tick) -> str | None:

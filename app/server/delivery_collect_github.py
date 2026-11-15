@@ -130,11 +130,13 @@ def _pull_facts(pr: object, number: int) -> dict:
             "merged_at": pr.get("merged_at"), "merge_sha": pr.get("merge_commit_sha") if pr["merged"] else None}
 
 
-def _check_run(run: dict) -> dict:
+def _check_run(run: dict, head: str) -> dict:
     if not member(run.get("status"), CHECK_STATUSES) or not maybe(run.get("conclusion"),
                                                                     lambda v: member(v, CHECK_CONCLUSIONS)) \
             or not maybe(run.get("completed_at"), is_instant):
         raise Unknown("malformed_check_run")
+    if sha(run.get("head_sha")) != head:
+        raise Unknown("check_run_mismatch")  # a run about another commit is not this head's evidence
     return {"status": run["status"], "conclusion": run.get("conclusion"), "completed_at": run.get("completed_at")}
 
 
@@ -157,10 +159,13 @@ def _commit(repo: str, commit: str, tick: Tick, not_found: str) -> None:
         raise Unknown("commit_mismatch")
 
 
-def _status(data: object) -> dict:
-    """Combined status: only ``state`` and ``total_count`` are used, never the paged ``statuses``."""
+def _status(data: object, head: str) -> dict:
+    """Combined status: only ``state`` and ``total_count`` are used, never the paged ``statuses``. It must
+    name the head asked about; absent, malformed or another commit is ``status_mismatch``."""
     if not isinstance(data, dict) or not member(data.get("state"), STATUS_STATES) or not count(data.get("total_count")):
         raise Unknown("malformed_status")
+    if sha(data.get("sha")) != head:
+        raise Unknown("status_mismatch")
     return {"state": data["state"], "total_count": data["total_count"]}
 
 
@@ -175,9 +180,9 @@ def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
         return facts
     head = facts["head_sha"] = _sha(facts["head_sha"], "empty_head")
     _commit(repo, head, tick, "head_not_found")
-    facts["check_runs"] = [_check_run(r) for r in _paged(repo, f"/commits/{head}/check-runs?", tick, identity="id",
+    facts["check_runs"] = [_check_run(r, head) for r in _paged(repo, f"/commits/{head}/check-runs?", tick, identity="id",
                                                          item="check_run", key="check_runs")]
-    facts["status"] = _status(_get(repo, f"/commits/{head}/status", tick))
+    facts["status"] = _status(_get(repo, f"/commits/{head}/status", tick), head)
     facts["reviews"] = [_review(r) for r in _paged(repo, f"/pulls/{number}/reviews?", tick, identity="id",
                                                    item="review")]
     return facts

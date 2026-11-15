@@ -63,8 +63,8 @@ def good_pr_paths(repo: str, number: int, sha: str = SHA_A) -> dict:
         f"/repos/{repo}/commits/{sha}/check-runs?per_page=100&page=1": {
             "total_count": 1,
             "check_runs": [{"id": 1, "status": "completed", "conclusion": "success",
-                            "completed_at": "2026-11-14T02:00:00Z"}]},
-        f"/repos/{repo}/commits/{sha}/status": {"state": "success", "total_count": 0},
+                            "completed_at": "2026-11-14T02:00:00Z", "head_sha": sha}]},
+        f"/repos/{repo}/commits/{sha}/status": {"state": "success", "total_count": 0, "sha": sha},
         f"/repos/{repo}/pulls/{number}/reviews?per_page=100&page=1": [],
     }
 
@@ -199,8 +199,9 @@ def pr_paths(repo: str, number: int, sha: str = SHA_A, *, created: float = 80, c
         f"/repos/{repo}/commits/{sha}": {"sha": sha},
         f"/repos/{repo}/commits/{sha}/check-runs?per_page=100&page=1": {
             "total_count": 1,
-            "check_runs": [{"id": 1, "status": "completed", "conclusion": "success", "completed_at": ago(check_done)}]},
-        f"/repos/{repo}/commits/{sha}/status": {"state": "success", "total_count": 0},
+            "check_runs": [{"id": 1, "status": "completed", "conclusion": "success", "completed_at": ago(check_done),
+                            "head_sha": sha}]},
+        f"/repos/{repo}/commits/{sha}/status": {"state": "success", "total_count": 0, "sha": sha},
         f"/repos/{repo}/pulls/{number}/reviews?per_page=100&page=1": [],
     }
 

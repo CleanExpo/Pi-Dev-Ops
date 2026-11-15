@@ -245,7 +245,7 @@ def test_a_whole_read_with_no_ci_still_retires_the_orphan_it_claims(monkeypatch:
                                                                    tmp_path: Path) -> None:
     st = _world(monkeypatch, tmp_path, "orphan")
     st.gh[f"/repos/{PIDEV}/commits/{SHA_A}/check-runs?per_page=100&page=1"] = {"total_count": 0, "check_runs": []}
-    st.gh[f"/repos/{PIDEV}/commits/{SHA_A}/status"] = {"state": "pending", "total_count": 0}
+    st.gh[f"/repos/{PIDEV}/commits/{SHA_A}/status"] = {"state": "pending", "total_count": 0, "sha": SHA_A}
     out = run(st, LATER)
     state = _state(st)
     assert state["missions"]["RA-77"]["reason"] == "no_ci" and out["not_refreshed_ids"] == []

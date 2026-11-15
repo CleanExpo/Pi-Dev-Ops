@@ -42,12 +42,23 @@ def sha_or_none(value: object) -> str | None:
     return sha(value)
 
 
+# The MISSING_COMMIT reasons of an answer that was READ WHOLE and names no commit (spec row 4), with the
+# pull state that answer gave. Every other error item, a 404 on a commit read included, is a failed read.
+ANSWERED_NO_COMMIT = {"empty_head": "open", "no_merge_sha": "merged"}
+
+
+def read_whole(item: object) -> bool:
+    """The one owner of "this pull's read succeeded": facts, or an answer read whole that names no commit."""
+    if not isinstance(item, dict):
+        return False
+    return "error" not in item or (item.get("error") == "missing_commit"
+                                   and item.get("reason") in ANSWERED_NO_COMMIT)
+
+
 def item_state(item: dict) -> str:
-    """open, closed or merged for a facts dict or an error item; ``error`` for a failed read."""
+    """open, closed or merged for a facts dict or an answered error item; ``error`` for a failed read."""
     if "error" in item:
-        if item.get("error") != "missing_commit":
-            return "error"
-        return "merged" if item.get("reason") == "no_merge_sha" else "open"
+        return ANSWERED_NO_COMMIT[item["reason"]] if read_whole(item) else "error"
     state = item.get("state")
     if state not in ("open", "closed", "merged"):
         raise Unclassifiable("malformed_pr")

@@ -108,7 +108,7 @@ def _plant(st: SimpleNamespace, source: str, field: str, value: object, mp: pyte
         st.gh[path] = {"total_count": 1, "check_runs": [run]}
         return _outcome(pr5)
     if source == "status":
-        return _github(st, f"{base}/commits/{SHA_A}/status", {"state": "success", "total_count": 0}, field, value, pr5)
+        return _github(st, f"{base}/commits/{SHA_A}/status", {"state": "success", "total_count": 0, "sha": SHA_A}, field, value, pr5)
     if source == "review":
         good = {"id": 1, "user": {"login": "someone", "type": "User"}, "state": "COMMENTED", "commit_id": SHA_A,
                 "submitted_at": "2026-11-14T03:00:00Z"}

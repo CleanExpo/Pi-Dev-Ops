@@ -155,13 +155,6 @@ def _unknown(ctx: _Ctx, exc: Unclassifiable, now: datetime, first_seen: float | 
     return record, found
 
 
-def _unowned_source(ctx: _Ctx) -> tuple[datetime, str]:
-    started = (ctx.issue or {}).get("startedAt")
-    if started is not None:
-        return parse_ts(started), "startedAt"
-    return parse_ts((ctx.primary or {}).get("created_at")), "pr_created_at"
-
-
 def _finish(ctx: _Ctx, now: datetime, stage: Stage, since: datetime, age_source: str,
             **fields: object) -> tuple[dict, list[dict]]:
     """Snapshot -> ``assess`` -> findings, plus STALE_REVIEW_SHA and UNOWNED_24H beside the policy's own."""
@@ -177,7 +170,7 @@ def _finish(ctx: _Ctx, now: datetime, stage: Stage, since: datetime, age_source:
     if ctx.extra.get("stale"):
         found.append(_coded(ctx, "STALE_REVIEW_SHA", "review_wait", snap.pr_head_sha, text, age_source))
     if any(f.code == "UNOWNED" for f in policy):
-        source, source_name = _unowned_source(ctx)
+        source, source_name = source_time(ctx.issue, [ctx.primary or {}], now, None)  # the one guarded owner
         if now - source >= _DAY:
             found.append(_coded(ctx, "UNOWNED_24H", stage.value, snap.pr_head_sha, iso(source), source_name))
     return _record(ctx, stage.value, since=text, age_source=age_source, **fields), found
@@ -255,8 +248,9 @@ def _classify(ctx: _Ctx, live: dict, now: datetime) -> tuple[dict, list[dict]]:
         return _record(ctx, "counted", counted=f"{state}_without_pr"), []
     states = [item_state(item) for item in ctx.prs]
     for item, item_kind in zip(ctx.prs, states):
-        if item_kind == "error":
-            raise Unclassifiable(str(item.get("reason") or "unknown"), item=item)
+        if item_kind == "error":  # a failed read: never counted as a pull; its own kind and reason
+            stage = "missing_commit" if item.get("error") == "missing_commit" else "unknown"
+            raise Unclassifiable(str(item.get("reason") or "unknown"), stage, item=item)
     kept = [(item, s) for item, s in zip(ctx.prs, states) if s != "closed"]
     if not kept:
         return _record(ctx, "counted", counted="closed_unmerged"), []
