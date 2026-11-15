@@ -24,6 +24,13 @@ those, and an ordinary rebase or hard reset leaves ORIG_HEAD on a replaced commi
 counting them would leave most used worktrees unremovable. While the branch is kept,
 its own reflog still names the replaced commits.
 
+What decides which repository git reads and changes: the project folder Claude Code names in
+CLAUDE_PROJECT_DIR, and the folder owned_target works out from the event. Both are taken as
+given. Nothing else may decide: a symlink on the way is refused, and git() passes git no
+GIT_* variable from the caller (GIT_DIR, GIT_WORK_TREE, config passed by environment, and
+any other). Not defended: the user's and the system's git config files, and which git is
+first on PATH.
+
 All git output goes to stderr. Fails closed (exit 1).
 """
 from __future__ import annotations
@@ -44,7 +51,10 @@ def fail(message: str) -> int:
 
 
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+    """The one place git is run. -C names the folder, and no GIT_* variable from the caller reaches git, so nothing
+    but that folder chooses the repository (an inherited GIT_DIR would otherwise override -C)."""
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, env=env)
     sys.stderr.write(proc.stdout + proc.stderr)
     return proc
 

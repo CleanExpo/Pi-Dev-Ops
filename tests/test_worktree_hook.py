@@ -63,10 +63,10 @@ def _event(event: str, **fields: object) -> str:
                        "hook_event_name": event, **fields})
 
 
-def _run(command: str, project: Path, payload: str, shell: str = "/bin/bash",
-         path: str | None = None) -> subprocess.CompletedProcess:
+def _run(command: str, project: Path, payload: str, shell: str = "/bin/bash", path: str | None = None,
+         inherited: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     return subprocess.run([shell, "-c", command], input=payload, capture_output=True, text=True, cwd=project,
-                          env=_env(project, path), timeout=60)
+                          env={**_env(project, path), **(inherited or {})}, timeout=60)
 
 
 def _create(project: Path, name: object, shell: str = "/bin/bash") -> subprocess.CompletedProcess:

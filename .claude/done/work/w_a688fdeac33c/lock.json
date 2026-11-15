@@ -1,0 +1,18 @@
+{
+  "schema": "done/1",
+  "work_id": "w_a688fdeac33c",
+  "contract_digest": "a67bcda3bcbc5f0072bf5d8c8be4ebbcae6921577135e4020720bc87737f4bcf",
+  "baseline_head": "c40ebe7acf6f0af14891f472bac7945262361925",
+  "identity_key": "fix/RA-8375-worktree-hook-stdin@/Users/phill-mac/Pi-Dev-Ops/.git/worktrees/ra-8375-worktree-hook",
+  "locked_at_utc": "2026-11-15T02:18:16Z",
+  "criteria_count": 7,
+  "recipe_pins": {
+    "work/w_445fe29119c7/contract.json .claude/done/work/w_445fe29119c7/lock.json .claude/done/work/w_6425aa6f121a/contract.json .claude/done/work/w_6425aa6f121a/criteria.json .claude/done/work/w_6425aa6f121a/expected-files.txt .claude/done/work/w_6425aa6f121a/lock.json .claude/done/work/w_a688fdeac33c/contract.json .claude/done/work/w_a688fdeac33c/lock.json .claude/hooks/worktree_hook.py .claude/settings.json .gitignore tests/test_worktree_hook.py tests/test_worktree_hook_git_env.py ": null,
+    "work/w_445fe29119c7/contract.json": "dc399fbada90cdc3aaae571f9c6782d6e4df607e666e94f9b14397e6e62142d2",
+    "work/w_445fe29119c7/lock.json": "00a73049bdaa24cfaedb72090db62595c8db3a33ce946b35bb92244d9c4f141d",
+    "work/w_6425aa6f121a/contract.json": "2767b21d2694d7aa81a8c5b819523e4b6a886fa862cf309105fb69c69a1ca1ea",
+    "work/w_6425aa6f121a/criteria.json": "f55290ea621720500c5259ec71f23947cb09b7d478d06bad56f464452504da07",
+    "work/w_6425aa6f121a/expected-files.txt": "755179494f6092116e55ece7b70c5826654601a7cbf24dbe6ab7a57f1030c64e",
+    "work/w_6425aa6f121a/lock.json": "6c7a6e8e90529902e6cd7609ecbd02c054bf6cf719fd8382b450dca51f9941b3"
+  }
+}
