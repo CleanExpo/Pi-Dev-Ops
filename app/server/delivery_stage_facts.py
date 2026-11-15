@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from .delivery_collect_fields import REVIEW_STATES, instant, sha
 
 _VERDICTS = ("APPROVED", "CHANGES_REQUESTED")
-_OK_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
+_NO_EVIDENCE = frozenset({"neutral", "skipped"})  # a settled run that tested nothing
 
 
 class Unclassifiable(Exception):
@@ -78,9 +78,10 @@ def checks_state(pr: dict) -> tuple[str, datetime | None]:
         raise Unclassifiable("malformed_status")
     done = [parse_ts(r["completed_at"]) for r in runs if r.get("completed_at") is not None]
     newest = max(done, default=None)
-    if not runs and total == 0:
+    tested = [r for r in runs if not (r.get("status") == "completed" and r.get("conclusion") in _NO_EVIDENCE)]
+    if not tested and total == 0:  # no runs, or only skipped or neutral ones: no CI evidence
         return "none", newest
-    runs_ok = all(r.get("status") == "completed" and r.get("conclusion") in _OK_CONCLUSIONS for r in runs)
+    runs_ok = all(r.get("status") == "completed" and r.get("conclusion") == "success" for r in tested)
     status_ok = state == "success" or total == 0
     return ("green" if runs_ok and status_ok else "not_green"), newest
 
@@ -135,24 +136,28 @@ def pr_list(prs: list | None, repo: str) -> list[dict]:
 
 def source_time(issue: dict | None, prs: list | None, fallback: datetime,
                 first_seen: float | None) -> tuple[datetime, str]:
-    """Rule 1: startedAt, else the linked PR's created_at, else stored first-seen, else ``fallback``."""
-    try:
-        return parse_ts((issue or {}).get("startedAt")), "startedAt"
-    except Unclassifiable:
-        pass
-    created = []
-    for item in prs or []:
+    """Rule 1: startedAt, else the linked PR's created_at, else stored first-seen, else ``fallback``.
+    A source later than ``fallback`` (now) is an invalid clock, not a source: the next one is used."""
+    def past(value: object) -> datetime | None:
         try:
-            created.append(parse_ts(item.get("created_at") if isinstance(item, dict) else None))
+            when = parse_ts(value)
         except Unclassifiable:
-            continue
+            return None
+        return when if when <= fallback else None
+
+    started = past((issue or {}).get("startedAt"))
+    if started is not None:
+        return started, "startedAt"
+    created = [c for c in (past(i.get("created_at")) for i in prs or [] if isinstance(i, dict)) if c is not None]
     if created:
         return min(created), "pr_created_at"
     if isinstance(first_seen, (int, float)) and not isinstance(first_seen, bool):
         try:
-            return datetime.fromtimestamp(first_seen, timezone.utc), "local_first_seen"
+            seen = datetime.fromtimestamp(first_seen, timezone.utc)
         except (ValueError, OverflowError, OSError):
-            pass
+            seen = None
+        if seen is not None and seen <= fallback:
+            return seen, "local_first_seen"
     return fallback, "local_first_seen"
 
 

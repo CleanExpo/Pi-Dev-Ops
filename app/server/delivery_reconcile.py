@@ -20,6 +20,7 @@ STATE_FILE = Path(__file__).resolve().parents[2] / ".harness" / "delivery-reconc
 LOCK_FILE = STATE_FILE.with_name("delivery-reconcile.lock")
 
 _last_save_ok: bool | None = None
+_last_tick_error: str | None = None
 _inflight: Any = None
 
 
@@ -33,14 +34,26 @@ def record_save(persisted: bool) -> None:
     _last_save_ok = bool(persisted)
 
 
+def record_tick(out: Any) -> None:
+    """The last tick's error code (None after a tick with none), so the tile never shows an older good
+    result after a tick failed. A skipped tick (lease held) neither sets nor clears it."""
+    global _last_tick_error
+    if not isinstance(out, dict) or "skipped" in out:
+        return
+    error = out.get("error")
+    _last_tick_error = error if isinstance(error, str) else None
+
+
 def run_reconcile_tick(now: datetime | None = None, path: str | None = None) -> dict:
     """One reconcile tick. Never raises; every failure is a returned state."""
     try:
         from .delivery_reconcile_tick import run_tick
 
-        return run_tick(now, path)
+        out = run_tick(now, path)
     except Exception as exc:  # noqa: BLE001 — recorded by type name only
-        return {"error": f"tick_failed_{type(exc).__name__}", "complete": False, "persisted": False}
+        out = {"error": f"tick_failed_{type(exc).__name__}", "complete": False, "persisted": False}
+    record_tick(out)
+    return out
 
 
 def _on_done(fut: Any, log: logging.Logger) -> None:
@@ -77,7 +90,7 @@ def status_snapshot(path: str | os.PathLike[str] | None = None,
     """Read-only tile for /api/mission-control/live. Never raises, never writes."""
     try:
         return _status.build(path or STATE_FILE, now or datetime.now(timezone.utc),
-                             enabled(), _last_save_ok)
+                             enabled(), _last_save_ok, _last_tick_error)
     except Exception as exc:  # noqa: BLE001
         snap = _status._snap("unreadable", [f"status_failed_{type(exc).__name__}"], enabled())
         return snap

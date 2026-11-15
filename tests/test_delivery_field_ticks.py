@@ -36,7 +36,7 @@ P5 = f"/repos/{ATO}/pulls/5"
 CHECKS5 = f"/repos/{ATO}/commits/{SHA_A}/check-runs?per_page=100&page=1"
 REVIEW = {"id": 1, "user": {"login": FAKE_REVIEWER, "type": "User"}, "state": "APPROVED", "commit_id": SHA_A,
           "submitted_at": ago(2)}
-READY = {"state": "READY", "created": 2, "meta": {"githubCommitSha": SHA_A}}
+READY = {"state": "READY", "created": 2, "target": "production", "meta": {"githubCommitSha": SHA_A}}
 
 
 def _plant_state(st: SimpleNamespace) -> dict:
@@ -121,18 +121,19 @@ def test_bad_field_never_looks_healthier(monkeypatch: pytest.MonkeyPatch, tmp_pa
     if kind == "list":
         affected = ORPHAN if source == "pulls_list" else "RA-1"
         assert out["complete"] is False and missions[affected] == planted["missions"][affected]
-    elif kind == "mission":
-        affected = "RA-1"
-        assert missions[affected]["stage"] in ("unknown", "missing_commit")
-        assert missions[affected]["tests_passed"] is False and missions[affected]["reviewed_head_sha"] is None
     else:
-        affected = f"repo:{RA}"
-        assert out["vercel_unreadable"] == 1 and missions[affected]["live_unconfirmed"] is None
+        affected = "RA-1" if kind == "mission" else f"repo:{RA}"
+        assert affected in out["not_refreshed_ids"]  # held: its stored alert stays and is shown
+        if kind == "mission":  # a failed read makes the record UNKNOWN (spec row 1), never a healthy stage
+            assert missions[affected]["stage"] in ("unknown", "missing_commit")
+            assert missions[affected]["tests_passed"] is False and missions[affected]["reviewed_head_sha"] is None
+        else:
+            assert out["vercel_unreadable"] == 1 and missions[affected]["live_unconfirmed"] is None
     assert missions[affected]["stage"] not in HEALTHY
+    assert f"k-{affected}" in alerts
     for rid in (ORPHAN, "RA-1", f"repo:{RA}"):
-        assert rid in missions and f"k-{rid}" in alerts, rid
-    if kind != "vercel":  # a repo record raises no alert of its own; ``vercel_unreadable`` is its signal
-        assert any(a.get("mission_id") == affected for a in shown), affected
+        assert rid in missions, rid
+    assert any(a.get("mission_id") == affected for a in shown), affected
 
 
 def test_positive_control_good_world_is_healthy_and_complete(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

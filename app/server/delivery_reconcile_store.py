@@ -119,16 +119,27 @@ def _merge_missions(
         mid = rec.get("id") if isinstance(rec, dict) else None
         if not isinstance(mid, str) or not mid:
             raise StoreError("record_missing_id")
-        old = missions.get(mid, {})
-        merged = {**rec, "first_seen": old.get("first_seen", now), "last_seen": now}
-        missions[mid] = merged
         seen.add(mid)
+        old = missions.get(mid)
+        old = old if isinstance(old, dict) else {}
+        missions[mid] = {**rec, "first_seen": _first_seen(old, now), "last_seen": now}
     return seen
+
+
+def _number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and value == value
+
+
+def _first_seen(old: dict[str, Any], now: float) -> float:
+    """The stored first-seen time; a future, missing or non-numeric one is replaced by ``now``."""
+    value = old.get("first_seen")
+    return value if _number(value) and value <= now else now
 
 
 def _merge_alerts(
     alerts: dict[str, Any], findings: list[dict[str, Any]], now: float
-) -> list[str]:
+) -> tuple[list[str], set[str]]:
+    """Returns (keys first seen this tick, every key raised this tick)."""
     new_keys: list[str] = []
     counted: set[str] = set()
     for fnd in findings:
@@ -139,39 +150,53 @@ def _merge_alerts(
             continue
         counted.add(key)
         old = alerts.get(key)
-        if old is None:
+        if not isinstance(old, dict):
             new_keys.append(key)
             alerts[key] = {**fnd, "first_seen": now, "last_seen": now, "count": 1}
         else:
-            alerts[key] = {
-                **old, **fnd, "first_seen": old.get("first_seen", now), "last_seen": now,
-                "count": int(old.get("count", 0)) + 1,
-            }
-    return new_keys
+            count = old.get("count")
+            count = count if isinstance(count, int) and not isinstance(count, bool) and count >= 0 else 0
+            alerts[key] = {**old, **fnd, "first_seen": _first_seen(old, now), "last_seen": now,
+                           "count": count + 1}  # a bad stored count restarts; it never fails the tick
+    return new_keys, counted
 
 
-def _retain(state: dict[str, Any], seen: set[str]) -> None:
-    """Complete tick only: drop missions not seen, and the alerts that point at them."""
-    gone = {m for m in state["missions"] if m not in seen}
+def _drop_alerts(alerts: dict[str, Any], subjects: set[str], raised: set[str]) -> None:
+    for key in [k for k, a in alerts.items()
+                if k not in raised and (not isinstance(a, dict) or a.get("mission_id") in subjects)]:
+        del alerts[key]
+
+
+def _retain(state: dict[str, Any], keep: set[str]) -> None:
+    """Complete tick only: drop subjects neither read whole nor held, and the alerts that point at them."""
+    gone = {m for m in state["missions"] if m not in keep}
     for mid in gone:
         del state["missions"][mid]
-    for key in [k for k, a in state["alerts"].items() if a.get("mission_id") in gone]:
-        del state["alerts"][key]
+    _drop_alerts(state["alerts"], gone, set())
 
 
+# THE RULE (one owner): a stored alert is dropped or hidden only when its own subject was read WHOLE
+# this tick. ``held`` (the tick's ``not_refreshed_ids``) names every subject whose read was cut, failed
+# or came back not whole: its stored alerts stay and the status tile shows them, and it is never
+# dropped. Its record: what the tick emitted for it replaces the stored one (a failed read emits UNKNOWN,
+# spec row 1; first_seen is kept); a subject the budget cut emits nothing, so its record stays as it was
+# (spec line 112). A subject read whole keeps only the alerts that read raised again.
 def apply_tick(
     state: dict[str, Any],
     records: list[dict[str, Any]],
     findings: list[dict[str, Any]],
     now: float,
     complete: bool,
+    held: Any = (),
 ) -> tuple[dict[str, Any], list[str]]:
     """Pure merge of one tick. Returns (new_state, keys first seen this tick)."""
     out = copy.deepcopy(state)
+    keep = {h for h in held if isinstance(h, str)}
     seen = _merge_missions(out["missions"], copy.deepcopy(records), now)
-    new_keys = _merge_alerts(out["alerts"], copy.deepcopy(findings), now)
+    new_keys, raised = _merge_alerts(out["alerts"], copy.deepcopy(findings), now)
+    _drop_alerts(out["alerts"], seen - keep, raised)
     if complete:
-        _retain(out, seen)
+        _retain(out, seen | keep)
         out["checkpoint"]["last_complete"] = now
     out["last_tick"] = now
     return out, new_keys

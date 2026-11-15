@@ -28,7 +28,8 @@ NEGATIVES: dict[str, list[tuple[str, object]]] = {
     "sha": [("int", 5), ("list", [SHA_A]), ("dict", {}), ("bool", True), ("not_hex", "not-a-sha"),
             ("short", "a" * 39), ("long", "a" * 41), ("non_hex", "g" * 40)],
     "timestamp": [("int", 5), ("list", []), ("dict", {}), ("bool", True), ("garbage", "yesterday"),
-                  ("no_tz", "2026-11-14T01:00:00"), ("date_only", "2026-11-14"), ("bad_day", "2026-02-30T01:00:00Z")],
+                  ("no_tz", "2026-11-14T01:00:00"), ("date_only", "2026-11-14"), ("bad_day", "2026-02-30T01:00:00Z"),
+                  ("before_year_1", "0001-01-01T00:00:00+14:00"), ("after_year_9999", "9999-12-31T23:59:59-14:00")],
     "enum": [("int", 5), ("list", ["x"]), ("dict", {}), ("bool", True), ("unknown", "zz_unlisted")],
     "posint": [("text", "7"), ("zero", 0), ("negative", -1), ("bool", True), ("float", 1.5), ("list", []),
                ("dict", {})],
@@ -140,9 +141,10 @@ def _plant_other(st: SimpleNamespace, source: str, field: str, value: object, mp
         _set(node, field, value)
         run = SimpleNamespace(registry=SimpleNamespace(allowed=ALLOWED), summary={"refs_outside_scope": 0},
                               linked=set(), links_whole=True, tick=_tick(), sweep={})
-        return ("ok", None) if links._linked_prs(run, node) is not None else ("unknown", "links_incomplete")
+        return ("ok", None) if links._refs(run, node) is not None else ("unknown", "links_incomplete")
     if source == "vercel":
-        good = {"deployments": [{"state": "READY", "created": 2, "meta": {"githubCommitSha": SHA_A}}]}
+        good = {"deployments": [{"state": "READY", "created": 2, "target": "production",
+                                 "meta": {"githubCommitSha": SHA_A}}]}
         _set(good if field == "deployments" else good["deployments"][0], field, value)
         st.vc["*"] = good
         return _outcome(lambda: dc.vercel_latest_ready(entry, tick=_tick()))
@@ -180,7 +182,8 @@ def _rows() -> list:
     return rows
 
 
-GOOD_ENUM = {("pulls_list", "user.type"): "User", ("pull", "state"): "open", ("pull", "user.type"): "User",
+GOOD_ENUM = {("pulls_list", "user.type"): "User", ("pulls_list", "state"): "open",
+             ("pull", "state"): "open", ("pull", "user.type"): "User",
              ("check_run", "status"): "completed", ("check_run", "conclusion"): "success",
              ("status", "state"): "success", ("review", "state"): "COMMENTED", ("review", "user.type"): "User",
              ("compare", "status"): "ahead", ("linear_issue", "state.type"): "started", ("vercel", "state"): "READY"}
@@ -228,3 +231,23 @@ def test_pending_review_with_no_submitted_time_is_accepted(monkeypatch: pytest.M
 
 def test_every_enum_row_has_a_good_value_for_the_case_row() -> None:
     assert {(s, f) for s, f, d, *_ in INVENTORY if d == "enum"} == set(GOOD_ENUM)
+
+
+# P1-3: a pull answer that contradicts itself is not a read of either state, in both directions.
+CONTRADICTORY = [
+    pytest.param({"state": "closed", "merged": False, "merged_at": "2026-11-14T03:00:00Z"}, id="unmerged_with_time"),
+    pytest.param({"state": "open", "merged": False, "merged_at": "2026-11-14T03:00:00Z"}, id="open_with_time"),
+    pytest.param({"state": "open", "merged": True, "merged_at": "2026-11-14T03:00:00Z",
+                  "merge_commit_sha": SHA_B}, id="merged_but_open"),
+    pytest.param({"state": "closed", "merged": True, "merged_at": None, "merge_commit_sha": SHA_B},
+                 id="merged_without_time"),
+]
+
+
+@pytest.mark.parametrize("change", CONTRADICTORY)
+def test_contradictory_pull_answer_is_malformed(monkeypatch: pytest.MonkeyPatch, change: dict) -> None:
+    st = install_fakes(monkeypatch)
+    st.gh.update(good_pr_paths(ATO, 5))
+    st.gh[f"/repos/{ATO}/commits/{SHA_B}"] = {"sha": SHA_B}
+    st.gh[f"/repos/{ATO}/pulls/5"] = {**open_pull(5), **change}
+    assert _outcome(lambda: dg.pr_evidence(ATO, 5, tick=_tick())) == ("unknown", "malformed_pull")

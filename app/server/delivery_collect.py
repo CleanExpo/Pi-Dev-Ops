@@ -274,8 +274,9 @@ def vercel_latest_ready(entry: dict, *, tick: Tick) -> str | None:
     if not all(isinstance(d, dict) and member(d.get("state"), VERCEL_STATES) for d in deployments):
         raise Unknown("malformed_deployments")
     ready = [d for d in deployments if d["state"] == "READY"]  # another known state: a business skip
-    if not all(positive_int(d.get("created")) for d in ready):
+    if not all(positive_int(d.get("created")) and maybe(d.get("target"), text) for d in ready):
         raise Unknown("malformed_deployments")
+    ready = [d for d in ready if d.get("target") == "production"]  # null or another target: not production
     if not ready:
         return None
     meta = max(ready, key=lambda d: d["created"]).get("meta")

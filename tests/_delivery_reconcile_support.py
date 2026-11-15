@@ -243,6 +243,7 @@ def setup_tick(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, entries: list[di
     for name in ("RAILWAY_GIT_COMMIT_SHA", "BUILD_REVISION", "TAO_DELIVERY_RECONCILE"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(dr, "_last_save_ok", None)
+    monkeypatch.setattr(dr, "_last_tick_error", None, raising=False)
     st.path = tmp_path / "state.json"
     return st
 

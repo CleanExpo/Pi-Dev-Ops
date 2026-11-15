@@ -18,6 +18,7 @@ TICK = NOW.timestamp() - 600
 def _clean(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("TAO_DELIVERY_RECONCILE", raising=False)
     monkeypatch.setattr(dr, "_last_save_ok", None)
+    monkeypatch.setattr(dr, "_last_tick_error", None, raising=False)
 
 
 def _alert(key: str, **over: Any) -> dict[str, Any]:

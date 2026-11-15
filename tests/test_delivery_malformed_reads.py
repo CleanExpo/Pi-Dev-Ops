@@ -46,7 +46,7 @@ def _world(st: SimpleNamespace) -> None:
     st.gql_pages.append(linear_page([tick_issue("RA-1", ((ATO, 5),))]))
     st.gh[sweep_path(ATO)] = [open_pull(5), open_pull(7)]
     st.gh.update(pr_paths(ATO, 5))
-    st.vc["*"] = {"deployments": [{"state": "READY", "created": 2, "meta": {"githubCommitSha": SHA_A}}]}
+    st.vc["*"] = {"deployments": [dict(READY)]}
 
 
 def _sweep(item: dict) -> Callable[[SimpleNamespace], None]:
@@ -79,7 +79,7 @@ def _review(state: str, at: float, rid: int) -> dict:
 
 
 RA1 = tick_issue("RA-1", ((ATO, 5),))
-READY = {"state": "READY", "created": 2, "meta": {"githubCommitSha": SHA_A}}
+READY = {"state": "READY", "created": 2, "target": "production", "meta": {"githubCommitSha": SHA_A}}
 # (row id, kind, the item the malformed read would otherwise drop or mark healthy, how to break the world)
 ROWS = [
     ("sweep_number_none", "list", ORPHAN, _sweep({**open_pull(7), "number": None})),  # the reviewer's case
@@ -128,14 +128,16 @@ def test_malformed_item_fails_its_read_and_drops_nothing(
         assert out["complete"] is False
         assert missions[affected] == planted["missions"][affected]  # kept exactly as stored, not re-judged
         expect = STORED
-    elif kind == "mission":
-        assert missions[affected]["stage"] in ("unknown", "missing_commit")
-        expect = (ORPHAN, "RA-1", REPO_REC)
     else:
-        assert out["vercel_unreadable"] == 1 and missions[affected]["live_unconfirmed"] is None
+        assert affected in out["not_refreshed_ids"]  # held: its stored alert stays and is shown
+        if kind == "mission":  # a failed read makes the record UNKNOWN (spec row 1)
+            assert missions[affected]["stage"] in ("unknown", "missing_commit")
+        else:
+            assert out["vercel_unreadable"] == 1 and missions[affected]["live_unconfirmed"] is None
         expect = (ORPHAN, "RA-1", REPO_REC)
+    assert f"k-{affected}" in alerts
     for rid in expect:
-        assert rid in missions and f"k-{rid}" in alerts, rid
+        assert rid in missions, rid
 
 
 def test_good_world_is_complete_so_each_row_isolates_its_break(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

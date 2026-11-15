@@ -61,7 +61,8 @@ def _read(state: dict[str, Any], now: datetime, summary: dict[str, Any]) -> tupl
 def _merge(state: dict[str, Any], records: list, findings: list, now: datetime,
            complete: bool, summary: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     try:
-        return store.apply_tick(state, records, findings, now.timestamp(), complete)
+        return store.apply_tick(state, records, findings, now.timestamp(), complete,
+                                held=summary.get("not_refreshed_ids") or ())
     except store.StoreError as exc:
         summary["error"], summary["complete"] = f"merge_failed_{exc}", False
         return store.apply_tick(state, [], [], now.timestamp(), False)

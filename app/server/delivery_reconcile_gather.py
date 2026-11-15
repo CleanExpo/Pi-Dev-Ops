@@ -45,6 +45,7 @@ class Run:
     findings: list[dict] = field(default_factory=list)
     sweep: dict[str, dict[int, dict]] = field(default_factory=dict)
     linked: set[tuple[str, int]] = field(default_factory=set)
+    claimed: set[str] = field(default_factory=set)
     linear_whole: bool = True
     sweep_whole: bool = True
     links_whole: bool = True
@@ -65,13 +66,21 @@ class Run:
         self.records.append(record)
         self.findings.extend(found)
 
+    def hold(self, rid: str) -> None:
+        """The one writer of "this subject was NOT read whole this tick". ``not_refreshed_ids`` is the
+        only carrier: the store keeps the subject's stored record and alerts, and the tile shows them."""
+        ids = self.summary["not_refreshed_ids"]
+        if rid not in ids:
+            ids.append(rid)
+
+    def claim(self, refs: list[tuple[str, int]] | None) -> None:
+        """PRs a not-whole mission links: a stored orphan record for one of them is held, not retired."""
+        self.claimed.update(f"pr:{repo.lower()}#{n}" for repo, n in refs or [])
+
     def keep_stored(self, rid: str) -> None:
-        """A mission not read this tick: its stored record is re-emitted unchanged."""
+        """A mission the budget cut before its reads finished: counted, and held with or without a record."""
         self.summary["not_refreshed"] += 1
-        old = self.stored(rid)
-        if old is not None:
-            self.records.append(old)
-            self.summary["not_refreshed_ids"].append(rid)
+        self.hold(rid)
 
 
 def _read_missions(run: Run) -> list[tuple[dict, dict]]:
@@ -137,7 +146,8 @@ def _tally(run: Run) -> None:
 
 def gather(state: dict[str, Any], registry: collect.Registry, api_key: str, now: datetime,
            summary: dict[str, Any]) -> tuple[list[dict], list[dict], bool]:
-    """Read and classify one tick. Returns (records, findings, complete); fills ``summary``."""
+    """Read and classify one tick. Returns (records, findings, complete); fills ``summary``, whose
+    ``not_refreshed_ids`` lists every subject not read whole (see ``Run.hold``)."""
     run = Run(state, registry, api_key, now, summary, tick=collect.Tick(allowed=registry.allowed),
               own=collect.own_revision())
     missions = _read_missions(run)

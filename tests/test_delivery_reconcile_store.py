@@ -132,10 +132,12 @@ def test_complete_tick_advances_checkpoint_and_retains_scope() -> None:
     assert set(out["alerts"]) == {"KA"}
 
 
-def test_alert_of_in_scope_mission_kept_when_finding_clears() -> None:
+def test_alert_retired_only_when_its_subject_is_read_whole() -> None:
     state, _ = store.apply_tick(store.empty_state(), [_rec()], [_fnd()], 1.0, True)
+    held, _ = store.apply_tick(state, [_rec()], [], 2.0, True, held=["M1"])
+    assert held["alerts"]["K1"]["count"] == 1 and held["alerts"]["K1"]["last_seen"] == 1.0
     out, _ = store.apply_tick(state, [_rec()], [], 2.0, True)
-    assert out["alerts"]["K1"]["count"] == 1
+    assert "K1" not in out["alerts"]
 
 
 def test_mission_first_seen_kept() -> None:

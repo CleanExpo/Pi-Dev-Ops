@@ -141,7 +141,7 @@ def test_vercel_budget_spent_only_on_live_unconfirmed_repos(monkeypatch: pytest.
     st = setup_tick(monkeypatch, tmp_path, entries)
     st.gh.update({sweep_path(repo): [] for repo in unused + used})
     st.gql_pages.extend(linear_page([]) for _ in entries)
-    st.vc["*"] = {"deployments": [{"state": "READY", "created": 1, "meta": {"githubCommitSha": SHA_A}}]}
+    st.vc["*"] = {"deployments": [{"state": "READY", "created": 1, "target": "production", "meta": {"githubCommitSha": SHA_A}}]}
     run(st)
     assert len(st.vercel) == len(used) and not any(f"projectId=prj_{i}&" in p for i in range(4) for p in st.vercel)
     missions = _state(st)["missions"]

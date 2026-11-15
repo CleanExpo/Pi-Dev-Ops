@@ -17,6 +17,8 @@ from _delivery_reconcile_support import REPO_ROOT
 
 INVENTORY: list[tuple[str, str, str, str, str, str, bool]] = [
     ("pulls_list", "number", "posint", "fail", "fail", "malformed_pull", False),
+    ("pulls_list", "state", "enum", "fail", "fail", "malformed_pull", True),
+    ("pulls_list", "merged", "bool", "ok", "fail", "malformed_pull", True),
     ("pulls_list", "draft", "bool", "fail", "fail", "malformed_pull", True),
     ("pulls_list", "created_at", "timestamp", "fail", "fail", "malformed_pull", True),
     ("pulls_list", "head", "object", "ok", "fail", "malformed_pull", True),
@@ -75,6 +77,7 @@ INVENTORY: list[tuple[str, str, str, str, str, str, bool]] = [
     ("vercel", "deployments", "list", "fail", "fail", "malformed_deployments", False),
     ("vercel", "state", "enum", "fail", "fail", "malformed_deployments", True),
     ("vercel", "created", "posint", "fail", "fail", "malformed_deployments", True),
+    ("vercel", "target", "text", "ok", "fail", "malformed_deployments", True),
     ("vercel", "meta", "object", "ok", "fail", "malformed_deployments", True),
     ("vercel", "meta.githubCommitSha", "sha", "ok", "fail", "malformed_deployments", True),
     ("env", "RAILWAY_GIT_COMMIT_SHA", "sha", "fail", "fail", "no_revision", False),
@@ -86,7 +89,7 @@ FUNC_SOURCES: dict[str, set[str]] = {
     "_issue_page": {"linear_page", "linear_issue"}, "_node_ok": {"linear_issue"}, "fetch_missions": {"linear_issue"},
     "vercel_latest_ready": {"vercel"}, "own_revision": {"env"},
     "_page": {"check_runs"}, "_author": {"pull", "review"}, "_pull_common": {"pull"}, "_head": {"pull"},
-    "open_prs": {"pulls_list"}, "_pull_facts": {"pull", "pull_merged"}, "_check_run": {"check_run"},
+    "open_prs": {"pulls_list"}, "_open_item": {"pulls_list"}, "_pull_facts": {"pull", "pull_merged"}, "_check_run": {"check_run"},
     "_review": {"review"}, "_commit": {"commit"}, "_status": {"status"}, "compare_status": {"compare"},
     "pr_evidence": {"check_runs", "check_run", "review", "pull"}, "linear_links": {"linear_links"},
 }

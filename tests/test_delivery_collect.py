@@ -271,7 +271,7 @@ def test_e6_cooldown_set_mid_tick_stops_the_pager_without_retry(fakes: SimpleNam
 
 def test_e8_vercel_ready_sha_recorded_and_bad_list_is_unknown(fakes: SimpleNamespace) -> None:
     entry = {**ENTRY, "repo": PIDEV, "vercel_project_id": "prj_test"}
-    fakes.vc["*"] = {"deployments": [{"state": "READY", "created": 2, "meta": {"githubCommitSha": SHA_A}},
+    fakes.vc["*"] = {"deployments": [{"state": "READY", "created": 2, "target": "production", "meta": {"githubCommitSha": SHA_A}},
                                      {"state": "ERROR", "created": 3, "meta": {"githubCommitSha": "b" * 40}}]}
     assert dc.vercel_latest_ready(entry, tick=_tick()) == SHA_A
     fakes.vc["*"] = {"deployments": [{"state": "READY", "meta": {"githubCommitSha": SHA_A}}]}

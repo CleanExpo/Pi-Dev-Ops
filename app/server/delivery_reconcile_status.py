@@ -27,9 +27,9 @@ def _parse(value: Any) -> datetime | None:
         return None
     try:
         dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
+        return (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+    except (ValueError, OverflowError):  # an instant outside years 1..9999 in UTC has no age
         return None
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def _shown(state: dict[str, Any], summary: dict[str, Any]) -> list[dict[str, Any]]:
@@ -65,15 +65,18 @@ def _items(shown: list[dict[str, Any]], now: datetime) -> list[dict[str, Any]]:
     return out
 
 
-def build(path: str | Path, now: datetime, enabled: bool, save_ok: bool | None) -> dict:
-    """Build the tile from the state file. Raises nothing the caller must handle except bugs."""
+def build(path: str | Path, now: datetime, enabled: bool, save_ok: bool | None,
+          tick_error: str | None = None) -> dict:
+    """Build the tile from the state file. ``tick_error`` is the last tick's error code: a failed
+    tick is reported and the tile is not complete, whatever the last saved result says."""
+    failed = [tick_error] if isinstance(tick_error, str) else []
     try:
         state = store.load(path)
     except store.StoreError:
-        return _snap("unreadable", ["state_unreadable"], enabled)
+        return _snap("unreadable", ["state_unreadable", *failed], enabled)
     tick = state.get("last_tick")
     if not isinstance(tick, (int, float)) or isinstance(tick, bool):
-        return _snap("never_run", [], enabled)
+        return _snap("never_run", failed, enabled)
     iso = datetime.fromtimestamp(tick, timezone.utc).isoformat()
     summary = state.get("summary") if isinstance(state.get("summary"), dict) else {}
     shown = _shown(state, summary)
@@ -85,7 +88,8 @@ def build(path: str | Path, now: datetime, enabled: bool, save_ok: bool | None) 
         errors.append("state_write_failed")
     if isinstance(summary.get("error"), str):
         errors.append(summary["error"])
-    complete = summary.get("complete") is True and not stale and save_ok is not False
+    errors.extend(e for e in failed if e not in errors)
+    complete = summary.get("complete") is True and not stale and save_ok is not False and not failed
     return {"enabled": enabled, "state": "stale" if stale else "ok", "last_tick": iso,
             "complete": complete, "counts": _counts(shown, summary),
             "items": _items(shown, now), "errors": errors}

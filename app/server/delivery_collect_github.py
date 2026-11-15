@@ -106,18 +106,24 @@ def _pull_common(pr: dict) -> dict:
             "head_sha": _head(pr)}
 
 
+def _open_item(pr: dict) -> dict:
+    """A sweep item must say it is open; ``merged`` may be absent from a list answer, never true."""
+    if pr.get("state") != "open" or not maybe(pr.get("merged"), flag) or pr.get("merged") is True:
+        raise Unknown("malformed_pull")
+    return {"number": pr["number"], **_pull_common(pr)}
+
+
 def open_prs(repo: str, *, tick: Tick) -> list[dict]:
     """Every open PR in a swept repo, as minimal facts (no titles or bodies). Whole or raise."""
-    return [{"number": pr["number"], **_pull_common(pr)}
-            for pr in _paged(repo, "/pulls?state=open&", tick, identity="number", item="pull")]
+    return [_open_item(pr) for pr in _paged(repo, "/pulls?state=open&", tick, identity="number", item="pull")]
 
 
 def _pull_facts(pr: object, number: int) -> dict:
     if not isinstance(pr, dict) or not member(pr.get("state"), PULL_STATES) or not flag(pr.get("merged")) \
             or not maybe(pr.get("merged_at"), is_instant):
         raise Unknown("malformed_pull")
-    if pr["merged"] and (pr["state"] != "closed" or pr.get("merged_at") is None):
-        raise Unknown("malformed_pull")  # a merge with no time, or an open merged pull, is not a merge read
+    if pr["merged"] != (pr.get("merged_at") is not None) or (pr["merged"] and pr["state"] != "closed"):
+        raise Unknown("malformed_pull")  # merged and merged_at must agree; a merged pull is closed
     if not positive_int(pr.get("number")) or pr["number"] != number:
         raise Unknown("pull_mismatch")  # an answer about another pull is not this pull's evidence
     return {**_pull_common(pr), "state": "merged" if pr["merged"] else pr["state"],

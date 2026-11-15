@@ -27,6 +27,7 @@ class _Stop(Exception):
 def _clean(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("TAO_DELIVERY_RECONCILE", raising=False)
     monkeypatch.setattr(dr, "_last_save_ok", None)
+    monkeypatch.setattr(dr, "_last_tick_error", None, raising=False)
     monkeypatch.setattr(dr, "_inflight", None)
     pulses.clear()
 

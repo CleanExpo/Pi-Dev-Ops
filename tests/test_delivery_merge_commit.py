@@ -51,7 +51,7 @@ def test_merged_with_readable_commit_makes_two_requests(fakes: SimpleNamespace) 
 
 
 def test_closed_unmerged_reads_no_commit(fakes: SimpleNamespace) -> None:
-    fakes.gh[PULL] = {**merged_pull(5), "merged": False, "merge_commit_sha": None}
+    fakes.gh[PULL] = {**merged_pull(5), "merged": False, "merge_commit_sha": None, "merged_at": None}
     assert dg.pr_evidence(ATO, 5, tick=dc.Tick(allowed=ALLOWED))["state"] == "closed"
     assert fakes.github == [PULL]
 

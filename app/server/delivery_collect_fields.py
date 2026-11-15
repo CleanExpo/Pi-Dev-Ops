@@ -51,7 +51,10 @@ def instant(value: object) -> datetime | None:
         return None
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         return None
-    return parsed.astimezone(timezone.utc)
+    try:
+        return parsed.astimezone(timezone.utc)
+    except OverflowError:  # valid text whose UTC instant is outside year 1..9999: not a usable time
+        return None
 
 
 def is_instant(value: object) -> bool:
