@@ -143,7 +143,10 @@ def _merge_alerts(
             new_keys.append(key)
             alerts[key] = {**fnd, "first_seen": now, "last_seen": now, "count": 1}
         else:
-            alerts[key] = {**old, "last_seen": now, "count": int(old.get("count", 0)) + 1}
+            alerts[key] = {
+                **old, **fnd, "first_seen": old.get("first_seen", now), "last_seen": now,
+                "count": int(old.get("count", 0)) + 1,
+            }
     return new_keys
 
 

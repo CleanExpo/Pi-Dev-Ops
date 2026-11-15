@@ -163,3 +163,16 @@ def test_restored_job_keeps_alert_first_seen(tmp_path: Path) -> None:
     assert out["alerts"]["K1"]["count"] == 2
     assert out["checkpoint"]["last_complete"] == 2.0
     json.dumps(out)
+
+
+def test_resighted_alert_takes_newest_fields_keeps_first_seen_and_count() -> None:
+    first, _ = store.apply_tick(
+        store.empty_state(), [_rec()], [_fnd(message="old", since="2026-01-01")], 10.0, True
+    )
+    second, new = store.apply_tick(
+        first, [_rec()], [_fnd(message="new", since="2026-02-02")], 20.0, True
+    )
+    alert = second["alerts"]["K1"]
+    assert new == []
+    assert alert["message"] == "new" and alert["since"] == "2026-02-02"
+    assert alert["first_seen"] == 10.0 and alert["last_seen"] == 20.0 and alert["count"] == 2
