@@ -90,8 +90,7 @@ def _has_branch(project: Path, branch: str) -> bool:
 def test_old_hook_lines_cannot_create_from_claude_code_input(tmp_path: Path, shell: str) -> None:
     project = _project(tmp_path)
     result = _run(OLD_CREATE, project, _event("WorktreeCreate", name="feature-auth"), shell)
-    assert result.returncode != 0, result.stdout
-    assert _worktrees(project) == 1  # only the main checkout
+    assert result.returncode != 0 and _worktrees(project) == 1, result.stdout  # only the main checkout
 
 
 @pytest.mark.parametrize("shell", SHELLS)
@@ -100,8 +99,7 @@ def test_old_hook_lines_cannot_remove_from_claude_code_input(tmp_path: Path, she
     target = project / ".claude" / "worktrees" / "feature-auth"
     assert _git(project, project, "worktree", "add", "-q", str(target), "-b", "made-by-hand").returncode == 0
     result = _run(OLD_REMOVE, project, _event("WorktreeRemove", worktree_path=str(target)), shell)
-    assert result.returncode != 0, result.stdout
-    assert target.is_dir()
+    assert result.returncode != 0 and target.is_dir(), result.stdout
 
 
 def test_settings_register_the_script_for_both_events() -> None:
@@ -153,8 +151,7 @@ def test_remove_takes_the_worktree_and_its_merged_branch(tmp_path: Path, shell: 
     target = Path(_create(project, "done-work").stdout.strip())
     result = _remove(project, target, shell)
     assert result.returncode == 0, result.stderr
-    assert not target.exists() and _worktrees(project) == 1
-    assert not _has_branch(project, "worktree-done-work")
+    assert not target.exists() and _worktrees(project) == 1 and not _has_branch(project, "worktree-done-work")
 
 
 def test_remove_keeps_a_branch_that_holds_unmerged_commits(tmp_path: Path) -> None:
@@ -163,8 +160,7 @@ def test_remove_keeps_a_branch_that_holds_unmerged_commits(tmp_path: Path) -> No
     assert _git(project, target, "commit", "-q", "--allow-empty", "-m", "work not merged yet").returncode == 0
     result = _remove(project, target)
     assert result.returncode == 0, result.stderr
-    assert not target.exists()
-    assert _has_branch(project, "worktree-open-work")  # the commits stay reachable
+    assert not target.exists() and _has_branch(project, "worktree-open-work")  # the commits stay reachable
 
 
 @pytest.mark.parametrize("kind", ["untracked", "staged", "modified"])
@@ -185,17 +181,27 @@ def test_remove_refuses_a_worktree_that_holds_unsaved_files(tmp_path: Path, kind
     assert _has_branch(project, "worktree-dirty") and "was not removed" in result.stderr
 
 
-@pytest.mark.parametrize("loose", [True, False])
-def test_remove_of_a_detached_head_depends_on_a_branch_holding_its_commits(tmp_path: Path, loose: bool) -> None:
-    """Same class: a clean worktree can still hold the only copy of a commit. On a branch, it is safe to take."""
+LOOSE = [("checkout", "-q", "--detach"), ("commit", "-q", "--allow-empty", "-m", "only in this worktree")]
+HOLDERS = {  # what holds the worktree's commit -> (git steps run in the worktree, must the worktree be kept)
+    "its-own-branch": (LOOSE[:1], False), "another-branch": (LOOSE + [("branch", "keep")], False),
+    "nothing": (LOOSE, True), "a-tag": (LOOSE + [("tag", "keep")], True),
+    "a-remote-ref": (LOOSE + [("update-ref", "refs/remotes/origin/x", "HEAD")], True),
+    "unreadable-head": ([("checkout", "-q", "--orphan", "empty")], True),  # git cannot answer, so it is kept
+    **{ref: (LOOSE + [("update-ref", ref, "HEAD"), ("checkout", "-q", "worktree-parked")], True)  # back on its branch
+       for ref in ("refs/bisect/bad", "refs/worktree/mine", "refs/rewritten/x")}}
+
+
+@pytest.mark.parametrize("holder", HOLDERS)
+def test_remove_keeps_a_worktree_holding_commits_that_are_on_no_branch(tmp_path: Path, holder: str) -> None:
+    """Same class: a clean worktree can hold the only copy of a commit. CodeRabbit on f4ce9117: any ref counted as
+    holding it, but refs git keeps per worktree go with it, HEAD attached or not. Only a local branch counts."""
+    steps, kept = HOLDERS[holder]
     project = _project(tmp_path)
     target = Path(_create(project, "parked").stdout.strip())
-    assert _git(project, target, "checkout", "-q", "--detach").returncode == 0
-    if loose:
-        assert _git(project, target, "commit", "-q", "--allow-empty", "-m", "on no branch").returncode == 0
+    assert all(_git(project, target, *step).returncode == 0 for step in steps)
     result = _remove(project, target)
-    assert result.returncode == (1 if loose else 0), (result.stdout, result.stderr)
-    assert target.is_dir() == loose and ("on no branch" in result.stderr) == loose
+    assert result.returncode == (1 if kept else 0), (result.stdout, result.stderr)
+    assert target.is_dir() == kept and ("on no branch" in result.stderr) == kept
 
 
 def _link_out(project: Path, outside: Path, link: str) -> Path:
@@ -249,8 +255,7 @@ def test_remove_refuses_anything_but_a_folder_create_could_have_made(tmp_path: P
 
 def test_remove_of_a_folder_already_gone_succeeds(tmp_path: Path) -> None:
     project = _project(tmp_path)
-    result = _remove(project, project / ".claude" / "worktrees" / "never-made")
-    assert result.returncode == 0, result.stderr
+    assert _remove(project, project / ".claude" / "worktrees" / "never-made").returncode == 0
 
 
 @pytest.mark.parametrize("event", ["WorktreeCreate", "WorktreeRemove"])
@@ -282,8 +287,7 @@ def test_a_missing_script_fails_with_a_reason_and_never_exits_2(tmp_path: Path, 
     so and exit 1. `python3 <missing file>` exits 2, which Claude Code reads as "block" for other events."""
     project = _project(tmp_path, install=False)
     result = _run(_command(event), project, _event(event, name="x", worktree_path=str(project / "x")), shell)
-    assert result.returncode == 1, (result.stdout, result.stderr)
-    assert result.stdout == "" and _worktrees(project) == 1
+    assert result.returncode == 1 and result.stdout == "" and _worktrees(project) == 1, (result.stdout, result.stderr)
     assert f"{project}/.claude/hooks/{HOOK}" in result.stderr and "RA-8375" in result.stderr
 
 

@@ -11,8 +11,9 @@ with an empty name.
 Create puts the worktree at <repo>/.claude/worktrees/<name> on branch worktree-<name>.
 Remove takes only a folder create could have made (owned_target decides for both), and
 deletes the branch only if git says it is fully merged. It never forces: a worktree
-holding modified or untracked files, or commits on no branch, is left in place (exit 1).
-Files the repository ignores (caches, node_modules) do go with the worktree. All git
+holding modified or untracked files, or commits on no local branch (a tag or a remote
+ref does not count), is left in place (exit 1). Files the repository ignores (caches,
+node_modules) and commits only its reflog remembers do go with the worktree. All git
 output goes to stderr. Fails closed (exit 1).
 """
 from __future__ import annotations
@@ -78,9 +79,12 @@ def remove(repo: Path, event: dict) -> int:
         return fail(f"refusing to remove {raw}: {why}")
     if not target.exists():
         return 0
-    detached = git(target, "symbolic-ref", "-q", "HEAD").returncode != 0
-    if detached and not git(target, "for-each-ref", "--contains", "HEAD", "--count=1").stdout.strip():
-        return fail(f"refusing to remove {target}: its commits are on no branch; make a branch there first")
+    # HEAD and the refs git keeps per worktree go when the worktree goes; only a local branch keeps a commit after that.
+    loose = git(target, "rev-list", "--max-count=1", "HEAD", "--glob=refs/bisect", "--glob=refs/worktree",
+                "--glob=refs/rewritten", "--not", "--branches")
+    if loose.returncode != 0 or loose.stdout.strip():
+        return fail(f"refusing to remove {target}: it holds commits on no branch, or git could not tell; "
+                    "make a branch for them first")
     # No --force: git itself refuses a worktree that holds modified or untracked files, so unsaved work is kept.
     if git(repo, "worktree", "remove", str(target)).returncode != 0:
         return fail(f"{target} was not removed; if it holds uncommitted or untracked files, commit or delete them")
