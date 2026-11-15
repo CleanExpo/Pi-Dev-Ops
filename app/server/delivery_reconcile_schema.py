@@ -198,7 +198,6 @@ def problems(data: Any) -> list[str]:
     out += _keyed(data["missions"], _record_ok, "missions") + _keyed(data["alerts"], _alert_ok, "alerts")
     out += [] if shape(CHECKPOINT)(data["checkpoint"]) else ["checkpoint"]
     out += [] if opt_time(data["last_tick"]) else ["last_tick"]
-    never_run = data["last_tick"] is None
-    summary_ok = data["summary"] is None if never_run else shape(SUMMARY, OPTIONAL)(data["summary"])
-    out += [] if summary_ok else ["summary"]
+    # null or whole: WHEN it is null is a rule between two fields (the row ``never_run_is_empty``)
+    out += [] if opt(shape(SUMMARY, OPTIONAL))(data["summary"]) else ["summary"]
     return out or invariants.state_problems(data)
