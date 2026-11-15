@@ -267,8 +267,7 @@ FORBIDDEN = ("linear_pulse", "urllib", "requests", "httpx", "supabase_log", "tic
 @pytest.mark.parametrize("name", ["delivery_reconcile.py", "delivery_reconcile_status.py"])
 def test_modules_import_nothing_that_writes_outside(name: str) -> None:
     path = REPO / "app/server" / name
-    if not path.exists():
-        pytest.skip(f"{name} not present")
+    assert path.exists(), name  # a missing module fails; it never skips
     mods: list[str] = []
     for n in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(n, ast.Import):

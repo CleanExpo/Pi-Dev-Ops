@@ -5,15 +5,13 @@ carrying a reason code; the classifier turns it into UNKNOWN or MISSING_COMMIT f
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-SHA40 = re.compile(r"[0-9a-fA-F]{40}")
-REVIEW_STATES = frozenset({"APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED", "PENDING"})
+from .delivery_collect_fields import REVIEW_STATES, instant, sha
+
 _VERDICTS = ("APPROVED", "CHANGES_REQUESTED")
 _OK_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
-_TS = re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}")
 
 
 class Unclassifiable(Exception):
@@ -27,17 +25,11 @@ class Unclassifiable(Exception):
 
 
 def parse_ts(value: object) -> datetime:
-    """A timezone-aware ISO-8601 instant in UTC; anything else raises ``bad_timestamp``."""
-    if not isinstance(value, str) or not _TS.match(value):
+    """A timezone-aware ISO-8601 instant in UTC (the collector's one owner); else ``bad_timestamp``."""
+    parsed = instant(value)
+    if parsed is None:
         raise Unclassifiable("bad_timestamp")
-    text = value[:-1] + "+00:00" if value.endswith(("Z", "z")) else value
-    try:
-        parsed = datetime.fromisoformat(text)
-    except ValueError:
-        raise Unclassifiable("bad_timestamp") from None
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        raise Unclassifiable("bad_timestamp")
-    return parsed.astimezone(timezone.utc)
+    return parsed
 
 
 def iso(when: datetime) -> str:
@@ -46,8 +38,8 @@ def iso(when: datetime) -> str:
 
 
 def sha_or_none(value: object) -> str | None:
-    """A 40-hex SHA in lower case, else None."""
-    return value.lower() if isinstance(value, str) and SHA40.fullmatch(value) else None
+    """A 40-hex SHA in lower case, else None (the collector's one owner)."""
+    return sha(value)
 
 
 def item_state(item: dict) -> str:

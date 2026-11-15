@@ -19,6 +19,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import autonomy, autonomy_linear_rate, config_loader, vercel_monitor
+from .delivery_collect_fields import (
+    LINEAR_STATE_TYPES, VERCEL_STATES, flag, linear_identifier, maybe, member, node_id, positive_int, sha,
+    text,
+)
 
 log = logging.getLogger("pi-ceo.delivery_reconcile")
 
@@ -26,7 +30,6 @@ SKIP_REPOS = frozenset({"cleanexpo/ccw-crm"})
 BUDGETS = {"github": 200, "linear": 80, "vercel": 4}
 READ_SECONDS = 90.0
 _MAX_PAGES = 20
-_SHA = re.compile(r"[0-9a-fA-F]{40}")
 _REPO = re.compile(r"[\w.-]+/[\w.-]+")
 _ID = re.compile(r"[\w-]+")
 _LEX = re.compile(r'[ \t\n\r,﻿]+|#[^\n\r]*|"""(?:\\"""|(?!""")[\s\S])*"""|"(?:\\[^\n\r]|[^"\\\n\r])*"'
@@ -185,21 +188,26 @@ query DeliveryMissions($projectId: String!, $since: DateTimeOrDuration!, $cursor
 """
 
 
-def _text(value: object) -> bool:
-    return isinstance(value, str) and bool(value)
+def _node_ok(node: object) -> bool:
+    """The issue fields a consumer reads are in their domain; a null assignee means unowned. ``startedAt`` and
+    ``completedAt`` are judged per mission by the classifier (spec row 1: bad timestamp is that mission's UNKNOWN)."""
+    if not isinstance(node, dict) or not node_id(node.get("id")) or not linear_identifier(node.get("identifier")):
+        return False
+    state, assignee = node.get("state"), node.get("assignee")
+    return isinstance(state, dict) and member(state.get("type"), LINEAR_STATE_TYPES) \
+        and (assignee is None or (isinstance(assignee, dict) and maybe(assignee.get("name"), text)))
 
 
 def _issue_page(data: object) -> tuple[list[dict], str | None] | None:
     """(nodes, next cursor or None), or None when the page or any node in it is malformed."""
-    conn = ((data or {}).get("project") or {}).get("issues") if isinstance(data, dict) else None
+    project = data.get("project") if isinstance(data, dict) else None
+    conn = project.get("issues") if isinstance(project, dict) else None
     page = conn.get("pageInfo") if isinstance(conn, dict) else None
     nodes = conn.get("nodes") if isinstance(page, dict) else None
-    if not isinstance(nodes, list) or not isinstance(page.get("hasNextPage"), bool):
-        return None
-    if not all(isinstance(n, dict) and _text(n.get("id")) and _text(n.get("identifier")) for n in nodes):
+    if not isinstance(nodes, list) or not flag(page.get("hasNextPage")) or not all(_node_ok(n) for n in nodes):
         return None
     cursor = page.get("endCursor") if page["hasNextPage"] else None
-    if page["hasNextPage"] and (not isinstance(cursor, str) or not cursor):
+    if page["hasNextPage"] and not text(cursor):
         return None
     return nodes, cursor
 
@@ -234,16 +242,12 @@ def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> Miss
     return MissionRead(issues, False, "too_many_pages")
 
 
-def _positive_int(value: object) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool) and value > 0
-
-
 def in_scope(refs: list[tuple[str, int]], allowed: frozenset[str] | set[str]) -> tuple[list[tuple[str, int]], int]:
     """Keep refs to in-scope repos; count the rest without recording them (R2-3).
     One malformed ref fails the whole list (``malformed_ref``); nothing is filtered silently."""
     if not isinstance(refs, list) or not all(
             isinstance(r, tuple) and len(r) == 2 and isinstance(r[0], str) and _REPO.fullmatch(r[0])
-            and _positive_int(r[1]) for r in refs):
+            and positive_int(r[1]) for r in refs):
         raise Unknown("malformed_ref")
     wanted = {a.lower() for a in allowed} - SKIP_REPOS
     kept = [(repo, n) for repo, n in refs if repo.lower() in wanted]
@@ -267,21 +271,21 @@ def vercel_latest_ready(entry: dict, *, tick: Tick) -> str | None:
     deployments = data.get("deployments") if isinstance(data, dict) else None
     if not isinstance(deployments, list):
         raise Unknown("malformed_deployments")
-    if not all(isinstance(d, dict) and isinstance(d.get("state"), str) for d in deployments):
+    if not all(isinstance(d, dict) and member(d.get("state"), VERCEL_STATES) for d in deployments):
         raise Unknown("malformed_deployments")
-    ready = [d for d in deployments if d.get("state") == "READY"]  # not READY: a business skip
-    if any(not isinstance(d.get("created"), (int, float)) or isinstance(d.get("created"), bool) for d in ready):
+    ready = [d for d in deployments if d["state"] == "READY"]  # another known state: a business skip
+    if not all(positive_int(d.get("created")) for d in ready):
         raise Unknown("malformed_deployments")
     if not ready:
         return None
     meta = max(ready, key=lambda d: d["created"]).get("meta")
-    sha = meta.get("githubCommitSha") if isinstance(meta, dict) else None
-    if not isinstance(meta, (dict, type(None))) or not (sha is None or (isinstance(sha, str) and _SHA.fullmatch(sha))):
+    value = meta.get("githubCommitSha") if isinstance(meta, dict) else None
+    if not isinstance(meta, (dict, type(None))) or not maybe(value, sha):
         raise Unknown("malformed_deployments")
-    return sha.lower() if sha is not None else None  # no commit SHA: not built from a commit
+    return sha(value)  # None: no commit SHA, not built from a commit
 
 
 def own_revision() -> str | None:
     """This service's running revision, 40 hex only (same rule as health_evidence.py:9-10)."""
     revision = os.environ.get("RAILWAY_GIT_COMMIT_SHA") or os.environ.get("BUILD_REVISION", "")
-    return revision.lower() if _SHA.fullmatch(revision) else None
+    return sha(revision)

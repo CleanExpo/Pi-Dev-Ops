@@ -224,14 +224,14 @@ def _merged_row(ctx: _Ctx, merged: list[dict], live: dict, now: datetime) -> tup
 
 
 def _orphan(ctx: _Ctx, now: datetime) -> tuple[dict, list[dict]]:
-    """Rows 13 and 14: an open PR no mission links."""
+    """Rows 13 and 14: an open PR no mission links. Row 4 comes first: no head SHA is MISSING_COMMIT."""
     if len(ctx.prs) != 1:
         raise Unclassifiable("bad_input")
+    head = commit_of(ctx.primary, "open")
     if ctx.primary.get("author_type") == "Bot":
         return _record(ctx, "counted", counted="bot_prs"), []
     created = parse_ts(ctx.primary.get("created_at"))
-    return _finish(ctx, now, Stage.BUILDING, created, "pr_created_at",
-                   pr_head_sha=sha_or_none(ctx.primary.get("head_sha")))
+    return _finish(ctx, now, Stage.BUILDING, created, "pr_created_at", pr_head_sha=head)
 
 
 def _classify(ctx: _Ctx, live: dict, now: datetime) -> tuple[dict, list[dict]]:
@@ -248,6 +248,9 @@ def _classify(ctx: _Ctx, live: dict, now: datetime) -> tuple[dict, list[dict]]:
     state = state.get("type") if isinstance(state, dict) else None
     if state not in ("started", "completed"):
         raise Unclassifiable("bad_issue_state")
+    for name in ("startedAt", "completedAt"):  # null: not started / not completed; present must parse (row 1)
+        if ctx.issue.get(name) is not None:
+            parse_ts(ctx.issue[name])
     if not ctx.prs:
         return _record(ctx, "counted", counted=f"{state}_without_pr"), []
     states = [item_state(item) for item in ctx.prs]

@@ -148,7 +148,7 @@ WRITE_MODULES = ("supabase", "ticket_sweeper_write", "session_linear", "ship_gat
                  "linear_pulse")
 
 
-@pytest.mark.parametrize("module", ["delivery_collect", "delivery_collect_github"])
+@pytest.mark.parametrize("module", ["delivery_collect", "delivery_collect_github", "delivery_collect_fields"])
 def test_t10_import_pulls_in_no_write_helper(module: str) -> None:
     code = f"import json, sys, app.server.{module}; print(json.dumps(sorted(sys.modules)))"
     out = subprocess.run([sys.executable, "-c", code], cwd=REPO_ROOT, capture_output=True, text=True, timeout=60)
@@ -159,19 +159,21 @@ def test_t10_import_pulls_in_no_write_helper(module: str) -> None:
 
 ALLOWED_ATTRS = {"autonomy": {"_gql"}, "ticket_sweeper_io": {"github_get"}, "vercel_monitor": {"_vercel_get"},
                  "autonomy_linear_rate": {"linear_rate_limited"}, "config_loader": {"PROJECTS_JSON"}}
-STDLIB_OK = {"__future__", "json", "logging", "os", "re", "time", "dataclasses", "pathlib", "typing", "collections.abc"}
-COLLECT_NAMES = {"_REPO", "_SHA", "MissingCommit", "Tick", "Unknown", "_positive_int", "_skipped"}
+STDLIB_OK = {"__future__", "json", "logging", "os", "re", "time", "dataclasses", "pathlib", "typing", "collections.abc", "datetime"}
+COLLECT_NAMES = {"_REPO", "MissingCommit", "Tick", "Unknown", "_skipped"}
+FIELD_NAMES = set(vars(__import__("app.server.delivery_collect_fields", fromlist=["x"])))
 
 
-@pytest.mark.parametrize("module", ["delivery_collect", "delivery_collect_github"])
+@pytest.mark.parametrize("module", ["delivery_collect", "delivery_collect_github", "delivery_collect_fields"])
 def test_t10_collector_source_references_only_read_helpers(module: str) -> None:
     tree = ast.parse((REPO_ROOT / f"app/server/{module}.py").read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             assert {a.name for a in node.names} <= STDLIB_OK
         elif isinstance(node, ast.ImportFrom):
-            if node.level and node.module == "delivery_collect":
-                assert module == "delivery_collect_github" and {a.name for a in node.names} <= COLLECT_NAMES
+            if node.level and node.module in ("delivery_collect", "delivery_collect_fields"):  # pure validators only
+                assert {a.name for a in node.names} <= (FIELD_NAMES if node.module.endswith("_fields") else
+                                                        COLLECT_NAMES if module == "delivery_collect_github" else set())
             elif node.level:
                 assert node.module is None and {a.name for a in node.names} <= set(ALLOWED_ATTRS)
             else:

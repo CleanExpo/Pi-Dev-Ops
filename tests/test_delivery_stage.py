@@ -176,7 +176,7 @@ def test_repo_record_shape_and_mission_id() -> None:
 WRITE_MODULES = ("supabase", "ticket_sweeper_write", "session_linear", "ship_gate", "telegram", "slack",
                  "linear_pulse", "delivery_collect_github")
 STDLIB_OK = {"__future__", "os", "re", "datetime", "typing", "collections.abc", "dataclasses", "math"}
-RELATIVE_OK = {"delivery_closure", "delivery_stage_facts"}
+RELATIVE_OK = {"delivery_closure", "delivery_stage_facts", "delivery_collect_fields"}
 
 
 @pytest.mark.parametrize("module", ["delivery_stage", "delivery_stage_facts"])

@@ -7,9 +7,11 @@ imports from ``delivery_collect``; ``delivery_collect`` never imports this modul
 from __future__ import annotations
 
 from . import ticket_sweeper_io
-from .delivery_collect import _REPO, _SHA, MissingCommit, Tick, Unknown, _positive_int, _skipped
-
-_STATUS_STATES = frozenset({"success", "pending", "failure", "error"})
+from .delivery_collect import _REPO, MissingCommit, Tick, Unknown, _skipped
+from .delivery_collect_fields import (
+    CHECK_CONCLUSIONS, CHECK_STATUSES, COMPARE_STATUSES, PULL_STATES, REVIEW_STATES, STATUS_STATES, USER_TYPES,
+    count, flag, is_instant, login, maybe, member, no_commit, positive_int, sha,
+)
 
 
 def _get(repo: str, path: str, tick: Tick, *, missing_on_404: bool = False,
@@ -27,18 +29,14 @@ def _get(repo: str, path: str, tick: Tick, *, missing_on_404: bool = False,
         raise Unknown(f"http_{code}" if isinstance(code, int) else f"error_{type(exc).__name__}") from None
 
 
-def _count(value: object) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
-
-
 def _page(data: object, key: str | None, identity: str, item: str) -> tuple[list[dict], object]:
     """One page's items and ``total_count``; every item must carry a valid identity."""
     batch = data.get(key) if key and isinstance(data, dict) else data
     total = data.get("total_count") if key and isinstance(data, dict) else None
     if not isinstance(batch, list) or not all(isinstance(b, dict) for b in batch) \
-            or (key and not _count(total)):
+            or (key and not count(total)):
         raise Unknown("malformed_list")
-    if not all(_positive_int(b.get(identity)) for b in batch):
+    if not all(positive_int(b.get(identity)) for b in batch):
         raise Unknown(f"malformed_{item}")
     return batch, total
 
@@ -68,39 +66,44 @@ def _paged(repo: str, path: str, tick: Tick, *, identity: str, item: str, key: s
     raise Unknown("list_too_long")
 
 
+# The one owner of "this is a commit SHA" for every GitHub path (list and single item alike).
 def _sha(value: object, missing: str) -> str:
-    if value in (None, ""):
+    """Absent, null or empty: ``MissingCommit(missing)`` (spec row 4). Present but not 40-hex: Unknown."""
+    if no_commit(value):
         raise MissingCommit(missing)
-    if not isinstance(value, str) or not _SHA.fullmatch(value):
+    checked = sha(value)
+    if checked is None:
         raise Unknown("malformed_sha")
-    return value.lower()
+    return checked
+
+
+def _head(pr: dict) -> str | None:
+    """The head SHA, or None when the pull names no head commit (the consumer reports MISSING_COMMIT)."""
+    head = pr.get("head")
+    if not isinstance(head, (dict, type(None))):
+        raise Unknown("malformed_pull")
+    value = head.get("sha") if isinstance(head, dict) else None
+    return None if no_commit(value) else _sha(value, "empty_head")
 
 
 # One owner for the item rule: every item of every GitHub list is checked here, and one malformed
 # item fails the whole read with a reason code. Callers never filter; they use what is returned.
-def _opt_text(value: object) -> bool:
-    return value is None or isinstance(value, str)
-
-
 def _author(item: dict, code: str) -> tuple[str | None, str | None]:
     user = item.get("user")
     if user is None:
         return None, None  # no author: never a bot, so never counted away
-    if not isinstance(user, dict) or not _opt_text(user.get("login")) or not _opt_text(user.get("type")):
+    if not isinstance(user, dict) or not login(user.get("login")) or not member(user.get("type"), USER_TYPES):
         raise Unknown(code)
-    return user.get("login"), user.get("type")
+    return user["login"], user["type"]
 
 
 def _pull_common(pr: dict) -> dict:
-    """The fields every pull read relies on, checked; raises ``malformed_pull``."""
-    head = pr.get("head")
-    sha = head.get("sha") if isinstance(head, dict) else None
-    if not isinstance(head, (dict, type(None))) or not _opt_text(sha) or not _opt_text(pr.get("created_at")) \
-            or not isinstance(pr.get("draft", False), bool):
+    """The fields every pull read relies on, checked; raises ``malformed_pull`` or ``malformed_sha``."""
+    if not flag(pr.get("draft")) or not is_instant(pr.get("created_at")):
         raise Unknown("malformed_pull")
-    login, kind = _author(pr, "malformed_pull")
-    return {"draft": pr.get("draft") is True, "created_at": pr.get("created_at"), "author_login": login,
-            "author_type": kind, "head_sha": sha or ""}
+    login_, kind = _author(pr, "malformed_pull")
+    return {"draft": pr["draft"], "created_at": pr["created_at"], "author_login": login_, "author_type": kind,
+            "head_sha": _head(pr)}
 
 
 def open_prs(repo: str, *, tick: Tick) -> list[dict]:
@@ -110,43 +113,47 @@ def open_prs(repo: str, *, tick: Tick) -> list[dict]:
 
 
 def _pull_facts(pr: object, number: int) -> dict:
-    if not isinstance(pr, dict) or pr.get("state") not in ("open", "closed") \
-            or not isinstance(pr.get("merged"), bool) or not _opt_text(pr.get("merged_at")):
+    if not isinstance(pr, dict) or not member(pr.get("state"), PULL_STATES) or not flag(pr.get("merged")) \
+            or not maybe(pr.get("merged_at"), is_instant):
         raise Unknown("malformed_pull")
-    if not _positive_int(pr.get("number")) or pr["number"] != number:
+    if pr["merged"] and (pr["state"] != "closed" or pr.get("merged_at") is None):
+        raise Unknown("malformed_pull")  # a merge with no time, or an open merged pull, is not a merge read
+    if not positive_int(pr.get("number")) or pr["number"] != number:
         raise Unknown("pull_mismatch")  # an answer about another pull is not this pull's evidence
     return {**_pull_common(pr), "state": "merged" if pr["merged"] else pr["state"],
             "merged_at": pr.get("merged_at"), "merge_sha": pr.get("merge_commit_sha") if pr["merged"] else None}
 
 
 def _check_run(run: dict) -> dict:
-    if not isinstance(run.get("status"), str) or not _opt_text(run.get("conclusion")) \
-            or not _opt_text(run.get("completed_at")):
+    if not member(run.get("status"), CHECK_STATUSES) or not maybe(run.get("conclusion"),
+                                                                    lambda v: member(v, CHECK_CONCLUSIONS)) \
+            or not maybe(run.get("completed_at"), is_instant):
         raise Unknown("malformed_check_run")
     return {"status": run["status"], "conclusion": run.get("conclusion"), "completed_at": run.get("completed_at")}
 
 
 def _review(review: dict) -> dict:
     """A review must name its login: a nameless verdict could hide another reviewer's block."""
-    login = _author(review, "malformed_review")[0]
-    if not login or not isinstance(review.get("state"), str) or not _opt_text(review.get("commit_id")) \
-            or not _opt_text(review.get("submitted_at")):
+    name = _author(review, "malformed_review")[0]
+    state, when = review.get("state"), review.get("submitted_at")
+    if not name or not member(state, REVIEW_STATES) or not maybe(review.get("commit_id"), sha) \
+            or not (is_instant(when) or (when is None and state == "PENDING")):
         raise Unknown("malformed_review")
-    return {"login": login, "state": review["state"], "commit_id": review.get("commit_id"),
+    return {"login": name, "state": state, "commit_id": sha(review.get("commit_id")),
             "submitted_at": review.get("submitted_at")}
 
 
-def _commit(repo: str, sha: str, tick: Tick, not_found: str) -> None:
+def _commit(repo: str, commit: str, tick: Tick, not_found: str) -> None:
     """The commit exists and the answer names it; any other answer is not proof it exists."""
-    data = _get(repo, f"/commits/{sha}", tick, missing_on_404=True, not_found=not_found)
+    data = _get(repo, f"/commits/{commit}", tick, missing_on_404=True, not_found=not_found)
     named = data.get("sha") if isinstance(data, dict) else None
-    if not isinstance(named, str) or named.lower() != sha:
+    if sha(named) != commit:
         raise Unknown("commit_mismatch")
 
 
 def _status(data: object) -> dict:
     """Combined status: only ``state`` and ``total_count`` are used, never the paged ``statuses``."""
-    if not isinstance(data, dict) or data.get("state") not in _STATUS_STATES or not _count(data.get("total_count")):
+    if not isinstance(data, dict) or not member(data.get("state"), STATUS_STATES) or not count(data.get("total_count")):
         raise Unknown("malformed_status")
     return {"state": data["state"], "total_count": data["total_count"]}
 
@@ -160,11 +167,11 @@ def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
         _commit(repo, facts["merge_sha"], tick, "merge_not_found")
     if facts["state"] != "open":  # merged read its merge commit above; closed-unmerged has no deciding commit
         return facts
-    sha = facts["head_sha"] = _sha(facts["head_sha"], "empty_head")
-    _commit(repo, sha, tick, "head_not_found")
-    facts["check_runs"] = [_check_run(r) for r in _paged(repo, f"/commits/{sha}/check-runs?", tick, identity="id",
+    head = facts["head_sha"] = _sha(facts["head_sha"], "empty_head")
+    _commit(repo, head, tick, "head_not_found")
+    facts["check_runs"] = [_check_run(r) for r in _paged(repo, f"/commits/{head}/check-runs?", tick, identity="id",
                                                          item="check_run", key="check_runs")]
-    facts["status"] = _status(_get(repo, f"/commits/{sha}/status", tick))
+    facts["status"] = _status(_get(repo, f"/commits/{head}/status", tick))
     facts["reviews"] = [_review(r) for r in _paged(repo, f"/pulls/{number}/reviews?", tick, identity="id",
                                                    item="review")]
     return facts
@@ -174,6 +181,6 @@ def compare_status(repo: str, base: str, head: str, *, tick: Tick) -> str:
     """GitHub compare ``base...head`` status; the stage decides what counts as contained."""
     data = _get(repo, f"/compare/{_sha(base, 'no_base')}...{_sha(head, 'no_head')}", tick)
     status = data.get("status") if isinstance(data, dict) else None
-    if status not in ("identical", "ahead", "behind", "diverged"):
+    if not member(status, COMPARE_STATUSES):
         raise Unknown("malformed_compare")
     return status

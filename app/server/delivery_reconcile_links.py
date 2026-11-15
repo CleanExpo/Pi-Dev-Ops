@@ -11,6 +11,7 @@ from typing import Any
 from . import delivery_collect as collect
 from . import delivery_collect_github as collect_github
 from . import delivery_stage, ticket_sweeper_io
+from .delivery_collect_fields import linear_links
 
 _NO_LIVE: dict[str, Any] = {"revision": None, "compare": {}}
 
@@ -55,6 +56,8 @@ def _live(run: Any, entry: dict, prs: list[dict] | None) -> dict[str, Any]:
 def _linked_prs(run: Any, issue: dict) -> list[dict] | None:
     """The mission's in-scope PR evidence; None when its link list did not arrive whole."""
     try:
+        if not linear_links(issue):  # the link fields' domain, checked before ``pr_refs`` reads them
+            raise collect.Unknown("malformed_links")
         refs = ticket_sweeper_io.pr_refs(issue)
         kept, dropped = collect.in_scope(refs, run.registry.allowed) if refs is not None else ([], 0)
     except (collect.Unknown, TypeError, AttributeError):  # a link field that is not text, or a bad ref
