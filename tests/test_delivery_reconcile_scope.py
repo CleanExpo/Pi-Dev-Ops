@@ -36,7 +36,9 @@ def test_f1_real_registry_complete_and_retention(monkeypatch: pytest.MonkeyPatch
     assert "oh-my-codex" in out["unqueryable_projects"]
     state = _state(st)
     assert state["checkpoint"]["last_complete"] == NOW.timestamp()
-    assert "GONE-1" not in state["missions"] and "k-gone" not in state["alerts"]
+    # B5g round 2: its project is not in the registry, so it was never read: held, never retired.
+    assert state["missions"]["GONE-1"] == planted["missions"]["GONE-1"] and "k-gone" in state["alerts"]
+    assert out["not_refreshed_ids"] == ["GONE-1"]
     assert len(st.gql) == len(registry.queryable) and st.net == []
     assert [p for p in st.github if "ccw" in p.lower()] == []
 

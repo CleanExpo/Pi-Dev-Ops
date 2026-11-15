@@ -15,13 +15,16 @@ _NO_EVIDENCE = frozenset({"neutral", "skipped"})  # a settled run that tested no
 
 
 class Unclassifiable(Exception):
-    """The evidence cannot place this record; ``stage`` is "unknown" or "missing_commit"."""
+    """The evidence cannot place this record; ``stage`` is "unknown" or "missing_commit". ``verdict`` is True
+    only on a named judgement of valid, whole input; the default (False) means the INPUT was refused."""
 
-    def __init__(self, reason: str, stage: str = "unknown", item: dict | None = None) -> None:
+    def __init__(self, reason: str, stage: str = "unknown", item: dict | None = None, *,
+                 verdict: bool = False) -> None:
         super().__init__(reason)
         self.reason = reason
         self.stage = stage
         self.item = item
+        self.verdict = verdict
 
 
 def parse_ts(value: object) -> datetime:
@@ -67,12 +70,13 @@ def item_state(item: dict) -> str:
 
 def commit_of(item: dict, state: str) -> str:
     """The head SHA of an open PR or the merge SHA of a merged one; raises MISSING_COMMIT."""
-    if "error" in item:
-        raise Unclassifiable(str(item.get("reason") or "missing_commit"), "missing_commit", item)
+    if "error" in item:  # an answer read whole that names no commit is a verdict; a failed read is not
+        raise Unclassifiable(str(item.get("reason") or "missing_commit"), "missing_commit", item,
+                             verdict=read_whole(item))
     value, missing = (item.get("head_sha"), "empty_head") if state == "open" else \
         (item.get("merge_sha"), "no_merge_sha")
     if value in (None, ""):
-        raise Unclassifiable(missing, "missing_commit", item)
+        raise Unclassifiable(missing, "missing_commit", item, verdict=True)
     sha = sha_or_none(value)
     if sha is None:
         raise Unclassifiable("malformed_sha")

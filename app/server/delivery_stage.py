@@ -195,7 +195,7 @@ def _open_row(ctx: _Ctx, pr: dict, issue_state: str, now: datetime) -> tuple[dic
             (created, "pr_created_at")
         return _finish(ctx, now, Stage.BUILDING, since, source, **base)
     if checks == "none":
-        raise Unclassifiable("no_ci", item=pr)
+        raise Unclassifiable("no_ci", item=pr, verdict=True)
     if verdicts.approval is not None:
         return _finish(ctx, now, Stage.APPROVAL_WAIT, parse_ts(verdicts.approval.get("submitted_at")),
                        "review_submitted_at", **base)
@@ -240,7 +240,7 @@ def _classify(ctx: _Ctx, live: dict, now: datetime) -> tuple[dict, list[dict]]:
     state = ctx.issue.get("state")
     state = state.get("type") if isinstance(state, dict) else None
     if state not in ("started", "completed"):
-        raise Unclassifiable("bad_issue_state")
+        raise Unclassifiable("bad_issue_state", verdict=isinstance(state, str))  # a valid state not placed
     for name in ("startedAt", "completedAt"):  # null: not started / not completed; present must parse (row 1)
         if ctx.issue.get(name) is not None:
             parse_ts(ctx.issue[name])
@@ -257,21 +257,28 @@ def _classify(ctx: _Ctx, live: dict, now: datetime) -> tuple[dict, list[dict]]:
     opened = [item for item, s in kept if s == "open"]
     merged = [item for item, s in kept if s == "merged"]
     if len(opened) > 1 or (opened and merged):
-        raise Unclassifiable("multiple_prs")
+        raise Unclassifiable("multiple_prs", verdict=True)  # distinct pulls, every one read whole
     return _open_row(ctx, opened[0], state, now) if opened else _merged_row(ctx, merged, live, now)
+
+
+def judge(issue: dict | None, prs: list[dict] | None, live: dict, now: datetime, *, repo: str,
+          project_id: str, first_seen: float | None = None) -> tuple[dict, list[dict], bool]:
+    """``classify`` plus whether its input was valid. Fails closed: False whenever the classifier refused
+    its input; True only for a placed record or a refusal marked ``verdict``."""
+    ctx = _context(issue, prs, repo, project_id)
+    try:
+        return (*_classify(ctx, live, now), True)
+    except Unclassifiable as exc:
+        return (*_unknown(ctx, exc, now, first_seen), exc.verdict)
+    except (TypeError, ValueError, KeyError, AttributeError, IndexError):
+        return (*_unknown(ctx, Unclassifiable("bad_input"), now, first_seen), False)
 
 
 def classify(issue: dict | None, prs: list[dict] | None, live: dict, now: datetime, *,
              repo: str, project_id: str, first_seen: float | None = None) -> tuple[dict, list[dict]]:
     """One record and its findings for a mission (``issue``) or an orphan PR (``issue is None``).
     Never raises for bad input data: such a record is UNKNOWN with a reason code."""
-    ctx = _context(issue, prs, repo, project_id)
-    try:
-        return _classify(ctx, live, now)
-    except Unclassifiable as exc:
-        return _unknown(ctx, exc, now, first_seen)
-    except (TypeError, ValueError, KeyError, AttributeError, IndexError):
-        return _unknown(ctx, Unclassifiable("bad_input"), now, first_seen)
+    return judge(issue, prs, live, now, repo=repo, project_id=project_id, first_seen=first_seen)[:2]
 
 
 def repo_findings(repo: str, merged_unverifiable: int, vercel_sha: str | None) -> tuple[dict, list[dict]]:

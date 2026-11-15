@@ -88,7 +88,7 @@ def _read_missions(run: Run) -> list[tuple[dict, dict]]:
     since = (run.now - LOOKBACK).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     out: list[tuple[dict, dict]] = []
     seen: set[str] = set()
-    gaps: set[str] = set()
+    read_whole: set[str] = set()  # the projects read WHOLE this tick
     for entry in run.registry.queryable:
         try:
             read = collect.fetch_missions(run.api_key, entry, tick=run.tick, since=since)
@@ -100,20 +100,22 @@ def _read_missions(run: Run) -> list[tuple[dict, dict]]:
         if not whole:
             run.linear_whole = False
             run.summary["incomplete"][entry["id"]] = reason or "incomplete"
-            gaps.add(entry["id"])
+        else:
+            read_whole.add(entry["id"])
         for issue in issues:  # the collector checked every node; no filter here
             if issue["identifier"] not in seen:  # two registry entries on one project: the first owns it
                 seen.add(issue["identifier"])
                 out.append((entry, issue))
-    _hold_unseen(run, gaps, seen)
+    _hold_unseen(run, read_whole, seen)
     return out
 
 
-def _hold_unseen(run: Run, gaps: set[str], seen: set[str]) -> None:
-    """A project whose Linear read was not whole: each stored mission of it not seen this tick was never
-    read, so it is held and its stored record stays exactly as it was (spec line 112)."""
+def _hold_unseen(run: Run, whole: set[str], seen: set[str]) -> None:
+    """Fail closed: a stored mission not seen this tick whose own project was not read WHOLE (a partial or
+    failed read, unqueryable, skipped or gone from the registry) was never read, so it is held and its
+    stored record stays exactly as it was (spec line 112). Only a whole read of its project retires it."""
     for rid, rec in run.state.get("missions", {}).items():
-        if isinstance(rec, dict) and rec.get("kind") == "mission" and rec.get("project_id") in gaps \
+        if isinstance(rec, dict) and rec.get("kind") == "mission" and rec.get("project_id") not in whole \
                 and rid not in seen:
             run.keep_stored(rid)
 

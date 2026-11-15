@@ -12,7 +12,7 @@ from typing import Any
 from . import delivery_collect as collect
 from . import delivery_collect_github as collect_github
 from . import delivery_stage, ticket_sweeper_io
-from .delivery_collect_fields import is_instant, linear_links, maybe
+from .delivery_collect_fields import linear_links
 from .delivery_stage_facts import read_whole
 
 _NO_LIVE: dict[str, Any] = {"revision": None, "compare": {}}
@@ -90,14 +90,10 @@ def _refs(run: Any, issue: dict) -> list[tuple[str, int]] | None:
     return kept
 
 
-_ISSUE_TIMES = ("startedAt", "completedAt")  # the issue fields the collector leaves to the classifier (row 1)
-
-
-def _read_whole(issue: dict, prs: list[dict] | None, live: dict[str, Any]) -> bool:
-    """THE hold fact, decided from the reads alone, never from the verdict: the issue's own answer is valid,
-    the link list arrived whole, every pull read succeeded (``read_whole``) and every compare answered."""
-    times_ok = all(maybe(issue.get(name), is_instant) for name in _ISSUE_TIMES)
-    return times_ok and prs is not None and all(read_whole(p) for p in prs) \
+def _read_whole(input_ok: bool, prs: list[dict] | None, live: dict[str, Any]) -> bool:
+    """THE hold fact, fail closed: the classifier accepted its input (``delivery_stage.judge``), the link
+    list arrived whole, every pull read succeeded (``read_whole``) and every compare answered."""
+    return input_ok and prs is not None and all(read_whole(p) for p in prs) \
         and None not in live["compare"].values()
 
 
@@ -119,10 +115,10 @@ def mission(run: Any, entry: dict, issue: dict) -> None:
         prs, live = [_error_item(run, repo, n, "unknown", "clock") for repo, n in refs or []], dict(_NO_LIVE)
     prs = _compare_failed(run, prs, live)
     old = run.stored(rid) or {}
-    record, found = delivery_stage.classify(issue, prs, live, run.now, repo=entry["repo"],
-                                            project_id=entry["id"], first_seen=old.get("first_seen"))
+    record, found, input_ok = delivery_stage.judge(issue, prs, live, run.now, repo=entry["repo"],
+                                                   project_id=entry["id"], first_seen=old.get("first_seen"))
     run.take(record, found)
-    if not _read_whole(issue, prs, live):
+    if not _read_whole(input_ok, prs, live):
         run.hold(rid)
         run.claim(refs)
 
