@@ -7,7 +7,7 @@ imports from ``delivery_collect``; ``delivery_collect`` never imports this modul
 from __future__ import annotations
 
 from . import ticket_sweeper_io
-from .delivery_collect import _REPO, _SHA, MissingCommit, Tick, Unknown, _skipped
+from .delivery_collect import _REPO, _SHA, MissingCommit, Tick, Unknown, _positive_int, _skipped
 
 
 def _get(repo: str, path: str, tick: Tick, *, missing_on_404: bool = False,
@@ -51,32 +51,68 @@ def _sha(value: object, missing: str) -> str:
     return value.lower()
 
 
-def _author(pr: dict) -> tuple[str | None, str | None]:
-    user = pr.get("user") if isinstance(pr.get("user"), dict) else {}
+# One owner for the item rule: every item of every GitHub list is checked here, and one malformed
+# item fails the whole read with a reason code. Callers never filter; they use what is returned.
+def _opt_text(value: object) -> bool:
+    return value is None or isinstance(value, str)
+
+
+def _author(item: dict, code: str) -> tuple[str | None, str | None]:
+    user = item.get("user")
+    if user is None:
+        return None, None  # no author: never a bot, so never counted away
+    if not isinstance(user, dict) or not _opt_text(user.get("login")) or not _opt_text(user.get("type")):
+        raise Unknown(code)
     return user.get("login"), user.get("type")
 
 
+def _pull_common(pr: dict) -> dict:
+    """The fields every pull read relies on, checked; raises ``malformed_pull``."""
+    head = pr.get("head")
+    sha = head.get("sha") if isinstance(head, dict) else None
+    if not isinstance(head, (dict, type(None))) or not _opt_text(sha) or not _opt_text(pr.get("created_at")) \
+            or not isinstance(pr.get("draft", False), bool):
+        raise Unknown("malformed_pull")
+    login, kind = _author(pr, "malformed_pull")
+    return {"draft": pr.get("draft") is True, "created_at": pr.get("created_at"), "author_login": login,
+            "author_type": kind, "head_sha": sha or ""}
+
+
 def open_prs(repo: str, *, tick: Tick) -> list[dict]:
-    """Every open PR in a swept repo, as minimal facts (no titles or bodies)."""
+    """Every open PR in a swept repo, as minimal facts (no titles or bodies). Whole or raise."""
     out = []
     for pr in _paged(repo, "/pulls?state=open&", tick):
-        login, kind = _author(pr)
-        out.append({"number": pr.get("number"), "draft": pr.get("draft") is True,
-                    "created_at": pr.get("created_at"), "author_login": login, "author_type": kind,
-                    "head_sha": (pr.get("head") or {}).get("sha") or ""})
+        if not _positive_int(pr.get("number")):
+            raise Unknown("malformed_pull")
+        out.append({"number": pr["number"], **_pull_common(pr)})
+    if len({item["number"] for item in out}) < len(out):
+        raise Unknown("duplicate_pull")  # a shifted page may have skipped one
     return out
 
 
 def _pull_facts(pr: object) -> dict:
     if not isinstance(pr, dict) or pr.get("state") not in ("open", "closed") \
-            or not isinstance(pr.get("merged"), bool):
+            or not isinstance(pr.get("merged"), bool) or not _opt_text(pr.get("merged_at")):
         raise Unknown("malformed_pull")
-    state = "merged" if pr["merged"] else pr["state"]
-    login, kind = _author(pr)
-    return {"state": state, "draft": pr.get("draft") is True, "created_at": pr.get("created_at"),
-            "merged_at": pr.get("merged_at"), "author_login": login, "author_type": kind,
-            "head_sha": (pr.get("head") or {}).get("sha") or "",
-            "merge_sha": pr.get("merge_commit_sha") if pr["merged"] else None}
+    return {**_pull_common(pr), "state": "merged" if pr["merged"] else pr["state"],
+            "merged_at": pr.get("merged_at"), "merge_sha": pr.get("merge_commit_sha") if pr["merged"] else None}
+
+
+def _check_run(run: dict) -> dict:
+    if not isinstance(run.get("status"), str) or not _opt_text(run.get("conclusion")) \
+            or not _opt_text(run.get("completed_at")):
+        raise Unknown("malformed_check_run")
+    return {"status": run["status"], "conclusion": run.get("conclusion"), "completed_at": run.get("completed_at")}
+
+
+def _review(review: dict) -> dict:
+    """A review must name its login: a nameless verdict could hide another reviewer's block."""
+    login = _author(review, "malformed_review")[0]
+    if not login or not isinstance(review.get("state"), str) or not _opt_text(review.get("commit_id")) \
+            or not _opt_text(review.get("submitted_at")):
+        raise Unknown("malformed_review")
+    return {"login": login, "state": review["state"], "commit_id": review.get("commit_id"),
+            "submitted_at": review.get("submitted_at")}
 
 
 def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
@@ -90,17 +126,13 @@ def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
         return facts
     sha = facts["head_sha"] = _sha(facts["head_sha"], "empty_head")
     _get(repo, f"/commits/{sha}", tick, missing_on_404=True)
-    facts["check_runs"] = [{"status": r.get("status"), "conclusion": r.get("conclusion"),
-                            "completed_at": r.get("completed_at")}
-                           for r in _paged(repo, f"/commits/{sha}/check-runs?", tick, "check_runs")]
+    facts["check_runs"] = [_check_run(r) for r in _paged(repo, f"/commits/{sha}/check-runs?", tick, "check_runs")]
     status = _get(repo, f"/commits/{sha}/status", tick)
     if not isinstance(status, dict) or not isinstance(status.get("state"), str) \
             or not isinstance(status.get("total_count"), int):
         raise Unknown("malformed_status")
     facts["status"] = {"state": status["state"], "total_count": status["total_count"]}
-    facts["reviews"] = [{"login": _author(r)[0], "state": r.get("state"), "commit_id": r.get("commit_id"),
-                         "submitted_at": r.get("submitted_at")}
-                        for r in _paged(repo, f"/pulls/{number}/reviews?", tick)]
+    facts["reviews"] = [_review(r) for r in _paged(repo, f"/pulls/{number}/reviews?", tick)]
     return facts
 
 

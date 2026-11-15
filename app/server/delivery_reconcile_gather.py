@@ -90,16 +90,16 @@ def _read_missions(run: Run) -> list[tuple[dict, dict]]:
         if not whole:
             run.linear_whole = False
             run.summary["incomplete"][entry["id"]] = reason or "incomplete"
-        for issue in issues:
-            ident = issue.get("identifier") if isinstance(issue, dict) else None
-            if isinstance(ident, str) and ident not in seen:
-                seen.add(ident)
+        for issue in issues:  # the collector checked every node; no filter here
+            if issue["identifier"] not in seen:  # two registry entries on one project: the first owns it
+                seen.add(issue["identifier"])
                 out.append((entry, issue))
     return out
 
 
 def _sweep(run: Run) -> None:
-    """Every swept repo's open PRs; any failure makes the tick incomplete."""
+    """Every swept repo's open PRs; any failure makes the tick incomplete. The collector checked
+    every item; nothing is filtered here."""
     for repo in run.registry.swept:
         try:
             items = links.open_prs(repo, run.tick)
@@ -107,8 +107,7 @@ def _sweep(run: Run) -> None:
             run.sweep_whole = False
             run.summary["incomplete"][repo] = exc.reason
             continue
-        run.sweep[repo.lower()] = {i["number"]: {**i, "repo": repo} for i in items
-                                   if isinstance(i.get("number"), int) and not isinstance(i["number"], bool)}
+        run.sweep[repo.lower()] = {i["number"]: {**i, "repo": repo} for i in items}
 
 
 def _oldest_first(run: Run, missions: list[tuple[dict, dict]]) -> list[tuple[dict, dict]]:

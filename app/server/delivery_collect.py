@@ -185,14 +185,18 @@ query DeliveryMissions($projectId: String!, $since: DateTimeOrDuration!, $cursor
 """
 
 
+def _text(value: object) -> bool:
+    return isinstance(value, str) and bool(value)
+
+
 def _issue_page(data: object) -> tuple[list[dict], str | None] | None:
-    """(nodes, next cursor or None), or None when the page is malformed."""
+    """(nodes, next cursor or None), or None when the page or any node in it is malformed."""
     conn = ((data or {}).get("project") or {}).get("issues") if isinstance(data, dict) else None
     page = conn.get("pageInfo") if isinstance(conn, dict) else None
     nodes = conn.get("nodes") if isinstance(page, dict) else None
     if not isinstance(nodes, list) or not isinstance(page.get("hasNextPage"), bool):
         return None
-    if not all(isinstance(n, dict) and n.get("id") and n.get("identifier") for n in nodes):
+    if not all(isinstance(n, dict) and _text(n.get("id")) and _text(n.get("identifier")) for n in nodes):
         return None
     cursor = page.get("endCursor") if page["hasNextPage"] else None
     if page["hasNextPage"] and (not isinstance(cursor, str) or not cursor):
@@ -205,6 +209,7 @@ def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> Miss
     if _skipped(entry.get("repo")) or not entry.get("linear_project_id"):
         raise Unknown("not_queryable")
     issues: list[dict] = []
+    seen: set[str] = set()
     cursor = None
     for _ in range(_MAX_PAGES):
         if autonomy_linear_rate.linear_rate_limited():
@@ -218,6 +223,10 @@ def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> Miss
             return MissionRead(issues, False, f"error_{type(exc).__name__}")
         if page is None:
             return MissionRead(issues, False, "malformed_page")
+        idents = [n["identifier"] for n in page[0]]
+        if len(set(idents)) < len(idents) or seen.intersection(idents):
+            return MissionRead(issues, False, "duplicate_issue")  # a shifted page may have skipped one
+        seen.update(idents)
         issues.extend(page[0])
         cursor = page[1]
         if cursor is None:
@@ -225,8 +234,17 @@ def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> Miss
     return MissionRead(issues, False, "too_many_pages")
 
 
+def _positive_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
 def in_scope(refs: list[tuple[str, int]], allowed: frozenset[str] | set[str]) -> tuple[list[tuple[str, int]], int]:
-    """Keep refs to in-scope repos; count the rest without recording them (R2-3)."""
+    """Keep refs to in-scope repos; count the rest without recording them (R2-3).
+    One malformed ref fails the whole list (``malformed_ref``); nothing is filtered silently."""
+    if not isinstance(refs, list) or not all(
+            isinstance(r, tuple) and len(r) == 2 and isinstance(r[0], str) and _REPO.fullmatch(r[0])
+            and _positive_int(r[1]) for r in refs):
+        raise Unknown("malformed_ref")
     wanted = {a.lower() for a in allowed} - SKIP_REPOS
     kept = [(repo, n) for repo, n in refs if repo.lower() in wanted]
     return kept, len(refs) - len(kept)
@@ -249,13 +267,18 @@ def vercel_latest_ready(entry: dict, *, tick: Tick) -> str | None:
     deployments = data.get("deployments") if isinstance(data, dict) else None
     if not isinstance(deployments, list):
         raise Unknown("malformed_deployments")
-    ready = [d for d in deployments if isinstance(d, dict) and d.get("state") == "READY"]
-    if any(not isinstance(d.get("created"), (int, float)) for d in ready):
+    if not all(isinstance(d, dict) and isinstance(d.get("state"), str) for d in deployments):
+        raise Unknown("malformed_deployments")
+    ready = [d for d in deployments if d.get("state") == "READY"]  # not READY: a business skip
+    if any(not isinstance(d.get("created"), (int, float)) or isinstance(d.get("created"), bool) for d in ready):
         raise Unknown("malformed_deployments")
     if not ready:
         return None
-    sha = (max(ready, key=lambda d: d["created"]).get("meta") or {}).get("githubCommitSha")
-    return sha.lower() if isinstance(sha, str) and _SHA.fullmatch(sha) else None
+    meta = max(ready, key=lambda d: d["created"]).get("meta")
+    sha = meta.get("githubCommitSha") if isinstance(meta, dict) else None
+    if not isinstance(meta, (dict, type(None))) or not (sha is None or (isinstance(sha, str) and _SHA.fullmatch(sha))):
+        raise Unknown("malformed_deployments")
+    return sha.lower() if sha is not None else None  # no commit SHA: not built from a commit
 
 
 def own_revision() -> str | None:

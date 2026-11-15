@@ -54,14 +54,17 @@ def _live(run: Any, entry: dict, prs: list[dict] | None) -> dict[str, Any]:
 
 def _linked_prs(run: Any, issue: dict) -> list[dict] | None:
     """The mission's in-scope PR evidence; None when its link list did not arrive whole."""
-    refs = ticket_sweeper_io.pr_refs(issue)
+    try:
+        refs = ticket_sweeper_io.pr_refs(issue)
+        kept, dropped = collect.in_scope(refs, run.registry.allowed) if refs is not None else ([], 0)
+    except (collect.Unknown, TypeError, AttributeError):  # a link field that is not text, or a bad ref
+        refs = None
     if refs is None:
         run.links_whole = False
         return None
-    kept, dropped = collect.in_scope(refs, run.registry.allowed)
     run.summary["refs_outside_scope"] += dropped
-    run.linked.update((repo.lower(), int(n)) for repo, n in kept)
-    return [_evidence(run, repo, int(n)) for repo, n in kept]
+    run.linked.update((repo.lower(), n) for repo, n in kept)
+    return [_evidence(run, repo, n) for repo, n in kept]
 
 
 def mission(run: Any, entry: dict, issue: dict) -> None:

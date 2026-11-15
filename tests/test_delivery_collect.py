@@ -160,7 +160,7 @@ def test_t10_import_pulls_in_no_write_helper(module: str) -> None:
 ALLOWED_ATTRS = {"autonomy": {"_gql"}, "ticket_sweeper_io": {"github_get"}, "vercel_monitor": {"_vercel_get"},
                  "autonomy_linear_rate": {"linear_rate_limited"}, "config_loader": {"PROJECTS_JSON"}}
 STDLIB_OK = {"__future__", "json", "logging", "os", "re", "time", "dataclasses", "pathlib", "typing", "collections.abc"}
-COLLECT_NAMES = {"_REPO", "_SHA", "MissingCommit", "Tick", "Unknown", "_skipped"}
+COLLECT_NAMES = {"_REPO", "_SHA", "MissingCommit", "Tick", "Unknown", "_positive_int", "_skipped"}
 
 
 @pytest.mark.parametrize("module", ["delivery_collect", "delivery_collect_github"])
@@ -228,7 +228,7 @@ def test_e6_the_201st_github_get_is_not_made(fakes: SimpleNamespace) -> None:
 
 def test_e6_the_81st_linear_request_is_not_made(fakes: SimpleNamespace) -> None:
     tick = _tick()
-    fakes.gql_pages = [linear_page([issue("RA-1")], "more") for _ in range(200)]
+    fakes.gql_pages = [linear_page([issue(f"RA-{i}")], "more") for i in range(200)]  # unique: a repeat fails the read
     reasons = [dc.fetch_missions(API_KEY, ENTRY, tick=tick, since=SINCE).reason for _ in range(6)]
     assert len(fakes.gql) == 80 and reasons[-1] == "budget_linear"
 
