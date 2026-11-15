@@ -12,10 +12,18 @@ from datetime import datetime, timezone
 PIDEV = "CleanExpo/Pi-Dev-Ops"
 
 _PLACED = {"project_id": "", "repo": PIDEV, "ref": "", "stage": "building", "reason": None, "owner": None,
-           "since": None, "age_source": None, "counted": None, "prs": [], "pr_head_sha": None,
+           "since": "2026-11-14T00:00:00Z", "age_source": "pr_created_at", "counted": None,
+           "prs": [{"repo": PIDEV, "number": 1, "state": "open"}], "pr_head_sha": "a" * 40,
            "reviewed_head_sha": None, "authorised_head_sha": None, "merge_sha": None, "deployed_sha": None,
            "verified_sha": None, "tests_passed": False, "acceptance_passed": False, "live_source_provable": True,
            "approval_identity_unverified": False}
+_MERGED = [{"repo": PIDEV, "number": 1, "state": "merged"}]
+_STAGED = {  # what a real record of each stage also carries, so a planted record does not contradict itself
+    "done": {"age_source": "completedAt"}, "review_wait": {"tests_passed": True},
+    "approval_wait": {"age_source": "review_submitted_at", "tests_passed": True, "reviewed_head_sha": "a" * 40},
+    "merged": {"age_source": "merged_at", "merge_sha": "b" * 40, "prs": _MERGED},
+    "unknown": {"reason": "http_500"}, "missing_commit": {"reason": "empty_head"},
+}
 _STORED = {  # every field a real tick writes for each kind, written out here by hand (never read from the schema)
     "mission": {"kind": "mission", **_PLACED},
     "orphan_pr": {"kind": "orphan_pr", **_PLACED},
@@ -31,7 +39,17 @@ def stored(entry: dict, at: float = 1.0, *, alert: bool = False) -> dict:
     and last_seen, and for a classified record its ``refreshed_at``. No kind given means a mission."""
     kind = "alert" if alert else entry.get("kind", "mission")
     seen = {"first_seen": at, "last_seen": at, **({} if kind in ("alert", "repo") else {"refreshed_at": at})}
-    return {**copy.deepcopy(_STORED[kind]), **seen, **_named(kind, entry.get("id")), **entry}
+    staged = {} if kind in ("alert", "repo") else copy.deepcopy(_STAGED.get(entry.get("stage"), {}))
+    if kind == "orphan_pr":
+        staged.pop("prs", None)
+    return {**copy.deepcopy(_STORED[kind]), **seen, **_named(kind, entry.get("id")), **staged, **entry}
+
+
+def refusal(rid: str, stage: str = "unknown", at: float = 1.0) -> dict:
+    """The alert a real tick always stores beside a refused record (``delivery_stage._unknown``)."""
+    code = "MISSING_COMMIT" if stage == "missing_commit" else "EVIDENCE_UNKNOWN"
+    return stored({"key": f"refused:{rid}", "mission_id": rid, "code": code, "severity": "escalation", "ref": rid},
+                  at, alert=True)
 
 
 def _named(kind: str, rid: object) -> dict:

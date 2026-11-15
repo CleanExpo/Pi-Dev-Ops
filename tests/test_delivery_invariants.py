@@ -89,7 +89,8 @@ def real(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dict:
     assert out["persisted"] is True and out["complete"] is True, out
     state = json.loads(Path(st.path).read_text(encoding="utf-8"))
     assert {"RA-1", ORPHAN, REPO} <= set(state["missions"]) and state["alerts"] and schema.problems(state) == []
-    assert state["missions"]["RA-1"]["tests_passed"] is True  # the control the review-fields row relies on
+    mission = state["missions"]["RA-1"]  # the controls the planted contradictions rely on
+    assert mission["tests_passed"] is True and mission["stage"] == "review_wait" and mission["pr_head_sha"] == SHA_A
     return state
 
 
@@ -124,6 +125,13 @@ PLANTED: dict[str, Callable[[dict], None]] = {
     "review_fields_need_an_open_pull": _set(_MISSION, pr_head_sha=None),
     "since_has_its_source": lambda s: _alert(s).update(age_source=None),
     "repo_live_fields_agree": _set(lambda s: s["missions"][REPO], live_unconfirmed=SHA_A),
+    # the rows the pre-screen of 15a669d3 showed were missing
+    "tallies_are_stored_alerts": lambda s: s["summary"].update(by_code={"NO_SUCH": sum(s["summary"]["by_severity"].values())}),
+    "refused_has_its_alert": _set(_MISSION, stage="unknown", reason="http_500", age_source="startedAt", tests_passed=False),
+    "stage_fits_its_pulls": lambda s: _MISSION(s)["prs"][0].update(state="closed"),  # waiting on review of no open pull
+    "orphan_is_never_past_building": _set(lambda s: s["missions"][ORPHAN], stage="done", age_source="completedAt"),
+    "waiting_is_green_and_reviewed": _set(_MISSION, reviewed_head_sha=SHA_A),  # approved head, yet still review_wait
+    "age_source_fits_stage": _set(_MISSION, age_source="merged_at"),
 }
 MORE: list[tuple[str, Callable[[dict], None]]] = [  # other faces of the same rows
     ("never_run_is_empty", lambda s: (s.update(last_tick=None, summary=None, missions={}, alerts={}))),  # checkpoint left
@@ -153,9 +161,10 @@ def _planted(real: dict, change: Callable[[dict], None]) -> dict:
 
 
 def test_every_row_has_a_planted_contradiction() -> None:
-    names = [name for name, _rule, _holds in inv.STATE]
+    names = [name for name, _fields, _rule, _holds in inv.STATE]
     assert set(PLANTED) == set(names) and len(set(names)) == len(names)
-    assert all(rule for _name, rule, _holds in inv.STATE) and [limit[0] for limit in inv.LIMITS] == list("abcdefghij")
+    assert all(rule for _name, _fields, rule, _holds in inv.STATE)
+    assert [limit[0] for limit in inv.LIMITS] == list("abcdefghijklm")
 
 
 @pytest.mark.parametrize("row", sorted(PLANTED))

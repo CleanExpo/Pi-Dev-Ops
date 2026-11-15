@@ -19,7 +19,7 @@ from app.server import delivery_reconcile_store as store
 
 def _good() -> dict:
     state = store.empty_state()
-    state["missions"]["M"] = stored({"id": "M", "stage": "done", "prs": [{"repo": PIDEV, "number": 4, "state": "merged"}]})
+    state["missions"]["M"] = stored({"id": "M", "stage": "done", "prs": [{"repo": PIDEV, "number": 4, "state": "open"}]})
     state["alerts"]["K"] = stored({"key": "K", "mission_id": "M", "code": "X", "severity": "critical"}, alert=True)
     state["summary"] = tick_summary(NOW.timestamp() - 60, False, not_refreshed_ids=["M"])
     state["last_tick"] = NOW.timestamp() - 60
@@ -102,7 +102,7 @@ def test_a_state_the_store_writes_always_loads(tmp_path: Path) -> None:
 
 
 _RECORDS = [stored({"id": "M", "stage": "done", "project_id": "p", "repo": PIDEV,
-                    "prs": [{"repo": PIDEV, "number": 4, "state": "merged"}]}, 5.0),
+                    "prs": [{"repo": PIDEV, "number": 4, "state": "open"}]}, 5.0),
             stored({"id": f"pr:{PIDEV}#9", "kind": "orphan_pr", "stage": "building"}),
             stored({"id": f"repo:{PIDEV}", "kind": "repo", "stage": "repo", "live_source": "live_unconfirmed"})]
 _FINDINGS = [stored({"key": "K-M", "mission_id": "M", "code": "FALSE_DONE", "severity": "critical", "ref": "RA-1",

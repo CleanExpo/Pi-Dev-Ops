@@ -32,7 +32,7 @@ ENTRIES = [reg_entry("ato", ATO), reg_entry("ra", RA, queryable=False, vercel="p
 HEALTHY = {"building", "review_wait", "approval_wait", "merged", "done", "deploying", "verified"}
 PICK = {"sha": ("int", "not_hex"), "timestamp": ("int", "no_tz"), "enum": ("int", "unknown"), "bool": ("text",),
         "count": ("negative", "bool"), "posint": ("text", "zero"), "object": ("text",), "login": ("space",),
-        "text": ("int", "blank"), "text_any": ("int", "false"), "list": ("dict",)}
+        "text": ("int", "blank"), "text_any": ("int", "false"), "list": ("dict",), "null": ("time",)}
 P5 = f"/repos/{ATO}/pulls/5"
 CHECKS5 = f"/repos/{ATO}/commits/{SHA_A}/check-runs?per_page=100&page=1"
 REVIEW = {"id": 1, "user": {"login": FAKE_REVIEWER, "type": "User"}, "state": "APPROVED", "commit_id": SHA_A,

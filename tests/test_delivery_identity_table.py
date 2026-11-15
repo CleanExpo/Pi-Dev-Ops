@@ -185,6 +185,7 @@ def test_compare_head_side(monkeypatch: pytest.MonkeyPatch, status: str, commits
     else:
         body["commits"] = commits
         body["total_commits"] = len(commits) if isinstance(commits, (list, str)) else 0  # whole, as GitHub counts
+        body["ahead_by"] = body["total_commits"]
     assert _compare(monkeypatch, body) == reason
 
 

@@ -22,11 +22,13 @@ from app.server import delivery_invariants as inv
 from app.server.delivery_collect_fields import IDENTITY
 
 BASE = f"/repos/{ATO}"
-ASKED = {"compare": {"base": SHA_A, "head": SHA_B}}
+ASKED = {"compare": {"base": SHA_A, "head": SHA_B}, "review": {"created": "2026-11-14T01:00:00Z"}}  # open_pull
 REVIEW = {"id": 1, "user": {"login": "someone", "type": "User"}, "state": "COMMENTED", "commit_id": SHA_A,
           "submitted_at": "2026-11-14T03:00:00Z"}
 GOOD = {"compare": compare_answer(SHA_A, SHA_B, "ahead"), "pull": open_pull(5), "pulls_list": open_pull(5),
-        "status": {"state": "pending", "total_count": 0, "sha": SHA_A}, "review": REVIEW}
+        "status": {"state": "pending", "total_count": 0, "sha": SHA_A}, "review": REVIEW,
+        "check_run": {"id": 1, "status": "completed", "conclusion": "success", "completed_at": "2026-11-14T02:00:00Z",
+                      "head_sha": SHA_A}}
 SAME = compare_answer(SHA_A, SHA_A, "identical")  # a true answer, about ONE commit
 
 # row -> (kind, the planted answer)
@@ -43,6 +45,8 @@ PLANTED: dict[str, tuple[str, dict]] = {
     "listed_pull_is_open": ("pulls_list", {**open_pull(5), "state": "closed"}),
     "status_none_is_pending": ("status", {"state": "success", "total_count": 0, "sha": SHA_A}),
     "review_submitted_unless_pending": ("review", {**REVIEW, "state": "APPROVED", "submitted_at": None}),
+    "review_not_before_its_pull": ("review", {**REVIEW, "submitted_at": "2020-01-01T00:00:00Z"}),
+    "check_run_finished_together": ("check_run", {**GOOD["check_run"], "completed_at": None}),  # green, no finish time
 }
 MORE = [  # other faces of the same rows
     ("compare_merge_base", "compare", {**GOOD["compare"], "merge_base_commit": {"sha": SHA_C}}),
@@ -52,6 +56,14 @@ MORE = [  # other faces of the same rows
     ("compare_list_whole", "compare", {**GOOD["compare"], "commits": [], "total_commits": 0}),
     ("compare_fields", "compare", {**GOOD["compare"], "merge_base_commit": {"sha": "nope"}}),
     ("listed_pull_is_open", "pulls_list", {**open_pull(5), "merged": True}),
+    ("listed_pull_is_open", "pulls_list", {**open_pull(5), "merged_at": "2026-11-14T03:00:00Z"}),
+    ("compare_list_whole", "compare", {**GOOD["compare"], "ahead_by": 7}),  # seven ahead, one listed
+    ("compare_list_whole", "compare", {**GOOD["compare"], "commits": [{"sha": SHA_B}] * 2, "total_commits": 2, "ahead_by": 2}),
+    ("compare_list_whole", "compare", {**GOOD["compare"], "commits": [{"sha": SHA_A}, {"sha": SHA_B}], "total_commits": 2,
+                                       "ahead_by": 2}),  # the base asked is itself listed
+    ("check_run_finished_together", "check_run", {**GOOD["check_run"], "status": "in_progress"}),
+    ("check_run_finished_together", "check_run", {**GOOD["check_run"], "conclusion": None}),
+    ("review_not_before_its_pull", "review", {**REVIEW, "submitted_at": "2026-11-14T00:59:59Z"}),
     ("status_none_is_pending", "status", {"state": "failure", "total_count": 0, "sha": SHA_A}),
 ]
 
@@ -62,7 +74,9 @@ def _read(monkeypatch: pytest.MonkeyPatch, kind: str, body: dict) -> str | None:
     st.gh.update(good_pr_paths(ATO, 5))
     tick = dc.Tick(allowed=ALLOWED)
     paths = {"pull": f"{BASE}/pulls/5", "status": f"{BASE}/commits/{SHA_A}/status",
-             "review": f"{BASE}/pulls/5/reviews?per_page=100&page=1"}
+             "review": f"{BASE}/pulls/5/reviews?per_page=100&page=1",
+             "check_run": f"{BASE}/commits/{SHA_A}/check-runs?per_page=100&page=1"}
+    wrap = {"review": lambda b: [b], "check_run": lambda b: {"total_count": 1, "check_runs": [b]}}
     try:
         if kind == "compare":
             st.gh[f"{BASE}/compare/{SHA_A}...{SHA_B}"] = copy.deepcopy(body)
@@ -71,7 +85,7 @@ def _read(monkeypatch: pytest.MonkeyPatch, kind: str, body: dict) -> str | None:
             st.gh[sweep_path(ATO)] = [copy.deepcopy(body)]
             dg.open_prs(ATO, tick=tick)
         else:
-            st.gh[paths[kind]] = [copy.deepcopy(body)] if kind == "review" else copy.deepcopy(body)
+            st.gh[paths[kind]] = wrap.get(kind, lambda b: b)(copy.deepcopy(body))
             dg.pr_evidence(ATO, 5, tick=tick)
     except dc.Unknown as exc:
         return exc.reason
@@ -83,11 +97,11 @@ def _rows(kind: str) -> tuple:
 
 
 def test_every_row_has_a_planted_answer_and_every_answer_kind_an_entry() -> None:
-    assert set(PLANTED) == {name for kind in inv.ANSWERS for name, _rule, _holds in _rows(kind)}
+    assert set(PLANTED) == {name for kind in inv.ANSWERS for name, _fields, _rule, _holds in _rows(kind)}
     assert set(inv.ANSWERS) == set(IDENTITY)  # one entry per outside answer the collector reads
     for kind, entry in inv.ANSWERS.items():
         assert ("why" in entry) != ("rows" in entry), kind  # rules, or the written reason there are none
-        assert all(name and rule for name, rule, _holds in _rows(kind)) and ("rows" not in entry or entry["code"])
+        assert all(name and rule for name, _fields, rule, _holds in _rows(kind)) and ("rows" not in entry or entry["code"])
 
 
 @pytest.mark.parametrize("kind", sorted(GOOD))
@@ -145,7 +159,12 @@ def test_the_reader_applies_every_kind_that_has_rows() -> None:
 
 
 def test_the_module_is_pure() -> None:
-    tree = ast.parse((REPO_ROOT / "app/server/delivery_invariants.py").read_text(encoding="utf-8"))
-    imported = {(n.level, n.module) for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
-    assert imported == {(0, "__future__"), (0, "collections.abc"), (0, "typing"), (1, "delivery_collect_fields")}
-    assert not [n for n in ast.walk(tree) if isinstance(n, ast.Import)]
+    allowed = {"delivery_invariants": {(0, "__future__"), (0, "collections.abc"), (0, "typing"),
+                                       (1, "delivery_collect_fields"), (1, None)},  # (1, None): its own checks
+               "delivery_invariant_checks": {(0, "__future__"), (1, "delivery_collect_fields")}}
+    for module, imports in allowed.items():
+        tree = ast.parse((REPO_ROOT / f"app/server/{module}.py").read_text(encoding="utf-8"))
+        assert {(n.level, n.module) for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)} == imports, module
+        assert not [n for n in ast.walk(tree) if isinstance(n, ast.Import)]
+        names = {a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module is None for a in n.names}
+        assert names <= {"delivery_invariant_checks"}

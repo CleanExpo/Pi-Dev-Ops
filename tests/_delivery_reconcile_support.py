@@ -15,7 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from _delivery_stored_support import PIDEV, stored, summary_of, tick_summary  # noqa: F401 — re-exported
+from _delivery_stored_support import PIDEV, refusal, stored, summary_of, tick_summary  # noqa: F401 — re-exported
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))

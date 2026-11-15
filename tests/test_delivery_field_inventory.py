@@ -19,6 +19,7 @@ INVENTORY: list[tuple[str, str, str, str, str, str, bool]] = [
     ("pulls_list", "number", "posint", "fail", "fail", "malformed_pull", False),
     ("pulls_list", "state", "enum", "fail", "fail", "malformed_pull", True),
     ("pulls_list", "merged", "bool", "ok", "fail", "malformed_pull", True),
+    ("pulls_list", "merged_at", "null", "ok", "fail", "malformed_pull", True),
     ("pulls_list", "draft", "bool", "fail", "fail", "malformed_pull", True),
     ("pulls_list", "created_at", "timestamp", "fail", "fail", "malformed_pull", True),
     ("pulls_list", "head", "object", "ok", "fail", "malformed_pull", True),
@@ -67,6 +68,10 @@ INVENTORY: list[tuple[str, str, str, str, str, str, bool]] = [
     ("compare", "commits", "list", "fail", "fail", "compare_mismatch", True),
     ("compare", "total_commits", "count", "fail", "fail", "compare_mismatch", True),
     ("compare", "commits.sha", "sha", "fail", "fail", "compare_mismatch", True),
+    ("compare", "ahead_by", "count", "fail", "fail", "compare_mismatch", True),
+    ("compare", "behind_by", "count", "fail", "fail", "compare_mismatch", True),
+    ("compare", "merge_base_commit", "object", "fail", "fail", "compare_mismatch", True),
+    ("compare", "merge_base_commit.sha", "sha", "fail", "fail", "compare_mismatch", True),
     ("linear_page", "project", "object", "fail", "fail", "malformed_page", False),
     ("linear_page", "project.id", "text", "fail", "fail", "linear_project_mismatch", False),
     ("linear_page", "project.issues", "object", "fail", "fail", "malformed_page", False),
@@ -108,7 +113,6 @@ FUNC_SOURCES: dict[str, set[str]] = {
     "_page": {"check_runs"}, "_author": {"pull", "review"}, "_pull_common": {"pull"}, "_head": {"pull"},
     "open_prs": {"pulls_list"}, "_open_item": {"pulls_list"}, "_pull_facts": {"pull", "pull_merged"}, "_check_run": {"check_run"},
     "_review": {"review"}, "_commit": {"commit"}, "_status": {"status"}, "compare_status": {"compare"},
-    "_tail": {"compare"},
     "pr_evidence": {"check_runs", "check_run", "review", "pull"}, "linear_links": {"linear_links"},
 }
 # Reads of the registry entry or of the collector's own facts dict: not outside answers.
@@ -188,6 +192,6 @@ def test_inventory_rows_are_well_formed() -> None:
     assert len(keys) == len(set(keys))
     for _, _, domain, null, empty, reason, tick in INVENTORY:
         assert domain in {"sha", "timestamp", "enum", "posint", "count", "bool", "login", "linear_id", "node_id",
-                          "text", "text_any", "object", "list"}
+                          "text", "text_any", "object", "list", "null"}
         assert null in ("fail", "ok") or null.startswith("missing:")
         assert empty in ("fail", "ok", "null") and reason and isinstance(tick, bool)

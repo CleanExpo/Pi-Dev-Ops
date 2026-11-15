@@ -25,6 +25,7 @@ from app.server import delivery_stage as ds
 
 _ABSENT = object()
 _KEEP = object()
+_UNFINISHED = {"status": "in_progress", "conclusion": None, "completed_at": None}  # where a null is real
 NEGATIVES: dict[str, list[tuple[str, object]]] = {
     "sha": [("int", 5), ("list", [SHA_A]), ("dict", {}), ("bool", True), ("not_hex", "not-a-sha"),
             ("short", "a" * 39), ("long", "a" * 41), ("non_hex", "g" * 40)],
@@ -45,6 +46,7 @@ NEGATIVES: dict[str, list[tuple[str, object]]] = {
     "text_any": [("int", 5), ("zero", 0), ("list", []), ("dict", {"text": "x"}), ("bool", True), ("false", False)],
     "object": [("text", "x"), ("int", 5), ("list", []), ("bool", True)],
     "list": [("dict", {}), ("text", "x"), ("int", 5)],
+    "null": [("time", "2026-11-14T03:00:00Z"), ("int", 5), ("bool", False), ("dict", {})],  # a field that must be unset
 }
 
 
@@ -106,7 +108,7 @@ def _plant(st: SimpleNamespace, source: str, field: str, value: object, mp: pyte
         good = st.gh[path] if source == "check_runs" else st.gh[path]["check_runs"][0]
         if source == "check_runs":
             return _github(st, path, good, field, value, pr5)
-        run = copy.deepcopy(good)
+        run = {**copy.deepcopy(good), **(_UNFINISHED if value is None and field in _UNFINISHED else {})}
         _set(run, field, value)
         st.gh[path] = {"total_count": 1, "check_runs": [run]}
         return _outcome(pr5)

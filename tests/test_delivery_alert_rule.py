@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from _delivery_reconcile_support import NOW, stored, tick_summary
+from _delivery_reconcile_support import NOW, refusal, stored, tick_summary
 
 from app.server import delivery_reconcile as dr
 from app.server import delivery_reconcile_store as store
@@ -51,7 +51,8 @@ SUBJECTS = {
 def _tick(tmp_path: Path, subject: str, complete: bool) -> tuple[dict, set]:
     """A tick is complete exactly when it has a scope: an incomplete one is the same tick with no scope."""
     records, whole, scope, *_ = SUBJECTS[subject]
-    out, _ = store.apply_tick(_first(), records, [], T2, whole=whole, scope=scope if complete else None,
+    found = [{**refusal(r["id"]), "severity": "critical"} for r in records if r["stage"] == "unknown"]  # its own alert
+    out, _ = store.apply_tick(_first(), records, found, T2, whole=whole, scope=scope if complete else None,
                               summary=tick_summary(T2, complete))
     path = tmp_path / "state.json"
     assert store.save(path, out)

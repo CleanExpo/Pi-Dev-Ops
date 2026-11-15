@@ -153,10 +153,11 @@ def _check_run(run: dict, head: str) -> dict:
             or not present(run, "completed_at", is_instant):
         raise Unknown("malformed_check_run")
     _same("check_run", run, head=head)  # a run about another commit is not this head's evidence
+    _agree("check_run", run)
     return {"status": run["status"], "conclusion": run.get("conclusion"), "completed_at": run.get("completed_at")}
 
 
-def _review(review: dict, pull: str) -> dict:
+def _review(review: dict, pull: str, created: str) -> dict:
     """A review must name its login (a nameless verdict could hide another reviewer's block) and its pull."""
     _same("review", review, pull=pull)  # a review of another pull is not this pull's verdict
     name = _author(review, "malformed_review")[0]
@@ -164,7 +165,7 @@ def _review(review: dict, pull: str) -> dict:
     if not name or not member(state, REVIEW_STATES) or not present(review, "commit_id", sha) \
             or not maybe(when, is_instant):
         raise Unknown("malformed_review")
-    _agree("review", review)
+    _agree("review", review, created=created)  # ``created``: the pull's own created_at
     return {"login": name, "state": state, "commit_id": sha(review.get("commit_id")),
             "submitted_at": review.get("submitted_at")}
 
@@ -200,7 +201,7 @@ def pr_evidence(repo: str, n: int, *, tick: Tick) -> dict:
                                                          item="check_run", key="check_runs")]
     facts["status"] = _status(_get(repo, f"/commits/{head}/status", tick), head)
     pull = f"/repos/{repo}/pulls/{number}"
-    facts["reviews"] = [_review(r, pull) for r in _paged(repo, f"/pulls/{number}/reviews?", tick, identity="id",
+    facts["reviews"] = [_review(r, pull, facts["created_at"]) for r in _paged(repo, f"/pulls/{number}/reviews?", tick, identity="id",
                                                          item="review")]
     return facts
 
