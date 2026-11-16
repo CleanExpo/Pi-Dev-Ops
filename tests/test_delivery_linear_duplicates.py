@@ -48,3 +48,56 @@ def test_control_two_different_issues_are_a_whole_list(monkeypatch: pytest.Monke
     out, tile = _tick(monkeypatch, tmp_path, [[_node("RA-1", "id-1")], [_node("RA-2", "id-2")]])
     assert out["complete"] is True and out["incomplete"] == {} and out["missions"] == 2
     assert tile["complete"] is True
+
+
+# ---- the same rule across the lists of one tick (internal screen of e9bc9cf9) ----
+
+OTHER = "CleanExpo/Pi-Dev-Ops"
+
+
+def _two_lists(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, first: list[dict], second: list[dict], *,
+               one_project: bool = False) -> tuple[dict, dict]:
+    b = reg_entry("b", OTHER)
+    if one_project:
+        b["linear_project_id"] = "proj-a"
+    st = setup_tick(monkeypatch, tmp_path, [reg_entry("a", ATO), b])
+    st.gql_pages += [linear_page(first), linear_page(second)]
+    st.gh[sweep_path(ATO)] = []
+    st.gh[sweep_path(OTHER)] = []
+    out = run(st)
+    return out, status.build(st.path, NOW, True, dr._last_save_ok)
+
+
+@pytest.mark.parametrize("second", [
+    pytest.param(_node("SYN-2", "id-1"), id="same id under another identifier"),
+    pytest.param(_node("RA-1", "id-9"), id="same identifier under another id"),
+    pytest.param(_node("RA-1", "id-1"), id="the same issue in a second project"),
+])
+def test_an_issue_in_the_lists_of_two_projects_cuts_the_second(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+                                                               second: dict) -> None:
+    out, tile = _two_lists(monkeypatch, tmp_path, [_node("RA-1", "id-1")], [second])
+    assert out["complete"] is False and out["incomplete"] == {"b": "duplicate_issue"}
+    assert tile["complete"] is False and out["missions"] == 1
+
+
+def test_control_two_registry_entries_on_one_project_share_its_issues(monkeypatch: pytest.MonkeyPatch,
+                                                                     tmp_path: Path) -> None:
+    out, tile = _two_lists(monkeypatch, tmp_path, [_node("RA-1", "id-1")], [_node("RA-1", "id-1")], one_project=True)
+    assert out["complete"] is True and out["incomplete"] == {} and out["missions"] == 1 and tile["complete"] is True
+
+
+def test_one_project_read_twice_with_an_issue_renamed_between_is_cut(monkeypatch: pytest.MonkeyPatch,
+                                                                     tmp_path: Path) -> None:
+    out, _ = _two_lists(monkeypatch, tmp_path, [_node("RA-1", "id-1")], [_node("RA-7", "id-1")], one_project=True)
+    assert out["complete"] is False and out["incomplete"] == {"b": "duplicate_issue"} and out["missions"] == 1
+
+
+def test_a_duplicate_two_pages_apart_is_still_a_duplicate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    out, _ = _tick(monkeypatch, tmp_path, [[_node("RA-1", "id-1")], [_node("RA-2", "id-2")], [_node("RA-3", "id-1")]])
+    assert out["complete"] is False and out["incomplete"] == {"ato": "duplicate_issue"}
+
+
+def test_control_an_id_spelled_like_another_issues_identifier_is_not_a_duplicate(monkeypatch: pytest.MonkeyPatch,
+                                                                                 tmp_path: Path) -> None:
+    out, _ = _tick(monkeypatch, tmp_path, [[_node("RA-1", "RA-2"), _node("RA-2", "RA-1")]])
+    assert out["complete"] is True and out["missions"] == 2

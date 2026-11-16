@@ -184,6 +184,22 @@ query DeliveryMissions($projectId: String!, $since: DateTimeOrDuration!, $cursor
 """.replace("__ISSUE_FIELDS__", " ".join(f"{name}{args}" for name, args in ISSUE_FIELDS.items()))  # one list
 
 
+def issue_names(nodes: list[dict]) -> list[tuple[str, str]]:
+    """The one owner of "which issue is this": a Linear node has two names, and neither may name two issues."""
+    return [(key, n[key]) for n in nodes for key in ("id", "identifier")]
+
+
+def claim_issue(owners: dict, project: str, node: dict) -> bool | None:
+    """Across the lists of one tick. True: first sight, now owned. None: the same issue again from the same
+    project (two registry entries on one project). False: a name of it is held otherwise, so a list is cut."""
+    mine = (project, node["id"], node["identifier"])
+    held = {owners.get(name) for name in issue_names([node])}
+    if held == {None}:
+        owners.update(dict.fromkeys(issue_names([node]), mine))
+        return True
+    return None if held == {mine} else False
+
+
 def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> MissionRead:
     """Every mission page for one entry; stops at the first error, cooldown or budget, no retry."""
     if _skipped(entry.get("repo")) or not entry.get("linear_project_id"):
@@ -207,7 +223,7 @@ def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> Miss
         mismatch = identity_mismatch("linear_issue", data, project=entry["linear_project_id"])
         if mismatch:
             return MissionRead(issues, False, mismatch)  # a page about another project is not this one's
-        names = [(key, n[key]) for n in page[0] for key in ("id", "identifier")]  # a node has two names; neither repeats
+        names = issue_names(page[0])
         if len(set(names)) < len(names) or seen.intersection(names):
             return MissionRead(issues, False, "duplicate_issue")  # a shifted page may have skipped one
         seen.update(names)

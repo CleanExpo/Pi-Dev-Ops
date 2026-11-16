@@ -106,6 +106,7 @@ def _read_missions(run: Run) -> list[tuple[dict, dict]]:
     since = (run.now - LOOKBACK).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     out: list[tuple[dict, dict]] = []
     seen: set[str] = set()
+    owners: dict = {}  # each issue name -> the project and issue that hold it this tick
     read_whole: set[str] = set()  # the projects read WHOLE this tick
     for entry in run.registry.queryable:
         try:
@@ -120,9 +121,13 @@ def _read_missions(run: Run) -> list[tuple[dict, dict]]:
         else:
             read_whole.add(entry["id"])
         for issue in issues:  # the collector checked every node; no filter here
-            if issue["identifier"] not in seen:  # two registry entries on one project: the first owns it
+            claimed = collect.claim_issue(owners, entry["linear_project_id"], issue)
+            if claimed:  # None is two registry entries on one project: the first owns the issue
                 seen.add(issue["identifier"])
                 out.append((entry, issue))
+            elif claimed is False and entry["id"] in read_whole:  # one issue in two lists: this one is not whole
+                read_whole.discard(entry["id"])
+                run.cut("linear", entry["id"], "duplicate_issue")
     _hold_unseen(run, read_whole, seen)
     return out
 

@@ -114,7 +114,7 @@ PRESENT_REQUIRED = {("pulls_list", "user"), ("pull", "user"), ("pull", "merged_a
 # Which outside sources each collector function reads. A function missing here fails the walk.
 FUNC_SOURCES: dict[str, set[str]] = {
     "_issue_page": {"linear_page", "linear_issue"}, "_node_ok": {"linear_issue"}, "fetch_missions": {"linear_issue"},
-    "vercel_latest_ready": {"vercel"}, "own_revision": {"env"},
+    "vercel_latest_ready": {"vercel"}, "own_revision": {"env"}, "claim_issue": {"linear_issue"},
     "_page": {"check_runs"}, "_author": {"pull", "review"}, "_pull_common": {"pull"}, "_head": {"pull"},
     "open_prs": {"pulls_list"}, "_open_item": {"pulls_list"}, "_pull_facts": {"pull", "pull_merged"}, "_check_run": {"check_run"},
     "_review": {"review"}, "_commit": {"commit"}, "_status": {"status"}, "compare_status": {"compare"},
