@@ -189,7 +189,7 @@ def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> Miss
     if _skipped(entry.get("repo")) or not entry.get("linear_project_id"):
         raise Unknown("not_queryable")
     issues: list[dict] = []
-    seen: set[str] = set()
+    seen: set[tuple[str, str]] = set()
     cursor = None
     for _ in range(_MAX_PAGES):
         if autonomy_linear_rate.linear_rate_limited():
@@ -207,10 +207,10 @@ def fetch_missions(api_key: str, entry: dict, *, tick: Tick, since: str) -> Miss
         mismatch = identity_mismatch("linear_issue", data, project=entry["linear_project_id"])
         if mismatch:
             return MissionRead(issues, False, mismatch)  # a page about another project is not this one's
-        idents = [n["identifier"] for n in page[0]]
-        if len(set(idents)) < len(idents) or seen.intersection(idents):
+        names = [(key, n[key]) for n in page[0] for key in ("id", "identifier")]  # a node has two names; neither repeats
+        if len(set(names)) < len(names) or seen.intersection(names):
             return MissionRead(issues, False, "duplicate_issue")  # a shifted page may have skipped one
-        seen.update(idents)
+        seen.update(names)
         issues.extend(page[0])
         cursor = page[1]
         if cursor is None:
