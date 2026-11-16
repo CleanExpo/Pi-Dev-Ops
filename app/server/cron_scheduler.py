@@ -229,12 +229,7 @@ async def cron_loop() -> None:
             _pulse_interval += 1
             if _pulse_interval >= 15:
                 _pulse_interval = 0
-                try:
-                    from .linear_pulse import run_pulse
-
-                    await asyncio.get_event_loop().run_in_executor(None, run_pulse)
-                except Exception as exc:
-                    _log.error("Linear pulse failed: %s", exc)
+                await _pulse_and_reconcile(_log)
 
             # Daily digest push at 08:00 and 20:00 UTC (override with
             # PI_CEO_DIGEST_HOURS="6,14,22" if needed).
@@ -280,3 +275,19 @@ async def cron_loop() -> None:
 
         except Exception as exc:
             _log.error("Loop error: %s", exc)
+
+
+async def _pulse_and_reconcile(log: logging.Logger) -> None:
+    """Await the Linear pulse as before, then submit the read-only reconcile tick without awaiting it."""
+    try:
+        from .linear_pulse import run_pulse
+
+        await asyncio.get_event_loop().run_in_executor(None, run_pulse)
+    except Exception as exc:
+        log.error("Linear pulse failed: %s", exc)
+    try:
+        from . import delivery_reconcile
+
+        delivery_reconcile.submit_tick(asyncio.get_event_loop(), log)
+    except Exception as exc:
+        log.error("Delivery reconcile submit failed: %s", type(exc).__name__)

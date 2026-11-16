@@ -1,0 +1,210 @@
+"""RA-8100 B4a: delivery reconcile status snapshot (spec ids E10 status half, T7)."""
+from __future__ import annotations
+
+import json
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
+
+import pytest
+from _delivery_reconcile_support import stored, tick_summary
+
+from app.server import delivery_reconcile as dr
+from app.server import delivery_reconcile_store as store
+
+NOW = datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc)
+TICK = NOW.timestamp() - 600
+
+
+@pytest.fixture(autouse=True)
+def _clean(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TAO_DELIVERY_RECONCILE", raising=False)
+    monkeypatch.setattr(dr, "_last_save_ok", None)
+    monkeypatch.setattr(dr, "_last_tick_error", None, raising=False)
+
+
+def _ago(hours: float) -> str:
+    """A time as a tick stores it (``delivery_stage_facts.iso``)."""
+    return (NOW - timedelta(hours=hours)).isoformat().replace("+00:00", "Z")
+
+
+def _alert(key: str, **over: Any) -> dict[str, Any]:
+    made = stored({
+        "key": key, "mission_id": f"M-{key}", "code": "CHECKS_GREEN_NO_REVIEW",
+        "severity": "founder", "next_owner": "founder", "message": f"msg {key}",
+        "ref": f"RA-{key}", "repo": "o/r", "since": _ago(72),
+        "age_source": "check_completed_at", "url": "https://github.com/o/r/pull/7", **over,
+    }, over.get("last_seen", TICK), alert=True)
+    return {**made, "age_source": None if made["since"] is None else made["age_source"]}
+
+
+def _write(path: Path, alerts: list[dict[str, Any]], last_tick: float | None = TICK,
+           summary: dict[str, Any] | None = None) -> None:
+    """A whole state: a tick that has run has a whole summary (the given one, else a default); none has None."""
+    st = store.empty_state()
+    st["alerts"] = {a["key"]: a for a in alerts}
+    st["last_tick"] = last_tick
+    st["summary"] = None if last_tick is None else {**(summary or tick_summary(last_tick, False)),
+                                                    "tick_at": tick_summary(last_tick, True)["tick_at"]}
+    st["checkpoint"]["last_complete"] = last_tick if st["summary"] and st["summary"]["complete"] else None
+    assert store.save(path, st)
+
+
+def _summary(**over: Any) -> dict[str, Any]:
+    return tick_summary(TICK, **{"complete": True, "missions": 3, "bot_prs": 1, **over})
+
+
+def test_e10_status_never_run_missing_file(tmp_path: Path) -> None:
+    out = dr.status_snapshot(tmp_path / "none.json", NOW)
+    assert set(out) == {"enabled", "state", "last_tick", "complete", "counts", "items", "errors"}
+    assert out["state"] == "never_run" and out["complete"] is False
+    assert out["last_tick"] is None and out["counts"] is None and out["items"] == []
+
+
+def test_status_never_run_when_last_tick_none(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    _write(p, [], last_tick=None)
+    out = dr.status_snapshot(p, NOW)
+    assert out["state"] == "never_run" and out["counts"] is None and out["items"] == []
+    assert out["complete"] is False
+
+
+def test_e10_status_stale(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    old = NOW.timestamp() - 46 * 60
+    _write(p, [_alert("A", last_seen=old)], old, _summary())
+    out = dr.status_snapshot(p, NOW)
+    assert out["state"] == "stale" and out["complete"] is False
+    assert "stale_state" in out["errors"]
+    _write(p, [], NOW.timestamp() - 44 * 60, _summary())
+    assert dr.status_snapshot(p, NOW)["state"] == "ok"
+
+
+@pytest.mark.parametrize("body", [b"{not json", b"", b"[]"])
+def test_e10_status_unreadable_and_untouched(tmp_path: Path, body: bytes) -> None:
+    p = tmp_path / "s.json"
+    p.write_bytes(body)
+    out = dr.status_snapshot(p, NOW)
+    assert out["state"] == "unreadable" and out["errors"] == ["state_unreadable"]
+    assert out["counts"] is None and out["complete"] is False
+    assert p.read_bytes() == body
+    assert sorted(x.name for x in tmp_path.iterdir()) == ["s.json"]
+
+
+def test_t7_founder_alert_shown_with_age(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    _write(p, [_alert("A")], summary=_summary())
+    out = dr.status_snapshot(p, NOW)
+    assert out["state"] == "ok" and out["complete"] is True and out["errors"] == []
+    assert out["items"] == [{
+        "ref": "RA-A", "code": "CHECKS_GREEN_NO_REVIEW", "age_hours": 72.0,
+        "age_source": "check_completed_at", "owner": "founder", "next_action": "msg A",
+        "url": "https://github.com/o/r/pull/7"}]
+    assert out["counts"]["by_severity"] == {"founder": 1}
+    assert out["counts"]["by_code"] == {"CHECKS_GREEN_NO_REVIEW": 1}
+    assert out["counts"]["bot_prs"] == 1 and out["counts"]["missions"] == 3
+    assert out["last_tick"] == datetime.fromtimestamp(TICK, timezone.utc).isoformat()
+
+
+def test_t7_a_stored_alert_with_an_old_last_seen_is_shown_and_counted(tmp_path: Path) -> None:
+    """D33: the tile shows exactly what the store kept; an alert the store kept is never hidden."""
+    p = tmp_path / "s.json"
+    _write(p, [_alert("A"), _alert("OLD", last_seen=TICK - 900, mission_id="M-OLD")],
+           summary=_summary())
+    out = dr.status_snapshot(p, NOW)
+    assert sorted(i["ref"] for i in out["items"]) == ["RA-A", "RA-OLD"]
+    assert out["counts"]["by_severity"] == {"founder": 2}
+
+
+def test_t7_not_refreshed_mission_alert_is_shown(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    _write(p, [_alert("OLD", last_seen=TICK - 900, mission_id="M-NR")],
+           summary=_summary(not_refreshed_ids=["M-NR"], complete=False))
+    out = dr.status_snapshot(p, NOW)
+    assert [i["ref"] for i in out["items"]] == ["RA-OLD"]
+    assert out["complete"] is False
+
+
+def test_t7_item_cap_and_order_and_severity_filter(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    alerts = [_alert(f"F{i:02d}", since=_ago(i + 1))
+              for i in range(25)]
+    alerts.append(_alert("WARN", severity="reminder", since=_ago(999)))
+    alerts.append(_alert("CRIT", severity="critical", since=_ago(500)))
+    _write(p, alerts, summary=_summary())
+    out = dr.status_snapshot(p, NOW)
+    assert len(out["items"]) == 20
+    assert out["items"][0]["ref"] == "RA-CRIT"
+    hours = [i["age_hours"] for i in out["items"]]
+    assert hours == sorted(hours, reverse=True)
+    assert all(i["ref"] != "RA-WARN" for i in out["items"])
+    assert out["counts"]["by_severity"] == {"founder": 25, "reminder": 1, "critical": 1}
+
+
+def test_age_hours_none_when_since_missing_and_a_bad_since_is_never_stored(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    _write(p, [_alert("A", since=None)], summary=_summary())
+    out = dr.status_snapshot(p, NOW)
+    assert [i["age_hours"] for i in out["items"]] == [None]
+    for bad in ("garbage", (NOW - timedelta(hours=1)).isoformat(), "2026-11-14", ""):  # D56: not a stored time
+        state = json.loads(p.read_text(encoding="utf-8"))
+        state["alerts"]["A"].update(since=bad, age_source="startedAt")
+        assert store.save(tmp_path / "bad.json", state) is False, bad
+
+
+def test_record_save_false_marks_incomplete(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    _write(p, [], summary=_summary())
+    assert dr.status_snapshot(p, NOW)["complete"] is True
+    dr.record_save(False)
+    out = dr.status_snapshot(p, NOW)
+    assert out["complete"] is False and "state_write_failed" in out["errors"]
+    dr.record_save(True)
+    out = dr.status_snapshot(p, NOW)
+    assert out["complete"] is True and out["errors"] == []
+
+
+def test_summary_incomplete_or_error_reported(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    _write(p, [], summary=_summary(complete=False, error="linear_unreadable"))
+    out = dr.status_snapshot(p, NOW)
+    assert out["complete"] is False and "linear_unreadable" in out["errors"]
+    state = store.empty_state()  # a tick with no summary is not a state the store writes: unreadable, never ok
+    state["last_tick"] = TICK
+    p.write_text(json.dumps(state), encoding="utf-8")
+    out = dr.status_snapshot(p, NOW)
+    assert out["state"] == "unreadable" and out["complete"] is False and out["errors"] == ["state_unreadable"]
+    state["summary"] = {"complete": True, "not_refreshed_ids": []}  # a partial summary is unreadable too
+    p.write_text(json.dumps(state), encoding="utf-8")
+    assert dr.status_snapshot(p, NOW)["state"] == "unreadable"
+
+
+def test_status_reads_do_not_write_or_lease(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    _write(p, [_alert("A")], summary=_summary())
+    before = p.read_bytes()
+    with store.lease(tmp_path / "s.lock") as got:
+        assert got
+        dr.status_snapshot(p, NOW)
+    assert p.read_bytes() == before
+    assert sorted(x.name for x in tmp_path.iterdir()) == ["s.json", "s.lock"]
+
+
+def test_state_paths_are_under_harness() -> None:
+    assert dr.STATE_FILE.parts[-2:] == (".harness", "delivery-reconcile-state.json")
+    assert dr.LOCK_FILE.name == "delivery-reconcile.lock"
+    assert dr.LOCK_FILE.parent == dr.STATE_FILE.parent
+
+
+
+
+def test_incomplete_tick_still_shows_unread_mission_alerts(tmp_path: Path) -> None:
+    p = tmp_path / "s.json"
+    old = _alert("OLD", last_seen=TICK - 900, mission_id="M-UNREAD")
+    _write(p, [old], summary=_summary(complete=False, not_refreshed_ids=[]))
+    out = dr.status_snapshot(p, NOW)
+    assert [i["ref"] for i in out["items"]] == ["RA-OLD"]
+    assert out["counts"]["by_severity"] == {"founder": 1} and out["complete"] is False
+    _write(p, [old], summary=_summary(complete=True, not_refreshed_ids=[]))
+    mirror = dr.status_snapshot(p, NOW)  # D33: the store kept it, so the tile shows it on a complete tick too
+    assert [i["ref"] for i in mirror["items"]] == ["RA-OLD"] and mirror["counts"]["by_severity"] == {"founder": 1}
