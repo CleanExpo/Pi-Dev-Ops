@@ -68,7 +68,10 @@ Railway config for the Python service: [`railway.pi-dev-ops.toml`](railway.pi-de
 | `ANTHROPIC_API_KEY` | **Required** | Starts with `sk-ant-`. Without it, Claude sessions fail. |
 | `LINEAR_API_KEY` | **Required** | Starts with `lin_api_`. Without it, Pi-SEO runs dry-run mode. |
 | `TAO_LINEAR_WEBHOOK_SECRET` | Optional | Webhook signature verification for Linear events. |
-| `TAO_WEBHOOK_SECRET` | Optional | Webhook signature verification for GitHub events. |
+| `TAO_WEBHOOK_SECRET` | Optional | Legacy shared secret. Used only as the fallback for `TAO_INTERNAL_WEBHOOK_SECRET` and `TAO_GITHUB_WEBHOOK_SECRET` when either is unset. Retire it with step 6 of `docs/runbooks/fleet-key-rotation.md`. |
+| `TAO_INTERNAL_WEBHOOK_SECRET` | Optional | Current fleet key for the `X-Pi-CEO-Secret` header (mesh, conversations, cost report, routing, Margot, delegate, wiki, internal webhooks). Unset falls back to `TAO_WEBHOOK_SECRET`; empty both ways makes those routes answer 503. |
+| `TAO_INTERNAL_WEBHOOK_SECRET_NEXT` | Optional | Next fleet key, set only during a rotation (RA-8408). Accepted beside the current key when it is at least 32 printable characters with no spaces and differs from the current and read-only keys; otherwise ignored with a start-up warning. See `docs/runbooks/fleet-key-rotation.md`. |
+| `TAO_FLEET_READ_SECRET` | Optional | Read-only fleet key, accepted only by `GET /api/mesh/fleet` and `GET /api/mesh/lane-events`. Must be a different value from every write key. |
 | `GITHUB_TOKEN` | Optional | GitHub PAT (`ghp_...`) for private repo access. |
 | `TELEGRAM_BOT_TOKEN` | Optional | Telegram bot integration. |
 | `TELEGRAM_WEBHOOK_SECRET` | Optional | Verifies Telegram webhook requests. |

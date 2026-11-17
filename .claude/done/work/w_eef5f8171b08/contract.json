@@ -1,0 +1,112 @@
+{
+  "schema": "done/1",
+  "work_id": "w_eef5f8171b08",
+  "version": 2,
+  "supersedes": "w_d0fb4803e5b3",
+  "goal": "build: RA-8408 server accepts a current and a next fleet key",
+  "created_at_utc": "2026-11-17T02:49:10Z",
+  "identity_key": "fix/ra-8408-two-key-secret@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/ra-8408-two-key-secret",
+  "baseline_observed": {
+    "head": "71bad31536d1215097007a980a31bc55c5bd9533",
+    "branch": "fix/ra-8408-two-key-secret",
+    "dirty_count": 6
+  },
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Two-key acceptance on all 26 routes, proven red-first against a clean export of 71bad315",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" .claude/done/spm/2026-11-17-ra-8408-two-key-secret/recipes/red_first.py && \"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac01_",
+      "timeout": 600
+    },
+    {
+      "id": "AC-2",
+      "text": "Exact 503 and 401 texts and the not-configured-before-missing order are pinned",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac02_",
+      "timeout": 300
+    },
+    {
+      "id": "AC-3",
+      "text": "One owner: syntax-tree guard with exact-equality matching, compare-site allow-list and controls",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac03_",
+      "timeout": 300
+    },
+    {
+      "id": "AC-4",
+      "text": "Every route that takes the header is in the tested route table; a planted route fails",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac04_",
+      "timeout": 300
+    },
+    {
+      "id": "AC-5",
+      "text": "Empty, blank, malformed, oversized and dummy values never match",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac05_",
+      "timeout": 300
+    },
+    {
+      "id": "AC-6",
+      "text": "Next-value policy, including the 32-character boundary and same-way trimming",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac06_",
+      "timeout": 300
+    },
+    {
+      "id": "AC-7",
+      "text": "Read-only key stays read-only; fleet check 503 only when nothing is configured",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac07_",
+      "timeout": 300
+    },
+    {
+      "id": "AC-8",
+      "text": "Accepted and rejected log lines: exact template, no key value, 600 s limit with a controlled clock, every compare runs",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac08_",
+      "timeout": 300
+    },
+    {
+      "id": "AC-9",
+      "text": "Seven start-up lines, exact text, no key value",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac09_",
+      "timeout": 300
+    },
+    {
+      "id": "AC-10",
+      "text": "Values are read at call time",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac10_",
+      "timeout": 300
+    },
+    {
+      "id": "AC-11",
+      "text": "GitHub signature path untouched; webhook.py and config.py not in the diff",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/test_internal_secret.py tests/test_internal_secret_routes.py tests/test_internal_secret_guard.py -k ac11_ && git rev-parse --verify -q origin/main >/dev/null && ! git diff --name-only origin/main HEAD | grep -E -x \"app/server/(webhook|config)\\.py\"",
+      "timeout": 300
+    },
+    {
+      "id": "AC-12a",
+      "text": "Full tests/ suite passes (baseline 584 s, 13,243 passed on 71bad315)",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short tests/",
+      "timeout": 1200
+    },
+    {
+      "id": "AC-12b",
+      "text": "Full swarm/ suite passes (baseline 2 s, 344 passed on 71bad315)",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" -B -m pytest -p no:cacheprovider -q --tb=short swarm/",
+      "timeout": 120
+    },
+    {
+      "id": "AC-12c",
+      "text": "Lint, size, ratchet, freeze and secret checks exit 0",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/ruff\" check app/ && \"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" .github/scripts/file_length_lint.py && \"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" .github/scripts/function_length_lint.py && \"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" .github/scripts/baseline_ratchet.py && \"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" scripts/check_frozen_paths.py --base origin/main --head HEAD && \"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" scripts/secrets_check.py --repo-root .",
+      "timeout": 300
+    },
+    {
+      "id": "AC-13",
+      "text": "Runbook and docs carry every required step, table and warning",
+      "recipe": "\"/Volumes/Mini Mini 2T Storage/cache/venvs/pi-dev-ops-ra-8408-py312/bin/python\" .claude/done/spm/2026-11-17-ra-8408-two-key-secret/recipes/check_runbook.py",
+      "timeout": 60
+    },
+    {
+      "id": "ENG",
+      "text": "The engineering gate passes on the spec as built against",
+      "recipe": "python3 /Users/phill-mac/.claude/skills/engineering-requirements/scripts/engineering_gate.py --spec .claude/done/spm/2026-11-17-ra-8408-two-key-secret/spec.md",
+      "timeout": 120
+    }
+  ]
+}

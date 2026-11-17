@@ -32,7 +32,7 @@ from ..webhook import (
     parse_linear_event,
     linear_issue_to_brief,
 )
-from .. import config
+from .. import config, internal_secret
 from .sessions import _find_active_session_for_repo
 
 _DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
@@ -44,16 +44,11 @@ router = APIRouter()
 
 def _require_internal_webhook_secret(request: Request) -> None:
     """RA-6904: fail-closed auth for X-Pi-CEO-Secret internal intake routes."""
-    import hmac as _hmac
-
-    expected = config.INTERNAL_WEBHOOK_SECRET
-    if not expected:
+    result = internal_secret.classify(request.headers.get("x-pi-ceo-secret", ""), "webhooks")
+    if result == "unconfigured":
         raise HTTPException(503, "Internal webhook secret not configured")
-    secret_header = request.headers.get("x-pi-ceo-secret", "")
-    if not secret_header:
-        raise HTTPException(401, "X-Pi-CEO-Secret header required")
-    if not _hmac.compare_digest(secret_header, expected):
-        raise HTTPException(401, "Invalid secret")
+    if not internal_secret.accepted(result):
+        raise HTTPException(401, "X-Pi-CEO-Secret header required" if result == "missing" else "Invalid secret")
 
 
 def _telegram_send(token: str, chat_id: int | str, text: str) -> None:

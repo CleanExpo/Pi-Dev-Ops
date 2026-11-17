@@ -10,7 +10,6 @@ Same scheme as margot.py.
 from __future__ import annotations
 
 import asyncio
-import hmac as _hmac
 import logging
 import os
 import uuid
@@ -19,7 +18,7 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config
+from .. import config, internal_secret
 
 log = logging.getLogger("pi-ceo.routes.delegate")
 
@@ -61,12 +60,11 @@ class DelegateResponse(BaseModel):
 
 
 def _check_secret(x_pi_ceo_secret: Optional[str]) -> None:
-    if not config.INTERNAL_WEBHOOK_SECRET:
+    result = internal_secret.classify(x_pi_ceo_secret, "delegate")
+    if result == "unconfigured":
         raise HTTPException(503, "TAO_INTERNAL_WEBHOOK_SECRET not configured on server")
-    if not x_pi_ceo_secret:
-        raise HTTPException(401, "Missing X-Pi-CEO-Secret header")
-    if not _hmac.compare_digest(x_pi_ceo_secret, config.INTERNAL_WEBHOOK_SECRET):
-        raise HTTPException(401, "Invalid X-Pi-CEO-Secret")
+    if not internal_secret.accepted(result):
+        raise HTTPException(401, "Missing X-Pi-CEO-Secret header" if result == "missing" else "Invalid X-Pi-CEO-Secret")
 
 
 def _require_delegate_transport():
