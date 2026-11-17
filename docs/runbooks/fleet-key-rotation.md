@@ -171,14 +171,17 @@ How to stop: put the previous signing secret back on both sides together.
 ### Step 6 — retire the old variable
 
 Once steps 4 and 5 are confirmed, delete `TAO_WEBHOOK_SECRET` on Railway, or overwrite
-it with a fresh random value no holder has. Do the same for the dashboard's old
-variables once their callers have moved. Until this step, deleting either newer
-variable would silently bring the exposed key back.
+it with a fresh random value no holder has. This step is about Railway only. Do not
+delete or overwrite `TAO_WEBHOOK_SECRET` on Vercel: the Margot bubble reads that
+variable as its only key, and after step 3 it already holds the new key. Until this
+step, deleting either newer variable on Railway would silently bring the exposed key
+back.
 
-What you should see: `next slot not set` with no fallback warning, and every heartbeat
-fresh.
+What you should see: `next slot not set` with no fallback warning, every heartbeat
+fresh, and the Margot bubble still answers.
 
-How to stop: set the variable again. Nothing reads it once both newer variables are set.
+How to stop: set the Railway variable again. Nothing on Railway reads it once both
+newer variables are set.
 
 ### After the swap
 
