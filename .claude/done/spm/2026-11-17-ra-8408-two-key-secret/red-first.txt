@@ -1,0 +1,34 @@
+ecret"}
+/Volumes/Mini Mini 2T Storage/hot/tmp/ra8408-red-wyq47p_y/tests/test_internal_secret_routes.py:228: AssertionError: {"detail":"Invalid or missing X-Pi-CEO-Secret"}
+/Volumes/Mini Mini 2T Storage/hot/tmp/ra8408-red-wyq47p_y/tests/test_internal_secret_routes.py:228: AssertionError: {"detail":"Invalid or missing X-Pi-CEO-Secret"}
+- generated xml file: /Volumes/Mini Mini 2T Storage/hot/tmp/ra8408-red-wyq47p_y/red.xml -
+=========================== short test summary info ============================
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[conversations-ingest]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[conversations-search]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[conversations-recent]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[cost-report]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[routing]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[delegate]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[margot-turn]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[margot-voice]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[mesh-heartbeat]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[mesh-claims]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[mesh-claim-update]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[mesh-claims-reap]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[mesh-dispatch]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[mesh-claim-self]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[mesh-lane-events-post]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[mesh-ship]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[webhook-morning-intel]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[webhook-routine-complete]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[webhook-workspace-intel-refresh]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[workspace-intel]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[wiki-sources-upload]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[wiki-sources]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[wiki-requirements-get]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[wiki-requirements-put]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[mesh-fleet]
+FAILED tests/test_internal_secret_routes.py::test_ac01_next_key_is_accepted[mesh-lane-events-get]
+26 failed, 52 passed, 104 deselected in 1.42s
+
+RED_FIRST_OK base=71bad315 failed=26 passed=52 errors=0

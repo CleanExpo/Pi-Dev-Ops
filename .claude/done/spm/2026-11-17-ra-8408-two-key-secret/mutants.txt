@@ -1,0 +1,14 @@
+RA-8408 mutants (spec section 14). Supporting evidence only, not a criterion.
+Method: a scratch pytest plugin re-executes app/server/internal_secret.py with exactly one
+source replacement (count asserted == 1) into the live module; the real file is never changed.
+Base 71bad315 plus the uncommitted build; run 2026-11-17T03:20:24Z.
+Format: mutant | selection | verdict | summary | failing tests
+
+control (no mutant) | -k ac0 or ac1 | GREEN | 243 passed | none failed
+unconfigured_on_current_or_next | -k ac05_ | RED | 8 failed, 97 passed, 138 deselected | test_internal_secret.py::test_ac05_next_alone_never_opens_anything test_internal_secret_routes.py::test_ac05_next_alone_with_current_empty_is_503[mesh-heartbeat] test_internal_secret_routes.py::test_ac05_next_alone_with_current_empty_is_503[conversations-ingest] test_internal_secret_routes.py::test_ac05_next_alone_with_current_empty_is_503[cost-report] test_internal_secret_routes.py::test_ac05_next_alone_with_current_empty_is_503[delegate] test_internal_secret_routes.py::test_ac05_next_alone_with_current_empty_is_503[margot-turn] test_internal_secret_routes.py::test_ac05_next_alone_with_current_empty_is_503[webhook-morning-intel] test_internal_secret_routes.py::test_ac05_next_alone_with_current_empty_is_503[wiki-sources-upload] 
+early_return_after_first_match | -k ac08_ | RED | 2 failed, 6 passed, 235 deselected | test_internal_secret.py::test_ac08_every_slot_compare_runs_on_a_current_key_request[slots-empty] test_internal_secret.py::test_ac08_every_slot_compare_runs_on_a_current_key_request[slots-set] 
+dummy_compare_result_kept | -k ac05_ | RED | 1 failed, 104 passed, 138 deselected | test_internal_secret.py::test_ac05_the_process_dummy_value_is_refused 
+len_gt_32_instead_of_ge | -k ac06_ | RED | 1 failed, 9 passed, 233 deselected | test_internal_secret.py::test_ac06_next_of_exactly_32_characters_is_honoured 
+read_only_inequality_skipped | -k ac06_ | RED | 2 failed, 8 passed, 233 deselected | test_internal_secret.py::test_ac06_next_failing_policy_is_ignored_and_current_still_works[equals-read-only] test_internal_secret.py::test_ac06_read_only_value_as_next_stays_refused_on_write_routes 
+log_once_per_process_forever | -k ac08_ | RED | 1 failed, 7 passed, 235 deselected | test_internal_secret.py::test_ac08_each_line_is_limited_to_once_per_600_seconds 
+limiter_keyed_on_slot_only | -k ac08_ | RED | 3 failed, 5 passed, 235 deselected | test_internal_secret.py::test_ac08_refusals_log_reason_and_label[next-unset] test_internal_secret.py::test_ac08_refusals_log_reason_and_label[next-set] test_internal_secret.py::test_ac08_two_labels_give_two_lines 

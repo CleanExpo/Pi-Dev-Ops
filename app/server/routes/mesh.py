@@ -14,7 +14,6 @@ failure so a node knows its heartbeat didn't land.
 """
 from __future__ import annotations
 
-import hmac as _hmac
 import json
 import logging
 import os
@@ -27,7 +26,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, linear_complexity, mesh_agent_sync, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_queue_cache, mesh_reaper, mesh_requeue, mesh_run_record
+from .. import config, internal_secret, linear_complexity, mesh_agent_sync, mesh_fleet, mesh_fleet_auth, mesh_lanes, mesh_queue_cache, mesh_reaper, mesh_requeue, mesh_run_record
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
@@ -45,9 +44,10 @@ MESH_CLAIM_TTL_MINUTES = max(int(os.environ.get("MESH_CLAIM_TTL_MINUTES", "90"))
 
 
 def _check_secret(secret: Optional[str]) -> None:
-    if not config.INTERNAL_WEBHOOK_SECRET:
+    result = internal_secret.classify(secret, "mesh")
+    if result == "unconfigured":
         raise HTTPException(503, "TAO_INTERNAL_WEBHOOK_SECRET not configured on server")
-    if not secret or not _hmac.compare_digest(secret, config.INTERNAL_WEBHOOK_SECRET):
+    if not internal_secret.accepted(result):
         raise HTTPException(401, "Invalid or missing X-Pi-CEO-Secret")
 
 

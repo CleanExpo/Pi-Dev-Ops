@@ -1,0 +1,12 @@
+{
+  "schema": "done/1",
+  "work_id": "w_d0fb4803e5b3",
+  "contract_digest": "2cd187a87555f8f7b328972d645744908611c8a28e4b1d6cab38c4dc1d7dbc8d",
+  "baseline_head": "71bad31536d1215097007a980a31bc55c5bd9533",
+  "identity_key": "fix/ra-8408-two-key-secret@/Volumes/Mini Mini 2T Storage/code/Pi-Dev-Ops/.git/worktrees/ra-8408-two-key-secret",
+  "locked_at_utc": "2026-11-17T02:26:23Z",
+  "criteria_count": 2,
+  "recipe_pins": {
+    "spm/2026-11-17-ra-8408-two-key-secret/spec.md": null
+  }
+}

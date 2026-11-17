@@ -11,24 +11,20 @@ machines, so nothing already running is disturbed.
 """
 from __future__ import annotations
 
-import hmac
-import os
 from typing import Optional
 
 from fastapi import HTTPException
 
-from . import config
-
-
-def _accepted() -> list[str]:
-    read_only = os.environ.get("TAO_FLEET_READ_SECRET", "").strip()
-    return [s for s in (config.INTERNAL_WEBHOOK_SECRET, read_only) if s]
+from . import internal_secret
 
 
 def check(secret: Optional[str]) -> None:
-    """Raise 503 when no secret is configured, 401 when this one matches none."""
-    accepted = _accepted()
-    if not accepted:
+    """Raise 503 when no key is configured, 401 when this one matches none.
+
+    The decision, the read-only key included, belongs to internal_secret (RA-8408).
+    """
+    result = internal_secret.classify_fleet_read(secret)
+    if result == "unconfigured":
         raise HTTPException(503, "TAO_INTERNAL_WEBHOOK_SECRET not configured on server")
-    if not secret or not any(hmac.compare_digest(secret, ok) for ok in accepted):
+    if not internal_secret.accepted(result):
         raise HTTPException(401, "Invalid or missing X-Pi-CEO-Secret")

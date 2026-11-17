@@ -25,7 +25,7 @@ from .startup_tasks import (
 from .autonomy import linear_todo_poller
 from .agents.build_stall_watchdog import stall_watchdog_loop  # RA-1104
 from .integration_health import integration_health_loop      # RA-1293
-from . import config
+from . import config, internal_secret
 from . import persistence
 from . import checkpoint_queue
 
@@ -209,8 +209,7 @@ async def on_startup():
         )
     if not config.GITHUB_WEBHOOK_SECRET:
         log.warning("TAO_GITHUB_WEBHOOK_SECRET not set — GitHub webhook endpoint is unprotected")
-    if not config.INTERNAL_WEBHOOK_SECRET:
-        log.warning("TAO_INTERNAL_WEBHOOK_SECRET not set — internal intake webhooks are disabled (503)")
+    internal_secret.log_startup_state(log)
     if not config.LINEAR_WEBHOOK_SECRET:
         log.warning("TAO_LINEAR_WEBHOOK_SECRET not set — Linear webhook endpoint is unprotected")
     cache_status = "enabled" if config.ENABLE_PROMPT_CACHING_1H else "disabled"

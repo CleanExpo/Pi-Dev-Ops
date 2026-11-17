@@ -25,7 +25,6 @@ lane in this repo ships disabled.
 """
 from __future__ import annotations
 
-import hmac as _hmac
 import logging
 import os
 from datetime import datetime
@@ -34,7 +33,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from .. import config, conversation_store
+from .. import config, conversation_store, internal_secret  # noqa: F401 (config: tests patch it here)
 
 log = logging.getLogger("pi-ceo.routes.conversations")
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
@@ -62,10 +61,11 @@ _REDACTION_BANK, _REDACTION_BANK_COMPLETE = _build_redaction_bank()
 
 
 def _check_secret(secret: Optional[str]) -> None:
-    """Same gate as routes/mesh.py — constant-time compare, 503 when unset."""
-    if not config.INTERNAL_WEBHOOK_SECRET:
+    """Same gate as routes/mesh.py — decided by internal_secret, 503 when unset."""
+    result = internal_secret.classify(secret, "conversations")
+    if result == "unconfigured":
         raise HTTPException(503, "TAO_INTERNAL_WEBHOOK_SECRET not configured on server")
-    if not secret or not _hmac.compare_digest(secret, config.INTERNAL_WEBHOOK_SECRET):
+    if not internal_secret.accepted(result):
         raise HTTPException(401, "Invalid or missing X-Pi-CEO-Secret")
 
 
