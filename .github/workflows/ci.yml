@@ -153,7 +153,8 @@ jobs:
   # ── Python: unit tests + gates ──────────────────────────────────────────────
   python:
     name: Python (pytest)
-    runs-on: ubuntu-latest
+    # Pinned: bubblewrap sandbox tests fail on ubuntu-26.04 runners. RA-8519 tracks 26.04 support; remove this pin then.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     env:
