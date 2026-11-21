@@ -1,12 +1,12 @@
 # .github — Wiki
 
-_Last updated: 2026-10-05T10:48:28Z (commits 1801f4a..493b8e7)_
+_Last updated: 2026-11-21T11:35:23Z (commits 113bd0a..39f9cc3)_
 
 ## Recent changes
-- 493b8e7 — fix(dashboard): gate /api/flow-board behind login; main CI is red without it (#895)
+- 39f9cc3 — ci: pin Python (pytest) job to ubuntu-24.04 (RA-8519) (#1029)
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .github/smoke-surfaces.json — touched in recent commits
+- .github/workflows/ci.yml — touched in recent commits
