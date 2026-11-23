@@ -29,6 +29,7 @@ against the repo's 300-line convention, and these helpers are pure given an
 
 from __future__ import annotations
 
+import urllib.parse
 from typing import Callable
 
 Api = Callable[..., dict]
@@ -93,15 +94,10 @@ def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outc
               contact: Callable[[], object] = lambda: None) -> list[dict]:
     """Use assigned work first, otherwise atomically self-claim a mesh:auto ticket.
 
-    KNOWN GAP — only the self-claim path carries the ticket's brief. `/claim/self`
-    returns title and description in its response; `my_claims` reads `mesh_work_claims`
-    rows, and that table has no such columns (mesh/schema/0001_nexus_mesh.sql), so a
-    DISPATCHER-assigned claim arrives briefless and `build_prompt` takes its refusal
-    path. That is the safe failure, not the useful one: with MESH_DISPATCH_ENABLED=1
-    every dispatched ticket would stop without working. Closing it means enriching
-    GET /api/mesh/claims server-side from Linear, which is its own change — the
-    endpoint would start returning ticket text to any node holding the mesh secret.
-    Do not enable dispatch expecting work to happen until that lands.
+    A dispatcher-assigned claim carries no brief: `mesh_work_claims` has no text
+    columns (mesh/schema/0001_nexus_mesh.sql). `with_brief` fetches it from the server,
+    which reads the ticket from Linear for the node holding the claim; a claim it cannot
+    brief is failed with a named code and never reaches an agent.
 
     `report` hears one outcome per poll — unavailable, rejected, empty or assigned —
     because all four used to return [] alike, so an outage read as an empty queue.
@@ -112,8 +108,9 @@ def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outc
         return []          # fleet unreadable: hold, never self-claim on a guess
     contact()
     if claims:
-        report("assigned")
-        return claims
+        ready = [c for c in (with_brief(api, host, claim) for claim in claims) if c]
+        report("assigned" if ready else "refused")
+        return ready
     response = api("POST", "/api/mesh/claim/self", {"host": host})
     if not isinstance(response, dict) or response.get("error"):
         report(_failure(response))
@@ -126,3 +123,39 @@ def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outc
     contact()
     report("assigned" if claimed else "empty")
     return [claimed] if claimed else []
+
+
+def _has_brief(claim: dict) -> bool:
+    return bool(str(claim.get("title") or "").strip() or str(claim.get("description") or "").strip())
+
+
+def _brief_problem(response: object, linear_id: str) -> str:
+    """The refusal code for a brief response, or "" when it is usable."""
+    if not isinstance(response, dict) or (response.get("error") and _failure(response) == "unavailable"):
+        return "brief_unreadable"
+    if response.get("error") or response.get("linear_id") != linear_id:
+        return "brief_refused"
+    return "" if _has_brief(response) else "brief_empty"
+
+
+def with_brief(api: Api, host: str, claim: dict) -> "dict | None":
+    """`claim` with its ticket's brief, lane and repo, or None after refusing it.
+
+    A self-claim already carries its brief and is returned as it is. A refusal fails
+    the claim on the server with a closed-set code, which ends the claim and returns
+    the ticket to the pool, rather than leaving it locked under a claim nobody works.
+    A claim naming no ticket cannot be briefed or ended by ticket id; it is dropped.
+    """
+    linear_id = claim.get("linear_id")
+    if not isinstance(linear_id, str) or not linear_id:
+        return None
+    if _has_brief(claim):
+        return claim
+    q = urllib.parse.urlencode({"linear_id": linear_id, "host": host, "claim_id": claim.get("id") or ""})
+    response = api("GET", f"/api/mesh/claim/brief?{q}")
+    if code := _brief_problem(response, linear_id):
+        api("POST", "/api/mesh/claim/update", {"linear_id": linear_id, "state": "failed", "host": host,
+                                               "claim_id": claim.get("id"), "error_code": code})
+        return None
+    brief = {k: response.get(k) for k in ("title", "description", "lane", "repo")}
+    return {**claim, **{k: v for k, v in brief.items() if v is not None}}
