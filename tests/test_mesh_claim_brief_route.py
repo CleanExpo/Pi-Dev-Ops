@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 HDR = {"X-Pi-CEO-Secret": "test-secret"}
 ISSUE = {"id": "uuid-7", "identifier": "UNI-7", "title": "Fix the header",
          "description": "Make it sticky.", "priority": 1, "team": {"id": "team-1"},
-         "labels": {"nodes": [{"name": "mesh:auto"}]}}
+         "state": {"name": "In Progress", "type": "started"}, "labels": {"nodes": [{"name": "mesh:auto"}]}}
 OPEN_CLAIM = {"id": "claim-1", "linear_id": "UNI-7", "machine": "nodeA", "state": "claimed"}
 QUERY = "/api/mesh/claim/brief?linear_id=UNI-7&host=nodeA&claim_id=claim-1"
 
@@ -150,3 +150,29 @@ def test_refusal_codes_are_stored_on_the_claim_row():
     for code in ("brief_unreadable", "brief_refused", "brief_empty"):
         fields = mesh_run_record.RunRecordFields(error_code=code)
         assert mesh_run_record.record_patch(fields).get("error_code") == code
+
+
+@pytest.mark.parametrize("change", [
+    {"state": {"name": "Done", "type": "completed"}},
+    {"state": {"name": "Canceled", "type": "canceled"}},
+    {"labels": {"nodes": [{"name": "bug"}]}},
+    {"labels": {"nodes": [{"name": "mesh:auto"}, {"name": "pi-dev:blocked-reason:human"}]}},
+    {"inverseRelations": {"pageInfo": {"hasNextPage": False},
+                          "nodes": [{"type": "blocks", "issue": {"identifier": "UNI-1", "state": {"type": "started"}}}]}},
+])
+def test_ticket_no_longer_runnable_is_refused(env, monkeypatch, change):
+    """Closed, relabelled or newly blocked after dispatch: its brief must not start an agent."""
+    client, mesh, *_ = env
+    monkeypatch.setattr(mesh, "_linear_graphql", lambda q: {"issue": {**ISSUE, **change}})
+    assert client.get(QUERY, headers=HDR).status_code == 409
+
+
+def test_unreadable_project_registry_is_unavailable(env, monkeypatch):
+    client, mesh, mesh_brief, _ = env
+    monkeypatch.setattr(mesh, "_linear_graphql", lambda q: {"issue": {**ISSUE, "project": {"id": "p"}}})
+
+    def missing():
+        raise FileNotFoundError("projects.json")
+
+    monkeypatch.setattr(mesh_brief.mesh_lanes, "registry_repos", missing)
+    assert client.get(QUERY, headers=HDR).status_code == 503

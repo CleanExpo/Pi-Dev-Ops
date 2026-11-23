@@ -95,7 +95,7 @@ def test_self_claimed_brief_is_not_fetched_again():
     ({"error": "HTTP 503", "detail": "Linear could not be read"}, "brief_unreadable"),
     ({"error": "timed out"}, "brief_unreadable"),
     ({"error": "HTTP 409", "detail": "no open claim"}, "brief_refused"),
-    ({"linear_id": "UNI-7", "title": "", "description": "  ", "lane": "build"}, "brief_empty"),
+    ({"linear_id": "UNI-7", "title": "", "description": "  ", "lane": "build", "repo": None}, "brief_empty"),
     ("not a dict", "brief_unreadable"),
 ])
 def test_unbriefable_claim_is_failed_with_a_named_reason(response, code):
@@ -153,3 +153,18 @@ def test_dispatched_claim_builds_a_prompt_containing_the_brief():
     prompt = build_prompt(claim, claim["linear_id"], "mesh/x/uni-7", nonce="n0")
     assert "Title: Fix the header" in prompt and "Make it sticky." in prompt
     assert "brief did not arrive" not in prompt
+
+
+@pytest.mark.parametrize("partial", [
+    {k: v for k, v in BRIEF.items() if k != "lane"},
+    {**BRIEF, "lane": "deploy"},
+    {k: v for k, v in BRIEF.items() if k != "repo"},
+    {**BRIEF, "repo": 7},
+    {**BRIEF, "title": ["not", "text"]},
+])
+def test_partial_brief_never_reaches_an_agent(partial):
+    """A brief missing its lane or repo contract could build a plan ticket, or build in the default repo."""
+    api = FakeApi([_assigned()], brief=partial)
+    assert next_work(api, HOST) == []
+    [update] = api.updates()
+    assert update["error_code"] == "brief_unreadable"

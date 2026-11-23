@@ -208,6 +208,23 @@ def explicit(graphql, identifiers: list[str]) -> list[dict]:
     return out
 
 
+_CLOSED_STATE_TYPES = frozenset({"completed", "canceled"})
+
+
+def run_refusal(issue: dict) -> Optional[str]:
+    """Why a claimed ticket may no longer be worked, or None.
+
+    Checked when a dispatched claim's brief is fetched: the ticket can be closed,
+    relabelled or blocked between assignment and the runner's next poll. Not the
+    admission rule (`eligible`): a claimed ticket has already left the open states.
+    """
+    if ((issue.get("state") or {}).get("type")) in _CLOSED_STATE_TYPES:
+        return "closed"
+    if issue_label_names(issue).isdisjoint({BUILD_LABEL, PLAN_LABEL, AUTONOMY_LABEL}):
+        return "no mesh label"
+    return claim_refusal(issue)
+
+
 def read_issue(graphql, ident: str) -> Optional[dict]:
     """One ticket by identifier with the fields the lane and repo rules read, or None."""
     return (graphql(f"query{{issue(id:{json.dumps(ident)}){{{_NODE_FIELDS}}}}}") or {}).get("issue") or None

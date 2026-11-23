@@ -99,8 +99,10 @@ def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outc
     which reads the ticket from Linear for the node holding the claim; a claim it cannot
     brief is failed with a named code and never reaches an agent.
 
-    `report` hears one outcome per poll — unavailable, rejected, empty or assigned —
-    because all four used to return [] alike, so an outage read as an empty queue.
+    `report` hears one outcome per poll — unavailable, rejected, empty, assigned or
+    refused — because the first four used to return [] alike, so an outage read as an
+    empty queue. `refused` means claims were assigned but none could be briefed; no
+    self-claim is attempted in that poll.
     `contact` hears each call the server answered successfully, even when a later one fails.
     """
     claims = my_claims(api, host, lambda response: report(_failure(response)))
@@ -135,7 +137,20 @@ def _brief_problem(response: object, linear_id: str) -> str:
         return "brief_unreadable"
     if response.get("error") or response.get("linear_id") != linear_id:
         return "brief_refused"
+    if not _well_formed(response):
+        return "brief_unreadable"
     return "" if _has_brief(response) else "brief_empty"
+
+
+def _well_formed(brief: dict) -> bool:
+    """The full contract: a known lane and an explicit repo (None = no repo needed).
+
+    A brief without its lane could build an idea:plan ticket (plan_lane.lane_of
+    defaults to build), and one without its repo key could build in the default repo.
+    """
+    text_ok = all(isinstance(brief.get(k) or "", str) for k in ("title", "description"))
+    return (text_ok and brief.get("lane") in ("build", "plan") and "repo" in brief
+            and (brief["repo"] is None or isinstance(brief["repo"], str)))
 
 
 def with_brief(api: Api, host: str, claim: dict) -> "dict | None":

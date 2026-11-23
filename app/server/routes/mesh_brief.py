@@ -44,7 +44,11 @@ def _repo_for(issue: dict) -> Optional[str]:
     """
     if not mesh_lanes.needs_repo(issue):
         return None
-    repo = mesh_lanes.repo_of(issue, mesh_lanes.registry_repos())
+    try:
+        repos = mesh_lanes.registry_repos()
+    except (OSError, ValueError) as exc:
+        raise HTTPException(503, "project registry could not be read; not guessing a repository") from exc
+    repo = mesh_lanes.repo_of(issue, repos)
     if not repo:
         raise HTTPException(409, "ticket's project has no registered repository")
     return repo
@@ -64,6 +68,8 @@ def claim_brief(
     issue = mesh_lanes.read_issue(mesh_routes._linear_graphql, linear_id)
     if not issue:
         raise HTTPException(503, "Linear could not be read for this ticket")
+    if reason := mesh_lanes.run_refusal(issue):
+        raise HTTPException(409, f"ticket may no longer run: {reason}")
     return {
         "linear_id": linear_id,
         "title": (issue.get("title") or "")[:mesh_routes._TITLE_MAX_CHARS],
