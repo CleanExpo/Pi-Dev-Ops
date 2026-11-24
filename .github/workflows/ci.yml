@@ -155,7 +155,7 @@ jobs:
     name: Python (pytest)
     # Pinned: bubblewrap sandbox tests fail on ubuntu-26.04 runners. RA-8519 tracks 26.04 support; remove this pin then.
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20  # about 2x the last successful run (9m10s on 24/11/2026); at 10 the job was cancelled mid apt-get
 
     env:
       TAO_PASSWORD: ci-test-password
@@ -192,7 +192,7 @@ jobs:
         run: |
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
             sudo apt-get update -qq
-            sudo apt-get install -y ffmpeg
+            sudo apt-get install -y --no-install-recommends ffmpeg
           fi
           command -v ffmpeg
           command -v ffprobe
