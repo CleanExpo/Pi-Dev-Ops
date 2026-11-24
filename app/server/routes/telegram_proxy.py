@@ -113,11 +113,12 @@ class LinearCreateBody(BaseModel):
 async def linear_create(body: LinearCreateBody) -> dict:
     """Pi-Dev contract (RA-8632): open-title dedup, pi-dev:source label, run footer.
 
-    `repo` routes to the Linear project of the same name (422 if none); without
-    it, routing is unchanged. Lookup failures return 502 and file nothing.
+    Any `repo` (even blank) routes to the one Linear project of that name in one
+    team, else 422; only an absent `repo` keeps the old routing. Lookup failures
+    return 502 and file nothing.
     """
     gql = _linear_graphql
-    if body.repo and body.repo.strip():
+    if body.repo is not None:
         routing = telegram_linear.route_by_repo(gql, body.repo)
     else:
         routing = _project_routing(body.project_id)
