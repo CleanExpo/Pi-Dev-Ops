@@ -155,7 +155,7 @@ jobs:
     name: Python (pytest)
     # Pinned: bubblewrap sandbox tests fail on ubuntu-26.04 runners. RA-8519 tracks 26.04 support; remove this pin then.
     runs-on: ubuntu-24.04
-    timeout-minutes: 30  # cached run ~9 min; a cache miss on a slow mirror is estimated at ~25 min (13+ min of apt download measured on PR 1033, 24/11/2026)
+    timeout-minutes: 20  # about 2x the last successful run (9m10s on 24/11/2026)
 
     env:
       TAO_PASSWORD: ci-test-password
@@ -184,27 +184,36 @@ jobs:
         run: pytest swarm/ -v --tb=short
         working-directory: .
 
-      # The runner's Ubuntu mirror can serve the ~63 MB of FFmpeg packages at
-      # ~80 KB/s (PR 1033, 24/11/2026: 13+ minutes). Keep the downloaded
-      # .deb files in the Actions cache so later runs install without the mirror.
-      - name: Restore FFmpeg package cache
+      # FFmpeg comes from a pinned static build (BtbN/FFmpeg-Builds, a GitHub
+      # release asset), not apt: the runner's Ubuntu mirror served the apt
+      # packages at ~80 KB/s and the job timed out mid-download (PR 1033,
+      # 24/11/2026). The archive is cached, and its sha256 is checked on every
+      # run, cached or not; a mismatch fails the step.
+      - name: Restore FFmpeg archive cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: ~/.cache/apt-ffmpeg
-          key: apt-ffmpeg-ubuntu-24.04-v1
+          path: ~/.cache/ffmpeg-static
+          key: ffmpeg-static-n9.0.2-39-g7adfbe40dc-linux64-gpl-9.0
 
       # Exact-source SDA evidence, hook installer and router. Standalone
       # unittest suites are excluded from default pytest testpaths, so run
-      # them explicitly. Hosted runners may omit FFmpeg: install the real
-      # binary when missing, then fail if both tools are not available.
+      # them explicitly, then fail if ffmpeg or ffprobe is not available.
       - name: SDA canonical source suites
+        env:
+          FFMPEG_TAG: autobuild-2026-10-31-12-59
+          FFMPEG_ASSET: ffmpeg-n9.0.2-39-g7adfbe40dc-linux64-gpl-9.0.tar.xz
+          FFMPEG_SHA256: 73e29a56974ae5a651133a04584c7483b21afe941e17dc91d79814a758b608d3
         run: |
-          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
-            mkdir -p "$HOME/.cache/apt-ffmpeg/partial"
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends -o Dir::Cache::Archives="$HOME/.cache/apt-ffmpeg" ffmpeg
-            sudo chown -R "$(id -u):$(id -g)" "$HOME/.cache/apt-ffmpeg"
+          cache="$HOME/.cache/ffmpeg-static"
+          mkdir -p "$cache" "$RUNNER_TEMP/ffmpeg"
+          if [ ! -f "$cache/$FFMPEG_ASSET" ]; then
+            curl -fsSL --retry 3 -o "$cache/$FFMPEG_ASSET" \
+              "https://github.com/BtbN/FFmpeg-Builds/releases/download/$FFMPEG_TAG/$FFMPEG_ASSET"
           fi
+          echo "$FFMPEG_SHA256  $cache/$FFMPEG_ASSET" | sha256sum -c -
+          tar -xJf "$cache/$FFMPEG_ASSET" -C "$RUNNER_TEMP/ffmpeg" --strip-components=2 \
+            --wildcards '*/bin/ffmpeg' '*/bin/ffprobe'
+          export PATH="$RUNNER_TEMP/ffmpeg:$PATH"
           command -v ffmpeg
           command -v ffprobe
           python -B -m unittest discover -s skills/visual-qa/scripts -p 'test_sda_*.py' -v
