@@ -43,7 +43,7 @@ EXPECTED_ROUTES = {
     ("POST", "/api/margot/turn"), ("POST", "/api/margot/voice"),
     ("POST", "/api/mesh/heartbeat"), ("GET", "/api/mesh/claims"), ("POST", "/api/mesh/claim/update"),
     ("POST", "/api/mesh/claims/reap"), ("POST", "/api/mesh/dispatch"), ("POST", "/api/mesh/claim/self"),
-    ("POST", "/api/mesh/lane-events"), ("POST", "/api/mesh/ship"),
+    ("POST", "/api/mesh/lane-events"), ("POST", "/api/mesh/ship"), ("GET", "/api/mesh/claim/brief"),
     ("POST", "/api/webhook/morning-intel"), ("POST", "/api/webhook/routine-complete"),
     ("POST", "/api/webhook/workspace-intel-refresh"), ("GET", "/api/workspace-intel"),
     ("POST", "/api/wiki/sources/upload"), ("GET", "/api/wiki/sources"), ("GET", "/api/wiki/requirements"),

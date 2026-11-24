@@ -200,12 +200,34 @@ def explicit(graphql, identifiers: list[str]) -> list[dict]:
     repos = registry_repos()
     out: list[dict] = []
     for ident in identifiers:
-        issue = (graphql(f"query{{issue(id:{json.dumps(ident)}){{{_NODE_FIELDS}}}}}") or {}).get("issue")
+        issue = read_issue(graphql, ident)
         if issue and _in_mesh_pool(issue) and eligible(issue, repos):
             out.append(issue)
         else:
             log.info("dispatch: %s not eligible or not found; skipped", ident)
     return out
+
+
+_CLOSED_STATE_TYPES = frozenset({"completed", "canceled"})
+
+
+def run_refusal(issue: dict) -> Optional[str]:
+    """Why a claimed ticket may no longer be worked, or None.
+
+    Checked when a dispatched claim's brief is fetched: the ticket can be closed,
+    relabelled or blocked between assignment and the runner's next poll. Not the
+    admission rule (`eligible`): a claimed ticket has already left the open states.
+    """
+    if ((issue.get("state") or {}).get("type")) in _CLOSED_STATE_TYPES:
+        return "closed"
+    if issue_label_names(issue).isdisjoint({BUILD_LABEL, PLAN_LABEL, AUTONOMY_LABEL}):
+        return "no mesh label"
+    return claim_refusal(issue)
+
+
+def read_issue(graphql, ident: str) -> Optional[dict]:
+    """One ticket by identifier with the fields the lane and repo rules read, or None."""
+    return (graphql(f"query{{issue(id:{json.dumps(ident)}){{{_NODE_FIELDS}}}}}") or {}).get("issue") or None
 
 
 def lane_of(issue: dict) -> str:

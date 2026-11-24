@@ -244,7 +244,7 @@ class FakeMeshServer:
             if body["state"] == "done":
                 self.worked.append(body["linear_id"])
             return {"ok": True}
-        return {}
+        return {"linear_id": path.split("linear_id=")[1].split("&")[0], "title": "t", "lane": "build", "repo": None} if "/claim/brief" in path else {}
 
 
 @pytest.fixture

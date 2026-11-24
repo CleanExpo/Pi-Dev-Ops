@@ -13,6 +13,7 @@ from .app_factory import app  # noqa: F401  (re-exported for uvicorn / callers)
 from .routes import auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, telegram_proxy, telegram_intake, mission_control, phone, swarm, margot, margot_assets, cost_report, delegate, elevenlabs, spec_pipeline, idea_pipeline, goal_ticket, youtube_intent, model_fabric, slack_bridge
 from .routes import mesh  # Nexus Mesh — fleet heartbeat + Mission Control
 from .routes import mesh_ship  # RA-7377 — POST /api/mesh/ship
+from .routes import mesh_brief  # GET /api/mesh/claim/brief — brief for a dispatcher-assigned claim
 from .routes import mesh_lane_events  # mc-lane mod — POST/GET /api/mesh/lane-events
 from .routes import terminal  # Terminal Orchestrator read API — pane-UI backend (RA-7012)
 from .routes import conversations  # Shared conversation brain — cross-machine digests
@@ -66,6 +67,7 @@ app.include_router(nexus_one_status.router)  # RA-7539 — /api/nexus-one/status
 app.include_router(youtube_intent.router)  # Intent-only YouTube -> UG-N knowledge catalog
 app.include_router(mesh.router)  # Nexus Mesh — /api/mesh/*
 app.include_router(mesh_ship.router)  # RA-7377 — POST /api/mesh/ship
+app.include_router(mesh_brief.router)  # GET /api/mesh/claim/brief
 app.include_router(mesh_lane_events.router)  # mc-lane mod — /api/mesh/lane-events
 app.include_router(mesh_lane_events.mc_router)  # Claude lanes board — /api/mission-control/lane-events (session)
 app.include_router(terminal.router)  # Terminal Orchestrator read API — /api/terminal/* (RA-7012)

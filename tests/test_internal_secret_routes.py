@@ -70,7 +70,7 @@ def _aspy(calls, ret):
 
 def _mesh(mp, tmp, calls):
     from app.server import mesh_dispatch_service, mesh_lanes, mesh_queue_cache
-    from app.server.routes import mesh, mesh_lane_events, mesh_ship
+    from app.server.routes import mesh, mesh_brief, mesh_lane_events, mesh_ship
     sb = _spy(calls, (200, "[]"))
     for module in (mesh, mesh_ship.mesh_routes, mesh_lane_events._mesh, mesh_lane_events):
         mp.setattr(module, "_sb", sb)
@@ -79,7 +79,7 @@ def _mesh(mp, tmp, calls):
     mp.setattr(mesh_dispatch_service, "run_dispatch_tick", _spy(calls, {"dispatched": []}))
     mp.setattr(mesh_queue_cache, "candidates", _spy(calls, ([], {})))
     mp.setattr(mesh_lanes, "repeat_claimed", _spy(calls, None))
-    return [mesh.router, mesh_ship.router, mesh_lane_events.router]
+    return [mesh.router, mesh_ship.router, mesh_lane_events.router, mesh_brief.router]
 
 
 def _conversations(mp, tmp, calls):
@@ -182,6 +182,7 @@ ROUTES = [
     ("mesh-claim-self", "mesh", "POST", "/api/mesh/claim/self", {"json": {"host": "m1"}}, 200),
     ("mesh-lane-events-post", "mesh", "POST", "/api/mesh/lane-events", {"json": {"host": "m1", "events": [EVENT]}}, 200),
     ("mesh-ship", "mesh", "POST", "/api/mesh/ship", {"json": {"machine": "m1", "repo": "o/r"}}, 200),
+    ("mesh-claim-brief", "mesh", "GET", "/api/mesh/claim/brief", {"params": {"linear_id": "RA-1", "host": "m1", "claim_id": "c1"}}, 409),
     ("webhook-morning-intel", "webhooks", "POST", "/api/webhook/morning-intel", {"json": {"date": "2026-11-17"}}, 200),
     ("webhook-routine-complete", "webhooks", "POST", "/api/webhook/routine-complete",
      {"json": {"routine_name": "r", "repo": "o/r", "trigger": "api", "status": "success", "duration_s": 1}}, 200),
