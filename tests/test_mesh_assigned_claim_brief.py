@@ -30,9 +30,10 @@ BRIEF = {"linear_id": "UNI-7", "title": "Fix the header", "description": "Make i
 class FakeApi:
     """Answers the three calls next_work makes, and records every call."""
 
-    def __init__(self, claims, brief=None):
+    def __init__(self, claims, brief=None, update=None):
         self.claims = claims
         self.brief = brief if brief is not None else BRIEF
+        self.update = update if update is not None else {"ok": True}
         self.calls: list[tuple[str, str, object]] = []
 
     def __call__(self, method, path, body=None):
@@ -42,7 +43,7 @@ class FakeApi:
         if path.startswith("/api/mesh/claim/brief"):
             return self.brief
         if path == "/api/mesh/claim/update":
-            return {"ok": True}
+            return self.update
         if path == "/api/mesh/claim/self":
             return {"claimed": None}
         raise AssertionError(f"unexpected call {method} {path}")
@@ -115,12 +116,65 @@ def test_brief_for_another_ticket_is_refused():
     assert update["error_code"] == "brief_refused"
 
 
-def test_claim_with_no_ticket_is_refused_and_never_briefed():
+def test_claim_with_no_ticket_is_closed_and_never_briefed():
+    """UNI-3548: dropping it left the claim row open with nobody working it."""
     api = FakeApi([_assigned(linear_id="")])
     outcomes: list[str] = []
     assert next_work(api, HOST, outcomes.append) == []
     assert api.brief_calls() == []
+    [update] = api.updates()
+    assert update == {"linear_id": "", "state": "failed", "host": HOST, "claim_id": "claim-1",
+                      "error_code": "brief_refused"}
     assert outcomes[-1] == "refused"
+
+
+def test_claim_row_without_a_ticket_field_is_reported_unclosed():
+    """No ticket id at all: the update cannot name the row, so the poll says so."""
+    claim = {k: v for k, v in _assigned().items() if k != "linear_id"}
+    api = FakeApi([claim])
+    outcomes: list[str] = []
+    assert next_work(api, HOST, outcomes.append) == []
+    assert api.brief_calls() == [] and api.updates() == []
+    assert outcomes[-1] == "unclosed"
+
+
+@pytest.mark.parametrize("answer", [{"error": "HTTP 503"}, {"error": "timed out"}, "not a dict", {},
+                                    {"ok": False}])
+def test_refusal_the_server_did_not_confirm_is_reported_unclosed(answer):
+    """UNI-3548: an unconfirmed close left the claim open while the poll said refused."""
+    api = FakeApi([_assigned()], brief={"error": "HTTP 503"}, update=answer)
+    outcomes: list[str] = []
+    assert next_work(api, HOST, outcomes.append) == []
+    assert len(api.updates()) == 1
+    assert outcomes[-1] == "unclosed"
+    assert not any(path == "/api/mesh/claim/self" for _, path, _ in api.calls)
+
+
+def test_confirmed_refusal_reports_refused():
+    api = FakeApi([_assigned()], brief={"error": "HTTP 503"})
+    outcomes: list[str] = []
+    next_work(api, HOST, outcomes.append)
+    assert outcomes[-1] == "refused"
+
+
+def test_unclosed_refusal_is_reported_even_when_other_work_is_ready():
+    good = _assigned()
+    bad = {**_assigned(linear_id="UNI-9"), "id": "claim-2"}
+
+    class Mixed(FakeApi):
+        def __call__(self, method, path, body=None):
+            if "UNI-9" in path:
+                self.calls.append((method, path, body))
+                return {"error": "HTTP 503"}
+            if path == "/api/mesh/claim/update":
+                self.calls.append((method, path, body))
+                return {"error": "HTTP 502"}
+            return super().__call__(method, path, body)
+
+    outcomes: list[str] = []
+    work = next_work(Mixed([good, bad]), HOST, outcomes.append)
+    assert [c["linear_id"] for c in work] == ["UNI-7"]
+    assert outcomes[-1] == "unclosed"
 
 
 def test_one_bad_claim_does_not_block_a_good_one():

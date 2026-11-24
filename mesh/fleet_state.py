@@ -99,10 +99,11 @@ def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outc
     which reads the ticket from Linear for the node holding the claim; a claim it cannot
     brief is failed with a named code and never reaches an agent.
 
-    `report` hears one outcome per poll — unavailable, rejected, empty, assigned or
-    refused — because the first four used to return [] alike, so an outage read as an
-    empty queue. `refused` means claims were assigned but none could be briefed; no
-    self-claim is attempted in that poll.
+    `report` hears one outcome per poll — unavailable, rejected, empty, assigned,
+    refused or unclosed — because the first four used to return [] alike, so an outage
+    read as an empty queue. `refused` means claims were assigned but none could be
+    briefed; `unclosed` means a refused claim could not be confirmed closed, so it is
+    still open on the server (UNI-3548). No self-claim is attempted in either poll.
     `contact` hears each call the server answered successfully, even when a later one fails.
     """
     claims = my_claims(api, host, lambda response: report(_failure(response)))
@@ -110,8 +111,9 @@ def next_work(api: Api, host: str, report: Callable[[str], object] = lambda outc
         return []          # fleet unreadable: hold, never self-claim on a guess
     contact()
     if claims:
-        ready = [c for c in (with_brief(api, host, claim) for claim in claims) if c]
-        report("assigned" if ready else "refused")
+        unclosed: list[dict] = []
+        ready = [c for c in (with_brief(api, host, claim, unclosed.append) for claim in claims) if c]
+        report("unclosed" if unclosed else "assigned" if ready else "refused")
         return ready
     response = api("POST", "/api/mesh/claim/self", {"host": host})
     if not isinstance(response, dict) or response.get("error"):
@@ -153,24 +155,37 @@ def _well_formed(brief: dict) -> bool:
             and (brief["repo"] is None or isinstance(brief["repo"], str)))
 
 
-def with_brief(api: Api, host: str, claim: dict) -> "dict | None":
+def _close(api: Api, host: str, claim: dict, linear_id: str, code: str) -> bool:
+    """Fail a refused claim on the server; True only when the server confirmed it."""
+    answer = api("POST", "/api/mesh/claim/update", {"linear_id": linear_id, "state": "failed", "host": host,
+                                                    "claim_id": claim.get("id"), "error_code": code})
+    return isinstance(answer, dict) and answer.get("ok") is True  # an error answer never says ok
+
+
+def with_brief(api: Api, host: str, claim: dict,
+               unclosed: Callable[[dict], object] = lambda claim: None) -> "dict | None":
     """`claim` with its ticket's brief, lane and repo, or None after refusing it.
 
     A self-claim already carries its brief and is returned as it is. A refusal fails
     the claim on the server with a closed-set code, which ends the claim and returns
     the ticket to the pool, rather than leaving it locked under a claim nobody works.
-    A claim naming no ticket cannot be briefed or ended by ticket id; it is dropped.
+    A claim with an empty ticket id is failed the same way without asking for a brief.
+    `unclosed` hears every refused claim the server did not confirm closed, including a
+    row with no ticket field at all, which no update can name (UNI-3548).
     """
     linear_id = claim.get("linear_id")
-    if not isinstance(linear_id, str) or not linear_id:
+    if not isinstance(linear_id, str):
+        unclosed(claim)
         return None
-    if _has_brief(claim):
+    if linear_id and _has_brief(claim):
         return claim
-    q = urllib.parse.urlencode({"linear_id": linear_id, "host": host, "claim_id": claim.get("id") or ""})
-    response = api("GET", f"/api/mesh/claim/brief?{q}")
+    response: object = {"error": "HTTP 409 no ticket"}
+    if linear_id:
+        q = urllib.parse.urlencode({"linear_id": linear_id, "host": host, "claim_id": claim.get("id") or ""})
+        response = api("GET", f"/api/mesh/claim/brief?{q}")
     if code := _brief_problem(response, linear_id):
-        api("POST", "/api/mesh/claim/update", {"linear_id": linear_id, "state": "failed", "host": host,
-                                               "claim_id": claim.get("id"), "error_code": code})
+        if not _close(api, host, claim, linear_id, code):
+            unclosed(claim)
         return None
     brief = {k: response.get(k) for k in ("title", "description", "lane", "repo")}
     return {**claim, **{k: v for k, v in brief.items() if v is not None}}
