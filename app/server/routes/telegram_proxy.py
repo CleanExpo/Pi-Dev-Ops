@@ -5,7 +5,7 @@ Every endpoint is auth-gated (`require_auth`) so the bot's backend cookie is the
 only caller in practice. Each endpoint bridges a Telegram slash command to
 either Linear GraphQL or Pi-CEO internals:
 
-  POST /api/telegram/linear/create       body: {title, project_id?}
+  POST /api/telegram/linear/create       body: {title, repo?, project_id?}
   GET  /api/telegram/linear/status/{iid} Linear issue + latest comment
   GET  /api/telegram/pipeline/{iid}      Phase snapshot for a ticket
   POST /api/telegram/ship                {issue_id} -> triggers ship_build
@@ -29,7 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..auth import require_auth
-from .. import config
+from .. import config, telegram_linear
 from app.server import config_loader
 
 log = logging.getLogger("pi-ceo.telegram_proxy")
@@ -106,40 +106,24 @@ class LinearCreateBody(BaseModel):
     project_id: str | None = None
     description: str | None = None
     priority: int = 2  # Linear: 0=none, 1=urgent, 2=high, 3=medium, 4=low
+    repo: str | None = None  # GitHub owner/name or bare name -> Pattern B routing
 
 
 @router.post("/linear/create", dependencies=[Depends(require_auth)])
 async def linear_create(body: LinearCreateBody) -> dict:
-    routing = _project_routing(body.project_id)
-    mutation = """
-    mutation Create($input: IssueCreateInput!) {
-      issueCreate(input: $input) {
-        success
-        issue { id identifier url title }
-      }
-    }
-    """
-    inp = {
-        "teamId": routing["teamId"],
-        "title": body.title,
-        "priority": body.priority,
-    }
-    if routing.get("projectId"):
-        inp["projectId"] = routing["projectId"]
-    if body.description:
-        inp["description"] = body.description
+    """Pi-Dev contract (RA-8632): open-title dedup, pi-dev:source label, run footer.
 
-    data = _linear_graphql(mutation, {"input": inp})
-    result = data.get("issueCreate", {}) or {}
-    if not result.get("success"):
-        raise HTTPException(502, "Linear issueCreate returned success=false")
-    issue = result.get("issue", {}) or {}
-    return {
-        "id": issue.get("id"),
-        "identifier": issue.get("identifier"),
-        "url": issue.get("url"),
-        "title": issue.get("title"),
-    }
+    `repo` routes to the Linear project of the same name (422 if none); without
+    it, routing is unchanged. Lookup failures return 502 and file nothing.
+    """
+    gql = _linear_graphql
+    if body.repo and body.repo.strip():
+        routing = telegram_linear.route_by_repo(gql, body.repo)
+    else:
+        routing = _project_routing(body.project_id)
+    return telegram_linear.create_or_reuse(
+        gql, routing=routing, title=body.title, description=body.description, priority=body.priority
+    )
 
 
 # ── /linear/status/{issue_id} ───────────────────────────────────────────────
