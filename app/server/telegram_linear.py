@@ -56,11 +56,16 @@ _SOURCE = "Telegram /linear/create"
 
 # Same filter as swarm/margot_tools._lookup_open_issue (that helper reads "lookup
 # failed" as "no match"). Titles are re-checked exactly in code after the query.
+_OPEN_STATES = 'state: { type: { in: ["triage","backlog","unstarted","started"] } }, '
+_ISSUE_NODES = "title: { eq: $title } }, first: 50) { nodes { id identifier url title } } }"
 _FIND_OPEN_BY_TITLE = (
     "query FindOpenByTitle($teamId: ID!, $title: String!) { issues(filter: { "
-    "team: { id: { eq: $teamId } }, "
-    'state: { type: { in: ["triage","backlog","unstarted","started"] } }, '
-    "title: { eq: $title } }, first: 50) { nodes { id identifier url title } } }"
+    "team: { id: { eq: $teamId } }, " + _OPEN_STATES + _ISSUE_NODES
+)
+# Routed to a project: a same-title issue in a sibling project is not a duplicate.
+_FIND_OPEN_BY_TITLE_IN_PROJECT = (
+    "query FindOpenByTitle($teamId: ID!, $projectId: ID!, $title: String!) { issues(filter: { "
+    "team: { id: { eq: $teamId } }, project: { id: { eq: $projectId } }, " + _OPEN_STATES + _ISSUE_NODES
 )
 _PROJECT_BY_NAME = (
     "query ProjectByName($name: String!) { projects(filter: { name: { eq: $name } }, "
@@ -138,9 +143,12 @@ def route_by_repo(gql: GqlFn, repo: str) -> Routing:
 
 
 # ── lookups ─────────────────────────────────────────────────────────────────
-def find_open_issue(gql: GqlFn, team_id: str, title: str) -> _Issue | None:
-    """Open issue with exactly this title in the team, or None. Fails closed."""
-    data = _call(gql, _FIND_OPEN_BY_TITLE, {"teamId": team_id, "title": title})
+def find_open_issue(gql: GqlFn, team_id: str, title: str, project_id: str | None = None) -> _Issue | None:
+    """Open issue with exactly this title in the project (else the team), or None. Fails closed."""
+    if project_id:
+        data = _call(gql, _FIND_OPEN_BY_TITLE_IN_PROJECT, {"teamId": team_id, "projectId": project_id, "title": title})
+    else:
+        data = _call(gql, _FIND_OPEN_BY_TITLE, {"teamId": team_id, "title": title})
     answer = _parse(OpenIssueAnswer, data, "Linear duplicate lookup")
     return next((i for i in answer.issues.nodes if i.title == title), None)
 
@@ -208,7 +216,7 @@ def create_or_reuse(gql: GqlFn, *, routing: Routing, title: str, description: st
                     priority: int, now: datetime | None = None) -> dict[str, Any]:
     """Return the open same-title issue, or file a labelled, footed new one."""
     with _serialised(("issue", routing.team_id, title)):
-        found = find_open_issue(gql, routing.team_id, title)
+        found = find_open_issue(gql, routing.team_id, title, routing.project_id)
         if found:
             return _shape(found, existing=True, run_id=None)
         label_id = source_label_id(gql, routing.team_id)

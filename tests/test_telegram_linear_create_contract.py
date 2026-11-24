@@ -147,7 +147,7 @@ def test_existing_open_issue_is_returned_instead_of_created(linear):
     for state_type in ("triage", "backlog", "unstarted", "started"):
         assert state_type in lookup_query
     assert "completed" not in lookup_query and "canceled" not in lookup_query
-    assert linear.ops("FindOpenByTitle") == [{"teamId": "team-default", "title": "Fix the login page"}]
+    assert linear.ops("FindOpenByTitle") == [{"teamId": "team-default", "projectId": "proj-default", "title": "Fix the login page"}]
 
 
 def test_case_variant_title_is_not_a_duplicate(linear):
