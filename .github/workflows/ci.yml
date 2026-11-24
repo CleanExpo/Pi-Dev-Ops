@@ -204,16 +204,21 @@ jobs:
           FFMPEG_ASSET: ffmpeg-n9.0.2-39-g7adfbe40dc-linux64-gpl-9.0.tar.xz
           FFMPEG_SHA256: 73e29a56974ae5a651133a04584c7483b21afe941e17dc91d79814a758b608d3
         run: |
-          cache="$HOME/.cache/ffmpeg-static"
-          mkdir -p "$cache" "$RUNNER_TEMP/ffmpeg"
-          if [ ! -f "$cache/$FFMPEG_ASSET" ]; then
-            curl -fsSL --retry 3 -o "$cache/$FFMPEG_ASSET" \
-              "https://github.com/BtbN/FFmpeg-Builds/releases/download/$FFMPEG_TAG/$FFMPEG_ASSET"
+          # The pinned build is linux64. Off Linux (the local CI mirror on a
+          # Mac) the host's own ffmpeg is used and must still be present.
+          if [ "$(uname -s)" = "Linux" ]; then
+            cache="$HOME/.cache/ffmpeg-static"
+            dir="${FFMPEG_ASSET%.tar.xz}"
+            mkdir -p "$cache" "$RUNNER_TEMP/ffmpeg"
+            if [ ! -f "$cache/$FFMPEG_ASSET" ]; then
+              curl -fsSL --retry 3 -o "$cache/$FFMPEG_ASSET" \
+                "https://github.com/BtbN/FFmpeg-Builds/releases/download/$FFMPEG_TAG/$FFMPEG_ASSET"
+            fi
+            echo "$FFMPEG_SHA256  $cache/$FFMPEG_ASSET" | sha256sum -c -
+            tar -xJf "$cache/$FFMPEG_ASSET" -C "$RUNNER_TEMP/ffmpeg" --strip-components=2 \
+              "$dir/bin/ffmpeg" "$dir/bin/ffprobe"
+            export PATH="$RUNNER_TEMP/ffmpeg:$PATH"
           fi
-          echo "$FFMPEG_SHA256  $cache/$FFMPEG_ASSET" | sha256sum -c -
-          tar -xJf "$cache/$FFMPEG_ASSET" -C "$RUNNER_TEMP/ffmpeg" --strip-components=2 \
-            --wildcards '*/bin/ffmpeg' '*/bin/ffprobe'
-          export PATH="$RUNNER_TEMP/ffmpeg:$PATH"
           command -v ffmpeg
           command -v ffprobe
           python -B -m unittest discover -s skills/visual-qa/scripts -p 'test_sda_*.py' -v
