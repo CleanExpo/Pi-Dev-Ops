@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from fastapi import HTTPException
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StrictStr, ValidationError
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StrictBool, StrictStr, ValidationError
 
 NOTHING = "nothing created"
 
@@ -36,6 +36,16 @@ class _Nodes(_Strict, Generic[T]):
     nodes: list[T]
 
 
+class _PageInfo(_Strict):
+    hasNextPage: StrictBool
+    endCursor: StrictStr | None = None
+
+
+class _Page(_Nodes[T], Generic[T]):
+    """A top-level Linear list: pageInfo is required, so a reader cannot stop at page one unknowingly."""
+    pageInfo: _PageInfo
+
+
 class _Ref(_Strict):  # a team: only its id is read
     id: _Text
 
@@ -56,15 +66,15 @@ class _Project(_Ref):
 
 
 class _TeamLabels(_Strict):
-    labels: _Nodes[_Label]
+    labels: _Page[_Label]
 
 
 class OpenIssueAnswer(_Strict):
-    issues: _Nodes[_Issue]
+    issues: _Page[_Issue]
 
 
 class ProjectAnswer(_Strict):
-    projects: _Nodes[_Project]
+    projects: _Page[_Project]
 
 
 class LabelAnswer(_Strict):

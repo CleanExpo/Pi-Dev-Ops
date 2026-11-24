@@ -68,9 +68,9 @@ class FakeLinear:
         if "FindOpenByTitle" in query:
             hits = [i for i in self.issues if i["teamId"] == v["teamId"] and i["open"]
                     and i["title"].lower() == v["title"].lower()]
-            return {"issues": {"nodes": [_public(i) for i in hits]}}
+            return {"issues": {"nodes": [_public(i) for i in hits], "pageInfo": {"hasNextPage": False, "endCursor": None}}}
         if "ProjectByName" in query:
-            return {"projects": {"nodes": list(self.projects)}}
+            return {"projects": {"nodes": list(self.projects), "pageInfo": {"hasNextPage": False, "endCursor": None}}}
         if "issueLabelCreate" in query:
             inp = v["input"]
             label = {"id": f"label-new-{sum(map(len, self.labels.values())) + 1}", "name": inp["name"]}
@@ -78,7 +78,7 @@ class FakeLinear:
             return {"issueLabelCreate": {"success": True, "issueLabel": label}}
         if "SourceLabel" in query:
             team = self.labels.get(v["teamId"], [])
-            return {"team": {"labels": {"nodes": [lb for lb in team if lb["name"].lower() == v["name"].lower()]}}}
+            return {"team": {"labels": {"nodes": [lb for lb in team if lb["name"].lower() == v["name"].lower()], "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
         if "issueCreate(" in query:
             return self._create_issue(v["input"])
         raise AssertionError(f"unexpected Linear query: {query}")

@@ -15,10 +15,15 @@ several matching projects, or not exactly one team" is 422. In-process locks
 serialise look-up-then-create per (team id, title) and look-up-or-create of
 the `pi-dev:source` label per team, so ONE worker files once and labels once.
 
+Every Linear list is read through `_every_node`, which follows pageInfo to the
+last page (RA-8646): an exact title, project or label on page two is found, and
+a broken or endless page chain is 502, never "no match".
+
 Known limits, deliberately not implemented:
 - Cross-worker races: requests on different workers or replicas can still both
   miss a lookup and file twice (issue or label); closing that needs a shared
-  lock or an idempotency key Linear enforces.
+  lock or an idempotency key Linear enforces. The in-process label lock is also
+  not shared with `goal_ticket`, the other `pi-dev:source` writer (RA-8646).
 - The Telegram bot does not send `repo` yet (bot out of scope), so Pattern B
   is reachable only from direct API calls.
 - No `Pi-Dev Run ID` custom field: nothing in this repository sets it today.
@@ -57,24 +62,26 @@ _SOURCE = "Telegram /linear/create"
 # Same filter as swarm/margot_tools._lookup_open_issue (that helper reads "lookup
 # failed" as "no match"). Titles are re-checked exactly in code after the query.
 _OPEN_STATES = 'state: { type: { in: ["triage","backlog","unstarted","started"] } }, '
-_ISSUE_NODES = "title: { eq: $title } }, first: 50) { nodes { id identifier url title } } }"
+# Every top-level list takes $after and asks for pageInfo; `_every_node` reads all pages.
+_PAGE = "pageInfo { hasNextPage endCursor } "
+_ISSUE_NODES = "title: { eq: $title } }, first: 50, after: $after) { nodes { id identifier url title } " + _PAGE + "} }"
 _FIND_OPEN_BY_TITLE = (
-    "query FindOpenByTitle($teamId: ID!, $title: String!) { issues(filter: { "
+    "query FindOpenByTitle($teamId: ID!, $title: String!, $after: String) { issues(filter: { "
     "team: { id: { eq: $teamId } }, " + _OPEN_STATES + _ISSUE_NODES
 )
 # Routed to a project: a same-title issue in a sibling project is not a duplicate.
 _FIND_OPEN_BY_TITLE_IN_PROJECT = (
-    "query FindOpenByTitle($teamId: ID!, $projectId: ID!, $title: String!) { issues(filter: { "
+    "query FindOpenByTitle($teamId: ID!, $projectId: ID!, $title: String!, $after: String) { issues(filter: { "
     "team: { id: { eq: $teamId } }, project: { id: { eq: $projectId } }, " + _OPEN_STATES + _ISSUE_NODES
 )
 _PROJECT_BY_NAME = (
-    "query ProjectByName($name: String!) { projects(filter: { name: { eq: $name } }, "
-    "first: 50) { nodes { id name teams(first: 5) { nodes { id } } } } }"
+    "query ProjectByName($name: String!, $after: String) { projects(filter: { name: { eq: $name } }, "
+    "first: 50, after: $after) { nodes { id name teams(first: 5) { nodes { id } } } " + _PAGE + "} }"
 )
 # Filtered by name, so a team with more than one page of labels still finds it.
 _SOURCE_LABEL_BY_NAME = (
-    "query SourceLabel($teamId: String!, $name: String!) { team(id: $teamId) { "
-    "labels(filter: { name: { eq: $name } }, first: 50) { nodes { id name } } } }"
+    "query SourceLabel($teamId: String!, $name: String!, $after: String) { team(id: $teamId) { "
+    "labels(filter: { name: { eq: $name } }, first: 50, after: $after) { nodes { id name } " + _PAGE + "} } }"
 )
 _LABEL_CREATE = (
     "mutation($input: IssueLabelCreateInput!) { "
@@ -100,8 +107,10 @@ def repo_name(repo: str) -> str:
     text = repo.strip()
     for form in _REPO_FORMS:
         match = form.match(text)
-        if match and match["name"] not in (".", ".."):
-            return match["name"]
+        if not match:
+            continue
+        name = re.sub(r"\.git$", "", match["name"], flags=re.IGNORECASE)  # every form, not only URLs
+        return name if name not in ("", ".", "..") else ""
     return ""
 
 
@@ -112,6 +121,28 @@ def _call(gql: GqlFn, query: str, variables: dict[str, Any], consequence: str = 
     except Exception as exc:  # noqa: BLE001 - fail closed on anything the transport does
         detail = exc.detail if isinstance(exc, HTTPException) else f"{type(exc).__name__}: {exc}"
         raise HTTPException(502, f"Linear call failed ({detail}); {consequence}") from exc
+
+
+_MAX_PAGES = 20
+
+
+def _every_node(gql: GqlFn, query: str, variables: dict[str, Any], model: type[Any],
+                page: Callable[[Any], Any], what: str) -> list[Any]:
+    """The one reader for a Linear list: every page, or 502. Never a silent first page."""
+    nodes: list[Any] = []
+    after: str | None = None
+    seen: set[str] = set()
+    for _ in range(_MAX_PAGES):
+        answer = _parse(model, _call(gql, query, {**variables, **({"after": after} if after else {})}), what)
+        current = page(answer)
+        nodes.extend(current.nodes)
+        if not current.pageInfo.hasNextPage:
+            return nodes
+        after = current.pageInfo.endCursor
+        if not after or after in seen:
+            raise HTTPException(502, f"{what} gave no usable next-page cursor; {_NOTHING}")
+        seen.add(after)
+    raise HTTPException(502, f"{what} ran past {_MAX_PAGES} pages; {_NOTHING}")
 
 
 # ── routing ─────────────────────────────────────────────────────────────────
@@ -132,8 +163,9 @@ def route_by_repo(gql: GqlFn, repo: str) -> Routing:
     name = repo_name(repo)
     if not name:
         raise HTTPException(422, f"repo must be a GitHub owner/name, github.com URL or bare name; {_NOTHING}")
-    answer = _parse(ProjectAnswer, _call(gql, _PROJECT_BY_NAME, {"name": name}), "Linear project lookup")
-    matches = [p for p in answer.projects.nodes if p.name == name]
+    projects = _every_node(gql, _PROJECT_BY_NAME, {"name": name}, ProjectAnswer, lambda a: a.projects,
+                           "Linear project lookup")
+    matches = [p for p in projects if p.name == name]
     if len(matches) != 1:
         raise HTTPException(422, f"need exactly one Linear project named {name!r}, found {len(matches)}; {_NOTHING}")
     teams = matches[0].teams.nodes
@@ -145,20 +177,19 @@ def route_by_repo(gql: GqlFn, repo: str) -> Routing:
 # ── lookups ─────────────────────────────────────────────────────────────────
 def find_open_issue(gql: GqlFn, team_id: str, title: str, project_id: str | None = None) -> _Issue | None:
     """Open issue with exactly this title in the project (else the team), or None. Fails closed."""
+    query, variables = _FIND_OPEN_BY_TITLE, {"teamId": team_id, "title": title}
     if project_id:
-        data = _call(gql, _FIND_OPEN_BY_TITLE_IN_PROJECT, {"teamId": team_id, "projectId": project_id, "title": title})
-    else:
-        data = _call(gql, _FIND_OPEN_BY_TITLE, {"teamId": team_id, "title": title})
-    answer = _parse(OpenIssueAnswer, data, "Linear duplicate lookup")
-    return next((i for i in answer.issues.nodes if i.title == title), None)
+        query, variables = _FIND_OPEN_BY_TITLE_IN_PROJECT, {**variables, "projectId": project_id}
+    issues = _every_node(gql, query, variables, OpenIssueAnswer, lambda a: a.issues, "Linear duplicate lookup")
+    return next((i for i in issues if i.title == title), None)
 
 
 def source_label_id(gql: GqlFn, team_id: str) -> str:
     """Id of the team's `pi-dev:source` label; create it only after a clean miss."""
     with _serialised(("label", team_id)):
-        data = _call(gql, _SOURCE_LABEL_BY_NAME, {"teamId": team_id, "name": _SOURCE_LABEL})
-        answer = _parse(LabelAnswer, data, "Linear label lookup")
-        found = next((lb for lb in answer.team.labels.nodes if lb.name == _SOURCE_LABEL), None)
+        labels = _every_node(gql, _SOURCE_LABEL_BY_NAME, {"teamId": team_id, "name": _SOURCE_LABEL}, LabelAnswer,
+                             lambda a: a.team.labels, "Linear label lookup")
+        found = next((lb for lb in labels if lb.name == _SOURCE_LABEL), None)
         if found:
             return found.id
         new = {"input": {"name": _SOURCE_LABEL, "teamId": team_id, "color": "#6B7280"}}

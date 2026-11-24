@@ -33,9 +33,9 @@ class ProjectAwareLinear:
             hits = [i for i in self.issues
                     if i["teamId"] == v["teamId"] and i["title"] == v["title"]
                     and (not scoped or i["projectId"] == v["projectId"])]
-            return {"issues": {"nodes": [_public(i) for i in hits]}}
+            return {"issues": {"nodes": [_public(i) for i in hits], "pageInfo": {"hasNextPage": False, "endCursor": None}}}
         if "SourceLabel" in query:
-            return {"team": {"labels": {"nodes": [{"id": "label-src", "name": "pi-dev:source"}]}}}
+            return {"team": {"labels": {"nodes": [{"id": "label-src", "name": "pi-dev:source"}], "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
         if "issueCreate(" in query:
             inp = v["input"]
             n = len(self.issues) + 1
