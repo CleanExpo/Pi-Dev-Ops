@@ -193,3 +193,13 @@ def test_the_claim_id_is_chosen_before_the_insert_so_nothing_depends_on_its_repl
     second = client.post("/api/mesh/claim/self", json={"host": "Mini"}, headers=HDR).json()
     assert first["claimed"]["id"] == sb.inserted[0]["id"] != second["claimed"]["id"] == sb.inserted[1]["id"]
     assert sb.patches == []  # nothing to release
+
+
+def test_a_claim_row_with_an_empty_ticket_id_can_be_closed(mesh_client):
+    """UNI-3548: the runner fails a claim naming no ticket; the update must close that row."""
+    client, _, sb = mesh_client
+    sb.open_rows = [{"id": "c-blank", "linear_id": "", "state": "claimed", "machine": "Phill_Desktop"}]
+    response = _update(client, linear_id="", claim_id="c-blank", error_code="brief_refused")
+    assert response.status_code == 200 and response.json()["ok"] is True
+    [(query, patch)] = sb.patches
+    assert sb._matches(sb.open_rows[0], query) and patch["state"] == "failed"
