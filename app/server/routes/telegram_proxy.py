@@ -121,7 +121,7 @@ async def linear_create(body: LinearCreateBody) -> dict:
     if body.repo is not None:
         routing = telegram_linear.route_by_repo(gql, body.repo)
     else:
-        routing = _project_routing(body.project_id)
+        routing = telegram_linear.Routing.from_config(_project_routing(body.project_id))
     return telegram_linear.create_or_reuse(
         gql, routing=routing, title=body.title, description=body.description, priority=body.priority
     )
