@@ -72,37 +72,24 @@ async def test_kill_stops_the_model_before_the_retry_attempt_starts(
         await retry
 
 
-class SlowRest(FakeRest):
-    """Every store call blocks its thread for 200 ms, like a slow Supabase round trip."""
+class ThreadRecordingRest(FakeRest):
+    """Records the thread each store call runs on. A blocking call made on the event
+    loop's own thread stalls every request; the thread is the property, not the delay
+    (UNI-3549: a 0.1 s wall-clock limit failed at 0.107 s under machine load)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.threads: list[int] = []
 
     def __call__(self, method: str, path: str, data: dict[str, Any] | None = None) -> bytes:
-        time.sleep(0.2)
+        self.threads.append(threading.get_ident())
         return super().__call__(method, path, data)
-
-
-async def _worst_loop_delay(work: Any) -> float:
-    worst, stop = 0.0, asyncio.Event()
-
-    async def ticker() -> None:
-        nonlocal worst
-        last = time.monotonic()
-        while not stop.is_set():
-            await asyncio.sleep(0.01)
-            now = time.monotonic()
-            worst, last = max(worst, now - last - 0.01), now
-
-    tick = asyncio.create_task(ticker())
-    await asyncio.sleep(0.03)
-    await work()
-    stop.set()
-    await tick
-    return worst
 
 
 async def test_submit_and_worker_store_calls_do_not_block_the_event_loop(
         monkeypatch: pytest.MonkeyPatch, async_on: None, launched: list[str]) -> None:
-    slow = SlowRest()
-    monkeypatch.setattr(jobs, "_request", slow)
+    store = ThreadRecordingRest()
+    monkeypatch.setattr(jobs, "_request", store)
     monkeypatch.setattr(worker, "get_project", lambda pid: PROJECT)
     monkeypatch.setattr(goal_ticket_async, "get_project", lambda pid: PROJECT)
 
@@ -111,7 +98,10 @@ async def test_submit_and_worker_store_calls_do_not_block_the_event_loop(
         assert await worker.run_job(job["id"], complete_fn=Model(), heartbeat_s=1000) == "finished"
         await worker.recover_once()
 
-    assert await _worst_loop_delay(work) < 0.1  # seconds of store I/O ran, the loop barely moved
+    loop_thread = threading.get_ident()
+    await work()
+    assert store.threads, "the work made no store calls, so this test proves nothing"
+    assert loop_thread not in store.threads  # every store call ran off the event loop
 
 
 class Gate(Model):

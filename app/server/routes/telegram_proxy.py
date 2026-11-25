@@ -26,7 +26,7 @@ import urllib.request
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..auth import require_auth
 from .. import config, telegram_linear
@@ -102,10 +102,10 @@ def _project_routing(project_id: str | None) -> dict:
 
 # ── /linear/create ──────────────────────────────────────────────────────────
 class LinearCreateBody(BaseModel):
-    title: str
+    title: str = Field(pattern=r"\S")  # RA-8639: blank title is a 422, never an issue
     project_id: str | None = None
     description: str | None = None
-    priority: int = 2  # Linear: 0=none, 1=urgent, 2=high, 3=medium, 4=low
+    priority: int = Field(2, ge=0, le=4)  # Linear: 0=none, 1=urgent, 2=high, 3=medium, 4=low
     repo: str | None = None  # GitHub owner/name or bare name -> Pattern B routing
 
 
@@ -123,7 +123,7 @@ async def linear_create(body: LinearCreateBody) -> dict:
     else:
         routing = telegram_linear.Routing.from_config(_project_routing(body.project_id))
     return telegram_linear.create_or_reuse(
-        gql, routing=routing, title=body.title, description=body.description, priority=body.priority
+        gql, routing=routing, title=body.title.strip(), description=body.description, priority=body.priority
     )
 
 
