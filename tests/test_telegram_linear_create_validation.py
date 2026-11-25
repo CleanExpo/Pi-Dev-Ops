@@ -56,3 +56,25 @@ def test_valid_priority_reaches_linear(client_and_calls, priority: int) -> None:
     assert len(creates) == 1
     assert creates[0]["input"]["priority"] == priority
     assert creates[0]["input"]["title"] == "Real title"
+
+
+def test_linear_calls_run_off_the_event_loop(client_and_calls, monkeypatch) -> None:
+    """Every Linear call is a blocking urlopen. They must run in a worker thread,
+    never on the event loop, or one slow Linear reply stalls every other request."""
+    import asyncio
+
+    client, fake = client_and_calls
+    on_loop: list[bool] = []
+
+    def recording(query, variables=None):
+        try:
+            asyncio.get_running_loop()
+            on_loop.append(True)
+        except RuntimeError:
+            on_loop.append(False)
+        return fake(query, variables)
+
+    monkeypatch.setattr(telegram_proxy, "_linear_graphql", recording)
+    resp = client.post("/api/telegram/linear/create", json={"title": "Off loop"})
+    assert resp.status_code == 200
+    assert on_loop and not any(on_loop)

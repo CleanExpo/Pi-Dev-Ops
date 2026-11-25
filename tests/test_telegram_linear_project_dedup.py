@@ -9,7 +9,6 @@ the project filter returns the sibling issue, as real Linear would.
 """
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 import pytest
@@ -60,7 +59,7 @@ def _route(monkeypatch, routing: dict) -> ProjectAwareLinear:
 
 
 def _post() -> dict:
-    return asyncio.run(linear_create(LinearCreateBody(title=_TITLE)))
+    return linear_create(LinearCreateBody(title=_TITLE))
 
 
 def test_same_title_in_sibling_project_is_not_a_duplicate(monkeypatch):

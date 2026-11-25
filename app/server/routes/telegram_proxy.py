@@ -110,12 +110,16 @@ class LinearCreateBody(BaseModel):
 
 
 @router.post("/linear/create", dependencies=[Depends(require_auth)])
-async def linear_create(body: LinearCreateBody) -> dict:
+def linear_create(body: LinearCreateBody) -> dict:
     """Pi-Dev contract (RA-8632): open-title dedup, pi-dev:source label, run footer.
 
     Any `repo` (even blank) routes to the one Linear project of that name in one
     team, else 422; only an absent `repo` keeps the old routing. Lookup failures
     return 502 and file nothing.
+
+    Deliberately a plain `def`: the flow makes several blocking Linear calls and
+    holds a threading lock, so FastAPI must run it in its worker pool, never on
+    the event loop.
     """
     gql = _linear_graphql
     if body.repo is not None:

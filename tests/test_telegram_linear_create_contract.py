@@ -13,7 +13,6 @@ Routing and malformed-answer tests live in test_telegram_linear_create_parsing.p
 """
 from __future__ import annotations
 
-import asyncio
 import re
 import threading
 from datetime import datetime, timezone
@@ -120,7 +119,7 @@ def linear(monkeypatch) -> FakeLinear:
 
 
 def _post(**fields) -> dict:
-    return asyncio.run(linear_create(LinearCreateBody(**fields)))
+    return linear_create(LinearCreateBody(**fields))
 
 
 def _post_fails(status: int, **fields) -> HTTPException:
@@ -259,10 +258,8 @@ def test_label_read_failure_is_502_and_creates_no_label_or_issue(linear):
 def _race(linear: FakeLinear, titles: list[str]) -> list[dict]:
     """Send each title on its own thread at once; return results, fail on any error.
 
-    This exercises the in-process LOCK, not the event loop: each thread runs its
-    own `asyncio.run`. In production one worker runs the route on one event loop
-    and the blocking body never yields, so the lock guards against that changing
-    (a future await, or the route moving to a threadpool).
+    This exercises the in-process LOCK. In production the route is a plain `def`,
+    so FastAPI runs concurrent requests on its worker threads, as these do.
     """
     results: list[dict] = []
     errors: list[BaseException] = []
