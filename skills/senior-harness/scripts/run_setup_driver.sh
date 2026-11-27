@@ -17,7 +17,17 @@ elif is_compatible_python "$repo_python"; then
 elif command -v python3 >/dev/null 2>&1 && is_compatible_python "$(command -v python3)"; then
   selected_python=$(command -v python3)
 else
+  # Bare `python3` is often the OS's own interpreter (macOS: /usr/bin/python3 = 3.9)
+  # while newer releases are installed only under versioned names. Probe those,
+  # newest first, before failing closed. tests/test_senior_harness_launcher_python.py
+  # guards this branch.
   selected_python=
+  for candidate in python3.14 python3.13 python3.12 python3.11 python3.10; do
+    if command -v "$candidate" >/dev/null 2>&1 && is_compatible_python "$(command -v "$candidate")"; then
+      selected_python=$(command -v "$candidate")
+      break
+    fi
+  done
 fi
 
 reason="Senior Harness denied execution: Python 3.10 or newer is unavailable. Set SENIOR_HARNESS_PYTHON to a compatible interpreter."
