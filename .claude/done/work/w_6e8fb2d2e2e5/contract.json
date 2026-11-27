@@ -1,0 +1,40 @@
+{
+  "schema": "done/1",
+  "work_id": "w_6e8fb2d2e2e5",
+  "version": 1,
+  "supersedes": null,
+  "goal": "Installer refuses any skill slot a git checkout does not ignore; ownership of the three harness skills is recorded; guard tests pin it (RA-8663)",
+  "created_at_utc": "2026-11-27T20:53:16Z",
+  "identity_key": "ra-8663-senior-harness-skill-ownership@/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.git/worktrees/senior-harness-ownership",
+  "baseline_observed": {
+    "head": "9b5e9e79e6d8036ad8162d30c1f7c79f463471ea",
+    "branch": "ra-8663-senior-harness-skill-ownership",
+    "dirty_count": 0
+  },
+  "criteria": [
+    {
+      "id": "C1",
+      "text": "Installer tests, including the new guard against a git checkout owning a target slot, pass",
+      "recipe": "'/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.venv/bin/python' -m pytest -q tests/test_install_senior_harness.py tests/test_senior_harness_installer_rollback.py",
+      "timeout": 600
+    },
+    {
+      "id": "C2",
+      "text": "Vendored-scripts and skill-slice tests still pass",
+      "recipe": "'/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.venv/bin/python' -m pytest -q tests/test_senior_harness_vendored_scripts.py tests/test_senior_harness_skill_slice.py",
+      "timeout": 600
+    },
+    {
+      "id": "C3",
+      "text": "SKILL.md and the installer header both record that Pi-Dev-Ops owns senior-harness, model-router and unlazy",
+      "recipe": "grep -q 'Pi-Dev-Ops owns' skills/senior-harness/SKILL.md && grep -q 'Pi-Dev-Ops owns' skills/senior-harness/scripts/install_senior_harness.sh",
+      "timeout": 30
+    },
+    {
+      "id": "C4",
+      "text": "The branch changes exactly the installer, its SKILL.md, the installer tests and this work item's Done record, against the merge base with origin/main",
+      "recipe": "git diff --name-only origin/main...HEAD | LC_ALL=C sort | diff - .claude/done/work/w_6e8fb2d2e2e5/expected-files.txt",
+      "timeout": 30
+    }
+  ]
+}
