@@ -38,6 +38,15 @@ This aligns `senior-harness`, `model-router`, and `unlazy` under `~/.codex/skill
 `~/.claude/skills`, and `~/.agents/skills`. Codex and Claude have lifecycle-hook adapters; the
 Agents root is discovery-only unless its host separately proves a lifecycle adapter.
 
+Ownership: Pi-Dev-Ops owns `senior-harness`, `model-router`, and `unlazy` (decided 28/11/2026).
+The receipt binds the three folders as one control stack, so they live and change together here.
+No other repository may track copies of them in a skill root. The skills-library checkout at
+`~/.claude` must ignore `skills/senior-harness`, `skills/model-router`, and `skills/unlazy` (no
+trailing slash, because the slots are symlinks). The installer refuses, with exit `3`, any slot that
+an enclosing Git checkout tracks or does not ignore, because a later pull there could re-vendor,
+overwrite, or delete the link. Stray real copies outside a checkout are not removed for you: move
+them aside, then rerun the installer.
+
 Lifecycle hooks invoke `scripts/run_setup_driver.sh`. The runner prefers an explicit
 `SENIOR_HARNESS_PYTHON`, then the canonical checkout's `.venv`, and uses ambient `python3` only when
 it is version 3.10 or newer. If none is available, prompt submission and tool use fail closed.
