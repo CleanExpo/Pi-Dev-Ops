@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from _launcher_python_shims import write_python_shims
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SKILL_ROOT = REPO_ROOT / "skills"
@@ -91,10 +93,7 @@ def test_hook_runner_fails_closed_without_a_compatible_python(tmp_path: Path, ev
     runner = scripts / RUNNER.name
     runner.write_bytes(RUNNER.read_bytes())
     fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    python = fake_bin / "python3"
-    python.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-    python.chmod(0o755)
+    write_python_shims(fake_bin)
 
     result = subprocess.run(
         ["bash", str(runner), "hook", "--event", event],
@@ -112,10 +111,7 @@ def test_explicit_start_fails_when_python_is_unavailable(tmp_path: Path) -> None
     runner = scripts / RUNNER.name
     runner.write_bytes(RUNNER.read_bytes())
     fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    python = fake_bin / "python3"
-    python.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-    python.chmod(0o755)
+    write_python_shims(fake_bin)
     result = subprocess.run(
         ["bash", str(runner), "start", "objective"],
         env={"PATH": f"{fake_bin}:/usr/bin:/bin"}, capture_output=True, text=True,
@@ -130,10 +126,7 @@ def test_non_python_override_cannot_silently_bypass_a_hook(tmp_path: Path) -> No
     runner = scripts / RUNNER.name
     runner.write_bytes(RUNNER.read_bytes())
     fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
-    python = fake_bin / "python3"
-    python.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
-    python.chmod(0o755)
+    write_python_shims(fake_bin)
     result = subprocess.run(
         ["bash", str(runner), "hook", "--event", "PreToolUse"],
         env={
