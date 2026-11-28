@@ -4,6 +4,16 @@
 # The lifecycle hooks in .claude/settings.json and .codex/hooks.json execute the
 # $HOME-installed copy of setup_driver.py, not the checkout. Without this install
 # step those commands resolve to nothing and the harness never runs.
+#
+# Ownership (decided 28/11/2026): Pi-Dev-Ops owns senior-harness, model-router and
+# unlazy. The setup receipt binds all three folders as one control stack, and the
+# router it executes lives in this repository's app/server, so they are versioned
+# together here and nowhere else. Every other repository must leave these slots
+# alone. In particular the skills-library checkout at ~/.claude must ignore
+# skills/senior-harness, skills/model-router and skills/unlazy (no trailing slash:
+# the slots are symlinks) and must not track copies of them. Otherwise a pull there
+# can re-vendor, overwrite or delete what this installer links, so preflight
+# refuses any slot that an enclosing Git checkout tracks or does not ignore.
 set -euo pipefail
 
 DRY_RUN=0
@@ -57,11 +67,82 @@ if [[ $ENTRY_ONLY -eq 1 ]]; then
   exit 0
 fi
 
+# A slot inside a Git checkout belongs to that checkout unless the checkout
+# ignores it. Git is asked from the nearest existing ancestor, so a checkout whose
+# skills/ folder does not exist yet still counts. Fail closed: a tracked slot, an
+# unignored slot, or Git being unavailable each refuse. A slot outside every
+# checkout has no competing owner.
+#
+# Every ownership question is asked about the slot's own checkout and nothing else.
+# Two inputs used to redirect it (CodeRabbit, PR 1039): inherited Git location
+# variables (an exported GIT_DIR pointed every check at another repository), and a
+# symlinked folder above the slot (the .git walk climbed the symlink's parents, not
+# the real ones). So the variables are cleared for this script, and checkout_probe
+# resolves the probe to its physical folder before Git or the walk sees it.
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
+  GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_PREFIX GIT_NAMESPACE GIT_CEILING_DIRECTORIES \
+  GIT_DISCOVERY_ACROSS_FILESYSTEM
+
+checkout_probe() {
+  # The nearest existing ancestor of a slot, as a physical path. Fails closed.
+  local probe
+  probe="$(dirname -- "$1")"
+  while [[ ! -d "$probe" ]]; do probe="$(dirname -- "$probe")"; done
+  (cd -P -- "$probe" && pwd -P) || {
+    echo "ERROR: cannot resolve the folder above $1, so its ownership cannot be checked" >&2
+    exit 3
+  }
+}
+
+has_enclosing_git_marker() {
+  local dir="$1"
+  while :; do
+    [[ -e "$dir/.git" ]] && return 0
+    [[ "$dir" == "/" || -z "$dir" ]] && return 1
+    dir="$(dirname -- "$dir")"
+  done
+}
+
+refuse_checkout_owned_slot() {
+  local target_path="$1" skill="$2" nearest probe relative top status=0
+  nearest="$(dirname -- "$target_path")"
+  while [[ ! -d "$nearest" ]]; do nearest="$(dirname -- "$nearest")"; done
+  # Relative to the nearest existing folder, so a symlinked component above it
+  # (macOS /var) cannot make Git read the slot as outside the checkout.
+  relative="${target_path#"$nearest"/}"
+  probe="$(checkout_probe "$target_path")"
+  command -v git >/dev/null 2>&1 || {
+    echo "ERROR: git is unavailable, so ownership of $target_path cannot be checked" >&2
+    exit 3
+  }
+  top="$(git -C "$probe" rev-parse --show-toplevel 2>/dev/null)" || {
+    # A failing rev-parse means "outside every checkout" only when no .git sits
+    # above the slot. A .git that Git cannot inspect (dubious ownership, a broken
+    # repository) must refuse, or the tracked and ignored checks are skipped.
+    has_enclosing_git_marker "$probe" || return 0
+    echo "ERROR: git could not inspect the checkout that contains $target_path, so its ownership cannot be checked" >&2
+    echo "       (for example Git refuses a repository owned by another user without a safe.directory entry)." >&2
+    exit 3
+  }
+  if git -C "$probe" ls-files --error-unmatch -- "$relative" >/dev/null 2>&1; then
+    echo "ERROR: refusing to link $target_path: it is tracked by the git checkout at $top." >&2
+    echo "       Pi-Dev-Ops owns $skill; that checkout must stop tracking and ignore it." >&2
+    exit 3
+  fi
+  git -C "$probe" check-ignore -q -- "$relative" || status=$?
+  if [[ $status -ne 0 ]]; then
+    echo "ERROR: refusing to link $target_path: the git checkout at $top does not ignore it." >&2
+    echo "       A later sync there could vendor or remove the link; ignore the slot first." >&2
+    exit 3
+  fi
+}
+
 # Preflight every destination before changing any of them. A protected real
 # directory in the last slot must leave the earlier ones untouched too.
 for target_root in "${TARGET_ROOTS[@]}"; do
   for skill in "${SKILLS[@]}"; do
     target_path="$target_root/$skill"
+    refuse_checkout_owned_slot "$target_path" "$skill"
     if [[ ! -L "$target_path" && -e "$target_path" ]]; then
       echo "ERROR: refusing to replace real path: $target_path" >&2
       exit 3

@@ -1,0 +1,12 @@
+{
+  "schema": "done/1",
+  "work_id": "w_56f7b058385c",
+  "contract_digest": "bdfee0a373e833e74ca93b064e853e22233f8441fabc1077a9feae3d31e20c3c",
+  "baseline_head": "4c985a1d2094bd7e06c0c2e0fa59150a239181ed",
+  "identity_key": "ra-8663-senior-harness-ownership-v2@/Users/phillmcgurk/Pi-Dev-Ops - Mission Control/.git/worktrees/senior-harness-ownership-v2",
+  "locked_at_utc": "2026-11-28T04:44:00Z",
+  "criteria_count": 5,
+  "recipe_pins": {
+    "work/w_56f7b058385c/expected-files.txt": "88a8c9647f2d66ad098b3e61fccbdae6bc78784906160b26368f81f72b63375d"
+  }
+}
