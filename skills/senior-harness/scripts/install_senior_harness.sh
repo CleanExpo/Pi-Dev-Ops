@@ -72,6 +72,15 @@ fi
 # skills/ folder does not exist yet still counts. Fail closed: a tracked slot, an
 # unignored slot, or Git being unavailable each refuse. A slot outside every
 # checkout has no competing owner.
+has_enclosing_git_marker() {
+  local dir="$1"
+  while :; do
+    [[ -e "$dir/.git" ]] && return 0
+    [[ "$dir" == "/" || -z "$dir" ]] && return 1
+    dir="$(dirname -- "$dir")"
+  done
+}
+
 refuse_checkout_owned_slot() {
   local target_path="$1" skill="$2" probe relative top status=0
   probe="$(dirname -- "$target_path")"
@@ -83,7 +92,15 @@ refuse_checkout_owned_slot() {
     echo "ERROR: git is unavailable, so ownership of $target_path cannot be checked" >&2
     exit 3
   }
-  top="$(git -C "$probe" rev-parse --show-toplevel 2>/dev/null)" || return 0
+  top="$(git -C "$probe" rev-parse --show-toplevel 2>/dev/null)" || {
+    # A failing rev-parse means "outside every checkout" only when no .git sits
+    # above the slot. A .git that Git cannot inspect (dubious ownership, a broken
+    # repository) must refuse, or the tracked and ignored checks are skipped.
+    has_enclosing_git_marker "$probe" || return 0
+    echo "ERROR: git could not inspect the checkout that contains $target_path, so its ownership cannot be checked" >&2
+    echo "       (for example Git refuses a repository owned by another user without a safe.directory entry)." >&2
+    exit 3
+  }
   if git -C "$probe" ls-files --error-unmatch -- "$relative" >/dev/null 2>&1; then
     echo "ERROR: refusing to link $target_path: it is tracked by the git checkout at $top." >&2
     echo "       Pi-Dev-Ops owns $skill; that checkout must stop tracking and ignore it." >&2
