@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { readyToCreate, remainingHint } from "@/lib/control/goalBrief";
 import {
   BRIEF_NOT_CREATED_NOTE,
@@ -104,8 +104,12 @@ export default function GoalProjectPicker({ selectedId, disabled, onSelect, onCl
       .finally(() => setLoading(false));
   }
 
+  // Mount load runs once; the ref holds the newest closure so a re-render never refetches.
+  const loadAndSelectRef = useRef(loadAndSelect);
+  useEffect(() => { loadAndSelectRef.current = loadAndSelect; });
+
   useEffect(() => {
-    loadAndSelect();
+    loadAndSelectRef.current();
   }, []);
 
   async function hideSelected() {

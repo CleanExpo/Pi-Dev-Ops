@@ -1,6 +1,7 @@
 // app/error.tsx — Next.js App Router global error boundary
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 import { CSS } from "@/lib/brand-tokens";
 
@@ -51,13 +52,13 @@ export default function GlobalError({
           >
             RETRY
           </button>
-          <a
+          <Link
             href="/control"
             className="font-mono text-[10px] px-5 py-2 tracking-wider"
             style={{ background: "var(--panel-hover)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
           >
             ← CONTROL
-          </a>
+          </Link>
         </div>
       </div>
     </div>
