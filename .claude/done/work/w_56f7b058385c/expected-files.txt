@@ -1,0 +1,8 @@
+.claude/done/work/w_56f7b058385c/contract.json
+.claude/done/work/w_56f7b058385c/expected-files.txt
+.claude/done/work/w_56f7b058385c/lock.json
+agentskills.json
+agentskills.yaml
+skills/senior-harness/SKILL.md
+skills/senior-harness/scripts/install_senior_harness.sh
+tests/test_install_senior_harness.py
