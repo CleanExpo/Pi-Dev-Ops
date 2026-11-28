@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit does not review pull requests in this repository on its own.
+# Founder, 16/11/2026: "USE CODEX, and stop using CODERABBIT". Codex is the
+# reviewer (pr_release_gate.py publish writes the nexus/release-receipt status).
+#
+# Why this file exists: CodeRabbit was still installed and still reviewed every
+# PR once it left draft. main requires every review conversation to be resolved,
+# so on PR 1039 (28/11/2026) a CodeRabbit thread opened five minutes after Phill
+# marked the PR ready blocked the merge with every required check green.
+# Turning off automatic reviews stops those late threads. A person can still ask
+# for one with "@coderabbitai review". Guard test: tests/test_coderabbit_config.py.
+reviews:
+  auto_review:
+    enabled: false
