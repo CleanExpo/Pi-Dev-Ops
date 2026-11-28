@@ -74,3 +74,51 @@ def test_installer_still_links_slots_outside_every_checkout_when_rev_parse_fails
     )
 
     assert not _no_installed_slots(tmp_path)
+
+
+def test_installer_finds_the_physical_checkout_behind_a_symlinked_home(tmp_path: Path) -> None:
+    # CodeRabbit on PR 1039 (round 2): HOME can be a symlink into a checkout. The .git walk
+    # must climb the real folders, not the symlink's parents, or an uninspectable checkout
+    # behind it reads as "no checkout" and its slot is replaced.
+    library = tmp_path / "srv" / "library"
+    real_home = library / "home"
+    real_home.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(library)], check=True)
+    alias = tmp_path / "alias-home"
+    alias.symlink_to(real_home, target_is_directory=True)
+    fake_bin = tmp_path / "bin"
+    _git_refusing_rev_parse(fake_bin)
+
+    result = subprocess.run(
+        ["bash", str(INSTALLER)],
+        env=dict(os.environ, HOME=str(alias), PATH=f"{fake_bin}:{os.environ['PATH']}"),
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 3, result.stderr
+    assert "cannot be checked" in result.stderr
+    assert _no_installed_slots(real_home)
+
+
+def test_inherited_git_dir_cannot_point_the_ownership_check_at_another_repository(
+    tmp_path: Path,
+) -> None:
+    # CodeRabbit on PR 1039 (round 2): an exported GIT_DIR made every ownership question
+    # inspect another repository. The slot's own checkout tracks nothing and ignores nothing
+    # here, so it must refuse; the decoy repository ignores everything.
+    _skill_library_checkout(tmp_path)
+    decoy = tmp_path / "decoy"
+    subprocess.run(["git", "init", "-q", str(decoy)], check=True)
+    (decoy / ".gitignore").write_text("*\n", encoding="utf-8")
+
+    result = subprocess.run(
+        ["bash", str(INSTALLER)],
+        env=dict(os.environ, HOME=str(tmp_path), GIT_DIR=str(decoy / ".git"), GIT_WORK_TREE=str(decoy)),
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 3, result.stderr
+    assert "does not ignore it" in result.stderr
+    assert _no_installed_slots(tmp_path)

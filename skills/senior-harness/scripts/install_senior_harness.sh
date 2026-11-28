@@ -72,6 +72,28 @@ fi
 # skills/ folder does not exist yet still counts. Fail closed: a tracked slot, an
 # unignored slot, or Git being unavailable each refuse. A slot outside every
 # checkout has no competing owner.
+#
+# Every ownership question is asked about the slot's own checkout and nothing else.
+# Two inputs used to redirect it (CodeRabbit, PR 1039): inherited Git location
+# variables (an exported GIT_DIR pointed every check at another repository), and a
+# symlinked folder above the slot (the .git walk climbed the symlink's parents, not
+# the real ones). So the variables are cleared for this script, and checkout_probe
+# resolves the probe to its physical folder before Git or the walk sees it.
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY \
+  GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_PREFIX GIT_NAMESPACE GIT_CEILING_DIRECTORIES \
+  GIT_DISCOVERY_ACROSS_FILESYSTEM
+
+checkout_probe() {
+  # The nearest existing ancestor of a slot, as a physical path. Fails closed.
+  local probe
+  probe="$(dirname -- "$1")"
+  while [[ ! -d "$probe" ]]; do probe="$(dirname -- "$probe")"; done
+  (cd -P -- "$probe" && pwd -P) || {
+    echo "ERROR: cannot resolve the folder above $1, so its ownership cannot be checked" >&2
+    exit 3
+  }
+}
+
 has_enclosing_git_marker() {
   local dir="$1"
   while :; do
@@ -82,12 +104,13 @@ has_enclosing_git_marker() {
 }
 
 refuse_checkout_owned_slot() {
-  local target_path="$1" skill="$2" probe relative top status=0
-  probe="$(dirname -- "$target_path")"
-  while [[ ! -d "$probe" ]]; do probe="$(dirname -- "$probe")"; done
-  # Relative to the probe, so a symlinked component above it (macOS /var) cannot
-  # make Git read the slot as outside the checkout.
-  relative="${target_path#"$probe"/}"
+  local target_path="$1" skill="$2" nearest probe relative top status=0
+  nearest="$(dirname -- "$target_path")"
+  while [[ ! -d "$nearest" ]]; do nearest="$(dirname -- "$nearest")"; done
+  # Relative to the nearest existing folder, so a symlinked component above it
+  # (macOS /var) cannot make Git read the slot as outside the checkout.
+  relative="${target_path#"$nearest"/}"
+  probe="$(checkout_probe "$target_path")"
   command -v git >/dev/null 2>&1 || {
     echo "ERROR: git is unavailable, so ownership of $target_path cannot be checked" >&2
     exit 3
