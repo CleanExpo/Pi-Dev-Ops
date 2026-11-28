@@ -39,8 +39,10 @@ This aligns `senior-harness`, `model-router`, and `unlazy` under `~/.codex/skill
 Agents root is discovery-only unless its host separately proves a lifecycle adapter.
 
 Lifecycle hooks invoke `scripts/run_setup_driver.sh`. The runner prefers an explicit
-`SENIOR_HARNESS_PYTHON`, then the canonical checkout's `.venv`, and uses ambient `python3` only when
-it is version 3.10 or newer. If none is available, prompt submission and tool use fail closed.
+`SENIOR_HARNESS_PYTHON`, then the canonical checkout's `.venv`, then ambient `python3` when it is
+version 3.10 or newer, then the versioned names `python3.14` down to `python3.10` on PATH (macOS
+ships `python3` as 3.9, so a newer interpreter is often installed only under its versioned name).
+If none is available, prompt submission and tool use fail closed.
 
 Run the same driver explicitly from any Git project when hooks are unavailable or untrusted:
 
